@@ -12,6 +12,7 @@ import { maybeShowBackupNudge } from './crypto.js';
 import { maybeShowLegalConsentGate } from './legal-consent.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { maybeShowAnalyticsConsent } from './utils.js';
+import { getAppVersionRuntime } from './utils-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
@@ -91,7 +92,7 @@ export function renderStartupUI() {
 function populateFooterVersion() {
   // Populate footer version early (doesn't depend on dashboard render).
   const vTextEl = document.getElementById('app-version-text');
-  if (vTextEl) vTextEl.textContent = getStartupRuntimeValue('APP_VERSION') || '';
+  if (vTextEl) vTextEl.textContent = getAppVersionRuntime();
 }
 
 function scheduleDeferredSyncAndCatalogWarmup() {

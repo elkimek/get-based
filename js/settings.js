@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { refreshChartThemeColors } from './charts.js';
 import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
+import { getAppVersionRuntime } from './utils-runtime.js';
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
@@ -850,7 +851,7 @@ export function openSettingsModal(tab) {
         <button class="settings-link-btn" data-settings-action="open-changelog">What's New</button>
       </div>
 
-      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);opacity:0.6">v${escapeHTML(settingsWindow.APP_VERSION || '')} · <span id="settings-commit-hash">···</span></div>
+      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);opacity:0.6">v${escapeHTML(getAppVersionRuntime())} · <span id="settings-commit-hash">···</span></div>
     </div>
 
     <!-- AI Tab -->

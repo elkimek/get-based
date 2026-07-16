@@ -50,6 +50,10 @@ assert('changelog.js delegates APP_VERSION through utils runtime',
   changelogSrc.includes("from './utils-runtime.js'")
     && changelogSrc.includes('getAppVersionRuntime')
     && !changelogSrc.includes('window.APP_VERSION'));
+assert('Startup footer delegates APP_VERSION through utils runtime',
+  startupUiSrc.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
+    && startupUiSrc.includes('vTextEl.textContent = getAppVersionRuntime()')
+    && !startupUiSrc.includes("getStartupRuntimeValue('APP_VERSION')"));
 assert('changelog.js has CHANGELOG array', changelogSrc.includes('const CHANGELOG'));
 assert('changelog.js exports openChangelog', changelogSrc.includes('export function openChangelog'));
 assert('changelog.js exports closeChangelog', changelogSrc.includes('export function closeChangelog'));
