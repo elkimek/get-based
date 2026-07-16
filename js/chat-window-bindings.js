@@ -53,5 +53,4 @@ configureChatThreadDeps({
 
 Object.assign(window, {
   openChatPanel,
-  closeChatPanel,
 });

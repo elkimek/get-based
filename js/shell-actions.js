@@ -11,6 +11,7 @@ const shellImportDeps = { handleImportStatusClick, isImportRunning };
 const shellFeedbackDeps = { openFeedbackModal };
 const shellChatImageDeps = { toggleHDMode: () => {} };
 const shellChatActionDeps = {
+  closeChatPanel: () => {},
   clearChatHistory: () => {},
   handleChatKeydown: (_event) => {},
   sendChatMessage: () => {},
@@ -127,7 +128,7 @@ function runChatAction(action, actionEl) {
     shellChatActionDeps.toggleChatPanel();
     return true;
   } else if (action === 'close-panel') {
-    callShellRuntime('closeChatPanel');
+    shellChatActionDeps.closeChatPanel();
     return true;
   } else if (action === 'toggle-thread-rail') {
     shellChatThreadDeps.toggleThreadRail();

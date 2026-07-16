@@ -32,6 +32,16 @@ const CHAT_EMPTY_STOP_PROPAGATION_ACTIONS = new Set([
   'open-wearables-settings',
 ]);
 
+const chatEmptyStateDeps = {
+  closeChatPanel: () => {},
+};
+
+export function configureChatEmptyStateDeps(deps = {}) {
+  const previous = { ...chatEmptyStateDeps };
+  if (typeof deps.closeChatPanel === 'function') chatEmptyStateDeps.closeChatPanel = deps.closeChatPanel;
+  return previous;
+}
+
 /**
  * @param {any} event
  * @param {string} [selector]
@@ -58,7 +68,7 @@ function callChatEmptyRuntime(name, ...args) {
 }
 
 function closeChatPanel() {
-  callChatEmptyRuntime('closeChatPanel');
+  chatEmptyStateDeps.closeChatPanel();
 }
 
 function getChatProfileHeight(profileId) {

@@ -10,7 +10,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const [{ renderEmptyChatState }, { state }, { getProfileLocation }, contextCardsRuntime, settingsBridge] = await Promise.all([
+    const [chatEmptyState, { state }, { getProfileLocation }, contextCardsRuntime, settingsBridge] = await Promise.all([
       import('/js/chat-empty-state.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
@@ -26,9 +26,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       importedData: state.importedData,
       profilesStorage: localStorage.getItem('labcharts-profiles'),
     };
-    const savedFns = {
-      closeChatPanel: window.closeChatPanel,
-    };
     const savedInputClick = HTMLInputElement.prototype.click;
     const chatMessages = document.getElementById('chat-messages');
     const savedChatMessagesHTML = chatMessages?.innerHTML;
@@ -40,6 +37,9 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openSettingsModal: tab => calls.push(`open-settings:${tab}`),
     });
+    const previousChatEmptyStateDeps = chatEmptyState.configureChatEmptyStateDeps({
+      closeChatPanel: () => calls.push('close-chat'),
+    });
     const inputClicks = [];
     const container = document.createElement('div');
     const panel = document.createElement('div');
@@ -49,7 +49,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     try {
       if (chatMessages) chatMessages.innerHTML = '';
 
-      window.closeChatPanel = () => calls.push('close-chat');
       HTMLInputElement.prototype.click = function() {
         inputClicks.push(this === strayMtDnaInput ? 'stray' : panel.contains(this) ? 'scoped' : 'other');
       };
@@ -89,7 +88,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       panel.appendChild(container);
       panel.addEventListener('click', () => { bubbledClicks++; });
 
-      renderEmptyChatState(container, panel);
+      chatEmptyState.renderEmptyChatState(container, panel);
 
       const nameInput = container.querySelector('#chat-onboard-name');
       nameInput.value = 'Ada';
@@ -109,7 +108,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       countryInput.value = 'Germany';
       countryInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-      renderEmptyChatState(container, panel);
+      chatEmptyState.renderEmptyChatState(container, panel);
       const bubbledBeforeOptionalActions = bubbledClicks;
       container.querySelector('[data-chat-empty-action="open-cycle-editor"]')?.click();
       const cycleEditorOpenedThroughModule = document.getElementById('modal-overlay')?.classList.contains('show') === true
@@ -140,6 +139,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     } finally {
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
+      chatEmptyState.configureChatEmptyStateDeps(previousChatEmptyStateDeps);
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       state.profileSex = saved.profileSex;
@@ -147,7 +147,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       state.importedData = saved.importedData;
       if (saved.profilesStorage === null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', saved.profilesStorage);
-      Object.assign(window, savedFns);
       document.getElementById('modal-overlay')?.classList.remove('show');
       HTMLInputElement.prototype.click = savedInputClick;
       strayMtDnaInput.remove();

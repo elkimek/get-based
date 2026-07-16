@@ -463,7 +463,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       chatHistory: clone(state.chatHistory),
       demoLoadingProfileId: window._demoLoadingProfileId,
       openChatPanel: window.openChatPanel,
-      closeChatPanel: window.closeChatPanel,
       mainHtml: document.getElementById('main-content')?.innerHTML || '',
     };
     const calls = [];
@@ -486,8 +485,8 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       localStorage.setItem('labcharts-ai-paused', 'false');
 
       window.openChatPanel = () => calls.push(['open-chat']);
-      window.closeChatPanel = () => calls.push(['close-chat']);
       previousDashboardPageRuntimeDeps = dashboardPage.configureDashboardPageRuntimeDeps({
+        closeChatPanel: () => calls.push(['close-chat']),
         loadDemoData: sex => calls.push(['demo', sex]),
       });
 
@@ -568,10 +567,7 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
         dashboardPage.configureDashboardPageRuntimeDeps(previousDashboardPageRuntimeDeps);
       }
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      Object.assign(window, {
-        openChatPanel: saved.openChatPanel,
-        closeChatPanel: saved.closeChatPanel,
-      });
+      window.openChatPanel = saved.openChatPanel;
       document.body.classList.remove('empty-dashboard-active', 'chat-autostart-reserved');
       localStorage.clear();
       for (const [key, value] of storage) {

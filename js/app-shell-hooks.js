@@ -6,6 +6,7 @@ import { setAIPaused } from './api.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
+import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import {
   continueDiscussion,
   endDiscussion,
@@ -22,6 +23,7 @@ import {
 } from './chat-images.js';
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js';
+import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js';
 import {
   closeChatPanel,
   configureChatPanel,
@@ -122,6 +124,8 @@ configureRecommendationsRuntime({ openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });
 configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
+configureChatEmptyStateDeps({ closeChatPanel });
+configureDashboardPageRuntimeDeps({ closeChatPanel });
 
 function resumeAI() {
   setAIPaused(false);
@@ -158,6 +162,7 @@ configureCompareCorrelationViews({ askAIAboutCorrelations });
 configureContextCardsRuntimeCallbacks({ onContextCardSaved });
 configureMarkerDetailRuntime({ askAIAboutMarker });
 configureShellChatActionDeps({
+  closeChatPanel,
   clearChatHistory,
   handleChatKeydown,
   sendChatMessage,

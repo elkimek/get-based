@@ -111,8 +111,14 @@ assert('App shell wires Chat prompt consumers without window globals',
     && appShellHooksSrc.includes('configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });')
     && appShellHooksSrc.includes('configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });'));
 
+assert('App shell wires Chat close consumers without window globals',
+  appShellHooksSrc.includes("import { configureChatEmptyStateDeps } from './chat-empty-state.js'")
+    && appShellHooksSrc.includes("import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js'")
+    && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel });')
+    && appShellHooksSrc.includes('configureDashboardPageRuntimeDeps({ closeChatPanel });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
-  ['clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
+  ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',
     'toggleChatPanel', 'togglePersonalityBar']
     .every(name => shellSrc.includes(`shellChatActionDeps.${name}`)

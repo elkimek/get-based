@@ -230,6 +230,7 @@
   const sunModule = await import('../js/sun.js');
   const chatPersonalitiesModule = await import('../js/chat-personalities.js');
   const markdownModule = await import('../js/markdown.js');
+  const chatPanelModule = await import('../js/chat-panel.js');
   const formerUnusedChatGlobals = [
     'getChatStorageKey', 'getActivePersonality', 'getCustomPersonalities', 'saveCustomPersonalities',
     'getCustomPersonality', 'getCustomPersonalityText', 'pickPersonaIcon', 'generateCustomPersonality',
@@ -251,7 +252,7 @@
     'setChatPersonality', 'setChatWebSearchEnabled',
     'startDiscussion', 'summarizeThread', 'toggleChatFullscreen', 'togglePersonalityBar',
     'updateChatHeaderModel', 'updateChatNudge', 'updateDiscussButton', 'useChatPrompt',
-    'toggleChatPanel',
+    'toggleChatPanel', 'closeChatPanel',
   ];
   assert('Unused Chat APIs do not publish legacy window globals',
     formerUnusedChatGlobals.every(name => !(name in window)));
@@ -403,7 +404,7 @@
     'loadChatHistory','saveChatHistory','clearChatHistory','renderChatMessages',
     'useChatPrompt',
     'applyInlineMarkdown','renderMarkdown',
-    'openChatPanel','closeChatPanel',
+    'openChatPanel',
     'sendChatMessage','handleChatKeydown',
     'askAIAboutMarker','askAIAboutCorrelations'
   ];
@@ -1213,7 +1214,7 @@
   if (apiModule.hasAIProvider()) {
     window.openChatPanel();
     assert('Chat panel opens (with AI provider)', chatPanel?.classList.contains('open'));
-    window.closeChatPanel();
+    chatPanelModule.closeChatPanel();
     assert('Chat panel closes', !chatPanel?.classList.contains('open'));
   } else {
     // No AI provider — toggle manually to test CSS class mechanism

@@ -26,10 +26,14 @@ import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
 let _dashboardWelcomeActionsInstalled = false;
 
-const dashboardPageRuntimeDeps = { loadDemoData };
+const dashboardPageRuntimeDeps = {
+  closeChatPanel: () => {},
+  loadDemoData,
+};
 
 export function configureDashboardPageRuntimeDeps(deps = {}) {
   const previous = { ...dashboardPageRuntimeDeps };
+  if (typeof deps.closeChatPanel === 'function') dashboardPageRuntimeDeps.closeChatPanel = deps.closeChatPanel;
   if (typeof deps.loadDemoData === 'function') dashboardPageRuntimeDeps.loadDemoData = deps.loadDemoData;
   return previous;
 }
@@ -78,7 +82,7 @@ function handleDashboardWelcomeActionClick(event) {
   if (action === 'open-chat') {
     appWindow.openChatPanel?.();
   } else if (action === 'open-ai-settings') {
-    appWindow.closeChatPanel?.();
+    dashboardPageRuntimeDeps.closeChatPanel();
     getSettingsModuleFunction('openSettingsModal')?.('ai');
   } else if (action === 'direct-import') {
     document.getElementById('pdf-input')?.click();
