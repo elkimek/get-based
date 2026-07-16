@@ -250,7 +250,7 @@
     'renderChatMessages', 'sendChatMessage',
     'setChatPersonality', 'setChatWebSearchEnabled',
     'startDiscussion', 'summarizeThread', 'toggleChatFullscreen', 'togglePersonalityBar',
-    'updateChatHeaderModel', 'updateChatNudge', 'updateDiscussButton',
+    'updateChatHeaderModel', 'updateChatNudge', 'updateDiscussButton', 'useChatPrompt',
   ];
   assert('Unused Chat APIs do not publish legacy window globals',
     formerUnusedChatGlobals.every(name => !(name in window)));

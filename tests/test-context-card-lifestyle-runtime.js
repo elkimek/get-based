@@ -8,6 +8,7 @@ import './_node-shim.js';
 import {
   closeLifestyleContextModalAndNavigateRuntime,
   closeLifestyleContextModalRuntime,
+  configureContextCardLifestyleRuntimeDeps,
   discussDietContaminantsRuntime,
   markLifestyleContextDelegatesBoundRuntime,
   navigateLifestyleContextRuntime,
@@ -30,8 +31,6 @@ const runtimeKeys = [
   'window',
   'closeModal',
   'navigate',
-  'openChatPanel',
-  'useChatPrompt',
   'openContextModal',
   '__lifestyleContextDelegatesBound',
   'setTimeout',
@@ -63,11 +62,13 @@ try {
   const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
     openContextModal: () => calls.push(['context-modal']),
   });
+  const previousLifestyleRuntime = configureContextCardLifestyleRuntimeDeps({
+    openChatPanel: () => calls.push(['chat-panel']),
+    useChatPrompt: prompt => calls.push(['prompt', prompt]),
+  });
   setRuntimeValue('window', globalThis);
   setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('navigate', category => calls.push(['navigate', category]));
-  setRuntimeValue('openChatPanel', () => calls.push(['chat-panel']));
-  setRuntimeValue('useChatPrompt', prompt => calls.push(['prompt', prompt]));
   setRuntimeValue('openContextModal', () => calls.push(['legacy-context-modal']));
   delete globalThis.__lifestyleContextDelegatesBound;
   setRuntimeValue('setTimeout', (fn, delay) => {
@@ -105,6 +106,7 @@ try {
 
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureChatRuntimeCallbacks({ updateChatHeaderModel: null });
+  configureContextCardLifestyleRuntimeDeps({ openChatPanel: null, useChatPrompt: null });
   delete globalThis.window;
   const shellCallCount = calls.filter(call => call[0] !== 'timer').length;
   closeLifestyleContextModalRuntime();
@@ -126,6 +128,7 @@ try {
       swSrc.includes("'/js/context-card-lifestyle-runtime.js'"));
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
   configureChatRuntimeCallbacks(previousChatRuntime);
+  configureContextCardLifestyleRuntimeDeps(previousLifestyleRuntime);
 } finally {
   restoreRuntime();
 }

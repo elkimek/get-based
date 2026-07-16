@@ -5,6 +5,26 @@ import { openContextModalRuntime } from './context-cards-runtime.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
+const lifestyleRuntimeDeps = {
+  openChatPanel: /** @type {null | (() => unknown)} */ (null),
+  useChatPrompt: /** @type {null | ((prompt: string) => unknown)} */ (null),
+};
+
+export function configureContextCardLifestyleRuntimeDeps(deps = {}) {
+  const previous = { ...lifestyleRuntimeDeps };
+  if ('openChatPanel' in deps) {
+    lifestyleRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? /** @type {() => unknown} */ (deps.openChatPanel)
+      : null;
+  }
+  if ('useChatPrompt' in deps) {
+    lifestyleRuntimeDeps.useChatPrompt = typeof deps.useChatPrompt === 'function'
+      ? /** @type {(prompt: string) => unknown} */ (deps.useChatPrompt)
+      : null;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -62,9 +82,9 @@ export function openLightSetupFromLifestyleRuntime(reopenSunSetup) {
 
 export function discussDietContaminantsRuntime() {
   closeLifestyleContextModalRuntime();
-  getRuntimeFunction('openChatPanel')?.();
+  lifestyleRuntimeDeps.openChatPanel?.();
   setTimeout(() => {
-    getRuntimeFunction('useChatPrompt')?.('What food contaminants should I be concerned about based on my diet?');
+    lifestyleRuntimeDeps.useChatPrompt?.('What food contaminants should I be concerned about based on my diet?');
   }, 300);
 }
 
