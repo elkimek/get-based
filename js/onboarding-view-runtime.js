@@ -2,6 +2,7 @@
 // onboarding-view-runtime.js - Browser runtime adapters for dashboard onboarding hooks.
 
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { renderChatMessagesRuntime } from './chat-runtime.js';
 
 const onboardingViewRuntimeDeps = {
   createNewThread: /** @type {null | (() => void)} */ (null),
@@ -79,5 +80,5 @@ export function createOnboardingChatThreadRuntime() {
 }
 
 export function renderOnboardingChatMessagesRuntime() {
-  getRuntimeFunction('renderChatMessages')?.();
+  renderChatMessagesRuntime();
 }

@@ -231,13 +231,14 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
-    const [onboarding, { state }, profile, data, crypto, viewRuntime] = await Promise.all([
+    const [onboarding, { state }, profile, data, crypto, viewRuntime, chatRuntime] = await Promise.all([
       import(onboardingUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
       import('/js/data.js'),
       import('/js/crypto.js'),
       import('/js/views-runtime-bridge.js'),
+      import('/js/chat-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
@@ -264,13 +265,15 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       navigate: window.navigate,
       openChatPanel: window.openChatPanel,
       toggleChatPanel: window.toggleChatPanel,
-      renderChatMessages: window.renderChatMessages,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
     const outcomes = {};
     const calls = [];
     const previousViewRuntime = viewRuntime.configureViewRuntime({
       buildSidebar: payload => calls.push(['sidebar', !!payload]),
+    });
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      renderChatMessages: () => calls.push(['render-chat']),
     });
     const host = document.createElement('div');
     host.id = 'onboarding-coverage-host';
@@ -343,7 +346,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
 
       window.openChatPanel = () => calls.push(['open-chat']);
       window.toggleChatPanel = () => calls.push(['toggle-chat']);
-      window.renderChatMessages = () => calls.push(['render-chat']);
       sessionStorage.setItem(`chat-onboard-provider-branch-${state.currentProfile}`, 'manual');
       host.querySelector('.ai-reminder-cta')?.click();
       outcomes.providerQuizClearsSkipAndOpensChat =
@@ -419,10 +421,10 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       data.invalidateActiveDataCache();
       onboarding.configureOnboardingView({ navigate: saved.navigate });
       viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       Object.assign(window, {
         openChatPanel: saved.openChatPanel,
         toggleChatPanel: saved.toggleChatPanel,
-        renderChatMessages: saved.renderChatMessages,
       });
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       localStorage.clear();

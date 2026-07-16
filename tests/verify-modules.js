@@ -246,9 +246,10 @@
     'removeChatSupplement', 'setProviderQuizBranch', 'backToProviderQuiz', 'skipProviderSetup',
     'skipOnboardingExtras', 'showCycleNoMensesOptions', 'showCyclePeriodEntry', 'saveCycleStatus',
     '_updatePeriodBtn', 'onContextCardSaved', 'clearChatHistory', 'handleChatKeydown',
-    'refreshWebSearchToggle', 'sendChatMessage', 'setChatPersonality', 'setChatWebSearchEnabled',
+    'isChatStreaming', 'refreshWebSearchToggle', 'renderChatMessages', 'sendChatMessage',
+    'setChatPersonality', 'setChatWebSearchEnabled',
     'startDiscussion', 'summarizeThread', 'toggleChatFullscreen', 'togglePersonalityBar',
-    'updateChatHeaderModel', 'updateChatNudge',
+    'updateChatHeaderModel', 'updateChatNudge', 'updateDiscussButton',
   ];
   assert('Unused Chat APIs do not publish legacy window globals',
     formerUnusedChatGlobals.every(name => !(name in window)));

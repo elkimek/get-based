@@ -4,12 +4,15 @@
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-/** @type {Record<'refreshWebSearchToggle' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge', Function | null>} */
+/** @type {Record<'isChatStreaming' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
 const chatRuntimeCallbacks = {
+  isChatStreaming: null,
   refreshWebSearchToggle: null,
+  renderChatMessages: null,
   sendChatMessage: null,
   updateChatHeaderModel: null,
   updateChatNudge: null,
+  updateDiscussButton: null,
 };
 
 /** @param {Partial<Record<keyof typeof chatRuntimeCallbacks, Function | null>>} [callbacks] */
@@ -60,7 +63,7 @@ function getRuntimeValue(name) {
 }
 
 export function renderChatMessagesRuntime() {
-  getRuntimeFunction('renderChatMessages')?.();
+  callChatRuntimeCallback('renderChatMessages');
 }
 
 export function refreshChatWebSearchToggleRuntime() {
@@ -76,7 +79,7 @@ export function updateChatNudgeRuntime() {
 }
 
 export function updateDiscussButtonRuntime() {
-  getRuntimeFunction('updateDiscussButton')?.();
+  callChatRuntimeCallback('updateDiscussButton');
 }
 
 export function openChatContextModalRuntime() {
@@ -88,11 +91,11 @@ export function closeChatModalRuntime() {
 }
 
 export function isChatRuntimeStreaming() {
-  return Boolean(getRuntimeFunction('isChatStreaming')?.());
+  return Boolean(chatRuntimeCallbacks.isChatStreaming?.());
 }
 
 export function getChatRegenerateCallbacks() {
-  const renderChatMessages = getRuntimeFunction('renderChatMessages');
+  const renderChatMessages = chatRuntimeCallbacks.renderChatMessages;
   const sendChatMessage = chatRuntimeCallbacks.sendChatMessage;
   if (!renderChatMessages || !sendChatMessage) return null;
   return { renderChatMessages, sendChatMessage };

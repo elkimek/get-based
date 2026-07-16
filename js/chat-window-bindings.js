@@ -6,7 +6,7 @@ import { configureChatThreadDeps } from './chat-threads.js';
 import { renderChatMessages } from './chat-render.js';
 import { askAIAboutMarker } from './chat-marker-prompts.js';
 import {
-  createTypewriter, getChatAbortController, isChatStreaming, sendChatMessage,
+  createTypewriter, getChatAbortController, sendChatMessage,
   setChatAbortController,
   setSendButtonMode,
 } from './chat-send.js';
@@ -24,7 +24,6 @@ import {
 import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
   cleanupDiscussionState, configureChatDiscussion, restoreDiscussionContinuePrompt,
-  updateDiscussButton,
 } from './chat-discussion.js';
 import {
   configureChatOnboarding, useChatPrompt,
@@ -65,13 +64,10 @@ configureChatThreadDeps({
 
 Object.assign(window, {
   _resumeAI,
-  isChatStreaming,
   loadChatHistory,
-  renderChatMessages,
   useChatPrompt,
   toggleChatPanel,
   openChatPanel,
   closeChatPanel,
-  updateDiscussButton,
   askAIAboutMarker,
 });
