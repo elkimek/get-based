@@ -1,31 +1,33 @@
 #!/usr/bin/env node
 // test-dna-runtime.js — DNA runtime adapter behavior.
 
+import './_node-shim.js';
 import {
   cacheDnaSnpTable,
-  callDnaFileHandler,
   clearPendingDnaImport,
   configureDnaRuntimeDeps,
   confirmDnaDeleteDialog,
   clearPendingMtDnaImport,
   getDnaProfileLatitudeBand,
-  getDnaRuntimeState,
   getPendingMtDnaImport,
   getPendingDnaImport,
   isDnaLabImportRunning,
   logDnaDebugError,
   logDnaDebugWarn,
   navigateDnaRoute,
-  publishDnaWindowBindings,
   refreshDnaShell,
   refreshDnaSidebar,
-  saveDnaRuntimeAndRefresh,
   setPendingMtDnaImport,
   setPendingDnaImport,
   triggerDnaFilePicker,
   updateDnaChatNudge,
 } from '../js/dna-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import {
+  configureDnaModuleBridge,
+  getDnaModuleFunction,
+  getDnaModuleValue,
+} from '../js/dna-runtime-bridge.js';
 import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
@@ -44,14 +46,9 @@ function assert(name, condition, detail = '') {
 console.log('=== DNA Runtime Adapters ===');
 
 const runtimeKeys = [
-  '_buildGeneticsContext',
-  '_getRelevantSNPs',
-  '_getState',
   '_pendingDNAImport',
   '_pendingMtDNA',
-  '_saveAndRefresh',
   '_snpTableCache',
-  'handleDNAFile',
   'isDebugMode',
   'navigate',
   'showConfirmDialog',
@@ -64,6 +61,10 @@ const originalWarn = console.warn;
 const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
 const originalContextCardsRuntime = configureContextCardsRuntimeCallbacks();
 let previousViewRuntime = null;
+const previousDnaBridge = configureDnaModuleBridge({
+  handleDNAFile: null,
+  HAPLOGROUP_LIST: null,
+});
 
 try {
   for (const key of runtimeKeys) delete globalThis[key];
@@ -96,10 +97,14 @@ try {
   });
   assert('isDnaLabImportRunning fails closed on runtime errors', isDnaLabImportRunning() === true);
 
-  globalThis.handleDNAFile = file => calls.push(['handleDNAFile', file.name]);
-  callDnaFileHandler({ name: 'dna.txt' });
-  assert('callDnaFileHandler delegates file handling',
-    calls.some(call => call[0] === 'handleDNAFile' && call[1] === 'dna.txt'));
+  configureDnaModuleBridge({
+    handleDNAFile: file => calls.push(['handleDNAFile', file.name]),
+    HAPLOGROUP_LIST: ['H', 'J'],
+  });
+  getDnaModuleFunction('handleDNAFile')?.({ name: 'dna.txt' });
+  assert('DNA module bridge delegates file handling and values',
+    calls.some(call => call[0] === 'handleDNAFile' && call[1] === 'dna.txt') &&
+      getDnaModuleValue('HAPLOGROUP_LIST')?.includes('J'));
 
   globalThis.triggerDNAFilePicker = () => calls.push(['legacyTriggerDNAFilePicker']);
   configureContextCardsRuntimeCallbacks({
@@ -133,26 +138,6 @@ try {
   } });
   assert('confirmDnaDeleteDialog reports false on dialog errors',
     await confirmDnaDeleteDialog() === false);
-
-  const state = { importedData: { genetics: {} } };
-  globalThis._getState = () => state;
-  assert('getDnaRuntimeState delegates state lookup',
-    getDnaRuntimeState() === state);
-  delete globalThis._saveAndRefresh;
-  assert('saveDnaRuntimeAndRefresh reports false when hook is missing',
-    await saveDnaRuntimeAndRefresh() === false);
-  globalThis._saveAndRefresh = async () => calls.push(['saveAndRefresh']);
-  await saveDnaRuntimeAndRefresh();
-  assert('saveDnaRuntimeAndRefresh delegates persistence',
-    calls.some(call => call[0] === 'saveAndRefresh'));
-  globalThis._saveAndRefresh = async () => false;
-  assert('saveDnaRuntimeAndRefresh reports false when persistence fails',
-    await saveDnaRuntimeAndRefresh() === false);
-  globalThis._saveAndRefresh = async () => {
-    throw new Error('save failed');
-  };
-  assert('saveDnaRuntimeAndRefresh reports false when persistence throws',
-    await saveDnaRuntimeAndRefresh() === false);
 
   const table = { rs1801133: { gene: 'MTHFR' } };
   cacheDnaSnpTable(table);
@@ -190,18 +175,16 @@ try {
   assert('debug logs are emitted when debug mode is true',
     errorLogged && warnLogged);
 
-  publishDnaWindowBindings({
-    state,
-    saveImportedData: async () => true,
-    buildGeneticsContext: () => '',
-    getRelevantSNPs: () => [],
-    handleDNAFile: () => {},
-  });
-  assert('publishDnaWindowBindings installs legacy exports',
-    typeof globalThis.handleDNAFile === 'function' &&
-      globalThis._getState() === state &&
-      typeof globalThis._saveAndRefresh === 'function');
+  assert('DNA bridge does not publish legacy exports',
+    !('handleDNAFile' in globalThis) &&
+      !('_getState' in globalThis) &&
+      !('_saveAndRefresh' in globalThis));
 } finally {
+  configureDnaModuleBridge({
+    handleDNAFile: null,
+    HAPLOGROUP_LIST: null,
+    ...previousDnaBridge,
+  });
   configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   configureDnaRuntimeDeps(originalDnaRuntimeDeps);
   configureContextCardsRuntimeCallbacks(originalContextCardsRuntime);

@@ -670,11 +670,12 @@ test('marker detail modal covers default deps descriptions alt units and bio age
   await page.waitForSelector('#modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ modalUrl }) => {
-    const [modal, markerRuntime, recommendationRuntime, wearablesRuntime, { state }, data] = await Promise.all([
+    const [modal, markerRuntime, recommendationRuntime, wearablesRuntime, dnaBridge, { state }, data] = await Promise.all([
       import(modalUrl),
       import('/js/marker-detail-runtime.js'),
       import('/js/recommendations-runtime.js'),
       import('/js/wearables-runtime.js'),
+      import('/js/dna-runtime-bridge.js'),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
@@ -703,7 +704,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       'renameMarker',
       'revertMarkerName',
       'askAIAboutMarker',
-      '_getRelevantSNPs',
     ];
     const savedWindow = Object.fromEntries(windowKeys.map(key => [
       key,
@@ -721,6 +721,9 @@ test('marker detail modal covers default deps descriptions alt units and bio age
     });
     const restoreWearablesRuntime = wearablesRuntime.configureWearablesModuleBridge({
       _uninstallWearableModalFocusTrap: () => calls.push(['uninstall-focus']),
+    });
+    const restoreDnaBridge = dnaBridge.configureDnaModuleBridge({
+      getRelevantSNPs: () => [],
     });
 
     try {
@@ -765,7 +768,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       window.renameMarker = id => calls.push(['rename', id]);
       window.revertMarkerName = id => calls.push(['revert-name', id]);
       window.askAIAboutMarker = id => calls.push(['ask-ai', id]);
-      window._getRelevantSNPs = () => [];
 
       localStorage.setItem('labcharts-marker-desc', JSON.stringify({
         'coverage.cached': 'Cached marker description',
@@ -829,6 +831,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         else delete window[key];
       }
       markerRuntime.configureMarkerDetailRuntime(restoreMarkerRuntime);
+      dnaBridge.configureDnaModuleBridge({ getRelevantSNPs: null, ...restoreDnaBridge });
       recommendationRuntime.configureRecommendationModuleBridge({
         isProductRecsEnabled: null,
         renderRecommendationSection: null,

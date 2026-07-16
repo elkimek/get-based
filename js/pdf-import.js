@@ -62,19 +62,8 @@ import {
   openImportReviewFromSnapshot,
   setPdfImportBatchMode,
 } from './pdf-import-commit.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-
-/**
- * @typedef {{
- *   isDNAFile?: (file: File) => boolean,
- *   isDNAFileByContent?: (file: File) => Promise<boolean>,
- *   detectDNAFile?: (header: string) => string | null,
- *   handleMtDNAFile?: (file: File) => void | Promise<void>,
- *   handleDNAFile: (file: File) => void | Promise<void>,
- * }} PdfImportWindowHooks
- */
-
-const pdfImportWindow = /** @type {Window & typeof globalThis & PdfImportWindowHooks} */ (window);
 
 const pdfImportDeps = {
   importDataJSON,
@@ -344,8 +333,8 @@ export async function isPdfByMagic(file) {
 
 export async function classifyImportFiles(files) {
   return classifyImportFileBuckets(files, {
-    isDNAFile: pdfImportWindow.isDNAFile,
-    isDNAFileByContent: pdfImportWindow.isDNAFileByContent,
+    isDNAFile: getDnaModuleFunction('isDNAFile'),
+    isDNAFileByContent: getDnaModuleFunction('isDNAFileByContent'),
     isCycleImportFile,
   });
 }
@@ -374,10 +363,12 @@ export function setupDropZone() {
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {
         const header = await f.slice(0, 1500).text();
-        const fmt = pdfImportWindow.detectDNAFile ? pdfImportWindow.detectDNAFile(header) : null;
-        if ((fmt === 'mtdna' || fmt === '23andme-mito') && pdfImportWindow.handleMtDNAFile) await pdfImportWindow.handleMtDNAFile(f);
+        const fmt = getDnaModuleFunction('detectDNAFile')?.(header) || null;
+        const handleMtDNAFile = getDnaModuleFunction('handleMtDNAFile');
+        const handleDNAFile = getDnaModuleFunction('handleDNAFile');
+        if ((fmt === 'mtdna' || fmt === '23andme-mito') && handleMtDNAFile) await handleMtDNAFile(f);
         else if (fmt === '23andme-y') { showNotification('Y-chromosome DNA files are not supported', 'info'); }
-        else await pdfImportWindow.handleDNAFile(f);
+        else if (handleDNAFile) await handleDNAFile(f);
       }
     }
     if (textFiles.length > 0) { for (const f of textFiles) await handleTextFile(f); }

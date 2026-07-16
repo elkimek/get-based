@@ -19,6 +19,7 @@ import {
   toggleDashboardQuickMarkerPinRuntime,
   uninstallWearableModalFocusTrapRuntime,
 } from '../js/marker-detail-runtime.js';
+import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
@@ -40,11 +41,11 @@ const runtimeKeys = [
   'revertMarkerName',
   'askAIAboutMarker',
   'showEmojiPicker',
-  '_getRelevantSNPs',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 let previousViewRuntime = null;
 let previousWearablesModule = null;
+const previousDnaBridge = configureDnaModuleBridge({ getRelevantSNPs: null });
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -81,10 +82,10 @@ try {
     calls.push(['emoji', opts?.showReset ? 'reset' : 'plain']);
     callback(':test:');
   });
-  setRuntimeValue('_getRelevantSNPs', dotKey => {
+  configureDnaModuleBridge({ getRelevantSNPs: dotKey => {
     calls.push(['snps', dotKey]);
     return snps;
-  });
+  } });
   const previousRecommendationBridge = configureRecommendationModuleBridge({
     isProductRecsEnabled: () => true,
     renderRecommendationSection: async (markerKey, options) => {
@@ -130,7 +131,7 @@ try {
 
   configureViewRuntime({ buildSidebar: () => { throw new Error('boom'); } });
   setRuntimeValue('isDashboardQuickMarkerPinned', () => { throw new Error('boom'); });
-  setRuntimeValue('_getRelevantSNPs', () => { throw new Error('boom'); });
+  configureDnaModuleBridge({ getRelevantSNPs: () => { throw new Error('boom'); } });
   configureRecommendationModuleBridge({ isProductRecsEnabled: () => { throw new Error('boom'); } });
   buildMarkerDetailSidebarRuntime();
   assert('marker detail runtime safe fallbacks catch optional hook errors',
@@ -147,6 +148,7 @@ try {
   });
   configureViewRuntime({ buildSidebar: null });
   configureWearablesModuleBridge({ _uninstallWearableModalFocusTrap: null });
+  configureDnaModuleBridge({ getRelevantSNPs: null });
   const beforeMissingRuntimeCalls = calls.length;
   navigateMarkerDetailRuntime('dashboard');
   buildMarkerDetailSidebarRuntime();
@@ -168,6 +170,7 @@ try {
   configureMarkerDetailRuntime(restoreMarkerDetailRuntime);
   configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureDnaModuleBridge({ getRelevantSNPs: null, ...previousDnaBridge });
   configureWearablesModuleBridge({
     _uninstallWearableModalFocusTrap: null,
     ...previousWearablesModule,

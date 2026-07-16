@@ -5,6 +5,7 @@ import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js
 import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs, initDnaActionDelegates } from './dna-actions.js';
+import { configureDnaModuleBridge } from './dna-runtime-bridge.js';
 import { findGenotypeInfo as findGenotypeInfoImpl, findGenotypeMatch, findSnpHint as findSnpHintImpl, sortAlleles } from './dna-genotype.js';
 import {
   detectDNAFile,
@@ -14,11 +15,11 @@ import {
   parseDNAFileWithTable,
 } from './dna-parser.js';
 import {
-  cacheDnaSnpTable, callDnaFileHandler, clearPendingDnaImport,
-  confirmDnaDeleteDialog, getDnaRuntimeState, getPendingDnaImport,
+  cacheDnaSnpTable, clearPendingDnaImport,
+  confirmDnaDeleteDialog, getPendingDnaImport,
   isDnaLabImportRunning, logDnaDebugError, logDnaDebugWarn,
-  navigateDnaRoute, publishDnaWindowBindings, refreshDnaShell,
-  refreshDnaSidebar, saveDnaRuntimeAndRefresh, setPendingDnaImport,
+  navigateDnaRoute, refreshDnaShell,
+  refreshDnaSidebar, setPendingDnaImport,
   triggerDnaFilePicker, updateDnaChatNudge,
 } from './dna-runtime.js';
 import {
@@ -638,7 +639,7 @@ export function renderGeneticsSection() {
   return html;
 }
 
-function toggleGeneticsCollapse() {
+export function toggleGeneticsCollapse() {
   const body = document.querySelector('.genetics-body');
   const arrow = document.querySelector('.genetics-collapse-arrow');
   if (!body) return;
@@ -647,7 +648,7 @@ function toggleGeneticsCollapse() {
   localStorage.setItem('labcharts-genetics-collapsed', isHidden ? '1' : '0');
 }
 
-function toggleGeneticsExpand(btn) {
+export function toggleGeneticsExpand(btn) {
   const container = document.querySelector('.genetics-findings');
   if (!container) return;
   const isExpanded = container.classList.toggle('expanded');
@@ -655,13 +656,13 @@ function toggleGeneticsExpand(btn) {
   btn.textContent = isExpanded ? 'Show less' : btn.dataset.label;
 }
 
-function reimportDNA() {
+export function reimportDNA() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.txt,.csv';
   input.onchange = () => {
     const file = input.files?.[0];
-    if (file) callDnaFileHandler(file);
+    if (file) void handleDNAFile(file);
   };
   input.click();
 }
@@ -706,7 +707,7 @@ function openDnaModalOverlay(overlay, initialFocus) {
   openModalOverlay(overlay, { initialFocus, focusDelay: 30, scrollLock: true });
 }
 
-async function openManualSnpModal() {
+export async function openManualSnpModal() {
   await loadSNPTable();
   clearPendingDnaImport();
   const html = `<div class="dna-preview-header dna-manual-header">
@@ -757,7 +758,7 @@ export function parseManualSnpRows(singleRsid, singleGenotype, bulkText) {
   return rows;
 }
 
-async function saveManualSnpFromModal() {
+export async function saveManualSnpFromModal() {
   await loadSNPTable();
   const rsid = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-snp-rsid'))?.value || '';
   const genotype = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-snp-genotype'))?.value || '';
@@ -787,7 +788,7 @@ async function saveManualSnpFromModal() {
   navigateDnaRoute('genome');
 }
 
-async function importSnpReport() {
+export async function importSnpReport() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.pdf,.txt,.csv,.text';
@@ -799,7 +800,7 @@ async function importSnpReport() {
   input.click();
 }
 
-async function handleSnpReportFile(file) {
+export async function handleSnpReportFile(file) {
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
   _dnaImportRunning = true;
   try {
@@ -941,14 +942,14 @@ function showDNAImportPreview(result, fileName) {
   openDnaModalOverlay(overlay, '.import-btn-primary');
 }
 
-function closeDNAImportPreview() {
+export function closeDNAImportPreview() {
   clearPendingDnaImport();
   _dnaImportRunning = false;
   closeModalOverlay('dna-modal-overlay');
   if (_dnaModalEscapeBound) { document.removeEventListener('keydown', handleDnaModalEscape); _dnaModalEscapeBound = false; }
 }
 
-async function confirmDNAImport() {
+export async function confirmDNAImport() {
   const result = getPendingDnaImport();
   if (!result) return;
   const originalData = state.importedData;
@@ -1014,7 +1015,7 @@ async function confirmDNAImport() {
 // ═══════════════════════════════════════════════
 
 // Get SNPs relevant to a specific marker dotKey (e.g. "coagulation.homocysteine")
-function getRelevantSNPs(dotKey) {
+export function getRelevantSNPs(dotKey) {
   const genetics = state.importedData.genetics;
   if (!genetics || !genetics.snps || !_snpTable) return [];
   const results = [];
@@ -1050,24 +1051,23 @@ export {
 /// Custom confirm dialog so the destructive Delete on the genetics card
 /// matches the rest of the app's modal styling and respects PWA/file
 /// contexts where the native confirm prompt would feel out of place.
-async function confirmDeleteDNA() {
+export async function confirmDeleteDNA() {
   if (await confirmDnaDeleteDialog()) {
-    const runtimeState = getDnaRuntimeState();
-    const targetState = runtimeState || state;
-    const originalData = JSON.parse(JSON.stringify(targetState.importedData || {}));
-    deleteGeneticsData(targetState.importedData);
-    if (!await saveDnaRuntimeAndRefresh()) {
-      targetState.importedData = originalData;
+    const originalData = JSON.parse(JSON.stringify(state.importedData || {}));
+    deleteGeneticsData(state.importedData);
+    if (!await saveImportedData()) {
       state.importedData = originalData;
       showNotification('Could not save genetic data deletion. Try again after the app finishes loading.', 'error');
+      return;
     }
+    refreshDnaShell('dashboard');
   }
 }
 
 initDnaActionDelegates({ triggerDNAFilePicker: triggerDnaFilePicker, closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
 
-publishDnaWindowBindings({
-  state, saveImportedData, buildGeneticsContext, getRelevantSNPs,
+configureDnaModuleBridge({
+  buildGeneticsContext, getRelevantSNPs,
   isDNAFile, isDNAFileByContent, detectDNAFile, parseClinicalSnpReportText, parseManualSnpRows, upsertGeneticsSnp, handleDNAFile, handleSnpReportFile,
   importSnpReport, openManualSnpModal, saveManualSnpFromModal, closeDNAImportPreview, confirmDNAImport, confirmDeleteDNA, deleteGeneticsData,
   getSnpCategoryLabel, SNP_CATEGORY_LABELS, toggleGeneticsCollapse, toggleGeneticsExpand, reimportDNA,

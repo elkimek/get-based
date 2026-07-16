@@ -67,7 +67,6 @@ interface Window {
   clearE2EESession?: AnyFunction;
   cleanupDiscussionState?: AnyFunction;
   destroyAllCharts?: () => void;
-  detectDNAFile?: (header: string) => string | null;
   ensureActiveThread?: () => void;
   exportAllDataJSON?: () => Promise<void> | void;
   exportClientJSON?: (profileId: string, includeChat?: boolean) => Promise<void> | void;
@@ -79,7 +78,6 @@ interface Window {
   getProfileLocation?: AnyFunction;
   getOllamaConfig?: AnyFunction;
   getProfiles?: () => Array<{ id?: string; name?: string | null; sex?: string | null }>;
-  HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
   fetchAtmosphere?: AnyFunction;
   filterThreadList?: AnyFunction;
@@ -119,9 +117,7 @@ interface Window {
   vitaminDBudgetStatus?: AnyFunction;
   maybeAnalyzeDeviceSessionAfterFinish?: AnyFunction;
   _labState?: { currentProfile?: string | null };
-  handleDNAFile: (file: File) => Promise<void> | void;
   handleChatKeydown?: AnyFunction;
-  handleMtDNAFile?: (file: File) => Promise<void> | void;
   importDataJSON: (file: File) => Promise<void> | void;
   deleteImportSnapshot?: (snapshotId: string) => Promise<boolean> | boolean;
   isDebugMode?: () => boolean;
@@ -194,7 +190,6 @@ interface Window {
   restoreDiscussionContinuePrompt?: AnyFunction;
   scheduleChartThemeRefresh?: () => void;
   saveChatHistory?: AnyFunction;
-  setManualHaplogroup?: (haplogroup: string) => Promise<void> | void;
   setChatWebSearchEnabled?: AnyFunction;
   setOnboardingFocus?: AnyFunction;
   setProfileHeight?: AnyFunction;
@@ -216,7 +211,6 @@ interface Window {
   updateChatNudge: () => void;
   refreshWebSearchToggle?: AnyFunction;
   saveImportedData?: AnyFunction;
-  _getRelevantSNPs?: AnyFunction;
   deleteNote?: AnyFunction;
   detectWearableTrendSlots?: AnyFunction;
   loadContextCardTips?: AnyFunction;

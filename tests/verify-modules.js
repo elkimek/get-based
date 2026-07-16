@@ -131,7 +131,7 @@
     '/js/touch-tooltip-runtime.js',
     '/js/utils-runtime.js',
     '/js/schema.js',
-    '/js/dna-window-bindings.js',
+    '/js/dna-runtime-bridge.js',
     '/js/sync-diagnose-runtime.js',
     '/js/sync-pull-active-refresh-runtime.js',
   ];
@@ -191,7 +191,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, clientListModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, themeModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, clientListModule, contextCardsModule, cryptoModule, cycleModule, dataModule, dnaModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, themeModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -202,6 +202,7 @@
     import('../js/crypto.js'),
     import('../js/cycle.js'),
     import('../js/data.js'),
+    import('../js/dna.js'),
     import('../js/emf.js'),
     import('../js/emf-runtime.js'),
     import('../js/export.js'),
@@ -542,6 +543,22 @@
     'showImportPreviewAsync','syncImportStatusFab','handleImportStatusClick','isImportRunning'
   ];
 
+  // dna.js (32 former browser globals, now module-only)
+  const dnaFormerGlobals = [
+    'isDNAFile','isDNAFileByContent','detectDNAFile','parseClinicalSnpReportText',
+    'parseManualSnpRows','upsertGeneticsSnp','handleDNAFile','handleSnpReportFile',
+    'importSnpReport','openManualSnpModal','saveManualSnpFromModal','closeDNAImportPreview',
+    'confirmDNAImport','confirmDeleteDNA','deleteGeneticsData','getSnpCategoryLabel',
+    'SNP_CATEGORY_LABELS','toggleGeneticsCollapse','toggleGeneticsExpand','reimportDNA',
+    'handleMtDNAFile','closeMtDNAPreview','confirmMtDNAImport','deleteMtDNAData',
+    'detectMtDNAMismatch','ensureHaplogroupTable','setManualHaplogroup','HAPLOGROUP_LIST',
+    '_buildGeneticsContext','_getRelevantSNPs','_getState','_saveAndRefresh'
+  ];
+  const dnaModuleExports = [
+    ...dnaFormerGlobals.slice(0, 28),
+    'buildGeneticsContext','getRelevantSNPs',
+  ];
+
   // pii.js (7, module-only)
   const piiExports = [
     'obfuscatePDFText','sanitizeWithOllama','checkOllamaPII',
@@ -721,6 +738,7 @@
     ['crypto.js', cryptoModule, cryptoExports],
     ['cycle.js', cycleModule, cycleExports],
     ['data.js', dataModule, dataExports],
+    ['dna.js', dnaModule, dnaModuleExports],
     ['emf.js', emfModule, emfExports],
     ['emf-runtime.js', emfRuntimeModule, emfRuntimeExports],
     ['export.js', exportModule, exportExports],
@@ -766,6 +784,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cycleLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of dnaFormerGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of emfLegacyGlobals) {

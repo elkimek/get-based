@@ -55,19 +55,18 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, shell, profile, contextCardsRuntime, settingsBridge, views, nav] = await Promise.all([
+    const [{ state }, dataModule, shell, profile, contextCardsRuntime, dnaBridge, settingsBridge, views, nav] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/lens-page-shell.js'),
       import('/js/profile.js'),
       import('/js/context-cards-runtime.js'),
+      import('/js/dna-runtime-bridge.js'),
       import('/js/settings-runtime-bridge.js'),
       import('/js/views.js'),
       import('/js/nav.js'),
     ]);
     const originalView = state.currentView;
-    const originalReimportDNA = window.reimportDNA;
-    const originalConfirmDeleteDNA = window.confirmDeleteDNA;
     const originalOpenChat = window.openChatPanel;
     const originalNavigate = window.navigate;
     const profileId = profile.getActiveProfileId() || state.currentProfile || 'default';
@@ -80,6 +79,10 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     });
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openSettingsModal: pane => calls.push(['settings', pane]),
+    });
+    const previousDnaBridge = dnaBridge.configureDnaModuleBridge({
+      reimportDNA: () => calls.push(['reimport-dna']),
+      confirmDeleteDNA: () => calls.push(['delete-dna']),
     });
     const restoreShell = shell.configureLensPageShell({
       addDashboardWidgetFromLens: id => calls.push(['add', id]),
@@ -114,8 +117,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       dashboardToggle?.click();
       await delay(50);
 
-      window.reimportDNA = () => calls.push(['reimport-dna']);
-      window.confirmDeleteDNA = () => calls.push(['delete-dna']);
       window.openChatPanel = () => calls.push(['chat']);
       window.navigate = route => calls.push(['navigate', route]);
       const actionFixture = document.createElement('div');
@@ -156,9 +157,12 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       };
     } finally {
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+      dnaBridge.configureDnaModuleBridge({
+        reimportDNA: null,
+        confirmDeleteDNA: null,
+        ...previousDnaBridge,
+      });
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      window.reimportDNA = originalReimportDNA;
-      window.confirmDeleteDNA = originalConfirmDeleteDNA;
       window.openChatPanel = originalOpenChat;
       shell.configureLensPageShell(restoreShell);
       if (originalNavigate) window.navigate = originalNavigate;

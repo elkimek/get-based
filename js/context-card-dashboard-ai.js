@@ -4,6 +4,7 @@
 import { getFolderBackupState, pickFolderForBackup } from './backup.js';
 import { getEncryptionEnabled, showEnableEncryptionModal } from './crypto.js';
 import { getActiveData, saveImportedData } from './data.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import {
   isGeneticsPriorityInAIContext,
   isGeneticsSummaryInAIContext,
@@ -38,10 +39,6 @@ import {
 } from './context-card-dashboard-ai-actions.js';
 import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
 import { notifyDashboardAIContextStatusChanged } from './context-card-dashboard-ai-runtime.js';
-
-const appWindow = /** @type {Window & typeof globalThis & {
-  handleDNAFile?: (file: File) => void,
-}} */ (typeof window !== 'undefined' ? window : {});
 
 let dashboardAISyncSetupHandler = showSyncSetupModal;
 const dashboardAIDataProtectionDeps = { pickFolderForBackup, showEnableEncryptionModal };
@@ -105,9 +102,7 @@ export function triggerDNAFilePicker() {
     newInput.style.display = 'none';
     newInput.addEventListener('change', () => {
       const f = newInput.files && newInput.files[0];
-      if (f && typeof appWindow.handleDNAFile === 'function') {
-        appWindow.handleDNAFile(f);
-      }
+      if (f) getDnaModuleFunction('handleDNAFile')?.(f);
       newInput.value = '';
     });
     document.body.appendChild(newInput);

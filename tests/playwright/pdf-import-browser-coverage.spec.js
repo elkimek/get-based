@@ -154,11 +154,9 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
 
   const results = await page.evaluate(async ({ pdfImportUrl }) => {
     const pdfImport = await import(pdfImportUrl);
+    const dnaBridge = await import('/js/dna-runtime-bridge.js');
     const outcomes = {};
-    const originals = {
-      isDNAFile: window.isDNAFile,
-      isDNAFileByContent: window.isDNAFileByContent,
-    };
+    const previousDnaBridge = dnaBridge.configureDnaModuleBridge();
 
     try {
       const trailingJson = pdfImport.tryParseJSON('{"date":"2026-06-01"} extra model prose');
@@ -184,8 +182,10 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         && pdfImport.assessTextQuality(garbledText) === 'poor'
         && pdfImport.assessTextQuality(goodText) === 'good';
 
-      window.isDNAFile = file => file.name.endsWith('.dna');
-      window.isDNAFileByContent = async file => (await file.text()).includes('DNA RAW');
+      dnaBridge.configureDnaModuleBridge({
+        isDNAFile: file => file.name.endsWith('.dna'),
+        isDNAFileByContent: async file => (await file.text()).includes('DNA RAW'),
+      });
 
       const magicPdf = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], 'extensionless', {
         type: 'application/octet-stream',
@@ -218,8 +218,11 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
       outcomes.pdfMagicSniffChecksHeader = await pdfImport.isPdfByMagic(magicPdf) === true
         && await pdfImport.isPdfByMagic(new File(['NOPE'], 'not-pdf.bin')) === false;
     } finally {
-      window.isDNAFile = originals.isDNAFile;
-      window.isDNAFileByContent = originals.isDNAFileByContent;
+      dnaBridge.configureDnaModuleBridge({
+        isDNAFile: null,
+        isDNAFileByContent: null,
+        ...previousDnaBridge,
+      });
     }
 
     return outcomes;

@@ -276,6 +276,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
     const { state } = await import('/js/state.js');
     const clientList = await import('/js/client-list.js');
     const clientListRuntime = await import('/js/client-list-runtime.js');
+    const dnaBridge = await import('/js/dna-runtime-bridge.js');
     const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
@@ -300,8 +301,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       bodyOverflow: document.body.style.overflow,
       navigate: window.navigate,
-      HAPLOGROUP_LIST: window.HAPLOGROUP_LIST,
-      setManualHaplogroup: window.setManualHaplogroup,
       inputClick: HTMLInputElement.prototype.click,
       scrollIntoView: Element.prototype.scrollIntoView,
       modalOverlayClass: document.getElementById('modal-overlay')?.className,
@@ -309,6 +308,16 @@ test('client list form live actions cover health link avatar haplogroup and loca
     };
     const previousViewRuntime = viewRuntime.configureViewRuntime({
       renderProfileButton: () => calls.push(['render-profile-button']),
+    });
+    const previousDnaBridge = dnaBridge.configureDnaModuleBridge({
+      HAPLOGROUP_LIST: ['H', 'J', 'K'],
+      setManualHaplogroup: async haplogroup => {
+        calls.push(['haplogroup', haplogroup]);
+        state.importedData.genetics.mtdna = {
+          haplogroup,
+          coupling: { shortLabel: `Coupled ${haplogroup}` },
+        };
+      },
     });
 
     try {
@@ -339,14 +348,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
       window.navigate = route => calls.push(['navigate', route]);
-      window.HAPLOGROUP_LIST = ['H', 'J', 'K'];
-      window.setManualHaplogroup = async haplogroup => {
-        calls.push(['haplogroup', haplogroup]);
-        state.importedData.genetics.mtdna = {
-          haplogroup,
-          coupling: { shortLabel: `Coupled ${haplogroup}` },
-        };
-      };
       HTMLInputElement.prototype.click = function() {
         calls.push(['input-click', this.id || this.type || 'input']);
       };
@@ -414,10 +415,13 @@ test('client list form live actions cover health link avatar haplogroup and loca
         else localStorage.setItem(key, value);
       }
       viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
+      dnaBridge.configureDnaModuleBridge({
+        HAPLOGROUP_LIST: null,
+        setManualHaplogroup: null,
+        ...previousDnaBridge,
+      });
       clientListRuntime.configureClientListRuntimeDeps(previousClientListRuntimeDeps);
       window.navigate = saved.navigate;
-      window.HAPLOGROUP_LIST = saved.HAPLOGROUP_LIST;
-      window.setManualHaplogroup = saved.setManualHaplogroup;
       HTMLInputElement.prototype.click = saved.inputClick;
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       if (!saved.hadWearableStrip) document.getElementById('wearable-strip')?.remove();

@@ -1,7 +1,6 @@
 // @ts-check
 // dna-runtime.js - Browser runtime adapters for DNA import and shell refresh flows.
 
-import { installDNAWindowBindings } from './dna-window-bindings.js';
 import { isImportRunning } from './pdf-import-progress.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog } from './utils.js';
@@ -92,11 +91,6 @@ export function isDnaLabImportRunning() {
   }
 }
 
-/** @param {File} file */
-export function callDnaFileHandler(file) {
-  getRuntimeFunction('handleDNAFile')?.(file);
-}
-
 export function triggerDnaFilePicker() {
   triggerContextCardDNAFilePickerRuntime();
 }
@@ -120,26 +114,6 @@ export async function confirmDnaDeleteDialog() {
   if (!confirmDialog) return false;
   try {
     return await confirmDialog('Delete genetic data? This cannot be undone.') === true;
-  } catch {
-    return false;
-  }
-}
-
-/** @returns {{ importedData?: any } | null} */
-export function getDnaRuntimeState() {
-  try {
-    return getRuntimeFunction('_getState')?.() || null;
-  } catch {
-    return null;
-  }
-}
-
-/** @returns {Promise<boolean>} */
-export async function saveDnaRuntimeAndRefresh() {
-  const saveAndRefresh = getRuntimeFunction('_saveAndRefresh');
-  if (!saveAndRefresh) return false;
-  try {
-    return await saveAndRefresh() !== false;
   } catch {
     return false;
   }
@@ -171,9 +145,4 @@ export function getPendingMtDnaImport() {
 
 export function clearPendingMtDnaImport() {
   getRuntimeWindow()._pendingMtDNA = null;
-}
-
-/** @param {Record<string, any>} bindings */
-export function publishDnaWindowBindings(bindings) {
-  installDNAWindowBindings(getRuntimeWindow(), bindings);
 }

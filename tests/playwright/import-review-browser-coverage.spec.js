@@ -13,6 +13,7 @@ test('import file input and drop zone route browser file types and busy states',
     const fileInput = await import(fileInputUrl);
     const dropZoneModule = await import(dropZoneUrl);
     const dropZoneRuntime = await import('/js/import-drop-zone-runtime.js');
+    const dnaBridge = await import('/js/dna-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
     let importRunning = false;
@@ -21,12 +22,7 @@ test('import file input and drop zone route browser file types and busy states',
       isImportRunning: () => importRunning,
       showNotification: (message, type) => { calls.push(['notify', type, message]); },
     });
-    const originals = {
-      isDNAFileByContent: window.isDNAFileByContent,
-      detectDNAFile: window.detectDNAFile,
-      handleMtDNAFile: window.handleMtDNAFile,
-      handleDNAFile: window.handleDNAFile,
-    };
+    const previousDnaBridge = dnaBridge.configureDnaModuleBridge();
     const input = document.getElementById('pdf-input');
     const originalDropZone = document.getElementById('drop-zone');
     const dropZone = originalDropZone.cloneNode(true);
@@ -54,10 +50,12 @@ test('import file input and drop zone route browser file types and busy states',
     };
 
     try {
-      window.isDNAFileByContent = async file => (await file.text()).includes('MTDNA');
-      window.detectDNAFile = header => header.includes('MTDNA') ? 'mtdna' : 'autosomal';
-      window.handleMtDNAFile = async file => { calls.push(['mtdna', file.name]); };
-      window.handleDNAFile = async file => { calls.push(['dna', file.name]); };
+      dnaBridge.configureDnaModuleBridge({
+        isDNAFileByContent: async file => (await file.text()).includes('MTDNA'),
+        detectDNAFile: header => header.includes('MTDNA') ? 'mtdna' : 'autosomal',
+        handleMtDNAFile: async file => { calls.push(['mtdna', file.name]); },
+        handleDNAFile: async file => { calls.push(['dna', file.name]); },
+      });
 
       importRunning = true;
       setInputFiles(new File(['{"ok":true}'], 'busy.json', { type: 'application/json' }));
@@ -109,7 +107,13 @@ test('import file input and drop zone route browser file types and busy states',
     } finally {
       if (originalClick) input.click = originalClick;
       dropZoneRuntime.configureImportDropZoneRuntimeDeps(previousDropZoneRuntimeDeps);
-      Object.assign(window, originals);
+      dnaBridge.configureDnaModuleBridge({
+        isDNAFileByContent: null,
+        detectDNAFile: null,
+        handleMtDNAFile: null,
+        handleDNAFile: null,
+        ...previousDnaBridge,
+      });
       if (dropZone.isConnected) dropZone.replaceWith(originalDropZone);
     }
 

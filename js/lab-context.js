@@ -6,6 +6,7 @@ import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
 import { getStatus, hasCardContent, hashString, isDebugMode } from './utils.js';
 import { formatTime } from './theme.js';
 import { getActiveData } from './data.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfileHeight, getProfileLocation, getLatitudeFromLocation } from './profile.js';
 import { getBloodDrawPhases, getNextBestDrawDate, detectPerimenopausePattern, detectCycleIronAlerts } from './cycle.js';
@@ -35,7 +36,6 @@ import {
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean }} LabContextOptions
  * @typedef {{
- *   _buildGeneticsContext?: (genetics: unknown, activeMarkerKeys: string[], options?: { includeGenomeSummary?: boolean, includePriorityFindings?: boolean, includeSnpInventory?: boolean }) => string,
  *   isGeneticsInventoryInAIContext?: () => boolean,
  *   isLightSunContextEnabled?: () => boolean,
  * }} LabContextWindowHooks
@@ -669,8 +669,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const activeMarkerKeys = hasLabData ? Object.entries(data.categories).flatMap(([catKey, cat]) =>
       Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null)).map(([key]) => `${catKey}.${key}`)
     ) : [];
-    const geneticsCtx = labContextWindow._buildGeneticsContext
-      ? labContextWindow._buildGeneticsContext(genetics, activeMarkerKeys, {
+    const buildGeneticsContext = getDnaModuleFunction('buildGeneticsContext');
+    const geneticsCtx = buildGeneticsContext
+      ? buildGeneticsContext(genetics, activeMarkerKeys, {
         includeGenomeSummary: includeGeneticsSummary,
         includePriorityFindings: includeGeneticsPriority,
         includeSnpInventory,

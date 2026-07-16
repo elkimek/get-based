@@ -11,6 +11,7 @@ import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
@@ -48,7 +49,9 @@ function chatEmptyRuntime() {
 }
 
 function callChatEmptyRuntime(name, ...args) {
-  const fn = getSettingsModuleFunction(name) || chatEmptyRuntime()[name];
+  const fn = getSettingsModuleFunction(name)
+    || getDnaModuleFunction(name)
+    || chatEmptyRuntime()[name];
   const runtimeFn = typeof fn === 'function' ? fn : getViewRuntimeFunction(name);
   return runtimeFn ? runtimeFn(...args) : undefined;
 }
