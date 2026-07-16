@@ -2,6 +2,7 @@
 // app-shell-hooks.js - wire app shell actions without window lookups.
 
 import { configureAppEventListeners } from './app-event-listeners.js';
+import { setAIPaused } from './api.js';
 import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import {
@@ -26,9 +27,10 @@ import {
   setChatWebSearchEnabled,
   toggleChatFullscreen,
   toggleChatPanel,
+  updateChatInputState,
 } from './chat-panel.js';
-import { clearChatHistory } from './chat-history.js';
-import { askAIAboutCorrelations } from './chat-marker-prompts.js';
+import { clearChatHistory, loadChatHistory } from './chat-history.js';
+import { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
 import { onContextCardSaved } from './chat-onboarding.js';
 import { updateChatNudge } from './chat-nudge.js';
 import {
@@ -67,6 +69,7 @@ import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } fro
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { closeModal } from './marker-detail-modal.js';
+import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { closeMobileSidebar, configureNavActions } from './nav.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
 import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime } from './settings.js';
@@ -115,11 +118,18 @@ configureNavActions({ openClientList });
 configureRecommendationsRuntime({ openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 
+function resumeAI() {
+  setAIPaused(false);
+  renderChatMessages();
+  updateChatInputState();
+}
+
 configureChatPanel({ refreshMobileDashboardActiveTab });
 configureChatRuntimeCallbacks({
   isChatStreaming,
   refreshWebSearchToggle,
   renderChatMessages,
+  resumeAI,
   sendChatMessage,
   updateDiscussButton,
   updateChatHeaderModel,
@@ -141,6 +151,7 @@ configureChatMessageActionDeps({
 });
 configureCompareCorrelationViews({ askAIAboutCorrelations });
 configureContextCardsRuntimeCallbacks({ onContextCardSaved });
+configureMarkerDetailRuntime({ askAIAboutMarker });
 configureShellChatActionDeps({
   clearChatHistory,
   handleChatKeydown,
@@ -156,7 +167,7 @@ configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });
 configureOnboardingViewRuntimeDeps({ createNewThread });
-configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatThreads, renderThreadList });
+configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });
 configureDashboardAIContextStatus(updateChatContextStatus);
 
 configureAppEventListeners({

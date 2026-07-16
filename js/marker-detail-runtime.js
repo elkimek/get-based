@@ -8,11 +8,17 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getWearablesModuleFunction } from './wearables-runtime.js';
 
 const markerDetailRuntimeDeps = {
+  askAIAboutMarker: /** @type {null | ((id?: string) => void)} */ (null),
   closeEMFInterpretation,
 };
 
 export function configureMarkerDetailRuntime(deps = {}) {
   const previous = { ...markerDetailRuntimeDeps };
+  if ('askAIAboutMarker' in deps) {
+    markerDetailRuntimeDeps.askAIAboutMarker = typeof deps.askAIAboutMarker === 'function'
+      ? /** @type {(id?: string) => void} */ (deps.askAIAboutMarker)
+      : null;
+  }
   if (typeof deps.closeEMFInterpretation === 'function') {
     markerDetailRuntimeDeps.closeEMFInterpretation = deps.closeEMFInterpretation;
   }
@@ -81,7 +87,7 @@ export function revertMarkerNameRuntime(id) {
 
 /** @param {string | undefined} id */
 export function askAIAboutMarkerRuntime(id) {
-  getRuntimeFunction('askAIAboutMarker')?.(id);
+  markerDetailRuntimeDeps.askAIAboutMarker?.(id);
 }
 
 /**

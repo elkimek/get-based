@@ -382,11 +382,13 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       { state },
       data,
       chatOnboarding,
+      chatRuntime,
     ] = await Promise.all([
       import('/js/chat-empty-state.js'),
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/chat-onboarding.js'),
+      import('/js/chat-runtime.js'),
     ]);
 
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -408,7 +410,6 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       return [key, sessionStorage.getItem(key)];
     }));
     const savedFns = {
-      resumeAI: window._resumeAI,
       openChatProviderQuiz: window.openChatProviderQuiz,
       setOnboardingFocus: window.setOnboardingFocus,
       showNotification: window.showNotification,
@@ -417,6 +418,9 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
     };
     const outcomes = {};
     const calls = [];
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      resumeAI: () => calls.push(['resume-ai']),
+    });
     const container = document.createElement('div');
     const panel = document.createElement('div');
     const existingChatInput = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('chat-input'));
@@ -528,7 +532,6 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       } else {
         pdfInput.value = '';
       }
-      window._resumeAI = () => calls.push(['resume-ai']);
       window.openChatProviderQuiz = () => calls.push(['provider-quiz']);
       window.setOnboardingFocus = focus => calls.push(['focus', focus]);
       window.showNotification = (message, tone) => calls.push(['notification', message, tone]);
@@ -718,8 +721,8 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       for (const [key, value] of sessionSnapshot) {
         if (key && value != null) sessionStorage.setItem(key, value);
       }
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       Object.assign(window, {
-        _resumeAI: savedFns.resumeAI,
         openChatProviderQuiz: savedFns.openChatProviderQuiz,
         setOnboardingFocus: savedFns.setOnboardingFocus,
         showNotification: savedFns.showNotification,

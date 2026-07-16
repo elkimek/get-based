@@ -1582,7 +1582,7 @@ await import('../js/settings.js');
       && syncPullActiveRefreshRuntimeSrc.includes("if (threadsLoaded === false)")
       && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.ensureActiveThread()')
       && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.renderThreadList()')
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatHistory')?.()"));
+      && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.loadChatHistory()'));
   {
     const prevProfileId = state.currentProfile;
     const profileId = 'syncapplydel';

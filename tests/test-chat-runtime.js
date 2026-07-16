@@ -11,6 +11,7 @@ import {
   openChatContextModalRuntime,
   refreshChatWebSearchToggleRuntime,
   renderChatMessagesRuntime,
+  resumeChatAIRuntime,
   updateChatHeaderModelRuntime,
   updateChatNudgeRuntime,
   updateDiscussButtonRuntime,
@@ -72,6 +73,7 @@ try {
     isChatStreaming: () => false,
     refreshWebSearchToggle: () => calls.push(['web-search']),
     renderChatMessages: () => calls.push(['render']),
+    resumeAI: () => calls.push(['resume']),
     sendChatMessage: () => calls.push(['send']),
     updateChatHeaderModel: () => calls.push(['header-model']),
     updateChatNudge: () => calls.push(['nudge']),
@@ -92,6 +94,7 @@ try {
   openChatContextModalRuntime();
   closeChatModalRuntime();
   refreshChatWebSearchToggleRuntime();
+  resumeChatAIRuntime();
   updateChatHeaderModelRuntime();
   updateChatNudgeRuntime();
   assert('chat runtime invokes render/discuss/context/close callbacks',
@@ -101,6 +104,7 @@ try {
       calls.some(call => call[0] === 'close'));
   assert('chat runtime invokes configured refresh callbacks',
     calls.some(call => call[0] === 'web-search') &&
+      calls.some(call => call[0] === 'resume') &&
       calls.some(call => call[0] === 'header-model') &&
       calls.some(call => call[0] === 'nudge'));
 
@@ -133,6 +137,7 @@ try {
     isChatStreaming: null,
     refreshWebSearchToggle: null,
     renderChatMessages: null,
+    resumeAI: null,
     sendChatMessage: null,
     updateChatHeaderModel: null,
     updateChatNudge: null,
