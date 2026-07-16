@@ -2,12 +2,25 @@
 // views-router-runtime.js - Browser runtime adapters for routing scroll/window hooks.
 
 import { syncImportStatusFab } from './pdf-import-progress.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const viewsRouterRuntimeDeps = { syncImportStatusFab };
+const viewsRouterRuntimeDeps = {
+  closeMobileSidebar: /** @type {null | (() => void)} */ (null),
+  navigate: /** @type {null | ((view: string) => void)} */ (null),
+  syncImportStatusFab,
+};
 
 export function configureViewsRouterRuntimeDeps(deps = {}) {
   const previous = { ...viewsRouterRuntimeDeps };
+  if ('closeMobileSidebar' in deps) {
+    viewsRouterRuntimeDeps.closeMobileSidebar = typeof deps.closeMobileSidebar === 'function'
+      ? /** @type {() => void} */ (deps.closeMobileSidebar)
+      : null;
+  }
+  if ('navigate' in deps) {
+    viewsRouterRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(view: string) => void} */ (deps.navigate)
+      : null;
+  }
   if (typeof deps.syncImportStatusFab === 'function') viewsRouterRuntimeDeps.syncImportStatusFab = deps.syncImportStatusFab;
   return previous;
 }
@@ -26,8 +39,7 @@ function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
   if (!runtime) return null;
   const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' ? getViewRuntimeFunction(name) : null;
+  return typeof fn === 'function' ? fn.bind(runtime) : null;
 }
 
 export function getViewportScrollPosition() {
@@ -40,7 +52,7 @@ export function getViewportScrollPosition() {
 }
 
 export function closeMobileSidebarFromRuntime() {
-  getViewRuntimeFunction('closeMobileSidebar')?.();
+  viewsRouterRuntimeDeps.closeMobileSidebar?.();
 }
 
 export function syncImportStatusFabFromRuntime() {
@@ -50,7 +62,7 @@ export function syncImportStatusFabFromRuntime() {
 
 /** @param {string} view */
 export function navigateViewportRuntime(view) {
-  getRuntimeFunction('navigate')?.(view);
+  viewsRouterRuntimeDeps.navigate?.(view);
 }
 
 /** @param {() => void} cancel */

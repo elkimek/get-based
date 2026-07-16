@@ -90,6 +90,7 @@ import {
   resetDashboardWidgets,
   toggleDashboardOrganizeMode,
 } from './views.js';
+import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share.js';
 import { getActiveProfileId } from './profile.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
@@ -131,6 +132,7 @@ configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
 configureDnaRuntimeDeps({ buildSidebar, navigate });
 configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
+configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });
