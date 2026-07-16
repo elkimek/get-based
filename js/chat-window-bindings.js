@@ -16,7 +16,7 @@ import {
   loadChatHistory, saveChatHistory,
 } from './chat-history.js';
 import {
-  closeChatPanel, configureChatPanel, toggleChatPanel, openChatPanel,
+  closeChatPanel, configureChatPanel, openChatPanel,
 } from './chat-panel.js';
 import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
@@ -52,7 +52,6 @@ configureChatThreadDeps({
 });
 
 Object.assign(window, {
-  toggleChatPanel,
   openChatPanel,
   closeChatPanel,
 });

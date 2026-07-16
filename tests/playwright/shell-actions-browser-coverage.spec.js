@@ -41,6 +41,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       setChatWebSearchEnabled: enabled => calls.push(['setChatWebSearchEnabled', enabled]),
       startDiscussion: () => calls.push(['startDiscussion']),
       summarizeThread: () => calls.push(['summarizeThread']),
+      toggleChatPanel: () => calls.push(['toggleChatPanel']),
       toggleChatFullscreen: () => calls.push(['toggleChatFullscreen']),
       togglePersonalityBar: () => calls.push(['togglePersonalityBar']),
     });
@@ -55,7 +56,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     });
     const originalFns = {
       openProfileShareModal: window.openProfileShareModal,
-      toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
     };
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({

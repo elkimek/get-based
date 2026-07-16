@@ -264,7 +264,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       profileDob: state.profileDob,
       navigate: window.navigate,
       openChatPanel: window.openChatPanel,
-      toggleChatPanel: window.toggleChatPanel,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
     const outcomes = {};
@@ -345,7 +344,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
         && !host.innerHTML.includes('onclick=');
 
       window.openChatPanel = () => calls.push(['open-chat']);
-      window.toggleChatPanel = () => calls.push(['toggle-chat']);
       sessionStorage.setItem(`chat-onboard-provider-branch-${state.currentProfile}`, 'manual');
       host.querySelector('.ai-reminder-cta')?.click();
       outcomes.providerQuizClearsSkipAndOpensChat =
@@ -422,10 +420,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       onboarding.configureOnboardingView({ navigate: saved.navigate });
       viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
-      Object.assign(window, {
-        openChatPanel: saved.openChatPanel,
-        toggleChatPanel: saved.toggleChatPanel,
-      });
+      window.openChatPanel = saved.openChatPanel;
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       localStorage.clear();
       for (const [key, value] of storage) {
