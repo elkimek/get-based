@@ -3,12 +3,19 @@
 
 import { showConfirmDialog } from './utils.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const wearableSettingsRuntimeDeps = { showConfirmDialog };
+const wearableSettingsRuntimeDeps = {
+  navigate: null,
+  showConfirmDialog,
+};
 
 export function configureWearableSettingsRuntimeDeps(deps = {}) {
   const previous = { ...wearableSettingsRuntimeDeps };
+  if ('navigate' in deps) {
+    wearableSettingsRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? deps.navigate
+      : null;
+  }
   if ('showConfirmDialog' in deps) {
     wearableSettingsRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
       ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
@@ -17,30 +24,12 @@ export function configureWearableSettingsRuntimeDeps(deps = {}) {
   return previous;
 }
 
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' ? getViewRuntimeFunction(name) : null;
-}
-
 export function closeWearableSettingsModal() {
   getSettingsModuleFunction('closeSettingsModal')?.();
 }
 
 export function navigateWearablesDashboard() {
-  getRuntimeFunction('navigate')?.('dashboard');
+  wearableSettingsRuntimeDeps.navigate?.('dashboard');
 }
 
 /** @param {string} message */

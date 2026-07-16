@@ -1,24 +1,22 @@
 // @ts-check
 // wearables-connect-runtime.js - Browser runtime adapters for wearable connect orchestration.
 
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+const wearablesConnectRuntimeDeps = { navigate: null };
+
+export function configureWearablesConnectRuntimeDeps(deps = {}) {
+  const previous = { ...wearablesConnectRuntimeDeps };
+  if ('navigate' in deps) {
+    wearablesConnectRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? deps.navigate
+      : null;
+  }
+  return previous;
+}
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' ? getViewRuntimeFunction(name) : null;
 }
 
 export function getWearableOAuthSearchParamsRuntime() {
@@ -33,7 +31,7 @@ export function clearWearableOAuthCallbackRuntime() {
 }
 
 export function navigateWearablesDashboardAfterConnectRuntime() {
-  getRuntimeFunction('navigate')?.('dashboard');
+  wearablesConnectRuntimeDeps.navigate?.('dashboard');
 }
 
 /** @param {EventListenerOrEventListenerObject} handler */

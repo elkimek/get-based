@@ -20,17 +20,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Settings Runtime Tests ===\n');
 
-const runtimeKeys = ['window', 'navigate', 'showConfirmDialog'];
+const runtimeKeys = ['window'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
 
 function restoreRuntime() {
   for (const key of runtimeKeys) {
@@ -42,14 +33,16 @@ function restoreRuntime() {
 
 try {
   const calls = [];
-  setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   const previousSettingsBridge = configureSettingsModuleBridge({
     closeSettingsModal: () => calls.push(['close-settings']),
   });
-  configureWearableSettingsRuntimeDeps({ showConfirmDialog: async message => {
-    calls.push(['confirm', message]);
-    return message === 'confirm me';
-  } });
+  configureWearableSettingsRuntimeDeps({
+    navigate: route => calls.push(['navigate', route]),
+    showConfirmDialog: async message => {
+      calls.push(['confirm', message]);
+      return message === 'confirm me';
+    },
+  });
 
   navigateWearablesDashboard();
   closeWearableSettingsModal();
@@ -63,7 +56,7 @@ try {
 
   delete globalThis.window;
   configureSettingsModuleBridge({ closeSettingsModal: null });
-  configureWearableSettingsRuntimeDeps({ showConfirmDialog: null });
+  configureWearableSettingsRuntimeDeps({ navigate: null, showConfirmDialog: null });
   navigateWearablesDashboard();
   closeWearableSettingsModal();
   const missingConfirm = await confirmWearableSettingsAction('confirm me');
