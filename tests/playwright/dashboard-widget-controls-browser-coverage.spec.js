@@ -24,10 +24,6 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     ]);
     const outcomes = {};
     const fixture = document.getElementById('fixture');
-    const saved = {
-      navigate: window.navigate,
-      showDetailModal: window.showDetailModal,
-    };
     const calls = [];
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       triggerDNAFilePicker: () => calls.push(['dna']),
@@ -35,6 +31,10 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     const previousDashboardNoteActions = dashboardWidgetRuntime.configureDashboardNoteActions({
       openNoteEditor: (...args) => calls.push(['noteEditor', args.length, ...args.map(arg => arg ?? 'null')]),
       deleteNote: index => calls.push(['deleteNote', index]),
+    });
+    const previousDashboardWidgetRuntimeDeps = dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps({
+      navigate: route => calls.push(['navigate', route]),
+      showDetailModal: id => calls.push(['markerDetail', id]),
     });
     const previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
       syncWearableNow: el => calls.push(['sync', el?.dataset.dashboardWidgetAction || '']),
@@ -142,8 +142,6 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     const originalRemoveItem = Storage.prototype.removeItem;
 
     try {
-      window.navigate = route => calls.push(['navigate', route]);
-      window.showDetailModal = id => calls.push(['markerDetail', id]);
       Storage.prototype.removeItem = function removeItem(key) {
         calls.push(['removeStorage', key]);
         return originalRemoveItem.call(this, key);
@@ -308,13 +306,10 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     } finally {
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       dashboardWidgetRuntime.configureDashboardNoteActions(previousDashboardNoteActions);
+      dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps(previousDashboardWidgetRuntimeDeps);
       settingsRuntimeBridge.configureSettingsModuleBridge(previousSettingsBridge);
       wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
       Storage.prototype.removeItem = originalRemoveItem;
-      for (const [key, value] of Object.entries(saved)) {
-        if (value === undefined) delete window[key];
-        else window[key] = value;
-      }
       document.getElementById('dashboard-widget-picker-overlay')?.remove();
     }
 

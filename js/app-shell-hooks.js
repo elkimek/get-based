@@ -25,6 +25,7 @@ import {
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js';
 import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js';
+import { configureDashboardWidgetRuntimeDeps } from './dashboard-widget-runtime.js';
 import {
   closeChatPanel,
   configureChatPanel,
@@ -137,6 +138,7 @@ configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
+configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
 configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });

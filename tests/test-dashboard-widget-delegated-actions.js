@@ -41,6 +41,10 @@ assert('dashboard widget controls import runtime adapter',
 assert('dashboard widget runtime owns shell callbacks and explicit note actions',
   runtimeSrc.includes('openSettingsModal') &&
     runtimeSrc.includes('syncWearableNow') &&
+    runtimeSrc.includes('configureDashboardWidgetRuntimeDeps') &&
+    runtimeSrc.includes('dashboardWidgetRuntimeDeps.navigate') &&
+    runtimeSrc.includes('dashboardWidgetRuntimeDeps.showDetailModal') &&
+    !runtimeSrc.includes('getViewRuntimeFunction') &&
     runtimeSrc.includes('configureDashboardNoteActions') &&
     runtimeSrc.includes('dashboardNoteActions'));
 assert('dashboard widget controls has no direct window refs',

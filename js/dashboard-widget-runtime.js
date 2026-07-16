@@ -5,8 +5,27 @@ import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.
 import { getDeviceSessions } from './light-devices-store.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getSessions } from './sun-sessions-store.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getWearablesModuleFunction } from './wearables-runtime.js';
+
+const dashboardWidgetRuntimeDeps = {
+  navigate: /** @type {null | ((route: string) => unknown)} */ (null),
+  showDetailModal: /** @type {null | ((id: string) => unknown)} */ (null),
+};
+
+export function configureDashboardWidgetRuntimeDeps(deps = {}) {
+  const previous = { ...dashboardWidgetRuntimeDeps };
+  if ('navigate' in deps) {
+    dashboardWidgetRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(route: string) => unknown} */ (deps.navigate)
+      : null;
+  }
+  if ('showDetailModal' in deps) {
+    dashboardWidgetRuntimeDeps.showDetailModal = typeof deps.showDetailModal === 'function'
+      ? /** @type {(id: string) => unknown} */ (deps.showDetailModal)
+      : null;
+  }
+  return previous;
+}
 
 /** @type {Record<string, Function | null>} */
 const dashboardNoteActions = {
@@ -37,17 +56,6 @@ function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
-  return getViewRuntimeFunction(name);
 }
 
 export function getDashboardViewportHeight() {
@@ -108,12 +116,12 @@ export function openDashboardManualLogForm(id, event) {
 
 /** @param {string} id */
 export function openDashboardMarkerDetail(id) {
-  getRuntimeFunction('showDetailModal')?.(id);
+  dashboardWidgetRuntimeDeps.showDetailModal?.(id);
 }
 
 /** @param {string} route */
 export function navigateDashboardRoute(route) {
-  getRuntimeFunction('navigate')?.(route);
+  dashboardWidgetRuntimeDeps.navigate?.(route);
 }
 
 export function triggerDashboardDnaPicker() {
