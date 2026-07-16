@@ -4,11 +4,12 @@
 import { hasAIProvider } from './api.js';
 import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const biologyScoresRuntimeDeps = {
   getActiveData,
+  navigate: /** @type {null | ((route: string) => unknown)} */ (null),
   openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
+  showDetailModal: /** @type {null | ((markerId: string) => unknown)} */ (null),
   showNotification,
   useChatPrompt: /** @type {null | ((prompt: string) => unknown)} */ (null),
 };
@@ -20,9 +21,19 @@ export function configureBiologyScoresRuntimeDeps(deps = {}) {
       ? /** @type {typeof getActiveData} */ (deps.getActiveData)
       : null;
   }
+  if ('navigate' in deps) {
+    biologyScoresRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(route: string) => unknown} */ (deps.navigate)
+      : null;
+  }
   if ('openChatPanel' in deps) {
     biologyScoresRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
       ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
+      : null;
+  }
+  if ('showDetailModal' in deps) {
+    biologyScoresRuntimeDeps.showDetailModal = typeof deps.showDetailModal === 'function'
+      ? /** @type {(markerId: string) => unknown} */ (deps.showDetailModal)
       : null;
   }
   if ('showNotification' in deps) {
@@ -44,20 +55,9 @@ function getRuntimeWindow() {
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
-  return getViewRuntimeFunction(name);
-}
-
 /** @param {string} route */
 export function navigateBiologyScoresRoute(route = 'biology-scores') {
-  getRuntimeFunction('navigate')?.(route || 'biology-scores');
+  biologyScoresRuntimeDeps.navigate?.(route || 'biology-scores');
 }
 
 export function canOpenBiologyScoresChatPanel() {
@@ -101,7 +101,7 @@ export function getBiologyScoresActiveData() {
 /** @param {string} markerId */
 export function openBiologyScoreMarkerDetail(markerId) {
   if (!markerId) return false;
-  const showDetailModal = getRuntimeFunction('showDetailModal');
+  const showDetailModal = biologyScoresRuntimeDeps.showDetailModal;
   if (!showDetailModal) return false;
   showDetailModal(markerId);
   return true;

@@ -967,7 +967,10 @@ assert('Biology Scores delegates browser globals to runtime adapter',
     !/\bwindow(?:\.|\s*\[)/.test(biologyScoresSrc) &&
     biologyScoresRuntimeSrc.includes('export function navigateBiologyScoresRoute') &&
     biologyScoresRuntimeSrc.includes('export function openBiologyScoresChatPanel') &&
-    biologyScoresRuntimeSrc.includes('export function openBiologyScoreMarkerDetail'),
+    biologyScoresRuntimeSrc.includes('export function openBiologyScoreMarkerDetail') &&
+    biologyScoresRuntimeSrc.includes('biologyScoresRuntimeDeps.navigate') &&
+    biologyScoresRuntimeSrc.includes('biologyScoresRuntimeDeps.showDetailModal') &&
+    !biologyScoresRuntimeSrc.includes('getViewRuntimeFunction'),
   biologyScoresSrc.slice(0, 1800));
 assert('refreshing a stale Biology Score AI explanation removes the stale warning in-place',
   /biology-score-ai-stale/.test(biologyScoresSrc)
