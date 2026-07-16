@@ -6,6 +6,7 @@ import { renderChatMessagesRuntime } from './chat-runtime.js';
 
 const onboardingViewRuntimeDeps = {
   createNewThread: /** @type {null | (() => void)} */ (null),
+  toggleChatPanel: /** @type {null | (() => void)} */ (null),
 };
 
 export function configureOnboardingViewRuntimeDeps(deps = {}) {
@@ -13,6 +14,11 @@ export function configureOnboardingViewRuntimeDeps(deps = {}) {
   if (Object.prototype.hasOwnProperty.call(deps, 'createNewThread')) {
     onboardingViewRuntimeDeps.createNewThread = typeof deps.createNewThread === 'function'
       ? deps.createNewThread
+      : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(deps, 'toggleChatPanel')) {
+    onboardingViewRuntimeDeps.toggleChatPanel = typeof deps.toggleChatPanel === 'function'
+      ? deps.toggleChatPanel
       : null;
   }
   return previous;
@@ -64,7 +70,7 @@ export function openOnboardingProviderChatRuntime() {
     openChatPanel();
     return true;
   }
-  const toggleChatPanel = getRuntimeFunction('toggleChatPanel');
+  const toggleChatPanel = onboardingViewRuntimeDeps.toggleChatPanel;
   if (toggleChatPanel) {
     toggleChatPanel();
     return true;

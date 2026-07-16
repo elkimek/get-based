@@ -251,6 +251,7 @@
     'setChatPersonality', 'setChatWebSearchEnabled',
     'startDiscussion', 'summarizeThread', 'toggleChatFullscreen', 'togglePersonalityBar',
     'updateChatHeaderModel', 'updateChatNudge', 'updateDiscussButton', 'useChatPrompt',
+    'toggleChatPanel',
   ];
   assert('Unused Chat APIs do not publish legacy window globals',
     formerUnusedChatGlobals.every(name => !(name in window)));
@@ -402,7 +403,7 @@
     'loadChatHistory','saveChatHistory','clearChatHistory','renderChatMessages',
     'useChatPrompt',
     'applyInlineMarkdown','renderMarkdown',
-    'toggleChatPanel','openChatPanel','closeChatPanel',
+    'openChatPanel','closeChatPanel',
     'sendChatMessage','handleChatKeydown',
     'askAIAboutMarker','askAIAboutCorrelations'
   ];

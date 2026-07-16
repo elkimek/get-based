@@ -165,13 +165,14 @@ configureShellChatActionDeps({
   setChatWebSearchEnabled,
   startDiscussion,
   summarizeThread,
+  toggleChatPanel,
   toggleChatFullscreen,
   togglePersonalityBar,
 });
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });
-configureOnboardingViewRuntimeDeps({ createNewThread });
+configureOnboardingViewRuntimeDeps({ createNewThread, toggleChatPanel });
 configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });
 configureDashboardAIContextStatus(updateChatContextStatus);
 

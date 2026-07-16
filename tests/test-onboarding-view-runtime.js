@@ -29,7 +29,6 @@ const runtimeKeys = [
   'window',
   'navigate',
   'openChatPanel',
-  'toggleChatPanel',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -55,6 +54,7 @@ try {
   let previousViewRuntime = null;
   const previousDeps = configureOnboardingViewRuntimeDeps({
     createNewThread: () => calls.push(['createNewThread']),
+    toggleChatPanel: () => calls.push(['toggleChatPanel']),
   });
   const previousChatRuntime = configureChatRuntimeCallbacks({
     renderChatMessages: () => calls.push(['renderChatMessages']),
@@ -68,8 +68,6 @@ try {
     calls.push(['openChatPanel']);
     return 'opened';
   });
-  setRuntimeValue('toggleChatPanel', () => calls.push(['toggleChatPanel']));
-
   rebuildOnboardingSidebarRuntime({ id: 'sidebar-data' });
   navigateOnboardingRuntime('labs', { id: 'fallback-data' });
   navigateOnboardingRuntime('dashboard', { id: 'preferred-data' }, (route, data) => calls.push(['preferredNavigate', route, data.id]));
@@ -97,7 +95,7 @@ try {
     openOnboardingProviderChatRuntime() === true &&
       calls.at(-1)?.join('|') === 'toggleChatPanel');
 
-  delete globalThis.toggleChatPanel;
+  configureOnboardingViewRuntimeDeps({ toggleChatPanel: null });
   assert('onboarding provider chat reports unavailable shell hooks',
     openOnboardingProviderChatRuntime() === false);
 

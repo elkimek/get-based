@@ -18,6 +18,7 @@ const shellChatActionDeps = {
   setChatWebSearchEnabled: (_enabled) => {},
   startDiscussion: () => {},
   summarizeThread: () => {},
+  toggleChatPanel: () => {},
   toggleChatFullscreen: () => {},
   togglePersonalityBar: () => {},
 };
@@ -123,7 +124,7 @@ function runShellAction(action) {
 
 function runChatAction(action, actionEl) {
   if (action === 'toggle-panel') {
-    callShellRuntime('toggleChatPanel');
+    shellChatActionDeps.toggleChatPanel();
     return true;
   } else if (action === 'close-panel') {
     callShellRuntime('closeChatPanel');

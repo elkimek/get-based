@@ -337,10 +337,11 @@ for (const name of ['openSettingsModal', 'closeSettingsModal']) {
   assert(`settings.${name} exists`, typeof settingsModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));
 }
-const expectedExports = ['toggleChatPanel', 'closeChatPanel'];
+const expectedExports = ['closeChatPanel'];
 for (const name of expectedExports) {
   assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
 }
+assert('window.toggleChatPanel stays module-only', !('toggleChatPanel' in window));
 assert('views.showDashboard exists', typeof viewsModule.showDashboard === 'function');
 assert('window.showDashboard stays module-only', !('showDashboard' in window));
 assert('views.closeModal exists', typeof viewsModule.closeModal === 'function');
