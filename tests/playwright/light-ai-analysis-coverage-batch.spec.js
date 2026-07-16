@@ -8,10 +8,11 @@ test('sun and device session AI analysis covers contexts fingerprints and render
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ sunUrl, deviceUrl, apiUrl }) => {
-    const [sun, device, api] = await Promise.all([
+    const [sun, device, api, aiVerdictRuntime] = await Promise.all([
       import(sunUrl),
       import(deviceUrl),
       import(apiUrl),
+      import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -20,11 +21,13 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
       solarZenithAngle: window.solarZenithAngle,
-      refreshSunSurfaces: window._refreshSunSurfaces,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
     };
+    const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
+      refreshSunSurfaces: () => {},
+    });
 
     const setPausedProvider = () => {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
@@ -136,7 +139,6 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         lightDevices: [lightDevice],
         deviceSessions: [deviceSession, priorDeviceSession],
       };
-      window._refreshSunSurfaces = () => {};
       const sunContext = sun.buildSingleSessionContext(sunSession);
       outcomes.sunContextIncludesSolarPhase = sunContext.includes('Solar phase:')
         && sunContext.includes('sunrise window');
@@ -327,7 +329,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
       window.solarZenithAngle = saved.solarZenithAngle;
-      window._refreshSunSurfaces = saved.refreshSunSurfaces;
+      aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');
@@ -352,11 +354,12 @@ test('light environment AI analysis covers audit room screen and onboarding verd
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ auditUrl, roomUrl, screenUrl, onboardingUrl }) => {
-    const [audit, roomAI, screenAI, onboarding] = await Promise.all([
+    const [audit, roomAI, screenAI, onboarding, aiVerdictRuntime] = await Promise.all([
       import(auditUrl),
       import(roomUrl),
       import(screenUrl),
       import(onboardingUrl),
+      import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -364,11 +367,13 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
-      refreshSunSurfaces: window._refreshSunSurfaces,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
     };
+    const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
+      refreshSunSurfaces: () => {},
+    });
     const setPausedProvider = () => {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'true');
@@ -464,7 +469,6 @@ test('light environment AI analysis covers audit room screen and onboarding verd
           { date: '2026-06-01', values: { lipids: { '25-oh-vitamin-d': 24 } } },
         ],
       };
-      window._refreshSunSurfaces = () => {};
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           return new Response(JSON.stringify({
@@ -603,7 +607,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
-      window._refreshSunSurfaces = saved.refreshSunSurfaces;
+      aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');
@@ -629,10 +633,11 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ channelUrl, burdenUrl, todayUrl }) => {
-    const [channelAI, burdenAI, todayAI] = await Promise.all([
+    const [channelAI, burdenAI, todayAI, aiVerdictRuntime] = await Promise.all([
       import(channelUrl),
       import(burdenUrl),
       import(todayUrl),
+      import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -640,13 +645,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
-      refreshSunSurfaces: window._refreshSunSurfaces,
       solarZenithAngle: window.solarZenithAngle,
-      rollingChannelTotals: window.rollingChannelTotals,
-      rollingVitaminDIU: window.rollingVitaminDIU,
-      weeklyChannelTier: window.weeklyChannelTier,
-      tierLabel: window.tierLabel,
-      getSessions: window.getSessions,
       disableAIVerdicts: window.DISABLE_AI_VERDICTS,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
@@ -668,6 +667,10 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       localStorage.setItem('labcharts-ollama-model', 'test-light-model');
       window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
     };
+    const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
+      refreshSunSurfaces: () => {},
+    });
+    let previousChannelAIAnalysisDeps = null;
 
     try {
       const today = new Date();
@@ -776,22 +779,15 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         },
         lightDailyVerdicts: {},
       };
-      window._refreshSunSurfaces = () => {};
       window.solarZenithAngle = date => (date.getHours() < 7 ? 87 : 28);
-      window.rollingChannelTotals = days => days === 7
+      const rollingChannelTotals = days => days === 7
         ? { vitamin_d: 260, circadian: 180, nir_solar: 130, no_cv: 60, pomc: 55, violet_eye: 30 }
         : { vitamin_d: 540, circadian: 360, nir_solar: 320, no_cv: 140, pomc: 120, violet_eye: 45 };
       const rollingDeviceTotals = days => days === 7
         ? { circadian: 90, nir_solar: 50 }
         : { circadian: 180, nir_solar: 90 };
-      window.rollingVitaminDIU = () => 900;
-      todayAI.configureLightTodayAI({
-        solarZenithAngle: window.solarZenithAngle,
-        rollingChannelTotals: window.rollingChannelTotals,
-        rollingDeviceTotals,
-        rollingVitaminDIU: window.rollingVitaminDIU,
-      });
-      window.weeklyChannelTier = (value, key) => {
+      const rollingVitaminDIU = () => 900;
+      const weeklyChannelTier = (value, key) => {
         if (key === 'vitamin_d' && value >= 250) return 3;
         if (value >= 260) return 4;
         if (value >= 150) return 3;
@@ -799,8 +795,19 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         if (value > 0) return 1;
         return 0;
       };
-      window.tierLabel = tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
-      window.getSessions = () => state.importedData.sunSessions;
+      const tierLabel = tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
+      todayAI.configureLightTodayAI({
+        solarZenithAngle: window.solarZenithAngle,
+        rollingChannelTotals,
+        rollingDeviceTotals,
+        rollingVitaminDIU,
+      });
+      previousChannelAIAnalysisDeps = channelAI.configureLightChannelsAIAnalysisDeps({
+        rollingChannelTotals,
+        weeklyChannelTier,
+        tierLabel,
+        getSessions: () => state.importedData.sunSessions,
+      });
       const queuedAIResponses = [];
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
@@ -823,16 +830,9 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && channelContext.includes('Health goals: SAD support; Raise vitamin D')
         && channelContext.includes('Latest 25-OH-D: 29');
       const channelFp = channelAI.getChannelMixFingerprint();
-      window.weeklyChannelTier = () => 0;
+      channelAI.configureLightChannelsAIAnalysisDeps({ weeklyChannelTier: () => 0 });
       const channelFpChanged = channelAI.getChannelMixFingerprint();
-      window.weeklyChannelTier = (value, key) => {
-        if (key === 'vitamin_d' && value >= 250) return 3;
-        if (value >= 260) return 4;
-        if (value >= 150) return 3;
-        if (value >= 60) return 2;
-        if (value > 0) return 1;
-        return 0;
-      };
+      channelAI.configureLightChannelsAIAnalysisDeps({ weeklyChannelTier });
       outcomes.channelFingerprintChangesWithTierMix = !!channelFp && channelFp !== channelFpChanged;
 
       const burdenContext = burdenAI.buildBurdenContext();
@@ -970,18 +970,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
-      window._refreshSunSurfaces = saved.refreshSunSurfaces;
+      aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       window.solarZenithAngle = saved.solarZenithAngle;
-      window.rollingChannelTotals = saved.rollingChannelTotals;
-      window.rollingVitaminDIU = saved.rollingVitaminDIU;
-      todayAI.configureLightTodayAI({
-        solarZenithAngle: saved.solarZenithAngle,
-        rollingChannelTotals: saved.rollingChannelTotals,
-        rollingVitaminDIU: saved.rollingVitaminDIU,
-      });
-      window.weeklyChannelTier = saved.weeklyChannelTier;
-      window.tierLabel = saved.tierLabel;
-      window.getSessions = saved.getSessions;
+      todayAI.configureLightTodayAI({});
+      if (previousChannelAIAnalysisDeps) {
+        channelAI.configureLightChannelsAIAnalysisDeps(previousChannelAIAnalysisDeps);
+      }
       if (saved.disableAIVerdicts === undefined) delete window.DISABLE_AI_VERDICTS;
       else window.DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');

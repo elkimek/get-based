@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  configureAIVerdictRuntimeDeps,
   dispatchAIVerdictUpdatedRuntime,
   getAIVerdictConcurrencyCapRuntime,
   hasAIVerdictRuntime,
@@ -10,6 +11,7 @@ import {
 } from '../js/ai-verdict-engine-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const originalRuntimeDeps = configureAIVerdictRuntimeDeps();
 
 function setRuntimeWindow(runtime) {
   Object.defineProperty(globalThis, 'window', {
@@ -20,6 +22,7 @@ function setRuntimeWindow(runtime) {
 }
 
 afterEach(() => {
+  configureAIVerdictRuntimeDeps(originalRuntimeDeps);
   if (savedWindow) {
     Object.defineProperty(globalThis, 'window', savedWindow);
   } else {
@@ -45,11 +48,11 @@ describe('ai verdict engine runtime adapter', () => {
       }
     }
     const runtime = {
-      _refreshSunSurfaces: refreshSunSurfaces,
       CustomEvent: TestCustomEvent,
       dispatchEvent,
     };
     setRuntimeWindow(runtime);
+    configureAIVerdictRuntimeDeps({ refreshSunSurfaces });
 
     expect(refreshSunSurfacesRuntime('[data-id="session-1"]')).toBe(true);
     expect(dispatchAIVerdictUpdatedRuntime()).toBe(true);
@@ -59,6 +62,7 @@ describe('ai verdict engine runtime adapter', () => {
 
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
     delete globalThis.window;
+    configureAIVerdictRuntimeDeps({ refreshSunSurfaces: null });
 
     expect(hasAIVerdictRuntime()).toBe(false);
     expect(isAIVerdictEngineDisabledRuntime()).toBe(false);

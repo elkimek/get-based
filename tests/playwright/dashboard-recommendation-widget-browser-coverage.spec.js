@@ -28,8 +28,6 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
     const originalView = state.currentView;
     const originalMarkerRegistry = state.markerRegistry;
     const savedWindow = {
-      getSessions: window.getSessions,
-      rollingChannelTotals: window.rollingChannelTotals,
       detectWearableTrendSlots: window.detectWearableTrendSlots,
       _snpTableCache: window._snpTableCache,
     };
@@ -115,8 +113,6 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
           return new Promise(resolve => { resolveCatalog = resolve; });
         },
       });
-      window.getSessions = () => [];
-      window.rollingChannelTotals = () => ({ circadian: 0 });
       window.detectWearableTrendSlots = () => [{
         slotKey: 'body.sleep',
         reason: 'Wearable sleep trend is deteriorating.',

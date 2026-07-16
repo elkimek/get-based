@@ -14,6 +14,8 @@ import {
   setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+import { rollingChannelTotals } from './sun.js';
+import { getSessions } from './sun-sessions-store.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
@@ -232,10 +234,10 @@ export function createDashboardRecommendationWidget({
       });
     }
 
-    const sessions = (callDashboardRecommendationRuntime('getSessions') || []).filter(s => s?.startedAt || s?.endedAt);
+    const sessions = getSessions().filter(s => s?.startedAt || s?.endedAt);
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const hasRecentLightSession = sessions.some(s => Number(s.endedAt || s.startedAt || 0) >= sevenDaysAgo);
-    const totals7d = callDashboardRecommendationRuntime('rollingChannelTotals', 7) || {};
+    const totals7d = rollingChannelTotals(7) || {};
     if (catalog.slots['light.morningLight'] && (!hasRecentLightSession || Number(totals7d.circadian || 0) <= 0)) {
       add({
         id: 'light:light.morningLight:recent',

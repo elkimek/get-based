@@ -10,9 +10,6 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
 
   const results = await page.evaluate(async () => {
     const { configureLightPageView, renderDashboardLightChannelPills, renderLightSessionLogActions } = await import('/js/light-page-view.js');
-    const savedFns = {
-      dailyChannelBreakdown: window.dailyChannelBreakdown,
-    };
     const calls = [];
     const host = document.createElement('div');
     const channelDisplay = {
@@ -44,11 +41,6 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
         openLightEnvironmentAssessment: () => calls.push(['open-light-environment']),
         renderLightTools: () => '<section id="light-tools-expanded-test">Expanded tools</section>',
       });
-      window.dailyChannelBreakdown = () => Array.from({ length: 7 }, (_, i) => ({
-        sun: i === 0 ? 10 : 0,
-        device: 0,
-      }));
-
       document.body.appendChild(host);
       host.innerHTML = `
         ${renderLightSessionLogActions()}
@@ -113,7 +105,6 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
         openLightEnvironmentAssessment: () => {},
         renderLightTools: () => '',
       });
-      window.dailyChannelBreakdown = savedFns.dailyChannelBreakdown;
       host.remove();
       document.getElementById('light-tools-expanded-test')?.remove();
     }
@@ -145,19 +136,18 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       importedData: state.importedData,
       mainHTML: main?.innerHTML,
       Date: window.Date,
-      getSessions: window.getSessions,
-      getActiveSession: window.getActiveSession,
-      cumulativeMEDToday: window.cumulativeMEDToday,
-      cumulativeMEDYesterday: window.cumulativeMEDYesterday,
-      rollingVitaminDIU: window.rollingVitaminDIU,
-      vitaminDBudgetStatus: window.vitaminDBudgetStatus,
-      getSunCoords: window.getSunCoords,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      weeklyChannelTier: window.weeklyChannelTier,
-      channelTier: window.channelTier,
-      dailyChannelBreakdown: window.dailyChannelBreakdown,
-      rollingChannelTotals: window.rollingChannelTotals,
     };
+    let channelDisplay = {};
+    let weeklyChannelTier = () => 0;
+    let channelTier = () => 0;
+    let getSessions = () => [];
+    let getActiveSession = () => null;
+    let rollingChannelTotals = () => ({});
+    let cumulativeMEDToday = () => 0;
+    let cumulativeMEDYesterday = () => 0;
+    let rollingVitaminDIU = () => 0;
+    let vitaminDBudgetStatus = () => null;
+    let getSunCoords = () => null;
     let getDevices = () => [];
     let getDeviceSessions = () => [];
     let rollingDeviceTotals = () => ({});
@@ -166,20 +156,20 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
     let renderLightTodayHero = () => '';
     let renderSunSetupCard = sunDefaults.renderSetupCard;
     const syncLightPageDeps = () => lightPage.configureLightPageView({
-      channelDisplay: window.CHANNEL_DISPLAY || {},
-      weeklyChannelTier: typeof window.weeklyChannelTier === 'function' ? window.weeklyChannelTier : () => 0,
-      channelTier: typeof window.channelTier === 'function' ? window.channelTier : () => 0,
-      getSessions: typeof window.getSessions === 'function' ? window.getSessions : () => [],
+      channelDisplay,
+      weeklyChannelTier,
+      channelTier,
+      getSessions,
       getDevices,
       getDeviceSessions,
-      getActiveSession: typeof window.getActiveSession === 'function' ? window.getActiveSession : () => null,
-      rollingChannelTotals: typeof window.rollingChannelTotals === 'function' ? window.rollingChannelTotals : () => ({}),
+      getActiveSession,
+      rollingChannelTotals,
       rollingDeviceTotals,
-      cumulativeMEDToday: typeof window.cumulativeMEDToday === 'function' ? window.cumulativeMEDToday : () => 0,
-      cumulativeMEDYesterday: typeof window.cumulativeMEDYesterday === 'function' ? window.cumulativeMEDYesterday : () => 0,
-      rollingVitaminDIU: typeof window.rollingVitaminDIU === 'function' ? window.rollingVitaminDIU : () => 0,
-      vitaminDBudgetStatus: typeof window.vitaminDBudgetStatus === 'function' ? window.vitaminDBudgetStatus : () => null,
-      getSunCoords: typeof window.getSunCoords === 'function' ? window.getSunCoords : () => null,
+      cumulativeMEDToday,
+      cumulativeMEDYesterday,
+      rollingVitaminDIU,
+      vitaminDBudgetStatus,
+      getSunCoords,
       renderLightTodayDashboardChip,
       renderLightTodayHero,
       renderSunSetupCard,
@@ -216,29 +206,25 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         sunDefaults: null,
         lightEnvironment: null,
       };
-      window.CHANNEL_DISPLAY = channelMeta;
-      window.weeklyChannelTier = value => value > 100 ? 2 : 0;
-      window.channelTier = window.weeklyChannelTier;
-      window.dailyChannelBreakdown = () => Array.from({ length: 7 }, (_, index) => ({
-        sun: index === 0 ? 120 : 0,
-        device: index === 1 ? 80 : 0,
-      }));
-      window.rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
+      channelDisplay = channelMeta;
+      weeklyChannelTier = value => value > 100 ? 2 : 0;
+      channelTier = weeklyChannelTier;
+      rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
       rollingDeviceTotals = () => ({ nir_solar: 120 });
-      window.getSessions = () => [];
+      getSessions = () => [];
       getDeviceSessions = () => [];
       getDevices = () => [];
-      window.getActiveSession = () => null;
-      window.cumulativeMEDToday = () => 0.72;
-      window.cumulativeMEDYesterday = () => 0.4;
-      window.rollingVitaminDIU = () => 1800;
-      window.vitaminDBudgetStatus = () => ({
+      getActiveSession = () => null;
+      cumulativeMEDToday = () => 0.72;
+      cumulativeMEDYesterday = () => 0.4;
+      rollingVitaminDIU = () => 1800;
+      vitaminDBudgetStatus = () => ({
         supplementIU: 5000,
         sunIU: 1200,
         total: 6200,
         exceedsSupplementUL: true,
       });
-      window.getSunCoords = () => ({ lat: 50, lon: 14, altitudeM: 1700, source: 'profile-precise' });
+      getSunCoords = () => ({ lat: 50, lon: 14, altitudeM: 1700, source: 'profile-precise' });
       renderLightTodayDashboardChip = () => '<div class="light-dashboard-chip-test">chip</div>';
       syncLightPageDeps();
 
@@ -280,7 +266,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         && oneDevice.includes('Map a room');
 
       setHour(10);
-      window.getActiveSession = () => ({ id: 'active-sun', startedAt: Date.now() - 95_000 });
+      getActiveSession = () => ({ id: 'active-sun', startedAt: Date.now() - 95_000 });
       syncLightPageDeps();
       const activeStrip = lightPage.renderLightTodayStrip();
       outcomes.activeSessionStripShowsStopElapsed =
@@ -292,18 +278,18 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderDevicesSection = () => '<div class="devices-section-test">devices</div>';
       renderEnvironmentAssessmentSummary = () => '';
       renderLightTools = () => '';
-      window.getActiveSession = () => null;
+      getActiveSession = () => null;
       getDevices = () => [];
-      window.getSessions = () => [];
+      getSessions = () => [];
       getDeviceSessions = () => [];
-      window.getSunCoords = () => null;
+      getSunCoords = () => null;
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPagePromptsForMissingCoords =
         main?.textContent.includes('set your country in the profile editor') === true
         && main?.querySelector('[data-light-page-action="request-precise-location"]') !== null;
 
-      window.getSunCoords = () => ({ source: 'country-band', lat: 49.2, lon: 16.6 });
+      getSunCoords = () => ({ source: 'country-band', lat: 49.2, lon: 16.6 });
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPageShowsCountryBandHint =
@@ -311,12 +297,12 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
 
       // Guidance should interpret logged exposure, not present unused PBM
       // channels as deficiencies or mix product discovery into health advice.
-      window.getSessions = () => Array.from({ length: 7 }, (_, index) => ({
+      getSessions = () => Array.from({ length: 7 }, (_, index) => ({
         id: `sun-${index}`,
         startedAt: Date.now() - (index + 1) * 86_400_000,
         endedAt: Date.now() - (index + 1) * 86_400_000 + 600_000,
       }));
-      window.rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
+      rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
       rollingDeviceTotals = () => ({ pbm_red: 0, pbm_nir: 0 });
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
@@ -333,18 +319,17 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       state.importedData = saved.importedData;
       if (main && saved.mainHTML != null) main.innerHTML = saved.mainHTML;
       window.Date = saved.Date || RealDate;
-      window.getSessions = saved.getSessions;
-      window.getActiveSession = saved.getActiveSession;
-      window.cumulativeMEDToday = saved.cumulativeMEDToday;
-      window.cumulativeMEDYesterday = saved.cumulativeMEDYesterday;
-      window.rollingVitaminDIU = saved.rollingVitaminDIU;
-      window.vitaminDBudgetStatus = saved.vitaminDBudgetStatus;
-      window.getSunCoords = saved.getSunCoords;
-      window.CHANNEL_DISPLAY = saved.CHANNEL_DISPLAY;
-      window.weeklyChannelTier = saved.weeklyChannelTier;
-      window.channelTier = saved.channelTier;
-      window.dailyChannelBreakdown = saved.dailyChannelBreakdown;
-      window.rollingChannelTotals = saved.rollingChannelTotals;
+      channelDisplay = {};
+      weeklyChannelTier = () => 0;
+      channelTier = () => 0;
+      getSessions = () => [];
+      getActiveSession = () => null;
+      rollingChannelTotals = () => ({});
+      cumulativeMEDToday = () => 0;
+      cumulativeMEDYesterday = () => 0;
+      rollingVitaminDIU = () => 0;
+      vitaminDBudgetStatus = () => null;
+      getSunCoords = () => null;
       getDevices = () => [];
       getDeviceSessions = () => [];
       rollingDeviceTotals = () => ({});

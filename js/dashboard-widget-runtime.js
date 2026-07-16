@@ -4,6 +4,7 @@
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { getDeviceSessions } from './light-devices-store.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+import { getSessions } from './sun-sessions-store.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getWearablesModuleFunction } from './wearables-runtime.js';
 
@@ -61,8 +62,6 @@ export function openDashboardWearablesSettings() {
 }
 
 export function getDashboardLightSessions() {
-  const getSessions = getRuntimeFunction('getSessions');
-  if (!getSessions) return [];
   try {
     const sessions = getSessions();
     return Array.isArray(sessions) ? sessions : [];

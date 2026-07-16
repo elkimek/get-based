@@ -3,6 +3,22 @@
 
 import { state } from './state.js';
 import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
+import { rollingVitaminDIU } from './sun-channel-metrics.js';
+
+const profileContextLightDeps = {
+  rollingChannelTotals: null,
+};
+
+/** @param {{ rollingChannelTotals?: ((days?: number) => any) | null }} deps */
+export function configureProfileContextLightDeps(deps = {}) {
+  const previous = { ...profileContextLightDeps };
+  if ('rollingChannelTotals' in deps) {
+    profileContextLightDeps.rollingChannelTotals = typeof deps.rollingChannelTotals === 'function'
+      ? deps.rollingChannelTotals
+      : null;
+  }
+  return previous;
+}
 
 const LOW_MUSCLE_TERMS = ['low muscle mass', 'muscle wasting', 'muscle atrophy', 'sarcopenia', 'wheelchair', 'neuromuscular', 'cmt', 'charcot', 'neuropathy', 'myopathy', 'muscular dystrophy', 'cachexia', 'amputation'];
 const LOW_SUNLIGHT_TERMS = ['wheelchair', 'bedbound', 'housebound', 'minimal sun', 'minimal outdoor', 'low sunlight', 'little sun', 'no sun', 'indoors', 'homebound', 'limited mobility', 'minimal uvb', 'low uvb'];
@@ -121,10 +137,9 @@ function collectLightModifiers(data, options = {}) {
   const recentAny = [...sunSessions, ...deviceSessions].filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   let vitD7 = null, circadian7 = null;
   try {
-    const w = /** @type {any} */ (typeof window !== 'undefined' ? window : {});
-    if (typeof w.rollingVitaminDIU === 'function') vitD7 = Number(w.rollingVitaminDIU(7));
-    if (typeof w.rollingChannelTotals === 'function') {
-      const totals = w.rollingChannelTotals(7) || {};
+    vitD7 = Number(rollingVitaminDIU(7));
+    if (profileContextLightDeps.rollingChannelTotals) {
+      const totals = profileContextLightDeps.rollingChannelTotals(7) || {};
       if (Number.isFinite(totals.circadian)) circadian7 = Number(totals.circadian);
     }
   } catch {}

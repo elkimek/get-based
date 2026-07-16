@@ -46,8 +46,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       navigate: window.navigate,
-      getSunCoords: window.getSunCoords,
-      requestPreciseLocation: window.requestPreciseLocation,
     };
     const calls = [];
     const outcomes = {};
@@ -56,6 +54,15 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       getProfileLocation: () => ({ country: 'Czechia', zip: '' }),
       openProfileLocationEditor: () => calls.push(['profile-location']),
       openClientList: () => calls.push(['client-list']),
+      getSunCoords: () => precise
+        ? { source: 'profile-precise', lat: 50.087 }
+        : { source: 'country-band', lat: 49.2 },
+      requestPreciseLocation: async () => {
+        calls.push(['precise-location']);
+        await wait(0);
+        precise = true;
+        return { lat: 50.087, lon: 14.421 };
+      },
     });
 
     try {
@@ -72,15 +79,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       data.invalidateActiveDataCache();
 
       window.navigate = route => calls.push(['navigate', route]);
-      window.getSunCoords = () => precise
-        ? { source: 'profile-precise', lat: 50.087 }
-        : { source: 'country-band', lat: 49.2 };
-      window.requestPreciseLocation = async () => {
-        calls.push(['precise-location']);
-        await wait(0);
-        precise = true;
-        return { lat: 50.087, lon: 14.421 };
-      };
       sunDefaults.configureSunDefaults({
         maybeAnalyzeOnboardingAfterSave: () => calls.push(['onboarding-ai']),
         renderOnboardingAIBlock: () => '<div id="setup-ai-block">AI setup block</div>',
@@ -204,11 +202,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       data.invalidateActiveDataCache();
-      Object.assign(window, {
-        navigate: saved.navigate,
-        getSunCoords: saved.getSunCoords,
-        requestPreciseLocation: saved.requestPreciseLocation,
-      });
+      window.navigate = saved.navigate;
       sunDefaults.configureSunDefaults({
         maybeAnalyzeOnboardingAfterSave: () => {},
         renderOnboardingAIBlock: () => '',

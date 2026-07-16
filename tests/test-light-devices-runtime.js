@@ -29,10 +29,6 @@ console.log('=== Light Devices Runtime Tests ===\n');
 const runtimeKeys = [
   'navigate',
   'showPromptDialog',
-  'channelTier',
-  'tierLabel',
-  'formatChannelUnit',
-  'CHANNEL_DISPLAY',
   '_openChannelOnLightPage',
 ];
 const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
@@ -77,30 +73,30 @@ try {
   assert('promptLightDeviceSessionDuration returns undefined when prompt hook is missing',
     await promptLightDeviceSessionDuration(3) === undefined);
 
-  globalThis.channelTier = (value, key) => key === 'pbm_red' && value > 0 ? 3 : 0;
-  globalThis.tierLabel = tier => tier === 3 ? 'high' : 'none';
-  globalThis.formatChannelUnit = (key, value) => `${Math.round(value)} ${key}`;
+  configureLightDevicesRuntimeDeps({
+    channelTier: (value, key) => key === 'pbm_red' && value > 0 ? 3 : 0,
+    tierLabel: tier => tier === 3 ? 'high' : 'none',
+    formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+  });
   const helpers = getLightDeviceChannelHelpers();
-  assert('getLightDeviceChannelHelpers reads runtime channel helpers',
+  assert('getLightDeviceChannelHelpers reads configured module helpers',
     helpers.channelTier(1, 'pbm_red') === 3 &&
     helpers.tierLabel(3) === 'high' &&
     helpers.formatChannelUnit('pbm_red', 4.4) === '4 pbm_red');
-  delete globalThis.channelTier;
-  delete globalThis.tierLabel;
-  delete globalThis.formatChannelUnit;
+  configureLightDevicesRuntimeDeps({ channelTier: null, tierLabel: null, formatChannelUnit: null });
   const fallbackHelpers = getLightDeviceChannelHelpers();
   assert('getLightDeviceChannelHelpers provides safe fallbacks',
     fallbackHelpers.channelTier(99, 'pbm_red') === 0 &&
     fallbackHelpers.tierLabel(4) === 'none' &&
     fallbackHelpers.formatChannelUnit('pbm_red', 5) === '');
 
-  delete globalThis.CHANNEL_DISPLAY;
   const fallbackDisplay = { pbm_red: { label: 'Fallback Red' } };
+  configureLightDevicesRuntimeDeps({ channelDisplay: null });
   assert('getLightDeviceChannelDisplay falls back to imported display',
     getLightDeviceChannelDisplay(fallbackDisplay).pbm_red.label === 'Fallback Red');
-  globalThis.CHANNEL_DISPLAY = { circadian: { label: 'Runtime Clock' } };
-  assert('getLightDeviceChannelDisplay prefers runtime display',
-    getLightDeviceChannelDisplay(fallbackDisplay).circadian.label === 'Runtime Clock');
+  configureLightDevicesRuntimeDeps({ channelDisplay: { circadian: { label: 'Module Clock' } } });
+  assert('getLightDeviceChannelDisplay prefers configured module display',
+    getLightDeviceChannelDisplay(fallbackDisplay).circadian.label === 'Module Clock');
 
   const previousRecommendationBridge = configureRecommendationModuleBridge({
     loadCatalog: async () => ({ slots: { light: true } }),

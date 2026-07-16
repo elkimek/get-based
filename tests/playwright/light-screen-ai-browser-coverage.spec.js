@@ -8,10 +8,11 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ screenUrl }) => {
-    const [screenAI, { state }, data] = await Promise.all([
+    const [screenAI, { state }, data, aiVerdictRuntime] = await Promise.all([
       import(screenUrl),
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -31,7 +32,6 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       currentProfile: state.currentProfile,
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
-      refreshSunSurfaces: window._refreshSunSurfaces,
       disableAIVerdicts: window.DISABLE_AI_VERDICTS,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
@@ -58,6 +58,9 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
     };
     let aiCalls = 0;
     let releaseRefreshFetch = null;
+    const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
+      refreshSunSurfaces: anchor => { refreshAnchors.push(anchor || ''); },
+    });
 
     try {
       state.currentProfile = 'light-screen-ai-browser-coverage';
@@ -76,7 +79,6 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       localStorage.setItem('labcharts-ollama-model', 'screen-coverage-model');
       window.DISABLE_AI_VERDICTS = false;
       window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
-      window._refreshSunSurfaces = anchor => { refreshAnchors.push(anchor || ''); };
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           aiCalls += 1;
@@ -128,7 +130,7 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       data.invalidateActiveDataCache();
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
-      window._refreshSunSurfaces = saved.refreshSunSurfaces;
+      aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       if (saved.disableAIVerdicts === undefined) delete window.DISABLE_AI_VERDICTS;
       else window.DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');

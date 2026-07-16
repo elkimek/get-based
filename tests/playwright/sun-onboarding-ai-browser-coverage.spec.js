@@ -8,10 +8,11 @@ test('sun onboarding AI browser coverage refreshes and auto-analyzes completed s
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ onboardingUrl }) => {
-    const [onboarding, { state }, data] = await Promise.all([
+    const [onboarding, { state }, data, aiVerdictRuntime] = await Promise.all([
       import(onboardingUrl),
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -30,20 +31,21 @@ test('sun onboarding AI browser coverage refreshes and auto-analyzes completed s
       importedData: clone(state.importedData),
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
-      refreshSunSurfaces: window._refreshSunSurfaces,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
     };
     const results = {};
     let aiCalls = 0;
+    const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
+      refreshSunSurfaces: () => {},
+    });
 
     try {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'sun-onboarding-coverage-model');
       window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
-      window._refreshSunSurfaces = () => {};
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           aiCalls += 1;
@@ -113,7 +115,7 @@ test('sun onboarding AI browser coverage refreshes and auto-analyzes completed s
       data.invalidateActiveDataCache();
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
-      window._refreshSunSurfaces = saved.refreshSunSurfaces;
+      aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');

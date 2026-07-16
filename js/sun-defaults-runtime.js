@@ -6,6 +6,8 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const sunDefaultsRuntimeDeps = {
   getProfileLocation,
+  getSunCoords: null,
+  requestPreciseLocation: null,
   openProfileLocationEditor: null,
   openClientList: null,
 };
@@ -13,7 +15,7 @@ const sunDefaultsRuntimeDeps = {
 export function configureSunDefaultsRuntimeDeps(deps = {}) {
   const previous = { ...sunDefaultsRuntimeDeps };
   if (typeof deps.getProfileLocation === 'function') sunDefaultsRuntimeDeps.getProfileLocation = deps.getProfileLocation;
-  for (const name of ['openProfileLocationEditor', 'openClientList']) {
+  for (const name of ['getSunCoords', 'requestPreciseLocation', 'openProfileLocationEditor', 'openClientList']) {
     if (name in deps) {
       sunDefaultsRuntimeDeps[name] = typeof deps[name] === 'function' ? deps[name] : null;
     }
@@ -38,7 +40,7 @@ function getRuntimeFunction(name) {
 
 export function getSunSetupCoords() {
   try {
-    return getRuntimeFunction('getSunCoords')?.() || null;
+    return sunDefaultsRuntimeDeps.getSunCoords?.() || null;
   } catch {
     return null;
   }
@@ -67,12 +69,12 @@ export function openSunSetupProfileLocationRuntime() {
 }
 
 export function hasSunSetupPreciseLocationRequester() {
-  return getRuntimeFunction('requestPreciseLocation') !== null;
+  return sunDefaultsRuntimeDeps.requestPreciseLocation !== null;
 }
 
 export function requestSunSetupPreciseLocationRuntime() {
   try {
-    return getRuntimeFunction('requestPreciseLocation')?.() || null;
+    return sunDefaultsRuntimeDeps.requestPreciseLocation?.() || null;
   } catch {
     return null;
   }

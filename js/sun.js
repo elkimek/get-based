@@ -26,11 +26,6 @@ import {
   renderBodySilhouette,
   bindBodySilhouette,
   resetBodySilhouetteState,
-  _testLoadRegionMap,
-  _testRegionAtSource,
-  _testRegionColorRGB,
-  _testStockImg,
-  _testRegionBandLandmarks,
 } from './sun-body-silhouette.js';
 import {
   configureSunActiveSession,
@@ -41,7 +36,6 @@ import {
   commitSunLiveSlice as _commitCurrentSlice,
   setSunLiveState as _setLiveState,
   clearSunLiveState as _clearLiveState,
-  ensureActiveTicker as _ensureActiveTicker,
   resumeActiveTickerIfNeeded as _resumeActiveTickerIfNeeded,
   hydrateSunSessionFromProfileCoords as _hydrateFromProfileCoords,
   resetSunActiveSessionState,
@@ -96,8 +90,6 @@ import {
   renderSunSessionRow,
   openDetailedSessionDialog,
   openSunSessionDetail,
-  deleteSunSession,
-  editSunSessionDuration,
 } from './sun-session-ui.js';
 import {
   TOO_SHORT_FOR_CHANNEL_VERDICT_MIN,
@@ -109,7 +101,6 @@ import {
 } from './sun-channel-metrics.js';
 import {
   addSunProfileSwitchListener,
-  exposeSunRuntimeBindings,
   getSunDeviceSessionsRuntime,
   hasSunBrowserRuntime,
   hasSunGeolocationRuntime,
@@ -120,6 +111,9 @@ import {
   renderLightTodayStripRuntime,
   requestSunGeolocationPositionRuntime,
 } from './sun-runtime.js';
+import { configureAIVerdictRuntimeDeps } from './ai-verdict-engine-runtime.js';
+import { configureProfileContextLightDeps } from './profile-context.js';
+import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette };
 export { renderSessionsList, renderSunSessionRow, openDetailedSessionDialog, openSunSessionDetail };
 export { quickLogSunSession, openStartSunSessionDialog, _wireBackdropClose, trapModalFocus };
@@ -160,11 +154,9 @@ export {
 // NOTE: sun-ai-analysis.js is intentionally NOT imported here — it
 // imports from this file (getSessions, formatChannelUnit, etc.), and a
 // reciprocal import would create a circular dependency that risks TDZ
-// errors at module-init time. Other features (rooms, screens, audits,
-// burden) already access their AI modules through browser-runtime
-// lookups; sun follows the same pattern for consistency + cycle-safety.
-// main.js imports both modules in a deterministic order so the runtime
-// functions are available by the time sun.js's exports are first invoked.
+// errors at module-init time. main.js imports both modules in a
+// deterministic order, while the verdict runtime receives the internal
+// surface-refresh callback explicitly below.
 
 // `label` is the row-meta display; `pickerLabel` is what the dropdown
 // option shows (where the safety nudge belongs). Earlier the row-meta
@@ -804,6 +796,10 @@ configureSunSessionUI({
   circadianMelanopicLux,
 });
 
+configureAIVerdictRuntimeDeps({ refreshSunSurfaces: _refreshSurfaces });
+configureProfileContextLightDeps({ rollingChannelTotals });
+configureSunDefaultsRuntimeDeps({ getSunCoords, requestPreciseLocation });
+
 // Reset all sun.js module-singleton state. Called on profile switch so
 // caches/timers from profile A don't bleed into profile B (e.g. region-
 // map decoded canvas data is profile-agnostic but the overlay cache key
@@ -816,71 +812,5 @@ function _resetSunModuleState() {
 }
 
 if (hasSunBrowserRuntime()) {
-  // Exposed so sun-ai-analysis.js can request a re-render after an async
-  // analyzeSunSessionAI() completes — keeps that module from importing
-  // sun.js's internal _refreshSurfaces directly (would be a back-edge).
   addSunProfileSwitchListener(_resetSunModuleState);
-  exposeSunRuntimeBindings({
-    SUN_ENGINE_VERSION,
-    _refreshSunSurfaces: _refreshSurfaces,
-    quickLogSunSession,
-    startSession,
-    stopSession,
-    pauseSession, resumeSession,
-    pauseSunSession, resumeSunSession,
-    applySunscreenMidSession,
-    changeCoverageMidSession,
-    flipSidesMidSession,
-    setOzoneOverrideMidSession,
-    _forgotStopPrompt,
-    logCompletedSession,
-    updateSession,
-    editSunSessionDuration,
-    deleteSunSession,
-    hydrateSession,
-    rehydrateStaleSessions,
-    getSessions,
-    getActiveSession,
-    rollingChannelTotals,
-    dailyChannelBreakdown,
-    dailyVitaminDIUBreakdown,
-    rollingVitaminDIU,
-    cumulativeMEDToday,
-    cumulativeMEDYesterday,
-    cumulativeVitaminDIUToday,
-    vitaminDBudgetStatus,
-    _applyAtmOverrides,
-    renderSessionsList,
-    renderSunSessionRow,
-    getSunCoords,
-    requestPreciseLocation,
-    openDetailedSessionDialog,
-    openStartSunSessionDialog,
-    openSunSessionDetail,
-    renderBodySilhouette,
-    bindBodySilhouette,
-    // Test-only: region-map internals exposed for assertion in
-    // tests/test-silhouette-region-map.js. Not for app code — the
-    // public API for click→region resolution is the silhouette
-    // picker's click handler in bindBodySilhouette.
-    _testLoadRegionMap,
-    _testRegionAtSource,
-    _testRegionColorRGB,
-    _testStockImg,
-    _testRegionBandLandmarks,
-    trapModalFocus,
-    _wireBackdropClose,
-    _resumeActiveTickerIfNeeded,
-    _ensureActiveTicker,
-    BODY_REGIONS,
-    EXPOSURE_PRESETS,
-    EYE_MODES,
-    LENS_TINTS,
-    CHANNEL_DISPLAY,
-    channelTier,
-    weeklyChannelTier,
-    tierLabel,
-    formatChannelUnit,
-    tierDots,
-  });
 }

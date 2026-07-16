@@ -116,7 +116,8 @@ async function seedDemoData(page) {
 async function seedMobileLightSessions(page) {
   await page.evaluate(async () => {
     const S = window._labState;
-    if (!S?.importedData || typeof window.logCompletedSession !== 'function') return;
+    const { logCompletedSession } = await import('/js/sun-sessions-store.js');
+    if (!S?.importedData || typeof logCompletedSession !== 'function') return;
     const now = Date.now();
     S.importedData.sunSessions = [];
     S.importedData.deviceSessions = [];
@@ -133,7 +134,7 @@ async function seedMobileLightSessions(page) {
         { id: 'red-nir-only', label: 'Red plus near infrared recovery preset', groups: ['red', 'nir'] },
       ],
     }];
-    await window.logCompletedSession({
+    await logCompletedSession({
       startedAt: now - 4 * 3600000,
       endedAt: now - 3.5 * 3600000,
       bodyExposure: { preset: 'tshirt', fraction: 0.30, regions: ['arms-front', 'legs-front'], sunscreenSPF: null, glassBetween: false },
@@ -153,7 +154,7 @@ async function seedMobileLightSessions(page) {
         mode: 'red-nir-only',
       });
     }
-    await window.logCompletedSession({
+    await logCompletedSession({
       startedAt: now - 2 * 86400000,
       endedAt: now - 2 * 86400000 + 35 * 60000,
       bodyExposure: { preset: 'shorts', fraction: 0.45, regions: ['chest', 'arms-front', 'legs-front'], sunscreenSPF: 30, glassBetween: false },

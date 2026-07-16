@@ -22,9 +22,7 @@ console.log('=== Sun Defaults Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'getSunCoords',
   'getProfileLocation',
-  'requestPreciseLocation',
   'navigate',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -49,15 +47,15 @@ function restoreRuntime() {
 
 try {
   const calls = [];
-  setRuntimeValue('getSunCoords', () => ({ lat: 50.08, lon: 14.42, source: 'profile-precise' }));
   configureSunDefaultsRuntimeDeps({
+    getSunCoords: () => ({ lat: 50.08, lon: 14.42, source: 'profile-precise' }),
     getProfileLocation: () => ({ country: 'Czech Republic', zip: '' }),
+    requestPreciseLocation: () => {
+      calls.push(['precise']);
+      return Promise.resolve({ lat: 50.1, lon: 14.4 });
+    },
     openProfileLocationEditor: () => calls.push(['profile-location']),
     openClientList: () => calls.push(['client-list']),
-  });
-  setRuntimeValue('requestPreciseLocation', () => {
-    calls.push(['precise']);
-    return Promise.resolve({ lat: 50.1, lon: 14.4 });
   });
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
 
@@ -84,12 +82,12 @@ try {
   assert('navigateSunDefaultsRoute delegates route navigation',
     calls.some(call => call[0] === 'navigate' && call[1] === 'light'));
 
-  delete globalThis.getSunCoords;
   configureSunDefaultsRuntimeDeps({
+    getSunCoords: null,
     getProfileLocation: () => ({ country: '', zip: '' }),
+    requestPreciseLocation: null,
     openClientList: null,
   });
-  delete globalThis.requestPreciseLocation;
   delete globalThis.navigate;
   assert('missing runtime functions return safe fallbacks',
     getSunSetupCoords() === null &&

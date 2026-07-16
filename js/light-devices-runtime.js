@@ -4,15 +4,35 @@
 import { state } from './state.js';
 import { showPromptDialog } from './utils.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
+import { CHANNEL_DISPLAY, channelTier, formatChannelUnit, tierLabel } from './sun.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const lightDevicesRuntimeDeps = { showPromptDialog };
+/** @type {{
+ *   showPromptDialog: typeof showPromptDialog | null,
+ *   channelTier: typeof channelTier | null,
+ *   tierLabel: typeof tierLabel | null,
+ *   formatChannelUnit: typeof formatChannelUnit | null,
+ *   channelDisplay: Record<string, any> | null,
+ * }} */
+const lightDevicesRuntimeDeps = {
+  showPromptDialog,
+  channelTier,
+  tierLabel,
+  formatChannelUnit,
+  channelDisplay: CHANNEL_DISPLAY,
+};
 
+/** @param {Partial<typeof lightDevicesRuntimeDeps>} deps */
 export function configureLightDevicesRuntimeDeps(deps = {}) {
   const previous = { ...lightDevicesRuntimeDeps };
-  if ('showPromptDialog' in deps) {
-    lightDevicesRuntimeDeps.showPromptDialog = typeof deps.showPromptDialog === 'function'
-      ? /** @type {typeof showPromptDialog} */ (deps.showPromptDialog)
+  for (const name of ['showPromptDialog', 'channelTier', 'tierLabel', 'formatChannelUnit']) {
+    if (name in deps) {
+      lightDevicesRuntimeDeps[name] = typeof deps[name] === 'function' ? deps[name] : null;
+    }
+  }
+  if ('channelDisplay' in deps) {
+    lightDevicesRuntimeDeps.channelDisplay = deps.channelDisplay && typeof deps.channelDisplay === 'object'
+      ? deps.channelDisplay
       : null;
   }
   return previous;
@@ -34,14 +54,6 @@ function getRuntimeFunction(name) {
   return getViewRuntimeFunction(name);
 }
 
-/**
- * @param {string} name
- * @returns {any}
- */
-function getRuntimeValue(name) {
-  return getRuntimeWindow()[name];
-}
-
 /** @param {string} route */
 export function navigateLightDevicesRoute(route) {
   getRuntimeFunction('navigate')?.(route);
@@ -61,26 +73,16 @@ export function promptLightDeviceSessionDuration(current) {
 }
 
 export function getLightDeviceChannelHelpers() {
-  const channelTier = /** @type {(value: any, channelKey?: string) => number} */ (
-    getRuntimeFunction('channelTier') || (() => 0)
-  );
-  const tierLabel = /** @type {(tier: number) => string} */ (
-    getRuntimeFunction('tierLabel') || (() => 'none')
-  );
-  const formatChannelUnit = /** @type {(...args: any[]) => string} */ (
-    getRuntimeFunction('formatChannelUnit') || (() => '')
-  );
   return {
-    channelTier,
-    tierLabel,
-    formatChannelUnit,
+    channelTier: lightDevicesRuntimeDeps.channelTier || (() => 0),
+    tierLabel: lightDevicesRuntimeDeps.tierLabel || (() => 'none'),
+    formatChannelUnit: lightDevicesRuntimeDeps.formatChannelUnit || (() => ''),
   };
 }
 
 /** @param {Record<string, any>} fallback */
 export function getLightDeviceChannelDisplay(fallback = {}) {
-  const display = getRuntimeValue('CHANNEL_DISPLAY');
-  return display && typeof display === 'object' ? display : fallback;
+  return lightDevicesRuntimeDeps.channelDisplay || fallback;
 }
 
 export function loadLightDevicesCatalog() {

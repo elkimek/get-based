@@ -31,7 +31,7 @@ console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
 // sun.js → dailyVitaminDIUBreakdown, light-tools.js → saveMeasurement,
 // light-sessions-view.js → _openAllSessionsModal.
 await import('../js/state.js');
-await import('../js/sun.js');
+const { dailyVitaminDIUBreakdown, rollingVitaminDIU } = await import('../js/sun.js');
 const lightTools = await import('../js/light-tools.js');
 const viewsModule = await import('../js/views.js');
 
@@ -91,8 +91,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 4. dailyVitaminDIUBreakdown ↔ rollingVitaminDIU parity ', 'font-weight:bold;color:#0891b2');
   {
     const S = window._labState;
-    if (!S || !window.dailyVitaminDIUBreakdown || !window.rollingVitaminDIU) {
-      assert('dailyVitaminDIUBreakdown exposed on window', !!window.dailyVitaminDIUBreakdown);
+    if (!S || typeof dailyVitaminDIUBreakdown !== 'function' || typeof rollingVitaminDIU !== 'function') {
+      assert('dailyVitaminDIUBreakdown exported by sun.js', false);
     } else {
       const _saved = JSON.parse(JSON.stringify(S.importedData));
       // Two synthetic sessions with known channel-au + body fraction
@@ -117,10 +117,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
         },
       ];
       S.importedData.deviceSessions = [];
-      const buckets = window.dailyVitaminDIUBreakdown(7);
+      const buckets = dailyVitaminDIUBreakdown(7);
       const dayTotals = buckets.map(b => Math.round(b.sun + b.device));
       const total = dayTotals.reduce((a, b) => a + b, 0);
-      const rolling = Math.round(window.rollingVitaminDIU(7));
+      const rolling = Math.round(rollingVitaminDIU(7));
       assert('dailyVitaminDIUBreakdown returns 7 buckets', buckets.length === 7);
       assert('breakdown total matches rollingVitaminDIU(7)',
         Math.abs(total - rolling) <= 1, `breakdown=${total} rolling=${rolling}`);

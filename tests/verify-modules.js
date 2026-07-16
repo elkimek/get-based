@@ -227,6 +227,26 @@
     import('../js/utils.js'),
     import('../js/views.js'),
   ]);
+  const sunModule = await import('../js/sun.js');
+  const formerSunGlobals = [
+    'SUN_ENGINE_VERSION', '_refreshSunSurfaces', 'quickLogSunSession', 'startSession', 'stopSession',
+    'pauseSession', 'resumeSession', 'pauseSunSession', 'resumeSunSession', 'applySunscreenMidSession',
+    'changeCoverageMidSession', 'flipSidesMidSession', 'setOzoneOverrideMidSession', '_forgotStopPrompt',
+    'logCompletedSession', 'updateSession', 'editSunSessionDuration', 'deleteSunSession', 'hydrateSession',
+    'rehydrateStaleSessions', 'getSessions', 'getActiveSession', 'rollingChannelTotals', 'dailyChannelBreakdown',
+    'dailyVitaminDIUBreakdown', 'rollingVitaminDIU', 'cumulativeMEDToday', 'cumulativeMEDYesterday',
+    'cumulativeVitaminDIUToday', 'vitaminDBudgetStatus', '_applyAtmOverrides', 'renderSessionsList',
+    'renderSunSessionRow', 'getSunCoords', 'requestPreciseLocation', 'openDetailedSessionDialog',
+    'openStartSunSessionDialog', 'openSunSessionDetail', 'renderBodySilhouette', 'bindBodySilhouette',
+    '_testLoadRegionMap', '_testRegionAtSource', '_testRegionColorRGB', '_testStockImg',
+    '_testRegionBandLandmarks', 'trapModalFocus', '_wireBackdropClose', '_resumeActiveTickerIfNeeded',
+    '_ensureActiveTicker', 'BODY_REGIONS', 'EXPOSURE_PRESETS', 'EYE_MODES', 'LENS_TINTS',
+    'CHANNEL_DISPLAY', 'channelTier', 'weeklyChannelTier', 'tierLabel', 'formatChannelUnit', 'tierDots',
+  ];
+  assert('Sun facade remains available through ESM exports',
+    typeof sunModule.rollingChannelTotals === 'function' && typeof sunModule.openSunSessionDetail === 'function');
+  assert('Sun facade does not publish legacy window globals',
+    formerSunGlobals.every(name => !(name in window)));
   const apiExports = [
     'getVeniceKey','saveVeniceKey','hasVeniceKey',
     'getVeniceModel','setVeniceModel','getVeniceModelDisplay',

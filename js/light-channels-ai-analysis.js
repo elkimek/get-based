@@ -21,6 +21,33 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 import { getDeviceSessions, rollingDeviceTotals } from './light-devices-store.js';
+import { rollingChannelTotals, tierLabel, weeklyChannelTier } from './sun.js';
+import { getSessions } from './sun-sessions-store.js';
+
+const lightChannelsAIAnalysisDeps = {
+  rollingChannelTotals,
+  getSessions,
+  weeklyChannelTier,
+  tierLabel,
+};
+
+/**
+ * @param {{
+ *   rollingChannelTotals?: ((days: number) => Record<string, number>) | null,
+ *   getSessions?: (() => any[]) | null,
+ *   weeklyChannelTier?: ((value: number, channelKey: string) => number) | null,
+ *   tierLabel?: ((tier: number) => string) | null,
+ * }} deps
+ */
+export function configureLightChannelsAIAnalysisDeps(deps = {}) {
+  const previous = { ...lightChannelsAIAnalysisDeps };
+  for (const name of Object.keys(lightChannelsAIAnalysisDeps)) {
+    if (name in deps && typeof deps[name] === 'function') {
+      lightChannelsAIAnalysisDeps[name] = deps[name];
+    }
+  }
+  return previous;
+}
 
 function _getMix() {
   return state.importedData?.channelMixAI || null;
@@ -41,17 +68,8 @@ const _CHANNEL_DEF = {
   violet_eye: { label: 'Violet-eye dopamine',     biology: '360–440 nm at the eye → retinal dopamine, myopia + mood' },
 };
 
-function _runtime() {
-  return /** @type {Record<string, any>} */ (globalThis);
-}
-
-function _callRuntime(name, ...args) {
-  const fn = _runtime()[name];
-  return typeof fn === 'function' ? fn(...args) : null;
-}
-
 function _rollingChannelTotals(days) {
-  return _callRuntime('rollingChannelTotals', days) || {};
+  return lightChannelsAIAnalysisDeps.rollingChannelTotals(days) || {};
 }
 
 function _rollingDeviceTotals(days) {
@@ -59,7 +77,7 @@ function _rollingDeviceTotals(days) {
 }
 
 function _getSessions() {
-  return _callRuntime('getSessions') || [];
+  return lightChannelsAIAnalysisDeps.getSessions();
 }
 
 function _getDeviceSessions() {
@@ -67,15 +85,11 @@ function _getDeviceSessions() {
 }
 
 function _weeklyChannelTier(value, channelKey) {
-  const tier = _runtime().weeklyChannelTier;
-  return typeof tier === 'function' ? tier(value, channelKey) : 0;
+  return lightChannelsAIAnalysisDeps.weeklyChannelTier(value, channelKey);
 }
 
 function _tierLabel(tier) {
-  const label = _runtime().tierLabel;
-  return typeof label === 'function'
-    ? label(tier)
-    : (['none', 'low', 'moderate', 'good', 'strong'][tier] || '?');
+  return lightChannelsAIAnalysisDeps.tierLabel(tier);
 }
 
 function _channelTotals() {

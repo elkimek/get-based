@@ -4,6 +4,22 @@ function moduleUrl(path) {
   return `${path}?sunBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+const FORMER_SUN_GLOBALS = [
+  'SUN_ENGINE_VERSION', '_refreshSunSurfaces', 'quickLogSunSession', 'startSession', 'stopSession',
+  'pauseSession', 'resumeSession', 'pauseSunSession', 'resumeSunSession', 'applySunscreenMidSession',
+  'changeCoverageMidSession', 'flipSidesMidSession', 'setOzoneOverrideMidSession', '_forgotStopPrompt',
+  'logCompletedSession', 'updateSession', 'editSunSessionDuration', 'deleteSunSession', 'hydrateSession',
+  'rehydrateStaleSessions', 'getSessions', 'getActiveSession', 'rollingChannelTotals', 'dailyChannelBreakdown',
+  'dailyVitaminDIUBreakdown', 'rollingVitaminDIU', 'cumulativeMEDToday', 'cumulativeMEDYesterday',
+  'cumulativeVitaminDIUToday', 'vitaminDBudgetStatus', '_applyAtmOverrides', 'renderSessionsList',
+  'renderSunSessionRow', 'getSunCoords', 'requestPreciseLocation', 'openDetailedSessionDialog',
+  'openStartSunSessionDialog', 'openSunSessionDetail', 'renderBodySilhouette', 'bindBodySilhouette',
+  '_testLoadRegionMap', '_testRegionAtSource', '_testRegionColorRGB', '_testStockImg',
+  '_testRegionBandLandmarks', 'trapModalFocus', '_wireBackdropClose', '_resumeActiveTickerIfNeeded',
+  '_ensureActiveTicker', 'BODY_REGIONS', 'EXPOSURE_PRESETS', 'EYE_MODES', 'LENS_TINTS',
+  'CHANNEL_DISPLAY', 'channelTier', 'weeklyChannelTier', 'tierLabel', 'formatChannelUnit', 'tierDots',
+];
+
 function expectAll(outcomes) {
   const failed = Object.entries(outcomes)
     .filter(([, value]) => value !== true)
@@ -67,7 +83,7 @@ test('sun session model browser coverage exercises safety defaults and caveats',
 test('sun browser coverage exercises facade totals prompts and location paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const outcomes = await page.evaluate(async ({ sunUrl, utilsUrl }) => {
+  const outcomes = await page.evaluate(async ({ sunUrl, utilsUrl, formerSunGlobals }) => {
     const [{ state }, sun, utils, viewRuntime] = await Promise.all([
       import('/js/state.js'),
       import(sunUrl),
@@ -202,9 +218,10 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       outcomes.promptAllowEmptyPreservesDefaultSemantics = defaultEmptyResult === null
         && allowEmptyResult === '';
 
-      outcomes.windowFacadeExports = window.rollingChannelTotals === sun.rollingChannelTotals
-        && typeof window.applySunscreenMidSession === 'function'
-        && window.SUN_ENGINE_VERSION === sun.SUN_ENGINE_VERSION;
+      outcomes.sunFacadeStaysModuleOnly = formerSunGlobals.every(name => !(name in window))
+        && typeof sun.rollingChannelTotals === 'function'
+        && typeof sun.applySunscreenMidSession === 'function'
+        && Number.isFinite(sun.SUN_ENGINE_VERSION);
       outcomes.tierHelpersCoverDailyWeeklyAndFallbacks = sun.channelTier(0, 'vitamin_d') === 0
         && sun.channelTier(200, 'vitamin_d') === 3
         && sun.weeklyChannelTier(560, 'pomc') === 4
@@ -330,7 +347,11 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       document.querySelectorAll('.notification-container,.notification-toast,#prompt-dialog-overlay,#confirm-dialog-overlay,.modal-overlay').forEach(el => el.remove());
     }
     return outcomes;
-  }, { sunUrl: moduleUrl('/js/sun.js'), utilsUrl: moduleUrl('/js/utils.js') });
+  }, {
+    sunUrl: moduleUrl('/js/sun.js'),
+    utilsUrl: moduleUrl('/js/utils.js'),
+    formerSunGlobals: FORMER_SUN_GLOBALS,
+  });
 
   expectAll(outcomes);
 });
