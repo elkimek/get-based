@@ -126,7 +126,7 @@ configureSettingsRuntime({
 configureNavActions({ openClientList });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
-configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
+configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });
 configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel });

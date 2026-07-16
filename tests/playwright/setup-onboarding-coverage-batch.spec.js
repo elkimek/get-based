@@ -15,6 +15,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
+    const sunDefaultsRuntimeSrc = await fetch('/js/sun-defaults-runtime.js').then(response => response.text());
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (selector, label = selector) => {
@@ -45,13 +46,13 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
-      navigate: window.navigate,
     };
     const calls = [];
     const outcomes = {};
     let precise = false;
     const previousSunDefaultsRuntimeDeps = sunDefaultsRuntime.configureSunDefaultsRuntimeDeps({
       getProfileLocation: () => ({ country: 'Czechia', zip: '' }),
+      navigate: route => calls.push(['navigate', route]),
       openProfileLocationEditor: () => calls.push(['profile-location']),
       openClientList: () => calls.push(['client-list']),
       getSunCoords: () => precise
@@ -78,7 +79,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       };
       data.invalidateActiveDataCache();
 
-      window.navigate = route => calls.push(['navigate', route]);
       sunDefaults.configureSunDefaults({
         maybeAnalyzeOnboardingAfterSave: () => calls.push(['onboarding-ai']),
         renderOnboardingAIBlock: () => '<div id="setup-ai-block">AI setup block</div>',
@@ -92,6 +92,9 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         promptHost.querySelector('.light-setup-prompt')?.textContent.includes('Set up your light assumptions')
         && !!promptHost.querySelector('.light-widget-prompt-cta')
         && !!promptHost.querySelector('.dashboard-action-btn');
+      outcomes.sunDefaultsRuntimeUsesInjectedNavigation =
+        sunDefaultsRuntimeSrc.includes('sunDefaultsRuntimeDeps.navigate?.(route)')
+        && !sunDefaultsRuntimeSrc.includes('getViewRuntimeFunction');
       promptHost.querySelector('.light-widget-prompt-cta')?.click();
       await waitFor('#light-setup-focus-overlay');
       promptHost.remove();
@@ -202,7 +205,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       data.invalidateActiveDataCache();
-      window.navigate = saved.navigate;
       sunDefaults.configureSunDefaults({
         maybeAnalyzeOnboardingAfterSave: () => {},
         renderOnboardingAIBlock: () => '',
