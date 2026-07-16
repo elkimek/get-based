@@ -112,7 +112,7 @@
     "js/dna.js",
     "js/dna-parser.js",
     "js/dna-runtime.js",
-    "js/dna-window-bindings.js",
+    "js/dna-runtime-bridge.js",
     "js/emf.js",
     "js/export-report-builder.js",
     "js/export-report-html.js",

@@ -6,6 +6,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
@@ -27,6 +28,7 @@ function lensPageRuntime() {
 
 function callLensPageRuntime(name, ...args) {
   const fn = getSettingsModuleFunction(name)
+    || getDnaModuleFunction(name)
     || lensPageRuntime()[name]
     || (name === 'navigate' ? getViewRuntimeFunction(name) : null);
   if (typeof fn === 'function') fn(...args);
@@ -74,7 +76,7 @@ function handleLensPageShellClick(event) {
   } else if (action === 'add-manual-snp') {
     callLensPageRuntime('openManualSnpModal');
   } else if (action === 'reimport-dna') {
-    if (typeof lensPageRuntime().reimportDNA === 'function') callLensPageRuntime('reimportDNA');
+    if (getDnaModuleFunction('reimportDNA')) callLensPageRuntime('reimportDNA');
     else triggerContextCardDNAFilePickerRuntime();
   } else if (action === 'delete-dna') {
     callLensPageRuntime('confirmDeleteDNA');

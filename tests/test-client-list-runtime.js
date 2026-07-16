@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import { getCachedKey, updateKeyCache } from '../js/crypto.js';
+import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import {
   configureClientListRuntimeDeps,
   getClientHaplogroupList,
@@ -25,10 +26,8 @@ function assert(name, condition, detail) {
 console.log('=== Client List Runtime Tests ===\n');
 
 const runtimeKeys = [
-  'HAPLOGROUP_LIST',
   'navigate',
   'showNotification',
-  'setManualHaplogroup',
 ];
 const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const savedAIStorage = {
@@ -38,6 +37,10 @@ const savedAIStorage = {
   openrouterCachedKey: getCachedKey('labcharts-openrouter-key'),
 };
 let previousViewRuntime = null;
+const previousDnaBridge = configureDnaModuleBridge({
+  HAPLOGROUP_LIST: null,
+  setManualHaplogroup: null,
+});
 
 function restoreRuntime() {
   for (const key of runtimeKeys) {
@@ -56,11 +59,11 @@ function restoreRuntime() {
 try {
   const calls = [];
 
-  globalThis.HAPLOGROUP_LIST = ['H1', 'J2'];
-  assert('getClientHaplogroupList reads runtime haplogroup list',
+  configureDnaModuleBridge({ HAPLOGROUP_LIST: ['H1', 'J2'] });
+  assert('getClientHaplogroupList reads module haplogroup list',
     getClientHaplogroupList().join(',') === 'H1,J2');
-  globalThis.HAPLOGROUP_LIST = 'H1';
-  assert('getClientHaplogroupList falls back to empty array for invalid runtime value',
+  configureDnaModuleBridge({ HAPLOGROUP_LIST: 'H1' });
+  assert('getClientHaplogroupList falls back to empty array for invalid module value',
     getClientHaplogroupList().length === 0);
 
   globalThis.navigate = route => calls.push(['navigate', route]);
@@ -82,14 +85,14 @@ try {
   assert('showClientListNotification delegates runtime notification',
     calls.some(call => call[0] === 'notification' && call[1] === '"Ada" updated' && call[2] === 'info'));
 
-  globalThis.setManualHaplogroup = async haplogroup => {
+  configureDnaModuleBridge({ setManualHaplogroup: async haplogroup => {
     calls.push(['set-haplogroup', haplogroup]);
     return true;
-  };
-  assert('setClientManualHaplogroup delegates runtime haplogroup setter',
+  } });
+  assert('setClientManualHaplogroup delegates module haplogroup setter',
     await setClientManualHaplogroup('H1') === true &&
     calls.some(call => call[0] === 'set-haplogroup' && call[1] === 'H1'));
-  delete globalThis.setManualHaplogroup;
+  configureDnaModuleBridge({ setManualHaplogroup: null });
   assert('setClientManualHaplogroup returns false when hook is missing',
     await setClientManualHaplogroup('J2') === false);
 
@@ -108,6 +111,11 @@ try {
     hasClientListAIProvider() === false);
 
 } finally {
+  configureDnaModuleBridge({
+    HAPLOGROUP_LIST: null,
+    setManualHaplogroup: null,
+    ...previousDnaBridge,
+  });
   configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
   configureClientListRuntimeDeps(originalClientListRuntimeDeps);
   restoreRuntime();

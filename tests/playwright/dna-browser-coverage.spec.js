@@ -221,14 +221,14 @@ rs999999\t1\t100\tAG
 `;
 
     importRunning = true;
-    await window.handleDNAFile(textFile(validContent, 'busy.txt'));
+    await dna.handleDNAFile(textFile(validContent, 'busy.txt'));
     check('busy import blocks preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
     importRunning = false;
 
-    await window.handleDNAFile(textFile(noMatchContent, 'nomatch.txt'));
+    await dna.handleDNAFile(textFile(noMatchContent, 'nomatch.txt'));
     check('no-match file does not open preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
 
-    await window.handleDNAFile(textFile(validContent, 'ancestry-ui.txt'));
+    await dna.handleDNAFile(textFile(validContent, 'ancestry-ui.txt'));
     await wait();
     let overlay = document.getElementById('dna-modal-overlay');
     check('valid file opens DNA preview', overlay?.classList.contains('show') === true);
@@ -240,7 +240,7 @@ rs999999\t1\t100\tAG
     await wait();
     check('close preview clears pending import', window._pendingDNAImport == null && !overlay?.classList.contains('show'));
 
-    await window.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
+    await dna.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
     const importConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
     overlay?.querySelector('[data-dna-action="confirm-import"]')?.click();
@@ -361,11 +361,11 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     const invalidBand = dna.detectMtDNAMismatch({ mtdna: { haplogroup: 'J', coupling: { matchedLatBands: [3, 4] } } });
     check('detectMtDNAMismatch covers mismatch, match, invalid band', mismatch?.mismatch === true && matched?.mismatch === false && invalidBand === null);
 
-    await window.handleMtDNAFile(textFile('not mtdna', 'empty-mtdna.txt'));
+    await dna.handleMtDNAFile(textFile('not mtdna', 'empty-mtdna.txt'));
     check('empty mtDNA file does not open preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
 
     dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '<25\u00B0 latitude (tropical)' });
-    await window.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
+    await dna.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
     await wait();
     let overlay = document.getElementById('dna-modal-overlay');
     check('handleMtDNAFile opens preview', overlay?.classList.contains('show') === true && window._pendingMtDNA?.resolved?.haplogroup === 'J');
@@ -375,13 +375,13 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     await wait();
     check('closeMtDNAPreview clears pending', window._pendingMtDNA == null && !overlay?.classList.contains('show'));
 
-    await window.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
+    await dna.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
     const mtConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-mtdna-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
     overlay?.querySelector('[data-dna-action="confirm-mtdna-import"]')?.click();
     const mtImportFinished = mtConfirmReady && await waitFor(() => state.importedData.genetics?.mtdna?.haplogroup === 'J' && calls.includes('navigate:dashboard'));
     check('confirmMtDNAImport stores mtdna', mtImportFinished);
-    const context = window._buildGeneticsContext(state.importedData.genetics, null);
+    const context = dna.buildGeneticsContext(state.importedData.genetics, null);
     check('mtDNA context includes mismatch detail', context.includes('mtDNA Haplogroup: J') && context.includes('ENVIRONMENT MISMATCH'));
     const rendered = dna.renderGeneticsSection();
     document.getElementById('fixture').innerHTML = rendered;
@@ -392,12 +392,12 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     await wait();
     check('deleteMtDNAData removes mtdna only', state.importedData.genetics?.mtdna == null && state.importedData.genetics?.snps != null);
 
-    await window.setManualHaplogroup('bad');
+    await dna.setManualHaplogroup('bad');
     check('invalid manual haplogroup not stored', state.importedData.genetics?.mtdna == null);
-    await window.setManualHaplogroup('j');
+    await dna.setManualHaplogroup('j');
     check('manual haplogroup stores uppercase J', state.importedData.genetics?.mtdna?.haplogroup === 'J' && state.importedData.genetics.mtdna.source === 'manual');
     dna.ensureHaplogroupTable();
-    check('haplogroup list exported', Array.isArray(window.HAPLOGROUP_LIST) && window.HAPLOGROUP_LIST.includes('J'));
+    check('haplogroup list exported', Array.isArray(dna.HAPLOGROUP_LIST) && dna.HAPLOGROUP_LIST.includes('J'));
 
     dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
     viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });

@@ -2,6 +2,7 @@
 // marker-detail-runtime.js - Browser runtime adapters for marker detail modal hooks.
 
 import { closeEMFInterpretation } from './emf-runtime.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getWearablesModuleFunction } from './wearables-runtime.js';
@@ -98,7 +99,7 @@ export function showEmojiPickerRuntime(el, callback, opts) {
  */
 export function getRelevantSNPsRuntime(dotKey) {
   try {
-    const snps = getRuntimeFunction('_getRelevantSNPs')?.(dotKey);
+    const snps = getDnaModuleFunction('getRelevantSNPs')?.(dotKey);
     return Array.isArray(snps) ? snps : [];
   } catch {
     return [];

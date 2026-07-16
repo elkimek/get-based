@@ -103,7 +103,7 @@
     "js/data.js",
     "js/dna.js",
     "js/dna-runtime.js",
-    "js/dna-window-bindings.js",
+    "js/dna-runtime-bridge.js",
     "js/emf.js",
     "js/emf-facade.js",
     "js/export-import.js",

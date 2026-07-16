@@ -2,6 +2,7 @@
 // import-drop-zone-runtime.js - Browser runtime adapters for drop-zone imports.
 
 import { isImportRunning } from './pdf-import-progress.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
 import { importDataJSON } from './export.js';
 
@@ -33,19 +34,10 @@ function getRuntimeDocument() {
 
 /**
  * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
-/**
- * @param {string} name
  * @returns {Function}
  */
-function requireRuntimeFunction(name) {
-  const fn = getRuntimeFunction(name);
+function requireDnaModuleFunction(name) {
+  const fn = getDnaModuleFunction(name);
   if (!fn) throw new TypeError(`${name} is not available`);
   return fn;
 }
@@ -75,20 +67,20 @@ export function importDropZoneJSONFile(file) {
 
 /** @param {string} header */
 export function detectDropZoneDNAFile(header) {
-  const detectDNAFile = getRuntimeFunction('detectDNAFile');
+  const detectDNAFile = getDnaModuleFunction('detectDNAFile');
   return detectDNAFile ? detectDNAFile(header) : null;
 }
 
 export function hasDropZoneMtDNAHandler() {
-  return Boolean(getRuntimeFunction('handleMtDNAFile'));
+  return Boolean(getDnaModuleFunction('handleMtDNAFile'));
 }
 
 /** @param {File} file */
 export async function handleDropZoneMtDNAFile(file) {
-  return await requireRuntimeFunction('handleMtDNAFile')(file);
+  return await requireDnaModuleFunction('handleMtDNAFile')(file);
 }
 
 /** @param {File} file */
 export async function handleDropZoneDNAFile(file) {
-  return await requireRuntimeFunction('handleDNAFile')(file);
+  return await requireDnaModuleFunction('handleDNAFile')(file);
 }

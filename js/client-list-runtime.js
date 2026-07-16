@@ -2,6 +2,7 @@
 // client-list-runtime.js - Browser runtime adapters for client-list UI shell hooks.
 
 import { hasAIProvider } from './api.js';
+import { getDnaModuleFunction, getDnaModuleValue } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
@@ -34,16 +35,8 @@ function getRuntimeFunction(name) {
   return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
-/**
- * @param {string} name
- * @returns {any}
- */
-function getRuntimeValue(name) {
-  return getRuntimeWindow()[name];
-}
-
 export function getClientHaplogroupList() {
-  const list = getRuntimeValue('HAPLOGROUP_LIST');
+  const list = getDnaModuleValue('HAPLOGROUP_LIST');
   return Array.isArray(list) ? list : [];
 }
 
@@ -66,7 +59,7 @@ export function showClientListNotification(message, type) {
 
 /** @param {string} haplogroup */
 export function setClientManualHaplogroup(haplogroup) {
-  const setManualHaplogroup = getRuntimeFunction('setManualHaplogroup');
+  const setManualHaplogroup = getDnaModuleFunction('setManualHaplogroup');
   return setManualHaplogroup ? setManualHaplogroup(haplogroup) : false;
 }
 

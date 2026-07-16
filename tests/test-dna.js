@@ -8,7 +8,7 @@
 // Run: node tests/test-dna.js  (or via npm test)
 //
 // Full port — parseDNAFile spins a Blob-backed Worker; the synchronous
-// Worker shim in _node-shim.js runs it in-process. window-export checks
+// Worker shim in _node-shim.js runs it in-process. Module-boundary checks
 // need state.js + dna.js loaded; haplogroups.json + source reads go
 // through the fs-backed fetch shim (`/app` aliases index.html).
 
@@ -45,8 +45,8 @@ function assert(name, condition, detail) {
 
 console.log('=== DNA Adapter Tests ===\n');
 
-// Load the app module surface so dna.js's Object.assign(window, …) runs
-// and window._labState is set by state.js.
+// Load the app module surface; state.js retains the temporary _labState
+// compatibility hook while DNA actions stay module-only.
 await import('../js/state.js');
 await import('../js/utils.js');
 await import('../js/data.js');
@@ -390,19 +390,23 @@ const emptyCtx = dna.buildGeneticsContext(null, []);
 assert('Null genetics = empty string', emptyCtx === '');
 
 // ═══════════════════════════════════════
-// 11. Window exports
+// 11. Module-only exports
 // ═══════════════════════════════════════
-console.log('11. Window Exports');
+console.log('11. Module-only Exports');
 
-assert('window.isDNAFile exists', typeof window.isDNAFile === 'function');
-assert('window.handleDNAFile exists', typeof window.handleDNAFile === 'function');
-assert('window.confirmDNAImport exists', typeof window.confirmDNAImport === 'function');
-assert('window.openManualSnpModal exists', typeof window.openManualSnpModal === 'function');
-assert('window.closeDNAImportPreview exists', typeof window.closeDNAImportPreview === 'function');
-assert('window.deleteGeneticsData exists', typeof window.deleteGeneticsData === 'function');
-assert('window._buildGeneticsContext exists', typeof window._buildGeneticsContext === 'function');
-assert('window.getSnpCategoryLabel exists', typeof window.getSnpCategoryLabel === 'function');
-assert('window.SNP_CATEGORY_LABELS exists', typeof window.SNP_CATEGORY_LABELS === 'object');
+const formerDnaGlobals = [
+  'isDNAFile', 'handleDNAFile', 'confirmDNAImport', 'openManualSnpModal',
+  'closeDNAImportPreview', 'deleteGeneticsData', '_buildGeneticsContext',
+  'getSnpCategoryLabel', 'SNP_CATEGORY_LABELS', 'handleMtDNAFile',
+  'detectMtDNAMismatch', 'ensureHaplogroupTable', 'closeMtDNAPreview',
+  'confirmMtDNAImport', 'deleteMtDNAData', 'setManualHaplogroup',
+  'HAPLOGROUP_LIST', '_getRelevantSNPs', '_getState', '_saveAndRefresh',
+];
+assert('DNA actions stay off window', formerDnaGlobals.every(name => !(name in window)));
+assert('DNA UI actions are module exports',
+  typeof dna.confirmDNAImport === 'function' &&
+  typeof dna.openManualSnpModal === 'function' &&
+  typeof dna.closeDNAImportPreview === 'function');
 
 // ═══════════════════════════════════════
 // 12. Source integration
@@ -490,14 +494,14 @@ const dnaMtDnaSrc = await fetchWithRetry('js/dna-mtdna.js');
 assert('dna.js delegates browser runtime hooks to dna-runtime',
   dnaSrc.includes("from './dna-runtime.js'") &&
     !/\bwindow\b/.test(dnaSrc));
-assert('dna-runtime owns DNA browser-global integration points',
+assert('dna-runtime owns DNA transient runtime state and shell integration',
   dnaRuntimeSrc.includes('_pendingDNAImport') &&
     dnaRuntimeSrc.includes('_pendingMtDNA') &&
     dnaRuntimeSrc.includes('_snpTableCache') &&
     dnaRuntimeSrc.includes("from './profile.js'") &&
     dnaRuntimeSrc.includes('dnaRuntimeDeps.getLatitudeFromLocation()') &&
     dnaRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
-    dnaRuntimeSrc.includes('installDNAWindowBindings'));
+    !dnaRuntimeSrc.includes('installDNAWindowBindings'));
 assert('dna-mtdna delegates browser runtime hooks to dna-runtime',
   dnaMtDnaSrc.includes("from './dna-runtime.js'") &&
     dnaMtDnaSrc.includes('getDnaProfileLatitudeBand') &&
@@ -561,7 +565,8 @@ assert('DNA reference links use attribute escaping instead of quote-only replace
   !dnaSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));
 
 const labCtxSrc = await fetchWithRetry('js/lab-context.js');
-assert('lab-context.js includes genetics in context', labCtxSrc.includes('_buildGeneticsContext'));
+assert('lab-context.js uses the DNA module bridge for genetics context',
+  labCtxSrc.includes("getDnaModuleFunction('buildGeneticsContext')"));
 
 const indexSrc = await fetchWithRetry('/app');
 assert('File input accepts .txt', indexSrc.includes('.txt'));
@@ -581,12 +586,13 @@ assert('Autosomal still detects as 23andme', dna.detectDNAFile('# This data file
 // ═══════════════════════════════════════
 console.log('14. Haplogroup Functions');
 
-assert('handleMtDNAFile exists on window', typeof window.handleMtDNAFile === 'function');
-assert('detectMtDNAMismatch exists on window', typeof window.detectMtDNAMismatch === 'function');
-assert('ensureHaplogroupTable exists on window', typeof window.ensureHaplogroupTable === 'function');
-assert('closeMtDNAPreview exists on window', typeof window.closeMtDNAPreview === 'function');
-assert('confirmMtDNAImport exists on window', typeof window.confirmMtDNAImport === 'function');
-assert('deleteMtDNAData exists on window', typeof window.deleteMtDNAData === 'function');
+assert('mtDNA actions are module exports',
+  typeof dna.handleMtDNAFile === 'function' &&
+  typeof dna.detectMtDNAMismatch === 'function' &&
+  typeof dna.ensureHaplogroupTable === 'function' &&
+  typeof dna.closeMtDNAPreview === 'function' &&
+  typeof dna.confirmMtDNAImport === 'function' &&
+  typeof dna.deleteMtDNAData === 'function');
 
 // ═══════════════════════════════════════
 // 15. Haplogroup Data File
@@ -626,12 +632,12 @@ testGenetics.mtdna = {
 window._labState.importedData.genetics = testGenetics;
 
 // Test context includes haplogroup
-const ctx = window._buildGeneticsContext(testGenetics, null);
+const ctx = dna.buildGeneticsContext(testGenetics, null);
 assert('Context includes mtDNA haplogroup', ctx.includes('mtDNA Haplogroup: J'));
 assert('Context includes coupling label', ctx.includes('Uncoupled'));
 
 // Test mismatch with no location → null
-const noLocMismatch = window.detectMtDNAMismatch(testGenetics);
+const noLocMismatch = dna.detectMtDNAMismatch(testGenetics);
 // May be null if no location, or may have a result — just check it doesn't throw
 assert('detectMtDNAMismatch does not throw', true);
 

@@ -12,6 +12,7 @@ import {
   openDropZoneFilePicker,
   showDropZoneImportNotification,
 } from '../js/import-drop-zone-runtime.js';
+import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -25,12 +26,14 @@ const runtimeKeys = [
   'window',
   'document',
   'showNotification',
-  'detectDNAFile',
-  'handleMtDNAFile',
-  'handleDNAFile',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const originalImportRuntimeDeps = configureImportDropZoneRuntimeDeps();
+const previousDnaBridge = configureDnaModuleBridge({
+  detectDNAFile: null,
+  handleMtDNAFile: null,
+  handleDNAFile: null,
+});
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -60,9 +63,11 @@ try {
     isImportRunning: () => true,
     showNotification: (message, type) => calls.push(['notify', type, message]),
   });
-  setRuntimeValue('detectDNAFile', header => header.includes('MT') ? 'mtdna' : 'autosomal');
-  setRuntimeValue('handleMtDNAFile', file => calls.push(['mtdna', file.name]));
-  setRuntimeValue('handleDNAFile', file => calls.push(['dna', file.name]));
+  configureDnaModuleBridge({
+    detectDNAFile: header => header.includes('MT') ? 'mtdna' : 'autosomal',
+    handleMtDNAFile: file => calls.push(['mtdna', file.name]),
+    handleDNAFile: file => calls.push(['dna', file.name]),
+  });
   setRuntimeValue('document', { getElementById: id => id === 'pdf-input' ? picker : null });
 
   openDropZoneFilePicker();
@@ -85,7 +90,7 @@ try {
   assert('handleDropZoneDNAFile delegates DNA import',
     calls.some(call => call[0] === 'dna' && call[1] === 'genome.txt'));
 
-  delete globalThis.handleDNAFile;
+  configureDnaModuleBridge({ handleDNAFile: null });
   try {
     await handleDropZoneDNAFile(dnaFile);
     assert('required DNA import handler fails loudly when missing', false, 'no error thrown');
@@ -97,9 +102,15 @@ try {
   delete globalThis.window;
   showDropZoneImportNotification('hidden', 'info');
   openDropZoneFilePicker();
-  assert('runtime adapter no-ops optional hooks when window is missing',
-    isDropZoneImportRunning() === false && detectDropZoneDNAFile('MT raw data') === null);
+  assert('browser hooks no-op while the DNA bridge remains available without window',
+    isDropZoneImportRunning() === false && detectDropZoneDNAFile('MT raw data') === 'mtdna');
 } finally {
+  configureDnaModuleBridge({
+    detectDNAFile: null,
+    handleMtDNAFile: null,
+    handleDNAFile: null,
+    ...previousDnaBridge,
+  });
   configureImportDropZoneRuntimeDeps(originalImportRuntimeDeps);
   restoreRuntime();
 }

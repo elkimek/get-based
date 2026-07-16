@@ -24,6 +24,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const lens = await import('/js/lens.js');
     const { state } = await import('/js/state.js');
     const contextCardsRuntime = await import('/js/context-cards-runtime.js');
+    const dnaBridge = await import('/js/dna-runtime-bridge.js');
     const outcomes = {};
 
     const snapshotStorage = storage => new Map(Array.from({ length: storage.length }, (_, index) => storage.key(index))
@@ -41,7 +42,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const hadImportedData = Object.prototype.hasOwnProperty.call(state, 'importedData');
     const savedGlobals = {
       showDirectoryPicker: originalShowDirectoryPicker,
-      handleDNAFile: window.handleDNAFile,
       setTimeout: window.setTimeout,
     };
     const hadGlobals = {};
@@ -68,15 +68,17 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       openInterpretiveLensEditor: () => calls.push('lens'),
     });
+    const previousDnaBridge = dnaBridge.configureDnaModuleBridge({
+      handleDNAFile: file => {
+        handledDnaFile = { name: file.name, textType: file.type };
+      },
+    });
 
     try {
       window.setTimeout = (fn, delay, ...args) => {
         timers.push(delay);
         if (typeof fn === 'function') Promise.resolve().then(() => fn(...args));
         return timers.length;
-      };
-      window.handleDNAFile = file => {
-        handledDnaFile = { name: file.name, textType: file.type };
       };
       HTMLInputElement.prototype.click = function clickSpy() {
         clickedInputId = this.id;
@@ -260,6 +262,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       dashboardAiRuntime.configureDashboardAIContextStatus(previousContextStatusHandler);
       dashboardAi.configureDashboardAIDataProtectionDeps(previousDataProtectionDeps);
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+      dnaBridge.configureDnaModuleBridge({ handleDNAFile: null, ...previousDnaBridge });
       HTMLInputElement.prototype.click = originalInputClick;
       for (const [name, original] of Object.entries(savedGlobals)) {
         if (name === 'showDirectoryPicker' && !hadShowDirectoryPicker) delete window[name];
