@@ -726,10 +726,13 @@ const {
   assert('Light assessment modal shell actions route through startup wiring instead of window lookup',
     appUiShellSrc.includes("import './light-env-shell-hooks.js';") &&
     lightEnvShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
-    lightEnvShellHooksSrc.includes("import { openLightEnvironmentAssessment, closeLightEnvironmentAssessment } from './light-env.js';") &&
+    lightEnvShellHooksSrc.includes("import { closeLightEnvironmentAssessment, configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
+    lightEnvShellHooksSrc.includes("import { navigate } from './views.js';") &&
+    lightEnvShellHooksSrc.includes('configureLightEnv({ navigate });') &&
     lightEnvShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
     navSrc.includes("typeof value === 'function'") &&
     appEventSrc.includes("typeof value === 'function'") &&
+    !envSrc.includes('globalThis.navigate') &&
     !appEventSrc.includes('window.closeLightEnvironmentAssessment') &&
     !globalsSrc.includes('openLightEnvironmentAssessment') &&
     !globalsSrc.includes('closeLightEnvironmentAssessment') &&
@@ -828,12 +831,13 @@ const {
 
   const beforeScreenToggleState = window._labState.importedData;
   const beforeScreenToggleView = window._labState.currentView;
-  const beforeNavigate = window.navigate;
   let screenNavCall = null;
+  const beforeScreenNavigateDeps = configureLightEnv({
+    navigate: (route, data) => { screenNavCall = { route, data }; },
+  });
   let screenPrevented = false;
   let screenStopped = false;
   window._labState.currentView = 'light';
-  window.navigate = (route, data) => { screenNavCall = { route, data }; };
   window._labState.importedData = {
     lightEnvironment: { rooms: [], screens: [{ id: 'screen_single', device: 'phone', roomId: null }] },
     lightMeasurements: [],
@@ -848,8 +852,7 @@ const {
     screenNavCall?.route === 'light' &&
     screenNavCall?.data?.scrollAnchor === '.light-env-screen-card[data-id="screen_single"]',
     JSON.stringify(screenNavCall));
-  if (beforeNavigate) window.navigate = beforeNavigate;
-  else delete window.navigate;
+  configureLightEnv(beforeScreenNavigateDeps);
   window._labState.currentView = beforeScreenToggleView;
   window._labState.importedData = beforeScreenToggleState;
 

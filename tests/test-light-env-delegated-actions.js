@@ -105,7 +105,10 @@ assert('Light environment modal shell actions are wired through startup hooks',
     !appEventSrc.includes('window.closeLightEnvironmentAssessment') &&
     envShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
     envShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
-    envShellHooksSrc.includes("import { openLightEnvironmentAssessment, closeLightEnvironmentAssessment } from './light-env.js';") &&
+    envShellHooksSrc.includes("import { closeLightEnvironmentAssessment, configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
+    envShellHooksSrc.includes("import { navigate } from './views.js';") &&
+    envShellHooksSrc.includes('configureLightEnv({ navigate });') &&
+    !envSrc.includes('globalThis.navigate') &&
     appUiShellSrc.includes("import './light-env-shell-hooks.js';"));
 assert('light-env screen renderer takes AI renderer from options instead of global lookup',
   screenSrc.includes('opts.renderScreenAIBlock') &&

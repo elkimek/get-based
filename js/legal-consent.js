@@ -2,6 +2,7 @@
 // legal-consent.js — first-launch Terms/Privacy gate and re-consent on document updates.
 
 import { dispatchUtilsRuntimeEvent } from './utils-runtime.js';
+import { showNotification } from './utils.js';
 
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
 export const TERMS_VERSION = '2026-06-22';
@@ -110,9 +111,9 @@ function handleLegalConsentClick(event) {
   closeLegalConsentGate();
   dispatchUtilsRuntimeEvent('legal-consent-accepted');
   if (persisted) {
-    globalThis.showNotification?.('Terms and Privacy accepted.', 'success', 3000);
+    showNotification('Terms and Privacy accepted.', 'success', 3000);
   } else {
-    globalThis.showNotification?.('Terms accepted for this session. Your browser blocked saving the acceptance record, so you may be asked again next visit.', 'warning', 6000);
+    showNotification('Terms accepted for this session. Your browser blocked saving the acceptance record, so you may be asked again next visit.', 'warning', 6000);
   }
 }
 

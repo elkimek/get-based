@@ -43,11 +43,11 @@ test('Light environment assessment drives delegated room and screen controls', a
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
-      navigate: window.navigate,
     };
     const outcomes = {};
     const calls = [];
     const savedLightEnvDeps = lightEnv.configureLightEnv({
+      navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
       openLuxMeter: opts => calls.push(['open-lux', opts?.roomId || null]),
     });
 
@@ -89,8 +89,6 @@ test('Light environment assessment drives delegated room and screen controls', a
       document.getElementById('tour-overlay')?.remove();
       document.getElementById('tour-spotlight')?.remove();
       document.getElementById('tour-tooltip')?.remove();
-      window.navigate = (route, meta) => calls.push(['navigate', route, meta || null]);
-
       const summaryHost = document.createElement('div');
       summaryHost.id = 'light-env-summary-host';
       summaryHost.innerHTML = lightEnv.renderEnvironmentAssessmentSummary();
@@ -256,7 +254,6 @@ test('Light environment assessment drives delegated room and screen controls', a
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       data.invalidateActiveDataCache();
-      window.navigate = saved.navigate;
       lightEnv.configureLightEnv(savedLightEnvDeps);
       localStorage.clear();
       for (const [key, value] of storage) {

@@ -52,7 +52,6 @@ import {
 import { installLightEnvActionDelegates, lightEnvActionAttrs } from './light-env-actions.js';
 import { SCREEN_HOURS_BUCKETS, renderScreenCard } from './light-env-screen-ui.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 export { getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit } from './light-env-audits.js';
 export {
@@ -89,9 +88,10 @@ export {
 // before falling back to "Room N" so a fresh user lands on familiar labels.
 const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
 
-/** @type {{ getMeasurementsForRoom: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null, openSpectrumClassifier: AnyFunction | null, openLuxMeter: AnyFunction | null, openFlickerDetector: AnyFunction | null, openCCTMeter: AnyFunction | null, openDarknessMeter: AnyFunction | null }} */
+/** @type {{ getMeasurementsForRoom: AnyFunction | null, navigate: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null, openSpectrumClassifier: AnyFunction | null, openLuxMeter: AnyFunction | null, openFlickerDetector: AnyFunction | null, openCCTMeter: AnyFunction | null, openDarknessMeter: AnyFunction | null }} */
 const lightEnvDeps = {
   getMeasurementsForRoom: null,
+  navigate: null,
   renderBurdenInterp: null,
   renderMeasurementAIInline: null,
   renderRoomAIBlock: null,
@@ -554,11 +554,9 @@ function refreshLightEnvironmentUI(options = {}) {
   refreshLightEnvironmentAssessment();
   if (options.scrollAnchor) scrollLightEnvironmentAssessmentTo(options.scrollAnchor, options.fallbackScrollAnchor);
   else if (priorScrollTop) setLightEnvironmentAssessmentScrollTop(priorScrollTop);
-  const navigate = typeof globalThis.navigate === 'function'
-    ? globalThis.navigate
-    : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
+  const navigate = lightEnvDeps.navigate;
   if (navigate && state.currentView === 'light') {
-    navigate.call(globalThis, 'light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
+    navigate('light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
   }
 }
 
