@@ -8,8 +8,8 @@
 //
 // Run: node tests/test-wearables-manual.js  (or via npm test)
 //
-// Full port — no DOM rendering. The window-export checks rely on wearables.js
-// registering its handlers on window; IndexedDB runs via fake-indexeddb.
+// Full port — no DOM rendering. Wearable handler export checks use the module
+// facade; IndexedDB runs via fake-indexeddb.
 
 import './_node-shim.js';
 
@@ -44,13 +44,12 @@ function assert(name, condition, detail) {
 
 console.log('=== Manual-as-wearable-source Tests ===\n');
 
-// state.js → window._labState; wearables.js registers the openManualLogForm /
-// saveManualLog / toggleManualLogChip window handlers the export checks probe.
+// state.js exposes the legacy test-state bridge; wearable actions are modules.
 await import('../js/state.js');
 const manual = await import('../js/wearables-manual.js');
 const store = await import('../js/wearables-store.js');
 const adapters = await import('../js/wearable-adapters.js');
-await import('../js/wearables.js');
+const wearables = await import('../js/wearables.js');
 
 // ═══════════════════════════════════════
 // 1. Module exports
@@ -77,9 +76,10 @@ assert('MANUAL_TAGS includes core context set',
 assert('deleteManualMetric exported', typeof manual.deleteManualMetric === 'function');
 assert('refreshManualSummary exported', typeof manual.refreshManualSummary === 'function');
 
-assert('openManualLogForm on window', typeof window.openManualLogForm === 'function');
-assert('saveManualLog on window', typeof window.saveManualLog === 'function');
-assert('cancelManualLog on window', typeof window.cancelManualLog === 'function');
+assert('manual dashboard actions are module exports',
+  typeof wearables.openManualLogForm === 'function'
+    && typeof wearables.saveManualLog === 'function'
+    && typeof wearables.cancelManualLog === 'function');
 
 const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
 const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
@@ -291,7 +291,8 @@ try {
     weightRow?.tags?.includes('post-workout'));
 
   assert('wearables.js renders tag chips on bp form', wearablesSrc.includes('_renderTagChips'));
-  assert('toggleManualLogChip on window', typeof window.toggleManualLogChip === 'function');
+  assert('toggleManualLogChip is a module export',
+    typeof wearables.toggleManualLogChip === 'function');
 
   const saveFn = wearablesDetailSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
   const delFn = wearablesDetailSrc.match(/async function deleteManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';

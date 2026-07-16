@@ -21,6 +21,7 @@ import {
 } from '../js/marker-detail-runtime.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 import { configureViewRuntime } from '../js/views-runtime-bridge.js';
+import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -40,10 +41,10 @@ const runtimeKeys = [
   'askAIAboutMarker',
   'showEmojiPicker',
   '_getRelevantSNPs',
-  '_uninstallWearableModalFocusTrap',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 let previousViewRuntime = null;
+let previousWearablesModule = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -94,7 +95,9 @@ try {
   const restoreMarkerDetailRuntime = configureMarkerDetailRuntime({
     closeEMFInterpretation: () => calls.push(['emf-close']),
   });
-  setRuntimeValue('_uninstallWearableModalFocusTrap', () => calls.push(['focus-trap']));
+  previousWearablesModule = configureWearablesModuleBridge({
+    _uninstallWearableModalFocusTrap: () => calls.push(['focus-trap']),
+  });
 
   navigateMarkerDetailRuntime('dashboard', { from: 'marker' });
   buildMarkerDetailSidebarRuntime();
@@ -143,6 +146,7 @@ try {
     renderRecommendationSection: null,
   });
   configureViewRuntime({ buildSidebar: null });
+  configureWearablesModuleBridge({ _uninstallWearableModalFocusTrap: null });
   const beforeMissingRuntimeCalls = calls.length;
   navigateMarkerDetailRuntime('dashboard');
   buildMarkerDetailSidebarRuntime();
@@ -164,6 +168,10 @@ try {
   configureMarkerDetailRuntime(restoreMarkerDetailRuntime);
   configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureWearablesModuleBridge({
+    _uninstallWearableModalFocusTrap: null,
+    ...previousWearablesModule,
+  });
   configureRecommendationModuleBridge({
     isProductRecsEnabled: null,
     renderRecommendationSection: null,

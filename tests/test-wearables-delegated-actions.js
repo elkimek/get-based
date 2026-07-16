@@ -65,9 +65,10 @@ assert('wearables module installs idempotent click keydown and submit delegates'
 assert('wearables delegated clicks are scoped to wearables surfaces',
   stripSrc.includes("closest('.wearable-strip, #detail-modal, .db-biometric-overview-grid')"));
 assert('wearables detail opens reset any active manual inline form',
-  stripSrc.includes('function openWearableDetailFromDashboard') &&
+  stripSrc.includes('export function openWearableDetail') &&
     stripSrc.includes('resetOpenManualLogForms();') &&
-    stripSrc.includes('openWearableDetail: openWearableDetailFromDashboard'));
+    stripSrc.includes('configureWearablesModuleBridge({') &&
+    stripSrc.includes('openWearableDetail,'));
 assert('wearables delegated manual log open bypasses only the legacy inline-card guard',
   stripSrc.includes("openManualLogForm(metricId, event, { delegated: true })") &&
     stripSrc.includes("!opts.delegated && event?.target?.closest?.('[data-wearable-action]')") &&

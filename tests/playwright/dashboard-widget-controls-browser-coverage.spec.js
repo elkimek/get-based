@@ -15,19 +15,17 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
-    const [controlsModule, contextCardsRuntime, dashboardWidgetRuntime] = await Promise.all([
+    const [controlsModule, contextCardsRuntime, dashboardWidgetRuntime, wearablesRuntime] = await Promise.all([
       import(controlsUrl),
       import('/js/context-cards-runtime.js'),
       import('/js/dashboard-widget-runtime.js'),
+      import('/js/wearables-runtime.js'),
     ]);
     const outcomes = {};
     const fixture = document.getElementById('fixture');
     const saved = {
       navigate: window.navigate,
       openSettingsModal: window.openSettingsModal,
-      syncWearableNow: window.syncWearableNow,
-      openWearableDetail: window.openWearableDetail,
-      openManualLogForm: window.openManualLogForm,
       showDetailModal: window.showDetailModal,
     };
     const calls = [];
@@ -37,6 +35,11 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     const previousDashboardNoteActions = dashboardWidgetRuntime.configureDashboardNoteActions({
       openNoteEditor: (...args) => calls.push(['noteEditor', args.length, ...args.map(arg => arg ?? 'null')]),
       deleteNote: index => calls.push(['deleteNote', index]),
+    });
+    const previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
+      syncWearableNow: el => calls.push(['sync', el?.dataset.dashboardWidgetAction || '']),
+      openWearableDetail: id => calls.push(['wearableDetail', id]),
+      openManualLogForm: (id, event) => calls.push(['manualLog', id, event.type]),
     });
     const clone = value => JSON.parse(JSON.stringify(value));
     let prefs = {
@@ -138,9 +141,6 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     try {
       window.navigate = route => calls.push(['navigate', route]);
       window.openSettingsModal = section => calls.push(['settings', section]);
-      window.syncWearableNow = el => calls.push(['sync', el?.dataset.dashboardWidgetAction || '']);
-      window.openWearableDetail = id => calls.push(['wearableDetail', id]);
-      window.openManualLogForm = (id, event) => calls.push(['manualLog', id, event.type]);
       window.showDetailModal = id => calls.push(['markerDetail', id]);
       Storage.prototype.removeItem = function removeItem(key) {
         calls.push(['removeStorage', key]);
@@ -306,6 +306,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     } finally {
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       dashboardWidgetRuntime.configureDashboardNoteActions(previousDashboardNoteActions);
+      wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
       Storage.prototype.removeItem = originalRemoveItem;
       for (const [key, value] of Object.entries(saved)) {
         if (value === undefined) delete window[key];

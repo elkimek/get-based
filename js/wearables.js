@@ -37,14 +37,14 @@ import {
   closeManualAddFromDetail,
   deleteManualEntryFromDetail,
   openManualAddFromDetail,
-  openWearableDetail,
+  openWearableDetail as openWearableDetailModal,
   saveManualEntryFromDetail,
   setWearableDetailRange,
   wearableActionAttrs,
 } from './wearables-detail-modal.js';
 import {
   closeWearablesModal,
-  exposeWearablesBindings,
+  configureWearablesModuleBridge,
   getWearablesViewportSize,
   navigateWearables,
   openEMFAssessmentAfterWearablesModalClose,
@@ -52,6 +52,15 @@ import {
 } from './wearables-runtime.js';
 
 export { isWearableStripHidden, setWearableStripHidden, renderWearablesSettingsSection } from './wearables-settings-panel.js';
+export {
+  _uninstallWearableModalFocusTrap,
+  closeManualAddFromDetail,
+  deleteManualEntryFromDetail,
+  openManualAddFromDetail,
+  saveManualEntryFromDetail,
+  setWearableDetailRange,
+  toggleManualLogChip,
+};
 
 let wearableDelegatesInstalled = false;
 
@@ -74,7 +83,7 @@ function handleWearableActionClick(event) {
     openManualLogForm(metricId, event, { delegated: true });
   } else if (action === 'open-detail') {
     if (actionEl.closest('.wearable-card-reorder-wrap')) return;
-    openWearableDetailFromDashboard(metricId);
+    openWearableDetail(metricId);
   } else if (action === 'choose-source') {
     chooseWearableSource(metricId, event);
   } else if (action === 'open-settings-wearables') {
@@ -158,9 +167,9 @@ function resetOpenManualLogForms({ exceptMetricId = '' } = {}) {
   return true;
 }
 
-function openWearableDetailFromDashboard(metricId, opts = {}) {
+export function openWearableDetail(metricId, opts = {}) {
   resetOpenManualLogForms();
-  return openWearableDetail(metricId, opts);
+  return openWearableDetailModal(metricId, opts);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -487,7 +496,7 @@ function renderWearableStripStub() {
   </section>`;
 }
 
-function dismissWearableStub() {
+export function dismissWearableStub() {
   localStorage.setItem(`labcharts-wearable-stub-dismissed-${state.currentProfile}`, '1');
   navigateWearables('dashboard');
 }
@@ -740,7 +749,7 @@ export function renderWearableStrip() {
 // INTERACTIONS
 // ─────────────────────────────────────────────────────────
 
-function toggleWearableStrip() {
+export function toggleWearableStrip() {
   const grid = document.querySelector('.wearable-card-grid');
   const footer = document.querySelector('.wearable-strip-footer');
   const arrow = document.querySelector('.wearable-collapse-arrow');
@@ -769,7 +778,7 @@ function toggleWearableStrip() {
 // Per-metric primary-source override picker. Reads connected sources that
 // actually have data for this metric and lets the user pick one. The summary
 // pipeline respects `state.importedData.wearablePrimaryOverride[metricId]`.
-async function chooseWearableSource(metricId, event) {
+export async function chooseWearableSource(metricId, event) {
   const canon = canonicalMetric(metricId);
   if (!canon) return;
   const connected = listConnectedSources();
@@ -878,7 +887,7 @@ async function chooseWearableSource(metricId, event) {
   }, 0);
 }
 
-async function syncWearableNow(triggerEl) {
+export async function syncWearableNow(triggerEl) {
   const sources = Object.keys(listConnectedSources());
   if (sources.length === 0) {
     showNotification?.('Connect a wearable in Settings → Wearables first', 'info');
@@ -913,12 +922,12 @@ async function syncWearableNow(triggerEl) {
 // Reorder mode — toggle + per-card move handlers. Keeps the reorder flag
 // ephemeral (state._wearableReorderMode) so it auto-resets on reload; the
 // card ORDER itself is persisted per-profile in importedData.wearableCardOrder.
-function toggleWearableReorder() {
+export function toggleWearableReorder() {
   state._wearableReorderMode = !state._wearableReorderMode;
   navigateWearables('dashboard');
 }
 
-async function moveWearableCard(metricId, delta) {
+export async function moveWearableCard(metricId, delta) {
   const summary = state.importedData?.wearableSummary;
   if (!summary) return;
   // Rebuild the CURRENT display order the same way renderWearableStrip does,
@@ -968,7 +977,7 @@ async function moveWearableCard(metricId, delta) {
 // ─────────────────────────────────────────────────────────
 
 
-function openManualLogForm(metricId, event, opts = {}) {
+export function openManualLogForm(metricId, event, opts = {}) {
   if (!opts.delegated && event?.target?.closest?.('[data-wearable-action]')) return;
   if (event) event.stopPropagation();
   let card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);
@@ -1042,7 +1051,7 @@ function openManualLogForm(metricId, event, opts = {}) {
   });
 }
 
-async function saveManualLog(kind, event) {
+export async function saveManualLog(kind, event) {
   if (event) event.stopPropagation();
   const { logManualMetric, logManualBP, refreshManualSummary } = await import('./wearables-manual.js');
   const profileId = state.currentProfile;
@@ -1085,7 +1094,7 @@ async function saveManualLog(kind, event) {
   }
 }
 
-function cancelManualLog(event) {
+export function cancelManualLog(event) {
   if (event) event.stopPropagation();
   // Re-render the current dashboard/body surface to restore the empty card.
   rerenderCurrentView();
@@ -1093,23 +1102,9 @@ function cancelManualLog(event) {
 
 installWearableDelegates();
 
-exposeWearablesBindings({
-  renderWearableStrip,
-  dismissWearableStub,
-  toggleWearableStrip,
-  openWearableDetail: openWearableDetailFromDashboard,
-  setWearableDetailRange,
-  _uninstallWearableModalFocusTrap,
+configureWearablesModuleBridge({
+  openWearableDetail,
   syncWearableNow,
-  chooseWearableSource,
   openManualLogForm,
-  saveManualLog,
-  cancelManualLog,
-  toggleManualLogChip,
-  openManualAddFromDetail,
-  closeManualAddFromDetail,
-  saveManualEntryFromDetail,
-  deleteManualEntryFromDetail,
-  toggleWearableReorder,
-  moveWearableCard,
+  _uninstallWearableModalFocusTrap,
 });

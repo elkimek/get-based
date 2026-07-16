@@ -52,7 +52,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
     const navigations = [];
 
     const renderStrip = () => {
-      host.innerHTML = window.renderWearableStrip();
+      host.innerHTML = wearables.renderWearableStrip();
       return host.querySelector('#wearable-strip') || host.querySelector('.wearable-strip');
     };
 
@@ -134,12 +134,12 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
         && !!host.querySelector('[data-empty-metric="bp_systolic"]')
         && !!host.querySelector('[data-empty-metric="rhr"]'));
 
-      window.toggleWearableStrip();
+      wearables.toggleWearableStrip();
       check('toggleWearableStrip collapses grid and updates persisted state',
         grid?.classList.contains('hidden')
         && arrow?.getAttribute('aria-expanded') === 'false'
         && localStorage.getItem('wearables-strip-collapsed') === '1');
-      window.toggleWearableStrip();
+      wearables.toggleWearableStrip();
       check('toggleWearableStrip expands grid and restores aria state',
         !grid?.classList.contains('hidden')
         && arrow?.getAttribute('aria-expanded') === 'true'
@@ -147,19 +147,19 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
 
       const syncButton = document.createElement('button');
       syncButton.className = 'wearable-strip-sync';
-      await window.syncWearableNow(syncButton);
+      await wearables.syncWearableNow(syncButton);
       check('syncWearableNow disables and restores trigger around manual no-op sync',
         syncButton.disabled === false
         && !syncButton.classList.contains('is-syncing'));
       check('syncWearableNow reports already up to date for tokenless manual source',
         document.getElementById('notification-container')?.textContent.includes('already up to date'));
 
-      window.toggleWearableReorder();
+      wearables.toggleWearableReorder();
       await wait(20);
       check('toggleWearableReorder flips state and rerenders dashboard',
         state._wearableReorderMode === true
         && host.querySelector('.wearable-card-grid-reorder'));
-      await window.moveWearableCard('weight', 1);
+      await wearables.moveWearableCard('weight', 1);
       await wait(20);
       check('moveWearableCard persists visible-order swap',
         Array.isArray(state.importedData.wearableCardOrder)
@@ -169,7 +169,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       state._wearableReorderMode = false;
       renderStrip();
 
-      window.openManualLogForm('weight');
+      wearables.openManualLogForm('weight');
       check('openManualLogForm renders weight form in empty card',
         !!host.querySelector('#wl-weight-val')
         && !!host.querySelector('#wl-weight-date')
@@ -177,7 +177,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       host.querySelector('#wl-weight-val').value = '73.5';
       host.querySelector('#wl-weight-date').value = '2026-06-10';
       host.querySelector('#wl-weight-note').value = 'coverage strip action';
-      await window.saveManualLog('weight');
+      await wearables.saveManualLog('weight');
       const saved = await waitFor(async () => {
         const row = await store.getDaily(profileId, 'manual', '2026-06-10');
         return row?.weight === 73.5 && row?.note === 'coverage strip action';

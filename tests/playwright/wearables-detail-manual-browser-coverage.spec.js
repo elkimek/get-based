@@ -12,8 +12,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       import('/js/blob-storage.js'),
       import('/js/views.js'),
     ]);
-    // Ensure delegated detail-modal handlers are installed.
-    await import('/js/wearables.js');
+    const wearables = await import('/js/wearables.js');
     const failures = [];
     const check = (name, condition, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
@@ -52,7 +51,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
     );
     const openAddForm = async metric => {
       await closeDetailModal();
-      await window.openWearableDetail(metric);
+      await wearables.openWearableDetail(metric);
       const triggerSelector = addTriggerSelector(metric);
       const triggerReady = await waitForDetailIdle(metric);
       if (!triggerReady) throw new Error(`manual add trigger not ready for ${metric}; available add buttons: ${debugManualButtons()}`);
@@ -209,7 +208,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       check('bp detail submit settles rerender before final assertion',
         await waitForDetailIdle('bp_systolic'));
 
-      await window.openWearableDetail('bp_systolic');
+      await wearables.openWearableDetail('bp_systolic');
       await waitFor(() => !!document.querySelector('#detail-modal .wearable-manual-entry[data-entry-date="2026-06-04"]'));
       check('saved bp reading appears in detail manual entries list',
         !!document.querySelector('#detail-modal .wearable-manual-entry[data-entry-date="2026-06-04"] .wearable-manual-entry-note'));

@@ -553,8 +553,7 @@ try {
 // 9. Render-helper divide-by-zero guards
 // ═══════════════════════════════════════
 console.log('9. Render Guards');
-// Force-load wearables.js (side-effect module that registers window.*).
-await import('../js/wearables.js');
+const wearablesModule = await import('../js/wearables.js');
 // deltaClassFor / formatDelta are not exported — they're internal to the strip
 // render. We test them via the full render path: a metric with baseline=0 must
 // NOT produce "NaN%" in the rendered HTML, and the delta cell must still carry
@@ -568,7 +567,7 @@ const zeroBaselineSummary = {
 // Stash summary so renderWearableStrip reads it
 window._labState.importedData = window._labState.importedData || {};
 window._labState.importedData.wearableSummary = zeroBaselineSummary;
-const html = window.renderWearableStrip();
+const html = wearablesModule.renderWearableStrip();
 assert('render never emits NaN% on zero baseline', !/NaN/.test(html));
 // v1.26.0: zero-baseline metrics suppress the delta entirely (was "→ —"),
 // since "→ —" reads like "we measured something." A missing delta pill is
@@ -589,7 +588,7 @@ const mixedCoverageSummary = {
   },
 };
 window._labState.importedData.wearableSummary = mixedCoverageSummary;
-const mixedHtml = window.renderWearableStrip();
+const mixedHtml = wearablesModule.renderWearableStrip();
 assert('header source label omits zero-coverage vendor', !/wearable-source-label[^>]*>[^<]*Polar/.test(mixedHtml));
 assert('header source label still shows the data-bearing vendor', /wearable-source-label[^>]*>[^<]*Oura/.test(mixedHtml));
 assert('coverage label reflects only data-bearing source', /·\s*15d/.test(mixedHtml));
@@ -609,7 +608,7 @@ const stalenessSummary = {
   },
 };
 window._labState.importedData.wearableSummary = stalenessSummary;
-const stripStaleHtml = window.renderWearableStrip();
+const stripStaleHtml = wearablesModule.renderWearableStrip();
 assert('Stale metric (HRV) gets "as of {date}" hint when its latestDate < source max',
   /wearable-staleness[^>]*>\s*as of\s*[A-Z][a-z]+/.test(stripStaleHtml));
 // Only one staleness hint should appear in the strip (HRV) — sleep_score's
@@ -628,7 +627,30 @@ delete window._labState.importedData.wearableSummary;
 // 10. Window exports for render handlers
 // ═══════════════════════════════════════
 console.log('10. Browser and module exports');
-assert('window.renderWearableStrip exists', typeof window.renderWearableStrip === 'function');
+const wearableDashboardModuleExports = [
+  'renderWearableStrip',
+  'dismissWearableStub',
+  'toggleWearableStrip',
+  'openWearableDetail',
+  'setWearableDetailRange',
+  '_uninstallWearableModalFocusTrap',
+  'syncWearableNow',
+  'chooseWearableSource',
+  'openManualLogForm',
+  'saveManualLog',
+  'cancelManualLog',
+  'toggleManualLogChip',
+  'openManualAddFromDetail',
+  'closeManualAddFromDetail',
+  'saveManualEntryFromDetail',
+  'deleteManualEntryFromDetail',
+  'toggleWearableReorder',
+  'moveWearableCard',
+];
+assert('wearable dashboard handlers are module exports',
+  wearableDashboardModuleExports.every(name => typeof wearablesModule[name] === 'function'));
+assert('wearable dashboard handlers stay off window',
+  wearableDashboardModuleExports.every(name => !(name in window)));
 assert('wearable settings renderer is a module export',
   typeof wearableSettings.renderWearablesSettingsSection === 'function');
 assert('wearable settings actions are module exports',
@@ -649,9 +671,6 @@ const wearableSettingsLegacyGlobals = [
 ];
 assert('wearable settings handlers stay module-only',
   wearableSettingsLegacyGlobals.every(name => !(name in window)));
-assert('window.syncWearableNow exists', typeof window.syncWearableNow === 'function');
-assert('window.openWearableDetail exists', typeof window.openWearableDetail === 'function');
-assert('window.setWearableDetailRange exists', typeof window.setWearableDetailRange === 'function');
 assert('handleWearablePATConnect removed (Ultrahuman moved to OAuth2)',
   typeof window.handleWearablePATConnect === 'undefined');
 
@@ -1160,7 +1179,7 @@ const strip2 = {
   },
 };
 window._labState.importedData.wearableSummary = strip2;
-const stripSpo2Html = window.renderWearableStrip();
+const stripSpo2Html = wearablesModule.renderWearableStrip();
 // Strip renderer is a pure string-builder — assert it here in Node. The
 // matching *modal*-renderer parity check (openWearableDetail) lives in
 // test-wearables-dom.js. Neither should produce "97.0 %" — both "97 %".
@@ -1799,7 +1818,7 @@ window._labState.importedData = {
 };
 // BEHAVIOR: source badge appears on EVERY populated card whenever ≥2
 // wearables connected — was grep-only in 17a until now.
-const stripHtml = window.renderWearableStrip();
+const stripHtml = wearablesModule.renderWearableStrip();
 // Count cards that have a source-badge button. With 2 sources connected
 // and 2 metrics in the summary, both should carry one.
 const badgeMatches = stripHtml.match(/wearable-source-badge wearable-source-badge-btn/g) || [];

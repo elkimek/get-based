@@ -4,6 +4,7 @@
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { getDeviceSessions } from './light-devices-store.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { getWearablesModuleFunction } from './wearables-runtime.js';
 
 /** @type {Record<string, Function | null>} */
 const dashboardNoteActions = {
@@ -86,12 +87,12 @@ export function getDashboardSnpTableCache() {
 
 /** @param {Element} actionEl */
 export function syncDashboardWearableNow(actionEl) {
-  getRuntimeFunction('syncWearableNow')?.(actionEl);
+  getWearablesModuleFunction('syncWearableNow')?.(actionEl);
 }
 
 /** @param {string} id */
 export function openDashboardWearableDetail(id) {
-  const openDetail = getRuntimeFunction('openWearableDetail');
+  const openDetail = getWearablesModuleFunction('openWearableDetail');
   if (!openDetail) return false;
   openDetail(id);
   return true;
@@ -102,7 +103,7 @@ export function openDashboardWearableDetail(id) {
  * @param {Event} event
  */
 export function openDashboardManualLogForm(id, event) {
-  getRuntimeFunction('openManualLogForm')?.(id, event);
+  getWearablesModuleFunction('openManualLogForm')?.(id, event);
 }
 
 /** @param {string} id */

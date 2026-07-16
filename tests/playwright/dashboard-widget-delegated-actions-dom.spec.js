@@ -5,12 +5,13 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, dashboardWidgetRuntime, viewsModule, navModule] = await Promise.all([
+    const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, dashboardWidgetRuntime, wearablesRuntime, viewsModule, navModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/dashboard-widgets.js'),
       import('/js/context-cards-runtime.js'),
       import('/js/dashboard-widget-runtime.js'),
+      import('/js/wearables-runtime.js'),
       import('/js/views.js'),
       import('/js/nav.js'),
     ]);
@@ -20,7 +21,6 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     const savedFns = {
       showDetailModal: window.showDetailModal,
       navigate: window.navigate,
-      syncWearableNow: window.syncWearableNow,
     };
     const hadFns = {};
     for (const name of Object.keys(savedFns)) {
@@ -34,6 +34,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     let bodyActionHost;
     let previousContextCardsRuntime = null;
     let previousDashboardNoteActions = null;
+    let previousWearablesBridge = null;
 
     try {
       if (!dataModule.getActiveData()?.dates?.length) {
@@ -136,9 +137,11 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       const biometricSurfaceHasNoInlineHandlers = !!biometricWidget
         && !biometricWidget.querySelector('.db-biometric-overview-actions [onclick], .db-biometric-overview-grid [onclick], .db-biometric-overview-grid [onkeydown]');
       let syncCalled = false;
-      window.syncWearableNow = button => {
-        syncCalled = button?.classList?.contains('db-biometric-sync-btn') === true;
-      };
+      previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
+        syncWearableNow: button => {
+          syncCalled = button?.classList?.contains('db-biometric-sync-btn') === true;
+        },
+      });
       const syncBtn = biometricWidget?.querySelector('[data-dashboard-widget-action="sync-biometric-now"]');
       syncBtn?.click();
       await delay(50);
@@ -226,6 +229,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     } finally {
       if (previousContextCardsRuntime) contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       if (previousDashboardNoteActions) dashboardWidgetRuntime.configureDashboardNoteActions(previousDashboardNoteActions);
+      if (previousWearablesBridge) wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
       bodyActionHost?.remove();
       for (const [name, original] of Object.entries(savedFns)) {
         if (hadFns[name]) window[name] = original;
@@ -258,6 +262,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const { dashboardBiometricSelectionKey, dashboardWidgetStorageKey } = await import('/js/dashboard-widgets.js');
     const viewsModule = await import('/js/views.js');
     const recommendationRuntime = await import('/js/recommendations-runtime.js');
+    const wearablesRuntime = await import('/js/wearables-runtime.js');
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, timeout = 1500) => {
       const started = Date.now();
@@ -293,9 +298,6 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       openChatPanel: window.openChatPanel,
       openSettingsModal: window.openSettingsModal,
       showDetailModal: window.showDetailModal,
-      openWearableDetail: window.openWearableDetail,
-      openManualLogForm: window.openManualLogForm,
-      syncWearableNow: window.syncWearableNow,
     };
     const hadFns = {};
     for (const name of Object.keys(savedFns)) {
@@ -310,6 +312,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     };
     const originalCachedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
     let previousRecommendationBridge = null;
+    let previousWearablesBridge = null;
     let realNavigate;
 
     try {
@@ -390,9 +393,11 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     window.openChatPanel = prompt => calls.push(['chat', prompt]);
     window.openSettingsModal = panel => calls.push(['settings', panel]);
     window.showDetailModal = id => calls.push(['detail', id]);
-    window.openWearableDetail = id => calls.push(['wearable-detail', id]);
-    window.openManualLogForm = (id, event) => calls.push(['manual-log', id, event?.type || '']);
-    window.syncWearableNow = button => calls.push(['sync', button?.classList?.contains('db-biometric-sync-btn') === true]);
+    previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
+      openWearableDetail: id => calls.push(['wearable-detail', id]),
+      openManualLogForm: (id, event) => calls.push(['manual-log', id, event?.type || '']),
+      syncWearableNow: button => calls.push(['sync', button?.classList?.contains('db-biometric-sync-btn') === true]),
+    });
 
     const readPrefs = () => JSON.parse(localStorage.getItem(widgetPrefsKey) || '{"order":[],"hidden":[]}');
     const readJson = key => JSON.parse(localStorage.getItem(key) || '[]');
@@ -576,6 +581,9 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       state.currentView = originalState.currentView;
       if (previousRecommendationBridge) {
         recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      if (previousWearablesBridge) {
+        wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
       }
       recommendationRuntime.setRecommendationsCatalogCache(originalCachedCatalog);
       for (const [name, original] of Object.entries(savedFns)) {

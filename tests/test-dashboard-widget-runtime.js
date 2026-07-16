@@ -20,6 +20,7 @@ import {
   triggerDashboardDnaPicker,
 } from '../js/dashboard-widget-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -35,15 +36,13 @@ const runtimeKeys = [
   'getSessions',
   '_snpTableCache',
   'openSettingsModal',
-  'syncWearableNow',
-  'openWearableDetail',
-  'openManualLogForm',
   'showDetailModal',
   'navigate',
   'triggerDNAFilePicker',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const savedImportedData = state.importedData;
+let previousWearablesModule = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -101,9 +100,11 @@ try {
   const actionEl = { dataset: { dashboardWidgetAction: 'sync-biometric-now' } };
   const event = { type: 'click' };
   setRuntimeValue('openSettingsModal', section => calls.push(['settings', section]));
-  setRuntimeValue('syncWearableNow', el => calls.push(['sync', el?.dataset?.dashboardWidgetAction || '']));
-  setRuntimeValue('openWearableDetail', id => calls.push(['wearable-detail', id]));
-  setRuntimeValue('openManualLogForm', (id, ev) => calls.push(['manual-log', id, ev.type]));
+  previousWearablesModule = configureWearablesModuleBridge({
+    syncWearableNow: el => calls.push(['sync', el?.dataset?.dashboardWidgetAction || '']),
+    openWearableDetail: id => calls.push(['wearable-detail', id]),
+    openManualLogForm: (id, ev) => calls.push(['manual-log', id, ev.type]),
+  });
   setRuntimeValue('showDetailModal', id => calls.push(['marker-detail', id]));
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   setRuntimeValue('triggerDNAFilePicker', () => calls.push(['legacy-dna']));
@@ -131,12 +132,16 @@ try {
       calls.some(call => call.join('|') === 'note-editor|null|2') &&
       calls.some(call => call.join('|') === 'delete-note|1'));
 
-  delete globalThis.openWearableDetail;
+  configureWearablesModuleBridge({ openWearableDetail: null });
   assert('openDashboardWearableDetail reports missing callback',
     openDashboardWearableDetail('sleep') === false);
 
   configureContextCardsRuntimeCallbacks({ triggerDNAFilePicker: null });
   configureDashboardNoteActions({ openNoteEditor: null, deleteNote: null });
+  configureWearablesModuleBridge({
+    syncWearableNow: null,
+    openManualLogForm: null,
+  });
   delete globalThis.window;
   const callCountBeforeMissingRuntime = calls.length;
   openDashboardWearablesSettings();
@@ -157,6 +162,12 @@ try {
   configureDashboardNoteActions(previousDashboardNoteActions);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
+  configureWearablesModuleBridge({
+    syncWearableNow: null,
+    openWearableDetail: null,
+    openManualLogForm: null,
+    ...previousWearablesModule,
+  });
   state.importedData = savedImportedData;
   restoreRuntime();
 }
