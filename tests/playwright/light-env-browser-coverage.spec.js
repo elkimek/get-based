@@ -44,10 +44,12 @@ test('light environment browser coverage handles summary modal prompt and source
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
-      navigate: window.navigate,
     };
     const outcomes = {};
     const calls = [];
+    const savedLightEnvDeps = lightEnv.configureLightEnv({
+      navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
+    });
     const env = () => state.importedData.lightEnvironment;
     const actions = lightEnv.lightEnvActionHandlers;
 
@@ -71,7 +73,6 @@ test('light environment browser coverage handles summary modal prompt and source
       };
       data.invalidateActiveDataCache();
       localStorage.removeItem('labcharts-light-env-active-room');
-      window.navigate = (route, meta) => calls.push(['navigate', route, meta || null]);
       document.getElementById('light-env-assessment-overlay')?.remove();
 
       const emptyFull = lightEnv.renderEnvironmentSection();
@@ -182,7 +183,7 @@ test('light environment browser coverage handles summary modal prompt and source
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       data.invalidateActiveDataCache();
-      window.navigate = saved.navigate;
+      lightEnv.configureLightEnv(savedLightEnvDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
@@ -230,11 +231,11 @@ test('light environment browser coverage handles screens tools and confirm delet
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
-      navigate: window.navigate,
     };
     const outcomes = {};
     const calls = [];
     const savedLightEnvDeps = lightEnv.configureLightEnv({
+      navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
       openSpectrumClassifier: opts => calls.push(['spectrum', opts?.roomId || null]),
       openLuxMeter: opts => calls.push(['lux', opts?.roomId || null]),
       openFlickerDetector: opts => calls.push(['flicker', opts?.roomId || null]),
@@ -264,8 +265,6 @@ test('light environment browser coverage handles screens tools and confirm delet
         lightAudits: [],
       };
       data.invalidateActiveDataCache();
-      window.navigate = (route, meta) => calls.push(['navigate', route, meta || null]);
-
       const officeId = await lightEnv.addRoom('Office');
       const livingId = await lightEnv.addRoom('Living room');
       const bedroomId = await lightEnv.addRoom('Bedroom');
@@ -409,7 +408,6 @@ test('light environment browser coverage handles screens tools and confirm delet
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       data.invalidateActiveDataCache();
-      window.navigate = saved.navigate;
       lightEnv.configureLightEnv(savedLightEnvDeps);
       localStorage.clear();
       for (const [key, value] of storage) {

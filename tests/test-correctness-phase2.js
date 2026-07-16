@@ -269,6 +269,10 @@ assert('legal gate runs before changelog and resumes changelog only after accept
   && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true })")
   && legalConsentSrc.includes("from './utils-runtime.js'")
   && legalConsentSrc.includes("dispatchUtilsRuntimeEvent('legal-consent-accepted')"));
+assert('legal consent notifications use the module dependency instead of a global callback',
+  legalConsentSrc.includes("import { showNotification } from './utils.js';")
+  && legalConsentSrc.includes("showNotification('Terms and Privacy accepted.'")
+  && !legalConsentSrc.includes('globalThis.showNotification'));
 assert('legal accept does not deadlock when localStorage persistence throws',
   /try\s*\{\s*storeLegalAcceptance\(\);\s*\}\s*catch\s*\(err\)\s*\{[\s\S]{0,220}\[legal-consent\] Failed to persist acceptance/.test(legalConsentSrc)
   && /catch\s*\(err\)[\s\S]{0,260}\}\s*closeLegalConsentGate\(\);\s*dispatchUtilsRuntimeEvent\('legal-consent-accepted'\)/.test(legalConsentSrc));
