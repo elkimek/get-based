@@ -22,9 +22,7 @@ import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
   cleanupDiscussionState, configureChatDiscussion, restoreDiscussionContinuePrompt,
 } from './chat-discussion.js';
-import {
-  configureChatOnboarding, useChatPrompt,
-} from './chat-onboarding.js';
+import { configureChatOnboarding } from './chat-onboarding.js';
 
 configureChatDiscussion({
   createTypewriter,
@@ -54,7 +52,6 @@ configureChatThreadDeps({
 });
 
 Object.assign(window, {
-  useChatPrompt,
   toggleChatPanel,
   openChatPanel,
   closeChatPanel,

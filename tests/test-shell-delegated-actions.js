@@ -105,6 +105,12 @@ assert('App shell wires Chat UI refreshes without window globals',
     && appShellHooksSrc.includes('resumeAI,')
     && appShellHooksSrc.includes('sendChatMessage,'));
 
+assert('App shell wires Chat prompt consumers without window globals',
+  appShellHooksSrc.includes("import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js'")
+    && appShellHooksSrc.includes("import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js'")
+    && appShellHooksSrc.includes('configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });')
+    && appShellHooksSrc.includes('configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',

@@ -3,6 +3,7 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { setAIPaused } from './api.js';
+import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import {
@@ -20,9 +21,11 @@ import {
   updateAttachButtonVisibility,
 } from './chat-images.js';
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
+import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js';
 import {
   closeChatPanel,
   configureChatPanel,
+  openChatPanel,
   refreshWebSearchToggle,
   setChatWebSearchEnabled,
   toggleChatFullscreen,
@@ -31,7 +34,7 @@ import {
 } from './chat-panel.js';
 import { clearChatHistory, loadChatHistory } from './chat-history.js';
 import { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
-import { onContextCardSaved } from './chat-onboarding.js';
+import { onContextCardSaved, useChatPrompt } from './chat-onboarding.js';
 import { updateChatNudge } from './chat-nudge.js';
 import {
   setChatPersonality,
@@ -117,6 +120,8 @@ configureSettingsRuntime({
 configureNavActions({ openClientList });
 configureRecommendationsRuntime({ openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
+configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });
+configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
 
 function resumeAI() {
   setAIPaused(false);

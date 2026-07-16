@@ -6,7 +6,12 @@ import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const biologyScoresRuntimeDeps = { getActiveData, showNotification };
+const biologyScoresRuntimeDeps = {
+  getActiveData,
+  openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
+  showNotification,
+  useChatPrompt: /** @type {null | ((prompt: string) => unknown)} */ (null),
+};
 
 export function configureBiologyScoresRuntimeDeps(deps = {}) {
   const previous = { ...biologyScoresRuntimeDeps };
@@ -15,9 +20,19 @@ export function configureBiologyScoresRuntimeDeps(deps = {}) {
       ? /** @type {typeof getActiveData} */ (deps.getActiveData)
       : null;
   }
+  if ('openChatPanel' in deps) {
+    biologyScoresRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
+      : null;
+  }
   if ('showNotification' in deps) {
     biologyScoresRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
       ? /** @type {typeof showNotification} */ (deps.showNotification)
+      : null;
+  }
+  if ('useChatPrompt' in deps) {
+    biologyScoresRuntimeDeps.useChatPrompt = typeof deps.useChatPrompt === 'function'
+      ? /** @type {(prompt: string) => unknown} */ (deps.useChatPrompt)
       : null;
   }
   return previous;
@@ -46,12 +61,12 @@ export function navigateBiologyScoresRoute(route = 'biology-scores') {
 }
 
 export function canOpenBiologyScoresChatPanel() {
-  return Boolean(getRuntimeFunction('openChatPanel'));
+  return Boolean(biologyScoresRuntimeDeps.openChatPanel);
 }
 
 /** @param {string=} prompt */
 export function openBiologyScoresChatPanel(prompt) {
-  const openChatPanel = getRuntimeFunction('openChatPanel');
+  const openChatPanel = biologyScoresRuntimeDeps.openChatPanel;
   if (!openChatPanel) return false;
   if (prompt === undefined) openChatPanel();
   else openChatPanel(prompt);
@@ -60,7 +75,7 @@ export function openBiologyScoresChatPanel(prompt) {
 
 /** @param {string} prompt */
 export function useBiologyScoresChatPrompt(prompt) {
-  getRuntimeFunction('useChatPrompt')?.(prompt);
+  biologyScoresRuntimeDeps.useChatPrompt?.(prompt);
 }
 
 /**

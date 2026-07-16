@@ -214,9 +214,10 @@ test('lifestyle context editors cover save clear health goals lens and contamina
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ lifestyleUrl }) => {
-    const [{ state }, lifestyle] = await Promise.all([
+    const [{ state }, lifestyle, lifestyleRuntime] = await Promise.all([
       import('/js/state.js'),
       import(lifestyleUrl),
+      import('/js/context-card-lifestyle-runtime.js'),
     ]);
     const outcomes = {};
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -228,10 +229,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       profileSex: state.profileSex,
       closeModal: window.closeModal,
       navigate: window.navigate,
-      openChatPanel: window.openChatPanel,
-      useChatPrompt: window.useChatPrompt,
     };
     const calls = [];
+    const previousLifestyleRuntimeDeps = lifestyleRuntime.configureContextCardLifestyleRuntimeDeps({
+      openChatPanel: () => calls.push(['chat']),
+      useChatPrompt: prompt => calls.push(['prompt', prompt]),
+    });
     const controlOutcomeName = (kind, id, index) =>
       `${kind}_${id}_${index}_renders`.replace(/[^a-zA-Z0-9_]/g, '_');
     const setOption = (id, index = 0) => {
@@ -267,8 +270,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       };
       window.closeModal = () => { calls.push(['close']); overlay.classList.remove('show'); };
       window.navigate = route => calls.push(['navigate', route]);
-      window.openChatPanel = () => calls.push(['chat']);
-      window.useChatPrompt = prompt => calls.push(['prompt', prompt]);
 
       lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
@@ -439,8 +440,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       state.profileSex = saved.profileSex;
       window.closeModal = saved.closeModal;
       window.navigate = saved.navigate;
-      window.openChatPanel = saved.openChatPanel;
-      window.useChatPrompt = saved.useChatPrompt;
+      lifestyleRuntime.configureContextCardLifestyleRuntimeDeps(previousLifestyleRuntimeDeps);
       lifestyle.configureLifestyleContextEditors({ recordChange: () => {}, saveAndRefresh: () => {} });
       overlay.classList.remove('show');
       modal.innerHTML = '';
