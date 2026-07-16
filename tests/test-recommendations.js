@@ -21,9 +21,9 @@ function assert(name, condition, detail) {
 
 console.log('=== Supplement & Lifestyle Recommendations Tests ===\n');
 
-// recommendations.js exposes its handlers via Object.assign(window, ...).
+// Recommendations are consumed through native module exports.
 await import('../js/state.js');
-await import('../js/recommendations.js');
+const recommendationsModule = await import('../js/recommendations.js');
 
 // Original test reads data/light-device-presets.json via fetchWithRetry —
 // pass through fs read.
@@ -81,7 +81,7 @@ const _realFetch = globalThis.fetch;
       !/\bwindow(?:\.|\s*\[)/.test(recSrc) &&
       !recSrc.includes('Object.assign(window') &&
       recRuntimeSrc.includes('export function getRecommendationsSnpTable') &&
-      recRuntimeSrc.includes('export function registerRecommendationsRuntimeExports'),
+      recRuntimeSrc.includes('export function configureRecommendationModuleBridge'),
     recSrc.slice(0, 1800));
   assert('recommendations-region.js owns region hierarchy data',
     recRegionSrc.includes('REGION_HIERARCHY') &&
@@ -89,18 +89,18 @@ const _realFetch = globalThis.fetch;
     recProductsSrc.includes("from './recommendations-region.js'"));
 
   // ═══════════════════════════════════════
-  // 2. Window exports
+  // 2. Module exports
   // ═══════════════════════════════════════
   console.log('%c 2. Window Exports ', 'font-weight:bold;color:#f59e0b');
 
-  assert('isProductRecsEnabled on window', typeof window.isProductRecsEnabled === 'function');
-  assert('setProductRecsEnabled on window', typeof window.setProductRecsEnabled === 'function');
-  assert('markRecDisclosureSeen on window', typeof window.markRecDisclosureSeen === 'function');
-  assert('renderRecommendationSection on window', typeof window.renderRecommendationSection === 'function');
-  assert('renderRecommendationSectionSync on window', typeof window.renderRecommendationSectionSync === 'function');
+  assert('isProductRecsEnabled is module-exported', typeof recommendationsModule.isProductRecsEnabled === 'function');
+  assert('setProductRecsEnabled is module-exported', typeof recommendationsModule.setProductRecsEnabled === 'function');
+  assert('markDisclosureSeen is module-exported', typeof recommendationsModule.markDisclosureSeen === 'function');
+  assert('renderRecommendationSection is module-exported', typeof recommendationsModule.renderRecommendationSection === 'function');
+  assert('renderRecommendationSectionSync is module-exported', typeof recommendationsModule.renderRecommendationSectionSync === 'function');
   assert('getUserRegion routes via COUNTRY_TO_REGION table', recProductsSrc.includes('COUNTRY_TO_REGION[c]'));
-  assert('detectSupplementSlots on window', typeof window.detectSupplementSlots === 'function');
-  assert('loadCatalog on window', typeof window.loadCatalog === 'function');
+  assert('detectSupplementSlots is module-exported', typeof recommendationsModule.detectSupplementSlots === 'function');
+  assert('loadCatalog is module-exported', typeof recommendationsModule.loadCatalog === 'function');
 
   // ═══════════════════════════════════════
   // 3. Toggle on/off
@@ -108,12 +108,12 @@ const _realFetch = globalThis.fetch;
   console.log('%c 3. Toggle On/Off ', 'font-weight:bold;color:#f59e0b');
 
   const origVal = localStorage.getItem('labcharts-show-product-recs');
-  window.setProductRecsEnabled(true);
-  assert('setProductRecsEnabled(true) → enabled', window.isProductRecsEnabled() === true);
-  window.setProductRecsEnabled(false);
-  assert('setProductRecsEnabled(false) → disabled', window.isProductRecsEnabled() === false);
-  window.setProductRecsEnabled(true);
-  assert('Re-enable → true', window.isProductRecsEnabled() === true);
+  recommendationsModule.setProductRecsEnabled(true);
+  assert('setProductRecsEnabled(true) → enabled', recommendationsModule.isProductRecsEnabled() === true);
+  recommendationsModule.setProductRecsEnabled(false);
+  assert('setProductRecsEnabled(false) → disabled', recommendationsModule.isProductRecsEnabled() === false);
+  recommendationsModule.setProductRecsEnabled(true);
+  assert('Re-enable → true', recommendationsModule.isProductRecsEnabled() === true);
   // Restore
   if (origVal === null) localStorage.removeItem('labcharts-show-product-recs');
   else localStorage.setItem('labcharts-show-product-recs', origVal);
@@ -127,8 +127,8 @@ const _realFetch = globalThis.fetch;
   localStorage.removeItem('labcharts-rec-disclosure');
   // hasSeenDisclosure not on window but we can test via recSrc pattern
   assert('Disclosure key uses labcharts-rec-disclosure', recProductsSrc.includes("'labcharts-rec-disclosure'"));
-  window.markRecDisclosureSeen();
-  assert('markRecDisclosureSeen sets localStorage', localStorage.getItem('labcharts-rec-disclosure') === 'seen');
+  recommendationsModule.markDisclosureSeen();
+  assert('markDisclosureSeen sets localStorage', localStorage.getItem('labcharts-rec-disclosure') === 'seen');
   // Restore
   if (origDisc === null) localStorage.removeItem('labcharts-rec-disclosure');
   else localStorage.setItem('labcharts-rec-disclosure', origDisc);
@@ -139,15 +139,15 @@ const _realFetch = globalThis.fetch;
   console.log('%c 5. Render Gating ', 'font-weight:bold;color:#f59e0b');
 
   const origRec = localStorage.getItem('labcharts-show-product-recs');
-  window.setProductRecsEnabled(false);
-  const emptyResult = await window.renderRecommendationSection('vitamins.vitaminD', { label: 'Test' });
+  recommendationsModule.setProductRecsEnabled(false);
+  const emptyResult = await recommendationsModule.renderRecommendationSection('vitamins.vitaminD', { label: 'Test' });
   assert('renderRecommendationSection returns empty when disabled', emptyResult === '');
-  window.setProductRecsEnabled(true);
+  recommendationsModule.setProductRecsEnabled(true);
   // Catalog file may not exist — should gracefully return ''
-  const noFileResult = await window.renderRecommendationSection('nonexistent.marker', { label: 'Test' });
+  const noFileResult = await recommendationsModule.renderRecommendationSection('nonexistent.marker', { label: 'Test' });
   assert('renderRecommendationSection returns empty for unknown slot', noFileResult === '' || typeof noFileResult === 'string');
-  const originalRenderRecommendationSection = window.renderRecommendationSection;
-  window.renderRecommendationSection = undefined;
+  const { configureRecommendationModuleBridge } = await import('../js/recommendations-runtime.js');
+  const previousRecommendationBridge = configureRecommendationModuleBridge({ renderRecommendationSection: null });
   const { createRecommendationActions } = await import('../js/recommendation-actions.js');
   const originalGetElementById = document.getElementById;
   const modalStub = { className: 'modal', innerHTML: '' };
@@ -164,7 +164,7 @@ const _realFetch = globalThis.fetch;
   assert('openRecommendationDetail handles missing renderRecommendationSection without stuck loading',
     modalStub.innerHTML.includes('No recommendation details available for this slot.'));
   document.getElementById = originalGetElementById;
-  window.renderRecommendationSection = originalRenderRecommendationSection;
+  configureRecommendationModuleBridge(previousRecommendationBridge);
   // Restore
   if (origRec === null) localStorage.removeItem('labcharts-show-product-recs');
   else localStorage.setItem('labcharts-show-product-recs', origRec);
@@ -174,11 +174,11 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 6. Keyword Scanner ', 'font-weight:bold;color:#f59e0b');
 
-  const ds = window.detectSupplementSlots;
+  const ds = recommendationsModule.detectSupplementSlots;
   assert('detectSupplementSlots("") → []', ds('').length === 0);
   assert('detectSupplementSlots(null) → []', ds(null).length === 0);
   // Dynamic scanner requires loaded catalog — test with whatever catalog is available
-  await window.loadCatalog();
+  await recommendationsModule.loadCatalog();
   const vitDResult = ds('Your vitamin D3 is low, consider supplementing D3');
   assert('detectSupplementSlots finds vitamin D slot (if catalog loaded)', vitDResult.length <= 1);
   assert('detectSupplementSlots caps at 1', ds('vitamin d magnesium omega-3 zinc iron b12 selenium ashwagandha').length <= 1);
@@ -263,7 +263,11 @@ const _realFetch = globalThis.fetch;
       && chartCardRecsSrc.includes('loadRecommendationsCatalogRuntime')
       && !/\bwindow(\.|\s*\[)/.test(chartCardRecsSrc));
   assert('marker-detail-modal.js scrollToRec auto-opens details', markerDetailSrc.includes('scrollToRec'));
-  assert('loadCatalog on window', typeof window.loadCatalog === 'function');
+  assert('recommendation globals stay module-only', [
+    'isProductRecsEnabled', 'setProductRecsEnabled', 'markRecDisclosureSeen',
+    'renderRecommendationSection', 'renderRecommendationSectionSync',
+    'detectSupplementSlots', 'loadCatalog',
+  ].every(name => !(name in window)));
   assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));
   const recNavMarkup = navSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';
   assert('Recommendations sidebar routes to dedicated page',
@@ -347,8 +351,8 @@ const _realFetch = globalThis.fetch;
     recProductsSrc.includes('export function getLightDeviceProduct'));
   assert('renderLightDeviceAffiliateRow exported',
     recProductsSrc.includes('export function renderLightDeviceAffiliateRow'));
-  assert('getLightDeviceProduct on window', typeof window.getLightDeviceProduct === 'function');
-  assert('renderLightDeviceAffiliateRow on window', typeof window.renderLightDeviceAffiliateRow === 'function');
+  assert('getLightDeviceProduct is module-exported', typeof recommendationsModule.getLightDeviceProduct === 'function');
+  assert('renderLightDeviceAffiliateRow is module-exported', typeof recommendationsModule.renderLightDeviceAffiliateRow === 'function');
 
   // Synthetic catalog with a matching slug
   const stubCatalog = {
@@ -370,18 +374,18 @@ const _realFetch = globalThis.fetch;
     },
     vendors: {},
   };
-  const found = window.getLightDeviceProduct(stubCatalog, 'mitochondriak-maxi-uvb');
+  const found = recommendationsModule.getLightDeviceProduct(stubCatalog, 'mitochondriak-maxi-uvb');
   assert('getLightDeviceProduct: matching slug → product', !!found && found.key === 'mitochondriak-maxi-uvb');
-  const missing = window.getLightDeviceProduct(stubCatalog, 'unknown-device');
+  const missing = recommendationsModule.getLightDeviceProduct(stubCatalog, 'unknown-device');
   assert('getLightDeviceProduct: unknown slug → null', missing === null);
-  const noCatalog = window.getLightDeviceProduct(null, 'mitochondriak-maxi-uvb');
+  const noCatalog = recommendationsModule.getLightDeviceProduct(null, 'mitochondriak-maxi-uvb');
   assert('getLightDeviceProduct: null catalog → null', noCatalog === null);
-  const noSlug = window.getLightDeviceProduct(stubCatalog, '');
+  const noSlug = recommendationsModule.getLightDeviceProduct(stubCatalog, '');
   assert('getLightDeviceProduct: empty slug → null', noSlug === null);
 
   // Render: requires product recs enabled
-  window.setProductRecsEnabled(true);
-  const row = window.renderLightDeviceAffiliateRow(stubCatalog, 'mitochondriak-maxi-uvb');
+  recommendationsModule.setProductRecsEnabled(true);
+  const row = recommendationsModule.renderLightDeviceAffiliateRow(stubCatalog, 'mitochondriak-maxi-uvb');
   assert('renderLightDeviceAffiliateRow: produces sponsored anchor when enabled',
     row.includes('rel="noopener sponsored"') &&
     row.includes('href="') &&
@@ -395,13 +399,13 @@ const _realFetch = globalThis.fetch;
   assert('renderLightDeviceAffiliateRow: has aria-label for screen readers',
     /aria-label="View .* on .*, opens in new tab"/.test(row));
 
-  const emptyOnMiss = window.renderLightDeviceAffiliateRow(stubCatalog, 'unknown-device');
+  const emptyOnMiss = recommendationsModule.renderLightDeviceAffiliateRow(stubCatalog, 'unknown-device');
   assert('renderLightDeviceAffiliateRow: missing product → empty string', emptyOnMiss === '');
 
-  window.setProductRecsEnabled(false);
-  const offWhenDisabled = window.renderLightDeviceAffiliateRow(stubCatalog, 'mitochondriak-maxi-uvb');
+  recommendationsModule.setProductRecsEnabled(false);
+  const offWhenDisabled = recommendationsModule.renderLightDeviceAffiliateRow(stubCatalog, 'mitochondriak-maxi-uvb');
   assert('renderLightDeviceAffiliateRow: toggle off → empty string', offWhenDisabled === '');
-  window.setProductRecsEnabled(true);
+  recommendationsModule.setProductRecsEnabled(true);
 
   // Preset side: every Mitochondriak / Chroma / EMR-Tek preset must have a
   // catalogSlug equal to its id so the device card resolves to the catalog
@@ -422,9 +426,9 @@ const _realFetch = globalThis.fetch;
   // a CTA when the user has 7+ logged events but a device-fillable
   // channel (pbm_red / pbm_nir) is empty over 30 days.
   assert('recommendDeviceProductsForChannelDeficit on window',
-    typeof window.recommendDeviceProductsForChannelDeficit === 'function');
+    typeof recommendationsModule.recommendDeviceProductsForChannelDeficit === 'function');
   assert('renderChannelDeficitDeviceRecs on window',
-    typeof window.renderChannelDeficitDeviceRecs === 'function');
+    typeof recommendationsModule.renderChannelDeficitDeviceRecs === 'function');
 
   const presetStubs = [
     { id: 'mitochondriak-maxi-uvb', brand: 'Mitochondriak', model: 'Maxi UVB',
@@ -434,25 +438,25 @@ const _realFetch = globalThis.fetch;
     { id: 'no-slug', brand: 'X', model: 'Y', channels: ['pbm_red'] },
   ];
 
-  const pbmRedHits = window.recommendDeviceProductsForChannelDeficit(
+  const pbmRedHits = recommendationsModule.recommendDeviceProductsForChannelDeficit(
     stubCatalog, 'pbm_red', presetStubs);
   assert('recommendDeviceProductsForChannelDeficit: pbm_red → matching product',
     Array.isArray(pbmRedHits) && pbmRedHits.length === 1 &&
     pbmRedHits[0].key === 'mitochondriak-maxi-uvb');
 
-  const novelChannel = window.recommendDeviceProductsForChannelDeficit(
+  const novelChannel = recommendationsModule.recommendDeviceProductsForChannelDeficit(
     stubCatalog, 'imaginary_channel', presetStubs);
   assert('recommendDeviceProductsForChannelDeficit: unknown channel → []',
     Array.isArray(novelChannel) && novelChannel.length === 0);
 
-  const noPresets = window.recommendDeviceProductsForChannelDeficit(
+  const noPresets = recommendationsModule.recommendDeviceProductsForChannelDeficit(
     stubCatalog, 'pbm_red', []);
   assert('recommendDeviceProductsForChannelDeficit: empty presets → []',
     Array.isArray(noPresets) && noPresets.length === 0);
 
   // renderChannelDeficitDeviceRecs respects the toggle.
-  window.setProductRecsEnabled(true);
-  const card = window.renderChannelDeficitDeviceRecs(
+  recommendationsModule.setProductRecsEnabled(true);
+  const card = recommendationsModule.renderChannelDeficitDeviceRecs(
     stubCatalog, 'pbm_red', presetStubs, { label: 'red 660 nm (PBM)' });
   assert('renderChannelDeficitDeviceRecs: builds card with channel label',
     card.includes('rec-channel-deficit') && card.includes('red 660 nm (PBM)'));
@@ -461,12 +465,12 @@ const _realFetch = globalThis.fetch;
   assert('renderChannelDeficitDeviceRecs: Umami event uses light-deficit-rec prefix',
     /data-umami-event="light-deficit-rec-/.test(card));
 
-  window.setProductRecsEnabled(false);
-  const offCard = window.renderChannelDeficitDeviceRecs(
+  recommendationsModule.setProductRecsEnabled(false);
+  const offCard = recommendationsModule.renderChannelDeficitDeviceRecs(
     stubCatalog, 'pbm_red', presetStubs, { label: 'red 660 nm (PBM)' });
   assert('renderChannelDeficitDeviceRecs: toggle off → empty string',
     offCard === '');
-  window.setProductRecsEnabled(true);
+  recommendationsModule.setProductRecsEnabled(true);
 
   // ═══════════════════════════════════════
   // Results

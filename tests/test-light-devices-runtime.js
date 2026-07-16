@@ -14,6 +14,7 @@ import {
   refreshLightDevicesView,
   renderLightDeviceAffiliateRowRuntime,
 } from '../js/light-devices-runtime.js';
+import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 
 const originalLightDevicesRuntimeDeps = configureLightDevicesRuntimeDeps();
 
@@ -32,8 +33,6 @@ const runtimeKeys = [
   'tierLabel',
   'formatChannelUnit',
   'CHANNEL_DISPLAY',
-  'loadCatalog',
-  'renderLightDeviceAffiliateRow',
   '_openChannelOnLightPage',
 ];
 const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
@@ -103,25 +102,32 @@ try {
   assert('getLightDeviceChannelDisplay prefers runtime display',
     getLightDeviceChannelDisplay(fallbackDisplay).circadian.label === 'Runtime Clock');
 
-  globalThis.loadCatalog = async () => ({ slots: { light: true } });
-  assert('loadLightDevicesCatalog delegates to runtime loadCatalog',
+  const previousRecommendationBridge = configureRecommendationModuleBridge({
+    loadCatalog: async () => ({ slots: { light: true } }),
+    renderLightDeviceAffiliateRow: (_catalog, slug) => `<a>${slug}</a>`,
+  });
+  assert('loadLightDevicesCatalog delegates to module loadCatalog',
     (await loadLightDevicesCatalog()).slots.light === true);
-  delete globalThis.loadCatalog;
+  configureRecommendationModuleBridge({ loadCatalog: null });
   assert('loadLightDevicesCatalog returns undefined when hook is missing',
     await loadLightDevicesCatalog() === undefined);
 
-  globalThis.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a>${slug}</a>`;
   assert('renderLightDeviceAffiliateRowRuntime delegates affiliate row rendering',
     renderLightDeviceAffiliateRowRuntime({}, 'panel-x') === '<a>panel-x</a>');
-  delete globalThis.renderLightDeviceAffiliateRow;
+  configureRecommendationModuleBridge({ renderLightDeviceAffiliateRow: null });
   assert('renderLightDeviceAffiliateRowRuntime returns empty string when hook is missing',
     renderLightDeviceAffiliateRowRuntime({}, 'panel-x') === '');
+  configureRecommendationModuleBridge(previousRecommendationBridge);
 
   globalThis._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
   openLightDeviceChannel('vitamin_d');
   assert('openLightDeviceChannel delegates to the current view binding',
     calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d'));
 } finally {
+  configureRecommendationModuleBridge({
+    loadCatalog: null,
+    renderLightDeviceAffiliateRow: null,
+  });
   configureLightDevicesRuntimeDeps(originalLightDevicesRuntimeDeps);
   restoreRuntime();
 }

@@ -5,6 +5,10 @@ import {
   isChatRenderProductRecsEnabled,
   renderChatRecommendationSections,
 } from '../js/chat-render-runtime.js';
+import {
+  configureRecommendationModuleBridge,
+  setRecommendationsCatalogCache,
+} from '../js/recommendations-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -14,12 +18,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Chat Render Runtime Tests ===\n');
 
-const runtimeKeys = [
-  'window',
-  'isProductRecsEnabled',
-  'renderRecommendationSectionSync',
-  '_cachedCatalog',
-];
+const runtimeKeys = ['window'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
 function setRuntimeValue(key, value) {
@@ -41,18 +40,20 @@ function restoreRuntime() {
 
 try {
   const calls = [];
-  setRuntimeValue('isProductRecsEnabled', () => {
+  const previousRecommendationBridge = configureRecommendationModuleBridge({
+    isProductRecsEnabled: () => {
     calls.push(['enabled']);
     return true;
+    },
+    renderRecommendationSectionSync: (slot, options) => {
+      calls.push(['render', slot, options]);
+      return `<section>${options.label}:${slot}:${options.maxProducts}</section>`;
+    },
   });
-  setRuntimeValue('_cachedCatalog', {
+  setRecommendationsCatalogCache({
     slots: {
       'vitamins.vitaminD': { label: 'Vitamin D' },
     },
-  });
-  setRuntimeValue('renderRecommendationSectionSync', (slot, options) => {
-    calls.push(['render', slot, options]);
-    return `<section>${options.label}:${slot}:${options.maxProducts}</section>`;
   });
 
   assert('isChatRenderProductRecsEnabled delegates runtime flag',
@@ -73,33 +74,46 @@ try {
       && call[1] === 'minerals.magnesium'
       && call[2]?.label === 'magnesium'));
 
-  setRuntimeValue('isProductRecsEnabled', () => false);
+  configureRecommendationModuleBridge({ isProductRecsEnabled: () => false });
   assert('renderChatRecommendationSections returns empty when product recs are disabled',
     renderChatRecommendationSections(['vitamins.vitaminD']).length === 0);
 
-  setRuntimeValue('isProductRecsEnabled', () => true);
-  delete globalThis.renderRecommendationSectionSync;
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: () => true,
+    renderRecommendationSectionSync: null,
+  });
   assert('renderChatRecommendationSections requires the sync renderer',
     renderChatRecommendationSections(['vitamins.vitaminD']).length === 0);
 
-  setRuntimeValue('renderRecommendationSectionSync', () => '<section>unused</section>');
-  delete globalThis._cachedCatalog;
+  configureRecommendationModuleBridge({ renderRecommendationSectionSync: () => '<section>unused</section>' });
+  setRecommendationsCatalogCache(null);
   assert('renderChatRecommendationSections requires cached catalog slots',
     renderChatRecommendationSections(['vitamins.vitaminD']).length === 0);
 
-  setRuntimeValue('_cachedCatalog', { slots: {} });
+  setRecommendationsCatalogCache({ slots: {} });
   assert('renderChatRecommendationSections ignores non-array slot input',
     renderChatRecommendationSections('vitamins.vitaminD').length === 0);
 
-  setRuntimeValue('isProductRecsEnabled', () => { throw new Error('boom'); });
+  configureRecommendationModuleBridge({ isProductRecsEnabled: () => { throw new Error('boom'); } });
   assert('isChatRenderProductRecsEnabled returns false when runtime flag throws',
     isChatRenderProductRecsEnabled() === false);
 
   delete globalThis.window;
-  assert('runtime adapter no-ops safely when window is missing',
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: null,
+    renderRecommendationSectionSync: null,
+  });
+  setRecommendationsCatalogCache(null);
+  assert('runtime adapter no-ops safely when module hooks are missing',
     isChatRenderProductRecsEnabled() === false
       && renderChatRecommendationSections(['vitamins.vitaminD']).length === 0);
+  configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: null,
+    renderRecommendationSectionSync: null,
+  });
+  setRecommendationsCatalogCache(null);
   restoreRuntime();
 }
 

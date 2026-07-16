@@ -287,22 +287,23 @@ assert('92. Empty for null/empty text', recsMod.detectMitigationsInText('').leng
 localStorage.setItem('labcharts-show-product-recs', 'true');
 const couponHtml = recsMod.renderEMFMeterRecs(emfCat);
 assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('data-rec-action="copy-coupon"'));
-assert('94. copyCouponCode exposed on window', typeof window.copyCouponCode === 'function');
-assert('94a. Coupon button has aria-label', /aria-label="Copy coupon code/.test(couponHtml));
-assert('94b. Coupon wrapper announces flash via aria-live', /aria-live="polite"/.test(couponHtml));
-assert('94c. Affiliate links carry aria-label "opens in new tab"', /opens in new tab/.test(couponHtml));
+assert('94. copyCouponCode is module-exported', typeof recsMod.copyCouponCode === 'function');
+assert('94a. copyCouponCode stays off window', !('copyCouponCode' in window));
+assert('94b. Coupon button has aria-label', /aria-label="Copy coupon code/.test(couponHtml));
+assert('94c. Coupon wrapper announces flash via aria-live', /aria-live="polite"/.test(couponHtml));
+assert('94d. Affiliate links carry aria-label "opens in new tab"', /opens in new tab/.test(couponHtml));
 const hostlistedHtml = recsMod.renderEMFMeterRecs(emfCat);
-assertCatalog('94d. Trusted SLT URL renders as link', hostlistedHtml.includes('safelivingtechnologies.com'));
+assertCatalog('94e. Trusted SLT URL renders as link', hostlistedHtml.includes('safelivingtechnologies.com'));
 const malCat = JSON.parse(JSON.stringify(emfCat));
 malCat.products['_internal.emfMeters'][0].url = 'https://attacker.com/?safelivingtechnologies.com=fake';
 const malHtml = recsMod.renderEMFMeterRecs(malCat);
-assert('94e. Allowlist blocks attacker.com URL', !malHtml.includes('attacker.com'));
+assert('94f. Allowlist blocks attacker.com URL', !malHtml.includes('attacker.com'));
 
 // Umami event tagging — six surfaces, opt-out gate inherited from Settings → Privacy
 const meterEvents = recsMod.renderEMFMeterRecs(emfCat);
-assert('94f. Meter rec links carry Umami events', /data-umami-event="emf-meter-rec-/.test(meterEvents));
+assert('94g. Meter rec links carry Umami events', /data-umami-event="emf-meter-rec-/.test(meterEvents));
 const mitEvents = recsMod.renderEMFMitigationRecs(emfCat, ['shielding paint (Yshield)']);
-assertCatalog('94g. Mitigation rec links carry Umami events', /data-umami-event="emf-mitigation-rec-/.test(mitEvents));
+assertCatalog('94h. Mitigation rec links carry Umami events', /data-umami-event="emf-mitigation-rec-/.test(mitEvents));
 const customEvent = recsMod.renderEMFMeterRecs(emfCat, { eventPrefix: 'meter-test' });
 assert('94h. Custom eventPrefix works', /data-umami-event="emf-meter-test-/.test(customEvent));
 

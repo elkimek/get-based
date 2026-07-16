@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { showPromptDialog } from './utils.js';
+import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const lightDevicesRuntimeDeps = { showPromptDialog };
@@ -83,7 +84,7 @@ export function getLightDeviceChannelDisplay(fallback = {}) {
 }
 
 export function loadLightDevicesCatalog() {
-  return getRuntimeFunction('loadCatalog')?.();
+  return getRecommendationModuleFunction('loadCatalog')?.();
 }
 
 /**
@@ -91,7 +92,7 @@ export function loadLightDevicesCatalog() {
  * @param {string} slug
  */
 export function renderLightDeviceAffiliateRowRuntime(catalog, slug) {
-  return getRuntimeFunction('renderLightDeviceAffiliateRow')?.(catalog, slug) || '';
+  return getRecommendationModuleFunction('renderLightDeviceAffiliateRow')?.(catalog, slug) || '';
 }
 
 /** @param {string} channel */

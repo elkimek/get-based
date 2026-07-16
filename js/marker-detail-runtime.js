@@ -2,6 +2,7 @@
 // marker-detail-runtime.js - Browser runtime adapters for marker detail modal hooks.
 
 import { closeEMFInterpretation } from './emf-runtime.js';
+import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const markerDetailRuntimeDeps = {
@@ -105,14 +106,14 @@ export function getRelevantSNPsRuntime(dotKey) {
 
 export function isProductRecsEnabledRuntime() {
   try {
-    return getRuntimeFunction('isProductRecsEnabled')?.() === true;
+    return getRecommendationModuleFunction('isProductRecsEnabled')?.() === true;
   } catch {
     return false;
   }
 }
 
 export function hasRecommendationSectionRendererRuntime() {
-  return getRuntimeFunction('renderRecommendationSection') !== null;
+  return getRecommendationModuleFunction('renderRecommendationSection') !== null;
 }
 
 /**
@@ -121,7 +122,7 @@ export function hasRecommendationSectionRendererRuntime() {
  * @returns {Promise<string>}
  */
 export async function renderRecommendationSectionRuntime(markerKey, options) {
-  const renderRecommendations = getRuntimeFunction('renderRecommendationSection');
+  const renderRecommendations = getRecommendationModuleFunction('renderRecommendationSection');
   if (!renderRecommendations) return '';
   const html = await renderRecommendations(markerKey, options);
   return typeof html === 'string' ? html : '';

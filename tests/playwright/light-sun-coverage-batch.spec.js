@@ -791,6 +791,7 @@ test('light devices cover session detail edit log active card and rendered list 
   const results = await page.evaluate(async ({ devicesUrl, silhouetteUrl }) => {
     const lightDevices = await import(devicesUrl);
     const lightDevicesRuntime = await import('/js/light-devices-runtime.js');
+    const recommendationRuntime = await import('/js/recommendations-runtime.js');
     const silhouette = await import(silhouetteUrl);
     const { profileStorageKey } = await import('/js/profile.js');
     const blobStorage = await import('/js/blob-storage.js');
@@ -806,8 +807,6 @@ test('light devices cover session detail edit log active card and rendered list 
       formatChannelUnit: window.formatChannelUnit,
       CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
       _openChannelOnLightPage: window._openChannelOnLightPage,
-      loadCatalog: window.loadCatalog,
-      renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
       navigate: window.navigate,
       renderBodySilhouette: window.renderBodySilhouette,
       bindBodySilhouette: window.bindBodySilhouette,
@@ -815,6 +814,10 @@ test('light devices cover session detail edit log active card and rendered list 
     const calls = [];
     const previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
       showPromptDialog: async () => '17',
+    });
+    const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+      loadCatalog: async () => ({ items: [] }),
+      renderLightDeviceAffiliateRow: (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`,
     });
 
     try {
@@ -877,8 +880,6 @@ test('light devices cover session detail edit log active card and rendered list 
       lightDevices.configureLightDevices({
         renderDeviceSessionAIDetail: () => '<section class="device-ai-detail-test">Device AI</section>',
       });
-      window.loadCatalog = async () => ({ items: [] });
-      window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
       window.navigate = route => calls.push(['navigate', route]);
       window.renderBodySilhouette = silhouette.renderBodySilhouette;
       window.bindBodySilhouette = silhouette.bindBodySilhouette;
@@ -967,6 +968,7 @@ test('light devices cover session detail edit log active card and rendered list 
       else localStorage.setItem(importedStorageKey, originalImportedLocalValue);
       lightDevices.configureLightDevices({ renderDeviceSessionAIDetail: () => '' });
       lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
+      recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
       Object.assign(window, savedWindow);
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }

@@ -16,10 +16,11 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ recommendationWidgetUrl }) => {
-    const [widgetModule, stateModule, profileModule] = await Promise.all([
+    const [widgetModule, stateModule, profileModule, recommendationRuntime] = await Promise.all([
       import(recommendationWidgetUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
+      import('/js/recommendations-runtime.js'),
     ]);
     const outcomes = {};
     const { state } = stateModule;
@@ -27,15 +28,13 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
     const originalView = state.currentView;
     const originalMarkerRegistry = state.markerRegistry;
     const savedWindow = {
-      isProductRecsEnabled: window.isProductRecsEnabled,
-      loadCatalog: window.loadCatalog,
-      _cachedCatalog: window._cachedCatalog,
       getSessions: window.getSessions,
       rollingChannelTotals: window.rollingChannelTotals,
       detectWearableTrendSlots: window.detectWearableTrendSlots,
-      buildDNAHints: window.buildDNAHints,
       _snpTableCache: window._snpTableCache,
     };
+    const savedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
+    let previousRecommendationBridge = null;
     const fixture = document.getElementById('fixture');
     const calls = [];
     const profileId = 'dashboardRecommendationCoverage';
@@ -106,7 +105,16 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       state.currentView = 'dashboard';
       state.markerRegistry = {};
       removeRecommendationKeys();
-      window.isProductRecsEnabled = () => productRecsEnabled;
+      previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+        isProductRecsEnabled: () => productRecsEnabled,
+        buildDNAHints: slotKey => slotKey === 'genome.mthfr'
+          ? [{ gene: 'MTHFR', text: 'MTHFR variant suggests methylation support.' }]
+          : [],
+        loadCatalog: () => {
+          loadCatalogCalls += 1;
+          return new Promise(resolve => { resolveCatalog = resolve; });
+        },
+      });
       window.getSessions = () => [];
       window.rollingChannelTotals = () => ({ circadian: 0 });
       window.detectWearableTrendSlots = () => [{
@@ -114,14 +122,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
         reason: 'Wearable sleep trend is deteriorating.',
       }];
       window._snpTableCache = { rows: [{ id: 'rs1801133' }] };
-      window.buildDNAHints = slotKey => slotKey === 'genome.mthfr'
-        ? [{ gene: 'MTHFR', text: 'MTHFR variant suggests methylation support.' }]
-        : [];
-      window.loadCatalog = () => {
-        loadCatalogCalls += 1;
-        return new Promise(resolve => { resolveCatalog = resolve; });
-      };
-      window._cachedCatalog = null;
+      recommendationRuntime.setRecommendationsCatalogCache(null);
 
       const widget = widgetModule.createDashboardRecommendationWidget({
         markerHasData: nextMarker => Array.isArray(nextMarker?.values) && nextMarker.values.some(v => v !== null),
@@ -152,7 +153,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       await Promise.resolve();
       await Promise.resolve();
       outcomes.catalogRefreshUpdatesDashboardAndRecommendationsPage =
-        window._cachedCatalog === catalog
+        recommendationRuntime.getRecommendationsCatalogCache() === catalog
         && fixture.querySelector('.dashboard-widget-body')?.innerHTML.includes('rec-next-widget')
         && calls.some(call => call.join('|') === 'showRecommendations|true');
 
@@ -227,7 +228,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
         && !compactCard.includes('Hidden when compact')
         && !compactCard.includes('Dismiss');
 
-      window._cachedCatalog = { slots: {} };
+      recommendationRuntime.setRecommendationsCatalogCache({ slots: {} });
       const emptyHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       const customEmptyHtml = widget.renderRecommendationsEmpty('Nothing <ready>');
       outcomes.emptyStatesRenderSafeFallbackActions =
@@ -241,6 +242,10 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       state.currentView = originalView;
       state.markerRegistry = originalMarkerRegistry;
       fixture.innerHTML = '';
+      if (previousRecommendationBridge) {
+        recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      recommendationRuntime.setRecommendationsCatalogCache(savedCatalog);
       for (const [key, value] of Object.entries(savedWindow)) {
         restoreWindowProperty(key, value);
       }

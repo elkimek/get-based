@@ -221,11 +221,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       'renderChannelDeficitDeviceRecs',
       'copyCouponCode',
     ];
-    const savedRecommendationWindowExports = recommendationWindowKeys.map(key => ({
-      key,
-      hadOwn: Object.prototype.hasOwnProperty.call(window, key),
-      value: window[key],
-    }));
     const rec = await import(recUrl);
     const recommendationsRuntime = await import(runtimeUrl);
     const savedRecommendationsRuntime = recommendationsRuntime.configureRecommendationsRuntime({
@@ -243,7 +238,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       openSettingsTab: window.openSettingsTab,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       setTimeout: window.setTimeout,
-      recommendationWindowExports: savedRecommendationWindowExports,
     };
     const outcomes = {};
     const host = document.createElement('div');
@@ -306,9 +300,9 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       const [catalogA, catalogB] = await Promise.all([rec.loadCatalog(), rec.loadCatalog()]);
       outcomes.loadCatalogDedupes = catalogA === catalogB && !!catalogA?.slots?.magnesium;
       outcomes.loadEMFCatalogUsesUnifiedCatalog = (await rec.loadEMFCatalog()) === catalogA;
-      outcomes.windowExportsRegistered = typeof window.renderRecommendationSection === 'function'
-        && typeof window.copyCouponCode === 'function'
-        && typeof window.detectEMFRelevance === 'function';
+      outcomes.recommendationExportsStayModuleOnly = recommendationWindowKeys.every(key =>
+        typeof rec[key] === 'function' && !(key in window)
+      );
 
       outcomes.settingToggleRoundTrips = rec.isProductRecsEnabled() === true;
       rec.markDisclosureSeen();
@@ -377,7 +371,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         return 1;
       };
       const couponBtn = host.querySelector('.rec-coupon-code');
-      window.copyCouponCode(couponBtn);
+      rec.copyCouponCode(couponBtn);
       await wait(0);
       outcomes.copyCouponUsesClipboard = copiedCode === 'SK12'
         && couponBtn?.dataset.flashing === '1'
@@ -483,10 +477,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       restoreWindowProp('_snpTableCache', saved.snpTable);
       recommendationsRuntime.configureRecommendationsRuntime(savedRecommendationsRuntime);
       restoreWindowProp('openSettingsTab', saved.openSettingsTab);
-      for (const { key, hadOwn, value } of saved.recommendationWindowExports) {
-        if (hadOwn) window[key] = value;
-        else delete window[key];
-      }
       window.setTimeout = saved.setTimeout;
       if (saved.clipboard) Object.defineProperty(navigator, 'clipboard', saved.clipboard);
       else delete navigator.clipboard;

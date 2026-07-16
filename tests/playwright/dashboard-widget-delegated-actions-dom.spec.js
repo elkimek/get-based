@@ -257,6 +257,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const { profileStorageKey } = await import('/js/profile.js');
     const { dashboardBiometricSelectionKey, dashboardWidgetStorageKey } = await import('/js/dashboard-widgets.js');
     const viewsModule = await import('/js/views.js');
+    const recommendationRuntime = await import('/js/recommendations-runtime.js');
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, timeout = 1500) => {
       const started = Date.now();
@@ -286,12 +287,9 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       },
     };
     const savedFns = {
-      isProductRecsEnabled: window.isProductRecsEnabled,
-      loadCatalog: window.loadCatalog,
       detectWearableTrendSlots: window.detectWearableTrendSlots,
       rollingChannelTotals: window.rollingChannelTotals,
       getSessions: window.getSessions,
-      renderRecommendationSection: window.renderRecommendationSection,
       openChatPanel: window.openChatPanel,
       openSettingsModal: window.openSettingsModal,
       showDetailModal: window.showDetailModal,
@@ -310,8 +308,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       importedData: state.importedData,
       currentView: state.currentView,
     };
-    const hadCachedCatalog = Object.prototype.hasOwnProperty.call(window, '_cachedCatalog');
-    const originalCachedCatalog = window._cachedCatalog;
+    const originalCachedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
+    let previousRecommendationBridge = null;
     let realNavigate;
 
     try {
@@ -374,19 +372,21 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     localStorage.removeItem(recDismissedKey);
     localStorage.removeItem(biometricKey);
 
-    window.isProductRecsEnabled = () => true;
-    delete window._cachedCatalog;
-    window.loadCatalog = async () => {
-      await delay(10);
-      return catalog;
-    };
+    previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+      isProductRecsEnabled: () => true,
+      loadCatalog: async () => {
+        await delay(10);
+        return catalog;
+      },
+      renderRecommendationSection: async slotKey => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`,
+    });
+    recommendationRuntime.setRecommendationsCatalogCache(null);
     window.detectWearableTrendSlots = () => [{
       slotKey: 'body.sleepRecovery',
       reason: 'Resting heart rate is elevated and HRV is below baseline.',
     }];
     window.rollingChannelTotals = () => ({ circadian: 0 });
     window.getSessions = () => [];
-    window.renderRecommendationSection = async slotKey => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`;
     window.openChatPanel = prompt => calls.push(['chat', prompt]);
     window.openSettingsModal = panel => calls.push(['settings', panel]);
     window.showDetailModal = id => calls.push(['detail', id]);
@@ -574,8 +574,10 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       state.profileDob = originalState.profileDob;
       state.importedData = originalState.importedData;
       state.currentView = originalState.currentView;
-      if (hadCachedCatalog) window._cachedCatalog = originalCachedCatalog;
-      else delete window._cachedCatalog;
+      if (previousRecommendationBridge) {
+        recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      recommendationRuntime.setRecommendationsCatalogCache(originalCachedCatalog);
       for (const [name, original] of Object.entries(savedFns)) {
         if (hadFns[name]) window[name] = original;
         else delete window[name];

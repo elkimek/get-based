@@ -17,6 +17,10 @@ import {
 } from './mobile-dashboard.js';
 import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js';
 import { loadDemoData } from './export.js';
+import {
+  getRecommendationModuleFunction,
+  setRecommendationsCatalogCache,
+} from './recommendations-runtime.js';
 
 let _dashboardWelcomeActionsInstalled = false;
 
@@ -308,9 +312,9 @@ export function createDashboardPageView(deps) {
     loadContextCardTips();
     loadCommitHash();
     // Preload catalog so rec sections and sorting use it immediately
-    const catalogPromise = callDashboardPageRuntime('loadCatalog');
+    const catalogPromise = getRecommendationModuleFunction('loadCatalog')?.();
     if (catalogPromise && typeof catalogPromise.then === 'function') {
-      catalogPromise.then(c => { dashboardPageRuntime()._cachedCatalog = c; });
+      catalogPromise.then(setRecommendationsCatalogCache);
     }
 
     // Auto-trigger guided tour on first populated dashboard visit as a fallback

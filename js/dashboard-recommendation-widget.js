@@ -7,6 +7,12 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { computeBiologyScores } from './biology-scores.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
+import {
+  getRecommendationModuleFunction,
+  getRecommendationsCatalogCache,
+  getRecommendationsSnpTable,
+  setRecommendationsCatalogCache,
+} from './recommendations-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
@@ -105,16 +111,16 @@ export function createDashboardRecommendationWidget({
   }
 
   function getCachedRecommendationsCatalog() {
-    const catalog = getDashboardRecommendationRuntimeValue('_cachedCatalog');
+    const catalog = getRecommendationsCatalogCache();
     return catalog?.slots ? catalog : null;
   }
 
   function refreshRecommendationsWhenCatalogReady() {
-    const loadCatalog = getDashboardRecommendationRuntimeValue('loadCatalog');
+    const loadCatalog = getRecommendationModuleFunction('loadCatalog');
     if (_recommendationsLoadPromise || typeof loadCatalog !== 'function') return;
     _recommendationsLoadPromise = loadCatalog()
       .then(catalog => {
-        if (catalog) dashboardRecommendationRuntime()._cachedCatalog = catalog;
+        setRecommendationsCatalogCache(catalog);
         refreshRecommendationSurfaces();
       })
       .finally(() => { _recommendationsLoadPromise = null; });
@@ -147,7 +153,7 @@ export function createDashboardRecommendationWidget({
   }
 
   function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
-    if (!callDashboardRecommendationRuntime('isProductRecsEnabled') || !catalog?.slots) return [];
+    if (!getRecommendationModuleFunction('isProductRecsEnabled')?.() || !catalog?.slots) return [];
     const dismissed = getRecommendationStateSet('dismissed');
     const saved = getRecommendationStateSet('saved');
     const trendById = new Map((ctx.trendAlerts || []).map(alert => [alert.id, alert]));
@@ -254,9 +260,10 @@ export function createDashboardRecommendationWidget({
       }
     }
 
-    if (typeof getDashboardRecommendationRuntimeValue('buildDNAHints') === 'function' && getDashboardRecommendationRuntimeValue('_snpTableCache')) {
+    const buildDNAHints = getRecommendationModuleFunction('buildDNAHints');
+    if (buildDNAHints && getRecommendationsSnpTable()) {
       for (const slotKey of Object.keys(catalog.slots)) {
-        const hints = callDashboardRecommendationRuntime('buildDNAHints', slotKey);
+        const hints = buildDNAHints(slotKey);
         if (!hints?.length) continue;
         add({
           id: `genome:${slotKey}:dna`,
@@ -306,7 +313,7 @@ export function createDashboardRecommendationWidget({
   }
 
   function renderDashboardRecommendationsWidget(ctx) {
-    if (!callDashboardRecommendationRuntime('isProductRecsEnabled')) {
+    if (!getRecommendationModuleFunction('isProductRecsEnabled')?.()) {
       return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('open-privacy-settings')}>
         <strong>Recommendations are off</strong>
         <span>Enable Tips & Recommendations in settings to show data-linked next steps.</span>

@@ -670,9 +670,10 @@ test('marker detail modal covers default deps descriptions alt units and bio age
   await page.waitForSelector('#modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ modalUrl }) => {
-    const [modal, markerRuntime, { state }, data] = await Promise.all([
+    const [modal, markerRuntime, recommendationRuntime, { state }, data] = await Promise.all([
       import(modalUrl),
       import('/js/marker-detail-runtime.js'),
+      import('/js/recommendations-runtime.js'),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
@@ -701,8 +702,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       'renameMarker',
       'revertMarkerName',
       'askAIAboutMarker',
-      'renderRecommendationSection',
-      'isProductRecsEnabled',
       '_getRelevantSNPs',
       '_uninstallWearableModalFocusTrap',
     ];
@@ -715,6 +714,10 @@ test('marker detail modal covers default deps descriptions alt units and bio age
     const albuminKey = 'proteins.albumin';
     const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       closeEMFInterpretation: () => calls.push(['close-emf']),
+    });
+    const restoreRecommendationRuntime = recommendationRuntime.configureRecommendationModuleBridge({
+      isProductRecsEnabled: () => true,
+      renderRecommendationSection: async id => `<div class="coverage-rec">rec ${id}</div>`,
     });
 
     try {
@@ -759,9 +762,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       window.renameMarker = id => calls.push(['rename', id]);
       window.revertMarkerName = id => calls.push(['revert-name', id]);
       window.askAIAboutMarker = id => calls.push(['ask-ai', id]);
-      window.isProductRecsEnabled = () => true;
       window._getRelevantSNPs = () => [];
-      window.renderRecommendationSection = async id => `<div class="coverage-rec">rec ${id}</div>`;
       window._uninstallWearableModalFocusTrap = () => calls.push(['uninstall-focus']);
 
       localStorage.setItem('labcharts-marker-desc', JSON.stringify({
@@ -826,6 +827,11 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         else delete window[key];
       }
       markerRuntime.configureMarkerDetailRuntime(restoreMarkerRuntime);
+      recommendationRuntime.configureRecommendationModuleBridge({
+        isProductRecsEnabled: null,
+        renderRecommendationSection: null,
+        ...restoreRecommendationRuntime,
+      });
       data.invalidateActiveDataCache();
       modal.configureMarkerDetailModal({
         navigate: (category, payload) => window.navigate?.(category, payload),

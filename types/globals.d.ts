@@ -70,9 +70,7 @@ interface Window {
   clearE2EESession?: AnyFunction;
   cleanupDiscussionState?: AnyFunction;
   destroyAllCharts?: () => void;
-  detectEMFRelevance?: AnyFunction;
   detectDNAFile?: (header: string) => string | null;
-  detectSupplementSlots?: AnyFunction;
   ensureActiveThread?: () => void;
   exportAllDataJSON?: () => Promise<void> | void;
   exportClientJSON?: (profileId: string, includeChat?: boolean) => Promise<void> | void;
@@ -194,7 +192,6 @@ interface Window {
   rememberModalTrigger?: () => void;
   renderChatMessages?: AnyFunction;
   renderMenstrualCycleSection?: AnyFunction;
-  renderRecommendationSectionSync?: AnyFunction;
   renderSavedSummaries?: AnyFunction;
   renderSupplementsSection?: AnyFunction;
   renderThreadList?: () => void;
@@ -224,14 +221,10 @@ interface Window {
   updatePrivacyStatusCard?: AnyFunction;
   refreshWebSearchToggle?: AnyFunction;
   saveImportedData?: AnyFunction;
-  loadCatalog?: AnyFunction;
-  _cachedCatalog?: { slots?: Record<string, any>; [key: string]: any } | null;
   _getRelevantSNPs?: AnyFunction;
   _uninstallWearableModalFocusTrap?: AnyFunction;
-  buildDNAHints?: AnyFunction;
   deleteNote?: AnyFunction;
   detectWearableTrendSlots?: AnyFunction;
-  isProductRecsEnabled?: () => boolean;
   loadContextCardTips?: AnyFunction;
   openManualLogForm?: AnyFunction;
   openNoteEditor?: AnyFunction;
@@ -239,10 +232,7 @@ interface Window {
   showDetailModal?: AnyFunction;
   syncWearableNow?: AnyFunction;
   triggerDNAFilePicker?: AnyFunction;
-  renderLightDeviceAffiliateRow?: AnyFunction;
-  renderRecommendationSection?: AnyFunction;
   renderLightTools?: AnyFunction;
-  renderChannelDeficitDeviceRecs?: AnyFunction;
   renderSunDataSourceSettings?: AnyFunction;
   computeUVConfidence?: AnyFunction;
   getMeteoConfig?: AnyFunction;
