@@ -188,11 +188,8 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     const dna = await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`);
     const dnaRuntime = await import('/js/dna-runtime.js');
     const chatRuntime = await import('/js/chat-runtime.js');
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
     let importRunning = false;
-    const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps({
-      isImportRunning: () => importRunning,
-    });
+    const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps();
 
     const profileId = `dna-autosomal-coverage-${Date.now()}`;
     state.currentProfile = profileId;
@@ -201,13 +198,14 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
 
     document.body.innerHTML = '<div id="notification-container"></div><div class="chat-onboard-dna"></div><main id="fixture"></main>';
     const calls = [];
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    dnaRuntime.configureDnaRuntimeDeps({
       buildSidebar: () => calls.push('sidebar'),
+      isImportRunning: () => importRunning,
+      navigate: route => calls.push(`navigate:${route}`),
     });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       updateChatNudge: () => calls.push('nudge'),
     });
-    window.navigate = route => calls.push(`navigate:${route}`);
 
     const validContent = `#AncestryDNA raw data download
 rsid\tchromosome\tposition\tallele1\tallele2
@@ -291,7 +289,6 @@ rs999999\t1\t100\tAG
 
     dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
     chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
-    viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
     return { failures };
   });
 
@@ -317,10 +314,9 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     };
 
     const { state } = await import('/js/state.js');
-    const [dna, dnaRuntime, viewRuntime] = await Promise.all([
+    const [dna, dnaRuntime] = await Promise.all([
       import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`),
       import('/js/dna-runtime.js'),
-      import('/js/views-runtime-bridge.js'),
     ]);
     const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps();
 
@@ -331,10 +327,10 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
 
     document.body.innerHTML = '<div id="notification-container"></div><main id="fixture"></main>';
     const calls = [];
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    dnaRuntime.configureDnaRuntimeDeps({
       buildSidebar: () => calls.push('sidebar'),
+      navigate: route => calls.push(`navigate:${route}`),
     });
-    window.navigate = route => calls.push(`navigate:${route}`);
 
     const hapTable = await dna.loadHaplogroupTable();
     const jText = '295T\n489C\n4216C\n10398G\n11251G\n12612G\n13708A\n16069T\n16126C\n';
@@ -404,7 +400,6 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     check('haplogroup list exported', Array.isArray(dna.HAPLOGROUP_LIST) && dna.HAPLOGROUP_LIST.includes('J'));
 
     dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
-    viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
     return { failures };
   });
 
@@ -430,8 +425,11 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
 
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaRendererCoverage=${Date.now()}-${Math.random()}`);
+    const dnaRuntime = await import('/js/dna-runtime.js');
     const calls = [];
-    window.navigate = route => calls.push(route);
+    const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps({
+      navigate: route => calls.push(route),
+    });
 
     state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     const emptyHtml = dna.renderGeneticsSection();
@@ -454,6 +452,7 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
     const lazyRefreshScheduled = await waitFor(() => calls.includes('dashboard'));
     check('lazy SNP table branch returns blank and schedules dashboard refresh', lazyHtml === '' && lazyRefreshScheduled);
 
+    dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
     return { failures };
   });
 

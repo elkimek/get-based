@@ -70,6 +70,7 @@ import { closeClientList, configureClientListRuntime, openClientList, openProfil
 import { configureClientListRuntimeDeps } from './client-list-runtime.js';
 import { configureCompareCorrelationViews } from './compare-correlations.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
+import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
@@ -127,6 +128,7 @@ configureSettingsRuntime({
 configureNavActions({ openClientList });
 configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
+configureDnaRuntimeDeps({ buildSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });

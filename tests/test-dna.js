@@ -500,7 +500,9 @@ assert('dna-runtime owns DNA transient runtime state and shell integration',
     dnaRuntimeSrc.includes('_snpTableCache') &&
     dnaRuntimeSrc.includes("from './profile.js'") &&
     dnaRuntimeSrc.includes('dnaRuntimeDeps.getLatitudeFromLocation()') &&
-    dnaRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
+    dnaRuntimeSrc.includes('dnaRuntimeDeps.navigate?.(route)') &&
+    dnaRuntimeSrc.includes('const buildSidebar = dnaRuntimeDeps.buildSidebar') &&
+    !dnaRuntimeSrc.includes('getViewRuntimeFunction') &&
     !dnaRuntimeSrc.includes('installDNAWindowBindings'));
 assert('dna-mtdna delegates browser runtime hooks to dna-runtime',
   dnaMtDnaSrc.includes("from './dna-runtime.js'") &&
