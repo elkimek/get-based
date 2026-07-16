@@ -135,6 +135,9 @@ assert('App shell injects sun defaults navigation without a view bridge lookup',
 assert('App shell injects client list view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureClientListRuntimeDeps({ navigate, renderProfileButton });'));
 
+assert('App shell injects DNA view callbacks without bridge lookups',
+  appShellHooksSrc.includes('configureDnaRuntimeDeps({ buildSidebar, navigate });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',

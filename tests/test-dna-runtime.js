@@ -29,7 +29,6 @@ import {
   getDnaModuleFunction,
   getDnaModuleValue,
 } from '../js/dna-runtime-bridge.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -51,7 +50,6 @@ const runtimeKeys = [
   '_pendingMtDNA',
   '_snpTableCache',
   'isDebugMode',
-  'navigate',
   'showConfirmDialog',
   'triggerDNAFilePicker',
 ];
@@ -61,7 +59,6 @@ const originalWarn = console.warn;
 const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
 const originalContextCardsRuntime = configureContextCardsRuntimeCallbacks();
 const originalChatRuntime = configureChatRuntimeCallbacks();
-let previousViewRuntime = null;
 const previousDnaBridge = configureDnaModuleBridge({
   handleDNAFile: null,
   HAPLOGROUP_LIST: null,
@@ -71,9 +68,9 @@ try {
   for (const key of runtimeKeys) delete globalThis[key];
 
   const calls = [];
-  globalThis.navigate = route => calls.push(['navigate', route]);
-  previousViewRuntime = configureViewRuntime({
+  configureDnaRuntimeDeps({
     buildSidebar: () => calls.push(['sidebar']),
+    navigate: route => calls.push(['navigate', route]),
   });
   refreshDnaShell('dashboard');
   assert('refreshDnaShell refreshes sidebar then navigates',
@@ -84,12 +81,15 @@ try {
   assert('navigateDnaRoute delegates route changes',
     calls.length === 1 && calls[0][0] === 'navigate' && calls[0][1] === 'genome');
 
-  configureViewRuntime({ buildSidebar: () => {
-    throw new Error('sidebar failed');
-  } });
+  configureDnaRuntimeDeps({ buildSidebar: () => { throw new Error('sidebar failed'); } });
   let sidebarThrew = false;
   try { refreshDnaSidebar(); } catch (_) { sidebarThrew = true; }
   assert('refreshDnaSidebar swallows sidebar refresh errors', !sidebarThrew);
+
+  configureDnaRuntimeDeps({ buildSidebar: null, navigate: null });
+  let missingCallbacksThrew = false;
+  try { refreshDnaShell('dashboard'); } catch (_) { missingCallbacksThrew = true; }
+  assert('DNA view callbacks are safe no-ops before shell wiring', !missingCallbacksThrew);
 
   configureDnaRuntimeDeps({ isImportRunning: () => true });
   assert('isDnaLabImportRunning delegates true state', isDnaLabImportRunning() === true);
@@ -188,7 +188,6 @@ try {
     HAPLOGROUP_LIST: null,
     ...previousDnaBridge,
   });
-  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   configureDnaRuntimeDeps(originalDnaRuntimeDeps);
   configureContextCardsRuntimeCallbacks(originalContextCardsRuntime);
   configureChatRuntimeCallbacks(originalChatRuntime);

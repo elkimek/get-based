@@ -6,15 +6,31 @@ import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog } from './utils.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const dnaRuntimeDeps = { getLatitudeFromLocation, isDebugMode, isImportRunning, showConfirmDialog };
+const dnaRuntimeDeps = {
+  buildSidebar: /** @type {null | (() => void)} */ (null),
+  getLatitudeFromLocation,
+  isDebugMode,
+  isImportRunning,
+  navigate: /** @type {null | ((route: string) => void)} */ (null),
+  showConfirmDialog,
+};
 
 export function configureDnaRuntimeDeps(deps = {}) {
   const previous = { ...dnaRuntimeDeps };
+  if ('buildSidebar' in deps) {
+    dnaRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
+      ? /** @type {() => void} */ (deps.buildSidebar)
+      : null;
+  }
   if (typeof deps.getLatitudeFromLocation === 'function') dnaRuntimeDeps.getLatitudeFromLocation = deps.getLatitudeFromLocation;
   if (typeof deps.isDebugMode === 'function') dnaRuntimeDeps.isDebugMode = deps.isDebugMode;
   if (typeof deps.isImportRunning === 'function') dnaRuntimeDeps.isImportRunning = deps.isImportRunning;
+  if ('navigate' in deps) {
+    dnaRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(route: string) => void} */ (deps.navigate)
+      : null;
+  }
   if ('showConfirmDialog' in deps) {
     dnaRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
       ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
@@ -27,17 +43,6 @@ function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : /** @type {any} */ (globalThis);
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
 /** @returns {boolean} */
@@ -66,11 +71,11 @@ export function logDnaDebugWarn(...args) {
 
 /** @param {string} route */
 export function navigateDnaRoute(route) {
-  getRuntimeFunction('navigate')?.(route);
+  dnaRuntimeDeps.navigate?.(route);
 }
 
 export function refreshDnaSidebar() {
-  const buildSidebar = getViewRuntimeFunction('buildSidebar');
+  const buildSidebar = dnaRuntimeDeps.buildSidebar;
   if (!buildSidebar) return;
   try {
     buildSidebar();
