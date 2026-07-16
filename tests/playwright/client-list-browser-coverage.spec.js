@@ -8,8 +8,8 @@ test('client list live menu actions dispatch exports share demos and profile sta
     const { state } = await import('/js/state.js');
     const clientList = await import('/js/client-list.js');
     const { configureClientListRuntime } = clientList;
+    const clientListRuntime = await import('/js/client-list-runtime.js');
     const profile = await import('/js/profile.js');
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
     const confirmQueue = [];
@@ -75,7 +75,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
       showConfirmDialog: window.showConfirmDialog,
       inputClick: HTMLInputElement.prototype.click,
     };
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousClientListRuntimeDeps = clientListRuntime.configureClientListRuntimeDeps({
       renderProfileButton: () => calls.push(['render-profile-button']),
     });
     const openList = async () => {
@@ -252,7 +252,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
+      clientListRuntime.configureClientListRuntimeDeps(previousClientListRuntimeDeps);
       if (previousClientListRuntime) configureClientListRuntime(previousClientListRuntime);
       window.showConfirmDialog = saved.showConfirmDialog;
       if (previousProfileDeps) profile.configureProfileDeps(previousProfileDeps);
@@ -277,12 +277,9 @@ test('client list form live actions cover health link avatar haplogroup and loca
     const clientList = await import('/js/client-list.js');
     const clientListRuntime = await import('/js/client-list-runtime.js');
     const dnaBridge = await import('/js/dna-runtime-bridge.js');
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
+    const clientListRuntimeSrc = await fetch('/js/client-list-runtime.js').then(response => response.text());
     const outcomes = {};
     const calls = [];
-    const previousClientListRuntimeDeps = clientListRuntime.configureClientListRuntimeDeps({
-      showNotification: (...args) => calls.push(['notification', ...args]),
-    });
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -300,14 +297,16 @@ test('client list form live actions cover health link avatar haplogroup and loca
       importedData: clone(state.importedData),
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       bodyOverflow: document.body.style.overflow,
-      navigate: window.navigate,
       inputClick: HTMLInputElement.prototype.click,
       scrollIntoView: Element.prototype.scrollIntoView,
       modalOverlayClass: document.getElementById('modal-overlay')?.className,
       hadWearableStrip: !!document.getElementById('wearable-strip'),
     };
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const navigate = route => calls.push(['navigate', route]);
+    const previousClientListRuntimeDeps = clientListRuntime.configureClientListRuntimeDeps({
+      navigate,
       renderProfileButton: () => calls.push(['render-profile-button']),
+      showNotification: (...args) => calls.push(['notification', ...args]),
     });
     const previousDnaBridge = dnaBridge.configureDnaModuleBridge({
       HAPLOGROUP_LIST: ['H', 'J', 'K'],
@@ -347,7 +346,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
-      window.navigate = route => calls.push(['navigate', route]);
       HTMLInputElement.prototype.click = function() {
         calls.push(['input-click', this.id || this.type || 'input']);
       };
@@ -369,6 +367,10 @@ test('client list form live actions cover health link avatar haplogroup and loca
       outcomes.healthMetricsLinkClosesNavigatesAndScrolls = !document.getElementById('client-list-overlay')?.classList.contains('show')
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard')
         && calls.some(call => call[0] === 'scroll' && call[1] === 'wearable-strip');
+      outcomes.clientListRuntimeUsesInjectedViewCallbacks =
+        clientListRuntimeSrc.includes('clientListRuntimeDeps.navigate?.(route)')
+        && clientListRuntimeSrc.includes('clientListRuntimeDeps.renderProfileButton?.()')
+        && !clientListRuntimeSrc.includes('getViewRuntimeFunction');
 
       clientList.openClientList();
       clientList.openClientForm('client-active');
@@ -414,14 +416,12 @@ test('client list form live actions cover health link avatar haplogroup and loca
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
       dnaBridge.configureDnaModuleBridge({
         HAPLOGROUP_LIST: null,
         setManualHaplogroup: null,
         ...previousDnaBridge,
       });
       clientListRuntime.configureClientListRuntimeDeps(previousClientListRuntimeDeps);
-      window.navigate = saved.navigate;
       HTMLInputElement.prototype.click = saved.inputClick;
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       if (!saved.hadWearableStrip) document.getElementById('wearable-strip')?.remove();
@@ -445,7 +445,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const clientList = await import('/js/client-list.js');
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
+    const clientListRuntime = await import('/js/client-list-runtime.js');
     const outcomes = {};
     const calls = [];
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -470,10 +470,10 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       bodyOverflow: document.body.style.overflow,
-      showNotification: window.showNotification,
     };
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousClientListRuntimeDeps = clientListRuntime.configureClientListRuntimeDeps({
       renderProfileButton: () => calls.push(['render-profile-button']),
+      showNotification: (...args) => calls.push(['notification', ...args]),
     });
 
     try {
@@ -527,8 +527,6 @@ test('client list remaining browser helpers cover filters avatar upload tags and
         },
       ];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
-      window.showNotification = (...args) => calls.push(['notification', ...args]);
-
       clientList.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list open');
       const search = document.getElementById('cl-search');
@@ -629,8 +627,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       document.body.style.overflow = saved.bodyOverflow;
-      viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
-      window.showNotification = saved.showNotification;
+      clientListRuntime.configureClientListRuntimeDeps(previousClientListRuntimeDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

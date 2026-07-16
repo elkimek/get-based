@@ -4,35 +4,31 @@
 import { hasAIProvider } from './api.js';
 import { getDnaModuleFunction, getDnaModuleValue } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const clientListRuntimeDeps = { showNotification };
+const clientListRuntimeDeps = {
+  navigate: /** @type {null | ((route: string) => void)} */ (null),
+  renderProfileButton: /** @type {null | (() => void)} */ (null),
+  showNotification,
+};
 
 export function configureClientListRuntimeDeps(deps = {}) {
   const previous = { ...clientListRuntimeDeps };
+  if ('navigate' in deps) {
+    clientListRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(route: string) => void} */ (deps.navigate)
+      : null;
+  }
+  if ('renderProfileButton' in deps) {
+    clientListRuntimeDeps.renderProfileButton = typeof deps.renderProfileButton === 'function'
+      ? /** @type {() => void} */ (deps.renderProfileButton)
+      : null;
+  }
   if ('showNotification' in deps) {
     clientListRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
       ? /** @type {typeof showNotification} */ (deps.showNotification)
       : null;
   }
   return previous;
-}
-
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : /** @type {any} */ (globalThis);
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
 export function getClientHaplogroupList() {
@@ -42,11 +38,11 @@ export function getClientHaplogroupList() {
 
 /** @param {string} route */
 export function navigateClientListRoute(route) {
-  getRuntimeFunction('navigate')?.(route);
+  clientListRuntimeDeps.navigate?.(route);
 }
 
 export function refreshClientProfileButton() {
-  getViewRuntimeFunction('renderProfileButton')?.();
+  clientListRuntimeDeps.renderProfileButton?.();
 }
 
 /**
