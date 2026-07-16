@@ -618,10 +618,12 @@ const {
     lightDevicesSrc.includes("from './light-devices-runtime.js'") &&
     !/\bwindow\./.test(lightDevicesSrc));
   assert('light-devices-runtime owns browser-shell hooks and explicit utility dependency',
-    lightDevicesRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
+    lightDevicesRuntimeSrc.includes('lightDevicesRuntimeDeps.navigate') &&
+    lightDevicesRuntimeSrc.includes('lightDevicesRuntimeDeps.openChannelOnLightPage') &&
     lightDevicesRuntimeSrc.includes('lightDevicesRuntimeDeps.showPromptDialog') &&
     lightDevicesRuntimeSrc.includes("getRecommendationModuleFunction('loadCatalog')") &&
     lightDevicesRuntimeSrc.includes("from './recommendations-runtime.js'") &&
+    !lightDevicesRuntimeSrc.includes('getViewRuntimeFunction') &&
     !lightDevicesRuntimeSrc.includes('publishLightDevicesWindowBindings'));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

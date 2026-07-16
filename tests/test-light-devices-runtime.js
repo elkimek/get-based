@@ -26,25 +26,15 @@ function assert(name, condition, detail) {
 
 console.log('=== Light Devices Runtime Tests ===\n');
 
-const runtimeKeys = [
-  'navigate',
-  'showPromptDialog',
-  '_openChannelOnLightPage',
-];
-const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const savedView = state.currentView;
 
 function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    if (typeof saved[key] === 'undefined') delete globalThis[key];
-    else globalThis[key] = saved[key];
-  }
   state.currentView = savedView;
 }
 
 try {
   const calls = [];
-  globalThis.navigate = route => calls.push(['navigate', route]);
+  configureLightDevicesRuntimeDeps({ navigate: route => calls.push(['navigate', route]) });
   navigateLightDevicesRoute('light');
   assert('navigateLightDevicesRoute delegates to runtime navigate',
     calls.some(call => call[0] === 'navigate' && call[1] === 'light'));
@@ -115,10 +105,19 @@ try {
     renderLightDeviceAffiliateRowRuntime({}, 'panel-x') === '');
   configureRecommendationModuleBridge(previousRecommendationBridge);
 
-  globalThis._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
+  configureLightDevicesRuntimeDeps({
+    openChannelOnLightPage: channel => calls.push(['open-channel', channel]),
+  });
   openLightDeviceChannel('vitamin_d');
   assert('openLightDeviceChannel delegates to the current view binding',
     calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d'));
+
+  configureLightDevicesRuntimeDeps({ navigate: null, openChannelOnLightPage: null });
+  const callCountBeforeMissingCallbacks = calls.length;
+  navigateLightDevicesRoute('dashboard');
+  openLightDeviceChannel('circadian');
+  assert('Light Devices view callbacks no-op safely before shell wiring',
+    calls.length === callCountBeforeMissingCallbacks);
 } finally {
   configureRecommendationModuleBridge({
     loadCatalog: null,

@@ -800,10 +800,6 @@ test('light devices cover session detail edit log active card and rendered list 
     const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
-    const savedWindow = {
-      _openChannelOnLightPage: window._openChannelOnLightPage,
-      navigate: window.navigate,
-    };
     const calls = [];
     const previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
       showPromptDialog: async () => '17',
@@ -816,6 +812,8 @@ test('light devices cover session detail edit log active card and rendered list 
         pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
         pbm_nir: { icon: 'N', label: 'NIR', what: 'NIR' },
       },
+      navigate: route => calls.push(['navigate', route]),
+      openChannelOnLightPage: channel => calls.push(['open-channel', channel]),
     });
     const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
       loadCatalog: async () => ({ items: [] }),
@@ -869,11 +867,9 @@ test('light devices cover session detail edit log active card and rendered list 
         lightDevices: [device],
         deviceSessions: [session],
       };
-      window._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
       lightDevices.configureLightDevices({
         renderDeviceSessionAIDetail: () => '<section class="device-ai-detail-test">Device AI</section>',
       });
-      window.navigate = route => calls.push(['navigate', route]);
 
       const devicesHtml = await lightDevices.renderDevicesSection();
       const devicesHost = document.createElement('div');
@@ -960,7 +956,6 @@ test('light devices cover session detail edit log active card and rendered list 
       lightDevices.configureLightDevices({ renderDeviceSessionAIDetail: () => '' });
       lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
       recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
-      Object.assign(window, savedWindow);
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 

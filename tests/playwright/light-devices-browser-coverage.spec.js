@@ -31,12 +31,13 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, store, ai, lightDevices, recommendationRuntime] = await Promise.all([
+    const [{ state }, data, store, ai, lightDevices, lightDevicesRuntime, recommendationRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-devices-store.js'),
       import('/js/light-device-ai-analysis.js'),
       import('/js/light-devices.js'),
+      import('/js/light-devices-runtime.js'),
       import('/js/recommendations-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -63,11 +64,11 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       unitSystem: state.unitSystem,
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
-      navigate: window.navigate,
       showConfirmDialog: window.showConfirmDialog,
       maybeAnalyzeDeviceSessionAfterFinish: ai.maybeAnalyzeDeviceSessionAfterFinish,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
+    let previousLightDevicesRuntimeDeps = null;
     let previousRecommendationBridge = null;
     const outcomes = {};
     const calls = [];
@@ -112,10 +113,12 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         }
         return saved.fetch(url, options);
       };
-      window.navigate = route => {
-        calls.push(['navigate', route]);
-        state.currentView = route;
-      };
+      previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
+        navigate: route => {
+          calls.push(['navigate', route]);
+          state.currentView = route;
+        },
+      });
       window.showConfirmDialog = async message => {
         calls.push(['confirm', message]);
         return true;
@@ -297,10 +300,11 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       window.fetch = saved.fetch;
       if (saved.getOllamaConfig) window.getOllamaConfig = saved.getOllamaConfig;
       else delete window.getOllamaConfig;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
       if (saved.showConfirmDialog) window.showConfirmDialog = saved.showConfirmDialog;
       else delete window.showConfirmDialog;
+      if (previousLightDevicesRuntimeDeps) {
+        lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
+      }
       store.configureLightDevicesStore({
         maybeAnalyzeDeviceSessionAfterFinish: saved.maybeAnalyzeDeviceSessionAfterFinish || (() => {}),
       });
