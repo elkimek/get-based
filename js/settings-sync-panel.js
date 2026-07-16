@@ -14,7 +14,12 @@ import {
   getSyncRelay,
   setSyncRelay,
   checkRelayConnection,
+  applyPendingTombstone,
+  listPendingTombstones,
+  pushContextToGateway,
+  rejectPendingTombstone,
   setAgentAccessWearableSeriesDays,
+  updateSyncIndicator,
 } from './sync.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
@@ -55,13 +60,24 @@ function restoreImportedDataSnapshot(snapshot) {
   try { state.importedData = JSON.parse(snapshot); } catch {}
 }
 
-const appWindow = /** @type {Window & typeof globalThis & {
-  applyPendingTombstone?: (id: string) => Promise<void>,
-  listPendingTombstones?: () => Array<{ id: string, name: string, at?: string | number | Date }>,
-  pushContextToGateway?: () => void,
-  rejectPendingTombstone?: (id: string) => Promise<void>,
-  updateSyncIndicator?: () => void,
-}} */ (window);
+const settingsSyncPanelDeps = {
+  applyPendingTombstone,
+  listPendingTombstones,
+  pushContextToGateway,
+  rejectPendingTombstone,
+  updateSyncIndicator,
+};
+
+/** @param {Partial<typeof settingsSyncPanelDeps>} deps */
+export function configureSettingsSyncPanelDeps(deps = {}) {
+  const previous = { ...settingsSyncPanelDeps };
+  for (const [name, value] of Object.entries(deps)) {
+    if (typeof value === 'function' && name in settingsSyncPanelDeps) {
+      settingsSyncPanelDeps[name] = value;
+    }
+  }
+  return previous;
+}
 
 let settingsSyncDelegatesInstalled = false;
 const SETTINGS_SYNC_STATE_ACTIONS = new Set([
@@ -109,10 +125,10 @@ async function handleSettingsSyncClick(event) {
   event.preventDefault();
 
   if (action === 'apply-tombstone') {
-    await appWindow.applyPendingTombstone?.(actionEl.dataset.tombId || '');
+    await settingsSyncPanelDeps.applyPendingTombstone(actionEl.dataset.tombId || '');
     getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'reject-tombstone') {
-    await appWindow.rejectPendingTombstone?.(actionEl.dataset.tombId || '');
+    await settingsSyncPanelDeps.rejectPendingTombstone(actionEl.dataset.tombId || '');
     getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'toggle-mnemonic') {
     toggleMnemonicVisibility();
@@ -176,7 +192,7 @@ async function handleSettingsSyncChange(event) {
       setAgentAccessWearableSeriesDays(days);
       const saved = await saveImportedData({ reason: 'agent-access-series' });
       if (saved === false) throw new Error('saveImportedData returned false while saving Agent Access wearable-series preference');
-      appWindow.pushContextToGateway?.();
+      settingsSyncPanelDeps.pushContextToGateway();
     } catch (err) {
       restoreImportedDataSnapshot(rollback);
       console.warn('[agent-access] failed to persist wearable series preference', err);
@@ -201,7 +217,7 @@ function installSettingsSyncDelegates() {
 }
 
 function renderPendingTombstones() {
-  const pending = appWindow.listPendingTombstones?.() || [];
+  const pending = settingsSyncPanelDeps.listPendingTombstones() || [];
   if (pending.length === 0) return '';
   const rows = pending.map(p => `
     <div class="sync-tombstone-row" data-tomb-id="${escapeAttr(p.id)}">
@@ -528,7 +544,7 @@ async function updateRelayStatus() {
   dot.style.background = connected ? '#22c55e' : 'var(--red)';
   text.textContent = connected ? 'Connected to relay' : 'Relay unreachable';
   // Keep header indicator in sync
-  appWindow.updateSyncIndicator?.();
+  settingsSyncPanelDeps.updateSyncIndicator();
 }
 
 let _mnemonicRetries = 0;

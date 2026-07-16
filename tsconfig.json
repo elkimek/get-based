@@ -282,7 +282,6 @@
     "js/sync-subscriptions.js",
     "js/sync-tombstones.js",
     "js/sync-ui.js",
-    "js/sync-window-bindings.js",
     "js/sync.js",
     "js/sync-delta-array-merge.js",
     "js/sync-delta-array-planner.js",

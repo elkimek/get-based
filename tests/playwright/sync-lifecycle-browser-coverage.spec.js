@@ -148,7 +148,7 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
   }
 });
 
-test('sync configure browser coverage wires globals ui and relay quota notifications', async ({ page }) => {
+test('sync configure browser coverage wires module actions, UI, and relay quota notifications', async ({ page }) => {
   await openBlankPage(page, '/sync-configure-browser-coverage');
 
   const results = await page.evaluate(async ({ configureUrl }) => {
@@ -180,11 +180,11 @@ test('sync configure browser coverage wires globals ui and relay quota notificat
         disableSync: disableAction,
       });
 
-      outcomes.configureBindsLifecycleGlobals =
-        window.enableSync === enableAction
-        && window.disableSync === disableAction
-        && typeof window.showSyncDiagnose === 'function'
-        && typeof window.getDeltaTelemetry === 'function';
+      outcomes.configureKeepsLifecycleActionsModuleOnly =
+        !('enableSync' in window)
+        && !('disableSync' in window)
+        && !('showSyncDiagnose' in window)
+        && !('getDeltaTelemetry' in window);
 
       settings.setSyncEnabled(true, { persist: false });
       syncUi.renderSyncIndicator();

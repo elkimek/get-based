@@ -283,11 +283,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     const oldStorage = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
-      applyPendingTombstone: window.applyPendingTombstone,
-      rejectPendingTombstone: window.rejectPendingTombstone,
-      listPendingTombstones: window.listPendingTombstones,
-      updateSyncIndicator: window.updateSyncIndicator,
-      pushContextToGateway: window.pushContextToGateway,
       clipboard: navigator.clipboard,
       fetch: window.fetch,
       WebSocket: window.WebSocket,
@@ -301,15 +296,17 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openSettingsModal: tab => { openedTabs.push(tab); },
     });
+    const previousSyncPanelDeps = syncPanel.configureSettingsSyncPanelDeps({
+      applyPendingTombstone: async id => { applied.push(id); },
+      rejectPendingTombstone: async id => { rejected.push(id); },
+      listPendingTombstones: () => [{ id: 'profile-old', name: 'Old Profile', at: '2026-06-07T12:00:00Z' }],
+      updateSyncIndicator: () => { syncIndicatorUpdates += 1; },
+      pushContextToGateway: () => { pushedContexts += 1; },
+    });
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       syncState.setSyncEnabled(false);
-      window.applyPendingTombstone = async id => { applied.push(id); };
-      window.rejectPendingTombstone = async id => { rejected.push(id); };
-      window.listPendingTombstones = () => [{ id: 'profile-old', name: 'Old Profile', at: '2026-06-07T12:00:00Z' }];
-      window.updateSyncIndicator = () => { syncIndicatorUpdates += 1; };
-      window.pushContextToGateway = () => { pushedContexts += 1; };
       window.fetch = async () => new Response('', { status: 200 });
       window.WebSocket = class {
         constructor(url) {
@@ -498,12 +495,8 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         messengerDisabled,
       };
     } finally {
-      window.applyPendingTombstone = oldGlobals.applyPendingTombstone;
-      window.rejectPendingTombstone = oldGlobals.rejectPendingTombstone;
-      window.listPendingTombstones = oldGlobals.listPendingTombstones;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      window.updateSyncIndicator = oldGlobals.updateSyncIndicator;
-      window.pushContextToGateway = oldGlobals.pushContextToGateway;
+      syncPanel.configureSettingsSyncPanelDeps(previousSyncPanelDeps);
       window.fetch = oldGlobals.fetch;
       window.WebSocket = oldGlobals.WebSocket;
       if (oldGlobals.clipboard) {

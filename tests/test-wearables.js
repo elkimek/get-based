@@ -2254,8 +2254,10 @@ assert('window.isAgentWearableSeriesEnabled stays module-only',
   !('isAgentWearableSeriesEnabled' in window));
 assert('window.setAgentWearableSeriesEnabled stays module-only',
   !('setAgentWearableSeriesEnabled' in window));
-assert('window.pushContextToGateway is exposed (toggle re-pushes immediately)',
-  typeof window.pushContextToGateway === 'function');
+const wearableSeriesSyncModule = await import('../js/sync.js');
+assert('pushContextToGateway remains a module export for immediate re-push',
+  typeof wearableSeriesSyncModule.pushContextToGateway === 'function'
+    && !('pushContextToGateway' in window));
 
 // ═══════════════════════════════════════
 // 18. Beta-hidden vendors at v1.30.0 launch
