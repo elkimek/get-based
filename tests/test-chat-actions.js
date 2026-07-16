@@ -43,6 +43,7 @@ const {
 const {
   clearCurrentDiscussionThreadState, reopenCurrentDiscussionThread,
 } = await import('../js/chat-discussion-state.js');
+const { startDiscussion } = await import('../js/chat-discussion.js');
 const {
   DEFAULT_DISCUSS_PROMPT, DISCUSSION_JOIN_PROMPT, INITIAL_DISCUSS_PROMPT,
   buildDiscussionAutoMessage, buildDiscussionJoinMessage, getDiscussionPromptText,
@@ -431,7 +432,7 @@ assert('regenerateLastMessage checks streaming state via chat runtime',
 assert('regenerateLastMessage checks render/send callbacks before mutating',
   chatActionsSrc.indexOf('const callbacks = getChatRegenerateCallbacks()') < chatActionsSrc.indexOf('state.chatHistory.pop()')
     && chatRuntimeSrc.includes("getRuntimeFunction('renderChatMessages')")
-    && chatRuntimeSrc.includes("getRuntimeFunction('sendChatMessage')"), 'found');
+    && chatRuntimeSrc.includes('chatRuntimeCallbacks.sendChatMessage'), 'found');
 const directWindowGlobalRe = /\bwindow(?:\.|\s*\[)/;
 const chatRuntimeDelegates = [
   ['chat-actions.js', chatActionsSrc],
@@ -583,8 +584,8 @@ assert('chat-discussion-picker.js owns discussion picker DOM and selection',
     !chatDiscussionUiSrc.includes("querySelector('.discuss-persona-picker')"),
   'found');
 assert('Discuss button does not duplicate inline Continue',
-  window.startDiscussion.toString().includes('showDiscussPersonaPicker') &&
-    !window.startDiscussion.toString().includes('_runDiscussion'),
+  startDiscussion.toString().includes('showDiscussPersonaPicker') &&
+    !startDiscussion.toString().includes('_runDiscussion'),
   'opens persona picker instead of running another round directly');
 assert('chat-discussion-round-request.js owns round API request setup',
   chatDiscussionRoundRunnerSrc.includes("from './chat-discussion-round-request.js'") &&

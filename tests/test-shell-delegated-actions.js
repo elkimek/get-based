@@ -100,7 +100,17 @@ assert('App shell wires Context hub status refresh without a window lookup',
 
 assert('App shell wires Chat UI refreshes without window globals',
   appShellHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
-    && appShellHooksSrc.includes('configureChatRuntimeCallbacks({ refreshWebSearchToggle, updateChatHeaderModel, updateChatNudge });'));
+    && appShellHooksSrc.includes('configureChatRuntimeCallbacks({')
+    && appShellHooksSrc.includes('refreshWebSearchToggle,')
+    && appShellHooksSrc.includes('sendChatMessage,'));
+
+assert('Chat shell controls use module dependencies instead of window lookups',
+  ['clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
+    'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',
+    'togglePersonalityBar']
+    .every(name => shellSrc.includes(`shellChatActionDeps.${name}`)
+      && !shellSrc.includes(`callShellRuntime('${name}'`))
+    && appShellHooksSrc.includes('configureShellChatActionDeps({'));
 
 [
   'toggle-panel',
@@ -129,13 +139,13 @@ assert('Thread search uses delegated input/search action',
 assert('Web search toggle uses delegated change action',
   html.includes('data-chat-change-action="set-websearch"')
     && shellSrc.includes("document.addEventListener('change', handleShellChange)")
-    && shellSrc.includes("callShellRuntime('setChatWebSearchEnabled', input.checked)"));
+    && shellSrc.includes('shellChatActionDeps.setChatWebSearchEnabled(input.checked)'));
 assert('Chat key handlers are delegated',
   html.includes('data-chat-key-action="message-input"')
     && html.includes('data-chat-key-action="toggle-personality"')
     && shellSrc.includes("document.addEventListener('keydown', handleShellKeydown)")
-    && shellSrc.includes("callShellRuntime('handleChatKeydown', event)")
-    && shellSrc.includes("callShellRuntime('togglePersonalityBar')"));
+    && shellSrc.includes('shellChatActionDeps.handleChatKeydown(event)')
+    && shellSrc.includes('shellChatActionDeps.togglePersonalityBar()'));
 assert('Click delegate only prevents default for handled actions',
   shellSrc.includes('const handled = shellAction')
     && shellSrc.includes('if (handled) event.preventDefault();')

@@ -4,9 +4,10 @@
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-/** @type {Record<'refreshWebSearchToggle' | 'updateChatHeaderModel' | 'updateChatNudge', Function | null>} */
+/** @type {Record<'refreshWebSearchToggle' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge', Function | null>} */
 const chatRuntimeCallbacks = {
   refreshWebSearchToggle: null,
+  sendChatMessage: null,
   updateChatHeaderModel: null,
   updateChatNudge: null,
 };
@@ -92,7 +93,7 @@ export function isChatRuntimeStreaming() {
 
 export function getChatRegenerateCallbacks() {
   const renderChatMessages = getRuntimeFunction('renderChatMessages');
-  const sendChatMessage = getRuntimeFunction('sendChatMessage');
+  const sendChatMessage = chatRuntimeCallbacks.sendChatMessage;
   if (!renderChatMessages || !sendChatMessage) return null;
   return { renderChatMessages, sendChatMessage };
 }

@@ -7,6 +7,7 @@ import { configureChatMessageActionDeps } from './chat-actions.js';
 import {
   continueDiscussion,
   endDiscussion,
+  startDiscussion,
   startDiscussionFromPicker,
 } from './chat-discussion.js';
 import {
@@ -21,19 +22,29 @@ import {
   closeChatPanel,
   configureChatPanel,
   refreshWebSearchToggle,
+  setChatWebSearchEnabled,
+  toggleChatFullscreen,
   toggleChatPanel,
 } from './chat-panel.js';
+import { clearChatHistory } from './chat-history.js';
 import { askAIAboutCorrelations } from './chat-marker-prompts.js';
 import { onContextCardSaved } from './chat-onboarding.js';
 import { updateChatNudge } from './chat-nudge.js';
-import { updateChatContextStatus, updateChatHeaderModel } from './chat-personalities.js';
+import {
+  setChatPersonality,
+  togglePersonalityBar,
+  updateChatContextStatus,
+  updateChatHeaderModel,
+} from './chat-personalities.js';
 import { configureChatRuntimeCallbacks } from './chat-runtime.js';
+import { handleChatKeydown, sendChatMessage } from './chat-send.js';
 import {
   closeSummaryModal,
   copySummary,
   deleteSavedSummary,
   downloadSummary,
   printSummary,
+  summarizeThread,
   viewSavedSummary,
 } from './chat-summaries.js';
 import { jumpToSearchResult } from './chat-thread-search.js';
@@ -68,7 +79,11 @@ import {
 import { openProfileShareModal } from './profile-share.js';
 import { getActiveProfileId } from './profile.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
-import { configureShellChatImageDeps, configureShellChatThreadDeps } from './shell-actions.js';
+import {
+  configureShellChatActionDeps,
+  configureShellChatImageDeps,
+  configureShellChatThreadDeps,
+} from './shell-actions.js';
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
@@ -99,7 +114,12 @@ configureRecommendationsRuntime({ openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
-configureChatRuntimeCallbacks({ refreshWebSearchToggle, updateChatHeaderModel, updateChatNudge });
+configureChatRuntimeCallbacks({
+  refreshWebSearchToggle,
+  sendChatMessage,
+  updateChatHeaderModel,
+  updateChatNudge,
+});
 configureChatMessageActionDeps({
   closeSummaryModal,
   continueDiscussion,
@@ -116,6 +136,17 @@ configureChatMessageActionDeps({
 });
 configureCompareCorrelationViews({ askAIAboutCorrelations });
 configureContextCardsRuntimeCallbacks({ onContextCardSaved });
+configureShellChatActionDeps({
+  clearChatHistory,
+  handleChatKeydown,
+  sendChatMessage,
+  setChatPersonality,
+  setChatWebSearchEnabled,
+  startDiscussion,
+  summarizeThread,
+  toggleChatFullscreen,
+  togglePersonalityBar,
+});
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });

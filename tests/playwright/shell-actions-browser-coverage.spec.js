@@ -33,6 +33,17 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     const previousShellChatImageDeps = shellActions.configureShellChatImageDeps({
       toggleHDMode: () => calls.push(['toggleHDMode']),
     });
+    const previousShellChatActionDeps = shellActions.configureShellChatActionDeps({
+      clearChatHistory: () => calls.push(['clearChatHistory']),
+      handleChatKeydown: event => calls.push(['handleChatKeydown', event]),
+      sendChatMessage: () => calls.push(['sendChatMessage']),
+      setChatPersonality: personality => calls.push(['setChatPersonality', personality]),
+      setChatWebSearchEnabled: enabled => calls.push(['setChatWebSearchEnabled', enabled]),
+      startDiscussion: () => calls.push(['startDiscussion']),
+      summarizeThread: () => calls.push(['summarizeThread']),
+      toggleChatFullscreen: () => calls.push(['toggleChatFullscreen']),
+      togglePersonalityBar: () => calls.push(['togglePersonalityBar']),
+    });
     const previousShellChatThreadDeps = shellActions.configureShellChatThreadDeps({
       createNewThread: () => calls.push(['createNewThread']),
       filterThreadList: value => calls.push(['filterThreadList', value]),
@@ -46,15 +57,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       openProfileShareModal: window.openProfileShareModal,
       toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
-      summarizeThread: window.summarizeThread,
-      clearChatHistory: window.clearChatHistory,
-      toggleChatFullscreen: window.toggleChatFullscreen,
-      togglePersonalityBar: window.togglePersonalityBar,
-      setChatPersonality: window.setChatPersonality,
-      startDiscussion: window.startDiscussion,
-      sendChatMessage: window.sendChatMessage,
-      setChatWebSearchEnabled: window.setChatWebSearchEnabled,
-      handleChatKeydown: window.handleChatKeydown,
     };
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openTweaksPanel: (...args) => calls.push(['openTweaksPanel', ...args]),
@@ -209,6 +211,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       });
       shellActions.configureShellImportDeps(previousShellImportDeps);
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
+      shellActions.configureShellChatActionDeps(previousShellChatActionDeps);
       shellActions.configureShellChatImageDeps(previousShellChatImageDeps);
       shellActions.configureShellChatThreadDeps(previousShellChatThreadDeps);
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
