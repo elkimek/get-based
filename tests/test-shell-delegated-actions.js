@@ -89,7 +89,7 @@ assert('Chat thread shell actions use module dependencies instead of window look
 assert('App shell wires module-only chat thread consumers',
   appShellHooksSrc.includes("from './chat-threads.js'")
     && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
-    && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });')
+    && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });')
     && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });'));
 
 assert('App shell wires Context hub status refresh without a window lookup',

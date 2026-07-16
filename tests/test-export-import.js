@@ -673,7 +673,6 @@ return (async function() {
     const originalProfiles = JSON.parse(JSON.stringify(profile.getProfiles() || []));
     const originalSnpTable = window._snpTableCache;
     const oldOpen = window.open;
-    const oldSetTimeout = window.setTimeout;
     let capturedReport = '';
     let printCalled = false;
     window.open = () => ({
@@ -683,7 +682,6 @@ return (async function() {
       },
       print() { printCalled = true; }
     });
-    window.setTimeout = fn => { if (typeof fn === 'function') fn(); return 0; };
     try {
       const profiles = profile.getProfiles() || [];
       let activeProfile = profiles.find(p => p.id === S.currentProfile);
@@ -825,7 +823,6 @@ return (async function() {
       await profile.saveProfiles(originalProfiles);
       window._snpTableCache = originalSnpTable;
       window.open = oldOpen;
-      window.setTimeout = oldSetTimeout;
     }
   }
 
