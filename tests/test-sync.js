@@ -673,8 +673,9 @@ await import('../js/settings.js');
     syncPullActiveRefreshSrc.includes("from './sync-pull-active-refresh-runtime.js'")
       && !/\bwindow(?:\.|\s*\[)/.test(syncPullActiveRefreshSrc)
       && syncPullActiveRefreshRuntimeSrc.includes('const loaded = syncPullActiveRefreshDeps.loadChatThreads()')
-      && syncPullActiveRefreshRuntimeSrc.includes("getViewRuntimeFunction('buildSidebar')?.()")
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)")
+      && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.buildSidebar?.()')
+      && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.navigate?.(route, options)')
+      && !syncPullActiveRefreshRuntimeSrc.includes('getViewRuntimeFunction')
       && syncPullActiveRefreshRuntimeSrc.includes("runtime.dispatchEvent(new runtime.CustomEvent('labcharts-sync-applied'))"));
   assert('service worker precaches sync-pull-active-refresh-runtime.js',
     serviceWorkerSrc.includes("'/js/sync-pull-active-refresh-runtime.js'"));
@@ -1404,7 +1405,7 @@ await import('../js/settings.js');
   // instead of just showing a "Data updated" toast).
   assert('Pull re-renders the active view',
     syncPullActiveRefreshSrc.includes('navigatePulledActiveViewRuntime(cat,')
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)"));
+      && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.navigate?.(route, options)'));
   assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
   assert('enableSync pulls before first enable push to avoid publishing stale local state',
     /await forcePull\(\)[\s\S]{0,300}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
@@ -2971,7 +2972,7 @@ await import('../js/settings.js');
   // import. Lives in sync-pull-active-refresh.js's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
     /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2400}rebuildPulledSidebarRuntime\(\)[\s\S]{0,1200}shouldRefreshVisibleData/.test(deltaSearchSrc)
-      && syncPullActiveRefreshRuntimeSrc.includes("getViewRuntimeFunction('buildSidebar')?.()"));
+      && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.buildSidebar?.()'));
 
   const localWithSnps = {
     genetics: {

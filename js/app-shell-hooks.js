@@ -75,7 +75,7 @@ import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { closeModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
-import { closeMobileSidebar, configureNavActions } from './nav.js';
+import { buildSidebar, closeMobileSidebar, configureNavActions } from './nav.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
 import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
@@ -181,7 +181,7 @@ configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRa
 configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });
 configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
-configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });
+configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
 configureDashboardAIContextStatus(updateChatContextStatus);
 
 configureAppEventListeners({

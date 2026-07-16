@@ -10,8 +10,8 @@ const { state } = await import('../js/state.js');
 const { configureSyncDelta } = await import('../js/sync-delta.js');
 const { mergePulledImportedData } = await import('../js/sync-pull-merge.js');
 const { refreshActiveProfileAfterPull } = await import('../js/sync-pull-active-refresh.js');
+const { configureSyncPullActiveRefreshDeps } = await import('../js/sync-pull-active-refresh-runtime.js');
 const { createNavigate } = await import('../js/views-router.js');
-const { configureViewRuntime } = await import('../js/views-runtime-bridge.js');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -290,24 +290,28 @@ try {
 }
 
 const originalQuerySelector = document.querySelector;
-const originalNavigate = window.navigate;
 const originalCustomEvent = window.CustomEvent;
 const originalRefreshCurrentProfile = state.currentProfile;
 const originalRefreshCurrentView = state.currentView;
 const originalRefreshImportedData = state.importedData;
-const previousViewRuntime = configureViewRuntime({ buildSidebar: () => {} });
+let navigateCount = 0;
+let navigateArgs = null;
+const previousSyncPullActiveRefreshDeps = configureSyncPullActiveRefreshDeps({
+  buildSidebar: () => {},
+  navigate: (...args) => {
+    navigateCount++;
+    navigateArgs = args;
+  },
+});
 
 try {
   let toastCount = 0;
-  let navigateCount = 0;
-  let navigateArgs = null;
   let syncAppliedCount = 0;
   const container = {
     appendChild: () => { toastCount++; },
   };
   document.getElementById = id => id === 'notification-container' ? container : null;
   document.querySelector = () => null;
-  window.navigate = () => { navigateCount++; };
   window.CustomEvent = class CustomEvent {
     constructor(type) { this.type = type; }
   };
@@ -346,7 +350,6 @@ try {
     navigateCount === 2 && toastCount === 1 && syncAppliedCount === 2);
 
   document.querySelector = selector => selector === '.modal-overlay.show, #modal-overlay.show' ? {} : null;
-  window.navigate = (...args) => { navigateCount++; navigateArgs = args; };
   refreshActiveProfileAfterPull({
     profileId: 'sync-refresh-profile',
     merged: { entries: [{ date: '2026-05-01', markers: { 'biochemistry.glucose': 7 } }] },
@@ -360,9 +363,7 @@ try {
 } finally {
   document.getElementById = originalGetElementById;
   document.querySelector = originalQuerySelector;
-  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
-  if (originalNavigate) window.navigate = originalNavigate;
-  else delete window.navigate;
+  configureSyncPullActiveRefreshDeps(previousSyncPullActiveRefreshDeps);
   window.CustomEvent = originalCustomEvent;
   state.currentProfile = originalRefreshCurrentProfile;
   state.currentView = originalRefreshCurrentView;

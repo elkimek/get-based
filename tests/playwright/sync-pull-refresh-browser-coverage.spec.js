@@ -17,12 +17,11 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ refreshUrl, refreshRuntimeUrl, maintenanceUrl, stateUrl }) => {
-    const [refreshModule, refreshRuntime, maintenance, { state }, viewRuntime] = await Promise.all([
+    const [refreshModule, refreshRuntime, maintenance, { state }] = await Promise.all([
       import(refreshUrl),
       import(refreshRuntimeUrl),
       import(maintenanceUrl),
       import(stateUrl),
-      import('/js/views-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -33,21 +32,15 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         currentView: state.currentView,
         importedData: clone(state.importedData),
       },
-      navigate: window.navigate,
-    };
-    const restoreWindowFn = (name, value) => {
-      if (value === undefined) delete window[name];
-      else window[name] = value;
     };
     const calls = [];
     const previousThreadDeps = refreshRuntime.configureSyncPullActiveRefreshDeps({
+      buildSidebar: () => { calls.push('buildSidebar'); },
       loadChatHistory: () => { calls.push('loadChatHistory'); },
       loadChatThreads: () => { calls.push('loadChatThreads'); },
       ensureActiveThread: () => { calls.push('ensureActiveThread'); },
+      navigate: (category, options) => { calls.push({ type: 'navigate', category, options: options || null }); },
       renderThreadList: () => { calls.push('renderThreadList'); },
-    });
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
-      buildSidebar: () => { calls.push('buildSidebar'); },
     });
     const debugCalls = [];
     let syncAppliedEvents = 0;
@@ -55,7 +48,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
 
     try {
       window.addEventListener('labcharts-sync-applied', onSyncApplied);
-      window.navigate = (category, options) => { calls.push({ type: 'navigate', category, options: options || null }); };
 
       state.currentProfile = activeProfileId;
       state.currentView = 'light';
@@ -152,8 +144,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       state.currentProfile = original.state.currentProfile;
       state.currentView = original.state.currentView;
       state.importedData = original.state.importedData;
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
-      restoreWindowFn('navigate', original.navigate);
       refreshRuntime.configureSyncPullActiveRefreshDeps(previousThreadDeps);
       document.querySelector('.modal-overlay.show')?.remove();
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());

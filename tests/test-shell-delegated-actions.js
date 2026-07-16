@@ -90,7 +90,7 @@ assert('App shell wires module-only chat thread consumers',
   appShellHooksSrc.includes("from './chat-threads.js'")
     && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
     && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });')
-    && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });'));
+    && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });'));
 
 assert('App shell wires Context hub status refresh without a window lookup',
   appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
