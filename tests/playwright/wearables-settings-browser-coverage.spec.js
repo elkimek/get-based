@@ -9,12 +9,13 @@ test('wearables settings browser coverage exercises import and connection action
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const failures = await page.evaluate(async ({ panelUrl, stateUrl, profileUrl, storeUrl, blobUrl }) => {
-    const [{ state }, { profileStorageKey }, store, blobStorage, settingsRuntime, panel] = await Promise.all([
+    const [{ state }, { profileStorageKey }, store, blobStorage, settingsRuntime, settingsBridge, panel] = await Promise.all([
       import(stateUrl),
       import(profileUrl),
       import(storeUrl),
       import(blobUrl),
       import('/js/wearables-settings-runtime.js'),
+      import('/js/settings-runtime-bridge.js'),
       import(panelUrl),
     ]);
     const actions = panel.wearableSettingsActionHandlers;
@@ -38,13 +39,15 @@ test('wearables settings browser coverage exercises import and connection action
     const originalCurrentProfile = state.currentProfile;
     const originalImported = state.importedData;
     const originalNavigate = window.navigate;
-    const originalCloseSettingsModal = window.closeSettingsModal;
     const originalSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps();
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     const originalImportedLocalValue = localStorage.getItem(importedKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedKey);
     const originalStripHidden = localStorage.getItem(`wearables-strip-hidden-${profileId}`);
     const calls = [];
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      closeSettingsModal: () => calls.push(['closeSettingsModal']),
+    });
 
     const renderSettings = () => {
       let section = document.getElementById('wearables-section');
@@ -152,7 +155,6 @@ test('wearables settings browser coverage exercises import and connection action
       strip.id = 'wearable-strip';
       strip.scrollIntoView = () => calls.push(['scroll', 'wearable-strip']);
       document.body.append(strip);
-      window.closeSettingsModal = () => calls.push(['closeSettingsModal']);
       window.requestAnimationFrame = callback => setTimeout(() => callback(Date.now()), 0);
       actions.handleManualOpenDashboard();
       await waitFor(() => calls.some(call => call[0] === 'scroll' && call[1] === 'wearable-strip'));
@@ -187,8 +189,7 @@ test('wearables settings browser coverage exercises import and connection action
       state.importedData = originalImported;
       if (originalNavigate) window.navigate = originalNavigate;
       else delete window.navigate;
-      if (originalCloseSettingsModal) window.closeSettingsModal = originalCloseSettingsModal;
-      else delete window.closeSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       settingsRuntime.configureWearableSettingsRuntimeDeps(originalSettingsRuntimeDeps);
       window.requestAnimationFrame = originalRequestAnimationFrame;
       document.querySelectorAll('#wearables-section,#wearable-strip,#confirm-dialog-overlay,.notification-container').forEach(el => el.remove());

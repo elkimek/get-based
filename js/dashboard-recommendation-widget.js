@@ -13,6 +13,7 @@ import {
   getRecommendationsSnpTable,
   setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
@@ -27,7 +28,9 @@ function getDashboardRecommendationRuntimeValue(name) {
 
 function callDashboardRecommendationRuntime(name, ...args) {
   const runtime = dashboardRecommendationRuntime();
-  const fn = getDashboardRecommendationRuntimeValue(name) || getViewRuntimeFunction(name);
+  const fn = getSettingsModuleFunction(name)
+    || getDashboardRecommendationRuntimeValue(name)
+    || getViewRuntimeFunction(name);
   return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
 }
 

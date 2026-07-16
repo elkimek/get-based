@@ -15,17 +15,17 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
-    const [controlsModule, contextCardsRuntime, dashboardWidgetRuntime, wearablesRuntime] = await Promise.all([
+    const [controlsModule, contextCardsRuntime, dashboardWidgetRuntime, settingsRuntimeBridge, wearablesRuntime] = await Promise.all([
       import(controlsUrl),
       import('/js/context-cards-runtime.js'),
       import('/js/dashboard-widget-runtime.js'),
+      import('/js/settings-runtime-bridge.js'),
       import('/js/wearables-runtime.js'),
     ]);
     const outcomes = {};
     const fixture = document.getElementById('fixture');
     const saved = {
       navigate: window.navigate,
-      openSettingsModal: window.openSettingsModal,
       showDetailModal: window.showDetailModal,
     };
     const calls = [];
@@ -40,6 +40,9 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
       syncWearableNow: el => calls.push(['sync', el?.dataset.dashboardWidgetAction || '']),
       openWearableDetail: id => calls.push(['wearableDetail', id]),
       openManualLogForm: (id, event) => calls.push(['manualLog', id, event.type]),
+    });
+    const previousSettingsBridge = settingsRuntimeBridge.configureSettingsModuleBridge({
+      openSettingsModal: section => calls.push(['settings', section]),
     });
     const clone = value => JSON.parse(JSON.stringify(value));
     let prefs = {
@@ -140,7 +143,6 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
 
     try {
       window.navigate = route => calls.push(['navigate', route]);
-      window.openSettingsModal = section => calls.push(['settings', section]);
       window.showDetailModal = id => calls.push(['markerDetail', id]);
       Storage.prototype.removeItem = function removeItem(key) {
         calls.push(['removeStorage', key]);
@@ -306,6 +308,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     } finally {
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       dashboardWidgetRuntime.configureDashboardNoteActions(previousDashboardNoteActions);
+      settingsRuntimeBridge.configureSettingsModuleBridge(previousSettingsBridge);
       wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
       Storage.prototype.removeItem = originalRemoveItem;
       for (const [key, value] of Object.entries(saved)) {

@@ -51,7 +51,7 @@ cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migr
 const navModule = await import('../js/nav.js');
 const viewsModule = await import('../js/views.js');
 const exportModule = await import('../js/export.js');
-await import('../js/settings.js');
+const settingsModule = await import('../js/settings.js');
 await import('../js/chat.js');
 await import('../js/utils.js');
 const backupModule = await import('../js/backup.js');
@@ -333,12 +333,11 @@ for (const name of ['buildSidebar', 'renderProfileDropdown']) {
   assert(`nav.${name} exists`, typeof navModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));
 }
-const expectedExports = [
-  // settings.js
-  'openSettingsModal', 'closeSettingsModal',
-  // chat.js
-  'toggleChatPanel', 'closeChatPanel',
-];
+for (const name of ['openSettingsModal', 'closeSettingsModal']) {
+  assert(`settings.${name} exists`, typeof settingsModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
+const expectedExports = ['toggleChatPanel', 'closeChatPanel'];
 for (const name of expectedExports) {
   assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
 }
@@ -548,6 +547,7 @@ console.log('19. settings.js security + backup');
 try {
   const src = await fetchWithRetry('js/settings.js');
   const runtimeSrc = await fetchWithRetry('js/settings-runtime.js');
+  const runtimeBridgeSrc = await fetchWithRetry('js/settings-runtime-bridge.js');
   assert('settings.js imports renderEncryptionSection', src.includes('renderEncryptionSection'));
   assert('settings.js imports renderBackupSection', src.includes('renderBackupSection'));
   assert('settings.js has Security group', src.includes('Security'));
@@ -558,8 +558,9 @@ try {
     src.includes("from './settings-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(src));
   assert('settings-runtime.js owns Settings browser adapters and injects meteo config modules',
-    runtimeSrc.includes('export function publishSettingsGlobals') &&
-    runtimeSrc.includes('Object.assign(getRuntimeWindow(), api)') &&
+    runtimeBridgeSrc.includes('export function configureSettingsModuleBridge') &&
+    runtimeBridgeSrc.includes('export function getSettingsModuleFunction') &&
+    !runtimeBridgeSrc.includes('Object.assign(window') &&
     runtimeSrc.includes("getRuntimeFunction('requestAnimationFrame')") &&
     runtimeSrc.includes("getRuntimeFunction('matchMedia')") &&
     runtimeSrc.includes("from './sun-uvdata-config.js'") &&

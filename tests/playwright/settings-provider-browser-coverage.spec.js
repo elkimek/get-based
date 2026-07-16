@@ -11,6 +11,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     const pii = await import(piiUrl);
     const providerStorage = await import(providerStorageUrl);
     const cryptoStore = await import('/js/crypto.js');
+    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -29,7 +30,6 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       fetch: window.fetch,
-      updatePrivacyStatusCard: window.updatePrivacyStatusCard,
       clipboard: navigator.clipboard,
     };
     const writes = [];
@@ -37,11 +37,13 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     let chatReturns = 0;
     let corsProbe = false;
     let localFetchCount = 0;
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      updatePrivacyStatusCard: () => { privacyUpdates += 1; },
+    });
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       cryptoStore.updateKeyCache('labcharts-ollama', '');
-      window.updatePrivacyStatusCard = () => { privacyUpdates += 1; };
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: {
@@ -226,7 +228,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       };
     } finally {
       window.fetch = oldGlobals.fetch;
-      window.updatePrivacyStatusCard = oldGlobals.updatePrivacyStatusCard;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       if (oldGlobals.clipboard) {
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: oldGlobals.clipboard });
       }
@@ -258,6 +260,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     const syncState = await import(syncStateUrl);
     const syncRuntime = await import(syncRuntimeUrl);
     const syncMessenger = await import(syncMessengerUrl);
+    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -283,7 +286,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       applyPendingTombstone: window.applyPendingTombstone,
       rejectPendingTombstone: window.rejectPendingTombstone,
       listPendingTombstones: window.listPendingTombstones,
-      openSettingsModal: window.openSettingsModal,
       updateSyncIndicator: window.updateSyncIndicator,
       pushContextToGateway: window.pushContextToGateway,
       clipboard: navigator.clipboard,
@@ -296,6 +298,9 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     const openedTabs = [];
     let syncIndicatorUpdates = 0;
     let pushedContexts = 0;
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: tab => { openedTabs.push(tab); },
+    });
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -303,7 +308,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       window.applyPendingTombstone = async id => { applied.push(id); };
       window.rejectPendingTombstone = async id => { rejected.push(id); };
       window.listPendingTombstones = () => [{ id: 'profile-old', name: 'Old Profile', at: '2026-06-07T12:00:00Z' }];
-      window.openSettingsModal = tab => { openedTabs.push(tab); };
       window.updateSyncIndicator = () => { syncIndicatorUpdates += 1; };
       window.pushContextToGateway = () => { pushedContexts += 1; };
       window.fetch = async () => new Response('', { status: 200 });
@@ -497,7 +501,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       window.applyPendingTombstone = oldGlobals.applyPendingTombstone;
       window.rejectPendingTombstone = oldGlobals.rejectPendingTombstone;
       window.listPendingTombstones = oldGlobals.listPendingTombstones;
-      window.openSettingsModal = oldGlobals.openSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       window.updateSyncIndicator = oldGlobals.updateSyncIndicator;
       window.pushContextToGateway = oldGlobals.pushContextToGateway;
       window.fetch = oldGlobals.fetch;

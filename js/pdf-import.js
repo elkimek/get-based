@@ -62,10 +62,10 @@ import {
   openImportReviewFromSnapshot,
   setPdfImportBatchMode,
 } from './pdf-import-commit.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
 /**
  * @typedef {{
- *   openSettingsModal?: (tab?: string) => void,
  *   isDNAFile?: (file: File) => boolean,
  *   isDNAFileByContent?: (file: File) => Promise<boolean>,
  *   detectDNAFile?: (header: string) => string | null,
@@ -178,7 +178,10 @@ export function showAINeededDialog(action = 'import') {
   openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 });
   const close = () => closeModalOverlay(overlay);
   document.getElementById('ai-needed-or').onclick = () => { close(); pdfImportDeps.startOpenRouterOAuth(); };
-  document.getElementById('ai-needed-key').onclick = () => { close(); if (pdfImportWindow.openSettingsModal) pdfImportWindow.openSettingsModal('ai'); };
+  document.getElementById('ai-needed-key').onclick = () => {
+    close();
+    getSettingsModuleFunction('openSettingsModal')?.('ai');
+  };
   document.getElementById('ai-needed-demo').onclick = () => {
     close();
     const sex = state.profileSex === 'female' ? 'female' : 'male';

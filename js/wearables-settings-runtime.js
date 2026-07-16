@@ -2,6 +2,7 @@
 // wearables-settings-runtime.js - Browser runtime adapters for wearable settings hooks.
 
 import { showConfirmDialog } from './utils.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const wearableSettingsRuntimeDeps = { showConfirmDialog };
@@ -35,7 +36,7 @@ function getRuntimeFunction(name) {
 }
 
 export function closeWearableSettingsModal() {
-  getRuntimeFunction('closeSettingsModal')?.();
+  getSettingsModuleFunction('closeSettingsModal')?.();
 }
 
 export function navigateWearablesDashboard() {

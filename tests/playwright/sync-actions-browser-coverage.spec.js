@@ -374,9 +374,10 @@ test('sync indicator popover renders debug actions and copies activity', async (
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ uiUrl }) => {
-    const [syncUi, syncState] = await Promise.all([
+    const [syncUi, syncState, settingsBridge] = await Promise.all([
       import(uiUrl),
       import('/js/sync-state.js'),
+      import('/js/settings-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const copied = [];
@@ -395,11 +396,13 @@ test('sync indicator popover renders debug actions and copies activity', async (
       cleanStorage: window.cleanStorage,
       checkRelayConnection: window.checkRelayConnection,
       showSyncDiagnose: window.showSyncDiagnose,
-      openSettingsModal: window.openSettingsModal,
     };
     let enabled = false;
     const slot = document.getElementById('sync-indicator-slot') || document.createElement('div');
     const actionCalls = [];
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: tab => { actionCalls.push(`settings:${tab}`); },
+    });
 
     try {
       window.syncNow = () => { actionCalls.push('sync-now'); };
@@ -410,7 +413,6 @@ test('sync indicator popover renders debug actions and copies activity', async (
         return true;
       };
       window.showSyncDiagnose = () => { actionCalls.push('diagnose'); };
-      window.openSettingsModal = tab => { actionCalls.push(`settings:${tab}`); };
 
       slot.id = 'sync-indicator-slot';
       if (!slot.parentNode) document.body.appendChild(slot);
@@ -557,7 +559,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
       window.cleanStorage = saved.cleanStorage;
       window.checkRelayConnection = saved.checkRelayConnection;
       window.showSyncDiagnose = saved.showSyncDiagnose;
-      window.openSettingsModal = saved.openSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       document.getElementById('sync-popover')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       document.querySelectorAll('.notification-container').forEach(el => el.remove());

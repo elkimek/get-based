@@ -7,6 +7,7 @@ import {
   dispatchThemeChange,
   refreshThemeDependentsFromRuntime,
 } from '../js/theme-runtime.js';
+import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -50,6 +51,7 @@ function resetRuntimeWindow() {
 
 console.log('=== Theme Runtime Tests ===\n');
 
+let previousSettingsBridge = null;
 try {
   resetRuntimeWindow();
 
@@ -71,9 +73,11 @@ try {
   assert('theme change event carries detail', events[0]?.detail?.theme === 'glass' && events[0]?.detail?.sunsetMode === true);
 
   const calls = [];
-  globalThis.applyAccentOverride = () => calls.push('accent');
-  globalThis.updateSettingsUI = () => calls.push('settings');
-  globalThis.updateTweaksUI = () => calls.push('tweaks');
+  previousSettingsBridge = configureSettingsModuleBridge({
+    applyAccentOverride: () => calls.push('accent'),
+    updateSettingsUI: () => calls.push('settings'),
+    updateTweaksUI: () => calls.push('tweaks'),
+  });
   globalThis.scheduleChartThemeRefresh = () => calls.push('schedule');
   globalThis.refreshSettingsWearables = () => calls.push('wearables');
   refreshThemeDependentsFromRuntime({ settingsModalOpen: true });
@@ -97,6 +101,7 @@ try {
     return true;
   })());
 } finally {
+  if (previousSettingsBridge) configureSettingsModuleBridge(previousSettingsBridge);
   for (const field of RUNTIME_FIELDS) {
     restoreDescriptor(globalThis, field, originalFieldDescriptors.get(field));
   }

@@ -18,6 +18,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
 
   const results = await page.evaluate(async ({ shellActionsUrl }) => {
     const shellActions = await import(shellActionsUrl);
+    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
@@ -43,8 +44,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     });
     const originalFns = {
       openProfileShareModal: window.openProfileShareModal,
-      openTweaksPanel: window.openTweaksPanel,
-      openSettingsModal: window.openSettingsModal,
       toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
       summarizeThread: window.summarizeThread,
@@ -57,6 +56,10 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       setChatWebSearchEnabled: window.setChatWebSearchEnabled,
       handleChatKeydown: window.handleChatKeydown,
     };
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openTweaksPanel: (...args) => calls.push(['openTweaksPanel', ...args]),
+      openSettingsModal: (...args) => calls.push(['openSettingsModal', ...args]),
+    });
     const bind = (name) => {
       window[name] = (...args) => calls.push([name, ...args]);
     };
@@ -208,6 +211,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
       shellActions.configureShellChatImageDeps(previousShellChatImageDeps);
       shellActions.configureShellChatThreadDeps(previousShellChatThreadDeps);
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       for (const [name, value] of Object.entries(originalFns)) {
         if (value === undefined) delete window[name];
         else window[name] = value;

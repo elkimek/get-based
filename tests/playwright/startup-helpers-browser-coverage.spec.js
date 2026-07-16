@@ -389,6 +389,7 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
   });
 
   const outcomes = await page.evaluate(async ({ startupUiUrl }) => {
+    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const originalSetTimeout = window.setTimeout;
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     window.__startupUICalls = [];
@@ -401,9 +402,9 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     window.navigate = view => {
       window.__startupUICalls.push(['navigate', view]);
     };
-    window.openSettingsModal = section => {
-      window.__startupUICalls.push(['openSettingsModal', section]);
-    };
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: section => window.__startupUICalls.push(['openSettingsModal', section]),
+    });
     window.openChatPanel = () => {
       window.__startupUICalls.push('openChatPanel');
     };
@@ -482,6 +483,7 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
           && window.__startupUICalls.includes('bindImportFileInput'),
       };
     } finally {
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       window.setTimeout = originalSetTimeout;
       window.requestAnimationFrame = originalRequestAnimationFrame;
       delete window._openSettingsAfterInit;

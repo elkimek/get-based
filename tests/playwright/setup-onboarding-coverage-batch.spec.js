@@ -454,11 +454,12 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
   await page.waitForSelector('#main-content', { state: 'attached' });
 
   const results = await page.evaluate(async ({ dashboardPageUrl }) => {
-    const [dashboardPage, { state }, profile, data] = await Promise.all([
+    const [dashboardPage, { state }, profile, data, settingsBridge] = await Promise.all([
       import(dashboardPageUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
       import('/js/data.js'),
+      import('/js/settings-runtime-bridge.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
@@ -472,13 +473,15 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       demoLoadingProfileId: window._demoLoadingProfileId,
       openChatPanel: window.openChatPanel,
       closeChatPanel: window.closeChatPanel,
-      openSettingsModal: window.openSettingsModal,
       mainHtml: document.getElementById('main-content')?.innerHTML || '',
     };
     const calls = [];
     const outcomes = {};
     let hadPdfInput = false;
     let previousDashboardPageRuntimeDeps = null;
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: tab => calls.push(['settings', tab]),
+    });
 
     try {
       state.currentProfile = 'dashboard-welcome-delegates';
@@ -493,7 +496,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
 
       window.openChatPanel = () => calls.push(['open-chat']);
       window.closeChatPanel = () => calls.push(['close-chat']);
-      window.openSettingsModal = tab => calls.push(['settings', tab]);
       previousDashboardPageRuntimeDeps = dashboardPage.configureDashboardPageRuntimeDeps({
         loadDemoData: sex => calls.push(['demo', sex]),
       });
@@ -574,10 +576,10 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       if (previousDashboardPageRuntimeDeps) {
         dashboardPage.configureDashboardPageRuntimeDeps(previousDashboardPageRuntimeDeps);
       }
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       Object.assign(window, {
         openChatPanel: saved.openChatPanel,
         closeChatPanel: saved.closeChatPanel,
-        openSettingsModal: saved.openSettingsModal,
       });
       document.body.classList.remove('empty-dashboard-active', 'chat-autostart-reserved');
       localStorage.clear();

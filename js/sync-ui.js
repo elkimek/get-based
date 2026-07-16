@@ -4,6 +4,7 @@
 import { showNotification, isDebugMode, escapeAttr, escapeHTML } from './utils.js';
 import { getSyncRelay } from './sync-environment.js';
 import { getRelayQuotaEstimate } from './sync-relay-health.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import {
   getRecentSyncEvents,
   getSyncDisplayState as getSyncDisplayStateFromStatus,
@@ -39,7 +40,7 @@ function handleSyncUIClick(event) {
     appWindow.location?.reload?.();
   } else if (action === 'open-settings') {
     toggleSyncDetail();
-    appWindow.openSettingsModal?.('data');
+    getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'force-resend') {
     void appWindow.forceResendCurrentProfile?.();
     toggleSyncDetail();

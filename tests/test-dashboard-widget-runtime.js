@@ -20,6 +20,7 @@ import {
   triggerDashboardDnaPicker,
 } from '../js/dashboard-widget-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
 let pass = 0, fail = 0;
@@ -35,7 +36,6 @@ const runtimeKeys = [
   'innerHeight',
   'getSessions',
   '_snpTableCache',
-  'openSettingsModal',
   'showDetailModal',
   'navigate',
   'triggerDNAFilePicker',
@@ -43,6 +43,7 @@ const runtimeKeys = [
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const savedImportedData = state.importedData;
 let previousWearablesModule = null;
+let previousSettingsModule = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -99,7 +100,9 @@ try {
 
   const actionEl = { dataset: { dashboardWidgetAction: 'sync-biometric-now' } };
   const event = { type: 'click' };
-  setRuntimeValue('openSettingsModal', section => calls.push(['settings', section]));
+  previousSettingsModule = configureSettingsModuleBridge({
+    openSettingsModal: section => calls.push(['settings', section]),
+  });
   previousWearablesModule = configureWearablesModuleBridge({
     syncWearableNow: el => calls.push(['sync', el?.dataset?.dashboardWidgetAction || '']),
     openWearableDetail: id => calls.push(['wearable-detail', id]),
@@ -142,6 +145,7 @@ try {
     syncWearableNow: null,
     openManualLogForm: null,
   });
+  configureSettingsModuleBridge({ openSettingsModal: null });
   delete globalThis.window;
   const callCountBeforeMissingRuntime = calls.length;
   openDashboardWearablesSettings();
@@ -162,6 +166,10 @@ try {
   configureDashboardNoteActions(previousDashboardNoteActions);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
+  configureSettingsModuleBridge({
+    openSettingsModal: null,
+    ...previousSettingsModule,
+  });
   configureWearablesModuleBridge({
     syncWearableNow: null,
     openWearableDetail: null,

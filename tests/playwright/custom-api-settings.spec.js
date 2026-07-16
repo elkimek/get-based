@@ -3,9 +3,8 @@ import { expect, test } from './coverage-fixture.js';
 test('custom API provider panel renders from Settings AI', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  await page.evaluate(() => {
-    if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
-    window.openSettingsModal('ai');
+  await page.evaluate(async () => {
+    (await import('/js/settings.js')).openSettingsModal('ai');
   });
 
   const providerButtons = page.locator('.ai-provider-btn');
@@ -47,7 +46,7 @@ test('custom API connected state renders model controls', async ({ page }) => {
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
-    if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
+    const settings = await import('/js/settings.js');
     api.setCustomApiUrl('https://api.test.com/v1');
     cryptoStore.updateKeyCache('labcharts-custom-key', 'sk-test');
     api.setCustomApiModel('test-model');
@@ -56,7 +55,7 @@ test('custom API connected state renders model controls', async ({ page }) => {
       { id: 'other-model', name: 'Other Model' },
     ]));
     api.setAIProvider('custom');
-    window.openSettingsModal('ai');
+    settings.openSettingsModal('ai');
   });
   await page.locator('.ai-provider-btn[data-provider="custom"]').dispatchEvent('click');
 
@@ -78,12 +77,12 @@ test('custom API provider delegates save model changes and removal', async ({ pa
   ];
 
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openSettingsModal === 'function');
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const crypto = await import('/js/crypto.js');
     const providerPanels = await import('/js/provider-panels.js');
+    const settings = await import('/js/settings.js');
     const outcomes = {};
     const storageKeys = [
       'labcharts-ai-provider',
@@ -156,7 +155,7 @@ test('custom API provider delegates save model changes and removal', async ({ pa
         return savedFetch.call(window, url, options);
       };
 
-      window.openSettingsModal('ai');
+      settings.openSettingsModal('ai');
       await waitFor(() => document.getElementById('ai-provider-panel'), 'settings AI panel');
       providerPanels.switchAIProvider('custom');
       await waitFor(() =>
@@ -232,7 +231,7 @@ test('custom API provider delegates save model changes and removal', async ({ pa
       await restoreCustomKey();
       if (savedSessionLock == null) sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');
       else sessionStorage.setItem('labcharts-ai-settings-local-lock-until', savedSessionLock);
-      window.closeSettingsModal?.();
+      settings.closeSettingsModal();
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
     }
 

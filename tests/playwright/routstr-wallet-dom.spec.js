@@ -2,12 +2,12 @@ import { expect, test } from './coverage-fixture.js';
 
 test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openSettingsModal === 'function');
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
     const providerPanels = await import('/js/provider-panels.js');
+    const settings = await import('/js/settings.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -208,7 +208,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
 
-      window.openSettingsModal('ai');
+      settings.openSettingsModal('ai');
       await wait(100);
       providerPanels.switchAIProvider('routstr');
       await wait(150);
@@ -398,7 +398,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       cryptoStore.updateKeyCache('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       (await import('/js/views.js')).closeModal();
-      window.closeSettingsModal?.();
+      settings.closeSettingsModal();
     }
   });
 

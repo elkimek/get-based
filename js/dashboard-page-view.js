@@ -21,6 +21,7 @@ import {
   getRecommendationModuleFunction,
   setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
 let _dashboardWelcomeActionsInstalled = false;
 
@@ -77,7 +78,7 @@ function handleDashboardWelcomeActionClick(event) {
     appWindow.openChatPanel?.();
   } else if (action === 'open-ai-settings') {
     appWindow.closeChatPanel?.();
-    appWindow.openSettingsModal?.('ai');
+    getSettingsModuleFunction('openSettingsModal')?.('ai');
   } else if (action === 'direct-import') {
     document.getElementById('pdf-input')?.click();
   } else if (action === 'load-demo') {
