@@ -129,6 +129,9 @@ assert('App shell injects wearable navigation without view bridge lookups',
 assert('App shell injects category customization view callbacks',
   appShellHooksSrc.includes('configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });'));
 
+assert('App shell injects sun defaults navigation without a view bridge lookup',
+  appShellHooksSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',

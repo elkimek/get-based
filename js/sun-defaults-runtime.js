@@ -2,11 +2,11 @@
 // sun-defaults-runtime.js - Browser runtime adapters for Light setup defaults.
 
 import { getProfileLocation } from './profile.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const sunDefaultsRuntimeDeps = {
   getProfileLocation,
   getSunCoords: null,
+  navigate: null,
   requestPreciseLocation: null,
   openProfileLocationEditor: null,
   openClientList: null,
@@ -15,27 +15,12 @@ const sunDefaultsRuntimeDeps = {
 export function configureSunDefaultsRuntimeDeps(deps = {}) {
   const previous = { ...sunDefaultsRuntimeDeps };
   if (typeof deps.getProfileLocation === 'function') sunDefaultsRuntimeDeps.getProfileLocation = deps.getProfileLocation;
-  for (const name of ['getSunCoords', 'requestPreciseLocation', 'openProfileLocationEditor', 'openClientList']) {
+  for (const name of ['getSunCoords', 'navigate', 'requestPreciseLocation', 'openProfileLocationEditor', 'openClientList']) {
     if (name in deps) {
       sunDefaultsRuntimeDeps[name] = typeof deps[name] === 'function' ? deps[name] : null;
     }
   }
   return previous;
-}
-
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
-
-/** @param {string} name */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' ? getViewRuntimeFunction(name) : null;
 }
 
 export function getSunSetupCoords() {
@@ -82,5 +67,5 @@ export function requestSunSetupPreciseLocationRuntime() {
 
 /** @param {string} route */
 export function navigateSunDefaultsRoute(route) {
-  getRuntimeFunction('navigate')?.(route);
+  sunDefaultsRuntimeDeps.navigate?.(route);
 }
