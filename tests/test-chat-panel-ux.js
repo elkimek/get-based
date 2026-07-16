@@ -16,12 +16,12 @@ return (async function() {
   }
 
   console.log('%c Chat panel UX tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
-  const { toggleChatFullscreen } = await import('/js/chat-panel.js');
+  const { closeChatPanel, toggleChatFullscreen } = await import('/js/chat-panel.js');
 
   // Snapshot localStorage so the test doesn't bleed user state.
   const savedFullscreen = localStorage.getItem('labcharts-chat-fullscreen');
   // Make sure chat starts closed + clean fullscreen state.
-  if (typeof window.closeChatPanel === 'function') window.closeChatPanel();
+  closeChatPanel();
   localStorage.removeItem('labcharts-chat-fullscreen');
   document.getElementById('chat-panel')?.classList.remove('chat-panel-fullscreen');
 
@@ -32,8 +32,8 @@ return (async function() {
         !('toggleChatFullscreen' in window));
       assert('window.openChatPanel exists',
         typeof window.openChatPanel === 'function');
-      assert('window.closeChatPanel exists',
-        typeof window.closeChatPanel === 'function');
+      assert('window.closeChatPanel stays module-only',
+        !('closeChatPanel' in window));
     }
 
     // ─── 2. DOM: fullscreen button is present + accessible ────
@@ -66,7 +66,7 @@ return (async function() {
       assert('opening chat does not set body.style.overflow',
         afterOverflow === '' || afterOverflow === beforeOverflow,
         `before: "${beforeOverflow}" / after: "${afterOverflow}"`);
-      window.closeChatPanel();
+      closeChatPanel();
     }
 
     // ─── 5. Fullscreen toggle toggles class + persists ────────
@@ -114,7 +114,7 @@ return (async function() {
       await new Promise(r => setTimeout(r, 50));
       assert('opening chat with localStorage=true applies fullscreen',
         panel.classList.contains('chat-panel-fullscreen'));
-      window.closeChatPanel();
+      closeChatPanel();
 
       // Set localStorage = false → opening should NOT apply (and must
       // explicitly remove if previously set, since we use toggle(force)).
@@ -124,7 +124,7 @@ return (async function() {
       await new Promise(r => setTimeout(r, 50));
       assert('opening chat with localStorage=false explicitly removes fullscreen class',
         !panel.classList.contains('chat-panel-fullscreen'));
-      window.closeChatPanel();
+      closeChatPanel();
     }
 
     // ─── 8. Backdrop click does NOT trigger modal-nudge anymore ─
@@ -154,13 +154,13 @@ return (async function() {
       await new Promise(r => setTimeout(r, 50));
       toggleChatFullscreen(); // ON
       await new Promise(r => setTimeout(r, 50));
-      window.closeChatPanel();
+      closeChatPanel();
       panel.classList.remove('chat-panel-fullscreen'); // simulate fresh DOM
       window.openChatPanel();
       await new Promise(r => setTimeout(r, 50));
       assert('reopening chat after fullscreen-on restores fullscreen',
         panel.classList.contains('chat-panel-fullscreen'));
-      window.closeChatPanel();
+      closeChatPanel();
     }
 
     // ─── 11. Body class wiring drives dashboard auto-shift ────
@@ -183,7 +183,7 @@ return (async function() {
       assert('toggling fullscreen OFF removes body.chat-fullscreen',
         !document.body.classList.contains('chat-fullscreen'));
 
-      window.closeChatPanel();
+      closeChatPanel();
       assert('closing chat drops both body classes',
         !document.body.classList.contains('chat-open') &&
         !document.body.classList.contains('chat-fullscreen'));
@@ -211,7 +211,7 @@ return (async function() {
 
         toggleChatFullscreen(); // back to non-fullscreen
         await new Promise(r => setTimeout(r, 100));
-        window.closeChatPanel();
+        closeChatPanel();
         // Wait past the 0.3s transition + a generous margin.
         await new Promise(r => setTimeout(r, 600));
         const closedPadding = parseFloat(getComputedStyle(main).paddingRight);

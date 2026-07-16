@@ -107,7 +107,7 @@ async function seedDemoData(page) {
     await dataModule.saveImportedData();
     (await import('/js/nav.js')).buildSidebar();
     (await import('/js/views.js')).navigate('dashboard');
-    window.closeChatPanel?.();
+    (await import('/js/chat-panel.js')).closeChatPanel();
   });
   await page.waitForSelector('#main-content', { timeout: 10000 });
   await delay(200);
@@ -178,7 +178,7 @@ async function prepareScenario(page, theme, viewport) {
     const settings = await import('/js/settings.js');
     (await import('/js/views.js')).closeModal();
     settings.closeSettingsModal();
-    window.closeChatPanel?.();
+    (await import('/js/chat-panel.js')).closeChatPanel();
     (await import('/js/nav.js')).closeMobileSidebar();
     document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.modal-overlay.show').forEach(el => el.classList.remove('show'));
@@ -193,9 +193,9 @@ async function prepareScenario(page, theme, viewport) {
     themeModule.setTheme(nextTheme);
   }, theme);
   await seedDemoData(page);
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     window.endTour?.();
-    window.closeChatPanel?.();
+    (await import('/js/chat-panel.js')).closeChatPanel();
     document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
   });
 }

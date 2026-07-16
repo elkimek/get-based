@@ -34,6 +34,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       toggleHDMode: () => calls.push(['toggleHDMode']),
     });
     const previousShellChatActionDeps = shellActions.configureShellChatActionDeps({
+      closeChatPanel: () => calls.push(['closeChatPanel']),
       clearChatHistory: () => calls.push(['clearChatHistory']),
       handleChatKeydown: event => calls.push(['handleChatKeydown', event]),
       sendChatMessage: () => calls.push(['sendChatMessage']),
@@ -56,7 +57,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     });
     const originalFns = {
       openProfileShareModal: window.openProfileShareModal,
-      closeChatPanel: window.closeChatPanel,
     };
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openTweaksPanel: (...args) => calls.push(['openTweaksPanel', ...args]),
