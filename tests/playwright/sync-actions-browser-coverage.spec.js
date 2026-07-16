@@ -391,11 +391,6 @@ test('sync indicator popover renders debug actions and copies activity', async (
     const saved = {
       debug: localStorage.getItem('labcharts-debug'),
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
-      syncNow: window.syncNow,
-      forceResendCurrentProfile: window.forceResendCurrentProfile,
-      cleanStorage: window.cleanStorage,
-      checkRelayConnection: window.checkRelayConnection,
-      showSyncDiagnose: window.showSyncDiagnose,
     };
     let enabled = false;
     const slot = document.getElementById('sync-indicator-slot') || document.createElement('div');
@@ -403,17 +398,9 @@ test('sync indicator popover renders debug actions and copies activity', async (
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openSettingsModal: tab => { actionCalls.push(`settings:${tab}`); },
     });
+    const previousSyncUIDeps = syncUi.configureSyncUI();
 
     try {
-      window.syncNow = () => { actionCalls.push('sync-now'); };
-      window.forceResendCurrentProfile = () => { actionCalls.push('force-resend'); };
-      window.cleanStorage = async () => { actionCalls.push('clean-storage'); };
-      window.checkRelayConnection = async () => {
-        actionCalls.push('test-relay');
-        return true;
-      };
-      window.showSyncDiagnose = () => { actionCalls.push('diagnose'); };
-
       slot.id = 'sync-indicator-slot';
       if (!slot.parentNode) document.body.appendChild(slot);
       localStorage.setItem('labcharts-debug', 'true');
@@ -424,7 +411,17 @@ test('sync indicator popover renders debug actions and copies activity', async (
       syncUi.renderSyncIndicator();
       outcomes.defaultSyncUIEnabledDependencyClearsSlot = slot.innerHTML === '';
 
-      syncUi.configureSyncUI({ isSyncEnabled: () => enabled });
+      syncUi.configureSyncUI({
+        isSyncEnabled: () => enabled,
+        syncNow: () => { actionCalls.push('sync-now'); },
+        forceResendCurrentProfile: () => { actionCalls.push('force-resend'); },
+        cleanStorage: async () => { actionCalls.push('clean-storage'); },
+        checkRelayConnection: async () => {
+          actionCalls.push('test-relay');
+          return true;
+        },
+        showSyncDiagnose: () => { actionCalls.push('diagnose'); },
+      });
 
       syncUi.renderSyncIndicator();
       outcomes.disabledRenderClearsSlot = slot.innerHTML === '';
@@ -494,10 +491,12 @@ test('sync indicator popover renders debug actions and copies activity', async (
           .some(toast => toast.textContent.includes('Relay reachable')),
         'test-relay success notification'
       );
-      window.checkRelayConnection = async () => {
-        actionCalls.push('test-relay-error');
-        throw new Error('relay offline');
-      };
+      syncUi.configureSyncUI({
+        checkRelayConnection: async () => {
+          actionCalls.push('test-relay-error');
+          throw new Error('relay offline');
+        },
+      });
       await clickPopoverAction('test-relay');
       await waitFor(
         () => Array.from(document.querySelectorAll('.notification-toast.error'))
@@ -535,30 +534,24 @@ test('sync indicator popover renders debug actions and copies activity', async (
       };
       try {
         syncState.updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now(), lastError: null, relay: 'connected' });
-        const baselinePopoverAppendCount = popoverAppendCount;
         popoverAppendCount = 0;
         syncUi.bindSyncUIStatusUpdates();
         syncUi.bindSyncUIStatusUpdates();
         syncState.updateSyncStatus({ push: 'pending', pushStartedAt: Date.now(), lastError: null, relay: 'connected' });
-        await waitFor(() => popoverAppendCount >= baselinePopoverAppendCount + 1, 'status-bound popover repaint');
-        outcomes.bindStatusUpdatesIsIdempotent = popoverAppendCount === baselinePopoverAppendCount + 1
+        await waitFor(() => popoverAppendCount >= 1, 'status-bound popover repaint');
+        outcomes.bindStatusUpdatesIsIdempotent = popoverAppendCount === 1
           && !!document.getElementById('sync-popover')
           && !!slot.querySelector('#sync-indicator-btn .sync-dot-syncing');
       } finally {
         Element.prototype.appendChild = originalAppendChild;
       }
     } finally {
-      syncUi.configureSyncUI({ isSyncEnabled: () => false });
+      syncUi.configureSyncUI(previousSyncUIDeps);
       syncState.resetSyncStatus();
       if (saved.debug == null) localStorage.removeItem('labcharts-debug');
       else localStorage.setItem('labcharts-debug', saved.debug);
       if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);
       else delete navigator.clipboard;
-      window.syncNow = saved.syncNow;
-      window.forceResendCurrentProfile = saved.forceResendCurrentProfile;
-      window.cleanStorage = saved.cleanStorage;
-      window.checkRelayConnection = saved.checkRelayConnection;
-      window.showSyncDiagnose = saved.showSyncDiagnose;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       document.getElementById('sync-popover')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
@@ -567,7 +560,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
     }
 
     return outcomes;
-  }, { uiUrl: moduleUrl('/js/sync-ui.js') });
+  }, { uiUrl: '/js/sync-ui.js' });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
@@ -699,13 +692,20 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
   }
 });
 
-test('sync window bindings expose browser globals and injected callbacks', async ({ page }) => {
+test('sync actions stay module-only after removing the browser facade', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async ({ bindingsUrl }) => {
-    const bindings = await import(bindingsUrl);
-    const outcomes = {};
-    const expectedFunctionNames = [
+  const results = await page.evaluate(async () => {
+    const [sync, delta, cutover, diagnose, relayHealth] = await Promise.all([
+      import('/js/sync.js'),
+      import('/js/sync-delta.js'),
+      import('/js/sync-cutover.js'),
+      import('/js/sync-diagnose-ui.js'),
+      import('/js/sync-relay-health.js'),
+    ]);
+    const formerGlobals = [
+      'enableSync',
+      'disableSync',
       'getMnemonic',
       'getMnemonicResolutionError',
       'getSyncBlocker',
@@ -755,35 +755,20 @@ test('sync window bindings expose browser globals and injected callbacks', async
       'confirmDisablePhase2',
       'confirmBackfillBlockers',
     ];
-    const allNames = ['enableSync', 'disableSync', ...expectedFunctionNames];
-    const savedDescriptors = new Map(allNames.map(name => [
-      name,
-      Object.getOwnPropertyDescriptor(window, name),
-    ]));
-    const enableSync = () => 'enabled';
-    const disableSync = () => 'disabled';
-
-    try {
-      bindings.bindSyncWindowActions({ enableSync, disableSync });
-      outcomes.injectedCallbacksAreAssigned =
-        window.enableSync === enableSync
-        && window.disableSync === disableSync
-        && window.enableSync() === 'enabled'
-        && window.disableSync() === 'disabled';
-      outcomes.importedSyncGlobalsAreFunctions =
-        expectedFunctionNames.every(name => typeof window[name] === 'function');
-      outcomes.forcePullIsExposedOnlyViaAlias =
-        typeof window._forcePull === 'function'
-        && window.forcePull === undefined;
-    } finally {
-      for (const [name, descriptor] of savedDescriptors.entries()) {
-        if (descriptor) Object.defineProperty(window, name, descriptor);
-        else delete window[name];
-      }
-    }
-
-    return outcomes;
-  }, { bindingsUrl: moduleUrl('/js/sync-window-bindings.js') });
+    return {
+      formerGlobalsAreAbsent: formerGlobals.every(name => !(name in window)),
+      primarySyncExportsRemainCallable:
+        typeof sync.enableSync === 'function'
+        && typeof sync.disableSync === 'function'
+        && typeof sync.syncNow === 'function'
+        && typeof sync.generateMessengerToken === 'function',
+      specialistSyncExportsRemainCallable:
+        typeof delta.getDeltaTelemetry === 'function'
+        && typeof cutover.enablePhase2Cutover === 'function'
+        && typeof diagnose.showSyncDiagnose === 'function'
+        && typeof relayHealth.getRelayQuotaEstimate === 'function',
+    };
+  });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);

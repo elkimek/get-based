@@ -46,7 +46,7 @@ const connect = await import('../js/wearables-connect.js');
 const store = await import('../js/wearables-store.js');
 const summary = await import('../js/wearables-summary.js');
 const manual = await import('../js/wearables-manual.js');
-await import('../js/sync.js'); // registers window.pushContextToGateway
+const syncModule = await import('../js/sync.js');
 
 // ─────────────────────────────────────────────────────────
 // Test profile + harness — isolate state so the live profile is untouched.
@@ -349,8 +349,9 @@ try {
     syncMod.isMessengerEnabled() === true);
   assert('getMessengerToken returns the test token',
     syncMod.getMessengerToken() === 'test-mock-token-12345');
-  assert('window.pushContextToGateway exposed (toggle handler can fire it)',
-    typeof window.pushContextToGateway === 'function');
+  assert('pushContextToGateway stays module-only for toggle handlers',
+    typeof syncModule.pushContextToGateway === 'function'
+      && !('pushContextToGateway' in window));
 } finally {
   localStorage.removeItem('labcharts-messenger-enabled');
   localStorage.removeItem('labcharts-messenger-token');

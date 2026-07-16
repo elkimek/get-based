@@ -13,6 +13,11 @@ import {
 } from './sync-state.js';
 
 let _isSyncEnabled = () => false;
+let _syncNow = () => {};
+let _forceResendCurrentProfile = () => {};
+let _cleanStorage = () => {};
+let _checkRelayConnection = async () => false;
+let _showSyncDiagnose = () => {};
 let _statusBound = false;
 const SYNC_UI_DELEGATE_KEY = '__getbasedSyncUIDelegatesInstalled';
 
@@ -34,7 +39,7 @@ function handleSyncUIClick(event) {
   } else if (action === 'copy-events') {
     void copySyncEvents(actionEl);
   } else if (action === 'sync-now') {
-    void appWindow.syncNow?.();
+    void _syncNow();
     toggleSyncDetail();
   } else if (action === 'reload') {
     appWindow.location?.reload?.();
@@ -42,18 +47,18 @@ function handleSyncUIClick(event) {
     toggleSyncDetail();
     getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'force-resend') {
-    void appWindow.forceResendCurrentProfile?.();
+    void _forceResendCurrentProfile();
     toggleSyncDetail();
   } else if (action === 'clean-storage') {
-    Promise.resolve(appWindow.cleanStorage?.()).then(() => toggleSyncDetail());
+    Promise.resolve(_cleanStorage()).then(() => toggleSyncDetail());
   } else if (action === 'test-relay') {
-    Promise.resolve(appWindow.checkRelayConnection?.()).then(ok => {
+    Promise.resolve(_checkRelayConnection()).then(ok => {
       showNotification(ok ? 'Relay reachable' : 'Relay UNREACHABLE', ok ? 'success' : 'error');
     }).catch(err => {
       showNotification(`Relay check failed: ${err?.message || err}`, 'error');
     });
   } else if (action === 'show-diagnose') {
-    appWindow.showSyncDiagnose?.();
+    _showSyncDiagnose();
   }
 }
 
@@ -65,9 +70,37 @@ export function initSyncUIDelegates() {
   appWindow[SYNC_UI_DELEGATE_KEY] = true;
 }
 
-/** @param {{ isSyncEnabled?: () => boolean }} [deps] */
-export function configureSyncUI({ isSyncEnabled } = {}) {
+/** @param {{
+ *   isSyncEnabled?: () => boolean,
+ *   syncNow?: (...args: any[]) => any,
+ *   forceResendCurrentProfile?: (...args: any[]) => any,
+ *   cleanStorage?: (...args: any[]) => any,
+ *   checkRelayConnection?: (...args: any[]) => any,
+ *   showSyncDiagnose?: (...args: any[]) => any,
+ * }} [deps] */
+export function configureSyncUI({
+  isSyncEnabled,
+  syncNow,
+  forceResendCurrentProfile,
+  cleanStorage,
+  checkRelayConnection,
+  showSyncDiagnose,
+} = {}) {
+  const previous = {
+    isSyncEnabled: _isSyncEnabled,
+    syncNow: _syncNow,
+    forceResendCurrentProfile: _forceResendCurrentProfile,
+    cleanStorage: _cleanStorage,
+    checkRelayConnection: _checkRelayConnection,
+    showSyncDiagnose: _showSyncDiagnose,
+  };
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
+  if (typeof syncNow === 'function') _syncNow = syncNow;
+  if (typeof forceResendCurrentProfile === 'function') _forceResendCurrentProfile = forceResendCurrentProfile;
+  if (typeof cleanStorage === 'function') _cleanStorage = cleanStorage;
+  if (typeof checkRelayConnection === 'function') _checkRelayConnection = checkRelayConnection;
+  if (typeof showSyncDiagnose === 'function') _showSyncDiagnose = showSyncDiagnose;
+  return previous;
 }
 
 function currentSyncEnabled() {

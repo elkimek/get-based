@@ -559,6 +559,25 @@
     'buildGeneticsContext','getRelevantSNPs',
   ];
 
+  // Sync facade (50 former browser globals, now module-only)
+  const syncFormerGlobals = [
+    'enableSync','disableSync','getMnemonic','getMnemonicResolutionError',
+    'getSyncBlocker','restoreFromMnemonic','isSyncEnabled','pushCurrentProfile',
+    'forceResendCurrentProfile','cleanStorage','syncNow','showSyncDiagnose',
+    'deleteProfileFromRelay','listPendingTombstones','applyPendingTombstone',
+    'rejectPendingTombstone','checkRelayConnection','isMessengerEnabled',
+    'getMessengerToken','getMessengerContextKey','generateMessengerToken',
+    'generateMessengerContextKey','revokeMessengerToken','pushContextToGateway',
+    '_syncDiag','_forcePull','renderSyncIndicator','updateSyncIndicator',
+    'toggleSyncDetail','copySyncEvents','copySyncDiagnose','confirmCompactRelay',
+    'confirmRotateIdentity','refreshRelayStorage','fetchOwnerStorageFromRelay',
+    'verifyPushLanded','getRelayHealthVerdict','compactOwnerSelfServe',
+    'getRelayQuotaEstimate','resetRelayQuotaEstimate','getDeltaTelemetry',
+    'resetDeltaTelemetry','confirmResetDeltaTelemetry','getDeltaCutoverReadiness',
+    'isPhase2CutoverEnabled','enablePhase2Cutover','disablePhase2Cutover',
+    'confirmEnablePhase2','confirmDisablePhase2','confirmBackfillBlockers'
+  ];
+
   // pii.js (7, module-only)
   const piiExports = [
     'obfuscatePDFText','sanitizeWithOllama','checkOllamaPII',
@@ -787,6 +806,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of dnaFormerGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of syncFormerGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of emfLegacyGlobals) {

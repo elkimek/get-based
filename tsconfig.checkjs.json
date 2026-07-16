@@ -376,7 +376,6 @@
     "js/sync-subscriptions.js",
     "js/sync-actions.js",
     "js/sync-ui.js",
-    "js/sync-window-bindings.js",
     "js/sync.js",
     "js/adapters.js",
     "js/ai-action-delegates.js",

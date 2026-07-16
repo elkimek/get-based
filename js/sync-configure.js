@@ -12,8 +12,11 @@ import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
 import { configureSyncIdentity, restoreFromMnemonic } from './sync-identity.js';
 import { configureSyncDiagnostics } from './sync-diagnostics.js';
 import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
-import { configureSyncDiagnoseUI } from './sync-diagnose-ui.js';
-import { configureSyncActions, pushAllProfiles, pushCurrentProfile } from './sync-actions.js';
+import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
+import {
+  configureSyncActions, forceResendCurrentProfile, pushAllProfiles,
+  pushCurrentProfile, syncNow,
+} from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
 import { configureSyncRecovery } from './sync-recovery.js';
@@ -27,7 +30,7 @@ import {
 import {
   configureSyncSubscriptions, getSyncSubscriptionFireCount,
 } from './sync-subscriptions.js';
-import { bindSyncWindowActions } from './sync-window-bindings.js';
+import { cleanStorage } from './sync-storage-cleanup.js';
 import {
   getSyncAppOwner, getSyncAppOwnerError, getSyncEvolu, getSyncItemRowQuery,
   getSyncProfileQuery, getSyncTombstoneQuery, isSyncEvoluReady,
@@ -118,6 +121,11 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
 
   configureSyncUI({
     isSyncEnabled,
+    syncNow,
+    forceResendCurrentProfile,
+    cleanStorage,
+    checkRelayConnection,
+    showSyncDiagnose,
   });
   initSyncUIDelegates();
   bindSyncUIStatusUpdates();
@@ -167,6 +175,4 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     pushProfile,
     debug: dbg,
   });
-
-  bindSyncWindowActions({ enableSync, disableSync });
 }

@@ -35,13 +35,14 @@ function assert(name, condition, detail) {
 
 console.log('=== Cross-Device Sync Tests ===\n');
 
-// Load the sync window bindings and the module-only Settings Sync panel.
+// Load the module-only Sync surfaces and Settings Sync panel.
 const { state } = await import('../js/state.js');
 const syncActions = await import('../js/sync-actions.js');
 const syncSaveHooks = await import('../js/sync-save-hooks.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncChatApply = await import('../js/sync-chat-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
+const syncCutover = await import('../js/sync-cutover.js');
 const dataMerge = await import('../js/data-merge.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
 const syncPayload = await import('../js/sync-payload.js');
@@ -113,7 +114,6 @@ await import('../js/settings.js');
   const syncPullRebroadcastSrc = await fetchWithRetry('js/sync-pull-rebroadcast.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncSubscriptionsSrc = await fetchWithRetry('js/sync-subscriptions.js');
-  const syncWindowBindingsSrc = await fetchWithRetry('js/sync-window-bindings.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
@@ -146,7 +146,7 @@ await import('../js/settings.js');
   const syncDeltaRegistrySearchSrc = `${syncDeltaRegistrySrc}\n${syncDeltaSurfacesSrc}\n${syncDeltaSurfaceConfigSrc}\n${syncDeltaIdSrc}`;
   const syncDeltaObservabilitySearchSrc = `${syncDeltaObservabilitySrc}\n${syncDeltaObservabilityContextSrc}\n${syncDeltaPullSnapshotSrc}\n${syncDeltaTelemetrySrc}\n${syncDeltaReadinessSrc}`;
   const syncDiagnosticsSearchSrc = `${syncDiagnosticsSrc}\n${syncDiagnosticsContextSrc}\n${syncDiagnosticsSnapshotSrc}\n${syncDiagnosticsTextSrc}`;
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySearchSrc}\n${syncDiagnosticsSearchSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseRuntimeSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySearchSrc}\n${syncDiagnosticsSearchSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseRuntimeSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -207,7 +207,8 @@ await import('../js/settings.js');
       && syncConfigureSrc.includes('configureSyncSubscriptions({')
       && syncConfigureSrc.includes('configureSyncTombstones({')
       && syncConfigureSrc.includes('configureSyncDiagnostics({')
-      && syncConfigureSrc.includes('bindSyncWindowActions({ enableSync, disableSync })')
+      && syncConfigureSrc.includes('configureSyncUI({')
+      && syncConfigureSrc.includes('forceResendCurrentProfile,')
       && syncSrc.includes('configureSyncModules({ enableSync, disableSync });'));
   assert('service worker precaches sync-configure.js',
     serviceWorkerSrc.includes("'/js/sync-configure.js'"));
@@ -580,7 +581,7 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-save-hooks.js'"));
   assert('sync-storage-cleanup.js owns emergency sync storage compaction',
     syncSrc.includes("from './sync-storage-cleanup.js'")
-      && syncWindowBindingsSrc.includes("from './sync-storage-cleanup.js'")
+      && syncConfigureSrc.includes("from './sync-storage-cleanup.js'")
       && syncStorageCleanupSrc.includes('export async function cleanStorage')
       && syncStorageCleanupSrc.includes('changeHistory')
       && syncStorageCleanupSrc.includes('labcharts-openrouter-models')
@@ -819,24 +820,22 @@ await import('../js/settings.js');
       && syncConfigureSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
   assert('service worker precaches sync-subscriptions.js',
     serviceWorkerSrc.includes("'/js/sync-subscriptions.js'"));
-  assert('sync-window-bindings.js owns browser global sync actions',
-    syncConfigureSrc.includes("from './sync-window-bindings.js'")
-      && syncWindowBindingsSrc.includes('export function bindSyncWindowActions')
-      && syncWindowBindingsSrc.includes('Object.assign(window')
-      && syncWindowBindingsSrc.includes('_forcePull: forcePull')
-      && syncWindowBindingsSrc.includes('confirmBackfillBlockers')
-      && syncConfigureSrc.includes('bindSyncWindowActions({ enableSync, disableSync });'));
-  assert('Agent Access window bindings preserve public contracts safely',
-    syncWindowBindingsSrc.includes('function generateMessengerTokenWindow()')
-      && syncWindowBindingsSrc.includes('return result?.token ||')
-      && syncWindowBindingsSrc.includes('async function revokeMessengerTokenWindow()')
-      && syncWindowBindingsSrc.includes("await import('./data.js')")
-      && syncWindowBindingsSrc.includes("saveImportedData({ reason: 'agent-access-window-disable' })")
-      && syncWindowBindingsSrc.includes('revokeMessengerTokenRemote(previousToken)')
-      && syncWindowBindingsSrc.includes('generateMessengerToken: generateMessengerTokenWindow')
-      && syncWindowBindingsSrc.includes('revokeMessengerToken: revokeMessengerTokenWindow'));
-  assert('service worker precaches sync-window-bindings.js',
-    serviceWorkerSrc.includes("'/js/sync-window-bindings.js'"));
+  assert('sync actions use injected or direct module dependencies instead of browser globals',
+    !syncConfigureSrc.includes('sync-window-bindings')
+      && syncConfigureSrc.includes('configureSyncUI({')
+      && syncConfigureSrc.includes('forceResendCurrentProfile,')
+      && syncConfigureSrc.includes('showSyncDiagnose,')
+      && syncUiSrc.includes('void _syncNow();')
+      && syncUiSrc.includes('Promise.resolve(_checkRelayConnection())')
+      && settingsSyncPanelSrc.includes('configureSettingsSyncPanelDeps')
+      && !settingsSyncPanelSrc.includes('appWindow.applyPendingTombstone'));
+  assert('Agent Access actions remain module exports after removing window wrappers',
+    exportBlockIncludes(syncSrc, [
+      'generateMessengerToken', 'generateMessengerContextKey',
+      'revokeMessengerToken', 'pushContextToGateway',
+    ]));
+  assert('service worker omits removed sync-window-bindings.js',
+    !serviceWorkerSrc.includes("'/js/sync-window-bindings.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',
     syncSrc.includes("from './sync-cutover.js'")
       && syncCutoverSrc.includes('export { isPhase2CutoverEnabled }')
@@ -1697,13 +1696,29 @@ await import('../js/settings.js');
   assert('Token masked by default', settingsSyncPanelSrc.includes('messenger-token') && settingsSyncPanelSrc.includes('data-masked'));
 
   // ═══════════════════════════════════════
-  // 13. WINDOW BINDINGS
+  // 13. MODULE-ONLY SYNC API
   // ═══════════════════════════════════════
-  console.log('13. Window Bindings');
+  console.log('13. Module-only Sync API');
 
-  const syncWindowFns = ['enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'isSyncEnabled', 'isMessengerEnabled', 'getMessengerToken', 'generateMessengerToken', 'revokeMessengerToken'];
-  for (const fn of syncWindowFns) {
-    assert(`window.${fn} exists`, typeof window[fn] === 'function');
+  const formerSyncGlobals = [
+    'enableSync', 'disableSync', 'getMnemonic', 'getMnemonicResolutionError',
+    'getSyncBlocker', 'restoreFromMnemonic', 'isSyncEnabled', 'pushCurrentProfile',
+    'forceResendCurrentProfile', 'cleanStorage', 'syncNow', 'showSyncDiagnose',
+    'deleteProfileFromRelay', 'listPendingTombstones', 'applyPendingTombstone',
+    'rejectPendingTombstone', 'checkRelayConnection', 'isMessengerEnabled',
+    'getMessengerToken', 'getMessengerContextKey', 'generateMessengerToken',
+    'generateMessengerContextKey', 'revokeMessengerToken', 'pushContextToGateway',
+    '_syncDiag', '_forcePull', 'renderSyncIndicator', 'updateSyncIndicator',
+    'toggleSyncDetail', 'copySyncEvents', 'copySyncDiagnose', 'confirmCompactRelay',
+    'confirmRotateIdentity', 'refreshRelayStorage', 'fetchOwnerStorageFromRelay',
+    'verifyPushLanded', 'getRelayHealthVerdict', 'compactOwnerSelfServe',
+    'getRelayQuotaEstimate', 'resetRelayQuotaEstimate', 'getDeltaTelemetry',
+    'resetDeltaTelemetry', 'confirmResetDeltaTelemetry', 'getDeltaCutoverReadiness',
+    'isPhase2CutoverEnabled', 'enablePhase2Cutover', 'disablePhase2Cutover',
+    'confirmEnablePhase2', 'confirmDisablePhase2', 'confirmBackfillBlockers',
+  ];
+  for (const name of formerSyncGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
   }
 
   const settingsSyncPanelExports = [
@@ -2165,13 +2180,15 @@ await import('../js/settings.js');
   assert('Reset telemetry button confirms via Sync Diagnose runtime adapter',
     /confirmResetDeltaTelemetry[\s\S]{0,1500}confirmSyncDiagnoseActionRuntime/.test(syncDiagnoseCutoverActionsSrc)
       && syncDiagnoseRuntimeSrc.includes('showConfirmDialog'));
-  assert('Telemetry helpers exposed on window',
-    /window[\s\S]{0,4000}getDeltaTelemetry,\s*\n\s*resetDeltaTelemetry,\s*\n\s*confirmResetDeltaTelemetry/.test(deltaSearchSrc));
+  assert('Telemetry helpers stay module-only',
+    typeof syncDelta.getDeltaTelemetry === 'function'
+      && typeof syncDelta.resetDeltaTelemetry === 'function'
+      && !('getDeltaTelemetry' in window)
+      && !('resetDeltaTelemetry' in window));
 
   // Live: write a synthetic telemetry blob, read it back, confirm shape +
-  // ratio math + cap behaviour. Skips if window.getDeltaTelemetry isn't
-  // bound (test page may not have loaded sync.js yet).
-  if (typeof window !== 'undefined' && typeof window.getDeltaTelemetry === 'function') {
+  // ratio math + cap behaviour through the module exports.
+  {
     const TEST_PID = '__telemetry_test_profile__';
     const KEY = `labcharts-${TEST_PID}-delta-telemetry`;
     try { localStorage.removeItem(KEY); } catch {}
@@ -2180,24 +2197,24 @@ await import('../js/settings.js');
       { at: 1700000010000, blobBytes: 200000, totalDeltaBytes: 1000, totalOps: 1, perArray: { entries: { ins: 0, upd: 1, tom: 0, bytes: 1000 } } },
     ] };
     try { localStorage.setItem(KEY, JSON.stringify(synth)); } catch {}
-    const t = window.getDeltaTelemetry(TEST_PID);
+    const t = syncDelta.getDeltaTelemetry(TEST_PID);
     assert('getDeltaTelemetry returns object for known profile', t && typeof t === 'object');
     assert('Summary aggregates blob bytes across pushes', t?.summary?.totalBlobBytes === 400000, `got ${t?.summary?.totalBlobBytes}`);
     assert('Summary aggregates delta bytes across pushes', t?.summary?.totalDeltaBytes === 6000, `got ${t?.summary?.totalDeltaBytes}`);
     assert('Summary computes ratio = delta/blob', Math.abs((t?.summary?.ratio || 0) - 0.015) < 0.0001, `got ${t?.summary?.ratio}`);
     assert('Summary counts pushes', t?.summary?.count === 2);
-    assert('resetDeltaTelemetry clears the entry', window.resetDeltaTelemetry(TEST_PID) === true && localStorage.getItem(KEY) === null);
+    assert('resetDeltaTelemetry clears the entry', syncDelta.resetDeltaTelemetry(TEST_PID) === true && localStorage.getItem(KEY) === null);
     // Cap behaviour: write 60 entries, confirm only 50 survive after a record
     const big = { pushes: Array.from({ length: 60 }, (_, i) => ({ at: i, blobBytes: 1000, totalDeltaBytes: 10, totalOps: 1, perArray: {} })) };
     try { localStorage.setItem(KEY, JSON.stringify(big)); } catch {}
-    const t2 = window.getDeltaTelemetry(TEST_PID);
+    const t2 = syncDelta.getDeltaTelemetry(TEST_PID);
     assert('getDeltaTelemetry returns up-to-cap rows when storage was over-cap',
       t2?.pushes?.length === 60, `got ${t2?.pushes?.length} (cap is enforced on write, not read)`);
     try { localStorage.removeItem(KEY); } catch {}
     assert('getDeltaTelemetry on missing profile returns empty pushes',
-      window.getDeltaTelemetry(TEST_PID)?.summary?.count === 0);
+      syncDelta.getDeltaTelemetry(TEST_PID)?.summary?.count === 0);
     assert('getDeltaTelemetry on null profileId returns null',
-      window.getDeltaTelemetry(null) === null);
+      syncDelta.getDeltaTelemetry(null) === null);
   }
 
   // ═══════════════════════════════════════
@@ -2206,8 +2223,9 @@ await import('../js/settings.js');
   console.log('14c. Phase 2 Cutover Readiness');
 
   assert('getDeltaCutoverReadiness exported', /export function getDeltaCutoverReadiness/.test(deltaSearchSrc));
-  assert('getDeltaCutoverReadiness exposed on window',
-    /window[\s\S]{0,5000}getDeltaCutoverReadiness/.test(deltaSearchSrc));
+  assert('getDeltaCutoverReadiness stays module-only',
+    typeof syncDelta.getDeltaCutoverReadiness === 'function'
+      && !('getDeltaCutoverReadiness' in window));
   assert('Cutover check classifies missing-rows as blocker',
     /missing-rows[\s\S]{0,200}blockers\+\+/.test(deltaSearchSrc));
   assert('Cutover check iterates DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS',
@@ -2219,10 +2237,9 @@ await import('../js/settings.js');
   assert('Diagnose modal renders cutover panel with blocker breakdown',
     /<b>Lean sync mode<\/b>/.test(deltaSearchSrc) && /haven't been re-pushed yet/.test(deltaSearchSrc));
 
-  // Live: synthesize an importedData object and call the readiness check
-  // through window.getDeltaCutoverReadiness with a known profile, verify
-  // the surface classification is right.
-  if (typeof window !== 'undefined' && typeof window.getDeltaCutoverReadiness === 'function') {
+  // Live: synthesize an importedData object and call the module export with
+  // a known profile, then verify the surface classification is right.
+  {
     const TEST_PID = '__cutover_test__';
     const synthImported = {
       // arrays
@@ -2260,7 +2277,7 @@ await import('../js/settings.js');
       lifelightProfile: null,
       sunDefaults: null,
     };
-    const r = window.getDeltaCutoverReadiness(TEST_PID, synthImported);
+    const r = syncDelta.getDeltaCutoverReadiness(TEST_PID, synthImported);
     assert('readiness returns structured report', r && typeof r === 'object' && r.surfaces);
     // No relay rows for this synthetic profile, so any surface with local
     // data will be a blocker (status=missing-rows).
@@ -2276,10 +2293,10 @@ await import('../js/settings.js');
     assert('readiness blockerCount > 0', r.blockerCount > 0);
     // Edge: empty importedData should be all no-data + ready=true (no
     // local data anywhere → nothing for Phase 2 to lose).
-    const empty = window.getDeltaCutoverReadiness(TEST_PID, {});
+    const empty = syncDelta.getDeltaCutoverReadiness(TEST_PID, {});
     assert('empty importedData → ready=true (no surfaces have local data)', empty.ready === true, `blockers=${empty.blockerCount}`);
     // Edge: null profileId → returns error
-    assert('null profileId returns error', window.getDeltaCutoverReadiness(null)?.error === 'no-profile');
+    assert('null profileId returns error', syncDelta.getDeltaCutoverReadiness(null)?.error === 'no-profile');
   }
 
   // ═══════════════════════════════════════
@@ -2312,8 +2329,11 @@ await import('../js/settings.js');
     /syncDiagnoseActionAttrs\('enable-phase2'\)[\s\S]{0,320}disabled/.test(syncDiagnoseRenderSrc));
   assert('Cutover modal shows lean-mode ON badge when enabled',
     /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(deltaSearchSrc));
-  assert('Cutover handlers exposed on window',
-    /window[\s\S]{0,5500}confirmEnablePhase2,\s*\n\s*confirmDisablePhase2/.test(deltaSearchSrc));
+  assert('Cutover handlers stay module-only',
+    typeof syncCutover.enablePhase2Cutover === 'function'
+      && typeof syncCutover.disablePhase2Cutover === 'function'
+      && !('enablePhase2Cutover' in window)
+      && !('disablePhase2Cutover' in window));
 
   // Live: read/write/disable contract for the cutover flag. Skips the
   // enable() path here because enable consults getDeltaCutoverReadiness
@@ -2321,37 +2341,37 @@ await import('../js/settings.js');
   // populated arrays that classify as missing-rows blockers, making
   // enable correctly reject). Source-shape assertions above already
   // cover the gating contract.
-  if (typeof window !== 'undefined' && typeof window.isPhase2CutoverEnabled === 'function') {
+  {
     const TEST_PID = '__cutover_flag_test__';
     const KEY = `labcharts-${TEST_PID}-sync-cutover-v2`;
     try { localStorage.removeItem(KEY); } catch {}
     assert('isPhase2CutoverEnabled returns false when flag not set',
-      window.isPhase2CutoverEnabled(TEST_PID) === false);
+      syncCutover.isPhase2CutoverEnabled(TEST_PID) === false);
     // Manually set the flag (bypassing enable's readiness gate) and
     // verify the reader picks it up.
     try { localStorage.setItem(KEY, '1'); } catch {}
     assert('isPhase2CutoverEnabled reads back true when flag set',
-      window.isPhase2CutoverEnabled(TEST_PID) === true);
+      syncCutover.isPhase2CutoverEnabled(TEST_PID) === true);
     assert('disable always allowed (escape hatch)',
-      window.disablePhase2Cutover(TEST_PID) === true);
+      syncCutover.disablePhase2Cutover(TEST_PID) === true);
     assert('isPhase2CutoverEnabled reads back false after disable',
-      window.isPhase2CutoverEnabled(TEST_PID) === false);
+      syncCutover.isPhase2CutoverEnabled(TEST_PID) === false);
     // enable's gating: when state.importedData has any populated
     // surface (likely in this test environment), readiness fails →
     // enable rejects with reason='not-ready'. Don't assert ok or
     // !ok directly; assert that enable returns the structured shape
     // so the contract is verified regardless of test-state cleanliness.
-    const r = window.enablePhase2Cutover(TEST_PID);
+    const r = syncCutover.enablePhase2Cutover(TEST_PID);
     assert('enablePhase2Cutover returns structured result', r && typeof r === 'object' && 'ok' in r);
     if (!r.ok) {
       assert('enable failure includes reason field', typeof r.reason === 'string');
     }
     try { localStorage.removeItem(KEY); } catch {}
     // null profileId rejection
-    assert('enable rejects null profileId', window.enablePhase2Cutover(null)?.ok === false);
-    assert('disable rejects null profileId', window.disablePhase2Cutover(null) === false);
+    assert('enable rejects null profileId', syncCutover.enablePhase2Cutover(null)?.ok === false);
+    assert('disable rejects null profileId', syncCutover.disablePhase2Cutover(null) === false);
     assert('isPhase2CutoverEnabled returns false for null profileId',
-      window.isPhase2CutoverEnabled(null) === false);
+      syncCutover.isPhase2CutoverEnabled(null) === false);
   }
 
   // ═══════════════════════════════════════

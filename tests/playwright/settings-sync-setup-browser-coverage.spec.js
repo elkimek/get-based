@@ -49,6 +49,16 @@ async function openIsolatedSyncSetupPage(page) {
         stub.calls.push({ fn: 'checkRelayConnection' });
         return true;
       }
+      export async function applyPendingTombstone(id) {
+        stub.calls.push({ fn: 'applyPendingTombstone', id });
+      }
+      export function listPendingTombstones() { return []; }
+      export async function rejectPendingTombstone(id) {
+        stub.calls.push({ fn: 'rejectPendingTombstone', id });
+      }
+      export function updateSyncIndicator() {
+        stub.calls.push({ fn: 'updateSyncIndicator' });
+      }
       export function onDataSaved(options = {}) {
         stub.calls.push({ fn: 'onDataSaved', immediate: options.immediate === true, skipSync: options.skipSync === true });
       }
