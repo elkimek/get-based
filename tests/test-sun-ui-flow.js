@@ -16,6 +16,10 @@ return (async function() {
   const dataModule = await import('/js/data.js');
   const viewsModule = await import('/js/views.js');
   const lightDevices = await import('/js/light-devices.js');
+  const sun = await import('/js/sun.js');
+  const sunSessionUI = await import('/js/sun-session-ui.js');
+  const sunSessionsStore = await import('/js/sun-sessions-store.js');
+  const modalLifecycle = await import('/js/modal-lifecycle.js');
   const { buildSunContext } = await import('/js/sun-context.js');
   const { buildLabContext } = await import('/js/lab-context.js');
   const profile = await import('/js/profile.js');
@@ -75,7 +79,7 @@ return (async function() {
   // ─── 2. Logging a session keeps the dashboard hero surface stable ────
   console.log('%c 2. Logging a session keeps the dashboard hero ', 'font-weight:bold;color:#6366f1');
 
-  const id = await window.logCompletedSession({
+  const id = await sunSessionsStore.logCompletedSession({
     startedAt: Date.now() - 30 * 60 * 1000,
     endedAt: Date.now() - 1000,
     bodyExposure: { preset: 'tshirt', fraction: 0.30, regions: [], sunscreenSPF: null, glassBetween: false },
@@ -156,8 +160,8 @@ return (async function() {
   // ─── 4. Session detail modal opens + has a working delete button ─────
   console.log('%c 4. Session detail modal ', 'font-weight:bold;color:#6366f1');
 
-  if (typeof window.openSunSessionDetail === 'function') {
-    window.openSunSessionDetail(id);
+  if (typeof sunSessionUI.openSunSessionDetail === 'function') {
+    sunSessionUI.openSunSessionDetail(id);
     await wait(100);
     let overlay = document.querySelector('.modal-overlay');
     assert('Session detail modal mounts an overlay', !!overlay);
@@ -183,7 +187,7 @@ return (async function() {
       assert('Delegated detail close button removes the modal',
         !document.body.contains(overlay));
 
-      window.openSunSessionDetail(id);
+      sunSessionUI.openSunSessionDetail(id);
       await wait(80);
       overlay = document.querySelector('.modal-overlay');
       assert('Session detail modal remounts after delegated close', !!overlay);
@@ -212,7 +216,7 @@ return (async function() {
       }
     }
   } else {
-    assert('window.openSunSessionDetail exists (UI wired)', false,
+    assert('openSunSessionDetail module export exists (UI wired)', false,
       'skipped — function missing');
   }
 
@@ -240,8 +244,10 @@ return (async function() {
   // installing window globals first.
   console.log('%c 7. Backdrop-close helper wired ', 'font-weight:bold;color:#6366f1');
 
-  assert('sun.js keeps window._wireBackdropClose compatibility export',
-    typeof window._wireBackdropClose === 'function');
+  assert('modal lifecycle helpers stay available as module exports',
+    typeof modalLifecycle.wireBackdropClose === 'function'
+      && typeof modalLifecycle.trapModalFocus === 'function'
+      && !('_wireBackdropClose' in window));
 
   const modalLifecycleSrc = await fetch('js/modal-lifecycle.js').then(r => r.text());
   const sunActiveSrc = await fetch('js/sun-active-session.js').then(r => r.text());
@@ -280,13 +286,13 @@ return (async function() {
 
   // Tear down any leftover overlays, ensure no active session.
   document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
-  const _activeNow = window.getActiveSession?.();
-  if (_activeNow) await window.stopSession?.(_activeNow.id);
+  const _activeNow = sunSessionsStore.getActiveSession();
+  if (_activeNow) await sunSessionsStore.stopSession(_activeNow.id);
 
-  if (typeof window.openStartSunSessionDialog !== 'function') {
+  if (typeof sun.openStartSunSessionDialog !== 'function') {
     assert('openStartSunSessionDialog exists', false, 'skipped — function missing');
   } else {
-    await window.openStartSunSessionDialog();
+    await sun.openStartSunSessionDialog();
     await wait(80);
     let dlg = document.querySelector('.modal-overlay.show, .sun-start-modal')?.closest('.modal-overlay');
     if (!dlg) dlg = document.querySelector('.modal-overlay');
@@ -313,19 +319,19 @@ return (async function() {
     }
 
     // Active session has both regions
-    const sess = window.getActiveSession?.();
+    const sess = sunSessionsStore.getActiveSession();
     const got = sess?.bodyExposure?.regions || [];
     assert('Active session has bodyExposure.regions = [arms-front, legs-front]',
       got.length === PICK.length && PICK.every(r => got.includes(r)),
       `got=${JSON.stringify(got)}`);
 
     // Stop session — the prefill on reopen uses the LAST COMPLETED session.
-    if (sess) await window.stopSession?.(sess.id);
+    if (sess) await sunSessionsStore.stopSession(sess.id);
     await wait(80);
 
     // Reopen, assert the 2 regions are pre-selected (aria-pressed=true)
     document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
-    await window.openStartSunSessionDialog();
+    await sun.openStartSunSessionDialog();
     await wait(80);
     const dlg2 = document.querySelector('.modal-overlay');
     assert('Dialog reopens', !!dlg2);

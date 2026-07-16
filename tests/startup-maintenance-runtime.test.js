@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 import {
+  configureStartupMaintenanceSunDeps,
   getStartupSunEngineVersionRuntime,
   hasSunSessionRehydrateRuntime,
   logStartupMaintenanceRuntime,
@@ -9,6 +10,7 @@ import {
 } from '../js/startup-maintenance-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const originalSunDeps = configureStartupMaintenanceSunDeps();
 
 function setRuntimeWindow(runtime) {
   Object.defineProperty(globalThis, 'window', {
@@ -19,6 +21,7 @@ function setRuntimeWindow(runtime) {
 }
 
 afterEach(() => {
+  configureStartupMaintenanceSunDeps(originalSunDeps);
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
   else delete globalThis.window;
 });
@@ -27,19 +30,21 @@ describe('startup maintenance runtime adapter', () => {
   it('delegates startup maintenance hooks and logging', async () => {
     const calls = [];
     setRuntimeWindow({
-      SUN_ENGINE_VERSION: 'runtime-test',
+      console: {
+        log: (...args) => calls.push(['log', ...args]),
+      },
+    });
+    configureStartupMaintenanceSunDeps({
+      getSunEngineVersion: () => 'module-test',
       rehydrateStaleSessions: () => {
         calls.push('rehydrate');
         return Promise.resolve({ rehydrated: 2 });
-      },
-      console: {
-        log: (...args) => calls.push(['log', ...args]),
       },
     });
 
     expect(hasSunSessionRehydrateRuntime()).toBe(true);
     expect(await rehydrateStaleSunSessionsRuntime()).toEqual({ rehydrated: 2 });
-    expect(getStartupSunEngineVersionRuntime()).toBe('runtime-test');
+    expect(getStartupSunEngineVersionRuntime()).toBe('module-test');
     expect(logStartupMaintenanceRuntime('[startup]', 'ok')).toBe(true);
     expect(calls).toEqual([
       'rehydrate',
@@ -49,10 +54,13 @@ describe('startup maintenance runtime adapter', () => {
 
   it('uses safe fallbacks when browser hooks are missing or fail', async () => {
     setRuntimeWindow({
-      rehydrateStaleSessions: () => { throw new Error('rehydrate unavailable'); },
       console: {
         log: () => { throw new Error('log unavailable'); },
       },
+    });
+    configureStartupMaintenanceSunDeps({
+      rehydrateStaleSessions: () => { throw new Error('rehydrate unavailable'); },
+      getSunEngineVersion: () => { throw new Error('version unavailable'); },
     });
 
     expect(hasSunSessionRehydrateRuntime()).toBe(true);
@@ -61,6 +69,7 @@ describe('startup maintenance runtime adapter', () => {
     expect(logStartupMaintenanceRuntime('[startup]', 'ignored')).toBe(false);
 
     delete globalThis.window;
+    configureStartupMaintenanceSunDeps({ rehydrateStaleSessions: null, getSunEngineVersion: null });
     expect(hasSunSessionRehydrateRuntime()).toBe(false);
     expect(await rehydrateStaleSunSessionsRuntime()).toBeNull();
     expect(getStartupSunEngineVersionRuntime()).toBe('?');

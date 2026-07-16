@@ -620,10 +620,29 @@ const {
   assert('Sun browser hooks are isolated in runtime adapter',
     sunSrc.includes("from './sun-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(sunSrc) &&
+    !sunSrc.includes('exposeSunRuntimeBindings') &&
+    !runtimeSrc.includes('exposeSunRuntimeBindings') &&
     runtimeSrc.includes('export function getSunDeviceSessionsRuntime') &&
     runtimeSrc.includes('export function renderLightTodayStripRuntime') &&
     runtimeSrc.includes('export function requestSunGeolocationPositionRuntime') &&
     swSrc.includes("'/js/sun-runtime.js'"));
+  const formerSunGlobals = [
+    'SUN_ENGINE_VERSION', '_refreshSunSurfaces', 'quickLogSunSession', 'startSession', 'stopSession',
+    'pauseSession', 'resumeSession', 'pauseSunSession', 'resumeSunSession', 'applySunscreenMidSession',
+    'changeCoverageMidSession', 'flipSidesMidSession', 'setOzoneOverrideMidSession', '_forgotStopPrompt',
+    'logCompletedSession', 'updateSession', 'editSunSessionDuration', 'deleteSunSession', 'hydrateSession',
+    'rehydrateStaleSessions', 'getSessions', 'getActiveSession', 'rollingChannelTotals', 'dailyChannelBreakdown',
+    'dailyVitaminDIUBreakdown', 'rollingVitaminDIU', 'cumulativeMEDToday', 'cumulativeMEDYesterday',
+    'cumulativeVitaminDIUToday', 'vitaminDBudgetStatus', '_applyAtmOverrides', 'renderSessionsList',
+    'renderSunSessionRow', 'getSunCoords', 'requestPreciseLocation', 'openDetailedSessionDialog',
+    'openStartSunSessionDialog', 'openSunSessionDetail', 'renderBodySilhouette', 'bindBodySilhouette',
+    '_testLoadRegionMap', '_testRegionAtSource', '_testRegionColorRGB', '_testStockImg',
+    '_testRegionBandLandmarks', 'trapModalFocus', '_wireBackdropClose', '_resumeActiveTickerIfNeeded',
+    '_ensureActiveTicker', 'BODY_REGIONS', 'EXPOSURE_PRESETS', 'EYE_MODES', 'LENS_TINTS',
+    'CHANNEL_DISPLAY', 'channelTier', 'weeklyChannelTier', 'tierLabel', 'formatChannelUnit', 'tierDots',
+  ];
+  assert('Sun facade stays module-only after import',
+    formerSunGlobals.every(name => !(name in window)));
   assert('Service worker precaches extracted sun session modules',
     swSrc.includes("'/js/sun-session-model.js'") &&
     swSrc.includes("'/js/sun-sessions-store.js'") &&

@@ -122,9 +122,3 @@ export function addSunProfileSwitchListener(listener) {
     runtime.addEventListener('labcharts-profile-switched', listener);
   }
 }
-
-/** @param {Record<string, any>} bindings */
-export function exposeSunRuntimeBindings(bindings) {
-  const runtime = getRuntimeWindow();
-  if (runtime) Object.assign(runtime, bindings);
-}

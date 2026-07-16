@@ -24,20 +24,18 @@ return (async function() {
 
   console.log('%c Silhouette Region Map Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
-  // Wait for sun.js wiring to land helpers on window.
-  if (typeof window._testLoadRegionMap !== 'function') {
-    await import('/js/sun.js?bust=' + Date.now());
-  }
-  const _loadRegionMap = window._testLoadRegionMap;
-  const _regionAtSource = window._testRegionAtSource;
-  const REGION_COLOR_RGB = window._testRegionColorRGB;
-  const STOCK_IMG = window._testStockImg;
-  const L = window._testRegionBandLandmarks;
+  const silhouette = await import('/js/sun-body-silhouette.js');
+  const _loadRegionMap = silhouette._testLoadRegionMap;
+  const _regionAtSource = silhouette._testRegionAtSource;
+  const REGION_COLOR_RGB = silhouette._testRegionColorRGB;
+  const STOCK_IMG = silhouette._testStockImg;
+  const L = silhouette._testRegionBandLandmarks;
 
-  assert('Test helpers exposed on window',
+  assert('Test helpers remain module-only exports',
     typeof _loadRegionMap === 'function' &&
     typeof _regionAtSource === 'function' &&
-    REGION_COLOR_RGB && STOCK_IMG && L);
+    REGION_COLOR_RGB && STOCK_IMG && L &&
+    !('_testLoadRegionMap' in window));
   if (fail > 0) {
     console.log(`%c ${pass} passed, ${fail} failed, ${pass + fail} total — stopping early`, 'color:#ef4444');
     return;

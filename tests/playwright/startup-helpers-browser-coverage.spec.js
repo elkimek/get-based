@@ -243,15 +243,21 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
   const outcomes = await page.evaluate(async ({ maintenanceUrl }) => {
     const originalSetTimeout = window.setTimeout;
     const originalConsoleLog = console.log;
-    const originalRehydrate = window.rehydrateStaleSessions;
-    const originalEngineVersion = window.SUN_ENGINE_VERSION;
     const logs = [];
-
     window.__startupMaintenanceCalls = [];
     window.__startupMaintenanceState = {
       currentProfile: 'startup-maintenance-profile',
       importedData: { biometrics: { weight: 70 } },
     };
+    const startupRuntime = await import('/js/startup-maintenance-runtime.js');
+    const previousStartupSunDeps = startupRuntime.configureStartupMaintenanceSunDeps({
+      getSunEngineVersion: () => 'maintenance-test',
+      rehydrateStaleSessions: async () => {
+        window.__startupMaintenanceCalls.push('rehydrateStaleSessions');
+        return { rehydrated: 2 };
+      },
+    });
+
     window.setTimeout = (callback, delay, ...args) => {
       window.__startupMaintenanceCalls.push(['setTimeout', delay]);
       callback(...args);
@@ -260,12 +266,6 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     console.log = (...args) => {
       logs.push(args.map(arg => String(arg)).join(' '));
     };
-    window.SUN_ENGINE_VERSION = 'maintenance-test';
-    window.rehydrateStaleSessions = async () => {
-      window.__startupMaintenanceCalls.push('rehydrateStaleSessions');
-      return { rehydrated: 2 };
-    };
-
     const waitUntil = async predicate => {
       for (let attempt = 0; attempt < 50; attempt += 1) {
         if (predicate()) return true;
@@ -308,10 +308,7 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     } finally {
       window.setTimeout = originalSetTimeout;
       console.log = originalConsoleLog;
-      if (originalRehydrate) window.rehydrateStaleSessions = originalRehydrate;
-      else delete window.rehydrateStaleSessions;
-      if (originalEngineVersion === undefined) delete window.SUN_ENGINE_VERSION;
-      else window.SUN_ENGINE_VERSION = originalEngineVersion;
+      startupRuntime.configureStartupMaintenanceSunDeps(previousStartupSunDeps);
     }
   }, {
     maintenanceUrl: moduleUrl('/js/startup-maintenance.js'),

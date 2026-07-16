@@ -18,6 +18,7 @@ console.log('=== Sun Context Tests ===\n');
 await import('../js/state.js');
 const labCtxMod = await import('../js/lab-context.js');
 const ctxMod = await import('../js/sun-context.js');
+const { getSessions } = await import('../js/sun-sessions-store.js');
 await import('../js/sun-context-hooks.js');
 const { buildSunContext, configureSunContext } = ctxMod;
 labCtxMod.setLightSunContextEnabled(true);
@@ -432,7 +433,7 @@ labCtxMod.setLightSunContextEnabled(true);
   console.log('%c 11. Sun standard-tier always included when data exists ', 'font-weight:bold;color:#f59e0b');
 
   const labCtx = labCtxMod.buildLabContext({});
-  const completedSessions = window.getSessions ? window.getSessions().filter(s => s.endedAt) : [];
+  const completedSessions = getSessions().filter(s => s.endedAt);
   if (completedSessions.length > 0) {
     assert('Lab context always carries [section:sun] when sessions exist',
       /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));

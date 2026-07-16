@@ -788,11 +788,10 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
 test('light devices cover session detail edit log active card and rendered list paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async ({ devicesUrl, silhouetteUrl }) => {
+  const results = await page.evaluate(async ({ devicesUrl }) => {
     const lightDevices = await import(devicesUrl);
     const lightDevicesRuntime = await import('/js/light-devices-runtime.js');
     const recommendationRuntime = await import('/js/recommendations-runtime.js');
-    const silhouette = await import(silhouetteUrl);
     const { profileStorageKey } = await import('/js/profile.js');
     const blobStorage = await import('/js/blob-storage.js');
     const state = window._labState;
@@ -802,18 +801,21 @@ test('light devices cover session detail edit log active card and rendered list 
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
     const savedWindow = {
-      channelTier: window.channelTier,
-      tierLabel: window.tierLabel,
-      formatChannelUnit: window.formatChannelUnit,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
       _openChannelOnLightPage: window._openChannelOnLightPage,
       navigate: window.navigate,
-      renderBodySilhouette: window.renderBodySilhouette,
-      bindBodySilhouette: window.bindBodySilhouette,
     };
     const calls = [];
     const previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
       showPromptDialog: async () => '17',
+      channelTier: value => value > 30 ? 3 : value > 10 ? 2 : value > 0 ? 1 : 0,
+      tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
+      formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+      channelDisplay: {
+        vitamin_d: { icon: 'D', label: 'Vitamin D', what: 'Vitamin D' },
+        circadian: { icon: 'C', label: 'Circadian', what: 'Circadian' },
+        pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
+        pbm_nir: { icon: 'N', label: 'NIR', what: 'NIR' },
+      },
     });
     const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
       loadCatalog: async () => ({ items: [] }),
@@ -867,22 +869,11 @@ test('light devices cover session detail edit log active card and rendered list 
         lightDevices: [device],
         deviceSessions: [session],
       };
-      window.channelTier = value => value > 30 ? 3 : value > 10 ? 2 : value > 0 ? 1 : 0;
-      window.tierLabel = tier => ['none', 'low', 'moderate', 'high'][tier] || 'none';
-      window.formatChannelUnit = (key, value) => `${Math.round(value)} ${key}`;
-      window.CHANNEL_DISPLAY = {
-        vitamin_d: { icon: 'D', label: 'Vitamin D', what: 'Vitamin D' },
-        circadian: { icon: 'C', label: 'Circadian', what: 'Circadian' },
-        pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
-        pbm_nir: { icon: 'N', label: 'NIR', what: 'NIR' },
-      };
       window._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
       lightDevices.configureLightDevices({
         renderDeviceSessionAIDetail: () => '<section class="device-ai-detail-test">Device AI</section>',
       });
       window.navigate = route => calls.push(['navigate', route]);
-      window.renderBodySilhouette = silhouette.renderBodySilhouette;
-      window.bindBodySilhouette = silhouette.bindBodySilhouette;
 
       const devicesHtml = await lightDevices.renderDevicesSection();
       const devicesHost = document.createElement('div');
@@ -976,7 +967,6 @@ test('light devices cover session detail edit log active card and rendered list 
     return outcomes;
   }, {
     devicesUrl: moduleUrl('/js/light-devices.js'),
-    silhouetteUrl: moduleUrl('/js/sun-body-silhouette.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {

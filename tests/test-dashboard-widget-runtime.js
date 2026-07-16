@@ -34,7 +34,6 @@ console.log('=== Dashboard Widget Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'innerHeight',
-  'getSessions',
   '_snpTableCache',
   'showDetailModal',
   'navigate',
@@ -80,8 +79,10 @@ try {
     getDashboardViewportHeight() === 0);
 
   const snpTable = { rs123: { rsid: 'rs123' } };
-  setRuntimeValue('getSessions', () => [{ id: 'sun-1' }]);
-  state.importedData = { deviceSessions: [{ id: 'device-1' }] };
+  state.importedData = {
+    sunSessions: [{ id: 'sun-1' }],
+    deviceSessions: [{ id: 'device-1' }],
+  };
   setRuntimeValue('_snpTableCache', snpTable);
   assert('runtime adapter reads dashboard renderer data hooks',
     getDashboardLightSessions().length === 1 &&
@@ -90,8 +91,7 @@ try {
       getDashboardDeviceSessions()[0].id === 'device-1' &&
       getDashboardSnpTableCache() === snpTable);
 
-  setRuntimeValue('getSessions', () => { throw new Error('boom'); });
-  state.importedData = { deviceSessions: [] };
+  state.importedData = { sunSessions: [], deviceSessions: [] };
   setRuntimeValue('_snpTableCache', null);
   assert('runtime adapter falls back for missing renderer data hooks',
     getDashboardLightSessions().length === 0 &&

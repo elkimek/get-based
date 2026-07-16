@@ -17,6 +17,7 @@ import {
 } from './mobile-dashboard.js';
 import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js';
 import { loadDemoData } from './export.js';
+import { resumeActiveTickerIfNeeded } from './sun-active-session.js';
 import {
   getRecommendationModuleFunction,
   setRecommendationsCatalogCache,
@@ -187,7 +188,7 @@ export function createDashboardPageView(deps) {
     // Resume the live-session ticker if a session was started before this
     // page loaded — keeps the dashboard Light Today surface ticking after a
     // hard reload mid-session.
-    if (getDashboardPageRuntimeValue('_resumeActiveTickerIfNeeded')) try { callDashboardPageRuntime('_resumeActiveTickerIfNeeded'); } catch (e) {}
+    try { resumeActiveTickerIfNeeded(); } catch (e) {}
     try { ensureActiveDeviceTicker(); } catch (e) {}
     if (!data) data = getActiveData();
     const main = document.getElementById("main-content");

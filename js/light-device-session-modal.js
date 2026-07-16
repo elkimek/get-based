@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
-import { BODY_REGIONS } from './sun.js';
+import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
 import { getUtilsRuntimeFunction } from './utils-runtime.js';
 
 /**
@@ -24,8 +24,8 @@ function _resolveSessionDialogDeps(deps = {}) {
   return {
     ...deps,
     validateModeCoupling: deps.validateModeCoupling || _windowDep('validateModeCoupling', () => ({ ok: true })),
-    renderBodySilhouette: deps.renderBodySilhouette || _windowDep('renderBodySilhouette'),
-    bindBodySilhouette: deps.bindBodySilhouette || _windowDep('bindBodySilhouette'),
+    renderBodySilhouette: deps.renderBodySilhouette || renderBodySilhouette,
+    bindBodySilhouette: deps.bindBodySilhouette || bindBodySilhouette,
     navigate: deps.navigate || _windowDep('navigate'),
   };
 }

@@ -294,8 +294,6 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     };
     const savedFns = {
       detectWearableTrendSlots: window.detectWearableTrendSlots,
-      rollingChannelTotals: window.rollingChannelTotals,
-      getSessions: window.getSessions,
       openChatPanel: window.openChatPanel,
       showDetailModal: window.showDetailModal,
     };
@@ -389,8 +387,6 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       slotKey: 'body.sleepRecovery',
       reason: 'Resting heart rate is elevated and HRV is below baseline.',
     }];
-    window.rollingChannelTotals = () => ({ circadian: 0 });
-    window.getSessions = () => [];
     window.openChatPanel = prompt => calls.push(['chat', prompt]);
     window.showDetailModal = id => calls.push(['detail', id]);
     previousSettingsBridge = settingsRuntimeBridge.configureSettingsModuleBridge({

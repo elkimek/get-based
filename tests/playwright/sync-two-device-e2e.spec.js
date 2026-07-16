@@ -115,7 +115,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
     await page.waitForFunction(
       async () => window._labState
-        && typeof window.openSunSessionDetail === 'function'
+        && typeof (await import('/js/sun-session-ui.js')).openSunSessionDetail === 'function'
         && typeof (await import('/js/light-devices.js')).openDeviceSessionDetail === 'function',
       null,
       { timeout: 15000 }
@@ -330,7 +330,10 @@ async function navigateLight(page) {
 
 async function openSunSessionModal(page) {
   await navigateLight(page);
-  await page.evaluate(({ id }) => window.openSunSessionDetail(id), { id: SUN_SESSION_ID });
+  await page.evaluate(async ({ id }) => {
+    const { openSunSessionDetail } = await import('/js/sun-session-ui.js');
+    openSunSessionDetail(id);
+  }, { id: SUN_SESSION_ID });
   await page.waitForFunction(
     () => document.querySelector('.modal-overlay.show .sun-detail-modal[data-session-kind="sun"]'),
     null,
@@ -353,7 +356,8 @@ async function openDeviceSessionModal(page) {
 
 async function updateSunDuration(page, durationMin) {
   await page.evaluate(async ({ id, duration }) => {
-    await window.updateSession(id, { durationMin: duration });
+    const { updateSession } = await import('/js/sun-sessions-store.js');
+    await updateSession(id, { durationMin: duration });
   }, { id: SUN_SESSION_ID, duration: durationMin });
 }
 

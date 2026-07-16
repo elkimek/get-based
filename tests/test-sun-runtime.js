@@ -2,11 +2,11 @@
 // test-sun-runtime.js - Sun session browser adapter behavior.
 
 import './_node-shim.js';
+import { readFileSync } from 'node:fs';
 import { state } from '../js/state.js';
 import {
   addSunProfileSwitchListener,
   configureSunRuntimeDeps,
-  exposeSunRuntimeBindings,
   getSunDeviceSessionsRuntime,
   hasSunBrowserRuntime,
   hasSunGeolocationRuntime,
@@ -39,7 +39,6 @@ const runtimeKeys = [
   '_openChannelOnLightPage',
   'addEventListener',
   'isDebugMode',
-  'sunRuntimeProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const savedImportedData = state.importedData;
@@ -113,10 +112,9 @@ try {
   assert('requestSunGeolocationPositionRuntime delegates with options',
     resolvedPosition === position && capturedOptions?.timeout === 8000 && capturedOptions?.enableHighAccuracy === true);
 
-  const probe = () => 'ok';
-  exposeSunRuntimeBindings({ sunRuntimeProbe: probe });
-  assert('exposeSunRuntimeBindings publishes runtime bindings',
-    globalThis.sunRuntimeProbe === probe);
+  const runtimeSource = readFileSync(new URL('../js/sun-runtime.js', import.meta.url), 'utf8');
+  assert('sun runtime does not publish module APIs on the browser global',
+    !runtimeSource.includes('exposeSunRuntimeBindings') && !runtimeSource.includes('Object.assign(runtime'));
 
   state.importedData = { deviceSessions: [] };
   setRuntimeValue('renderLightTodayStrip', () => { throw new Error('boom'); });
@@ -153,13 +151,11 @@ try {
   navigateSunRuntime('light');
   renderLightChannelsLiveRuntime();
   openSunChannelOnLightPageRuntime('no_cv');
-  exposeSunRuntimeBindings({ sunRuntimeProbe: null });
   assert('runtime adapter no-ops safely when window is missing',
     hasSunBrowserRuntime() === false &&
     getSunDeviceSessionsRuntime().length === 0 &&
     renderLightTodayStripRuntime() === '' &&
-    calls.length === beforeNoWindowCalls &&
-    globalThis.sunRuntimeProbe === probe);
+    calls.length === beforeNoWindowCalls);
 } finally {
   configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   state.importedData = savedImportedData;
