@@ -21,10 +21,9 @@ function assert(name, condition, detail) {
 
 console.log('=== DNA-Aware Supplement Recommendations Tests ===\n');
 
-// recommendations.js exposes its handlers (incl. buildDNAHints) via
-// Object.assign(window, ...). state.js sets up globals it depends on.
+// recommendations.js exposes its handlers through native module exports.
 await import('../js/state.js');
-await import('../js/recommendations.js');
+const recommendationsModule = await import('../js/recommendations.js');
 
 // Original test reads data/*.json via fetch(...).then(r => r.json()) —
 // install a fetch shim that resolves relative URLs through fs.
@@ -153,12 +152,13 @@ assertCatalog('Folate slot has food forms', folateSlot?.foodForms?.length >= 2);
 console.log('3. buildDNAHints');
 
 assert('buildDNAHints exported', recSrc.includes('export function buildDNAHints'));
-assert('buildDNAHints on window', typeof window.buildDNAHints === 'function');
+assert('buildDNAHints is module-exported', typeof recommendationsModule.buildDNAHints === 'function');
+assert('buildDNAHints stays off window', !('buildDNAHints' in window));
 assert('buildDNAHints handles APOE specially', recSrc.includes('genetics.apoe') && recSrc.includes('lipids.ldl'));
 assert('buildDNAHints handles genotype reversal', recSrc.includes('[1] + g[0]') || recSrc.includes('rev'));
 
 // Test with no genetics — should return empty
-const noGenResult = window.buildDNAHints('vitamins.vitaminD');
+const noGenResult = recommendationsModule.buildDNAHints('vitamins.vitaminD');
 assert('buildDNAHints returns [] with no genetics', Array.isArray(noGenResult) && noGenResult.length === 0);
 
 // ═══════════════════════════════════════

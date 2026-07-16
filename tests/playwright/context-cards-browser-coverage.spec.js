@@ -14,9 +14,10 @@ test('context cards browser coverage exercises notes save dots and tips', async 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cardsUrl }) => {
-    const [{ state }, cards] = await Promise.all([
+    const [{ state }, cards, recommendationRuntime] = await Promise.all([
       import('/js/state.js'),
       import(cardsUrl),
+      import('/js/recommendations-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const outcomes = {};
@@ -26,14 +27,11 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       closeModal: window.closeModal,
       navigate: window.navigate,
       onContextCardSaved: window.onContextCardSaved,
-      isProductRecsEnabled: window.isProductRecsEnabled,
-      loadCatalog: window.loadCatalog,
-      getCardSlotKeys: window.getCardSlotKeys,
-      renderCardTipsModal: window.renderCardTipsModal,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
       detailsOpen: sessionStorage.getItem('welcome-details-open'),
     };
+    let previousRecommendationBridge = null;
     let host = null;
     let injectedNav = null;
     let details = null;
@@ -128,10 +126,12 @@ test('context cards browser coverage exercises notes save dots and tips', async 
         && toasts().some(text => text.includes('Stress profile saved'));
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
 
-      window.isProductRecsEnabled = () => true;
-      window.loadCatalog = async () => calls.push(['catalog']);
-      window.getCardSlotKeys = key => key === 'diet' ? ['protein'] : [];
-      window.renderCardTipsModal = key => `<div class="tips-modal" data-card="${key}">Tips for ${key}</div>`;
+      previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+        isProductRecsEnabled: () => true,
+        loadCatalog: async () => calls.push(['catalog']),
+        getCardSlotKeys: key => key === 'diet' ? ['protein'] : [],
+        renderCardTipsModal: key => `<div class="tips-modal" data-card="${key}">Tips for ${key}</div>`,
+      });
       host.innerHTML = cards.renderProfileContextCards();
       await cards.loadContextCardTips();
       const dietBadge = document.querySelector('#ctx-tips-diet .ctx-tips-badge');
@@ -147,6 +147,9 @@ test('context cards browser coverage exercises notes save dots and tips', async 
         'triggerDNAFilePicker',
         'loadContextCardTips',
       ].every(name => typeof cards[name] === 'function' && !(name in window));
+      outcomes.recommendationHooksStayModuleOnly = [
+        'isProductRecsEnabled', 'loadCatalog', 'getCardSlotKeys', 'renderCardTipsModal',
+      ].every(name => !(name in window));
     } finally {
       state.importedData = saved.importedData;
       if (saved.closeModal) window.closeModal = saved.closeModal;
@@ -155,14 +158,9 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       else delete window.navigate;
       if (saved.onContextCardSaved) window.onContextCardSaved = saved.onContextCardSaved;
       else delete window.onContextCardSaved;
-      if (saved.isProductRecsEnabled) window.isProductRecsEnabled = saved.isProductRecsEnabled;
-      else delete window.isProductRecsEnabled;
-      if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
-      else delete window.loadCatalog;
-      if (saved.getCardSlotKeys) window.getCardSlotKeys = saved.getCardSlotKeys;
-      else delete window.getCardSlotKeys;
-      if (saved.renderCardTipsModal) window.renderCardTipsModal = saved.renderCardTipsModal;
-      else delete window.renderCardTipsModal;
+      if (previousRecommendationBridge) {
+        recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
       if (saved.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.aiProvider);
       if (saved.aiPaused == null) localStorage.removeItem('labcharts-ai-paused');

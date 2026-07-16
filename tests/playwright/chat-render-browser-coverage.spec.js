@@ -9,10 +9,11 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
   await page.waitForSelector('#chat-messages');
 
   const results = await page.evaluate(async ({ chatRenderUrl }) => {
-    const [{ state }, chatRender, chatActions] = await Promise.all([
+    const [{ state }, chatRender, chatActions, recommendationRuntime] = await Promise.all([
       import('/js/state.js'),
       import(chatRenderUrl),
       import('/js/chat-actions.js'),
+      import('/js/recommendations-runtime.js'),
     ]);
     const outcomes = {};
     const messages = document.getElementById('chat-messages');
@@ -23,10 +24,9 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       messagesHTML: messages?.innerHTML,
       messagesId: messages?.id,
       panelClass: panel?.className,
-      isProductRecsEnabled: window.isProductRecsEnabled,
-      renderRecommendationSectionSync: window.renderRecommendationSectionSync,
-      cachedCatalog: window._cachedCatalog,
     };
+    const savedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
+    let previousRecommendationBridge = null;
     let emfOpens = 0;
     const restoreChatActions = chatActions.configureChatMessageActionDeps({
       openEMFAssessmentEditor: () => { emfOpens += 1; },
@@ -54,20 +54,22 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         messages.id = saved.messagesId || 'chat-messages';
       }
 
-      window.isProductRecsEnabled = () => true;
-      window._cachedCatalog = {
+      previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+        isProductRecsEnabled: () => true,
+        renderRecommendationSectionSync: (slot, { label, maxProducts }) => `
+          <div class="rec-disclosure-banner">Disclosure for ${slot}</div>
+          <section class="rec-section" data-max="${maxProducts}">
+            <h3 class="rec-section-header">${label}</h3>
+            <p>${slot}</p>
+          </section>
+        `,
+      });
+      recommendationRuntime.setRecommendationsCatalogCache({
         slots: {
           'emf.bedroom': { label: 'Bedroom EMF' },
           'sleep.blackout': { label: 'Blackout setup' },
         },
-      };
-      window.renderRecommendationSectionSync = (slot, { label, maxProducts }) => `
-        <div class="rec-disclosure-banner">Disclosure for ${slot}</div>
-        <section class="rec-section" data-max="${maxProducts}">
-          <h3 class="rec-section-header">${label}</h3>
-          <p>${slot}</p>
-        </section>
-      `;
+      });
       state.chatHistory = [
         { joined: true, joinIcon: '*', joinName: 'Dr <Ada>' },
         { role: 'user', hidden: true, content: 'Hidden setup should not render' },
@@ -158,12 +160,10 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         messages.innerHTML = saved.messagesHTML || '';
       }
       if (panel && saved.panelClass != null) panel.className = saved.panelClass;
-      if (saved.isProductRecsEnabled === undefined) delete window.isProductRecsEnabled;
-      else window.isProductRecsEnabled = saved.isProductRecsEnabled;
-      if (saved.renderRecommendationSectionSync === undefined) delete window.renderRecommendationSectionSync;
-      else window.renderRecommendationSectionSync = saved.renderRecommendationSectionSync;
-      if (saved.cachedCatalog === undefined) delete window._cachedCatalog;
-      else window._cachedCatalog = saved.cachedCatalog;
+      if (previousRecommendationBridge) {
+        recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      recommendationRuntime.setRecommendationsCatalogCache(savedCatalog);
       chatActions.configureChatMessageActionDeps(restoreChatActions);
     }
 

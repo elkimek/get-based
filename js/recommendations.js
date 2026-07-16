@@ -6,12 +6,13 @@ import { state } from './state.js';
 import { findGenotypeInfo, findSnpHint } from './dna.js';
 import {
   closeRecommendationsModal,
+  configureRecommendationModuleBridge,
   getRecommendationsSnpTable,
   openRecommendationsEmfAssessment,
   openRecommendationsLocationEditor,
   openRecommendationsPrivacySettings,
-  registerRecommendationsRuntimeExports,
   scheduleRecommendationsTask,
+  setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
 import {
   _addUTMParams,
@@ -51,6 +52,7 @@ export {
   _resolveCouponForRegion,
   _resolveHomepageForRegion,
   _resolveProductUrlForRegion,
+  copyCouponCode,
   getEMFMeters,
   getEMFProductsForMitigations,
   getLightDeviceProduct,
@@ -59,6 +61,7 @@ export {
   hasSeenDisclosure,
   isProductRecsEnabled,
   markDisclosureSeen,
+  markDisclosureSeen as markRecDisclosureSeen,
   recActionAttrs,
   recommendDeviceProductsForChannelDeficit,
   regionLabel,
@@ -125,16 +128,25 @@ export function initRecommendationDelegates() {
 }
 
 export async function loadCatalog() {
-  if (_catalog !== undefined) return _catalog;
+  if (_catalog !== undefined) {
+    setRecommendationsCatalogCache(_catalog);
+    return _catalog;
+  }
   if (_catalogPromise) return _catalogPromise;
   _catalogPromise = (async () => {
     try {
       const res = await fetch('data/recommendations.json');
-      if (!res.ok) { _catalog = null; return null; }
+      if (!res.ok) {
+        _catalog = null;
+        setRecommendationsCatalogCache(null);
+        return null;
+      }
       _catalog = await res.json();
+      setRecommendationsCatalogCache(_catalog);
       return _catalog;
     } catch {
       _catalog = null;
+      setRecommendationsCatalogCache(null);
       return null;
     } finally {
       _catalogPromise = null;
@@ -658,14 +670,12 @@ export function detectWearableTrendSlots(summary) {
 }
 
 // ═══════════════════════════════════════════════
-// WINDOW EXPORTS
+// CYCLE-SAFE MODULE BRIDGE
 // ═══════════════════════════════════════════════
 initRecommendationDelegates();
 
-registerRecommendationsRuntimeExports({
+configureRecommendationModuleBridge({
   isProductRecsEnabled,
-  setProductRecsEnabled,
-  markRecDisclosureSeen: markDisclosureSeen,
   renderRecommendationSection,
   renderRecommendationSectionSync,
   detectSupplementSlots,
@@ -673,16 +683,6 @@ registerRecommendationsRuntimeExports({
   buildDNAHints,
   getCardSlotKeys,
   renderCardTipsModal,
-  loadEMFCatalog,
-  getEMFMeters,
-  getEMFProductsForMitigations,
-  renderEMFMeterRecs,
-  renderEMFMitigationRecs,
   detectEMFRelevance,
-  detectMitigationsInText,
-  getLightDeviceProduct,
   renderLightDeviceAffiliateRow,
-  recommendDeviceProductsForChannelDeficit,
-  renderChannelDeficitDeviceRecs,
-  copyCouponCode,
 });

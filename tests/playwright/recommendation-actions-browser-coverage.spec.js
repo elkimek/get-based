@@ -17,7 +17,10 @@ test('recommendation actions browser coverage handles detail modal discussion an
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ actionsUrl }) => {
-    const { createRecommendationActions } = await import(actionsUrl);
+    const [{ createRecommendationActions }, recommendationRuntime] = await Promise.all([
+      import(actionsUrl),
+      import('/js/recommendations-runtime.js'),
+    ]);
     const outcomes = {};
     const fixture = document.getElementById('fixture');
     const waitForModalSettled = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -65,9 +68,9 @@ test('recommendation actions browser coverage handles detail modal discussion an
     };
 
     const saved = {
-      renderRecommendationSection: window.renderRecommendationSection,
       openChatPanel: window.openChatPanel,
     };
+    const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge();
 
     try {
       fixture.innerHTML = '';
@@ -77,10 +80,12 @@ test('recommendation actions browser coverage handles detail modal discussion an
         && renderCalls.length === 0;
 
       let shell = renderShell();
-      window.renderRecommendationSection = async (slotKey, options) => {
-        renderCalls.push({ kind: 'render', slotKey, options });
-        return '<section class="recommendation-section">Loaded options</section>';
-      };
+      recommendationRuntime.configureRecommendationModuleBridge({
+        renderRecommendationSection: async (slotKey, options) => {
+          renderCalls.push({ kind: 'render', slotKey, options });
+          return '<section class="recommendation-section">Loaded options</section>';
+        },
+      });
       actions.openRecommendationDetail('vitamins.d', '<Unsafe & Label>', 'low');
       const loadingHtml = shell.modal.innerHTML;
       await waitForModalSettled();
@@ -97,7 +102,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
           && call.options.markerStatus === 'low');
 
       shell = renderShell();
-      window.renderRecommendationSection = async () => '';
+      recommendationRuntime.configureRecommendationModuleBridge({ renderRecommendationSection: async () => '' });
       actions.openRecommendationDetail('missing.slot', 'Missing section');
       await waitForModalSettled();
       outcomes.openRecommendationDetailUsesEmptyFallbackWhenRendererReturnsBlank =
@@ -105,9 +110,9 @@ test('recommendation actions browser coverage handles detail modal discussion an
         && shell.modal.innerHTML.includes('No recommendation details available for this slot.');
 
       shell = renderShell();
-      window.renderRecommendationSection = async () => {
-        throw new Error('catalog unavailable');
-      };
+      recommendationRuntime.configureRecommendationModuleBridge({
+        renderRecommendationSection: async () => { throw new Error('catalog unavailable'); },
+      });
       actions.openRecommendationDetail('broken.slot', '');
       await waitForModalSettled();
       outcomes.openRecommendationDetailUsesErrorFallbackWhenRendererRejects =
@@ -115,7 +120,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
         && shell.modal.innerHTML.includes('Could not load recommendation details.');
 
       shell = renderShell();
-      delete window.renderRecommendationSection;
+      recommendationRuntime.configureRecommendationModuleBridge({ renderRecommendationSection: null });
       actions.openRecommendationDetail('undefined.renderer', 'Undefined renderer');
       await waitForModalSettled();
       outcomes.openRecommendationDetailHandlesMissingRendererAsEmptyFallback =
@@ -153,8 +158,10 @@ test('recommendation actions browser coverage handles detail modal discussion an
 
       outcomes.allOutcomesReached = true;
     } finally {
-      if (saved.renderRecommendationSection === undefined) delete window.renderRecommendationSection;
-      else window.renderRecommendationSection = saved.renderRecommendationSection;
+      recommendationRuntime.configureRecommendationModuleBridge({
+        renderRecommendationSection: null,
+        ...previousRecommendationBridge,
+      });
       if (saved.openChatPanel === undefined) delete window.openChatPanel;
       else window.openChatPanel = saved.openChatPanel;
     }

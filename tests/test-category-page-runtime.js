@@ -5,6 +5,10 @@ import {
   getCategoryPageCatalogSlots,
   primeCategoryPageCatalogCache,
 } from '../js/category-page-runtime.js';
+import {
+  configureRecommendationModuleBridge,
+  setRecommendationsCatalogCache,
+} from '../js/recommendations-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -14,11 +18,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Category Page Runtime Tests ===\n');
 
-const runtimeKeys = [
-  'window',
-  '_cachedCatalog',
-  'loadCatalog',
-];
+const runtimeKeys = ['window'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
 function setRuntimeValue(key, value) {
@@ -42,39 +42,43 @@ try {
   const cachedSlots = {
     'vitamins.vitaminD': { label: 'Vitamin D' },
   };
-  setRuntimeValue('_cachedCatalog', { slots: cachedSlots });
+  setRecommendationsCatalogCache({ slots: cachedSlots });
   assert('getCategoryPageCatalogSlots returns cached slot map',
     getCategoryPageCatalogSlots() === cachedSlots);
 
   let loadCalls = 0;
-  setRuntimeValue('loadCatalog', async () => {
-    loadCalls += 1;
-    return { slots: { 'minerals.magnesium': { label: 'Magnesium' } } };
+  const previousRecommendationBridge = configureRecommendationModuleBridge({
+    loadCatalog: async () => {
+      loadCalls += 1;
+      return { slots: { 'minerals.magnesium': { label: 'Magnesium' } } };
+    },
   });
   assert('primeCategoryPageCatalogCache skips when cache already exists',
     primeCategoryPageCatalogCache() === null && loadCalls === 0);
 
-  delete globalThis._cachedCatalog;
+  setRecommendationsCatalogCache(null);
   const loadedCatalog = await primeCategoryPageCatalogCache();
   assert('primeCategoryPageCatalogCache loads and stores catalog when missing',
     loadCalls === 1
       && loadedCatalog?.slots?.['minerals.magnesium']?.label === 'Magnesium'
-      && globalThis._cachedCatalog === loadedCatalog
       && getCategoryPageCatalogSlots() === loadedCatalog.slots);
 
-  delete globalThis._cachedCatalog;
-  setRuntimeValue('loadCatalog', () => ({ slots: {} }));
+  setRecommendationsCatalogCache(null);
+  configureRecommendationModuleBridge({ loadCatalog: () => ({ slots: {} }) });
   assert('primeCategoryPageCatalogCache ignores non-promise loaders',
     primeCategoryPageCatalogCache() === null && getCategoryPageCatalogSlots() === null);
 
-  delete globalThis.loadCatalog;
+  configureRecommendationModuleBridge({ loadCatalog: null });
   assert('primeCategoryPageCatalogCache no-ops when loader is missing',
     primeCategoryPageCatalogCache() === null);
 
   delete globalThis.window;
-  assert('runtime adapter no-ops safely when window is missing',
+  assert('runtime adapter no-ops safely when module hooks are missing',
     getCategoryPageCatalogSlots() === null && primeCategoryPageCatalogCache() === null);
+  configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureRecommendationModuleBridge({ loadCatalog: null });
+  setRecommendationsCatalogCache(null);
   restoreRuntime();
 }
 

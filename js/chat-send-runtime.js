@@ -1,6 +1,8 @@
 // @ts-check
 // chat-send-runtime.js - Browser runtime adapters for chat send hooks.
 
+import { getRecommendationModuleFunction } from './recommendations-runtime.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -34,13 +36,13 @@ export function getChatSendProviderAttestation(provider) {
 }
 
 export function isChatSendProductRecsEnabled() {
-  return Boolean(getRuntimeFunction('isProductRecsEnabled')?.());
+  return Boolean(getRecommendationModuleFunction('isProductRecsEnabled')?.());
 }
 
 /** @param {string} text */
 export function detectChatSendSupplementSlots(text) {
   if (!isChatSendProductRecsEnabled()) return [];
-  const detectSupplementSlots = getRuntimeFunction('detectSupplementSlots');
+  const detectSupplementSlots = getRecommendationModuleFunction('detectSupplementSlots');
   if (!detectSupplementSlots) return [];
   const slots = detectSupplementSlots(text);
   return Array.isArray(slots) ? slots : [];
@@ -49,13 +51,13 @@ export function detectChatSendSupplementSlots(text) {
 /** @param {string} text */
 export function isChatSendEMFRelevant(text) {
   if (!isChatSendProductRecsEnabled()) return false;
-  return Boolean(getRuntimeFunction('detectEMFRelevance')?.(text));
+  return Boolean(getRecommendationModuleFunction('detectEMFRelevance')?.(text));
 }
 
 export function getChatSendRecommendationRuntime() {
-  const renderRecommendationSection = getRuntimeFunction('renderRecommendationSection');
-  const renderRecommendationSectionSync = getRuntimeFunction('renderRecommendationSectionSync');
-  const loadCatalog = getRuntimeFunction('loadCatalog');
+  const renderRecommendationSection = getRecommendationModuleFunction('renderRecommendationSection');
+  const renderRecommendationSectionSync = getRecommendationModuleFunction('renderRecommendationSectionSync');
+  const loadCatalog = getRecommendationModuleFunction('loadCatalog');
   if (!renderRecommendationSection || !renderRecommendationSectionSync || !loadCatalog) return null;
   return {
     renderRecommendationSection,

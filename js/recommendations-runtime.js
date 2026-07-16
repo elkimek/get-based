@@ -9,6 +9,44 @@ const recommendationsRuntimeDeps = {
   openProfileLocationEditor: null,
 };
 
+/** @type {Record<string, (...args: any[]) => any>} */
+const recommendationModuleBridge = Object.create(null);
+let recommendationsCatalogCache = null;
+
+/** @param {Record<string, unknown>} api */
+export function configureRecommendationModuleBridge(api = {}) {
+  /** @type {Record<string, ((...args: any[]) => any) | null>} */
+  const previous = { ...recommendationModuleBridge };
+  for (const name of Object.keys(api)) {
+    if (!(name in previous)) previous[name] = null;
+  }
+  for (const [name, value] of Object.entries(api)) {
+    if (typeof value === 'function') {
+      recommendationModuleBridge[name] = /** @type {(...args: any[]) => any} */ (value);
+    } else if (value === null) {
+      delete recommendationModuleBridge[name];
+    }
+  }
+  return previous;
+}
+
+/** @param {string} name */
+export function getRecommendationModuleFunction(name) {
+  return typeof recommendationModuleBridge[name] === 'function'
+    ? recommendationModuleBridge[name]
+    : null;
+}
+
+export function getRecommendationsCatalogCache() {
+  return recommendationsCatalogCache;
+}
+
+/** @param {any} catalog */
+export function setRecommendationsCatalogCache(catalog) {
+  recommendationsCatalogCache = catalog || null;
+  return recommendationsCatalogCache;
+}
+
 export function configureRecommendationsRuntime(deps = {}) {
   const previous = { ...recommendationsRuntimeDeps };
   if (typeof deps.openEMFAssessmentEditor === 'function') {
@@ -46,20 +84,20 @@ export function getRecommendationsSnpTable() {
 
 export function isRecommendationsProductRecsEnabled() {
   try {
-    return Boolean(getRuntimeFunction('isProductRecsEnabled')?.());
+    return Boolean(getRecommendationModuleFunction('isProductRecsEnabled')?.());
   } catch {
     return false;
   }
 }
 
 export async function loadRecommendationsCatalogRuntime() {
-  const loadCatalog = getRuntimeFunction('loadCatalog');
+  const loadCatalog = getRecommendationModuleFunction('loadCatalog');
   if (!loadCatalog) return null;
   return await loadCatalog();
 }
 
 export async function renderRecommendationsDetailSection(slotKey, options) {
-  const renderRecommendationSection = getRuntimeFunction('renderRecommendationSection');
+  const renderRecommendationSection = getRecommendationModuleFunction('renderRecommendationSection');
   if (!renderRecommendationSection) return '';
   return await renderRecommendationSection(slotKey, options);
 }
@@ -111,12 +149,4 @@ export function scheduleRecommendationsTask(callback, delayMs = 0) {
     return null;
   }
   return schedule(callback, delayMs);
-}
-
-/** @param {Record<string, unknown>} exports */
-export function registerRecommendationsRuntimeExports(exports) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return false;
-  Object.assign(runtime, exports);
-  return true;
 }

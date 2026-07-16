@@ -31,12 +31,13 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, store, ai, lightDevices] = await Promise.all([
+    const [{ state }, data, store, ai, lightDevices, recommendationRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-devices-store.js'),
       import('/js/light-device-ai-analysis.js'),
       import('/js/light-devices.js'),
+      import('/js/recommendations-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -65,10 +66,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       navigate: window.navigate,
       showConfirmDialog: window.showConfirmDialog,
       maybeAnalyzeDeviceSessionAfterFinish: ai.maybeAnalyzeDeviceSessionAfterFinish,
-      loadCatalog: window.loadCatalog,
-      renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
+    let previousRecommendationBridge = null;
     const outcomes = {};
     const calls = [];
     const preset = {
@@ -123,8 +123,10 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       store.configureLightDevicesStore({
         maybeAnalyzeDeviceSessionAfterFinish: session => calls.push(['analyze', session.id]),
       });
-      window.loadCatalog = async () => ({ products: [] });
-      window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
+      previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+        loadCatalog: async () => ({ products: [] }),
+        renderLightDeviceAffiliateRow: (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`,
+      });
 
       state.currentProfile = 'light-devices-browser-coverage';
       state.currentView = 'light';
@@ -302,10 +304,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       store.configureLightDevicesStore({
         maybeAnalyzeDeviceSessionAfterFinish: saved.maybeAnalyzeDeviceSessionAfterFinish || (() => {}),
       });
-      if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
-      else delete window.loadCatalog;
-      if (saved.renderLightDeviceAffiliateRow) window.renderLightDeviceAffiliateRow = saved.renderLightDeviceAffiliateRow;
-      else delete window.renderLightDeviceAffiliateRow;
+      if (previousRecommendationBridge) {
+        recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       localStorage.clear();
       for (const [key, value] of storage) {

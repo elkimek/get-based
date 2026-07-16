@@ -41,7 +41,10 @@ test('chart card recommendation browser coverage handles badges reorder clicks a
   const results = await page.evaluate(async ({ chartCardRecsUrl }) => {
     window.__chartRecNotifications = [];
     window.__chartRecDetailCalls = [];
-    const chartCardRecs = await import(chartCardRecsUrl);
+    const [chartCardRecs, recommendationRuntime] = await Promise.all([
+      import(chartCardRecsUrl),
+      import('/js/recommendations-runtime.js'),
+    ]);
     const outcomes = {};
 
     const fixture = document.getElementById('fixture');
@@ -63,31 +66,37 @@ test('chart card recommendation browser coverage handles badges reorder clicks a
     const badgeTexts = () => Array.from(document.querySelectorAll('.ctx-tips-badge')).map(badge => badge.textContent);
 
     renderCards();
-    window.isProductRecsEnabled = () => false;
-    window.loadCatalog = () => { throw new Error('loadCatalog should not run when recs are disabled'); };
+    recommendationRuntime.configureRecommendationModuleBridge({
+      isProductRecsEnabled: () => false,
+      loadCatalog: () => { throw new Error('loadCatalog should not run when recs are disabled'); },
+    });
     await chartCardRecs.loadChartCardRecs();
     outcomes.disabledProductRecsReturnBeforeLoadingCatalog =
       document.querySelectorAll('.ctx-tips-badge').length === 0
       && window.__chartRecNotifications.length === 0;
 
-    window.isProductRecsEnabled = () => true;
-    delete window.loadCatalog;
+    recommendationRuntime.configureRecommendationModuleBridge({
+      isProductRecsEnabled: () => true,
+      loadCatalog: null,
+    });
     await chartCardRecs.loadChartCardRecs();
     outcomes.missingCatalogLoaderReturnsWithoutMutatingCards =
       document.querySelectorAll('.ctx-tips-badge').length === 0;
 
-    window.loadCatalog = async () => ({ slots: null });
+    recommendationRuntime.configureRecommendationModuleBridge({ loadCatalog: async () => ({ slots: null }) });
     await chartCardRecs.loadChartCardRecs();
     outcomes.catalogWithoutSlotsReturnsWithoutMutatingCards =
       document.querySelectorAll('.ctx-tips-badge').length === 0;
 
     localStorage.removeItem('labcharts-rec-nudge-seen');
-    window.loadCatalog = async () => ({
-      slots: {
-        'lipids.apob': {},
-        'biochemistry.glucose': {},
-        'hormones.cortisol': {},
-      },
+    recommendationRuntime.configureRecommendationModuleBridge({
+      loadCatalog: async () => ({
+        slots: {
+          'lipids.apob': {},
+          'biochemistry.glucose': {},
+          'hormones.cortisol': {},
+        },
+      }),
     });
     let bubbledClicks = 0;
     document.getElementById('card-apob').addEventListener('click', () => { bubbledClicks += 1; });

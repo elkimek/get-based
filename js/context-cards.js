@@ -7,6 +7,7 @@ import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
 import {
   appendImportedArrayItem,
@@ -451,15 +452,16 @@ configureLifestyleContextEditors({ recordChange, saveAndRefresh });
 
 // ── Card tips badges (async — waits for catalog) ──
 export async function loadContextCardTips() {
-  const appWindow = /** @type {any} */ (window);
-  if (!appWindow.isProductRecsEnabled || !appWindow.isProductRecsEnabled()) return;
-  if (!appWindow.loadCatalog || !appWindow.getCardSlotKeys) return;
-  await appWindow.loadCatalog();
+  const isProductRecsEnabled = getRecommendationModuleFunction('isProductRecsEnabled');
+  const loadCatalog = getRecommendationModuleFunction('loadCatalog');
+  const getCardSlotKeys = getRecommendationModuleFunction('getCardSlotKeys');
+  if (!isProductRecsEnabled?.() || !loadCatalog || !getCardSlotKeys) return;
+  await loadCatalog();
   const cardKeys = ['sleepRest', 'lightCircadian', 'environment', 'exercise', 'diet', 'stress'];
   for (const key of cardKeys) {
     const el = document.getElementById(`ctx-tips-${key}`);
     if (!el || el.children.length > 0) continue;
-    if (appWindow.getCardSlotKeys(key).length === 0) continue;
+    if (getCardSlotKeys(key).length === 0) continue;
     const badge = document.createElement('span');
     badge.className = 'ctx-tips-badge';
     badge.textContent = 'Tips';
@@ -471,9 +473,9 @@ export async function loadContextCardTips() {
 
 // ── Card tips modal ──
 export function openCardTipsModal(cardKey) {
-  const appWindow = /** @type {any} */ (window);
-  if (!appWindow.renderCardTipsModal) return;
-  const html = appWindow.renderCardTipsModal(cardKey);
+  const renderCardTipsModal = getRecommendationModuleFunction('renderCardTipsModal');
+  if (!renderCardTipsModal) return;
+  const html = renderCardTipsModal(cardKey);
   if (!html) return;
   // Reuse the detail modal overlay
   const overlay = document.getElementById('modal-overlay');

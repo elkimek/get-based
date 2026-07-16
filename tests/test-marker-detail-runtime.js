@@ -19,6 +19,7 @@ import {
   toggleDashboardQuickMarkerPinRuntime,
   uninstallWearableModalFocusTrapRuntime,
 } from '../js/marker-detail-runtime.js';
+import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let pass = 0, fail = 0;
@@ -39,8 +40,6 @@ const runtimeKeys = [
   'askAIAboutMarker',
   'showEmojiPicker',
   '_getRelevantSNPs',
-  'isProductRecsEnabled',
-  'renderRecommendationSection',
   '_uninstallWearableModalFocusTrap',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -85,10 +84,12 @@ try {
     calls.push(['snps', dotKey]);
     return snps;
   });
-  setRuntimeValue('isProductRecsEnabled', () => true);
-  setRuntimeValue('renderRecommendationSection', async (markerKey, options) => {
-    calls.push(['recs', markerKey, options?.markerStatus || '']);
-    return '<section>recs</section>';
+  const previousRecommendationBridge = configureRecommendationModuleBridge({
+    isProductRecsEnabled: () => true,
+    renderRecommendationSection: async (markerKey, options) => {
+      calls.push(['recs', markerKey, options?.markerStatus || '']);
+      return '<section>recs</section>';
+    },
   });
   const restoreMarkerDetailRuntime = configureMarkerDetailRuntime({
     closeEMFInterpretation: () => calls.push(['emf-close']),
@@ -127,7 +128,7 @@ try {
   configureViewRuntime({ buildSidebar: () => { throw new Error('boom'); } });
   setRuntimeValue('isDashboardQuickMarkerPinned', () => { throw new Error('boom'); });
   setRuntimeValue('_getRelevantSNPs', () => { throw new Error('boom'); });
-  setRuntimeValue('isProductRecsEnabled', () => { throw new Error('boom'); });
+  configureRecommendationModuleBridge({ isProductRecsEnabled: () => { throw new Error('boom'); } });
   buildMarkerDetailSidebarRuntime();
   assert('marker detail runtime safe fallbacks catch optional hook errors',
     isDashboardQuickMarkerPinnedRuntime('lipids_apob') === false &&
@@ -137,6 +138,10 @@ try {
   configureMarkerDetailRuntime({ closeEMFInterpretation: () => {} });
 
   delete globalThis.window;
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: null,
+    renderRecommendationSection: null,
+  });
   configureViewRuntime({ buildSidebar: null });
   const beforeMissingRuntimeCalls = calls.length;
   navigateMarkerDetailRuntime('dashboard');
@@ -157,7 +162,12 @@ try {
       isProductRecsEnabledRuntime() === false &&
       missingRuntimeRecs === '');
   configureMarkerDetailRuntime(restoreMarkerDetailRuntime);
+  configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: null,
+    renderRecommendationSection: null,
+  });
   configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   restoreRuntime();
 }

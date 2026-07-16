@@ -620,7 +620,8 @@ const {
   assert('light-devices-runtime owns browser-shell hooks and explicit utility dependency',
     lightDevicesRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
     lightDevicesRuntimeSrc.includes('lightDevicesRuntimeDeps.showPromptDialog') &&
-    lightDevicesRuntimeSrc.includes("getRuntimeFunction('loadCatalog')") &&
+    lightDevicesRuntimeSrc.includes("getRecommendationModuleFunction('loadCatalog')") &&
+    lightDevicesRuntimeSrc.includes("from './recommendations-runtime.js'") &&
     !lightDevicesRuntimeSrc.includes('publishLightDevicesWindowBindings'));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

@@ -1,24 +1,24 @@
 // @ts-check
 // category-page-runtime.js - Browser runtime adapters for category page hooks.
 
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
+import {
+  getRecommendationModuleFunction,
+  getRecommendationsCatalogCache,
+  setRecommendationsCatalogCache,
+} from './recommendations-runtime.js';
 
 export function getCategoryPageCatalogSlots() {
-  const runtime = getRuntimeWindow();
-  return runtime?._cachedCatalog?.slots || null;
+  return getRecommendationsCatalogCache()?.slots || null;
 }
 
 export function primeCategoryPageCatalogCache() {
-  const runtime = getRuntimeWindow();
-  if (!runtime || runtime._cachedCatalog || typeof runtime.loadCatalog !== 'function') return null;
-  const catalogPromise = runtime.loadCatalog();
+  if (getRecommendationsCatalogCache()) return null;
+  const loadCatalog = getRecommendationModuleFunction('loadCatalog');
+  if (!loadCatalog) return null;
+  const catalogPromise = loadCatalog();
   if (!catalogPromise || typeof catalogPromise.then !== 'function') return null;
   return catalogPromise.then(catalog => {
-    runtime._cachedCatalog = catalog;
+    setRecommendationsCatalogCache(catalog);
     return catalog;
   });
 }

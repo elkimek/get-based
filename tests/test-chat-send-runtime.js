@@ -8,6 +8,7 @@ import {
   isChatSendEMFRelevant,
   isChatSendProductRecsEnabled,
 } from '../js/chat-send-runtime.js';
+import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -22,12 +23,6 @@ const runtimeKeys = [
   '_ppqAttestation',
   '_routstrAttestation',
   '_veniceAttestation',
-  'isProductRecsEnabled',
-  'detectSupplementSlots',
-  'detectEMFRelevance',
-  'renderRecommendationSection',
-  'renderRecommendationSectionSync',
-  'loadCatalog',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -56,21 +51,23 @@ try {
   setRuntimeValue('_ppqAttestation', ppqAttestation);
   setRuntimeValue('_routstrAttestation', routstrAttestation);
   setRuntimeValue('_veniceAttestation', veniceAttestation);
-  setRuntimeValue('isProductRecsEnabled', () => {
-    calls.push(['enabled']);
-    return true;
+  const previousRecommendationBridge = configureRecommendationModuleBridge({
+    isProductRecsEnabled: () => {
+      calls.push(['enabled']);
+      return true;
+    },
+    detectSupplementSlots: text => {
+      calls.push(['slots', text]);
+      return ['magnesium'];
+    },
+    detectEMFRelevance: text => {
+      calls.push(['emf', text]);
+      return text.includes('WiFi');
+    },
+    renderRecommendationSection: async slot => `<section>${slot}</section>`,
+    renderRecommendationSectionSync: slot => `<section>${slot}</section>`,
+    loadCatalog: async () => ({ slots: { magnesium: { label: 'Magnesium' } } }),
   });
-  setRuntimeValue('detectSupplementSlots', text => {
-    calls.push(['slots', text]);
-    return ['magnesium'];
-  });
-  setRuntimeValue('detectEMFRelevance', text => {
-    calls.push(['emf', text]);
-    return text.includes('WiFi');
-  });
-  setRuntimeValue('renderRecommendationSection', async slot => `<section>${slot}</section>`);
-  setRuntimeValue('renderRecommendationSectionSync', slot => `<section>${slot}</section>`);
-  setRuntimeValue('loadCatalog', async () => ({ slots: { magnesium: { label: 'Magnesium' } } }));
 
   assert('getChatSendProviderAttestation reads PPQ attestation',
     getChatSendProviderAttestation('ppq') === ppqAttestation);
@@ -90,24 +87,41 @@ try {
       && typeof recommendationRuntime.renderRecommendationSectionSync === 'function'
       && typeof recommendationRuntime.loadCatalog === 'function');
 
-  setRuntimeValue('isProductRecsEnabled', () => false);
+  configureRecommendationModuleBridge({ isProductRecsEnabled: () => false });
   assert('detectChatSendSupplementSlots returns empty when product recs are disabled',
     detectChatSendSupplementSlots('try magnesium').length === 0);
   assert('isChatSendEMFRelevant returns false when product recs are disabled',
     isChatSendEMFRelevant('WiFi in bedroom') === false);
 
-  delete globalThis.renderRecommendationSectionSync;
+  configureRecommendationModuleBridge({ renderRecommendationSectionSync: null });
   assert('getChatSendRecommendationRuntime requires the sync renderer',
     getChatSendRecommendationRuntime() === null);
 
   delete globalThis.window;
-  assert('runtime adapter no-ops safely when window is missing',
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: null,
+    detectSupplementSlots: null,
+    detectEMFRelevance: null,
+    renderRecommendationSection: null,
+    renderRecommendationSectionSync: null,
+    loadCatalog: null,
+  });
+  assert('runtime adapter no-ops safely when module hooks are missing',
     getChatSendProviderAttestation('ppq') === undefined
       && isChatSendProductRecsEnabled() === false
       && detectChatSendSupplementSlots('try magnesium').length === 0
       && isChatSendEMFRelevant('WiFi in bedroom') === false
       && getChatSendRecommendationRuntime() === null);
+  configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureRecommendationModuleBridge({
+    isProductRecsEnabled: null,
+    detectSupplementSlots: null,
+    detectEMFRelevance: null,
+    renderRecommendationSection: null,
+    renderRecommendationSectionSync: null,
+    loadCatalog: null,
+  });
   restoreRuntime();
 }
 

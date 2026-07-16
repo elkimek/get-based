@@ -11,6 +11,7 @@ import { loadContextCardTips } from './context-cards.js';
 import { openChatPanel } from './chat-panel.js';
 import { toggleMobileSidebar } from './nav.js';
 import { loadCatalog } from './recommendations.js';
+import { setRecommendationsCatalogCache } from './recommendations-runtime.js';
 import { createDashboardPageView } from './dashboard-page-view.js';
 import { configureLensPageShell } from './lens-page-shell.js';
 import { createDashboardWidgetRegistry } from './dashboard-widgets.js';
@@ -229,7 +230,7 @@ export function createDashboardViewComposition({
     toggleMobileSidebar,
     loadContextCardTips,
     loadCatalog,
-    cacheCatalog: catalog => { globalThis._cachedCatalog = catalog; },
+    cacheCatalog: setRecommendationsCatalogCache,
   });
 
   return {
