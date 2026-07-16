@@ -1,10 +1,8 @@
 // @ts-check
 // chat-window-bindings.js — chat callback wiring and legacy window exports
 
-import { setAIPaused } from './api.js';
 import { configureChatThreadDeps } from './chat-threads.js';
 import { renderChatMessages } from './chat-render.js';
-import { askAIAboutMarker } from './chat-marker-prompts.js';
 import {
   createTypewriter, getChatAbortController, sendChatMessage,
   setChatAbortController,
@@ -19,7 +17,6 @@ import {
 } from './chat-history.js';
 import {
   closeChatPanel, configureChatPanel, toggleChatPanel, openChatPanel,
-  updateChatInputState,
 } from './chat-panel.js';
 import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
@@ -28,12 +25,6 @@ import {
 import {
   configureChatOnboarding, useChatPrompt,
 } from './chat-onboarding.js';
-
-function _resumeAI() {
-  setAIPaused(false);
-  renderChatMessages();
-  updateChatInputState();
-}
 
 configureChatDiscussion({
   createTypewriter,
@@ -63,11 +54,8 @@ configureChatThreadDeps({
 });
 
 Object.assign(window, {
-  _resumeAI,
-  loadChatHistory,
   useChatPrompt,
   toggleChatPanel,
   openChatPanel,
   closeChatPanel,
-  askAIAboutMarker,
 });

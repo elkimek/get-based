@@ -703,7 +703,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       'toggleDashboardQuickMarkerPin',
       'renameMarker',
       'revertMarkerName',
-      'askAIAboutMarker',
     ];
     const savedWindow = Object.fromEntries(windowKeys.map(key => [
       key,
@@ -713,6 +712,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
     const albuminId = 'proteins_albumin';
     const albuminKey = 'proteins.albumin';
     const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
+      askAIAboutMarker: id => calls.push(['ask-ai', id]),
       closeEMFInterpretation: () => calls.push(['close-emf']),
     });
     const restoreRecommendationRuntime = recommendationRuntime.configureRecommendationModuleBridge({
@@ -767,7 +767,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       window.toggleDashboardQuickMarkerPin = id => calls.push(['pin', id]);
       window.renameMarker = id => calls.push(['rename', id]);
       window.revertMarkerName = id => calls.push(['revert-name', id]);
-      window.askAIAboutMarker = id => calls.push(['ask-ai', id]);
 
       localStorage.setItem('labcharts-marker-desc', JSON.stringify({
         'coverage.cached': 'Cached marker description',
@@ -845,7 +844,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         toggleDashboardQuickMarkerPin: id => globalThis.toggleDashboardQuickMarkerPin?.(id),
         renameMarker: id => globalThis.renameMarker?.(id),
         revertMarkerName: id => globalThis.revertMarkerName?.(id),
-        askAIAboutMarker: id => globalThis.askAIAboutMarker?.(id),
+        askAIAboutMarker: id => markerRuntime.askAIAboutMarkerRuntime(id),
         showEmojiPicker: () => {},
       });
       document.getElementById('modal-overlay')?.classList.remove('show');

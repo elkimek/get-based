@@ -39,7 +39,6 @@ const runtimeKeys = [
   'toggleDashboardQuickMarkerPin',
   'renameMarker',
   'revertMarkerName',
-  'askAIAboutMarker',
   'showEmojiPicker',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -77,7 +76,6 @@ try {
   setRuntimeValue('toggleDashboardQuickMarkerPin', id => calls.push(['pin', id]));
   setRuntimeValue('renameMarker', id => calls.push(['rename', id]));
   setRuntimeValue('revertMarkerName', id => calls.push(['revert', id]));
-  setRuntimeValue('askAIAboutMarker', id => calls.push(['ask', id]));
   setRuntimeValue('showEmojiPicker', (el, callback, opts) => {
     calls.push(['emoji', opts?.showReset ? 'reset' : 'plain']);
     callback(':test:');
@@ -94,6 +92,7 @@ try {
     },
   });
   const restoreMarkerDetailRuntime = configureMarkerDetailRuntime({
+    askAIAboutMarker: id => calls.push(['ask', id]),
     closeEMFInterpretation: () => calls.push(['emf-close']),
   });
   previousWearablesModule = configureWearablesModuleBridge({
@@ -139,7 +138,7 @@ try {
       getRelevantSNPsRuntime('lipids.apob').length === 0 &&
       isProductRecsEnabledRuntime() === false);
 
-  configureMarkerDetailRuntime({ closeEMFInterpretation: () => {} });
+  configureMarkerDetailRuntime({ askAIAboutMarker: null, closeEMFInterpretation: () => {} });
 
   delete globalThis.window;
   configureRecommendationModuleBridge({

@@ -4,11 +4,12 @@
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-/** @type {Record<'isChatStreaming' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
+/** @type {Record<'isChatStreaming' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
 const chatRuntimeCallbacks = {
   isChatStreaming: null,
   refreshWebSearchToggle: null,
   renderChatMessages: null,
+  resumeAI: null,
   sendChatMessage: null,
   updateChatHeaderModel: null,
   updateChatNudge: null,
@@ -64,6 +65,10 @@ function getRuntimeValue(name) {
 
 export function renderChatMessagesRuntime() {
   callChatRuntimeCallback('renderChatMessages');
+}
+
+export function resumeChatAIRuntime() {
+  return callChatRuntimeCallback('resumeAI');
 }
 
 export function refreshChatWebSearchToggleRuntime() {

@@ -5,6 +5,7 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const syncPullActiveRefreshDeps = {
   ensureActiveThread: () => {},
+  loadChatHistory: () => undefined,
   loadChatThreads: () => undefined,
   renderThreadList: () => {},
 };
@@ -12,6 +13,7 @@ const syncPullActiveRefreshDeps = {
 export function configureSyncPullActiveRefreshDeps(deps = {}) {
   const previous = { ...syncPullActiveRefreshDeps };
   if (typeof deps.ensureActiveThread === 'function') syncPullActiveRefreshDeps.ensureActiveThread = deps.ensureActiveThread;
+  if (typeof deps.loadChatHistory === 'function') syncPullActiveRefreshDeps.loadChatHistory = deps.loadChatHistory;
   if (typeof deps.loadChatThreads === 'function') syncPullActiveRefreshDeps.loadChatThreads = deps.loadChatThreads;
   if (typeof deps.renderThreadList === 'function') syncPullActiveRefreshDeps.renderThreadList = deps.renderThreadList;
   return previous;
@@ -43,7 +45,7 @@ export function refreshPulledChatRuntime() {
     }
     syncPullActiveRefreshDeps.ensureActiveThread();
     syncPullActiveRefreshDeps.renderThreadList();
-    return getRuntimeFunction('loadChatHistory')?.();
+    return syncPullActiveRefreshDeps.loadChatHistory();
   };
 
   const loaded = syncPullActiveRefreshDeps.loadChatThreads();

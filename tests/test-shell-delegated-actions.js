@@ -90,7 +90,7 @@ assert('App shell wires module-only chat thread consumers',
   appShellHooksSrc.includes("from './chat-threads.js'")
     && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
     && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ createNewThread });')
-    && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatThreads, renderThreadList });'));
+    && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });'));
 
 assert('App shell wires Context hub status refresh without a window lookup',
   appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
@@ -102,6 +102,7 @@ assert('App shell wires Chat UI refreshes without window globals',
   appShellHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
     && appShellHooksSrc.includes('configureChatRuntimeCallbacks({')
     && appShellHooksSrc.includes('refreshWebSearchToggle,')
+    && appShellHooksSrc.includes('resumeAI,')
     && appShellHooksSrc.includes('sendChatMessage,'));
 
 assert('Chat shell controls use module dependencies instead of window lookups',

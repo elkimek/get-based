@@ -34,7 +34,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         importedData: clone(state.importedData),
       },
       navigate: window.navigate,
-      loadChatHistory: window.loadChatHistory,
     };
     const restoreWindowFn = (name, value) => {
       if (value === undefined) delete window[name];
@@ -42,6 +41,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
     };
     const calls = [];
     const previousThreadDeps = refreshRuntime.configureSyncPullActiveRefreshDeps({
+      loadChatHistory: () => { calls.push('loadChatHistory'); },
       loadChatThreads: () => { calls.push('loadChatThreads'); },
       ensureActiveThread: () => { calls.push('ensureActiveThread'); },
       renderThreadList: () => { calls.push('renderThreadList'); },
@@ -56,7 +56,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
     try {
       window.addEventListener('labcharts-sync-applied', onSyncApplied);
       window.navigate = (category, options) => { calls.push({ type: 'navigate', category, options: options || null }); };
-      window.loadChatHistory = () => { calls.push('loadChatHistory'); };
 
       state.currentProfile = activeProfileId;
       state.currentView = 'light';
@@ -155,7 +154,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       state.importedData = original.state.importedData;
       viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       restoreWindowFn('navigate', original.navigate);
-      restoreWindowFn('loadChatHistory', original.loadChatHistory);
       refreshRuntime.configureSyncPullActiveRefreshDeps(previousThreadDeps);
       document.querySelector('.modal-overlay.show')?.remove();
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());

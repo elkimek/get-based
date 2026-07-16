@@ -24,7 +24,6 @@ console.log('=== Sync Pull Active Refresh Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'loadChatHistory',
   'navigate',
   'CustomEvent',
   'dispatchEvent',
@@ -51,6 +50,7 @@ function restoreRuntime() {
 const calls = [];
 let previousViewRuntime = null;
 const previousDeps = configureSyncPullActiveRefreshDeps({
+  loadChatHistory: () => calls.push(['loadChatHistory']),
   loadChatThreads: () => calls.push(['loadChatThreads']),
   ensureActiveThread: () => calls.push(['ensureActiveThread']),
   renderThreadList: () => calls.push(['renderThreadList']),
@@ -58,7 +58,6 @@ const previousDeps = configureSyncPullActiveRefreshDeps({
 
 try {
   setRuntimeValue('window', globalThis);
-  setRuntimeValue('loadChatHistory', () => calls.push(['loadChatHistory']));
   previousViewRuntime = configureViewRuntime({
     buildSidebar: () => calls.push(['buildSidebar']),
   });
@@ -92,6 +91,7 @@ try {
     rebuildPulledSidebarRuntime() === undefined);
 
   configureSyncPullActiveRefreshDeps({
+    loadChatHistory: () => undefined,
     loadChatThreads: () => undefined,
     ensureActiveThread: () => {},
     renderThreadList: () => {},

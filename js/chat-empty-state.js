@@ -14,6 +14,7 @@ import { getActivePersonality } from './chat-personalities.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { resumeChatAIRuntime } from './chat-runtime.js';
 import {
   chatOnboardingActionAttrs,
   _countFilledCards, _renderOnboardCrumbs, _renderProviderQuiz,
@@ -77,7 +78,7 @@ function handleChatEmptyClick(event) {
   } else if (action === 'save-profile-advance') {
     saveChatProfile(true);
   } else if (action === 'resume-ai') {
-    callChatEmptyRuntime('_resumeAI');
+    resumeChatAIRuntime();
   } else if (action === 'skip-extras') {
     skipOnboardingExtras();
   } else if (action === 'continue-after-context-cards') {
