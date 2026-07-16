@@ -109,7 +109,7 @@ assert('App shell wires Chat prompt consumers without window globals',
   appShellHooksSrc.includes("import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js'")
     && appShellHooksSrc.includes("import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js'")
     && appShellHooksSrc.includes('configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });')
-    && appShellHooksSrc.includes('configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });'));
+    && appShellHooksSrc.includes('configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });'));
 
 assert('App shell wires Chat close consumers without window globals',
   appShellHooksSrc.includes("import { configureChatEmptyStateDeps } from './chat-empty-state.js'")

@@ -3,15 +3,26 @@
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const lifestyleRuntimeDeps = {
+  closeModal: /** @type {null | (() => unknown)} */ (null),
+  navigate: /** @type {null | ((category?: string) => unknown)} */ (null),
   openChatPanel: /** @type {null | (() => unknown)} */ (null),
   useChatPrompt: /** @type {null | ((prompt: string) => unknown)} */ (null),
 };
 
 export function configureContextCardLifestyleRuntimeDeps(deps = {}) {
   const previous = { ...lifestyleRuntimeDeps };
+  if ('closeModal' in deps) {
+    lifestyleRuntimeDeps.closeModal = typeof deps.closeModal === 'function'
+      ? /** @type {() => unknown} */ (deps.closeModal)
+      : null;
+  }
+  if ('navigate' in deps) {
+    lifestyleRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(category?: string) => unknown} */ (deps.navigate)
+      : null;
+  }
   if ('openChatPanel' in deps) {
     lifestyleRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
       ? /** @type {() => unknown} */ (deps.openChatPanel)
@@ -31,17 +42,6 @@ function getRuntimeWindow() {
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
-}
-
 const LIFESTYLE_DELEGATES_BOUND_KEY = '__lifestyleContextDelegatesBound';
 
 export function markLifestyleContextDelegatesBoundRuntime() {
@@ -52,12 +52,12 @@ export function markLifestyleContextDelegatesBoundRuntime() {
 }
 
 export function closeLifestyleContextModalRuntime() {
-  getRuntimeFunction('closeModal')?.();
+  lifestyleRuntimeDeps.closeModal?.();
 }
 
 /** @param {string | undefined} category */
 export function navigateLifestyleContextRuntime(category) {
-  getRuntimeFunction('navigate')?.(category);
+  lifestyleRuntimeDeps.navigate?.(category);
 }
 
 /** @param {string | undefined} category */
