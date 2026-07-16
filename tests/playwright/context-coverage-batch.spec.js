@@ -224,11 +224,11 @@ test('lifestyle context editors cover save clear health goals lens and contamina
     const saved = {
       importedData: clone(state.importedData),
       profileSex: state.profileSex,
-      closeModal: window.closeModal,
-      navigate: window.navigate,
     };
     const calls = [];
     const previousLifestyleRuntimeDeps = lifestyleRuntime.configureContextCardLifestyleRuntimeDeps({
+      closeModal: () => { calls.push(['close']); overlay.classList.remove('show'); },
+      navigate: route => calls.push(['navigate', route]),
       openChatPanel: () => calls.push(['chat']),
       useChatPrompt: prompt => calls.push(['prompt', prompt]),
     });
@@ -265,9 +265,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         interpretiveLens: '',
         emfAssessment: { assessments: [] },
       };
-      window.closeModal = () => { calls.push(['close']); overlay.classList.remove('show'); };
-      window.navigate = route => calls.push(['navigate', route]);
-
       lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
       lifestyle.saveExercise();
@@ -435,8 +432,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
     } finally {
       state.importedData = saved.importedData;
       state.profileSex = saved.profileSex;
-      window.closeModal = saved.closeModal;
-      window.navigate = saved.navigate;
       lifestyleRuntime.configureContextCardLifestyleRuntimeDeps(previousLifestyleRuntimeDeps);
       lifestyle.configureLifestyleContextEditors({ recordChange: () => {}, saveAndRefresh: () => {} });
       overlay.classList.remove('show');

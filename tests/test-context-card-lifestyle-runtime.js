@@ -29,9 +29,6 @@ console.log('=== Context Card Lifestyle Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'closeModal',
-  'navigate',
-  'openContextModal',
   '__lifestyleContextDelegatesBound',
   'setTimeout',
 ];
@@ -63,13 +60,12 @@ try {
     openContextModal: () => calls.push(['context-modal']),
   });
   const previousLifestyleRuntime = configureContextCardLifestyleRuntimeDeps({
+    closeModal: () => calls.push(['close']),
+    navigate: category => calls.push(['navigate', category]),
     openChatPanel: () => calls.push(['chat-panel']),
     useChatPrompt: prompt => calls.push(['prompt', prompt]),
   });
   setRuntimeValue('window', globalThis);
-  setRuntimeValue('closeModal', () => calls.push(['close']));
-  setRuntimeValue('navigate', category => calls.push(['navigate', category]));
-  setRuntimeValue('openContextModal', () => calls.push(['legacy-context-modal']));
   delete globalThis.__lifestyleContextDelegatesBound;
   setRuntimeValue('setTimeout', (fn, delay) => {
     calls.push(['timer', String(delay)]);
@@ -106,7 +102,12 @@ try {
 
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureChatRuntimeCallbacks({ updateChatHeaderModel: null });
-  configureContextCardLifestyleRuntimeDeps({ openChatPanel: null, useChatPrompt: null });
+  configureContextCardLifestyleRuntimeDeps({
+    closeModal: null,
+    navigate: null,
+    openChatPanel: null,
+    useChatPrompt: null,
+  });
   delete globalThis.window;
   const shellCallCount = calls.filter(call => call[0] !== 'timer').length;
   closeLifestyleContextModalRuntime();
@@ -121,11 +122,16 @@ try {
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const editorSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors.js'), 'utf8');
+  const runtimeSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-runtime.js'), 'utf8');
   const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
   assert('lifestyle editor delegates browser globals through runtime adapter',
     editorSrc.includes("from './context-card-lifestyle-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(editorSrc) &&
       swSrc.includes("'/js/context-card-lifestyle-runtime.js'"));
+  assert('lifestyle runtime injects view callbacks without the legacy bridge',
+    runtimeSrc.includes('lifestyleRuntimeDeps.closeModal?.()') &&
+      runtimeSrc.includes('lifestyleRuntimeDeps.navigate?.(category)') &&
+      !runtimeSrc.includes('getViewRuntimeFunction'));
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
   configureChatRuntimeCallbacks(previousChatRuntime);
   configureContextCardLifestyleRuntimeDeps(previousLifestyleRuntime);

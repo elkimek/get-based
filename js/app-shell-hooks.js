@@ -142,7 +142,7 @@ configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationE
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
 configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
 configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
-configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
+configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
 configureEMFInterpretationRuntimeDeps({ openChatPanel });
