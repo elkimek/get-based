@@ -9,6 +9,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
     const controls = await import(controlsUrl);
+    const chatRuntime = await import('/js/chat-runtime.js');
     const failures = [];
     const check = (name, condition, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
@@ -32,18 +33,19 @@ test('provider model controls edge coverage handles pricing updates guards and m
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       clearE2EESession: window.clearE2EESession,
-      updateChatHeaderModel: window.updateChatHeaderModel,
-      refreshWebSearchToggle: window.refreshWebSearchToggle,
     };
     let clearCount = 0;
     let headerRefreshes = 0;
     let webSearchRefreshes = 0;
+    let previousChatRuntime = null;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       window.clearE2EESession = () => { clearCount += 1; };
-      window.updateChatHeaderModel = () => { headerRefreshes += 1; };
-      window.refreshWebSearchToggle = () => { webSearchRefreshes += 1; };
+      previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+        updateChatHeaderModel: () => { headerRefreshes += 1; },
+        refreshWebSearchToggle: () => { webSearchRefreshes += 1; },
+      });
 
       document.body.insertAdjacentHTML('beforeend', `
         <section id="provider-controls-edge-fixture">
@@ -158,8 +160,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
       };
     } finally {
       window.clearE2EESession = oldGlobals.clearE2EESession;
-      window.updateChatHeaderModel = oldGlobals.updateChatHeaderModel;
-      window.refreshWebSearchToggle = oldGlobals.refreshWebSearchToggle;
+      if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);

@@ -18,6 +18,7 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
   const results = await page.evaluate(async ({ startupUrl }) => {
     const startup = await import(startupUrl);
     const wearables = await import('/js/wearables-connect.js');
+    const chatRuntime = await import('/js/chat-runtime.js');
     const outcomes = {};
 
     const snapshotStorage = storage => new Map(Array.from({ length: storage.length }, (_, index) => storage.key(index))
@@ -36,8 +37,6 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     const originalSetTimeout = window.setTimeout;
     const originalReplaceState = history.replaceState;
     const originalPushState = history.pushState;
-    const originalUpdateChatHeaderModel = window.updateChatHeaderModel;
-    const originalRefreshWebSearchToggle = window.refreshWebSearchToggle;
     const hadCoverageDispatch = Object.prototype.hasOwnProperty.call(wearables.OAUTH_DISPATCH, 'coverage');
     const savedCoverageDispatch = wearables.OAUTH_DISPATCH.coverage;
 
@@ -55,6 +54,10 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
         balanceDialogs += 1;
       },
     });
+    const originalChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      updateChatHeaderModel: () => {},
+      refreshWebSearchToggle: () => {},
+    });
 
     const resetCase = (query = '') => {
       localStorage.clear();
@@ -70,8 +73,6 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     };
 
     try {
-      window.updateChatHeaderModel = () => {};
-      window.refreshWebSearchToggle = () => {};
       history.replaceState = function replaceStateSpy(state, title, url) {
         replaceCalls.push({ title, url });
         return originalReplaceState.call(history, state, title, url);
@@ -266,8 +267,7 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
       startup.configureStartupOAuthCallbackDeps(originalStartupOAuthDeps);
       window.setTimeout = originalSetTimeout;
       history.replaceState = originalReplaceState;
-      window.updateChatHeaderModel = originalUpdateChatHeaderModel;
-      window.refreshWebSearchToggle = originalRefreshWebSearchToggle;
+      chatRuntime.configureChatRuntimeCallbacks(originalChatRuntime);
       if (hadCoverageDispatch) wearables.OAUTH_DISPATCH.coverage = savedCoverageDispatch;
       else delete wearables.OAUTH_DISPATCH.coverage;
       restoreStorage(localStorage, savedLocal);

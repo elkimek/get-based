@@ -17,6 +17,7 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       { state },
       syncState,
       syncDelta,
+      chatRuntime,
     ] = await Promise.all([
       import(applyUrl),
       import(cleanupUrl),
@@ -25,6 +26,7 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       import('/js/state.js'),
       import('/js/sync-state.js'),
       import('/js/sync-delta.js'),
+      import('/js/chat-runtime.js'),
     ]);
     const outcomes = {};
     const profileId = `sync-helper-${Date.now()}`;
@@ -67,9 +69,8 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       },
       localStorage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       sessionStorage: Object.fromEntries(sessionKeys.map(key => [key, sessionStorage.getItem(key)])),
-      updateChatHeaderModel: window.updateChatHeaderModel,
-      refreshWebSearchToggle: window.refreshWebSearchToggle,
     };
+    let previousChatRuntime = null;
 
     const restoreStoredValue = (store, key, value) => {
       if (value == null) store.removeItem(key);
@@ -81,8 +82,10 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       for (const key of sessionKeys) sessionStorage.removeItem(key);
       let headerUpdates = 0;
       let searchRefreshes = 0;
-      window.updateChatHeaderModel = () => { headerUpdates += 1; };
-      window.refreshWebSearchToggle = () => { searchRefreshes += 1; };
+      previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+        updateChatHeaderModel: () => { headerUpdates += 1; },
+        refreshWebSearchToggle: () => { searchRefreshes += 1; },
+      });
 
       localStorage.setItem('labcharts-ai-provider', 'local-openrouter');
       localStorage.setItem('labcharts-openrouter-key', 'local-secret');
@@ -222,10 +225,7 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       for (const [key, value] of Object.entries(saved.sessionStorage)) {
         restoreStoredValue(sessionStorage, key, value);
       }
-      if (saved.updateChatHeaderModel === undefined) delete window.updateChatHeaderModel;
-      else window.updateChatHeaderModel = saved.updateChatHeaderModel;
-      if (saved.refreshWebSearchToggle === undefined) delete window.refreshWebSearchToggle;
-      else window.refreshWebSearchToggle = saved.refreshWebSearchToggle;
+      if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
     }
 
     return outcomes;

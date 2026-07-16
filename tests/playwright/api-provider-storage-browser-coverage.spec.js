@@ -17,6 +17,7 @@ test('api provider storage browser coverage handles provider gates and model cac
   const results = await page.evaluate(async ({ providerStorageUrl }) => {
     const storage = await import(providerStorageUrl);
     const cryptoStore = await import('/js/crypto.js');
+    const chatRuntime = await import('/js/chat-runtime.js');
     const outcomes = {};
 
     const storageKeys = [
@@ -65,8 +66,6 @@ test('api provider storage browser coverage handles provider gates and model cac
       localStorage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       sessionStorage: Object.fromEntries(sessionKeys.map(key => [key, sessionStorage.getItem(key)])),
       keyCache: Object.fromEntries(cachedKeyNames.map(key => [key, cryptoStore.getCachedKey(key)])),
-      updateChatHeaderModel: window.updateChatHeaderModel,
-      refreshWebSearchToggle: window.refreshWebSearchToggle,
     };
 
     const restoreStoredValue = (store, key, value) => {
@@ -78,13 +77,16 @@ test('api provider storage browser coverage handles provider gates and model cac
 
     let headerUpdates = 0;
     let searchRefreshes = 0;
+    let previousChatRuntime = null;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       for (const key of sessionKeys) sessionStorage.removeItem(key);
       for (const key of cachedKeyNames) cryptoStore.updateKeyCache(key, null);
-      window.updateChatHeaderModel = () => { headerUpdates += 1; };
-      window.refreshWebSearchToggle = () => { searchRefreshes += 1; };
+      previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+        updateChatHeaderModel: () => { headerUpdates += 1; },
+        refreshWebSearchToggle: () => { searchRefreshes += 1; },
+      });
       window.addEventListener('labcharts-ai-settings-local-changed', onLocalSettingsChanged);
 
       const defaultProvider = storage.getAIProvider();
@@ -271,8 +273,7 @@ test('api provider storage browser coverage handles provider gates and model cac
       return outcomes;
     } finally {
       window.removeEventListener('labcharts-ai-settings-local-changed', onLocalSettingsChanged);
-      window.updateChatHeaderModel = saved.updateChatHeaderModel;
-      window.refreshWebSearchToggle = saved.refreshWebSearchToggle;
+      if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       for (const [key, value] of Object.entries(saved.localStorage)) {
         restoreStoredValue(localStorage, key, value);
       }

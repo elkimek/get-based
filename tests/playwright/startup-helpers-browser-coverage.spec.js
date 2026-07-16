@@ -387,6 +387,7 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
 
   const outcomes = await page.evaluate(async ({ startupUiUrl }) => {
     const settingsBridge = await import('/js/settings-runtime-bridge.js');
+    const chatRuntime = await import('/js/chat-runtime.js');
     const originalSetTimeout = window.setTimeout;
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     window.__startupUICalls = [];
@@ -402,11 +403,11 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openSettingsModal: section => window.__startupUICalls.push(['openSettingsModal', section]),
     });
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      updateChatNudge: () => window.__startupUICalls.push('updateChatNudge'),
+    });
     window.openChatPanel = () => {
       window.__startupUICalls.push('openChatPanel');
-    };
-    window.updateChatNudge = () => {
-      window.__startupUICalls.push('updateChatNudge');
     };
     window._openSettingsAfterInit = 'display';
     window._openChatAfterInit = true;
@@ -481,6 +482,7 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
       };
     } finally {
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       window.setTimeout = originalSetTimeout;
       window.requestAnimationFrame = originalRequestAnimationFrame;
       delete window._openSettingsAfterInit;

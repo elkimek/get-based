@@ -5,6 +5,7 @@ import { isImportRunning } from './pdf-import-progress.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog } from './utils.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { updateChatNudgeRuntime } from './chat-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const dnaRuntimeDeps = { getLatitudeFromLocation, isDebugMode, isImportRunning, showConfirmDialog };
@@ -96,7 +97,7 @@ export function triggerDnaFilePicker() {
 }
 
 export function updateDnaChatNudge() {
-  getRuntimeFunction('updateChatNudge')?.();
+  updateChatNudgeRuntime();
 }
 
 /** @returns {string | null} */

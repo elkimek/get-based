@@ -17,11 +17,17 @@ import {
   updateAttachButtonVisibility,
 } from './chat-images.js';
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
-import { closeChatPanel, configureChatPanel, toggleChatPanel } from './chat-panel.js';
+import {
+  closeChatPanel,
+  configureChatPanel,
+  refreshWebSearchToggle,
+  toggleChatPanel,
+} from './chat-panel.js';
 import { askAIAboutCorrelations } from './chat-marker-prompts.js';
 import { onContextCardSaved } from './chat-onboarding.js';
 import { updateChatNudge } from './chat-nudge.js';
-import { updateChatContextStatus } from './chat-personalities.js';
+import { updateChatContextStatus, updateChatHeaderModel } from './chat-personalities.js';
+import { configureChatRuntimeCallbacks } from './chat-runtime.js';
 import {
   closeSummaryModal,
   copySummary,
@@ -93,6 +99,7 @@ configureRecommendationsRuntime({ openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
+configureChatRuntimeCallbacks({ refreshWebSearchToggle, updateChatHeaderModel, updateChatNudge });
 configureChatMessageActionDeps({
   closeSummaryModal,
   continueDiscussion,

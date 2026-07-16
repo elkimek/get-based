@@ -14,6 +14,7 @@ import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { maybeShowAnalyticsConsent } from './utils.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { updateChatNudgeRuntime } from './chat-runtime.js';
 
 const startupUIDeps = {
   initChatImageHandlers: () => {},
@@ -154,5 +155,5 @@ function initializeChatAttachments() {
   // Init chat image attachment handlers (paste, drag-drop, file input).
   startupUIDeps.initChatImageHandlers();
   startupUIDeps.updateAttachButtonVisibility();
-  requireStartupRuntime('updateChatNudge');
+  updateChatNudgeRuntime();
 }

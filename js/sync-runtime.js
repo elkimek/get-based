@@ -1,6 +1,11 @@
 // @ts-check
 // sync-runtime.js - Mutable Evolu runtime handles shared by sync modules.
 
+import {
+  refreshChatWebSearchToggleRuntime,
+  updateChatHeaderModelRuntime,
+} from './chat-runtime.js';
+
 let _evolu = null;
 let _profileQuery = null;
 let _tombstoneQuery = null;
@@ -37,15 +42,6 @@ function getSyncRuntimeWindow() {
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getSyncRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
 export function getSyncEvolu() { return _evolu; }
 export function getSyncProfileQuery() { return _profileQuery; }
 export function getSyncTombstoneQuery() { return _tombstoneQuery; }
@@ -80,18 +76,8 @@ export function setSyncAppOwnerError(error) {
 }
 
 export function refreshSyncedAIProviderUiRuntime() {
-  let refreshed = false;
-  const updateHeader = getRuntimeFunction('updateChatHeaderModel');
-  if (updateHeader) {
-    updateHeader();
-    refreshed = true;
-  }
-  const refreshWebSearch = getRuntimeFunction('refreshWebSearchToggle');
-  if (refreshWebSearch) {
-    refreshWebSearch();
-    refreshed = true;
-  }
-  return refreshed;
+  const headerRefreshed = updateChatHeaderModelRuntime();
+  return refreshChatWebSearchToggleRuntime() || headerRefreshed;
 }
 
 export function refreshSyncedRoutstrBalanceRuntime() {

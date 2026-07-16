@@ -41,6 +41,7 @@ import { startGuidedTour } from './tour.js';
 import { getActiveProfileId } from './profile.js';
 import { openChangelog } from './changelog.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { updateChatNudgeRuntime } from './chat-runtime.js';
 import {
   confirmDisablePIIReview,
   refreshDataEntriesSection,
@@ -1052,7 +1053,7 @@ export function updateSettingsUI() {
 
 export function closeSettingsModal() {
   closeModalOverlay('settings-modal-overlay');
-  if (settingsWindow.updateChatNudge) settingsWindow.updateChatNudge();
+  updateChatNudgeRuntime();
   settingsRuntime.refreshMobileDashboardActiveTab();
 }
 

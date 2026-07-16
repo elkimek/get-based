@@ -230,7 +230,7 @@ try {
       appEventsSrc.includes('"context-hub-overlay"') && appEventsSrc.includes('"ai-personalize-picker-overlay"'));
     const lensSrc = fs.readFileSync('js/lens.js', 'utf8');
     assert('saveLensKey refreshes chat header after external KB key cache updates',
-      /export\s+async\s+function\s+saveLensKey[\s\S]*updateKeyCache\(SECRET_KEY, key\)[\s\S]*updateChatHeaderModel\?\.\(\)/.test(lensSrc));
+      /export\s+async\s+function\s+saveLensKey[\s\S]*updateKeyCache\(SECRET_KEY, key\)[\s\S]*updateChatHeaderModelRuntime\(\)/.test(lensSrc));
     assert('Context hub owns optional AI data-source controls',
       dashboardAISrc.includes('renderContextSourceControls')
       && dashboardAISrc.includes('renderContextSourceSummary')

@@ -5,6 +5,7 @@ import {
   dispatchAISettingsLocalChangedRuntime,
   refreshAIProviderSelectionRuntime,
 } from '../js/api-provider-storage-runtime.js';
+import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
@@ -28,11 +29,15 @@ describe('api provider storage runtime adapter', () => {
   it('delegates provider UI refresh hooks', () => {
     const updateChatHeaderModel = vi.fn();
     const refreshWebSearchToggle = vi.fn();
-    setRuntimeWindow({ updateChatHeaderModel, refreshWebSearchToggle });
+    const previous = configureChatRuntimeCallbacks({ updateChatHeaderModel, refreshWebSearchToggle });
 
-    expect(refreshAIProviderSelectionRuntime()).toBe(true);
-    expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
-    expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);
+    try {
+      expect(refreshAIProviderSelectionRuntime()).toBe(true);
+      expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
+      expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);
+    } finally {
+      configureChatRuntimeCallbacks(previous);
+    }
   });
 
   it('dispatches the local AI settings change event', () => {
@@ -49,10 +54,18 @@ describe('api provider storage runtime adapter', () => {
   });
 
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
+    const previous = configureChatRuntimeCallbacks({
+      refreshWebSearchToggle: null,
+      updateChatHeaderModel: null,
+    });
     delete globalThis.window;
 
-    expect(refreshAIProviderSelectionRuntime()).toBe(false);
-    expect(dispatchAISettingsLocalChangedRuntime()).toBe(false);
+    try {
+      expect(refreshAIProviderSelectionRuntime()).toBe(false);
+      expect(dispatchAISettingsLocalChangedRuntime()).toBe(false);
+    } finally {
+      configureChatRuntimeCallbacks(previous);
+    }
   });
 
   it('keeps counted api provider storage globals behind the adapter', () => {

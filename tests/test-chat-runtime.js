@@ -4,11 +4,15 @@
 import './_node-shim.js';
 import {
   closeChatModalRuntime,
+  configureChatRuntimeCallbacks,
   getChatProviderAttestation,
   getChatRegenerateCallbacks,
   isChatRuntimeStreaming,
   openChatContextModalRuntime,
+  refreshChatWebSearchToggleRuntime,
   renderChatMessagesRuntime,
+  updateChatHeaderModelRuntime,
+  updateChatNudgeRuntime,
   updateDiscussButtonRuntime,
 } from '../js/chat-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
@@ -64,6 +68,11 @@ try {
   const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
     openContextModal: () => calls.push(['context']),
   });
+  const previousChatRuntime = configureChatRuntimeCallbacks({
+    refreshWebSearchToggle: () => calls.push(['web-search']),
+    updateChatHeaderModel: () => calls.push(['header-model']),
+    updateChatNudge: () => calls.push(['nudge']),
+  });
   const ppqAttestation = { provider: 'ppq', verified: true };
   const routstrAttestation = { provider: 'routstr', verified: true };
   const veniceAttestation = { provider: 'venice', verified: true };
@@ -82,11 +91,18 @@ try {
   updateDiscussButtonRuntime();
   openChatContextModalRuntime();
   closeChatModalRuntime();
+  refreshChatWebSearchToggleRuntime();
+  updateChatHeaderModelRuntime();
+  updateChatNudgeRuntime();
   assert('chat runtime invokes render/discuss/context/close callbacks',
     calls.some(call => call[0] === 'render') &&
       calls.some(call => call[0] === 'discuss') &&
       calls.some(call => call[0] === 'context') &&
       calls.some(call => call[0] === 'close'));
+  assert('chat runtime invokes configured refresh callbacks',
+    calls.some(call => call[0] === 'web-search') &&
+      calls.some(call => call[0] === 'header-model') &&
+      calls.some(call => call[0] === 'nudge'));
 
   assert('chat runtime reports non-streaming state',
     isChatRuntimeStreaming() === false);
@@ -113,12 +129,18 @@ try {
       getChatProviderAttestation('venice') === veniceAttestation);
 
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
+  configureChatRuntimeCallbacks({
+    refreshWebSearchToggle: null,
+    updateChatHeaderModel: null,
+    updateChatNudge: null,
+  });
   delete globalThis.window;
   assert('chat runtime no-ops without a browser window',
     isChatRuntimeStreaming() === false &&
       getChatRegenerateCallbacks() === null &&
       getChatProviderAttestation('ppq') === undefined);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+  configureChatRuntimeCallbacks(previousChatRuntime);
 } finally {
   restoreRuntime();
 }

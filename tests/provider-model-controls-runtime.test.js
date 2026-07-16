@@ -7,6 +7,7 @@ import {
   configureProviderModelControlsRuntimeDeps,
   refreshProviderModelUiRuntime,
 } from '../js/provider-model-controls-runtime.js';
+import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
@@ -30,11 +31,11 @@ describe('provider model controls runtime adapter', () => {
     const refreshWebSearchToggle = vi.fn();
     const callClaudeAPI = vi.fn(async () => ({ content: 'ok' }));
     const previousDeps = configureProviderModelControlsRuntimeDeps({ callClaudeAPI });
-    setRuntimeWindow({
-      clearE2EESession,
+    const previousChatRuntime = configureChatRuntimeCallbacks({
       updateChatHeaderModel,
       refreshWebSearchToggle,
     });
+    setRuntimeWindow({ clearE2EESession });
 
     try {
       expect(clearProviderE2EESessionRuntime()).toBe(true);
@@ -42,6 +43,7 @@ describe('provider model controls runtime adapter', () => {
       await expect(callProviderModelSmokeTestRuntime()).resolves.toEqual({ content: 'ok' });
     } finally {
       configureProviderModelControlsRuntimeDeps(previousDeps);
+      configureChatRuntimeCallbacks(previousChatRuntime);
     }
 
     expect(clearE2EESession).toHaveBeenCalledTimes(1);
@@ -54,10 +56,18 @@ describe('provider model controls runtime adapter', () => {
   });
 
   it('uses safe no-op fallbacks when browser hooks are missing', () => {
+    const previousChatRuntime = configureChatRuntimeCallbacks({
+      refreshWebSearchToggle: null,
+      updateChatHeaderModel: null,
+    });
     delete globalThis.window;
 
-    expect(clearProviderE2EESessionRuntime()).toBe(false);
-    expect(refreshProviderModelUiRuntime()).toBe(false);
+    try {
+      expect(clearProviderE2EESessionRuntime()).toBe(false);
+      expect(refreshProviderModelUiRuntime()).toBe(false);
+    } finally {
+      configureChatRuntimeCallbacks(previousChatRuntime);
+    }
   });
 
   it('keeps provider-model-controls.js browser globals behind the adapter', () => {

@@ -245,7 +245,8 @@
     'saveChatProfile', 'saveChatLocation', 'onboardHeightUnitChanged', 'saveChatPeriod', 'addChatSupplement',
     'removeChatSupplement', 'setProviderQuizBranch', 'backToProviderQuiz', 'skipProviderSetup',
     'skipOnboardingExtras', 'showCycleNoMensesOptions', 'showCyclePeriodEntry', 'saveCycleStatus',
-    '_updatePeriodBtn', 'onContextCardSaved',
+    '_updatePeriodBtn', 'onContextCardSaved', 'refreshWebSearchToggle', 'updateChatHeaderModel',
+    'updateChatNudge',
   ];
   assert('Unused Chat APIs do not publish legacy window globals',
     formerUnusedChatGlobals.every(name => !(name in window)));

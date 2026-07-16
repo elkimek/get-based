@@ -187,6 +187,7 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`);
     const dnaRuntime = await import('/js/dna-runtime.js');
+    const chatRuntime = await import('/js/chat-runtime.js');
     const viewRuntime = await import('/js/views-runtime-bridge.js');
     let importRunning = false;
     const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps({
@@ -203,8 +204,10 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     const previousViewRuntime = viewRuntime.configureViewRuntime({
       buildSidebar: () => calls.push('sidebar'),
     });
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      updateChatNudge: () => calls.push('nudge'),
+    });
     window.navigate = route => calls.push(`navigate:${route}`);
-    window.updateChatNudge = () => calls.push('nudge');
 
     const validContent = `#AncestryDNA raw data download
 rsid\tchromosome\tposition\tallele1\tallele2
@@ -287,6 +290,7 @@ rs999999\t1\t100\tAG
     check('notifications rendered during flow', /DNA import|Imported|health-relevant/.test(toastText));
 
     dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
+    chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
     viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
     return { failures };
   });
