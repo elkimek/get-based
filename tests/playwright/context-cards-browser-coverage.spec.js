@@ -14,10 +14,11 @@ test('context cards browser coverage exercises notes save dots and tips', async 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cardsUrl }) => {
-    const [{ state }, cards, recommendationRuntime] = await Promise.all([
+    const [{ state }, cards, recommendationRuntime, contextCardsRuntime] = await Promise.all([
       import('/js/state.js'),
       import(cardsUrl),
       import('/js/recommendations-runtime.js'),
+      import('/js/context-cards-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const outcomes = {};
@@ -26,12 +27,12 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       importedData: clone(state.importedData),
       closeModal: window.closeModal,
       navigate: window.navigate,
-      onContextCardSaved: window.onContextCardSaved,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
       detailsOpen: sessionStorage.getItem('welcome-details-open'),
     };
     let previousRecommendationBridge = null;
+    let previousContextCardsRuntime = null;
     let host = null;
     let injectedNav = null;
     let details = null;
@@ -112,7 +113,9 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       document.body.appendChild(injectedNav);
       window.closeModal = () => calls.push(['close']);
       window.navigate = category => calls.push(['navigate', category]);
-      window.onContextCardSaved = () => calls.push(['saved']);
+      previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+        onContextCardSaved: () => calls.push(['saved']),
+      });
       state.importedData.stress = { level: 'moderate', sources: ['work'], management: ['walks'], note: '' };
       const saveBefore = calls.length;
       cards.saveAndRefresh('Stress profile saved', 'stress');
@@ -156,8 +159,9 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       else delete window.closeModal;
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
-      if (saved.onContextCardSaved) window.onContextCardSaved = saved.onContextCardSaved;
-      else delete window.onContextCardSaved;
+      if (previousContextCardsRuntime) {
+        contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+      }
       if (previousRecommendationBridge) {
         recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
       }

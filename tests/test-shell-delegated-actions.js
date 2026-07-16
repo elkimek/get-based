@@ -66,9 +66,17 @@ assert('Chat HD shell action uses its module dependency instead of a window look
 
 assert('App shell wires module-only chat image consumers',
   appShellHooksSrc.includes("from './chat-images.js'")
-    && appShellHooksSrc.includes('configureChatMessageActionDeps({ openImageLightbox, removeImageAttachment });')
+    && appShellHooksSrc.includes('configureChatMessageActionDeps({')
+    && appShellHooksSrc.includes('openImageLightbox,')
+    && appShellHooksSrc.includes('removeImageAttachment,')
     && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
     && appShellHooksSrc.includes('configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });'));
+
+assert('App shell wires module-only chat message actions',
+  ['closeSummaryModal', 'continueDiscussion', 'copySummary', 'deleteSavedSummary',
+    'downloadSummary', 'endDiscussion', 'jumpToSearchResult', 'printSummary',
+    'startDiscussionFromPicker', 'viewSavedSummary']
+    .every(name => appShellHooksSrc.includes(`${name},`)));
 
 assert('Chat thread shell actions use module dependencies instead of window lookups',
   shellSrc.includes('shellChatThreadDeps.toggleThreadRail()')

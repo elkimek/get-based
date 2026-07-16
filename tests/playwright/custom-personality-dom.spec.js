@@ -20,13 +20,9 @@ test('custom personality DOM renders editor controls and delegated discuss actio
   ];
 
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.loadChatPersonality === 'function'
-      && typeof window.updatePersonalityBar === 'function'
-      && typeof window.startNewCustomPersonality === 'function'
-  );
 
   const results = await page.evaluate(async () => {
+    const chatPersonalities = await import('/js/chat-personalities.js');
     const profileId = localStorage.getItem('labcharts-current-profile') || 'default';
     const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
     const personalityKey = `labcharts-${profileId}-chatPersonality`;
@@ -41,8 +37,8 @@ test('custom personality DOM renders editor controls and delegated discuss actio
     try {
       localStorage.setItem(customKey, JSON.stringify(personalities));
       localStorage.setItem(personalityKey, 'custom_abc');
-      window.loadChatPersonality();
-      window.updatePersonalityBar();
+      chatPersonalities.loadChatPersonality();
+      chatPersonalities.updatePersonalityBar();
 
       const section = document.getElementById('chat-personality-custom-section');
       const customBtns = section?.querySelectorAll('.chat-personality-opt') || [];
@@ -109,11 +105,11 @@ test('custom personality DOM renders editor controls and delegated discuss actio
         '.chat-personality-custom-save:disabled',
       ].every(hasSelectorContaining);
 
-      window.startNewCustomPersonality();
+      chatPersonalities.startNewCustomPersonality();
       const saveBtn2 = document.querySelector('.chat-personality-custom-save');
-      window.snapshotPersonalityClean();
+      chatPersonalities.snapshotPersonalityClean();
       outcomes.saveDisabledAfterSnapshot = saveBtn2?.disabled === true;
-      window.markPersonalityDirty();
+      chatPersonalities.markPersonalityDirty();
       outcomes.saveStaysDisabledWhenStateMatchesSnapshot = saveBtn2?.disabled === true;
 
       const discussBtn = document.getElementById('chat-discuss-btn');
@@ -125,8 +121,8 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       else localStorage.setItem(customKey, originalCustom);
       if (originalPersonality == null) localStorage.removeItem(personalityKey);
       else localStorage.setItem(personalityKey, originalPersonality);
-      window.loadChatPersonality?.();
-      window.updatePersonalityBar?.();
+      chatPersonalities.loadChatPersonality();
+      chatPersonalities.updatePersonalityBar();
     }
 
     return outcomes;
@@ -315,16 +311,13 @@ test('custom personality save path updates picker, header, and persisted state',
   ];
 
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.loadChatPersonality === 'function'
-      && typeof window.updatePersonalityBar === 'function'
-      && typeof window.saveCustomPersonality === 'function'
-      && typeof window.deleteCustomPersonality === 'function'
-      && !!window._labState
-  );
+  await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const { state } = await import('/js/state.js');
+    const [{ state }, chatPersonalities] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/chat-personalities.js'),
+    ]);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, localStorage.getItem(key)];
@@ -373,7 +366,7 @@ test('custom personality save path updates picker, header, and persisted state',
       localStorage.setItem(customKey, '[]');
       localStorage.setItem(personalityKey, 'default');
 
-      window.updateChatHeaderTitle();
+      chatPersonalities.updateChatHeaderTitle();
       const summaryBtn = document.querySelector('.chat-summary-btn');
       outcomes.headerTitleCombinesAssistantPersonas =
         document.querySelector('.chat-header-title')?.textContent === 'A Analyst One & C Coach Two';
@@ -382,7 +375,7 @@ test('custom personality save path updates picker, header, and persisted state',
         && summaryBtn?.getAttribute('title') === 'View summary';
 
       delete state.chatThreads[0].summary;
-      window.updateSummaryButton();
+      chatPersonalities.updateSummaryButton();
       outcomes.summaryButtonClearsWithoutSummary =
         summaryBtn?.classList.contains('has-summary') === false
         && summaryBtn?.getAttribute('title') === 'Summarize this conversation';
@@ -391,17 +384,17 @@ test('custom personality save path updates picker, header, and persisted state',
       const trigger = document.querySelector('.chat-personality-current');
       bar?.classList.remove('open');
       trigger?.setAttribute('aria-expanded', 'false');
-      window.togglePersonalityBar();
+      chatPersonalities.togglePersonalityBar();
       const opened = bar?.classList.contains('open') === true
         && trigger?.getAttribute('aria-expanded') === 'true';
-      window.togglePersonalityBar();
+      chatPersonalities.togglePersonalityBar();
       outcomes.pickerToggleUpdatesOpenClassAndAria = opened
         && bar?.classList.contains('open') === false
         && trigger?.getAttribute('aria-expanded') === 'false';
 
       state.chatHistory = [];
-      window.updateChatHeaderTitle();
-      window.updatePersonalityBar();
+      chatPersonalities.updateChatHeaderTitle();
+      chatPersonalities.updatePersonalityBar();
       document.querySelector('.chat-personality-add-btn')?.click();
       await waitFor(() => !!document.getElementById('chat-personality-custom-name'));
       const nameInput = document.getElementById('chat-personality-custom-name');
@@ -426,11 +419,11 @@ test('custom personality save path updates picker, header, and persisted state',
         && document.querySelector('.chat-header-title')?.textContent === 'Methodical Reviewer'
         && document.querySelector('.chat-personality-custom-save')?.disabled === true;
 
-      window.editCustomPersonality(created.id);
+      chatPersonalities.editCustomPersonality(created.id);
       document.getElementById('chat-personality-custom-name').value = 'Updated Reviewer';
       document.querySelector('.chat-personality-custom-textarea').value = 'Updated prompt';
-      window.markPersonalityDirty();
-      window.saveCustomPersonality();
+      chatPersonalities.markPersonalityDirty();
+      chatPersonalities.saveCustomPersonality();
       const editedCustoms = JSON.parse(localStorage.getItem(customKey) || '[]');
       outcomes.editCustomUpdatesExistingWithoutDuplicate =
         editedCustoms.length === 1
@@ -443,19 +436,19 @@ test('custom personality save path updates picker, header, and persisted state',
         { id: 'custom_migrate', name: 'Migrated Voice', icon: 'M', promptText: 'Migrate prompt' },
       ]));
       localStorage.setItem(personalityKey, 'custom');
-      window.loadChatPersonality();
+      chatPersonalities.loadChatPersonality();
       outcomes.loadLegacyCustomMigratesToFirstSavedCustom =
         state.currentChatPersonality === 'custom_migrate'
         && localStorage.getItem(personalityKey) === 'custom_migrate';
 
       localStorage.setItem(personalityKey, 'custom_missing');
-      window.loadChatPersonality();
+      chatPersonalities.loadChatPersonality();
       outcomes.loadUnknownCustomFallsBackDefault = state.currentChatPersonality === 'default';
 
       state.currentChatPersonality = 'custom_migrate';
       localStorage.setItem(personalityKey, 'custom_migrate');
-      window.updatePersonalityBar();
-      const deleteResultPromise = window.deleteCustomPersonality('custom_migrate')
+      chatPersonalities.updatePersonalityBar();
+      const deleteResultPromise = chatPersonalities.deleteCustomPersonality('custom_migrate')
         .then(() => ({ ok: true }))
         .catch(error => ({ ok: false, error: error?.message || String(error) }));
       const confirmReady = await waitFor(() => !!document.getElementById('confirm-ok'));
@@ -487,9 +480,9 @@ test('custom personality save path updates picker, header, and persisted state',
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
       }
-      window.loadChatPersonality?.();
-      window.updatePersonalityBar?.();
-      window.updateChatHeaderTitle?.();
+      chatPersonalities.loadChatPersonality();
+      chatPersonalities.updatePersonalityBar();
+      chatPersonalities.updateChatHeaderTitle();
     }
 
     return outcomes;

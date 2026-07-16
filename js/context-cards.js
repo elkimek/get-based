@@ -8,7 +8,10 @@ import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
-import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
+import {
+  configureContextCardsRuntimeCallbacks,
+  notifyContextCardSavedRuntime,
+} from './context-cards-runtime.js';
 import {
   appendImportedArrayItem,
   ensureImportedArray,
@@ -426,7 +429,6 @@ export function recordChange(field) {
 }
 
 export function saveAndRefresh(msg, field) {
-  const appWindow = /** @type {any} */ (window);
   if (field) recordChange(field);
   saveImportedData();
   // Preserve details open state across the re-render below
@@ -434,7 +436,7 @@ export function saveAndRefresh(msg, field) {
   if (details?.open) sessionStorage.setItem('welcome-details-open', '1');
   closeContextCardModal();
   showNotification(msg, 'success');
-  if (typeof appWindow.onContextCardSaved === 'function') appWindow.onContextCardSaved();
+  notifyContextCardSavedRuntime();
   // Re-render the current view so the saved values appear on the card
   // immediately. BroadcastChannel notifies other tabs but never delivers
   // back to the sender, so a single-tab user would otherwise see no UI

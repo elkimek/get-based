@@ -3,6 +3,7 @@
 
 /** @type {Record<string, Function | null>} */
 const contextCardsRuntimeCallbacks = {
+  onContextCardSaved: null,
   openContextModal: null,
   openInterpretiveLensEditor: null,
   recordChange: null,
@@ -35,6 +36,10 @@ function callContextCardsRuntime(name, ...args) {
 
 export function openContextModalRuntime() {
   return callContextCardsRuntime('openContextModal');
+}
+
+export function notifyContextCardSavedRuntime() {
+  return callContextCardsRuntime('onContextCardSaved');
 }
 
 export function openInterpretiveLensEditorRuntime() {

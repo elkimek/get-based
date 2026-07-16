@@ -44,6 +44,7 @@ const stateModule = await import('../js/state.js');
 const cryptoModule = await import('../js/crypto.js');
 const backupModule = await import('../js/backup.js');
 const chatThreadsModule = await import('../js/chat-threads.js');
+const chatHistoryModule = await import('../js/chat-history.js');
 await import('../js/chat.js');
 
 const st = stateModule.state;
@@ -182,14 +183,14 @@ st.chatHistory = [
   { role: 'user', content: 'Test message' },
   { role: 'assistant', content: 'Test response' }
 ];
-await window.saveChatHistory();
+await chatHistoryModule.saveChatHistory();
 const savedIndex = JSON.parse(localStorage.getItem(chatThreadsModule.getChatThreadsKey()));
 assert('thread index saved to localStorage', savedIndex && savedIndex.length === 1);
 assert('thread index messageCount updated', savedIndex[0].messageCount === 2);
 const savedMessages = JSON.parse(localStorage.getItem(chatThreadsModule.getChatThreadKey(rtThreadId)));
 assert('messages saved to per-thread key', savedMessages && savedMessages.length === 2);
 st.chatHistory = [];
-await window.loadChatHistory();
+await chatHistoryModule.loadChatHistory();
 assert('messages loaded back', st.chatHistory.length === 2);
 assert('message content matches', st.chatHistory[0].content === 'Test message');
 localStorage.removeItem(chatThreadsModule.getChatThreadKey(rtThreadId));

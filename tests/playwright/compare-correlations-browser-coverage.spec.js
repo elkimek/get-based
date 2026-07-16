@@ -201,6 +201,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
     const originalChart = window.Chart;
     const chartCaptures = [];
     let destroyCount = 0;
+    let savedCompareDeps = null;
 
     function ChartStub(canvas, config) {
       chartCaptures.push({ canvas, config });
@@ -273,7 +274,9 @@ test('correlations browser contract filters markers toggles chips and builds cha
       const dropdown = document.getElementById('corr-options');
       const search = document.getElementById('corr-search');
       let askCount = 0;
-      window.askAIAboutCorrelations = () => { askCount += 1; };
+      savedCompareDeps = compare.configureCompareCorrelationViews({
+        askAIAboutCorrelations: () => { askCount += 1; },
+      });
       outcomes.correlationControlsEmitDelegatedAttributesOnly =
         document.querySelectorAll('#main-content [onclick], #main-content [onchange], #main-content [oninput], #main-content [onfocus]').length === 0
         && search?.getAttribute('data-compare-input-action') === 'filter-options'
@@ -367,6 +370,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
         state.selectedCorrelationMarkers.length === 8
         && !state.selectedCorrelationMarkers.includes('hormones.testosterone');
     } finally {
+      if (savedCompareDeps) compare.configureCompareCorrelationViews(savedCompareDeps);
       if (originalChart === undefined) delete window.Chart;
       else window.Chart = originalChart;
       state.importedData = originalImportedData;
