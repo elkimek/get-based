@@ -85,7 +85,9 @@ try {
   setRuntimeValue('window', browserRuntime);
   configureBiologyScoresRuntimeDeps({
     getActiveData: browserRuntime.getActiveData.bind(browserRuntime),
+    navigate: browserRuntime.navigate.bind(browserRuntime),
     openChatPanel: browserRuntime.openChatPanel.bind(browserRuntime),
+    showDetailModal: browserRuntime.showDetailModal.bind(browserRuntime),
     showNotification: browserRuntime.showNotification.bind(browserRuntime),
     useChatPrompt: browserRuntime.useChatPrompt.bind(browserRuntime),
   });
@@ -125,10 +127,17 @@ try {
 
   delete browserRuntime.openChatPanel;
   delete browserRuntime.getActiveData;
-  configureBiologyScoresRuntimeDeps({ getActiveData: null, openChatPanel: null, useChatPrompt: null });
+  configureBiologyScoresRuntimeDeps({
+    getActiveData: null,
+    navigate: null,
+    openChatPanel: null,
+    showDetailModal: null,
+    useChatPrompt: null,
+  });
   assert('biology runtime handles missing optional browser hooks',
     !canOpenBiologyScoresChatPanel() &&
       openBiologyScoresChatPanel('missing') === false &&
+      openBiologyScoreMarkerDetail('biochemistry_glucose') === false &&
       hasBiologyScoresAIProvider() === false &&
       Object.keys(getBiologyScoresActiveData()).length === 0);
 

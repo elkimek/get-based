@@ -88,6 +88,7 @@ import {
   navigate,
   refreshMobileDashboardActiveTab,
   resetDashboardWidgets,
+  showDetailModal,
   toggleDashboardOrganizeMode,
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
@@ -135,7 +136,7 @@ configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
-configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });
+configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
 configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
