@@ -23,13 +23,14 @@ test('chat history browser coverage saves loads clears and updates thread state'
   await openBlankPage(page, '/chat-history-browser-coverage');
 
   const results = await page.evaluate(async ({ chatHistoryUrl }) => {
-    const [{ state }, chatHistory, threads, profile, cryptoStore, blobStorage] = await Promise.all([
+    const [{ state }, chatHistory, threads, profile, cryptoStore, blobStorage, chatRuntime] = await Promise.all([
       import('/js/state.js'),
       import(chatHistoryUrl),
       import('/js/chat-threads.js'),
       import('/js/profile.js'),
       import('/js/crypto.js'),
       import('/js/blob-storage.js'),
+      import('/js/chat-runtime.js'),
     ]);
     const storage = new Map(
       Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
@@ -43,8 +44,6 @@ test('chat history browser coverage saves loads clears and updates thread state'
       currentThreadId: state.currentThreadId,
       currentChatPersonality: state.currentChatPersonality,
       importedData: state.importedData,
-      renderChatMessages: window.renderChatMessages,
-      updateDiscussButton: window.updateDiscussButton,
       bodyHTML: document.body.innerHTML,
     };
     const profileId = 'coverage-chat-history-profile';
@@ -52,6 +51,10 @@ test('chat history browser coverage saves loads clears and updates thread state'
     const outcomes = {};
     let renderCalls = 0;
     let discussCalls = 0;
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      renderChatMessages: () => { renderCalls += 1; },
+      updateDiscussButton: () => { discussCalls += 1; },
+    });
     const waitFor = async (predicate, label, timeoutMs = 1000) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
@@ -71,9 +74,6 @@ test('chat history browser coverage saves loads clears and updates thread state'
         <div class="chat-header-title"></div>
         <button class="chat-summary-btn" type="button"></button>
       `;
-      window.renderChatMessages = () => { renderCalls += 1; };
-      window.updateDiscussButton = () => { discussCalls += 1; };
-
       state.currentProfile = profileId;
       state.currentChatPersonality = 'default';
       state.currentThreadId = null;
@@ -184,8 +184,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
       state.currentThreadId = original.currentThreadId;
       state.currentChatPersonality = original.currentChatPersonality;
       state.importedData = original.importedData;
-      window.renderChatMessages = original.renderChatMessages;
-      window.updateDiscussButton = original.updateDiscussButton;
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       await blobStorage.deleteBlob(importedKey);
       localStorage.clear();
       for (const [key, value] of storage) {

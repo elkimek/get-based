@@ -314,9 +314,10 @@ test('custom personality save path updates picker, header, and persisted state',
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, chatPersonalities] = await Promise.all([
+    const [{ state }, chatPersonalities, chatRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/chat-personalities.js'),
+      import('/js/chat-runtime.js'),
     ]);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
@@ -328,9 +329,11 @@ test('custom personality save path updates picker, header, and persisted state',
       chatThreads: state.chatThreads,
       currentThreadId: state.currentThreadId,
       currentChatPersonality: state.currentChatPersonality,
-      renderChatMessages: window.renderChatMessages,
       dateNow: Date.now,
     };
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      renderChatMessages: () => {},
+    });
     const outcomes = {};
     const waitFor = async (predicate, timeoutMs = 1000) => {
       const start = performance.now();
@@ -359,8 +362,6 @@ test('custom personality save path updates picker, header, and persisted state',
         { role: 'assistant', personalityName: 'Analyst One', personalityIcon: 'A', content: 'First view' },
         { role: 'assistant', personalityName: 'Coach Two', personalityIcon: 'C', content: 'Second view' },
       ];
-      window.renderChatMessages = () => {};
-
       const customKey = `labcharts-${state.currentProfile}-chatPersonalityCustom`;
       const personalityKey = `labcharts-${state.currentProfile}-chatPersonality`;
       localStorage.setItem(customKey, '[]');
@@ -474,7 +475,7 @@ test('custom personality save path updates picker, header, and persisted state',
       state.chatThreads = original.chatThreads;
       state.currentThreadId = original.currentThreadId;
       state.currentChatPersonality = original.currentChatPersonality;
-      window.renderChatMessages = original.renderChatMessages;
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       document.getElementById('confirm-dialog-overlay')?.remove();
       localStorage.clear();
       for (const [key, value] of storage) {

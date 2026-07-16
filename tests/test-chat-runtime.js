@@ -69,20 +69,20 @@ try {
     openContextModal: () => calls.push(['context']),
   });
   const previousChatRuntime = configureChatRuntimeCallbacks({
+    isChatStreaming: () => false,
     refreshWebSearchToggle: () => calls.push(['web-search']),
+    renderChatMessages: () => calls.push(['render']),
     sendChatMessage: () => calls.push(['send']),
     updateChatHeaderModel: () => calls.push(['header-model']),
     updateChatNudge: () => calls.push(['nudge']),
+    updateDiscussButton: () => calls.push(['discuss']),
   });
   const ppqAttestation = { provider: 'ppq', verified: true };
   const routstrAttestation = { provider: 'routstr', verified: true };
   const veniceAttestation = { provider: 'venice', verified: true };
   setRuntimeValue('window', globalThis);
-  setRuntimeValue('renderChatMessages', () => calls.push(['render']));
-  setRuntimeValue('updateDiscussButton', () => calls.push(['discuss']));
   setRuntimeValue('openContextModal', () => calls.push(['legacy-context']));
   setRuntimeValue('closeModal', () => calls.push(['close']));
-  setRuntimeValue('isChatStreaming', () => false);
   setRuntimeValue('_ppqAttestation', ppqAttestation);
   setRuntimeValue('_routstrAttestation', routstrAttestation);
   setRuntimeValue('_veniceAttestation', veniceAttestation);
@@ -106,7 +106,7 @@ try {
 
   assert('chat runtime reports non-streaming state',
     isChatRuntimeStreaming() === false);
-  setRuntimeValue('isChatStreaming', () => true);
+  configureChatRuntimeCallbacks({ isChatStreaming: () => true });
   assert('chat runtime reports streaming state',
     isChatRuntimeStreaming() === true);
 
@@ -130,10 +130,13 @@ try {
 
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureChatRuntimeCallbacks({
+    isChatStreaming: null,
     refreshWebSearchToggle: null,
+    renderChatMessages: null,
     sendChatMessage: null,
     updateChatHeaderModel: null,
     updateChatNudge: null,
+    updateDiscussButton: null,
   });
   delete globalThis.window;
   assert('chat runtime no-ops without a browser window',

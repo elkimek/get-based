@@ -35,6 +35,7 @@ await import('../js/chat.js');
 const personalities = await import('../js/chat-personalities.js');
 const chatHistory = await import('../js/chat-history.js');
 const chatDiscussion = await import('../js/chat-discussion.js');
+const chatRender = await import('../js/chat-render.js');
 const chatSend = await import('../js/chat-send.js');
 const { buildPersonalityPrompt } = await import('../js/chat-prompt-context.js');
 const { createNewThread } = await import('../js/chat-threads.js');
@@ -223,7 +224,8 @@ assert('startDiscussion exported', typeof chatDiscussion.startDiscussion === 'fu
 assert('startDiscussion stays module-only', !('startDiscussion' in window));
 assert('continueDiscussion exported', typeof chatDiscussion.continueDiscussion === 'function');
 assert('endDiscussion exported', typeof chatDiscussion.endDiscussion === 'function');
-assert('updateDiscussButton exported', typeof window.updateDiscussButton === 'function');
+assert('updateDiscussButton exported', typeof chatDiscussion.updateDiscussButton === 'function');
+assert('updateDiscussButton stays module-only', !('updateDiscussButton' in window));
 assert('getThreadPersonaCount exported', typeof chatDiscussion.getThreadPersonaCount === 'function');
 
 // ── 22. Discuss button CSS ──
@@ -252,7 +254,8 @@ assert('callOpenAICompatibleAPI has signal param', apiOpenAICompatibleSrc.includ
 
 // ── 25. Auto message rendering ──
 console.log('25. Auto message rendering');
-const renderSrc2 = window.renderChatMessages.toString();
+assert('renderChatMessages stays module-only', !('renderChatMessages' in window));
+const renderSrc2 = chatRender.renderChatMessages.toString();
 assert('renderChatMessages checks msg.auto', renderSrc2.includes('msg.auto'));
 assert('renderChatMessages applies chat-msg-auto class', renderSrc2.includes('chat-msg-auto'));
 assert('renderChatMessages checks msg.stopped', renderSrc2.includes('msg.stopped'));

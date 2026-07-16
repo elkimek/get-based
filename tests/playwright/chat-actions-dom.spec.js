@@ -2,14 +2,12 @@ import { expect, test } from './coverage-fixture.js';
 
 test('chat action bars, clipboard, and context toggles work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.renderChatMessages === 'function'
-      && !!window._labState
-  );
+  await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const chatActions = await import('/js/chat-actions.js');
+    const chatRender = await import('/js/chat-render.js');
     const state = window._labState;
     const originalHistory = JSON.parse(JSON.stringify(state.chatHistory || []));
     const outcomes = {};
@@ -25,7 +23,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
       const realContainer = document.getElementById('chat-messages');
       const hasProvider = api.hasAIProvider();
       if (realContainer && hasProvider) {
-        window.renderChatMessages();
+        chatRender.renderChatMessages();
         const aiMsgs = realContainer.querySelectorAll('.chat-msg.chat-ai');
         const userMsgs = realContainer.querySelectorAll('.chat-msg.chat-user');
         outcomes.aiMessagesHaveActionBars = aiMsgs.length > 0 && aiMsgs[0].querySelector('.chat-action-bar') !== null;
@@ -125,7 +123,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
             lensSources: [{ source: 'notes.md', score: 0.75, text: 'Relevant excerpt' }],
             lensSourceName: 'notes',
           }];
-          window.renderChatMessages();
+          chatRender.renderChatMessages();
           const lensSummary = realContainer.querySelector('.chat-lens-source-summary');
           lensSummary?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
           outcomes.renderedContainClickStopsAtElement = !!lensSummary && bubbled === 0;
@@ -168,8 +166,6 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       chatHistory: JSON.parse(JSON.stringify(state.chatHistory || [])),
       currentThreadId: state.currentThreadId,
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
-      isChatStreaming: window.isChatStreaming,
-      renderChatMessages: window.renderChatMessages,
       setTimeout: window.setTimeout,
       threadStorageKey,
       threadStorage: threadStorageKey ? localStorage.getItem(threadStorageKey) : null,
@@ -256,11 +252,11 @@ test('chat action browser coverage handles copy and regenerate branches', async 
         document.body.appendChild(input);
         createdInput = true;
       }
-      window.renderChatMessages = () => { renderCount += 1; };
       previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+        isChatStreaming: () => true,
+        renderChatMessages: () => { renderCount += 1; },
         sendChatMessage: () => { sendCount += 1; },
       });
-      window.isChatStreaming = () => true;
       state.currentThreadId = null;
       state.chatHistory = [
         { role: 'user', content: 'Streaming guard' },
@@ -271,7 +267,7 @@ test('chat action browser coverage handles copy and regenerate branches', async 
         && sendCount === 0
         && state.chatHistory.length === 2;
 
-      window.isChatStreaming = () => false;
+      chatRuntime.configureChatRuntimeCallbacks({ isChatStreaming: () => false });
       state.chatHistory = [
         { role: 'assistant', content: 'Earlier assistant' },
         { role: 'user', content: 'Repeat this prompt' },
@@ -287,8 +283,6 @@ test('chat action browser coverage handles copy and regenerate branches', async 
     } finally {
       state.chatHistory = saved.chatHistory;
       state.currentThreadId = saved.currentThreadId;
-      window.isChatStreaming = saved.isChatStreaming;
-      window.renderChatMessages = saved.renderChatMessages;
       if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       window.setTimeout = saved.setTimeout;
       if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);

@@ -15,6 +15,7 @@ import {
   renderOnboardingChatMessagesRuntime,
 } from '../js/onboarding-view-runtime.js';
 import { configureViewRuntime } from '../js/views-runtime-bridge.js';
+import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -29,7 +30,6 @@ const runtimeKeys = [
   'navigate',
   'openChatPanel',
   'toggleChatPanel',
-  'renderChatMessages',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -56,6 +56,9 @@ try {
   const previousDeps = configureOnboardingViewRuntimeDeps({
     createNewThread: () => calls.push(['createNewThread']),
   });
+  const previousChatRuntime = configureChatRuntimeCallbacks({
+    renderChatMessages: () => calls.push(['renderChatMessages']),
+  });
   setRuntimeValue('window', globalThis);
   previousViewRuntime = configureViewRuntime({
     buildSidebar: data => calls.push(['buildSidebar', data?.id]),
@@ -66,7 +69,6 @@ try {
     return 'opened';
   });
   setRuntimeValue('toggleChatPanel', () => calls.push(['toggleChatPanel']));
-  setRuntimeValue('renderChatMessages', () => calls.push(['renderChatMessages']));
 
   rebuildOnboardingSidebarRuntime({ id: 'sidebar-data' });
   navigateOnboardingRuntime('labs', { id: 'fallback-data' });
@@ -105,6 +107,7 @@ try {
 
   delete globalThis.window;
   configureViewRuntime({ buildSidebar: null });
+  configureChatRuntimeCallbacks({ renderChatMessages: null });
   const beforeNoWindowCalls = calls.length;
   rebuildOnboardingSidebarRuntime({ id: 'ignored' });
   navigateOnboardingRuntime('labs', { id: 'ignored' });
@@ -116,6 +119,7 @@ try {
       calls.length === beforeNoWindowCalls);
 
   configureOnboardingViewRuntimeDeps(previousDeps);
+  configureChatRuntimeCallbacks(previousChatRuntime);
   configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

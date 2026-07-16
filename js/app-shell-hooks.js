@@ -9,6 +9,7 @@ import {
   endDiscussion,
   startDiscussion,
   startDiscussionFromPicker,
+  updateDiscussButton,
 } from './chat-discussion.js';
 import {
   initChatImageHandlers,
@@ -37,7 +38,8 @@ import {
   updateChatHeaderModel,
 } from './chat-personalities.js';
 import { configureChatRuntimeCallbacks } from './chat-runtime.js';
-import { handleChatKeydown, sendChatMessage } from './chat-send.js';
+import { renderChatMessages } from './chat-render.js';
+import { handleChatKeydown, isChatStreaming, sendChatMessage } from './chat-send.js';
 import {
   closeSummaryModal,
   copySummary,
@@ -115,8 +117,11 @@ configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
 configureChatRuntimeCallbacks({
+  isChatStreaming,
   refreshWebSearchToggle,
+  renderChatMessages,
   sendChatMessage,
+  updateDiscussButton,
   updateChatHeaderModel,
   updateChatNudge,
 });

@@ -43,7 +43,7 @@ const {
 const {
   clearCurrentDiscussionThreadState, reopenCurrentDiscussionThread,
 } = await import('../js/chat-discussion-state.js');
-const { startDiscussion } = await import('../js/chat-discussion.js');
+const { startDiscussion, updateDiscussButton } = await import('../js/chat-discussion.js');
 const {
   DEFAULT_DISCUSS_PROMPT, DISCUSSION_JOIN_PROMPT, INITIAL_DISCUSS_PROMPT,
   buildDiscussionAutoMessage, buildDiscussionJoinMessage, getDiscussionPromptText,
@@ -75,11 +75,11 @@ if (hasState) {
   document.getElementById = (id) => (id === 'chat-discuss-btn' ? btn : origGetElementById.call(document, id));
 
   S.chatHistory = [{ role: 'user', content: 'No assistant yet' }];
-  window.updateDiscussButton();
+  updateDiscussButton();
   assert('Discuss button hides without assistant messages', btn.style.display === 'none', btn.style.display);
 
   S.chatHistory = [{ role: 'assistant', content: 'Direct reply' }];
-  window.updateDiscussButton();
+  updateDiscussButton();
   assert('Discuss button shows after assistant response', btn.style.display === 'flex', btn.style.display);
   assert('Discuss button prompts second opinion for one persona', btn.style.opacity === '0.5' && btn.title.includes('second opinion'), btn.title);
 
@@ -87,7 +87,7 @@ if (hasState) {
     { role: 'assistant', personalityName: 'Analyst A', content: 'First' },
     { role: 'assistant', personalityName: 'Analyst B', content: 'Second' },
   ];
-  window.updateDiscussButton();
+  updateDiscussButton();
   assert('Discuss button adds another persona for two discussion personas', btn.style.opacity === '1' && btn.title.includes('Add another persona'), btn.title);
 
   S.chatHistory = origHistory;
@@ -427,11 +427,11 @@ assert('chat persists truncated assistant state', chatSendSrc.includes('assistan
 assert('renderChatMessages restores truncated note', chatRenderSrc.includes('msg.truncated') && chatRenderSrc.includes('responseLimitNote()'), 'found');
 assert('regenerateLastMessage checks streaming state via chat runtime',
   chatActionsSrc.includes('isChatRuntimeStreaming()') &&
-    chatRuntimeSrc.includes("getRuntimeFunction('isChatStreaming')") &&
+    chatRuntimeSrc.includes('chatRuntimeCallbacks.isChatStreaming') &&
     chatSendSrc.includes('export function isChatStreaming'), 'found');
 assert('regenerateLastMessage checks render/send callbacks before mutating',
   chatActionsSrc.indexOf('const callbacks = getChatRegenerateCallbacks()') < chatActionsSrc.indexOf('state.chatHistory.pop()')
-    && chatRuntimeSrc.includes("getRuntimeFunction('renderChatMessages')")
+    && chatRuntimeSrc.includes('chatRuntimeCallbacks.renderChatMessages')
     && chatRuntimeSrc.includes('chatRuntimeCallbacks.sendChatMessage'), 'found');
 const directWindowGlobalRe = /\bwindow(?:\.|\s*\[)/;
 const chatRuntimeDelegates = [
