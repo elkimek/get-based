@@ -2,7 +2,6 @@
 // pdf-import-review-runtime.js - Browser runtime adapters for import review state.
 
 import { updateHeaderDates } from './data.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -11,30 +10,31 @@ function getRuntimeWindow() {
 }
 
 const pdfImportReviewRuntimeDeps = {
+  buildSidebar: /** @type {null | (() => void)} */ (null),
   confirmImport: () => import('./pdf-import-commit.js').then(module => module.confirmImport()),
+  navigate: /** @type {null | ((route: string) => void)} */ (null),
   updateHeaderDates,
 };
 
 export function configurePdfImportReviewRuntimeDeps(deps = {}) {
   const previous = { ...pdfImportReviewRuntimeDeps };
+  if ('buildSidebar' in deps) {
+    pdfImportReviewRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
+      ? /** @type {() => void} */ (deps.buildSidebar)
+      : null;
+  }
   if (typeof deps.confirmImport === 'function') pdfImportReviewRuntimeDeps.confirmImport = deps.confirmImport;
+  if ('navigate' in deps) {
+    pdfImportReviewRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? /** @type {(route: string) => void} */ (deps.navigate)
+      : null;
+  }
   if ('updateHeaderDates' in deps) {
     pdfImportReviewRuntimeDeps.updateHeaderDates = typeof deps.updateHeaderDates === 'function'
       ? /** @type {typeof updateHeaderDates} */ (deps.updateHeaderDates)
       : null;
   }
   return previous;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  const fn = runtime?.[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' && runtime ? getViewRuntimeFunction(name) : null;
 }
 
 export function clearPendingImportRuntime() {
@@ -61,8 +61,8 @@ export function getPendingImportRefLookup() {
 
 /** @param {string} route */
 export function navigateImportReviewRuntime(route = 'dashboard') {
-  const navigate = getRuntimeFunction('navigate');
-  if (!navigate) return false;
+  const navigate = pdfImportReviewRuntimeDeps.navigate;
+  if (!getRuntimeWindow() || !navigate) return false;
   navigate(route);
   return true;
 }
@@ -71,7 +71,7 @@ export function navigateImportReviewRuntime(route = 'dashboard') {
 export function refreshImportedDataViewsRuntime(route = 'dashboard') {
   if (!getRuntimeWindow()) return false;
   let refreshed = false;
-  const buildSidebar = getViewRuntimeFunction('buildSidebar');
+  const buildSidebar = pdfImportReviewRuntimeDeps.buildSidebar;
   if (buildSidebar) {
     buildSidebar();
     refreshed = true;
