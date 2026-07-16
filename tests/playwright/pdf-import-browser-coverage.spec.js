@@ -9,16 +9,16 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
   await page.waitForSelector('.header-import-btn', { state: 'attached' });
 
   const results = await page.evaluate(async ({ progressUrl, pdfImportUrl }) => {
-    const [progress, pdfImport, settingsBridge] = await Promise.all([
+    const [progress, pdfImport, settingsBridge, reviewRuntime] = await Promise.all([
       import(progressUrl),
       import(pdfImportUrl),
       import('/js/settings-runtime-bridge.js'),
+      import('/js/pdf-import-review-runtime.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
     const saved = {
       profileSex: state.profileSex,
-      navigate: window.navigate,
     };
     const calls = [];
     const previousPdfImportDeps = pdfImport.configurePdfImportDeps({
@@ -28,9 +28,11 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openSettingsModal: tab => calls.push(['settings', tab]),
     });
+    const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
+      navigate: view => calls.push(['navigate', view]),
+    });
 
     try {
-      window.navigate = view => calls.push(['navigate', view]);
       state.profileSex = 'female';
 
       await progress.showImportProgress(2, '<cbc>.pdf');
@@ -131,7 +133,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       state.profileSex = saved.profileSex;
       pdfImport.configurePdfImportDeps(previousPdfImportDeps);
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      window.navigate = saved.navigate;
+      reviewRuntime.configurePdfImportReviewRuntimeDeps(previousReviewRuntime);
       progress.hideImportProgress('cancel');
       document.getElementById('import-modal-overlay')?.classList.remove('show');
       document.getElementById('ai-needed-overlay')?.classList.remove('show');

@@ -173,7 +173,8 @@ const importCssSrc = read('css/import.css');
     reviewSrc.includes("from './pdf-import-review-runtime.js'")
       && !/\bwindow(?:\.|\s*\[)/.test(reviewSrc)
       && reviewRuntimeSrc.includes('runtime._pendingImport')
-      && reviewRuntimeSrc.includes('runtime._batchImportContext'));
+      && reviewRuntimeSrc.includes('runtime._batchImportContext')
+      && !reviewRuntimeSrc.includes('getViewRuntimeFunction'));
   assert('PDF import persistence delegates view refresh through runtime adapter',
     persistenceSrc.includes("from './pdf-import-review-runtime.js'")
       && persistenceSrc.includes('refreshImportedDataViewsRuntime(state.currentView')
