@@ -18,14 +18,6 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const originalView = state.currentView;
     const biometricSelectionKey = dashboardWidgetsModule.dashboardBiometricSelectionKey();
-    const savedFns = {
-      showDetailModal: window.showDetailModal,
-      navigate: window.navigate,
-    };
-    const hadFns = {};
-    for (const name of Object.keys(savedFns)) {
-      hadFns[name] = Object.prototype.hasOwnProperty.call(window, name);
-    }
     const originalBiometricSelection = localStorage.getItem(biometricSelectionKey);
     let originalWearableSummary;
     let originalWearableConnections;
@@ -34,6 +26,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     let bodyActionHost;
     let previousContextCardsRuntime = null;
     let previousDashboardNoteActions = null;
+    let previousDashboardWidgetRuntimeDeps = null;
     let previousWearablesBridge = null;
 
     try {
@@ -174,8 +167,10 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
         openNoteEditor: (scope, index) => bodyActionCalls.push(['note', index]),
         deleteNote: index => bodyActionCalls.push(['delete-note', index]),
       });
-      window.showDetailModal = id => bodyActionCalls.push(['detail', id]);
-      window.navigate = route => bodyActionCalls.push(['navigate', route]);
+      previousDashboardWidgetRuntimeDeps = dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps({
+        navigate: route => bodyActionCalls.push(['navigate', route]),
+        showDetailModal: id => bodyActionCalls.push(['detail', id]),
+      });
       bodyActionHost = document.createElement('div');
       bodyActionHost.innerHTML = `
         <button type="button" data-dashboard-widget-action="open-marker-detail" data-dashboard-widget-id="lipids_apoB">Marker</button>
@@ -229,12 +224,9 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     } finally {
       if (previousContextCardsRuntime) contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       if (previousDashboardNoteActions) dashboardWidgetRuntime.configureDashboardNoteActions(previousDashboardNoteActions);
+      if (previousDashboardWidgetRuntimeDeps) dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps(previousDashboardWidgetRuntimeDeps);
       if (previousWearablesBridge) wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
       bodyActionHost?.remove();
-      for (const [name, original] of Object.entries(savedFns)) {
-        if (hadFns[name]) window[name] = original;
-        else delete window[name];
-      }
       if (typeof originalBiometricSelection === 'string') localStorage.setItem(biometricSelectionKey, originalBiometricSelection);
       else localStorage.removeItem(biometricSelectionKey);
       if (hadWearableSummary) state.importedData.wearableSummary = originalWearableSummary;
@@ -260,6 +252,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const { state } = await import('/js/state.js');
     const { profileStorageKey } = await import('/js/profile.js');
     const { dashboardBiometricSelectionKey, dashboardWidgetStorageKey } = await import('/js/dashboard-widgets.js');
+    const dashboardWidgetRuntime = await import('/js/dashboard-widget-runtime.js');
     const viewsModule = await import('/js/views.js');
     const recommendationRuntime = await import('/js/recommendations-runtime.js');
     const settingsRuntimeBridge = await import('/js/settings-runtime-bridge.js');
@@ -312,7 +305,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     let previousRecommendationRuntime = null;
     let previousSettingsBridge = null;
     let previousWearablesBridge = null;
-    let realNavigate;
+    let previousDashboardWidgetRuntimeDeps = null;
 
     try {
 
@@ -475,15 +468,16 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const markerWidgetRemovedByHide = !readPrefs().order.includes('marker_lipids_apoB')
       && !readPrefs().hidden.includes('marker_lipids_apoB');
 
-    realNavigate = window.navigate;
     const lensNavigateCalls = [];
     let addedFromLens = false;
     let removedFromLens = false;
     try {
-      window.navigate = route => {
-        lensNavigateCalls.push(route);
-        state.currentView = route;
-      };
+      previousDashboardWidgetRuntimeDeps = dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps({
+        navigate: route => {
+          lensNavigateCalls.push(route);
+          state.currentView = route;
+        },
+      });
       state.currentView = 'labs';
       viewsModule.addDashboardWidgetFromLens('alerts');
       addedFromLens = !readPrefs().hidden.includes('alerts')
@@ -492,8 +486,10 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       removedFromLens = readPrefs().hidden.includes('alerts')
         && lensNavigateCalls.filter(route => route === 'labs').length >= 2;
     } finally {
-      if (realNavigate) window.navigate = realNavigate;
-      else delete window.navigate;
+      if (previousDashboardWidgetRuntimeDeps) {
+        dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps(previousDashboardWidgetRuntimeDeps);
+        previousDashboardWidgetRuntimeDeps = null;
+      }
     }
     state.currentView = 'dashboard';
     viewsModule.navigate('dashboard');
@@ -570,8 +566,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       dragDropReordersPrefs,
     };
     } finally {
-      if (realNavigate && window.navigate !== realNavigate) window.navigate = realNavigate;
-      else if (!realNavigate) delete window.navigate;
+      if (previousDashboardWidgetRuntimeDeps) dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps(previousDashboardWidgetRuntimeDeps);
       viewsModule.closeDashboardWidgetPicker?.();
       viewsModule.toggleDashboardOrganizeMode?.(false);
       document.getElementById('dashboard-widget-picker-overlay')?.remove();

@@ -5,6 +5,7 @@ import './_node-shim.js';
 import { state } from '../js/state.js';
 import {
   configureDashboardNoteActions,
+  configureDashboardWidgetRuntimeDeps,
   deleteDashboardNote,
   getDashboardDeviceSessions,
   getDashboardLightSessions,
@@ -35,14 +36,13 @@ const runtimeKeys = [
   'window',
   'innerHeight',
   '_snpTableCache',
-  'showDetailModal',
-  'navigate',
   'triggerDNAFilePicker',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const savedImportedData = state.importedData;
 let previousWearablesModule = null;
 let previousSettingsModule = null;
+const originalDashboardWidgetRuntimeDeps = configureDashboardWidgetRuntimeDeps();
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -108,8 +108,10 @@ try {
     openWearableDetail: id => calls.push(['wearable-detail', id]),
     openManualLogForm: (id, ev) => calls.push(['manual-log', id, ev.type]),
   });
-  setRuntimeValue('showDetailModal', id => calls.push(['marker-detail', id]));
-  setRuntimeValue('navigate', route => calls.push(['navigate', route]));
+  configureDashboardWidgetRuntimeDeps({
+    navigate: route => calls.push(['navigate', route]),
+    showDetailModal: id => calls.push(['marker-detail', id]),
+  });
   setRuntimeValue('triggerDNAFilePicker', () => calls.push(['legacy-dna']));
 
   openDashboardWearablesSettings();
@@ -146,6 +148,7 @@ try {
     openManualLogForm: null,
   });
   configureSettingsModuleBridge({ openSettingsModal: null });
+  configureDashboardWidgetRuntimeDeps({ navigate: null, showDetailModal: null });
   delete globalThis.window;
   const callCountBeforeMissingRuntime = calls.length;
   openDashboardWearablesSettings();
@@ -166,6 +169,7 @@ try {
   configureDashboardNoteActions(previousDashboardNoteActions);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
+  configureDashboardWidgetRuntimeDeps(originalDashboardWidgetRuntimeDeps);
   configureSettingsModuleBridge({
     openSettingsModal: null,
     ...previousSettingsModule,
