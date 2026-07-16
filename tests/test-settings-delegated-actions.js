@@ -135,6 +135,10 @@ assert('Delegated tweaks handler closes on backdrop click',
 assert('Tweaks feedback action uses configured module runtime',
   src.includes('settingsRuntime.openFeedbackModal()')
     && !src.includes('settingsWindow.openFeedbackModal'));
+assert('Settings version label uses the shared runtime adapter',
+  src.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
+    && src.includes('escapeHTML(getAppVersionRuntime())')
+    && !src.includes('settingsWindow.APP_VERSION'));
 assert('Delegated settings handler switches AI providers',
   /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
 assert('Delegated settings handler updates PII model selection',

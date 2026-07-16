@@ -273,6 +273,10 @@ assert('legal consent notifications use the module dependency instead of a globa
   legalConsentSrc.includes("import { showNotification } from './utils.js';")
   && legalConsentSrc.includes("showNotification('Terms and Privacy accepted.'")
   && !legalConsentSrc.includes('globalThis.showNotification'));
+assert('legal consent version metadata uses the shared runtime adapter',
+  legalConsentSrc.includes('getAppVersionRuntime')
+  && legalConsentSrc.includes('appVersion: getAppVersionRuntime() || null')
+  && !legalConsentSrc.includes('globalThis.APP_VERSION'));
 assert('legal accept does not deadlock when localStorage persistence throws',
   /try\s*\{\s*storeLegalAcceptance\(\);\s*\}\s*catch\s*\(err\)\s*\{[\s\S]{0,220}\[legal-consent\] Failed to persist acceptance/.test(legalConsentSrc)
   && /catch\s*\(err\)[\s\S]{0,260}\}\s*closeLegalConsentGate\(\);\s*dispatchUtilsRuntimeEvent\('legal-consent-accepted'\)/.test(legalConsentSrc));

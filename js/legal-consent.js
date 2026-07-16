@@ -1,7 +1,7 @@
 // @ts-check
 // legal-consent.js — first-launch Terms/Privacy gate and re-consent on document updates.
 
-import { dispatchUtilsRuntimeEvent } from './utils-runtime.js';
+import { dispatchUtilsRuntimeEvent, getAppVersionRuntime } from './utils-runtime.js';
 import { showNotification } from './utils.js';
 
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
@@ -42,7 +42,7 @@ function storeLegalAcceptance() {
     termsVersion: TERMS_VERSION,
     privacyVersion: PRIVACY_VERSION,
     acceptedAt: nowIso(),
-    appVersion: globalThis.APP_VERSION || null,
+    appVersion: getAppVersionRuntime() || null,
     location: typeof location !== 'undefined' ? location.origin + location.pathname : null,
   };
   localStorage.setItem(LEGAL_ACCEPTANCE_KEY, JSON.stringify(payload));
