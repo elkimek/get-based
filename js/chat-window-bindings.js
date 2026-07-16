@@ -6,26 +6,25 @@ import { configureChatThreadDeps } from './chat-threads.js';
 import { renderChatMessages } from './chat-render.js';
 import { askAIAboutMarker } from './chat-marker-prompts.js';
 import {
-  createTypewriter, getChatAbortController, handleChatKeydown,
-  isChatStreaming, sendChatMessage, setChatAbortController,
+  createTypewriter, getChatAbortController, isChatStreaming, sendChatMessage,
+  setChatAbortController,
   setSendButtonMode,
 } from './chat-send.js';
-import { renderSavedSummaries, summarizeThread } from './chat-summaries.js';
+import { renderSavedSummaries } from './chat-summaries.js';
 import {
-  getActivePersonality, setChatPersonality, togglePersonalityBar,
-  updateChatHeaderTitle, updatePersonalityBar,
+  getActivePersonality, updateChatHeaderTitle, updatePersonalityBar,
 } from './chat-personalities.js';
 import {
-  clearChatHistory, loadChatHistory, saveChatHistory,
+  loadChatHistory, saveChatHistory,
 } from './chat-history.js';
 import {
-  closeChatPanel, configureChatPanel, setChatWebSearchEnabled,
-  toggleChatFullscreen, toggleChatPanel, openChatPanel, updateChatInputState,
+  closeChatPanel, configureChatPanel, toggleChatPanel, openChatPanel,
+  updateChatInputState,
 } from './chat-panel.js';
 import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
   cleanupDiscussionState, configureChatDiscussion, restoreDiscussionContinuePrompt,
-  startDiscussion, updateDiscussButton,
+  updateDiscussButton,
 } from './chat-discussion.js';
 import {
   configureChatOnboarding, useChatPrompt,
@@ -67,21 +66,12 @@ configureChatThreadDeps({
 Object.assign(window, {
   _resumeAI,
   isChatStreaming,
-  toggleChatFullscreen,
-  setChatPersonality,
-  togglePersonalityBar,
   loadChatHistory,
-  clearChatHistory,
-  summarizeThread,
   renderChatMessages,
   useChatPrompt,
   toggleChatPanel,
   openChatPanel,
   closeChatPanel,
-  sendChatMessage,
-  handleChatKeydown,
-  startDiscussion,
   updateDiscussButton,
   askAIAboutMarker,
-  setChatWebSearchEnabled,
 });

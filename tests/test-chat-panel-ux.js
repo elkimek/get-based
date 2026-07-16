@@ -16,6 +16,7 @@ return (async function() {
   }
 
   console.log('%c Chat panel UX tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+  const { toggleChatFullscreen } = await import('/js/chat-panel.js');
 
   // Snapshot localStorage so the test doesn't bleed user state.
   const savedFullscreen = localStorage.getItem('labcharts-chat-fullscreen');
@@ -27,8 +28,8 @@ return (async function() {
   try {
     // ─── 1. Window exports ────────────────────────────────────
     {
-      assert('window.toggleChatFullscreen exists',
-        typeof window.toggleChatFullscreen === 'function');
+      assert('toggleChatFullscreen stays module-only',
+        !('toggleChatFullscreen' in window));
       assert('window.openChatPanel exists',
         typeof window.openChatPanel === 'function');
       assert('window.closeChatPanel exists',
@@ -74,13 +75,13 @@ return (async function() {
       panel.classList.remove('chat-panel-fullscreen');
       localStorage.removeItem('labcharts-chat-fullscreen');
 
-      window.toggleChatFullscreen();
+      toggleChatFullscreen();
       assert('toggleChatFullscreen ON adds .chat-panel-fullscreen',
         panel.classList.contains('chat-panel-fullscreen'));
       assert('toggleChatFullscreen ON saves "true" to localStorage',
         localStorage.getItem('labcharts-chat-fullscreen') === 'true');
 
-      window.toggleChatFullscreen();
+      toggleChatFullscreen();
       assert('toggleChatFullscreen OFF removes .chat-panel-fullscreen',
         !panel.classList.contains('chat-panel-fullscreen'));
       assert('toggleChatFullscreen OFF saves "false" to localStorage',
@@ -151,7 +152,7 @@ return (async function() {
       const panel = document.getElementById('chat-panel');
       window.openChatPanel();
       await new Promise(r => setTimeout(r, 50));
-      window.toggleChatFullscreen(); // ON
+      toggleChatFullscreen(); // ON
       await new Promise(r => setTimeout(r, 50));
       window.closeChatPanel();
       panel.classList.remove('chat-panel-fullscreen'); // simulate fresh DOM
@@ -174,11 +175,11 @@ return (async function() {
       assert('opening chat with fullscreen=false does not add body.chat-fullscreen',
         !document.body.classList.contains('chat-fullscreen'));
 
-      window.toggleChatFullscreen(); // ON
+      toggleChatFullscreen(); // ON
       assert('toggling fullscreen ON mirrors body.chat-fullscreen',
         document.body.classList.contains('chat-fullscreen'));
 
-      window.toggleChatFullscreen(); // OFF
+      toggleChatFullscreen(); // OFF
       assert('toggling fullscreen OFF removes body.chat-fullscreen',
         !document.body.classList.contains('chat-fullscreen'));
 
@@ -201,14 +202,14 @@ return (async function() {
           `before: ${beforePadding}px / after: ${afterPadding}px`);
 
         // Toggle fullscreen — padding should drop back down (chat covers all)
-        window.toggleChatFullscreen();
+        toggleChatFullscreen();
         await new Promise(r => setTimeout(r, 400));
         const fullscreenPadding = parseFloat(getComputedStyle(main).paddingRight);
         assert('fullscreen mode releases the shift (padding-right drops)',
           fullscreenPadding < afterPadding - 100,
           `non-fullscreen: ${afterPadding}px / fullscreen: ${fullscreenPadding}px`);
 
-        window.toggleChatFullscreen(); // back to non-fullscreen
+        toggleChatFullscreen(); // back to non-fullscreen
         await new Promise(r => setTimeout(r, 100));
         window.closeChatPanel();
         // Wait past the 0.3s transition + a generous margin.

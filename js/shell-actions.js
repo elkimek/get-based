@@ -10,6 +10,17 @@ let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
 const shellFeedbackDeps = { openFeedbackModal };
 const shellChatImageDeps = { toggleHDMode: () => {} };
+const shellChatActionDeps = {
+  clearChatHistory: () => {},
+  handleChatKeydown: (_event) => {},
+  sendChatMessage: () => {},
+  setChatPersonality: (_personality) => {},
+  setChatWebSearchEnabled: (_enabled) => {},
+  startDiscussion: () => {},
+  summarizeThread: () => {},
+  toggleChatFullscreen: () => {},
+  togglePersonalityBar: () => {},
+};
 const shellChatThreadDeps = {
   createNewThread: () => {},
   filterThreadList: (_value) => {},
@@ -32,6 +43,17 @@ export function configureShellFeedbackDeps(deps = {}) {
 export function configureShellChatImageDeps(deps = {}) {
   const previous = { ...shellChatImageDeps };
   if (typeof deps.toggleHDMode === 'function') shellChatImageDeps.toggleHDMode = deps.toggleHDMode;
+  return previous;
+}
+
+/** @param {Partial<typeof shellChatActionDeps>} [deps] */
+export function configureShellChatActionDeps(deps = {}) {
+  const previous = { ...shellChatActionDeps };
+  for (const name of Object.keys(shellChatActionDeps)) {
+    const key = /** @type {keyof typeof shellChatActionDeps} */ (name);
+    const callback = deps[key];
+    if (typeof callback === 'function') shellChatActionDeps[key] = callback;
+  }
   return previous;
 }
 
@@ -113,19 +135,19 @@ function runChatAction(action, actionEl) {
     shellChatThreadDeps.createNewThread();
     return true;
   } else if (action === 'summarize-thread') {
-    callShellRuntime('summarizeThread');
+    shellChatActionDeps.summarizeThread();
     return true;
   } else if (action === 'clear-history') {
-    callShellRuntime('clearChatHistory');
+    shellChatActionDeps.clearChatHistory();
     return true;
   } else if (action === 'toggle-fullscreen') {
-    callShellRuntime('toggleChatFullscreen');
+    shellChatActionDeps.toggleChatFullscreen();
     return true;
   } else if (action === 'toggle-personality') {
-    callShellRuntime('togglePersonalityBar');
+    shellChatActionDeps.togglePersonalityBar();
     return true;
   } else if (action === 'set-personality') {
-    callShellRuntime('setChatPersonality', actionEl.dataset.personality || 'default');
+    shellChatActionDeps.setChatPersonality(actionEl.dataset.personality || 'default');
     return true;
   } else if (action === 'attach-image') {
     clickFileInput('chat-image-input');
@@ -134,10 +156,10 @@ function runChatAction(action, actionEl) {
     shellChatImageDeps.toggleHDMode();
     return true;
   } else if (action === 'start-discussion') {
-    callShellRuntime('startDiscussion');
+    shellChatActionDeps.startDiscussion();
     return true;
   } else if (action === 'send-message') {
-    callShellRuntime('sendChatMessage');
+    shellChatActionDeps.sendChatMessage();
     return true;
   }
   return false;
@@ -169,7 +191,7 @@ function handleShellChange(event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
   if (input.dataset.chatChangeAction === 'set-websearch') {
-    callShellRuntime('setChatWebSearchEnabled', input.checked);
+    shellChatActionDeps.setChatWebSearchEnabled(input.checked);
   }
 }
 
@@ -179,10 +201,10 @@ function handleShellKeydown(event) {
 
   const action = actionEl.dataset.chatKeyAction;
   if (action === 'message-input') {
-    callShellRuntime('handleChatKeydown', event);
+    shellChatActionDeps.handleChatKeydown(event);
   } else if (action === 'toggle-personality' && (event.key === 'Enter' || event.key === ' ')) {
     event.preventDefault();
-    callShellRuntime('togglePersonalityBar');
+    shellChatActionDeps.togglePersonalityBar();
   }
 }
 

@@ -70,6 +70,7 @@ try {
   });
   const previousChatRuntime = configureChatRuntimeCallbacks({
     refreshWebSearchToggle: () => calls.push(['web-search']),
+    sendChatMessage: () => calls.push(['send']),
     updateChatHeaderModel: () => calls.push(['header-model']),
     updateChatNudge: () => calls.push(['nudge']),
   });
@@ -82,7 +83,6 @@ try {
   setRuntimeValue('openContextModal', () => calls.push(['legacy-context']));
   setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('isChatStreaming', () => false);
-  setRuntimeValue('sendChatMessage', () => calls.push(['send']));
   setRuntimeValue('_ppqAttestation', ppqAttestation);
   setRuntimeValue('_routstrAttestation', routstrAttestation);
   setRuntimeValue('_veniceAttestation', veniceAttestation);
@@ -119,7 +119,7 @@ try {
       calls.filter(call => call[0] === 'render').length === 2 &&
       calls.filter(call => call[0] === 'send').length === 1);
 
-  delete globalThis.sendChatMessage;
+  configureChatRuntimeCallbacks({ sendChatMessage: null });
   assert('chat runtime requires send callback for regeneration',
     getChatRegenerateCallbacks() === null);
 
@@ -131,6 +131,7 @@ try {
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureChatRuntimeCallbacks({
     refreshWebSearchToggle: null,
+    sendChatMessage: null,
     updateChatHeaderModel: null,
     updateChatNudge: null,
   });

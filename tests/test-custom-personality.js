@@ -35,6 +35,7 @@ await import('../js/chat.js');
 const personalities = await import('../js/chat-personalities.js');
 const chatHistory = await import('../js/chat-history.js');
 const chatDiscussion = await import('../js/chat-discussion.js');
+const chatSend = await import('../js/chat-send.js');
 const { buildPersonalityPrompt } = await import('../js/chat-prompt-context.js');
 const { createNewThread } = await import('../js/chat-threads.js');
 
@@ -169,7 +170,7 @@ assert('CHAT_PERSONALITIES no custom entry', !constantsSrc.includes("id: 'custom
 
 // ── 13. sendChatMessage uses custom_ prefix check ──
 console.log('13. custom personality prompt context');
-const sendSrc = window.sendChatMessage.toString();
+const sendSrc = chatSend.sendChatMessage.toString();
 const promptContextSrc = read('js/chat-prompt-context.js');
 assert('sendChatMessage delegates personality prompt helper', sendSrc.includes('buildPersonalityPrompt'));
 assert('prompt context checks custom_ prefix', promptContextSrc.includes("startsWith('custom_')") || promptContextSrc.includes('startsWith("custom_")'));
@@ -198,8 +199,9 @@ assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSI
 
 // ── 18. Stop button exports ──
 console.log('18. Stop button');
-assert('sendChatMessage exported', typeof window.sendChatMessage === 'function');
-const sendSrc2 = window.sendChatMessage.toString();
+assert('sendChatMessage exported', typeof chatSend.sendChatMessage === 'function');
+assert('sendChatMessage stays module-only', !('sendChatMessage' in window));
+const sendSrc2 = chatSend.sendChatMessage.toString();
 assert('sendChatMessage checks _chatAbortController', sendSrc2.includes('_chatAbortController'));
 assert('sendChatMessage calls abort()', sendSrc2.includes('.abort()'));
 assert('sendChatMessage passes signal', sendSrc2.includes('signal:'));
@@ -217,7 +219,8 @@ assert('CSS has .chat-stopped-note', css.includes('.chat-stopped-note'));
 
 // ── 20. Discuss button exports ──
 console.log('20. Discuss button exports');
-assert('startDiscussion exported', typeof window.startDiscussion === 'function');
+assert('startDiscussion exported', typeof chatDiscussion.startDiscussion === 'function');
+assert('startDiscussion stays module-only', !('startDiscussion' in window));
 assert('continueDiscussion exported', typeof chatDiscussion.continueDiscussion === 'function');
 assert('endDiscussion exported', typeof chatDiscussion.endDiscussion === 'function');
 assert('updateDiscussButton exported', typeof window.updateDiscussButton === 'function');
@@ -256,7 +259,7 @@ assert('renderChatMessages checks msg.stopped', renderSrc2.includes('msg.stopped
 
 // ── 26. startDiscussion source ──
 console.log('26. startDiscussion source');
-const discSrc = window.startDiscussion.toString();
+const discSrc = chatDiscussion.startDiscussion.toString();
 assert('startDiscussion shows persona picker', discSrc.includes('showDiscussPersonaPicker'));
 const pickerSrc = chatDiscussion.startDiscussionFromPicker.toString();
 assert('startDiscussionFromPicker delegates to runDiscussion', pickerSrc.includes('runDiscussion'));

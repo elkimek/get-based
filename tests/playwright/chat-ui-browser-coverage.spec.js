@@ -689,8 +689,8 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
       localStorage.setItem('labcharts-ai-paused', 'true');
       window._resumeAI();
       outcomes.resumeBindingUnpausesAndKeepsChatImageHelpersModuleOnly = localStorage.getItem('labcharts-ai-paused') === 'false'
-        && typeof window.summarizeThread === 'function'
-        && typeof window.startDiscussion === 'function'
+        && !('summarizeThread' in window)
+        && !('startDiscussion' in window)
         && typeof window.clearAttachments === 'undefined';
     } finally {
       state.currentProfile = original.currentProfile;

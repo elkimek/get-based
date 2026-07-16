@@ -150,8 +150,9 @@ test('chat action browser coverage handles copy and regenerate branches', async 
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [chatActions, chatThreads] = await Promise.all([
+    const [chatActions, chatRuntime, chatThreads] = await Promise.all([
       import('/js/chat-actions.js'),
+      import('/js/chat-runtime.js'),
       import('/js/chat-threads.js'),
     ]);
     const state = window._labState;
@@ -169,12 +170,12 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       isChatStreaming: window.isChatStreaming,
       renderChatMessages: window.renderChatMessages,
-      sendChatMessage: window.sendChatMessage,
       setTimeout: window.setTimeout,
       threadStorageKey,
       threadStorage: threadStorageKey ? localStorage.getItem(threadStorageKey) : null,
     };
     const timers = [];
+    let previousChatRuntime = null;
     const flush = () => new Promise(resolve => saved.setTimeout.call(window, resolve, 0));
     const makeButton = (id) => {
       const button = document.createElement('button');
@@ -256,7 +257,9 @@ test('chat action browser coverage handles copy and regenerate branches', async 
         createdInput = true;
       }
       window.renderChatMessages = () => { renderCount += 1; };
-      window.sendChatMessage = () => { sendCount += 1; };
+      previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+        sendChatMessage: () => { sendCount += 1; },
+      });
       window.isChatStreaming = () => true;
       state.currentThreadId = null;
       state.chatHistory = [
@@ -286,7 +289,7 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       state.currentThreadId = saved.currentThreadId;
       window.isChatStreaming = saved.isChatStreaming;
       window.renderChatMessages = saved.renderChatMessages;
-      window.sendChatMessage = saved.sendChatMessage;
+      if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       window.setTimeout = saved.setTimeout;
       if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);
       else delete navigator.clipboard;
