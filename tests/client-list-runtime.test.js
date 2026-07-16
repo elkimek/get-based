@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import { configureClientListRuntimeDeps } from '../js/client-list-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let importId = 0;
 
@@ -43,10 +42,11 @@ beforeEach(() => {
   `;
   window.requestAnimationFrame = (fn) => fn();
   globalThis.requestAnimationFrame = window.requestAnimationFrame;
-  configureViewRuntime({ renderProfileButton: vi.fn() });
-  window.showNotification = vi.fn();
-  configureClientListRuntimeDeps({ showNotification: window.showNotification });
-  window.navigate = vi.fn();
+  configureClientListRuntimeDeps({
+    navigate: vi.fn(),
+    renderProfileButton: vi.fn(),
+    showNotification: vi.fn(),
+  });
   window.showConfirmDialog = vi.fn(async () => false);
   state.currentProfile = 'alice';
   state.importedData = { wearableSummary: { metrics: { weight: { latest: 70 } } }, genetics: { mtdna: {} } };
@@ -62,9 +62,10 @@ describe('client list runtime behavior', () => {
     const clientList = await loadClientList();
     const renderProfileButtonSpy = vi.fn();
     const showNotificationSpy = vi.fn();
-    configureViewRuntime({ renderProfileButton: renderProfileButtonSpy });
-    window.showNotification = showNotificationSpy;
-    configureClientListRuntimeDeps({ showNotification: showNotificationSpy });
+    configureClientListRuntimeDeps({
+      renderProfileButton: renderProfileButtonSpy,
+      showNotification: showNotificationSpy,
+    });
     const topLevelNames = () => [...document.querySelectorAll('.cl-list > .cl-row .cl-row-name')].map(el => el.textContent);
 
     clientList.openClientList();

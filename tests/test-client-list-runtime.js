@@ -13,7 +13,6 @@ import {
   setClientManualHaplogroup,
   showClientListNotification,
 } from '../js/client-list-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 const originalClientListRuntimeDeps = configureClientListRuntimeDeps();
 
@@ -25,28 +24,18 @@ function assert(name, condition, detail) {
 
 console.log('=== Client List Runtime Tests ===\n');
 
-const runtimeKeys = [
-  'navigate',
-  'showNotification',
-];
-const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const savedAIStorage = {
   provider: localStorage.getItem('labcharts-ai-provider'),
   paused: localStorage.getItem('labcharts-ai-paused'),
   openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
   openrouterCachedKey: getCachedKey('labcharts-openrouter-key'),
 };
-let previousViewRuntime = null;
 const previousDnaBridge = configureDnaModuleBridge({
   HAPLOGROUP_LIST: null,
   setManualHaplogroup: null,
 });
 
 function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    if (typeof saved[key] === 'undefined') delete globalThis[key];
-    else globalThis[key] = saved[key];
-  }
   if (savedAIStorage.provider == null) localStorage.removeItem('labcharts-ai-provider');
   else localStorage.setItem('labcharts-ai-provider', savedAIStorage.provider);
   if (savedAIStorage.paused == null) localStorage.removeItem('labcharts-ai-paused');
@@ -58,6 +47,11 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  configureClientListRuntimeDeps({
+    navigate: route => calls.push(['navigate', route]),
+    renderProfileButton: () => calls.push(['render-profile-button']),
+    showNotification: (message, type) => calls.push(['notification', message, type]),
+  });
 
   configureDnaModuleBridge({ HAPLOGROUP_LIST: ['H1', 'J2'] });
   assert('getClientHaplogroupList reads module haplogroup list',
@@ -66,21 +60,14 @@ try {
   assert('getClientHaplogroupList falls back to empty array for invalid module value',
     getClientHaplogroupList().length === 0);
 
-  globalThis.navigate = route => calls.push(['navigate', route]);
   navigateClientListRoute('dashboard');
   assert('navigateClientListRoute delegates to runtime navigate',
     calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
 
-  previousViewRuntime = configureViewRuntime({
-    renderProfileButton: () => calls.push(['render-profile-button']),
-  });
   refreshClientProfileButton();
   assert('refreshClientProfileButton delegates to runtime profile refresh',
     calls.some(call => call[0] === 'render-profile-button'));
 
-  configureClientListRuntimeDeps({
-    showNotification: (message, type) => calls.push(['notification', message, type]),
-  });
   showClientListNotification('"Ada" updated', 'info');
   assert('showClientListNotification delegates runtime notification',
     calls.some(call => call[0] === 'notification' && call[1] === '"Ada" updated' && call[2] === 'info'));
@@ -95,6 +82,13 @@ try {
   configureDnaModuleBridge({ setManualHaplogroup: null });
   assert('setClientManualHaplogroup returns false when hook is missing',
     await setClientManualHaplogroup('J2') === false);
+
+  configureClientListRuntimeDeps({ navigate: null, renderProfileButton: null });
+  const beforeMissingViewCalls = calls.length;
+  navigateClientListRoute('labs');
+  refreshClientProfileButton();
+  assert('client list view callbacks no-op safely when unavailable',
+    calls.length === beforeMissingViewCalls);
 
   localStorage.setItem('labcharts-ai-provider', 'ollama');
   localStorage.removeItem('labcharts-ai-paused');
@@ -116,7 +110,6 @@ try {
     setManualHaplogroup: null,
     ...previousDnaBridge,
   });
-  configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
   configureClientListRuntimeDeps(originalClientListRuntimeDeps);
   restoreRuntime();
 }

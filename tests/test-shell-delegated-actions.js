@@ -132,6 +132,9 @@ assert('App shell injects category customization view callbacks',
 assert('App shell injects sun defaults navigation without a view bridge lookup',
   appShellHooksSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));
 
+assert('App shell injects client list view callbacks without bridge lookups',
+  appShellHooksSrc.includes('configureClientListRuntimeDeps({ navigate, renderProfileButton });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',
