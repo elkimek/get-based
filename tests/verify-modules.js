@@ -252,7 +252,7 @@
     'setChatPersonality', 'setChatWebSearchEnabled',
     'startDiscussion', 'summarizeThread', 'toggleChatFullscreen', 'togglePersonalityBar',
     'updateChatHeaderModel', 'updateChatNudge', 'updateDiscussButton', 'useChatPrompt',
-    'toggleChatPanel', 'closeChatPanel',
+    'toggleChatPanel', 'closeChatPanel', 'openChatPanel',
   ];
   assert('Unused Chat APIs do not publish legacy window globals',
     formerUnusedChatGlobals.every(name => !(name in window)));
@@ -392,21 +392,6 @@
     'isAgentWearableSeriesEnabled','setAgentWearableSeriesEnabled',
     'getAgentWearableSeriesDays','setAgentWearableSeriesDays',
     'buildWearableContext','buildWearableSeriesSection','injectLensChunks'
-  ];
-
-  // chat.js (23)
-  const chatExports = [
-    'getChatStorageKey',
-    'getActivePersonality','getCustomPersonalityText',
-    'setChatPersonality','loadChatPersonality',
-    'updateChatHeaderTitle','updatePersonalityBar','togglePersonalityBar',
-    'saveCustomPersonality',
-    'loadChatHistory','saveChatHistory','clearChatHistory','renderChatMessages',
-    'useChatPrompt',
-    'applyInlineMarkdown','renderMarkdown',
-    'openChatPanel',
-    'sendChatMessage','handleChatKeydown',
-    'askAIAboutMarker','askAIAboutCorrelations'
   ];
 
   // context-cards.js (85 former browser globals, now module-only)
@@ -670,7 +655,7 @@
 
   // provider-panels.js (74 former browser globals, now module-only)
   const providerPanelsExports = [
-    'renderAIProviderPanel','toggleAIPause','switchAIProvider',
+    'configureProviderPanelDeps','renderAIProviderPanel','toggleAIPause','switchAIProvider',
     'initSettingsModelFetch','initSettingsOllamaCheck',
     'testOllamaConnection','testPIIOllamaConnection',
     'refreshVeniceBalance','updateVeniceModelPricing','toggleVeniceE2EE',
@@ -1054,7 +1039,6 @@
   }
 
   const allModules = {
-    'chat.js': chatExports,
     'views.js': viewsLegacyExports,
   };
 
@@ -1212,7 +1196,7 @@
   // openChatPanel guards on hasAIProvider() — test the panel element directly
   const chatPanel = document.getElementById('chat-panel');
   if (apiModule.hasAIProvider()) {
-    window.openChatPanel();
+    chatPanelModule.openChatPanel();
     assert('Chat panel opens (with AI provider)', chatPanel?.classList.contains('open'));
     chatPanelModule.closeChatPanel();
     assert('Chat panel closes', !chatPanel?.classList.contains('open'));

@@ -1,5 +1,5 @@
 // @ts-check
-// chat-window-bindings.js — chat callback wiring and legacy window exports
+// chat-window-bindings.js — chat callback wiring
 
 import { configureChatThreadDeps } from './chat-threads.js';
 import { renderChatMessages } from './chat-render.js';
@@ -15,9 +15,7 @@ import {
 import {
   loadChatHistory, saveChatHistory,
 } from './chat-history.js';
-import {
-  closeChatPanel, configureChatPanel, openChatPanel,
-} from './chat-panel.js';
+import { closeChatPanel, configureChatPanel } from './chat-panel.js';
 import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
   cleanupDiscussionState, configureChatDiscussion, restoreDiscussionContinuePrompt,
@@ -49,8 +47,4 @@ configureChatThreadDeps({
   saveChatHistory,
   updateChatHeaderTitle,
   updatePersonalityBar,
-});
-
-Object.assign(window, {
-  openChatPanel,
 });

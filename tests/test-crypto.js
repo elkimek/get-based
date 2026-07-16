@@ -338,6 +338,7 @@ for (const name of ['openSettingsModal', 'closeSettingsModal']) {
   assert(`window.${name} stays module-only`, !(name in window));
 }
 assert('window.closeChatPanel stays module-only', !('closeChatPanel' in window));
+assert('window.openChatPanel stays module-only', !('openChatPanel' in window));
 assert('window.toggleChatPanel stays module-only', !('toggleChatPanel' in window));
 assert('views.showDashboard exists', typeof viewsModule.showDashboard === 'function');
 assert('window.showDashboard stays module-only', !('showDashboard' in window));

@@ -68,7 +68,7 @@ import {
 import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
 import { configureCompareCorrelationViews } from './compare-correlations.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
-import { closeEMFInterpretation } from './emf-interpretation.js';
+import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
@@ -97,6 +97,7 @@ import {
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
+import { configureTourRuntimeDeps } from './tour-runtime.js';
 
 configureClientListRuntime({
   exportAllDataJSON,
@@ -120,12 +121,13 @@ configureSettingsRuntime({
 });
 
 configureNavActions({ openClientList });
-configureRecommendationsRuntime({ openProfileLocationEditor });
+configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });
 configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel });
-configureDashboardPageRuntimeDeps({ closeChatPanel });
+configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
+configureEMFInterpretationRuntimeDeps({ openChatPanel });
 
 function resumeAI() {
   setAIPaused(false);
@@ -176,8 +178,9 @@ configureShellChatActionDeps({
 });
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
-configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });
-configureOnboardingViewRuntimeDeps({ createNewThread, toggleChatPanel });
+configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });
+configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });
+configureTourRuntimeDeps({ openChatPanel });
 configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });
 configureDashboardAIContextStatus(updateChatContextStatus);
 

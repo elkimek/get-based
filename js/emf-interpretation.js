@@ -19,11 +19,17 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const emfInterpretationRuntimeDeps = {
   callClaudeAPI,
+  openChatPanel: /** @type {null | ((message?: string) => unknown)} */ (null),
 };
 
 export function configureEMFInterpretationRuntimeDeps(deps = {}) {
   const previous = { ...emfInterpretationRuntimeDeps };
   if (typeof deps.callClaudeAPI === 'function') emfInterpretationRuntimeDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
+    emfInterpretationRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? deps.openChatPanel
+      : null;
+  }
   return previous;
 }
 
@@ -53,7 +59,7 @@ function closeParentEMFModalRuntime() {
 }
 
 function openEMFInterpretationChatRuntime(message) {
-  getEMFInterpretationRuntimeFunction('openChatPanel')?.(message);
+  emfInterpretationRuntimeDeps.openChatPanel?.(message);
 }
 
 function getAssessments(deps) {

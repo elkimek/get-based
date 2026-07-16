@@ -1,6 +1,20 @@
 // @ts-check
 // tour-runtime.js - Browser runtime adapters for guided tour hooks.
 
+const tourRuntimeDeps = {
+  openChatPanel: /** @type {null | (() => unknown)} */ (null),
+};
+
+export function configureTourRuntimeDeps(deps = {}) {
+  const previous = { ...tourRuntimeDeps };
+  if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
+    tourRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? deps.openChatPanel
+      : null;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -52,7 +66,7 @@ export function getTourComputedStyle(element) {
 }
 
 export function openTourChatPanel() {
-  getRuntimeFunction('openChatPanel')?.();
+  tourRuntimeDeps.openChatPanel?.();
 }
 
 /**

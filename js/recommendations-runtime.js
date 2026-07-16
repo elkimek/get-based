@@ -6,6 +6,7 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const recommendationsRuntimeDeps = {
   openEMFAssessmentEditor,
+  openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
   openProfileLocationEditor: null,
 };
 
@@ -51,6 +52,11 @@ export function configureRecommendationsRuntime(deps = {}) {
   const previous = { ...recommendationsRuntimeDeps };
   if (typeof deps.openEMFAssessmentEditor === 'function') {
     recommendationsRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  if ('openChatPanel' in deps) {
+    recommendationsRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
+      : null;
   }
   if ('openProfileLocationEditor' in deps) {
     recommendationsRuntimeDeps.openProfileLocationEditor = typeof deps.openProfileLocationEditor === 'function'
@@ -110,7 +116,7 @@ export function closeRecommendationsModal() {
 }
 
 export function openRecommendationsChatPanel(prompt) {
-  const openChatPanel = getRuntimeFunction('openChatPanel');
+  const openChatPanel = recommendationsRuntimeDeps.openChatPanel;
   if (!openChatPanel) return false;
   openChatPanel(prompt);
   return true;

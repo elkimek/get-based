@@ -29,12 +29,18 @@ let _dashboardWelcomeActionsInstalled = false;
 const dashboardPageRuntimeDeps = {
   closeChatPanel: () => {},
   loadDemoData,
+  openChatPanel: /** @type {null | (() => unknown)} */ (null),
 };
 
 export function configureDashboardPageRuntimeDeps(deps = {}) {
   const previous = { ...dashboardPageRuntimeDeps };
   if (typeof deps.closeChatPanel === 'function') dashboardPageRuntimeDeps.closeChatPanel = deps.closeChatPanel;
   if (typeof deps.loadDemoData === 'function') dashboardPageRuntimeDeps.loadDemoData = deps.loadDemoData;
+  if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
+    dashboardPageRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? deps.openChatPanel
+      : null;
+  }
   return previous;
 }
 
@@ -77,10 +83,9 @@ function closestDashboardWelcomeAction(target) {
 function handleDashboardWelcomeActionClick(event) {
   const actionEl = closestDashboardWelcomeAction(event.target);
   if (!actionEl) return;
-  const appWindow = dashboardPageRuntime();
   const action = actionEl.getAttribute(DASHBOARD_WELCOME_ACTION_ATTR);
   if (action === 'open-chat') {
-    appWindow.openChatPanel?.();
+    dashboardPageRuntimeDeps.openChatPanel?.();
   } else if (action === 'open-ai-settings') {
     dashboardPageRuntimeDeps.closeChatPanel();
     getSettingsModuleFunction('openSettingsModal')?.('ai');
@@ -290,7 +295,7 @@ export function createDashboardPageView(deps) {
             document.body.classList.remove('chat-autostart-reserved');
             return;
           }
-          if (typeof getDashboardPageRuntimeValue('openChatPanel') === 'function') callDashboardPageRuntime('openChatPanel');
+          if (dashboardPageRuntimeDeps.openChatPanel) dashboardPageRuntimeDeps.openChatPanel();
           else document.body.classList.remove('chat-autostart-reserved');
         }, 800);
       }

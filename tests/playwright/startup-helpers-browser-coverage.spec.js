@@ -406,9 +406,6 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       updateChatNudge: () => window.__startupUICalls.push('updateChatNudge'),
     });
-    window.openChatPanel = () => {
-      window.__startupUICalls.push('openChatPanel');
-    };
     window._openSettingsAfterInit = 'display';
     window._openChatAfterInit = true;
     window.requestAnimationFrame = callback => {
@@ -438,6 +435,9 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
         },
         maybeShowAnalyticsConsent: () => {
           window.__startupUICalls.push('maybeShowAnalyticsConsent');
+        },
+        openChatPanel: () => {
+          window.__startupUICalls.push('openChatPanel');
         },
         updateAttachButtonVisibility: () => {
           window.__startupUICalls.push('updateAttachButtonVisibility');

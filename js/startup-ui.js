@@ -19,6 +19,7 @@ import { updateChatNudgeRuntime } from './chat-runtime.js';
 const startupUIDeps = {
   initChatImageHandlers: () => {},
   maybeShowAnalyticsConsent,
+  openChatPanel: () => {},
   updateAttachButtonVisibility: () => {},
 };
 
@@ -31,6 +32,9 @@ export function configureStartupUIDeps(deps = {}) {
   }
   if (typeof deps.initChatImageHandlers === 'function') {
     startupUIDeps.initChatImageHandlers = deps.initChatImageHandlers;
+  }
+  if (typeof deps.openChatPanel === 'function') {
+    startupUIDeps.openChatPanel = deps.openChatPanel;
   }
   if (typeof deps.updateAttachButtonVisibility === 'function') {
     startupUIDeps.updateAttachButtonVisibility = deps.updateAttachButtonVisibility;
@@ -141,7 +145,7 @@ function openDeferredStartupDestinations() {
   }
   if (getStartupRuntimeValue('_openChatAfterInit')) {
     delete startupRuntime()._openChatAfterInit;
-    setTimeout(() => requireStartupRuntime('openChatPanel'), 500);
+    setTimeout(() => startupUIDeps.openChatPanel(), 500);
   }
 }
 

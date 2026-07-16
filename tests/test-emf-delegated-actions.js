@@ -78,7 +78,7 @@ assert('EMF editor runtime hooks avoid counted direct window globals',
 assert('EMF interpretation runtime hooks avoid counted direct window globals',
   emfInterpretationSrc.includes('function getEMFInterpretationRuntimeFunction') &&
     emfInterpretationSrc.includes("getEMFInterpretationRuntimeFunction('closeModal')") &&
-    emfInterpretationSrc.includes("getEMFInterpretationRuntimeFunction('openChatPanel')") &&
+    emfInterpretationSrc.includes('emfInterpretationRuntimeDeps.openChatPanel?.(message)') &&
     !/\bwindow(?:\.|\s*\[)/.test(emfInterpretationSrc));
 assert('EMF editor X button uses saving close action',
   editorSrc.includes('class="modal-close" aria-label="Close" ${emfActionAttrs(\'close-editor\')}'));

@@ -11,11 +11,12 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data, editorUi, emf] = await Promise.all([
+    const [{ state }, data, editorUi, emf, emfInterpretation] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/context-card-editor-ui.js'),
       import('/js/emf.js'),
+      import('/js/emf-interpretation.js'),
     ]);
     if (typeof window.toggleCtxTag !== 'function') window.toggleCtxTag = editorUi.toggleCtxTag;
 
@@ -56,11 +57,13 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
-      openChatPanel: window.openChatPanel,
       closeModal: window.closeModal,
     };
     const outcomes = {};
     const calls = [];
+    const previousInterpretationDeps = emfInterpretation.configureEMFInterpretationRuntimeDeps({
+      openChatPanel: prompt => calls.push(['chat', prompt]),
+    });
 
     try {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
@@ -190,7 +193,6 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         && document.querySelector('.emf-compare-table')?.textContent.includes('28') === true
         && document.querySelector('.emf-compare-table')?.textContent.includes('4') === true;
 
-      window.openChatPanel = prompt => calls.push(['chat', prompt]);
       window.closeModal = () => calls.push(['close-modal']);
       emf.interpretEMFComparison();
       await waitFor('#emf-interp-overlay.show .emf-interp-modal', 'EMF existing interpretation modal');
@@ -219,7 +221,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       data.invalidateActiveDataCache();
-      window.openChatPanel = saved.openChatPanel;
+      emfInterpretation.configureEMFInterpretationRuntimeDeps(previousInterpretationDeps);
       window.closeModal = saved.closeModal;
       localStorage.clear();
       for (const [key, value] of storage) {
@@ -370,7 +372,6 @@ test('Light audit history covers save expand update compare interpret and delete
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
-      openChatPanel: window.openChatPanel,
     };
     const outcomes = {};
     const calls = [];
@@ -451,7 +452,6 @@ test('Light audit history covers save expand update compare interpret and delete
         lightAudits: [oldAudit, midAudit, newAudit],
       };
       data.invalidateActiveDataCache();
-      window.openChatPanel = prompt => calls.push(['chat', prompt]);
       document.getElementById('confirm-dialog-overlay')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();
 
@@ -554,7 +554,6 @@ test('Light audit history covers save expand update compare interpret and delete
         renderAuditAIDot: () => '',
         renderAuditAIBlock: () => '',
       });
-      window.openChatPanel = saved.openChatPanel;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

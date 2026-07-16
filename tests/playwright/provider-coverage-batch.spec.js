@@ -431,7 +431,6 @@ test('provider panels cover provider switching key saves balances custom API and
     const oldGlobals = {
       fetch: window.fetch,
       open: window.open,
-      openChatPanel: window.openChatPanel,
       loadFocusCard: window.loadFocusCard,
       clearE2EESession: window.clearE2EESession,
     };
@@ -445,6 +444,9 @@ test('provider panels cover provider switching key saves balances custom API and
       openSettingsModal: () => {},
       closeSettingsModal: () => { settingsClosed += 1; },
     });
+    const previousProviderPanelDeps = panels.configureProviderPanelDeps({
+      openChatPanel: () => { chatOpened += 1; },
+    });
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -454,7 +456,6 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       cryptoStore.updateKeyCache('labcharts-custom-key', '');
       window.open = url => { openedUrl = String(url); return null; };
-      window.openChatPanel = () => { chatOpened += 1; };
       window.loadFocusCard = () => { focusLoads += 1; };
       window.clearE2EESession = () => { e2eeClears += 1; };
 
@@ -663,7 +664,7 @@ test('provider panels cover provider switching key saves balances custom API and
       window.fetch = oldGlobals.fetch;
       window.open = oldGlobals.open;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      window.openChatPanel = oldGlobals.openChatPanel;
+      panels.configureProviderPanelDeps(previousProviderPanelDeps);
       window.loadFocusCard = oldGlobals.loadFocusCard;
       window.clearE2EESession = oldGlobals.clearE2EESession;
       for (const key of storageKeys) {
