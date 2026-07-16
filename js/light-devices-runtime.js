@@ -5,7 +5,6 @@ import { state } from './state.js';
 import { showPromptDialog } from './utils.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import { CHANNEL_DISPLAY, channelTier, formatChannelUnit, tierLabel } from './sun.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 /** @type {{
  *   showPromptDialog: typeof showPromptDialog | null,
@@ -13,6 +12,8 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
  *   tierLabel: typeof tierLabel | null,
  *   formatChannelUnit: typeof formatChannelUnit | null,
  *   channelDisplay: Record<string, any> | null,
+ *   navigate: ((route: string) => unknown) | null,
+ *   openChannelOnLightPage: ((channel: string) => unknown) | null,
  * }} */
 const lightDevicesRuntimeDeps = {
   showPromptDialog,
@@ -20,6 +21,8 @@ const lightDevicesRuntimeDeps = {
   tierLabel,
   formatChannelUnit,
   channelDisplay: CHANNEL_DISPLAY,
+  navigate: null,
+  openChannelOnLightPage: null,
 };
 
 /** @param {Partial<typeof lightDevicesRuntimeDeps>} deps */
@@ -35,28 +38,17 @@ export function configureLightDevicesRuntimeDeps(deps = {}) {
       ? deps.channelDisplay
       : null;
   }
+  for (const name of ['navigate', 'openChannelOnLightPage']) {
+    if (name in deps) {
+      lightDevicesRuntimeDeps[name] = typeof deps[name] === 'function' ? deps[name] : null;
+    }
+  }
   return previous;
-}
-
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : /** @type {any} */ (globalThis);
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (typeof runtime[name] === 'function') return runtime[name].bind(runtime);
-  return getViewRuntimeFunction(name);
 }
 
 /** @param {string} route */
 export function navigateLightDevicesRoute(route) {
-  getRuntimeFunction('navigate')?.(route);
+  lightDevicesRuntimeDeps.navigate?.(route);
 }
 
 export function refreshLightDevicesView() {
@@ -99,5 +91,5 @@ export function renderLightDeviceAffiliateRowRuntime(catalog, slug) {
 
 /** @param {string} channel */
 export function openLightDeviceChannel(channel) {
-  getRuntimeFunction('_openChannelOnLightPage')?.(channel);
+  lightDevicesRuntimeDeps.openChannelOnLightPage?.(channel);
 }

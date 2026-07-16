@@ -78,6 +78,8 @@ import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } fro
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
+import { _openChannelOnLightPage } from './light-channel-view.js';
+import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
 import { closeModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton } from './nav.js';
@@ -139,6 +141,7 @@ configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
 configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
+configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
 configureContextCardLifestyleRuntimeDeps({ openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
