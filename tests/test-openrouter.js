@@ -30,6 +30,7 @@ console.log('=== OpenRouter Integration Tests ===\n');
 await import('../js/state.js');
 const api = await import('../js/api.js');
 const providerPanels = await import('../js/provider-panels.js');
+const chatRuntime = await import('../js/chat-runtime.js');
 
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
@@ -163,12 +164,12 @@ assert('manual OpenRouter key save clears pending OAuth restore state',
 
 let headerRefreshCount = 0;
 let webToggleRefreshCount = 0;
-const oldHeaderRefresh = window.updateChatHeaderModel;
-const oldWebToggleRefresh = window.refreshWebSearchToggle;
 const oldProviderForRefresh = localStorage.getItem('labcharts-ai-provider');
 const oldOpenRouterModelForRefresh = localStorage.getItem('labcharts-openrouter-model');
-window.updateChatHeaderModel = () => { headerRefreshCount += 1; };
-window.refreshWebSearchToggle = () => { webToggleRefreshCount += 1; };
+const oldChatRuntimeCallbacks = chatRuntime.configureChatRuntimeCallbacks({
+  updateChatHeaderModel: () => { headerRefreshCount += 1; },
+  refreshWebSearchToggle: () => { webToggleRefreshCount += 1; },
+});
 api.setAIProvider('openrouter');
 assert('setAIProvider refreshes chat header', headerRefreshCount === 1, `count=${headerRefreshCount}`);
 assert('setAIProvider refreshes web-search state', webToggleRefreshCount === 1, `count=${webToggleRefreshCount}`);
@@ -176,10 +177,7 @@ assert('setAIProvider marks AI settings as local', Number(sessionStorage.getItem
 api.setOpenRouterModel('anthropic/claude-sonnet-4.6');
 assert('setOpenRouterModel refreshes chat header', headerRefreshCount === 2, `count=${headerRefreshCount}`);
 assert('setOpenRouterModel refreshes web-search state', webToggleRefreshCount === 2, `count=${webToggleRefreshCount}`);
-if (oldHeaderRefresh) window.updateChatHeaderModel = oldHeaderRefresh;
-else delete window.updateChatHeaderModel;
-if (oldWebToggleRefresh) window.refreshWebSearchToggle = oldWebToggleRefresh;
-else delete window.refreshWebSearchToggle;
+chatRuntime.configureChatRuntimeCallbacks(oldChatRuntimeCallbacks);
 if (oldProviderForRefresh) localStorage.setItem('labcharts-ai-provider', oldProviderForRefresh);
 else localStorage.removeItem('labcharts-ai-provider');
 if (oldOpenRouterModelForRefresh) localStorage.setItem('labcharts-openrouter-model', oldOpenRouterModelForRefresh);

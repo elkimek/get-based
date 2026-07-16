@@ -94,8 +94,13 @@ assert('App shell wires module-only chat thread consumers',
 
 assert('App shell wires Context hub status refresh without a window lookup',
   appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
-    && appShellHooksSrc.includes("import { updateChatContextStatus } from './chat-personalities.js'")
+    && appShellHooksSrc.includes("from './chat-personalities.js'")
+    && appShellHooksSrc.includes('updateChatContextStatus')
     && appShellHooksSrc.includes('configureDashboardAIContextStatus(updateChatContextStatus);'));
+
+assert('App shell wires Chat UI refreshes without window globals',
+  appShellHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
+    && appShellHooksSrc.includes('configureChatRuntimeCallbacks({ refreshWebSearchToggle, updateChatHeaderModel, updateChatNudge });'));
 
 [
   'toggle-panel',

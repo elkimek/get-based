@@ -13,13 +13,13 @@ import {
 import { renderSavedSummaries, summarizeThread } from './chat-summaries.js';
 import {
   getActivePersonality, setChatPersonality, togglePersonalityBar,
-  updateChatHeaderModel, updateChatHeaderTitle, updatePersonalityBar,
+  updateChatHeaderTitle, updatePersonalityBar,
 } from './chat-personalities.js';
 import {
   clearChatHistory, loadChatHistory, saveChatHistory,
 } from './chat-history.js';
 import {
-  closeChatPanel, configureChatPanel, refreshWebSearchToggle, setChatWebSearchEnabled,
+  closeChatPanel, configureChatPanel, setChatWebSearchEnabled,
   toggleChatFullscreen, toggleChatPanel, openChatPanel, updateChatInputState,
 } from './chat-panel.js';
 import { setChatNudge, updateChatNudge } from './chat-nudge.js';
@@ -69,8 +69,6 @@ Object.assign(window, {
   isChatStreaming,
   toggleChatFullscreen,
   setChatPersonality,
-  updateChatHeaderModel,
-  refreshWebSearchToggle,
   togglePersonalityBar,
   loadChatHistory,
   clearChatHistory,
@@ -86,5 +84,4 @@ Object.assign(window, {
   updateDiscussButton,
   askAIAboutMarker,
   setChatWebSearchEnabled,
-  updateChatNudge,
 });

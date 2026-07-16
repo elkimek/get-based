@@ -76,12 +76,16 @@ import {
 } from '../js/lab-context.js';
 import { setSyncRelay } from '../js/sync-environment.js';
 import { buildAgentAccessSetupCommand } from '../js/settings-agent-access-panel.js';
+import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
 const PROFILE_ID = 'profile-runtime';
 const PROFILE_QUERY = Symbol('profile-query');
 const ITEM_ROW_QUERY = Symbol('item-row-query');
 let previousSyncRuntimeCallbacks;
+let previousChatRuntimeCallbacks;
 let refreshRoutstrBalance;
+let updateChatHeaderModel;
+let refreshWebSearchToggle;
 
 function deltaKey(profileId, arrayName) {
   return `labcharts-${profileId}-delta-${arrayName}`;
@@ -153,8 +157,12 @@ beforeEach(() => {
   updateKeyCache('labcharts-ppq-key', '');
   updateKeyCache('labcharts-custom-key', '');
   updateKeyCache('labcharts-cashu-wallet-mnemonic', '');
-  window.updateChatHeaderModel = vi.fn();
-  window.refreshWebSearchToggle = vi.fn();
+  updateChatHeaderModel = vi.fn();
+  refreshWebSearchToggle = vi.fn();
+  previousChatRuntimeCallbacks = configureChatRuntimeCallbacks({
+    updateChatHeaderModel,
+    refreshWebSearchToggle,
+  });
   refreshRoutstrBalance = vi.fn();
   previousSyncRuntimeCallbacks = configureSyncRuntimeCallbacks({ refreshRoutstrBalance });
   state.currentProfile = PROFILE_ID;
@@ -167,6 +175,7 @@ beforeEach(() => {
 
 afterEach(() => {
   configureSyncRuntimeCallbacks(previousSyncRuntimeCallbacks);
+  configureChatRuntimeCallbacks(previousChatRuntimeCallbacks);
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -287,8 +296,8 @@ describe('sync apply runtime behavior', () => {
     expect(localStorage.getItem('labcharts-ai-provider')).toBe('openrouter');
     expect(localStorage.getItem('labcharts-openrouter-key')).toBe('sk-remote');
     expect(localStorage.getItem('labcharts-custom-url')).toBeNull();
-    expect(window.updateChatHeaderModel).toHaveBeenCalledTimes(1);
-    expect(window.refreshWebSearchToggle).toHaveBeenCalledTimes(1);
+    expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
+    expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);
 
     sessionStorage.setItem('or_oauth_local_settings_lock_until', String(Date.now() + 60_000));
     localStorage.setItem('labcharts-ai-provider', 'local-provider');
@@ -325,14 +334,15 @@ describe('sync apply runtime behavior', () => {
     const recordOwnerEvent = event => {
       events.push(event.detail);
     };
-    window.updateChatHeaderModel = vi.fn();
-    window.refreshWebSearchToggle = vi.fn();
+    updateChatHeaderModel = vi.fn();
+    refreshWebSearchToggle = vi.fn();
+    configureChatRuntimeCallbacks({ updateChatHeaderModel, refreshWebSearchToggle });
     window.addEventListener('labcharts-sync-owner-changed', recordOwnerEvent);
 
     try {
       expect(refreshSyncedAIProviderUiRuntime()).toBe(true);
-      expect(window.updateChatHeaderModel).toHaveBeenCalledTimes(1);
-      expect(window.refreshWebSearchToggle).toHaveBeenCalledTimes(1);
+      expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
+      expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);
 
       expect(dispatchSyncOwnerChangedRuntime('owner-runtime')).toBe(true);
       expect(events.at(-1)).toEqual({ ownerId: 'owner-runtime', ready: true });

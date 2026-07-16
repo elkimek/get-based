@@ -4,6 +4,34 @@
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
+/** @type {Record<'refreshWebSearchToggle' | 'updateChatHeaderModel' | 'updateChatNudge', Function | null>} */
+const chatRuntimeCallbacks = {
+  refreshWebSearchToggle: null,
+  updateChatHeaderModel: null,
+  updateChatNudge: null,
+};
+
+/** @param {Partial<Record<keyof typeof chatRuntimeCallbacks, Function | null>>} [callbacks] */
+export function configureChatRuntimeCallbacks(callbacks = {}) {
+  const previous = { ...chatRuntimeCallbacks };
+  for (const name of Object.keys(chatRuntimeCallbacks)) {
+    if (name in callbacks) {
+      const callback = callbacks[/** @type {keyof typeof chatRuntimeCallbacks} */ (name)];
+      chatRuntimeCallbacks[/** @type {keyof typeof chatRuntimeCallbacks} */ (name)] =
+        typeof callback === 'function' ? callback : null;
+    }
+  }
+  return previous;
+}
+
+/** @param {keyof typeof chatRuntimeCallbacks} name */
+function callChatRuntimeCallback(name) {
+  const callback = chatRuntimeCallbacks[name];
+  if (typeof callback !== 'function') return false;
+  callback();
+  return true;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -32,6 +60,18 @@ function getRuntimeValue(name) {
 
 export function renderChatMessagesRuntime() {
   getRuntimeFunction('renderChatMessages')?.();
+}
+
+export function refreshChatWebSearchToggleRuntime() {
+  return callChatRuntimeCallback('refreshWebSearchToggle');
+}
+
+export function updateChatHeaderModelRuntime() {
+  return callChatRuntimeCallback('updateChatHeaderModel');
+}
+
+export function updateChatNudgeRuntime() {
+  return callChatRuntimeCallback('updateChatNudge');
 }
 
 export function updateDiscussButtonRuntime() {

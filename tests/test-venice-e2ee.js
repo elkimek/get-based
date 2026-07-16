@@ -24,6 +24,7 @@ console.log('=== Venice E2EE Tests ===\n');
 // Import api.js directly for Venice provider helpers.
 const api = await import('../js/api.js');
 const cryptoMod = await import('../js/crypto.js');
+const chatRuntime = await import('../js/chat-runtime.js');
 
 // 1. Source: api.js has isE2EEModel and E2EE branch
 const apiSrc = read('js/api.js');
@@ -167,17 +168,14 @@ else localStorage.removeItem('labcharts-venice-e2ee');
 // 13b. Model setters refresh active chat UI immediately
 let veniceHeaderRefreshCount = 0;
 let veniceWebToggleRefreshCount = 0;
-const savedHeaderRefresh = window.updateChatHeaderModel;
-const savedWebToggleRefresh = window.refreshWebSearchToggle;
-window.updateChatHeaderModel = () => { veniceHeaderRefreshCount += 1; };
-window.refreshWebSearchToggle = () => { veniceWebToggleRefreshCount += 1; };
+const savedChatRuntimeCallbacks = chatRuntime.configureChatRuntimeCallbacks({
+  updateChatHeaderModel: () => { veniceHeaderRefreshCount += 1; },
+  refreshWebSearchToggle: () => { veniceWebToggleRefreshCount += 1; },
+});
 api.setVeniceModel('llama-3.3-70b');
 assert('setVeniceModel refreshes chat header', veniceHeaderRefreshCount === 1, `count=${veniceHeaderRefreshCount}`);
 assert('setVeniceModel refreshes web-search state', veniceWebToggleRefreshCount === 1, `count=${veniceWebToggleRefreshCount}`);
-if (savedHeaderRefresh) window.updateChatHeaderModel = savedHeaderRefresh;
-else delete window.updateChatHeaderModel;
-if (savedWebToggleRefresh) window.refreshWebSearchToggle = savedWebToggleRefresh;
-else delete window.refreshWebSearchToggle;
+chatRuntime.configureChatRuntimeCallbacks(savedChatRuntimeCallbacks);
 if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
 else localStorage.removeItem('labcharts-venice-model');
 

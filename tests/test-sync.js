@@ -1260,8 +1260,8 @@ await import('../js/settings.js');
   assert('applyAISettings refreshes chat provider UI through sync runtime hooks',
     syncApplySrc.includes('refreshSyncedAIProviderUiRuntime()')
       && syncRuntimeSrc.includes('export function refreshSyncedAIProviderUiRuntime')
-      && syncRuntimeSrc.includes("getRuntimeFunction('updateChatHeaderModel')")
-      && syncRuntimeSrc.includes("getRuntimeFunction('refreshWebSearchToggle')")
+      && syncRuntimeSrc.includes('updateChatHeaderModelRuntime()')
+      && syncRuntimeSrc.includes('refreshChatWebSearchToggleRuntime()')
       && !syncApplySrc.includes('window.updateChatHeaderModel')
       && !syncApplySrc.includes('window.refreshWebSearchToggle'));
   assert('Newer Routstr sessions bypass stale local locks and refresh server balance',

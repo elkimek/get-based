@@ -2,6 +2,7 @@
 // context-card-lifestyle-runtime.js - Browser runtime adapters for lifestyle context editors.
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
+import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 function getRuntimeWindow() {
@@ -46,7 +47,7 @@ export function closeLifestyleContextModalAndNavigateRuntime(category) {
 }
 
 export function updateLifestyleChatHeaderModelRuntime() {
-  getRuntimeFunction('updateChatHeaderModel')?.();
+  updateChatHeaderModelRuntime();
 }
 
 /** @param {(() => void) | null} reopenSunSetup */

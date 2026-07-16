@@ -8,6 +8,7 @@ import { hasAIProvider, callClaudeAPI } from './api.js';
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
 import { clearLensCache as clearLensCacheImpl, getLensCacheEntry, setLensCacheEntry } from './lens-cache.js';
 import { createLensKnowledgeBaseUi } from './lens-knowledge-base-ui.js';
+import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
 // testProbe — per-user "canary" query used by Save + connect to verify the
@@ -91,7 +92,7 @@ export function saveLensConfig(partial) {
   if (urlChanged || topKChanged) clearLensCache();
   // Ping listeners so the indicator re-evaluates visibility (without clobbering state)
   updateLensStatus({});
-  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
+  updateChatHeaderModelRuntime();
   return next;
 }
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
@@ -102,7 +103,7 @@ export async function saveLensKey(key) {
   // External-server hasLens() gates on getLensKey(); refresh the chat header
   // immediately so first-time KB key saves surface the AI Context chip without
   // waiting for an unrelated model/config refresh.
-  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
+  updateChatHeaderModelRuntime();
 }
 export async function removeLens() {
   localStorage.removeItem(CONFIG_KEY);
@@ -110,7 +111,7 @@ export async function removeLens() {
   updateKeyCache(SECRET_KEY, '');
   clearLensCache();
   updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });
-  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
+  updateChatHeaderModelRuntime();
 }
 export function hasLens() {
   const cfg = getLensConfig();

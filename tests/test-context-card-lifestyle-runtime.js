@@ -16,6 +16,7 @@ import {
   updateLifestyleChatHeaderModelRuntime,
 } from '../js/context-card-lifestyle-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -29,7 +30,6 @@ const runtimeKeys = [
   'window',
   'closeModal',
   'navigate',
-  'updateChatHeaderModel',
   'openChatPanel',
   'useChatPrompt',
   'openContextModal',
@@ -57,13 +57,15 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousChatRuntime = configureChatRuntimeCallbacks({
+    updateChatHeaderModel: () => calls.push(['chat-header']),
+  });
   const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
     openContextModal: () => calls.push(['context-modal']),
   });
   setRuntimeValue('window', globalThis);
   setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('navigate', category => calls.push(['navigate', category]));
-  setRuntimeValue('updateChatHeaderModel', () => calls.push(['chat-header']));
   setRuntimeValue('openChatPanel', () => calls.push(['chat-panel']));
   setRuntimeValue('useChatPrompt', prompt => calls.push(['prompt', prompt]));
   setRuntimeValue('openContextModal', () => calls.push(['legacy-context-modal']));
@@ -102,6 +104,7 @@ try {
       calls.some(call => call.join('|') === 'timer|0'));
 
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
+  configureChatRuntimeCallbacks({ updateChatHeaderModel: null });
   delete globalThis.window;
   const shellCallCount = calls.filter(call => call[0] !== 'timer').length;
   closeLifestyleContextModalRuntime();
@@ -122,6 +125,7 @@ try {
       !/\bwindow(?:\.|\s*\[)/.test(editorSrc) &&
       swSrc.includes("'/js/context-card-lifestyle-runtime.js'"));
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+  configureChatRuntimeCallbacks(previousChatRuntime);
 } finally {
   restoreRuntime();
 }

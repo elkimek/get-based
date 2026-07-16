@@ -1,34 +1,20 @@
 // @ts-check
 // api-provider-storage-runtime.js - Browser runtime adapters for persisted provider settings.
 
+import {
+  refreshChatWebSearchToggleRuntime,
+  updateChatHeaderModelRuntime,
+} from './chat-runtime.js';
+
 function getApiProviderStorageRuntime() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getApiProviderStorageRuntime();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
 export function refreshAIProviderSelectionRuntime() {
-  let refreshed = false;
-  const updateHeader = getRuntimeFunction('updateChatHeaderModel');
-  if (updateHeader) {
-    updateHeader();
-    refreshed = true;
-  }
-  const refreshWebSearch = getRuntimeFunction('refreshWebSearchToggle');
-  if (refreshWebSearch) {
-    refreshWebSearch();
-    refreshed = true;
-  }
-  return refreshed;
+  const headerRefreshed = updateChatHeaderModelRuntime();
+  return refreshChatWebSearchToggleRuntime() || headerRefreshed;
 }
 
 export function dispatchAISettingsLocalChangedRuntime() {

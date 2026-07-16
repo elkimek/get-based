@@ -23,6 +23,7 @@ import {
   updateDnaChatNudge,
 } from '../js/dna-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 import {
   configureDnaModuleBridge,
   getDnaModuleFunction,
@@ -53,13 +54,13 @@ const runtimeKeys = [
   'navigate',
   'showConfirmDialog',
   'triggerDNAFilePicker',
-  'updateChatNudge',
 ];
 const originals = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const originalError = console.error;
 const originalWarn = console.warn;
 const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
 const originalContextCardsRuntime = configureContextCardsRuntimeCallbacks();
+const originalChatRuntime = configureChatRuntimeCallbacks();
 let previousViewRuntime = null;
 const previousDnaBridge = configureDnaModuleBridge({
   handleDNAFile: null,
@@ -114,7 +115,9 @@ try {
   assert('triggerDnaFilePicker delegates picker opening',
     calls.some(call => call[0] === 'triggerDNAFilePicker'));
 
-  globalThis.updateChatNudge = () => calls.push(['updateChatNudge']);
+  configureChatRuntimeCallbacks({
+    updateChatNudge: () => calls.push(['updateChatNudge']),
+  });
   updateDnaChatNudge();
   assert('updateDnaChatNudge delegates chat nudge refresh',
     calls.some(call => call[0] === 'updateChatNudge'));
@@ -188,6 +191,7 @@ try {
   configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   configureDnaRuntimeDeps(originalDnaRuntimeDeps);
   configureContextCardsRuntimeCallbacks(originalContextCardsRuntime);
+  configureChatRuntimeCallbacks(originalChatRuntime);
   console.error = originalError;
   console.warn = originalWarn;
   for (const key of runtimeKeys) {

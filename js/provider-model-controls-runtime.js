@@ -2,6 +2,10 @@
 // provider-model-controls-runtime.js - Browser runtime adapters for provider model controls.
 
 import { callClaudeAPI } from './api.js';
+import {
+  refreshChatWebSearchToggleRuntime,
+  updateChatHeaderModelRuntime,
+} from './chat-runtime.js';
 
 const providerModelControlsRuntimeDeps = {
   callClaudeAPI,
@@ -36,18 +40,8 @@ export function clearProviderE2EESessionRuntime() {
 }
 
 export function refreshProviderModelUiRuntime() {
-  let refreshed = false;
-  const updateHeader = getRuntimeFunction('updateChatHeaderModel');
-  if (updateHeader) {
-    updateHeader();
-    refreshed = true;
-  }
-  const refreshWebSearch = getRuntimeFunction('refreshWebSearchToggle');
-  if (refreshWebSearch) {
-    refreshWebSearch();
-    refreshed = true;
-  }
-  return refreshed;
+  const headerRefreshed = updateChatHeaderModelRuntime();
+  return refreshChatWebSearchToggleRuntime() || headerRefreshed;
 }
 
 export function callProviderModelSmokeTestRuntime() {

@@ -102,6 +102,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
   const results = await page.evaluate(async ({ controlsUrl }) => {
     const controls = await import(controlsUrl);
     const runtime = await import('/js/provider-model-controls-runtime.js');
+    const chatRuntime = await import('/js/chat-runtime.js');
     const delegates = await import('/js/provider-panel-delegates.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -132,11 +133,10 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
     const oldGlobals = {
       fetch: window.fetch,
       clearE2EESession: window.clearE2EESession,
-      updateChatHeaderModel: window.updateChatHeaderModel,
-      refreshWebSearchToggle: window.refreshWebSearchToggle,
       consoleWarn: console.warn,
     };
     let previousRuntimeDeps = null;
+    let previousChatRuntime = null;
 
     let clearCount = 0;
     let headerRefreshes = 0;
@@ -157,8 +157,10 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       `);
 
       window.clearE2EESession = () => { clearCount += 1; };
-      window.updateChatHeaderModel = () => { headerRefreshes += 1; };
-      window.refreshWebSearchToggle = () => { searchRefreshes += 1; };
+      previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+        updateChatHeaderModel: () => { headerRefreshes += 1; },
+        refreshWebSearchToggle: () => { searchRefreshes += 1; },
+      });
       console.warn = message => { warnings.push(String(message)); };
 
       localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
@@ -362,9 +364,8 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
     } finally {
       window.fetch = oldGlobals.fetch;
       if (previousRuntimeDeps) runtime.configureProviderModelControlsRuntimeDeps(previousRuntimeDeps);
+      if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       window.clearE2EESession = oldGlobals.clearE2EESession;
-      window.updateChatHeaderModel = oldGlobals.updateChatHeaderModel;
-      window.refreshWebSearchToggle = oldGlobals.refreshWebSearchToggle;
       console.warn = oldGlobals.consoleWarn;
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
