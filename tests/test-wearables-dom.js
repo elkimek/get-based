@@ -36,7 +36,7 @@ return (async function() {
   const store = await import('../js/wearables-store.js');
   const ah = await import('../js/wearables-apple-health.js');
   const reg = await import('../js/wearable-adapters.js');
-  await import('../js/wearables.js'); // registers window.openWearableDetail / renderWearableStrip
+  const wearables = await import('../js/wearables.js');
   const views = await import('../js/views.js');
 
   window._labState.importedData = window._labState.importedData || {};
@@ -56,7 +56,7 @@ return (async function() {
         hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: '2026-04-22', baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
       },
     };
-    stripHost.innerHTML = window.renderWearableStrip();
+    stripHost.innerHTML = wearables.renderWearableStrip();
     document.body.prepend(stripHost);
     const emptyWeightCard = stripHost.querySelector('.wearable-card-empty[data-empty-metric="weight"]');
     assert('Strip renders empty manual card with delegated open action',
@@ -88,7 +88,7 @@ return (async function() {
     { source: 'oura', date: '2026-04-22', hrv_rmssd: 42, activity_score: 0 },
   ]);
 
-  await window.openWearableDetail('hrv_rmssd');
+  await wearables.openWearableDetail('hrv_rmssd');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.[0]?.data?.length === 3);
   assert('Detail modal opens on a valid metric', document.getElementById('modal-overlay').classList.contains('show'));
   const modalHtml = document.getElementById('detail-modal').innerHTML;
@@ -108,7 +108,7 @@ return (async function() {
     rangeButtons.map(b => b.textContent.trim()).join('|') === '90d|6m|1y|All');
   assert('Detail modal defaults to 90d range',
     document.querySelector('#detail-modal .wearable-detail-range .ctx-btn-option.active')?.textContent?.trim() === '90d');
-  window.setWearableDetailRange('hrv_rmssd', '6m');
+  wearables.setWearableDetailRange('hrv_rmssd', '6m');
   await waitFor(() => document.querySelector('#detail-modal .wearable-detail-range .ctx-btn-option.active')?.textContent?.trim() === '6m');
   assert('Range toggle persists and re-renders active 6m pill',
     localStorage.getItem('wearable-detail-range') === '6m' &&
@@ -116,7 +116,7 @@ return (async function() {
   views.closeModal();
   assert('closeModal clears modal chart instance', !window._labState.chartInstances?.modal);
 
-  await window.openWearableDetail('activity_score');
+  await wearables.openWearableDetail('activity_score');
   await new Promise(r => setTimeout(r, 60));
   assert('Rest-mode hint shown on all-zero activity score',
     /Rest Mode/.test(document.getElementById('detail-modal').innerHTML));
@@ -140,7 +140,7 @@ return (async function() {
     { source: 'manual', date: '2026-04-21', bp_systolic: 121, bp_diastolic: 79 },
     { source: 'manual', date: '2026-04-22', bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
   ]);
-  await window.openWearableDetail('bp_systolic');
+  await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
   const bpModalText = document.getElementById('detail-modal')?.textContent || '';
   const bpChart = window._labState.chartInstances?.modal;
@@ -177,7 +177,7 @@ return (async function() {
     { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
     { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
   ]);
-  await window.openWearableDetail('bp_systolic');
+  await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
   const mixedModalText = document.getElementById('detail-modal')?.textContent || '';
   const mixedChartLabels = window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || [];
@@ -215,7 +215,7 @@ return (async function() {
     { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
     { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
   ]);
-  await window.openWearableDetail('bp_systolic');
+  await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
   const mixedManualPrimaryText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP mixed manual-diastolic fallback chooses the newest same-date pair across chart and manual candidates',
@@ -224,7 +224,7 @@ return (async function() {
       && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
   views.closeModal();
 
-  await window.openWearableDetail('bp_diastolic');
+  await wearables.openWearableDetail('bp_diastolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
   assert('Opening bp_diastolic normalizes to the paired BP detail view',
     (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l)) &&
@@ -247,7 +247,7 @@ return (async function() {
     { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
     { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
   ]);
-  await window.openWearableDetail('bp_systolic');
+  await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
   const splitDateText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP latest row does not synthesize a split-date summary pair when no same-date candidate exists',
@@ -255,7 +255,7 @@ return (async function() {
   views.closeModal();
 
   window._labState.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
-  await window.openWearableDetail('bp_systolic');
+  await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
   const missingDateText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP latest row does not synthesize a summary pair when one latest date is missing',
@@ -278,7 +278,7 @@ return (async function() {
     { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
     { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
   ]);
-  await window.openWearableDetail('bp_systolic');
+  await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Manual systolic$/.test(d?.label || '')));
   const manualOnlyText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP modal hides empty chart hint when manual readings are charted',
@@ -329,7 +329,7 @@ return (async function() {
   await store.upsertDailyBatch(TEST_PROFILE, [
     { source: 'oura', date: '2026-04-22', spo2_avg: 97 },
   ]);
-  await window.openWearableDetail('spo2_avg');
+  await wearables.openWearableDetail('spo2_avg');
   await new Promise(r => setTimeout(r, 60));
   const modalSpo2Html = document.getElementById('detail-modal').innerHTML;
   assert('Modal renders SpO2 97 as integer (no .0)', !/97\.0/.test(modalSpo2Html));
@@ -364,7 +364,7 @@ return (async function() {
     { source: 'oura', date: yesterdayISO, steps: 9000 },
     { source: 'oura', date: todayISO, steps: 1200 },
   ]);
-  await window.openWearableDetail('steps');
+  await wearables.openWearableDetail('steps');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.[0]?.data?.some(p => p?.x === todayISO));
   const stepsChart = window._labState.chartInstances?.modal;
   const todayIdx = stepsChart?.data?.datasets?.[0]?.data?.findIndex(p => p?.x === todayISO);
@@ -424,7 +424,7 @@ return (async function() {
     { source: 'oura', date: vendorDay1, rhr: 62 },
     { source: 'manual', date: todayISO, rhr: 57 },
   ]);
-  await window.openWearableDetail('rhr');
+  await wearables.openWearableDetail('rhr');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => d?._kind === 'manual'));
   const rhrChart = window._labState.chartInstances?.modal;
   const manualDs = rhrChart?.data?.datasets?.find(d => d?._kind === 'manual');
@@ -472,7 +472,7 @@ return (async function() {
     },
     changeHistory: [],
   };
-  await window.openWearableDetail('hrv_rmssd');
+  await wearables.openWearableDetail('hrv_rmssd');
   await new Promise(r => setTimeout(r, 250));
   const modalText = document.getElementById('detail-modal')?.textContent || '';
   assert('v1.26 P1-2: HRV modal shows empty-state row "Not from Oura · why?" (behavior)',

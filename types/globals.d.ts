@@ -222,15 +222,11 @@ interface Window {
   refreshWebSearchToggle?: AnyFunction;
   saveImportedData?: AnyFunction;
   _getRelevantSNPs?: AnyFunction;
-  _uninstallWearableModalFocusTrap?: AnyFunction;
   deleteNote?: AnyFunction;
   detectWearableTrendSlots?: AnyFunction;
   loadContextCardTips?: AnyFunction;
-  openManualLogForm?: AnyFunction;
   openNoteEditor?: AnyFunction;
-  openWearableDetail?: AnyFunction;
   showDetailModal?: AnyFunction;
-  syncWearableNow?: AnyFunction;
   triggerDNAFilePicker?: AnyFunction;
   renderLightTools?: AnyFunction;
   renderSunDataSourceSettings?: AnyFunction;

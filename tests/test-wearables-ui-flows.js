@@ -17,6 +17,7 @@ return (async function() {
   const manual    = await import('../js/wearables-manual.js' + bust);
   const store     = await import('../js/wearables-store.js' + bust);
   const summary   = await import('../js/wearables-summary.js' + bust);
+  const wearables = await import('../js/wearables.js');
   const views     = await import('../js/views.js');
 
   // ─────────────────────────────────────────────────────────
@@ -54,7 +55,7 @@ return (async function() {
   // 1. Detail modal opens via openWearableDetail
   // ═══════════════════════════════════════
   console.log('%c 1. Detail Modal Open ', 'font-weight:bold;color:#f59e0b');
-  await window.openWearableDetail('weight');
+  await wearables.openWearableDetail('weight');
   await new Promise(r => setTimeout(r, 300));
   const overlay = document.getElementById('modal-overlay');
   assert('Modal overlay opens via openWearableDetail',
@@ -99,7 +100,7 @@ return (async function() {
   // 3. Cancel button does NOT trigger delete
   // ═══════════════════════════════════════
   console.log('%c 3. Cancel — no delete ', 'font-weight:bold;color:#f59e0b');
-  await window.openWearableDetail('rhr');
+  await wearables.openWearableDetail('rhr');
   await new Promise(r => setTimeout(r, 300));
   const delBtn2 = document.querySelector('#detail-modal .wearable-manual-entry-del');
   if (delBtn2) {
@@ -145,12 +146,12 @@ return (async function() {
     oldRhrSummary?.primarySource === 'oura' && oldRhrSummary?.latest === 61,
     JSON.stringify(oldRhrSummary));
   localStorage.setItem('wearable-detail-range', '90d');
-  await window.openWearableDetail('rhr');
+  await wearables.openWearableDetail('rhr');
   await new Promise(r => setTimeout(r, 300));
   assert('Older manual RHR appears in the default detail manual-entry list',
     !!document.querySelector(`#detail-modal .wearable-manual-entry[data-entry-date="${oldManualDate}"]`));
   localStorage.setItem('wearable-detail-range', 'all');
-  await window.openWearableDetail('rhr');
+  await wearables.openWearableDetail('rhr');
   await new Promise(r => setTimeout(r, 500));
   const chartDatasets = window._labState.chartInstances?.modal?.data?.datasets || [];
   const manualOverlay = chartDatasets.find(ds => ds.label === 'Manual');
@@ -182,7 +183,7 @@ return (async function() {
              rolling: { d7: 62, d30: 62, d90: 62 }, trend30d: 'flat', weekly: [62] },
     },
   };
-  await window.openWearableDetail('rhr');
+  await wearables.openWearableDetail('rhr');
   await new Promise(r => setTimeout(r, 300));
   const swapBtn = document.querySelector('#detail-modal .wearable-modal-source-swap');
   assert('Source-swap button renders on detail modal when ≥2 wearables connected',

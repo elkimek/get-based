@@ -8,6 +8,33 @@ const wearablesRuntimeDeps = {
   openEMFAssessmentEditor,
 };
 
+/** @type {Record<string, (...args: any[]) => any>} */
+const wearableModuleBridge = Object.create(null);
+
+/** @param {Record<string, unknown>} api */
+export function configureWearablesModuleBridge(api = {}) {
+  /** @type {Record<string, ((...args: any[]) => any) | null>} */
+  const previous = { ...wearableModuleBridge };
+  for (const name of Object.keys(api)) {
+    if (!(name in previous)) previous[name] = null;
+  }
+  for (const [name, value] of Object.entries(api)) {
+    if (typeof value === 'function') {
+      wearableModuleBridge[name] = /** @type {(...args: any[]) => any} */ (value);
+    } else if (value === null) {
+      delete wearableModuleBridge[name];
+    }
+  }
+  return previous;
+}
+
+/** @param {string} name */
+export function getWearablesModuleFunction(name) {
+  return typeof wearableModuleBridge[name] === 'function'
+    ? wearableModuleBridge[name]
+    : null;
+}
+
 export function configureWearablesRuntime(deps = {}) {
   const previous = { ...wearablesRuntimeDeps };
   if (typeof deps.openEMFAssessmentEditor === 'function') {
@@ -72,10 +99,4 @@ export function getWearablesViewportSize() {
     width: normalizeViewportDimension(runtime?.innerWidth, 1024),
     height: normalizeViewportDimension(runtime?.innerHeight, 768),
   };
-}
-
-/** @param {Record<string, unknown>} bindings */
-export function exposeWearablesBindings(bindings) {
-  const runtime = getRuntimeWindow();
-  if (runtime) Object.assign(runtime, bindings);
 }

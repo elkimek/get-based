@@ -300,7 +300,8 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('wearables dashboard browser hooks are isolated in runtime adapter',
     wearSrc.includes("from './wearables-runtime.js'")
       && !/\bwindow\b/.test(wearSrc)
-      && wearRuntimeSrc.includes('exposeWearablesBindings')
+      && wearRuntimeSrc.includes('configureWearablesModuleBridge')
+      && wearRuntimeSrc.includes('getWearablesModuleFunction')
       && wearRuntimeSrc.includes('getWearablesViewportSize'));
 
   const importDropZoneSrc = read('/js/import-drop-zone.js');

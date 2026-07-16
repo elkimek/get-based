@@ -4,6 +4,7 @@
 import { closeEMFInterpretation } from './emf-runtime.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { getWearablesModuleFunction } from './wearables-runtime.js';
 
 const markerDetailRuntimeDeps = {
   closeEMFInterpretation,
@@ -133,5 +134,5 @@ export function closeEMFInterpretationRuntime() {
 }
 
 export function uninstallWearableModalFocusTrapRuntime() {
-  getRuntimeFunction('_uninstallWearableModalFocusTrap')?.();
+  getWearablesModuleFunction('_uninstallWearableModalFocusTrap')?.();
 }

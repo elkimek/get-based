@@ -3,8 +3,9 @@
 import './_node-shim.js';
 import {
   closeWearablesModal,
+  configureWearablesModuleBridge,
   configureWearablesRuntime,
-  exposeWearablesBindings,
+  getWearablesModuleFunction,
   getWearablesViewportSize,
   navigateWearables,
   openEMFAssessmentAfterWearablesModalClose,
@@ -27,7 +28,6 @@ const runtimeKeys = [
   'setTimeout',
   'innerWidth',
   'innerHeight',
-  'wearableProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -105,10 +105,13 @@ try {
       && lateCalls.some(call => call[0] === 'emf-editor'));
   configureWearablesRuntime(restoreWearablesRuntime);
 
-  const probe = () => 'ok';
-  exposeWearablesBindings({ wearableProbe: probe });
-  assert('exposeWearablesBindings assigns runtime exports',
-    globalThis.wearableProbe === probe);
+  const restoreWearablesBridge = configureWearablesModuleBridge({ wearableProbe: () => 'ok' });
+  assert('wearables module bridge registers callbacks without browser globals',
+    getWearablesModuleFunction('wearableProbe')?.() === 'ok'
+      && !('wearableProbe' in globalThis));
+  configureWearablesModuleBridge(restoreWearablesBridge);
+  assert('wearables module bridge snapshots remove newly added callbacks on restore',
+    getWearablesModuleFunction('wearableProbe') === null);
 
   const beforeNoWindowCalls = calls.length;
   delete globalThis.window;
@@ -116,10 +119,9 @@ try {
   closeWearablesModal();
   openWearablesSettings();
   openEMFAssessmentAfterWearablesModalClose(50);
-  exposeWearablesBindings({ wearableProbe: null });
   const fallbackViewport = getWearablesViewportSize();
   assert('runtime adapter no-ops safely when window is missing',
-    calls.length === beforeNoWindowCalls && globalThis.wearableProbe === probe);
+    calls.length === beforeNoWindowCalls);
   assert('viewport helper returns fallback size without window',
     fallbackViewport.width === 1024 && fallbackViewport.height === 768);
 } finally {

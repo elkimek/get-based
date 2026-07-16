@@ -3,8 +3,9 @@ import { expect, test } from './coverage-fixture.js';
 test('blood pressure manual log form is idempotent', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const result = await page.evaluate(() => {
-    if (typeof window.openManualLogForm !== 'function') {
+  const result = await page.evaluate(async () => {
+    const wearables = await import('/js/wearables.js');
+    if (typeof wearables.openManualLogForm !== 'function') {
       return { available: false };
     }
 
@@ -14,10 +15,10 @@ test('blood pressure manual log form is idempotent', async ({ page }) => {
     document.body.appendChild(card);
 
     try {
-      window.openManualLogForm('bp_systolic');
+      wearables.openManualLogForm('bp_systolic');
       const formCountFirst = card.querySelectorAll('.wearable-log-form').length;
 
-      window.openManualLogForm('bp_systolic');
+      wearables.openManualLogForm('bp_systolic');
       const formCountSecond = card.querySelectorAll('.wearable-log-form').length;
       const sysInputPresent = !!document.getElementById('wl-bp-sys');
 
@@ -33,7 +34,7 @@ test('blood pressure manual log form is idempotent', async ({ page }) => {
   });
 
   if (!result.available) {
-    throw new Error('window.openManualLogForm is not exposed - wearables.js handler missing');
+    throw new Error('wearables.openManualLogForm is not exported');
   }
   expect(result.formCountFirst).toBe(1);
   expect(result.formCountSecond).toBe(1);

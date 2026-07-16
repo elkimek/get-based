@@ -670,10 +670,11 @@ test('marker detail modal covers default deps descriptions alt units and bio age
   await page.waitForSelector('#modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ modalUrl }) => {
-    const [modal, markerRuntime, recommendationRuntime, { state }, data] = await Promise.all([
+    const [modal, markerRuntime, recommendationRuntime, wearablesRuntime, { state }, data] = await Promise.all([
       import(modalUrl),
       import('/js/marker-detail-runtime.js'),
       import('/js/recommendations-runtime.js'),
+      import('/js/wearables-runtime.js'),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
@@ -703,7 +704,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       'revertMarkerName',
       'askAIAboutMarker',
       '_getRelevantSNPs',
-      '_uninstallWearableModalFocusTrap',
     ];
     const savedWindow = Object.fromEntries(windowKeys.map(key => [
       key,
@@ -718,6 +718,9 @@ test('marker detail modal covers default deps descriptions alt units and bio age
     const restoreRecommendationRuntime = recommendationRuntime.configureRecommendationModuleBridge({
       isProductRecsEnabled: () => true,
       renderRecommendationSection: async id => `<div class="coverage-rec">rec ${id}</div>`,
+    });
+    const restoreWearablesRuntime = wearablesRuntime.configureWearablesModuleBridge({
+      _uninstallWearableModalFocusTrap: () => calls.push(['uninstall-focus']),
     });
 
     try {
@@ -763,7 +766,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       window.revertMarkerName = id => calls.push(['revert-name', id]);
       window.askAIAboutMarker = id => calls.push(['ask-ai', id]);
       window._getRelevantSNPs = () => [];
-      window._uninstallWearableModalFocusTrap = () => calls.push(['uninstall-focus']);
 
       localStorage.setItem('labcharts-marker-desc', JSON.stringify({
         'coverage.cached': 'Cached marker description',
@@ -832,6 +834,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         renderRecommendationSection: null,
         ...restoreRecommendationRuntime,
       });
+      wearablesRuntime.configureWearablesModuleBridge(restoreWearablesRuntime);
       data.invalidateActiveDataCache();
       modal.configureMarkerDetailModal({
         navigate: (category, payload) => window.navigate?.(category, payload),
