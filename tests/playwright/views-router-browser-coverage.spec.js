@@ -22,7 +22,6 @@ test('views router browser coverage exercises route state and scroll restoration
       import(stateUrl),
     ]);
     const routerRuntime = await import('/js/views-router-runtime.js');
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const { state } = stateModule;
     const fixture = document.getElementById('fixture');
@@ -40,10 +39,9 @@ test('views router browser coverage exercises route state and scroll restoration
     const coverageLastViewKey = profileModule.profileStorageKey(coverageProfile, 'lastViewV1');
     const extraLastViewKey = profileModule.profileStorageKey(extraProfile, 'lastViewV1');
     const calls = [];
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
-      closeMobileSidebar: () => calls.push(['closeSidebar']),
-    });
     const previousRouterRuntimeDeps = routerRuntime.configureViewsRouterRuntimeDeps({
+      closeMobileSidebar: () => calls.push(['closeSidebar']),
+      navigate: view => calls.push(['navigate', view]),
       syncImportStatusFab: () => calls.push(['syncFab']),
     });
     const scrollByCalls = [];
@@ -275,7 +273,6 @@ test('views router browser coverage exercises route state and scroll restoration
       state.currentView = originalCurrentView;
       window.scrollTo = originalScrollTo;
       window.scrollBy = originalScrollBy;
-      viewRuntime.configureViewRuntime({ closeMobileSidebar: null, ...previousViewRuntime });
       routerRuntime.configureViewsRouterRuntimeDeps(previousRouterRuntimeDeps);
       restoreDescriptor('scrollX', originalScrollX);
       restoreDescriptor('scrollY', originalScrollY);

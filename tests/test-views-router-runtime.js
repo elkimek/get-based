@@ -13,7 +13,6 @@ import {
   scrollViewportBy,
   syncImportStatusFabFromRuntime,
 } from '../js/views-router-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -35,11 +34,9 @@ const runtimeKeys = [
   'scrollBy',
   'addEventListener',
   'removeEventListener',
-  'navigate',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const originalViewsRouterRuntimeDeps = configureViewsRouterRuntimeDeps();
-let previousViewRuntime = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -73,11 +70,11 @@ try {
   assert('getViewportScrollPosition falls back to page offsets',
     JSON.stringify(getViewportScrollPosition()) === JSON.stringify({ x: 56, y: 78 }));
 
-  previousViewRuntime = configureViewRuntime({
+  configureViewsRouterRuntimeDeps({
     closeMobileSidebar: () => calls.push(['close-sidebar']),
+    navigate: view => calls.push(['navigate', view]),
+    syncImportStatusFab: () => calls.push(['sync-fab']),
   });
-  configureViewsRouterRuntimeDeps({ syncImportStatusFab: () => calls.push(['sync-fab']) });
-  setRuntimeValue('navigate', view => calls.push(['navigate', view]));
   closeMobileSidebarFromRuntime();
   syncImportStatusFabFromRuntime();
   navigateViewportRuntime('dashboard');
@@ -85,6 +82,16 @@ try {
     calls.some(call => call[0] === 'close-sidebar') &&
     calls.some(call => call[0] === 'sync-fab') &&
     calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
+
+  configureViewsRouterRuntimeDeps({ closeMobileSidebar: null, navigate: null });
+  let missingCallbacksThrew = false;
+  try {
+    closeMobileSidebarFromRuntime();
+    navigateViewportRuntime('dashboard');
+  } catch (_) {
+    missingCallbacksThrew = true;
+  }
+  assert('view callbacks are safe no-ops before shell wiring', !missingCallbacksThrew);
 
   const listenerAdds = [];
   const listenerRemoves = [];
@@ -150,7 +157,6 @@ try {
     getViewportHeight() === 0 &&
     typeof addViewportInputCancelListeners(() => {}) === 'function');
 } finally {
-  configureViewRuntime({ closeMobileSidebar: null, ...previousViewRuntime });
   configureViewsRouterRuntimeDeps(originalViewsRouterRuntimeDeps);
   restoreRuntime();
 }

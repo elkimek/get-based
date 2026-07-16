@@ -141,6 +141,9 @@ assert('App shell injects DNA view callbacks without bridge lookups',
 assert('App shell injects PDF import review view callbacks without bridge lookups',
   appShellHooksSrc.includes('configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });'));
 
+assert('App shell injects views router callbacks without bridge lookups',
+  appShellHooksSrc.includes('configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',
