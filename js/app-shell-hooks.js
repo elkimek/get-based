@@ -7,6 +7,7 @@ import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import { configureChatEmptyStateDeps } from './chat-empty-state.js';
+import { configureCategoryCustomizationRuntimeDeps } from './category-customization-runtime.js';
 import {
   continueDiscussion,
   endDiscussion,
@@ -123,6 +124,7 @@ configureSettingsRuntime({
 });
 
 configureNavActions({ openClientList });
+configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 configureBiologyScoresRuntimeDeps({ openChatPanel, useChatPrompt });

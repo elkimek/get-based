@@ -57,28 +57,27 @@ test('category customization covers rename icon and emoji picker browser paths',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ categoryUrl }) => {
-    const [{ state }, category, categoryRuntime, viewRuntime] = await Promise.all([
+    const [{ state }, category, categoryRuntime] = await Promise.all([
       import('/js/state.js'),
       import(categoryUrl),
       import('/js/category-customization-runtime.js'),
-      import('/js/views-runtime-bridge.js'),
     ]);
     const categorySrc = await fetch(categoryUrl).then(response => response.text());
+    const categoryRuntimeSrc = await fetch('/js/category-customization-runtime.js').then(response => response.text());
     const outcomes = {};
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
-      navigate: window.navigate,
     };
     const calls = [];
     let promptValue = null;
+    const navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
     const previousCategoryRuntimeDeps = categoryRuntime.configureCategoryCustomizationRuntimeDeps({
-      showPromptDialog: async () => promptValue,
-    });
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
       buildSidebar: data => calls.push(['fallbackSidebar', !!data?.categories?.lipids]),
+      navigate,
+      showPromptDialog: async () => promptValue,
     });
 
     try {
@@ -98,7 +97,6 @@ test('category customization covers rename icon and emoji picker browser paths',
         },
       };
       state.currentView = 'dashboard';
-      window.navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
 
       promptValue = '  Fallback Lipids  ';
       await category.renameCategory('lipids');
@@ -107,7 +105,7 @@ test('category customization covers rename icon and emoji picker browser paths',
 
       category.configureCategoryCustomization({
         buildSidebar: data => calls.push(['sidebar', !!data?.categories?.lipids]),
-        navigate: window.navigate,
+        navigate,
       });
 
       promptValue = '  Better Lipids  ';
@@ -122,6 +120,7 @@ test('category customization covers rename icon and emoji picker browser paths',
         && categorySrc.includes('getCategoryCustomizationViewportSize')
         && categorySrc.includes('getFallbackBuildSidebar')
         && categorySrc.includes('buildSidebar?.(data)')
+        && !categoryRuntimeSrc.includes('getViewRuntimeFunction')
         && !/\bwindow(?:\.|\s*\[)/.test(categorySrc);
       outcomes.renameMissingCategoryNoops = await category.renameCategory('missing-category') === undefined;
 
@@ -191,11 +190,9 @@ test('category customization covers rename icon and emoji picker browser paths',
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
       categoryRuntime.configureCategoryCustomizationRuntimeDeps(previousCategoryRuntimeDeps);
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
-      window.navigate = saved.navigate;
       category.configureCategoryCustomization({
-        buildSidebar: previousViewRuntime.buildSidebar || (() => {}),
-        navigate: saved.navigate || (() => {}),
+        buildSidebar: previousCategoryRuntimeDeps.buildSidebar || (() => {}),
+        navigate: previousCategoryRuntimeDeps.navigate || (() => {}),
       });
       document.querySelector('.emoji-picker')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());

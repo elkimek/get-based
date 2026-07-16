@@ -2,12 +2,25 @@
 // category-customization-runtime.js - Browser runtime hooks for category customization.
 
 import { showPromptDialog } from './utils.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const categoryCustomizationRuntimeDeps = { showPromptDialog };
+const categoryCustomizationRuntimeDeps = {
+  buildSidebar: null,
+  navigate: null,
+  showPromptDialog,
+};
 
 export function configureCategoryCustomizationRuntimeDeps(deps = {}) {
   const previous = { ...categoryCustomizationRuntimeDeps };
+  if ('buildSidebar' in deps) {
+    categoryCustomizationRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
+      ? deps.buildSidebar
+      : null;
+  }
+  if ('navigate' in deps) {
+    categoryCustomizationRuntimeDeps.navigate = typeof deps.navigate === 'function'
+      ? deps.navigate
+      : null;
+  }
   if ('showPromptDialog' in deps) {
     categoryCustomizationRuntimeDeps.showPromptDialog = typeof deps.showPromptDialog === 'function'
       ? /** @type {typeof showPromptDialog} */ (deps.showPromptDialog)
@@ -26,29 +39,18 @@ function getRuntimeScope() {
 }
 
 /**
- * @param {string} name
- * @returns {((...args: any[]) => any) | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeScope();
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
-}
-
-/**
  * @param {string} route
  * @param {any} [data]
  */
 export function navigateCategoryCustomizationRuntime(route, data) {
-  getRuntimeFunction('navigate')?.(route, data);
+  categoryCustomizationRuntimeDeps.navigate?.(route, data);
 }
 
 /**
  * @returns {((data?: any) => void) | null}
  */
 export function getCategoryCustomizationBuildSidebar() {
-  return /** @type {((data?: any) => void) | null} */ (getViewRuntimeFunction('buildSidebar'));
+  return categoryCustomizationRuntimeDeps.buildSidebar;
 }
 
 /**
