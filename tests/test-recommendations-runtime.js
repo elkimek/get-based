@@ -85,6 +85,7 @@ try {
   setRuntime(runtime);
   const restoreRecommendationsRuntime = configureRecommendationsRuntime({
     openEMFAssessmentEditor: () => calls.push(['emf', true]),
+    openChatPanel: prompt => runtime.openChatPanel(prompt),
     openProfileLocationEditor: () => runtime.openProfileLocationEditor(),
   });
 
@@ -136,7 +137,7 @@ try {
   delete runtime.openProfileLocationEditor;
   configureRecommendationsRuntime({ openProfileLocationEditor: null });
   delete runtime.openSettingsTab;
-  delete runtime.openChatPanel;
+  configureRecommendationsRuntime({ openChatPanel: null });
   configureRecommendationModuleBridge({
     isProductRecsEnabled: null,
     loadCatalog: null,

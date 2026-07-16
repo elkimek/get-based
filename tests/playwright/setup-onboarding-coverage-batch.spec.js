@@ -231,7 +231,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
-    const [onboarding, { state }, profile, data, crypto, viewRuntime, chatRuntime] = await Promise.all([
+    const [onboarding, { state }, profile, data, crypto, viewRuntime, chatRuntime, onboardingRuntime] = await Promise.all([
       import(onboardingUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
@@ -239,6 +239,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       import('/js/crypto.js'),
       import('/js/views-runtime-bridge.js'),
       import('/js/chat-runtime.js'),
+      import('/js/onboarding-view-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
@@ -263,7 +264,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       navigate: window.navigate,
-      openChatPanel: window.openChatPanel,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
     const outcomes = {};
@@ -273,6 +273,9 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
     });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       renderChatMessages: () => calls.push(['render-chat']),
+    });
+    const previousOnboardingRuntime = onboardingRuntime.configureOnboardingViewRuntimeDeps({
+      openChatPanel: () => calls.push(['open-chat']),
     });
     const host = document.createElement('div');
     host.id = 'onboarding-coverage-host';
@@ -343,7 +346,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
         && !host.querySelector('.ai-reminder-cta')?.hasAttribute('onclick')
         && !host.innerHTML.includes('onclick=');
 
-      window.openChatPanel = () => calls.push(['open-chat']);
       sessionStorage.setItem(`chat-onboard-provider-branch-${state.currentProfile}`, 'manual');
       host.querySelector('.ai-reminder-cta')?.click();
       outcomes.providerQuizClearsSkipAndOpensChat =
@@ -420,7 +422,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       onboarding.configureOnboardingView({ navigate: saved.navigate });
       viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
-      window.openChatPanel = saved.openChatPanel;
+      onboardingRuntime.configureOnboardingViewRuntimeDeps(previousOnboardingRuntime);
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       localStorage.clear();
       for (const [key, value] of storage) {
@@ -462,7 +464,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       currentProfile: state.currentProfile,
       chatHistory: clone(state.chatHistory),
       demoLoadingProfileId: window._demoLoadingProfileId,
-      openChatPanel: window.openChatPanel,
       mainHtml: document.getElementById('main-content')?.innerHTML || '',
     };
     const calls = [];
@@ -484,10 +485,10 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
 
-      window.openChatPanel = () => calls.push(['open-chat']);
       previousDashboardPageRuntimeDeps = dashboardPage.configureDashboardPageRuntimeDeps({
         closeChatPanel: () => calls.push(['close-chat']),
         loadDemoData: sex => calls.push(['demo', sex]),
+        openChatPanel: () => calls.push(['open-chat']),
       });
 
       let pdfInput = document.getElementById('pdf-input');
@@ -567,7 +568,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
         dashboardPage.configureDashboardPageRuntimeDeps(previousDashboardPageRuntimeDeps);
       }
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      window.openChatPanel = saved.openChatPanel;
       document.body.classList.remove('empty-dashboard-active', 'chat-autostart-reserved');
       localStorage.clear();
       for (const [key, value] of storage) {

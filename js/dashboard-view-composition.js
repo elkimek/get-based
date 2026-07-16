@@ -212,6 +212,7 @@ export function createDashboardViewComposition({
     addDashboardWidgetFromLens: (...args) => dashboardWidgetControls.addDashboardWidgetFromLens(...args),
     getAvailableDashboardFixedWidgetIds,
     getDashboardWidgetPrefs,
+    openChatPanel,
     openDashboardBiometricPicker: () => dashboardWidgetControls.openDashboardBiometricPicker(),
     removeDashboardWidgetFromLens: (...args) => dashboardWidgetControls.removeDashboardWidgetFromLens(...args),
   });

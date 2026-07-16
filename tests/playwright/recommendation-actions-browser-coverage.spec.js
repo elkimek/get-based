@@ -67,10 +67,10 @@ test('recommendation actions browser coverage handles detail modal discussion an
       };
     };
 
-    const saved = {
-      openChatPanel: window.openChatPanel,
-    };
     const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge();
+    const previousRecommendationRuntime = recommendationRuntime.configureRecommendationsRuntime({
+      openChatPanel: prompt => chatPrompts.push(prompt),
+    });
 
     try {
       fixture.innerHTML = '';
@@ -127,9 +127,6 @@ test('recommendation actions browser coverage handles detail modal discussion an
         shell.modal.innerHTML.includes('Undefined renderer')
         && shell.modal.innerHTML.includes('No recommendation details available for this slot.');
 
-      window.openChatPanel = prompt => {
-        chatPrompts.push(prompt);
-      };
       actions.discussRecommendation('rec-d');
       actions.discussRecommendation('missing-rec');
       outcomes.discussRecommendationBuildsCandidatePromptAndFallbackPrompt =
@@ -162,8 +159,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
         renderRecommendationSection: null,
         ...previousRecommendationBridge,
       });
-      if (saved.openChatPanel === undefined) delete window.openChatPanel;
-      else window.openChatPanel = saved.openChatPanel;
+      recommendationRuntime.configureRecommendationsRuntime(previousRecommendationRuntime);
     }
 
     return outcomes;

@@ -28,7 +28,6 @@ console.log('=== Onboarding View Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'navigate',
-  'openChatPanel',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -54,6 +53,10 @@ try {
   let previousViewRuntime = null;
   const previousDeps = configureOnboardingViewRuntimeDeps({
     createNewThread: () => calls.push(['createNewThread']),
+    openChatPanel: () => {
+      calls.push(['openChatPanel']);
+      return 'opened';
+    },
     toggleChatPanel: () => calls.push(['toggleChatPanel']),
   });
   const previousChatRuntime = configureChatRuntimeCallbacks({
@@ -64,10 +67,6 @@ try {
     buildSidebar: data => calls.push(['buildSidebar', data?.id]),
   });
   setRuntimeValue('navigate', (route, data) => calls.push(['navigate', route, data?.id]));
-  setRuntimeValue('openChatPanel', () => {
-    calls.push(['openChatPanel']);
-    return 'opened';
-  });
   rebuildOnboardingSidebarRuntime({ id: 'sidebar-data' });
   navigateOnboardingRuntime('labs', { id: 'fallback-data' });
   navigateOnboardingRuntime('dashboard', { id: 'preferred-data' }, (route, data) => calls.push(['preferredNavigate', route, data.id]));
@@ -90,7 +89,7 @@ try {
         'renderChatMessages',
       ].join(','));
 
-  delete globalThis.openChatPanel;
+  configureOnboardingViewRuntimeDeps({ openChatPanel: null });
   assert('onboarding provider chat falls back to toggle',
     openOnboardingProviderChatRuntime() === true &&
       calls.at(-1)?.join('|') === 'toggleChatPanel');

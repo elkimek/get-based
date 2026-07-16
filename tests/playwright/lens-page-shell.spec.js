@@ -67,7 +67,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       import('/js/nav.js'),
     ]);
     const originalView = state.currentView;
-    const originalOpenChat = window.openChatPanel;
     const originalNavigate = window.navigate;
     const profileId = profile.getActiveProfileId() || state.currentProfile || 'default';
     const labsOrderKey = `labcharts-${profileId}-lensPageOrder-labs-v1`;
@@ -86,6 +85,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     });
     const restoreShell = shell.configureLensPageShell({
       addDashboardWidgetFromLens: id => calls.push(['add', id]),
+      openChatPanel: () => calls.push(['chat']),
       openEMFAssessmentEditor: () => calls.push(['emf']),
       openDashboardBiometricPicker: () => calls.push(['biometrics']),
       removeDashboardWidgetFromLens: id => calls.push(['remove', id]),
@@ -117,7 +117,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       dashboardToggle?.click();
       await delay(50);
 
-      window.openChatPanel = () => calls.push(['chat']);
       window.navigate = route => calls.push(['navigate', route]);
       const actionFixture = document.createElement('div');
       actionFixture.className = 'lens-page-header';
@@ -163,7 +162,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
         ...previousDnaBridge,
       });
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      window.openChatPanel = originalOpenChat;
       shell.configureLensPageShell(restoreShell);
       if (originalNavigate) window.navigate = originalNavigate;
       else delete window.navigate;

@@ -149,11 +149,12 @@ assert('provider panel recovery uses mint-aware receiveToken instead of wallet i
     !panelsSrc.includes('await appWindow.cashuImportWallet(token)'));
 assert('provider panel recovery awaits pending-token clear before reload',
   /await walletRuntime\.cashuReceiveToken\(token\);[\s\S]*await clearPendingToken\(\);[\s\S]*reloadProviderPanelRuntime\(\);/.test(panelsSrc));
-assert('provider panel onboarding return uses runtime helper calls',
+assert('provider panel onboarding return uses module Chat dependency',
   panelsSrc.includes("getProviderPanelRuntimeValue('_settingsHadProvider')") &&
     panelsSrc.includes("callProviderPanelRuntime('hasAIProvider')") &&
     panelsSrc.includes("callProviderPanelRuntime('closeSettingsModal')") &&
-    panelsSrc.includes("callProviderPanelRuntime('openChatPanel')"));
+    panelsSrc.includes('providerPanelDeps.openChatPanel()') &&
+    !panelsSrc.includes("callProviderPanelRuntime('openChatPanel')"));
 assert('provider panel focus-card refresh uses runtime helper call',
   panelsSrc.includes("callProviderPanelRuntime('loadFocusCard')"));
 assert('provider panel E2EE clear and settings reopen use runtime helper calls',

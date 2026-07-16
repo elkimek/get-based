@@ -294,7 +294,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Context cards should stay available inside chat even after AI is connected');
   assert('Card onboarding focus opens card UI instead of AI prompt prefill',
     onboardingViewSrc.includes('openOnboardingChatPanelRuntime()') &&
-      onboardingRuntimeSrc.includes("getRuntimeFunction('openChatPanel')") &&
+      onboardingRuntimeSrc.includes('onboardingViewRuntimeDeps.openChatPanel') &&
       onboardingViewSrc.includes('chat-onboard-force-context-cards') &&
       chatEmptyStateSrc.includes('forceContextCards') &&
       onboardingViewSrc.includes('#chat-panel .chat-context-cards') &&

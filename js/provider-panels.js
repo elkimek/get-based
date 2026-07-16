@@ -16,6 +16,7 @@ import {
   rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession, startOpenRouterOAuth
 } from './api.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
+import { openChatPanel } from './chat-panel.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
@@ -102,6 +103,16 @@ import {
 } from './provider-wallet-panels.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+
+const providerPanelDeps = {
+  openChatPanel,
+};
+
+export function configureProviderPanelDeps(deps = {}) {
+  const previous = { ...providerPanelDeps };
+  if (typeof deps.openChatPanel === 'function') providerPanelDeps.openChatPanel = deps.openChatPanel;
+  return previous;
+}
 
 function providerPanelRuntime() {
   return /** @type {Record<string, any>} */ (globalThis);
@@ -323,7 +334,7 @@ function _returnToChatIfOnboarding() {
   if (getProviderPanelRuntimeValue('_settingsHadProvider')) return; // already had a provider — user is just reconfiguring
   if (!callProviderPanelRuntime('hasAIProvider')) return;
   callProviderPanelRuntime('closeSettingsModal');
-  setTimeout(() => callProviderPanelRuntime('openChatPanel'), 300);
+  setTimeout(() => providerPanelDeps.openChatPanel(), 300);
 }
 
 function _setActionText(actionEl) {

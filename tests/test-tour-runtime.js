@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import {
+  configureTourRuntimeDeps,
   getTourComputedStyle,
   getTourViewportSize,
   openTourChatPanel,
@@ -46,6 +47,9 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousTourDeps = configureTourRuntimeDeps({
+    openChatPanel: () => calls.push(['chat']),
+  });
   const target = { id: 'tour-target' };
   const browserRuntime = {
     innerWidth: 390,
@@ -53,9 +57,6 @@ try {
     getComputedStyle(element) {
       calls.push(['style', element?.id, this === browserRuntime]);
       return { display: 'block', visibility: 'visible', opacity: '1' };
-    },
-    openChatPanel() {
-      calls.push(['chat', this === browserRuntime]);
     },
     setTimeout(callback, delay) {
       calls.push(['timeout', delay, this === browserRuntime]);
@@ -75,8 +76,8 @@ try {
   assert('getTourComputedStyle delegates style reads with browser binding',
     style.display === 'block' &&
       calls.some(call => call[0] === 'style' && call[1] === 'tour-target' && call[2] === true));
-  assert('openTourChatPanel delegates chat opening with browser binding',
-    calls.some(call => call[0] === 'chat' && call[1] === true));
+  assert('openTourChatPanel delegates chat opening through configured dependency',
+    calls.some(call => call[0] === 'chat'));
   assert('scheduleTourTask delegates timers with browser binding',
     taskId === 99 &&
       calls.some(call => call[0] === 'timeout' && call[1] === 250 && call[2] === true) &&
@@ -85,7 +86,7 @@ try {
   browserRuntime.innerWidth = undefined;
   browserRuntime.innerHeight = NaN;
   delete browserRuntime.getComputedStyle;
-  delete browserRuntime.openChatPanel;
+  configureTourRuntimeDeps({ openChatPanel: null });
   const fallbackViewport = getTourViewportSize();
   const fallbackStyle = getTourComputedStyle(/** @type {Element} */ (target));
   const beforeMissingChat = calls.length;
@@ -107,6 +108,7 @@ try {
     noWindowViewport.width === 1024 &&
       noWindowViewport.height === 768 &&
       noWindowStyle.display === '');
+  configureTourRuntimeDeps(previousTourDeps);
 } finally {
   restoreRuntime();
 }

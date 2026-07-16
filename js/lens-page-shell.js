@@ -16,6 +16,7 @@ let _shellDeps = {
   addDashboardWidgetFromLens: (_id) => {},
   getAvailableDashboardFixedWidgetIds: () => [],
   getDashboardWidgetPrefs: () => ({ hidden: [] }),
+  openChatPanel: () => {},
   openEMFAssessmentEditor,
   openDashboardBiometricPicker: () => {},
   removeDashboardWidgetFromLens: (_id) => {},
@@ -85,7 +86,7 @@ function handleLensPageShellClick(event) {
   } else if (action === 'open-biometric-picker') {
     _shellDeps.openDashboardBiometricPicker();
   } else if (action === 'open-ai-chat') {
-    callLensPageRuntime('openChatPanel');
+    _shellDeps.openChatPanel();
   } else if (action === 'open-emf-assessment') {
     void _shellDeps.openEMFAssessmentEditor();
   } else if (action === 'open-recommendations') {

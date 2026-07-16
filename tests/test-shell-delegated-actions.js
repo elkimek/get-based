@@ -70,7 +70,7 @@ assert('App shell wires module-only chat image consumers',
     && appShellHooksSrc.includes('openImageLightbox,')
     && appShellHooksSrc.includes('removeImageAttachment,')
     && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
-    && appShellHooksSrc.includes('configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });'));
+    && appShellHooksSrc.includes('configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });'));
 
 assert('App shell wires module-only chat message actions',
   ['closeSummaryModal', 'continueDiscussion', 'copySummary', 'deleteSavedSummary',
@@ -89,7 +89,7 @@ assert('Chat thread shell actions use module dependencies instead of window look
 assert('App shell wires module-only chat thread consumers',
   appShellHooksSrc.includes("from './chat-threads.js'")
     && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
-    && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ createNewThread, toggleChatPanel });')
+    && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });')
     && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatHistory, loadChatThreads, renderThreadList });'));
 
 assert('App shell wires Context hub status refresh without a window lookup',
@@ -115,7 +115,12 @@ assert('App shell wires Chat close consumers without window globals',
   appShellHooksSrc.includes("import { configureChatEmptyStateDeps } from './chat-empty-state.js'")
     && appShellHooksSrc.includes("import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js'")
     && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel });')
-    && appShellHooksSrc.includes('configureDashboardPageRuntimeDeps({ closeChatPanel });'));
+    && appShellHooksSrc.includes('configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });'));
+
+assert('App shell wires remaining Chat open consumers without window globals',
+  appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ openChatPanel });')
+    && appShellHooksSrc.includes('configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });')
+    && appShellHooksSrc.includes('configureTourRuntimeDeps({ openChatPanel });'));
 
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',

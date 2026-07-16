@@ -294,7 +294,6 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     };
     const savedFns = {
       detectWearableTrendSlots: window.detectWearableTrendSlots,
-      openChatPanel: window.openChatPanel,
       showDetailModal: window.showDetailModal,
     };
     const hadFns = {};
@@ -310,6 +309,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     };
     const originalCachedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
     let previousRecommendationBridge = null;
+    let previousRecommendationRuntime = null;
     let previousSettingsBridge = null;
     let previousWearablesBridge = null;
     let realNavigate;
@@ -382,12 +382,14 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       },
       renderRecommendationSection: async slotKey => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`,
     });
+    previousRecommendationRuntime = recommendationRuntime.configureRecommendationsRuntime({
+      openChatPanel: prompt => calls.push(['chat', prompt]),
+    });
     recommendationRuntime.setRecommendationsCatalogCache(null);
     window.detectWearableTrendSlots = () => [{
       slotKey: 'body.sleepRecovery',
       reason: 'Resting heart rate is elevated and HRV is below baseline.',
     }];
-    window.openChatPanel = prompt => calls.push(['chat', prompt]);
     window.showDetailModal = id => calls.push(['detail', id]);
     previousSettingsBridge = settingsRuntimeBridge.configureSettingsModuleBridge({
       openSettingsModal: panel => calls.push(['settings', panel]),
@@ -580,6 +582,9 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       state.currentView = originalState.currentView;
       if (previousRecommendationBridge) {
         recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      if (previousRecommendationRuntime) {
+        recommendationRuntime.configureRecommendationsRuntime(previousRecommendationRuntime);
       }
       if (previousSettingsBridge) {
         settingsRuntimeBridge.configureSettingsModuleBridge(previousSettingsBridge);
