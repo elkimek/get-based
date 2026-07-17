@@ -11,6 +11,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
 const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
 const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-score-context-ai.js'), 'utf8');
+const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
@@ -148,6 +149,13 @@ assert('App shell injects wearable navigation without view bridge lookups',
 
 assert('App shell injects category customization view callbacks',
   appShellHooksSrc.includes('configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });'));
+
+assert('App shell injects category page actions without bridge or window fallbacks',
+  !categoryPageViewSrc.includes("from './views-runtime-bridge.js'")
+    && !categoryPageViewSrc.includes('appWindow.renameCategory')
+    && categoryPageViewSrc.includes('categoryPageViewDeps.renameCategory?.(categoryKey);')
+    && appShellHooksSrc.includes("import { configureCategoryPageViewDeps } from './category-page-view.js';")
+    && appShellHooksSrc.includes('configureCategoryPageViewDeps({ renameCategory });'));
 
 assert('App shell injects crypto cross-tab refresh callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCryptoProfileDeps } from './crypto.js'")

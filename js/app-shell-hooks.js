@@ -9,6 +9,7 @@ import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import { configureCategoryCustomizationRuntimeDeps } from './category-customization-runtime.js';
+import { configureCategoryPageViewDeps } from './category-page-view.js';
 import {
   continueDiscussion,
   endDiscussion,
@@ -95,6 +96,7 @@ import {
   getInitialView,
   navigate,
   refreshMobileDashboardActiveTab,
+  renameCategory,
   renameMarker,
   renderLightChannelsLive,
   renderLightTodayStrip,
@@ -148,6 +150,7 @@ configureSettingsRuntime({
 configureNavActions({ openClientList });
 configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
+configureCategoryPageViewDeps({ renameCategory });
 configureCryptoProfileDeps({ buildSidebar, navigate });
 configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });
 configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });

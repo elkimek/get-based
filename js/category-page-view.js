@@ -23,15 +23,26 @@ import {
   renderFattyAcidsCharts,
 } from './category-view-renderers.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const categoryPageActionDelegateRoots = new WeakSet();
 
+/** @type {{ renameCategory: null | ((categoryKey: string) => void) }} */
+const categoryPageViewDeps = {
+  renameCategory: null,
+};
+
+/** @param {Partial<typeof categoryPageViewDeps>} [deps] */
+export function configureCategoryPageViewDeps(deps = {}) {
+  const previous = { ...categoryPageViewDeps };
+  if (Object.hasOwn(deps, 'renameCategory')
+      && (deps.renameCategory === null || typeof deps.renameCategory === 'function')) {
+    categoryPageViewDeps.renameCategory = deps.renameCategory;
+  }
+  return previous;
+}
+
 const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';
 const CATEGORY_PAGE_ACTION_SELECTOR = `[${CATEGORY_PAGE_ACTION_ATTR}]`;
-const appWindow = /** @type {Window & typeof globalThis & {
-  renameCategory?: (categoryKey: string) => void,
-}} */ (typeof window !== 'undefined' ? window : {});
 
 function categoryPageActionAttrs(action, attrs = {}) {
   let html = `${CATEGORY_PAGE_ACTION_ATTR}="${escapeAttr(action)}"`;
@@ -58,8 +69,7 @@ function handleCategoryPageActionClick(event) {
   const categoryKey = actionEl.dataset.categoryPageCategory || '';
   if (!safeMarkerId(categoryKey)) return;
   if (action === 'rename-category') {
-    const renameCategory = appWindow.renameCategory || getViewRuntimeFunction('renameCategory');
-    renameCategory?.(categoryKey);
+    categoryPageViewDeps.renameCategory?.(categoryKey);
   } else if (action === 'switch-view') {
     const view = actionEl.dataset.categoryPageView || '';
     if (view !== 'charts' && view !== 'table' && view !== 'heatmap') return;

@@ -5,18 +5,22 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, viewsModule, navModule] = await Promise.all([
+    const [{ state }, dataModule, viewsModule, navModule, categoryPageModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/views.js'),
       import('/js/nav.js'),
+      import('/js/category-page-view.js'),
     ]);
     const originalData = state.importedData;
     const originalSex = state.profileSex;
     const originalDob = state.profileDob;
     const originalView = state.currentView;
-    const originalRenameCategory = window.renameCategory;
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    let renameCategoryKey = '';
+    const previousCategoryPageDeps = categoryPageModule.configureCategoryPageViewDeps({
+      renameCategory: key => { renameCategoryKey = key; },
+    });
 
     try {
       if (!state.importedData?.dates?.length) {
@@ -39,8 +43,6 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         && !!document.querySelector('.gb-table-shell-data')
         && !document.querySelector('.view-toggle')?.innerHTML.includes('onclick=');
 
-      let renameCategoryKey = '';
-      window.renameCategory = key => { renameCategoryKey = key; };
       document.querySelector('[data-category-page-action="rename-category"]')?.click();
       await delay(10);
       const categoryDelegatesRename = renameCategoryKey === 'biochemistry';
@@ -77,7 +79,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
       state.importedData = originalData;
       state.profileSex = originalSex;
       state.profileDob = originalDob;
-      window.renameCategory = originalRenameCategory;
+      categoryPageModule.configureCategoryPageViewDeps(previousCategoryPageDeps);
       if (originalView) viewsModule.navigate(originalView);
     }
   });
