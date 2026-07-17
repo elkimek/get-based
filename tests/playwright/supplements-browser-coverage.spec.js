@@ -27,10 +27,11 @@ test('supplements browser coverage handles editor ingredients imports sync and A
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, supplements] = await Promise.all([
+    const [{ state }, data, supplements, supplementsRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/supplements.js'),
+      import('/js/supplements-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -59,21 +60,21 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       currentView: state.currentView,
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
-      closeModal: window.closeModal,
-      navigate: window.navigate,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
     const outcomes = {};
     const calls = [];
     const fetchCalls = [];
+    const previousSupplementsRuntime = supplementsRuntime.configureSupplementsRuntimeDeps({
+      closeModal: () => document.getElementById('modal-overlay')?.classList.remove('show'),
+      navigate: route => calls.push(['navigate', route]),
+    });
 
     try {
       Element.prototype.scrollIntoView = function() {};
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'llama3.2');
       window.getOllamaConfig = () => ({ url: 'http://localhost:11434', model: 'llama3.2', apiKey: '' });
-      window.closeModal = () => document.getElementById('modal-overlay')?.classList.remove('show');
-      window.navigate = route => calls.push(['navigate', route]);
       window.fetch = async (url, options = {}) => {
         const urlText = String(url);
         fetchCalls.push({
@@ -251,10 +252,7 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       window.fetch = saved.fetch;
       if (saved.getOllamaConfig) window.getOllamaConfig = saved.getOllamaConfig;
       else delete window.getOllamaConfig;
-      if (saved.closeModal) window.closeModal = saved.closeModal;
-      else delete window.closeModal;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
+      supplementsRuntime.configureSupplementsRuntimeDeps(previousSupplementsRuntime);
       Element.prototype.scrollIntoView = saved.scrollIntoView;
       localStorage.clear();
       for (const [key, value] of storage) {

@@ -133,6 +133,10 @@ assert('App shell injects Cycle view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCycleRuntimeDeps } from './cycle-runtime.js'")
     && appShellHooksSrc.includes('configureCycleRuntimeDeps({ closeModal, navigate });'));
 
+assert('App shell injects Supplements view callbacks without bridge lookups',
+  appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")
+    && appShellHooksSrc.includes('configureSupplementsRuntimeDeps({ closeModal, navigate });'));
+
 assert('App shell injects sun defaults navigation without a view bridge lookup',
   appShellHooksSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));
 

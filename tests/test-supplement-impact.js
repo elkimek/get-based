@@ -142,6 +142,7 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   console.log('%c 8. Source & UI Integration ', 'font-weight:bold;color:#f59e0b');
 
   const suppSrc = read('js/supplements.js');
+  const supplementsRuntimeSrc = read('js/supplements-runtime.js');
   const impactSrc = read('js/supplement-impact.js');
   const delegateSrc = read('js/supplement-action-delegates.js');
   assert('renderSupplementImpact exists', impactSrc.includes('function renderSupplementImpact'));
@@ -157,6 +158,27 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
     impactSrc.includes('data-supp-action="refresh-impact"'));
   assert('Supplement surface has no inline event attributes',
     !/\son[a-z]+\s*=/.test(suppSrc) && !/\son[a-z]+\s*=/.test(impactSrc));
+  assert('Supplements injects view callbacks without the view runtime bridge',
+    supplementsRuntimeSrc.includes('export function configureSupplementsRuntimeDeps')
+      && supplementsRuntimeSrc.includes('supplementsRuntimeDeps.closeModal?.()')
+      && supplementsRuntimeSrc.includes('supplementsRuntimeDeps.navigate?.(category)')
+      && suppSrc.includes("from './supplements-runtime.js'")
+      && !suppSrc.includes('views-runtime-bridge.js')
+      && !suppSrc.includes('getViewRuntimeFunction'));
+  const supplementsRuntime = await import('../js/supplements-runtime.js');
+  const runtimeCalls = [];
+  const previousSupplementsRuntime = supplementsRuntime.configureSupplementsRuntimeDeps({
+    closeModal: () => runtimeCalls.push(['close']),
+    navigate: category => runtimeCalls.push(['navigate', category]),
+  });
+  supplementsRuntime.closeSupplementsModalRuntime();
+  supplementsRuntime.navigateSupplementsViewRuntime('supplements');
+  supplementsRuntime.configureSupplementsRuntimeDeps({ closeModal: null, navigate: null });
+  supplementsRuntime.closeSupplementsModalRuntime();
+  supplementsRuntime.navigateSupplementsViewRuntime('ignored');
+  supplementsRuntime.configureSupplementsRuntimeDeps(previousSupplementsRuntime);
+  assert('Supplements runtime invokes injected callbacks and safely no-ops when cleared',
+    JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'supplements']]));
 
   // AI-driven display (health dots pattern)
   assert('Uses callClaudeAPI', impactSrc.includes('callClaudeAPI'));
