@@ -9,11 +9,11 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ editingUrl }) => {
-    const [editing, { state }, data, viewRuntime] = await Promise.all([
+    const [editing, { state }, data, markerRuntime] = await Promise.all([
       import(editingUrl),
       import('/js/state.js'),
       import('/js/data.js'),
-      import('/js/views-runtime-bridge.js'),
+      import('/js/marker-detail-runtime.js'),
     ]);
     const outcomes = {};
     const calls = [];
@@ -41,12 +41,12 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       unitSystem: state.unitSystem,
-      navigate: window.navigate,
     };
     const id = 'proteins_albumin';
     const dotKey = 'proteins.albumin';
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       buildSidebar: () => calls.push(['sidebar']),
+      navigate: (category, payload) => calls.push(['navigate', category, payload || null]),
     });
 
     try {
@@ -70,8 +70,6 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       state.markerRegistry = {
         [id]: active.categories.proteins.markers.albumin,
       };
-      window.navigate = (category, payload) => calls.push(['navigate', category, payload || null]);
-
       fillManualForm({ date: '2026-06-04', value: '44' });
       await editing.saveManualEntry(id);
       await wait(70);
@@ -94,9 +92,7 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       state.unitSystem = saved.unitSystem;
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
+      markerRuntime.configureMarkerDetailRuntime(previousMarkerRuntime);
       data.invalidateActiveDataCache();
       document.getElementById('marker-detail-default-deps-fixture')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
@@ -115,11 +111,11 @@ test('marker detail editing covers manual values notes delete and revert workflo
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ editingUrl }) => {
-    const [editing, { state }, data, viewRuntime] = await Promise.all([
+    const [editing, { state }, data, markerRuntime] = await Promise.all([
       import(editingUrl),
       import('/js/state.js'),
       import('/js/data.js'),
-      import('/js/views-runtime-bridge.js'),
+      import('/js/marker-detail-runtime.js'),
     ]);
     const outcomes = {};
     const calls = [];
@@ -179,7 +175,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
     const id = 'proteins_albumin';
     const dotKey = 'proteins.albumin';
     const note500 = 'manual note '.repeat(80);
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       buildSidebar: () => calls.push(['sidebar']),
     });
 
@@ -303,10 +299,10 @@ test('marker detail editing covers manual values notes delete and revert workflo
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       state.unitSystem = saved.unitSystem;
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
+      markerRuntime.configureMarkerDetailRuntime(previousMarkerRuntime);
       data.invalidateActiveDataCache();
       editing.configureMarkerDetailEditing({
-        navigate: (...args) => window.navigate?.(...args),
+        navigate: () => {},
         showDetailModal: () => {},
         openManualEntryForm: () => {},
         closeModal: () => {},
@@ -494,7 +490,7 @@ test('marker detail editing covers range overrides and marker note editor paths'
       state.unitSystem = saved.unitSystem;
       data.invalidateActiveDataCache();
       editing.configureMarkerDetailEditing({
-        navigate: (...args) => window.navigate?.(...args),
+        navigate: () => {},
         showDetailModal: () => {},
         openManualEntryForm: () => {},
         closeModal: () => {},
@@ -699,21 +695,17 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       rangeMode: state.rangeMode,
       chartInstances: state.chartInstances,
     };
-    const windowKeys = [
-      'toggleDashboardQuickMarkerPin',
-      'renameMarker',
-      'revertMarkerName',
-    ];
-    const savedWindow = Object.fromEntries(windowKeys.map(key => [
-      key,
-      { had: Object.prototype.hasOwnProperty.call(window, key), value: window[key] },
-    ]));
     const date = '2026-06-01';
     const albuminId = 'proteins_albumin';
     const albuminKey = 'proteins.albumin';
     const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       askAIAboutMarker: id => calls.push(['ask-ai', id]),
       closeEMFInterpretation: () => calls.push(['close-emf']),
+      isDashboardQuickMarkerPinned: () => false,
+      renameMarker: id => calls.push(['rename', id]),
+      revertMarkerName: id => calls.push(['revert-name', id]),
+      showEmojiPicker: () => {},
+      toggleDashboardQuickMarkerPin: id => calls.push(['pin', id]),
     });
     const restoreRecommendationRuntime = recommendationRuntime.configureRecommendationModuleBridge({
       isProductRecsEnabled: () => true,
@@ -764,10 +756,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       data.invalidateActiveDataCache();
       state.markerRegistry = {};
 
-      window.toggleDashboardQuickMarkerPin = id => calls.push(['pin', id]);
-      window.renameMarker = id => calls.push(['rename', id]);
-      window.revertMarkerName = id => calls.push(['revert-name', id]);
-
       localStorage.setItem('labcharts-marker-desc', JSON.stringify({
         'coverage.cached': 'Cached marker description',
       }));
@@ -789,7 +777,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       detail?.querySelector('[data-marker-detail-action="rename-marker"]')?.click();
       detail?.querySelector('[data-marker-detail-action="revert-marker-name"]')?.click();
       detail?.querySelector('[data-marker-detail-action="ask-ai"]')?.click();
-      outcomes.defaultDelegatesCallGlobalMarkerActions =
+      outcomes.defaultDelegatesCallInjectedMarkerActions =
         calls.some(call => call[0] === 'pin' && call[1] === albuminId)
         && calls.some(call => call[0] === 'rename' && call[1] === albuminId)
         && calls.some(call => call[0] === 'revert-name' && call[1] === albuminId)
@@ -825,10 +813,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       state.showAltUnits = saved.showAltUnits;
       state.rangeMode = saved.rangeMode;
       state.chartInstances = saved.chartInstances;
-      for (const [key, info] of Object.entries(savedWindow)) {
-        if (info.had) window[key] = info.value;
-        else delete window[key];
-      }
       markerRuntime.configureMarkerDetailRuntime(restoreMarkerRuntime);
       dnaBridge.configureDnaModuleBridge({ getRelevantSNPs: null, ...restoreDnaBridge });
       recommendationRuntime.configureRecommendationModuleBridge({
@@ -839,11 +823,11 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       wearablesRuntime.configureWearablesModuleBridge(restoreWearablesRuntime);
       data.invalidateActiveDataCache();
       modal.configureMarkerDetailModal({
-        navigate: (category, payload) => window.navigate?.(category, payload),
+        navigate: () => {},
         isDashboardQuickMarkerPinned: () => false,
-        toggleDashboardQuickMarkerPin: id => globalThis.toggleDashboardQuickMarkerPin?.(id),
-        renameMarker: id => globalThis.renameMarker?.(id),
-        revertMarkerName: id => globalThis.revertMarkerName?.(id),
+        toggleDashboardQuickMarkerPin: () => {},
+        renameMarker: () => {},
+        revertMarkerName: () => {},
         askAIAboutMarker: id => markerRuntime.askAIAboutMarkerRuntime(id),
         showEmojiPicker: () => {},
       });

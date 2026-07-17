@@ -4,42 +4,66 @@
 import { closeEMFInterpretation } from './emf-runtime.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getWearablesModuleFunction } from './wearables-runtime.js';
 
+/**
+ * @typedef {{
+ *   askAIAboutMarker: null | ((id?: string) => any),
+ *   buildSidebar: null | (() => void),
+ *   closeEMFInterpretation: null | (() => any),
+ *   isDashboardQuickMarkerPinned: null | ((id?: string) => boolean),
+ *   navigate: null | ((category?: string, data?: any) => any),
+ *   renameMarker: null | ((id?: string) => any),
+ *   revertMarkerName: null | ((id?: string) => any),
+ *   showEmojiPicker: null | ((el: Element, callback: (emoji?: string | null) => void, opts?: any) => any),
+ *   toggleDashboardQuickMarkerPin: null | ((id?: string) => any),
+ * }} MarkerDetailRuntimeDeps
+ */
+
+/** @type {MarkerDetailRuntimeDeps} */
 const markerDetailRuntimeDeps = {
-  askAIAboutMarker: /** @type {null | ((id?: string) => void)} */ (null),
+  askAIAboutMarker: null,
+  buildSidebar: null,
   closeEMFInterpretation,
+  isDashboardQuickMarkerPinned: null,
+  navigate: null,
+  renameMarker: null,
+  revertMarkerName: null,
+  showEmojiPicker: null,
+  toggleDashboardQuickMarkerPin: null,
 };
 
+/** @param {Partial<MarkerDetailRuntimeDeps>} [deps] */
 export function configureMarkerDetailRuntime(deps = {}) {
   const previous = { ...markerDetailRuntimeDeps };
-  if ('askAIAboutMarker' in deps) {
-    markerDetailRuntimeDeps.askAIAboutMarker = typeof deps.askAIAboutMarker === 'function'
-      ? /** @type {(id?: string) => void} */ (deps.askAIAboutMarker)
-      : null;
+  if (Object.hasOwn(deps, 'askAIAboutMarker') && (deps.askAIAboutMarker === null || typeof deps.askAIAboutMarker === 'function')) {
+    markerDetailRuntimeDeps.askAIAboutMarker = deps.askAIAboutMarker;
   }
-  if (typeof deps.closeEMFInterpretation === 'function') {
+  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
+    markerDetailRuntimeDeps.buildSidebar = deps.buildSidebar;
+  }
+  if (Object.hasOwn(deps, 'closeEMFInterpretation') && (deps.closeEMFInterpretation === null || typeof deps.closeEMFInterpretation === 'function')) {
     markerDetailRuntimeDeps.closeEMFInterpretation = deps.closeEMFInterpretation;
   }
+  if (Object.hasOwn(deps, 'isDashboardQuickMarkerPinned') && (deps.isDashboardQuickMarkerPinned === null || typeof deps.isDashboardQuickMarkerPinned === 'function')) {
+    markerDetailRuntimeDeps.isDashboardQuickMarkerPinned = deps.isDashboardQuickMarkerPinned;
+  }
+  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
+    markerDetailRuntimeDeps.navigate = deps.navigate;
+  }
+  if (Object.hasOwn(deps, 'renameMarker') && (deps.renameMarker === null || typeof deps.renameMarker === 'function')) {
+    markerDetailRuntimeDeps.renameMarker = deps.renameMarker;
+  }
+  if (Object.hasOwn(deps, 'revertMarkerName') && (deps.revertMarkerName === null || typeof deps.revertMarkerName === 'function')) {
+    markerDetailRuntimeDeps.revertMarkerName = deps.revertMarkerName;
+  }
+  if (Object.hasOwn(deps, 'showEmojiPicker') && (deps.showEmojiPicker === null || typeof deps.showEmojiPicker === 'function')) {
+    markerDetailRuntimeDeps.showEmojiPicker = deps.showEmojiPicker;
+  }
+  if (Object.hasOwn(deps, 'toggleDashboardQuickMarkerPin') && (deps.toggleDashboardQuickMarkerPin === null || typeof deps.toggleDashboardQuickMarkerPin === 'function')) {
+    markerDetailRuntimeDeps.toggleDashboardQuickMarkerPin = deps.toggleDashboardQuickMarkerPin;
+  }
   return previous;
-}
-
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
-  return getViewRuntimeFunction(name);
 }
 
 /**
@@ -47,12 +71,12 @@ function getRuntimeFunction(name) {
  * @param {any} [data]
  */
 export function navigateMarkerDetailRuntime(category, data) {
-  getRuntimeFunction('navigate')?.(category, data);
+  markerDetailRuntimeDeps.navigate?.(category, data);
 }
 
 export function buildMarkerDetailSidebarRuntime() {
   try {
-    getViewRuntimeFunction('buildSidebar')?.();
+    markerDetailRuntimeDeps.buildSidebar?.();
   } catch {
     // Best-effort shell refresh.
   }
@@ -64,7 +88,7 @@ export function buildMarkerDetailSidebarRuntime() {
  */
 export function isDashboardQuickMarkerPinnedRuntime(id) {
   try {
-    return getRuntimeFunction('isDashboardQuickMarkerPinned')?.(id) === true;
+    return markerDetailRuntimeDeps.isDashboardQuickMarkerPinned?.(id) === true;
   } catch {
     return false;
   }
@@ -72,17 +96,17 @@ export function isDashboardQuickMarkerPinnedRuntime(id) {
 
 /** @param {string | undefined} id */
 export function toggleDashboardQuickMarkerPinRuntime(id) {
-  getRuntimeFunction('toggleDashboardQuickMarkerPin')?.(id);
+  markerDetailRuntimeDeps.toggleDashboardQuickMarkerPin?.(id);
 }
 
 /** @param {string | undefined} id */
 export function renameMarkerRuntime(id) {
-  getRuntimeFunction('renameMarker')?.(id);
+  markerDetailRuntimeDeps.renameMarker?.(id);
 }
 
 /** @param {string | undefined} id */
 export function revertMarkerNameRuntime(id) {
-  getRuntimeFunction('revertMarkerName')?.(id);
+  markerDetailRuntimeDeps.revertMarkerName?.(id);
 }
 
 /** @param {string | undefined} id */
@@ -96,7 +120,7 @@ export function askAIAboutMarkerRuntime(id) {
  * @param {any} [opts]
  */
 export function showEmojiPickerRuntime(el, callback, opts) {
-  getRuntimeFunction('showEmojiPicker')?.(el, callback, opts);
+  markerDetailRuntimeDeps.showEmojiPicker?.(el, callback, opts);
 }
 
 /**
@@ -137,7 +161,7 @@ export async function renderRecommendationSectionRuntime(markerKey, options) {
 }
 
 export function closeEMFInterpretationRuntime() {
-  void markerDetailRuntimeDeps.closeEMFInterpretation();
+  void markerDetailRuntimeDeps.closeEMFInterpretation?.();
 }
 
 export function uninstallWearableModalFocusTrapRuntime() {
