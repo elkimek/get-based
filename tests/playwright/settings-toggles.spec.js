@@ -33,6 +33,9 @@ test('Settings display toggles persist through delegated slider actions', async 
     localStorage.removeItem('labcharts-show-product-recs');
     localStorage.removeItem('labcharts-debug');
     (await import('/js/theme.js')).setTheme('cyberterm');
+    settings.configureSettingsRuntime({
+      navigate: view => { document.body.dataset.settingsNavigate = view; },
+    });
     settings.openSettingsModal('display');
   });
 
@@ -44,6 +47,7 @@ test('Settings display toggles persist through delegated slider actions', async 
 
   await expect.poll(async () => page.evaluate(() => localStorage.getItem('labcharts-show-product-recs'))).toBe('false');
   await expect.poll(async () => page.evaluate(() => localStorage.getItem('labcharts-debug'))).toBe('true');
+  await expect(page.locator('body')).toHaveAttribute('data-settings-navigate', 'dashboard');
 });
 
 test('Settings data sync toggle opens and cancels setup modal', async ({ page }) => {

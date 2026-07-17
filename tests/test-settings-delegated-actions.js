@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
 const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
 const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
@@ -135,6 +136,10 @@ assert('Delegated tweaks handler closes on backdrop click',
 assert('Tweaks feedback action uses configured module runtime',
   src.includes('settingsRuntime.openFeedbackModal()')
     && !src.includes('settingsWindow.openFeedbackModal'));
+assert('Product recommendations toggle uses configured navigation',
+  src.includes("settingsRuntime.navigate('dashboard')")
+    && !src.includes("from './views-runtime-bridge.js'")
+    && appShellHooksSrc.includes('navigate,\n  openFeedbackModal,'));
 assert('Settings version label uses the shared runtime adapter',
   src.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
     && src.includes('escapeHTML(getAppVersionRuntime())')

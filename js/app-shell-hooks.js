@@ -127,6 +127,7 @@ configureSettingsRuntime({
   exportAllDataJSON,
   exportClientJSON,
   getActiveProfileId,
+  navigate,
   openFeedbackModal,
   openProfileShareModal,
   refreshMobileDashboardActiveTab,
