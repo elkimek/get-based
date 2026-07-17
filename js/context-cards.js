@@ -9,7 +9,9 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import {
+  closeContextCardModalRuntime,
   configureContextCardsRuntimeCallbacks,
+  navigateContextCardViewRuntime,
   notifyContextCardSavedRuntime,
 } from './context-cards-runtime.js';
 import {
@@ -116,8 +118,6 @@ import {
   clearInterpretiveLens,
   showDietContaminantsModal,
 } from './context-card-lifestyle-editors.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
-
 const contextCardActionDelegateRoots = new WeakSet();
 const CONTEXT_CARD_ACTION_ATTR = 'data-context-card-action';
 const CONTEXT_CARD_ACTION_SELECTOR = `[${CONTEXT_CARD_ACTION_ATTR}]`;
@@ -132,21 +132,11 @@ const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
   openLoveLifeEditor,
   openEnvironmentEditor,
 });
-const contextCardWindow = /** @type {Window & typeof globalThis & {
-  closeModal?: () => void,
-  navigate?: (category: string) => void,
-}} */ (typeof window !== 'undefined' ? window : {});
 function closeContextCardModal() {
-  const closeModal = typeof contextCardWindow.closeModal === 'function'
-    ? contextCardWindow.closeModal.bind(contextCardWindow)
-    : (typeof window !== 'undefined' ? getViewRuntimeFunction('closeModal') : null);
-  closeModal?.();
+  closeContextCardModalRuntime();
 }
 function navigateContextCardView(category) {
-  const navigate = typeof contextCardWindow.navigate === 'function'
-    ? contextCardWindow.navigate.bind(contextCardWindow)
-    : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
-  navigate?.(category);
+  navigateContextCardViewRuntime(category);
 }
 const contextCardRuntimeDeps = {
   openEMFAssessmentEditor,

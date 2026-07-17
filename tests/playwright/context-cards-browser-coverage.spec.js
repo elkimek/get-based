@@ -25,8 +25,6 @@ test('context cards browser coverage exercises notes save dots and tips', async 
     const calls = [];
     const saved = {
       importedData: clone(state.importedData),
-      closeModal: window.closeModal,
-      navigate: window.navigate,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
       detailsOpen: sessionStorage.getItem('welcome-details-open'),
@@ -111,9 +109,9 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       injectedNav.className = 'nav-item active';
       injectedNav.dataset.category = 'body';
       document.body.appendChild(injectedNav);
-      window.closeModal = () => calls.push(['close']);
-      window.navigate = category => calls.push(['navigate', category]);
       previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+        closeModal: () => calls.push(['close']),
+        navigate: category => calls.push(['navigate', category]),
         onContextCardSaved: () => calls.push(['saved']),
       });
       state.importedData.stress = { level: 'moderate', sources: ['work'], management: ['walks'], note: '' };
@@ -155,10 +153,6 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       ].every(name => !(name in window));
     } finally {
       state.importedData = saved.importedData;
-      if (saved.closeModal) window.closeModal = saved.closeModal;
-      else delete window.closeModal;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
       if (previousContextCardsRuntime) {
         contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       }

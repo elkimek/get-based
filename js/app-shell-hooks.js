@@ -183,7 +183,7 @@ configureChatMessageActionDeps({
   viewSavedSummary,
 });
 configureCompareCorrelationViews({ askAIAboutCorrelations });
-configureContextCardsRuntimeCallbacks({ onContextCardSaved });
+configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved });
 configureMarkerDetailRuntime({ askAIAboutMarker });
 configureShellChatActionDeps({
   closeChatPanel,

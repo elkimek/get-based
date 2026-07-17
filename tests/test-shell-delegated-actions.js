@@ -98,6 +98,9 @@ assert('App shell wires Context hub status refresh without a window lookup',
     && appShellHooksSrc.includes('updateChatContextStatus')
     && appShellHooksSrc.includes('configureDashboardAIContextStatus(updateChatContextStatus);'));
 
+assert('App shell injects core Context Cards view callbacks without bridge lookups',
+  appShellHooksSrc.includes('configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved });'));
+
 assert('App shell wires Chat UI refreshes without window globals',
   appShellHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
     && appShellHooksSrc.includes('configureChatRuntimeCallbacks({')
