@@ -12,6 +12,7 @@ const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'
 const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
 const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-score-context-ai.js'), 'utf8');
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
+const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
@@ -136,8 +137,15 @@ assert('App shell injects Biology Score context navigation without bridge or win
 assert('App shell wires Chat close consumers without window globals',
   appShellHooksSrc.includes("import { configureChatEmptyStateDeps } from './chat-empty-state.js'")
     && appShellHooksSrc.includes("import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js'")
-    && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel });')
+    && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });')
     && appShellHooksSrc.includes('configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });'));
+
+assert('App shell injects Chat empty-state view callbacks without bridge or global fallbacks',
+  !chatEmptyStateSrc.includes("from './views-runtime-bridge.js'")
+    && !chatEmptyStateSrc.includes('chatEmptyRuntime()')
+    && chatEmptyStateSrc.includes('chatEmptyStateDeps.openChatProviderQuiz();')
+    && chatEmptyStateSrc.includes("chatEmptyStateDeps.setOnboardingFocus(actionEl.dataset.focus || '');")
+    && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });'));
 
 assert('App shell wires remaining Chat open consumers without window globals',
   appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ openChatPanel });')

@@ -377,7 +377,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
 
   const results = await page.evaluate(async () => {
     const [
-      { renderEmptyChatState, _getNoDataPrompts },
+      { configureChatEmptyStateDeps, renderEmptyChatState, _getNoDataPrompts },
       { state },
       data,
       chatOnboarding,
@@ -409,14 +409,16 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       return [key, sessionStorage.getItem(key)];
     }));
     const savedFns = {
-      openChatProviderQuiz: window.openChatProviderQuiz,
-      setOnboardingFocus: window.setOnboardingFocus,
       showNotification: window.showNotification,
       inputClick: HTMLInputElement.prototype.click,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
     const outcomes = {};
     const calls = [];
+    const previousChatEmptyStateDeps = configureChatEmptyStateDeps({
+      openChatProviderQuiz: () => calls.push(['provider-quiz']),
+      setOnboardingFocus: focus => calls.push(['focus', focus]),
+    });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       resumeAI: () => calls.push(['resume-ai']),
     });
@@ -531,8 +533,6 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       } else {
         pdfInput.value = '';
       }
-      window.openChatProviderQuiz = () => calls.push(['provider-quiz']);
-      window.setOnboardingFocus = focus => calls.push(['focus', focus]);
       window.showNotification = (message, tone) => calls.push(['notification', message, tone]);
       chatOnboarding.configureChatOnboarding({
         closeChatPanel: () => calls.push(['close-chat']),
@@ -721,9 +721,8 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
         if (key && value != null) sessionStorage.setItem(key, value);
       }
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
+      configureChatEmptyStateDeps(previousChatEmptyStateDeps);
       Object.assign(window, {
-        openChatProviderQuiz: savedFns.openChatProviderQuiz,
-        setOnboardingFocus: savedFns.setOnboardingFocus,
         showNotification: savedFns.showNotification,
       });
       chatOnboarding.configureChatOnboarding({

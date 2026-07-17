@@ -13,7 +13,6 @@ import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { resumeChatAIRuntime } from './chat-runtime.js';
 import {
   chatOnboardingActionAttrs,
@@ -34,11 +33,15 @@ const CHAT_EMPTY_STOP_PROPAGATION_ACTIONS = new Set([
 
 const chatEmptyStateDeps = {
   closeChatPanel: () => {},
+  openChatProviderQuiz: () => {},
+  setOnboardingFocus: (_focus) => {},
 };
 
 export function configureChatEmptyStateDeps(deps = {}) {
   const previous = { ...chatEmptyStateDeps };
   if (typeof deps.closeChatPanel === 'function') chatEmptyStateDeps.closeChatPanel = deps.closeChatPanel;
+  if (typeof deps.openChatProviderQuiz === 'function') chatEmptyStateDeps.openChatProviderQuiz = deps.openChatProviderQuiz;
+  if (typeof deps.setOnboardingFocus === 'function') chatEmptyStateDeps.setOnboardingFocus = deps.setOnboardingFocus;
   return previous;
 }
 
@@ -55,16 +58,10 @@ function closestChatEmptyAction(event, selector = '[data-chat-empty-action]') {
   return event.currentTarget?.contains(actionEl) ? actionEl : null;
 }
 
-function chatEmptyRuntime() {
-  return /** @type {Record<string, any>} */ (globalThis);
-}
-
 function callChatEmptyRuntime(name, ...args) {
   const fn = getSettingsModuleFunction(name)
-    || getDnaModuleFunction(name)
-    || chatEmptyRuntime()[name];
-  const runtimeFn = typeof fn === 'function' ? fn : getViewRuntimeFunction(name);
-  return runtimeFn ? runtimeFn(...args) : undefined;
+    || getDnaModuleFunction(name);
+  return typeof fn === 'function' ? fn(...args) : undefined;
 }
 
 function closeChatPanel() {
@@ -116,7 +113,7 @@ function handleChatEmptyClick(event) {
   } else if (action === 'request-lab-import-provider') {
     requestOnboardingLabImportProvider();
   } else if (action === 'open-provider-quiz') {
-    callChatEmptyRuntime('openChatProviderQuiz');
+    chatEmptyStateDeps.openChatProviderQuiz();
   } else if (action === 'scroll-context-cards') {
     const currentTarget = event.currentTarget instanceof Element ? event.currentTarget : null;
     currentTarget?.querySelector('.chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -125,7 +122,7 @@ function handleChatEmptyClick(event) {
   } else if (action === 'start-file-import') {
     startOnboardingFileImport();
   } else if (action === 'set-onboarding-focus') {
-    callChatEmptyRuntime('setOnboardingFocus', actionEl.dataset.focus || '');
+    chatEmptyStateDeps.setOnboardingFocus(actionEl.dataset.focus || '');
   }
 }
 

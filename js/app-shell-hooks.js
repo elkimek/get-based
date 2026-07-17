@@ -96,6 +96,7 @@ import {
   clearDashboardWidgets,
   getInitialView,
   navigate,
+  openChatProviderQuiz,
   refreshMobileDashboardActiveTab,
   renameCategory,
   renameMarker,
@@ -104,6 +105,7 @@ import {
   resetDashboardWidgets,
   revertMarkerName,
   showDetailModal,
+  setOnboardingFocus,
   toggleDashboardOrganizeMode,
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
@@ -175,7 +177,7 @@ configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
 configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
 configureLensPageShell({ navigate });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
-configureChatEmptyStateDeps({ closeChatPanel });
+configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
 configureEMFInterpretationRuntimeDeps({ openChatPanel });
 
