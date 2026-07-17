@@ -41,7 +41,6 @@ import { loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
 import { getActiveProfileId } from './profile.js';
 import { openChangelog } from './changelog.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
 import {
   confirmDisablePIIReview,
@@ -63,6 +62,7 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
  *   exportAllDataJSON: () => Promise<void> | void,
  *   exportClientJSON: (profileId?: string | null) => Promise<void> | void,
  *   getActiveProfileId: () => string | null,
+ *   navigate: (view: string) => void,
  *   openFeedbackModal: () => void,
  *   openProfileShareModal: (profileId?: string) => void,
  *   clearDashboardWidgets: () => void,
@@ -78,6 +78,7 @@ const settingsRuntime = {
   exportAllDataJSON: () => {},
   exportClientJSON: () => {},
   getActiveProfileId,
+  navigate: () => {},
   openFeedbackModal: () => {},
   openProfileShareModal: () => {},
   clearDashboardWidgets: () => {},
@@ -309,8 +310,7 @@ function applySettingsToggle(actionEl) {
   const checked = actionEl instanceof HTMLInputElement && actionEl.checked;
   if (action === 'set-product-recs') {
     setProductRecsEnabled(checked);
-    const navigate = settingsWindow.navigate || getViewRuntimeFunction('navigate');
-    navigate?.call(settingsWindow, 'dashboard');
+    settingsRuntime.navigate('dashboard');
     return true;
   }
   if (action === 'set-debug-mode') {
