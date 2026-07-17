@@ -13,20 +13,30 @@ import {
 } from './lab-context.js';
 import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, hashString } from './utils.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 
+/** @type {{
+ *   callClaudeAPI: typeof callClaudeAPI,
+ *   hasAIProvider: typeof hasAIProvider,
+ *   isAIPaused: typeof isAIPaused,
+ *   navigate: null | ((route?: string) => void),
+ * }} */
 const biologyScoreContextAIDeps = {
   callClaudeAPI,
   hasAIProvider,
   isAIPaused,
+  navigate: null,
 };
 
+/** @param {Partial<typeof biologyScoreContextAIDeps>} [deps] */
 export function configureBiologyScoreContextAIDeps(deps = {}) {
   const previous = { ...biologyScoreContextAIDeps };
   if (typeof deps.callClaudeAPI === 'function') biologyScoreContextAIDeps.callClaudeAPI = deps.callClaudeAPI;
   if (typeof deps.hasAIProvider === 'function') biologyScoreContextAIDeps.hasAIProvider = deps.hasAIProvider;
   if (typeof deps.isAIPaused === 'function') biologyScoreContextAIDeps.isAIPaused = deps.isAIPaused;
+  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
+    biologyScoreContextAIDeps.navigate = deps.navigate;
+  }
   return previous;
 }
 
@@ -355,18 +365,16 @@ export function installBiologyScoreContextAIDelegates() {
     if (!['analyze-context-ai','apply-context-ai','dismiss-context-ai'].includes(action)) return;
     event.preventDefault();
     try {
-      const w = /** @type {any} */ (window);
-      const navigate = w.navigate || getViewRuntimeFunction('navigate');
       if (action === 'analyze-context-ai') {
         el.setAttribute('disabled', 'true'); el.textContent = 'Analyzing…';
         const review = await generateBiologyScoreContextReview(getActiveData());
-        await saveBiologyScoreContextReview(review); navigate?.('biology-scores');
+        await saveBiologyScoreContextReview(review); biologyScoreContextAIDeps.navigate?.('biology-scores');
       } else if (action === 'apply-context-ai') {
-        await applyBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context flag applied', 'success'); navigate?.('biology-scores');
+        await applyBiologyScoreContextFlag(el.dataset.contextFlag || ''); showNotification('Context flag applied', 'success'); biologyScoreContextAIDeps.navigate?.('biology-scores');
       } else {
-        await dismissBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context suggestion dismissed', 'info'); navigate?.('biology-scores');
+        await dismissBiologyScoreContextFlag(el.dataset.contextFlag || ''); showNotification('Context suggestion dismissed', 'info'); biologyScoreContextAIDeps.navigate?.('biology-scores');
       }
-    } catch (err) { (/** @type {any} */ (window)).showNotification?.(err?.message || 'Context AI failed', 'error'); }
+    } catch (err) { showNotification(err?.message || 'Context AI failed', 'error'); }
     finally { el.removeAttribute('disabled'); }
   });
 }

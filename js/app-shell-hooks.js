@@ -4,6 +4,7 @@
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { setAIPaused } from './api.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
+import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';
 import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import { configureChatEmptyStateDeps } from './chat-empty-state.js';
@@ -164,6 +165,7 @@ configureSunRuntimeDeps({
   renderLightChannelsLive,
   renderLightTodayStrip,
 });
+configureBiologyScoreContextAIDeps({ navigate });
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
 configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
 configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
