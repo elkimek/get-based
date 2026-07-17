@@ -9,7 +9,7 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { endTour } from './tour.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { navigateCycleViewRuntime, renderCycleProfileButtonRuntime } from './cycle-runtime.js';
 import {
   buildCycleCoverage,
   normalizeCyclePeriods,
@@ -59,24 +59,15 @@ const SOURCE_LABELS = {
   tempdrop: 'Tempdrop',
   manual: 'Manual',
 };
-const appWindow = /** @type {Window & typeof globalThis & {
-  navigate?: (category: string) => void,
-  closeModal?: () => void,
-}} */ (typeof window !== 'undefined' ? window : {});
-
 let pendingCycleImport = null;
 let cycleImportDelegatesInstalled = false;
 
 function navigateCycleImportView(category) {
-  const navigate = typeof appWindow.navigate === 'function'
-    ? appWindow.navigate.bind(appWindow)
-    : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
-  navigate?.(category);
-  return typeof navigate === 'function';
+  return navigateCycleViewRuntime(category);
 }
 
 function renderCycleProfileButton() {
-  getViewRuntimeFunction('renderProfileButton')?.();
+  renderCycleProfileButtonRuntime();
 }
 
 async function openCycleEditorFromImport() {

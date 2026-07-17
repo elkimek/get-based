@@ -140,7 +140,7 @@ assert('App shell injects category customization view callbacks',
 
 assert('App shell injects Cycle view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCycleRuntimeDeps } from './cycle-runtime.js'")
-    && appShellHooksSrc.includes('configureCycleRuntimeDeps({ closeModal, navigate });'));
+    && appShellHooksSrc.includes('configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });'));
 
 assert('App shell injects Supplements view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")

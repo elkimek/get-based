@@ -137,7 +137,7 @@ configureSettingsRuntime({
 configureNavActions({ openClientList });
 configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
-configureCycleRuntimeDeps({ closeModal, navigate });
+configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });
 configureDnaRuntimeDeps({ buildSidebar, navigate });
 configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
