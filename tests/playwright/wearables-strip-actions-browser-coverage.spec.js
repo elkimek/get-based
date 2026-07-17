@@ -10,11 +10,13 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       store,
       { profileStorageKey },
       blobStorage,
+      wearablesRuntime,
     ] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-store.js'),
       import('/js/profile.js'),
       import('/js/blob-storage.js'),
+      import('/js/wearables-runtime.js'),
     ]);
     const wearables = await import('/js/wearables.js');
 
@@ -47,7 +49,6 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
     const originalProfiles = state.profiles;
     const originalImportedData = state.importedData;
     const originalReorderMode = state._wearableReorderMode;
-    const originalNavigate = window.navigate;
     const host = document.createElement('section');
     const navigations = [];
 
@@ -55,6 +56,12 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       host.innerHTML = wearables.renderWearableStrip();
       return host.querySelector('#wearable-strip') || host.querySelector('.wearable-strip');
     };
+    const previousWearablesRuntime = wearablesRuntime.configureWearablesRuntime({
+      navigate: route => {
+        navigations.push(route);
+        if (route === 'dashboard') renderStrip();
+      },
+    });
 
     try {
       await store.deleteWearablesDB(profileId).catch(() => {});
@@ -88,10 +95,6 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
         changeHistory: [],
       };
       state._wearableReorderMode = false;
-      window.navigate = route => {
-        navigations.push(route);
-        if (route === 'dashboard') renderStrip();
-      };
       document.body.appendChild(host);
 
       renderStrip();
@@ -207,8 +210,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       state.profiles = originalProfiles;
       state.importedData = originalImportedData;
       state._wearableReorderMode = originalReorderMode;
-      if (originalNavigate) window.navigate = originalNavigate;
-      else delete window.navigate;
+      wearablesRuntime.configureWearablesRuntime(previousWearablesRuntime);
     }
 
     return failures;

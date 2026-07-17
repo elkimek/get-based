@@ -23,8 +23,6 @@ console.log('=== Wearables Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'navigate',
-  'closeModal',
   'setTimeout',
   'innerWidth',
   'innerHeight',
@@ -50,12 +48,12 @@ function restoreRuntime() {
 
 try {
   const calls = [];
-  setRuntimeValue('navigate', route => calls.push(['navigate', route]));
-  setRuntimeValue('closeModal', () => calls.push(['close-modal']));
   const restoreSettingsBridge = configureSettingsModuleBridge({
     openSettingsModal: section => calls.push(['settings', section]),
   });
   const restoreWearablesRuntime = configureWearablesRuntime({
+    closeModal: () => calls.push(['close-modal']),
+    navigate: route => calls.push(['navigate', route]),
     openEMFAssessmentEditor: () => calls.push(['emf-editor']),
   });
   setRuntimeValue('setTimeout', (fn, delay) => {
