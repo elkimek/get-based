@@ -16,6 +16,7 @@ const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.j
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
+const notesRuntimeSrc = fs.readFileSync(path.join(root, 'js/notes-runtime.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
 const syncPullSrc = fs.readFileSync(path.join(root, 'js/sync-pull.js'), 'utf8');
 
@@ -184,6 +185,14 @@ assert('App shell injects Cycle view callbacks without bridge lookups',
 assert('App shell injects Supplements view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")
     && appShellHooksSrc.includes('configureSupplementsRuntimeDeps({ closeModal, navigate });'));
+
+assert('App shell injects Notes view callbacks without bridge or window fallbacks',
+  !notesRuntimeSrc.includes("from './views-runtime-bridge.js'")
+    && !notesRuntimeSrc.includes('getViewRuntimeFunction')
+    && !/\bwindow(?:\.|\s*\[)/.test(notesRuntimeSrc)
+    && notesRuntimeSrc.includes('export function configureNotesRuntimeDeps(deps = {})')
+    && appShellHooksSrc.includes("import { configureNotesRuntimeDeps } from './notes-runtime.js';")
+    && appShellHooksSrc.includes('configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });'));
 
 assert('App shell injects sun defaults navigation without a view bridge lookup',
   appShellHooksSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));

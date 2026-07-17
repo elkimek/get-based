@@ -1,48 +1,48 @@
 // @ts-check
+// notes-runtime.js - Explicit application callbacks for Notes views.
 
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+/** @type {{
+ *   closeModal: (() => void) | null,
+ *   rememberModalTrigger: (() => void) | null,
+ *   navigate: ((route: string) => void) | null,
+ * }} */
+const notesRuntimeDeps = {
+  closeModal: null,
+  rememberModalTrigger: null,
+  navigate: null,
+};
 
 /**
- * @typedef {Window & typeof globalThis & {
- *   closeModal?: () => void,
- *   rememberModalTrigger?: () => void,
- *   navigate?: (route: string) => void,
- *   __noteActionDelegatesBound?: boolean,
- * }} NotesRuntimeWindow
+ * @param {{
+ *   closeModal?: (() => void) | null,
+ *   rememberModalTrigger?: (() => void) | null,
+ *   navigate?: ((route: string) => void) | null,
+ * }} deps
  */
-
-function getNotesRuntimeWindow() {
-  return /** @type {NotesRuntimeWindow | null} */ (typeof window !== 'undefined' ? window : null);
-}
-
-/** @param {string} name */
-function getNotesRuntimeFunction(name) {
-  const runtime = getNotesRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
+export function configureNotesRuntimeDeps(deps = {}) {
+  const previous = { ...notesRuntimeDeps };
+  if (Object.hasOwn(deps, 'closeModal')) {
+    notesRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
+  }
+  if (Object.hasOwn(deps, 'rememberModalTrigger')) {
+    notesRuntimeDeps.rememberModalTrigger = typeof deps.rememberModalTrigger === 'function'
+      ? deps.rememberModalTrigger
+      : null;
+  }
+  if (Object.hasOwn(deps, 'navigate')) {
+    notesRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
+  }
+  return previous;
 }
 
 export function closeNoteModalRuntime() {
-  getNotesRuntimeFunction('closeModal')?.();
+  notesRuntimeDeps.closeModal?.();
 }
 
 export function rememberNoteModalTriggerRuntime() {
-  getNotesRuntimeFunction('rememberModalTrigger')?.();
+  notesRuntimeDeps.rememberModalTrigger?.();
 }
 
 export function navigateAfterNoteChangeRuntime(route = 'dashboard') {
-  getNotesRuntimeFunction('navigate')?.(route || 'dashboard');
-}
-
-export function isNoteActionDelegatesBoundRuntime() {
-  const runtime = getNotesRuntimeWindow();
-  return !!runtime?.__noteActionDelegatesBound;
-}
-
-export function markNoteActionDelegatesBoundRuntime() {
-  const runtime = getNotesRuntimeWindow();
-  if (!runtime) return false;
-  runtime.__noteActionDelegatesBound = true;
-  return true;
+  notesRuntimeDeps.navigate?.(route || 'dashboard');
 }

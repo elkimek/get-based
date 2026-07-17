@@ -13,8 +13,6 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { configureDashboardNoteActions } from './dashboard-widget-runtime.js';
 import {
   closeNoteModalRuntime,
-  isNoteActionDelegatesBoundRuntime,
-  markNoteActionDelegatesBoundRuntime,
   navigateAfterNoteChangeRuntime,
   rememberNoteModalTriggerRuntime,
 } from './notes-runtime.js';
@@ -67,9 +65,8 @@ function handleNoteActionClick(event) {
 }
 
 export function installNoteActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || _noteActionDelegatesInstalled || isNoteActionDelegatesBoundRuntime()) return;
+  if (!root || _noteActionDelegatesInstalled) return;
   _noteActionDelegatesInstalled = true;
-  markNoteActionDelegatesBoundRuntime();
   root.addEventListener('click', handleNoteActionClick);
 }
 

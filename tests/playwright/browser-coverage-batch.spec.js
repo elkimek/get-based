@@ -78,15 +78,16 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#detail-modal', { state: 'attached' });
 
-  const results = await page.evaluate(async ({ notesUrl }) => {
-    const notes = await import(notesUrl);
+  const results = await page.evaluate(async ({ notesRuntimeUrl, notesUrl }) => {
+    const [notes, notesRuntime] = await Promise.all([
+      import(notesUrl),
+      import(notesRuntimeUrl),
+    ]);
     const state = window._labState;
     const outcomes = {};
     const originalNotes = Array.isArray(state.importedData?.notes)
       ? JSON.parse(JSON.stringify(state.importedData.notes))
       : undefined;
-    const originalCloseModal = window.closeModal;
-    const originalNavigate = window.navigate;
     const navCalls = [];
     let closeCalls = 0;
     const waitFor = async (predicate) => {
@@ -100,86 +101,92 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
     try {
       state.importedData ||= {};
       state.importedData.notes = [];
-      window.closeModal = () => {
-        closeCalls++;
-        document.getElementById('modal-overlay')?.classList.remove('show');
-      };
-      window.navigate = (category) => { navCalls.push(category); };
+      const savedNotesRuntimeDeps = notesRuntime.configureNotesRuntimeDeps({
+        closeModal: () => {
+          closeCalls++;
+          document.getElementById('modal-overlay')?.classList.remove('show');
+        },
+        navigate: category => { navCalls.push(category); },
+        rememberModalTrigger: () => {},
+      });
 
-      notes.openNoteEditor('2026-06-07');
-      const addModal = document.getElementById('detail-modal');
-      outcomes.addEditorOpens = document.getElementById('modal-overlay')?.classList.contains('show') === true
-        && document.getElementById('note-date-input')?.value === '2026-06-07'
-        && document.getElementById('note-textarea')?.value === '';
-      outcomes.usesDelegatedNoteActions =
-        addModal?.querySelector('[data-note-action="close"]')
-        && addModal?.querySelector('[data-note-action="save"]')
-        && !addModal.innerHTML.includes('onclick=');
+      try {
+        notes.openNoteEditor('2026-06-07');
+        const addModal = document.getElementById('detail-modal');
+        outcomes.addEditorOpens = document.getElementById('modal-overlay')?.classList.contains('show') === true
+          && document.getElementById('note-date-input')?.value === '2026-06-07'
+          && document.getElementById('note-textarea')?.value === '';
+        outcomes.usesDelegatedNoteActions =
+          addModal?.querySelector('[data-note-action="close"]')
+          && addModal?.querySelector('[data-note-action="save"]')
+          && !addModal.innerHTML.includes('onclick=');
 
-      document.getElementById('note-textarea').value = 'Started coverage batching';
-      document.querySelector('[data-note-action="save"]')?.click();
-      outcomes.saveAddsNote = state.importedData.notes.length === 1
-        && state.importedData.notes[0].date === '2026-06-07'
-        && state.importedData.notes[0].text === 'Started coverage batching'
-        && navCalls.includes('dashboard');
+        document.getElementById('note-textarea').value = 'Started coverage batching';
+        document.querySelector('[data-note-action="save"]')?.click();
+        outcomes.saveAddsNote = state.importedData.notes.length === 1
+          && state.importedData.notes[0].date === '2026-06-07'
+          && state.importedData.notes[0].text === 'Started coverage batching'
+          && navCalls.includes('dashboard');
 
-      notes.openNoteEditor(null, 0);
-      outcomes.editEditorLoadsExisting = document.getElementById('note-textarea')?.value === 'Started coverage batching'
-        && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'edit'
-        && document.getElementById('detail-modal')?.dataset.syncRefreshKind === 'note';
+        notes.openNoteEditor(null, 0);
+        outcomes.editEditorLoadsExisting = document.getElementById('note-textarea')?.value === 'Started coverage batching'
+          && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'edit'
+          && document.getElementById('detail-modal')?.dataset.syncRefreshKind === 'note';
 
-      document.getElementById('note-textarea').value = 'Edited coverage batch note';
-      document.querySelector('[data-note-action="save"]')?.click();
-      outcomes.saveEditsInPlace = state.importedData.notes.length === 1
-        && state.importedData.notes[0].text === 'Edited coverage batch note';
+        document.getElementById('note-textarea').value = 'Edited coverage batch note';
+        document.querySelector('[data-note-action="save"]')?.click();
+        outcomes.saveEditsInPlace = state.importedData.notes.length === 1
+          && state.importedData.notes[0].text === 'Edited coverage batch note';
 
-      notes.openNoteEditor('2026-06-08');
-      window.dispatchEvent(new Event('labcharts-sync-applied'));
-      outcomes.syncRefreshAddModeReopensByDate =
-        await waitFor(() => document.getElementById('note-date-input')?.value === '2026-06-08')
-        && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'add';
+        notes.openNoteEditor('2026-06-08');
+        window.dispatchEvent(new Event('labcharts-sync-applied'));
+        outcomes.syncRefreshAddModeReopensByDate =
+          await waitFor(() => document.getElementById('note-date-input')?.value === '2026-06-08')
+          && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'add';
 
-      notes.openNoteEditor(null, 0);
-      state.importedData.notes[0].text = 'Synced coverage batch note';
-      window.dispatchEvent(new Event('labcharts-sync-applied'));
-      outcomes.syncRefreshEditReopensSameIndex =
-        await waitFor(() => document.getElementById('note-textarea')?.value === 'Synced coverage batch note')
-        && document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '0';
+        notes.openNoteEditor(null, 0);
+        state.importedData.notes[0].text = 'Synced coverage batch note';
+        window.dispatchEvent(new Event('labcharts-sync-applied'));
+        outcomes.syncRefreshEditReopensSameIndex =
+          await waitFor(() => document.getElementById('note-textarea')?.value === 'Synced coverage batch note')
+          && document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '0';
 
-      notes.openNoteEditor(null, 0);
-      state.importedData.notes.unshift({ date: '2026-06-06', text: 'Inserted remote note' });
-      window.dispatchEvent(new Event('labcharts-sync-applied'));
-      outcomes.syncRefreshFindsShiftedNote =
-        await waitFor(() => document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '1')
-        && document.getElementById('note-textarea')?.value === 'Synced coverage batch note';
+        notes.openNoteEditor(null, 0);
+        state.importedData.notes.unshift({ date: '2026-06-06', text: 'Inserted remote note' });
+        window.dispatchEvent(new Event('labcharts-sync-applied'));
+        outcomes.syncRefreshFindsShiftedNote =
+          await waitFor(() => document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '1')
+          && document.getElementById('note-textarea')?.value === 'Synced coverage batch note';
 
-      const closeCallsBeforeMissingNote = closeCalls;
-      notes.openNoteEditor(null, 1);
-      state.importedData.notes = state.importedData.notes.filter(note => note.date !== '2026-06-07');
-      window.dispatchEvent(new Event('labcharts-sync-applied'));
-      outcomes.syncRefreshClosesWhenNoteMissing =
-        closeCalls >= closeCallsBeforeMissingNote + 1
-        && document.getElementById('modal-overlay')?.classList.contains('show') === false;
+        const closeCallsBeforeMissingNote = closeCalls;
+        notes.openNoteEditor(null, 1);
+        state.importedData.notes = state.importedData.notes.filter(note => note.date !== '2026-06-07');
+        window.dispatchEvent(new Event('labcharts-sync-applied'));
+        outcomes.syncRefreshClosesWhenNoteMissing =
+          closeCalls >= closeCallsBeforeMissingNote + 1
+          && document.getElementById('modal-overlay')?.classList.contains('show') === false;
 
-      state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
-      notes.openNoteEditor(null, 0);
-      document.querySelector('[data-note-action="delete"]')?.click();
-      await Promise.resolve();
-      document.getElementById('confirm-ok')?.click();
-      await waitFor(() => state.importedData.notes.length === 0);
-      outcomes.deleteRemovesNote = state.importedData.notes.length === 0;
+        state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
+        notes.openNoteEditor(null, 0);
+        document.querySelector('[data-note-action="delete"]')?.click();
+        await Promise.resolve();
+        document.getElementById('confirm-ok')?.click();
+        await waitFor(() => state.importedData.notes.length === 0);
+        outcomes.deleteRemovesNote = state.importedData.notes.length === 0;
+      } finally {
+        notesRuntime.configureNotesRuntimeDeps(savedNotesRuntimeDeps);
+      }
     } finally {
       if (originalNotes === undefined) delete state.importedData.notes;
       else state.importedData.notes = originalNotes;
-      window.closeModal = originalCloseModal;
-      window.navigate = originalNavigate;
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
       document.getElementById('modal-overlay')?.classList.remove('show');
     }
 
     return outcomes;
   }, {
-    notesUrl: moduleUrl('/js/notes.js'),
+    notesRuntimeUrl: '/js/notes-runtime.js',
+    notesUrl: '/js/notes.js',
   });
 
   for (const [name, passed] of Object.entries(results)) {
