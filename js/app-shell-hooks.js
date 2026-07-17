@@ -83,7 +83,7 @@ import { _openChannelOnLightPage } from './light-channel-view.js';
 import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
 import { closeModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
-import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton } from './nav.js';
+import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton, toggleMobileSidebar } from './nav.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
 import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
@@ -103,6 +103,7 @@ import {
   configureShellChatActionDeps,
   configureShellChatImageDeps,
   configureShellChatThreadDeps,
+  configureShellNavDeps,
 } from './shell-actions.js';
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
@@ -200,6 +201,7 @@ configureShellChatActionDeps({
 });
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
+configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });
 configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });

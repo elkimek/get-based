@@ -19,7 +19,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
   const results = await page.evaluate(async ({ shellActionsUrl }) => {
     const shellActions = await import(shellActionsUrl);
     const settingsBridge = await import('/js/settings-runtime-bridge.js');
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
     let importRunning = false;
@@ -51,7 +50,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       filterThreadList: value => calls.push(['filterThreadList', value]),
       toggleThreadRail: () => calls.push(['toggleThreadRail']),
     });
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousShellNavDeps = shellActions.configureShellNavDeps({
       toggleMobileSidebar: () => calls.push(['toggleMobileSidebar']),
       closeMobileSidebar: () => calls.push(['closeMobileSidebar']),
     });
@@ -204,11 +203,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         && personalitySpace.defaultPrevented === true
         && personalityEscape.defaultPrevented === false;
     } finally {
-      viewRuntime.configureViewRuntime({
-        toggleMobileSidebar: null,
-        closeMobileSidebar: null,
-        ...previousViewRuntime,
-      });
+      shellActions.configureShellNavDeps(previousShellNavDeps);
       shellActions.configureShellImportDeps(previousShellImportDeps);
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
       shellActions.configureShellChatActionDeps(previousShellChatActionDeps);
