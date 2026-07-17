@@ -13,6 +13,7 @@ const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'
 const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-score-context-ai.js'), 'utf8');
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
+const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
 const syncPullSrc = fs.readFileSync(path.join(root, 'js/sync-pull.js'), 'utf8');
@@ -156,6 +157,13 @@ assert('App shell injects category page actions without bridge or window fallbac
     && categoryPageViewSrc.includes('categoryPageViewDeps.renameCategory?.(categoryKey);')
     && appShellHooksSrc.includes("import { configureCategoryPageViewDeps } from './category-page-view.js';")
     && appShellHooksSrc.includes('configureCategoryPageViewDeps({ renameCategory });'));
+
+assert('App shell injects Lens page navigation without bridge or window fallbacks',
+  !lensPageShellSrc.includes("from './views-runtime-bridge.js'")
+    && lensPageShellSrc.includes("const fn = name === 'navigate'")
+    && lensPageShellSrc.includes('? _shellDeps.navigate')
+    && appShellHooksSrc.includes("import { configureLensPageShell } from './lens-page-shell.js';")
+    && appShellHooksSrc.includes('configureLensPageShell({ navigate });'));
 
 assert('App shell injects crypto cross-tab refresh callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCryptoProfileDeps } from './crypto.js'")
