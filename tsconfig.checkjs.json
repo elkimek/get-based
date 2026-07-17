@@ -404,6 +404,7 @@
     "js/cycle-store.js",
     "js/cycle-summary.js",
     "js/cycle.js",
+    "js/cycle-runtime.js",
     "js/data-wipe.js",
     "js/dna-actions.js",
     "js/dna-genotype.js",
