@@ -386,7 +386,6 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
   });
 
   const outcomes = await page.evaluate(async ({ startupUiUrl }) => {
-    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const chatRuntime = await import('/js/chat-runtime.js');
     const originalSetTimeout = window.setTimeout;
     const originalRequestAnimationFrame = window.requestAnimationFrame;
@@ -396,13 +395,6 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
       <div id="passphrase-overlay" style="display: none;"></div>
     `;
     window.APP_VERSION = 'startup-ui-test-version';
-    window.getInitialView = () => 'light';
-    window.navigate = view => {
-      window.__startupUICalls.push(['navigate', view]);
-    };
-    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
-      openSettingsModal: section => window.__startupUICalls.push(['openSettingsModal', section]),
-    });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       updateChatNudge: () => window.__startupUICalls.push('updateChatNudge'),
     });
@@ -430,14 +422,21 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     try {
       const startupUi = await import(startupUiUrl);
       startupUi.configureStartupUIDeps({
+        getInitialView: () => 'light',
         initChatImageHandlers: () => {
           window.__startupUICalls.push('initChatImageHandlers');
         },
         maybeShowAnalyticsConsent: () => {
           window.__startupUICalls.push('maybeShowAnalyticsConsent');
         },
+        navigate: view => {
+          window.__startupUICalls.push(['navigate', view]);
+        },
         openChatPanel: () => {
           window.__startupUICalls.push('openChatPanel');
+        },
+        openSettingsModal: section => {
+          window.__startupUICalls.push(['openSettingsModal', section]);
         },
         updateAttachButtonVisibility: () => {
           window.__startupUICalls.push('updateAttachButtonVisibility');
@@ -481,7 +480,6 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
           && window.__startupUICalls.includes('bindImportFileInput'),
       };
     } finally {
-      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       window.setTimeout = originalSetTimeout;
       window.requestAnimationFrame = originalRequestAnimationFrame;

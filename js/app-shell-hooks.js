@@ -85,10 +85,11 @@ import { closeModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton, toggleMobileSidebar } from './nav.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
-import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime } from './settings.js';
+import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime, openSettingsModal } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
 import {
   clearDashboardWidgets,
+  getInitialView,
   navigate,
   refreshMobileDashboardActiveTab,
   resetDashboardWidgets,
@@ -203,7 +204,14 @@ configureShellChatActionDeps({
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });
-configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });
+configureStartupUIDeps({
+  getInitialView,
+  initChatImageHandlers,
+  navigate,
+  openChatPanel,
+  openSettingsModal,
+  updateAttachButtonVisibility,
+});
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
