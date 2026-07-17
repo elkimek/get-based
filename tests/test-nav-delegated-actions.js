@@ -7,7 +7,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
+const navRuntimeSrc = fs.readFileSync(path.join(root, 'js/nav-runtime.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -43,6 +45,13 @@ assert('nav.js routes external actions through adapters and publishes no globals
     navSrc.includes('navActionDeps.openClientList()') &&
     !navSrc.includes('exposeNavRuntimeGlobals') &&
     !/\bwindow(?:\.|\s*\[)/.test(navSrc));
+assert('App shell injects nav view actions without bridge or window fallbacks',
+  !navRuntimeSrc.includes("from './views-runtime-bridge.js'")
+    && !navRuntimeSrc.includes('getNavRuntimeScope')
+    && navRuntimeSrc.includes('navRuntimeDeps.navigate(route);')
+    && navRuntimeSrc.includes('navRuntimeDeps.openCreateMarkerModal();')
+    && appShellHooksSrc.includes("import { configureNavRuntime } from './nav-runtime.js';")
+    && appShellHooksSrc.includes('configureNavRuntime({ navigate, openCreateMarkerModal });'));
 
 [
   'navigate',

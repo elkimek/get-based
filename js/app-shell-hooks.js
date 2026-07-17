@@ -89,6 +89,7 @@ import { configureLensPageShell } from './lens-page-shell.js';
 import { closeModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton, toggleMobileSidebar } from './nav.js';
+import { configureNavRuntime } from './nav-runtime.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
 import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime, openSettingsModal } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
@@ -97,6 +98,7 @@ import {
   getInitialView,
   navigate,
   openChatProviderQuiz,
+  openCreateMarkerModal,
   refreshMobileDashboardActiveTab,
   renameCategory,
   renameMarker,
@@ -151,6 +153,7 @@ configureSettingsRuntime({
 });
 
 configureNavActions({ openClientList });
+configureNavRuntime({ navigate, openCreateMarkerModal });
 configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
 configureCategoryPageViewDeps({ renameCategory });

@@ -4,10 +4,11 @@
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { openReportBuilder } from './export.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const navRuntimeDeps = {
+  navigate: (_route) => {},
   openEMFAssessmentEditor,
+  openCreateMarkerModal: () => {},
   openReportBuilder,
 };
 
@@ -16,6 +17,12 @@ export function configureNavRuntime(deps = {}) {
   if (typeof deps.openEMFAssessmentEditor === 'function') {
     navRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
   }
+  if (typeof deps.navigate === 'function') {
+    navRuntimeDeps.navigate = deps.navigate;
+  }
+  if (typeof deps.openCreateMarkerModal === 'function') {
+    navRuntimeDeps.openCreateMarkerModal = deps.openCreateMarkerModal;
+  }
   if (typeof deps.openReportBuilder === 'function') {
     navRuntimeDeps.openReportBuilder = deps.openReportBuilder;
   }
@@ -23,30 +30,10 @@ export function configureNavRuntime(deps = {}) {
 }
 
 /**
- * @returns {Record<string, any>}
- */
-function getNavRuntimeScope() {
-  return typeof window !== 'undefined'
-    ? /** @type {Record<string, any>} */ (window)
-    : /** @type {Record<string, any>} */ (globalThis);
-}
-
-/**
- * @param {string} name
- * @returns {((...args: any[]) => any) | null}
- */
-function getNavRuntimeFunction(name) {
-  const runtime = getNavRuntimeScope();
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
-}
-
-/**
  * @param {string} route
  */
 export function navigateFromNavRuntime(route) {
-  getNavRuntimeFunction('navigate')?.(route);
+  navRuntimeDeps.navigate(route);
 }
 
 export function openEMFAssessmentFromNavRuntime() {
@@ -62,5 +49,5 @@ export function openContextFromNavRuntime() {
 }
 
 export function openCreateMarkerFromNavRuntime() {
-  getNavRuntimeFunction('openCreateMarkerModal')?.();
+  navRuntimeDeps.openCreateMarkerModal();
 }

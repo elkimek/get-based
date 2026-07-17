@@ -34,8 +34,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origCurrentView = state.currentView;
     const origImportedData = state.importedData;
     const origProfiles = state.profiles;
-    const origNavigate = window.navigate;
-    const origOpenCreateMarker = window.openCreateMarkerModal;
     const origGroupStorage = localStorage.getItem('labcharts-navgroup-Hormones');
     let restoreNavActions = null;
     let restoreNavRuntime = null;
@@ -69,13 +67,14 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       localStorage.removeItem('labcharts-navgroup-Hormones');
 
       const calls = [];
-      window.navigate = route => {
-        calls.push(['navigate', route]);
-        state.currentView = route;
-        nav.syncSidebarActive(route);
-      };
       restoreNavRuntime = navRuntime.configureNavRuntime({
+        navigate: route => {
+          calls.push(['navigate', route]);
+          state.currentView = route;
+          nav.syncSidebarActive(route);
+        },
         openEMFAssessmentEditor: () => calls.push(['open-emf']),
+        openCreateMarkerModal: () => calls.push(['open-custom-marker']),
         openReportBuilder: () => calls.push(['open-report-builder']),
       });
       restoreNavActions = nav.configureNavActions({
@@ -85,7 +84,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       restoreContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
         openContextModal: () => calls.push(['open-context']),
       });
-      window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
       nav.buildSidebar(fixtureData);
       nav.renderProfileButton();
       nav.openRecommendationsFromSidebar();
@@ -145,11 +143,9 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       state.currentView = origCurrentView;
       state.importedData = origImportedData;
       state.profiles = origProfiles;
-      window.navigate = origNavigate;
       if (restoreNavRuntime) navRuntime.configureNavRuntime(restoreNavRuntime);
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
       if (restoreContextCardsRuntime) contextCardsRuntime.configureContextCardsRuntimeCallbacks(restoreContextCardsRuntime);
-      window.openCreateMarkerModal = origOpenCreateMarker;
       if (origGroupStorage == null) localStorage.removeItem('labcharts-navgroup-Hormones');
       else localStorage.setItem('labcharts-navgroup-Hormones', origGroupStorage);
       nav.buildSidebar();

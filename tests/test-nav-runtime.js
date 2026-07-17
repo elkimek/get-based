@@ -11,7 +11,6 @@ import {
   openReportBuilderFromNavRuntime,
 } from '../js/nav-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -28,47 +27,17 @@ function assert(name, condition, detail = '') {
 
 console.log('=== Nav Runtime Tests ===');
 
-const runtimeKeys = [
-  'window',
-  'navigate',
-  'openContextModal',
-  'openCreateMarkerModal',
-];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
-
+const calls = [];
+const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
+  openContextModal: () => calls.push(['context', true]),
+});
+const restoreNavRuntime = configureNavRuntime({
+  navigate: route => calls.push(['navigate', route, true]),
+  openEMFAssessmentEditor: () => calls.push(['emf', true]),
+  openCreateMarkerModal: () => calls.push(['marker', true]),
+  openReportBuilder: () => calls.push(['report', true]),
+});
 try {
-  const calls = [];
-  const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
-    openContextModal: () => calls.push(['context', true]),
-  });
-  const browserRuntime = {
-    navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
-    openContextModal() { calls.push(['legacy-context']); },
-    openCreateMarkerModal() { calls.push(['marker', this === browserRuntime]); },
-  };
-  setRuntimeValue('window', browserRuntime);
-  const restoreNavRuntime = configureNavRuntime({
-    openEMFAssessmentEditor: () => calls.push(['emf', true]),
-    openReportBuilder: () => calls.push(['report', true]),
-  });
-
   navigateFromNavRuntime('labs');
   openEMFAssessmentFromNavRuntime();
   openReportBuilderFromNavRuntime();
@@ -80,33 +49,22 @@ try {
       && calls.some(call => call[0] === 'navigate' && call[1] === 'labs' && call[2] === true)
       && ['emf', 'report', 'context', 'marker'].every(name => calls.some(call => call[0] === name && call[1] === true)));
 
-  for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal']) {
-    delete browserRuntime[key];
-  }
-  const previousViewRuntime = configureViewRuntime({
-    navigate: route => calls.push(['module-navigate', route]),
-  });
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
-  configureNavRuntime({ openEMFAssessmentEditor: () => {}, openReportBuilder: () => {} });
+  configureNavRuntime({
+    navigate: () => {},
+    openEMFAssessmentEditor: () => {},
+    openCreateMarkerModal: () => {},
+    openReportBuilder: () => {},
+  });
   navigateFromNavRuntime('missing');
   openEMFAssessmentFromNavRuntime();
   openReportBuilderFromNavRuntime();
   openContextFromNavRuntime();
   openCreateMarkerFromNavRuntime();
-  assert('nav runtime falls back to module navigation when the browser callback is missing',
-    calls.length === 6 && calls.some(call => call[0] === 'module-navigate' && call[1] === 'missing'));
-
-  delete globalThis.window;
-  let globalRoute = '';
-  setRuntimeValue('navigate', route => { globalRoute = route; });
-  navigateFromNavRuntime('recommendations');
-  assert('nav runtime falls back to globalThis without window',
-    globalRoute === 'recommendations');
-  configureViewRuntime(previousViewRuntime);
+  assert('nav runtime tolerates safe configured no-op callbacks', calls.length === 5);
+} finally {
   configureNavRuntime(restoreNavRuntime);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
-} finally {
-  restoreRuntime();
 }
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
