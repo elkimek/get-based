@@ -3,8 +3,8 @@
   "windowReferences": 0,
   "windowGlobalAssignments": 0,
   "legacyWindowGlobalAssignments": 0,
-  "viewRuntimeBridgeConsumers": 17,
-  "viewRuntimeBridgeLookups": 18,
+  "viewRuntimeBridgeConsumers": 16,
+  "viewRuntimeBridgeLookups": 17,
   "largeJsFilesOver800Lines": 23,
   "maxJsFileLines": 1168
 }
