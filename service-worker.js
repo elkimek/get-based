@@ -140,6 +140,7 @@ const APP_SHELL = [
   '/js/cycle-store.js',
   '/js/cycle-summary.js',
   '/js/cycle.js',
+  '/js/cycle-runtime.js',
   '/js/context-cards.js',
   '/js/context-cards-runtime.js',
   '/js/context-source-registry.js',

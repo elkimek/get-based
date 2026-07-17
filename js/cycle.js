@@ -8,7 +8,7 @@ import { startCycleTour } from './tour.js';
 import { createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { closeCycleModalRuntime, navigateCycleViewRuntime } from './cycle-runtime.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -21,16 +21,13 @@ const CYCLE_ICONS = {
   warning: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg>',
   x: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
 };
-const appWindow = /** @type {Window & typeof globalThis & {
-  closeModal?: () => void,
-  navigate?: (category: string) => void,
-  __cycleDelegatesBound?: boolean
-}} */ (typeof window !== 'undefined' ? window : {});
+const appWindow = /** @type {Window & typeof globalThis & { __cycleDelegatesBound?: boolean }} */ (
+  typeof window !== 'undefined' ? window : {}
+);
 function closeCycleModal() {
-  const closeModal = appWindow.closeModal || (typeof window !== 'undefined' ? getViewRuntimeFunction('closeModal') : null);
-  closeModal?.call(appWindow);
+  closeCycleModalRuntime();
 }
-function navigateCycleView(category) { (appWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null))?.call(appWindow, category); }
+function navigateCycleView(category) { navigateCycleViewRuntime(category); }
 function cycleActionAttrs(action, extra = '') {
   return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
 }

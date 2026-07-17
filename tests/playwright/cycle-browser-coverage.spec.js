@@ -14,9 +14,10 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cycleUrl }) => {
-    const [{ state }, cycle, tour, cycleStore, contextCardsRuntime] = await Promise.all([
+    const [{ state }, cycle, cycleRuntime, tour, cycleStore, contextCardsRuntime] = await Promise.all([
       import('/js/state.js'),
       import(cycleUrl),
+      import('/js/cycle-runtime.js'),
       import('/js/tour.js'),
       import('/js/cycle-store.js'),
       import('/js/context-cards-runtime.js'),
@@ -29,8 +30,6 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     const saved = {
       importedData: clone(state.importedData),
       profileDob: state.profileDob,
-      closeModal: window.closeModal,
-      navigate: window.navigate,
     };
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       recordChange: field => calls.push(['record', field]),
@@ -49,6 +48,21 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     const clearToasts = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     const modal = () => document.getElementById('detail-modal');
     const overlay = () => document.getElementById('modal-overlay');
+    const previousCycleRuntime = cycleRuntime.configureCycleRuntimeDeps({
+      closeModal: () => {
+        calls.push(['close']);
+        overlay()?.classList.remove('show');
+      },
+      navigate: category => {
+        calls.push(['navigate', category]);
+        if (category === 'cycle' && !injectedCycleSurface) {
+          injectedCycleSurface = document.createElement('button');
+          injectedCycleSurface.className = 'cycle-summary-card';
+          injectedCycleSurface.textContent = 'Cycle summary';
+          document.body.appendChild(injectedCycleSurface);
+        }
+      },
+    });
 
     try {
       if (!overlay()) {
@@ -68,19 +82,6 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       document.body.appendChild(nav);
       injectedNav = nav;
 
-      window.closeModal = () => {
-        calls.push(['close']);
-        overlay()?.classList.remove('show');
-      };
-      window.navigate = category => {
-        calls.push(['navigate', category]);
-        if (category === 'cycle' && !injectedCycleSurface) {
-          injectedCycleSurface = document.createElement('button');
-          injectedCycleSurface.className = 'cycle-summary-card';
-          injectedCycleSurface.textContent = 'Cycle summary';
-          document.body.appendChild(injectedCycleSurface);
-        }
-      };
       tour.endTour({ openEmptyChat: false });
       localStorage.removeItem(cycleTourKey);
 
@@ -240,10 +241,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     } finally {
       state.importedData = saved.importedData;
       state.profileDob = saved.profileDob;
-      if (saved.closeModal) window.closeModal = saved.closeModal;
-      else delete window.closeModal;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
+      cycleRuntime.configureCycleRuntimeDeps(previousCycleRuntime);
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       tour.endTour();
       if (savedCycleTourState) localStorage.setItem(cycleTourKey, savedCycleTourState);

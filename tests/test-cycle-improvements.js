@@ -273,6 +273,21 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 18: Source inspection ──
   console.log('Section 18: Source inspection');
   {
+    const cycleRuntime = await import('../js/cycle-runtime.js');
+    const runtimeCalls = [];
+    const previousCycleRuntime = cycleRuntime.configureCycleRuntimeDeps({
+      closeModal: () => runtimeCalls.push(['close']),
+      navigate: category => runtimeCalls.push(['navigate', category]),
+    });
+    cycleRuntime.closeCycleModalRuntime();
+    cycleRuntime.navigateCycleViewRuntime('cycle');
+    cycleRuntime.configureCycleRuntimeDeps({ closeModal: null, navigate: null });
+    cycleRuntime.closeCycleModalRuntime();
+    cycleRuntime.navigateCycleViewRuntime('ignored');
+    cycleRuntime.configureCycleRuntimeDeps(previousCycleRuntime);
+    assert('cycle runtime invokes injected callbacks and safely no-ops when cleared',
+      JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'cycle']]));
+
     // charts.js
     const chartsSrc = read('js/charts.js');
     assert('phaseBandPlugin exported', chartsSrc.includes('export const phaseBandPlugin'));
@@ -301,6 +316,14 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('cycle.js imports linearRegression', cycleSrc.includes('linearRegression'));
     assert('cycle.js exports detectPerimenopausePattern', cycleSrc.includes('export function detectPerimenopausePattern'));
     assert('cycle.js exports detectCycleIronAlerts', cycleSrc.includes('export function detectCycleIronAlerts'));
+    const cycleRuntimeSrc = read('js/cycle-runtime.js');
+    assert('cycle.js injects view callbacks without the view runtime bridge',
+      cycleRuntimeSrc.includes('export function configureCycleRuntimeDeps')
+        && cycleRuntimeSrc.includes('cycleRuntimeDeps.closeModal?.()')
+        && cycleRuntimeSrc.includes('cycleRuntimeDeps.navigate?.(category)')
+        && cycleSrc.includes("from './cycle-runtime.js'")
+        && !cycleSrc.includes('views-runtime-bridge.js')
+        && !cycleSrc.includes('getViewRuntimeFunction'));
 
     // Service worker cache version
     const swSrc = read('service-worker.js');
