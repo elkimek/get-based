@@ -1,8 +1,10 @@
 {
   "inlineEventAttributes": 0,
   "windowReferences": 0,
-  "windowGlobalAssignments": 3,
-  "legacyWindowGlobalAssignments": 1,
+  "windowGlobalAssignments": 0,
+  "legacyWindowGlobalAssignments": 0,
+  "viewRuntimeBridgeConsumers": 29,
+  "viewRuntimeBridgeLookups": 44,
   "largeJsFilesOver800Lines": 23,
   "maxJsFileLines": 1168
 }
