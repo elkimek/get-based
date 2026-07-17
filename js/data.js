@@ -2,10 +2,9 @@
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { state } from './state.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
-import { escapeAttr, hashString, showNotification } from './utils.js';
+import { escapeAttr, hashString, isDebugMode, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
@@ -39,20 +38,40 @@ export {
  * @typedef {() => Array<number | null | undefined> | undefined} MarkerValueGetter
  * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  * @typedef {{
- *   navigate?: (route?: string, data?: unknown) => void,
- *   showDetailModal?: (id: string) => void,
- * }} DataWindowHooks
+ *   buildSidebar: null | ((data?: ImportedDataRecord) => void),
+ *   navigate: null | ((route?: string, data?: unknown) => void),
+ *   showDetailModal: null | ((id: string) => void),
+ * }} DataRuntimeDeps
  */
 
-const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (typeof window !== 'undefined' ? window : {});
+/** @type {DataRuntimeDeps} */
+const dataRuntimeDeps = {
+  buildSidebar: null,
+  navigate: null,
+  showDetailModal: null,
+};
+
+/** @param {Partial<DataRuntimeDeps>} [deps] */
+export function configureDataRuntimeDeps(deps = {}) {
+  const previous = { ...dataRuntimeDeps };
+  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
+    dataRuntimeDeps.buildSidebar = deps.buildSidebar;
+  }
+  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
+    dataRuntimeDeps.navigate = deps.navigate;
+  }
+  if (Object.hasOwn(deps, 'showDetailModal') && (deps.showDetailModal === null || typeof deps.showDetailModal === 'function')) {
+    dataRuntimeDeps.showDetailModal = deps.showDetailModal;
+  }
+  return previous;
+}
 
 function navigateDataView(route, data) {
-  const navigate = dataWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
-  navigate?.call(dataWindow, route, data);
+  dataRuntimeDeps.navigate?.(route, data);
 }
 
 function buildDataSidebar(data) {
-  getViewRuntimeFunction('buildSidebar')?.(data);
+  dataRuntimeDeps.buildSidebar?.(data);
 }
 
 /** @type {{ invalidateLabContextCache: (() => void) | null }} */
@@ -293,7 +312,7 @@ export async function saveImportedData(options = {}) {
     dataContextDeps.invalidateLabContextCache?.();
     onDataSaved(options);
   } catch (e) {
-    if (dataWindow.isDebugMode?.()) console.warn('Post-save hook failed after data was persisted:', e);
+    if (isDebugMode()) console.warn('Post-save hook failed after data was persisted:', e);
   }
   return true;
 }
@@ -977,9 +996,8 @@ export function switchUnitSystem(system) {
   buildDataSidebar(data);
   updateHeaderDates(data);
   navigateDataView(state.currentView || 'dashboard', data);
-  const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
-  if (openId && showDetailModal) {
-    showDetailModal(openId);
+  if (openId) {
+    dataRuntimeDeps.showDetailModal?.(openId);
   }
 }
 
@@ -998,9 +1016,8 @@ export function toggleAltUnits(force) {
   // Refresh the currently-visible detail modal so the alt-unit lines update
   // without a full navigate (the modal lives outside the page rebuild).
   const openId = state._activeDetailMarkerId;
-  const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
-  if (openId && showDetailModal) {
-    showDetailModal(openId);
+  if (openId) {
+    dataRuntimeDeps.showDetailModal?.(openId);
   }
 }
 
@@ -1041,9 +1058,8 @@ export function switchRangeMode(mode) {
     const data = getActiveData();
     buildDataSidebar(data);
     navigateDataView(state.currentView || 'dashboard', data);
-  const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
-  if (openId && state._activeDetailMarkerId === openId && showDetailModal) {
-    showDetailModal(openId);
+    if (openId && state._activeDetailMarkerId === openId) {
+      dataRuntimeDeps.showDetailModal?.(openId);
     }
   });
 }

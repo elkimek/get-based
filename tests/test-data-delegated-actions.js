@@ -22,6 +22,7 @@ function assert(name, condition) {
 }
 
 const dataSrc = read('js/data.js');
+const appShellHooksSrc = read('js/app-shell-hooks.js');
 const eventNames = ['click', 'keydown', 'change', 'input', 'submit', 'blur', 'toggle'];
 const inlineEventPattern = new RegExp(`\\bon(?:${eventNames.join('|')})=["']`);
 
@@ -32,6 +33,16 @@ assert('data.js renderer emits no inline event attributes',
 
 assert('data.js imports escapeAttr for delegated data attributes',
   /import\s*\{[^}]*\bescapeAttr\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(dataSrc));
+
+assert('data view callbacks use shell injection instead of bridge or window lookups',
+  !dataSrc.includes("from './views-runtime-bridge.js'")
+  && !dataSrc.includes('dataWindow')
+  && dataSrc.includes('export function configureDataRuntimeDeps(deps = {})')
+  && dataSrc.includes('dataRuntimeDeps.navigate?.(route, data);')
+  && dataSrc.includes('dataRuntimeDeps.buildSidebar?.(data);')
+  && dataSrc.includes('dataRuntimeDeps.showDetailModal?.(openId);')
+  && appShellHooksSrc.includes("import { configureDataRuntimeDeps } from './data.js';")
+  && appShellHooksSrc.includes('configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });'));
 
 assert('data action attribute helpers are exported',
   /export function dataActionAttrs\(action, attrs = \{\}\)/.test(dataSrc)
