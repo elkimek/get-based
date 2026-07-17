@@ -4,13 +4,14 @@ test('wearables detail modal covers manual migration delegated add save and canc
   await page.goto('/app', { waitUntil: 'load' });
 
   const failures = await page.evaluate(async () => {
-    const [{ state }, manual, store, { profileStorageKey }, blobStorage, views] = await Promise.all([
+    const [{ state }, manual, store, { profileStorageKey }, blobStorage, views, wearableDetailRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-manual.js'),
       import('/js/wearables-store.js'),
       import('/js/profile.js'),
       import('/js/blob-storage.js'),
       import('/js/views.js'),
+      import('/js/wearables-detail-runtime.js'),
     ]);
     const wearables = await import('/js/wearables.js');
     const failures = [];
@@ -22,7 +23,6 @@ test('wearables detail modal covers manual migration delegated add save and canc
     const originalActiveProfile = localStorage.getItem('labcharts-active-profile');
     const originalCurrentProfile = state.currentProfile;
     const originalImported = state.importedData;
-    const originalNavigate = window.navigate;
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
     const originalRange = localStorage.getItem('wearable-detail-range');
@@ -35,6 +35,9 @@ test('wearables detail modal covers manual migration delegated add save and canc
       }
       return false;
     };
+    const previousWearableDetailRuntime = wearableDetailRuntime.configureWearableDetailRuntimeDeps({
+      navigate: route => calls.push(['navigate', route]),
+    });
     const closeDetailModal = async () => {
       try { views.closeModal(); } catch (_) {}
       await waitFor(() => !document.getElementById('modal-overlay')?.classList.contains('show'), 100);
@@ -72,8 +75,6 @@ test('wearables detail modal covers manual migration delegated add save and canc
         wearableSummary: null,
         changeHistory: [],
       };
-      window.navigate = route => calls.push(['navigate', route]);
-
       const migration = await manual.migrateBiometricsToManual(profileId, {
         weight: [
           { date: '2026-05-01', value: 154.3234, unit: 'lb' },
@@ -225,8 +226,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       else localStorage.removeItem('wearable-detail-range');
       state.currentProfile = originalCurrentProfile;
       state.importedData = originalImported;
-      if (originalNavigate) window.navigate = originalNavigate;
-      else delete window.navigate;
+      wearableDetailRuntime.configureWearableDetailRuntimeDeps(previousWearableDetailRuntime);
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
     }
 

@@ -131,7 +131,8 @@ return (async function() {
   assert('rememberModalTrigger stays off window', !('rememberModalTrigger' in window));
   assert('wearable detail modal captures trigger',
     wearablesDetailSrc.includes('rememberWearableDetailModalTriggerRuntime();') &&
-      /getRuntimeFunction\('rememberModalTrigger'\)\?\.\(\)/.test(wearablesDetailRuntimeSrc));
+      wearablesDetailRuntimeSrc.includes('wearableDetailRuntimeDeps.rememberModalTrigger?.();') &&
+      !wearablesDetailRuntimeSrc.includes('getViewRuntimeFunction'));
   assert('restoreModalTrigger guards against detached elements', /document\.contains\(el\)/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════════════

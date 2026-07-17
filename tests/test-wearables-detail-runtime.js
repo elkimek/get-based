@@ -25,7 +25,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Detail Runtime Tests ===\n');
 
-const runtimeKeys = ['window', 'rememberModalTrigger', 'navigate', 'closeModal', 'showConfirmDialog', 'Chart'];
+const runtimeKeys = ['window', 'Chart'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
 function setRuntimeValue(key, value) {
@@ -48,13 +48,15 @@ function restoreRuntime() {
 try {
   const calls = [];
   setRuntimeValue('window', globalThis);
-  setRuntimeValue('rememberModalTrigger', () => calls.push(['remember']));
-  setRuntimeValue('navigate', route => calls.push(['navigate', route]));
-  setRuntimeValue('closeModal', () => calls.push(['close']));
-  configureWearableDetailRuntimeDeps({ showConfirmDialog: async message => {
-    calls.push(['confirm', message]);
-    return message === 'delete';
-  } });
+  configureWearableDetailRuntimeDeps({
+    closeModal: () => calls.push(['close']),
+    navigate: route => calls.push(['navigate', route]),
+    rememberModalTrigger: () => calls.push(['remember']),
+    showConfirmDialog: async message => {
+      calls.push(['confirm', message]);
+      return message === 'delete';
+    },
+  });
   setRuntimeValue('Chart', function Chart(canvas, config) {
     this.canvas = canvas;
     this.config = config;
@@ -81,7 +83,12 @@ try {
       chart?.config?.type === 'line' &&
       calls.some(call => call.join('|') === 'chart|chart-modal|line'));
 
-  configureWearableDetailRuntimeDeps({ showConfirmDialog: null });
+  configureWearableDetailRuntimeDeps({
+    closeModal: null,
+    navigate: null,
+    rememberModalTrigger: null,
+    showConfirmDialog: null,
+  });
   delete globalThis.Chart;
   const missingConfirm = await confirmWearableDetailActionRuntime('delete');
   const missingChart = createWearableDetailChartRuntime({ id: 'chart-modal' }, { type: 'line' });
@@ -104,11 +111,21 @@ try {
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const detailSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
+  const runtimeSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-runtime.js'), 'utf8');
+  const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
   const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
   assert('wearable detail modal delegates browser globals through runtime adapter',
     detailSrc.includes("from './wearables-detail-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(detailSrc) &&
       swSrc.includes("'/js/wearables-detail-runtime.js'"));
+  assert('wearable detail shell actions use explicit app-shell dependencies',
+    !runtimeSrc.includes("from './views-runtime-bridge.js'") &&
+      !runtimeSrc.includes('getViewRuntimeFunction') &&
+      runtimeSrc.includes('wearableDetailRuntimeDeps.rememberModalTrigger?.();') &&
+      runtimeSrc.includes("wearableDetailRuntimeDeps.navigate?.(route || 'dashboard');") &&
+      runtimeSrc.includes('wearableDetailRuntimeDeps.closeModal?.();') &&
+      appShellHooksSrc.includes("import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';") &&
+      appShellHooksSrc.includes('configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });'));
 } finally {
   configureWearableDetailRuntimeDeps(originalWearableDetailRuntimeDeps);
   restoreRuntime();

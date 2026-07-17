@@ -2,13 +2,34 @@
 // wearables-detail-runtime.js - Browser runtime adapters for wearable detail modal hooks.
 
 import { showConfirmDialog } from './utils.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const wearableDetailRuntimeDeps = { showConfirmDialog };
+/** @type {{
+ *   closeModal: (() => void) | null,
+ *   navigate: ((route: string) => void) | null,
+ *   rememberModalTrigger: (() => void) | null,
+ *   showConfirmDialog: typeof showConfirmDialog | null,
+ * }} */
+const wearableDetailRuntimeDeps = {
+  closeModal: null,
+  navigate: null,
+  rememberModalTrigger: null,
+  showConfirmDialog,
+};
 
 export function configureWearableDetailRuntimeDeps(deps = {}) {
   const previous = { ...wearableDetailRuntimeDeps };
-  if ('showConfirmDialog' in deps) {
+  if (Object.hasOwn(deps, 'closeModal')) {
+    wearableDetailRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
+  }
+  if (Object.hasOwn(deps, 'navigate')) {
+    wearableDetailRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
+  }
+  if (Object.hasOwn(deps, 'rememberModalTrigger')) {
+    wearableDetailRuntimeDeps.rememberModalTrigger = typeof deps.rememberModalTrigger === 'function'
+      ? deps.rememberModalTrigger
+      : null;
+  }
+  if (Object.hasOwn(deps, 'showConfirmDialog')) {
     wearableDetailRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
       ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
       : null;
@@ -22,19 +43,8 @@ function getRuntimeWindow() {
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
-  return getViewRuntimeFunction(name);
-}
-
 export function rememberWearableDetailModalTriggerRuntime() {
-  getRuntimeFunction('rememberModalTrigger')?.();
+  wearableDetailRuntimeDeps.rememberModalTrigger?.();
 }
 
 export function hasWearableDetailChartRuntime() {
@@ -55,11 +65,11 @@ export function createWearableDetailChartRuntime(canvas, config) {
 
 /** @param {string} [route] */
 export function navigateWearableDetailRuntime(route = 'dashboard') {
-  getRuntimeFunction('navigate')?.(route || 'dashboard');
+  wearableDetailRuntimeDeps.navigate?.(route || 'dashboard');
 }
 
 export function closeWearableDetailModalRuntime() {
-  getRuntimeFunction('closeModal')?.();
+  wearableDetailRuntimeDeps.closeModal?.();
 }
 
 /** @param {string} message */
