@@ -4,11 +4,14 @@
 import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
 import { openFeedbackModal } from './feedback.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
 const shellFeedbackDeps = { openFeedbackModal };
+const shellNavDeps = {
+  closeMobileSidebar: () => {},
+  toggleMobileSidebar: () => {},
+};
 const shellChatImageDeps = { toggleHDMode: () => {} };
 const shellChatActionDeps = {
   closeChatPanel: () => {},
@@ -39,6 +42,14 @@ export function configureShellImportDeps(deps = {}) {
 export function configureShellFeedbackDeps(deps = {}) {
   const previous = { ...shellFeedbackDeps };
   if (typeof deps.openFeedbackModal === 'function') shellFeedbackDeps.openFeedbackModal = deps.openFeedbackModal;
+  return previous;
+}
+
+/** @param {Partial<typeof shellNavDeps>} [deps] */
+export function configureShellNavDeps(deps = {}) {
+  const previous = { ...shellNavDeps };
+  if (typeof deps.closeMobileSidebar === 'function') shellNavDeps.closeMobileSidebar = deps.closeMobileSidebar;
+  if (typeof deps.toggleMobileSidebar === 'function') shellNavDeps.toggleMobileSidebar = deps.toggleMobileSidebar;
   return previous;
 }
 
@@ -89,10 +100,10 @@ function clickFileInput(id) {
 
 function runShellAction(action) {
   if (action === 'toggle-mobile-sidebar') {
-    getViewRuntimeFunction('toggleMobileSidebar')?.();
+    shellNavDeps.toggleMobileSidebar();
     return true;
   } else if (action === 'close-mobile-sidebar') {
-    getViewRuntimeFunction('closeMobileSidebar')?.();
+    shellNavDeps.closeMobileSidebar();
     return true;
   } else if (action === 'trigger-import') {
     if (shellImportDeps.isImportRunning()) {

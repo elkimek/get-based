@@ -64,6 +64,12 @@ assert('Chat HD shell action uses its module dependency instead of a window look
   shellSrc.includes('shellChatImageDeps.toggleHDMode()')
     && !shellSrc.includes("callShellRuntime('toggleHDMode')"));
 
+assert('Mobile sidebar shell actions use injected nav dependencies',
+  shellSrc.includes('shellNavDeps.toggleMobileSidebar()')
+    && shellSrc.includes('shellNavDeps.closeMobileSidebar()')
+    && !shellSrc.includes("from './views-runtime-bridge.js'")
+    && appShellHooksSrc.includes('configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });'));
+
 assert('App shell wires module-only chat image consumers',
   appShellHooksSrc.includes("from './chat-images.js'")
     && appShellHooksSrc.includes('configureChatMessageActionDeps({')
