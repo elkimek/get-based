@@ -130,6 +130,7 @@ import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
 import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtime.js';
 import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';
+import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
 
 configureClientListRuntime({
@@ -251,6 +252,7 @@ configureSyncPull({ renderProfileButton });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
 configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
+configureWearablesRuntime({ closeModal, navigate });
 configureWearableSettingsRuntimeDeps({ navigate });
 configureDashboardAIContextStatus(updateChatContextStatus);
 

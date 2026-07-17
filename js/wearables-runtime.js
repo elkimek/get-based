@@ -3,9 +3,15 @@
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
+/** @type {{
+ *   closeModal: (() => void) | null,
+ *   navigate: ((route: string) => void) | null,
+ *   openEMFAssessmentEditor: typeof openEMFAssessmentEditor,
+ * }} */
 const wearablesRuntimeDeps = {
+  closeModal: null,
+  navigate: null,
   openEMFAssessmentEditor,
 };
 
@@ -38,7 +44,13 @@ export function getWearablesModuleFunction(name) {
 
 export function configureWearablesRuntime(deps = {}) {
   const previous = { ...wearablesRuntimeDeps };
-  if (typeof deps.openEMFAssessmentEditor === 'function') {
+  if (Object.hasOwn(deps, 'closeModal')) {
+    wearablesRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
+  }
+  if (Object.hasOwn(deps, 'navigate')) {
+    wearablesRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
+  }
+  if (Object.hasOwn(deps, 'openEMFAssessmentEditor') && typeof deps.openEMFAssessmentEditor === 'function') {
     wearablesRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
   }
   return previous;
@@ -48,17 +60,6 @@ function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 /**
@@ -72,11 +73,11 @@ function normalizeViewportDimension(value, fallback) {
 
 /** @param {string} route */
 export function navigateWearables(route = 'dashboard') {
-  getRuntimeFunction('navigate')?.(route || 'dashboard');
+  wearablesRuntimeDeps.navigate?.(route || 'dashboard');
 }
 
 export function closeWearablesModal() {
-  getRuntimeFunction('closeModal')?.();
+  wearablesRuntimeDeps.closeModal?.();
 }
 
 export function openWearablesSettings() {
