@@ -84,11 +84,11 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ sunUrl, utilsUrl, formerSunGlobals }) => {
-    const [{ state }, sun, utils, viewRuntime] = await Promise.all([
+    const [{ state }, sun, utils, sunRuntime] = await Promise.all([
       import('/js/state.js'),
       import(sunUrl),
       import(utilsUrl),
-      import('/js/views-runtime-bridge.js'),
+      import('/js/sun-runtime.js'),
     ]);
     const outcomes = {};
     const profileId = `sun-browser-${Date.now()}`;
@@ -102,10 +102,12 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       profilesState: state.profiles ? JSON.parse(JSON.stringify(state.profiles)) : state.profiles,
       currentProfile: state.currentProfile,
       profiles: localStorage.getItem('labcharts-profiles'),
-      navigate: window.navigate,
       geolocation: Object.getOwnPropertyDescriptor(navigator, 'geolocation'),
     };
-    const previousViewRuntime = viewRuntime.configureViewRuntime({ buildSidebar: () => {} });
+    const previousSunRuntimeDeps = sunRuntime.configureSunRuntimeDeps({
+      buildSidebar: () => {},
+      navigate: () => {},
+    });
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
@@ -174,8 +176,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
     };
 
     try {
-      window.navigate = () => {};
-
       state.currentProfile = profileId;
       state.profiles = [{
         id: profileId,
@@ -340,8 +340,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       state.currentProfile = saved.currentProfile;
       if (saved.profiles == null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', saved.profiles);
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
-      window.navigate = saved.navigate;
+      sunRuntime.configureSunRuntimeDeps(previousSunRuntimeDeps);
       if (saved.geolocation) Object.defineProperty(navigator, 'geolocation', saved.geolocation);
       else delete navigator.geolocation;
       document.querySelectorAll('.notification-container,.notification-toast,#prompt-dialog-overlay,#confirm-dialog-overlay,.modal-overlay').forEach(el => el.remove());

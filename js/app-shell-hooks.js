@@ -92,6 +92,8 @@ import {
   getInitialView,
   navigate,
   refreshMobileDashboardActiveTab,
+  renderLightChannelsLive,
+  renderLightTodayStrip,
   resetDashboardWidgets,
   showDetailModal,
   toggleDashboardOrganizeMode,
@@ -109,6 +111,7 @@ import {
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
+import { configureSunRuntimeDeps } from './sun-runtime.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
 import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtime.js';
@@ -146,6 +149,13 @@ configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
 configureSupplementsRuntimeDeps({ closeModal, navigate });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
+configureSunRuntimeDeps({
+  buildSidebar,
+  navigate,
+  openChannelOnLightPage: _openChannelOnLightPage,
+  renderLightChannelsLive,
+  renderLightTodayStrip,
+});
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
 configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
 configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });

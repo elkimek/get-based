@@ -149,6 +149,10 @@ assert('App shell injects Supplements view callbacks without bridge lookups',
 assert('App shell injects sun defaults navigation without a view bridge lookup',
   appShellHooksSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));
 
+assert('App shell injects Sun session UI callbacks without bridge lookups',
+  appShellHooksSrc.includes("import { configureSunRuntimeDeps } from './sun-runtime.js'")
+    && appShellHooksSrc.includes('configureSunRuntimeDeps({\n  buildSidebar,\n  navigate,\n  openChannelOnLightPage: _openChannelOnLightPage,\n  renderLightChannelsLive,\n  renderLightTodayStrip,\n});'));
+
 assert('App shell injects client list view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureClientListRuntimeDeps({ navigate, renderProfileButton });'));
 

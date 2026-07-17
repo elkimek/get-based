@@ -3,13 +3,49 @@
 
 import { isDebugMode } from './utils.js';
 import { getDeviceSessions } from './light-devices-store.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const sunRuntimeDeps = { isDebugMode };
+/**
+ * @typedef {{
+ *   buildSidebar: null | (() => void),
+ *   isDebugMode: null | (() => boolean),
+ *   navigate: null | ((view: string, options?: { scrollAnchor?: string }) => void),
+ *   openChannelOnLightPage: null | ((channel: string) => void),
+ *   renderLightChannelsLive: null | (() => void),
+ *   renderLightTodayStrip: null | (() => string),
+ * }} SunRuntimeDeps
+ */
 
+/** @type {SunRuntimeDeps} */
+const sunRuntimeDeps = {
+  buildSidebar: null,
+  isDebugMode,
+  navigate: null,
+  openChannelOnLightPage: null,
+  renderLightChannelsLive: null,
+  renderLightTodayStrip: null,
+};
+
+/** @param {Partial<SunRuntimeDeps>} [deps] */
 export function configureSunRuntimeDeps(deps = {}) {
   const previous = { ...sunRuntimeDeps };
-  if (typeof deps.isDebugMode === 'function') sunRuntimeDeps.isDebugMode = deps.isDebugMode;
+  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
+    sunRuntimeDeps.buildSidebar = deps.buildSidebar;
+  }
+  if (Object.hasOwn(deps, 'isDebugMode') && (deps.isDebugMode === null || typeof deps.isDebugMode === 'function')) {
+    sunRuntimeDeps.isDebugMode = deps.isDebugMode;
+  }
+  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
+    sunRuntimeDeps.navigate = deps.navigate;
+  }
+  if (Object.hasOwn(deps, 'openChannelOnLightPage') && (deps.openChannelOnLightPage === null || typeof deps.openChannelOnLightPage === 'function')) {
+    sunRuntimeDeps.openChannelOnLightPage = deps.openChannelOnLightPage;
+  }
+  if (Object.hasOwn(deps, 'renderLightChannelsLive') && (deps.renderLightChannelsLive === null || typeof deps.renderLightChannelsLive === 'function')) {
+    sunRuntimeDeps.renderLightChannelsLive = deps.renderLightChannelsLive;
+  }
+  if (Object.hasOwn(deps, 'renderLightTodayStrip') && (deps.renderLightTodayStrip === null || typeof deps.renderLightTodayStrip === 'function')) {
+    sunRuntimeDeps.renderLightTodayStrip = deps.renderLightTodayStrip;
+  }
   return previous;
 }
 
@@ -25,20 +61,13 @@ function getRuntimeNavigator() {
     : null;
 }
 
-/** @param {string} name */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (typeof runtime?.[name] === 'function') return runtime[name].bind(runtime);
-  return getViewRuntimeFunction(name);
-}
-
 export function hasSunBrowserRuntime() {
   return getRuntimeWindow() !== null;
 }
 
 export function isSunDebugRuntime() {
   try {
-    return sunRuntimeDeps.isDebugMode() === true;
+    return sunRuntimeDeps.isDebugMode?.() === true;
   } catch {
     return false;
   }
@@ -55,7 +84,7 @@ export function getSunDeviceSessionsRuntime() {
 
 export function rebuildSunSidebarRuntime() {
   try {
-    getViewRuntimeFunction('buildSidebar')?.();
+    sunRuntimeDeps.buildSidebar?.();
   } catch {
     // Best-effort compatibility hook.
   }
@@ -67,7 +96,7 @@ export function rebuildSunSidebarRuntime() {
  */
 export function navigateSunRuntime(view, options) {
   try {
-    getRuntimeFunction('navigate')?.(view, options);
+    sunRuntimeDeps.navigate?.(view, options);
   } catch {
     // Best-effort compatibility hook.
   }
@@ -75,7 +104,7 @@ export function navigateSunRuntime(view, options) {
 
 export function renderLightChannelsLiveRuntime() {
   try {
-    getRuntimeFunction('renderLightChannelsLive')?.();
+    sunRuntimeDeps.renderLightChannelsLive?.();
   } catch {
     // Best-effort compatibility hook.
   }
@@ -83,7 +112,7 @@ export function renderLightChannelsLiveRuntime() {
 
 export function renderLightTodayStripRuntime() {
   try {
-    return getRuntimeFunction('renderLightTodayStrip')?.() || '';
+    return sunRuntimeDeps.renderLightTodayStrip?.() || '';
   } catch {
     return '';
   }
@@ -92,7 +121,7 @@ export function renderLightTodayStripRuntime() {
 /** @param {string} channel */
 export function openSunChannelOnLightPageRuntime(channel) {
   try {
-    getRuntimeFunction('_openChannelOnLightPage')?.(channel);
+    sunRuntimeDeps.openChannelOnLightPage?.(channel);
   } catch {
     // Best-effort compatibility hook.
   }
