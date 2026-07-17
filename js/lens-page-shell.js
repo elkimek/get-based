@@ -8,7 +8,6 @@ import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const LENS_PAGE_ORDER_VERSION = 1;
 
@@ -16,6 +15,7 @@ let _shellDeps = {
   addDashboardWidgetFromLens: (_id) => {},
   getAvailableDashboardFixedWidgetIds: () => [],
   getDashboardWidgetPrefs: () => ({ hidden: [] }),
+  navigate: (_route) => {},
   openChatPanel: () => {},
   openEMFAssessmentEditor,
   openDashboardBiometricPicker: () => {},
@@ -28,10 +28,11 @@ function lensPageRuntime() {
 }
 
 function callLensPageRuntime(name, ...args) {
-  const fn = getSettingsModuleFunction(name)
-    || getDnaModuleFunction(name)
-    || lensPageRuntime()[name]
-    || (name === 'navigate' ? getViewRuntimeFunction(name) : null);
+  const fn = name === 'navigate'
+    ? _shellDeps.navigate
+    : getSettingsModuleFunction(name)
+      || getDnaModuleFunction(name)
+      || lensPageRuntime()[name];
   if (typeof fn === 'function') fn(...args);
 }
 

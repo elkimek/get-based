@@ -67,7 +67,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       import('/js/nav.js'),
     ]);
     const originalView = state.currentView;
-    const originalNavigate = window.navigate;
     const profileId = profile.getActiveProfileId() || state.currentProfile || 'default';
     const labsOrderKey = `labcharts-${profileId}-lensPageOrder-labs-v1`;
     const savedLabsOrder = localStorage.getItem(labsOrderKey);
@@ -85,6 +84,10 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     });
     const restoreShell = shell.configureLensPageShell({
       addDashboardWidgetFromLens: id => calls.push(['add', id]),
+      navigate: route => {
+        calls.push(['navigate', route]);
+        views.navigate(route);
+      },
       openChatPanel: () => calls.push(['chat']),
       openEMFAssessmentEditor: () => calls.push(['emf']),
       openDashboardBiometricPicker: () => calls.push(['biometrics']),
@@ -117,7 +120,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       dashboardToggle?.click();
       await delay(50);
 
-      window.navigate = route => calls.push(['navigate', route]);
       const actionFixture = document.createElement('div');
       actionFixture.className = 'lens-page-header';
       actionFixture.innerHTML = `
@@ -163,8 +165,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       });
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       shell.configureLensPageShell(restoreShell);
-      if (originalNavigate) window.navigate = originalNavigate;
-      else delete window.navigate;
       if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
       else localStorage.setItem(labsOrderKey, savedLabsOrder);
       if (originalView) views.navigate(originalView);
