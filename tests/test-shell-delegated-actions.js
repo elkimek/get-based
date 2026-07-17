@@ -138,6 +138,10 @@ assert('App shell injects wearable navigation without view bridge lookups',
 assert('App shell injects category customization view callbacks',
   appShellHooksSrc.includes('configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });'));
 
+assert('App shell injects crypto cross-tab refresh callbacks without bridge lookups',
+  appShellHooksSrc.includes("import { configureCryptoProfileDeps } from './crypto.js'")
+    && appShellHooksSrc.includes('configureCryptoProfileDeps({ buildSidebar, navigate });'));
+
 assert('App shell injects Cycle view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCycleRuntimeDeps } from './cycle-runtime.js'")
     && appShellHooksSrc.includes('configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });'));

@@ -50,6 +50,7 @@ const profileModule = await import('../js/profile.js');
 cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migrateProfileData });
 const navModule = await import('../js/nav.js');
 const viewsModule = await import('../js/views.js');
+cryptoModule.configureCryptoProfileDeps({ buildSidebar: navModule.buildSidebar, navigate: viewsModule.navigate });
 const exportModule = await import('../js/export.js');
 const settingsModule = await import('../js/settings.js');
 await import('../js/chat.js');

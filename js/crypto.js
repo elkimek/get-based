@@ -6,28 +6,45 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
-  navigate?: (view: string) => void,
 }} */ (typeof window !== 'undefined' ? window : {});
+/**
+ * @typedef {{
+ *   buildSidebar: null | (() => void),
+ *   migrateProfileData: null | ((data: any) => void),
+ *   navigate: null | ((view: string) => void),
+ * }} CryptoProfileDeps
+ */
+
+/** @type {CryptoProfileDeps} */
 const cryptoProfileDeps = {
+  buildSidebar: null,
   migrateProfileData: /** @type {null | ((data: any) => void)} */ (null),
+  navigate: null,
 };
 
 function navigateCryptoView(view) {
-  const navigate = appWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
-  navigate?.call(appWindow, view);
+  cryptoProfileDeps.navigate?.(view);
 }
 
 function buildCryptoSidebar() {
-  getViewRuntimeFunction('buildSidebar')?.();
+  cryptoProfileDeps.buildSidebar?.();
 }
 
+/** @param {Partial<CryptoProfileDeps>} [deps] */
 export function configureCryptoProfileDeps(deps = {}) {
   const previous = { ...cryptoProfileDeps };
-  if (typeof deps.migrateProfileData === 'function') cryptoProfileDeps.migrateProfileData = deps.migrateProfileData;
+  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
+    cryptoProfileDeps.buildSidebar = deps.buildSidebar;
+  }
+  if (Object.hasOwn(deps, 'migrateProfileData') && (deps.migrateProfileData === null || typeof deps.migrateProfileData === 'function')) {
+    cryptoProfileDeps.migrateProfileData = deps.migrateProfileData;
+  }
+  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
+    cryptoProfileDeps.navigate = deps.navigate;
+  }
   return previous;
 }
 const cryptoActionDelegateRoots = new WeakSet();

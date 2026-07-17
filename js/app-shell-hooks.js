@@ -71,6 +71,7 @@ import { closeClientList, configureClientListRuntime, openClientList, openProfil
 import { configureClientListRuntimeDeps } from './client-list-runtime.js';
 import { configureCompareCorrelationViews } from './compare-correlations.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
+import { configureCryptoProfileDeps } from './crypto.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
@@ -142,6 +143,7 @@ configureSettingsRuntime({
 configureNavActions({ openClientList });
 configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
+configureCryptoProfileDeps({ buildSidebar, navigate });
 configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });
 configureDnaRuntimeDeps({ buildSidebar, navigate });
 configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
