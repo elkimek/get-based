@@ -54,8 +54,8 @@ assert('quality guardrail ratchets view runtime bridge coupling',
   guardrailSrc.includes('VIEW_RUNTIME_LOOKUP_RE') &&
     guardrailSrc.includes('viewRuntimeBridgeConsumers') &&
     guardrailSrc.includes('viewRuntimeBridgeLookups') &&
-    baseline.viewRuntimeBridgeConsumers === 8 &&
-    baseline.viewRuntimeBridgeLookups === 9);
+    baseline.viewRuntimeBridgeConsumers === 7 &&
+    baseline.viewRuntimeBridgeLookups === 8);
 const forbiddenAppEventWindowGlobals = [
   'closeModal',
   'toggleChatPanel',
