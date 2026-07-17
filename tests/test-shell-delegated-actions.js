@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
 const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
+const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-score-context-ai.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
@@ -121,6 +122,14 @@ assert('App shell wires Chat prompt consumers without window globals',
     && appShellHooksSrc.includes("import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js'")
     && appShellHooksSrc.includes('configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });')
     && appShellHooksSrc.includes('configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });'));
+
+assert('App shell injects Biology Score context navigation without bridge or window fallbacks',
+  !biologyScoreContextAISrc.includes("from './views-runtime-bridge.js'")
+    && !biologyScoreContextAISrc.includes('window.showNotification')
+    && biologyScoreContextAISrc.includes("biologyScoreContextAIDeps.navigate?.('biology-scores')")
+    && biologyScoreContextAISrc.includes("showNotification('Context flag applied', 'success')")
+    && appShellHooksSrc.includes("import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';")
+    && appShellHooksSrc.includes('configureBiologyScoreContextAIDeps({ navigate });'));
 
 assert('App shell wires Chat close consumers without window globals',
   appShellHooksSrc.includes("import { configureChatEmptyStateDeps } from './chat-empty-state.js'")
