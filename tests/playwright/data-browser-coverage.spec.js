@@ -1,7 +1,5 @@
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?dataBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
 async function openBlankPage(page) {
   await page.route('**/data-browser-coverage', route => route.fulfill({
     contentType: 'text/html',
@@ -22,9 +20,8 @@ async function openBlankPage(page) {
 test('data browser coverage exercises display toggles range refresh and helpers', async ({ page }) => {
   await openBlankPage(page);
 
-  const results = await page.evaluate(async ({ dataUrl }) => {
-    const dataMod = await import(dataUrl);
-    const viewRuntime = await import('/js/views-runtime-bridge.js');
+  const results = await page.evaluate(async () => {
+    const dataMod = await import('/js/data.js');
     const state = window._labState;
     const calls = [];
     const outcomes = {};
@@ -53,22 +50,20 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       rangeMode: state.rangeMode,
       activeDetailMarkerId: state._activeDetailMarkerId,
       preserveCategoryCardOrder: clone(state._preserveCategoryCardOrder),
-      navigate: window.navigate,
-      showDetailModal: window.showDetailModal,
       requestAnimationFrame: window.requestAnimationFrame,
       units: localStorage.getItem(`labcharts-${profileId}-units`),
       altUnits: localStorage.getItem(`labcharts-${profileId}-showAltUnits`),
       phaseOverlay: localStorage.getItem(`labcharts-${profileId}-phaseOverlay`),
       rangeModeStorage: localStorage.getItem(`labcharts-${profileId}-rangeMode`),
     };
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousDataRuntime = dataMod.configureDataRuntimeDeps({
       buildSidebar: data => calls.push(['buildSidebar', data?.dates?.length || 0]),
+      navigate: (route, data) => calls.push(['navigate', route, data?.dates?.length || 0]),
+      showDetailModal: id => calls.push(['showDetailModal', id]),
     });
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
-      window.navigate = (route, data) => calls.push(['navigate', route, data?.dates?.length || 0]);
-      window.showDetailModal = id => calls.push(['showDetailModal', id]);
       window.requestAnimationFrame = callback => {
         calls.push(['requestAnimationFrame']);
         callback();
@@ -221,11 +216,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       else state._activeDetailMarkerId = saved.activeDetailMarkerId;
       if (saved.preserveCategoryCardOrder === undefined) delete state._preserveCategoryCardOrder;
       else state._preserveCategoryCardOrder = saved.preserveCategoryCardOrder;
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
-      if (saved.showDetailModal) window.showDetailModal = saved.showDetailModal;
-      else delete window.showDetailModal;
+      dataMod.configureDataRuntimeDeps(previousDataRuntime);
       if (saved.requestAnimationFrame) window.requestAnimationFrame = saved.requestAnimationFrame;
       else delete window.requestAnimationFrame;
       if (saved.units == null) localStorage.removeItem(`labcharts-${profileId}-units`);
@@ -239,7 +230,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
     }
 
     return outcomes;
-  }, { dataUrl: moduleUrl('/js/data.js') });
+  });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
