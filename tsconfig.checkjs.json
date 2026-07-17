@@ -447,6 +447,7 @@
     "js/supplement-impact.js",
     "js/supplement-warnings.js",
     "js/supplements.js",
+    "js/supplements-runtime.js",
     "js/touch-tooltip-runtime.js",
     "js/touch-tooltip.js"
   ]

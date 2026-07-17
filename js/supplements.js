@@ -16,7 +16,7 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { initSupplementActionDelegates, suppActionAttrs } from './supplement-action-delegates.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { closeSupplementsModalRuntime, navigateSupplementsViewRuntime } from './supplements-runtime.js';
 import {
   computeAllImpacts,
   computeSupplementImpact,
@@ -40,23 +40,12 @@ export {
   renderSupplementImpact,
 } from './supplement-impact.js';
 
-const appWindow = /** @type {Window & typeof globalThis & {
-  closeModal?: () => void,
-  navigate?: (category: string) => void
-}} */ (window);
-
 function closeSupplementModal() {
-  const closeModal = typeof appWindow.closeModal === 'function'
-    ? appWindow.closeModal.bind(appWindow)
-    : getViewRuntimeFunction('closeModal');
-  closeModal?.();
+  closeSupplementsModalRuntime();
 }
 
 function navigateSupplementView(category) {
-  const navigate = typeof appWindow.navigate === 'function'
-    ? appWindow.navigate.bind(appWindow)
-    : getViewRuntimeFunction('navigate');
-  navigate?.(category);
+  navigateSupplementsViewRuntime(category);
 }
 
 /**

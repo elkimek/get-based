@@ -133,6 +133,7 @@ const APP_SHELL = [
   '/js/notes.js',
   '/js/supplement-action-delegates.js',
   '/js/supplements.js',
+  '/js/supplements-runtime.js',
   '/js/supplement-impact.js',
   '/js/cycle-import-adapters.js',
   '/js/cycle-import-file.js',
