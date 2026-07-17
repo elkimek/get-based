@@ -47,7 +47,15 @@ assert('quality guardrail tracks window facade assignment budget',
     guardrailSrc.includes('Object\\.assign\\(\\s*window') &&
     guardrailSrc.includes('legacyWindowGlobalAssignments') &&
     Object.hasOwn(baseline, 'windowGlobalAssignments') &&
-    Object.hasOwn(baseline, 'legacyWindowGlobalAssignments'));
+    baseline.windowGlobalAssignments === 0 &&
+    Object.hasOwn(baseline, 'legacyWindowGlobalAssignments') &&
+    baseline.legacyWindowGlobalAssignments === 0);
+assert('quality guardrail ratchets view runtime bridge coupling',
+  guardrailSrc.includes('VIEW_RUNTIME_LOOKUP_RE') &&
+    guardrailSrc.includes('viewRuntimeBridgeConsumers') &&
+    guardrailSrc.includes('viewRuntimeBridgeLookups') &&
+    baseline.viewRuntimeBridgeConsumers === 29 &&
+    baseline.viewRuntimeBridgeLookups === 44);
 const forbiddenAppEventWindowGlobals = [
   'closeModal',
   'toggleChatPanel',

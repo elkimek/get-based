@@ -13,6 +13,8 @@ const APP_JS_DIR = path.join(ROOT, 'js');
 const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
 const WINDOW_REF_RE = /\bwindow(?:\.|\s*\[)/g;
 const WINDOW_GLOBAL_ASSIGN_RE = /Object\.assign\(\s*window\b/g;
+const VIEW_RUNTIME_LOOKUP_RE = /\bgetViewRuntimeFunction\s*\(/g;
+const VIEW_RUNTIME_BRIDGE_FILE = 'js/views-runtime-bridge.js';
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -59,6 +61,8 @@ function collectAppMetrics() {
   let windowReferences = 0;
   let windowGlobalAssignments = 0;
   let legacyWindowGlobalAssignments = 0;
+  let viewRuntimeBridgeConsumers = 0;
+  let viewRuntimeBridgeLookups = 0;
   const largeFiles = [];
   let largestFile = { file: '', lines: 0 };
 
@@ -66,10 +70,15 @@ function collectAppMetrics() {
     const source = fs.readFileSync(file, 'utf8');
     const lines = source.split('\n').length;
     const windowAssignmentCount = countMatches(source, WINDOW_GLOBAL_ASSIGN_RE);
+    const viewRuntimeLookupCount = repoRel(file) === VIEW_RUNTIME_BRIDGE_FILE
+      ? 0
+      : countMatches(source, VIEW_RUNTIME_LOOKUP_RE);
     inlineEventAttributes += countMatches(source, INLINE_EVENT_RE);
     windowReferences += countMatches(source, WINDOW_REF_RE);
     windowGlobalAssignments += windowAssignmentCount;
     if (!file.endsWith('-window-bindings.js')) legacyWindowGlobalAssignments += windowAssignmentCount;
+    viewRuntimeBridgeLookups += viewRuntimeLookupCount;
+    if (viewRuntimeLookupCount > 0) viewRuntimeBridgeConsumers++;
     if (lines >= LARGE_FILE_LINE_LIMIT) largeFiles.push({ file: repoRel(file), lines });
     if (lines > largestFile.lines) largestFile = { file: repoRel(file), lines };
   }
@@ -80,6 +89,8 @@ function collectAppMetrics() {
     windowReferences,
     windowGlobalAssignments,
     legacyWindowGlobalAssignments,
+    viewRuntimeBridgeConsumers,
+    viewRuntimeBridgeLookups,
     largeJsFilesOver800Lines: largeFiles.length,
     largestFile,
     largeFiles,
@@ -128,6 +139,8 @@ function main() {
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
   compareBudget('window global assignments in js/', metrics.windowGlobalAssignments, baseline.windowGlobalAssignments);
   compareBudget('legacy window global assignments in js/', metrics.legacyWindowGlobalAssignments, baseline.legacyWindowGlobalAssignments);
+  compareBudget('view runtime bridge consumer modules in js/', metrics.viewRuntimeBridgeConsumers, baseline.viewRuntimeBridgeConsumers);
+  compareBudget('view runtime bridge lookups in js/', metrics.viewRuntimeBridgeLookups, baseline.viewRuntimeBridgeLookups);
   compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
