@@ -27,7 +27,6 @@ const MOCK_PATHS = [
 ];
 
 const realGetElementById = globalThis.document?.getElementById;
-const realCloseModal = globalThis.window?.closeModal;
 
 beforeEach(async () => {
   await vi.resetModules();
@@ -37,8 +36,6 @@ beforeEach(async () => {
   if (globalThis.document && realGetElementById) {
     globalThis.document.getElementById = realGetElementById;
   }
-  if (realCloseModal) globalThis.window.closeModal = realCloseModal;
-  else delete globalThis.window.closeModal;
 });
 
 afterEach(() => {
@@ -48,8 +45,6 @@ afterEach(() => {
   if (globalThis.document && realGetElementById) {
     globalThis.document.getElementById = realGetElementById;
   }
-  if (realCloseModal) globalThis.window.closeModal = realCloseModal;
-  else delete globalThis.window.closeModal;
 });
 
 async function loadContinuation(callClaudeAPI) {
@@ -692,7 +687,8 @@ describe('chat marker prompt runtime behavior', () => {
     };
     deps.getActiveData.mockReturnValue({ dates: ['2026-01-01', '2026-02-01', '2026-03-01'] });
     const closeModal = vi.fn();
-    globalThis.window.closeModal = closeModal;
+    const chatRuntime = await import('../js/chat-runtime.js');
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({ closeModal });
     const mod = await import('../js/chat-marker-prompts.js');
 
     mod.askAIAboutMarker('ferritin');
@@ -713,6 +709,7 @@ describe('chat marker prompt runtime behavior', () => {
     expect(prompt).toContain('Current status: optimal');
     expect(prompt).toContain('Trend: up 50% from previous.');
     expect(prompt).toContain('phase-specific for the menstrual cycle');
+    chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
   });
 
   it('opens a correlation prompt for selected markers and ignores missing markers', async () => {

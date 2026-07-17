@@ -2,10 +2,10 @@
 // chat-runtime.js - Browser runtime adapters for shared chat hooks.
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-/** @type {Record<'isChatStreaming' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
+/** @type {Record<'closeModal' | 'isChatStreaming' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
 const chatRuntimeCallbacks = {
+  closeModal: null,
   isChatStreaming: null,
   refreshWebSearchToggle: null,
   renderChatMessages: null,
@@ -41,17 +41,6 @@ function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 /**
@@ -92,7 +81,7 @@ export function openChatContextModalRuntime() {
 }
 
 export function closeChatModalRuntime() {
-  getRuntimeFunction('closeModal')?.();
+  callChatRuntimeCallback('closeModal');
 }
 
 export function isChatRuntimeStreaming() {

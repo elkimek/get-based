@@ -554,17 +554,17 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ markerPromptsUrl }) => {
-    const [{ state }, data, markerPrompts] = await Promise.all([
+    const [{ state }, data, markerPrompts, chatRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import(markerPromptsUrl),
+      import('/js/chat-runtime.js'),
     ]);
     const outcomes = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, key ? localStorage.getItem(key) : null];
     }));
-    const originalCloseModal = window.closeModal;
     const original = {
       currentProfile: state.currentProfile,
       importedData: state.importedData,
@@ -580,6 +580,9 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
       panelClass: document.getElementById('chat-panel')?.className,
     };
     let closeCalls = 0;
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      closeModal: () => { closeCalls += 1; },
+    });
     const waitFor = async (predicate) => {
       for (let i = 0; i < 60; i += 1) {
         if (predicate()) return true;
@@ -617,8 +620,6 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
           id: 'ferritin',
         },
       };
-      window.closeModal = () => { closeCalls += 1; };
-
       const input = document.getElementById('chat-input');
       input.value = '';
       markerPrompts.askAIAboutMarker('missing-marker');
@@ -658,7 +659,7 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
       state.chatThreads = original.chatThreads;
       state.currentThreadId = original.currentThreadId;
       state.currentChatPersonality = original.currentChatPersonality;
-      window.closeModal = originalCloseModal;
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       data.invalidateActiveDataCache();
       const input = document.getElementById('chat-input');
       if (input && original.inputValue != null) input.value = original.inputValue;

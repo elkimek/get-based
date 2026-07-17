@@ -38,7 +38,6 @@ const runtimeKeys = [
   'renderChatMessages',
   'updateDiscussButton',
   'openContextModal',
-  'closeModal',
   'isChatStreaming',
   'sendChatMessage',
   '_ppqAttestation',
@@ -70,6 +69,7 @@ try {
     openContextModal: () => calls.push(['context']),
   });
   const previousChatRuntime = configureChatRuntimeCallbacks({
+    closeModal: () => calls.push(['close']),
     isChatStreaming: () => false,
     refreshWebSearchToggle: () => calls.push(['web-search']),
     renderChatMessages: () => calls.push(['render']),
@@ -84,7 +84,6 @@ try {
   const veniceAttestation = { provider: 'venice', verified: true };
   setRuntimeValue('window', globalThis);
   setRuntimeValue('openContextModal', () => calls.push(['legacy-context']));
-  setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('_ppqAttestation', ppqAttestation);
   setRuntimeValue('_routstrAttestation', routstrAttestation);
   setRuntimeValue('_veniceAttestation', veniceAttestation);
@@ -134,6 +133,7 @@ try {
 
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureChatRuntimeCallbacks({
+    closeModal: null,
     isChatStreaming: null,
     refreshWebSearchToggle: null,
     renderChatMessages: null,

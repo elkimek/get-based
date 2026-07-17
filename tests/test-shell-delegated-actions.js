@@ -13,6 +13,7 @@ const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'
 const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-score-context-ai.js'), 'utf8');
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
+const chatRuntimeSrc = fs.readFileSync(path.join(root, 'js/chat-runtime.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
@@ -119,9 +120,15 @@ assert('App shell injects core Context Cards view callbacks without bridge looku
 assert('App shell wires Chat UI refreshes without window globals',
   appShellHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
     && appShellHooksSrc.includes('configureChatRuntimeCallbacks({')
+    && appShellHooksSrc.includes('  closeModal,')
     && appShellHooksSrc.includes('refreshWebSearchToggle,')
     && appShellHooksSrc.includes('resumeAI,')
     && appShellHooksSrc.includes('sendChatMessage,'));
+
+assert('App shell injects Chat modal close without a view bridge lookup',
+  !chatRuntimeSrc.includes("from './views-runtime-bridge.js'")
+    && !chatRuntimeSrc.includes('getViewRuntimeFunction')
+    && chatRuntimeSrc.includes("callChatRuntimeCallback('closeModal');"));
 
 assert('App shell wires Chat prompt consumers without window globals',
   appShellHooksSrc.includes("import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js'")

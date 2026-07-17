@@ -196,6 +196,7 @@ function resumeAI() {
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
 configureChatRuntimeCallbacks({
+  closeModal,
   isChatStreaming,
   refreshWebSearchToggle,
   renderChatMessages,
