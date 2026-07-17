@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
 const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
+const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
 
@@ -162,6 +163,14 @@ assert('App shell injects client list view callbacks without bridge lookups',
 
 assert('App shell injects DNA view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureDnaRuntimeDeps({ buildSidebar, navigate });'));
+
+assert('App shell injects export demo refresh callbacks without bridge lookups',
+  !exportSrc.includes("from './views-runtime-bridge.js'")
+    && exportSrc.includes('export function configureExportRuntimeDeps(deps = {})')
+    && exportSrc.includes('exportRuntimeDeps.buildSidebar?.();')
+    && exportSrc.includes("exportRuntimeDeps.navigate?.('biology-scores')")
+    && appShellHooksSrc.includes("import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './export.js';")
+    && appShellHooksSrc.includes('configureExportRuntimeDeps({ buildSidebar, navigate });'));
 
 assert('App shell injects PDF import review view callbacks without bridge lookups',
   appShellHooksSrc.includes('configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });'));

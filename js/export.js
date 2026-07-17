@@ -10,7 +10,6 @@ import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { importDataJSON } from './export-import.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   generateReportAISummary as generateReportAISummaryImpl,
 } from './export-report.js';
@@ -30,6 +29,27 @@ import {
 } from './export-runtime.js';
 
 export { importDataJSON };
+
+/** @type {{
+ *   buildSidebar: null | (() => void),
+ *   navigate: null | ((route?: string) => void),
+ * }} */
+const exportRuntimeDeps = {
+  buildSidebar: null,
+  navigate: null,
+};
+
+/** @param {Partial<typeof exportRuntimeDeps>} [deps] */
+export function configureExportRuntimeDeps(deps = {}) {
+  const previous = { ...exportRuntimeDeps };
+  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
+    exportRuntimeDeps.buildSidebar = deps.buildSidebar;
+  }
+  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
+    exportRuntimeDeps.navigate = deps.navigate;
+  }
+  return previous;
+}
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT FACADE
@@ -541,11 +561,9 @@ export async function loadDemoData(sex = 'male') {
           updatedAt: Date.now(),
         };
         await saveImportedData({ skipSync: true, reason: 'demo-biology-score-context' });
-        const w = /** @type {any} */ (window);
-        getViewRuntimeFunction('buildSidebar')?.();
+        exportRuntimeDeps.buildSidebar?.();
         updateHeaderDates();
-        const navigate = w.navigate || getViewRuntimeFunction('navigate');
-        if (navigate && state.currentView === 'biology-scores') navigate.call(w, 'biology-scores');
+        if (state.currentView === 'biology-scores') exportRuntimeDeps.navigate?.('biology-scores');
       }
     } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
   } catch (err) {
