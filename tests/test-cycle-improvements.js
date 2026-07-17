@@ -278,15 +278,20 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     const previousCycleRuntime = cycleRuntime.configureCycleRuntimeDeps({
       closeModal: () => runtimeCalls.push(['close']),
       navigate: category => runtimeCalls.push(['navigate', category]),
+      renderProfileButton: () => runtimeCalls.push(['render-profile-button']),
     });
     cycleRuntime.closeCycleModalRuntime();
-    cycleRuntime.navigateCycleViewRuntime('cycle');
-    cycleRuntime.configureCycleRuntimeDeps({ closeModal: null, navigate: null });
+    const didNavigate = cycleRuntime.navigateCycleViewRuntime('cycle');
+    cycleRuntime.renderCycleProfileButtonRuntime();
+    cycleRuntime.configureCycleRuntimeDeps({ closeModal: null, navigate: null, renderProfileButton: null });
     cycleRuntime.closeCycleModalRuntime();
-    cycleRuntime.navigateCycleViewRuntime('ignored');
+    const didNavigateWithoutCallback = cycleRuntime.navigateCycleViewRuntime('ignored');
+    cycleRuntime.renderCycleProfileButtonRuntime();
     cycleRuntime.configureCycleRuntimeDeps(previousCycleRuntime);
     assert('cycle runtime invokes injected callbacks and safely no-ops when cleared',
-      JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'cycle']]));
+      didNavigate === true
+        && didNavigateWithoutCallback === false
+        && JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'cycle'], ['render-profile-button']]));
 
     // charts.js
     const chartsSrc = read('js/charts.js');
@@ -312,6 +317,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
 
     // cycle.js imports
     const cycleSrc = read('js/cycle.js');
+    const cycleImportSrc = read('js/cycle-import.js');
     assert('cycle.js imports PERIOD_SYMPTOMS', cycleSrc.includes("import") && cycleSrc.includes('PERIOD_SYMPTOMS'));
     assert('cycle.js imports linearRegression', cycleSrc.includes('linearRegression'));
     assert('cycle.js exports detectPerimenopausePattern', cycleSrc.includes('export function detectPerimenopausePattern'));
@@ -320,8 +326,12 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('cycle.js injects view callbacks without the view runtime bridge',
       cycleRuntimeSrc.includes('export function configureCycleRuntimeDeps')
         && cycleRuntimeSrc.includes('cycleRuntimeDeps.closeModal?.()')
-        && cycleRuntimeSrc.includes('cycleRuntimeDeps.navigate?.(category)')
+        && cycleRuntimeSrc.includes('cycleRuntimeDeps.navigate(category)')
+        && cycleRuntimeSrc.includes('cycleRuntimeDeps.renderProfileButton?.()')
         && cycleSrc.includes("from './cycle-runtime.js'")
+        && cycleImportSrc.includes("from './cycle-runtime.js'")
+        && !cycleImportSrc.includes('views-runtime-bridge.js')
+        && !cycleImportSrc.includes('appWindow')
         && !cycleSrc.includes('views-runtime-bridge.js')
         && !cycleSrc.includes('getViewRuntimeFunction'));
 
