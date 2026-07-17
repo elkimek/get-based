@@ -21,7 +21,6 @@ import {
 } from '../js/marker-detail-runtime.js';
 import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
 let pass = 0, fail = 0;
@@ -32,28 +31,11 @@ function assert(name, condition, detail) {
 
 console.log('=== Marker Detail Runtime Tests ===\n');
 
-const runtimeKeys = [
-  'window',
-  'navigate',
-  'isDashboardQuickMarkerPinned',
-  'toggleDashboardQuickMarkerPin',
-  'renameMarker',
-  'revertMarkerName',
-  'showEmojiPicker',
-];
+const runtimeKeys = ['window'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-let previousViewRuntime = null;
 let previousWearablesModule = null;
 const previousDnaBridge = configureDnaModuleBridge({ getRelevantSNPs: null });
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
+const originalMarkerDetailRuntimeDeps = configureMarkerDetailRuntime();
 
 function restoreRuntime() {
   for (const key of runtimeKeys) {
@@ -68,17 +50,19 @@ try {
   const anchor = { textContent: '', dataset: {} };
   const snps = [{ rsid: 'rs1801133' }];
 
-  setRuntimeValue('navigate', (category, data) => calls.push(['navigate', category, data?.from || '']));
-  previousViewRuntime = configureViewRuntime({
+  configureMarkerDetailRuntime({
+    askAIAboutMarker: id => calls.push(['ask', id]),
     buildSidebar: () => calls.push(['sidebar']),
-  });
-  setRuntimeValue('isDashboardQuickMarkerPinned', id => id === 'lipids_apob');
-  setRuntimeValue('toggleDashboardQuickMarkerPin', id => calls.push(['pin', id]));
-  setRuntimeValue('renameMarker', id => calls.push(['rename', id]));
-  setRuntimeValue('revertMarkerName', id => calls.push(['revert', id]));
-  setRuntimeValue('showEmojiPicker', (el, callback, opts) => {
-    calls.push(['emoji', opts?.showReset ? 'reset' : 'plain']);
-    callback(':test:');
+    closeEMFInterpretation: () => calls.push(['emf-close']),
+    isDashboardQuickMarkerPinned: id => id === 'lipids_apob',
+    navigate: (category, data) => calls.push(['navigate', category, data?.from || '']),
+    renameMarker: id => calls.push(['rename', id]),
+    revertMarkerName: id => calls.push(['revert', id]),
+    showEmojiPicker: (el, callback, opts) => {
+      calls.push(['emoji', opts?.showReset ? 'reset' : 'plain']);
+      callback(':test:');
+    },
+    toggleDashboardQuickMarkerPin: id => calls.push(['pin', id]),
   });
   configureDnaModuleBridge({ getRelevantSNPs: dotKey => {
     calls.push(['snps', dotKey]);
@@ -90,10 +74,6 @@ try {
       calls.push(['recs', markerKey, options?.markerStatus || '']);
       return '<section>recs</section>';
     },
-  });
-  const restoreMarkerDetailRuntime = configureMarkerDetailRuntime({
-    askAIAboutMarker: id => calls.push(['ask', id]),
-    closeEMFInterpretation: () => calls.push(['emf-close']),
   });
   previousWearablesModule = configureWearablesModuleBridge({
     _uninstallWearableModalFocusTrap: () => calls.push(['focus-trap']),
@@ -120,7 +100,7 @@ try {
       calls.some(call => call.join('|') === 'emoji|reset') &&
       calls.some(call => call.join('|') === 'emf-close') &&
       calls.some(call => call.join('|') === 'focus-trap'));
-  assert('marker detail runtime returns browser-derived values',
+  assert('marker detail runtime returns injected values',
     isDashboardQuickMarkerPinnedRuntime('lipids_apob') === true &&
       getRelevantSNPsRuntime('lipids.apob') === snps &&
       hasRecommendationSectionRendererRuntime() === true &&
@@ -128,8 +108,10 @@ try {
       renderedRecs === '<section>recs</section>' &&
       anchor.textContent === ':test:');
 
-  configureViewRuntime({ buildSidebar: () => { throw new Error('boom'); } });
-  setRuntimeValue('isDashboardQuickMarkerPinned', () => { throw new Error('boom'); });
+  configureMarkerDetailRuntime({
+    buildSidebar: () => { throw new Error('boom'); },
+    isDashboardQuickMarkerPinned: () => { throw new Error('boom'); },
+  });
   configureDnaModuleBridge({ getRelevantSNPs: () => { throw new Error('boom'); } });
   configureRecommendationModuleBridge({ isProductRecsEnabled: () => { throw new Error('boom'); } });
   buildMarkerDetailSidebarRuntime();
@@ -138,14 +120,23 @@ try {
       getRelevantSNPsRuntime('lipids.apob').length === 0 &&
       isProductRecsEnabledRuntime() === false);
 
-  configureMarkerDetailRuntime({ askAIAboutMarker: null, closeEMFInterpretation: () => {} });
+  configureMarkerDetailRuntime({
+    askAIAboutMarker: null,
+    buildSidebar: null,
+    closeEMFInterpretation: () => {},
+    isDashboardQuickMarkerPinned: null,
+    navigate: null,
+    renameMarker: null,
+    revertMarkerName: null,
+    showEmojiPicker: null,
+    toggleDashboardQuickMarkerPin: null,
+  });
 
   delete globalThis.window;
   configureRecommendationModuleBridge({
     isProductRecsEnabled: null,
     renderRecommendationSection: null,
   });
-  configureViewRuntime({ buildSidebar: null });
   configureWearablesModuleBridge({ _uninstallWearableModalFocusTrap: null });
   configureDnaModuleBridge({ getRelevantSNPs: null });
   const beforeMissingRuntimeCalls = calls.length;
@@ -166,9 +157,9 @@ try {
       getRelevantSNPsRuntime('lipids.apob').length === 0 &&
       isProductRecsEnabledRuntime() === false &&
       missingRuntimeRecs === '');
-  configureMarkerDetailRuntime(restoreMarkerDetailRuntime);
   configureRecommendationModuleBridge(previousRecommendationBridge);
 } finally {
+  configureMarkerDetailRuntime(originalMarkerDetailRuntimeDeps);
   configureDnaModuleBridge({ getRelevantSNPs: null, ...previousDnaBridge });
   configureWearablesModuleBridge({
     _uninstallWearableModalFocusTrap: null,
@@ -178,7 +169,6 @@ try {
     isProductRecsEnabled: null,
     renderRecommendationSection: null,
   });
-  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   restoreRuntime();
 }
 

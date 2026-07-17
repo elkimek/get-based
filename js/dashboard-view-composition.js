@@ -18,6 +18,7 @@ import { createDashboardWidgetRegistry } from './dashboard-widgets.js';
 import { createDashboardWidgetControls } from './dashboard-widget-controls.js';
 import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js';
 import { configureMarkerDetailModal } from './marker-detail-modal.js';
+import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { renderLightConditionsWidgetBody } from './light-conditions-now.js';
 import { ensureActiveDeviceTicker } from './light-devices.js';
 import { renderDashboardLightChannelPills, renderLightSessionLogActions } from './light-page-view.js';
@@ -104,6 +105,12 @@ export function createDashboardViewComposition({
     toggleDashboardQuickMarkerPin,
   } = dashboardWidgetRenderers;
 
+  configureMarkerDetailRuntime({
+    isDashboardQuickMarkerPinned,
+    navigate,
+    showEmojiPicker,
+    toggleDashboardQuickMarkerPin,
+  });
   configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, toggleDashboardQuickMarkerPin, showEmojiPicker });
 
   function getDashboardMarkerWidgetDefinition(widgetId, ctx = null) {

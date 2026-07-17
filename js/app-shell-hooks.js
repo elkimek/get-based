@@ -93,9 +93,11 @@ import {
   getInitialView,
   navigate,
   refreshMobileDashboardActiveTab,
+  renameMarker,
   renderLightChannelsLive,
   renderLightTodayStrip,
   resetDashboardWidgets,
+  revertMarkerName,
   showDetailModal,
   toggleDashboardOrganizeMode,
 } from './views.js';
@@ -199,7 +201,7 @@ configureChatMessageActionDeps({
 });
 configureCompareCorrelationViews({ askAIAboutCorrelations });
 configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved });
-configureMarkerDetailRuntime({ askAIAboutMarker });
+configureMarkerDetailRuntime({ askAIAboutMarker, buildSidebar, navigate, renameMarker, revertMarkerName });
 configureShellChatActionDeps({
   closeChatPanel,
   clearChatHistory,

@@ -8,11 +8,11 @@ test('marker detail modal covers custom marker create delete and focus restore p
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ markerUrl }) => {
-    const [{ state }, data, markerModal, viewRuntime] = await Promise.all([
+    const [{ state }, data, markerModal, markerRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import(markerUrl),
-      import('/js/views-runtime-bridge.js'),
+      import('/js/marker-detail-runtime.js'),
     ]);
     const outcomes = {};
     const calls = [];
@@ -24,7 +24,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
       activeDetailMarkerId: state._activeDetailMarkerId,
       navigate: window.navigate,
     };
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
+    const previousMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       buildSidebar: () => calls.push(['sidebar']),
     });
 
@@ -153,7 +153,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
       state._activeDetailMarkerId = saved.activeDetailMarkerId;
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
+      markerRuntime.configureMarkerDetailRuntime(previousMarkerRuntime);
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
       data.invalidateActiveDataCache();

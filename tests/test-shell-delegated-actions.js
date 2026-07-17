@@ -175,6 +175,9 @@ assert('App shell injects dashboard widget view callbacks without bridge lookups
 assert('App shell injects Light Devices view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });'));
 
+assert('App shell injects marker detail shell callbacks without bridge lookups',
+  appShellHooksSrc.includes('configureMarkerDetailRuntime({ askAIAboutMarker, buildSidebar, navigate, renameMarker, revertMarkerName });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',

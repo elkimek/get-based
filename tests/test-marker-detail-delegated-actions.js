@@ -67,6 +67,9 @@ assert('history note toggle no longer depends on brittle parentElement chaining'
 assert('dashboard passes the quick-marker pin dependency instead of relying on an inline window handler',
   dashboardSrc.includes('toggleDashboardQuickMarkerPin, showEmojiPicker') &&
     modalSrc.includes("markerDetailActionAttrs('quick-pin', { id })"));
+assert('dashboard composition injects marker detail UI callbacks without runtime lookups',
+  dashboardSrc.includes('configureMarkerDetailRuntime({') &&
+    dashboardSrc.includes('isDashboardQuickMarkerPinned,\n    navigate,\n    showEmojiPicker,\n    toggleDashboardQuickMarkerPin,'));
 assert('service worker precaches marker-detail-actions.js',
   swSrc.includes("'/js/marker-detail-actions.js'"));
 assert('service worker precaches marker-detail-runtime.js',
@@ -76,7 +79,8 @@ assert('marker-detail-modal delegates browser globals through runtime adapter',
     !/\bwindow(?:\.|\s*\[)/.test(modalSrc) &&
     runtimeSrc.includes('export function navigateMarkerDetailRuntime') &&
     runtimeSrc.includes('export function hasRecommendationSectionRendererRuntime') &&
-    runtimeSrc.includes('export async function renderRecommendationSectionRuntime'));
+    runtimeSrc.includes('export async function renderRecommendationSectionRuntime') &&
+    !runtimeSrc.includes("from './views-runtime-bridge.js'"));
 assert('marker-detail-editing delegates browser shell hooks through runtime adapter',
   editingSrc.includes("from './marker-detail-runtime.js'") &&
     editingSrc.includes('buildMarkerDetailSidebarRuntime') &&
