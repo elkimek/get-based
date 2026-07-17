@@ -3,6 +3,8 @@
 
 /** @type {Record<string, Function | null>} */
 const contextCardsRuntimeCallbacks = {
+  closeModal: null,
+  navigate: null,
   onContextCardSaved: null,
   openContextModal: null,
   openInterpretiveLensEditor: null,
@@ -36,6 +38,15 @@ function callContextCardsRuntime(name, ...args) {
 
 export function openContextModalRuntime() {
   return callContextCardsRuntime('openContextModal');
+}
+
+export function closeContextCardModalRuntime() {
+  return callContextCardsRuntime('closeModal');
+}
+
+/** @param {string} category */
+export function navigateContextCardViewRuntime(category) {
+  return callContextCardsRuntime('navigate', category);
 }
 
 export function notifyContextCardSavedRuntime() {
