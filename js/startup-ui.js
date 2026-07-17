@@ -13,19 +13,23 @@ import { maybeShowLegalConsentGate } from './legal-consent.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { maybeShowAnalyticsConsent } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
-import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
 
 const startupUIDeps = {
+  getInitialView: /** @type {() => string} */ (() => 'dashboard'),
   initChatImageHandlers: () => {},
   maybeShowAnalyticsConsent,
+  navigate: /** @type {(view: string) => void} */ ((_view) => {}),
   openChatPanel: () => {},
+  openSettingsModal: /** @type {(section?: string) => void} */ ((_section) => {}),
   updateAttachButtonVisibility: () => {},
 };
 
 export function configureStartupUIDeps(deps = {}) {
   const previous = { ...startupUIDeps };
+  if (typeof deps.getInitialView === 'function') {
+    startupUIDeps.getInitialView = deps.getInitialView;
+  }
   if ('maybeShowAnalyticsConsent' in deps) {
     startupUIDeps.maybeShowAnalyticsConsent = typeof deps.maybeShowAnalyticsConsent === 'function'
       ? /** @type {typeof maybeShowAnalyticsConsent} */ (deps.maybeShowAnalyticsConsent)
@@ -36,6 +40,12 @@ export function configureStartupUIDeps(deps = {}) {
   }
   if (typeof deps.openChatPanel === 'function') {
     startupUIDeps.openChatPanel = deps.openChatPanel;
+  }
+  if (typeof deps.navigate === 'function') {
+    startupUIDeps.navigate = deps.navigate;
+  }
+  if (typeof deps.openSettingsModal === 'function') {
+    startupUIDeps.openSettingsModal = deps.openSettingsModal;
   }
   if (typeof deps.updateAttachButtonVisibility === 'function') {
     startupUIDeps.updateAttachButtonVisibility = deps.updateAttachButtonVisibility;
@@ -51,22 +61,6 @@ function getStartupRuntimeValue(name) {
   return startupRuntime()[name];
 }
 
-function callStartupRuntime(name, ...args) {
-  const runtime = startupRuntime();
-  const fn = getSettingsModuleFunction(name) || runtime[name] || getViewRuntimeFunction(name);
-  if (typeof fn !== 'function') return undefined;
-  return fn.apply(runtime, args);
-}
-
-function requireStartupRuntime(name, ...args) {
-  const runtime = startupRuntime();
-  const fn = getSettingsModuleFunction(name) || runtime[name] || getViewRuntimeFunction(name);
-  if (typeof fn !== 'function') {
-    throw new TypeError(`Startup runtime function ${name} is not available`);
-  }
-  return fn.apply(runtime, args);
-}
-
 export function renderStartupUI() {
   // Prime sync state for UI, but let Evolu boot after first paint. Its
   // worker/OPFS startup is expensive and should not block dashboard LCP.
@@ -76,7 +70,7 @@ export function renderStartupUI() {
   populateFooterVersion();
   buildSidebar();
   renderSyncIndicator();
-  requireStartupRuntime('navigate', callStartupRuntime('getInitialView') || 'dashboard');
+  startupUIDeps.navigate(startupUIDeps.getInitialView() || 'dashboard');
   scheduleDeferredSyncAndCatalogWarmup();
   const legalGateShown = scheduleStartupNudges();
   if (legalGateShown) {
@@ -141,7 +135,7 @@ function scheduleStartupNudges() {
 function openDeferredStartupDestinations() {
   const openSettingsAfterInit = getStartupRuntimeValue('_openSettingsAfterInit');
   if (openSettingsAfterInit) {
-    requireStartupRuntime('openSettingsModal', openSettingsAfterInit);
+    startupUIDeps.openSettingsModal(openSettingsAfterInit);
     delete startupRuntime()._openSettingsAfterInit;
   }
   if (getStartupRuntimeValue('_openChatAfterInit')) {

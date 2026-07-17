@@ -76,7 +76,7 @@ assert('App shell wires module-only chat image consumers',
     && appShellHooksSrc.includes('openImageLightbox,')
     && appShellHooksSrc.includes('removeImageAttachment,')
     && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
-    && appShellHooksSrc.includes('configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });'));
+    && appShellHooksSrc.includes('configureStartupUIDeps({\n  getInitialView,\n  initChatImageHandlers,\n  navigate,\n  openChatPanel,\n  openSettingsModal,\n  updateAttachButtonVisibility,\n});'));
 
 assert('App shell wires module-only chat message actions',
   ['closeSummaryModal', 'continueDiscussion', 'copySummary', 'deleteSavedSummary',
