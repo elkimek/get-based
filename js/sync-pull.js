@@ -18,7 +18,6 @@ import { clearRestoreJoinPending, isRestoreJoinPending } from './sync-identity.j
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
@@ -28,6 +27,7 @@ var _getProfileQuery = _getProfileQuery || (() => null);
 var _isSyncPushInFlight = _isSyncPushInFlight || (() => false);
 /** @type {(...args: any[]) => Promise<any>} */
 var _pushProfile = _pushProfile || (async () => {});
+var _renderProfileButton = _renderProfileButton || (() => {});
 /** @type {(...args: any[]) => any} */
 var _debug = _debug || (() => {});
 let _pulling = false;
@@ -92,6 +92,7 @@ export function combinePulledAISettings(selection) {
  *   getProfileQuery?: () => any,
  *   isSyncPushInFlight?: () => boolean,
  *   pushProfile?: (...args: any[]) => Promise<any>,
+ *   renderProfileButton?: () => void,
  *   debug?: (...args: any[]) => any,
  * }} [deps]
  */
@@ -100,12 +101,14 @@ export function configureSyncPull({
   getProfileQuery,
   isSyncPushInFlight,
   pushProfile,
+  renderProfileButton,
   debug,
 } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof isSyncPushInFlight === 'function') _isSyncPushInFlight = isSyncPushInFlight;
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
+  if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;
   if (typeof debug === 'function') _debug = debug;
 }
 
@@ -291,7 +294,7 @@ export async function onSyncReceived() {
 
     // Rebuild profile dropdown if profiles changed
     if (profilesChanged) {
-      getViewRuntimeFunction('renderProfileDropdown')?.();
+      _renderProfileButton();
     }
   } finally {
     _pulling = false;

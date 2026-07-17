@@ -13,6 +13,7 @@ const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
+const syncPullSrc = fs.readFileSync(path.join(root, 'js/sync-pull.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -171,6 +172,13 @@ assert('App shell injects export demo refresh callbacks without bridge lookups',
     && exportSrc.includes("exportRuntimeDeps.navigate?.('biology-scores')")
     && appShellHooksSrc.includes("import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './export.js';")
     && appShellHooksSrc.includes('configureExportRuntimeDeps({ buildSidebar, navigate });'));
+
+assert('App shell injects sync pull profile refresh without bridge lookups',
+  !syncPullSrc.includes("from './views-runtime-bridge.js'")
+    && syncPullSrc.includes("if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;")
+    && syncPullSrc.includes('_renderProfileButton();')
+    && appShellHooksSrc.includes("import { configureSyncPull } from './sync-pull.js';")
+    && appShellHooksSrc.includes('configureSyncPull({ renderProfileButton });'));
 
 assert('App shell injects PDF import review view callbacks without bridge lookups',
   appShellHooksSrc.includes('configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });'));

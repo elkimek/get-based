@@ -113,6 +113,7 @@ import {
   configureShellNavDeps,
 } from './shell-actions.js';
 import { configureStartupUIDeps } from './startup-ui.js';
+import { configureSyncPull } from './sync-pull.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 import { configureSunRuntimeDeps } from './sun-runtime.js';
@@ -231,6 +232,7 @@ configureStartupUIDeps({
 });
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
+configureSyncPull({ renderProfileButton });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
 configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableSettingsRuntimeDeps({ navigate });
