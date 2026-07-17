@@ -46,7 +46,7 @@ const OPENROUTER_CURATED = [
   'deepseek/deepseek',
   'qwen/qwen', 'qwen/qwq',
   'z-ai/glm-5',
-  'moonshotai/kimi-k2',
+  'moonshotai/kimi-',
   'x-ai/grok',
 ];
 
@@ -61,17 +61,17 @@ const OPENROUTER_RECOMMENDED = [
   'openai/gpt-5.6-sol', 'openai/gpt-5.4',
   'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
   'z-ai/glm-5.2',
-  'moonshotai/kimi-k2.7-code', 'moonshotai/kimi-k2.6',
+  'moonshotai/kimi-k3',
   'x-ai/grok-4',
 ];
 const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
-const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k2.7-code', 'moonshotai/kimi-k2.7-code', 'kimi-k2.6', 'moonshotai/kimi-k2.6', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-2'];
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
-const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k2.7-code', 'kimi-k2.7-code', 'moonshotai/kimi-k2.6', 'kimi-k2.6', 'x-ai/grok-4.3', 'grok-4'];
+const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k2-6', 'private/glm-5-2', 'private/gpt-oss-120b'];
 
 function normalizedModelId(modelId) {
@@ -88,7 +88,7 @@ function isCustomRecommendedModel(modelId) {
     || /(^|[/-])gpt-5-[45]($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])gemini-3-(5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])glm-5-2($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])kimi-k2-(7-code|6)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])kimi-k3($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])grok-4($|[-:])/.test(normalizedModelId(modelId));
 }
 
@@ -126,7 +126,7 @@ export function isRecommendedModel(provider, modelId) {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5/.test(modelId);
     // claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return /^(claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k2-7-code|kimi-k2-6|grok-4[1-9]?)(-|$)/.test(modelId);
+    return /^(claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k3|grok-4[1-9]?)(-|$)/.test(modelId);
   }
   if (provider === 'routstr') {
     if (modelId.startsWith('tinfoil-')) return ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);

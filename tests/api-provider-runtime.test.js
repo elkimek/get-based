@@ -122,6 +122,12 @@ describe('API provider runtime behavior', () => {
           architecture: { modality: 'text->text' },
         },
         {
+          id: 'moonshotai/kimi-k3',
+          name: 'Kimi K3',
+          pricing: { prompt: '0.000003', completion: '0.000015' },
+          architecture: { modality: 'text+image->text' },
+        },
+        {
           id: 'anthropic/claude-sonnet-4.6:2026-01-01',
           name: 'Claude Sonnet dated duplicate',
           pricing: { prompt: '0.000003', completion: '0.000015' },
@@ -142,8 +148,9 @@ describe('API provider runtime behavior', () => {
       'google/gemini-3.5-flash',
       'z-ai/glm-5.2',
       'openai/gpt-5.6-sol',
-      'moonshotai/kimi-k2.7-code',
+      'moonshotai/kimi-k3',
       'openai/gpt-5.5',
+      'moonshotai/kimi-k2.7-code',
     ]);
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
       'anthropic/claude-sonnet-4.6': { input: 3, output: 15 },
@@ -151,11 +158,13 @@ describe('API provider runtime behavior', () => {
       'google/gemini-3.5-flash': { input: 0.7, output: 3.75 },
       'z-ai/glm-5.2': { input: 1, output: 3 },
       'moonshotai/kimi-k2.7-code': { input: 0.56, output: 3.5 },
+      'moonshotai/kimi-k3': { input: 3, output: 15 },
       'openai/gpt-5.6-sol': { input: 5, output: 30 },
     });
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-4.6');
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-5');
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('google/gemini-3.5-flash');
+    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('moonshotai/kimi-k3');
     expect(localStorage.getItem('labcharts-openrouter-model')).toBe('openai/gpt-5.6-sol');
 
     expect(await fetchOpenRouterModelPricing('openai/gpt-5.6-sol')).toEqual({ input: 5, output: 30 });
@@ -186,6 +195,7 @@ describe('API provider runtime behavior', () => {
         { id: 'claude-sonnet-4.6-20260101', name: 'Claude duplicate', enabled: true },
         { id: 'grok-41-fast', name: 'Grok 4.1 Fast', enabled: true, pricing: { prompt: '0.00000025', completion: '0.00000063' } },
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3', enabled: true, pricing: { prompt: '0.000003', completion: '0.000015' } },
+        { id: 'moonshotai/kimi-k3', name: 'Kimi K3', enabled: true, pricing: { prompt: '0.000003', completion: '0.000015' }, architecture: { input_modalities: ['text', 'image'] } },
         { id: 'gpt-5-preview', name: 'Preview', enabled: true },
         { id: 'grok-4', name: 'Disabled', enabled: false },
       ],
@@ -194,14 +204,16 @@ describe('API provider runtime behavior', () => {
     const routstrModels = await fetchRoutstrModels();
 
     expect(fetch).toHaveBeenCalledWith('https://node.example.com/v1/models');
-    expect(routstrModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'z-ai/glm-5.2', 'grok-41-fast', 'x-ai/grok-4.3', 'llama-3.1-8b']);
+    expect(routstrModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'z-ai/glm-5.2', 'grok-41-fast', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'llama-3.1-8b']);
     expect(localStorage.getItem('labcharts-routstr-model')).toBe('claude-sonnet-5');
     expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
     expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
     expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['z-ai/glm-5.2']).toEqual({ input: 1, output: 3 });
     expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['x-ai/grok-4.3']).toEqual({ input: 3, output: 15 });
+    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3, output: 15 });
     expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-4.6');
     expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-5');
+    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('moonshotai/kimi-k3');
 
     fetch.mockResolvedValueOnce(jsonResponse({
       data: [
@@ -213,22 +225,25 @@ describe('API provider runtime behavior', () => {
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3', pricing: { input_per_1M_tokens: '3', output_per_1M_tokens: '15' } },
         { id: 'grok-4.20', name: 'Grok 4.20', pricing: { input_per_1M_tokens: '2', output_per_1M_tokens: '10' } },
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', pricing: { input_per_1M_tokens: '0.56', output_per_1M_tokens: '3.5' } },
+        { id: 'moonshotai/kimi-k3', name: 'Kimi K3', pricing: { input_per_1M_tokens: '3.165', output_per_1M_tokens: '15.825' }, architecture: { modality: 'text+image->text' } },
         { id: 'gpt-4-audio-preview', name: 'Audio' },
       ],
     }));
 
     const ppqModels = await fetchPpqModels('sk-ppq');
 
-    expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'google/gemini-3.5-flash', 'z-ai/glm-5.2', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k2.7-code', 'perplexity/sonar']);
+    expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'google/gemini-3.5-flash', 'z-ai/glm-5.2', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'moonshotai/kimi-k2.7-code', 'perplexity/sonar']);
     expect(localStorage.getItem('labcharts-ppq-model')).toBe('claude-sonnet-5');
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['google/gemini-3.5-flash']).toEqual({ input: 0.7, output: 3.75 });
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['z-ai/glm-5.2']).toEqual({ input: 1, output: 3.2 });
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k2.7-code']).toEqual({ input: 0.56, output: 3.5 });
+    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3.165, output: 15.825 });
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-4.6');
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-5');
     expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('google/gemini-3.5-flash');
+    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('moonshotai/kimi-k3');
   });
 
   it('uses GPT 5.5 then Claude as fetched defaults and GLM 5.2 for private modes', async () => {
@@ -454,26 +469,37 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.5')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.5-flash')).toBe(true);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.2')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.7-code')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.7-code')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.6')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k3')).toBe(true);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.1-pro')).toBe(false);
     expect(isRecommendedModel('venice', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('venice', 'gemini-3-5-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'zai-org-glm-5-2')).toBe(true);
-    expect(isRecommendedModel('venice', 'kimi-k2-7-code')).toBe(true);
+    expect(isRecommendedModel('venice', 'kimi-k2-7-code')).toBe(false);
+    expect(isRecommendedModel('venice', 'kimi-k2-6')).toBe(false);
+    expect(isRecommendedModel('venice', 'kimi-k3')).toBe(true);
     expect(isRecommendedModel('venice', 'e2ee-qwen3-5-122b')).toBe(true);
     expect(isRecommendedModel('routstr', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('routstr', 'claude-sonnet-4.6')).toBe(true);
     expect(isRecommendedModel('routstr', 'x-ai/grok-4.3')).toBe(true);
+    expect(isRecommendedModel('routstr', 'moonshotai/kimi-k3')).toBe(true);
+    expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.7-code')).toBe(false);
+    expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.6')).toBe(false);
     expect(isRecommendedModel('ppq', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('ppq', 'x-ai/grok-4.3')).toBe(true);
     expect(isRecommendedModel('ppq', 'google/gemini-3.5-flash')).toBe(true);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.2')).toBe(true);
-    expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.7-code')).toBe(true);
+    expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.7-code')).toBe(false);
+    expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.6')).toBe(false);
+    expect(isRecommendedModel('ppq', 'moonshotai/kimi-k3')).toBe(true);
     expect(isRecommendedModel('ppq', 'gemini-3-flash-preview')).toBe(true);
     expect(isRecommendedModel('custom', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('custom', 'gemini-3.5-flash')).toBe(true);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.2')).toBe(true);
-    expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.7-code')).toBe(true);
+    expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.7-code')).toBe(false);
+    expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.6')).toBe(false);
+    expect(isRecommendedModel('custom', 'moonshotai/kimi-k3')).toBe(true);
 
     setAIProvider('openrouter');
     setOpenRouterModel('anthropic/claude-sonnet-4.6:2026-01-01');

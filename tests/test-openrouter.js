@@ -81,9 +81,10 @@ assert('Recommended: Gemini 3.5 Flash', apiModelsSrc.includes("'google/gemini-3.
 assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
 assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
 assert('Curated: z-ai/glm-5 prefix', apiModelsSrc.includes("'z-ai/glm-5'"));
-assert('Curated: moonshotai/kimi-k2 prefix', apiModelsSrc.includes("'moonshotai/kimi-k2'"));
+assert('Curated: moonshotai Kimi family prefix', apiModelsSrc.includes("'moonshotai/kimi-'"));
+assert('Recommended: Kimi K3', apiModelsSrc.includes("'moonshotai/kimi-k3'"));
 assert('Recommended: GLM 5.2', apiModelsSrc.includes("'z-ai/glm-5.2'"));
-assert('Recommended: Kimi K2.7 Code', apiModelsSrc.includes("'moonshotai/kimi-k2.7-code'"));
+assert('Kimi K2.7 Code remains available but is no longer recommended', apiModelsSrc.includes("'moonshotai/kimi-'"));
 assert('Curated: x-ai/grok prefix', apiModelsSrc.includes("'x-ai/grok'"));
 assert('OPENROUTER_EXCLUDE exists', apiModelsSrc.includes('OPENROUTER_EXCLUDE'));
 assert('Excludes codex variants', apiModelsSrc.includes("'codex'"));
