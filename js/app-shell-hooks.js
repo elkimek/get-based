@@ -129,6 +129,7 @@ import { configureSunRuntimeDeps } from './sun-runtime.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
 import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtime.js';
+import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
 
 configureClientListRuntime({
@@ -249,6 +250,7 @@ configureTourRuntimeDeps({ openChatPanel });
 configureSyncPull({ renderProfileButton });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
 configureWearablesConnectRuntimeDeps({ navigate });
+configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureWearableSettingsRuntimeDeps({ navigate });
 configureDashboardAIContextStatus(updateChatContextStatus);
 

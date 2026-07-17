@@ -19,6 +19,7 @@ const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const notesRuntimeSrc = fs.readFileSync(path.join(root, 'js/notes-runtime.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
 const syncPullSrc = fs.readFileSync(path.join(root, 'js/sync-pull.js'), 'utf8');
+const wearableDetailRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-runtime.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -156,6 +157,15 @@ assert('App shell wires remaining Chat open consumers without window globals',
 assert('App shell injects wearable navigation without view bridge lookups',
   appShellHooksSrc.includes('configureWearablesConnectRuntimeDeps({ navigate });')
     && appShellHooksSrc.includes('configureWearableSettingsRuntimeDeps({ navigate });'));
+
+assert('App shell injects wearable detail actions without view bridge lookups',
+  !wearableDetailRuntimeSrc.includes("from './views-runtime-bridge.js'")
+    && !wearableDetailRuntimeSrc.includes('getViewRuntimeFunction')
+    && wearableDetailRuntimeSrc.includes('wearableDetailRuntimeDeps.rememberModalTrigger?.();')
+    && wearableDetailRuntimeSrc.includes("wearableDetailRuntimeDeps.navigate?.(route || 'dashboard');")
+    && wearableDetailRuntimeSrc.includes('wearableDetailRuntimeDeps.closeModal?.();')
+    && appShellHooksSrc.includes("import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';")
+    && appShellHooksSrc.includes('configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });'));
 
 assert('App shell injects category customization view callbacks',
   appShellHooksSrc.includes('configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });'));
