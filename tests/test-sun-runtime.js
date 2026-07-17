@@ -18,7 +18,6 @@ import {
   renderLightTodayStripRuntime,
   requestSunGeolocationPositionRuntime,
 } from '../js/sun-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 const originalSunRuntimeDeps = configureSunRuntimeDeps();
 
@@ -33,16 +32,10 @@ console.log('=== Sun Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'navigator',
-  'navigate',
-  'renderLightChannelsLive',
-  'renderLightTodayStrip',
-  '_openChannelOnLightPage',
   'addEventListener',
-  'isDebugMode',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const savedImportedData = state.importedData;
-let previousViewRuntime = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -65,16 +58,16 @@ try {
   const calls = [];
   const deviceSessions = [{ id: 'device-1', doses: { vitamin_d: 12 } }];
   state.importedData = { deviceSessions };
-  previousViewRuntime = configureViewRuntime({
+  configureSunRuntimeDeps({
     buildSidebar: () => calls.push(['sidebar']),
+    isDebugMode: () => true,
+    navigate: (view, options) => calls.push(['navigate', view, options?.scrollAnchor]),
+    openChannelOnLightPage: channel => calls.push(['channel', channel]),
+    renderLightChannelsLive: () => calls.push(['channels-live']),
+    renderLightTodayStrip: () => '<section>today</section>',
   });
-  setRuntimeValue('navigate', (view, options) => calls.push(['navigate', view, options?.scrollAnchor]));
-  setRuntimeValue('renderLightChannelsLive', () => calls.push(['channels-live']));
-  setRuntimeValue('renderLightTodayStrip', () => '<section>today</section>');
-  setRuntimeValue('_openChannelOnLightPage', channel => calls.push(['channel', channel]));
   const profileListener = () => calls.push(['profile-switch']);
   setRuntimeValue('addEventListener', (type, listener) => calls.push(['listener', type, listener]));
-  configureSunRuntimeDeps({ isDebugMode: () => true });
 
   assert('hasSunBrowserRuntime detects browser runtime',
     hasSunBrowserRuntime() === true);
@@ -89,7 +82,7 @@ try {
     renderLightTodayStripRuntime() === '<section>today</section>');
   openSunChannelOnLightPageRuntime('vitamin_d');
   addSunProfileSwitchListener(profileListener);
-  assert('sun runtime UI hooks delegate to browser globals',
+  assert('sun runtime UI hooks delegate to injected callbacks',
     calls.some(call => call[0] === 'sidebar') &&
     calls.some(call => call[0] === 'navigate' && call[1] === 'light' && call[2] === 'light-session-log') &&
     calls.some(call => call[0] === 'channels-live') &&
@@ -117,12 +110,14 @@ try {
     !runtimeSource.includes('exposeSunRuntimeBindings') && !runtimeSource.includes('Object.assign(runtime'));
 
   state.importedData = { deviceSessions: [] };
-  setRuntimeValue('renderLightTodayStrip', () => { throw new Error('boom'); });
-  configureViewRuntime({ buildSidebar: () => { throw new Error('boom'); } });
-  setRuntimeValue('navigate', () => { throw new Error('boom'); });
-  setRuntimeValue('renderLightChannelsLive', () => { throw new Error('boom'); });
-  setRuntimeValue('_openChannelOnLightPage', () => { throw new Error('boom'); });
-  configureSunRuntimeDeps({ isDebugMode: () => { throw new Error('boom'); } });
+  configureSunRuntimeDeps({
+    buildSidebar: () => { throw new Error('boom'); },
+    isDebugMode: () => { throw new Error('boom'); },
+    navigate: () => { throw new Error('boom'); },
+    openChannelOnLightPage: () => { throw new Error('boom'); },
+    renderLightChannelsLive: () => { throw new Error('boom'); },
+    renderLightTodayStrip: () => { throw new Error('boom'); },
+  });
   rebuildSunSidebarRuntime();
   navigateSunRuntime('dashboard');
   renderLightChannelsLiveRuntime();
@@ -145,7 +140,14 @@ try {
     rejected === true);
 
   delete globalThis.window;
-  configureViewRuntime({ buildSidebar: null });
+  configureSunRuntimeDeps({
+    buildSidebar: null,
+    isDebugMode: null,
+    navigate: null,
+    openChannelOnLightPage: null,
+    renderLightChannelsLive: null,
+    renderLightTodayStrip: null,
+  });
   const beforeNoWindowCalls = calls.length;
   rebuildSunSidebarRuntime();
   navigateSunRuntime('light');
@@ -157,7 +159,6 @@ try {
     renderLightTodayStripRuntime() === '' &&
     calls.length === beforeNoWindowCalls);
 } finally {
-  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   state.importedData = savedImportedData;
   configureSunRuntimeDeps(originalSunRuntimeDeps);
   restoreRuntime();
