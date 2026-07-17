@@ -3,28 +3,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   closeNoteModalRuntime,
-  isNoteActionDelegatesBoundRuntime,
-  markNoteActionDelegatesBoundRuntime,
+  configureNotesRuntimeDeps,
   navigateAfterNoteChangeRuntime,
   rememberNoteModalTriggerRuntime,
 } from '../js/notes-runtime.js';
 
-const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-
-function setRuntimeWindow(runtime) {
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    writable: true,
-    value: runtime,
-  });
-}
-
 afterEach(() => {
-  if (savedWindow) {
-    Object.defineProperty(globalThis, 'window', savedWindow);
-  } else {
-    delete globalThis.window;
-  }
+  configureNotesRuntimeDeps({
+    closeModal: null,
+    navigate: null,
+    rememberModalTrigger: null,
+  });
 });
 
 describe('notes runtime adapter', () => {
@@ -32,7 +21,7 @@ describe('notes runtime adapter', () => {
     const closeModal = vi.fn();
     const rememberModalTrigger = vi.fn();
     const navigate = vi.fn();
-    setRuntimeWindow({ closeModal, rememberModalTrigger, navigate });
+    configureNotesRuntimeDeps({ closeModal, rememberModalTrigger, navigate });
 
     closeNoteModalRuntime();
     rememberNoteModalTriggerRuntime();
@@ -45,36 +34,42 @@ describe('notes runtime adapter', () => {
     expect(navigate).toHaveBeenNthCalledWith(2, 'dashboard');
   });
 
-  it('tracks delegated action binding', () => {
-    const runtime = {};
-    setRuntimeWindow(runtime);
+  it('returns the previous dependencies for scoped configuration', () => {
+    const closeModal = vi.fn();
+    const previous = configureNotesRuntimeDeps({ closeModal });
+    const configured = configureNotesRuntimeDeps(previous);
 
-    expect(isNoteActionDelegatesBoundRuntime()).toBe(false);
-    expect(markNoteActionDelegatesBoundRuntime()).toBe(true);
-    expect(isNoteActionDelegatesBoundRuntime()).toBe(true);
+    expect(previous).toEqual({ closeModal: null, rememberModalTrigger: null, navigate: null });
+    expect(configured.closeModal).toBe(closeModal);
   });
 
-  it('uses safe fallbacks when browser runtime hooks are missing', () => {
-    delete globalThis.window;
+  it('uses safe fallbacks when application callbacks are missing', () => {
+    configureNotesRuntimeDeps({ closeModal: null, navigate: null, rememberModalTrigger: null });
 
     expect(() => closeNoteModalRuntime()).not.toThrow();
     expect(() => rememberNoteModalTriggerRuntime()).not.toThrow();
     expect(() => navigateAfterNoteChangeRuntime('dashboard')).not.toThrow();
-    expect(isNoteActionDelegatesBoundRuntime()).toBe(false);
-    expect(markNoteActionDelegatesBoundRuntime()).toBe(false);
   });
 
   it('keeps note actions module-only behind explicit dashboard callbacks', () => {
     const notesSrc = readFileSync(new URL('../js/notes.js', import.meta.url), 'utf8');
     const runtimeSrc = readFileSync(new URL('../js/notes-runtime.js', import.meta.url), 'utf8');
+    const appShellHooksSrc = readFileSync(new URL('../js/app-shell-hooks.js', import.meta.url), 'utf8');
     const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 
     expect(notesSrc).toContain("from './notes-runtime.js'");
     expect(notesSrc).toContain("from './dashboard-widget-runtime.js'");
     expect(notesSrc).toContain('configureDashboardNoteActions({ openNoteEditor, deleteNote });');
     expect(notesSrc).not.toContain('exposeNoteEditorRuntime');
+    expect(notesSrc).not.toContain('isNoteActionDelegatesBoundRuntime');
+    expect(notesSrc).not.toContain('markNoteActionDelegatesBoundRuntime');
     expect(/\bwindow(?:\.|\s*\[)/.test(notesSrc)).toBe(false);
     expect(/\bwindow(?:\.|\s*\[)/.test(runtimeSrc)).toBe(false);
+    expect(runtimeSrc).not.toContain("from './views-runtime-bridge.js'");
+    expect(runtimeSrc).not.toContain('getViewRuntimeFunction');
+    expect(runtimeSrc).toContain('export function configureNotesRuntimeDeps(deps = {})');
+    expect(appShellHooksSrc).toContain("import { configureNotesRuntimeDeps } from './notes-runtime.js';");
+    expect(appShellHooksSrc).toContain('configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });');
     expect(swSrc).toContain("'/js/notes-runtime.js'");
   });
 });

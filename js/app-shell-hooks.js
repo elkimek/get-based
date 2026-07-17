@@ -86,10 +86,11 @@ import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
 import { configureLensPageShell } from './lens-page-shell.js';
-import { closeModal } from './marker-detail-modal.js';
+import { closeModal, rememberModalTrigger } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton, toggleMobileSidebar } from './nav.js';
 import { configureNavRuntime } from './nav-runtime.js';
+import { configureNotesRuntimeDeps } from './notes-runtime.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
 import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime, openSettingsModal } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
@@ -179,6 +180,7 @@ configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, us
 configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
 configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
 configureLensPageShell({ navigate });
+configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
