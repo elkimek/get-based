@@ -2,13 +2,16 @@ import { expect, test } from './coverage-fixture.js';
 
 test('chat action bars, clipboard, and context toggles work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => !!window._labState);
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return !!state;
+  });
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const chatActions = await import('/js/chat-actions.js');
     const chatRender = await import('/js/chat-render.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const originalHistory = JSON.parse(JSON.stringify(state.chatHistory || []));
     const outcomes = {};
 
@@ -145,7 +148,10 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
 
 test('chat action browser coverage handles copy and regenerate branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => !!window._labState);
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return !!state;
+  });
 
   const results = await page.evaluate(async () => {
     const [chatActions, chatRuntime, chatThreads] = await Promise.all([
@@ -153,7 +159,7 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       import('/js/chat-runtime.js'),
       import('/js/chat-threads.js'),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const copied = [];
     const threadStorageKey = state.currentThreadId

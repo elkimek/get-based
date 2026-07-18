@@ -11,7 +11,10 @@ async function prepareApp(page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => !!window._labState);
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return !!state;
+  });
 }
 
 test('lens page shell default dashboard deps render fallback widgets', async ({ page }) => {
