@@ -19,7 +19,6 @@ import {
   scheduleRecommendationsTask,
   setRecommendationsCatalogCache,
 } from '../js/recommendations-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -37,7 +36,6 @@ function assert(name, condition, detail = '') {
 console.log('=== Recommendations Runtime Tests ===');
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-let previousViewRuntime = null;
 let previousRecommendationModule = null;
 
 function setRuntime(value) {
@@ -57,14 +55,9 @@ function restoreWindow() {
 try {
   const snpTable = { rs123: { snpHints: {} } };
   const calls = [];
-  previousViewRuntime = configureViewRuntime({
-    closeModal: () => calls.push(['bridge-close']),
-  });
   const runtime = {
     _snpTableCache: snpTable,
-    closeModal() { calls.push(['close', this === runtime]); },
     openProfileLocationEditor() { calls.push(['location', this === runtime]); },
-    openSettingsTab(tab) { calls.push(['settings', tab, this === runtime]); },
     openChatPanel(prompt) { calls.push(['chat', prompt, this === runtime]); },
   };
   previousRecommendationModule = configureRecommendationModuleBridge({
@@ -84,9 +77,11 @@ try {
   });
   setRuntime(runtime);
   const restoreRecommendationsRuntime = configureRecommendationsRuntime({
+    closeModal: () => calls.push(['close']),
     openEMFAssessmentEditor: () => calls.push(['emf', true]),
     openChatPanel: prompt => runtime.openChatPanel(prompt),
     openProfileLocationEditor: () => runtime.openProfileLocationEditor(),
+    openSettingsModal: tab => calls.push(['settings', tab]),
   });
 
   const timerId = scheduleRecommendationsTask(() => calls.push(['task']), 125);
@@ -113,10 +108,10 @@ try {
       openRecommendationsEmfAssessment() &&
       openRecommendationsLocationEditor() &&
       openRecommendationsPrivacySettings() &&
-      calls.some(call => call[0] === 'close' && call[1] === true) &&
+      calls.some(call => call[0] === 'close') &&
       calls.some(call => call[0] === 'emf' && call[1] === true) &&
       calls.some(call => call[0] === 'location' && call[1] === true) &&
-      calls.some(call => call[0] === 'settings' && call[1] === 'privacy' && call[2] === true));
+      calls.some(call => call[0] === 'settings' && call[1] === 'privacy'));
   assert('recommendations runtime delegates timers with browser binding',
     timerId === 17 &&
       calls.some(call => call[0] === 'timeout' && call[1] === 125 && call[2] === true) &&
@@ -133,11 +128,13 @@ try {
   assert('recommendation module bridge snapshots remove newly added callbacks on restore',
     probeRegistered && getRecommendationModuleFunction('recommendationProbe') === null);
 
-  delete runtime.closeModal;
   delete runtime.openProfileLocationEditor;
-  configureRecommendationsRuntime({ openProfileLocationEditor: null });
-  delete runtime.openSettingsTab;
-  configureRecommendationsRuntime({ openChatPanel: null });
+  configureRecommendationsRuntime({
+    closeModal: null,
+    openChatPanel: null,
+    openProfileLocationEditor: null,
+    openSettingsModal: null,
+  });
   configureRecommendationModuleBridge({
     isProductRecsEnabled: null,
     loadCatalog: null,
@@ -150,8 +147,7 @@ try {
       isRecommendationsProductRecsEnabled() === false &&
       await loadRecommendationsCatalogRuntime() === null &&
       await renderRecommendationsDetailSection('missing.slot', {}) === '' &&
-      closeRecommendationsModal() === true &&
-      calls.some(call => call[0] === 'bridge-close') &&
+      closeRecommendationsModal() === false &&
       openRecommendationsChatPanel('No-op') === false &&
       openRecommendationsEmfAssessment() === true &&
       openRecommendationsLocationEditor() === false &&
@@ -174,7 +170,6 @@ try {
     ...previousRecommendationModule,
   });
   setRecommendationsCatalogCache(null);
-  if (previousViewRuntime?.closeModal) configureViewRuntime(previousViewRuntime);
   restoreWindow();
 }
 

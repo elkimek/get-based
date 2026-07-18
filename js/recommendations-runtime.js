@@ -2,12 +2,13 @@
 // recommendations-runtime.js - Browser runtime adapters for recommendation hooks.
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const recommendationsRuntimeDeps = {
+  closeModal: /** @type {null | (() => unknown)} */ (null),
   openEMFAssessmentEditor,
   openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
   openProfileLocationEditor: null,
+  openSettingsModal: /** @type {null | ((tab?: string) => unknown)} */ (null),
 };
 
 /** @type {Record<string, (...args: any[]) => any>} */
@@ -50,6 +51,11 @@ export function setRecommendationsCatalogCache(catalog) {
 
 export function configureRecommendationsRuntime(deps = {}) {
   const previous = { ...recommendationsRuntimeDeps };
+  if ('closeModal' in deps) {
+    recommendationsRuntimeDeps.closeModal = typeof deps.closeModal === 'function'
+      ? /** @type {() => unknown} */ (deps.closeModal)
+      : null;
+  }
   if (typeof deps.openEMFAssessmentEditor === 'function') {
     recommendationsRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
   }
@@ -63,6 +69,11 @@ export function configureRecommendationsRuntime(deps = {}) {
       ? deps.openProfileLocationEditor
       : null;
   }
+  if ('openSettingsModal' in deps) {
+    recommendationsRuntimeDeps.openSettingsModal = typeof deps.openSettingsModal === 'function'
+      ? /** @type {(tab?: string) => unknown} */ (deps.openSettingsModal)
+      : null;
+  }
   return previous;
 }
 
@@ -70,17 +81,6 @@ function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 export function getRecommendationsSnpTable() {
@@ -109,7 +109,7 @@ export async function renderRecommendationsDetailSection(slotKey, options) {
 }
 
 export function closeRecommendationsModal() {
-  const closeModal = getRuntimeFunction('closeModal');
+  const closeModal = recommendationsRuntimeDeps.closeModal;
   if (!closeModal) return false;
   closeModal();
   return true;
@@ -135,9 +135,9 @@ export function openRecommendationsLocationEditor() {
 }
 
 export function openRecommendationsPrivacySettings() {
-  const openSettingsTab = getRuntimeFunction('openSettingsTab');
-  if (!openSettingsTab) return false;
-  openSettingsTab('privacy');
+  const openSettingsModal = recommendationsRuntimeDeps.openSettingsModal;
+  if (!openSettingsModal) return false;
+  openSettingsModal('privacy');
   return true;
 }
 
