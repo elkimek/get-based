@@ -6,6 +6,8 @@ import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMod
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
 import { loadPdfImport } from './import-loader.js';
 import { isSnapshotDerivedHOMAIR } from './lab-entry.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { getImportBenchmarks } from './import-benchmarks.js';
 
 export function renderDataEntriesSection() {
   const snapshots = state.importedData?.importSnapshots || [];
@@ -141,6 +143,132 @@ function formatTokens(n) {
   return String(n);
 }
 
+function getImportBenchmarkSnapshots() {
+  const attempts = getImportBenchmarks();
+  const snapshots = state.importedData?.importSnapshots || [];
+  const legacy = snapshots.filter(snap => snap?.timings && snap?.costInfo?.modelId && !attempts.some(item => item.id === snap.benchmarkId));
+  return [...attempts, ...legacy].sort((a, b) => (b.benchmarkAt || b.importedAt || 0) - (a.benchmarkAt || a.importedAt || 0));
+}
+
+function formatBenchmarkDuration(ms) {
+  const value = Math.max(0, Number(ms) || 0);
+  if (value < 1000) return `${Math.round(value)} ms`;
+  if (value < 60_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)} s`;
+  const minutes = Math.floor(value / 60_000);
+  const seconds = Math.round((value % 60_000) / 1000);
+  return `${minutes}m ${seconds}s`;
+}
+
+function formatOptionalBenchmarkDuration(ms) {
+  return Number(ms) > 0 ? formatBenchmarkDuration(ms) : '\u2014';
+}
+
+function benchmarkFallbackLabel(diagnostics) {
+  const fallbacks = [];
+  if (diagnostics?.structuredOutputFallback) fallbacks.push('schema retry');
+  if (diagnostics?.streamFallback) fallbacks.push('stream retry');
+  if (diagnostics?.reasoningControlFallback) fallbacks.push('reasoning retry');
+  if (diagnostics?.nativeContextOverride) fallbacks.push('context override');
+  return fallbacks.length ? fallbacks.join(' + ') : 'direct';
+}
+
+function renderImportBenchmarkCards(snapshots) {
+  if (snapshots.length === 0) {
+    return `<div class="import-benchmarks-empty">
+      No benchmark runs yet. Confirm a new AI import to record its model, timing, token, and result metrics here.
+    </div>`;
+  }
+
+  return snapshots.map(snap => {
+    const analysisMs = Number.isFinite(Number(snap.timings?.analysisMs))
+      ? Number(snap.timings.analysisMs)
+      : (Number(snap.timings?.analysis) || 0) * 1000;
+    const piiMs = Number.isFinite(Number(snap.timings?.piiMs))
+      ? Number(snap.timings.piiMs)
+      : (Number(snap.timings?.pii) || 0) * 1000;
+    const inputTokens = Number(snap.usage?.inputTokens ?? snap.costInfo?.inputTokens) || 0;
+    const outputTokens = Number(snap.usage?.outputTokens ?? snap.costInfo?.outputTokens) || 0;
+    const reasoningTokens = Number(snap.usage?.reasoningTokens) || 0;
+    const measuredThroughput = Number(snap.generationTokensPerSecond) || 0;
+    const endToEndRate = analysisMs > 0 && outputTokens > 0 ? outputTokens / (analysisMs / 1000) : 0;
+    const throughput = measuredThroughput > 0 ? `${measuredThroughput.toFixed(1)} tok/s` : endToEndRate > 0 ? `${endToEndRate.toFixed(1)} tok/s e2e` : '\u2014';
+    const recordedAt = Number(snap.benchmarkAt || snap.importedAt);
+    const recordedLabel = Number.isFinite(recordedAt)
+      ? new Date(recordedAt).toLocaleString()
+      : 'Unknown time';
+    const mode = snap.importMode === 'image' ? 'image' : 'text';
+    const fallbackLabel = benchmarkFallbackLabel(snap.diagnostics);
+    const modelId = snap.modelId || snap.costInfo?.modelId || 'unknown';
+    const provider = snap.provider || snap.costInfo?.provider || 'unknown';
+    const status = snap.status || 'confirmed';
+    const statusLabel = fallbackLabel === 'direct' ? status : `${status} \u00b7 ${fallbackLabel}`;
+    const contextLength = Number(snap.runtime?.contextLength || snap.diagnostics?.contextLength) || 0;
+    const quant = snap.runtime?.quantLevel || '';
+    const executionLocation = snap.runtime?.executionLocation || '';
+    const totalMs = Number(snap.totalMs) || analysisMs + piiMs;
+    const resultQuality = snap.correctedMappingCount != null
+      ? `${Number(snap.correctedMappingCount)} corrected \u00b7 ${Number(snap.excludedMarkerCount) || 0} excluded`
+      : '\u2014';
+    return `<article class="import-benchmark-card">
+      <div class="import-benchmark-head">
+        <div>
+          <div class="import-benchmark-file" title="${escapeAttr(snap.fileName || 'Unknown file')}">${escapeHTML(snap.fileName || 'Unknown file')}</div>
+          <div class="import-benchmark-date">${escapeHTML(recordedLabel)}</div>
+        </div>
+        <span class="import-benchmark-status${status !== 'confirmed' || fallbackLabel !== 'direct' ? ' retried' : ''}">${escapeHTML(statusLabel)}</span>
+      </div>
+      <div class="import-benchmark-grid">
+        <div><span>Model</span><strong title="${escapeAttr(modelId)}">${escapeHTML(modelId)}</strong></div>
+        <div><span>Provider / mode</span><strong>${escapeHTML(provider)} \u00b7 ${mode}</strong></div>
+        <div><span>Total attempt</span><strong>${formatBenchmarkDuration(totalMs)}</strong></div>
+        <div><span>AI analysis</span><strong>${formatBenchmarkDuration(analysisMs)}</strong></div>
+        <div><span>PII preparation</span><strong>${formatBenchmarkDuration(piiMs)}</strong></div>
+        <div><span>Tokens</span><strong>${formatTokens(inputTokens)} in \u00b7 ${formatTokens(outputTokens)} out${reasoningTokens ? ` \u00b7 ${formatTokens(reasoningTokens)} reasoning` : ''}</strong></div>
+        <div><span>${measuredThroughput > 0 ? 'Generation speed' : 'Output rate'}</span><strong>${throughput}</strong></div>
+        <div><span>${status === 'confirmed' ? 'Imported markers' : 'Detected markers'}</span><strong>${Number(snap.importedMarkerCount ?? snap.markerCount) || 0}</strong></div>
+        <div><span>Input</span><strong>${Number(snap.inputChars) ? `${formatTokens(Number(snap.inputChars))} chars` : '\u2014'}${Number(snap.pageCount) ? ` \u00b7 ${Number(snap.pageCount)} pages` : ''}</strong></div>
+        <div><span>Runtime</span><strong>${contextLength ? `${formatTokens(contextLength)} ctx` : 'ctx unknown'}${quant ? ` \u00b7 ${escapeHTML(quant)}` : ''}${executionLocation ? ` \u00b7 ${escapeHTML(executionLocation)}` : ''}</strong></div>
+        <div><span>Review changes</span><strong>${resultQuality}</strong></div>
+        <div><span>Load / TTFT</span><strong>${formatOptionalBenchmarkDuration(snap.timings?.modelLoadMs)} / ${formatOptionalBenchmarkDuration(snap.timings?.timeToFirstTokenMs)}</strong></div>
+        ${snap.error ? `<div style="grid-column:1/-1"><span>Error</span><strong>${escapeHTML(snap.error)}</strong></div>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+}
+
+export function closeImportBenchmarksModal() {
+  const overlay = document.getElementById('import-benchmarks-overlay');
+  if (overlay) removeModalOverlay(overlay);
+}
+
+export function openImportBenchmarksModal() {
+  if (!isDebugMode()) return false;
+  closeImportBenchmarksModal();
+  const snapshots = getImportBenchmarkSnapshots();
+  const overlay = document.createElement('div');
+  overlay.id = 'import-benchmarks-overlay';
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal import-benchmarks-modal" role="dialog" aria-modal="true" aria-labelledby="import-benchmarks-title">
+    <div class="gb-modal-head">
+      <div>
+        <div class="gb-modal-kicker">Local diagnostics</div>
+        <div class="gb-modal-title" id="import-benchmarks-title">Import Benchmarks</div>
+      </div>
+      <button type="button" class="modal-close" data-import-benchmarks-action="close" aria-label="Close import benchmarks">&times;</button>
+    </div>
+    <div class="import-benchmarks-body">
+      <p class="import-benchmarks-note">Recent attempts include failures and cancellations so model comparisons are not biased toward successes. AI analysis excludes file extraction and review time; PII preparation is measured separately. Diagnostics stay in this profile's local storage and are not sent to analytics.</p>
+      <div class="import-benchmarks-list">${renderImportBenchmarkCards(snapshots)}</div>
+    </div>
+  </div>`;
+  overlay.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-import-benchmarks-action="close"]')) closeImportBenchmarksModal();
+  });
+  openAppendedModalOverlay(overlay, closeImportBenchmarksModal, { initialFocus: '.modal-close', focusDelay: 30 });
+  return true;
+}
+
 export function renderAIUsageSection() {
   const pu = getProfileUsage(state.currentProfile);
   const gu = getGlobalUsage();
@@ -152,6 +280,13 @@ export function renderAIUsageSection() {
   html += '</div>';
   if (pu.requestCount > 0) {
     html += `<button class="import-btn import-btn-secondary" style="margin-top:8px;font-size:11px" data-settings-action="reset-profile-usage">Reset profile usage</button>`;
+  }
+  if (isDebugMode()) {
+    const benchmarkCount = getImportBenchmarkSnapshots().length;
+    html += `<div class="import-benchmarks-entrypoint">
+      <div><strong>Import diagnostics</strong><span>${benchmarkCount} recorded run${benchmarkCount === 1 ? '' : 's'}</span></div>
+      <button type="button" class="import-btn import-btn-secondary" data-settings-action="open-import-benchmarks">View benchmarks</button>
+    </div>`;
   }
   return html;
 }

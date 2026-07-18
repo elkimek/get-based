@@ -23,6 +23,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       'labcharts-ollama-model',
       'labcharts-ollama-pii-url',
       'labcharts-ollama-pii-model',
+      'labcharts-ollama-pii-key',
       'labcharts-ollama-pii-enabled',
       'labcharts-hw-vram-override',
     ];
@@ -62,6 +63,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
           </div>
           <div id="local-ai-advisor"></div>
           <input id="pii-local-url-input">
+          <input id="pii-local-apikey-input" value="sk-pii-local">
           <span id="pii-local-dot" class="local-ai-status-dot"></span>
           <span id="pii-local-status-text"></span>
           <input id="pii-local-toggle" type="checkbox">
@@ -85,10 +87,16 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
             data: [{ id: 'llama3.2', name: 'Llama 3.2', size: 3200000000 }],
           });
         }
+        if (href === 'http://localhost:11434/api/v1/models') {
+          return jsonResponse({ error: 'unsupported' }, 404);
+        }
         if (href === 'http://localhost:11434/api/tags') {
           return jsonResponse({
             models: [{ name: 'llama3.2', size: 3200000000, details: { parameter_size: '3B', quantization_level: 'Q4_K_M', family: 'llama' } }],
           });
+        }
+        if (href === 'http://localhost:11434/api/ps') {
+          return jsonResponse({ models: [{ name: 'llama3.2', size_vram: 2800000000, context_length: 8192 }] });
         }
         return oldGlobals.fetch.call(window, url, opts);
       };
@@ -139,6 +147,9 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
             ],
           });
         }
+        if (href === 'http://localhost:11434/api/v1/models') {
+          return jsonResponse({ error: 'unsupported' }, 404);
+        }
         if (href === 'http://localhost:11434/api/tags') {
           return jsonResponse({
             models: [
@@ -147,9 +158,15 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
             ],
           });
         }
+        if (href === 'http://localhost:11434/api/ps') {
+          return jsonResponse({
+            models: [{ name: 'qwen2.5:14b', size_vram: 8700000000, context_length: 16384 }],
+          });
+        }
         return oldGlobals.fetch.call(window, url, opts);
       };
       urlInput.value = ' http://localhost:11434/ ';
+      providerStorage.setOllamaMainModel('kimi-k2.5:cloud');
       await controls.testOllamaConnection();
       await wait(0);
       const localConnectSuccess = statusText.textContent.includes('Connected')
@@ -160,6 +177,14 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && localFetchCount >= 1
         && privacyUpdates >= 1
         && chatReturns === 1;
+      const staleLocalModelReconciled = providerStorage.getOllamaMainModel() === 'llama3.2'
+        && statusText.textContent.includes('llama3.2')
+        && !statusText.textContent.includes('kimi-k2.5:cloud');
+      const ollamaAllocationDisplayed = document.getElementById('local-ai-advisor')?.textContent.includes('currently allocated')
+        && document.getElementById('local-ai-advisor')?.textContent.includes('8.7 GB VRAM')
+        && document.getElementById('local-ai-advisor')?.textContent.includes('loaded now')
+        && document.getElementById('local-ai-advisor')?.textContent.includes('available \u2014 loads on first request')
+        && !document.getElementById('local-ai-advisor')?.textContent.includes('not loaded');
 
       document.getElementById('local-ai-advisor').innerHTML = '';
       controls.refreshModelAdvisor();
@@ -196,12 +221,13 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       document.getElementById('pii-local-url-input').value = 'http://localhost:11434';
       await controls.testPIIOllamaConnection();
-      const piiConnectSuccess = document.getElementById('pii-local-status-text')?.textContent.includes('Connected')
+      const piiConnectSuccess = document.getElementById('pii-local-status-text')?.textContent.includes('Connection verified')
         && document.getElementById('pii-local-dot')?.classList.contains('connected')
-        && document.getElementById('pii-local-toggle')?.checked === true
+        && document.getElementById('pii-local-toggle')?.checked === false
         && document.getElementById('pii-model-dropdown')?.style.display === 'block'
         && document.getElementById('pii-model-select')?.options.length === 2
-        && localStorage.getItem('labcharts-ollama-pii-enabled') === 'true';
+        && localStorage.getItem('labcharts-ollama-pii-enabled') !== 'true'
+        && providerStorage.getOllamaPIIApiKey() === 'sk-pii-local';
 
       await providerStorage.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
       document.getElementById('local-ai-model-select').innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
@@ -217,6 +243,8 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         invalidUrlBranch,
         corsHelp,
         localConnectSuccess,
+        staleLocalModelReconciled,
+        ollamaAllocationDisplayed,
         refreshModelAdvisorRerendersCachedDetails,
         copyPullCommand,
         hardwareOverrideKeyboardToggle,

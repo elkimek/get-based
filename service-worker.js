@@ -127,6 +127,8 @@ const APP_SHELL = [
   '/js/data.js',
   '/js/marker-analysis.js',
   '/js/blob-storage.js',
+  '/js/local-ai-discovery.js',
+  '/js/import-benchmarks.js',
   '/js/data-merge.js',
   '/js/pii.js',
   '/js/charts-runtime.js',

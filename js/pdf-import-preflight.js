@@ -6,6 +6,7 @@ import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider, setAIPro
 import { detectProduct, getAdapterByTestType } from './adapters.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { IMPORT_CLASSIFICATION_JSON_SCHEMA } from './pdf-import-ai-utils.js';
 
 function ensurePreflightOverlay() {
   let overlay = document.getElementById('confirm-dialog-overlay');
@@ -162,7 +163,12 @@ Always include "labName" if you can identify the lab or product name from the te
 
 First ~2000 characters of the PDF:
 ${snippet}` }],
-      maxTokens: 80
+      maxTokens: 80,
+      minOutputTokens: 64,
+      jsonMode: true,
+      jsonSchema: IMPORT_CLASSIFICATION_JSON_SCHEMA,
+      reasoningEffort: 'none',
+      temperature: 0,
     });
     const text = (response || '').trim();
     const json = text.match(/\{[^}]*\}/);

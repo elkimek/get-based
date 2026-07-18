@@ -24,6 +24,8 @@ vi.mock('../vendor/venice-e2ee.js', () => ({
 }));
 
 import { updateKeyCache } from '../js/crypto.js';
+import { checkOpenAICompatible, clearLocalAiDiscovery, discoverLocalAI } from '../js/local-ai-discovery.js';
+import { estimateLocalAiPromptTokens } from '../js/api-local.js';
 import {
   callClaudeAPI,
   fetchRoutstrModels,
@@ -130,6 +132,7 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   clearProviderKeyCaches();
+  clearLocalAiDiscovery();
   globalThis.fetch = vi.fn(async () => chatCompletionResponse());
   Object.defineProperty(globalThis, 'location', {
     configurable: true,
@@ -155,6 +158,7 @@ afterEach(() => {
   if (realLocationDescriptor) Object.defineProperty(globalThis, 'location', realLocationDescriptor);
   else delete globalThis.location;
   clearProviderKeyCaches();
+  clearLocalAiDiscovery();
   vi.restoreAllMocks();
 });
 
@@ -295,7 +299,13 @@ const providerContracts = [
       expect(request.body).toMatchObject({
         model: 'llama3.2',
         max_tokens: 32,
-        response_format: { type: 'json_object' },
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'structured_response',
+            schema: { type: 'object' },
+          },
+        },
       });
     },
   },
@@ -305,17 +315,213 @@ describe('AI provider request contracts', () => {
   it.each(providerContracts)('routes $name through its expected chat-completion contract', async (contract) => {
     contract.setup();
 
-    await expect(callClaudeAPI(baseChatOptions(contract.options))).resolves.toEqual({
+    const result = await callClaudeAPI(baseChatOptions(contract.options));
+    expect(result).toMatchObject({
       text: 'contract ok',
       usage: { inputTokens: 11, outputTokens: 13 },
       finishReason: 'stop',
       truncated: false,
     });
 
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const postCalls = globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(postCalls).toHaveLength(1);
     const request = providerRequestFromFetchCall();
     contract.assertRequest(request);
     expect(JSON.stringify(request.body)).not.toContain(contract.key);
+  });
+
+  it('retries Local AI JSON requests without structured output when the server rejects it', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('llama3.2');
+    let postCount = 0;
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method !== 'POST') {
+        if (String(url).endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'llama3.2' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      postCount++;
+      if (postCount === 1) {
+        return jsonResponse({ error: { message: 'structured output is not supported by this model' } }, { status: 400 });
+      }
+      return chatCompletionResponse('{"ok":true}');
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({ jsonMode: true }))).resolves.toMatchObject({
+      text: '{"ok":true}',
+      diagnostics: { structuredOutputFallback: true },
+    });
+
+    const postCalls = globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(postCalls).toHaveLength(2);
+    const firstBody = JSON.parse(postCalls[0][1].body);
+    const fallbackBody = JSON.parse(postCalls[1][1].body);
+    expect(firstBody.response_format.type).toBe('json_schema');
+    expect(fallbackBody).not.toHaveProperty('response_format');
+  });
+
+  it('keeps the context-planned output cap for Local AI thinking models', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('thinkingcap-qwen3.6-27b');
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method !== 'POST') {
+        if (String(url).endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      return chatCompletionResponse('short answer');
+    });
+
+    await callClaudeAPI(baseChatOptions({ maxTokens: 512, reasoningEffort: 'none' }));
+
+    const postCall = globalThis.fetch.mock.calls.find(([, init]) => init?.method === 'POST');
+    const body = JSON.parse(postCall[1].body);
+    expect(body.max_tokens).toBe(512);
+    expect(body.reasoning_effort).toBe('none');
+  });
+
+  it('can remove both unsupported schema and reasoning controls in validation-only retries', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('llama3.2');
+    let postCount = 0;
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method !== 'POST') {
+        if (String(url).endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'llama3.2' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      postCount++;
+      if (postCount === 1) return jsonResponse({ error: { message: 'response_format json_schema unsupported' } }, { status: 400 });
+      if (postCount === 2) return jsonResponse({ error: { message: 'reasoning_effort is invalid' } }, { status: 422 });
+      return chatCompletionResponse('{"ok":true}');
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({ jsonMode: true, reasoningEffort: 'none' }))).resolves.toMatchObject({
+      diagnostics: { structuredOutputFallback: true, reasoningControlFallback: true },
+    });
+
+    const bodies = globalThis.fetch.mock.calls
+      .filter(([, init]) => init?.method === 'POST')
+      .map(([, init]) => JSON.parse(init.body));
+    expect(bodies).toHaveLength(3);
+    expect(bodies[0]).toHaveProperty('response_format');
+    expect(bodies[1]).not.toHaveProperty('response_format');
+    expect(bodies[1]).toHaveProperty('reasoning_effort');
+    expect(bodies[2]).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('budgets vision inputs and deduplicates LM Studio loaded-instance aliases', async () => {
+    const imageEstimate = estimateLocalAiPromptTokens({
+      system: 'extract',
+      messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }] }],
+    });
+    expect(imageEstimate).toBeGreaterThan(1600);
+
+    globalThis.fetch = vi.fn(async url => {
+      if (String(url).endsWith('/api/v1/models')) {
+        return jsonResponse({ models: [
+          {
+            type: 'llm',
+            key: 'thinkingcap-qwen3.6-27b@q4_k_m',
+            size_bytes: 17_741_858_944,
+            quantization: { name: 'Q4_K_M' },
+            loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+            max_context_length: 262144,
+          },
+        ] });
+      }
+      return jsonResponse({ data: [
+        { id: 'thinkingcap-qwen3.6-27b' },
+        { id: 'thinkingcap-qwen3.6-27b@q4_k_m' },
+      ] });
+    });
+    const discovery = await checkOpenAICompatible('http://lmstudio.test', '');
+    expect(discovery.models).toEqual(['thinkingcap-qwen3.6-27b']);
+    expect(discovery.modelDetails[0]).toMatchObject({ loaded: true, contextLength: 8192, maxContextLength: 262144 });
+  });
+
+  it('does not send Ollama-only discovery probes to an identified LM Studio server', async () => {
+    const requestedUrls = [];
+    globalThis.fetch = vi.fn(async url => {
+      requestedUrls.push(String(url));
+      if (String(url).endsWith('/api/v1/models')) {
+        return jsonResponse({ models: [{
+          type: 'llm',
+          key: 'thinkingcap-qwen3.6-27b',
+          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+        }] });
+      }
+      if (String(url).endsWith('/v1/models')) {
+        return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
+      }
+      throw new Error(`Unexpected discovery URL: ${url}`);
+    });
+
+    const discovery = await discoverLocalAI('http://lmstudio.test', '', { force: true });
+
+    expect(discovery.provider).toBe('lmstudio');
+    expect(requestedUrls).toEqual([
+      'http://lmstudio.test/api/v1/models',
+      'http://lmstudio.test/v1/models',
+    ]);
+    expect(requestedUrls.some(url => url.endsWith('/api/tags') || url.endsWith('/api/ps'))).toBe(false);
+  });
+
+  it('uses LM Studio native chat to expand context for a large import request', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('thinkingcap-qwen3.6-27b');
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method === 'POST') {
+        expect(String(url)).toBe('http://localhost:11434/api/v1/chat');
+        return jsonResponse({
+          output: [{ type: 'message', content: '{"markers":[]}' }],
+          stats: {
+            input_tokens: 7200,
+            total_output_tokens: 24,
+            tokens_per_second: 31.5,
+            reasoning_output_tokens: 0,
+          },
+        });
+      }
+      if (String(url).endsWith('/api/v1/models')) {
+        return jsonResponse({ models: [{
+          type: 'llm',
+          key: 'thinkingcap-qwen3.6-27b@q4_k_m',
+          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+          max_context_length: 262144,
+        }] });
+      }
+      if (String(url).endsWith('/v1/models')) {
+        return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
+      }
+      return jsonResponse({}, { status: 404 });
+    });
+
+    const result = await callClaudeAPI(baseChatOptions({
+      system: 'Extract the report as JSON.',
+      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
+      maxTokens: 4096,
+      jsonMode: true,
+      reasoningEffort: 'none',
+      preferNativeContext: true,
+    }));
+
+    const postCall = globalThis.fetch.mock.calls.find(([, init]) => init?.method === 'POST');
+    const body = JSON.parse(postCall[1].body);
+    expect(body).toMatchObject({
+      model: 'thinkingcap-qwen3.6-27b',
+      context_length: 16384,
+      max_output_tokens: 4096,
+      reasoning: 'off',
+      stream: false,
+      store: false,
+    });
+    expect(result).toMatchObject({
+      text: '{"markers":[]}',
+      diagnostics: {
+        nativeContextOverride: true,
+        contextLength: 16384,
+        performance: { tokensPerSecond: 31.5 },
+        localPlan: { contextLength: 16384 },
+      },
+    });
   });
 
   it('parses OpenAI-compatible SSE streams without changing provider headers', async () => {

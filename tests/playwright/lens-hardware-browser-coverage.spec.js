@@ -117,10 +117,13 @@ test('hardware browser contract detects GPUs and ranks model options', async ({ 
         { name: 'llama3.3:70b', size: 43e9 },
       ], desktop);
       const suggestion16 = hardware.getUpgradeSuggestion([], desktop);
+      const suggestion32 = hardware.getUpgradeSuggestion([], { gpu: { vram: 32, unified: false } });
       const suggestion8 = hardware.getUpgradeSuggestion([], { gpu: { vram: 8, unified: false } });
       outcomes.bestAndUpgradeSuggestionsPreferFittingQuality =
         best?.name === 'qwen3.5:14b'
         && suggestion16?.model === 'qwen3.5:14b'
+        && suggestion32?.model === 'qwen3.6:27b'
+        && suggestion32?.note.includes('~20 GB')
         && suggestion8?.model === 'qwen3.5:9b'
         && hardware.getModelSuggestions({ gpu: { vram: 8, unified: false } })[0]?.model === 'qwen3.5:9b'
         && hardware.getUpgradeSuggestion([{ name: 'qwen3.5:14b', size: 9e9 }], desktop) === null;
@@ -185,6 +188,11 @@ test('external lens browser contract covers validation fetch cache save and remo
       await lens.saveLensKey('secret-token');
 
       window.fetch = async (url, opts) => {
+        const href = String(url);
+        if (!opts?.body) {
+          if (href.endsWith('/v1/models')) return makeJsonResponse({ data: [{ id: 'lens-rewrite-test-model' }] });
+          return makeJsonResponse({ error: 'unsupported' }, 404);
+        }
         const body = JSON.parse(String(opts?.body || '{}'));
         if (Array.isArray(body.messages)) {
           calls.push({ kind: 'rewrite', url: String(url), body });

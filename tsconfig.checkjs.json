@@ -421,6 +421,8 @@
     "js/lab-entry.js",
     "js/legal-consent.js",
     "js/lighting-hardware-caveats.js",
+    "js/local-ai-discovery.js",
+    "js/import-benchmarks.js",
     "js/marker-analysis.js",
     "js/marker-detail-actions.js",
     "js/marker-detail-editing.js",

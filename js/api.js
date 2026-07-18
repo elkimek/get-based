@@ -43,6 +43,8 @@ export {
   setOllamaMainModel,
   getOllamaPIIUrl,
   setOllamaPIIUrl,
+  getOllamaPIIApiKey,
+  saveOllamaPIIApiKey,
   getOllamaPIIModel,
   setOllamaPIIModel,
   getVeniceKey,

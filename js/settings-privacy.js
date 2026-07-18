@@ -1,8 +1,8 @@
 // @ts-check
 // settings-privacy.js - Settings privacy and Sun data-source controls.
 
-import { getOllamaConfig, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
-import { isOllamaPIIEnabled, setOllamaPIIEnabled, checkOpenAICompatible } from './pii.js';
+import { getOllamaPIIApiKey, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
+import { isOllamaPIIEnabled, setOllamaPIIEnabled, checkOllamaPII } from './pii.js';
 import { escapeAttr, isPIIReviewEnabled, isAnalyticsEnabled, showNotification } from './utils.js';
 import {
   getSettingsMeteoConfig,
@@ -11,12 +11,13 @@ import {
 
 export function renderPrivacySection() {
   const piiUrl = getOllamaPIIUrl();
+  const piiApiKey = getOllamaPIIApiKey();
   const piiEnabled = isOllamaPIIEnabled();
   return `<div class="settings-action-row privacy-overview-row">
       <div class="privacy-overview-icon" aria-hidden="true">&#128274;</div>
       <div class="settings-copy">
-        <div class="settings-copy-title">Personal details are scrubbed before AI analysis</div>
-        <div class="settings-copy-desc">Names, dates of birth, ID numbers, and addresses are replaced before lab PDFs, EMF assessments, image imports, or chat context leave this device. Lab values and interpretation context are preserved.</div>
+        <div class="settings-copy-title">Privacy protection runs before text-based AI analysis</div>
+        <div class="settings-copy-desc">Text imports use deterministic patterns and, optionally, a trusted self-hosted model (this device, LAN, or your remote server) to replace likely identifiers. Review remains recommended because automated detection can miss unusual layouts. Image imports cannot be scrubbed and always require a separate warning.</div>
       </div>
     </div>
     <div class="privacy-status-card" id="privacy-status-card">
@@ -37,9 +38,13 @@ export function renderPrivacySection() {
           <span id="pii-local-status-text">Click Test to check</span>
         </div>
         <div style="margin-top:8px">
+          <label style="font-size:12px;color:var(--text-muted)">Privacy server API key <span style="font-size:11px">(optional, stored separately)</span></label>
+          <input type="password" class="api-key-input" id="pii-local-apikey-input" value="${escapeAttr(piiApiKey)}" placeholder="Leave empty if not required" style="margin-top:4px">
+        </div>
+        <div style="margin-top:8px">
           <label style="font-size:12px;color:var(--text-muted)">Server address</label>
           <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-            <input type="text" class="api-key-input" id="pii-local-url-input" value="${piiUrl}" placeholder="http://localhost:11434" style="flex:1">
+            <input type="text" class="api-key-input" id="pii-local-url-input" value="${escapeAttr(piiUrl)}" placeholder="http://localhost:11434" style="flex:1">
             <button class="import-btn import-btn-secondary" data-settings-action="test-pii-ollama" style="white-space:nowrap">Test</button>
           </div>
         </div>
@@ -51,8 +56,8 @@ export function renderPrivacySection() {
     </div>
     <div class="settings-action-row privacy-setting-row">
       <div class="settings-copy">
-        <div class="settings-copy-title">Use local AI for privacy protection</div>
-        <div class="settings-copy-desc">Requires a local AI server. When disabled, regex pattern matching is used instead.</div>
+        <div class="settings-copy-title">Use self-hosted AI for privacy protection</div>
+        <div class="settings-copy-desc">Requires a server you trust; the original report is sent to that endpoint for scrubbing. Cloud-tagged models are blocked. When disabled, deterministic pattern matching is used instead.</div>
       </div>
       <label class="toggle-switch">
         <input type="checkbox" id="pii-local-toggle" ${piiEnabled ? 'checked' : ''} data-settings-action="toggle-pii-local">
@@ -225,9 +230,7 @@ export async function updatePrivacyStatusCard(enhanced) {
   // If not passed explicitly, check PII Ollama.
   else if (enhanced === undefined) {
     try {
-      const piiUrl = getOllamaPIIUrl();
-      const config = getOllamaConfig();
-      const result = await checkOpenAICompatible(piiUrl, config.apiKey);
+      const result = await checkOllamaPII();
       enhanced = result.available && result.models.length > 0;
     } catch { enhanced = false; }
   }
@@ -236,11 +239,11 @@ export async function updatePrivacyStatusCard(enhanced) {
     card.className = 'privacy-status-card privacy-status-enhanced';
     if (icon) icon.innerHTML = '&#128274;';
     title.textContent = 'Enhanced protection';
-    detail.textContent = `Local AI (${model}) understands context and language, so it reliably finds and replaces all personal info — including uncommon formats and non-English text.`;
+    detail.textContent = `Trusted Local AI (${model}) adds contextual detection, followed by deterministic checks. Review the result before sending because no automated detector can guarantee every identifier is removed.`;
   } else {
     card.className = 'privacy-status-card privacy-status-basic';
     if (icon) icon.innerHTML = '&#128274;';
     title.textContent = 'Basic protection';
-    detail.innerHTML = 'Regex pattern matching catches common formats (names on labeled lines, IDs, emails, phone numbers). May miss unusual layouts or non-English personal data.<br><span style="margin-top:4px;display:inline-block">Set up Local AI for enhanced protection — a local server that reliably catches all personal info.</span>';
+    detail.innerHTML = 'Deterministic pattern matching catches common labeled names, IDs, emails, phone numbers, and addresses. It may miss unusual layouts or non-English personal data.<br><span style="margin-top:4px;display:inline-block">A trusted Local AI model can add contextual detection, but review is still recommended.</span>';
   }
 }

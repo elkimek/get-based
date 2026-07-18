@@ -4,6 +4,54 @@
 import { callClaudeAPI, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { isDebugMode } from './utils.js';
 
+export const IMPORT_JSON_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    testType: { type: ['string', 'null'] },
+    date: { type: ['string', 'null'] },
+    markers: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          rawName: { type: 'string' },
+          value: { type: ['number', 'string'] },
+          mappedKey: { type: ['string', 'null'] },
+          suggestedKey: { type: ['string', 'null'] },
+          suggestedName: { type: ['string', 'null'] },
+          suggestedCategoryLabel: { type: ['string', 'null'] },
+          suggestedGroup: { type: ['string', 'null'] },
+          unit: { type: ['string', 'null'] },
+          refMin: { type: ['number', 'null'] },
+          refMax: { type: ['number', 'null'] },
+        },
+        required: ['rawName', 'value', 'mappedKey', 'unit', 'refMin', 'refMax'],
+      },
+    },
+  },
+  required: ['testType', 'date', 'markers'],
+};
+
+export const IMPORT_CLASSIFICATION_JSON_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    testType: { type: 'string' },
+    labName: { type: ['string', 'null'] },
+  },
+  required: ['testType'],
+};
+
+export function compactMarkerReference(markerRef) {
+  return Object.entries(markerRef || {}).map(([key, def]) => {
+    const name = String(def?.name || '').replace(/[|\n\r]/g, ' ');
+    const unit = String(def?.unit || '').replace(/[|\n\r]/g, ' ');
+    return `${key}|${name}|${unit}`;
+  }).join('\n');
+}
+
 /**
  * @typedef {{
  *   inputTokens?: number,
@@ -27,7 +75,11 @@ export async function callImportAIWithStreamFallback(request, label) {
     if (!request.onStream || request.signal?.aborted || !isAIStreamAbortError(err)) throw err;
     if (isDebugMode()) console.warn(`[Import] ${label} stream aborted; retrying without streaming`, err);
     try {
-      return await callClaudeAPI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS });
+      const result = await callClaudeAPI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS });
+      return {
+        ...result,
+        diagnostics: { ...result?.diagnostics, streamFallback: true },
+      };
     } catch (retryErr) {
       if (isAIStreamAbortError(retryErr)) {
         throw new Error('AI analysis request was aborted after retrying without streaming. The PDF text extracted correctly; try another model/provider if this persists.');

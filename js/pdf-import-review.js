@@ -43,6 +43,7 @@ import {
   startBatchImport,
   takeBatchImportResolve,
 } from './pdf-import-review-runtime.js';
+import { finishImportBenchmark } from './import-benchmarks.js';
 
 function clearPendingImport() {
   clearPendingImportRuntime();
@@ -770,6 +771,8 @@ export function getExcludedImportIndices() {
 }
 
 export function closeImportModal() {
+  const pending = getPendingImport();
+  if (pending?.benchmarkId) finishImportBenchmark(pending.benchmarkId, 'cancelled', { stage: 'review' });
   if (resolveImportPreviewBatch('skip')) return;
   hideImportOverlay();
   clearPendingImport();

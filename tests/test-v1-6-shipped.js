@@ -347,8 +347,8 @@ const _origProfileSex = state ? state.profileSex : null;
   console.log('%c 10. PII Ollama reachability + stall protection ', 'font-weight:bold;color:#0891b2');
   {
     const piiSrc = await fetchSrc('js/pii.js');
-    assert('pii.js: probes /api/version before streaming',
-      /\/api\/version/.test(piiSrc) && /AbortSignal\.timeout\(5000\)/.test(piiSrc));
+    assert('pii.js: probes authenticated model endpoint before streaming',
+      /\/v1\/models/.test(piiSrc) && /AbortSignal\.timeout\(5000\)/.test(piiSrc));
     // v1.6.18 follow-up: probe signal composes the caller's signal
     // with the 5s deadline so user-initiated aborts (closing the
     // import dialog) take effect immediately instead of waiting up
