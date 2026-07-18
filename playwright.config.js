@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = process.env.PORT || '8000';
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === '1';
 
 export default defineConfig({
   testDir: './tests/playwright',
@@ -25,7 +26,9 @@ export default defineConfig({
   webServer: {
     command: `node dev-server.js ${PORT}`,
     url: `http://127.0.0.1:${PORT}/`,
-    reuseExistingServer: true,
+    // Direct Playwright runs must not silently use app files from another
+    // checkout. run-tests.sh opts in after starting a server it owns.
+    reuseExistingServer,
     timeout: 10_000,
   },
   projects: [

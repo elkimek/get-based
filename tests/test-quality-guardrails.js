@@ -27,6 +27,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const guardrailSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'quality-guardrails.mjs'), 'utf8');
 const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'quality-baseline.json'), 'utf8'));
 const runTestsSrc = fs.readFileSync(path.join(ROOT, 'run-tests.sh'), 'utf8');
+const playwrightConfigSrc = fs.readFileSync(path.join(ROOT, 'playwright.config.js'), 'utf8');
 const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
 const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
@@ -91,6 +92,13 @@ assert('full local test suite runs typecheck',
     runTestsSrc.includes('SKIP_TYPECHECK'));
 assert('full local test suite runs static module verification',
   runTestsSrc.includes('node "$DIR/tests/verify-modules.js" || exit 1'));
+assert('full local test suite isolates itself from an occupied default port',
+  runTestsSrc.includes('REUSE_TEST_SERVER=${REUSE_TEST_SERVER:-0}') &&
+    runTestsSrc.includes('Port :$REQUESTED_PORT is already serving; using isolated test port :$PORT') &&
+    runTestsSrc.includes('PLAYWRIGHT_REUSE_SERVER=1'));
+assert('direct Playwright runs do not silently reuse an unrelated server',
+  playwrightConfigSrc.includes("process.env.PLAYWRIGHT_REUSE_SERVER === '1'") &&
+    playwrightConfigSrc.includes('reuseExistingServer,'));
 assert('CI keeps a dedicated typecheck step and skips duplicate script typecheck',
   testWorkflowSrc.includes('name: Run typecheck') &&
     testWorkflowSrc.includes('run: npm run typecheck') &&
