@@ -9,7 +9,6 @@ import { callClaudeAPI, getAIProvider, getActiveModelId, getActiveModelDisplay }
 import { renderMarkdown } from './markdown.js';
 import { loadEMFCatalog, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 /**
  * @typedef {{ text?: string, model?: string, provider?: string, modelId?: string, inputTokens?: number, outputTokens?: number, date?: string }} EMFInterpretation
@@ -19,12 +18,18 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const emfInterpretationRuntimeDeps = {
   callClaudeAPI,
+  closeModal: /** @type {null | (() => void)} */ (null),
   openChatPanel: /** @type {null | ((message?: string) => unknown)} */ (null),
 };
 
 export function configureEMFInterpretationRuntimeDeps(deps = {}) {
   const previous = { ...emfInterpretationRuntimeDeps };
   if (typeof deps.callClaudeAPI === 'function') emfInterpretationRuntimeDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (Object.hasOwn(deps, 'closeModal')) {
+    emfInterpretationRuntimeDeps.closeModal = typeof deps.closeModal === 'function'
+      ? deps.closeModal
+      : null;
+  }
   if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
     emfInterpretationRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
       ? deps.openChatPanel
@@ -35,27 +40,8 @@ export function configureEMFInterpretationRuntimeDeps(deps = {}) {
 
 let _aiAbortController = null;
 
-/**
- * @returns {Record<string, any>}
- */
-function getEMFInterpretationRuntimeScope() {
-  return typeof window !== 'undefined'
-    ? /** @type {Record<string, any>} */ (window)
-    : /** @type {Record<string, any>} */ (globalThis);
-}
-
-/**
- * @param {string} name
- * @returns {((...args: any[]) => any) | null}
- */
-function getEMFInterpretationRuntimeFunction(name) {
-  const runtime = getEMFInterpretationRuntimeScope();
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
-}
-
 function closeParentEMFModalRuntime() {
-  getEMFInterpretationRuntimeFunction('closeModal')?.();
+  emfInterpretationRuntimeDeps.closeModal?.();
 }
 
 function openEMFInterpretationChatRuntime(message) {

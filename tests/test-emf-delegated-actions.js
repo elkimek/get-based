@@ -76,8 +76,9 @@ assert('EMF editor runtime hooks avoid counted direct window globals',
     emfSrc.includes('return showPromptDialog(message, options);') &&
     !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
 assert('EMF interpretation runtime hooks avoid counted direct window globals',
-  emfInterpretationSrc.includes('function getEMFInterpretationRuntimeFunction') &&
-    emfInterpretationSrc.includes("getEMFInterpretationRuntimeFunction('closeModal')") &&
+  !emfInterpretationSrc.includes("from './views-runtime-bridge.js'") &&
+    !emfInterpretationSrc.includes('getViewRuntimeFunction') &&
+    emfInterpretationSrc.includes('emfInterpretationRuntimeDeps.closeModal?.()') &&
     emfInterpretationSrc.includes('emfInterpretationRuntimeDeps.openChatPanel?.(message)') &&
     !/\bwindow(?:\.|\s*\[)/.test(emfInterpretationSrc));
 assert('EMF editor X button uses saving close action',

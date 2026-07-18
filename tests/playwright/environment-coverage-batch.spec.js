@@ -57,11 +57,11 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
-      closeModal: window.closeModal,
     };
     const outcomes = {};
     const calls = [];
     const previousInterpretationDeps = emfInterpretation.configureEMFInterpretationRuntimeDeps({
+      closeModal: () => calls.push(['close-modal']),
       openChatPanel: prompt => calls.push(['chat', prompt]),
     });
 
@@ -193,7 +193,6 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         && document.querySelector('.emf-compare-table')?.textContent.includes('28') === true
         && document.querySelector('.emf-compare-table')?.textContent.includes('4') === true;
 
-      window.closeModal = () => calls.push(['close-modal']);
       emf.interpretEMFComparison();
       await waitFor('#emf-interp-overlay.show .emf-interp-modal', 'EMF existing interpretation modal');
       document.querySelector('#emf-interp-overlay [data-emf-interp-action="discuss"]')?.click();
@@ -222,7 +221,6 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       state.currentProfile = saved.currentProfile;
       data.invalidateActiveDataCache();
       emfInterpretation.configureEMFInterpretationRuntimeDeps(previousInterpretationDeps);
-      window.closeModal = saved.closeModal;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
