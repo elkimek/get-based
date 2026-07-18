@@ -10,6 +10,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
   const results = await page.evaluate(async ({ controlsUrl }) => {
     const controls = await import(controlsUrl);
     const chatRuntime = await import('/js/chat-runtime.js');
+    const providerRuntime = await import('/js/provider-model-controls-runtime.js');
     const failures = [];
     const check = (name, condition, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
@@ -31,17 +32,17 @@ test('provider model controls edge coverage handles pricing updates guards and m
     ];
     const oldStorage = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
-    const oldGlobals = {
-      clearE2EESession: window.clearE2EESession,
-    };
     let clearCount = 0;
     let headerRefreshes = 0;
     let webSearchRefreshes = 0;
     let previousChatRuntime = null;
+    let previousProviderRuntime = null;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
-      window.clearE2EESession = () => { clearCount += 1; };
+      previousProviderRuntime = providerRuntime.configureProviderModelControlsRuntimeDeps({
+        clearE2EESession: () => { clearCount += 1; },
+      });
       previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
         updateChatHeaderModel: () => { headerRefreshes += 1; },
         refreshWebSearchToggle: () => { webSearchRefreshes += 1; },
@@ -159,7 +160,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
         customManualTypedAppliesAndPrices,
       };
     } finally {
-      window.clearE2EESession = oldGlobals.clearE2EESession;
+      if (previousProviderRuntime) providerRuntime.configureProviderModelControlsRuntimeDeps(previousProviderRuntime);
       if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);

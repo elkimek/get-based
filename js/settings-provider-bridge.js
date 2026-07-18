@@ -10,9 +10,36 @@ import {
 } from './api.js';
 
 let _providerPanelsLoad = null;
+let settingsHadProvider = false;
+
+const settingsProviderBridgeDeps = {
+  closeSettingsModal: () => {},
+  openSettingsModal: () => {},
+};
+
+export function configureSettingsProviderBridgeDeps(deps = {}) {
+  const previous = { ...settingsProviderBridgeDeps };
+  for (const name of Object.keys(settingsProviderBridgeDeps)) {
+    if (typeof deps[name] === 'function') settingsProviderBridgeDeps[name] = deps[name];
+  }
+  return previous;
+}
+
+export function setSettingsProviderHadProvider(value) {
+  settingsHadProvider = value === true;
+}
 
 function loadProviderPanels() {
-  if (!_providerPanelsLoad) _providerPanelsLoad = import('./provider-panels.js');
+  if (!_providerPanelsLoad) {
+    _providerPanelsLoad = import('./provider-panels.js').then(providerPanels => {
+      providerPanels.configureProviderPanelDeps({
+        closeSettingsModal: () => settingsProviderBridgeDeps.closeSettingsModal(),
+        hadProviderBeforeSettings: () => settingsHadProvider,
+        openSettingsModal: () => settingsProviderBridgeDeps.openSettingsModal(),
+      });
+      return providerPanels;
+    });
+  }
   return _providerPanelsLoad;
 }
 

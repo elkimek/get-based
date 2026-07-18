@@ -99,6 +99,7 @@ export {
   callOpenAICompatibleLocalAPI,
 } from './api-local.js';
 export {
+  clearVeniceE2EESession,
   getVeniceBalance,
   callVeniceAPI,
 } from './api-venice.js';

@@ -137,8 +137,11 @@ assert('settings provider bridge resolves module APIs without publishing globals
     !settingsBridgeSrc.includes('settingsWindow') &&
     !settingsBridgeSrc.includes('PROVIDER_PANEL_BRIDGE_NAMES'));
 assert('settings records existing provider before provider-key onboarding return',
-  settingsSrc.includes('settingsWindow._settingsHadProvider = hasAIProvider();')
-    && ppSrc.includes("if (getProviderPanelRuntimeValue('_settingsHadProvider')) return"));
+  settingsSrc.includes('setSettingsProviderHadProvider(hasAIProvider());')
+    && settingsSrc.includes('configureSettingsProviderBridgeDeps({')
+    && settingsBridgeSrc.includes('hadProviderBeforeSettings: () => settingsHadProvider')
+    && settingsBridgeSrc.includes('providerPanels.configureProviderPanelDeps({')
+    && ppSrc.includes('if (providerPanelDeps.hadProviderBeforeSettings()) return'));
 assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));
 assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpenRouterKey()'));
 assert('handleRemoveOpenRouterKey exists', ppSrc.includes('function handleRemoveOpenRouterKey()'));

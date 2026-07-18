@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -9,34 +9,17 @@ import {
 } from '../js/provider-model-controls-runtime.js';
 import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
-const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-
-function setRuntimeWindow(runtime) {
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    writable: true,
-    value: runtime,
-  });
-}
-
-afterEach(() => {
-  if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
-});
-
 describe('provider model controls runtime adapter', () => {
   it('delegates provider model runtime hooks at call time', async () => {
     const clearE2EESession = vi.fn();
     const updateChatHeaderModel = vi.fn();
     const refreshWebSearchToggle = vi.fn();
     const callClaudeAPI = vi.fn(async () => ({ content: 'ok' }));
-    const previousDeps = configureProviderModelControlsRuntimeDeps({ callClaudeAPI });
+    const previousDeps = configureProviderModelControlsRuntimeDeps({ callClaudeAPI, clearE2EESession });
     const previousChatRuntime = configureChatRuntimeCallbacks({
       updateChatHeaderModel,
       refreshWebSearchToggle,
     });
-    setRuntimeWindow({ clearE2EESession });
-
     try {
       expect(clearProviderE2EESessionRuntime()).toBe(true);
       expect(refreshProviderModelUiRuntime()).toBe(true);
@@ -55,17 +38,20 @@ describe('provider model controls runtime adapter', () => {
     });
   });
 
-  it('uses safe no-op fallbacks when browser hooks are missing', () => {
+  it('uses safe no-op fallbacks when optional UI hooks are missing', () => {
+    const previousDeps = configureProviderModelControlsRuntimeDeps({
+      clearE2EESession: () => false,
+    });
     const previousChatRuntime = configureChatRuntimeCallbacks({
       refreshWebSearchToggle: null,
       updateChatHeaderModel: null,
     });
-    delete globalThis.window;
 
     try {
       expect(clearProviderE2EESessionRuntime()).toBe(false);
       expect(refreshProviderModelUiRuntime()).toBe(false);
     } finally {
+      configureProviderModelControlsRuntimeDeps(previousDeps);
       configureChatRuntimeCallbacks(previousChatRuntime);
     }
   });

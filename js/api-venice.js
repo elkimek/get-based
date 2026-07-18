@@ -23,11 +23,17 @@ import {
  *   _veniceE2EE?: any,
  *   _veniceE2EEKey?: string,
  *   _veniceAttestation?: any,
- *   _veniceLastStreamDiagnostics?: any,
- *   clearE2EESession?: () => void
+ *   _veniceLastStreamDiagnostics?: any
  * }} VeniceApiWindow */
 
 const apiWindow = /** @type {VeniceApiWindow} */ (typeof window !== 'undefined' ? window : {});
+
+export function clearVeniceE2EESession() {
+  const e2ee = apiWindow._veniceE2EE;
+  if (typeof e2ee?.clearSession !== 'function') return false;
+  e2ee.clearSession();
+  return true;
+}
 
 export async function getVeniceBalance() {
   const key = getVeniceKey();
@@ -75,7 +81,6 @@ export async function callVeniceAPI(opts) {
   if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key) {
     apiWindow._veniceE2EE = createVeniceE2EE({ apiKey: key });
     apiWindow._veniceE2EEKey = key;
-    apiWindow.clearE2EESession = () => apiWindow._veniceE2EE?.clearSession();
   }
   let session;
   try {

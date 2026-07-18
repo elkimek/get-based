@@ -132,7 +132,6 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       fetch: window.fetch,
-      clearE2EESession: window.clearE2EESession,
       consoleWarn: console.warn,
     };
     let previousRuntimeDeps = null;
@@ -156,7 +155,6 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         </section>
       `);
 
-      window.clearE2EESession = () => { clearCount += 1; };
       previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
         updateChatHeaderModel: () => { headerRefreshes += 1; },
         refreshWebSearchToggle: () => { searchRefreshes += 1; },
@@ -196,6 +194,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       let fetchedPricing = false;
       previousRuntimeDeps = runtime.configureProviderModelControlsRuntimeDeps({
         callClaudeAPI: async () => ({ content: 'ok' }),
+        clearE2EESession: () => { clearCount += 1; },
       });
       window.fetch = async function(url) {
         const href = typeof url === 'string' ? url : url?.url || '';
@@ -379,7 +378,6 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       window.fetch = oldGlobals.fetch;
       if (previousRuntimeDeps) runtime.configureProviderModelControlsRuntimeDeps(previousRuntimeDeps);
       if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
-      window.clearE2EESession = oldGlobals.clearE2EESession;
       console.warn = oldGlobals.consoleWarn;
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
@@ -401,7 +399,6 @@ test('provider panels cover provider switching key saves balances custom API and
   const results = await page.evaluate(async ({ panelsUrl }) => {
     const panels = await import(panelsUrl);
     const cryptoStore = await import('/js/crypto.js');
-    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
       status,
@@ -444,22 +441,22 @@ test('provider panels cover provider switching key saves balances custom API and
     const oldSessionPrevious = sessionStorage.getItem('or_previous_ai_provider');
     const oldGlobals = {
       fetch: window.fetch,
-      open: window.open,
-      loadFocusCard: window.loadFocusCard,
-      clearE2EESession: window.clearE2EESession,
     };
 
     let openedUrl = '';
     let settingsClosed = 0;
+    let settingsOpened = 0;
     let chatOpened = 0;
     let focusLoads = 0;
     let e2eeClears = 0;
-    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
-      openSettingsModal: () => {},
-      closeSettingsModal: () => { settingsClosed += 1; },
-    });
     const previousProviderPanelDeps = panels.configureProviderPanelDeps({
+      clearE2EESession: () => { e2eeClears += 1; },
+      closeSettingsModal: () => { settingsClosed += 1; },
+      hadProviderBeforeSettings: () => false,
+      loadFocusCard: () => { focusLoads += 1; },
       openChatPanel: () => { chatOpened += 1; },
+      openExternal: url => { openedUrl = String(url); return null; },
+      openSettingsModal: () => { settingsOpened += 1; },
     });
 
     try {
@@ -469,10 +466,6 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-routstr-key', '');
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       cryptoStore.updateKeyCache('labcharts-custom-key', '');
-      window.open = url => { openedUrl = String(url); return null; };
-      window.loadFocusCard = () => { focusLoads += 1; };
-      window.clearE2EESession = () => { e2eeClears += 1; };
-
       window.fetch = async function(url, opts = {}) {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href === 'https://openrouter.ai/api/v1/models') {
@@ -657,6 +650,12 @@ test('provider panels cover provider switching key saves balances custom API and
       panels.showInsufficientBalanceDialog();
       document.getElementById('or-nb-cancel').click();
       const cancelBalanceDialog = !document.getElementById('or-no-balance-overlay')?.classList.contains('show');
+      await wait(325);
+      const explicitProviderCallbacksRun = settingsClosed >= 1
+        && settingsOpened >= 3
+        && chatOpened >= 1
+        && focusLoads >= 2
+        && e2eeClears >= 1;
 
       return {
         switchStoresPrevious,
@@ -673,14 +672,11 @@ test('provider panels cover provider switching key saves balances custom API and
         customRemoveRendersDisconnected,
         addCreditsDialog,
         cancelBalanceDialog,
+        explicitProviderCallbacksRun,
       };
     } finally {
       window.fetch = oldGlobals.fetch;
-      window.open = oldGlobals.open;
-      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       panels.configureProviderPanelDeps(previousProviderPanelDeps);
-      window.loadFocusCard = oldGlobals.loadFocusCard;
-      window.clearE2EESession = oldGlobals.clearE2EESession;
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);

@@ -148,20 +148,24 @@ assert('provider panel recovery uses mint-aware receiveToken instead of wallet i
     panelsSrc.includes('await walletRuntime.cashuReceiveToken(token)') &&
     !panelsSrc.includes('await appWindow.cashuImportWallet(token)'));
 assert('provider panel recovery awaits pending-token clear before reload',
-  /await walletRuntime\.cashuReceiveToken\(token\);[\s\S]*await clearPendingToken\(\);[\s\S]*reloadProviderPanelRuntime\(\);/.test(panelsSrc));
-assert('provider panel onboarding return uses module Chat dependency',
-  panelsSrc.includes("getProviderPanelRuntimeValue('_settingsHadProvider')") &&
-    panelsSrc.includes("callProviderPanelRuntime('hasAIProvider')") &&
-    panelsSrc.includes("callProviderPanelRuntime('closeSettingsModal')") &&
+  /await walletRuntime\.cashuReceiveToken\(token\);[\s\S]*await clearPendingToken\(\);[\s\S]*providerPanelDeps\.reloadPage\(\);/.test(panelsSrc));
+assert('provider panel onboarding return uses explicit dependencies',
+  panelsSrc.includes('providerPanelDeps.hadProviderBeforeSettings()') &&
+    panelsSrc.includes('providerPanelDeps.hasAIProvider()') &&
+    panelsSrc.includes('providerPanelDeps.closeSettingsModal()') &&
     panelsSrc.includes('providerPanelDeps.openChatPanel()') &&
-    !panelsSrc.includes("callProviderPanelRuntime('openChatPanel')"));
-assert('provider panel focus-card refresh uses runtime helper call',
-  panelsSrc.includes("callProviderPanelRuntime('loadFocusCard')"));
-assert('provider panel E2EE clear and settings reopen use runtime helper calls',
-  panelsSrc.includes("callProviderPanelRuntime('clearE2EESession')") &&
-    panelsSrc.includes("callProviderPanelRuntime('openSettingsModal')"));
-assert('provider panel OpenRouter credits link uses runtime helper open',
-  panelsSrc.includes("callProviderPanelRuntime('open', 'https://openrouter.ai/settings/credits', '_blank', 'noopener')"));
+    !panelsSrc.includes('callProviderPanelRuntime'));
+assert('provider panel focus-card refresh uses explicit dependency',
+  panelsSrc.includes('providerPanelDeps.loadFocusCard()'));
+assert('provider panel E2EE clear and settings reopen use explicit dependencies',
+  panelsSrc.includes('providerPanelDeps.clearE2EESession()') &&
+    panelsSrc.includes('providerPanelDeps.openSettingsModal()'));
+assert('provider panel OpenRouter credits link uses explicit browser dependency',
+  panelsSrc.includes("providerPanelDeps.openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener')"));
+assert('provider panels avoid generic settings and view runtime bridges',
+  !panelsSrc.includes("from './settings-runtime-bridge.js'") &&
+    !panelsSrc.includes("from './views-runtime-bridge.js'") &&
+    !panelsSrc.includes('providerPanelRuntime'));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
