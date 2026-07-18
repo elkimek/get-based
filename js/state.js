@@ -1,8 +1,6 @@
 // @ts-check
 // state.js — Centralized mutable application state
 
-import { registerUtilsRuntimeExports } from './utils-runtime.js';
-
 export const state = {
   chartInstances: {},
   markerRegistry: {},
@@ -26,5 +24,3 @@ export const state = {
   compareDate1: null,
   compareDate2: null,
 };
-
-registerUtilsRuntimeExports({ _labState: state });
