@@ -2,7 +2,7 @@
 // chat-history.js - thread-aware chat history persistence and clearing
 
 import { state } from './state.js';
-import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled } from './crypto.js';
+import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { showConfirmDialog, showNotification } from './utils.js';
@@ -37,11 +37,7 @@ export async function saveChatHistory() {
   invalidateThreadContentCache();
   const key = getChatThreadKey(state.currentThreadId);
   const value = JSON.stringify(state.chatHistory);
-  if (getEncryptionEnabled()) {
-    await encryptedSetItem(key, value);
-  } else {
-    localStorage.setItem(key, value);
-  }
+  await encryptedSetItem(key, value);
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
   if (thread) {
     if (thread.messageCount !== state.chatHistory.length) thread.updatedAt = new Date().toISOString();

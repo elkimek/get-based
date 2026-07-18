@@ -179,7 +179,7 @@ describe('chat discussion callback bridge runtime behavior', () => {
   });
 });
 
-function installRoundStateMocks({ encryptionEnabled = false } = {}) {
+function installRoundStateMocks() {
   const deps = {
     state: {
       currentThreadId: 'active-thread',
@@ -199,7 +199,6 @@ function installRoundStateMocks({ encryptionEnabled = false } = {}) {
     renderThreadList: vi.fn(),
     saveChatThreadIndex: vi.fn(),
     encryptedSetItem: vi.fn(async () => {}),
-    getEncryptionEnabled: vi.fn(() => encryptionEnabled),
     saveChatHistory: vi.fn(async () => {}),
   };
 
@@ -212,7 +211,6 @@ function installRoundStateMocks({ encryptionEnabled = false } = {}) {
   }));
   vi.doMock('../js/crypto.js', () => ({
     encryptedSetItem: deps.encryptedSetItem,
-    getEncryptionEnabled: deps.getEncryptionEnabled,
   }));
   vi.doMock('../js/chat-history.js', () => ({
     saveChatHistory: deps.saveChatHistory,
@@ -248,7 +246,7 @@ describe('chat discussion round state runtime behavior', () => {
     expect(renderMessages).toHaveBeenCalled();
   });
 
-  it('saves active thread history through chat-history and inactive history through storage', async () => {
+  it('saves active thread history through chat-history and inactive history through the storage wrapper', async () => {
     const deps = installRoundStateMocks();
     const mod = await import('../js/chat-discussion-round-state.js');
     const activeMessages = [{ role: 'user', content: 'active' }];
@@ -264,18 +262,18 @@ describe('chat discussion round state runtime behavior', () => {
 
     await mod.saveRoundChatHistory('background-thread', backgroundMessages);
     expect(deps.invalidateThreadContentCache).toHaveBeenCalled();
-    expect(localStorage.getItem('chat-thread:background-thread')).toBe(JSON.stringify(backgroundMessages));
-    expect(deps.encryptedSetItem).not.toHaveBeenCalled();
+    expect(deps.encryptedSetItem).toHaveBeenCalledWith('chat-thread:background-thread', JSON.stringify(backgroundMessages));
+    expect(localStorage.getItem('chat-thread:background-thread')).toBeNull();
     expect(deps.state.chatThreads[1].messageCount).toBe(2);
     expect(deps.state.chatThreads[1].updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
     expect(deps.saveChatThreadIndex).toHaveBeenCalledTimes(1);
     expect(deps.renderThreadList).toHaveBeenCalled();
   });
 
-  it('uses encrypted storage for inactive thread history when chat encryption is enabled', async () => {
-    const deps = installRoundStateMocks({ encryptionEnabled: true });
+  it('does not bypass the storage wrapper for credential-shaped chat content', async () => {
+    const deps = installRoundStateMocks();
     const mod = await import('../js/chat-discussion-round-state.js');
-    const messages = [{ role: 'assistant', content: 'encrypted' }];
+    const messages = [{ role: 'user', content: { api_key: 'sensitive-value' } }];
 
     await mod.saveRoundChatHistory('background-thread', messages);
 

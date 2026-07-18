@@ -6,7 +6,7 @@ import {
   getChatThreadKey, invalidateThreadContentCache, renderThreadList,
   saveChatThreadIndex,
 } from './chat-threads.js';
-import { encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+import { encryptedSetItem } from './crypto.js';
 import { saveChatHistory } from './chat-history.js';
 
 export function isRoundThreadActive(threadId) {
@@ -43,11 +43,7 @@ export async function saveRoundChatHistory(threadId, messages) {
   invalidateThreadContentCache();
   const value = JSON.stringify(messages);
   const key = getChatThreadKey(threadId);
-  if (getEncryptionEnabled()) {
-    await encryptedSetItem(key, value);
-  } else {
-    localStorage.setItem(key, value);
-  }
+  await encryptedSetItem(key, value);
 
   const thread = getThreadById(threadId);
   if (thread) {
