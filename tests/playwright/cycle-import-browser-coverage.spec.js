@@ -181,10 +181,11 @@ test('Clue JSON import is classified as cycle data and reaches the preview', asy
 test('cycle import confirms before changing an explicitly male profile', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   const profileId = await initializeCycleProfile(page, 'cycle_profile_sex_confirmation');
-  await page.evaluate(() => {
-    window._labState.profileSex = 'male';
-    window._labState.profiles[0].sex = 'male';
-    localStorage.setItem('labcharts-profiles', JSON.stringify(window._labState.profiles));
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.profileSex = 'male';
+    state.profiles[0].sex = 'male';
+    localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
   });
   await page.locator('#pdf-input').setInputFiles({
     name: 'ClueBackup.json',
@@ -198,12 +199,12 @@ test('cycle import confirms before changing an explicitly male profile', async (
   await expect(page.locator('#confirm-dialog-overlay')).toContainText('Change the profile to Female');
   await page.locator('#confirm-cancel').click();
   await expect(preview).toHaveClass(/show/);
-  expect(await page.evaluate(() => window._labState.profileSex)).toBe('male');
+  expect(await page.evaluate(async () => (await import('/js/state.js')).state.profileSex)).toBe('male');
 
   await page.locator('[data-cycle-import-action="confirm"]').click();
   await page.locator('#confirm-ok').click();
   await expect(preview).not.toHaveClass(/show/);
-  expect(await page.evaluate(() => window._labState.profileSex)).toBe('female');
+  expect(await page.evaluate(async () => (await import('/js/state.js')).state.profileSex)).toBe('female');
   await page.evaluate(async id => (await import('/js/cycle-store.js')).deleteCycleDB(id), profileId);
 });
 
@@ -277,10 +278,14 @@ test('shared Apple Health ZIP import saves wearable metrics before cycle review'
 
   await page.locator('[data-cycle-import-action="confirm"]').click();
   await expect(preview).not.toHaveClass(/show/);
-  await expect.poll(() => page.evaluate(() => window._labState.importedData.menstrualCycle?.periods?.length || 0)).toBe(1);
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.importedData.menstrualCycle?.periods?.length || 0;
+  })).toBe(1);
 
-  const periods = await page.evaluate(id => {
-    const result = window._labState.importedData.menstrualCycle.periods.map(period => ({
+  const periods = await page.evaluate(async id => {
+    const { state } = await import('/js/state.js');
+    const result = state.importedData.menstrualCycle.periods.map(period => ({
       startDate: period.startDate,
       endDate: period.endDate,
       source: period.source,
@@ -399,19 +404,21 @@ test('cycle import only shows conflict controls and row warnings for real overla
   await page.goto('/app', { waitUntil: 'load' });
   const profileId = await initializeCycleProfile(page, 'cycle_import_conflicts');
 
-  await page.evaluate((csv) => {
-    import('/js/cycle-import.js').then(cycleImport => {
-      window._labState.importedData.menstrualCycle = {
-        periods: [{
-          startDate: '2026-04-01',
-          endDate: '2026-04-04',
-          flow: 'moderate',
-          source: 'manual',
-        }],
-      };
-      const parsed = cycleImport.parseDripCycleCsv(csv, 'drip-conflicts.csv');
-      void cycleImport.showCycleImportPreview(parsed);
-    });
+  await page.evaluate(async (csv) => {
+    const [{ state }, cycleImport] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/cycle-import.js'),
+    ]);
+    state.importedData.menstrualCycle = {
+      periods: [{
+        startDate: '2026-04-01',
+        endDate: '2026-04-04',
+        flow: 'moderate',
+        source: 'manual',
+      }],
+    };
+    const parsed = cycleImport.parseDripCycleCsv(csv, 'drip-conflicts.csv');
+    void cycleImport.showCycleImportPreview(parsed);
   }, DRIP_CSV);
 
   const modal = page.locator('#import-modal');

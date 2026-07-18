@@ -15,7 +15,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       import('/js/settings-runtime-bridge.js'),
       import('/js/pdf-import-review-runtime.js'),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const saved = {
       profileSex: state.profileSex,
@@ -267,7 +267,7 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       import(pdfImportUrl),
       import(reviewUrl),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const storageKeys = [
       'labcharts-ai-provider',
@@ -708,7 +708,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       import(reviewUrl),
       import('/js/pdf-import-commit.js'),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -801,7 +801,7 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
 
   const results = await page.evaluate(async ({ preflightUrl }) => {
     const preflight = await import(preflightUrl);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalEntries = Array.isArray(state.importedData?.entries)
       ? JSON.parse(JSON.stringify(state.importedData.entries))
@@ -922,7 +922,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
       import(preflightUrl),
       import(utilsUrl),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originals = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
