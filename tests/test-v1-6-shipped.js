@@ -30,14 +30,14 @@ console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
 // Load modules whose window-exposed handlers are checked below:
 // sun.js → dailyVitaminDIUBreakdown, light-tools.js → saveMeasurement,
 // light-sessions-view.js → _openAllSessionsModal.
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const { dailyVitaminDIUBreakdown, rollingVitaminDIU } = await import('../js/sun.js');
 const lightTools = await import('../js/light-tools.js');
 const viewsModule = await import('../js/views.js');
 
 // Snapshot mutable state we touch.
-const _origImported = window._labState ? JSON.parse(JSON.stringify(window._labState.importedData)) : null;
-const _origProfileSex = window._labState ? window._labState.profileSex : null;
+const _origImported = state ? JSON.parse(JSON.stringify(state.importedData)) : null;
+const _origProfileSex = state ? state.profileSex : null;
 
   // ─── 1. v1.6.7 CAMS source-flip guard (sun-active-session.js _snapshotActiveRate) ─
   console.log('%c 1. CAMS source-flip guard ', 'font-weight:bold;color:#0891b2');
@@ -90,7 +90,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 4. v1.6.6 + v1.6.7 dailyVitaminDIUBreakdown matches rollingIU ──
   console.log('%c 4. dailyVitaminDIUBreakdown ↔ rollingVitaminDIU parity ', 'font-weight:bold;color:#0891b2');
   {
-    const S = window._labState;
+    const S = state;
     if (!S || typeof dailyVitaminDIUBreakdown !== 'function' || typeof rollingVitaminDIU !== 'function') {
       assert('dailyVitaminDIUBreakdown exported by sun.js', false);
     } else {
@@ -139,7 +139,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 5. v1.6.7 Measurement retention model (latest per roomId+tool) ─
   console.log('%c 5. Latest-per-(roomId, tool) measurement model ', 'font-weight:bold;color:#0891b2');
   {
-    const S = window._labState;
+    const S = state;
     if (!S || typeof lightTools.saveMeasurement !== 'function' || typeof lightTools.getMeasurements !== 'function') {
       assert('saveMeasurement / getMeasurements exported', false);
     } else {
@@ -697,8 +697,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   }
 
   // ─── Restore state ──────────────────────────────────────────────────
-  if (window._labState && _origImported) window._labState.importedData = _origImported;
-  if (window._labState) window._labState.profileSex = _origProfileSex;
+  if (state && _origImported) state.importedData = _origImported;
+  if (state) state.profileSex = _origProfileSex;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

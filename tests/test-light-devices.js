@@ -34,7 +34,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Light Devices Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const dev = await import('../js/light-devices.js');
 const sessionEngine = await import('../js/light-device-session-engine.js');
 const { synthesizeDeviceSpectrum } = await import('../js/sun-spectrum.js');
@@ -52,9 +52,9 @@ const {
   resolveDeviceMode,
 } = sessionEngine;
 
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({ entries: [] }, seed);
+    state.importedData = Object.assign({ entries: [] }, seed);
   }
 
   // ─── 1. Lazy init ────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ const {
   // ─── 3. deleteDevice ─────────────────────────────────────────────────
   console.log('%c 3. deleteDevice ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = { entries: [], lightDevices: [dPulse, dCustom], deviceSessions: [] };
+  state.importedData = { entries: [], lightDevices: [dPulse, dCustom], deviceSessions: [] };
   const removed = await deleteDevice(dCustom.id);
   assert('deleteDevice → true on hit', removed === true);
   assert('Device removed from list', getDevices().length === 1);
@@ -284,9 +284,9 @@ const {
     endedAt: Date.now() - 30 * 86400 * 1000 + 60000,
     doses: { pbm_red: 9999 },
   };
-  if (!Array.isArray(window._labState.importedData.deviceSessions))
-    window._labState.importedData.deviceSessions = [];
-  window._labState.importedData.deviceSessions.push(inWindow1, inWindow2, outOfWindow);
+  if (!Array.isArray(state.importedData.deviceSessions))
+    state.importedData.deviceSessions = [];
+  state.importedData.deviceSessions.push(inWindow1, inWindow2, outOfWindow);
 
   const tot7 = rollingDeviceTotals(7);
   assert('rollingDeviceTotals(7) sums in-window pbm_red (1000+2000)',
@@ -301,7 +301,7 @@ const {
     tot30.pbm_red >= 12000);
 
   // Tolerates session with null doses
-  window._labState.importedData.deviceSessions.push({
+  state.importedData.deviceSessions.push({
     id: 'd4', deviceId: 'X',
     startedAt: Date.now() - 1 * 86400 * 1000,
     endedAt: Date.now() - 1 * 86400 * 1000 + 60000,
@@ -312,7 +312,7 @@ const {
     Number.isFinite(totSafe.pbm_red));
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
   // ─── peakShares: explicit shares override the heuristic ──────────────
   // A device with `peakShares: [0.05, 0.95]` for [297nm UVB, 660nm red]
@@ -376,11 +376,11 @@ const {
       peakWavelengths: [660], mwPerCm2At15cm: 50,
       recommendedDistanceCm: 30, peakShares: [1.0],
     };
-    window._labState.importedData = { lightDevices: [distDevice], deviceSessions: [] };
+    state.importedData = { lightDevices: [distDevice], deviceSessions: [] };
     await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 30, bodyArea: 'torso', eyesProtected: true });
     await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
     await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 5, bodyArea: 'torso', eyesProtected: true });
-    const sess = window._labState.importedData.deviceSessions;
+    const sess = state.importedData.deviceSessions;
     const at30 = sess[0]?.doses?.pbm_red || 0;
     const at15 = sess[1]?.doses?.pbm_red || 0;
     const at5  = sess[2]?.doses?.pbm_red || 0;
@@ -395,7 +395,7 @@ const {
       at30 > 0 && Math.abs(at5 / at30 - 3.0) < 0.2,
       `5cm ratio=${at30 > 0 ? (at5/at30).toFixed(2) : 'n/a'} (expected ≈3.0, same cap)`);
   }
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
   // ─── deleteDevice + orphaned-session render ────────────────────────
   // Sessions logged on a device deleted later must remain renderable
@@ -408,23 +408,23 @@ const {
       peakWavelengths: [660], mwPerCm2At15cm: 50,
       recommendedDistanceCm: 15, peakShares: [1.0],
     };
-    window._labState.importedData = { lightDevices: [ephemeral], deviceSessions: [] };
+    state.importedData = { lightDevices: [ephemeral], deviceSessions: [] };
     await logDeviceSession({ deviceId: 'D-ephemeral', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
-    const sessId = window._labState.importedData.deviceSessions[0]?.id;
+    const sessId = state.importedData.deviceSessions[0]?.id;
     assert('logDeviceSession persists session with deviceId reference',
-      sessId && window._labState.importedData.deviceSessions[0].deviceId === 'D-ephemeral');
+      sessId && state.importedData.deviceSessions[0].deviceId === 'D-ephemeral');
     // Now delete the device.
     await deleteDevice('D-ephemeral');
-    const stillThere = window._labState.importedData.deviceSessions[0];
+    const stillThere = state.importedData.deviceSessions[0];
     assert('Sessions persist after parent device is deleted (no auto-purge)',
       stillThere && stillThere.id === sessId);
     assert('Session retains its dangling deviceId for historical reference',
       stillThere.deviceId === 'D-ephemeral');
     // Tombstone recorded so cross-device sync drops the device on peers.
-    const tombs = window._labState.importedData?._deleted?.lightDevices || [];
+    const tombs = state.importedData?._deleted?.lightDevices || [];
     assert('deleteDevice records tombstone for cross-device sync',
       tombs.includes('D-ephemeral'));
-    window._labState.importedData = orig;
+    state.importedData = orig;
   }
 
   // ─── Recompute on legacy + mode-aware sessions ─────────────────────
@@ -465,13 +465,13 @@ const {
       ],
       coupling: [{ if: 'uv-blue', requires: ['red-nir'] }],
     };
-    window._labState.importedData = { lightDevices: [maxiDevice], deviceSessions: [] };
+    state.importedData = { lightDevices: [maxiDevice], deviceSessions: [] };
 
     // 1. Log session without explicit mode → resolves to default 'all-on'
     await logDeviceSession({
       deviceId: 'D-maxi-test', durationMin: 6, distanceCm: 60, bodyArea: 'torso', eyesProtected: true,
     });
-    const sess0 = window._labState.importedData.deviceSessions[0];
+    const sess0 = state.importedData.deviceSessions[0];
     const baseVitD = sess0?.doses?.vitamin_d || 0;
     const basePbmRed = sess0?.doses?.pbm_red || 0;
     assert('Recompute prep: fresh session resolves mode to all-on default',
@@ -483,7 +483,7 @@ const {
     const legacyId = sess0.id;
     delete sess0.mode;
     await updateDeviceSession(legacyId, { durationMin: 12 });
-    const recomputed = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
+    const recomputed = state.importedData.deviceSessions.find(s => s.id === legacyId);
     assert('Legacy recompute: mode auto-fills to default after edit',
       recomputed?.mode === 'all-on', `mode=${recomputed?.mode}`);
     // Doses should ~2× the original (duration doubled, all-on identity).
@@ -499,7 +499,7 @@ const {
 
     // 3. Switch mode mid-edit → vitamin_d crashes, pbm_red preserved
     await updateDeviceSession(legacyId, { mode: 'red-nir-only' });
-    const switched = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
+    const switched = state.importedData.deviceSessions.find(s => s.id === legacyId);
     assert('Mode switch (all-on → red-nir-only): mode persists',
       switched?.mode === 'red-nir-only');
     assert('Mode switch: vitamin_d ≈ 0 after switching off UV group',
@@ -514,7 +514,7 @@ const {
 
     // 4. Coupling enforcement: invalid mode silently falls back to default
     await updateDeviceSession(legacyId, { mode: 'completely-fake-mode' });
-    const validated = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
+    const validated = state.importedData.deviceSessions.find(s => s.id === legacyId);
     assert('Mode validation: unknown mode-id falls back to default',
       validated?.mode === 'all-on');
 
@@ -524,23 +524,23 @@ const {
       peakWavelengths: [660, 850], mwPerCm2At15cm: 100,
       recommendedDistanceCm: 15, peakShares: [0.5, 0.5],
     };
-    window._labState.importedData = { lightDevices: [pbmDevice], deviceSessions: [] };
+    state.importedData = { lightDevices: [pbmDevice], deviceSessions: [] };
     await logDeviceSession({
       deviceId: 'D-pbm-test', durationMin: 5, distanceCm: 15, bodyArea: 'torso', eyesProtected: true,
     });
-    const pbmSess = window._labState.importedData.deviceSessions[0];
+    const pbmSess = state.importedData.deviceSessions[0];
     assert('Non-moded device: session.mode stays null',
       pbmSess?.mode === null, `mode=${pbmSess?.mode}`);
     const basePbmDose = pbmSess.doses.pbm_red;
     await updateDeviceSession(pbmSess.id, { durationMin: 10 });
-    const pbmRecomputed = window._labState.importedData.deviceSessions.find(s => s.id === pbmSess.id);
+    const pbmRecomputed = state.importedData.deviceSessions.find(s => s.id === pbmSess.id);
     assert('Non-moded device: recompute scales linearly (no mode drift)',
       Math.abs(pbmRecomputed.doses.pbm_red / basePbmDose - 2.0) < 0.05,
       `ratio=${(pbmRecomputed.doses.pbm_red / basePbmDose).toFixed(3)}`);
     assert('Non-moded device: mode stays null after recompute',
       pbmRecomputed?.mode === null);
 
-    window._labState.importedData = orig;
+    state.importedData = orig;
   }
 
   // ─── hydrateDevicesFromPresets — pre-Round-7 device backfill ──────
@@ -551,18 +551,18 @@ const {
   // no-op since fields are now present.
   console.log('%c hydrateDevicesFromPresets backfill ', 'font-weight:bold;color:#f59e0b');
   {
-    window._labState.importedData = { lightDevices: [], deviceSessions: [] };
+    state.importedData = { lightDevices: [], deviceSessions: [] };
     // Add a Maxi UVB then strip the Round-7 fields, simulating a device
     // record persisted to localStorage before the schema additions.
     await addDeviceFromPreset('mitochondriak-maxi-uvb');
-    const dev = window._labState.importedData.lightDevices[0];
+    const dev = state.importedData.lightDevices[0];
     delete dev.channelGroups;
     delete dev.modes;
     delete dev.coupling;
     assert('Pre-hydration: legacy device record has no `modes`',
       !Array.isArray(dev.modes));
     const dirty = await hydrateDevicesFromPresets();
-    const hydrated = window._labState.importedData.lightDevices[0];
+    const hydrated = state.importedData.lightDevices[0];
     assert('hydrateDevicesFromPresets reports dirty when fields were missing',
       dirty === true);
     assert('Hydration backfills `modes` from preset',
@@ -576,15 +576,15 @@ const {
     assert('hydrateDevicesFromPresets is idempotent (second run = no-op)',
       dirty2 === false);
     // Custom devices (no presetId) skip hydration even if they're missing fields.
-    window._labState.importedData.lightDevices.push({
+    state.importedData.lightDevices.push({
       id: 'D-custom-no-preset', brand: 'Custom', model: 'Test',
       peakWavelengths: [660], mwPerCm2At15cm: 50,
     });
     await hydrateDevicesFromPresets();
-    const customDev = window._labState.importedData.lightDevices.find(d => d.id === 'D-custom-no-preset');
+    const customDev = state.importedData.lightDevices.find(d => d.id === 'D-custom-no-preset');
     assert('Hydration skips custom (no-presetId) devices',
       !customDev.modes && !customDev.channelGroups);
-    window._labState.importedData = orig;
+    state.importedData = orig;
   }
 
   // ─── addDeviceFromPreset copies Round-7 schema through ─────────────
@@ -593,9 +593,9 @@ const {
   // the boot-time hydration migration to fire.
   console.log('%c addDeviceFromPreset copies Round-7 schema ', 'font-weight:bold;color:#f59e0b');
   {
-    window._labState.importedData = { lightDevices: [], deviceSessions: [] };
+    state.importedData = { lightDevices: [], deviceSessions: [] };
     await addDeviceFromPreset('mitochondriak-maxi-uvb');
-    const fresh = window._labState.importedData.lightDevices[0];
+    const fresh = state.importedData.lightDevices[0];
     assert('Fresh-add: device carries `modes` immediately',
       Array.isArray(fresh.modes) && fresh.modes.length >= 2);
     assert('Fresh-add: device carries `channelGroups` immediately',
@@ -604,10 +604,10 @@ const {
       Array.isArray(fresh.coupling));
     // Non-moded preset (Pulse) → fields stay null
     await addDeviceFromPreset('mitochondriak-pulse');
-    const pulse = window._labState.importedData.lightDevices.find(d => d.presetId === 'mitochondriak-pulse');
+    const pulse = state.importedData.lightDevices.find(d => d.presetId === 'mitochondriak-pulse');
     assert('Fresh-add: non-moded preset (Pulse) has null modes',
       pulse.modes === null);
-    window._labState.importedData = orig;
+    state.importedData = orig;
   }
 
   // ─── Runtime adapter ownership ─────────────────────────────────────

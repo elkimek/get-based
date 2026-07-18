@@ -14,8 +14,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Sun Correlations Tests ===\n');
 
-// state.js initializes window._labState; importing it loads the wiring.
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const mod = await import('../js/sun-correlations.js');
 const { computeSunCorrelations, getSunCorrelations } = mod;
 assert('sun correlations exports stay module-scoped',
@@ -24,7 +23,7 @@ assert('sun correlations exports stay module-scoped',
 
   // Stash and restore importedData around the run so we don't pollute the
   // host page's profile state.
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
 
   // Helper — build a session record at the given week-offset (0 = this week).
   // Sessions are bucketed by `endedAt` against now.
@@ -54,7 +53,7 @@ assert('sun correlations exports stay module-scoped',
   // ─── 1. Empty-state contract ──────────────────────────────────────────
   console.log('%c 1. Empty-state contract ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = { sunSessions: [], deviceSessions: [], entries: [] };
+  state.importedData = { sunSessions: [], deviceSessions: [], entries: [] };
   const empty = computeSunCorrelations({ weeks: 12 });
   assert('Empty session set → empty pairs', Array.isArray(empty.pairs) && empty.pairs.length === 0);
   assert('Empty result still carries computedAt', typeof empty.computedAt === 'number');
@@ -62,7 +61,7 @@ assert('sun correlations exports stay module-scoped',
   // ─── 2. Insufficient data → skip pairs ────────────────────────────────
   console.log('%c 2. n<4 weeks → skip ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [
       session(0, { vitamin_d: 5 }),
       session(1, { vitamin_d: 4 }),
@@ -80,7 +79,7 @@ assert('sun correlations exports stay module-scoped',
   console.log('%c 3. Strong positive correlation ', 'font-weight:bold;color:#f59e0b');
 
   // Vitamin-D dose ↑ alongside vitamin_d_25oh ↑ across 6 weeks
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [
       session(0, { vitamin_d: 8 }),
       session(1, { vitamin_d: 7 }),
@@ -108,7 +107,7 @@ assert('sun correlations exports stay module-scoped',
   console.log('%c 4. Strong negative correlation ', 'font-weight:bold;color:#f59e0b');
 
   // Inverse: dose climbs while marker falls
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [
       session(0, { vitamin_d: 1 }),
       session(1, { vitamin_d: 2 }),
@@ -128,7 +127,7 @@ assert('sun correlations exports stay module-scoped',
   // ─── 5. Constant series → no correlation (skip) ──────────────────────
   console.log('%c 5. Zero-variance skip ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [
       session(0, { vitamin_d: 5 }),
       session(1, { vitamin_d: 5 }),
@@ -146,7 +145,7 @@ assert('sun correlations exports stay module-scoped',
   // ─── 6. Device sessions accumulate alongside sun sessions ─────────────
   console.log('%c 6. Device + sun sessions accumulate ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [
       session(0, { vitamin_d: 3 }), session(1, { vitamin_d: 2 }),
       session(2, { vitamin_d: 1 }), session(3, { vitamin_d: 0 }),
@@ -165,7 +164,7 @@ assert('sun correlations exports stay module-scoped',
   // ─── 7. Cache invalidation via getSunCorrelations ─────────────────────
   console.log('%c 7. Cache key respects session/entry counts ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [
       session(0, { vitamin_d: 1 }), session(1, { vitamin_d: 2 }),
       session(2, { vitamin_d: 3 }), session(3, { vitamin_d: 4 }),
@@ -179,8 +178,8 @@ assert('sun correlations exports stay module-scoped',
   assert('Identical state → cached result returned (same reference)', first === second);
 
   // Mutating fixture (extra session) must invalidate cache
-  window._labState.importedData.sunSessions.push(session(4, { vitamin_d: 5 }));
-  window._labState.importedData.entries.push(entry(4, 80));
+  state.importedData.sunSessions.push(session(4, { vitamin_d: 5 }));
+  state.importedData.entries.push(entry(4, 80));
   const third = getSunCorrelations();
   assert('New session → cache invalidated (fresh result)', first !== third);
 
@@ -191,7 +190,7 @@ assert('sun correlations exports stay module-scoped',
   const allChannels = ['vitamin_d','pomc','no_cv','violet_eye','circadian','nir_solar'];
   const synthDose = {};
   allChannels.forEach((c, i) => { synthDose[c] = 1 + i; });
-  window._labState.importedData = {
+  state.importedData = {
     sunSessions: [0,1,2,3,4,5].map(w => session(w, Object.fromEntries(allChannels.map(c => [c, 1 + Math.random()])))),
     deviceSessions: [],
     entries: [entry(0,60),entry(1,55),entry(2,70),entry(3,50),entry(4,65),entry(5,58)],
@@ -217,7 +216,7 @@ assert('sun correlations exports stay module-scoped',
   }
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
