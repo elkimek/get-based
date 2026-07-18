@@ -135,7 +135,7 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
 
   const results = await page.evaluate(async ({ reviewUrl }) => {
     const review = await import(reviewUrl);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalProfile = state.currentProfile;
     const dropZone = document.getElementById('drop-zone');
@@ -529,7 +529,8 @@ test('PDF import review draft restores after refresh', async ({ page }) => {
     const dispatchChange = el => el?.dispatchEvent(new Event('change', { bubbles: true }));
     sessionStorage.removeItem('labcharts-import-review-draft-v1');
     localStorage.setItem('labcharts-active-profile', 'default');
-    window._labState.currentProfile = 'default';
+    const { state } = await import('/js/state.js');
+    state.currentProfile = 'default';
     review.showImportPreview({
       date: '2026-06-05',
       fileName: 'refresh-review.pdf',
@@ -668,7 +669,7 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
   const results = await page.evaluate(async ({ persistenceUrl }) => {
     const persistence = await import(persistenceUrl);
     const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originals = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),

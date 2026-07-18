@@ -38,7 +38,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       headers: { 'Content-Type': 'application/json' },
     });
 
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const profileId = 'settings-browser-coverage-profile';
     const usageKey = `labcharts-${profileId}-usage`;
     const saved = {
@@ -232,7 +232,7 @@ test('settings browser coverage renames imported entry dates through the data se
       throw new Error(`Timed out waiting for ${label}`);
     };
 
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const profileId = 'settings-rename-coverage-profile';
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),

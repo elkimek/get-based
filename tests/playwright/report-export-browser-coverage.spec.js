@@ -12,7 +12,7 @@ test('report builder modal delegates presets categories AI state and preview exp
     const builder = await import(builderUrl);
     const dataModule = await import('/js/data.js');
     const profile = await import('/js/profile.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalProfiles = profile.getProfiles();
     if (!Array.isArray(originalProfiles)) {
@@ -253,7 +253,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       import('/js/profile.js'),
       import('/js/data.js'),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalProfiles = profile.getProfiles();
     const original = {
@@ -485,7 +485,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
   const results = await page.evaluate(async ({ htmlUrl }) => {
     const html = await import(htmlUrl);
     const dataModule = await import('/js/data.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
@@ -748,7 +748,7 @@ test('report AI summary generation covers unavailable success and empty-response
     const report = await import(reportUrl);
     const dataModule = await import('/js/data.js');
     const profile = await import('/js/profile.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalProfiles = profile.getProfiles();
     const original = {
@@ -890,7 +890,7 @@ test('report export helpers cover option normalization AI markup and popup block
     const report = await import(reportUrl);
     const html = await import(htmlUrl);
     const dataModule = await import('/js/data.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
@@ -972,7 +972,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       import(cryptoUrl),
       import('/js/data.js'),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const profileId = 'export-facade-coverage';
     const originalProfiles = profileStore.getProfiles();
