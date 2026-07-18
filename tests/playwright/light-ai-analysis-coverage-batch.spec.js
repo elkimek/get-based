@@ -8,13 +8,13 @@ test('sun and device session AI analysis covers contexts fingerprints and render
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ sunUrl, deviceUrl, apiUrl }) => {
-    const [sun, device, api, aiVerdictRuntime] = await Promise.all([
+    const [{ state }, sun, device, api, aiVerdictRuntime] = await Promise.all([
+      import('/js/state.js'),
       import(sunUrl),
       import(deviceUrl),
       import(apiUrl),
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
-    const state = window._labState;
     const outcomes = {};
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
@@ -354,14 +354,14 @@ test('light environment AI analysis covers audit room screen and onboarding verd
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ auditUrl, roomUrl, screenUrl, onboardingUrl }) => {
-    const [audit, roomAI, screenAI, onboarding, aiVerdictRuntime] = await Promise.all([
+    const [{ state }, audit, roomAI, screenAI, onboarding, aiVerdictRuntime] = await Promise.all([
+      import('/js/state.js'),
       import(auditUrl),
       import(roomUrl),
       import(screenUrl),
       import(onboardingUrl),
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
-    const state = window._labState;
     const outcomes = {};
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
@@ -633,13 +633,13 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ channelUrl, burdenUrl, todayUrl }) => {
-    const [channelAI, burdenAI, todayAI, aiVerdictRuntime] = await Promise.all([
+    const [{ state }, channelAI, burdenAI, todayAI, aiVerdictRuntime] = await Promise.all([
+      import('/js/state.js'),
       import(channelUrl),
       import(burdenUrl),
       import(todayUrl),
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
-    const state = window._labState;
     const outcomes = {};
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),

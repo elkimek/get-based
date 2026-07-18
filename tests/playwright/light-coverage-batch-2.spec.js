@@ -8,8 +8,10 @@ test('light device setup covers preset pick custom form validation unit conversi
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ setupUrl }) => {
-    const setup = await import(setupUrl);
-    const state = window._labState;
+    const [{ state }, setup] = await Promise.all([
+      import('/js/state.js'),
+      import(setupUrl),
+    ]);
     const outcomes = {};
     const calls = [];
     const saved = {
@@ -257,8 +259,10 @@ test('light channel view covers pills detail panels suggestions and light-page r
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ channelUrl }) => {
-    const channel = await import(channelUrl);
-    const state = window._labState;
+    const [{ state }, channel] = await Promise.all([
+      import('/js/state.js'),
+      import(channelUrl),
+    ]);
     const outcomes = {};
     const calls = [];
     const host = document.createElement('section');
@@ -413,8 +417,10 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ analysisUrl }) => {
-    const analysis = await import(analysisUrl);
-    const state = window._labState;
+    const [{ state }, analysis] = await Promise.all([
+      import('/js/state.js'),
+      import(analysisUrl),
+    ]);
     const outcomes = {};
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
