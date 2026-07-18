@@ -350,7 +350,13 @@ export function renderDiagnosesModal(modal, current) {
     <button class="import-btn import-btn-secondary" ${medicalHistoryActionAttrs('close')}>Cancel</button>
     ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${medicalHistoryActionAttrs('clear')}>Clear</button>` : ''}
   </div>`;
-  renderContextEditorModal(modal, 'Medical History', 'Your diagnoses and family history. The AI considers both when interpreting your labs.', html, 'closeDiagnoses');
+  renderContextEditorModal(
+    modal,
+    'Medical History',
+    'Your diagnoses and family history. The AI considers both when interpreting your labs.',
+    html,
+    medicalHistoryActionAttrs('close'),
+  );
 }
 
 export function filterConditionSuggestions() {
