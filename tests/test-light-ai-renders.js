@@ -15,8 +15,8 @@ function assert(name, cond, detail) {
 
 console.log('=== Light AI Render Smoke Tests ===\n');
 
-await import('../js/state.js');
-  const origImported = window._labState.importedData;
+const { state } = await import('../js/state.js');
+  const origImported = state.importedData;
   const origProvider = localStorage.getItem('labcharts-ai-provider');
   const origPaused = localStorage.getItem('labcharts-ai-paused');
 
@@ -28,7 +28,7 @@ await import('../js/state.js');
     localStorage.setItem('labcharts-ai-paused', 'true');
   }
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({
+    state.importedData = Object.assign({
       entries: [],
       sunSessions: [],
       deviceSessions: [],
@@ -170,7 +170,7 @@ await import('../js/state.js');
         screens: [],
       },
     });
-    const ctx = mod.buildRoomContext(window._labState.importedData.lightEnvironment.rooms[0]);
+    const ctx = mod.buildRoomContext(state.importedData.lightEnvironment.rooms[0]);
     // Newlines collapsed to single spaces — no \n[INJECT]\n breakout
     assert('room context collapses newlines in user-supplied name',
       !ctx.includes('Bedroom\n[INJECT]'));
@@ -204,7 +204,7 @@ await import('../js/state.js');
     // not render the green dot.
     reset({ sunSessions: [{ id: 'sx', endedAt: Date.now() - 60000, durationMin: 20 }] });
     const today = new Date().toISOString().slice(0, 10);
-    const verdicts = window._labState.importedData.lightDailyVerdicts = {};
+    const verdicts = state.importedData.lightDailyVerdicts = {};
     const realFp = mod.getDayFingerprint
       ? mod.getDayFingerprint({ key: today, date: new Date(), isLightTodayTarget: true })
       : 'fp';
@@ -291,12 +291,12 @@ await import('../js/state.js');
     assert('burden render shows CTA + heuristic when no AI verdict',
       idle.includes('Get AI verdict') && idle.includes('fallback heuristic text'));
 
-    window._labState.importedData.lightEnvironment.burdenAI = okVerdict('yellow');
+    state.importedData.lightEnvironment.burdenAI = okVerdict('yellow');
     // Fingerprint won't match (different by design), so the render
     // shows stale-CTA. Recompute fingerprint match by setting it
     // explicitly to whatever the module computes.
     const currentFp = mod.getBurdenFingerprint();
-    window._labState.importedData.lightEnvironment.burdenAI.fingerprint = currentFp;
+    state.importedData.lightEnvironment.burdenAI.fingerprint = currentFp;
     const ok = mod.renderBurdenInterp(burden);
     assert('burden render shows yellow verdict on fingerprint match',
       ok.includes('sun-session-ai-dot-yellow') && ok.includes('tip-text'));
@@ -318,9 +318,9 @@ await import('../js/state.js');
     assert('channel-mix render shows CTA + fallback when no verdict',
       idle.includes('Get AI synthesis') && idle.includes('static-fallback'));
 
-    window._labState.importedData.channelMixAI = okVerdict('green');
+    state.importedData.channelMixAI = okVerdict('green');
     const currentFp = mod.getChannelMixFingerprint();
-    window._labState.importedData.channelMixAI.fingerprint = currentFp;
+    state.importedData.channelMixAI.fingerprint = currentFp;
     const ok = mod.renderChannelMixVerdict(fallback);
     assert('channel-mix render shows verdict on fingerprint match',
       ok.includes('sun-session-ai-dot-green'));
@@ -352,7 +352,7 @@ await import('../js/state.js');
       idle.includes('Generate plan'));
 
     // Test the actions[] custom field via parseExtraFields
-    window._labState.importedData.sunDefaults.aiAnalysis = Object.assign(okVerdict('yellow'), {
+    state.importedData.sunDefaults.aiAnalysis = Object.assign(okVerdict('yellow'), {
       actions: ['Walk outside within 10 min of waking', 'Avoid screens past 9 pm', 'Change bedroom bulb to incandescent'],
     });
     const ok = mod.renderOnboardingAIBlock();
@@ -360,8 +360,8 @@ await import('../js/state.js');
       ok.includes('<ul class="light-setup-ai-actions">') && ok.includes('Walk outside'));
 
     // Skip rendering when setup not completed
-    delete window._labState.importedData.sunDefaults.completedAt;
-    delete window._labState.importedData.sunDefaults.aiAnalysis;
+    delete state.importedData.sunDefaults.completedAt;
+    delete state.importedData.sunDefaults.aiAnalysis;
     assert('onboarding render returns "" when setup not completed',
       mod.renderOnboardingAIBlock() === '');
   }
@@ -371,7 +371,7 @@ await import('../js/state.js');
   else localStorage.removeItem('labcharts-ai-provider');
   if (origPaused != null) localStorage.setItem('labcharts-ai-paused', origPaused);
   else localStorage.removeItem('labcharts-ai-paused');
-  window._labState.importedData = origImported;
+  state.importedData = origImported;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

@@ -15,7 +15,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Light Device AI Analysis Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 await import('../js/light-devices.js');
 const mod = await import('../js/light-device-ai-analysis.js');
 const {
@@ -26,7 +26,7 @@ const {
   refreshDeviceSessionAIAnalysis,
   maybeAnalyzeDeviceSessionAfterFinish,
 } = mod;
-  const origImported = window._labState.importedData;
+  const origImported = state.importedData;
   const origProvider = localStorage.getItem('labcharts-ai-provider');
   const origPaused = localStorage.getItem('labcharts-ai-paused');
 
@@ -50,7 +50,7 @@ const {
   }
 
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({
+    state.importedData = Object.assign({
       entries: [],
       deviceSessions: [],
       lightDevices: [],
@@ -351,7 +351,7 @@ const {
 
   // After refresh, the session in state should carry an error verdict —
   // which proves setAIAnalysis was reached (via the catch branch).
-  const after = window._labState.importedData.deviceSessions.find(s => s.id === 'dev-refresh-target');
+  const after = state.importedData.deviceSessions.find(s => s.id === 'dev-refresh-target');
   assert('refresh resolved id via getTarget (target exists in state)',
     !!after);
   assert('refresh reached setAIAnalysis via catch (error sidecar written)',
@@ -369,7 +369,7 @@ const {
   else localStorage.removeItem('labcharts-ai-provider');
   if (origPaused != null) localStorage.setItem('labcharts-ai-paused', origPaused);
   else localStorage.removeItem('labcharts-ai-paused');
-  window._labState.importedData = origImported;
+  state.importedData = origImported;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

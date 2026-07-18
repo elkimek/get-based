@@ -16,7 +16,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Light Tools Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const tools = await import('../js/light-tools.js');
   const {
     computeRowBanding,
@@ -45,9 +45,9 @@ const tools = await import('../js/light-tools.js');
       return a >= 0 && b >= 0 && a < b;
     };
 
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({ entries: [] }, seed);
+    state.importedData = Object.assign({ entries: [] }, seed);
   }
 
   // ─── 1. computeRowBanding shape ──────────────────────────────────────
@@ -140,7 +140,7 @@ const tools = await import('../js/light-tools.js');
     assert('getMeasurements preserves audit walkthrough history during collapse',
       migrated.filter(m => m.tool === 'audit').length === 2);
     assert('getMeasurements tombstones collapsed rows for sync',
-      window._labState.importedData._deleted?.lightMeasurements?.includes('old-lux'));
+      state.importedData._deleted?.lightMeasurements?.includes('old-lux'));
 
     reset();
 
@@ -335,7 +335,7 @@ const tools = await import('../js/light-tools.js');
   configureLightTools({ suggestRoomSourceFromSpectrum: async () => {} });
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
