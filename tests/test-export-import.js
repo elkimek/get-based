@@ -8,7 +8,7 @@ return (async function() {
     else { fail++; console.error(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
   }
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  const S = window._labState;
+  const { state: S } = await import('/js/state.js');
   const backupModule = await import('/js/backup.js');
   const dataModule = await import('/js/data.js');
   const exportModule = await import('/js/export.js');

@@ -30,10 +30,8 @@ function assert(name, condition, detail) {
 console.log('=== Calculated Markers Tests ===\n');
 
 // Bring in state.js and the module-only data API.
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const dataModule = await import('../js/data.js');
-
-const state = window._labState;
 
   // Save originals
   const origEntries = state.importedData.entries;
