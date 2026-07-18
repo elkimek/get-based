@@ -35,8 +35,10 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
     });
     window.scrollTo = (...args) => calls.push(['scrollTo', ...args]);
 
-    const mobileDashboard = await import(mobileDashboardUrl);
-    const state = window._labState;
+    const [{ state }, mobileDashboard] = await Promise.all([
+      import('/js/state.js'),
+      import(mobileDashboardUrl),
+    ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const originalState = {
       importedData: clone(state.importedData),

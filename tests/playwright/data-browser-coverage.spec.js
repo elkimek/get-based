@@ -21,8 +21,10 @@ test('data browser coverage exercises display toggles range refresh and helpers'
   await openBlankPage(page);
 
   const results = await page.evaluate(async () => {
-    const dataMod = await import('/js/data.js');
-    const state = window._labState;
+    const [{ state }, dataMod] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
     const calls = [];
     const outcomes = {};
     const formerGlobalNames = [

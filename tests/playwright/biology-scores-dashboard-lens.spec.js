@@ -2,7 +2,10 @@ import { expect, test } from './coverage-fixture.js';
 
 async function prepareDemoProfile(page) {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => !!window._labState);
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return !!state;
+  });
 
   await page.evaluate(async () => {
     const [{ getActiveProfileId }, dataModule, navModule] = await Promise.all([
