@@ -17,7 +17,6 @@ import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { loadEMFCatalog, renderEMFMeterRecs, isProductRecsEnabled } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   closeEMFInterpretation,
   discussEMFInterpretation,
@@ -30,10 +29,22 @@ const emfAIDeps = {
   hasAIProvider,
 };
 
+const emfRuntimeDeps = {
+  closeModal: /** @type {null | (() => void)} */ (null),
+};
+
 export function configureEMFAIDeps(deps = {}) {
   const previous = { ...emfAIDeps };
   if (typeof deps.callClaudeAPI === 'function') emfAIDeps.callClaudeAPI = deps.callClaudeAPI;
   if (typeof deps.hasAIProvider === 'function') emfAIDeps.hasAIProvider = deps.hasAIProvider;
+  return previous;
+}
+
+export function configureEMFRuntimeDeps(deps = {}) {
+  const previous = { ...emfRuntimeDeps };
+  if (Object.hasOwn(deps, 'closeModal')) {
+    emfRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
+  }
   return previous;
 }
 
@@ -136,27 +147,8 @@ let _editingAssessmentId = null;
 let _activeRoomIdx = 0;
 let emfEditorDelegatesInstalled = false;
 
-/**
- * @returns {Record<string, any>}
- */
-function getEMFRuntimeScope() {
-  return typeof window !== 'undefined'
-    ? /** @type {Record<string, any>} */ (window)
-    : /** @type {Record<string, any>} */ (globalThis);
-}
-
-/**
- * @param {string} name
- * @returns {((...args: any[]) => any) | null}
- */
-function getEMFRuntimeFunction(name) {
-  const runtime = getEMFRuntimeScope();
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
-}
-
 function closeEMFModalRuntime() {
-  getEMFRuntimeFunction('closeModal')?.();
+  emfRuntimeDeps.closeModal?.();
 }
 
 /**

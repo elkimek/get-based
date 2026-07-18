@@ -77,6 +77,7 @@ import { configureCryptoProfileDeps } from './crypto.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDataRuntimeDeps } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
+import { configureEMFRuntimeDeps } from './emf-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
@@ -186,6 +187,7 @@ configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
+configureEMFRuntimeDeps({ closeModal });
 configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });
 
 function resumeAI() {

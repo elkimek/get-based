@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
+const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
 const emfInterpretationSrc = fs.readFileSync(path.join(root, 'js/emf-interpretation.js'), 'utf8');
 
 let passed = 0;
@@ -72,7 +73,10 @@ assert('EMF editor close path preserves save and lightbox cleanup',
     emfSrc.includes('removeEMFEditorDelegates();') &&
     emfSrc.includes('closeEMFModalRuntime();'));
 assert('EMF editor runtime hooks avoid counted direct window globals',
-  emfSrc.includes("getEMFRuntimeFunction('closeModal')") &&
+  !emfSrc.includes("from './views-runtime-bridge.js'") &&
+    !emfSrc.includes('getViewRuntimeFunction') &&
+    emfSrc.includes('emfRuntimeDeps.closeModal?.()') &&
+    emfRuntimeSrc.includes('mod.configureEMFRuntimeDeps(emfRuntimeDeps);') &&
     emfSrc.includes('return showPromptDialog(message, options);') &&
     !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
 assert('EMF interpretation runtime hooks avoid counted direct window globals',

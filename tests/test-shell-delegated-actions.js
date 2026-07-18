@@ -14,6 +14,8 @@ const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-sco
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
 const chatRuntimeSrc = fs.readFileSync(path.join(root, 'js/chat-runtime.js'), 'utf8');
+const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
+const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
@@ -161,6 +163,14 @@ assert('App shell wires remaining Chat open consumers without window globals',
   appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });')
     && appShellHooksSrc.includes('configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });')
     && appShellHooksSrc.includes('configureTourRuntimeDeps({ openChatPanel });'));
+
+assert('App shell injects the lazy EMF editor close callback without bridge lookups',
+  !emfSrc.includes("from './views-runtime-bridge.js'")
+    && !emfSrc.includes('getViewRuntimeFunction')
+    && emfSrc.includes('emfRuntimeDeps.closeModal?.();')
+    && emfRuntimeSrc.includes('mod.configureEMFRuntimeDeps(emfRuntimeDeps);')
+    && appShellHooksSrc.includes("import { configureEMFRuntimeDeps } from './emf-runtime.js';")
+    && appShellHooksSrc.includes('configureEMFRuntimeDeps({ closeModal });'));
 
 assert('App shell injects wearable navigation without view bridge lookups',
   appShellHooksSrc.includes('configureWearablesConnectRuntimeDeps({ navigate });')

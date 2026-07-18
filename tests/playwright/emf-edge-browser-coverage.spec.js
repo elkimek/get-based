@@ -156,8 +156,10 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
     const original = {
       importedData: state.importedData,
       currentProfile: state.currentProfile,
-      closeModal: window.closeModal,
     };
+    const previousRuntimeDeps = emf.configureEMFRuntimeDeps({
+      closeModal: () => document.getElementById('modal-overlay')?.classList.remove('show'),
+    });
     const assessments = () => state.importedData.emfAssessment?.assessments || [];
 
     try {
@@ -178,7 +180,6 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         changeHistory: [],
         emfAssessment: { assessments: [] },
       };
-      window.closeModal = () => document.getElementById('modal-overlay')?.classList.remove('show');
       localStorage.setItem('labcharts-pii-review', 'false');
 
       emf.openEMFAssessmentEditor();
@@ -305,7 +306,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;
-      window.closeModal = original.closeModal;
+      emf.configureEMFRuntimeDeps(previousRuntimeDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

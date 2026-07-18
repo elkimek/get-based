@@ -132,6 +132,7 @@ const missingExports = emfWindowFns.filter(fn => typeof emfMod[fn] !== 'function
 assert('45. All former facade functions remain emf.js exports', missingExports.length === 0, missingExports.join(', '));
 assert('45a. EMF runtime exports a lazy module loader', typeof emfRuntimeMod.loadEMFModule === 'function');
 assert('45b. EMF runtime exposes only the lazy cross-module entry points',
+  typeof emfRuntimeMod.configureEMFRuntimeDeps === 'function' &&
   typeof emfRuntimeMod.openEMFAssessmentEditor === 'function' &&
   typeof emfRuntimeMod.closeEMFInterpretation === 'function');
 const mainSrc = read('js/main.js');
