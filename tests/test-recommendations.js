@@ -285,6 +285,12 @@ const _realFetch = globalThis.fetch;
       && recommendationActionsSrc.includes('renderRecommendationsDetailSection')
       && !/\bwindow(\.|\s*\[)/.test(recommendationActionsSrc));
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
+  assert('dashboard recommendation widget uses configured runtime actions',
+    dashboardRecommendationWidgetSrc.includes('export function configureDashboardRecommendationRuntimeDeps') &&
+    dashboardRecommendationWidgetSrc.includes('dashboardRecommendationRuntimeDeps[name]?.(...args)') &&
+    !dashboardRecommendationWidgetSrc.includes("from './views-runtime-bridge.js'") &&
+    !dashboardRecommendationWidgetSrc.includes("from './settings-runtime-bridge.js'") &&
+    !dashboardRecommendationWidgetSrc.includes('globalThis'));
   assert('dismissed recommendations render a Restore action',
     dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&
     dashboardRecommendationWidgetSrc.includes("dashboardRecommendationActionAttrs('dismiss'") &&
