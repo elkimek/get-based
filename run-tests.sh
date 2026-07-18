@@ -6,6 +6,7 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PORT=${PORT:-8000}
+REUSE_TEST_SERVER=${REUSE_TEST_SERVER:-0}
 COVERAGE_ENABLED=0
 if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
   COVERAGE_ENABLED=1
@@ -18,11 +19,35 @@ fi
 npm run vendor:check || exit 1
 node "$DIR/tests/verify-modules.js" || exit 1
 
-# Start server if not already running. nohup + disown fully detaches it
-# from the shell — signals sent to the shell's process group won't
-# propagate. Log to /tmp so we can inspect if it ever dies unexpectedly.
+# Reusing an arbitrary process on the requested port can mix the current tests
+# with app files from another checkout. Only reuse when explicitly requested;
+# otherwise move to the next available HTTP port and start a server we own.
+server_reachable() {
+  curl -s -o /dev/null -m 1 "http://localhost:$1/" 2>/dev/null
+}
+
+if server_reachable "$PORT" && [ "$REUSE_TEST_SERVER" != "1" ] && [ "$REUSE_TEST_SERVER" != "true" ]; then
+  REQUESTED_PORT=$PORT
+  PORT_FOUND=0
+  for candidate in $(seq $((PORT + 1)) $((PORT + 50))); do
+    if ! server_reachable "$candidate"; then
+      PORT=$candidate
+      PORT_FOUND=1
+      break
+    fi
+  done
+  if [ "$PORT_FOUND" != "1" ]; then
+    echo "No available test port found after :$REQUESTED_PORT — aborting"
+    exit 2
+  fi
+  echo "Port :$REQUESTED_PORT is already serving; using isolated test port :$PORT"
+fi
+
+# Start a server unless reuse was explicitly requested. nohup + disown fully
+# detaches it from the shell, so signals sent to the shell's process group
+# won't propagate. Log to /tmp so we can inspect if it dies unexpectedly.
 SERVER_PID=""
-if ! curl -s -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
+if ! server_reachable "$PORT"; then
   nohup node "$DIR/dev-server.js" "$PORT" > /tmp/dev-server.log 2>&1 < /dev/null &
   SERVER_PID=$!
   disown "$SERVER_PID" 2>/dev/null || true
@@ -68,9 +93,9 @@ ensure_server
 # HTTP-reliant test before the browser suite (needs the dev server up).
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
 if [ "$COVERAGE_ENABLED" = "1" ]; then
-  PLAYWRIGHT_SUITE_COVERAGE=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT npm run test:playwright || exit 1
+  PLAYWRIGHT_REUSE_SERVER=1 PLAYWRIGHT_SUITE_COVERAGE=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT npm run test:playwright || exit 1
 else
-  PORT=$PORT npm run test:playwright || exit 1
+  PLAYWRIGHT_REUSE_SERVER=1 PORT=$PORT npm run test:playwright || exit 1
 fi
 if [ "$COVERAGE_ENABLED" = "1" ]; then
   : "${COVERAGE_MIN:=0}"
