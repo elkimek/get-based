@@ -15,7 +15,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Light Environment Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const { buildSunContext } = await import('../js/sun-context.js');
 const env = await import('../js/light-env.js');
 const model = await import('../js/light-env-model.js');
@@ -40,9 +40,9 @@ const {
   computeIndoorBurdenForEnvironment,
 } = model;
 
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({ entries: [] }, seed);
+    state.importedData = Object.assign({ entries: [] }, seed);
   }
 
   // ─── 1. Constant shape ───────────────────────────────────────────────
@@ -80,7 +80,7 @@ const {
   assert('getEnvironment seeds rooms[] + screens[]',
     e && Array.isArray(e.rooms) && Array.isArray(e.screens));
 
-  window._labState.importedData = null;
+  state.importedData = null;
   assert('getEnvironment returns null when importedData missing',
     getEnvironment() === null);
 
@@ -324,7 +324,7 @@ const {
   assert('Empty env → tier 0 light load with mapping hint',
     burden.tier === 0 && burden.color === 'green' &&
     /add a room|add a screen/i.test(burden.interp));
-  window._labState.importedData.lightEnvironment.burdenAI = {
+  state.importedData.lightEnvironment.burdenAI = {
     status: 'ok',
     dot: 'yellow',
     tip: 'stale moderate verdict',
@@ -415,9 +415,9 @@ const {
   reset();
   await addRoom('Bedroom');
   // Drop a measurement so saveLightAudit has something to snapshot.
-  if (!Array.isArray(window._labState.importedData.lightMeasurements))
-    window._labState.importedData.lightMeasurements = [];
-  window._labState.importedData.lightMeasurements.push({
+  if (!Array.isArray(state.importedData.lightMeasurements))
+    state.importedData.lightMeasurements = [];
+  state.importedData.lightMeasurements.push({
     id: 'lm_x', tool: 'lux', value: 200, capturedAt: Date.now(),
     roomId: getEnvironment().rooms[0].id,
   }, {
@@ -512,7 +512,7 @@ const {
     window.deleteLightEnvScreenConfirm === undefined &&
     window.computeLightDeficitAxes === undefined);
 
-  const beforeModalSyncData = window._labState.importedData;
+  const beforeModalSyncData = state.importedData;
   const originalCreateElement = document.createElement;
   const originalGetElementById = document.getElementById;
   const originalBodyAppendChild = document.body.appendChild;
@@ -549,13 +549,13 @@ const {
     document.body.appendChild = el => { storedOverlay = el; return el; };
     document.getElementById = id => id === 'light-env-assessment-overlay' ? storedOverlay : originalGetElementById.call(document, id);
 
-    window._labState.importedData = {
+    state.importedData = {
       lightEnvironment: { rooms: [{ id: 'sync-room', name: 'Office', hoursOccupiedPerDay: 8 }], screens: [] },
       lightMeasurements: [],
     };
     openLightEnvironmentAssessment();
     const initialModalHtml = storedOverlay?.innerHTML || '';
-    window._labState.importedData.lightEnvironment.rooms[0].name = 'Bedroom';
+    state.importedData.lightEnvironment.rooms[0].name = 'Bedroom';
     window.dispatchEvent({ type: 'labcharts-sync-applied' });
     assert('Open Light Environment modal refreshes clean content on sync',
       initialModalHtml.includes('light-env-room-disclosure-name">Office') &&
@@ -564,7 +564,7 @@ const {
 
     dirtyModal = true;
     const cleanSyncedHtml = storedOverlay.innerHTML;
-    window._labState.importedData.lightEnvironment.rooms[0].name = 'Kitchen';
+    state.importedData.lightEnvironment.rooms[0].name = 'Kitchen';
     window.dispatchEvent({ type: 'labcharts-sync-applied' });
     assert('Open Light Environment modal skips sync refresh while form is dirty',
       storedOverlay?.innerHTML === cleanSyncedHtml &&
@@ -574,7 +574,7 @@ const {
     document.createElement = originalCreateElement;
     document.getElementById = originalGetElementById;
     document.body.appendChild = originalBodyAppendChild;
-    window._labState.importedData = beforeModalSyncData;
+    state.importedData = beforeModalSyncData;
   }
 
   const envSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
@@ -759,8 +759,8 @@ const {
   assert('Assessment modal owns vertical scrolling',
     /max-height:\s*calc\(100dvh - 48px\)/.test(modalCss) &&
     /overflow-y:\s*auto/.test(modalCss));
-  const beforeEmptyAssessment = window._labState.importedData;
-  window._labState.importedData = {
+  const beforeEmptyAssessment = state.importedData;
+  state.importedData = {
     lightEnvironment: { rooms: [], screens: [] },
     lightMeasurements: [{ id: 'orphan-reading', tool: 'lux', roomId: null, value: 50, takenAt: Date.now() }],
     lightAudits: [{ id: 'old-audit', date: '2026-05-01', label: 'Old room' }],
@@ -782,7 +782,7 @@ const {
     emptyAssessmentHtml.includes('📱 Phone') &&
     !emptyAssessmentHtml.includes('+ Bedroom') &&
     !emptyAssessmentHtml.includes('+ 📱 Phone'));
-  window._labState.importedData = {
+  state.importedData = {
     lightEnvironment: { rooms: [{ id: 'mapped-room', name: 'Bedroom' }], screens: [] },
     lightMeasurements: [
       { id: 'unmapped-reading', tool: 'lux', roomId: null, value: 50, takenAt: Date.now() },
@@ -797,14 +797,14 @@ const {
   assert('Assessment workspace hides unmapped portable readings',
     !unmappedAssessmentHtml.includes('Portable readings') &&
     !unmappedAssessmentHtml.includes('not matched to a room'));
-  window._labState.importedData = beforeEmptyAssessment;
+  state.importedData = beforeEmptyAssessment;
 
-  const beforeDisclosureState = window._labState.importedData;
-  const beforeDisclosureView = window._labState.currentView;
+  const beforeDisclosureState = state.importedData;
+  const beforeDisclosureView = state.currentView;
   let savedActiveRoom = null;
   try { savedActiveRoom = localStorage.getItem('labcharts-light-env-active-room'); localStorage.removeItem('labcharts-light-env-active-room'); } catch (_) {}
-  window._labState.currentView = 'dashboard';
-  window._labState.importedData = {
+  state.currentView = 'dashboard';
+  state.importedData = {
     lightEnvironment: { rooms: [{ id: 'room_single', name: 'Bedroom', hoursOccupiedPerDay: 8 }], screens: [] },
     lightMeasurements: [],
   };
@@ -822,23 +822,23 @@ const {
   assert('Single room expands again after explicit collapse',
     singleRoomExpandedAgain.includes('aria-expanded="true"') &&
     singleRoomExpandedAgain.includes('light-env-room-disclosure-body'));
-  window._labState.importedData = beforeDisclosureState;
-  window._labState.currentView = beforeDisclosureView;
+  state.importedData = beforeDisclosureState;
+  state.currentView = beforeDisclosureView;
   try {
     if (savedActiveRoom === null) localStorage.removeItem('labcharts-light-env-active-room');
     else localStorage.setItem('labcharts-light-env-active-room', savedActiveRoom);
   } catch (_) {}
 
-  const beforeScreenToggleState = window._labState.importedData;
-  const beforeScreenToggleView = window._labState.currentView;
+  const beforeScreenToggleState = state.importedData;
+  const beforeScreenToggleView = state.currentView;
   let screenNavCall = null;
   const beforeScreenNavigateDeps = configureLightEnv({
     navigate: (route, data) => { screenNavCall = { route, data }; },
   });
   let screenPrevented = false;
   let screenStopped = false;
-  window._labState.currentView = 'light';
-  window._labState.importedData = {
+  state.currentView = 'light';
+  state.importedData = {
     lightEnvironment: { rooms: [], screens: [{ id: 'screen_single', device: 'phone', roomId: null }] },
     lightMeasurements: [],
   };
@@ -853,15 +853,15 @@ const {
     screenNavCall?.data?.scrollAnchor === '.light-env-screen-card[data-id="screen_single"]',
     JSON.stringify(screenNavCall));
   configureLightEnv(beforeScreenNavigateDeps);
-  window._labState.currentView = beforeScreenToggleView;
-  window._labState.importedData = beforeScreenToggleState;
+  state.currentView = beforeScreenToggleView;
+  state.importedData = beforeScreenToggleState;
 
   // ─── deleteRoom orphan cleanup ─────────────────────────────────────
   // Earlier deleteRoom dropped the room but left measurements + screens
   // pointing at the dead id. Room-bound measurements are now deleted
   // with the room; screens are kept but become portable.
   console.log('%c deleteRoom orphan cleanup ', 'font-weight:bold;color:#f59e0b');
-  window._labState.importedData = {
+  state.importedData = {
     lightEnvironment: {
       rooms: [{ id: 'r-orphan', name: 'Bedroom' }],
       screens: [{ id: 's-orphan', device: 'phone', roomId: 'r-orphan' }],
@@ -872,25 +872,25 @@ const {
     ],
   };
   await deleteRoom('r-orphan');
-  const measurementsAfter = window._labState.importedData.lightMeasurements;
-  const screensAfter = window._labState.importedData.lightEnvironment.screens;
+  const measurementsAfter = state.importedData.lightMeasurements;
+  const screensAfter = state.importedData.lightEnvironment.screens;
   assert('deleteRoom removes linked measurements',
     !measurementsAfter.find(m => m.id === 'm-orphan-1'));
   assert('deleteRoom tombstones linked measurements for sync',
-    window._labState.importedData._deleted?.lightMeasurements?.includes('m-orphan-1'));
+    state.importedData._deleted?.lightMeasurements?.includes('m-orphan-1'));
   assert('deleteRoom leaves measurements pointing at OTHER rooms untouched',
     measurementsAfter.find(m => m.id === 'm-orphan-2').roomId === 'other-room');
   assert('deleteRoom nulls roomId on linked screens',
     screensAfter.find(s => s.id === 's-orphan').roomId === null);
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
   // ─── lightEnvironmentBlock surfaces in AI context ──────────────────
   console.log('%c AI context — light environment block ', 'font-weight:bold;color:#f59e0b');
   {
-    const beforeCtx = window._labState.importedData;
-    window._labState.importedData = {
+    const beforeCtx = state.importedData;
+    state.importedData = {
       sunSessions: [],
       deviceSessions: [],
       lightEnvironment: {
@@ -918,7 +918,7 @@ const {
       /Screens tracked: 1/.test(ctx));
     assert('AI context surfaces no-blue-blocker after-sunset screens',
       /without blue-blocker/.test(ctx));
-    window._labState.importedData = beforeCtx;
+    state.importedData = beforeCtx;
   }
 
   // ─── addRoom returns the new room's id ──────────────────────────────
@@ -926,19 +926,19 @@ const {
   // a return value the binding silently fails and pause-detected lux
   // never reaches the room cards.
   console.log('%c addRoom return value ', 'font-weight:bold;color:#f59e0b');
-  window._labState.importedData = { lightEnvironment: { rooms: [], screens: [] } };
+  state.importedData = { lightEnvironment: { rooms: [], screens: [] } };
   const newId = await addRoom('Office');
   assert('addRoom returns the created room id (string starting with room_)',
     typeof newId === 'string' && newId.startsWith('room_'),
     `got ${typeof newId} ${newId}`);
   assert('addRoom-returned id matches the new room in env.rooms',
-    window._labState.importedData.lightEnvironment.rooms.find(r => r.id === newId)?.name === 'Office');
+    state.importedData.lightEnvironment.rooms.find(r => r.id === newId)?.name === 'Office');
 
   // ─── AI context surfaces tool-measurement warnings ─────────────────
   {
     console.log('%c AI context — tool warnings ', 'font-weight:bold;color:#f59e0b');
-    const beforeCtx = window._labState.importedData;
-    window._labState.importedData = {
+    const beforeCtx = state.importedData;
+    state.importedData = {
       sunSessions: [],
       deviceSessions: [],
       lightEnvironment: { rooms: [{ id: 'r1', name: 'Bedroom' }], screens: [] },
@@ -961,11 +961,11 @@ const {
       /after-sunset CCT 4500K/.test(ctx));
     assert('AI does NOT flag CCT readings taken before sunset',
       !/CCT 5500K/.test(ctx));
-    window._labState.importedData = beforeCtx;
+    state.importedData = beforeCtx;
   }
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

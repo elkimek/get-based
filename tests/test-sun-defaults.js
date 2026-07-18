@@ -58,7 +58,7 @@ function restoreDelegateDomGlobals() {
   }
 }
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const mod = await import('../js/sun-defaults.js');
 const {
   FITZPATRICK_OPTIONS,
@@ -76,7 +76,7 @@ const {
 } = mod;
 
   // Stash importedData so we don't pollute the host page.
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
 
   // ─── 0. Light setup delegated events ─────────────────────────────────
   console.log('%c 0. Light setup delegated events ', 'font-weight:bold;color:#f59e0b');
@@ -261,14 +261,14 @@ const {
 
   // Stub a clean importedData with a no-op saveImportedData so we don't
   // hit the real CRDT/IDB save path.
-  window._labState.importedData = { entries: [] };
+  state.importedData = { entries: [] };
   // saveImportedData is imported by sun-defaults from data.js; the real
   // implementation persists. We don't need to mock it — just keep the
   // test profile id constant so artifacts don't accumulate.
 
   const empty = getSunDefaults();
   assert('getSunDefaults seeds importedData.sunDefaults when missing',
-    empty && typeof empty === 'object' && window._labState.importedData.sunDefaults === empty);
+    empty && typeof empty === 'object' && state.importedData.sunDefaults === empty);
 
   await saveSunDefaults({ fitzpatrick: 'III', homeLight: 'led-warm' });
   const after1 = getSunDefaults();
@@ -313,22 +313,22 @@ const {
   assert('collectSunSetupValues blocks visual default skin type until confirmed',
     missingSkin.ok === false && missingSkin.reason === 'skin-type-required');
 
-  window._labState.importedData = { entries: [], sunDefaults: {}, lightCircadian: null };
+  state.importedData = { entries: [], sunDefaults: {}, lightCircadian: null };
   await persistSunSetupValues(collected.values, 1234567890);
   assert('persistSunSetupValues saves defaults and mirrors skin context in one path',
-    window._labState.importedData.sunDefaults.fitzpatrick === 'IV' &&
-    window._labState.importedData.sunDefaults.photosensitiveMeds === 'severe' &&
-    window._labState.importedData.sunDefaults.homeLight === 'led-warm' &&
-    window._labState.importedData.sunDefaults.eyewear === 'sunglasses' &&
-    window._labState.importedData.sunDefaults.ottScore === 2 &&
-    window._labState.importedData.sunDefaults.completedAt === 1234567890 &&
-    window._labState.importedData.lightCircadian?.skinType?.startsWith('IV'));
+    state.importedData.sunDefaults.fitzpatrick === 'IV' &&
+    state.importedData.sunDefaults.photosensitiveMeds === 'severe' &&
+    state.importedData.sunDefaults.homeLight === 'led-warm' &&
+    state.importedData.sunDefaults.eyewear === 'sunglasses' &&
+    state.importedData.sunDefaults.ottScore === 2 &&
+    state.importedData.sunDefaults.completedAt === 1234567890 &&
+    state.importedData.lightCircadian?.skinType?.startsWith('IV'));
 
   // ─── 6. isOnboardingComplete gate ─────────────────────────────────────
   console.log('%c 6. Onboarding-complete gate ', 'font-weight:bold;color:#f59e0b');
 
   // Just fitzpatrick set is not enough — needs completedAt
-  window._labState.importedData = { entries: [], sunDefaults: { fitzpatrick: 'III' } };
+  state.importedData = { entries: [], sunDefaults: { fitzpatrick: 'III' } };
   assert('isOnboardingComplete falsy without completedAt',
     !isOnboardingComplete());
 
@@ -342,19 +342,19 @@ const {
     !isOnboardingComplete());
 
   // Empty importedData → falsy
-  window._labState.importedData = null;
+  state.importedData = null;
   assert('isOnboardingComplete falsy when importedData missing',
     !isOnboardingComplete());
 
   // ─── 7. getSunDefaults handles missing importedData ──────────────────
   console.log('%c 7. Defensive guards ', 'font-weight:bold;color:#f59e0b');
 
-  window._labState.importedData = null;
+  state.importedData = null;
   assert('getSunDefaults() returns null when importedData missing',
     getSunDefaults() === null);
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
   // ─── 8. getSunCoords country-band path — SKIPPED in Node ──────────────
   // The country-centroid resolution requires profile state (currentProfile +
@@ -372,8 +372,8 @@ const {
   // Stash original profile location
   const origLoc = getProfileLocation();
   // Ensure we're in country-band mode (no profile-precise coords)
-  const stashedSunDefaults = window._labState.importedData?.sunDefaults;
-  if (window._labState.importedData) window._labState.importedData.sunDefaults = null;
+  const stashedSunDefaults = state.importedData?.sunDefaults;
+  if (state.importedData) state.importedData.sunDefaults = null;
 
   setProfileLocation(null, 'czech republic', '');
   const cz = getSunCoords();
@@ -405,7 +405,7 @@ const {
 
   // Restore profile location
   setProfileLocation(null, origLoc.country || '', origLoc.zip || '');
-  if (window._labState.importedData) window._labState.importedData.sunDefaults = stashedSunDefaults;
+  if (state.importedData) state.importedData.sunDefaults = stashedSunDefaults;
   } // end if (!SKIP_SECTION_8)
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
