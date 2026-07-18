@@ -24,7 +24,7 @@ return (async function() {
     catch (e) { return false; }
   }
   const main = document.getElementById('main-content');
-  const S = window._labState;
+  const { state: S } = await import('/js/state.js');
   const dataModule = await import('/js/data.js');
   const viewsModule = await import('/js/views.js');
   const supplements = await import('/js/supplements.js');
@@ -807,7 +807,6 @@ return (async function() {
     // Filter with a term taken from an item that is eligible to hide.
     sidebarSearch.value = searchTerm;
     navModule.filterSidebar();
-    await wait(20);
     const hiddenNav = getFilterableNavItems().filter(el => el.style.display === 'none');
     assert('Sidebar search filters items', hiddenNav.length > 0);
     assert('Sidebar search shows matches', hiddenNav.length < totalBefore);
@@ -815,7 +814,6 @@ return (async function() {
     // Clear filter
     sidebarSearch.value = '';
     navModule.filterSidebar();
-    await wait(20);
     const afterClear = getFilterableNavItems().filter(el => el.style.display === 'none');
     assert('Sidebar search clear restores all', afterClear.length === 0);
   } else {
