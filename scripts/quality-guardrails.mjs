@@ -10,11 +10,14 @@ const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
 // tests/ is intentionally omitted; this check covers app JS only, not test helpers.
 const SYNTAX_DIRS = ['js', 'api', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
+const TEST_JS_DIR = path.join(ROOT, 'tests');
 const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
 const WINDOW_REF_RE = /\bwindow(?:\.|\s*\[)/g;
 const WINDOW_GLOBAL_ASSIGN_RE = /Object\.assign\(\s*window\b/g;
 const VIEW_RUNTIME_LOOKUP_RE = /\bgetViewRuntimeFunction\s*\(/g;
+const LAB_STATE_RE = /\b_labState\b/g;
 const VIEW_RUNTIME_BRIDGE_FILE = 'js/views-runtime-bridge.js';
+const LAB_STATE_GUARDRAIL_TEST_FILE = 'tests/test-quality-guardrails.js';
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -63,6 +66,7 @@ function collectAppMetrics() {
   let legacyWindowGlobalAssignments = 0;
   let viewRuntimeBridgeConsumers = 0;
   let viewRuntimeBridgeLookups = 0;
+  let labStateAppFiles = 0;
   const largeFiles = [];
   let largestFile = { file: '', lines: 0 };
 
@@ -73,12 +77,14 @@ function collectAppMetrics() {
     const viewRuntimeLookupCount = repoRel(file) === VIEW_RUNTIME_BRIDGE_FILE
       ? 0
       : countMatches(source, VIEW_RUNTIME_LOOKUP_RE);
+    const labStateCount = countMatches(source, LAB_STATE_RE);
     inlineEventAttributes += countMatches(source, INLINE_EVENT_RE);
     windowReferences += countMatches(source, WINDOW_REF_RE);
     windowGlobalAssignments += windowAssignmentCount;
     if (!file.endsWith('-window-bindings.js')) legacyWindowGlobalAssignments += windowAssignmentCount;
     viewRuntimeBridgeLookups += viewRuntimeLookupCount;
     if (viewRuntimeLookupCount > 0) viewRuntimeBridgeConsumers++;
+    if (labStateCount > 0) labStateAppFiles++;
     if (lines >= LARGE_FILE_LINE_LIMIT) largeFiles.push({ file: repoRel(file), lines });
     if (lines > largestFile.lines) largestFile = { file: repoRel(file), lines };
   }
@@ -91,10 +97,22 @@ function collectAppMetrics() {
     legacyWindowGlobalAssignments,
     viewRuntimeBridgeConsumers,
     viewRuntimeBridgeLookups,
+    labStateAppFiles,
     largeJsFilesOver800Lines: largeFiles.length,
     largestFile,
     largeFiles,
   };
+}
+
+function collectTestMetrics() {
+  const files = walkFiles(TEST_JS_DIR, new Set(['.js']));
+  let labStateTestFiles = 0;
+  for (const file of files) {
+    if (repoRel(file) === LAB_STATE_GUARDRAIL_TEST_FILE) continue;
+    const source = fs.readFileSync(file, 'utf8');
+    if (countMatches(source, LAB_STATE_RE) > 0) labStateTestFiles++;
+  }
+  return { labStateTestFiles };
 }
 
 function collectSyntaxFiles() {
@@ -134,6 +152,7 @@ function main() {
   console.log('=== Quality Guardrails ===\n');
   const baseline = readBaseline();
   const metrics = collectAppMetrics();
+  const testMetrics = collectTestMetrics();
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
@@ -141,6 +160,8 @@ function main() {
   compareBudget('legacy window global assignments in js/', metrics.legacyWindowGlobalAssignments, baseline.legacyWindowGlobalAssignments);
   compareBudget('view runtime bridge consumer modules in js/', metrics.viewRuntimeBridgeConsumers, baseline.viewRuntimeBridgeConsumers);
   compareBudget('view runtime bridge lookups in js/', metrics.viewRuntimeBridgeLookups, baseline.viewRuntimeBridgeLookups);
+  compareBudget('_labState files in js/', metrics.labStateAppFiles, baseline.labStateAppFiles);
+  compareBudget('_labState files in tests/', testMetrics.labStateTestFiles, baseline.labStateTestFiles);
   compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {

@@ -13,7 +13,6 @@ import { isDebugMode } from './utils.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
-  getWearableAuthProfileId,
   redirectWearableAuth,
 } from './wearables-auth-runtime.js';
 
@@ -82,13 +81,13 @@ export async function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAUL
   return `${AUTHORIZE_URL}?${params.toString()}`;
 }
 
-export async function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WHOOP_SCOPES }) {
+export async function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WHOOP_SCOPES, profileId = null }) {
   const state = randomUrlSafe(16);
   const codeVerifier = randomUrlSafe(32); // 43-128 chars after base64url — 32 bytes → 43 chars
   const redirectUri = pickRedirectUri(registeredUris);
   sessionStorage.setItem(STATE_KEY, JSON.stringify({
     state, redirectUri, startedAt: Date.now(), clientId, codeVerifier,
-    profileId: getWearableAuthProfileId(), // pin profile so a mid-OAuth switch lands in the initiating profile
+    profileId, // pin profile so a mid-OAuth switch lands in the initiating profile
   }));
   const url = await buildAuthorizeUrl({ clientId, redirectUri, scopes, state, codeVerifier });
   redirectWearableAuth(url);

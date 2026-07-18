@@ -876,13 +876,17 @@ const authModuleSources = await Promise.all(authModuleFiles.map(file => fetch(fi
 assert('Wearable OAuth modules delegate browser globals to auth runtime',
   authModuleSources.every(src =>
     src.includes("from './wearables-auth-runtime.js'") &&
-    src.includes('getWearableAuthProfileId') &&
+    !src.includes('getWearableAuthProfileId') &&
+    src.includes('profileId = null') &&
     src.includes('redirectWearableAuth') &&
     src.includes('exposeWearableAuthDebug') &&
     !/\bwindow(?:\.|\s*\[)/.test(src)) &&
     authRuntimeSrc.includes('export function getWearableAuthLocation') &&
     authRuntimeSrc.includes('export function exposeWearableAuthDebug'),
   authModuleFiles.find((file, index) => /\bwindow(?:\.|\s*\[)/.test(authModuleSources[index])) || 'missing runtime import');
+assert('wearable connector passes the initiating profile into OAuth modules',
+  (await fetch('/js/wearables-connect.js').then(r => r.text()))
+    .includes('profileId: state.currentProfile'));
 // (JSZip functional smoke — needs real browser <script> injection —
 // lives in test-wearables-dom.js. The loadJSZip source-pattern asserts
 // above run in Node.)

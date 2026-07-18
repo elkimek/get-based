@@ -56,6 +56,12 @@ assert('quality guardrail ratchets view runtime bridge coupling',
     guardrailSrc.includes('viewRuntimeBridgeLookups') &&
     baseline.viewRuntimeBridgeConsumers === 0 &&
     baseline.viewRuntimeBridgeLookups === 0);
+assert('quality guardrail ratchets _labState retirement by file',
+  guardrailSrc.includes('LAB_STATE_RE') &&
+    guardrailSrc.includes('labStateAppFiles') &&
+    guardrailSrc.includes('labStateTestFiles') &&
+    baseline.labStateAppFiles === 1 &&
+    baseline.labStateTestFiles === 53);
 const forbiddenAppEventWindowGlobals = [
   'closeModal',
   'toggleChatPanel',

@@ -11,10 +11,6 @@ export function getWearableAuthLocation() {
   return getRuntimeWindow()?.location || null;
 }
 
-export function getWearableAuthProfileId() {
-  return getRuntimeWindow()?._labState?.currentProfile || null;
-}
-
 /** @param {string} url */
 export function redirectWearableAuth(url) {
   const location = getWearableAuthLocation();

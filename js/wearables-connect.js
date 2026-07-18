@@ -103,6 +103,7 @@ export function beginConnectOAuth(adapterId) {
     clientId: getOAuthClientId(adapter),
     registeredUris: adapter.oauth.redirectUris,
     scopes: adapter.oauth.scopes,
+    profileId: state.currentProfile,
   });
 }
 

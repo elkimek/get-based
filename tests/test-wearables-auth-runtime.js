@@ -5,7 +5,6 @@ import './_node-shim.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
-  getWearableAuthProfileId,
   redirectWearableAuth,
 } from '../js/wearables-auth-runtime.js';
 
@@ -44,14 +43,11 @@ try {
   const location = { origin: 'https://app.example', pathname: '/app', href: 'https://app.example/app' };
   const runtime = {
     location,
-    _labState: { currentProfile: 'profile-123' },
   };
   setRuntime(runtime);
 
   assert('wearables auth runtime reads browser location',
     getWearableAuthLocation() === location);
-  assert('wearables auth runtime reads active profile id',
-    getWearableAuthProfileId() === 'profile-123');
   assert('wearables auth runtime redirects through location href',
     redirectWearableAuth('https://provider.example/auth') &&
       location.href === 'https://provider.example/auth');
@@ -62,17 +58,14 @@ try {
     exposeWearableAuthDebug('_testAuth', { ok: true }, true) === true &&
       runtime._testAuth.ok === true);
 
-  delete runtime._labState;
   delete runtime.location;
   assert('wearables auth runtime handles missing optional browser globals',
     getWearableAuthLocation() === null &&
-      getWearableAuthProfileId() === null &&
       redirectWearableAuth('https://provider.example/auth') === false);
 
   delete globalThis.window;
   assert('wearables auth runtime no-ops without browser window',
     getWearableAuthLocation() === null &&
-      getWearableAuthProfileId() === null &&
       exposeWearableAuthDebug('_missingWindowAuth', { ok: true }, true) === false);
 } finally {
   restoreWindow();

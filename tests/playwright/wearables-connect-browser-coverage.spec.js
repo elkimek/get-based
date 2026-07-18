@@ -138,16 +138,15 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         document.body.appendChild(frame);
         try {
           await loaded;
-          frame.contentWindow._labState = { currentProfile: profileId };
           frame.contentWindow.sessionStorage.removeItem(stateKeys[id]);
           sessionStorage.removeItem(stateKeys[id]);
           const frameMod = await frame.contentWindow.eval(`import(${JSON.stringify(`${connectUrl}&frame=${id}`)})`);
-          frame.contentWindow._labState.currentProfile = profileId;
           const redirectUri = `${frame.contentWindow.location.origin}${frame.contentWindow.location.pathname}`;
           const maybePromise = frameMod.OAUTH_DISPATCH[id].begin({
             clientId: `client-${id}`,
             registeredUris: [redirectUri],
             scopes: ['scope:one'],
+            profileId,
           });
           if (maybePromise?.catch) maybePromise.catch(() => {});
           const raw = frame.contentWindow.sessionStorage.getItem(stateKeys[id]) || sessionStorage.getItem(stateKeys[id]);
