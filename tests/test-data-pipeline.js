@@ -33,10 +33,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 console.log('=== Data Pipeline Tests ===\n');
 
 // Bring in state.js + the module-only data API.
-await import('../js/state.js');
+const { state: S } = await import('../js/state.js');
 const dataModule = await import('../js/data.js');
-
-const S = window._labState;
 
   // ═══════════════════════════════════════════════
   // SETUP — load demo data into state

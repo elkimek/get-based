@@ -25,6 +25,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('1. Module imports');
 
+  const { state } = await import('../js/state.js');
   const { UNIT_CONVERSIONS, MARKER_SCHEMA, OPTIMAL_RANGES } = await import('../js/schema.js');
   const contextCards = await import('../js/context-cards.js');
 
@@ -220,7 +221,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // SKIPPED in Node — needs a real DOM for showDashboard's innerHTML writes;
   // covered end-to-end by Playwright. Gate on `process.versions.node` (only
   // truthy in Node) — clean cross-environment skip.
-  const _rtState = window._labState;
+  const _rtState = state;
   const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
   if (!_isNode && typeof contextCards.saveAndRefresh === 'function' && _rtState) {
     const sv_stress = _rtState.importedData?.stress;
