@@ -13,9 +13,8 @@
 //
 // Run: node tests/test-lens-multi-query.js  (or via npm test)
 
-// lens.js transitively pulls in state.js, which does `window._labState
-// = state` at module load. Vitest's setup file handles this globally;
-// for standalone `node` runs we shim inline.
+// lens.js transitively pulls in the state module. For standalone `node` runs,
+// install the browser shims inline.
 import './_node-shim.js';
 
 let pass = 0, fail = 0;
