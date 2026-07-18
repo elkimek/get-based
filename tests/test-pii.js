@@ -178,7 +178,7 @@ const piiSrc = read('js/pii.js');
   assert('Handles reasoning_content field',
     piiSrc.includes('delta.reasoning_content'));
   assert('Handles <think> tags',
-    piiSrc.includes("indexOf('<think>')") || piiSrc.includes("indexOf('<think>"));
+    piiSrc.includes("const openTag = '<think>'") && piiSrc.includes('createThinkingContentFilter'));
   assert('Thinking not added to accumulated output',
     piiSrc.includes('onThinking(') && !piiSrc.includes('accumulated += delta.reasoning_content'));
   assert('Thinking section in review modal HTML',
@@ -196,8 +196,9 @@ const piiSrc = read('js/pii.js');
   // ═══════════════════════════════════════
   console.log('%c 8. Ollama Unload Guard ', 'font-weight:bold;color:#f59e0b');
 
-  assert('unloadOllamaPIIModel checks port 11434',
-    piiSrc.includes("port !== '11434'"), 'should only fire for Ollama default port');
+  assert('unloadOllamaPIIModel checks discovered provider before Ollama unload',
+    piiSrc.includes("discovery?.provider === 'ollama'") && piiSrc.includes("port === '11434'"),
+    'should use provider discovery with a default-port compatibility fallback');
 
   // ═══════════════════════════════════════
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

@@ -42,7 +42,7 @@ function shouldKeepLocalAISetting(key, preferRemote = false) {
     || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
 }
 
-const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-lens-key', 'labcharts-custom-key'];
+const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-ollama-pii-key', 'labcharts-lens-key', 'labcharts-custom-key'];
 
 /** @param {Record<string, any> | null | undefined} settings
  * @param {{ preferRemote?: boolean }} [options]

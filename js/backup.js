@@ -112,7 +112,7 @@ const GLOBAL_SETTINGS_KEYS = [
   'labcharts-ppq-credit-id',
   'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
   'labcharts-ollama', 'labcharts-ollama-model',
-  'labcharts-ollama-pii-url', 'labcharts-ollama-pii-model',
+  'labcharts-ollama-pii-url', 'labcharts-ollama-pii-key', 'labcharts-ollama-pii-model',
   'labcharts-routstr-node',
   'labcharts-time-format', 'labcharts-theme', 'labcharts-sunset-mode', 'labcharts-crt-effects', 'labcharts-debug',
   'labcharts-pii-review', 'labcharts-ollama-pii-enabled', 'labcharts-chat-sources',

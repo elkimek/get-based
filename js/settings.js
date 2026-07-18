@@ -44,8 +44,10 @@ import { startGuidedTour } from './tour.js';
 import { getActiveProfileId } from './profile.js';
 import { openChangelog } from './changelog.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
+import { isPIIEligibleModel } from './local-ai-discovery.js';
 import {
   confirmDisablePIIReview,
+  openImportBenchmarksModal,
   refreshDataEntriesSection,
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
@@ -317,6 +319,8 @@ function applySettingsToggle(actionEl) {
   }
   if (action === 'set-debug-mode') {
     setDebugMode(checked);
+    const usageSection = document.getElementById('ai-usage-section');
+    if (usageSection) usageSection.innerHTML = renderAIUsageSection();
     return true;
   }
   if (action === 'toggle-ai-pause') {
@@ -479,6 +483,9 @@ async function handleSettingsClick(event) {
   } else if (action === 'reset-profile-usage') {
     event.preventDefault();
     resetCurrentProfileUsage();
+  } else if (action === 'open-import-benchmarks') {
+    event.preventDefault();
+    openImportBenchmarksModal();
   }
 }
 
@@ -495,7 +502,12 @@ function handleSettingsChange(event) {
 
   const action = actionEl.dataset.settingsAction;
   if (action === 'set-pii-model') {
-    setOllamaPIIModel(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
+    const model = actionEl instanceof HTMLSelectElement ? actionEl.value : '';
+    if (!isPIIEligibleModel(model)) {
+      showNotification('Cloud and embedding models cannot be used for privacy protection.', 'error');
+      return;
+    }
+    setOllamaPIIModel(model);
     updatePrivacyStatusCard();
   }
 }
@@ -835,8 +847,8 @@ export function openSettingsModal(tab) {
         <div class="settings-section">
           <div class="settings-action-row">
             <div class="settings-copy">
-              <label class="settings-label">Verbose console logging</label>
-              <div class="settings-copy-desc">Adds detailed log output and reveals diagnostic UI in the sync popover. No data leaves your device.</div>
+              <label class="settings-label">Debug Mode</label>
+              <div class="settings-copy-desc">Adds detailed log output and reveals diagnostic UI such as sync details and import benchmarks. No data leaves your device.</div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} data-settings-action="set-debug-mode">

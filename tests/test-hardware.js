@@ -41,6 +41,7 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const medModel = { name: 'qwen2.5:14b', size: 9_000_000_000 }; // 9 GB file → ~10.35 GB VRAM
 
   const gpu16 = { gpu: { name: 'RTX 4080', vram: 16, unified: false }, ram: { gb: 32 }, cpuThreads: 16 };
+  const gpu32 = { gpu: { name: 'RTX 5090', vram: 32, unified: false }, ram: { gb: 64 }, cpuThreads: 24 };
   const gpu8 = { gpu: { name: 'RTX 3060', vram: 8, unified: false }, ram: { gb: 16 }, cpuThreads: 8 };
   const appleM3 = { gpu: { name: 'Apple M3 Pro', vram: 18, unified: true }, ram: { gb: 18 }, cpuThreads: 12 };
 
@@ -139,6 +140,9 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const f6 = hw.assessFitness('totally-unknown-model:latest');
   assert('Unknown model = null', f6 === null);
 
+  const f7 = hw.assessFitness('qwen3.6:27b');
+  assert('qwen3.6:27b = recommended', f7 && f7.tier === 'recommended', f7?.note);
+
   // getBestModel picks highest-fitness model that fits
   const testModels = [
     { name: 'phi3:3.5b', size: 2_000_000_000 },
@@ -156,20 +160,27 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const upg1 = hw.getUpgradeSuggestion(weakModels, gpu16);
   assert('Suggests upgrade when only capable model', upg1 && upg1.model, upg1?.model);
 
+  const upg32 = hw.getUpgradeSuggestion([], gpu32);
+  assert('32GB GPU recommends qwen3.6:27b', upg32?.model === 'qwen3.6:27b', upg32?.model);
+  assert('qwen3.6:27b recommendation uses current Q4 estimate', upg32?.note.includes('~20 GB'), upg32?.note);
+
   const strongModels = [{ name: 'qwen2.5:14b', size: 9_000_000_000 }];
   const upg2 = hw.getUpgradeSuggestion(strongModels, gpu16);
   assert('No upgrade when recommended model present', upg2 === null);
 
   // ═══════════════════════════════════════
-  // 8. checkOllama modelDetails field
+  // 8. Local AI discovery metadata
   // ═══════════════════════════════════════
-  console.log('%c 7. checkOllama Return Shape ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 7. Local AI Discovery Return Shape ', 'font-weight:bold;color:#f59e0b');
 
-  const piiSrc = read('js/pii.js');
-  assert('checkOllama returns modelDetails', piiSrc.includes('modelDetails'));
-  assert('modelDetails includes size', piiSrc.includes('size: m.size'));
-  assert('modelDetails includes quantLevel', piiSrc.includes('quantization_level'));
-  assert('modelDetails includes paramSize', piiSrc.includes('parameter_size'));
+  const discoverySrc = read('js/local-ai-discovery.js');
+  assert('checkOllama returns modelDetails', discoverySrc.includes('modelDetails'));
+  assert('Ollama discovery probes running models', discoverySrc.includes("request('/api/ps')"));
+  assert('Ollama model details include allocated VRAM', discoverySrc.includes('vramAllocated'));
+  assert('LM Studio discovery probes native model metadata', discoverySrc.includes('/api/v1/models'));
+  assert('LM Studio model details include exact size', discoverySrc.includes('size_bytes'));
+  assert('modelDetails includes quantLevel', discoverySrc.includes('quantization_level'));
+  assert('modelDetails includes paramSize', discoverySrc.includes('parameter_size'));
 
   // ═══════════════════════════════════════
   // 8. Settings integration

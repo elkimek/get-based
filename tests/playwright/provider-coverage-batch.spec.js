@@ -66,7 +66,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       crypto.updateKeyCache('labcharts-ollama', ollamaConfig);
       // Local AI has no named provider case, so it is rendered through the default fallback.
       fixture.innerHTML = renderers.renderAIProviderPanel('unknown-provider');
-      const localAIRenders = fixture.querySelector('#local-ai-url-input')?.value === 'https://local.example/v1'
+      const localAIRenders = fixture.querySelector('#local-ai-url-input')?.value === 'https://local.example'
         && fixture.querySelector('#local-ai-apikey-input')?.value === 'local-secret'
         && fixture.querySelector('#local-ai-status-text')?.textContent === 'Checking connection...'
         && fixture.querySelector('[data-provider-panel-action="test-ollama-connection"]')?.textContent === 'Test'

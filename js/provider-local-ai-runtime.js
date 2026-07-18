@@ -47,3 +47,10 @@ export function getCachedLocalAiModelDetails() {
     isOllamaServer: !!runtime?._lastIsOllamaServer,
   };
 }
+
+export function clearCachedLocalAiModelDetails() {
+  const runtime = getRuntimeWindow();
+  if (!runtime) return;
+  runtime._lastOllamaModelDetails = [];
+  runtime._lastIsOllamaServer = false;
+}

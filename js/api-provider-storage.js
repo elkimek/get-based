@@ -41,13 +41,31 @@ export function hasAIProvider() {
   return true; // Ollama — optimistic, errors caught at call time
 }
 
+function cleanLocalAiServerUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return raw;
+  try {
+    const parsed = new URL(raw);
+    parsed.hash = '';
+    parsed.search = '';
+    parsed.pathname = parsed.pathname.replace(/\/(?:v1(?:\/(?:models|chat\/completions))?|api\/v1\/models)\/?$/i, '') || '/';
+    return parsed.href.replace(/\/+$/, '');
+  } catch {
+    return raw.replace(/\/+$/, '');
+  }
+}
+
 export function getOllamaConfig() {
   const defaults = { url: 'http://localhost:11434', model: 'llama3.2', mode: 'ollama', apiKey: '' };
-  try { return { ...defaults, ...JSON.parse(getCachedKey('labcharts-ollama')) }; }
+  try {
+    const config = { ...defaults, ...JSON.parse(getCachedKey('labcharts-ollama')) };
+    config.url = cleanLocalAiServerUrl(config.url) || defaults.url;
+    return config;
+  }
   catch { return defaults; }
 }
 export async function saveOllamaConfig(config) {
-  const json = JSON.stringify(config);
+  const json = JSON.stringify({ ...config, url: cleanLocalAiServerUrl(config.url) });
   await encryptedSetItem('labcharts-ollama', json);
   updateKeyCache('labcharts-ollama', json);
   markAISettingsLocal();
@@ -59,9 +77,24 @@ export function setOllamaMainModel(model) {
   markAISettingsLocal();
   notifyAISelectionChanged();
 }
-export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || getOllamaConfig().url; }
+export function getOllamaPIIUrl() { return cleanLocalAiServerUrl(localStorage.getItem('labcharts-ollama-pii-url') || getOllamaConfig().url); }
 export function setOllamaPIIUrl(url) {
-  localStorage.setItem('labcharts-ollama-pii-url', url);
+  localStorage.setItem('labcharts-ollama-pii-url', cleanLocalAiServerUrl(url));
+  markAISettingsLocal();
+}
+export function getOllamaPIIApiKey() {
+  const stored = getCachedKey('labcharts-ollama-pii-key');
+  if (stored) return stored;
+  try {
+    const main = getOllamaConfig();
+    return new URL(getOllamaPIIUrl()).origin === new URL(main.url).origin ? main.apiKey : '';
+  } catch {
+    return '';
+  }
+}
+export async function saveOllamaPIIApiKey(key) {
+  await encryptedSetItem('labcharts-ollama-pii-key', key);
+  updateKeyCache('labcharts-ollama-pii-key', key);
   markAISettingsLocal();
 }
 export function getOllamaPIIModel() { return localStorage.getItem('labcharts-ollama-pii-model') || getOllamaMainModel(); }
