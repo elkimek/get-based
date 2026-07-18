@@ -27,12 +27,10 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
     const originalProfile = state.currentProfile;
     const originalView = state.currentView;
     const originalMarkerRegistry = state.markerRegistry;
-    const savedWindow = {
-      detectWearableTrendSlots: window.detectWearableTrendSlots,
-      _snpTableCache: window._snpTableCache,
-    };
+    const savedWindow = { _snpTableCache: window._snpTableCache };
     const savedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
     let previousRecommendationBridge = null;
+    let previousWidgetRuntimeDeps = null;
     const fixture = document.getElementById('fixture');
     const calls = [];
     const profileId = 'dashboardRecommendationCoverage';
@@ -113,10 +111,19 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
           return new Promise(resolve => { resolveCatalog = resolve; });
         },
       });
-      window.detectWearableTrendSlots = () => [{
-        slotKey: 'body.sleep',
-        reason: 'Wearable sleep trend is deteriorating.',
-      }];
+      previousWidgetRuntimeDeps = widgetModule.configureDashboardRecommendationRuntimeDeps({
+        detectWearableTrendSlots: () => [{
+          slotKey: 'body.sleep',
+          reason: 'Wearable sleep trend is deteriorating.',
+        }],
+        dismissRecommendation: (...args) => calls.push(['dismissRecommendation', ...args]),
+        discussRecommendation: (...args) => calls.push(['discussRecommendation', ...args]),
+        navigate: (...args) => calls.push(['navigate', ...args]),
+        openRecommendationDetail: (...args) => calls.push(['openRecommendationDetail', ...args]),
+        openSettingsModal: (...args) => calls.push(['openSettingsModal', ...args]),
+        saveRecommendation: (...args) => calls.push(['saveRecommendation', ...args]),
+        showDetailModal: (...args) => calls.push(['showDetailModal', ...args]),
+      });
       window._snpTableCache = { rows: [{ id: 'rs1801133' }] };
       recommendationRuntime.setRecommendationsCatalogCache(null);
 
@@ -224,6 +231,23 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
         && !compactCard.includes('Hidden when compact')
         && !compactCard.includes('Dismiss');
 
+      fixture.innerHTML = `<div class="rec-next-widget">${escapedCard}</div>
+        <button type="button" class="db-correlation-empty" data-dashboard-rec-action="navigate" data-dashboard-rec-route="labs">Labs</button>
+        <button type="button" class="db-correlation-empty" data-dashboard-rec-action="open-privacy-settings">Privacy</button>`;
+      for (const action of ['view-marker', 'open-detail', 'discuss', 'save', 'dismiss']) {
+        fixture.querySelector(`[data-dashboard-rec-action="${action}"]`)?.click();
+      }
+      fixture.querySelector('[data-dashboard-rec-action="navigate"]')?.click();
+      fixture.querySelector('[data-dashboard-rec-action="open-privacy-settings"]')?.click();
+      outcomes.delegatedActionsUseConfiguredRuntimeDeps =
+        calls.some(call => call[0] === 'showDetailModal' && call[1] === 'lipids_ldl' && call[2]?.scrollToRec === true)
+        && calls.some(call => call.join('|') === 'openRecommendationDetail|lipids.ldl|LDL <script>|high')
+        && calls.some(call => call.join('|') === 'discussRecommendation|rec"<id')
+        && calls.some(call => call.join('|') === 'saveRecommendation|rec"<id|true')
+        && calls.some(call => call.join('|') === 'dismissRecommendation|rec"<id|true')
+        && calls.some(call => call.join('|') === 'navigate|labs')
+        && calls.some(call => call.join('|') === 'openSettingsModal|privacy');
+
       recommendationRuntime.setRecommendationsCatalogCache({ slots: {} });
       const emptyHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       const customEmptyHtml = widget.renderRecommendationsEmpty('Nothing <ready>');
@@ -240,6 +264,9 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       fixture.innerHTML = '';
       if (previousRecommendationBridge) {
         recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      if (previousWidgetRuntimeDeps) {
+        widgetModule.configureDashboardRecommendationRuntimeDeps(previousWidgetRuntimeDeps);
       }
       recommendationRuntime.setRecommendationsCatalogCache(savedCatalog);
       for (const [key, value] of Object.entries(savedWindow)) {
@@ -259,6 +286,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
     'candidatesCoverLabsLightWearablesAndDnaHints',
     'statePersistenceMarksSavedDismissedAndRefreshesSurfaces',
     'renderCardsEscapeMarkupAndBuildActionHandlers',
+    'delegatedActionsUseConfiguredRuntimeDeps',
     'emptyStatesRenderSafeFallbackActions',
   ];
   expect(results && typeof results === 'object', 'page.evaluate returned recommendation widget outcomes').toBe(true);

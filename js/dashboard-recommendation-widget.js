@@ -13,27 +13,37 @@ import {
   getRecommendationsSnpTable,
   setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
-import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { rollingChannelTotals } from './sun.js';
 import { getSessions } from './sun-sessions-store.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
 
-function dashboardRecommendationRuntime() {
-  return /** @type {Record<string, any>} */ (globalThis);
-}
+/** @type {Record<string, ((...args: any[]) => any) | null>} */
+const dashboardRecommendationRuntimeDeps = {
+  detectWearableTrendSlots: null,
+  dismissRecommendation: null,
+  discussRecommendation: null,
+  navigate: null,
+  openRecommendationDetail: null,
+  openSettingsModal: null,
+  saveRecommendation: null,
+  showDetailModal: null,
+};
 
-function getDashboardRecommendationRuntimeValue(name) {
-  return dashboardRecommendationRuntime()[name];
+export function configureDashboardRecommendationRuntimeDeps(deps = {}) {
+  const previous = { ...dashboardRecommendationRuntimeDeps };
+  for (const name of Object.keys(dashboardRecommendationRuntimeDeps)) {
+    if (Object.hasOwn(deps, name)) {
+      dashboardRecommendationRuntimeDeps[name] = typeof deps[name] === 'function'
+        ? deps[name]
+        : null;
+    }
+  }
+  return previous;
 }
 
 function callDashboardRecommendationRuntime(name, ...args) {
-  const runtime = dashboardRecommendationRuntime();
-  const fn = getSettingsModuleFunction(name)
-    || getDashboardRecommendationRuntimeValue(name)
-    || getViewRuntimeFunction(name);
-  return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
+  return dashboardRecommendationRuntimeDeps[name]?.(...args);
 }
 
 export function dashboardRecommendationActionAttrs(action, attrs = {}) {

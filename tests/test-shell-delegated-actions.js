@@ -14,6 +14,7 @@ const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-sco
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
 const chatRuntimeSrc = fs.readFileSync(path.join(root, 'js/chat-runtime.js'), 'utf8');
+const dashboardRecommendationWidgetSrc = fs.readFileSync(path.join(root, 'js/dashboard-recommendation-widget.js'), 'utf8');
 const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
@@ -266,6 +267,16 @@ assert('App shell injects views router callbacks without bridge lookups',
 
 assert('App shell injects dashboard widget view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });'));
+
+assert('App shell injects dashboard recommendation actions without dynamic runtime fallbacks',
+  !dashboardRecommendationWidgetSrc.includes("from './views-runtime-bridge.js'")
+    && !dashboardRecommendationWidgetSrc.includes("from './settings-runtime-bridge.js'")
+    && !dashboardRecommendationWidgetSrc.includes('globalThis')
+    && dashboardRecommendationWidgetSrc.includes('dashboardRecommendationRuntimeDeps[name]?.(...args)')
+    && appShellHooksSrc.includes("import { configureDashboardRecommendationRuntimeDeps } from './dashboard-recommendation-widget.js';")
+    && appShellHooksSrc.includes('configureDashboardRecommendationRuntimeDeps({')
+    && appShellHooksSrc.includes('detectWearableTrendSlots,')
+    && appShellHooksSrc.includes('openRecommendationDetail,'));
 
 assert('App shell injects Light Devices view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });'));

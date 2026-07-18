@@ -27,6 +27,7 @@ import {
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js';
 import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js';
+import { configureDashboardRecommendationRuntimeDeps } from './dashboard-recommendation-widget.js';
 import { configureDashboardWidgetRuntimeDeps } from './dashboard-widget-runtime.js';
 import {
   closeChatPanel,
@@ -101,6 +102,7 @@ import {
   navigate,
   openChatProviderQuiz,
   openCreateMarkerModal,
+  openRecommendationDetail,
   refreshMobileDashboardActiveTab,
   renameCategory,
   renameMarker,
@@ -110,11 +112,15 @@ import {
   revertMarkerName,
   showDetailModal,
   setOnboardingFocus,
+  dismissRecommendation,
+  discussRecommendation,
+  saveRecommendation,
   toggleDashboardOrganizeMode,
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share.js';
 import { getActiveProfileId } from './profile.js';
+import { detectWearableTrendSlots } from './recommendations.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
   configureShellChatActionDeps,
@@ -181,6 +187,16 @@ configureSunRuntimeDeps({
 configureBiologyScoreContextAIDeps({ navigate });
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
 configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
+configureDashboardRecommendationRuntimeDeps({
+  detectWearableTrendSlots,
+  dismissRecommendation,
+  discussRecommendation,
+  navigate,
+  openRecommendationDetail,
+  openSettingsModal,
+  saveRecommendation,
+  showDetailModal,
+});
 configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
 configureLensPageShell({ navigate });
 configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
