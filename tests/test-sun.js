@@ -22,7 +22,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Sun Session Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const sun = await import('../js/sun.js');
 const sunChannelMetrics = await import('../js/sun-channel-metrics.js');
 const sunSessionModel = await import('../js/sun-session-model.js');
@@ -43,10 +43,10 @@ const {
 } = sun;
 
   // Stash importedData so we don't pollute the host page.
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
   // Reset to a clean slate per test block.
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
+    state.importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
   }
 
   // ─── 1. Constant shape ───────────────────────────────────────────────
@@ -504,7 +504,7 @@ const {
   assert('_applyAtmOverrides with no sunDefaults returns input unchanged',
     _applyAtmOverrides(baseAtm).uvIndex === 5);
 
-  window._labState.importedData.sunDefaults = {
+  state.importedData.sunDefaults = {
     overrides: { uvIndex: 9, cloudCover: 50, ozoneDU: 250 },
   };
   const overridden = _applyAtmOverrides(baseAtm);
@@ -514,7 +514,7 @@ const {
   assert('Override sets _uvOverridden marker', overridden._uvOverridden === true);
 
   // null/non-finite override is ignored, not blindly applied
-  window._labState.importedData.sunDefaults = {
+  state.importedData.sunDefaults = {
     overrides: { uvIndex: null, cloudCover: 'abc', ozoneDU: NaN },
   };
   const overridden2 = _applyAtmOverrides(baseAtm);
@@ -650,7 +650,7 @@ const {
     swSrc.includes("'/js/light-sun-ai-hooks.js'"));
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

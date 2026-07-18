@@ -61,7 +61,7 @@ assert('quality guardrail ratchets _labState retirement by file',
     guardrailSrc.includes('labStateAppFiles') &&
     guardrailSrc.includes('labStateTestFiles') &&
     baseline.labStateAppFiles === 1 &&
-    baseline.labStateTestFiles === 50);
+    baseline.labStateTestFiles === 46);
 const forbiddenAppEventWindowGlobals = [
   'closeModal',
   'toggleChatPanel',
