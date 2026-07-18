@@ -4,7 +4,6 @@ import fs from 'fs';
 const moduleUrl = path => `${path}?syncEnvironmentCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const syncEnvironmentSource = fs.readFileSync(new URL('../../js/sync-environment.js', import.meta.url), 'utf8');
 const utilsRuntimeSource = fs.readFileSync(new URL('../../js/utils-runtime.js', import.meta.url), 'utf8');
-const viewsRuntimeBridgeSource = fs.readFileSync(new URL('../../js/views-runtime-bridge.js', import.meta.url), 'utf8');
 
 async function openBlankPage(page, path) {
   await page.route(`**${path}`, route => route.fulfill({
@@ -30,11 +29,6 @@ async function openOnionPage(page) {
     status: 200,
     contentType: 'application/javascript',
     body: utilsRuntimeSource,
-  }));
-  await page.route('**/js/views-runtime-bridge.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: viewsRuntimeBridgeSource,
   }));
   await page.goto('http://relay-check.onion/sync-environment-onion-coverage', { waitUntil: 'load' });
 }

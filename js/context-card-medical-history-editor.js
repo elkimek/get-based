@@ -12,12 +12,12 @@ import {
   renderNoteField,
   selectCtxOption,
 } from './context-card-editor-ui.js';
-import { callUtilsRuntimeFunction } from './utils-runtime.js';
 
 /** @type {(field: string) => void} */
 let recordContextChange = () => {};
 /** @type {(msg: string, field?: string) => void} */
 let saveContextAndRefresh = () => {};
+let closeMedicalHistoryEditor = () => {};
 let editingConditionIndex = -1;
 let editingFamilyHistoryIndex = -1;
 const INTERPRETATION_FLAGS = [
@@ -170,9 +170,10 @@ function initMedicalHistoryActionDelegates() {
 initMedicalHistoryActionDelegates();
 
 /**
- * @param {{ recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
+ * @param {{ close?: () => void, recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
  */
-export function configureMedicalHistoryEditor({ recordChange, saveAndRefresh } = {}) {
+export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefresh } = {}) {
+  if (typeof close === 'function') closeMedicalHistoryEditor = close;
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
 }
@@ -550,7 +551,7 @@ export function saveDiagnoses() {
 export function closeDiagnoses() {
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
-  callUtilsRuntimeFunction('closeModal');
+  closeMedicalHistoryEditor();
 }
 
 export function clearDiagnoses() {

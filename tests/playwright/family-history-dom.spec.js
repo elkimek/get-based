@@ -259,7 +259,6 @@ test('medical history editor handlers cover autocomplete save clear and close fl
     const saved = {
       importedData: clone(state.importedData),
       profileSex: state.profileSex,
-      closeModal: window.closeModal,
     };
     let outside = null;
 
@@ -291,11 +290,11 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       outside.textContent = 'outside';
       document.body.appendChild(outside);
 
-      window.closeModal = () => {
-        calls.push(['close']);
-        overlay.classList.remove('show');
-      };
       editor.configureMedicalHistoryEditor({
+        close: () => {
+          calls.push(['close']);
+          overlay.classList.remove('show');
+        },
         recordChange: field => calls.push(['record', field]),
         saveAndRefresh: (msg, field) => calls.push(['saveRefresh', msg, field]),
       });
@@ -455,8 +454,6 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       document.removeEventListener('click', editor.closeSuggestionsOnClickOutside);
       state.importedData = saved.importedData;
       state.profileSex = saved.profileSex;
-      if (saved.closeModal) window.closeModal = saved.closeModal;
-      else delete window.closeModal;
       document.getElementById('modal-overlay')?.classList.remove('show');
       const modal = document.getElementById('detail-modal');
       if (modal) modal.innerHTML = '';

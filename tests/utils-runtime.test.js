@@ -1,13 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addUtilsRuntimeListener,
-  callUtilsRuntimeFunction,
   dispatchUtilsRuntimeEvent,
   getAppVersionRuntime,
   getUtilsElementStyleRuntime,
-  getUtilsRuntimeFunction,
   getUtilsRuntimeHostname,
   getUtilsRuntimeValue,
   hasUtilsRuntime,
@@ -64,21 +62,15 @@ describe('utils runtime adapter', () => {
     expect(runtime.openExample()).toBe('ok');
   });
 
-  it('delegates hostname reads named runtime values and named runtime function calls', () => {
-    const openSettingsModal = vi.fn(section => `opened:${section}`);
+  it('delegates hostname reads and named runtime values', () => {
     const mammoth = { extractRawText: vi.fn() };
     setRuntimeWindow({
       location: { hostname: 'localhost' },
       mammoth,
-      openSettingsModal,
     });
 
     expect(getUtilsRuntimeHostname()).toBe('localhost');
     expect(getUtilsRuntimeValue('mammoth')).toBe(mammoth);
-    expect(getUtilsRuntimeFunction('openSettingsModal')?.('data')).toBe('opened:data');
-    expect(callUtilsRuntimeFunction('openSettingsModal', 'data')).toBe('opened:data');
-    expect(openSettingsModal).toHaveBeenCalledTimes(2);
-    expect(openSettingsModal).toHaveBeenCalledWith('data');
   });
 
   it('delegates runtime event dispatch and window opening', () => {
@@ -132,9 +124,7 @@ describe('utils runtime adapter', () => {
     expect(getAppVersionRuntime('fallback-version')).toBe('fallback-version');
     expect(getUtilsRuntimeHostname('fallback-host')).toBe('fallback-host');
     expect(getUtilsRuntimeValue('mammoth', 'fallback-value')).toBe('fallback-value');
-    expect(getUtilsRuntimeFunction('openExample')).toBeNull();
     expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(false);
-    expect(callUtilsRuntimeFunction('openExample')).toBeUndefined();
     expect(dispatchUtilsRuntimeEvent('demo-event')).toBe(false);
     expect(openUtilsRuntimeWindow('/demo')).toBeNull();
     expect(addUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
@@ -142,12 +132,18 @@ describe('utils runtime adapter', () => {
     expect(getUtilsElementStyleRuntime({})).toBeNull();
   });
 
-  it('keeps counted utils.js browser globals behind the adapter', () => {
+  it('keeps browser globals behind scoped adapters without a generic view bridge', () => {
     const utilsSrc = readFileSync(new URL('../js/utils.js', import.meta.url), 'utf8');
+    const runtimeSrc = readFileSync(new URL('../js/utils-runtime.js', import.meta.url), 'utf8');
     const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 
     expect(utilsSrc).toContain("from './utils-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(utilsSrc)).toBe(false);
+    expect(runtimeSrc).not.toContain('getViewRuntimeFunction');
+    expect(runtimeSrc).not.toContain('getUtilsRuntimeFunction');
+    expect(runtimeSrc).not.toContain('callUtilsRuntimeFunction');
+    expect(existsSync(new URL('../js/views-runtime-bridge.js', import.meta.url))).toBe(false);
     expect(swSrc).toContain("'/js/utils-runtime.js'");
+    expect(swSrc).not.toContain("'/js/views-runtime-bridge.js'");
   });
 });

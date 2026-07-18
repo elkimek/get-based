@@ -129,7 +129,7 @@ Shared prompt block in `js/lighting-hardware-caveats.js` — load-bearing instru
 
 Storage: per-row CRDT for row-level (sun session, device, room, screen, audit, measurement); singleton fields for aggregates (`lightDailyVerdicts[date]`, `lightEnvironment.burdenAI`, `channelMixAI`, `sunDefaults.aiAnalysis`). Auto-fire on completion events (session stop, save, finish), manual on edit-flurry / aggregates.
 
-Element-anchor scroll preservation (`createNavigate()` in `views-router.js`, exported through `views.js` and registered in `views-runtime-bridge.js`) restores the focused element's viewport-top after a rebuild — replaces an earlier pixel-based attempt that broke when content above the viewport changed height. Force layout via `void document.body.offsetHeight` before reading rect, then RAF re-apply during the stabilization window.
+Element-anchor scroll preservation (`createNavigate()` in `views-router.js`, exported through `views.js`) restores the focused element's viewport-top after a rebuild — replaces an earlier pixel-based attempt that broke when content above the viewport changed height. Force layout via `void document.body.offsetHeight` before reading rect, then RAF re-apply during the stabilization window.
 
 Canonical map of AI vs deterministic surfaces: https://docs.getbased.health/developers/ai-surfaces-map (was `docs/guide/ai-overview.md` in the retired VitePress site). Architecture memo: `memory/project_ai_verdict_arc_2026_05_06.md`.
 
