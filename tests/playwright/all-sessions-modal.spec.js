@@ -8,9 +8,11 @@ test('all sessions modal renders scrollable session list', async ({ page }) => {
   const before = await page.locator('.modal-overlay').count();
 
   await page.evaluate(async (sessionCount) => {
-    const viewsModule = await import('/js/views.js');
-    const state = window._labState;
-    if (!state?.importedData) throw new Error('window._labState.importedData unavailable');
+    const [{ state }, viewsModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/views.js'),
+    ]);
+    if (!state?.importedData) throw new Error('state.importedData unavailable');
     if (typeof viewsModule._openAllSessionsModal !== 'function') {
       throw new Error('views._openAllSessionsModal unavailable');
     }

@@ -14,7 +14,10 @@ test('charts browser coverage exercises annotation supplement and theme callback
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ chartsUrl }) => {
-    const charts = await import(chartsUrl);
+    const [{ state }, charts] = await Promise.all([
+      import('/js/state.js'),
+      import(chartsUrl),
+    ]);
     const outcomes = {};
 
     const rootStyle = document.documentElement.style;
@@ -205,7 +208,7 @@ test('charts browser coverage exercises annotation supplement and theme callback
       return { canvas: canvasArg, options: config.options, data: config.data, update: () => {} };
     };
     try {
-      window._labState.rangeMode = 'optimal';
+      state.rangeMode = 'optimal';
       charts.createLineChart('coverage-marker', {
         name: 'Coverage Marker',
         unit: 'mg/L',
@@ -255,7 +258,7 @@ test('charts browser coverage exercises annotation supplement and theme callback
       updateMode: null,
       update(mode) { this.updateMode = mode; },
     };
-    window._labState.chartInstances = { themedChart };
+    state.chartInstances = { themedChart };
     charts.refreshChartThemeColors();
     outcomes.refreshChartThemeColorsAppliesLegendTooltipScalesAndDatasetColors = themedChart.updateMode === 'none'
       && themedChart.options.plugins.legend.labels.color === '#cbd5e1'
