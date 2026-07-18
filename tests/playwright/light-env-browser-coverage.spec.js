@@ -13,9 +13,17 @@ function expectAll(outcomes) {
   expect(failed).toEqual([]);
 }
 
+async function waitForInitialView(page) {
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return typeof state.currentView === 'string' && state.currentView.length > 0;
+  });
+}
+
 test('light environment browser coverage handles summary modal prompt and source helpers', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
+  await waitForInitialView(page);
 
   const outcomes = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
@@ -203,6 +211,7 @@ test('light environment browser coverage handles summary modal prompt and source
 test('light environment browser coverage handles screens tools and confirm deletes', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
+  await waitForInitialView(page);
 
   const outcomes = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
