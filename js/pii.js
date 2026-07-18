@@ -2,9 +2,21 @@
 // pii.js — PII obfuscation (Ollama + regex), diff viewer
 
 import { showNotification, escapeHTML } from './utils.js';
-import { getOllamaConfig, getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
+import { getOllamaPIIApiKey, getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
+import {
+  checkOllama,
+  checkOpenAICompatible,
+  discoverLocalAI,
+  filterPIIEligibleModels,
+  getCachedLocalAiDiscovery,
+  isCloudModel,
+  isPIIEligibleModel,
+} from './local-ai-discovery.js';
+import { createInitialResponseTimeout } from './api-transport.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 import { state } from './state.js';
+
+export { checkOllama, checkOpenAICompatible };
 
 // ═══════════════════════════════════════════════
 // PII OBFUSCATION — Fake data generators & sanitization
@@ -48,64 +60,6 @@ export function fakeDate() {
 }
 export function fakePatientId() { return randomDigits(10); }
 
-export async function checkOllama(url) {
-  const baseUrl = url || getOllamaConfig().url;
-  try {
-    const resp = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    if (!resp.ok) return { available: false, models: [] };
-    const data = await resp.json();
-    const raw = data.models || [];
-    const models = raw.map(m => m.name || m.model).filter(Boolean);
-    const modelDetails = raw.map(m => ({
-      name: m.name || m.model,
-      size: m.size || 0,
-      paramSize: m.details?.parameter_size || '',
-      quantLevel: m.details?.quantization_level || '',
-      family: m.details?.family || '',
-    })).filter(m => m.name);
-    return { available: true, models, modelDetails };
-  } catch {
-    return { available: false, models: [] };
-  }
-}
-
-export async function checkOpenAICompatible(url, apiKey) {
-  const baseUrl = (url || getOllamaConfig().url).replace(/\/+$/, '');
-  try {
-    /** @type {Record<string, string>} */
-    const headers = {};
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-    const resp = await fetch(`${baseUrl}/v1/models`, { headers, signal: AbortSignal.timeout(3000) });
-    if (!resp.ok) return { available: false, models: [] };
-    const data = await resp.json();
-    const raw = data.data || [];
-    const models = raw.map(m => m.id).filter(Boolean);
-    // Extract model details when available (LM Studio, Ollama /v1/models, Jan)
-    // Parse param size and quant from model name when API doesn't provide them
-    // Estimate file size from params + quant when not reported by API
-    const QUANT_BPW = { q2: 0.3, q3: 0.4, q4: 0.55, q5: 0.65, q6: 0.8, q8: 1.0, fp16: 2.0, fp32: 4.0, int4: 0.55, int8: 1.0 };
-    const modelDetails = raw.map(m => {
-      const id = m.id || '';
-      const paramMatch = id.match(/[\-:](\d+\.?\d*)[bB]/);
-      const quantMatch = id.match(/(Q\d+_K(?:_[A-Z]+)?|Q\d+|fp16|fp32|int[48])/i);
-      const params = paramMatch ? parseFloat(paramMatch[1]) : 0;
-      const quantKey = quantMatch ? quantMatch[1].toLowerCase().replace(/_.*/, '') : '';
-      const bpw = QUANT_BPW[quantKey] || 0.55; // default to Q4 estimate
-      const estimatedSize = params > 0 ? Math.round(params * bpw * 1e9) : 0;
-      return {
-        name: id,
-        size: m.size || m.vram_required || estimatedSize,
-        paramSize: m.parameter_size || (params > 0 ? params + 'B' : ''),
-        quantLevel: m.quantization || (quantMatch ? quantMatch[1] : ''),
-        family: m.owned_by || '',
-      };
-    }).filter(m => m.name);
-    return { available: true, models, modelDetails };
-  } catch {
-    return { available: false, models: [] };
-  }
-}
-
 export function isOllamaPIIEnabled() {
   return localStorage.getItem('labcharts-ollama-pii-enabled') === 'true';
 }
@@ -116,18 +70,31 @@ export function setOllamaPIIEnabled(enabled) {
 
 export async function checkOllamaPII() {
   if (!isOllamaPIIEnabled()) return { available: false, models: [] };
-  const config = getOllamaConfig();
-  return checkOpenAICompatible(getOllamaPIIUrl(), config.apiKey);
+  const url = getOllamaPIIUrl();
+  const result = await discoverLocalAI(url, getOllamaPIIApiKey());
+  const models = filterPIIEligibleModels(result.models);
+  return {
+    ...result,
+    available: result.available && models.length > 0,
+    models,
+    modelDetails: (result.modelDetails || []).filter(model => models.includes(model.name)),
+    blockedCloudModels: (result.models || []).filter(isCloudModel),
+  };
 }
 
 export function unloadOllamaPIIModel() {
-  // Ollama-specific: send keep_alive:0 to free VRAM. Only fires for Ollama servers (port 11434).
   const piiUrl = getOllamaPIIUrl();
-  try { if (new URL(piiUrl).port !== '11434') return; } catch { return; }
+  const discovery = getCachedLocalAiDiscovery(piiUrl, getOllamaPIIApiKey());
+  let isOllamaServer = discovery?.provider === 'ollama';
+  if (!discovery) {
+    try { isOllamaServer = new URL(piiUrl).port === '11434'; } catch { return; }
+  }
+  if (!isOllamaServer) return;
   const piiModel = getOllamaPIIModel();
+  const apiKey = getOllamaPIIApiKey();
   fetch(`${piiUrl}/api/generate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
     body: JSON.stringify({ model: piiModel, prompt: '', stream: false, keep_alive: 0 }),
     signal: AbortSignal.timeout(5000)
   }).catch(() => {});
@@ -137,6 +104,7 @@ const PII_PROMPT_PREFIX = `TASK: Replace ONLY personal identifiers in this lab r
 
 REPLACE these with fake data:
 - Patient names → fictional names
+- Dates of birth → fictional dates in the same format
 - Birth numbers (e.g. 850115/1234) → random numbers in same format
 - Addresses → fictional addresses
 - Phone numbers → random phone numbers
@@ -145,7 +113,7 @@ REPLACE these with fake data:
 - Patient IDs → random numbers
 
 DO NOT CHANGE (copy exactly as-is):
-- ALL dates (collection dates, sample dates, report dates) — these are critical
+- Collection dates, sample dates, and report dates — these are critical. Only dates of birth should change
 - ALL "=== Page N ===" headers
 - ALL lab test names, numeric values, units, reference ranges
 - ALL line structure and formatting
@@ -155,23 +123,134 @@ Output ONLY the modified text. No explanations, no markdown, no commentary.
 TEXT TO PROCESS:
 `;
 
-function validatePIIResult(result, pdfText) {
+const SENSITIVE_LABEL_RE = /\b(?:jm[eé]no|name|pacient|patient|p[rř][ií]jmen[ií]|surname|adresa|address|bydli[sš]t[eě]|residence|datum\s*narozen|date\s*of\s*birth|DOB|rodn[eé]\s*[cč][ií]slo|birth\s*number|patient\s*id|member\s*id|medical\s*record|MRN|email|phone|telephone|tel\.?|doctor|physician|ordering|provider|referring)\b/i;
+const LAB_UNIT_RE = /\b(?:mmol|[uµμ]mol|[uµμ]kat|g\/l|mg\/(?:l|dl)|ng\/(?:l|dl|ml)|pg|pmol|nmol|mU\/l|U\/l|IU\/l|mEq\/l|fL|cells\/uL|thou\/uL|mill\/uL)\b|%/i;
+
+function normalizePIIComparison(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function extractSensitiveValues(text) {
+  const values = [];
+  for (const line of String(text || '').split(/\r?\n/)) {
+    if (!SENSITIVE_LABEL_RE.test(line)) continue;
+    const value = line.split(/[:=]/).slice(1).join(':').trim();
+    if (value.length >= 3) values.push(value);
+  }
+  const patterns = [
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+    /\b\d{3}-\d{2}-\d{4}\b/g,
+    /\b\d{2}(?:0[1-9]|1[0-2]|5[1-9]|6[0-2])(?:0[1-9]|[12]\d|3[01])\/\d{3,4}\b/g,
+  ];
+  for (const pattern of patterns) values.push(...(String(text || '').match(pattern) || []));
+  return [...new Set(values.map(value => normalizePIIComparison(value)).filter(value => value.length >= 3))];
+}
+
+function labNumberPreservationRatio(input, output) {
+  const numbers = text => String(text || '').split(/\r?\n/)
+    .filter(line => LAB_UNIT_RE.test(line) && !SENSITIVE_LABEL_RE.test(line))
+    .flatMap(line => line.match(/[-+]?\d+(?:[.,]\d+)?/g) || [])
+    .map(value => value.replace(',', '.'));
+  const original = numbers(input);
+  if (original.length === 0) return 1;
+  const remaining = new Map();
+  for (const value of numbers(output)) remaining.set(value, (remaining.get(value) || 0) + 1);
+  let kept = 0;
+  for (const value of original) {
+    const count = remaining.get(value) || 0;
+    if (count > 0) { kept++; remaining.set(value, count - 1); }
+  }
+  return kept / original.length;
+}
+
+function extractProtectedReportDates(text) {
+  const dates = [];
+  const datePattern = /\b\d{4}[-/.]\d{2}[-/.]\d{2}\b|\b\d{1,2}[./]\d{1,2}[./]\d{4}\b/g;
+  const reportDateLabel = /\b(?:collection|collected|sample|specimen|report(?:ed)?|result(?:ed)?|drawn|odb[eě]r|datum\s*odb[eě]ru|vzork|nasb[ií]r)\b/i;
+  for (const line of String(text || '').split(/\r?\n/)) {
+    if (!reportDateLabel.test(line) || /\b(?:date\s*of\s*birth|datum\s*narozen|DOB)\b/i.test(line)) continue;
+    dates.push(...(line.match(datePattern) || []));
+  }
+  return [...new Set(dates)];
+}
+
+export function validatePIIResult(result, pdfText) {
   if (!result) return 'Local AI returned empty response';
   if (result.length < pdfText.length * 0.25) return `Local AI output too short (${result.length} vs ${pdfText.length} chars)`;
+  if (normalizePIIComparison(result) === normalizePIIComparison(pdfText)) return 'Local AI returned the original text without removing personal information';
   const inputDates = pdfText.match(/\b\d{4}[-/.]\d{2}[-/.]\d{2}\b|\b\d{1,2}[./]\d{1,2}[./]\d{4}\b/g) || [];
   const outputDates = result.match(/\b\d{4}[-/.]\d{2}[-/.]\d{2}\b|\b\d{1,2}[./]\d{1,2}[./]\d{4}\b/g) || [];
   if (inputDates.length > 0 && outputDates.length === 0) return 'Local AI lost all dates from the text';
+  const missingReportDates = extractProtectedReportDates(pdfText).filter(date => !result.includes(date));
+  if (missingReportDates.length > 0) return 'Local AI changed or removed a collection/report date';
+  if (labNumberPreservationRatio(pdfText, result) < 0.85) return 'Local AI changed or removed too many lab values';
   return null;
+}
+
+export function finalizePIIResult(result, pdfText) {
+  const validationError = validatePIIResult(result, pdfText);
+  if (validationError) throw new Error(validationError);
+  const deterministic = obfuscatePDFText(result).obfuscated;
+  const normalizedFinal = normalizePIIComparison(deterministic);
+  const retained = extractSensitiveValues(pdfText).filter(value => normalizedFinal.includes(value));
+  if (retained.length > 0) throw new Error(`Privacy check found ${retained.length} original identifier${retained.length === 1 ? '' : 's'} still present`);
+  const finalValidationError = validatePIIResult(deterministic, pdfText);
+  if (finalValidationError) throw new Error(finalValidationError);
+  return deterministic;
+}
+
+function ensurePIIModelEligible(model) {
+  if (!isPIIEligibleModel(model)) {
+    throw new Error(`Privacy model "${model}" is not a self-hosted text model. Cloud-tagged and embedding models cannot be used for PII protection.`);
+  }
+}
+
+function createThinkingContentFilter(onText, onThinking) {
+  let buffer = '';
+  let inThinking = false;
+  const openTag = '<think>';
+  const closeTag = '</think>';
+  const emitThinking = text => { if (text && onThinking) onThinking(text); };
+  const emitText = text => { if (text) onText(text); };
+  const drain = final => {
+    while (buffer) {
+      const tag = inThinking ? closeTag : openTag;
+      const index = buffer.toLowerCase().indexOf(tag);
+      if (index >= 0) {
+        const before = buffer.slice(0, index);
+        if (inThinking) emitThinking(before); else emitText(before);
+        buffer = buffer.slice(index + tag.length);
+        inThinking = !inThinking;
+        continue;
+      }
+      if (final) {
+        if (inThinking) emitThinking(buffer); else emitText(buffer);
+        buffer = '';
+        return;
+      }
+      const keep = tag.length - 1;
+      if (buffer.length <= keep) return;
+      const safe = buffer.slice(0, buffer.length - keep);
+      if (inThinking) emitThinking(safe); else emitText(safe);
+      buffer = buffer.slice(-keep);
+      return;
+    }
+  };
+  return {
+    push(content) { buffer += content; drain(false); },
+    flush() { drain(true); },
+  };
 }
 
 export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking) {
   const piiUrl = getOllamaPIIUrl();
   const piiModel = getOllamaPIIModel();
-  const config = getOllamaConfig();
+  ensurePIIModelEligible(piiModel);
+  const apiKey = getOllamaPIIApiKey();
   const promptText = PII_PROMPT_PREFIX + pdfText;
   const baseUrl = piiUrl.replace(/\/+$/, '');
   const headers = { 'Content-Type': 'application/json' };
-  if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
   // Quick reachability probe with a 5s timeout BEFORE issuing the
   // streaming request. If Ollama is unreachable (server stopped,
@@ -202,24 +281,42 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
     } else {
       probeSignal = timeoutSig;
     }
-    await fetch(`${baseUrl}/api/version`, { signal: probeSignal });
+    const probe = await fetch(`${baseUrl}/v1/models`, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}, signal: probeSignal });
+    if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
   } catch (e) {
     throw new Error(`Local PII server unreachable at ${baseUrl} — falling back to regex obfuscation. (${e.message})`);
   }
 
-  const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
+  const requestState = createInitialResponseTimeout({
     method: 'POST',
     headers,
-    body: JSON.stringify({ model: piiModel, messages: [{ role: 'user', content: promptText }], stream: true }),
+    body: JSON.stringify({
+      model: piiModel,
+      messages: [{ role: 'user', content: promptText }],
+      stream: true,
+      temperature: 0,
+      reasoning_effort: 'none',
+    }),
     signal
-  });
+  }, 30000);
+  let resp;
+  try {
+    resp = await fetch(`${baseUrl}/v1/chat/completions`, requestState.fetchOptions);
+  } finally {
+    requestState.clearRequestTimeout();
+  }
   if (!resp.ok) throw new Error(`Local server error: ${resp.status}`);
+  if (!resp.body) throw new Error('Local server returned no response stream');
 
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let accumulated = '';
   let buffer = '';
-  let inThinkTag = false; // track <think>...</think> blocks in content
+  const contentFilter = createThinkingContentFilter(content => {
+    accumulated += content;
+    onChunk(content);
+  }, onThinking);
+  let streamDone = false;
   // Per-chunk stall timeout — local Ollama can hang mid-stream if the
   // model crashes / OOMs / loses GPU access; fail loud after 45s so
   // the user can fall back to regex instead of waiting forever.
@@ -235,99 +332,76 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
     );
   });
 
+  const processLine = line => {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.startsWith('data:')) return false;
+    const payload = trimmed.slice(5).trimStart();
+    if (payload === '[DONE]') return true;
+    const json = JSON.parse(payload);
+    if (json.error) throw new Error(json.error.message || String(json.error));
+    const delta = json.choices?.[0]?.delta;
+    if (!delta) return false;
+    const reasoning = delta.reasoning_content || delta.reasoning;
+    if (reasoning && onThinking) onThinking(reasoning);
+    if (delta.content) contentFilter.push(delta.content);
+    return false;
+  };
+
   try {
-    while (true) {
+    while (!streamDone) {
       const { done, value } = await readWithStall();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop(); // keep incomplete line
       for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        const payload = trimmed.slice(6);
-        if (payload === '[DONE]') break;
-        try {
-          const json = JSON.parse(payload);
-          const delta = json.choices?.[0]?.delta;
-          if (!delta) continue;
-
-          // Handle reasoning_content field (OpenAI-style thinking)
-          if (delta.reasoning_content && onThinking) {
-            onThinking(delta.reasoning_content);
-            continue;
-          }
-
-          const content = delta.content;
-          if (!content) continue;
-
-          // Handle <think>...</think> tags inline in content (Qwen/DeepSeek style)
-          if (onThinking) {
-            let remaining = content;
-            while (remaining) {
-              if (inThinkTag) {
-                const closeIdx = remaining.indexOf('</think>');
-                if (closeIdx === -1) { onThinking(remaining); remaining = ''; }
-                else { onThinking(remaining.slice(0, closeIdx)); inThinkTag = false; remaining = remaining.slice(closeIdx + 8); }
-              } else {
-                const openIdx = remaining.indexOf('<think>');
-                if (openIdx === -1) { accumulated += remaining; onChunk(remaining); remaining = ''; }
-                else {
-                  if (openIdx > 0) { accumulated += remaining.slice(0, openIdx); onChunk(remaining.slice(0, openIdx)); }
-                  inThinkTag = true;
-                  remaining = remaining.slice(openIdx + 7);
-                }
-              }
-            }
-          } else {
-            accumulated += content;
-            onChunk(content);
-          }
-        } catch { /* skip malformed chunks */ }
+        if (processLine(line)) { streamDone = true; break; }
       }
     }
+    buffer += decoder.decode();
+    if (!streamDone && buffer.trim()) processLine(buffer);
+    contentFilter.flush();
   } finally {
     reader.releaseLock();
+    unloadOllamaPIIModel();
   }
 
-  const result = accumulated.trim();
-  const validationError = validatePIIResult(result, pdfText);
-  if (validationError) throw new Error(validationError);
-
-  unloadOllamaPIIModel();
-  return result;
+  return finalizePIIResult(accumulated.trim(), pdfText);
 }
 
 export async function sanitizeWithOllama(pdfText) {
   const piiUrl = getOllamaPIIUrl();
   const piiModel = getOllamaPIIModel();
-  const config = getOllamaConfig();
+  ensurePIIModelEligible(piiModel);
+  const apiKey = getOllamaPIIApiKey();
   const promptText = PII_PROMPT_PREFIX + pdfText;
   try {
     const baseUrl = piiUrl.replace(/\/+$/, '');
     const headers = { 'Content-Type': 'application/json' };
-    if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model: piiModel, messages: [{ role: 'user', content: promptText }], stream: false }),
+      body: JSON.stringify({
+        model: piiModel,
+        messages: [{ role: 'user', content: promptText }],
+        stream: false,
+        temperature: 0,
+        reasoning_effort: 'none',
+      }),
       signal: AbortSignal.timeout(90000)
     });
     if (!resp.ok) throw new Error(`Local server error: ${resp.status}`);
     const data = await resp.json();
     const result = (data.choices?.[0]?.message?.content || '').trim();
-
-    const validationError = validatePIIResult(result, pdfText);
-    if (validationError) throw new Error(validationError);
-
-    unloadOllamaPIIModel();
-    return result;
+    return finalizePIIResult(result, pdfText);
   } catch (e) {
-    unloadOllamaPIIModel();
     if (e.name === 'TimeoutError' || e.message.includes('timed out')) {
       showNotification(`PII model "${piiModel}" timed out. Falling back to regex. Try a smaller model in Settings → Privacy.`, 'info', 6000);
     }
     throw e;
+  } finally {
+    unloadOllamaPIIModel();
   }
 }
 
@@ -572,19 +646,19 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
             <div class="gb-modal-title">Review &amp; Edit</div>
           </div>
         </div>
-        <p class="pii-review-intro">Personal information has been replaced with fake data before AI sees the report. Review the text that will be sent and edit anything that still looks identifying.</p>
+        <p class="pii-review-intro">Personal information has been replaced with fake data before the analysis model sees the report. Review the text that will be sent and edit anything that still looks identifying.</p>
         <div class="pii-search-bar">
           <input type="text" class="pii-search-input" id="pii-search-input" placeholder="Search for your name, address, phone\u2026" autocomplete="off">
           <span class="pii-search-count" id="pii-search-count"></span>
         </div>
         <details class="pii-mobile-original">
-          <summary>Original text (stays local)</summary>
+          <summary>Original report (comparison only)</summary>
           <div class="pii-mobile-original-body">${leftHtml}</div>
         </details>
         <div class="pii-diff-viewer pii-review-viewer">
-          <div class="pii-diff-left"><div class="pii-diff-header">Original (stays local)</div>${leftHtml}</div>
+          <div class="pii-diff-left"><div class="pii-diff-header">Original report (comparison only)</div>${leftHtml}</div>
           <div class="pii-diff-right">
-            <div class="pii-diff-header">Sent to AI <button class="pii-edit-btn" id="pii-edit-btn" type="button">&#9998; Edit</button></div>
+            <div class="pii-diff-header">Sent to analysis AI <button class="pii-edit-btn" id="pii-edit-btn" type="button">&#9998; Edit</button></div>
             ${isStreaming ? '<details class="pii-thinking-section" id="pii-thinking-section" hidden><summary>Thinking\u2026</summary><pre class="pii-thinking-content" id="pii-thinking-content"></pre></details>' : ''}
             <textarea class="pii-edit-textarea" id="pii-edit-textarea" spellcheck="false"${isStreaming ? ' readonly' : ''}>${initialText}</textarea>
             ${isStreaming ? '<div class="pii-stream-status pii-stream-waiting" id="pii-stream-status">Waiting for model response\u2026</div>' : ''}
@@ -678,7 +752,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
     // Show highlighted diff preview, hiding the textarea
     function showDiffPreview(obfuscatedText) {
       const { leftHtml, rightHtml } = buildPIIDiffHTML(originalText, obfuscatedText);
-      if (leftPanel) leftPanel.innerHTML = `<div class="pii-diff-header">Original (stays local)</div>${leftHtml}`;
+      if (leftPanel) leftPanel.innerHTML = `<div class="pii-diff-header">Original report (comparison only)</div>${leftHtml}`;
       if (mobileOriginal) mobileOriginal.innerHTML = leftHtml;
       textarea.style.display = 'none';
       let diffView = /** @type {HTMLElement | null} */ (overlay.querySelector('.pii-diff-preview'));
@@ -809,8 +883,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
           flushToTextarea();
           if (err.name === 'AbortError') return; // stop button already handled
           textarea.readOnly = false;
-          sendBtn.disabled = false;
-          if (statusEl) statusEl.textContent = `Error: ${err.message}`;
+          sendBtn.disabled = true;
+          if (statusEl) statusEl.textContent = `Error: ${err.message} Use Regex fallback or retry before sending.`;
           stopBtn.hidden = true;
           retryBtn.hidden = false;
         });
@@ -821,8 +895,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
         abortController.abort();
         abortController = null;
         textarea.readOnly = false;
-        sendBtn.disabled = false;
-        statusEl.textContent = 'Stopped \u2014 review partial result and edit below';
+        sendBtn.disabled = true;
+        statusEl.textContent = 'Stopped \u2014 partial output cannot be sent. Use Regex fallback or retry.';
         stopBtn.hidden = true;
         retryBtn.hidden = false;
         unloadOllamaPIIModel();

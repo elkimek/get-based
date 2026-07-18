@@ -144,10 +144,17 @@ export async function detectHardware() {
 
 export function assessModel(modelObj, hardware) {
   // Cloud models run on Ollama's servers — no local VRAM needed
-  if (modelObj.name && modelObj.name.includes(':cloud')) {
+  if (modelObj.executionLocation === 'cloud' || /(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(modelObj.name || '')) {
     return { tier: 'cloud', badge: '\u2601', vramNeeded: 0, label: 'Cloud' };
   }
-  const vramNeeded = (modelObj.size / 1e9) * 1.15; // file size + 15% runtime overhead
+  // Prefer observed runtime allocation. Otherwise include model weights plus a
+  // conservative context/KV-cache allowance; disk size alone understates fit.
+  const observedVram = Number(modelObj.vramAllocated) / 1e9;
+  const contextTokens = Number(modelObj.contextLength) || 0;
+  const contextOverhead = contextTokens > 0 ? Math.min(8, (contextTokens / 8192) * 0.5) : 0.75;
+  const vramNeeded = observedVram > 0
+    ? observedVram
+    : (Number(modelObj.size) / 1e9) * 1.1 + contextOverhead;
   const available = hardware.gpu.vram;
   if (!available || !modelObj.size) {
     return { tier: 'unknown', badge: '?', vramNeeded, label: 'Unknown' };
@@ -186,6 +193,8 @@ const MODEL_FITNESS = [
   { match: 'qwen2.5:3b',      tier: 'underpowered', note: 'Frequent JSON errors on multi-page reports' },
   { match: 'qwen2.5:1.5b',    tier: 'inadequate',  note: 'Cannot reliably parse lab reports' },
   { match: 'qwen2.5:0.5b',    tier: 'inadequate',  note: 'Cannot parse lab reports' },
+  // Qwen 3.6
+  { match: 'qwen3.6:27b',     tier: 'recommended', note: 'Latest dense Qwen — strong structured extraction and vision' },
   // Qwen 3.5
   { match: 'qwen3.5:72b',     tier: 'recommended', note: 'Cloud-grade, latest generation' },
   { match: 'qwen3.5:32b',     tier: 'recommended', note: 'Excellent for all lab report types' },
@@ -244,6 +253,7 @@ const MODEL_FITNESS = [
   { match: 'gemini-3-flash-preview:cloud', tier: 'capable', note: 'Cloud — fast, may truncate on complex reports' },
   { match: 'qwen3-coder-next:cloud', tier: 'capable', note: 'Cloud — code-focused, decent at structured extraction' },
   { match: ':cloud',           tier: 'capable',     note: 'Cloud model — runs on Ollama servers, no GPU required' },
+  { match: '-cloud',           tier: 'capable',     note: 'Cloud model — runs on Ollama servers, no GPU required' },
   // Others
   { match: 'solar:',          tier: 'underpowered', note: 'Inconsistent JSON output' },
   { match: 'yi:',             tier: 'underpowered', note: 'Weak at strict structured output' },
@@ -310,7 +320,9 @@ export function getBestModel(modelDetails, hardware) {
 // ── UPDATE when new model generations launch (same cadence as OPENROUTER_RECOMMENDED in api.js)
 //    Also update MODEL_FITNESS above.
 const MODEL_CATALOG = [
-  // Qwen 3.5 — latest gen, best structured extraction
+  // Qwen 3.6 — newest dense generation
+  { model: 'qwen3.6:27b',  sizeGb: 17,  tier: 'recommended', quality: 105 },
+  // Qwen 3.5
   { model: 'qwen3.5:72b',  sizeGb: 43,  tier: 'recommended', quality: 100 },
   { model: 'qwen3.5:32b',  sizeGb: 20,  tier: 'recommended', quality: 95 },
   { model: 'qwen3.5:14b',  sizeGb: 9,   tier: 'recommended', quality: 90 },

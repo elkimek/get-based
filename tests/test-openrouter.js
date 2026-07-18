@@ -282,7 +282,8 @@ assert('unknown model pricing is approximate', unknownPricing.includes('~'));
 if (savedPr) localStorage.setItem('labcharts-openrouter-pricing', savedPr);
 else localStorage.removeItem('labcharts-openrouter-pricing');
 const ollamaPricing = api.renderModelPricingHint('ollama', '');
-assert('ollama pricing still says Free', ollamaPricing.includes('Free'));
+assert('Local AI pricing avoids claiming remote or cloud servers are free',
+  ollamaPricing.includes('configured server') && !ollamaPricing.includes('Free'));
 
 // ─── 12. Key removal clears pricing cache ───
 console.log('\n12. Key removal clears pricing cache');

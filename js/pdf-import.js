@@ -12,8 +12,10 @@ import { importDataJSON, loadDemoData } from './export.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   callImportAIWithStreamFallback,
+  compactMarkerReference,
   formatImportError,
   getUsageTokens,
+  IMPORT_JSON_SCHEMA,
   tryParseJSON,
 } from './pdf-import-ai-utils.js';
 import { extractXLSXText, isCsvTextFile, isTextImportFile, isXlsxFile } from './pdf-import-spreadsheet.js';
@@ -64,6 +66,12 @@ import {
 } from './pdf-import-commit.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+import {
+  benchmarkResultPatch,
+  finishImportBenchmark,
+  startImportBenchmark,
+  updateImportBenchmark,
+} from './import-benchmarks.js';
 
 const pdfImportDeps = {
   importDataJSON,
@@ -195,8 +203,8 @@ export async function parseLabPDFWithAI(pdfText, fileName, onProgress) {
     : `   IMPORTANT — for ambiguous numeric dates like "12/7/2025", look for context (other dates, a printed format like "DD/MM/YYYY" in the report header, or month names elsewhere) before deciding. Do not assume MM/DD by default — most of the world uses DD/MM/YYYY.`;
   const system = `You are a lab report data extraction assistant. You extract biomarker results from lab report text and map them to a known set of marker keys.
 
-Here is the complete list of known markers with their keys, expected units, and reference ranges:
-${JSON.stringify(markerRef)}
+Known markers are listed as key|English name|expected unit. Reference ranges must come from the report, never this list:
+${compactMarkerReference(markerRef)}
 
 IMPORTANT — The lab report may contain test names in Bulgarian, Czech, German, Russian, Ukrainian, or other languages. Before matching, translate every non-English test name into its English medical equivalent. For example: "Креатинин" → "Creatinine", "Урея" → "Urea", "Мочевая кислота" → "Uric Acid", "АСТ" → "AST", "Glukóza" → "Glucose". Use the English name when searching the known markers list.
 IMPORTANT — Use English unit abbreviations only. Do not use Cyrillic or localized unit names, replace them with English instead.
@@ -270,7 +278,7 @@ Return ONLY valid JSON in this exact format, no other text:
 }`;
 
   const provider = getAIProvider();
-  const maxTokens = 32768;
+  const maxTokens = 16384;
   // Stream AI response to report real-time progress during analysis (15% → 90%)
   let onStream;
   if (onProgress) {
@@ -286,13 +294,18 @@ Return ONLY valid JSON in this exact format, no other text:
     ? `\n\nIMPORTANT — These marker keys were used in previous imports for this profile. Reuse them for the same biomarkers to ensure consistency:\n${[...existingKeys].join(', ')}`
     : '';
 
-  const { text: response, usage } = await callImportAIWithStreamFallback({
+  const { text: response, usage, diagnostics } = await callImportAIWithStreamFallback({
     system: system + existingKeysNote,
     messages: [{ role: 'user', content: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}:\n\n${pdfText}` }],
     maxTokens,
     onStream,
     requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
-    jsonMode: true
+    jsonMode: true,
+    jsonSchema: IMPORT_JSON_SCHEMA,
+    reasoningEffort: 'none',
+    temperature: 0,
+    minOutputTokens: 2048,
+    preferNativeContext: true,
   }, 'PDF text analysis');
 
   // Parse JSON from response (handle markdown code blocks, thinking tags, truncated output)
@@ -320,7 +333,9 @@ Return ONLY valid JSON in this exact format, no other text:
     markers,
     fileName,
     usage,
-    provider
+    provider,
+    diagnostics,
+    imageMode: false,
   };
 }
 
@@ -398,8 +413,8 @@ export async function parseLabPDFWithAIImages(images, fileName, onProgress) {
   // Same system prompt as text-based parsing
   const system = `You are a lab report data extraction assistant. You extract biomarker results from lab report images and map them to a known set of marker keys.
 
-Here is the complete list of known markers with their keys, expected units, and reference ranges:
-${JSON.stringify(markerRef)}
+Known markers are listed as key|English name|expected unit. Reference ranges must come from the report, never this list:
+${compactMarkerReference(markerRef)}
 
 IMPORTANT — The lab report may contain test names in Bulgarian, Czech, German, Russian, Ukrainian, or other languages. Before matching, translate every non-English test name into its English medical equivalent. For example: "Креатинин" → "Creatinine", "Урея" → "Urea", "Мочевая кислота" → "Uric Acid", "АСТ" → "AST", "Glukóza" → "Glucose". Use the English name when searching the known markers list.
 IMPORTANT — Use English unit abbreviations only. Do not use Cyrillic or localized unit names, replace them with English instead.
@@ -439,7 +454,7 @@ Return ONLY valid JSON in this exact format:
 }`;
 
   const provider = getAIProvider();
-  const maxTokens = 32768;
+  const maxTokens = 16384;
   let onStream;
   if (onProgress) {
     let lastPct = -1;
@@ -459,13 +474,18 @@ Return ONLY valid JSON in this exact format:
     { type: 'text', text: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}. Read every page carefully.` }
   ];
 
-  const { text: response, usage } = await callImportAIWithStreamFallback({
+  const { text: response, usage, diagnostics } = await callImportAIWithStreamFallback({
     system,
     messages: [{ role: 'user', content }],
     maxTokens,
     onStream,
     requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
-    jsonMode: true
+    jsonMode: true,
+    jsonSchema: IMPORT_JSON_SCHEMA,
+    reasoningEffort: 'none',
+    temperature: 0,
+    minOutputTokens: 2048,
+    preferNativeContext: true,
   }, 'PDF image analysis');
 
   let jsonStr = (response || '').trim();
@@ -489,6 +509,7 @@ Return ONLY valid JSON in this exact format:
     fileName,
     usage: usage || {},
     provider,
+    diagnostics,
     imageMode: true,
   };
 }
@@ -533,6 +554,19 @@ async function _showImageModeDialog() {
 
 export async function handlePDFFile(file, forceImageMode = false, preExtractedText = null) {
   const _startProfileId = state.currentProfile;
+  const benchmarkStarted = performance.now();
+  const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: forceImageMode ? 'image' : 'text' });
+  let benchmarkFinished = false;
+  let benchmarkStage = 'extract';
+  const setBenchmarkStage = (stage, patch = {}) => {
+    benchmarkStage = stage;
+    updateImportBenchmark(benchmarkId, { stage, ...patch }, { persist: false });
+  };
+  const finishBenchmark = (status, patch = {}) => {
+    if (benchmarkFinished) return;
+    benchmarkFinished = true;
+    finishImportBenchmark(benchmarkId, status, { stage: benchmarkStage, ...patch });
+  };
   const hasPreExtractedText = preExtractedText !== null;
   const isCsvImport = isCsvTextFile(file);
   const isXlsxImport = isXlsxFile(file);
@@ -543,6 +577,11 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     await showImportProgress(0, file.name);
     const pdfText = hasPreExtractedText ? preExtractedText : await extractPDFText(file);
     const textQuality = hasPreExtractedText ? 'good' : assessTextQuality(pdfText);
+    setBenchmarkStage('mode-selection', {
+      inputChars: pdfText.length,
+      pageCount: (pdfText.match(/^=== Page \d+ ===$/gm) || []).length,
+      textQuality,
+    });
 
     // Determine import mode — ask user for scanned/empty PDFs
     let useImageMode = forceImageMode;
@@ -550,6 +589,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       const choice = await _showImageModeDialog();
       if (choice === 'cancel') { hideImportProgress(); return; }
       useImageMode = choice === 'image';
+      updateImportBenchmark(benchmarkId, { importMode: useImageMode ? 'image' : 'text' }, { persist: false });
       if (isDebugMode()) console.log(`[Import] User chose ${choice} for ${textQuality} text quality`);
     }
 
@@ -565,11 +605,13 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       if (images.length === 0) { hideImportProgress('error'); showNotification("Could not render PDF pages", "error"); return; }
       await showImportProgress(3, file.name);
       const analysisStart = performance.now();
+      setBenchmarkStage('analysis', { importMode: 'image', pageCount: images.length });
       const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
-      const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
+      const analysisMs = Math.round(performance.now() - analysisStart);
+      const analysisTime = Math.round(analysisMs / 1000);
       if (isDebugMode()) console.log(`[Analysis] Image mode parsed in ${analysisTime}s`);
       result.privacyMethod = 'none (image mode)';
-      result.timings = { pii: 0, analysis: analysisTime };
+      result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
       const prov = result.provider || getAIProvider();
       const mid = getActiveModelId();
       const tokens = getUsageTokens(result.usage);
@@ -581,9 +623,12 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       };
       trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
       result.importHash = hashString(file.name + file.size);
+      result.benchmarkId = benchmarkId;
+      result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
       result._importProfileId = _startProfileId;
       if (!result.date) showNotification("Could not find collection date in PDF", "error");
-      if (result.markers.length === 0) { hideImportProgress('error'); showNotification("No biomarkers found in PDF images", "error"); return; }
+      if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification("No biomarkers found in PDF images", "error"); return; }
+      finishBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
       await showImportProgress(4, file.name);
       showImportPreview(result);
       hideImportProgress();
@@ -601,16 +646,19 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
 
     // Pre-flight checks — before spending tokens
     await showImportProgress(1, file.name);
+    setBenchmarkStage('preflight');
     const preflight = await runPreflightChecks(pdfText, file.name);
     if (!preflight) { hideImportProgress('cancel'); return; }
 
     // PII obfuscation step
     await showImportProgress(2, file.name);
+    setBenchmarkStage('privacy');
     let textForAI = pdfText;
     let privacyMethod = null;
     let privacyReplacements = 0;
     let privacyOriginal = null;
     let piiTime = 0;
+    let piiMs = 0;
     const ollama = await checkOllamaPII();
 
     if (ollama.available && isPIIReviewEnabled()) {
@@ -619,7 +667,8 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       const reviewResult = await reviewPIIBeforeSend(pdfText, {
         streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)
       });
-      piiTime = Math.round((performance.now() - piiStart) / 1000);
+      piiMs = Math.round(performance.now() - piiStart);
+      piiTime = Math.round(piiMs / 1000);
       if (reviewResult === 'cancel') { hideImportProgress('cancel'); showNotification('Import cancelled.', 'info'); return; }
       textForAI = reviewResult;
       privacyMethod = 'ollama+review';
@@ -629,7 +678,8 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       try {
         const piiStart = performance.now();
         textForAI = await sanitizeWithOllama(pdfText);
-        piiTime = Math.round((performance.now() - piiStart) / 1000);
+        piiMs = Math.round(performance.now() - piiStart);
+        piiTime = Math.round(piiMs / 1000);
         privacyMethod = 'ollama';
         privacyOriginal = pdfText;
         if (isDebugMode()) console.log(`[PII] Obfuscated via Local AI (${piiTime}s)`);
@@ -669,13 +719,15 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     if (isDebugMode()) { console.log('[PII] Original:', pdfText); console.log('[PII] Obfuscated:', textForAI); }
 
     await showImportProgress(3, file.name);
+    setBenchmarkStage('analysis');
     const analysisStart = performance.now();
     const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
-    const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
+    const analysisMs = Math.round(performance.now() - analysisStart);
+    const analysisTime = Math.round(analysisMs / 1000);
     if (isDebugMode()) console.log(`[Analysis] Parsed in ${analysisTime}s`);
     result.privacyMethod = privacyMethod;
     result.privacyReplacements = privacyReplacements;
-    result.timings = { pii: piiTime, analysis: analysisTime };
+    result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
     const prov = result.provider || getAIProvider();
     const mid = getActiveModelId();
     const tokens = getUsageTokens(result.usage);
@@ -687,17 +739,23 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     };
     trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(pdfText);
+    result.benchmarkId = benchmarkId;
+    result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
     result._importProfileId = _startProfileId;
     if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
     if (!result.date) { showNotification(`Could not find collection date in ${textImportKind}`, "error"); }
-    if (result.markers.length === 0) { hideImportProgress('error'); showNotification(`No biomarkers found in ${textImportKind}`, "error"); return; }
+    if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification(`No biomarkers found in ${textImportKind}`, "error"); return; }
+    finishBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
     await showImportProgress(4, file.name);
     showImportPreview(result);
     hideImportProgress();
   } catch (err) {
+    finishBenchmark('failed', { error: formatImportError(err), totalMs: Math.round(performance.now() - benchmarkStarted) });
     hideImportProgress('error');
     if (isDebugMode()) console.error("PDF parse error:", err);
     showNotification("Error parsing PDF: " + formatImportError(err), "error", 10000);
+  } finally {
+    if (!benchmarkFinished) finishBenchmark('stopped', { reason: benchmarkStage, totalMs: Math.round(performance.now() - benchmarkStarted) });
   }
 }
 
@@ -705,14 +763,23 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
 // BATCH PDF IMPORT
 // ═══════════════════════════════════════════════
 async function _processBatchFile(file, ollama, fileNum, totalFiles) {
+  const benchmarkStarted = performance.now();
+  const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: 'text' });
+  const finishBatchBenchmark = (status, patch = {}) => finishImportBenchmark(benchmarkId, status, { totalMs: Math.round(performance.now() - benchmarkStarted), ...patch });
+  try {
   await showBatchImportProgress(0, file.name, fileNum, totalFiles);
   const pdfText = await extractPDFText(file);
-  if (!pdfText.trim()) { showNotification(`${file.name}: PDF appears empty`, 'error'); return 'empty'; }
+  updateImportBenchmark(benchmarkId, {
+    stage: 'preflight',
+    inputChars: pdfText.length,
+    pageCount: (pdfText.match(/^=== Page \d+ ===$/gm) || []).length,
+  }, { persist: false });
+  if (!pdfText.trim()) { finishBatchBenchmark('empty'); showNotification(`${file.name}: PDF appears empty`, 'error'); return 'empty'; }
 
   // Pre-flight checks — before spending tokens
   await showBatchImportProgress(1, file.name, fileNum, totalFiles);
   const preflight = await runPreflightChecks(pdfText, file.name);
-  if (!preflight) return 'skipped';
+  if (!preflight) { finishBatchBenchmark('cancelled', { stage: 'preflight' }); return 'skipped'; }
 
   // PII obfuscation
   await showBatchImportProgress(2, file.name, fileNum, totalFiles);
@@ -721,6 +788,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   let privacyReplacements = 0;
   let privacyOriginal = null;
   let piiTime = 0;
+  let piiMs = 0;
 
   if (ollama.available && isPIIReviewEnabled()) {
     // Streaming mode — modal opens immediately, AI streams into it
@@ -728,8 +796,9 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
     const reviewResult = await reviewPIIBeforeSend(pdfText, {
       streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)
     });
-    piiTime = Math.round((performance.now() - piiStart) / 1000);
-    if (reviewResult === 'cancel') { return 'skipped'; }
+    piiMs = Math.round(performance.now() - piiStart);
+    piiTime = Math.round(piiMs / 1000);
+    if (reviewResult === 'cancel') { finishBatchBenchmark('cancelled', { stage: 'privacy' }); return 'skipped'; }
     textForAI = reviewResult;
     privacyMethod = 'ollama+review';
     privacyOriginal = pdfText;
@@ -737,7 +806,8 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
     try {
       const piiStart = performance.now();
       textForAI = await sanitizeWithOllama(pdfText);
-      piiTime = Math.round((performance.now() - piiStart) / 1000);
+      piiMs = Math.round(performance.now() - piiStart);
+      piiTime = Math.round(piiMs / 1000);
       privacyMethod = 'ollama';
       privacyOriginal = pdfText;
     } catch (e) {
@@ -748,7 +818,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
         privacyMethod = 'regex';
       } catch (e2) {
         showNotification(`${file.name}: Privacy protection failed \u2014 skipped`, 'error');
-        return 'pii-fail';
+        finishBatchBenchmark('failed', { stage: 'privacy', error: e2.message }); return 'pii-fail';
       }
     }
   } else {
@@ -758,11 +828,11 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
       privacyMethod = 'regex';
     } catch (e) {
       showNotification(`${file.name}: Privacy protection failed \u2014 skipped`, 'error');
-      return 'pii-fail';
+      finishBatchBenchmark('failed', { stage: 'privacy', error: e.message }); return 'pii-fail';
     }
     if (isPIIReviewEnabled()) {
       const reviewResult = await reviewPIIBeforeSend(pdfText, { obfuscatedText: textForAI });
-      if (reviewResult === 'cancel') { return 'skipped'; }
+      if (reviewResult === 'cancel') { finishBatchBenchmark('cancelled', { stage: 'privacy' }); return 'skipped'; }
       textForAI = reviewResult;
     }
   }
@@ -771,11 +841,12 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   await showBatchImportProgress(3, file.name, fileNum, totalFiles);
   const analysisStart = performance.now();
   const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
-  const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
+  const analysisMs = Math.round(performance.now() - analysisStart);
+  const analysisTime = Math.round(analysisMs / 1000);
   if (isDebugMode()) console.log(`[Analysis] ${file.name} parsed in ${analysisTime}s`);
   result.privacyMethod = privacyMethod;
   result.privacyReplacements = privacyReplacements;
-  result.timings = { pii: piiTime, analysis: analysisTime };
+  result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
   const prov = result.provider || getAIProvider();
   const mid = getActiveModelId();
   const tokens = getUsageTokens(result.usage);
@@ -787,11 +858,18 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   };
   trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
   result.importHash = hashString(pdfText);
+  result.benchmarkId = benchmarkId;
+  result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
   if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
-  if (result.markers.length === 0) { showNotification(`${file.name}: No markers found`, 'error'); return 'no-markers'; }
+  if (result.markers.length === 0) { finishBatchBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); showNotification(`${file.name}: No markers found`, 'error'); return 'no-markers'; }
+  finishBatchBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
   await showBatchImportProgress(4, file.name, fileNum, totalFiles);
   const action = await showImportPreviewAsync(result, fileNum, totalFiles);
   return action === 'skip' ? 'skipped' : 'imported';
+  } catch (error) {
+    finishBatchBenchmark('failed', { stage: 'analysis', error: error.message });
+    throw error;
+  }
 }
 
 export async function handleBatchPDFs(pdfFiles) {
@@ -858,13 +936,12 @@ export async function handleImageFile(file) {
     return;
   }
   // PII warning — images cannot be scrubbed
-  const provider = getAIProvider();
-  if (provider !== 'ollama') {
-    if (!await showConfirmDialog(
-      'This image will be sent directly to the AI provider. Personal details visible in the image cannot be scrubbed before upload. Continue?'
-    )) return;
-  }
+  if (!await showConfirmDialog(
+    'This image will be sent directly to the configured AI server or provider. Personal details visible in the image cannot be scrubbed before upload. Continue?'
+  )) return;
   const _startProfileId = state.currentProfile;
+  const benchmarkStarted = performance.now();
+  const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: 'image', pageCount: 1 });
   try {
     await showImportProgress(3, file.name);
     const base64 = await new Promise((resolve, reject) => {
@@ -876,11 +953,13 @@ export async function handleImageFile(file) {
     const mediaType = file.type || (file.name.match(/\.png$/i) ? 'image/png' : file.name.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg');
     const images = [{ base64, mediaType, page: 1 }];
     const analysisStart = performance.now();
+    updateImportBenchmark(benchmarkId, { stage: 'analysis', pageCount: 1 }, { persist: false });
     const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
-    const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
+    const analysisMs = Math.round(performance.now() - analysisStart);
+    const analysisTime = Math.round(analysisMs / 1000);
     if (isDebugMode()) console.log(`[Analysis] Image file parsed in ${analysisTime}s`);
     result.privacyMethod = 'none (image mode)';
-    result.timings = { pii: 0, analysis: analysisTime };
+    result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
     const prov = result.provider || getAIProvider();
     const mid = getActiveModelId();
     const tokens = getUsageTokens(result.usage);
@@ -892,16 +971,29 @@ export async function handleImageFile(file) {
     };
     trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(file.name + file.size);
+    result.benchmarkId = benchmarkId;
+    result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
     result._importProfileId = _startProfileId;
     if (!result.date) showNotification("Could not find collection date in image", "error");
-    if (result.markers.length === 0) { hideImportProgress('error'); showNotification("No biomarkers found in image", "error"); return; }
+    if (result.markers.length === 0) {
+      finishImportBenchmark(benchmarkId, 'no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
+      hideImportProgress('error');
+      showNotification("No biomarkers found in image", "error");
+      return;
+    }
+    finishImportBenchmark(benchmarkId, 'preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
     await showImportProgress(4, file.name);
     showImportPreview(result);
     hideImportProgress();
   } catch (err) {
+    finishImportBenchmark(benchmarkId, 'failed', {
+      stage: 'analysis',
+      error: formatImportError(err),
+      totalMs: Math.round(performance.now() - benchmarkStarted),
+    });
     if (isDebugMode()) console.error('Image import error:', err);
     hideImportProgress('error');
-    showNotification(`Import failed: ${err.message}`, 'error');
+    showNotification(`Import failed: ${formatImportError(err)}`, 'error');
   }
 }
 

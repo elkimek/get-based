@@ -23,6 +23,7 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-venice-e2ee',
   'labcharts-ollama-model',
   'labcharts-ollama-pii-url',
+  'labcharts-ollama-pii-key',       // Separate privacy-server API key (encrypted)
   'labcharts-ollama-pii-model',
   'labcharts-routstr-node',           // Selected Routstr node
   'labcharts-routstr-session-updated-at', // LWW clock for shared node session/balance refresh

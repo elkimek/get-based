@@ -81,22 +81,41 @@ async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, reques
   }
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = {}) {
+function localAIJsonResponseFormat(schema) {
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: 'structured_response',
+      strict: true,
+      schema: schema || { type: 'object' },
+    },
+  };
+}
+
+function localAIStructuredOutputRejected(res, errorText) {
+  return (res.status === 400 || res.status === 422) && /response[_ ]format|json[_ ]schema|structured output/i.test(errorText);
+}
+
+function localAIReasoningControlRejected(res, errorText) {
+  return (res.status === 400 || res.status === 422) && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning/i.test(errorText);
+}
+
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = {}) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
 
   // Thinking models burn reasoning tokens against max_tokens, so low caps need
   // extra room while still constraining total output.
-  const isThinkingModel = /deepseek-r1|kimi-k|qwq|glm-[45]|claude-.*sonnet|claude-.*opus|:cloud/.test(model);
-  const effectiveMaxTokens = isThinkingModel
+  const isThinkingModel = /deepseek-r1|kimi-k|qwq|qwen3(?:[.\-:]|$)|glm-[45]|claude-.*sonnet|claude-.*opus|(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(model);
+  const effectiveMaxTokens = isThinkingModel && providerName !== 'Local AI'
     ? Math.max(maxTokens || 4096, 16384)
     : (maxTokens || 4096);
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
   /** @type {Record<string, any>} */
   const body = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
   if (jsonMode && providerName === 'Local AI') {
-    body.response_format = { type: 'json_object' };
+    body.response_format = localAIJsonResponseFormat(jsonSchema);
   }
   const useStream = !!onStream && !forceNonStream;
   if (useStream) {
@@ -104,21 +123,43 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     body.stream_options = { include_usage: true };
   }
 
-  let res;
-  try {
+  const fetchRequest = async (requestBody) => {
     const requestInit = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`,
+        ...(key ? { 'Authorization': `Bearer ${key}` } : {}),
         ...extraHeaders
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
       signal
     };
-    res = fetchImpl
-      ? await fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)
-      : await fetchWithApiRetry(endpoint, requestInit, 2, useProxy, requestTimeoutMs);
+    return fetchImpl
+      ? fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)
+      : fetchWithApiRetry(endpoint, requestInit, providerName === 'Local AI' ? 0 : 2, useProxy, requestTimeoutMs);
+  };
+
+  let res;
+  let structuredOutputFallback = false;
+  let reasoningControlFallback = false;
+  try {
+    let requestBody = { ...body };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await fetchRequest(requestBody);
+      if (res.ok) break;
+      const errorText = await res.clone().text();
+      if (requestBody.reasoning_effort && localAIReasoningControlRejected(res, errorText)) {
+        delete requestBody.reasoning_effort;
+        reasoningControlFallback = true;
+        continue;
+      }
+      if (requestBody.response_format?.type === 'json_schema' && localAIStructuredOutputRejected(res, errorText)) {
+        delete requestBody.response_format;
+        structuredOutputFallback = true;
+        continue;
+      }
+      break;
+    }
   } catch (e) {
     throw new Error(`Cannot reach ${providerName} API: ${redactApiSecretText(e.message, [key])}`);
   }
@@ -161,6 +202,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     let finishReason = null;
     let inputTokens = 0;
     let outputTokens = 0;
+    let performance = null;
     const handleSSELine = (line, boundary) => {
       if (!line.startsWith('data: ')) return;
       const data = line.slice(6);
@@ -176,12 +218,20 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
           if (!hasContent) hasContent = true;
           fullText += delta.content;
           onStream(fullText);
-        } else if (delta?.reasoning_content) {
-          if (!hasContent) reasoningBuf += delta.reasoning_content;
+        } else if (delta?.reasoning_content || delta?.reasoning) {
+          if (!hasContent) reasoningBuf += delta.reasoning_content || delta.reasoning;
         }
         if (event.usage) {
           inputTokens = event.usage.prompt_tokens || inputTokens;
           outputTokens = event.usage.completion_tokens || outputTokens;
+        }
+        if (event.stats) {
+          performance = {
+            tokensPerSecond: Number(event.stats.tokens_per_second) || 0,
+            timeToFirstTokenMs: Number(event.stats.time_to_first_token_seconds) > 0 ? Math.round(Number(event.stats.time_to_first_token_seconds) * 1000) : 0,
+            modelLoadMs: Number(event.stats.model_load_time_seconds) > 0 ? Math.round(Number(event.stats.model_load_time_seconds) * 1000) : 0,
+            reasoningTokens: Number(event.stats.reasoning_output_tokens) || 0,
+          };
         }
       } catch (parseErr) {
         if (boundary && parseErr instanceof SyntaxError) return;
@@ -203,13 +253,22 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     }
     if (buffer.startsWith('data: ')) handleSSELine(buffer, false);
     if (!fullText && reasoningBuf) {
+      if (providerName === 'Local AI') {
+        throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
+      }
       fullText = reasoningBuf;
       onStream(fullText);
     }
     if (!fullText.trim()) {
       throw new Error(`${providerName} stream ended without response content. No usage was reported by the app; check the provider account before retrying.`);
     }
-    return { text: fullText, usage: { inputTokens, outputTokens }, finishReason, truncated: isTokenLimitFinish(finishReason) };
+    return {
+      text: fullText,
+      usage: { inputTokens, outputTokens },
+      finishReason,
+      truncated: isTokenLimitFinish(finishReason),
+      ...((structuredOutputFallback || reasoningControlFallback || performance) ? { diagnostics: { structuredOutputFallback, reasoningControlFallback, ...(performance ? { performance } : {}) } } : {}),
+    };
   }
 
   const data = await res.json();
@@ -217,15 +276,29 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
   const choice = data.choices?.[0];
   const msg = choice?.message;
   let text = msg?.content || '';
-  if (!text && msg?.reasoning_content) text = msg.reasoning_content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  const reasoningText = msg?.reasoning_content || msg?.reasoning || '';
+  if (!text && reasoningText) {
+    if (providerName === 'Local AI') {
+      throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
+    }
+    text = reasoningText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  }
   if (!String(text).trim()) {
     throw new Error(`${providerName} returned no response content. No usage was reported by the app; check the provider account before retrying.`);
   }
   const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
+  const stats = data.stats || {};
+  const performance = Object.keys(stats).length ? {
+    tokensPerSecond: Number(stats.tokens_per_second) || 0,
+    timeToFirstTokenMs: Number(stats.time_to_first_token_seconds) > 0 ? Math.round(Number(stats.time_to_first_token_seconds) * 1000) : 0,
+    modelLoadMs: Number(stats.model_load_time_seconds) > 0 ? Math.round(Number(stats.model_load_time_seconds) * 1000) : 0,
+    reasoningTokens: Number(stats.reasoning_output_tokens || usage.completion_tokens_details?.reasoning_tokens) || 0,
+  } : null;
   return {
     text,
     usage: { inputTokens: usage.prompt_tokens || 0, outputTokens: usage.completion_tokens || 0 },
     finishReason,
-    truncated: isTokenLimitFinish(finishReason)
+    truncated: isTokenLimitFinish(finishReason),
+    ...((structuredOutputFallback || reasoningControlFallback || performance) ? { diagnostics: { structuredOutputFallback, reasoningControlFallback, ...(performance ? { performance } : {}) } } : {}),
   };
 }

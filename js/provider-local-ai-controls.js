@@ -6,16 +6,24 @@ import {
   getOllamaConfig,
   getOllamaMainModel,
   getOllamaPIIModel,
+  getOllamaPIIApiKey,
   getOllamaPIIUrl,
   saveOllamaConfig,
+  saveOllamaPIIApiKey,
   setOllamaMainModel,
   setOllamaPIIModel,
   setOllamaPIIUrl,
 } from './api.js';
-import { checkOllama, checkOpenAICompatible, setOllamaPIIEnabled } from './pii.js';
+import {
+  discoverLocalAI,
+  filterPIIEligibleModels,
+  getLocalAiExecutionLocation,
+  isCloudModel,
+} from './local-ai-discovery.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import {
   cacheLocalAiModelDetails,
+  clearCachedLocalAiModelDetails,
   getCachedLocalAiModelDetails,
   updatePrivacyStatusCardFromRuntime,
 } from './provider-local-ai-runtime.js';
@@ -25,6 +33,9 @@ const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure y
 const LOCAL_AI_ACTION_ATTR = 'data-local-ai-action';
 const LOCAL_AI_COMMAND_ATTR = 'data-local-ai-command';
 const localAiControlDelegateRoots = new WeakSet();
+let mainDiscoveryGeneration = 0;
+let piiDiscoveryGeneration = 0;
+let discoveryEventInstalled = false;
 
 export function configureLocalAiControls(options = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
@@ -32,60 +43,81 @@ export function configureLocalAiControls(options = {}) {
   }
 }
 
-export function initSettingsOllamaCheck() {
-  const config = getOllamaConfig();
-  const mainUrl = config.url;
-  const piiUrl = getOllamaPIIUrl();
-  const sameUrl = mainUrl === piiUrl;
+function clearMainDiscoveryUI() {
+  const modelSection = document.getElementById('local-ai-model-section');
+  const advisor = document.getElementById('local-ai-advisor');
+  if (modelSection) modelSection.style.display = 'none';
+  if (advisor) advisor.innerHTML = '';
+  clearCachedLocalAiModelDetails();
+}
 
-  if (document.getElementById('local-ai-dot')) {
-    Promise.allSettled([
-      checkOpenAICompatible(mainUrl, config.apiKey),
-      checkOllama(mainUrl),
-    ]).then(([openaiResult, ollamaResult]) => {
-      const result = openaiResult.status === 'fulfilled' ? openaiResult.value : { available: false, models: [] };
-      const ollama = ollamaResult.status === 'fulfilled' ? ollamaResult.value : { available: false, models: [], modelDetails: [] };
-      const dot = document.getElementById('local-ai-dot');
-      const text = document.getElementById('local-ai-status-text');
-      const modelSection = document.getElementById('local-ai-model-section');
-      const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-      if (!dot || !text) return;
-      if (result.available && result.models.length > 0) {
-        dot.classList.add('connected');
-        let currentModel = getOllamaMainModel();
-        if (!result.models.includes(currentModel)) {
-          currentModel = result.models[0];
-          setOllamaMainModel(currentModel);
-        }
-        text.textContent = `Connected (${currentModel})`;
-        if (modelSection && modelSelect) {
-          modelSection.style.display = 'block';
-          modelSelect.innerHTML = result.models.map(m => `<option value="${escapeHTML(m)}" ${m === currentModel ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
-        }
-        const isOllamaServer = ollama.available && ollama.modelDetails?.length > 0;
-        const modelDetails = isOllamaServer
-          ? ollama.modelDetails
-          : (result.modelDetails || []);
-        if (modelDetails.length > 0) {
-          cacheLocalAiModelDetails(modelDetails, isOllamaServer);
-          renderModelAdvisor(modelDetails, modelSelect, isOllamaServer);
-        }
-      } else if (result.available) {
-        dot.classList.add('disconnected');
-        text.textContent = 'Connected but no models found. Load a model in your server.';
-      } else {
-        dot.classList.add('disconnected');
-        text.textContent = 'Not connected \u2014 start your local server to use';
-      }
-      if (sameUrl) {
-        updatePrivacyStatusCardFromRuntime(result.available && result.models.length > 0);
-      } else {
-        updatePrivacyStatusCardFromRuntime();
-      }
-    });
-  } else {
-    updatePrivacyStatusCardFromRuntime();
+function discoveryErrorText(result) {
+  const error = result?.error || result?.openai?.error;
+  if (error?.kind === 'http' && error.status === 401) return 'Authentication failed \u2014 check the API key';
+  if (error?.kind === 'http' && error.status) return `Server returned HTTP ${error.status}`;
+  if (error?.kind === 'timeout') return 'Connection timed out \u2014 check the address and firewall';
+  return LOCAL_AI_NOT_CONNECTED_TEXT;
+}
+
+function applyMainDiscoveryResult(result, { reconcileModel = true } = {}) {
+  const dot = document.getElementById('local-ai-dot');
+  const text = document.getElementById('local-ai-status-text');
+  const modelSection = document.getElementById('local-ai-model-section');
+  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
+  if (!dot || !text) return;
+  dot.className = 'local-ai-status-dot';
+  if (!result.available || result.models.length === 0) {
+    dot.classList.add('disconnected');
+    text.textContent = result.available ? 'Connected but no text-generation models were found.' : discoveryErrorText(result);
+    clearMainDiscoveryUI();
+    return;
   }
+  dot.classList.add('connected');
+  let currentModel = getOllamaMainModel();
+  if (!result.models.includes(currentModel) && reconcileModel) {
+    currentModel = result.models[0];
+    setOllamaMainModel(currentModel);
+  }
+  const location = getLocalAiExecutionLocation(result.baseUrl, currentModel);
+  const locationLabel = location === 'cloud' ? 'cloud' : location === 'local' ? 'this device' : location === 'lan' ? 'LAN server' : 'remote server';
+  text.textContent = `Connected (${currentModel} \u00b7 ${locationLabel})`;
+  if (modelSection && modelSelect) {
+    modelSection.style.display = 'block';
+    modelSelect.innerHTML = result.models.map(model => `<option value="${escapeHTML(model)}" ${model === currentModel ? 'selected' : ''}>${escapeHTML(model)}</option>`).join('');
+  }
+  const isOllamaServer = result.provider === 'ollama';
+  cacheLocalAiModelDetails(result.modelDetails || [], isOllamaServer);
+  renderModelAdvisor(result.modelDetails || [], modelSelect, isOllamaServer);
+}
+
+function installDiscoveryRefreshEvent() {
+  if (discoveryEventInstalled || typeof globalThis.addEventListener !== 'function') return;
+  discoveryEventInstalled = true;
+  globalThis.addEventListener('local-ai-discovery-updated', event => {
+    const result = /** @type {CustomEvent} */ (event).detail;
+    if (!result || result.baseUrl !== getOllamaConfig().url.replace(/\/+$/, '')) return;
+    if (document.getElementById('local-ai-dot')) applyMainDiscoveryResult(result);
+  });
+}
+
+export function initSettingsOllamaCheck() {
+  installDiscoveryRefreshEvent();
+  const config = getOllamaConfig();
+  const generation = ++mainDiscoveryGeneration;
+  const dot = document.getElementById('local-ai-dot');
+  const text = document.getElementById('local-ai-status-text');
+  if (!dot || !text) { updatePrivacyStatusCardFromRuntime(); return; }
+  dot.className = 'local-ai-status-dot';
+  text.textContent = 'Checking connection...';
+  discoverLocalAI(config.url, config.apiKey, { force: true }).then(result => {
+    if (generation !== mainDiscoveryGeneration) return;
+    applyMainDiscoveryResult(result);
+    if (config.url === getOllamaPIIUrl()) updatePrivacyStatusCardFromRuntime(result.available && filterPIIEligibleModels(result.models).length > 0);
+    else updatePrivacyStatusCardFromRuntime();
+  }).catch(() => {
+    if (generation !== mainDiscoveryGeneration) return;
+    applyMainDiscoveryResult({ available: false, models: [], error: { kind: 'network' } });
+  });
 }
 
 function isLocalUrl(url) {
@@ -180,7 +212,7 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
     for (const opt of opts) {
       const detail = modelDetails.find(d => d.name === opt.value);
       if (!detail) continue;
-      const sizeGb = detail.size ? (detail.size / 1e9).toFixed(1) + ' GB' : '';
+      const sizeGb = detail.size ? `${detail.sizeSource === 'estimated' ? '~' : ''}${(detail.size / 1e9).toFixed(1)} GB` : '';
       const quant = detail.quantLevel || '';
       const assess = hw.gpu.vram ? assessModel(detail, hw) : null;
       const dot = assess ? assess.badge + ' ' : '';
@@ -202,21 +234,36 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
           : 'GPU not detected';
   const ramLabel = hw.ram.gb ? `${hw.ram.gb} GB` : 'Unknown';
   const cpuLabel = hw.cpuThreads ? `${hw.cpuThreads} threads` : '';
+  const allocatedVram = modelDetails.reduce((total, model) => total + (Number(model.vramAllocated) || 0), 0);
+  const providerName = isOllama
+    ? 'Ollama'
+    : modelDetails.some(model => model.source === 'lmstudio') ? 'LM Studio' : 'Local AI';
 
   const fitnessLabel = { recommended: '\u2605 Recommended', capable: 'Capable', underpowered: 'Underpowered', inadequate: 'Inadequate' };
   const fitnessCss = { recommended: 'fitness-great', capable: 'fitness-good', underpowered: 'fitness-fair', inadequate: 'fitness-poor' };
   const rows = modelDetails.map(m => {
     const hasSize = m.size > 0;
-    const assess = !hasSize ? { tier: 'unknown', badge: '?', label: 'Size unknown' }
-      : hw.gpu.vram ? assessModel(m, hw) : { tier: 'unknown', badge: '?', vramNeeded: (m.size / 1e9) * 1.15, label: !isLocal ? 'Enter VRAM' : 'Set VRAM to check' };
+    const assess = (m.executionLocation === 'cloud' || isCloudModel(m.name))
+      ? assessModel(m, hw)
+      : !hasSize ? { tier: 'unknown', badge: '?', label: 'Size unknown' }
+        : hw.gpu.vram ? assessModel(m, hw) : { ...assessModel(m, { gpu: { vram: null, unified: false } }), label: !isLocal ? 'Enter VRAM' : 'Set VRAM to check' };
     const fitness = assessFitness(m.name);
-    const sizeLabel = hasSize ? `${(m.size / 1e9).toFixed(1)} GB` : '';
+    const sizeLabel = hasSize ? `${m.sizeSource === 'estimated' ? '~' : ''}${(m.size / 1e9).toFixed(1)} GB` : '';
+    const runtimeDetails = [
+      m.format,
+      m.loaded === true ? 'loaded now' : '',
+      m.loaded === false ? 'available \u2014 loads on first request' : '',
+      m.loaded === null ? 'runtime load state unavailable' : '',
+      m.contextLength > 0 ? `${Number(m.contextLength).toLocaleString()} token context loaded` : '',
+      m.maxContextLength > m.contextLength ? `${Number(m.maxContextLength).toLocaleString()} max context` : '',
+      m.vramAllocated > 0 ? `${(m.vramAllocated / 1e9).toFixed(1)} GB VRAM allocated` : '',
+    ].filter(Boolean);
     const isActive = m.name === currentModel;
     const isBest = best && m.name === best.name;
     return `<div class="model-advisor-row${isActive ? ' active' : ''}">
       <span class="model-advisor-badge model-advisor-verdict ${assess.tier}">${assess.badge}</span>
       <span class="model-advisor-name">${escapeHTML(m.name)}${isActive ? ' <span style="font-size:10px;opacity:0.6">\u2190 active</span>' : ''}${isBest && !isActive ? ' <span style="font-size:10px;opacity:0.6">\u2190 best pick</span>' : ''}</span>
-      <span class="model-advisor-size">${sizeLabel}${m.quantLevel ? ' \u00B7 ' + escapeHTML(m.quantLevel) : ''}${m.paramSize ? ' \u00B7 ' + escapeHTML(m.paramSize) : ''}</span>
+      <span class="model-advisor-size">${sizeLabel}${m.quantLevel ? ' \u00B7 ' + escapeHTML(m.quantLevel) : ''}${m.paramSize ? ' \u00B7 ' + escapeHTML(m.paramSize) : ''}${runtimeDetails.length ? ' \u00B7 ' + runtimeDetails.map(detail => escapeHTML(detail)).join(' \u00B7 ') : ''}</span>
       ${fitness ? `<span class="model-advisor-fitness ${fitnessCss[fitness.tier]}" title="${escapeAttr(fitness.note)}">${fitnessLabel[fitness.tier]}</span>` : '<span class="model-advisor-fitness" style="opacity:0.4">Unknown</span>'}
       <span class="model-advisor-verdict ${assess.tier}">${escapeHTML(assess.label)}</span>
     </div>`;
@@ -225,14 +272,14 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
   const upgrade = getUpgradeSuggestion(modelDetails, hw.gpu.vram ? hw : null);
   const suggestHtml = upgrade ? `
     <div class="model-advisor-suggest">
-      <div class="model-advisor-suggest-title">Upgrade recommendation</div>
+      <div class="model-advisor-suggest-title">Heuristic model suggestion</div>
       ${isOllama ? `<div class="model-advisor-pull-row">
         <code class="model-advisor-pull-cmd">ollama pull ${escapeHTML(upgrade.model)}</code>
         <button type="button" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" ${LOCAL_AI_ACTION_ATTR}="copy-pull" ${LOCAL_AI_COMMAND_ATTR}="${escapeAttr(`ollama pull ${upgrade.model}`)}">Copy</button>
       </div>` : `<div class="model-advisor-pull-row">
         <code class="model-advisor-pull-cmd">${escapeHTML(upgrade.model)}</code>
       </div>`}
-      <div class="model-advisor-pull-why">${escapeHTML(upgrade.note)}</div>
+      <div class="model-advisor-pull-why">${escapeHTML(upgrade.note)} Validate quality with Import Benchmarks on your own reports; this suggestion is not benchmark-derived.</div>
     </div>` : '';
 
   const overrideVal = getHardwareOverride();
@@ -255,6 +302,7 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
     <div class="model-advisor">
       <div class="model-advisor-hw">
         <span class="model-advisor-hw-chip">${isLocal ? '\uD83C\uDFAE' : '\uD83C\uDF10'} ${gpuLabel}</span>
+        ${allocatedVram > 0 ? `<span class="model-advisor-hw-chip">\uD83D\uDCCA ${providerName} currently allocated \u2014 ${(allocatedVram / 1e9).toFixed(1)} GB VRAM</span>` : ''}
         ${isLocal && hw.ram.gb ? `<span class="model-advisor-hw-chip">\uD83D\uDDA5\uFE0F ${ramLabel} RAM</span>` : ''}
         ${isLocal && cpuLabel ? `<span class="model-advisor-hw-chip">\u2699\uFE0F ${cpuLabel}</span>` : ''}
       </div>
@@ -267,8 +315,10 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
 function isHttpsToNonLocalhost(url) {
   if (location.protocol !== 'https:') return false;
   try {
-    const host = new URL(url).hostname;
-    return host !== 'localhost' && host !== '127.0.0.1' && host !== '::1';
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    const local = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    return parsed.protocol === 'http:' && !local;
   } catch { return false; }
 }
 
@@ -286,6 +336,9 @@ function normalizeLocalAiBaseUrl(rawUrl) {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     return { error: 'Local AI URL must start with http:// or https://' };
   }
+  parsed.hash = '';
+  parsed.search = '';
+  parsed.pathname = parsed.pathname.replace(/\/(?:v1(?:\/(?:models|chat\/completions))?|api\/v1\/models)\/?$/i, '') || '/';
   return { url: parsed.href.replace(/\/+$/, '') };
 }
 
@@ -321,17 +374,17 @@ function getCORSHelpText() {
   const ua = navigator.userAgent || '';
   const isMac = /Mac/i.test(ua);
   const isWin = /Win/i.test(ua);
-  if (isMac) return 'Blocked by CORS \u2014 Ollama: run launchctl setenv OLLAMA_ORIGINS "*" and restart. LM Studio: Settings \u2192 Enable CORS';
-  if (isWin) return 'Blocked by CORS \u2014 Ollama: set OLLAMA_ORIGINS=* as system env var and restart. LM Studio: Settings \u2192 Enable CORS';
-  return 'Blocked by CORS \u2014 Ollama: OLLAMA_ORIGINS=* ollama serve. LM Studio: Settings \u2192 Enable CORS';
+  const origin = location.origin;
+  if (isMac) return `Blocked by CORS \u2014 allow only ${origin}: launchctl setenv OLLAMA_ORIGINS "${origin}" and restart Ollama. LM Studio: enable CORS and API authentication.`;
+  if (isWin) return `Blocked by CORS \u2014 set OLLAMA_ORIGINS=${origin} as a system environment variable and restart Ollama. LM Studio: enable CORS and API authentication.`;
+  return `Blocked by CORS \u2014 start Ollama with OLLAMA_ORIGINS=${origin}. LM Studio: enable CORS and API authentication.`;
 }
 
 export async function testOllamaConnection() {
+  const generation = ++mainDiscoveryGeneration;
   const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-url-input'));
   const dot = document.getElementById('local-ai-dot');
   const text = document.getElementById('local-ai-status-text');
-  const modelSection = document.getElementById('local-ai-model-section');
-  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
   if (!urlInput || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
@@ -347,49 +400,43 @@ export async function testOllamaConnection() {
   const url = urlCheck.url;
   if (isHttpsToNonLocalhost(url)) {
     dot.classList.add('disconnected');
-    text.textContent = 'Cannot reach LAN servers from HTTPS \u2014 Local AI must run on this machine (localhost)';
+    text.textContent = 'Browser mixed-content rules block an HTTP LAN server from an HTTPS page. Use HTTPS for the server, localhost, or an encrypted local tunnel.';
     return;
   }
   try {
     try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}) }); }
     catch (preErr) { if (await handleLocalAiPreflightError(preErr, url, dot, text)) return; }
-    const [result, ollamaResult] = await Promise.all([
-      checkOpenAICompatible(url, apiKey),
-      checkOllama(url).catch(() => ({ available: false, models: [], modelDetails: [] })),
-    ]);
-    if (!result.available) throw new Error('Not reachable');
+    const result = await discoverLocalAI(url, apiKey, { force: true });
+    if (generation !== mainDiscoveryGeneration) return;
+    if (!result.available) {
+      applyMainDiscoveryResult(result);
+      return;
+    }
     const models = result.models;
     if (models.length === 0) {
-      dot.classList.add('disconnected');
-      text.textContent = 'Connected but no models found. Load a model in your server.';
+      applyMainDiscoveryResult(result);
     } else {
       dot.classList.add('connected');
-      await saveOllamaConfig({ ...config, url, model: models[0], apiKey });
-      if (!localStorage.getItem('labcharts-ollama-model')) setOllamaMainModel(models[0]);
-      text.textContent = `Connected (${getOllamaMainModel()})`;
-      if (modelSection && modelSelect) {
-        const currentModel = getOllamaMainModel();
-        modelSection.style.display = 'block';
-        modelSelect.innerHTML = models.map(m => `<option value="${escapeHTML(m)}" ${m === currentModel ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
+      let currentModel = getOllamaMainModel();
+      if (!models.includes(currentModel)) {
+        currentModel = models[0];
+        setOllamaMainModel(currentModel);
       }
-      const isOllamaServer = ollamaResult.available && ollamaResult.modelDetails?.length > 0;
-      const modelDetails = isOllamaServer
-        ? ollamaResult.modelDetails
-        : (result.modelDetails || []);
-      if (modelDetails.length > 0 && modelSection && modelSelect) {
-        cacheLocalAiModelDetails(modelDetails, isOllamaServer);
-        renderModelAdvisor(modelDetails, modelSelect, isOllamaServer);
-      }
+      await saveOllamaConfig({ ...config, url, model: currentModel, apiKey });
+      applyMainDiscoveryResult(result);
     }
     updatePrivacyStatusCardFromRuntime();
     returnToChatIfOnboarding();
   } catch (e) {
+    if (generation !== mainDiscoveryGeneration) return;
     dot.classList.add('disconnected');
     text.textContent = LOCAL_AI_NOT_CONNECTED_TEXT;
+    clearMainDiscoveryUI();
   }
 }
 
 export async function testPIIOllamaConnection() {
+  const generation = ++piiDiscoveryGeneration;
   const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-url-input'));
   const dot = document.getElementById('pii-local-dot');
   const text = document.getElementById('pii-local-status-text');
@@ -397,7 +444,8 @@ export async function testPIIOllamaConnection() {
   const piiSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('pii-model-select'));
   if (!urlInput || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
-  const config = getOllamaConfig();
+  const apiKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-apikey-input'));
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : getOllamaPIIApiKey();
   text.textContent = 'Testing...';
   dot.className = 'local-ai-status-dot';
   if (urlCheck.error) {
@@ -408,27 +456,29 @@ export async function testPIIOllamaConnection() {
   const url = urlCheck.url;
   if (isHttpsToNonLocalhost(url)) {
     dot.classList.add('disconnected');
-    text.textContent = 'Cannot reach LAN servers from HTTPS \u2014 Local AI must run on this machine (localhost)';
+    text.textContent = 'Browser mixed-content rules block this HTTP LAN server. Use HTTPS, localhost, or an encrypted local tunnel.';
     return;
   }
   try {
-    try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(config.apiKey ? { headers: { Authorization: `Bearer ${config.apiKey}` } } : {}) }); }
+    try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}) }); }
     catch (preErr) { if (await handleLocalAiPreflightError(preErr, url, dot, text)) return; }
-    const result = await checkOpenAICompatible(url, config.apiKey);
-    if (!result.available) throw new Error('Not reachable');
-    const models = result.models;
+    const result = await discoverLocalAI(url, apiKey, { force: true });
+    if (generation !== piiDiscoveryGeneration) return;
+    if (!result.available) throw new Error(discoveryErrorText(result));
+    const models = filterPIIEligibleModels(result.models);
     if (models.length === 0) {
       dot.classList.add('disconnected');
-      text.textContent = 'Connected but no models found';
+      text.textContent = (result.models || []).some(isCloudModel)
+        ? 'Connected, but only cloud/embedding models were found. Privacy protection requires an on-device text model.'
+        : 'Connected but no eligible text-generation models were found.';
+      if (piiDropdown) piiDropdown.style.display = 'none';
     } else {
       dot.classList.add('connected');
       setOllamaPIIUrl(url);
-      setOllamaPIIEnabled(true);
-      const toggle = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-toggle'));
-      if (toggle) toggle.checked = true;
+      await saveOllamaPIIApiKey(apiKey);
       let currentPII = getOllamaPIIModel();
       if (!models.includes(currentPII)) { currentPII = models[0]; setOllamaPIIModel(currentPII); }
-      text.textContent = `Connected \u2014 using ${currentPII}`;
+      text.textContent = `Connection verified \u2014 ${currentPII}. Turn on the privacy toggle to use it.`;
       if (piiDropdown && piiSelect) {
         piiDropdown.style.display = 'block';
         piiSelect.innerHTML = models.map(m => `<option value="${escapeHTML(m)}" ${m === currentPII ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
@@ -436,16 +486,19 @@ export async function testPIIOllamaConnection() {
     }
     updatePrivacyStatusCardFromRuntime();
   } catch (e) {
+    if (generation !== piiDiscoveryGeneration) return;
     dot.classList.add('disconnected');
-    text.textContent = LOCAL_AI_NOT_CONNECTED_TEXT;
+    text.textContent = e.message || LOCAL_AI_NOT_CONNECTED_TEXT;
     updatePrivacyStatusCardFromRuntime();
   }
 }
 
-export function refreshModelAdvisor() {
-  const { modelDetails: details, isOllamaServer } = getCachedLocalAiModelDetails();
-  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-  if (details.length) renderModelAdvisor(details, modelSelect, isOllamaServer);
+export async function refreshModelAdvisor() {
+  const config = getOllamaConfig();
+  const generation = ++mainDiscoveryGeneration;
+  const result = await discoverLocalAI(config.url, config.apiKey, { force: true });
+  if (generation !== mainDiscoveryGeneration) return;
+  applyMainDiscoveryResult(result);
 }
 
 export function copyOllamaPullCmd(cmd) {

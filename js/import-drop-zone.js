@@ -42,7 +42,8 @@ export function setupDropZone() {
     try {
       importMod = await loadPdfImport();
     } catch (err) {
-      showDropZoneImportNotification('Could not load import module - check your connection and try again.', 'error');
+      console.error('[import-drop-zone] Could not load PDF import module:', err);
+      showDropZoneImportNotification('Could not load import module. Reload the app to finish updating, then try again.', 'error');
       return;
     }
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await importMod.classifyImportFiles(files);

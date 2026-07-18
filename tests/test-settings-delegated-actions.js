@@ -147,7 +147,7 @@ assert('Settings version label uses the shared runtime adapter',
 assert('Delegated settings handler switches AI providers',
   /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
 assert('Delegated settings handler updates PII model selection',
-  /action === 'set-pii-model'[\s\S]*setOllamaPIIModel\(actionEl instanceof HTMLSelectElement \? actionEl\.value : ''\)/.test(src));
+  /action === 'set-pii-model'[\s\S]*isPIIEligibleModel\(model\)[\s\S]*setOllamaPIIModel\(model\)/.test(src));
 assert('Sun data-source delegate is installed on document change',
   /document\.addEventListener\('change', handleSunDataSourceChange\)/.test(privacySrc));
 assert('Sun data-source delegate is scoped to its section',
