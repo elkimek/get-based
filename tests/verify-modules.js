@@ -458,16 +458,16 @@
     'toggleCycleSymptomTag','_toggleCycleEditorFields'
   ];
 
-  // emf.js (23 exports, module-only; lazy runtime keeps feature startup deferred)
+  // emf.js (24 exports, module-only; lazy runtime keeps feature startup deferred)
   const emfExports = [
-    'configureEMFAIDeps','openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment',
+    'configureEMFAIDeps','configureEMFRuntimeDeps','openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment',
     'selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment',
     'updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','handleEMFPDF',
     'toggleEMFCompare','closeEMFInterpretation','discussEMFInterpretation','interpretEMFAssessment',
     'interpretEMFComparison','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','saveEMFExplicit'
   ];
-  const emfLegacyGlobals = emfExports.filter(name => name !== 'configureEMFAIDeps');
-  const emfRuntimeExports = ['loadEMFModule','openEMFAssessmentEditor','closeEMFInterpretation'];
+  const emfLegacyGlobals = emfExports.filter(name => !name.startsWith('configureEMF'));
+  const emfRuntimeExports = ['configureEMFRuntimeDeps','loadEMFModule','openEMFAssessmentEditor','closeEMFInterpretation'];
 
   // data.js (30 former browser globals plus one test hook, now module-only)
   const dataExports = [

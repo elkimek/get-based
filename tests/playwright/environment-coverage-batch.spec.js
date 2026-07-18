@@ -11,13 +11,18 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data, editorUi, emf, emfInterpretation] = await Promise.all([
+    const [{ state }, data, editorUi, emfRuntime, emfInterpretation] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/context-card-editor-ui.js'),
-      import('/js/emf.js'),
+      import('/js/emf-runtime.js'),
       import('/js/emf-interpretation.js'),
     ]);
+    const calls = [];
+    const previousRuntimeDeps = emfRuntime.configureEMFRuntimeDeps({
+      closeModal: () => calls.push(['close-editor-modal']),
+    });
+    const emf = await emfRuntime.loadEMFModule();
     if (typeof window.toggleCtxTag !== 'function') window.toggleCtxTag = editorUi.toggleCtxTag;
 
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -59,7 +64,6 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       currentProfile: state.currentProfile,
     };
     const outcomes = {};
-    const calls = [];
     const previousInterpretationDeps = emfInterpretation.configureEMFInterpretationRuntimeDeps({
       closeModal: () => calls.push(['close-modal']),
       openChatPanel: prompt => calls.push(['chat', prompt]),
@@ -212,6 +216,11 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       outcomes.deleteConfirmsRemovesAndKeepsListUsable =
         !assessments().some(a => a.id === id)
         && document.querySelector('.emf-assessment-card')?.textContent.includes('After mitigation') === true;
+
+      document.querySelector('#detail-modal .modal-close')?.click();
+      await waitUntil(() => calls.some(call => call[0] === 'close-editor-modal'), 'lazy EMF editor close callback');
+      outcomes.lazyRuntimeInjectsEditorCloseCallback =
+        calls.filter(call => call[0] === 'close-editor-modal').length === 1;
     } finally {
       document.querySelectorAll('.emf-lightbox,.notification-container').forEach(el => el.remove());
       document.getElementById('confirm-dialog-overlay')?.remove();
@@ -220,6 +229,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       data.invalidateActiveDataCache();
+      emfRuntime.configureEMFRuntimeDeps(previousRuntimeDeps);
       emfInterpretation.configureEMFInterpretationRuntimeDeps(previousInterpretationDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
