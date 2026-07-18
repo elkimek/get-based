@@ -15,7 +15,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Sun Context Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const labCtxMod = await import('../js/lab-context.js');
 const ctxMod = await import('../js/sun-context.js');
 const { getSessions } = await import('../js/sun-sessions-store.js');
@@ -23,9 +23,9 @@ await import('../js/sun-context-hooks.js');
 const { buildSunContext, configureSunContext } = ctxMod;
 labCtxMod.setLightSunContextEnabled(true);
 
-  const orig = window._labState.importedData;
+  const orig = state.importedData;
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
+    state.importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
   }
 
   // ─── 1. Empty path ──────────────────────────────────────────────────
@@ -552,7 +552,7 @@ labCtxMod.setLightSunContextEnabled(true);
     populatedStandard.length < 8500, `len=${populatedStandard.length}`);
 
   // Restore
-  window._labState.importedData = orig;
+  state.importedData = orig;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

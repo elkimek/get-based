@@ -12,7 +12,7 @@ return (async function() {
   }
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const main = document.getElementById('main-content');
-  const S = window._labState;
+  const { state: S } = await import('/js/state.js');
   const dataModule = await import('/js/data.js');
   const viewsModule = await import('/js/views.js');
   const lightDevices = await import('/js/light-devices.js');

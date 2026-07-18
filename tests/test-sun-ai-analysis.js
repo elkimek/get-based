@@ -15,7 +15,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Sun AI Analysis Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 await import('../js/sun.js');
 await import('../js/sun-uvdata.js');
 const mod = await import('../js/sun-ai-analysis.js');
@@ -27,12 +27,12 @@ const {
   maybeAnalyzeSessionAfterFinish,
   refreshSessionAIAnalysis,
 } = mod;
-  const origImported = window._labState.importedData;
+  const origImported = state.importedData;
   const origProvider = localStorage.getItem('labcharts-ai-provider');
   const origPaused = localStorage.getItem('labcharts-ai-paused');
 
   function reset(seed = {}) {
-    window._labState.importedData = Object.assign({
+    state.importedData = Object.assign({
       entries: [],
       sunSessions: [],
       sunDefaults: { fitzpatrick: 'III' },
@@ -321,7 +321,7 @@ const {
   window.fetch = () => Promise.reject(new Error('test stub: provider unreachable'));
   try { await refreshSessionAIAnalysis('sun_refresh_target'); } catch (_) {}
   window.fetch = origFetch;
-  const after = window._labState.importedData.sunSessions.find(s => s.id === 'sun_refresh_target');
+  const after = state.importedData.sunSessions.find(s => s.id === 'sun_refresh_target');
   assert('refresh resolved id via getTarget (target intact)', !!after);
   assert('refresh reached setAIAnalysis via catch (error sidecar written)',
     !!after?.aiAnalysis && (after.aiAnalysis.status === 'error' || !!after.aiAnalysis.lastErrorMessage),
@@ -337,7 +337,7 @@ const {
   else localStorage.removeItem('labcharts-ai-provider');
   if (origPaused != null) localStorage.setItem('labcharts-ai-paused', origPaused);
   else localStorage.removeItem('labcharts-ai-paused');
-  window._labState.importedData = origImported;
+  state.importedData = origImported;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
