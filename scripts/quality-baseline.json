@@ -5,7 +5,7 @@
   "legacyWindowGlobalAssignments": 0,
   "viewRuntimeBridgeConsumers": 0,
   "viewRuntimeBridgeLookups": 0,
-  "labStateAppFiles": 1,
+  "labStateAppFiles": 0,
   "labStateTestFiles": 0,
   "largeJsFilesOver800Lines": 23,
   "maxJsFileLines": 1168
