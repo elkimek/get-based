@@ -34,7 +34,8 @@ return (async function () {
   console.log('%c Audit-Fix Regression Tests ', 'background:#0891b2;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
   // Snapshot global state we'll mutate.
-  const _origImported = window._labState ? window._labState.importedData : null;
+  const { state } = await import('/js/state.js');
+  const _origImported = state.importedData;
   const _origOverflow = document.body.style.overflow;
   const _origAICap = window._aiConcurrencyCap;
   const _origDisable = window.DISABLE_AI_VERDICTS;
@@ -462,7 +463,7 @@ return (async function () {
   }
 
   // ─── Restore mutated globals ───────────────────────────────────────
-  if (window._labState) window._labState.importedData = _origImported;
+  state.importedData = _origImported;
   document.body.style.overflow = _origOverflow;
   if (_origAICap === undefined) delete window._aiConcurrencyCap;
   else window._aiConcurrencyCap = _origAICap;
