@@ -33,24 +33,25 @@ return (async function() {
 
   console.log('%c Wearables DOM Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
+  const { state } = await import('../js/state.js');
   const store = await import('../js/wearables-store.js');
   const ah = await import('../js/wearables-apple-health.js');
   const reg = await import('../js/wearable-adapters.js');
   const wearables = await import('../js/wearables.js');
   const views = await import('../js/views.js');
 
-  window._labState.importedData = window._labState.importedData || {};
-  const TEST_PROFILE = window._labState.currentProfile || ('__test-wearables-dom-' + Math.random().toString(36).slice(2, 8));
+  state.importedData = state.importedData || {};
+  const TEST_PROFILE = state.currentProfile || ('__test-wearables-dom-' + Math.random().toString(36).slice(2, 8));
   localStorage.removeItem('wearable-detail-range');
 
   // ═══════════════════════════════════════
   // 0. Strip empty-card manual log delegate
   // ═══════════════════════════════════════
   console.log('%c 0. Strip Manual Delegate ', 'font-weight:bold;color:#f59e0b');
-  const priorSummary = window._labState.importedData.wearableSummary;
+  const priorSummary = state.importedData.wearableSummary;
   const stripHost = document.createElement('div');
   try {
-    window._labState.importedData.wearableSummary = {
+    state.importedData.wearableSummary = {
       sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 } },
       metrics: {
         hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: '2026-04-22', baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
@@ -67,7 +68,7 @@ return (async function() {
       !!stripHost.querySelector('#wl-weight-val'));
   } finally {
     stripHost.remove();
-    window._labState.importedData.wearableSummary = priorSummary;
+    state.importedData.wearableSummary = priorSummary;
   }
 
   // ═══════════════════════════════════════
@@ -81,7 +82,7 @@ return (async function() {
       activity_score: { primarySource: 'oura', latest: 0, latestDate: '2026-04-22', baseline: 0, baselineP25: 0, baselineP75: 0, rolling: { d7: 0, d30: 0, d90: 0 }, trend30d: 'flat', weekly: [0,0,0,0,0] },
     },
   };
-  window._labState.importedData.wearableSummary = detailSummary;
+  state.importedData.wearableSummary = detailSummary;
   await store.upsertDailyBatch(TEST_PROFILE, [
     { source: 'oura', date: '2026-04-20', hrv_rmssd: 40, activity_score: 0 },
     { source: 'oura', date: '2026-04-21', hrv_rmssd: 41, activity_score: 0 },
@@ -89,7 +90,7 @@ return (async function() {
   ]);
 
   await wearables.openWearableDetail('hrv_rmssd');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.[0]?.data?.length === 3);
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.[0]?.data?.length === 3);
   assert('Detail modal opens on a valid metric', document.getElementById('modal-overlay').classList.contains('show'));
   const modalHtml = document.getElementById('detail-modal').innerHTML;
   assert('Detail modal includes metric label HRV', modalHtml.includes('HRV'));
@@ -97,8 +98,8 @@ return (async function() {
   assert('Detail modal shows Baseline (90d) stat', /Baseline/.test(modalHtml));
   assert('Detail modal shows Chart samples stat', /Chart samples/.test(modalHtml));
   assert('Chart canvas mounted on modal', !!document.getElementById('chart-modal'));
-  assert('Chart instance stored under state.chartInstances.modal', !!window._labState.chartInstances?.modal);
-  const modalChart = window._labState.chartInstances?.modal;
+  assert('Chart instance stored under state.chartInstances.modal', !!state.chartInstances?.modal);
+  const modalChart = state.chartInstances?.modal;
   assert('Chart has 3 data points matching L1 row count', modalChart?.data?.datasets?.[0]?.data?.length === 3);
   assert('Chart primary dataset carries 3 dated points',
     modalChart?.data?.datasets?.[0]?.data?.filter(p => p?.x && typeof p?.y === 'number')?.length === 3);
@@ -114,21 +115,21 @@ return (async function() {
     localStorage.getItem('wearable-detail-range') === '6m' &&
     /of last 6 months/.test(document.getElementById('detail-modal')?.textContent || ''));
   views.closeModal();
-  assert('closeModal clears modal chart instance', !window._labState.chartInstances?.modal);
+  assert('closeModal clears modal chart instance', !state.chartInstances?.modal);
 
   await wearables.openWearableDetail('activity_score');
   await new Promise(r => setTimeout(r, 60));
   assert('Rest-mode hint shown on all-zero activity score',
     /Rest Mode/.test(document.getElementById('detail-modal').innerHTML));
   views.closeModal();
-  delete window._labState.importedData.wearableSummary;
+  delete state.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
   // A2. Blood Pressure detail modal pairs systolic + diastolic
   // ═══════════════════════════════════════
   console.log('%c A2. Blood Pressure Modal Pairing ', 'font-weight:bold;color:#f59e0b');
   localStorage.setItem('wearable-detail-range', '90d');
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: { manual: { connectedSince: '2026-04-20', lastSyncAt: Date.now(), coverageDays: 3 } },
     metrics: {
       bp_systolic: { primarySource: 'manual', latest: 120, latestDate: '2026-04-22', baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
@@ -141,9 +142,9 @@ return (async function() {
     { source: 'manual', date: '2026-04-22', bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
   const bpModalText = document.getElementById('detail-modal')?.textContent || '';
-  const bpChart = window._labState.chartInstances?.modal;
+  const bpChart = state.chartInstances?.modal;
   const bpLabels = bpChart?.data?.datasets?.map(d => d.label) || [];
   assert('BP modal latest/stat/manual list shows paired 120/80 value', /120\/80/.test(bpModalText), bpModalText);
   assert('BP modal Typical range shows unit once at the end',
@@ -161,7 +162,7 @@ return (async function() {
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: {
       withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
       manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
@@ -178,9 +179,9 @@ return (async function() {
     { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
   const mixedModalText = document.getElementById('detail-modal')?.textContent || '';
-  const mixedChartLabels = window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || [];
+  const mixedChartLabels = state.chartInstances?.modal?.data?.datasets?.map(d => d.label) || [];
   assert('BP modal fetches diastolic rows from paired metric primary source',
     mixedChartLabels.some(l => /^Diastolic \(Manual/.test(l)), mixedChartLabels.join('|'));
   assert('BP mixed-source chart does not duplicate manual-primary diastolic as manual scatter',
@@ -199,7 +200,7 @@ return (async function() {
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: {
       withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
       manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
@@ -216,7 +217,7 @@ return (async function() {
     { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
   const mixedManualPrimaryText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP mixed manual-diastolic fallback chooses the newest same-date pair across chart and manual candidates',
     /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText)
@@ -225,15 +226,15 @@ return (async function() {
   views.closeModal();
 
   await wearables.openWearableDetail('bp_diastolic');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
   assert('Opening bp_diastolic normalizes to the paired BP detail view',
-    (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l)) &&
+    (state.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l)) &&
     /121\/79/.test(document.getElementById('detail-modal')?.textContent || ''));
   views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: {
       withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
       manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
@@ -254,7 +255,7 @@ return (async function() {
     /Latest\s+—\s+No same-date pair/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
   views.closeModal();
 
-  window._labState.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
+  state.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
   const missingDateText = document.getElementById('detail-modal')?.textContent || '';
@@ -264,7 +265,7 @@ return (async function() {
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: {
       withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
       manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
@@ -279,16 +280,16 @@ return (async function() {
     { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Manual systolic$/.test(d?.label || '')));
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /^Manual systolic$/.test(d?.label || '')));
   const manualOnlyText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP modal hides empty chart hint when manual readings are charted',
     !/No chart samples for this metric/.test(manualOnlyText), manualOnlyText);
   assert('BP manual-only latest row prefers latest same-date manual pair over mismatched summary halves',
     /Latest\s+121\/79 mmHg/.test(manualOnlyText) && !/Latest\s+125\/79 mmHg/.test(manualOnlyText), manualOnlyText);
   assert('BP manual-only fallback chart renders manual sys/dia points',
-    (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Manual diastolic$/.test(l)));
+    (state.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Manual diastolic$/.test(l)));
   views.closeModal();
-  delete window._labState.importedData.wearableSummary;
+  delete state.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
   // B. JSZip lazy-loader functional smoke
@@ -320,7 +321,7 @@ return (async function() {
   // here we assert the *modal* renderer matches — catches the v1.22.2
   // divergence where the modal's inline formatV fell through to .toFixed(1).
   console.log('%c C. SpO2 Modal Parity ', 'font-weight:bold;color:#f59e0b');
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 10 } },
     metrics: {
       spo2_avg: { primarySource: 'oura', latest: 97, latestDate: '2026-04-22', baseline: 96, baselineP25: 95, baselineP75: 98, rolling: { d7: 97, d30: 97, d90: 96 }, trend30d: 'flat', weekly: [96, 96, 97, 97, 97] },
@@ -334,7 +335,7 @@ return (async function() {
   const modalSpo2Html = document.getElementById('detail-modal').innerHTML;
   assert('Modal renders SpO2 97 as integer (no .0)', !/97\.0/.test(modalSpo2Html));
   views.closeModal();
-  delete window._labState.importedData.wearableSummary;
+  delete state.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
   // D. Partial-day cumulative chart marker
@@ -344,7 +345,7 @@ return (async function() {
   const todayISO = reg.isoDay();
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayISO = reg.isoDay(yesterday);
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: { oura: { connectedSince: yesterdayISO, lastSyncAt: Date.now(), coverageDays: 2 } },
     metrics: {
       steps: {
@@ -365,8 +366,8 @@ return (async function() {
     { source: 'oura', date: todayISO, steps: 1200 },
   ]);
   await wearables.openWearableDetail('steps');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.[0]?.data?.some(p => p?.x === todayISO));
-  const stepsChart = window._labState.chartInstances?.modal;
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.[0]?.data?.some(p => p?.x === todayISO));
+  const stepsChart = state.chartInstances?.modal;
   const todayIdx = stepsChart?.data?.datasets?.[0]?.data?.findIndex(p => p?.x === todayISO);
   assert('Cumulative detail chart keeps today in the plotted series',
     todayIdx >= 0 && stepsChart.data.datasets[0].data[todayIdx]?.y === 1200);
@@ -386,7 +387,7 @@ return (async function() {
   assert('Detail chart tooltip snaps by x-index, not invisible point intersection',
     stepsChart?.options?.interaction?.mode === 'index' && stepsChart.options.interaction.intersect === false);
   views.closeModal();
-  delete window._labState.importedData.wearableSummary;
+  delete state.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
   // E. Manual overlay tooltip date alignment
@@ -399,7 +400,7 @@ return (async function() {
   const vendorDay3 = reg.daysAgoIso(3);
   const vendorDay2 = reg.daysAgoIso(2);
   const vendorDay1 = reg.daysAgoIso(1);
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     sources: {
       oura: { connectedSince: vendorDay3, lastSyncAt: Date.now(), coverageDays: 3 },
       manual: { connectedSince: todayISO, lastSyncAt: Date.now(), coverageDays: 1 },
@@ -425,8 +426,8 @@ return (async function() {
     { source: 'manual', date: todayISO, rhr: 57 },
   ]);
   await wearables.openWearableDetail('rhr');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => d?._kind === 'manual'));
-  const rhrChart = window._labState.chartInstances?.modal;
+  await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => d?._kind === 'manual'));
+  const rhrChart = state.chartInstances?.modal;
   const manualDs = rhrChart?.data?.datasets?.find(d => d?._kind === 'manual');
   assert('Manual overlay switches interaction mode away from index',
     rhrChart?.options?.interaction?.mode === 'nearest');
@@ -439,7 +440,7 @@ return (async function() {
     manualTitle === new Date(todayISO + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
     `title=${manualTitle}`);
   views.closeModal();
-  delete window._labState.importedData.wearableSummary;
+  delete state.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
   // F. Daytime-empty-state HRV modal
@@ -448,8 +449,8 @@ return (async function() {
   // surface a "Not from {Source} · why?" empty-state row carrying the long
   // explanation in a title attr.
   console.log('%c F. Daytime-Empty-State Modal ', 'font-weight:bold;color:#f59e0b');
-  const _origImported = window._labState.importedData;
-  window._labState.importedData = {
+  const _origImported = state.importedData;
+  state.importedData = {
     entries: [],
     wearableConnections: {
       oura:   { source: 'oura',   connectedAt: new Date().toISOString(), lastSyncAt: Date.now() },
@@ -481,7 +482,7 @@ return (async function() {
   assert('v1.26 P1-2: empty-state row carries the long explanation in title attr',
     !!tooltipCarrier);
   views.closeModal();
-  window._labState.importedData = _origImported;
+  state.importedData = _origImported;
 
   console.log(`\n%c Wearables DOM: ${pass} passed, ${fail} failed `, fail > 0 ? 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
   if (typeof window.__TEST_RESULTS === 'undefined') window.__TEST_RESULTS = {};
