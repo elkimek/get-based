@@ -14,6 +14,7 @@ return (async function() {
   console.log('%c Wearables UI-Flow Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
   const bust = '?bust=' + Date.now();
+  const { state } = await import('../js/state.js');
   const manual    = await import('../js/wearables-manual.js' + bust);
   const store     = await import('../js/wearables-store.js' + bust);
   const summary   = await import('../js/wearables-summary.js' + bust);
@@ -31,11 +32,11 @@ return (async function() {
   // CRITICAL: saveImportedData() keys off state.currentProfile, NOT the
   // localStorage active-profile entry. Swap both — otherwise any save
   // inside the test writes the fake state to the USER'S real profile.
-  const origCurrentProfile = window._labState.currentProfile;
+  const origCurrentProfile = state.currentProfile;
   localStorage.setItem('labcharts-active-profile', TEST_PROFILE_ID);
-  window._labState.currentProfile = TEST_PROFILE_ID;
-  const origState = window._labState.importedData;
-  window._labState.importedData = {
+  state.currentProfile = TEST_PROFILE_ID;
+  const origState = state.importedData;
+  state.importedData = {
     entries: [],
     wearableConnections: { manual: { source: 'manual', connectedAt: new Date().toISOString(), lastSyncAt: Date.now(), coverageDays: 0 }},
     wearableSummary: null,
@@ -129,7 +130,7 @@ return (async function() {
   console.log('%c 4. Old Manual Reading ', 'font-weight:bold;color:#f59e0b');
   const oldManualDate = '2025-05-01';
   await manual.logManualMetric(TEST_PROFILE_ID, 'rhr', { date: oldManualDate, value: 57, tags: ['resting'] });
-  window._labState.importedData.wearableConnections.oura = {
+  state.importedData.wearableConnections.oura = {
     source: 'oura', connectedAt: new Date().toISOString(),
     lastSyncAt: Date.now(), coverageDays: 1,
     accessToken: 'fake-oura', refreshToken: 'fake-rfr',
@@ -141,7 +142,7 @@ return (async function() {
     rhr: 61,
   });
   await manual.refreshManualSummary(TEST_PROFILE_ID);
-  const oldRhrSummary = window._labState.importedData?.wearableSummary?.metrics?.rhr;
+  const oldRhrSummary = state.importedData?.wearableSummary?.metrics?.rhr;
   assert('Newer Oura RHR can remain primary while old manual RHR is stored',
     oldRhrSummary?.primarySource === 'oura' && oldRhrSummary?.latest === 61,
     JSON.stringify(oldRhrSummary));
@@ -153,13 +154,13 @@ return (async function() {
   localStorage.setItem('wearable-detail-range', 'all');
   await wearables.openWearableDetail('rhr');
   await new Promise(r => setTimeout(r, 500));
-  const chartDatasets = window._labState.chartInstances?.modal?.data?.datasets || [];
+  const chartDatasets = state.chartInstances?.modal?.data?.datasets || [];
   const manualOverlay = chartDatasets.find(ds => ds.label === 'Manual');
   const ouraLine = chartDatasets.find(ds => ds.label === 'Oura');
   assert('All-range chart keeps the Oura line and overlays old manual RHR readings',
     !!ouraLine?.data?.some(p => p.x === '2026-05-20' && p.y === 61) &&
     !!manualOverlay?.data?.some(p => p.x === oldManualDate && p.y === 57),
-    JSON.stringify(window._labState.chartInstances?.modal?.data?.datasets?.map(ds => ({ label: ds.label, n: ds.data?.length }))));
+    JSON.stringify(state.chartInstances?.modal?.data?.datasets?.map(ds => ({ label: ds.label, n: ds.data?.length }))));
   views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
@@ -168,10 +169,10 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 5. Source Picker ', 'font-weight:bold;color:#f59e0b');
   // Add a second source so the swap button renders (gated on ≥2 connected)
-  window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now();
+  state.importedData.wearableConnections.oura.lastSyncAt = Date.now();
   // Stub the summary with BOTH sources directly so this section only tests
   // the source-picker UI, not the summary auto-picker.
-  window._labState.importedData.wearableSummary = {
+  state.importedData.wearableSummary = {
     summaryUpdatedAt: new Date().toISOString(),
     sources: {
       manual: { connectedSince: new Date().toISOString(), lastSyncAt: Date.now(), coverageDays: 1 },
@@ -260,11 +261,11 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Picker + Stale Sync ', 'font-weight:bold;color:#f59e0b');
   localStorage.setItem(BIOMETRIC_SELECTION_KEY, JSON.stringify(['rhr']));
-  if (window._labState.importedData.wearableSummary?.sources?.oura) {
-    window._labState.importedData.wearableSummary.sources.oura.coverageDays = 1;
-    window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now();
+  if (state.importedData.wearableSummary?.sources?.oura) {
+    state.importedData.wearableSummary.sources.oura.coverageDays = 1;
+    state.importedData.wearableConnections.oura.lastSyncAt = Date.now();
   }
-  const sum = window._labState.importedData.wearableSummary;
+  const sum = state.importedData.wearableSummary;
   if (sum) {
     sum.metrics.cardio_age = { primarySource: 'oura', latest: 35, latestDate: '2026-04-22',
       baseline: 35, baselineP25: 35, baselineP75: 35,
@@ -306,7 +307,7 @@ return (async function() {
     const overviewWithCardio = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
     assert('Picker add places the chosen biometric inside Biometrics Overview',
       !!overviewWithCardio && /Cardio age/i.test(overviewWithCardio.textContent || ''));
-    window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
+    state.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
     views.navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
     assert('Stale connected data shows the dashboard sync button',
@@ -318,7 +319,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 9. Manual BP Card Reset ', 'font-weight:bold;color:#f59e0b');
   localStorage.setItem(BIOMETRIC_SELECTION_KEY, JSON.stringify(['bp_systolic', 'rhr']));
-  const resetSummary = window._labState.importedData.wearableSummary;
+  const resetSummary = state.importedData.wearableSummary;
   if (resetSummary?.metrics) {
     delete resetSummary.metrics.bp_systolic;
     delete resetSummary.metrics.bp_diastolic;
@@ -367,8 +368,8 @@ return (async function() {
   else localStorage.removeItem('wearable-detail-range');
   if (origActive) localStorage.setItem('labcharts-active-profile', origActive);
   else localStorage.removeItem('labcharts-active-profile');
-  window._labState.currentProfile = origCurrentProfile;
-  window._labState.importedData = origState;
+  state.currentProfile = origCurrentProfile;
+  state.importedData = origState;
   try { const { deleteWearablesDB } = await import('/js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_ID); } catch {}
   views.navigate('dashboard');
 

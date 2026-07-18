@@ -45,6 +45,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Tests ===\n');
 
+const { state } = await import('../js/state.js');
 const reg = await import('../js/wearable-adapters.js');
 const store = await import('../js/wearables-store.js');
 const summary = await import('../js/wearables-summary.js');
@@ -565,8 +566,8 @@ const zeroBaselineSummary = {
   },
 };
 // Stash summary so renderWearableStrip reads it
-window._labState.importedData = window._labState.importedData || {};
-window._labState.importedData.wearableSummary = zeroBaselineSummary;
+state.importedData = state.importedData || {};
+state.importedData.wearableSummary = zeroBaselineSummary;
 const html = wearablesModule.renderWearableStrip();
 assert('render never emits NaN% on zero baseline', !/NaN/.test(html));
 // v1.26.0: zero-baseline metrics suppress the delta entirely (was "→ —"),
@@ -575,7 +576,7 @@ assert('render never emits NaN% on zero baseline', !/NaN/.test(html));
 // zero-baseline activity_score card.
 assert('render suppresses delta for zero-baseline activity score',
   !/wearable-delta[^"]*"[^>]*>\s*[↑↓→]/.test(html));
-delete window._labState.importedData.wearableSummary;
+delete state.importedData.wearableSummary;
 
 // ── Zero-coverage source: header drops it, footer surfaces "waiting on first sync" ──
 const mixedCoverageSummary = {
@@ -587,13 +588,13 @@ const mixedCoverageSummary = {
     hrv_rmssd: { primarySource: 'oura', latest: 39, baseline: 32, baselineP25: 28, baselineP75: 36, rolling: { d7: 39, d30: 33, d90: 32 }, trend30d: 'rising', weekly: [30, 32, 34, 39] },
   },
 };
-window._labState.importedData.wearableSummary = mixedCoverageSummary;
+state.importedData.wearableSummary = mixedCoverageSummary;
 const mixedHtml = wearablesModule.renderWearableStrip();
 assert('header source label omits zero-coverage vendor', !/wearable-source-label[^>]*>[^<]*Polar/.test(mixedHtml));
 assert('header source label still shows the data-bearing vendor', /wearable-source-label[^>]*>[^<]*Oura/.test(mixedHtml));
 assert('coverage label reflects only data-bearing source', /·\s*15d/.test(mixedHtml));
 assert('footer surfaces waiting hint for zero-coverage vendor', /Polar connected — waiting on first device sync/.test(mixedHtml));
-delete window._labState.importedData.wearableSummary;
+delete state.importedData.wearableSummary;
 
 // ── Per-metric staleness: when one metric's latestDate lags the source's
 // freshest reading, the card surfaces an "as of {date}" hint. Mirrors the
@@ -607,7 +608,7 @@ const stalenessSummary = {
     sleep_score: { primarySource: 'oura', latest: 76, latestDate: '2026-04-24', baseline: 78, baselineP25: 73, baselineP75: 84, rolling: { d7: 76, d30: 78, d90: 78 }, trend30d: 'flat', weekly: [80, 79, 78, 77, 76, 76] },
   },
 };
-window._labState.importedData.wearableSummary = stalenessSummary;
+state.importedData.wearableSummary = stalenessSummary;
 const stripStaleHtml = wearablesModule.renderWearableStrip();
 assert('Stale metric (HRV) gets "as of {date}" hint when its latestDate < source max',
   /wearable-staleness[^>]*>\s*as of\s*[A-Z][a-z]+/.test(stripStaleHtml));
@@ -618,7 +619,7 @@ assert('Exactly one staleness hint rendered (HRV stale, sleep_score fresh)',
   stalenessHints === 1, `got ${stalenessHints}`);
 assert('Staleness hint carries an explanatory tooltip on hover',
   /wearable-staleness[^>]*title="[^"]+process/i.test(stripStaleHtml));
-delete window._labState.importedData.wearableSummary;
+delete state.importedData.wearableSummary;
 
 // Section 9b (Detail Modal — openWearableDetail + Chart.js + live modal
 // DOM) lives in tests/playwright/wearables-browser-flows.spec.js.
@@ -1182,13 +1183,13 @@ const strip2 = {
     spo2_avg: { primarySource: 'oura', latest: 97, latestDate: '2026-04-22', baseline: 96, baselineP25: 95, baselineP75: 98, rolling: { d7: 97, d30: 97, d90: 96 }, trend30d: 'flat', weekly: [96, 96, 97, 97, 97] },
   },
 };
-window._labState.importedData.wearableSummary = strip2;
+state.importedData.wearableSummary = strip2;
 const stripSpo2Html = wearablesModule.renderWearableStrip();
 // Strip renderer is a pure string-builder — assert it here in Node. The
 // matching *modal*-renderer parity check (openWearableDetail) lives in
 // test-wearables-dom.js. Neither should produce "97.0 %" — both "97 %".
 assert('Strip renders SpO2 97 as integer (no .0)', !/97\.0/.test(stripSpo2Html));
-delete window._labState.importedData.wearableSummary;
+delete state.importedData.wearableSummary;
 
 // ═══════════════════════════════════════
 // 13. OAUTH_DISPATCH registry-vs-dispatch drift
@@ -1339,9 +1340,9 @@ try {
   const storeB  = await import('../js/wearables-store.js');
   const TEST_PROFILE_E = '__test-encrypt-' + Date.now().toString(36);
   const origActive = localStorage.getItem('labcharts-active-profile');
-  const origCurrent = window._labState.currentProfile;
+  const origCurrent = state.currentProfile;
   localStorage.setItem('labcharts-active-profile', TEST_PROFILE_E);
-  window._labState.currentProfile = TEST_PROFILE_E;
+  state.currentProfile = TEST_PROFILE_E;
   try {
     // Plaintext path (encryption disabled).
     localStorage.removeItem('labcharts-encryption-enabled');
@@ -1391,7 +1392,7 @@ try {
     localStorage.removeItem(`labcharts-${TEST_PROFILE_E}-imported`);
     if (origActive) localStorage.setItem('labcharts-active-profile', origActive);
     else localStorage.removeItem('labcharts-active-profile');
-    window._labState.currentProfile = origCurrent;
+    state.currentProfile = origCurrent;
     delete window.__WEARABLES_TEST;
   }
 } catch (e) {
@@ -1441,9 +1442,9 @@ try {
   const labCtxMcp = await import('../js/lab-context.js');
   labCtxMcp.setAgentWearableSeriesDays(7);
   // Stub a minimal summary so the builder produces a non-empty section.
-  const origSummary = window._labState.importedData?.wearableSummary;
-  window._labState.importedData = window._labState.importedData || { entries: [] };
-  window._labState.importedData.wearableSummary = {
+  const origSummary = state.importedData?.wearableSummary;
+  state.importedData = state.importedData || { entries: [] };
+  state.importedData.wearableSummary = {
     summaryUpdatedAt: new Date().toISOString(),
     sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 }},
     metrics: { hrv_rmssd: { primarySource: 'oura', latest: 38, baseline: 36, baselineP25: 32, baselineP75: 40, rolling: { d7: 37, d30: 36, d90: 36 }, trend30d: 'flat', weekly: [36, 37, 38] }},
@@ -1451,9 +1452,9 @@ try {
   // Need an L1 row so the series builder has data to pivot.
   const TEST_PROFILE_S = '__test-series-' + Date.now().toString(36);
   const origActive = localStorage.getItem('labcharts-active-profile');
-  const origCurrent = window._labState.currentProfile;
+  const origCurrent = state.currentProfile;
   localStorage.setItem('labcharts-active-profile', TEST_PROFILE_S);
-  window._labState.currentProfile = TEST_PROFILE_S;
+  state.currentProfile = TEST_PROFILE_S;
   try {
     const storeM = await import('../js/wearables-store.js');
     // Date must fall inside buildWearableSeriesSection's 7-day window
@@ -1475,10 +1476,10 @@ try {
   } finally {
     try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_S); } catch {}
     labCtxMcp.setAgentWearableSeriesDays(0);
-    window._labState.importedData.wearableSummary = origSummary;
+    state.importedData.wearableSummary = origSummary;
     if (origActive) localStorage.setItem('labcharts-active-profile', origActive);
     else localStorage.removeItem('labcharts-active-profile');
-    window._labState.currentProfile = origCurrent;
+    state.currentProfile = origCurrent;
   }
 }
 
@@ -1575,16 +1576,16 @@ labCtxV29.setAgentWearableSeriesDays(45);
 assert('Invalid day value (45) is silently rejected',
   labCtxV29.getAgentWearableSeriesDays() === 90); // unchanged from previous valid
 // Legacy 'on' migrates to 30 only when no synced preference exists.
-delete window._labState.importedData.agentAccessWearableSeriesDays;
-if (window._labState.importedData.agentAccess) delete window._labState.importedData.agentAccess.wearableSeriesDays;
+delete state.importedData.agentAccessWearableSeriesDays;
+if (state.importedData.agentAccess) delete state.importedData.agentAccess.wearableSeriesDays;
 localStorage.setItem(`labcharts-${localStorage.getItem('labcharts-active-profile') || 'default'}-agent-wearable-series`, 'on');
 assert('Legacy "on" reads as 30 (default migration)',
   labCtxV29.getAgentWearableSeriesDays() === 30);
 // Synced preference wins over stale legacy 'on'.
-window._labState.importedData.agentAccessWearableSeriesDays = 7;
+state.importedData.agentAccessWearableSeriesDays = 7;
 assert('Synced series preference beats legacy "on"',
   labCtxV29.getAgentWearableSeriesDays() === 7);
-delete window._labState.importedData.agentAccessWearableSeriesDays;
+delete state.importedData.agentAccessWearableSeriesDays;
 labCtxV29.setAgentWearableSeriesDays(0); // reset legacy shim only; synced writes go through sync-messenger
 
 // Boolean back-compat shims still work.
@@ -1593,7 +1594,7 @@ assert('isAgentWearableSeriesEnabled / setAgentWearableSeriesEnabled back-compat
   typeof labCtxV29.setAgentWearableSeriesEnabled === 'function');
 
 // Section tag matches selected window.
-if (window._labState?.importedData?.wearableSummary) {
+if (state?.importedData?.wearableSummary) {
   labCtxV29.setAgentWearableSeriesDays(7);
   const block7 = await labCtxV29.buildWearableSeriesSection().catch(() => '');
   if (block7) {
@@ -1676,12 +1677,12 @@ console.log('17v. Test Isolation');
 const syncFlowSrc = await fetch('/tests/test-wearables-sync-flow.js').then(r => r.text());
 const uiFlowSrc = await fetch('/tests/test-wearables-ui-flows.js').then(r => r.text());
 for (const [name, src] of [['sync-flow', syncFlowSrc], ['ui-flows', uiFlowSrc]]) {
-  assert(`${name}: snapshots window._labState.currentProfile before swapping profile`,
-    /origCurrentProfile\s*=\s*window\._labState\.currentProfile/.test(src));
-  assert(`${name}: assigns TEST_PROFILE_ID to window._labState.currentProfile (not just localStorage)`,
-    /window\._labState\.currentProfile\s*=\s*TEST_PROFILE_ID/.test(src));
-  assert(`${name}: cleanup restores window._labState.currentProfile`,
-    /window\._labState\.currentProfile\s*=\s*origCurrentProfile/.test(src));
+  assert(`${name}: snapshots state.currentProfile before swapping profile`,
+    /origCurrentProfile\s*=\s*state\.currentProfile/.test(src));
+  assert(`${name}: assigns TEST_PROFILE_ID to state.currentProfile (not just localStorage)`,
+    /state\.currentProfile\s*=\s*TEST_PROFILE_ID/.test(src));
+  assert(`${name}: cleanup restores state.currentProfile`,
+    /state\.currentProfile\s*=\s*origCurrentProfile/.test(src));
   assert(`${name}: cleanup removes the test profile's localStorage imported key`,
     /localStorage\.removeItem\(`labcharts-\$\{TEST_PROFILE_ID\}-imported`\)/.test(src));
 }
@@ -1791,8 +1792,8 @@ console.log('17x. Behavioral Replacements');
 
 // Set up an isolated test summary with TWO connected sources so the
 // source-badge gate is exercised positively.
-const _origImported = window._labState.importedData;
-window._labState.importedData = {
+const _origImported = state.importedData;
+state.importedData = {
   entries: [],
   wearableConnections: {
     oura:   { source: 'oura',   connectedAt: new Date().toISOString(), lastSyncAt: Date.now() },
@@ -1845,15 +1846,15 @@ labCtx2.setAgentWearableSeriesEnabled(true);
 const { upsertDailyBatch } = await import('../js/wearables-store.js');
 const TEST_PROFILE_3 = '__test-replace-' + Date.now().toString(36);
 const origActive2 = localStorage.getItem('labcharts-active-profile');
-// buildWearableSeriesSection queries IDB keyed on window._labState.currentProfile
+// buildWearableSeriesSection queries IDB keyed on state.currentProfile
 // — NOT the localStorage 'labcharts-active-profile' key. Setting only the
 // latter (the original test's bug) meant the builder read the wrong store,
 // seriesBlock came back empty, and the ordering assertions below were
 // silently skipped by the `if (seriesBlock)` guard. Swap both, like
 // section 17r does.
-const origCurrent2 = window._labState.currentProfile;
+const origCurrent2 = state.currentProfile;
 localStorage.setItem('labcharts-active-profile', TEST_PROFILE_3);
-window._labState.currentProfile = TEST_PROFILE_3;
+state.currentProfile = TEST_PROFILE_3;
 try {
   await upsertDailyBatch(TEST_PROFILE_3, [
     { source: 'oura', date: '2026-04-22', hrv_rmssd: 36 },
@@ -1876,10 +1877,10 @@ try {
   labCtx2.setAgentWearableSeriesEnabled(false);
   if (origActive2) localStorage.setItem('labcharts-active-profile', origActive2);
   else localStorage.removeItem('labcharts-active-profile');
-  window._labState.currentProfile = origCurrent2;
+  state.currentProfile = origCurrent2;
   try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_3); } catch {}
 }
-window._labState.importedData = _origImported;
+state.importedData = _origImported;
 
 // ═══════════════════════════════════════
 // 17y. P1 audit fallout (v1.27.4)
@@ -2218,12 +2219,12 @@ assert('Series builder returns empty string when toggle is off',
 
 // Behaviour: returns '' when toggle is on but no wearable summary exists.
 labCtxAgent.setAgentWearableSeriesEnabled(true);
-const origImported = window._labState.importedData;
-window._labState.importedData = { wearableSummary: null };
+const origImported = state.importedData;
+state.importedData = { wearableSummary: null };
 const noSummaryResult = await labCtxAgent.buildWearableSeriesSection(30);
 assert('Series builder returns empty string when no wearableSummary',
   noSummaryResult === '');
-window._labState.importedData = origImported;
+state.importedData = origImported;
 labCtxAgent.setAgentWearableSeriesEnabled(false);  // restore default
 
 // Source-grep guards: pushContextToGateway must concat the series block.

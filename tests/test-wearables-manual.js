@@ -44,8 +44,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Manual-as-wearable-source Tests ===\n');
 
-// state.js exposes the legacy test-state bridge; wearable actions are modules.
-await import('../js/state.js');
+// Mutable app state and wearable actions stay on their module surfaces.
+const { state } = await import('../js/state.js');
 const manual = await import('../js/wearables-manual.js');
 const store = await import('../js/wearables-store.js');
 const adapters = await import('../js/wearable-adapters.js');
@@ -131,10 +131,10 @@ const TEST_PROFILE = 'test-manual-' + Math.random().toString(36).slice(2, 8);
 // Every sub-profile that gets real IDB writes — torn down in the finally
 // so a reused Vitest worker (or a standalone re-run) doesn't accumulate.
 const _idbProfiles = [TEST_PROFILE];
-const origProfile = window._labState.currentProfile;
-const origImported = window._labState.importedData;
-window._labState.currentProfile = TEST_PROFILE;
-window._labState.importedData = { wearableConnections: {} };
+const origProfile = state.currentProfile;
+const origImported = state.importedData;
+state.currentProfile = TEST_PROFILE;
+state.importedData = { wearableConnections: {} };
 
 try {
   await manual.logManualMetric(TEST_PROFILE, 'weight', { date: '2026-04-24', value: 82.1 });
@@ -143,9 +143,9 @@ try {
   assert('weight row has correct date', row?.date === '2026-04-24');
   assert('weight row has correct value', row?.weight === 82.1);
   assert('ensureManualConnection populated wearableConnections.manual',
-    window._labState.importedData.wearableConnections?.manual != null);
+    state.importedData.wearableConnections?.manual != null);
   assert('manual connection has connectedAt',
-    !!window._labState.importedData.wearableConnections.manual.connectedAt);
+    !!state.importedData.wearableConnections.manual.connectedAt);
 
   // ═══════════════════════════════════════
   // 4. logManualBP writes combined row
@@ -192,8 +192,8 @@ try {
 
   const MIGRATE_PROFILE = 'test-mig-' + Math.random().toString(36).slice(2, 8);
   _idbProfiles.push(MIGRATE_PROFILE);
-  window._labState.currentProfile = MIGRATE_PROFILE;
-  window._labState.importedData = { wearableConnections: {} };
+  state.currentProfile = MIGRATE_PROFILE;
+  state.importedData = { wearableConnections: {} };
   const legacyBiometrics = {
     weight: [
       { date: '2026-04-20', value: 82.5, unit: 'kg', source: 'manual' },
@@ -236,8 +236,8 @@ try {
 
   const DEL_PROFILE = 'test-del-' + Math.random().toString(36).slice(2, 8);
   _idbProfiles.push(DEL_PROFILE);
-  window._labState.currentProfile = DEL_PROFILE;
-  window._labState.importedData = { wearableConnections: {} };
+  state.currentProfile = DEL_PROFILE;
+  state.importedData = { wearableConnections: {} };
   await manual.logManualMetric(DEL_PROFILE, 'weight', { date: '2026-04-24', value: 82 });
   await manual.logManualBP(DEL_PROFILE, { date: '2026-04-24', systolic: 118, diastolic: 76, pulse: 64 });
 
@@ -267,8 +267,8 @@ try {
 
   const TAG_PROFILE = 'test-tags-' + Math.random().toString(36).slice(2, 8);
   _idbProfiles.push(TAG_PROFILE);
-  window._labState.currentProfile = TAG_PROFILE;
-  window._labState.importedData = { wearableConnections: {} };
+  state.currentProfile = TAG_PROFILE;
+  state.importedData = { wearableConnections: {} };
   await manual.logManualBP(TAG_PROFILE, {
     date: '2026-04-24', systolic: 145, diastolic: 92,
     tags: ['post-workout', 'stress']
@@ -341,7 +341,7 @@ try {
   // Live behavior: write + read a manual metric with note, verify persistence.
   const probeProfile = 'test-note-' + Date.now();
   _idbProfiles.push(probeProfile);
-  window._labState.currentProfile = probeProfile;
+  state.currentProfile = probeProfile;
   await manual.logManualMetric(probeProfile, 'rhr', {
     date: '2099-05-12', value: 60, tags: ['resting'], note: 'morning, just woke'
   });
@@ -456,8 +456,8 @@ try {
     try { await store.deleteWearablesDB(pid); } catch {}
   }
   // Restore live profile
-  window._labState.currentProfile = origProfile;
-  window._labState.importedData = origImported;
+  state.currentProfile = origProfile;
+  state.importedData = origImported;
 }
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

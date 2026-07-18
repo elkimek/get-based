@@ -41,7 +41,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Sync-Flow Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const connect = await import('../js/wearables-connect.js');
 const store = await import('../js/wearables-store.js');
 const summary = await import('../js/wearables-summary.js');
@@ -55,12 +55,12 @@ const TEST_PROFILE_ID = 'sync-flow-test-' + Date.now().toString(36);
 const origActiveProfile = localStorage.getItem('labcharts-active-profile');
 // CRITICAL: saveImportedData() keys off state.currentProfile, NOT the
 // localStorage active-profile entry. Snapshot AND restore both.
-const origCurrentProfile = window._labState.currentProfile;
+const origCurrentProfile = state.currentProfile;
 localStorage.setItem('labcharts-active-profile', TEST_PROFILE_ID);
-window._labState.currentProfile = TEST_PROFILE_ID;
+state.currentProfile = TEST_PROFILE_ID;
 
-const origState = window._labState.importedData;
-window._labState.importedData = {
+const origState = state.importedData;
+state.importedData = {
   entries: [],
   wearableConnections: {},
   wearableSummary: null,
@@ -92,7 +92,7 @@ function restore() { window.fetch = realFetch; }
 
 // Fake-connect Oura so wearables-connect.js sees an authenticated state.
 function fakeConnect(adapterId) {
-  window._labState.importedData.wearableConnections[adapterId] = {
+  state.importedData.wearableConnections[adapterId] = {
     accessToken: 'test-' + adapterId + '-token',
     refreshToken: 'test-' + adapterId + '-refresh',
     expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24h fresh
@@ -119,7 +119,7 @@ const oldManualRows = await store.getDailyRange(TEST_PROFILE_ID, 'manual', '2025
 assert('Older manual RHR row is persisted in L1',
   oldManualRows.some(r => r.date === oldManualDate && r.rhr === 57));
 const oldManualSync = await summary.syncWearableSummary(TEST_PROFILE_ID, connect.listConnectedSources());
-const oldManualSummary = window._labState.importedData?.wearableSummary;
+const oldManualSummary = state.importedData?.wearableSummary;
 assert('Older manual RHR writes an L2 summary metric outside the 90d vendor window',
   oldManualSync.wrote === true &&
   oldManualSummary?.metrics?.rhr?.latest === 57 &&
@@ -129,8 +129,8 @@ assert('Manual source coverage counts the old row',
   oldManualSummary?.sources?.manual?.coverageDays === 1,
   JSON.stringify(oldManualSummary?.sources?.manual));
 await store.clearSource(TEST_PROFILE_ID, 'manual');
-delete window._labState.importedData.wearableConnections.manual;
-window._labState.importedData.wearableSummary = null;
+delete state.importedData.wearableConnections.manual;
+state.importedData.wearableSummary = null;
 
 // ═══════════════════════════════════════
 // 1. backfillWearable — full pull populates IDB + meta
@@ -173,7 +173,7 @@ try {
   assert('last-sync meta carries rows count', typeof meta?.rows === 'number');
   assert('last-sync meta carries startDate + endDate', !!meta?.startDate && !!meta?.endDate);
 
-  const conn = window._labState.importedData.wearableConnections.oura;
+  const conn = state.importedData.wearableConnections.oura;
   assert('Connection.lastSyncAt updated post-backfill', conn?.lastSyncAt > 0);
 } finally { restore(); }
 
@@ -184,7 +184,7 @@ console.log('2. L2 Recompute');
 const sync2 = await summary.syncWearableSummary(TEST_PROFILE_ID, connect.listConnectedSources());
 assert('syncWearableSummary writes on first call (initial summary, no prior)',
   sync2.wrote === true && sync2.reason === 'initial');
-const sumState = window._labState.importedData?.wearableSummary;
+const sumState = state.importedData?.wearableSummary;
 assert('wearableSummary persisted into state.importedData', !!sumState);
 assert('wearableSummary.metrics carries hrv_rmssd entry from IDB rows',
   !!sumState?.metrics?.hrv_rmssd);
@@ -261,15 +261,15 @@ try {
     { matcher: /heartrate.*start_datetime/, body: { data: [], next_token: null }},
     { matcher: /usercollection\//, body: { data: [], next_token: null }},
   ]);
-  window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
+  state.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
   await connect.syncStaleWearablesNow();
-  const afterStaleAuto = window._labState.importedData.wearableConnections.oura.lastSyncAt || 0;
+  const afterStaleAuto = state.importedData.wearableConnections.oura.lastSyncAt || 0;
   assert('syncStaleWearablesNow auto-syncs stale connected sources',
     calls.length > 0 && Date.now() - afterStaleAuto < 60 * 1000,
     `calls=${calls.length}, lastSyncAt=${afterStaleAuto}`);
 
   calls = [];
-  window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now();
+  state.importedData.wearableConnections.oura.lastSyncAt = Date.now();
   await connect.syncStaleWearablesNow();
   assert('syncStaleWearablesNow skips fresh connected sources',
     calls.length === 0,
@@ -304,11 +304,11 @@ try {
 // 5. L2 gate — minimum-cadence force-write after 14d silence
 // ═══════════════════════════════════════
 console.log('5. Gate Min-Cadence');
-const old = window._labState.importedData.wearableSummary;
+const old = state.importedData.wearableSummary;
 if (old) {
   const fortnightAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
   old.summaryUpdatedAt = fortnightAgo;
-  window._labState.importedData.wearableSummary = old;
+  state.importedData.wearableSummary = old;
   const result = await summary.syncWearableSummary(TEST_PROFILE_ID, connect.listConnectedSources());
   assert('Gate force-writes after 14d silence (min-cadence)',
     result.wrote === true && result.reason === 'min-cadence');
@@ -325,9 +325,9 @@ const remainingRows = await store.getDailyRange(TEST_PROFILE_ID, 'oura', '2026-0
 assert('disconnectWearable clears L1 rows for that source',
   remainingRows.length === 0);
 assert('disconnectWearable removes wearableConnections entry',
-  !window._labState.importedData?.wearableConnections?.oura);
+  !state.importedData?.wearableConnections?.oura);
 assert('disconnectWearable removes the source from wearableSummary.sources',
-  !window._labState.importedData?.wearableSummary?.sources?.oura);
+  !state.importedData?.wearableSummary?.sources?.oura);
 
 // ═══════════════════════════════════════
 // 7. Push-to-gateway — exposed function + toggle helpers
@@ -364,7 +364,7 @@ console.log('8. stripWearableCredentials');
 const TEST_PROFILE_2 = 'strip-creds-test-' + Date.now().toString(36);
 const sentinelToken = 'SENTINEL-TOKEN-' + Math.random().toString(36).slice(2);
 const sentinelRefresh = 'SENTINEL-REFRESH-' + Math.random().toString(36).slice(2);
-window._labState.importedData = {
+state.importedData = {
   entries: [],
   wearableConnections: {
     oura: {
@@ -419,8 +419,8 @@ await wipeWearableIDB();
 localStorage.removeItem(`labcharts-${TEST_PROFILE_ID}-imported`);
 if (origActiveProfile) localStorage.setItem('labcharts-active-profile', origActiveProfile);
 else localStorage.removeItem('labcharts-active-profile');
-window._labState.currentProfile = origCurrentProfile;
-window._labState.importedData = origState;
+state.currentProfile = origCurrentProfile;
+state.importedData = origState;
 try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_ID); } catch {}
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
