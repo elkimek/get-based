@@ -114,9 +114,12 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
     });
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
     await page.waitForFunction(
-      async () => window._labState
-        && typeof (await import('/js/sun-session-ui.js')).openSunSessionDetail === 'function'
-        && typeof (await import('/js/light-devices.js')).openDeviceSessionDetail === 'function',
+      async () => {
+        const { state } = await import('/js/state.js');
+        return !!state
+          && typeof (await import('/js/sun-session-ui.js')).openSunSessionDetail === 'function'
+          && typeof (await import('/js/light-devices.js')).openDeviceSessionDetail === 'function';
+      },
       null,
       { timeout: 15000 }
     );
@@ -151,15 +154,18 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
       { timeout: 15000 }
     );
     await page.evaluate(async ({ profileId, imported }) => {
-      const { saveImportedData } = await import('/js/data.js');
+      const [{ state }, { saveImportedData }] = await Promise.all([
+        import('/js/state.js'),
+        import('/js/data.js'),
+      ]);
       localStorage.clear();
       sessionStorage.clear();
       localStorage.setItem('labcharts-active-profile', profileId);
-      window._labState.currentProfile = profileId;
-      window._labState.currentView = 'dashboard';
-      window._labState.importedData = JSON.parse(JSON.stringify(imported));
-      window._labState.markerRegistry = {};
-      window._labState._activeDetailMarkerId = null;
+      state.currentProfile = profileId;
+      state.currentView = 'dashboard';
+      state.importedData = JSON.parse(JSON.stringify(imported));
+      state.markerRegistry = {};
+      state._activeDetailMarkerId = null;
       document.querySelectorAll('.modal-overlay').forEach(el => {
         if (el.id) el.classList.remove('show');
         else el.remove();
@@ -176,11 +182,15 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
 }
 
 async function getImportedData(page) {
-  return page.evaluate(() => JSON.parse(JSON.stringify(window._labState.importedData)));
+  return page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return JSON.parse(JSON.stringify(state.importedData));
+  });
 }
 
 async function pullRemoteImportedData(page, remoteImportedData) {
   return page.evaluate(async ({ profileId, remote }) => {
+    const { state } = await import('/js/state.js');
     const result = await window.__syncE2EMergePulledImportedData(profileId, JSON.parse(JSON.stringify(remote)), {
       debug: () => {},
     });
@@ -197,13 +207,14 @@ async function pullRemoteImportedData(page, remoteImportedData) {
       needsRebroadcast: result.needsRebroadcast,
       remoteBroughtNewRows: result.remoteBroughtNewRows,
       localDataChanged: result.localDataChanged,
-      merged: JSON.parse(JSON.stringify(window._labState.importedData)),
+      merged: JSON.parse(JSON.stringify(state.importedData)),
     };
   }, { profileId: PROFILE_ID, remote: remoteImportedData });
 }
 
 async function applyMergedImportedData(page, mergedImportedData, remoteBroughtNewRows = true) {
   return page.evaluate(async ({ profileId, merged, remoteBroughtNewRows: broughtRows }) => {
+    const { state } = await import('/js/state.js');
     window.__syncE2ERefreshActiveProfileAfterPull({
       profileId,
       merged: JSON.parse(JSON.stringify(merged)),
@@ -211,7 +222,7 @@ async function applyMergedImportedData(page, mergedImportedData, remoteBroughtNe
       remoteBroughtNewRows: broughtRows,
       debug: () => {},
     });
-    return JSON.parse(JSON.stringify(window._labState.importedData));
+    return JSON.parse(JSON.stringify(state.importedData));
   }, { profileId: PROFILE_ID, merged: mergedImportedData, remoteBroughtNewRows });
 }
 
@@ -230,7 +241,10 @@ async function openMarkerModal(page) {
 
 async function editOpenMarkerValue(page, newValue) {
   await page.evaluate(async ({ markerId, date, markerKey, mirrorKey, next }) => {
-    const viewsModule = await import('/js/views.js');
+    const [{ state }, viewsModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/views.js'),
+    ]);
     const waitFor = async (fn, timeoutMs = 2500) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
@@ -249,7 +263,7 @@ async function editOpenMarkerValue(page, newValue) {
     input.value = String(next);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await waitFor(() => {
-      const entry = window._labState.importedData.entries?.find(e => e.date === date);
+      const entry = state.importedData.entries?.find(e => e.date === date);
       return entry?.markers?.[markerKey] === next
         && entry?.markers?.[mirrorKey] === next
         && !document.querySelector('#detail-modal input.ref-edit-input');
@@ -265,6 +279,7 @@ async function editOpenMarkerValue(page, newValue) {
 
 async function clickManualRevertBadge(page) {
   await page.evaluate(async ({ date, markerKey, mirrorKey, originalValue }) => {
+    const { state } = await import('/js/state.js');
     const waitFor = async (fn, timeoutMs = 5000) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
@@ -286,11 +301,11 @@ async function clickManualRevertBadge(page) {
     if (!badge) throw new Error('Manual revert badge not found');
     badge.click();
     await waitFor(() => {
-      const entry = window._labState.importedData.entries?.find(e => e.date === date);
+      const entry = state.importedData.entries?.find(e => e.date === date);
       return entry?.markers?.[markerKey] === originalValue
         && entry?.markers?.[mirrorKey] === originalValue
-        && window._labState.importedData.manualValues?.[`${markerKey}:${date}`] === null
-        && window._labState.importedData.manualValues?.[`${mirrorKey}:${date}`] === null
+        && state.importedData.manualValues?.[`${markerKey}:${date}`] === null
+        && state.importedData.manualValues?.[`${mirrorKey}:${date}`] === null
         && !manualRevertBadge()
         && modalShowsOriginalValue();
     });
@@ -303,9 +318,10 @@ async function clickManualRevertBadge(page) {
 }
 
 async function markerModalSnapshot(page) {
-  return page.evaluate(({ date, markerKey, mirrorKey }) => {
+  return page.evaluate(async ({ date, markerKey, mirrorKey }) => {
+    const { state } = await import('/js/state.js');
     const modal = document.getElementById('detail-modal');
-    const entry = window._labState.importedData.entries?.find(e => e.date === date);
+    const entry = state.importedData.entries?.find(e => e.date === date);
     return {
       open: !!document.getElementById('modal-overlay')?.classList?.contains('show'),
       modalClass: modal?.className || '',
@@ -313,8 +329,8 @@ async function markerModalSnapshot(page) {
       badges: Array.from(modal?.querySelectorAll('.ref-edited-badge') || []).map(el => el.textContent.trim()),
       marker: entry?.markers?.[markerKey],
       mirror: entry?.markers?.[mirrorKey],
-      manualValue: window._labState.importedData.manualValues?.[`${markerKey}:${date}`],
-      mirrorManualValue: window._labState.importedData.manualValues?.[`${mirrorKey}:${date}`],
+      manualValue: state.importedData.manualValues?.[`${markerKey}:${date}`],
+      mirrorManualValue: state.importedData.manualValues?.[`${mirrorKey}:${date}`],
     };
   }, {
     date: LAB_DATE,
@@ -325,7 +341,7 @@ async function markerModalSnapshot(page) {
 
 async function navigateLight(page) {
   await page.evaluate(async () => (await import('/js/views.js')).navigate('light'));
-  await page.waitForFunction(() => window._labState.currentView === 'light', null, { timeout: 5000 });
+  await page.waitForFunction(async () => (await import('/js/state.js')).state.currentView === 'light', null, { timeout: 5000 });
 }
 
 async function openSunSessionModal(page) {
@@ -369,11 +385,12 @@ async function updateDeviceDuration(page, durationMin) {
 }
 
 async function sessionModalSnapshot(page, kind) {
-  return page.evaluate(({ kind, sunSessionId, deviceSessionId }) => {
+  return page.evaluate(async ({ kind, sunSessionId, deviceSessionId }) => {
+    const { state } = await import('/js/state.js');
     const modal = document.querySelector(`.modal-overlay.show .sun-detail-modal[data-session-kind="${kind}"]`);
     const source = kind === 'sun'
-      ? window._labState.importedData.sunSessions?.find(s => s.id === sunSessionId)
-      : window._labState.importedData.deviceSessions?.find(s => s.id === deviceSessionId);
+      ? state.importedData.sunSessions?.find(s => s.id === sunSessionId)
+      : state.importedData.deviceSessions?.find(s => s.id === deviceSessionId);
     return {
       open: !!modal,
       text: modal?.textContent || '',
@@ -398,11 +415,14 @@ async function closeFloatingModals(page) {
 
 async function enableAgentAccessForSync(page) {
   return page.evaluate(async () => {
-    const { saveImportedData } = await import('/js/data.js');
+    const [{ state }, { saveImportedData }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
     const token = 'syncagent'.padEnd(64, 'a');
     const contextKey = `gbctx_v1_${'S'.repeat(43)}`;
     const now = Date.now();
-    window._labState.importedData.agentAccess = {
+    state.importedData.agentAccess = {
       version: 1,
       enabled: true,
       token,
@@ -411,24 +431,25 @@ async function enableAgentAccessForSync(page) {
       revokedAt: null,
       updatedAt: now,
     };
-    window._labState.importedData.agentAccessWearableSeriesDays = 30;
+    state.importedData.agentAccessWearableSeriesDays = 30;
     localStorage.removeItem('labcharts-messenger-token');
     localStorage.removeItem('labcharts-agent-context-key');
     await saveImportedData({ immediate: true });
-    return JSON.parse(JSON.stringify(window._labState.importedData));
+    return JSON.parse(JSON.stringify(state.importedData));
   });
 }
 
 async function agentAccessSnapshot(page) {
   return page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
     const messenger = window.__syncE2EMessenger;
     if (!messenger) throw new Error('sync-messenger helper module not loaded');
     return {
       enabled: messenger.isMessengerEnabled(),
       token: messenger.getMessengerToken(),
       contextKey: messenger.getMessengerContextKey(),
-      state: JSON.parse(JSON.stringify(window._labState.importedData.agentAccess || null)),
-      seriesDays: window._labState.importedData.agentAccessWearableSeriesDays,
+      state: JSON.parse(JSON.stringify(state.importedData.agentAccess || null)),
+      seriesDays: state.importedData.agentAccessWearableSeriesDays,
       legacyToken: localStorage.getItem('labcharts-messenger-token'),
       legacyContextKey: localStorage.getItem('labcharts-agent-context-key'),
     };
@@ -437,14 +458,17 @@ async function agentAccessSnapshot(page) {
 
 async function disableAgentAccessForSync(page) {
   return page.evaluate(async () => {
-    const { saveImportedData } = await import('/js/data.js');
+    const [{ state }, { saveImportedData }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
     const messenger = window.__syncE2EMessenger;
     if (!messenger) throw new Error('sync-messenger helper module not loaded');
     const previousToken = messenger.disableMessengerTokenLocal();
     await saveImportedData({ immediate: true });
     return {
       previousToken,
-      imported: JSON.parse(JSON.stringify(window._labState.importedData)),
+      imported: JSON.parse(JSON.stringify(state.importedData)),
     };
   });
 }

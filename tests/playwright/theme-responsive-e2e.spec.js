@@ -45,7 +45,7 @@ function delay(ms) {
 
 async function waitForApp(page) {
   await page.waitForFunction(
-    () => !!window._labState,
+    async () => !!(await import('/js/state.js')).state,
     null,
     { timeout: 15000 }
   );
@@ -53,10 +53,13 @@ async function waitForApp(page) {
 
 async function seedDemoData(page) {
   await page.evaluate(async () => {
-    const dataModule = await import('/js/data.js');
-    const profileModule = await import('/js/profile.js');
+    const [{ state }, dataModule, profileModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/profile.js'),
+    ]);
     const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => r.json());
-    const profileId = window._labState.currentProfile || 'default';
+    const profileId = state.currentProfile || 'default';
     const profiles = profileModule.getProfiles() || [];
     let profile = profiles.find(p => p.id === profileId);
     if (!profile) {
@@ -101,9 +104,9 @@ async function seedDemoData(page) {
     window.fetchAtmosphere = fetchAtmosphereStub;
     const conditionsNow = await import('/js/light-conditions-now.js');
     conditionsNow.configureLightConditionsNow?.({ fetchAtmosphere: fetchAtmosphereStub });
-    window._labState.importedData = demo;
-    window._labState.profileSex = 'male';
-    window._labState.profileDob = '1987-11-22';
+    state.importedData = demo;
+    state.profileSex = 'male';
+    state.profileDob = '1987-11-22';
     await dataModule.saveImportedData();
     (await import('/js/nav.js')).buildSidebar();
     (await import('/js/views.js')).navigate('dashboard');
@@ -115,13 +118,15 @@ async function seedDemoData(page) {
 
 async function seedMobileLightSessions(page) {
   await page.evaluate(async () => {
-    const S = window._labState;
-    const { logCompletedSession } = await import('/js/sun-sessions-store.js');
-    if (!S?.importedData || typeof logCompletedSession !== 'function') return;
+    const [{ state }, { logCompletedSession }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/sun-sessions-store.js'),
+    ]);
+    if (!state?.importedData || typeof logCompletedSession !== 'function') return;
     const now = Date.now();
-    S.importedData.sunSessions = [];
-    S.importedData.deviceSessions = [];
-    S.importedData.lightDevices = [{
+    state.importedData.sunSessions = [];
+    state.importedData.deviceSessions = [];
+    state.importedData.lightDevices = [{
       id: 'D-mobile-long',
       brand: 'Mitochondriak Performance Systems',
       model: 'Ultra Bright Red Near Infrared Panel Max 9000',
@@ -821,8 +826,10 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   }
 
   await page.evaluate(async () => {
-    const supplements = await import('/js/supplements.js');
-    const state = window._labState;
+    const [{ state }, supplements] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/supplements.js'),
+    ]);
     window.__suppModalSnapshot = JSON.stringify(state?.importedData?.supplements || []);
     if (state?.importedData) {
       state.importedData.supplements = [{
@@ -892,7 +899,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const horizontalOverflow = Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - document.documentElement.clientWidth;
     const open = overlay?.classList.contains('show');
     (await import('/js/views.js')).closeModal();
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     if (state?.importedData && window.__suppModalSnapshot) {
       state.importedData.supplements = JSON.parse(window.__suppModalSnapshot);
     }
@@ -925,7 +932,8 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         { timeout: 2500 }
       ).catch(() => {});
     }
-    result = await page.evaluate(({ tab, theme }) => {
+    result = await page.evaluate(async ({ tab, theme }) => {
+      const { state } = await import('/js/state.js');
       const active = document.querySelector(`#mobile-bottom-tabs .m-tab[data-tab="${tab}"], .m-tabbar .m-tab[data-tab="${tab}"]`);
       const conditionsGrid = document.querySelector('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid') || document.querySelector('.conditions-now-grid');
       const supportColumns = conditionsGrid
@@ -975,7 +983,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       return {
         active: !!active?.classList.contains('active'),
         hasBottomTabs: !!document.querySelector('#mobile-bottom-tabs, .m-shell .m-tabbar'),
-        currentView: window._labState?.currentView,
+        currentView: state?.currentView,
         visibleMain: document.getElementById('main-content')?.textContent?.trim().length > 40,
         rootTabsActive: document.documentElement.classList.contains('mobile-tabs-active'),
         headerSticky:
