@@ -186,7 +186,7 @@ configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
-configureEMFInterpretationRuntimeDeps({ openChatPanel });
+configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });
 
 function resumeAI() {
   setAIPaused(false);

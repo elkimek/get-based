@@ -158,7 +158,7 @@ assert('App shell injects Chat empty-state view callbacks without bridge or glob
     && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });'));
 
 assert('App shell wires remaining Chat open consumers without window globals',
-  appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ openChatPanel });')
+  appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });')
     && appShellHooksSrc.includes('configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });')
     && appShellHooksSrc.includes('configureTourRuntimeDeps({ openChatPanel });'));
 
