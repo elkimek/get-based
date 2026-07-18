@@ -6,7 +6,10 @@ function moduleUrl(path) {
 
 test('Light page view delegates session, link, channel, and prompt actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => !!window._labState);
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return !!state;
+  });
 
   const results = await page.evaluate(async () => {
     const { configureLightPageView, renderDashboardLightChannelPills, renderLightSessionLogActions } = await import('/js/light-page-view.js');

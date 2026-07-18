@@ -8,8 +8,10 @@ test('sun session UI covers list detail edit delete and past-session save paths'
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ sunSessionUiUrl }) => {
-    const sunUI = await import(sunSessionUiUrl);
-    const state = window._labState;
+    const [{ state }, sunUI] = await Promise.all([
+      import('/js/state.js'),
+      import(sunSessionUiUrl),
+    ]);
     const outcomes = {};
     const originalView = state.currentView;
     let sessions = [
@@ -252,9 +254,11 @@ test('sun active session covers start dialog stop summary and live dose helpers'
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ activeUrl, sessionUiUrl }) => {
-    const active = await import(activeUrl);
-    const sunUI = await import(sessionUiUrl);
-    const state = window._labState;
+    const [{ state }, active, sunUI] = await Promise.all([
+      import('/js/state.js'),
+      import(activeUrl),
+      import(sessionUiUrl),
+    ]);
     const outcomes = {};
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
     let sessions = [{
@@ -789,12 +793,21 @@ test('light devices cover session detail edit log active card and rendered list 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ devicesUrl }) => {
-    const lightDevices = await import(devicesUrl);
-    const lightDevicesRuntime = await import('/js/light-devices-runtime.js');
-    const recommendationRuntime = await import('/js/recommendations-runtime.js');
-    const { profileStorageKey } = await import('/js/profile.js');
-    const blobStorage = await import('/js/blob-storage.js');
-    const state = window._labState;
+    const [
+      { state },
+      lightDevices,
+      lightDevicesRuntime,
+      recommendationRuntime,
+      { profileStorageKey },
+      blobStorage,
+    ] = await Promise.all([
+      import('/js/state.js'),
+      import(devicesUrl),
+      import('/js/light-devices-runtime.js'),
+      import('/js/recommendations-runtime.js'),
+      import('/js/profile.js'),
+      import('/js/blob-storage.js'),
+    ]);
     const outcomes = {};
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
     const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
