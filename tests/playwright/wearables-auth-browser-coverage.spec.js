@@ -10,7 +10,6 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
   const results = await page.evaluate(async ({ cases }) => {
     const outcomes = {};
     const originalFetch = window.fetch;
-    const originalProfile = window._labState?.currentProfile;
 
     const makeResponse = ({ body = {}, status = 200 } = {}) => new Response(JSON.stringify(body), {
       status,
@@ -31,7 +30,6 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
       try {
         await loaded;
         const win = frame.contentWindow;
-        win._labState = { currentProfile: 'wearables-auth-profile' };
         win.sessionStorage.removeItem(spec.stateKey);
         sessionStorage.removeItem(spec.stateKey);
         const frameMod = await win.eval(`import(${JSON.stringify(`${spec.url}&beginFrame=1`)})`);
@@ -39,6 +37,7 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
           clientId: 'client-id',
           registeredUris: [`${location.origin}/app`],
           scopes: ['scope:one'],
+          profileId: 'wearables-auth-profile',
         });
         if (maybePromise?.catch) maybePromise.catch(() => {});
         const raw = sessionStorage.getItem(spec.stateKey) || win.sessionStorage.getItem(spec.stateKey);
@@ -50,9 +49,6 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
     };
 
     try {
-      window._labState ||= {};
-      window._labState.currentProfile = 'wearables-auth-profile';
-
       for (const spec of cases) {
         try {
           const mod = await import(spec.url);
@@ -277,7 +273,6 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
       }
     } finally {
       window.fetch = originalFetch;
-      if (window._labState) window._labState.currentProfile = originalProfile;
       for (const spec of cases) sessionStorage.removeItem(spec.stateKey);
     }
 
@@ -405,7 +400,6 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
   const results = await page.evaluate(async ({ cases }) => {
     const outcomes = {};
     const originalFetch = window.fetch;
-    const originalProfile = window._labState?.currentProfile;
     const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
     const challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 
@@ -428,7 +422,6 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
       try {
         await loaded;
         const win = frame.contentWindow;
-        win._labState = { currentProfile: 'wearables-auth-profile' };
         win.sessionStorage.removeItem(spec.stateKey);
         sessionStorage.removeItem(spec.stateKey);
         const frameMod = await win.eval(`import(${JSON.stringify(`${spec.url}&beginFrame=1`)})`);
@@ -436,6 +429,7 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
           clientId: 'client-id',
           registeredUris: [`${location.origin}/app`],
           scopes: ['scope:one'],
+          profileId: 'wearables-auth-profile',
         });
         if (maybePromise?.catch) maybePromise.catch(() => {});
         const raw = sessionStorage.getItem(spec.stateKey) || win.sessionStorage.getItem(spec.stateKey);
@@ -447,9 +441,6 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
     };
 
     try {
-      window._labState ||= {};
-      window._labState.currentProfile = 'wearables-auth-profile';
-
       for (const spec of cases) {
         try {
           const mod = await import(spec.url);
@@ -672,7 +663,6 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
       }
     } finally {
       window.fetch = originalFetch;
-      if (window._labState) window._labState.currentProfile = originalProfile;
       for (const spec of cases) sessionStorage.removeItem(spec.stateKey);
     }
 
