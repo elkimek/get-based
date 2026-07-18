@@ -6,9 +6,17 @@ test('context editor select option helper toggles active buttons', async ({ page
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ editorUrl }) => {
-    const editor = await import(editorUrl);
+    const [editor, contextRuntime] = await Promise.all([
+      import(editorUrl),
+      import('/js/context-cards-runtime.js'),
+    ]);
+    const editorSrc = await fetch(editorUrl).then(response => response.text());
     const outcomes = {};
     const host = document.createElement('div');
+    const calls = [];
+    const previousContextRuntime = contextRuntime.configureContextCardsRuntimeCallbacks({
+      closeModal: () => calls.push(['close']),
+    });
 
     try {
       document.body.appendChild(host);
@@ -41,7 +49,28 @@ test('context editor select option helper toggles active buttons', async ({ page
       outcomes.selectCtxOptionMissingGroupNoops =
         editor.getSelectedOption('missing-select-group') === null
         && buttons[2].classList.contains('active');
+
+      editor.renderContextEditorModal(
+        host,
+        'Runtime actions',
+        '',
+        editor.contextEditorActions(
+          true,
+          'data-test-context-action="save"',
+          'data-test-context-action="clear"',
+        ),
+      );
+      outcomes.contextEditorUsesOwnedActionAttrsWithoutDynamicFunctionNames =
+        host.querySelector('[data-test-context-action="save"]')?.textContent === 'Save'
+        && host.querySelector('[data-test-context-action="clear"]')?.textContent === 'Clear'
+        && !host.querySelector('[data-ctx-editor-fn]')
+        && !editorSrc.includes('getViewRuntimeFunction')
+        && !editorSrc.includes('ctxEditorFn')
+        && !/\bwindow(?:\.|\s*\[)/.test(editorSrc);
+      host.querySelector('.modal-close')?.click();
+      outcomes.contextEditorCloseUsesContextCardsRuntime = calls.some(call => call[0] === 'close');
     } finally {
+      contextRuntime.configureContextCardsRuntimeCallbacks(previousContextRuntime);
       host.remove();
     }
 
@@ -267,9 +296,11 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       };
       lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
-      lifestyle.saveExercise();
+      const defaultExerciseSave = modal.querySelector('[data-lifestyle-action="save-exercise"]');
+      defaultExerciseSave?.click();
       outcomes.defaultSaveContextAndRefreshStoresAndNotifies = state.importedData.exercise?.frequency === defaultExerciseFrequency
-        && Array.from(document.querySelectorAll('.notification-toast')).some(el => el.textContent.includes('Exercise saved'));
+        && Array.from(document.querySelectorAll('.notification-toast')).some(el => el.textContent.includes('Exercise saved'))
+        && !!defaultExerciseSave;
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       state.importedData.exercise = null;
 
@@ -296,13 +327,15 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       document.getElementById('diet-breakfast').value = 'strawberries and yogurt';
       document.getElementById('diet-lunch').value = 'canned tuna with avocado';
       document.getElementById('ctx-note-input').value = 'track digestion';
-      lifestyle.saveDiet();
+      const dietSave = modal.querySelector('[data-lifestyle-action="save-diet"]');
+      dietSave?.click();
       outcomes.saveDietStoresSelectionsMealsAndNote = state.importedData.diet?.type === dietType
         && state.importedData.diet?.pattern === dietPattern
         && state.importedData.diet?.restrictions?.includes(dietRestriction)
         && state.importedData.diet?.breakfast === 'strawberries and yogurt'
         && state.importedData.diet?.lunch === 'canned tuna with avocado'
-        && state.importedData.diet?.note === 'track digestion';
+        && state.importedData.diet?.note === 'track digestion'
+        && !!dietSave;
       const contaminantBadge = lifestyle.renderDietContaminantsBadge();
       outcomes.dietContaminantsBadgeCountsFlaggedSignals = contaminantBadge.includes('food contaminant signal')
         && contaminantBadge.includes('detected');
@@ -318,8 +351,10 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       await delay(350);
       outcomes.dietContaminantsDiscussesWithAI = calls.some(call => call[0] === 'chat')
         && calls.some(call => call[0] === 'prompt' && call[1].includes('food contaminants'));
-      lifestyle.clearDiet();
-      outcomes.clearDietNullsDiet = state.importedData.diet === null;
+      lifestyle.openDietEditor();
+      const dietClear = modal.querySelector('[data-lifestyle-action="clear-diet"]');
+      dietClear?.click();
+      outcomes.clearDietNullsDiet = state.importedData.diet === null && !!dietClear;
 
       lifestyle.openSleepRestEditor();
       const sleepDuration = setOption('sleep-duration');
@@ -427,7 +462,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.openHealthGoalsEditor();
       document.getElementById('goal-text-input').value = 'Callback coverage goal';
       lifestyle.addHealthGoal();
-      outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'save' && call[2] === 'diet')
+      outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'save' && call[2] === 'sleepRest')
         && calls.some(call => call[0] === 'record' && call[1] === 'healthGoals');
     } finally {
       state.importedData = saved.importedData;

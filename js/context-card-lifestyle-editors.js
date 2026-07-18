@@ -171,6 +171,11 @@ function returnToContextModal() {
   returnToLifestyleContextModalRuntime();
 }
 
+/** @type {Record<string, () => void>} */ const lifestyleEditorActions = {
+  'save-diet': saveDiet, 'clear-diet': clearDiet, 'save-sleep-rest': saveSleepRest, 'clear-sleep-rest': clearSleepRest,
+  'save-light-circadian': saveLightCircadian, 'clear-light-circadian': clearLightCircadian, 'save-exercise': saveExercise, 'clear-exercise': clearExercise, 'save-stress': saveStress,
+  'clear-stress': clearStress, 'save-love-life': saveLoveLife, 'clear-love-life': clearLoveLife, 'save-environment': saveEnvironment, 'clear-environment': clearEnvironment,
+};
 /** @param {MouseEvent} event */
 function handleLifestyleContextClick(event) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
@@ -188,8 +193,7 @@ function handleLifestyleContextClick(event) {
     case 'back-to-context': returnToContextModal(); break;
     case 'discuss-diet-contaminants': discussDietContaminants(); break;
     case 'close-modal': closeLifestyleContextModalRuntime(); break;
-    default:
-      break;
+    default: lifestyleEditorActions[actionEl.dataset.lifestyleAction || '']?.(); break;
   }
 }
 
@@ -259,7 +263,7 @@ export function openDietEditor() {
     ${renderSelectField('Abdominal pain', 'diet-abdpain', ABDOMINAL_PAIN, current.abdominalPain || null)}
     ${renderTagsField('Food sensitivities', 'diet-sensitivities', FOOD_SENSITIVITIES, current.foodSensitivities || [])}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.diet != null, 'saveDiet', 'clearDiet')}`);
+    ${contextEditorActions(state.importedData.diet != null, lifestyleActionAttrs('save-diet'), lifestyleActionAttrs('clear-diet'))}`);
   openModalOverlay(overlay);
 }
 
@@ -317,7 +321,7 @@ export function openSleepRestEditor() {
     ${renderTagsField('Sleep environment', 'sleep-env', SLEEP_ENVIRONMENT, current.environment)}
     ${renderTagsField('Sleep practices', 'sleep-practices', SLEEP_PRACTICES, current.practices)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.sleepRest != null, 'saveSleepRest', 'clearSleepRest')}`);
+    ${contextEditorActions(state.importedData.sleepRest != null, lifestyleActionAttrs('save-sleep-rest'), lifestyleActionAttrs('clear-sleep-rest'))}`);
   openModalOverlay(overlay);
 }
 
@@ -367,7 +371,7 @@ export function openLightCircadianEditor() {
     ${renderTagsField('Meal timing signals', 'light-meal', LIGHT_MEAL_TIMING, current.mealTiming)}
     ${lat ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📍 Latitude: <strong style="color:var(--text-primary)">${escapeHTML(lat)}</strong> <span style="font-size:11px">(from Settings → Location)</span></div>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">💡 Set your country in Settings → Profile for automatic latitude detection</div>`}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.lightCircadian != null, 'saveLightCircadian', 'clearLightCircadian')}`);
+    ${contextEditorActions(state.importedData.lightCircadian != null, lifestyleActionAttrs('save-light-circadian'), lifestyleActionAttrs('clear-light-circadian'))}`);
   openModalOverlay(overlay);
 }
 
@@ -460,7 +464,7 @@ export function openExerciseEditor() {
     ${renderSelectField('Intensity', 'exercise-intensity', EXERCISE_INTENSITY, current.intensity)}
     ${renderSelectField('Daily movement', 'exercise-movement', DAILY_MOVEMENT, current.dailyMovement)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.exercise != null, 'saveExercise', 'clearExercise')}`);
+    ${contextEditorActions(state.importedData.exercise != null, lifestyleActionAttrs('save-exercise'), lifestyleActionAttrs('clear-exercise'))}`);
   openModalOverlay(overlay);
 }
 
@@ -496,7 +500,7 @@ export function openStressEditor() {
     ${renderTagsField('Sources', 'stress-sources', STRESS_SOURCES, current.sources)}
     ${renderTagsField('Management', 'stress-mgmt', STRESS_MGMT, current.management)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.stress != null, 'saveStress', 'clearStress')}`);
+    ${contextEditorActions(state.importedData.stress != null, lifestyleActionAttrs('save-stress'), lifestyleActionAttrs('clear-stress'))}`);
   openModalOverlay(overlay);
 }
 
@@ -541,7 +545,7 @@ export function openLoveLifeEditor() {
       return true;
     }), current.concerns)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.loveLife != null, 'saveLoveLife', 'clearLoveLife')}`);
+    ${contextEditorActions(state.importedData.loveLife != null, lifestyleActionAttrs('save-love-life'), lifestyleActionAttrs('clear-love-life'))}`);
   openModalOverlay(overlay);
 }
 
@@ -596,7 +600,7 @@ export function openEnvironmentEditor() {
     ${renderTagsField('Toxin exposure', 'env-toxins', ENV_TOXINS, current.toxins)}
     ${renderSelectField('Building', 'env-building', ENV_BUILDING, current.building)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.environment != null, 'saveEnvironment', 'clearEnvironment')}`);
+    ${contextEditorActions(state.importedData.environment != null, lifestyleActionAttrs('save-environment'), lifestyleActionAttrs('clear-environment'))}`);
   openModalOverlay(overlay);
 }
 

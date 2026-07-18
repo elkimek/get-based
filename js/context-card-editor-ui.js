@@ -2,7 +2,7 @@
 // context-card-editor-ui.js - Shared context-card editor modal and field controls
 
 import { escapeHTML } from './utils.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+import { closeContextCardModalRuntime } from './context-cards-runtime.js';
 
 /**
  * @param {string} action
@@ -24,16 +24,6 @@ function closestContextEditorElement(target, selector) {
   return el instanceof HTMLElement ? el : null;
 }
 
-/**
- * @param {string | undefined} fnName
- */
-function invokeContextEditorWindowFn(fnName) {
-  if (!fnName || typeof window === 'undefined') return;
-  const windowFn = /** @type {any} */ (window)[fnName];
-  const fn = typeof windowFn === 'function' ? windowFn : getViewRuntimeFunction(fnName);
-  if (typeof fn === 'function') fn();
-}
-
 /** @param {MouseEvent} event */
 function handleContextEditorClick(event) {
   const actionEl = closestContextEditorElement(event.target, '[data-ctx-editor-action]');
@@ -41,10 +31,7 @@ function handleContextEditorClick(event) {
   const action = actionEl.dataset.ctxEditorAction || '';
   switch (action) {
     case 'close':
-      invokeContextEditorWindowFn(actionEl.dataset.ctxEditorFn || 'closeModal');
-      break;
-    case 'invoke':
-      invokeContextEditorWindowFn(actionEl.dataset.ctxEditorFn);
+      closeContextCardModalRuntime();
       break;
     case 'select-option':
       selectCtxOption(actionEl, actionEl.dataset.ctxEditorGroup || actionEl.parentElement?.id || '');
@@ -67,7 +54,13 @@ function initContextEditorDelegates() {
 
 initContextEditorDelegates();
 
-export function renderContextEditorModal(modal, title, subtitle, bodyHtml, closeFn = 'closeModal') {
+export function renderContextEditorModal(
+  modal,
+  title,
+  subtitle,
+  bodyHtml,
+  closeActionAttrs = contextEditorActionAttrs('close'),
+) {
   if (!modal) return;
   modal.className = 'modal gb-form-modal ctx-editor-modal';
   modal.setAttribute('aria-label', title);
@@ -76,7 +69,7 @@ export function renderContextEditorModal(modal, title, subtitle, bodyHtml, close
       <div class="gb-modal-kicker">Profile context</div>
       <h3 class="gb-modal-title">${escapeHTML(title)}</h3>
     </div>
-    <button type="button" class="modal-close" ${contextEditorActionAttrs('close', `data-ctx-editor-fn="${escapeHTML(closeFn)}"`)} aria-label="Close ${escapeHTML(title)}">&times;</button>
+    <button type="button" class="modal-close" ${closeActionAttrs} aria-label="Close ${escapeHTML(title)}">&times;</button>
   </div>
   <div class="gb-form-body ctx-editor-body">
     ${subtitle ? `<div class="modal-unit">${escapeHTML(subtitle)}</div>` : ''}
@@ -158,10 +151,10 @@ export function renderNoteField(value) {
     <input type="text" class="ctx-note-input" id="ctx-note-input" placeholder="Anything else..." value="${escapeHTML(value || '')}"></div>`;
 }
 
-export function contextEditorActions(hasCurrent, saveFn, clearFn) {
+export function contextEditorActions(hasCurrent, saveActionAttrs, clearActionAttrs) {
   return `<div class="ctx-editor-actions">
-    <button class="import-btn import-btn-primary" ${contextEditorActionAttrs('invoke', `data-ctx-editor-fn="${escapeHTML(saveFn)}"`)}>Save</button>
+    <button class="import-btn import-btn-primary" ${saveActionAttrs}>Save</button>
     <button class="import-btn import-btn-secondary" ${contextEditorActionAttrs('close')}>Cancel</button>
-    ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${contextEditorActionAttrs('invoke', `data-ctx-editor-fn="${escapeHTML(clearFn)}"`)}>Clear</button>` : ''}
+    ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${clearActionAttrs}>Clear</button>` : ''}
   </div>`;
 }

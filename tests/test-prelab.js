@@ -142,6 +142,8 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   const ccSrc = read('js/context-cards.js');
   const healthDotsSrc = read('js/context-card-health-dots.js');
   const ctxEditorSrc = read('js/context-card-editor-ui.js');
+  const lifestyleEditorSrc = read('js/context-card-lifestyle-editors.js');
+  const medicalHistoryEditorSrc = read('js/context-card-medical-history-editor.js');
 
   assert('context-cards imports getActiveData', ccSrc.includes("import { saveImportedData, getActiveData } from './data.js'"),
     'Should import getActiveData for lab data check');
@@ -176,6 +178,16 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Card labels should fit compact widget widths');
   assert('Context editors use redesigned modal shell', (ccSrc + ctxEditorSrc).includes("modal gb-form-modal ctx-editor-modal") && ctxEditorSrc.includes('gb-modal-head ctx-editor-head'),
     'Context editors should use the newer solid modal chrome');
+  assert('Context editor actions stay module-owned without dynamic window or bridge dispatch',
+    ctxEditorSrc.includes("import { closeContextCardModalRuntime } from './context-cards-runtime.js';") &&
+      ctxEditorSrc.includes('closeContextCardModalRuntime();') &&
+      !ctxEditorSrc.includes('getViewRuntimeFunction') &&
+      !ctxEditorSrc.includes('ctxEditorFn') &&
+      !/\bwindow(?:\.|\s*\[)/.test(ctxEditorSrc) &&
+      lifestyleEditorSrc.includes("'save-diet': saveDiet") &&
+      lifestyleEditorSrc.includes("'clear-environment': clearEnvironment") &&
+      medicalHistoryEditorSrc.includes("medicalHistoryActionAttrs('close')"),
+    'Context editor controls should delegate to their owning modules');
   assert('Context editor actions are sticky', cssSrc.includes('.ctx-editor-modal .ctx-editor-actions') && cssSrc.includes('position: sticky') && cssSrc.includes('bottom: 0'),
     'Long context editors need reachable actions while scrolling');
   assert('Glass theme hardens Profile Context surfaces', (() => {
