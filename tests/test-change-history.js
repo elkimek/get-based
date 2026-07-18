@@ -21,7 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Change History Tests ===\n');
 
 // Change-history recording is a module-only context-cards API.
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const contextCards = await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 1. recordChange function exists
@@ -37,20 +37,20 @@ const contextCards = await import('../js/context-cards.js');
   console.log('2. Basic Recording');
 
   // Save original state
-  const origHistory = window._labState.importedData.changeHistory;
-  const origDiet = window._labState.importedData.diet;
+  const origHistory = state.importedData.changeHistory;
+  const origDiet = state.importedData.diet;
 
   // Reset for testing
-  window._labState.importedData.changeHistory = [];
-  window._labState.importedData.diet = { type: 'omnivore', restrictions: [], pattern: null, note: '' };
+  state.importedData.changeHistory = [];
+  state.importedData.diet = { type: 'omnivore', restrictions: [], pattern: null, note: '' };
 
   contextCards.recordChange('diet');
-  assert('Records first change', window._labState.importedData.changeHistory.length === 1);
-  assert('Entry has field', window._labState.importedData.changeHistory[0].field === 'diet');
-  assert('Entry has date (ISO)', /^\d{4}-\d{2}-\d{2}$/.test(window._labState.importedData.changeHistory[0].date));
-  assert('Entry has snapshot', window._labState.importedData.changeHistory[0].snapshot != null);
-  assert('Snapshot is deep copy', window._labState.importedData.changeHistory[0].snapshot !== window._labState.importedData.diet);
-  assert('Snapshot matches current data', JSON.stringify(window._labState.importedData.changeHistory[0].snapshot) === JSON.stringify(window._labState.importedData.diet));
+  assert('Records first change', state.importedData.changeHistory.length === 1);
+  assert('Entry has field', state.importedData.changeHistory[0].field === 'diet');
+  assert('Entry has date (ISO)', /^\d{4}-\d{2}-\d{2}$/.test(state.importedData.changeHistory[0].date));
+  assert('Entry has snapshot', state.importedData.changeHistory[0].snapshot != null);
+  assert('Snapshot is deep copy', state.importedData.changeHistory[0].snapshot !== state.importedData.diet);
+  assert('Snapshot matches current data', JSON.stringify(state.importedData.changeHistory[0].snapshot) === JSON.stringify(state.importedData.diet));
 
   // ═══════════════════════════════════════
   // 3. Dedup: identical snapshot skipped
@@ -58,27 +58,27 @@ const contextCards = await import('../js/context-cards.js');
   console.log('3. Dedup — Identical Snapshot');
 
   contextCards.recordChange('diet');
-  assert('Identical snapshot not duplicated', window._labState.importedData.changeHistory.length === 1);
+  assert('Identical snapshot not duplicated', state.importedData.changeHistory.length === 1);
 
   // ═══════════════════════════════════════
   // 4. Dedup: same field + same day overwrites
   // ═══════════════════════════════════════
   console.log('4. Dedup — Same Day Overwrite');
 
-  window._labState.importedData.diet = { type: 'low-carb', restrictions: ['gluten'], pattern: '2 meals', note: '' };
+  state.importedData.diet = { type: 'low-carb', restrictions: ['gluten'], pattern: '2 meals', note: '' };
   contextCards.recordChange('diet');
-  assert('Same-day update overwrites (no new entry)', window._labState.importedData.changeHistory.length === 1);
-  assert('Snapshot updated to new value', window._labState.importedData.changeHistory[0].snapshot.type === 'low-carb');
+  assert('Same-day update overwrites (no new entry)', state.importedData.changeHistory.length === 1);
+  assert('Snapshot updated to new value', state.importedData.changeHistory[0].snapshot.type === 'low-carb');
 
   // ═══════════════════════════════════════
   // 5. Different fields tracked independently
   // ═══════════════════════════════════════
   console.log('5. Multiple Fields');
 
-  window._labState.importedData.exercise = { frequency: '3x/week', types: ['strength'], intensity: 'moderate', note: '' };
+  state.importedData.exercise = { frequency: '3x/week', types: ['strength'], intensity: 'moderate', note: '' };
   contextCards.recordChange('exercise');
-  assert('Different field creates new entry', window._labState.importedData.changeHistory.length === 2);
-  assert('Exercise entry recorded', window._labState.importedData.changeHistory[1].field === 'exercise');
+  assert('Different field creates new entry', state.importedData.changeHistory.length === 2);
+  assert('Exercise entry recorded', state.importedData.changeHistory[1].field === 'exercise');
 
   // ═══════════════════════════════════════
   // 6. Null snapshot for cleared fields
@@ -86,10 +86,10 @@ const contextCards = await import('../js/context-cards.js');
   console.log('6. Null Snapshot');
 
   // Simulate clearing by setting to different date first
-  const h = window._labState.importedData.changeHistory;
+  const h = state.importedData.changeHistory;
   // Force a past date entry so "clear" on today creates a new one
   h[0].date = '2025-01-01';
-  window._labState.importedData.diet = null;
+  state.importedData.diet = null;
   contextCards.recordChange('diet');
   const nullEntry = h.find(e => e.field === 'diet' && e.snapshot === null);
   assert('Null field recorded with null snapshot', nullEntry != null);
@@ -99,40 +99,40 @@ const contextCards = await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   console.log('7. Cap at 200');
 
-  window._labState.importedData.changeHistory = [];
+  state.importedData.changeHistory = [];
   for (let i = 0; i < 210; i++) {
-    window._labState.importedData.changeHistory.push({
+    state.importedData.changeHistory.push({
       field: 'stress', date: `2024-${String(Math.floor(i / 28) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
       snapshot: { level: `level-${i}` }
     });
   }
   // Force a new unique entry
-  window._labState.importedData.stress = { level: 'high', sources: ['work'] };
+  state.importedData.stress = { level: 'high', sources: ['work'] };
   contextCards.recordChange('stress');
-  assert('History capped at 200', window._labState.importedData.changeHistory.length <= 200, `length: ${window._labState.importedData.changeHistory.length}`);
+  assert('History capped at 200', state.importedData.changeHistory.length <= 200, `length: ${state.importedData.changeHistory.length}`);
 
   // ═══════════════════════════════════════
   // 8. String fields (interpretiveLens)
   // ═══════════════════════════════════════
   console.log('8. String Fields');
 
-  window._labState.importedData.changeHistory = [];
-  window._labState.importedData.interpretiveLens = 'Functional medicine';
+  state.importedData.changeHistory = [];
+  state.importedData.interpretiveLens = 'Functional medicine';
   contextCards.recordChange('interpretiveLens');
-  assert('String field snapshot is a string', typeof window._labState.importedData.changeHistory[0].snapshot === 'string');
-  assert('String field value correct', window._labState.importedData.changeHistory[0].snapshot === 'Functional medicine');
+  assert('String field snapshot is a string', typeof state.importedData.changeHistory[0].snapshot === 'string');
+  assert('String field value correct', state.importedData.changeHistory[0].snapshot === 'Functional medicine');
 
   // ═══════════════════════════════════════
   // 9. Array fields (healthGoals)
   // ═══════════════════════════════════════
   console.log('9. Array Fields');
 
-  window._labState.importedData.changeHistory = [];
-  window._labState.importedData.healthGoals = [{ text: 'Reduce inflammation', severity: 'major' }];
+  state.importedData.changeHistory = [];
+  state.importedData.healthGoals = [{ text: 'Reduce inflammation', severity: 'major' }];
   contextCards.recordChange('healthGoals');
-  assert('Array field recorded', window._labState.importedData.changeHistory.length === 1);
-  assert('Array snapshot is array', Array.isArray(window._labState.importedData.changeHistory[0].snapshot));
-  assert('Array snapshot deep copy', window._labState.importedData.changeHistory[0].snapshot !== window._labState.importedData.healthGoals);
+  assert('Array field recorded', state.importedData.changeHistory.length === 1);
+  assert('Array snapshot is array', Array.isArray(state.importedData.changeHistory[0].snapshot));
+  assert('Array snapshot deep copy', state.importedData.changeHistory[0].snapshot !== state.importedData.healthGoals);
 
   // ═══════════════════════════════════════
   // 10. Migration guard
@@ -210,8 +210,8 @@ const contextCards = await import('../js/context-cards.js');
     cycleSrc.includes("recordContextCardChangeRuntime('menstrualCycle')"));
 
   // Restore original state
-  window._labState.importedData.changeHistory = origHistory || [];
-  window._labState.importedData.diet = origDiet;
+  state.importedData.changeHistory = origHistory || [];
+  state.importedData.diet = origDiet;
 
   // ═══════════════════════════════════════
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

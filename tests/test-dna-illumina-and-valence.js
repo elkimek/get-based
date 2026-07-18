@@ -11,7 +11,7 @@
 // Full port — parseDNAFile spins a Blob-backed Worker (synchronous Worker
 // shim in _node-shim.js); renderGeneticsSection returns an HTML string with
 // no DOM dependency. snp-health.json + DNA parser source go through the
-// fs-backed fetch shim; window._labState comes from state.js.
+// fs-backed fetch shim; mutable app data comes from the state module.
 
 import './_node-shim.js';
 
@@ -40,8 +40,7 @@ function assert(name, condition, detail) {
 
 console.log('=== DNA: Illumina + valence + recalibration ===\n');
 
-// state.js sets window._labState; dna.js's Object.assign(window, …) runs on import.
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 await import('../js/utils.js');
 await import('../js/data.js');
 const dna = await import('../js/dna.js');
@@ -220,10 +219,10 @@ console.log('7. Dot Rendering');
 
 // dotFor is a local fn inside renderGeneticsSection — verify behavior by
 // mocking genetics state for known genotypes and inspecting rendered HTML.
-const origGenetics = window._labState.importedData.genetics;
+const origGenetics = state.importedData.genetics;
 
 function mockAndRender(snps) {
-  window._labState.importedData.genetics = {
+  state.importedData.genetics = {
     source: 'TestSource', importDate: '2026-04-24',
     coverage: { found: Object.keys(snps).length, total: Object.keys(snps).length },
     effects: { significant: 0, moderate: 0, normal: 0 },
@@ -266,7 +265,7 @@ html = mockAndRender({ rs601338: { genotype: 'GG', gene: 'FUT2', variant: 'W154X
 assert('None-effect genotype is collapsed with other SNPs', html.includes('genetics-other-snps') && html.includes('normal') && findingRowDots(html).includes('⚪'));
 
 // Restore genetics state
-window._labState.importedData.genetics = origGenetics;
+state.importedData.genetics = origGenetics;
 
 // ═══════════════════════════════════════
 // 8. Legend block + catLabels coverage
@@ -274,7 +273,7 @@ window._labState.importedData.genetics = origGenetics;
 console.log('8. Legend & Category Labels');
 
 // Legend renders when there's at least one finding
-window._labState.importedData.genetics = {
+state.importedData.genetics = {
   source: 'TestSource', importDate: '2026-04-24',
   coverage: { found: 1, total: 1 }, effects: {},
   snps: { rs1801133: { genotype: 'AA', gene: 'MTHFR', variant: 'C677T' } }
@@ -286,7 +285,7 @@ assert('Legend has "mild risk" label', legendHtml.includes('mild risk'));
 assert('Legend has "beneficial" label', legendHtml.includes('beneficial'));
 assert('Legend has "neutral" label', legendHtml.includes('neutral'));
 assert('Legend has "moderate risk" label', legendHtml.includes('moderate risk'));
-window._labState.importedData.genetics = origGenetics;
+state.importedData.genetics = origGenetics;
 
 // Every category used in snp-health.json must have a display label in SNP_CATEGORY_LABELS
 const catLabelsMatch = dnaSrc.match(/SNP_CATEGORY_LABELS = \{([^}]+)\}/);
@@ -336,12 +335,12 @@ assert('E2E: FUT2 AA matched', e2eResult.matches.rs601338?.genotype === 'AA');
 
 // Now save the parsed result and render the dashboard, asserting all 5 dots
 // are present in the rendered HTML.
-const e2eOrig = window._labState.importedData.genetics;
+const e2eOrig = state.importedData.genetics;
 const e2eState = { source: e2eResult.source, importDate: '2026-04-24', coverage: e2eResult.coverage, effects: {}, snps: {} };
 for (const [rsid, m] of Object.entries(e2eResult.matches)) {
   e2eState.snps[rsid] = { genotype: m.genotype, gene: m.gene, variant: m.variant };
 }
-window._labState.importedData.genetics = e2eState;
+state.importedData.genetics = e2eState;
 const e2eHtml = dna.renderGeneticsSection();
 assert('E2E render: green dot present (PCSK9 protective)', e2eHtml.includes('🟢'));
 assert('E2E render: red dot present (MTHFR significant)', e2eHtml.includes('🔴'));
@@ -350,7 +349,7 @@ assert('E2E render: yellow dot present (MTR mild)', e2eHtml.includes('🟡'));
 assert('E2E render: white circle present (FUT2 neutral)', e2eHtml.includes('⚪'));
 assert('E2E render: legend visible', e2eHtml.includes('genetics-legend'));
 assert('E2E render: source name "Illumina GenomeStudio (DNAEra)" visible', e2eHtml.includes('Illumina GenomeStudio'));
-window._labState.importedData.genetics = e2eOrig;
+state.importedData.genetics = e2eOrig;
 
 // ═══════════════════════════════════════
 // 10. Severity ordering (categories + within-category)
@@ -362,8 +361,8 @@ window._labState.importedData.genetics = e2eOrig;
 // category mild rows must follow moderate rows.
 console.log('10. Severity Ordering');
 
-const sortOrig = window._labState.importedData.genetics;
-window._labState.importedData.genetics = {
+const sortOrig = state.importedData.genetics;
+state.importedData.genetics = {
   source: 'TestSource', importDate: '2026-04-24',
   coverage: { found: 4, total: 4 }, effects: {},
   snps: {
@@ -391,7 +390,7 @@ const mthfrPos = methylationBlock.indexOf('MTHFR');
 const mtrPos   = methylationBlock.indexOf('MTR ');
 assert('Within-category sort: MTHFR (moderate) before MTR (mild) inside methylation', mthfrPos > 0 && mtrPos > mthfrPos);
 
-window._labState.importedData.genetics = sortOrig;
+state.importedData.genetics = sortOrig;
 
 // ═══════════════════════════════════════
 // Results

@@ -13,16 +13,15 @@ function assert(name, condition, detail) {
 
 console.log('=== Biometrics Tests ===\n');
 
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
 const profile = await import('../js/profile.js');
 const labContext = await import('../js/lab-context.js');
 const exportModule = await import('../js/export.js');
 // Initialize profiles so getProfiles() / setProfileHeight() have something
 // to mutate. The Playwright environment runs main.js which seeds this.
-if (!window._labState.profiles) {
-  window._labState.profiles = [{ id: 'default', name: 'Default' }];
+if (!state.profiles) {
+  state.profiles = [{ id: 'default', name: 'Default' }];
 }
-  const state = window._labState;
   const profileId = state.currentProfile;
 
   // Save originals

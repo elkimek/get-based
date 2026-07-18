@@ -45,9 +45,8 @@ function assert(name, condition, detail) {
 
 console.log('=== DNA Adapter Tests ===\n');
 
-// Load the app module surface; state.js retains the temporary _labState
-// compatibility hook while DNA actions stay module-only.
-await import('../js/state.js');
+// Load the app module surface while DNA actions stay module-only.
+const { state } = await import('../js/state.js');
 await import('../js/utils.js');
 await import('../js/data.js');
 const dna = await import('../js/dna.js');
@@ -621,7 +620,7 @@ assert('References include Wallace 2015', hapData._meta.references.some(r => r.p
 console.log('16. mtDNA Storage & Context');
 
 // Save original genetics
-const origGenetics = window._labState.importedData.genetics;
+const origGenetics = state.importedData.genetics;
 
 // Simulate mtDNA import
 const testGenetics = origGenetics ? JSON.parse(JSON.stringify(origGenetics)) : { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
@@ -631,7 +630,7 @@ testGenetics.mtdna = {
   mutations: ['295T', '4216C', '10398G', '13708A', '16069T', '16126C', '11251G'],
   source: 'mtDNA CSV', importDate: '2026-03-26'
 };
-window._labState.importedData.genetics = testGenetics;
+state.importedData.genetics = testGenetics;
 
 // Test context includes haplogroup
 const ctx = dna.buildGeneticsContext(testGenetics, null);
@@ -653,7 +652,7 @@ delete testGenetics.mtdna;
 assert('mtDNA deletable without affecting snps', testGenetics.snps != null && testGenetics.mtdna == null);
 
 // Restore
-window._labState.importedData.genetics = origGenetics;
+state.importedData.genetics = origGenetics;
 
 // ═══════════════════════════════════════
 // Results

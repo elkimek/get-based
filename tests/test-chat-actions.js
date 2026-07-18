@@ -28,9 +28,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Chat Actions Tests ===\n');
 
-// state.js exposes window._labState; chat actions and context summaries stay
-// on their module surfaces.
-await import('../js/state.js');
+// State, chat actions, and context summaries stay on their module surfaces.
+const { state: S } = await import('../js/state.js');
 const labContext = await import('../js/lab-context.js');
 await import('../js/chat.js');
 const {
@@ -51,9 +50,8 @@ const {
 } = await import('../js/chat-discussion-round-prompts.js');
 const { readDiscussPersonaPickerSelection } = await import('../js/chat-discussion-ui.js');
 
-const S = window._labState;
 const hasState = S && typeof S === 'object';
-assert('window._labState exists', hasState, hasState ? 'found' : 'not found');
+assert('state module export exists', hasState, hasState ? 'found' : 'not found');
 
 // ─── Section 1: Module exports ───
 console.log('Section 1: Module Exports');
@@ -93,7 +91,7 @@ if (hasState) {
   S.chatHistory = origHistory;
   document.getElementById = origGetElementById;
 } else {
-  console.warn('Skipping Discuss button UI tests — _labState not available');
+  console.warn('Skipping Discuss button UI tests — state module not available');
 }
 
 // ─── Section 1b: Discuss Picker Selection ───
@@ -193,7 +191,7 @@ if (hasState) {
   if (origThreadIndex === null) localStorage.removeItem(threadIndexKey);
   else localStorage.setItem(threadIndexKey, origThreadIndex);
 } else {
-  console.warn('Skipping discussion lifecycle state tests — _labState not available');
+  console.warn('Skipping discussion lifecycle state tests — state module not available');
 }
 
 // ─── Section 2: getContextSummary() ───
@@ -256,7 +254,7 @@ if (hasState) {
 
   assert('Second AI msg shows 2 areas', bar3.includes('2 areas'), 'shows 2 areas');
 } else {
-  console.warn('Skipping buildActionBar tests — _labState not available');
+  console.warn('Skipping buildActionBar tests — state module not available');
 }
 
 // Section 4 (renderChatMessages / DOMParser integration) lives in
@@ -275,7 +273,7 @@ if (hasState) {
   assert('Msg without .sources has no sources toggle', !barNoCtx.includes('chat-sources-toggle'), 'no sources toggle');
   assert('Msg without .context still has action bar', barNoCtx.includes('chat-action-bar'), 'has action bar');
 } else {
-  console.warn('Skipping backward compat tests — _labState not available');
+  console.warn('Skipping backward compat tests — state module not available');
 }
 
 // Section 10 (navigator.clipboard) and Section 12 (context-toggle live DOM)
@@ -696,12 +694,12 @@ if (hasState) {
   assert('First AI msg (non-last) has no Regenerate', !bar0.includes('regenerate-last-message'), 'no regenerate');
   assert('Last AI msg has Regenerate', barLast.includes('regenerate-last-message'), 'has regenerate');
 } else {
-  console.warn('Skipping regenerate placement tests — _labState not available');
+  console.warn('Skipping regenerate placement tests — state module not available');
 }
 
 // ─── Section 19: setChatPersonality thread behavior ───
 // Pure source-inspection of chatSrc — `chatSrc` is read unconditionally
-// from the filesystem above, so these run regardless of _labState init
+// from the filesystem above, so these run regardless of state initialization
 // (the original's `if (hasState)` gate was a carry-over from when chatSrc
 // came from a fetch that could be absent before state was ready).
 console.log('Section 19: setChatPersonality thread behavior');
@@ -709,13 +707,6 @@ assert('setChatPersonality is async', chatPersonalitiesSrc.includes('async funct
 assert('setChatPersonality switches in-place', chatPersonalitiesSrc.includes('state.currentChatPersonality = id'), 'found');
 assert('Updates thread personality in-place', chatPersonalitiesSrc.includes('thread.personality = id'), 'found in setChatPersonality');
 assert('Updates thread metadata on switch', chatPersonalitiesSrc.includes('thread.personalityName') && chatPersonalitiesSrc.includes('thread.personalityIcon'), 'found');
-
-// ─── Section 20: state.js exposes _labState ───
-console.log('Section 20: State exposure');
-const stateSrc = read('js/state.js');
-assert('state.js exports _labState through runtime adapter',
-  stateSrc.includes('registerUtilsRuntimeExports') && stateSrc.includes('_labState'),
-  'found');
 
 // ─── Cleanup ───
 if (hasState && origHistory) S.chatHistory = origHistory;
