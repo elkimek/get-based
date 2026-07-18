@@ -311,7 +311,10 @@ test('custom personality save path updates picker, header, and persisted state',
   ];
 
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => !!window._labState);
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return !!state;
+  });
 
   const results = await page.evaluate(async () => {
     const [{ state }, chatPersonalities, chatRuntime] = await Promise.all([

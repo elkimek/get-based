@@ -83,7 +83,7 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
       import(notesUrl),
       import(notesRuntimeUrl),
     ]);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalNotes = Array.isArray(state.importedData?.notes)
       ? JSON.parse(JSON.stringify(state.importedData.notes))
@@ -295,7 +295,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
 
   const results = await page.evaluate(async ({ roundViewUrl, syncRenderUrl }) => {
     const roundView = await import(roundViewUrl);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const syncRender = await import(syncRenderUrl);
     const outcomes = {};
     const originalThreadId = state.currentThreadId;
@@ -454,7 +454,7 @@ test('import preflight and marker normalization cover browser decision paths', a
   const results = await page.evaluate(async ({ preflightUrl, normalizationUrl, utilsUrl }) => {
     const preflight = await import(preflightUrl);
     const normalization = await import(normalizationUrl);
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const { hashString } = await import(utilsUrl);
     const outcomes = {};
     const originalEntries = Array.isArray(state.importedData?.entries)
@@ -534,7 +534,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
     const diagnosticsText = await import(textUrl);
     const snapshot = await import(snapshotUrl);
     const diagnosticsContext = await import('/js/sync-diagnostics-context.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalProfile = state.currentProfile;
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
@@ -758,7 +758,7 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
     const syncState = await import('/js/sync-state.js');
     const { profileStorageKey } = await import('/js/profile.js');
     const blobStorage = await import('/js/blob-storage.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
     const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
@@ -866,7 +866,7 @@ test('discussion round runner covers empty and missing container paths', async (
   const results = await page.evaluate(async ({ runnerUrl }) => {
     const runner = await import(runnerUrl);
     const callbacks = await import('/js/chat-discussion-callbacks.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     const originalThreadId = state.currentThreadId;
     const originalHistory = Array.isArray(state.chatHistory)
@@ -936,7 +936,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
     const actionContext = await import('/js/sync-diagnose-actions-context.js');
     const confirmRuntime = await import('/js/sync-diagnose-runtime.js');
     const relayHealth = await import('/js/sync-relay-health.js');
-    const state = window._labState;
+    const { state } = await import('/js/state.js');
     const outcomes = {};
     let confirmAnswer = false;
     const originalConfirmDeps = confirmRuntime.configureSyncDiagnoseRuntimeDeps({
