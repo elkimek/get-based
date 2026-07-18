@@ -162,7 +162,7 @@ assert('App shell injects Chat empty-state view callbacks without bridge or glob
 
 assert('App shell wires remaining Chat open consumers without window globals',
   appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });')
-    && appShellHooksSrc.includes('configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });')
+    && appShellHooksSrc.includes('configureRecommendationsRuntime({ closeModal, openChatPanel, openProfileLocationEditor, openSettingsModal });')
     && appShellHooksSrc.includes('configureTourRuntimeDeps({ openChatPanel });'));
 
 assert('App shell injects the lazy EMF editor close callback without bridge lookups',

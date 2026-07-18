@@ -174,7 +174,7 @@ configureDnaRuntimeDeps({ buildSidebar, navigate });
 configureExportRuntimeDeps({ buildSidebar, navigate });
 configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
-configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });
+configureRecommendationsRuntime({ closeModal, openChatPanel, openProfileLocationEditor, openSettingsModal });
 configureSupplementsRuntimeDeps({ closeModal, navigate });
 configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
 configureSunRuntimeDeps({

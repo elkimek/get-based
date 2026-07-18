@@ -81,7 +81,10 @@ const _realFetch = globalThis.fetch;
       !/\bwindow(?:\.|\s*\[)/.test(recSrc) &&
       !recSrc.includes('Object.assign(window') &&
       recRuntimeSrc.includes('export function getRecommendationsSnpTable') &&
-      recRuntimeSrc.includes('export function configureRecommendationModuleBridge'),
+      recRuntimeSrc.includes('export function configureRecommendationModuleBridge') &&
+      recRuntimeSrc.includes('recommendationsRuntimeDeps.closeModal') &&
+      recRuntimeSrc.includes('recommendationsRuntimeDeps.openSettingsModal') &&
+      !recRuntimeSrc.includes("from './views-runtime-bridge.js'"),
     recSrc.slice(0, 1800));
   assert('recommendations-region.js owns region hierarchy data',
     recRegionSrc.includes('REGION_HIERARCHY') &&

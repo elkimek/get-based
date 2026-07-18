@@ -223,8 +223,11 @@ test('recommendations browser coverage exercises catalog renderers detectors and
     ];
     const rec = await import(recUrl);
     const recommendationsRuntime = await import(runtimeUrl);
+    const runtimeCalls = [];
     const savedRecommendationsRuntime = recommendationsRuntime.configureRecommendationsRuntime({
+      closeModal: () => runtimeCalls.push(['close']),
       openProfileLocationEditor: () => {},
+      openSettingsModal: tab => runtimeCalls.push(['settings', tab]),
     });
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -235,7 +238,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       profiles: clone(state.profiles),
       importedData: clone(state.importedData),
       snpTable: window._snpTableCache,
-      openSettingsTab: window.openSettingsTab,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       setTimeout: window.setTimeout,
     };
@@ -290,7 +292,18 @@ test('recommendations browser coverage exercises catalog renderers detectors and
           },
         },
       };
-      window.openSettingsTab = () => {};
+
+      host.innerHTML = `
+        <button type="button" data-rec-action="close-modal">Close</button>
+        <button type="button" data-rec-action="open-privacy-settings">Privacy</button>`;
+      host.querySelector('[data-rec-action="close-modal"]')?.click();
+      host.querySelector('[data-rec-action="open-privacy-settings"]')?.click();
+      outcomes.recommendationHostActionsUseInjectedRuntimeDeps =
+        runtimeCalls.some(call => call[0] === 'close')
+        && runtimeCalls.some(call => call[0] === 'settings' && call[1] === 'privacy')
+        && runtimeCalls.every(call => call[0] === 'close'
+          || (call[0] === 'settings' && call[1] === 'privacy'));
+      host.replaceChildren();
 
       localStorage.setItem('labcharts-show-product-recs', 'false');
       outcomes.disabledAsyncRenderEmpty = await rec.renderRecommendationSection('magnesium') === '';
@@ -476,7 +489,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       state.importedData = saved.importedData;
       restoreWindowProp('_snpTableCache', saved.snpTable);
       recommendationsRuntime.configureRecommendationsRuntime(savedRecommendationsRuntime);
-      restoreWindowProp('openSettingsTab', saved.openSettingsTab);
       window.setTimeout = saved.setTimeout;
       if (saved.clipboard) Object.defineProperty(navigator, 'clipboard', saved.clipboard);
       else delete navigator.clipboard;
