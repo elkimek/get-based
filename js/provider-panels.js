@@ -8,6 +8,7 @@ import {
   getOpenRouterBalance, getVeniceBalance,
   getRoutstrKey, saveRoutstrKey,
   fetchRoutstrModels, validateRoutstrKey, createRoutstrAccount,
+  clearVeniceE2EESession, hasAIProvider,
   setAIPaused,
   setCustomApiModel, setOllamaMainModel, setPpqModel,
   getVeniceE2EE,
@@ -17,6 +18,7 @@ import {
 } from './api.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
 import { openChatPanel } from './chat-panel.js';
+import { loadFocusCard } from './focus-card.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
@@ -101,36 +103,36 @@ import {
   doRoutstrWalletRestore,
   walletRuntime
 } from './provider-wallet-panels.js';
-import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+function openProviderPanelExternal(...args) {
+  const open = /** @type {any} */ (globalThis).open;
+  return typeof open === 'function' ? open.apply(globalThis, args) : null;
+}
+
+function reloadProviderPanelPage() {
+  const location = /** @type {any} */ (globalThis).location;
+  if (typeof location?.reload === 'function') location.reload();
+}
 
 const providerPanelDeps = {
+  clearE2EESession: clearVeniceE2EESession,
+  closeSettingsModal: () => {},
+  hadProviderBeforeSettings: () => false,
+  hasAIProvider,
+  loadFocusCard,
   openChatPanel,
+  openExternal: openProviderPanelExternal,
+  openSettingsModal: () => {},
+  reloadPage: reloadProviderPanelPage,
 };
+
+const providerPanelClipboardTimers = new Map();
 
 export function configureProviderPanelDeps(deps = {}) {
   const previous = { ...providerPanelDeps };
-  if (typeof deps.openChatPanel === 'function') providerPanelDeps.openChatPanel = deps.openChatPanel;
+  for (const name of Object.keys(providerPanelDeps)) {
+    if (typeof deps[name] === 'function') providerPanelDeps[name] = deps[name];
+  }
   return previous;
-}
-
-function providerPanelRuntime() {
-  return /** @type {Record<string, any>} */ (globalThis);
-}
-
-function getProviderPanelRuntimeValue(name) {
-  return providerPanelRuntime()[name];
-}
-
-function callProviderPanelRuntime(name, ...args) {
-  const runtime = providerPanelRuntime();
-  const fn = getSettingsModuleFunction(name) || runtime[name] || getViewRuntimeFunction(name);
-  return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
-}
-
-function reloadProviderPanelRuntime() {
-  const location = getProviderPanelRuntimeValue('location');
-  if (typeof location?.reload === 'function') location.reload();
 }
 
 export { renderAIProviderPanel } from './provider-panel-renderers.js';
@@ -211,7 +213,7 @@ export function toggleAIPause(enabled) {
   setAIPaused(!enabled);
   showNotification(enabled ? 'AI features enabled' : 'AI features paused', 'info');
   // Refresh focus card — show cached content when paused, fetch new when enabled
-  callProviderPanelRuntime('loadFocusCard');
+  providerPanelDeps.loadFocusCard();
 }
 
 export function switchAIProvider(provider) {
@@ -331,9 +333,9 @@ export function initSettingsModelFetch() {
 // ═══════════════════════════════════════════════
 /** After a successful key save, auto-close settings and return to chat if we came from onboarding. */
 function _returnToChatIfOnboarding() {
-  if (getProviderPanelRuntimeValue('_settingsHadProvider')) return; // already had a provider — user is just reconfiguring
-  if (!callProviderPanelRuntime('hasAIProvider')) return;
-  callProviderPanelRuntime('closeSettingsModal');
+  if (providerPanelDeps.hadProviderBeforeSettings()) return; // already had a provider — user is just reconfiguring
+  if (!providerPanelDeps.hasAIProvider()) return;
+  providerPanelDeps.closeSettingsModal();
   setTimeout(() => providerPanelDeps.openChatPanel(), 300);
 }
 
@@ -355,9 +357,12 @@ async function _copyProviderPanelText(text, actionEl) {
     const timerKey = actionEl?.dataset?.clearTimerKey || '';
     const clearMs = Number(actionEl?.dataset?.clearClipboardAfter || 0);
     if (timerKey && clearMs > 0) {
-      const runtime = providerPanelRuntime();
-      clearTimeout(runtime[timerKey]);
-      runtime[timerKey] = setTimeout(() => navigator.clipboard?.writeText?.(''), clearMs);
+      clearTimeout(providerPanelClipboardTimers.get(timerKey));
+      const timer = setTimeout(() => {
+        providerPanelClipboardTimers.delete(timerKey);
+        navigator.clipboard?.writeText?.('');
+      }, clearMs);
+      providerPanelClipboardTimers.set(timerKey, timer);
     }
   } catch (e) {
     showNotification(`Copy failed: ${e?.message || e}`, 'error');
@@ -385,7 +390,7 @@ async function _recoverPendingToken(actionEl, clearName) {
     await walletRuntime.cashuReceiveToken(token);
     await clearPendingToken();
     showNotification('Recovered!', 'success');
-    reloadProviderPanelRuntime();
+    providerPanelDeps.reloadPage();
   } catch (e) {
     showNotification(e?.message || String(e), 'error');
   }
@@ -465,9 +470,9 @@ export function handleRemoveVeniceKey() {
   localStorage.removeItem('labcharts-venice-e2ee-models');
   localStorage.removeItem('labcharts-venice-model-regular');
   localStorage.removeItem('labcharts-venice-model-e2ee');
-  callProviderPanelRuntime('clearE2EESession');
+  providerPanelDeps.clearE2EESession();
   showNotification('Venice API key removed', 'info');
-  callProviderPanelRuntime('openSettingsModal');
+  providerPanelDeps.openSettingsModal();
 }
 
 
@@ -509,7 +514,7 @@ export function handleRemoveOpenRouterKey() {
   localStorage.removeItem('labcharts-openrouter-model');
   localStorage.removeItem('labcharts-openrouter-pricing');
   showNotification('OpenRouter API key removed', 'info');
-  callProviderPanelRuntime('openSettingsModal');
+  providerPanelDeps.openSettingsModal();
 }
 
 function _orBalanceHtml(remaining) {
@@ -558,7 +563,7 @@ export function showInsufficientBalanceDialog() {
   const close = function() { closeModalOverlay(overlay); };
   document.getElementById('or-add-credits').onclick = function() {
     close();
-    callProviderPanelRuntime('open', 'https://openrouter.ai/settings/credits', '_blank', 'noopener');
+    providerPanelDeps.openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
   };
   document.getElementById('or-nb-cancel').onclick = close;
   overlay.onclick = function(e) { if (e.target === overlay) close(); };
@@ -635,7 +640,7 @@ export function handleRemoveRoutstrKey() {
   updateKeyCache('labcharts-routstr-key', null);
   clearRoutstrModelCaches();
   showNotification('Routstr key removed', 'info');
-  callProviderPanelRuntime('openSettingsModal');
+  providerPanelDeps.openSettingsModal();
 }
 
 // ─── Custom API handlers ───

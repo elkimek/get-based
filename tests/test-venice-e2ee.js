@@ -50,6 +50,10 @@ assert('Venice GLM E2EE disables hidden reasoning and caps reasoning-only stream
 
 // 2. api.js module exports
 assert('api.isE2EEModel is function', typeof api.isE2EEModel === 'function');
+assert('api.clearVeniceE2EESession is function', typeof api.clearVeniceE2EESession === 'function');
+assert('Venice E2EE clear stays module-scoped',
+  apiVeniceSrc.includes('export function clearVeniceE2EESession()')
+    && !apiVeniceSrc.includes('apiWindow.clearE2EESession'));
 assert('e2ee-llama-3.3-70b is E2EE', api.isE2EEModel('e2ee-llama-3.3-70b'));
 assert('llama-3.3-70b is not E2EE', !api.isE2EEModel('llama-3.3-70b'));
 assert('empty string is not E2EE', !api.isE2EEModel(''));

@@ -1,7 +1,7 @@
 // @ts-check
 // provider-model-controls-runtime.js - Browser runtime adapters for provider model controls.
 
-import { callClaudeAPI } from './api.js';
+import { callClaudeAPI, clearVeniceE2EESession } from './api.js';
 import {
   refreshChatWebSearchToggleRuntime,
   updateChatHeaderModelRuntime,
@@ -9,34 +9,18 @@ import {
 
 const providerModelControlsRuntimeDeps = {
   callClaudeAPI,
+  clearE2EESession: clearVeniceE2EESession,
 };
 
 export function configureProviderModelControlsRuntimeDeps(deps = {}) {
   const previous = { ...providerModelControlsRuntimeDeps };
   if (typeof deps.callClaudeAPI === 'function') providerModelControlsRuntimeDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (typeof deps.clearE2EESession === 'function') providerModelControlsRuntimeDeps.clearE2EESession = deps.clearE2EESession;
   return previous;
 }
 
-function getProviderModelControlsRuntime() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getProviderModelControlsRuntime();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
 export function clearProviderE2EESessionRuntime() {
-  const clearSession = getRuntimeFunction('clearE2EESession');
-  if (!clearSession) return false;
-  clearSession();
-  return true;
+  return providerModelControlsRuntimeDeps.clearE2EESession() !== false;
 }
 
 export function refreshProviderModelUiRuntime() {

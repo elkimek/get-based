@@ -14,8 +14,10 @@ import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
+  configureSettingsProviderBridgeDeps,
   initSettingsProviderPanels,
   renderAIProviderPanelBridge,
+  setSettingsProviderHadProvider,
   switchAIProviderBridge,
   testPIIOllamaConnectionBridge,
   toggleAIPauseBridge,
@@ -729,7 +731,7 @@ addSettingsRuntimeEventListener('labcharts-themechange', () => applyAccentOverri
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {
-  settingsWindow._settingsHadProvider = hasAIProvider();
+  setSettingsProviderHadProvider(hasAIProvider());
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
   const provider = getAIProvider();
@@ -1067,4 +1069,9 @@ configureSettingsModuleBridge({
   applyAccentOverride,
   updateSettingsUI,
   updateTweaksUI,
+});
+
+configureSettingsProviderBridgeDeps({
+  closeSettingsModal,
+  openSettingsModal,
 });
