@@ -99,6 +99,9 @@ assert('context medical history and card tips open through shared overlay lifecy
     contextCardsSrc.includes("from './modal-lifecycle.js'") &&
     contextMedicalSrc.includes('openModalOverlay(overlay)') &&
     contextCardsSrc.includes('openModalOverlay(overlay)') &&
+    contextMedicalSrc.includes('closeMedicalHistoryEditor();') &&
+    contextCardsSrc.includes('close: closeContextCardModal') &&
+    !contextMedicalSrc.includes('callUtilsRuntimeFunction') &&
     !contextMedicalSrc.includes('overlay.classList.add("show")') &&
     !contextCardsSrc.includes("overlay.classList.add('show')"));
 
@@ -281,6 +284,8 @@ assert('light tool modals use shared overlay lifecycle helpers',
     (lightToolsSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 2 &&
     (lightToolsSrc.match(/removeModalOverlay\(overlay\)/g) || []).length >= 2 &&
     !lightToolCameraModalsSrc.includes('function openLightToolOverlay') &&
+    lightToolCameraModalsSrc.includes('const fn = deps.saveMeasurement;') &&
+    !lightToolCameraModalsSrc.includes('getUtilsRuntimeFunction') &&
     !lightToolsSrc.includes('function openLightToolOverlay') &&
     !lightToolCameraModalsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
     !lightToolsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
@@ -288,6 +293,8 @@ assert('light tool modals use shared overlay lifecycle helpers',
 
 assert('light device and session modals use shared overlay lifecycle helpers',
   lightDeviceSessionModalSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    lightDeviceSessionModalSrc.includes("import { validateModeCoupling } from './sun-spectrum.js';") &&
+    !lightDeviceSessionModalSrc.includes('getUtilsRuntimeFunction') &&
     lightDeviceSetupModalSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     lightDevicesSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     lightConditionsNowSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&

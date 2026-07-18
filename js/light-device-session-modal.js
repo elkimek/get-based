@@ -5,16 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
-import { getUtilsRuntimeFunction } from './utils-runtime.js';
-
-/**
- * @param {string} name
- * @param {any} [fallback]
- * @returns {any}
- */
-function _windowDep(name, fallback = null) {
-  return getUtilsRuntimeFunction(name) || fallback;
-}
+import { validateModeCoupling } from './sun-spectrum.js';
 
 /**
  * @param {Record<string, any>} [deps]
@@ -23,10 +14,10 @@ function _windowDep(name, fallback = null) {
 function _resolveSessionDialogDeps(deps = {}) {
   return {
     ...deps,
-    validateModeCoupling: deps.validateModeCoupling || _windowDep('validateModeCoupling', () => ({ ok: true })),
+    validateModeCoupling: deps.validateModeCoupling || validateModeCoupling,
     renderBodySilhouette: deps.renderBodySilhouette || renderBodySilhouette,
     bindBodySilhouette: deps.bindBodySilhouette || bindBodySilhouette,
-    navigate: deps.navigate || _windowDep('navigate'),
+    navigate: deps.navigate || null,
   };
 }
 

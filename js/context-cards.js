@@ -439,7 +439,11 @@ export function saveAndRefresh(msg, field) {
   loadContextHealthDots();
 }
 
-configureMedicalHistoryEditor({ recordChange, saveAndRefresh });
+configureMedicalHistoryEditor({
+  close: closeContextCardModal,
+  recordChange,
+  saveAndRefresh,
+});
 configureLifestyleContextEditors({ recordChange, saveAndRefresh });
 
 // ── Card tips badges (async — waits for catalog) ──

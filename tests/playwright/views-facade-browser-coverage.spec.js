@@ -18,11 +18,10 @@ test('views facade browser coverage exercises genome lens picker filters and qui
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ viewsUrl }) => {
-    const [views, stateModule, profileModule, runtimeBridge] = await Promise.all([
+    const [views, stateModule, profileModule] = await Promise.all([
       import(viewsUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
-      import('/js/views-runtime-bridge.js'),
     ]);
     const { state } = stateModule;
     const profileId = `viewsFacadeCoverage${Date.now().toString(36)}`;
@@ -37,9 +36,8 @@ test('views facade browser coverage exercises genome lens picker filters and qui
       'loadFocusCard', 'renderLightTodayStrip', 'renderLightChannelsLive',
       '_openChannelOnLightPage', 'rememberModalTrigger', 'closeModal', 'navigate',
     ];
-    outcomes.viewRuntimeBridgeResolvesModuleActions = bridgedViewActions.every(name =>
-      runtimeBridge.getViewRuntimeFunction(name) === views[name]);
-    outcomes.bridgedViewActionsStayOffWindow = bridgedViewActions.every(name => !(name in window));
+    outcomes.viewFacadeExportsModuleActions = bridgedViewActions.every(name => typeof views[name] === 'function');
+    outcomes.viewActionsStayOffWindow = bridgedViewActions.every(name => !(name in window));
     const waitForToastText = async expectedTexts => {
       for (let i = 0; i < 20; i++) {
         const text = document.getElementById('notification-container')?.textContent || '';

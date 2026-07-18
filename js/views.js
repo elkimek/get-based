@@ -11,7 +11,6 @@ import {
 } from './nav.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
-import { configureViewRuntime } from './views-runtime-bridge.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
 import { createDashboardViewComposition } from './dashboard-view-composition.js';
 import { createLensPageHandlers } from './lens-pages.js';
@@ -299,105 +298,4 @@ configureCompareCorrelationViews({
   renderTableColgroup,
   renderScrollableTableShell,
   renderCategoryGlyph,
-});
-
-// ═══════════════════════════════════════════════
-// WELCOME INTRO (profile setup on first visit)
-// ═══════════════════════════════════════════════
-
-
-// ═══════════════════════════════════════════════
-// CYCLE-SENSITIVE RUNTIME ACTIONS
-// ═══════════════════════════════════════════════
-
-configureViewRuntime({
-  buildSidebar,
-  closeMobileSidebar,
-  getInitialView,
-  navigate,
-  renderProfileButton,
-  renderProfileDropdown,
-  showDashboard,
-  showLabs,
-  showBiologyScoresLens,
-  showGenomeLens,
-  showBodyLens,
-  showInsightLens,
-  showRecommendations,
-  openRecommendationDetail,
-  discussRecommendation,
-  saveRecommendation,
-  dismissRecommendation,
-  showLight,
-  _expandLightToolsSection,
-  _toggleChannelDetail,
-  _openChannelOnLightPage,
-  _openAllSessionsModal,
-  renderLightTodayStrip,
-  renderLightChannelsLive,
-  renderConditionsNow,
-  _refreshConditionsNow,
-  _inspectConditionsNow,
-  _setManualUvi,
-  _clearManualUvi,
-  renderFocusCard,
-  buildFocusContext,
-  loadFocusCard,
-  refreshFocusCard,
-  renderOnboardingBanner,
-  renderAIConnectionReminder,
-  dismissAIReminder,
-  openChatProviderQuiz,
-  setOnboardingFocus,
-  completeOnboardingSex,
-  completeOnboardingProfile,
-  dismissOnboarding,
-  showCategory,
-  toggleMobileSidebar,
-  renameCategory,
-  renameMarker,
-  revertMarkerName,
-  changeCategoryIcon,
-  switchView,
-  renderChartCard,
-  renderTableView,
-  renderHeatmapView,
-  renderFattyAcidsView,
-  renderFattyAcidsCharts,
-  fetchCustomMarkerDescription,
-  showDetailModal,
-  editRefRange,
-  saveRefRange,
-  revertRefRange,
-  openManualEntryForm,
-  saveManualEntry,
-  saveAndAddAnotherManualEntry,
-  openCreateMarkerModal,
-  pickNewCatIcon,
-  saveCustomMarker,
-  deleteMarkerValue,
-  deleteCustomMarker,
-  editMarkerValue,
-  revertMarkerValue,
-  editValueNote,
-  deleteValueNote,
-  toggleMarkerNoteEditor,
-  saveMarkerNote,
-  deleteMarkerNote,
-  closeModal,
-  rememberModalTrigger,
-  showCompare,
-  setCompareDate1,
-  setCompareDate2,
-  updateCompare,
-  swapCompareDates,
-  renderCompareTable,
-  showCorrelations,
-  populateCorrelationOptions,
-  showCorrelationDropdown,
-  filterCorrelationOptions,
-  toggleCorrelationMarker,
-  applyCorrelationPreset,
-  renderCorrelationChips,
-  renderCorrelationChart,
 });

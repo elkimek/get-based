@@ -80,7 +80,6 @@
     '/js/client-list-runtime.js',
     '/js/nav-runtime.js',
     '/js/views-router-runtime.js',
-    '/js/views-runtime-bridge.js',
     '/js/focus-card.js',
     '/js/onboarding-view-runtime.js',
     '/js/onboarding-view.js',
@@ -737,7 +736,7 @@
     'hasCardContent','escapeAttr','loadScriptOnce'
   ];
 
-  // views.js is module-only; cycle-sensitive consumers use views-runtime-bridge.js.
+  // views.js is module-only; cycle-sensitive consumers use scoped runtime adapters.
   const viewsLegacyExports = [];
   const viewsFacadeModuleExports = [
     'getInitialView','navigate','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',

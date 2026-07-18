@@ -11,7 +11,7 @@ import {
   loadLuxCalibration,
   saveLuxCalibration,
 } from './light-tool-camera.js';
-import { getUtilsRuntimeFunction, getUtilsRuntimeValue } from './utils-runtime.js';
+import { getUtilsRuntimeValue } from './utils-runtime.js';
 
 /**
  * @template {Element} T
@@ -71,7 +71,7 @@ export function closeGlassTransmission() { closeCameraTool('close-glass'); }
 
 /** @param {{ saveMeasurement?: AnyFunction }} [deps] */
 function getSaveMeasurement(deps = {}) {
-  const fn = deps.saveMeasurement || getUtilsRuntimeFunction('saveMeasurement');
+  const fn = deps.saveMeasurement;
   if (typeof fn !== 'function') throw new Error('saveMeasurement dependency is required');
   return fn;
 }
