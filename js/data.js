@@ -593,6 +593,7 @@ export function getActiveData() {
     ratios.markers.plr.values = divide(getVals('hematology', 'platelets'), getVals('differential', 'lymphocytes'));
     ratios.markers.deRitisRatio.values = divide(getVals('biochemistry', 'ast'), getVals('biochemistry', 'alt'));
     ratios.markers.copperZincRatio.values = divide(getVals('electrolytes', 'copper'), getVals('electrolytes', 'zinc'));
+    ratios.markers.ft3ft4Ratio.values = divide(getVals('thyroid', 'ft3'), getVals('thyroid', 'ft4'));
 
     // BUN/Creatinine Ratio — computed in US units: (urea×2.801) / (creatinine×0.01131)
     const ureaVals = getVals('biochemistry', 'urea');

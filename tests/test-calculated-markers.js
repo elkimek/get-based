@@ -32,6 +32,7 @@ console.log('=== Calculated Markers Tests ===\n');
 // Bring in state.js and the module-only data API.
 const { state } = await import('../js/state.js');
 const dataModule = await import('../js/data.js');
+const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/schema.js');
 
   // Save originals
   const origEntries = state.importedData.entries;
@@ -563,7 +564,9 @@ const dataModule = await import('../js/data.js');
       'biochemistry.ast': 0.4,
       'biochemistry.alt': 0.5,
       'electrolytes.copper': 15,
-      'electrolytes.zinc': 18
+      'electrolytes.zinc': 18,
+      'thyroid.ft3': 4.5,
+      'thyroid.ft4': 15
     }
   }];
 
@@ -600,6 +603,29 @@ const dataModule = await import('../js/data.js');
   // Cu/Zn = 15/18 = 0.833
   assert('Cu/Zn ratio is 0.833', cr?.copperZincRatio?.values?.[0] === 0.833,
     `expected 0.833, got ${cr?.copperZincRatio?.values?.[0]}`);
+
+  // Free T3/Free T4 = 4.5/15 = 0.3 (both stored in SI pmol/L)
+  assert('FT3/FT4 ratio is 0.3', cr?.ft3ft4Ratio?.values?.[0] === 0.3,
+    `expected 0.3, got ${cr?.ft3ft4Ratio?.values?.[0]}`);
+  assert('FT3/FT4 ratio has reference and optimal ranges',
+    MARKER_SCHEMA.calculatedRatios.markers.ft3ft4Ratio.refMin === 0.262
+      && MARKER_SCHEMA.calculatedRatios.markers.ft3ft4Ratio.refMax === 0.346
+      && OPTIMAL_RANGES['calculatedRatios.ft3ft4Ratio']?.optimalMin === 0.286
+      && OPTIMAL_RANGES['calculatedRatios.ft3ft4Ratio']?.optimalMax === 0.322);
+  assert('FT3/FT4 ratio converts to the conventional US ratio',
+    UNIT_CONVERSIONS['calculatedRatios.ft3ft4Ratio']?.factor === 8.3833);
+  state.unitSystem = 'US';
+  dataModule.invalidateActiveDataCache();
+  const usFt3Ft4 = dataModule.getActiveData().categories.calculatedRatios?.markers?.ft3ft4Ratio;
+  assert('FT3/FT4 US value and ranges are converted consistently',
+    usFt3Ft4?.values?.[0] === 2.515
+      && usFt3Ft4.refMin === 2.196
+      && usFt3Ft4.refMax === 2.901
+      && usFt3Ft4.optimalMin === 2.398
+      && usFt3Ft4.optimalMax === 2.699,
+    JSON.stringify(usFt3Ft4));
+  state.unitSystem = 'EU';
+  dataModule.invalidateActiveDataCache();
 
   // ── Division by zero → null ──
   state.importedData.entries = [{
