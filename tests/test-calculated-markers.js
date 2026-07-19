@@ -563,7 +563,9 @@ const dataModule = await import('../js/data.js');
       'biochemistry.ast': 0.4,
       'biochemistry.alt': 0.5,
       'electrolytes.copper': 15,
-      'electrolytes.zinc': 18
+      'electrolytes.zinc': 18,
+      'thyroid.ft3': 4.5,
+      'thyroid.ft4': 15
     }
   }];
 
@@ -600,6 +602,10 @@ const dataModule = await import('../js/data.js');
   // Cu/Zn = 15/18 = 0.833
   assert('Cu/Zn ratio is 0.833', cr?.copperZincRatio?.values?.[0] === 0.833,
     `expected 0.833, got ${cr?.copperZincRatio?.values?.[0]}`);
+
+  // Free T3/Free T4 = 4.5/15 = 0.3 (both stored in SI pmol/L)
+  assert('FT3/FT4 ratio is 0.3', cr?.ft3ft4Ratio?.values?.[0] === 0.3,
+    `expected 0.3, got ${cr?.ft3ft4Ratio?.values?.[0]}`);
 
   // ── Division by zero → null ──
   state.importedData.entries = [{

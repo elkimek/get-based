@@ -575,6 +575,7 @@ export function showDetailModal(id, opts = {}) {
     'calculatedRatios_plr': [['hematology', 'platelets', 'Platelets'], ['differential', 'lymphocytes', 'Lymphocytes']],
     'calculatedRatios_deRitisRatio': [['biochemistry', 'ast', 'AST'], ['biochemistry', 'alt', 'ALT']],
     'calculatedRatios_copperZincRatio': [['electrolytes', 'copper', 'Copper'], ['electrolytes', 'zinc', 'Zinc']],
+    'calculatedRatios_ft3ft4Ratio': [['thyroid', 'ft3', 'Free T3'], ['thyroid', 'ft4', 'Free T4']],
     'calculatedRatios_apoBapoAIRatio': [['lipids', 'apoB', 'ApoB'], ['lipids', 'apoAI', 'ApoA-I']],
     'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'hs-CRP'], ['lipids', 'hdl', 'HDL']],
   };

@@ -240,6 +240,7 @@ export const MARKER_SCHEMA = {
       plr: { name: "Platelet-Lymphocyte Ratio (PLR)", unit: "", refMin: 50, refMax: 150, desc: "Reflects the balance between thrombotic and immune responses; elevated in inflammation, cardiovascular disease, and cancer." },
       deRitisRatio: { name: "De Ritis Ratio (AST/ALT)", unit: "", refMin: 0.8, refMax: 1.2, desc: "AST divided by ALT; helps distinguish liver damage types \u2014 values above 2 suggest alcoholic liver disease or cirrhosis." },
       copperZincRatio: { name: "Copper/Zinc Ratio", unit: "", refMin: 0.7, refMax: 1.0, desc: "Balance between copper and zinc; elevated ratios indicate oxidative stress, inflammation, or immune dysfunction." },
+      ft3ft4Ratio: { name: "Free T3/Free T4 Ratio", unit: "", refMin: 0.262, refMax: 0.346, desc: "Free T3 divided by free T4; used to evaluate how efficiently the body converts thyroid hormones (T4\u2192T3) and to differentiate between specific thyroid disorders. A low ratio suggests impaired conversion or low-T3 syndrome; a high ratio may indicate hyperthyroidism or Graves' disease." },
       bunCreatRatio: { name: "BUN/Creatinine Ratio", unit: "", refMin: 10, refMax: 20, desc: "Blood urea nitrogen divided by creatinine; helps differentiate pre-renal, renal, and post-renal causes of kidney dysfunction." },
       freeWaterDeficit: { name: "Free Water Deficit", unit: "L", refMin: -1.5, refMax: 1.5, desc: "Estimated water surplus or deficit based on sodium level; positive values indicate dehydration, negative values overhydration." },
       crpHdlRatio: { name: "hs-CRP/HDL Ratio", unit: "", refMin: 0, refMax: 0.94, desc: "High-sensitivity CRP divided by HDL cholesterol; a composite inflammation-lipid marker that captures cardiovascular risk better than either marker alone. Requires hs-CRP specifically." },
@@ -329,6 +330,7 @@ export const UNIT_CONVERSIONS = {
   'thyroid.t3total': { factor: 0.6513, usUnit: 'ng/dl', type: 'multiply' },
   'diabetes.hba1c': { type: 'hba1c' },
   'calculatedRatios.tgHdlRatio': { factor: 2.29, usUnit: '', type: 'multiply' },
+  'calculatedRatios.ft3ft4Ratio': { factor: 8.3833, usUnit: '', type: 'multiply' },
   'bodyComposition.leanMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' },
   'bodyComposition.fatMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' },
   // ── Label-only US conventions (factor: 1) ─────────────────────────────────
@@ -707,4 +709,5 @@ export const OPTIMAL_RANGES = {
   'calculatedRatios.deRitisRatio': { optimalMin: 0.8, optimalMax: 1.1 },
   'calculatedRatios.bunCreatRatio': { optimalMin: 10, optimalMax: 16 },
   'calculatedRatios.crpHdlRatio': { optimalMin: 0, optimalMax: 0.24 },
+  'calculatedRatios.ft3ft4Ratio': { optimalMin: 0.286, optimalMax: 0.322 },
 };
