@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.318', date: '2026-07-20', title: 'Clearer marker measurements',
+    items: [
+      '<b>Marker values are easier to read at a glance.</b> Units now sit beside the latest result and its reference or optimal range, while the measurement date stays clearly separated below.',
+    ]
+  },
+  {
     version: '1.10.317', date: '2026-07-20', title: 'More reliable offline use',
     items: [
       '<b>The installed app now opens reliably without a connection.</b> Required app files and fonts are kept together for offline use, and interrupted installations resume safely.',

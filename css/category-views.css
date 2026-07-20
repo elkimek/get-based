@@ -210,9 +210,16 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.chart-card-latest-measurement {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 2px;
+}
 .chart-card-latest-value {
   display: block;
-  margin-top: 2px;
+  min-width: 0;
   font-family: var(--font-display);
   font-size: 24px;
   line-height: 1;
@@ -221,6 +228,15 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.chart-card-latest-unit {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }
 .chart-card-latest-value.val-normal { color: var(--green); }
 .chart-card-latest-value.val-high { color: var(--red); }
@@ -290,6 +306,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.chart-card-range-unit {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
 }
 .chart-value-num {
   font-family: var(--font-mono);

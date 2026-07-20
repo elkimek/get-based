@@ -154,9 +154,12 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   const latestDisplay = latestVal !== null ? formatValue(latestVal) : '—';
   const latestUnit = marker.unit || '';
   const latestMeta = latestVal !== null
-    ? `${latestDateLabel}${latestUnit ? ' · ' + latestUnit : ''}`
+    ? latestDateLabel
     : 'Add a value to start the trend';
-  const rangeAria = rangeRows.map(row => `${row.label} ${row.value}`).join('; ');
+  const rangeAria = rangeRows.map((row) => {
+    const unit = row.value !== 'Not set' && latestUnit ? ` ${latestUnit}` : '';
+    return `${row.label} ${row.value}${unit}`;
+  }).join('; ');
   const cardLabel = latestVal !== null
     ? `${markerName}. ${statusLabel}. Latest ${latestDisplay}${latestUnit ? ` ${latestUnit}` : ''}, ${latestDateLabel}. ${rangeAria}.${trendBadge ? ` ${trend.label}.` : ''}`
     : `${markerName}. No values. ${rangeAria}.`;
@@ -176,11 +179,19 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
     <div class="chart-card-snapshot">
       <div>
         <span class="chart-card-snapshot-label">Latest</span>
-        <strong class="chart-card-latest-value val-${status}">${escapeHTML(latestDisplay)}</strong>
+        <span class="chart-card-latest-measurement">
+          <strong class="chart-card-latest-value val-${status}">${escapeHTML(latestDisplay)}</strong>
+          ${latestVal !== null && latestUnit ? `<span class="chart-card-latest-unit">${escapeHTML(latestUnit)}</span>` : ''}
+        </span>
         <span class="chart-card-snapshot-meta">${escapeHTML(latestMeta)}</span>
       </div>
       <div class="chart-card-snapshot-side" aria-label="${escapeAttr(rangeAria)}">
-        ${rangeRows.map(row => `<div class="chart-card-range-row"><span>${escapeHTML(row.label)}</span><strong>${escapeHTML(row.value)}</strong></div>`).join('')}
+        ${rangeRows.map((row) => {
+          const unit = row.value !== 'Not set' && latestUnit
+            ? `<span class="chart-card-range-unit"> ${escapeHTML(latestUnit)}</span>`
+            : '';
+          return `<div class="chart-card-range-row"><span>${escapeHTML(row.label)}</span><strong>${escapeHTML(row.value)}${unit}</strong></div>`;
+        }).join('')}
       </div>
     </div>
     <div class="chart-container"><canvas id="chart-${id}" aria-hidden="true"></canvas></div>
