@@ -82,7 +82,7 @@ function validEnvelope(overrides = {}) {
   };
 }
 
-function installBlobStoreMock({ conflictRateLimit = false } = {}) {
+function installBlobStoreMock({ conflictRateLimit = false, failDelete = false } = {}) {
   const store = new Map();
   const apiCalls = [];
   const directCalls = [];
@@ -95,6 +95,9 @@ function installBlobStoreMock({ conflictRateLimit = false } = {}) {
       apiCalls.push({ href, method, init });
 
       if (parsed.pathname.endsWith('/delete')) {
+        if (failDelete) {
+          return jsonResponse({ error: { code: 'upstream_error', message: 'blob delete unavailable' } }, { status: 503 });
+        }
         const { urls = [] } = JSON.parse(String(init.body || '{}'));
         for (const item of urls) {
           const path = String(item || '').replace(/^https:\/\/[^/]+\//, '');
@@ -284,6 +287,151 @@ describe('profile share API runtime behavior', () => {
       retryAfterSeconds: expect.any(Number),
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(20);
+  });
+
+  it('dynamically enforces every encrypted-envelope boundary before storing a share', async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
+    const { store } = installBlobStoreMock();
+    const id = 'shareBoundaryId012345678';
+    const manageTokenHash = 'a'.repeat(64);
+    const cases = [
+      {
+        label: 'invalid JSON',
+        request: () => makeShareRequest('POST', undefined, { rawBody: '{' }),
+        error: 'Invalid JSON body.',
+      },
+      {
+        label: 'missing envelope',
+        request: () => makeShareRequest('POST', { id, manageTokenHash, envelope: null }),
+        error: 'Missing encrypted profile payload.',
+      },
+      {
+        label: 'unsupported schema',
+        request: () => makeShareRequest('POST', {
+          id, manageTokenHash, envelope: validEnvelope({ schema: 'other' }),
+        }),
+        error: 'Unsupported encrypted profile payload.',
+      },
+      {
+        label: 'expired envelope',
+        request: () => makeShareRequest('POST', {
+          id,
+          manageTokenHash,
+          envelope: validEnvelope({ expiresAt: '2000-01-01T00:00:00.000Z' }),
+        }),
+        error: 'Share expiry must be in the future.',
+      },
+      {
+        label: 'excessive lifetime',
+        request: () => makeShareRequest('POST', {
+          id,
+          manageTokenHash,
+          envelope: validEnvelope({ expiresAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString() }),
+        }),
+        error: 'Share expiry cannot exceed 30 days.',
+      },
+      {
+        label: 'unsupported key derivation',
+        request: () => makeShareRequest('POST', {
+          id,
+          manageTokenHash,
+          envelope: validEnvelope({ kdf: { name: 'scrypt', hash: 'SHA-256', iterations: 100_000 } }),
+        }),
+        error: 'Unsupported key derivation.',
+      },
+      {
+        label: 'unsupported cipher',
+        request: () => makeShareRequest('POST', {
+          id,
+          manageTokenHash,
+          envelope: validEnvelope({ cipher: { name: 'AES-CBC', iv: 'profile-share-iv' } }),
+        }),
+        error: 'Unsupported cipher.',
+      },
+      {
+        label: 'empty ciphertext',
+        request: () => makeShareRequest('POST', {
+          id, manageTokenHash, envelope: validEnvelope({ ciphertext: '' }),
+        }),
+        error: 'Encrypted profile payload is empty.',
+      },
+      {
+        label: 'oversized ciphertext',
+        request: () => makeShareRequest('POST', {
+          id, manageTokenHash, envelope: validEnvelope({ ciphertext: 'a'.repeat(3_750_000) }),
+        }),
+        error: 'Encrypted profile payload is too large for link sharing.',
+      },
+    ];
+
+    for (const testCase of cases) {
+      const response = await shareHandler(testCase.request());
+      expect(response.status, testCase.label).toBe(400);
+      expect(await responseJson(response), testCase.label).toEqual({ error: testCase.error });
+    }
+    expect(Array.from(store.keys()).filter(path => path.startsWith('profile-shares/v1/'))).toEqual([]);
+  });
+
+  it('handles missing, expired, corrupt, duplicate, and unsupported-method records', async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
+    const { store } = installBlobStoreMock();
+    const id = 'shareRecordEdge0123456789';
+    const path = `profile-shares/v1/${id}.json`;
+    const manageTokenHash = 'b'.repeat(64);
+
+    const missingGet = await shareHandler(makeShareRequest('GET', undefined, { id }));
+    expect(missingGet.status).toBe(404);
+    expect(await responseJson(missingGet)).toEqual({ error: 'Shared profile not found.' });
+
+    const missingDelete = await shareHandler(makeShareRequest('DELETE', {}, { id }));
+    expect(missingDelete.status).toBe(200);
+    expect(await responseJson(missingDelete)).toEqual({ ok: true, missing: true });
+
+    store.set(path, '{invalid-record');
+    const corrupt = await shareHandler(makeShareRequest('GET', undefined, { id }));
+    expect(corrupt.status).toBe(500);
+
+    store.set(path, JSON.stringify({
+      id,
+      expiresAt: '2000-01-01T00:00:00.000Z',
+      manageTokenHash,
+      envelope: validEnvelope(),
+    }));
+    const expired = await shareHandler(makeShareRequest('GET', undefined, { id }));
+    expect(expired.status).toBe(410);
+    expect(await responseJson(expired)).toEqual({ error: 'Shared profile link has expired.' });
+    await vi.waitFor(() => expect(store.has(path)).toBe(false));
+
+    const createBody = { id, manageTokenHash, envelope: validEnvelope() };
+    const created = await shareHandler(makeShareRequest('POST', createBody));
+    expect(created.status).toBe(201);
+    const duplicate = await shareHandler(makeShareRequest('POST', createBody));
+    expect(duplicate.status).toBe(409);
+
+    const unsupported = await shareHandler(makeShareRequest('PATCH', undefined, { id }));
+    expect(unsupported.status).toBe(405);
+    expect(await responseJson(unsupported)).toEqual({ error: 'Method not allowed.' });
+  });
+
+  it('returns a JSON error and keeps the share record when Blob deletion fails', async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
+    const { store } = installBlobStoreMock({ failDelete: true });
+    const id = 'shareDeleteFailure01234567';
+    const manageToken = 'delete-failure-token';
+    const manageTokenHash = await sha256Hex(manageToken);
+    const path = `profile-shares/v1/${id}.json`;
+    store.set(path, JSON.stringify({
+      id,
+      expiresAt: validEnvelope().expiresAt,
+      manageTokenHash,
+      envelope: validEnvelope(),
+    }));
+
+    const response = await shareHandler(makeShareRequest('DELETE', { manageToken }, { id }));
+
+    expect(response.status).toBe(500);
+    expect(await responseJson(response)).toEqual({ error: 'blob delete unavailable' });
+    expect(store.has(path)).toBe(true);
   });
 });
 

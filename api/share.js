@@ -412,7 +412,11 @@ async function handleDelete(req) {
       return jsonResponse(req, 403, { error: 'This link can only be stopped from the browser that created it.' });
     }
   }
-  await del(path, options);
+  try {
+    await del(path, options);
+  } catch (err) {
+    return jsonResponse(req, 500, { error: err?.message || 'Could not stop sharing link.' });
+  }
   return jsonResponse(req, 200, { ok: true });
 }
 

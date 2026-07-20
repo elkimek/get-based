@@ -29,6 +29,9 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     const previousShellFeedbackDeps = shellActions.configureShellFeedbackDeps({
       openFeedbackModal: () => calls.push(['openFeedbackModal']),
     });
+    const previousShellProfileShareDeps = shellActions.configureShellProfileShareDeps({
+      openProfileShareModal: (...args) => calls.push(['openProfileShareModal', ...args]),
+    });
     const previousShellChatImageDeps = shellActions.configureShellChatImageDeps({
       toggleHDMode: () => calls.push(['toggleHDMode']),
     });
@@ -54,16 +57,10 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       toggleMobileSidebar: () => calls.push(['toggleMobileSidebar']),
       closeMobileSidebar: () => calls.push(['closeMobileSidebar']),
     });
-    const originalFns = {
-      openProfileShareModal: window.openProfileShareModal,
-    };
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       openTweaksPanel: (...args) => calls.push(['openTweaksPanel', ...args]),
       openSettingsModal: (...args) => calls.push(['openSettingsModal', ...args]),
     });
-    const bind = (name) => {
-      window[name] = (...args) => calls.push([name, ...args]);
-    };
     const click = (selector) => {
       const event = new MouseEvent('click', { bubbles: true, cancelable: true });
       const result = document.querySelector(selector)?.dispatchEvent(event);
@@ -102,7 +99,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         <input id="websearch" type="checkbox" data-chat-change-action="set-websearch">
         <textarea id="message-input" data-chat-key-action="message-input"></textarea>
       `;
-      for (const name of Object.keys(originalFns)) bind(name);
       document.getElementById('pdf-input').addEventListener('click', () => calls.push(['pdf-input-click']));
       document.getElementById('chat-image-input').addEventListener('click', () => calls.push(['chat-image-input-click']));
 
@@ -206,14 +202,11 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       shellActions.configureShellNavDeps(previousShellNavDeps);
       shellActions.configureShellImportDeps(previousShellImportDeps);
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
+      shellActions.configureShellProfileShareDeps(previousShellProfileShareDeps);
       shellActions.configureShellChatActionDeps(previousShellChatActionDeps);
       shellActions.configureShellChatImageDeps(previousShellChatImageDeps);
       shellActions.configureShellChatThreadDeps(previousShellChatThreadDeps);
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
-      for (const [name, value] of Object.entries(originalFns)) {
-        if (value === undefined) delete window[name];
-        else window[name] = value;
-      }
       document.body.innerHTML = '';
     }
 
