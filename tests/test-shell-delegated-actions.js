@@ -73,6 +73,11 @@ assert('Feedback shell action uses its module dependency instead of a window loo
     && shellSrc.includes('shellFeedbackDeps.openFeedbackModal()')
     && !shellSrc.includes("callShellRuntime('openFeedbackModal')"));
 
+assert('Share Profile shell action uses its wired module dependency instead of a window lookup',
+  shellSrc.includes('shellProfileShareDeps.openProfileShareModal()')
+    && !shellSrc.includes("callShellRuntime('openProfileShareModal')")
+    && appShellHooksSrc.includes('configureShellProfileShareDeps({ openProfileShareModal });'));
+
 assert('Chat HD shell action uses its module dependency instead of a window lookup',
   shellSrc.includes('shellChatImageDeps.toggleHDMode()')
     && !shellSrc.includes("callShellRuntime('toggleHDMode')"));

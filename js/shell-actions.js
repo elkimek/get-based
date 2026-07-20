@@ -8,6 +8,9 @@ import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
 const shellFeedbackDeps = { openFeedbackModal };
+const shellProfileShareDeps = {
+  openProfileShareModal: (_profileId) => {},
+};
 const shellNavDeps = {
   closeMobileSidebar: () => {},
   toggleMobileSidebar: () => {},
@@ -42,6 +45,14 @@ export function configureShellImportDeps(deps = {}) {
 export function configureShellFeedbackDeps(deps = {}) {
   const previous = { ...shellFeedbackDeps };
   if (typeof deps.openFeedbackModal === 'function') shellFeedbackDeps.openFeedbackModal = deps.openFeedbackModal;
+  return previous;
+}
+
+export function configureShellProfileShareDeps(deps = {}) {
+  const previous = { ...shellProfileShareDeps };
+  if (typeof deps.openProfileShareModal === 'function') {
+    shellProfileShareDeps.openProfileShareModal = deps.openProfileShareModal;
+  }
   return previous;
 }
 
@@ -113,7 +124,7 @@ function runShellAction(action) {
     clickFileInput('pdf-input');
     return true;
   } else if (action === 'share-profile') {
-    callShellRuntime('openProfileShareModal');
+    shellProfileShareDeps.openProfileShareModal();
     return true;
   } else if (action === 'open-tweaks') {
     callShellRuntime('openTweaksPanel');

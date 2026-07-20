@@ -240,7 +240,12 @@ export async function decryptProfileShareEnvelope(envelope, secret) {
   const iterations = Number(kdf.iterations);
   if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error('Invalid shared profile encryption settings.');
   const key = await deriveShareKey(shareSecret, salt, iterations);
-  const plaintextBytes = new Uint8Array(await getCrypto().subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext));
+  let plaintextBytes;
+  try {
+    plaintextBytes = new Uint8Array(await getCrypto().subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext));
+  } catch {
+    throw new Error('Could not decrypt shared profile.');
+  }
   const jsonText = await decompressJsonBytes(plaintextBytes, envelope.compression);
   return validateClientExportObject(JSON.parse(jsonText));
 }
@@ -283,12 +288,17 @@ async function deleteProfileShareEnvelope(id, manageToken = '') {
 function readShareRecords() {
   if (typeof localStorage === 'undefined') return [];
   let parsed = [];
+  let shouldRewrite = false;
   try {
     parsed = JSON.parse(localStorage.getItem(SHARE_RECORDS_KEY) || '[]');
   } catch {
     parsed = [];
+    shouldRewrite = true;
   }
-  if (!Array.isArray(parsed)) parsed = [];
+  if (!Array.isArray(parsed)) {
+    parsed = [];
+    shouldRewrite = true;
+  }
   const now = Date.now();
   const records = parsed
     .filter(record => record && typeof record === 'object')
@@ -301,8 +311,9 @@ function readShareRecords() {
       manageToken: String(record.manageToken || ''),
       createdAt: String(record.createdAt || ''),
       expiresAt: String(record.expiresAt || ''),
-    }));
-  if (records.length !== parsed.length) writeShareRecords(records);
+    }))
+    .slice(0, 50);
+  if (shouldRewrite || records.length !== parsed.length) writeShareRecords(records);
   return records;
 }
 

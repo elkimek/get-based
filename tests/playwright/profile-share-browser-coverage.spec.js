@@ -4,6 +4,70 @@ function moduleUrl(path) {
   return `${path}?profileShareCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+test('Share Profile entry points open the sharing modal', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-onboarded', 'dismissed');
+  });
+  await page.goto('/app', { waitUntil: 'networkidle' });
+
+  await page.evaluate(async () => {
+    const [{ closeChatPanel }, { endTour }] = await Promise.all([
+      import('/js/chat-panel.js'),
+      import('/js/tour.js'),
+    ]);
+    endTour({ openEmptyChat: false });
+    closeChatPanel();
+  });
+  await expect(page.locator('#tour-overlay')).toHaveCount(0);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/\bopen\b/);
+  await page.locator('[data-shell-action="share-profile"]').click();
+
+  await expect(page.locator('#profile-share-overlay')).toBeVisible();
+  await expect(page.locator('#profile-share-overlay [role="dialog"]')).toHaveAttribute('aria-label', 'Share Profile');
+  await expect(page.locator('#profile-share-overlay [data-profile-share-action="close"]').first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#profile-share-overlay')).toHaveCount(0);
+  await expect(page.locator('[data-shell-action="share-profile"]')).toBeFocused();
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData = {
+      ...state.importedData,
+      entries: [{ date: '2026-07-20', markers: { metabolic: { glucose: 5.1 } } }],
+    };
+    const { openSettingsModal } = await import('/js/settings.js');
+    openSettingsModal('data');
+  });
+  await expect(page.locator('#settings-modal-overlay')).toBeVisible();
+  await page.locator('[data-settings-action="share-profile"]').click();
+  await expect(page.locator('#profile-share-overlay')).toBeVisible();
+  await page.locator('#profile-share-overlay [data-profile-share-action="close"]').first().click();
+  await expect(page.locator('#profile-share-overlay')).toHaveCount(0);
+
+  const profile = await page.evaluate(async () => {
+    const [{ state }, { closeSettingsModal }, { openClientList }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/settings.js'),
+      import('/js/client-list.js'),
+    ]);
+    closeSettingsModal();
+    openClientList();
+    return {
+      id: state.currentProfile,
+      name: state.profiles.find(item => item.id === state.currentProfile)?.name || 'Active profile',
+    };
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#client-list-overlay')).toBeVisible();
+  await page.locator(`[data-cl-action="toggle-menu"][data-cl-profile-id="${profile.id}"]`).click();
+  await page.locator(`[data-cl-action="share-profile"][data-cl-profile-id="${profile.id}"]`).click();
+  await expect(page.locator('#client-list-overlay')).toBeHidden();
+  await expect(page.locator('#profile-share-overlay')).toBeVisible();
+  await expect(page.locator('.profile-share-intro-title')).toContainText(profile.name);
+});
+
 test('profile share modal creates copies and manages active encrypted links', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 

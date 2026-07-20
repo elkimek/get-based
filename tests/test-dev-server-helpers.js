@@ -541,6 +541,12 @@ assertThrows('profile envelope rejects missing payload',
 assertThrows('profile envelope rejects expired links',
   () => _validateProfileShareEnvelope(validProfileEnvelope({ expiresAt: new Date(Date.now() - 1000).toISOString() })),
   /future/);
+assertThrows('profile envelope rejects expiry beyond 30 days',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ expiresAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString() })),
+  /cannot exceed 30 days/);
+assertThrows('profile envelope rejects unsupported key derivation',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ kdf: { name: 'scrypt', hash: 'SHA-256', iterations: 100_000 } })),
+  /Unsupported key derivation/);
 assertThrows('profile envelope rejects weak KDF iterations',
   () => _validateProfileShareEnvelope(validProfileEnvelope({ kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: 99_999 } })),
   /PBKDF2 iterations/);
@@ -550,6 +556,9 @@ assertThrows('profile envelope rejects unsupported cipher',
 assertThrows('profile envelope rejects empty ciphertext',
   () => _validateProfileShareEnvelope(validProfileEnvelope({ ciphertext: '' })),
   /empty/);
+assertThrows('profile envelope rejects oversized ciphertext',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ ciphertext: 'x'.repeat(3_750_000) })),
+  /too large/);
 
 function invokeProfileShareDev(method, search = '', body, headers = {}) {
   return new Promise(resolve => {
@@ -595,6 +604,20 @@ function jsonBody(out) {
   const out = await invokeProfileShareDev('POST', '', 'not json');
   assert('profile share dev POST rejects invalid JSON',
     out.status === 400 && jsonBody(out).error === 'Invalid JSON body.',
+    JSON.stringify(out));
+}
+
+{
+  const out = await invokeProfileShareDev('POST', '', 'x'.repeat(3_750_000 + 8193));
+  assert('profile share dev POST rejects oversized request bodies before parsing',
+    out.status === 413 && /too large/.test(jsonBody(out).error || ''),
+    JSON.stringify({ status: out.status, body: out.body }));
+}
+
+{
+  const out = await invokeProfileShareDev('PATCH');
+  assert('profile share dev rejects unsupported methods',
+    out.status === 405 && /Method not allowed/.test(jsonBody(out).error || ''),
     JSON.stringify(out));
 }
 

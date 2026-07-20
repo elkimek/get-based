@@ -127,6 +127,7 @@ import {
   configureShellChatImageDeps,
   configureShellChatThreadDeps,
   configureShellNavDeps,
+  configureShellProfileShareDeps,
 } from './shell-actions.js';
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPull } from './sync-pull.js';
@@ -257,6 +258,7 @@ configureShellChatActionDeps({
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });
+configureShellProfileShareDeps({ openProfileShareModal });
 configureStartupUIDeps({
   getInitialView,
   initChatImageHandlers,
