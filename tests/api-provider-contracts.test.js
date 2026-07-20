@@ -419,7 +419,6 @@ describe('AI provider request contracts', () => {
     setAIProvider('ollama');
     rememberLocalAiRuntimeUse({
       baseUrl: 'http://localhost:1234',
-      apiKey: 'lm-runtime-key',
       providerId: 'lmstudio',
       model: 'lm-model',
     });
@@ -485,6 +484,7 @@ describe('AI provider request contracts', () => {
       providerId: 'ollama',
       model: 'ollama-model',
     });
+    expect(sessionStorage.getItem('labcharts-local-ai-runtime-use')).not.toContain('apiKey');
   });
 
   it.each(providerContracts)('routes $name through its expected chat-completion contract', async (contract) => {

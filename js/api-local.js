@@ -85,7 +85,7 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
       nativeContextOverride: false,
     });
   } finally {
-    rememberLocalAiRuntimeUse({ baseUrl: config.url, apiKey: config.apiKey, providerId: 'ollama', model });
+    rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: 'ollama', model });
   }
 }
 
@@ -132,7 +132,7 @@ export async function callOpenAICompatibleLocalAPI(opts) {
         nativeContextOverride: nativeRequest.nativeContextOverride,
       });
     } finally {
-      rememberLocalAiRuntimeUse({ baseUrl: config.url, apiKey: config.apiKey, providerId: runtimeProviderId, model });
+      rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: runtimeProviderId, model });
     }
     publishLoadedModel(config, model, nativeRequest.contextLength > 0
       ? { contextLength: nativeRequest.contextLength }
@@ -151,7 +151,7 @@ export async function callOpenAICompatibleLocalAPI(opts) {
   try {
     result = await compatibleAdapter.infer({ config, model, opts, plan, modelDetail });
   } finally {
-    rememberLocalAiRuntimeUse({ baseUrl: config.url, apiKey: config.apiKey, providerId: runtimeProviderId, model });
+    rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: runtimeProviderId, model });
   }
   publishLoadedModel(config, model);
   return {

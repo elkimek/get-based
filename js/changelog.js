@@ -11,7 +11,7 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.315', date: '2026-07-20', title: 'Better Local AI and model comparisons',
+    version: '1.10.316', date: '2026-07-20', title: 'Better Local AI and model comparisons',
     items: [
       '<b>Local AI setup is clearer and more reliable.</b> getbased now works more smoothly with LM Studio, Ollama, and other compatible servers, with better connection details, model guidance, and memory handling.',
       '<b>You can compare AI models on the same lab report.</b> Use the built-in 68-result benchmark or your own imports to compare accuracy and speed across local models, hosted models, and cloud providers.',

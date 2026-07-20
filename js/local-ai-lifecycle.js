@@ -2,11 +2,11 @@
 // Provider-neutral lifecycle orchestration for loaded Local AI models.
 
 import { clearLocalAiDiscovery, discoverLocalAI } from './local-ai-discovery.js';
+import { getOllamaConfig } from './api-provider-storage.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { isCloudModel, normalizeLocalAiBaseUrl } from './local-ai-provider-shared.js';
 
 const LOCAL_AI_RUNTIME_USE_KEY = 'labcharts-local-ai-runtime-use';
-let runtimeCredential = null;
 /** @type {Promise<any>} */
 let handoffQueue = Promise.resolve();
 
@@ -41,35 +41,30 @@ export function getLocalAiReleasePlan(discovery, { modelName = '' } = {}) {
 function readLocalAiRuntimeUse() {
   try {
     const raw = sessionStorage.getItem(LOCAL_AI_RUNTIME_USE_KEY);
-    if (!raw) {
-      runtimeCredential = null;
-      return null;
-    }
+    if (!raw) return null;
     const stored = JSON.parse(raw);
     if (!stored?.baseUrl || !stored?.model || !stored?.providerId) return null;
-    const apiKey = runtimeCredential?.baseUrl === stored.baseUrl ? runtimeCredential.apiKey : '';
+    const config = getOllamaConfig();
+    const apiKey = normalizeLocalAiBaseUrl(config.url) === stored.baseUrl ? config.apiKey : '';
     return { ...stored, apiKey };
   } catch {
-    runtimeCredential = null;
     return null;
   }
 }
 
-export function rememberLocalAiRuntimeUse({ baseUrl, apiKey = '', providerId, model }) {
+export function rememberLocalAiRuntimeUse({ baseUrl, providerId, model }) {
   const runtimeUse = {
     baseUrl: normalizeLocalAiBaseUrl(baseUrl),
     providerId: String(providerId || 'openai-compatible'),
     model: String(model || ''),
   };
   if (!runtimeUse.baseUrl || !runtimeUse.model) return;
-  runtimeCredential = { baseUrl: runtimeUse.baseUrl, apiKey };
   try { sessionStorage.setItem(LOCAL_AI_RUNTIME_USE_KEY, JSON.stringify(runtimeUse)); } catch {}
 }
 
 export function clearLocalAiRuntimeUse(baseUrl = '') {
   const runtimeUse = readLocalAiRuntimeUse();
   if (baseUrl && runtimeUse?.baseUrl !== normalizeLocalAiBaseUrl(baseUrl)) return;
-  runtimeCredential = null;
   try { sessionStorage.removeItem(LOCAL_AI_RUNTIME_USE_KEY); } catch {}
 }
 
