@@ -86,14 +86,20 @@ describe('import file input runtime routing', () => {
   });
 
   it('notifies and clears selection when the lazy import module fails', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     mocks.loadPdfImport.mockRejectedValue(new Error('load failed'));
     const target = await runInput([makeFile('report.pdf')]);
 
     expect(target.value).toBe('');
+    expect(errorLog).toHaveBeenCalledWith(
+      '[import-file-input] Could not load PDF import module:',
+      expect.any(Error),
+    );
     expect(mocks.showDropZoneImportNotification).toHaveBeenCalledWith(
-      'Could not load import module - check your connection and try again.',
+      'Could not load import module. Reload the app to finish updating, then try again.',
       'error',
     );
+    errorLog.mockRestore();
   });
 
   it('routes JSON files through the runtime JSON importer', async () => {

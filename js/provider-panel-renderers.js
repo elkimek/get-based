@@ -13,8 +13,9 @@ import {
   getVeniceModelDisplay, getOpenRouterModelDisplay,
   getRoutstrModelDisplay, getPpqModelDisplay,
   renderModelPricingHint, isRecommendedModel,
-  getOllamaConfig
+  getOllamaConfig, getOllamaMainModel
 } from './api.js';
+import { getLocalAiExecutionLocation } from './local-ai-discovery.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panels.js';
 import {
   discoverRoutstrNodesFromRuntime,
@@ -370,8 +371,18 @@ function renderCustomProviderPanel() {
 // Local AI panel — works with any OpenAI-compatible server (Ollama, LM Studio, Jan, etc.)
 function renderLocalAIProviderPanel() {
   const config = getOllamaConfig();
+  const executionLocation = getLocalAiExecutionLocation(config.url, getOllamaMainModel());
+  const locationCopy = executionLocation === 'cloud'
+    ? 'The selected model is cloud-hosted and sends requests off-device.'
+    : executionLocation === 'local'
+      ? 'The configured server is on this device.'
+      : executionLocation === 'lan'
+        ? 'The configured server is on your local network; requests leave this browser device.'
+        : 'The configured endpoint is remote; its operator and transport determine privacy.';
+  const insecureRemote = executionLocation !== 'local' && executionLocation !== 'cloud' && /^http:\/\//i.test(config.url);
   return `<div class="ai-provider-panel">
-    <div class="ai-provider-desc">Runs AI on your computer. Free, private, no data leaves your machine. Works with <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent)">Ollama</a>, <a href="https://lmstudio.ai" target="_blank" rel="noopener" style="color:var(--accent)">LM Studio</a>, <a href="https://jan.ai" target="_blank" rel="noopener" style="color:var(--accent)">Jan</a>, llama.cpp, LocalAI, and others.</div>
+    <div class="ai-provider-desc">Connects directly to an OpenAI-compatible server. ${escapeHTML(locationCopy)} Cloud-tagged models are not considered private/local. Works with <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent)">Ollama</a>, <a href="https://lmstudio.ai" target="_blank" rel="noopener" style="color:var(--accent)">LM Studio</a>, <a href="https://jan.ai" target="_blank" rel="noopener" style="color:var(--accent)">Jan</a>, llama.cpp, LocalAI, and others.</div>
+    ${insecureRemote ? '<div class="api-key-notice" style="color:var(--warning);margin-bottom:10px">This remote connection uses plain HTTP. Health data and API credentials are not protected by HTTPS unless your underlying VPN/tunnel encrypts the connection.</div>' : ''}
     <div class="local-ai-status" id="local-ai-status">
       <span class="local-ai-status-dot" id="local-ai-dot"></span>
       <span id="local-ai-status-text">Checking connection...</span>

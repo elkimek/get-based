@@ -23,6 +23,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       'labcharts-ollama-model',
       'labcharts-ollama-pii-url',
       'labcharts-ollama-pii-model',
+      'labcharts-ollama-pii-key',
       'labcharts-ollama-pii-enabled',
       'labcharts-hw-vram-override',
     ];
@@ -62,6 +63,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
           </div>
           <div id="local-ai-advisor"></div>
           <input id="pii-local-url-input">
+          <input id="pii-local-apikey-input" value="sk-pii-local">
           <span id="pii-local-dot" class="local-ai-status-dot"></span>
           <span id="pii-local-status-text"></span>
           <input id="pii-local-toggle" type="checkbox">
@@ -85,10 +87,16 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
             data: [{ id: 'llama3.2', name: 'Llama 3.2', size: 3200000000 }],
           });
         }
+        if (href === 'http://localhost:11434/api/v1/models') {
+          return jsonResponse({ error: 'unsupported' }, 404);
+        }
         if (href === 'http://localhost:11434/api/tags') {
           return jsonResponse({
             models: [{ name: 'llama3.2', size: 3200000000, details: { parameter_size: '3B', quantization_level: 'Q4_K_M', family: 'llama' } }],
           });
+        }
+        if (href === 'http://localhost:11434/api/ps') {
+          return jsonResponse({ models: [{ name: 'llama3.2', size_vram: 2800000000, context_length: 8192 }] });
         }
         return oldGlobals.fetch.call(window, url, opts);
       };
@@ -139,6 +147,9 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
             ],
           });
         }
+        if (href === 'http://localhost:11434/api/v1/models') {
+          return jsonResponse({ error: 'unsupported' }, 404);
+        }
         if (href === 'http://localhost:11434/api/tags') {
           return jsonResponse({
             models: [
@@ -147,9 +158,15 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
             ],
           });
         }
+        if (href === 'http://localhost:11434/api/ps') {
+          return jsonResponse({
+            models: [{ name: 'qwen2.5:14b', size_vram: 8700000000, context_length: 16384 }],
+          });
+        }
         return oldGlobals.fetch.call(window, url, opts);
       };
       urlInput.value = ' http://localhost:11434/ ';
+      providerStorage.setOllamaMainModel('kimi-k2.5:cloud');
       await controls.testOllamaConnection();
       await wait(0);
       const localConnectSuccess = statusText.textContent.includes('Connected')
@@ -160,7 +177,14 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && localFetchCount >= 1
         && privacyUpdates >= 1
         && chatReturns === 1;
-
+      const staleLocalModelReconciled = providerStorage.getOllamaMainModel() === 'llama3.2'
+        && statusText.textContent.includes('llama3.2')
+        && !statusText.textContent.includes('kimi-k2.5:cloud');
+      const ollamaAllocationDisplayed = document.getElementById('local-ai-advisor')?.textContent.includes('currently allocated')
+        && document.getElementById('local-ai-advisor')?.textContent.includes('8.7 GB VRAM')
+        && document.getElementById('local-ai-advisor')?.textContent.includes('loaded now')
+        && document.getElementById('local-ai-advisor')?.textContent.includes('available \u2014 loads on first request')
+        && !document.getElementById('local-ai-advisor')?.textContent.includes('not loaded');
       document.getElementById('local-ai-advisor').innerHTML = '';
       controls.refreshModelAdvisor();
       for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b'); i += 1) {
@@ -196,12 +220,13 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       document.getElementById('pii-local-url-input').value = 'http://localhost:11434';
       await controls.testPIIOllamaConnection();
-      const piiConnectSuccess = document.getElementById('pii-local-status-text')?.textContent.includes('Connected')
+      const piiConnectSuccess = document.getElementById('pii-local-status-text')?.textContent.includes('Connection verified')
         && document.getElementById('pii-local-dot')?.classList.contains('connected')
-        && document.getElementById('pii-local-toggle')?.checked === true
+        && document.getElementById('pii-local-toggle')?.checked === false
         && document.getElementById('pii-model-dropdown')?.style.display === 'block'
         && document.getElementById('pii-model-select')?.options.length === 2
-        && localStorage.getItem('labcharts-ollama-pii-enabled') === 'true';
+        && localStorage.getItem('labcharts-ollama-pii-enabled') !== 'true'
+        && providerStorage.getOllamaPIIApiKey() === 'sk-pii-local';
 
       await providerStorage.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
       document.getElementById('local-ai-model-select').innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
@@ -217,6 +242,8 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         invalidUrlBranch,
         corsHelp,
         localConnectSuccess,
+        staleLocalModelReconciled,
+        ollamaAllocationDisplayed,
         refreshModelAdvisorRerendersCachedDetails,
         copyPullCommand,
         hardwareOverrideKeyboardToggle,
@@ -249,6 +276,98 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('switching local backends automatically releases the previous server VRAM first', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const result = await page.evaluate(async ({ controlsUrl, providerStorageUrl }) => {
+    const controls = await import(controlsUrl);
+    const providerStorage = await import(providerStorageUrl);
+    const discovery = await import('/js/local-ai-discovery.js');
+    const cryptoStore = await import('/js/crypto.js');
+    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const oldFetch = window.fetch;
+    const oldConfig = cryptoStore.getCachedKey('labcharts-ollama');
+    const oldModel = localStorage.getItem('labcharts-ollama-model');
+    const unloadBodies = [];
+    try {
+      document.body.insertAdjacentHTML('beforeend', `
+        <section id="local-ai-switch-fixture">
+          <input id="local-ai-url-input" value="http://10.222.88.195:11434">
+          <input id="local-ai-apikey-input" value="">
+          <span id="local-ai-dot" class="local-ai-status-dot"></span>
+          <span id="local-ai-status-text"></span>
+          <div id="local-ai-model-section" style="display:none"><select id="local-ai-model-select"></select></div>
+          <div id="local-ai-advisor"></div>
+        </section>
+      `);
+      await providerStorage.saveOllamaConfig({
+        url: 'http://10.222.88.195:1234',
+        model: 'qwen/qwen3.6-27b',
+        mode: 'openai-compatible',
+        apiKey: '',
+      });
+      providerStorage.setOllamaMainModel('qwen/qwen3.6-27b');
+      discovery.clearLocalAiDiscovery();
+
+      window.fetch = async (url, options = {}) => {
+        const href = String(url);
+        if (options.method === 'HEAD' && href.endsWith('/v1/models')) return new Response('', { status: 204 });
+        if (href === 'http://10.222.88.195:1234/api/v1/models') {
+          return jsonResponse({ models: [{
+            type: 'llm',
+            key: 'qwen/qwen3.6-27b',
+            size_bytes: 17_478_734_335,
+            loaded_instances: [{ id: 'qwen-lm-instance', config: { context_length: 32768 } }],
+          }] });
+        }
+        if (href === 'http://10.222.88.195:1234/v1/models') {
+          return jsonResponse({ data: [{ id: 'qwen/qwen3.6-27b' }] });
+        }
+        if (href === 'http://10.222.88.195:1234/api/v1/models/unload' && options.method === 'POST') {
+          unloadBodies.push(JSON.parse(options.body));
+          return jsonResponse({ ok: true });
+        }
+        if (href === 'http://10.222.88.195:11434/api/v1/models') return jsonResponse({}, 404);
+        if (href === 'http://10.222.88.195:11434/v1/models') return jsonResponse({ data: [{ id: 'qwen3.6:27b' }] });
+        if (href === 'http://10.222.88.195:11434/api/tags') {
+          return jsonResponse({ models: [{ name: 'qwen3.6:27b', details: { context_length: 262144 } }] });
+        }
+        if (href === 'http://10.222.88.195:11434/api/ps') return jsonResponse({ models: [] });
+        throw new Error(`Unexpected URL: ${href}`);
+      };
+
+      await controls.testOllamaConnection();
+
+      return {
+        noConfirmationRequired: !document.getElementById('confirm-dialog-overlay'),
+        unloadUsesLoadedInstance: unloadBodies.length === 1
+          && unloadBodies[0].instance_id === 'qwen-lm-instance',
+        switchSavedAfterRelease: providerStorage.getOllamaConfig().url === 'http://10.222.88.195:11434'
+          && providerStorage.getOllamaConfig().mode === 'ollama'
+          && providerStorage.getOllamaMainModel() === 'qwen3.6:27b',
+        statusShowsNewServer: document.getElementById('local-ai-status-text')?.textContent.includes('qwen3.6:27b'),
+      };
+    } finally {
+      window.fetch = oldFetch;
+      discovery.clearLocalAiDiscovery();
+      cryptoStore.updateKeyCache('labcharts-ollama', oldConfig || '');
+      if (oldModel == null) localStorage.removeItem('labcharts-ollama-model');
+      else localStorage.setItem('labcharts-ollama-model', oldModel);
+      document.getElementById('local-ai-switch-fixture')?.remove();
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    }
+  }, {
+    controlsUrl: moduleUrl('/js/provider-local-ai-controls.js'),
+    providerStorageUrl: moduleUrl('/js/api-provider-storage.js'),
+  });
+
+  for (const [name, passed] of Object.entries(result)) expect(passed, name).toBe(true);
 });
 
 test('settings sync and agent access delegates cover setup, restore, relay, tombstone, and token paths', async ({ page }) => {

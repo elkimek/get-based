@@ -25,6 +25,7 @@ import {
   resolveImportPreviewBatch,
   showImportPreview,
 } from './pdf-import-review.js';
+import { markImportBenchmarkConfirmed } from './import-benchmarks.js';
 
 const pdfImportCommitDeps = { maybeShowEncryptionNudge };
 
@@ -220,6 +221,29 @@ export async function confirmImport() {
     suggestedGroup: m.suggestedGroup || null,
     matched: !!m.matched,
   });
+  const snapshotCostInfo = result.costInfo ? {
+    provider: result.costInfo.provider || null,
+    modelId: result.costInfo.modelId || null,
+    inputTokens: Number(result.costInfo.inputTokens) || 0,
+    outputTokens: Number(result.costInfo.outputTokens) || 0,
+    cost: Number(result.costInfo.cost) || 0,
+  } : null;
+  const snapshotTimings = result.timings ? {
+    pii: Number(result.timings.pii) || 0,
+    analysis: Number(result.timings.analysis) || 0,
+    piiMs: Number.isFinite(Number(result.timings.piiMs))
+      ? Math.max(0, Math.round(Number(result.timings.piiMs)))
+      : Math.max(0, Math.round((Number(result.timings.pii) || 0) * 1000)),
+    analysisMs: Number.isFinite(Number(result.timings.analysisMs))
+      ? Math.max(0, Math.round(Number(result.timings.analysisMs)))
+      : Math.max(0, Math.round((Number(result.timings.analysis) || 0) * 1000)),
+  } : null;
+  const snapshotDiagnostics = result.diagnostics?.streamFallback || result.diagnostics?.structuredOutputFallback
+    ? {
+      streamFallback: !!result.diagnostics.streamFallback,
+      structuredOutputFallback: !!result.diagnostics.structuredOutputFallback,
+    }
+    : null;
   const snapBase = {
     fileName: result.fileName || '',
     date: result.date || '',
@@ -227,7 +251,12 @@ export async function confirmImport() {
     type: deriveImportType(result.fileName),
     markerCount: importCount,
     excludedIndices: Array.from(excludedIdxs),
-    costInfo: result.costInfo ? { provider: result.costInfo.provider, modelId: result.costInfo.modelId } : null,
+    costInfo: snapshotCostInfo,
+    timings: snapshotTimings,
+    importMode: result.imageMode ? 'image' : 'text',
+    diagnostics: snapshotDiagnostics,
+    importHash: result.importHash || '',
+    benchmarkId: result.benchmarkId || null,
   };
   if (isReReview) {
     if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];
@@ -238,6 +267,7 @@ export async function confirmImport() {
         ...state.importedData.importSnapshots[snapIdx],
         ...snapBase,
         markers: result.markers.map(m => snapshotPayload(m)),
+        benchmarkAt: importTs,
         importedAt: importTs,
       };
     } else {
@@ -245,6 +275,7 @@ export async function confirmImport() {
         id: snapshotId,
         ...snapBase,
         markers: result.markers.map(m => snapshotPayload(m)),
+        benchmarkAt: importTs,
         importedAt: importTs,
       });
     }
@@ -254,16 +285,24 @@ export async function confirmImport() {
       id: snapshotId,
       ...snapBase,
       markers: result.markers.map(m => snapshotPayload(m)),
+      benchmarkAt: importTs,
       importedAt: importTs,
     });
   }
 
+  // Finalize the benchmark before the canonical import save so the health-data
+  // snapshot and its comparable model run are committed atomically. Previously
+  // the benchmark used a second fire-and-forget save and could remain "preview"
+  // after a successful import.
+  const benchmarkId = result.benchmarkId || null;
+  if (benchmarkId) markImportBenchmarkConfirmed(benchmarkId, result, excludedIdxs, { persist: false });
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {
     restoreImportedDataSnapshot(rollback);
     if (confirmBtn) confirmBtn.disabled = false;
     return;
   }
+  if (benchmarkId) result.benchmarkId = null;
   // Resolve batch promise before closeImportModal (which would resolve with 'skip').
   if (!resolveImportPreviewBatch('import')) closeImportModal();
   // During batch mode, defer expensive UI refreshes until the batch completes
@@ -367,6 +406,9 @@ export function openImportReviewFromSnapshot(snapId) {
     testType: snapshot.testType,
     markers: snapshot.markers.map(m => ({ ...m })),
     costInfo: snapshot.costInfo,
+    timings: snapshot.timings,
+    imageMode: snapshot.importMode === 'image',
+    diagnostics: snapshot.diagnostics,
     importHash: snapshot.importHash,
     _reReviewSnapshotId: snapshot.id,
     _excludedImportIndices: snapshot.excludedIndices || [],

@@ -40,6 +40,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       'labcharts-ollama-model',
       'labcharts-ollama-pii-url',
       'labcharts-ollama-pii-model',
+      'labcharts-ollama-pii-key',
       'labcharts-ollama-pii-enabled',
     ];
     const savedStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
@@ -57,6 +58,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       cryptoStore.updateKeyCache('labcharts-ollama', null);
+      cryptoStore.updateKeyCache('labcharts-ollama-pii-key', null);
       providerStorage.setOllamaPIIUrl('http://localhost:11434');
       providerStorage.setOllamaPIIModel('privacy-qwen:7b');
 
@@ -89,13 +91,65 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
             ],
           });
         }
+        if (href.endsWith('/api/ps')) {
+          if (mode === 'ps-non-ok') return jsonResponse({ error: 'nope' }, 503);
+          return jsonResponse({
+            models: [{
+              name: 'llama3.2:latest',
+              size: 3200000000,
+              size_vram: 2800000000,
+              context_length: 8192,
+              details: { parameter_size: '3B', quantization_level: 'Q4_K_M', family: 'llama', format: 'gguf' },
+            }],
+          });
+        }
+        if (href.endsWith('/api/v1/models')) {
+          // The localhost:11434 fixture represents Ollama; only compat.local
+          // exposes LM Studio's native model endpoint.
+          if (new URL(href).hostname === 'localhost') return jsonResponse({ error: 'unsupported' }, 404);
+          if (mode === 'lm-native-non-ok' || mode === 'all-models-non-ok') {
+            return jsonResponse({ error: 'unsupported' }, 404);
+          }
+          return jsonResponse({
+            models: [
+              {
+                type: 'llm',
+                key: 'qwen2.5:7b-instruct-q4_k_m',
+                publisher: 'qwen',
+                architecture: 'qwen2',
+                quantization: { name: 'Q5_K_M', bits_per_weight: 5 },
+                size_bytes: 5100000000,
+                params_string: '7B',
+                loaded_instances: [{ id: 'qwen2.5:7b-instruct-q4_k_m', config: { context_length: 16384 } }],
+                max_context_length: 32768,
+                format: 'gguf',
+              },
+              {
+                type: 'embedding',
+                key: 'embed-small',
+                size_bytes: 200000000,
+                loaded_instances: [],
+                max_context_length: 2048,
+                format: 'gguf',
+              },
+            ],
+          });
+        }
         if (href.endsWith('/v1/models')) {
-          if (mode === 'models-non-ok') return jsonResponse({ error: 'locked' }, 401);
+          if (mode === 'probe-abort') {
+            return new Promise((resolve, reject) => {
+              options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+            });
+          }
+          if (mode === 'models-non-ok' || mode === 'all-models-non-ok') {
+            return jsonResponse({ error: 'locked' }, 401);
+          }
           if (mode === 'models-throws') throw new Error('models offline');
           return jsonResponse({
             data: [
               { id: 'qwen2.5:7b-instruct-q4_k_m', owned_by: 'local', size: 4700000000 },
               { id: 'llama-3.2-3b-fp16' },
+              { id: 'embed-small' },
             ],
           });
         }
@@ -111,11 +165,13 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
           if (mode === 'streaming') {
             return streamResponse([
               'data: {"choices":[{"delta":{"reasoning_content":"checking identifiers"}}]}\n\n',
-              'data: {"not-json"\n\n',
               'data: {"choices":[{"delta":{"content":"Patient: "}}]}\n\n',
               'data: {"choices":[{"delta":{"content":"<think>hidden chain</think>Jana Novak\\nDate: 2026-01-02\\nPhone: +420 711 222 333"}}]}\n\n',
               'data: [DONE]\n\n',
             ]);
+          }
+          if (mode === 'streaming-malformed') {
+            return streamResponse(['data: {"not-json"\n\n']);
           }
           return jsonResponse({
             choices: [{
@@ -163,8 +219,19 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         ollamaOk.available === true &&
         ollamaOk.models.includes('llama3.2:latest') &&
         ollamaOk.modelDetails[0].paramSize === '3B' &&
+        ollamaOk.modelDetails[0].loaded === true &&
+        ollamaOk.modelDetails[0].vramAllocated === 2800000000 &&
+        ollamaOk.modelDetails[0].contextLength === 8192 &&
+        ollamaOk.vramAllocated === 2800000000 &&
         ollamaNonOk.available === false &&
         ollamaThrows.available === false);
+
+      mode = 'ps-non-ok';
+      const ollamaWithoutRuntimeInfo = await pii.checkOllama('http://localhost:11434');
+      check('Ollama tags remain available when runtime allocation cannot be read',
+        ollamaWithoutRuntimeInfo.available === true &&
+        ollamaWithoutRuntimeInfo.modelDetails[0].loaded === null &&
+        ollamaWithoutRuntimeInfo.vramAllocated === 0);
 
       mode = 'ok';
       const compatibleOk = await pii.checkOpenAICompatible('http://compat.local/', 'compat-key');
@@ -172,13 +239,34 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       const compatibleNonOk = await pii.checkOpenAICompatible('http://compat.local/', '');
       mode = 'models-throws';
       const compatibleThrows = await pii.checkOpenAICompatible('http://compat.local/', '');
-      check('OpenAI-compatible probe covers model parsing and auth header',
+      mode = 'all-models-non-ok';
+      const compatibleUnavailable = await pii.checkOpenAICompatible('http://compat.local/', '');
+      check('OpenAI-compatible probe covers model parsing, auth, and LM Studio native fallback',
         compatibleOk.available === true &&
+        compatibleOk.provider === 'lmstudio' &&
         compatibleOk.models.includes('qwen2.5:7b-instruct-q4_k_m') &&
-        compatibleOk.modelDetails.some(model => model.paramSize === '7B' && /Q4/i.test(model.quantLevel)) &&
+        !compatibleOk.models.includes('embed-small') &&
+        compatibleOk.modelDetails.some(model =>
+          model.paramSize === '7B' &&
+          model.quantLevel === 'Q5_K_M' &&
+          model.size === 5100000000 &&
+          model.sizeSource === 'lmstudio' &&
+          model.loaded === true &&
+          model.contextLength === 16384) &&
         fetchCalls.some(call => call.href === 'http://compat.local/v1/models' && call.auth === 'Bearer compat-key') &&
-        compatibleNonOk.available === false &&
-        compatibleThrows.available === false);
+        fetchCalls.some(call => call.href === 'http://compat.local/api/v1/models' && call.auth === 'Bearer compat-key') &&
+        compatibleNonOk.available === true &&
+        compatibleNonOk.provider === 'lmstudio' &&
+        compatibleThrows.available === true &&
+        compatibleThrows.provider === 'lmstudio' &&
+        compatibleUnavailable.available === false);
+
+      mode = 'lm-native-non-ok';
+      const compatibleFallback = await pii.checkOpenAICompatible('http://compat.local/', 'compat-key');
+      check('OpenAI-compatible metadata remains available without LM Studio native API',
+        compatibleFallback.available === true &&
+        compatibleFallback.provider === 'openai-compatible' &&
+        compatibleFallback.modelDetails.some(model => model.sizeSource === 'reported'));
 
       pii.setOllamaPIIEnabled(false);
       const disabledPII = await pii.checkOllamaPII();
@@ -218,6 +306,13 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         !obfuscated.obfuscated.includes('alice@example.com') &&
         obfuscated.obfuscated.includes('Glucose 5.4 mmol/L') &&
         obfuscated.obfuscated.includes('Collection date: 2026-01-02'));
+      check('PII validation rejects an unchanged model response',
+        /original text/i.test(pii.validatePIIResult(reportText, reportText) || ''));
+      const changedCollectionDate = reportText
+        .replace('Alice Smith', 'Jana Novak')
+        .replace('Collection date: 2026-01-02', 'Collection date: 2026-02-03');
+      check('PII validation rejects changed collection dates',
+        /collection\/report date/i.test(pii.validatePIIResult(changedCollectionDate, reportText) || ''));
 
       const diff = pii.buildPIIDiffHTML('\nName: Alice\nSame\n', '\nName: Jana\nSame\n');
       check('PII diff HTML highlights changed words and trims outer blank lines',
@@ -241,6 +336,18 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       check('showPIIDiffViewer close button removes overlay', !document.querySelector('.pii-warning-overlay'));
 
       mode = 'ok';
+      await providerStorage.saveOllamaPIIApiKey('pii-only-key');
+      providerStorage.setOllamaPIIModel('kimi-k2.5:cloud');
+      const beforeCloudAttempt = fetchCalls.length;
+      let cloudModelError = '';
+      try {
+        await pii.sanitizeWithOllama('Patient: Alice\nDate: 2026-01-02');
+      } catch (error) {
+        cloudModelError = error.message;
+      }
+      check('PII sanitizer blocks cloud models before any request',
+        /not a self-hosted text model/i.test(cloudModelError) && fetchCalls.length === beforeCloudAttempt);
+      providerStorage.setOllamaPIIModel('privacy-qwen:7b');
       const sanitized = await pii.sanitizeWithOllama('Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999');
       mode = 'sanitize-short';
       let shortError = '';
@@ -257,7 +364,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         timeoutError = error.message;
       }
       check('sanitizeWithOllama covers success validation and timeout notification',
-        sanitized.includes('Jana Novak') &&
+        !sanitized.includes('Alice') &&
+        sanitized.includes('2026-01-02') &&
+        fetchCalls.some(call => call.href.endsWith('/v1/chat/completions') && call.auth === 'Bearer pii-only-key') &&
         /too short/i.test(shortError) &&
         /timed out/i.test(timeoutError) &&
         document.getElementById('notification-container')?.textContent.includes('timed out'));
@@ -271,6 +380,16 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         undefined,
         chunk => thinkingChunks.push(chunk)
       );
+      mode = 'streaming-malformed';
+      let malformedError = '';
+      try {
+        await pii.sanitizeWithOllamaStreaming(
+          'Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999',
+          () => {},
+        );
+      } catch (error) {
+        malformedError = error.message;
+      }
       mode = 'probe-abort';
       let probeError = '';
       try {
@@ -286,11 +405,13 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       } catch (error) {
         probeError = error.message;
       }
-      check('sanitizeWithOllamaStreaming handles stream chunks malformed JSON and thinking',
-        streamed.includes('Jana Novak') &&
+      check('sanitizeWithOllamaStreaming filters thinking and rejects malformed complete events',
+        !streamed.includes('Alice') &&
+        streamed.includes('2026-01-02') &&
         streamChunks.join('').includes('Patient: Jana') &&
         thinkingChunks.join('').includes('checking identifiers') &&
-        thinkingChunks.join('').includes('hidden chain'));
+        thinkingChunks.join('').includes('hidden chain') &&
+        malformedError.length > 0);
       check('sanitizeWithOllamaStreaming abort probe fallback reports unreachable server',
         /unreachable/i.test(probeError),
         probeError);
@@ -308,6 +429,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         else localStorage.setItem(key, value);
       }
       cryptoStore.updateKeyCache('labcharts-ollama', savedStorage['labcharts-ollama']);
+      cryptoStore.updateKeyCache('labcharts-ollama-pii-key', savedStorage['labcharts-ollama-pii-key']);
     }
 
     return { failures };
@@ -427,7 +549,7 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
       await waitFor(() => overlay.querySelector('#pii-stream-status')?.textContent.includes('Stopped'), 'stream stop status');
       const stopState = overlay.querySelector('#pii-stream-retry')?.hidden === false
         && overlay.querySelector('#pii-stream-stop')?.hidden === true
-        && overlay.querySelector('#pii-review-send')?.disabled === false;
+        && overlay.querySelector('#pii-review-send')?.disabled === true;
       overlay.querySelector('#pii-stream-retry').click();
       await waitFor(() => overlay.querySelector('#pii-stream-status')?.textContent.includes('Complete'), 'stream retry completion');
       const retryState = overlay.querySelector('#pii-thinking-section')?.hidden === false

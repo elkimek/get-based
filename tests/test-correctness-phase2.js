@@ -252,10 +252,10 @@ assert('file input shares import browser-runtime adapter with drop zone',
   importDropZoneRuntimeSrc.includes('export function isDropZoneImportRunning'),
   'file-picker import path should not keep a parallel set of window global lookups');
 assert('PDF lazy import failure notifies from file input and clears selection',
-  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
+  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import module\. Reload the app to finish updating, then try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
   'file-picker import path should fail loudly and clear stale selection');
 assert('PDF lazy import failure notifies from drop zone',
-  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),
+  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import module\. Reload the app to finish updating, then try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
 assert('analytics consent remains deferred after first paint and behind legal gate',
   /const showAnalyticsConsent = \(\) => \{\s*startupUIDeps\.maybeShowAnalyticsConsent\?\.\(\);\s*\};/.test(startupUiSrc)

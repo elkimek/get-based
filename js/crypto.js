@@ -149,6 +149,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-custom-key$/,
   /^labcharts-lens-key$/,
   /^labcharts-ollama$/,
+  /^labcharts-ollama-pii-key$/,
   /^labcharts-cashu-wallet-mnemonic$/,
   /^labcharts-meteo-config$/,
 ];
@@ -165,7 +166,7 @@ let _sessionKey = null;
 // ═══════════════════════════════════════════════
 // API KEY CACHE — sync access to decrypted API keys
 // ═══════════════════════════════════════════════
-const API_KEY_LS_KEYS = ['labcharts-api-key', 'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-lens-key', 'labcharts-custom-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic'];
+const API_KEY_LS_KEYS = ['labcharts-api-key', 'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-lens-key', 'labcharts-custom-key', 'labcharts-ollama', 'labcharts-ollama-pii-key', 'labcharts-cashu-wallet-mnemonic'];
 const _keyCache = new Map();
 
 export async function decryptKeyCache() {

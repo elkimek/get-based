@@ -2,6 +2,7 @@
 // api-models.js - Provider model catalogs, pricing, and capability helpers.
 
 import { getModelPricing } from './schema.js';
+import { isCloudModel } from './local-ai-discovery.js';
 import {
   getAIProvider,
   getOllamaMainModel,
@@ -251,7 +252,12 @@ export async function validateOpenRouterKey(key) {
 }
 
 export function renderModelPricingHint(provider, modelId) {
-  if (provider === 'ollama') return '<span style="font-size:11px;color:var(--green)">Free (local)</span>';
+  if (provider === 'ollama') {
+    const selected = modelId || getOllamaMainModel();
+    return isCloudModel(selected)
+      ? '<span style="font-size:11px;color:var(--warning)">Cloud model · provider terms may apply</span>'
+      : '<span style="font-size:11px;color:var(--green)">No app fee · configured server</span>';
+  }
   if (provider === 'custom') return '';
   const p = getModelPricing(provider, modelId);
   if (p.input === 0 && p.output === 0) return '<span style="font-size:11px;color:var(--green)">Free</span>';

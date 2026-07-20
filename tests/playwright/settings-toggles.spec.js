@@ -41,6 +41,7 @@ test('Settings display toggles persist through delegated slider actions', async 
 
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(SHOW_CLASS_TOKEN);
   await expect(page.locator('#settings-modal')).toHaveAttribute('data-delegated-actions', '1');
+  await expect(page.locator('label[for="debug-mode-toggle"], label.settings-label').filter({ hasText: 'Debug Mode' })).toHaveCount(1);
 
   await page.locator('#settings-product-recs + .toggle-slider').click();
   await page.locator('#debug-mode-toggle + .toggle-slider').click();

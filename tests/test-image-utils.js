@@ -136,11 +136,11 @@ assert('PDF import helpers stay module-only', !('assessTextQuality' in window)
 // ═══════════════════════════════════════
 console.log('9. Source Code');
 
-const apiLocalSrc = await fetchWithRetry('js/api-local.js');
+const ollamaProviderSrc = await fetchWithRetry('js/local-ai-provider-ollama.js');
 const apiModelsSrc = await fetchWithRetry('js/api-models.js');
 assert('supportsVision function in api-models.js', apiModelsSrc.includes('export function supportsVision'));
 assert('Vision models cached in fetchOpenRouterModels', apiModelsSrc.includes('labcharts-openrouter-vision-models'));
-assert('Ollama image normalization', apiLocalSrc.includes('ollamaMsg.images = images'));
+assert('Ollama image normalization', ollamaProviderSrc.includes('ollamaMessage.images = images'));
 
 const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
 const chatSendSrc = await fetchWithRetry('js/chat-send.js');

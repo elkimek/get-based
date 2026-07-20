@@ -23,6 +23,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
 
   const results = await page.evaluate(async () => {
     const settingsModule = await import('/js/settings.js');
+    const benchmarkController = await import('/js/settings-import-benchmark-controller.js');
     const settingsRuntime = await import('/js/settings-runtime.js');
     const themeModule = await import('/js/theme.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -44,6 +45,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
     const saved = {
       currentProfile: state.currentProfile,
       profiles: state.profiles,
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       fetch: window.fetch,
       theme: localStorage.getItem('labcharts-theme'),
       accent: localStorage.getItem('labcharts-accent'),
@@ -55,6 +57,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       piiAck: localStorage.getItem('labcharts-pii-review-disable-ack'),
       usage: localStorage.getItem(usageKey),
       globalUsage: localStorage.getItem('labcharts-global-usage'),
+      debug: localStorage.getItem('labcharts-debug'),
     };
     const results = {};
     let meteoConfig = {
@@ -133,6 +136,26 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
 
       state.currentProfile = profileId;
       state.profiles = [{ id: profileId, name: 'Coverage profile' }];
+      state.importedData = {
+        ...state.importedData,
+        importSnapshots: [{
+          id: 'benchmark-coverage',
+          fileName: 'benchmark-coverage.pdf',
+          markerCount: 24,
+          benchmarkAt: Date.UTC(2026, 6, 18, 10, 30),
+          importedAt: Date.UTC(2026, 6, 18, 10, 30),
+          importMode: 'text',
+          costInfo: {
+            provider: 'ollama',
+            modelId: 'benchmark-model',
+            inputTokens: 1500,
+            outputTokens: 600,
+            cost: 0,
+          },
+          timings: { pii: 1, analysis: 2, piiMs: 1200, analysisMs: 2400 },
+          diagnostics: { structuredOutputFallback: true, streamFallback: true },
+        }],
+      };
       localStorage.setItem(usageKey, JSON.stringify({
         totalCost: 0.012,
         totalInputTokens: 1500,
@@ -145,7 +168,28 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         totalOutputTokens: 1200,
         requestCount: 4,
       }));
+      localStorage.setItem('labcharts-debug', 'false');
       settingsModule.openSettingsModal('ai');
+      results.importBenchmarksVisibleOutsideDebugMode = document.querySelector('[data-settings-action="open-import-benchmarks"]') !== null;
+      settingsModule.openSettingsModal('display');
+      const debugToggle = document.getElementById('debug-mode-toggle');
+      debugToggle.checked = true;
+      debugToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      settingsModule.openSettingsModal('ai');
+      const benchmarkButton = document.querySelector('[data-settings-action="open-import-benchmarks"]');
+      benchmarkButton.click();
+      const benchmarkOverlay = document.getElementById('import-benchmarks-overlay');
+      const benchmarkText = benchmarkOverlay?.textContent || '';
+      results.importBenchmarksModalShowsLocalMetrics = benchmarkOverlay?.classList.contains('show') === true
+        && benchmarkText.includes('benchmark-coverage.pdf')
+        && benchmarkText.includes('benchmark-model')
+        && benchmarkText.includes('2.4 s')
+        && benchmarkText.includes('1.5k in')
+        && benchmarkText.includes('250.0 tok/s')
+        && benchmarkText.includes('24')
+        && benchmarkText.includes('import complete · retried');
+      benchmarkOverlay.querySelector('[data-import-benchmarks-action="close"]').click();
+      results.importBenchmarksModalCloses = document.getElementById('import-benchmarks-overlay') === null;
       document.querySelector('#ai-usage-section [data-settings-action="reset-profile-usage"]').click();
       await wait(0);
       results.resetCurrentProfileUsage = localStorage.getItem(usageKey) === null
@@ -187,6 +231,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       }
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
+      state.importedData = saved.importedData;
       const restoreStorage = (key, value) => {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
@@ -201,6 +246,8 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       restoreStorage('labcharts-pii-review-disable-ack', saved.piiAck);
       restoreStorage(usageKey, saved.usage);
       restoreStorage('labcharts-global-usage', saved.globalUsage);
+      restoreStorage('labcharts-debug', saved.debug);
+      benchmarkController.closeImportBenchmarksModal();
       settingsModule.closeTweaksPanel();
       document.getElementById('sun-source-fixture')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();

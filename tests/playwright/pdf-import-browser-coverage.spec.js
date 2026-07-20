@@ -514,7 +514,10 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && xlsxFilePending.privacyMethod === 'regex';
       review.closeImportModal();
 
-      await pdfImport.handleImageFile(new File(['image bytes'], 'scan.png', { type: 'image/png' }));
+      const imageHandlePromise = pdfImport.handleImageFile(new File(['image bytes'], 'scan.png', { type: 'image/png' }));
+      for (let i = 0; i < 80 && !document.getElementById('confirm-ok'); i += 1) await new Promise(resolve => setTimeout(resolve, 25));
+      document.getElementById('confirm-ok')?.click();
+      await imageHandlePromise;
       const imagePending = review.getPendingImport();
       outcomes.imageFileHandlerOpensPreview = imagePending?.fileName === 'scan.png'
         && imagePending.markers.length === 2;
@@ -749,6 +752,9 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           outputTokens: 5,
           cost: 0,
         },
+        timings: { pii: 1, analysis: 2, piiMs: 1250, analysisMs: 2400 },
+        imageMode: false,
+        diagnostics: { structuredOutputFallback: true, streamFallback: true },
         markers: [{
           rawName: 'Glucose',
           value: 5.4,
@@ -761,6 +767,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       });
       await pdfImport.confirmImport();
       const imported = state.importedData.entries.find(entry => entry.date === '2026-06-07');
+      const snapshot = state.importedData.importSnapshots?.find(snap => snap.fileName === 'confirm-import.pdf');
       outcomes.confirmImportPersistsMatchedPreview =
         imported?.markers?.['biochemistry.glucose'] === 5.4
         && imported.importedWith?.provider === 'ollama'
@@ -768,6 +775,15 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && imported.importHash === 'confirm-import-hash'
         && imported.sourceFiles?.includes('confirm-import.pdf') === true
         && review.getPendingImport() === null;
+      outcomes.confirmImportPersistsBenchmarkMetrics = snapshot?.costInfo?.inputTokens === 10
+        && snapshot.costInfo.outputTokens === 5
+        && snapshot.costInfo.cost === 0
+        && snapshot.timings?.piiMs === 1250
+        && snapshot.timings.analysisMs === 2400
+        && snapshot.importMode === 'text'
+        && snapshot.diagnostics?.structuredOutputFallback === true
+        && snapshot.diagnostics?.streamFallback === true
+        && Number.isFinite(snapshot.benchmarkAt);
 
       state.importedData = {
         entries: [],
@@ -901,7 +917,12 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
       state.importedData.entries = [];
       localStorage.setItem('labcharts-ollama-model', 'llama-current');
       let fetchCalls = 0;
-      window.fetch = async () => {
+      window.fetch = async (url, options = {}) => {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (options.method !== 'POST') {
+          if (href.endsWith('/v1/models')) return new Response(JSON.stringify({ data: [{ id: 'llama-current' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          return new Response(JSON.stringify({ error: 'unsupported' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+        }
         fetchCalls += 1;
         return new Response(JSON.stringify({
           choices: [{
@@ -1065,7 +1086,12 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
         'not JSON',
       ];
       let fetchCalls = 0;
-      window.fetch = async () => {
+      window.fetch = async (url, options = {}) => {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (options.method !== 'POST') {
+          if (href.endsWith('/v1/models')) return new Response(JSON.stringify({ data: [{ id: 'llama-current' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          return new Response(JSON.stringify({ error: 'unsupported' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+        }
         fetchCalls += 1;
         const content = classificationResponses.shift();
         return new Response(JSON.stringify({

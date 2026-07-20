@@ -9,7 +9,7 @@ import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
 // UNIT NORMALIZATION — convert US-unit values to SI before storage
 // ═══════════════════════════════════════════════
 function normalizeUnitStr(s) {
-  return s.toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
+  return s.normalize('NFKC').toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
 }
 
 function isPercentImportUnit(unit) {
@@ -737,9 +737,14 @@ export function normalizeToSI(key, value, unit, context = null) {
   return value;
 }
 
-export function buildMarkerReference() {
+/**
+ * @param {{profileSex?: string, includeCustomMarkers?: boolean}} [options]
+ */
+export function buildMarkerReference(options = {}) {
   const ref = {};
-  const isFemale = state.profileSex === 'female';
+  const profileSex = options.profileSex === undefined ? state.profileSex : options.profileSex;
+  const includeCustomMarkers = options.includeCustomMarkers !== false;
+  const isFemale = profileSex === 'female';
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
     if (cat.calculated) {
       for (const [markerKey, marker] of Object.entries(cat.markers)) {
@@ -769,7 +774,9 @@ export function buildMarkerReference() {
     if (cat.calculated) continue;
     for (const mk of Object.keys(cat.markers)) _stdMarkerNames.add(mk);
   }
-  const custom = (state.importedData && state.importedData.customMarkers) ? state.importedData.customMarkers : {};
+  const custom = includeCustomMarkers && state.importedData?.customMarkers
+    ? state.importedData.customMarkers
+    : {};
   for (const [fullKey, def] of Object.entries(custom)) {
     if (!ref[fullKey]) {
       // Skip corrupted entries: custom category but marker name matches a standard marker

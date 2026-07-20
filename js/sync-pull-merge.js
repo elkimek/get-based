@@ -171,6 +171,15 @@ function withoutLocalTombstones(importedData) {
   return rest;
 }
 
+/** @param {any} merged @param {any} localImported */
+function preserveLocalOnlyProfileData(merged, localImported) {
+  if (!merged || typeof merged !== 'object') return;
+  for (const key of ['importBenchmarks', 'deletedImportBenchmarkIds']) {
+    if (localImported && Object.prototype.hasOwnProperty.call(localImported, key)) merged[key] = localImported[key];
+    else delete merged[key];
+  }
+}
+
 /** @param {{ debug?: (...args: any[]) => any }} [options] */
 export async function mergePulledImportedData(profileId, importedData, options = {}) {
   const { debug } = options;
@@ -213,6 +222,10 @@ export async function mergePulledImportedData(profileId, importedData, options =
   } catch (e) {
     console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
   }
+  // A legacy remote blob starts as the merge baseline. Restore device-local
+  // benchmark history after that merge so an inbound sync cannot erase a run
+  // that just completed on this machine.
+  preserveLocalOnlyProfileData(merged, localImportedForMerge);
   const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
   const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, remoteImportedForFreshness);
   const preservedFreshLocalScoreAI = preserveFreshLocalBiologyScoreAI(merged, localImportedForMerge, remoteImportedForFreshness);

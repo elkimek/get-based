@@ -26,7 +26,8 @@ export async function handleImportInputChange(e) {
   try {
     importMod = await loadPdfImport();
   } catch (err) {
-    showImportNotificationRuntime('Could not load import module - check your connection and try again.', 'error');
+    console.error('[import-file-input] Could not load PDF import module:', err);
+    showImportNotificationRuntime('Could not load import module. Reload the app to finish updating, then try again.', 'error');
     e.target.value = '';
     return;
   }

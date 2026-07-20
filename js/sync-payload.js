@@ -49,7 +49,7 @@ export async function buildSyncPayload(profileId, importedData) {
   // device resurrect a disconnected vendor or overwrite a freshly-rotated
   // refresh token. Wearable summary (the L2 dashboard data) still syncs; the
   // tokens stay local. Users connect each wearable per-device.
-  const safeImported = stripGeneticsSnpsFromBlob(stripWearableCredentials(importedData));
+  const safeImported = stripLocalOnlyProfileData(stripGeneticsSnpsFromBlob(stripWearableCredentials(importedData)));
   // Phase 2: when cutover is enabled (readiness-gated), drop importedData
   // from the blob. Per-row deltas carry every field.
   const cutover = isPhase2CutoverEnabled(profileId);
@@ -141,6 +141,21 @@ export function stripGeneticsSnpsFromBlob(importedData) {
   if (!importedData?.genetics || typeof importedData.genetics !== 'object') return importedData;
   const { snps, ...geneticsMetadata } = importedData.genetics;
   return { ...importedData, genetics: geneticsMetadata };
+}
+
+// Runtime benchmarks are meaningful only on the device that executed them:
+// hardware, loaded model state, and timing do not transfer across devices.
+// Keep their records out of both legacy blob sync and v4 delta sync.
+/** @param {any} importedData */
+export function stripLocalOnlyProfileData(importedData) {
+  if (!importedData || typeof importedData !== 'object') return importedData;
+  if (!('importBenchmarks' in importedData) && !('deletedImportBenchmarkIds' in importedData)) return importedData;
+  const {
+    importBenchmarks: _importBenchmarks,
+    deletedImportBenchmarkIds: _deletedImportBenchmarkIds,
+    ...rest
+  } = importedData;
+  return rest;
 }
 
 // 5 MB cap. Normal payloads are well under 1 MB, so this is already generous.

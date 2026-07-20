@@ -1,111 +1,164 @@
 // @ts-check
-// api-local.js - Ollama/LM Studio/Jan provider adapters.
+// Local AI request planning and provider-adapter orchestration.
 
-import { readWithStallTimeout } from './api-transport.js';
 import { getOllamaConfig, getOllamaMainModel } from './api-provider-storage.js';
-import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
+import { prepareLocalAiRuntimeHandoff, rememberLocalAiRuntimeUse } from './local-ai-lifecycle.js';
+import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
+import { discoverLocalAI, getCachedLocalAiModelDetail, markCachedLocalAiModelLoaded } from './local-ai-discovery.js';
 
+function contentTokenEstimate(content) {
+  if (typeof content === 'string') return content.length / 3.5;
+  if (!Array.isArray(content)) return 0;
+  return content.reduce((total, block) => {
+    if (typeof block?.text === 'string') return total + block.text.length / 3.5;
+    if (block?.type === 'image' || block?.type === 'image_url') return total + 1600;
+    return total;
+  }, 0);
+}
+
+export function estimateLocalAiPromptTokens({ system, messages }) {
+  const contentTokens = String(system || '').length / 3.5
+    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate(message?.content), 0) : 0);
+  const messageOverhead = (Array.isArray(messages) ? messages.length : 0) * 6 + (system ? 6 : 0);
+  return Math.ceil(contentTokens) + messageOverhead;
+}
+
+export function planLocalAiRequest(opts, modelDetail) {
+  const requestedMaxTokens = Math.max(1, Number(opts.maxTokens) || 4096);
+  const estimatedPromptTokens = estimateLocalAiPromptTokens(opts);
+  const contextLength = Number(modelDetail?.contextLength) || 0;
+  let maxTokens = requestedMaxTokens;
+  let availableOutputTokens = null;
+  if (contextLength > 0) {
+    const safetyTokens = Math.max(256, Math.ceil(contextLength * 0.04));
+    availableOutputTokens = contextLength - estimatedPromptTokens - safetyTokens;
+    const minimumOutputTokens = Math.max(64, Math.min(requestedMaxTokens, Number(opts.minOutputTokens) || 256));
+    if (availableOutputTokens < minimumOutputTokens) {
+      const maxContext = Number(modelDetail?.maxContextLength) || 0;
+      const maxHint = maxContext > contextLength ? ` This model supports up to ${maxContext.toLocaleString()} tokens.` : '';
+      throw new Error(`Local AI context is too small for this request: about ${estimatedPromptTokens.toLocaleString()} prompt tokens plus output, but ${modelDetail?.name || 'the model'} is loaded with ${contextLength.toLocaleString()}.${maxHint} Reload it with a larger context or use a smaller/chunked input.`);
+    }
+    maxTokens = Math.min(requestedMaxTokens, availableOutputTokens);
+  }
+  return {
+    maxTokens,
+    diagnostics: {
+      estimatedPromptTokens,
+      requestedMaxTokens,
+      plannedMaxTokens: maxTokens,
+      contextLength,
+      maxContextLength: Number(modelDetail?.maxContextLength) || 0,
+      quantLevel: modelDetail?.quantLevel || '',
+      modelSize: Number(modelDetail?.size) || 0,
+      vramAllocated: Number(modelDetail?.vramAllocated) || 0,
+      executionLocation: modelDetail?.executionLocation || 'unknown',
+    },
+  };
+}
+
+function publishLoadedModel(config, model, runtimePatch = {}) {
+  const result = markCachedLocalAiModelLoaded(config.url, model, config.apiKey, runtimePatch);
+  if (result && typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+    globalThis.dispatchEvent(new CustomEvent('local-ai-discovery-updated', { detail: result }));
+  }
+}
+
+function roundContextLength(required, maximum) {
+  const steps = [4096, 8192, 16384, 32768, 65536, 131072, 262144];
+  const target = steps.find(step => step >= required) || required;
+  return maximum > 0 ? Math.min(target, maximum) : target;
+}
+
+/** Legacy native Ollama export retained for existing callers and tests. */
 export async function callOllamaChat({ system, messages, maxTokens, onStream, signal }) {
   const config = getOllamaConfig();
   const model = getOllamaMainModel();
-  const ollamaMessages = [];
-  if (system) ollamaMessages.push({ role: 'system', content: system });
-  for (const msg of messages) {
-    if (Array.isArray(msg.content)) {
-      let text = '';
-      const images = [];
-      for (const block of msg.content) {
-        if (block.type === 'text') text = block.text;
-        else if (block.type === 'image' && block.source?.data) images.push(block.source.data);
-        else if (block.type === 'image_url' && block.image_url?.url) {
-          const match = block.image_url.url.match(/^data:[^;]+;base64,(.+)$/);
-          if (match) images.push(match[1]);
-        }
-      }
-      const ollamaMsg = { role: msg.role, content: text };
-      if (images.length > 0) ollamaMsg.images = images;
-      ollamaMessages.push(ollamaMsg);
-    } else {
-      ollamaMessages.push({ role: msg.role, content: msg.content });
-    }
-  }
-
-  const body = { model, messages: ollamaMessages, stream: !!onStream };
-  if (maxTokens) body.options = { num_predict: maxTokens };
-
-  let res;
+  const adapter = getLocalAiProviderAdapter('ollama');
+  await prepareLocalAiRuntimeHandoff({ baseUrl: config.url, model });
   try {
-    res = await fetch(`${config.url}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal
+    return await adapter.infer({
+      config,
+      model,
+      opts: { system, messages, maxTokens, onStream, signal },
+      plan: { maxTokens: Math.max(1, Number(maxTokens) || 4096) },
+      contextLength: 0,
+      nativeContextOverride: false,
     });
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|Load failed|NetworkError/.test(e.message || '')) {
-      const ua = navigator.userAgent || '';
-      const hint = /Mac/i.test(ua) ? 'Ollama: launchctl setenv OLLAMA_ORIGINS "*" and restart. LM Studio: Settings -> Enable CORS'
-        : /Win/i.test(ua) ? 'Ollama: set OLLAMA_ORIGINS=* as system env var and restart. LM Studio: Settings -> Enable CORS'
-        : 'Ollama: OLLAMA_ORIGINS=* ollama serve. LM Studio: Settings -> Enable CORS';
-      throw new Error(`Cannot reach local server - CORS blocked. ${hint}`);
-    }
-    throw new Error(`Cannot reach local server. Check that it's running. (${e.message})`);
+  } finally {
+    rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: 'ollama', model });
   }
-
-  if (!res.ok) {
-    let errMsg = `Local server error (${res.status})`;
-    try { const errBody = await res.json(); errMsg += `: ${errBody.error || JSON.stringify(errBody)}`; } catch {}
-    throw new Error(errMsg);
-  }
-
-  if (onStream) {
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullText = '';
-    let inputTokens = 0;
-    let outputTokens = 0;
-    const handleNdjsonLine = (line, boundary) => {
-      if (!line.trim()) return;
-      try {
-        const event = JSON.parse(line);
-        if (event.error) throw new Error(event.error);
-        if (event.message?.content) {
-          fullText += event.message.content;
-          onStream(fullText);
-        }
-        if (event.done === true) {
-          inputTokens = event.prompt_eval_count || 0;
-          outputTokens = event.eval_count || 0;
-        }
-      } catch (parseErr) {
-        if (boundary && parseErr instanceof SyntaxError) return;
-        throw parseErr;
-      }
-    };
-    while (true) {
-      const { done, value } = await readWithStallTimeout(reader, 'Local AI stream');
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) handleNdjsonLine(line, true);
-    }
-    if (buffer.trim()) handleNdjsonLine(buffer, false);
-    return { text: fullText, usage: { inputTokens, outputTokens } };
-  }
-
-  const data = await res.json();
-  return {
-    text: data.message?.content || '',
-    usage: { inputTokens: data.prompt_eval_count || 0, outputTokens: data.eval_count || 0 }
-  };
 }
 
 export async function callOpenAICompatibleLocalAPI(opts) {
   const config = getOllamaConfig();
   const model = getOllamaMainModel();
   const url = config.url.replace(/\/+$/, '');
-  const key = config.apiKey || 'not-needed';
-  return callOpenAICompatibleAPI(`${url}/v1/chat/completions`, key, model, 'Local AI', opts, {}, { useProxy: false });
+  await prepareLocalAiRuntimeHandoff({ baseUrl: url, model });
+  let modelDetail = getCachedLocalAiModelDetail(url, model, config.apiKey);
+  // Routine chat avoids provider probes before its first token. Imports opt in
+  // because adapters need exact context and native capability metadata.
+  if (!modelDetail && opts.preferNativeContext) {
+    const discovery = await discoverLocalAI(url, config.apiKey);
+    modelDetail = discovery.modelDetails?.find(detail => detail.name === model) || null;
+  }
+
+  const estimatedPromptTokens = estimateLocalAiPromptTokens(opts);
+  const requestedOutput = Math.max(1, Number(opts.maxTokens) || 4096);
+  const requiredContext = estimatedPromptTokens
+    + requestedOutput
+    + Math.max(512, Math.ceil((estimatedPromptTokens + requestedOutput) * 0.04));
+  const providerAdapter = getLocalAiProviderAdapter(modelDetail?.source || 'openai-compatible');
+  const runtimeProviderId = modelDetail?.source
+    || (config.mode === 'lmstudio' || config.mode === 'ollama' ? config.mode : 'openai-compatible');
+  const nativeRequest = providerAdapter.prepareNativeRequest?.({
+    opts,
+    modelDetail,
+    requiredContext,
+    roundContextLength,
+  }) || null;
+  const effectiveModelDetail = nativeRequest?.modelDetail || modelDetail;
+  const plan = planLocalAiRequest(opts, effectiveModelDetail);
+
+  if (nativeRequest && providerAdapter.infer) {
+    let nativeResult;
+    try {
+      nativeResult = await providerAdapter.infer({
+        config,
+        model,
+        opts,
+        plan,
+        modelDetail: effectiveModelDetail,
+        contextLength: nativeRequest.contextLength,
+        nativeContextOverride: nativeRequest.nativeContextOverride,
+      });
+    } finally {
+      rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: runtimeProviderId, model });
+    }
+    publishLoadedModel(config, model, nativeRequest.contextLength > 0
+      ? { contextLength: nativeRequest.contextLength }
+      : {});
+    return {
+      ...nativeResult,
+      diagnostics: {
+        ...nativeResult?.diagnostics,
+        localPlan: plan.diagnostics,
+      },
+    };
+  }
+
+  const compatibleAdapter = getLocalAiProviderAdapter('openai-compatible');
+  let result;
+  try {
+    result = await compatibleAdapter.infer({ config, model, opts, plan, modelDetail });
+  } finally {
+    rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: runtimeProviderId, model });
+  }
+  publishLoadedModel(config, model);
+  return {
+    ...result,
+    diagnostics: {
+      ...result?.diagnostics,
+      localPlan: plan.diagnostics,
+    },
+  };
 }
