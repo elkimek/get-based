@@ -768,6 +768,55 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && imported.importHash === 'confirm-import-hash'
         && imported.sourceFiles?.includes('confirm-import.pdf') === true
         && review.getPendingImport() === null;
+
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        customMarkers: {},
+        markerNotes: {},
+        markerValueNotes: {},
+        manualValues: {},
+        refOverrides: {},
+        importSnapshots: [{
+          id: 'snap-spadia-re-review',
+          fileName: 'Spadia Fatty Acids.pdf',
+          date: '2024-07-04',
+          testType: 'blood',
+          markers: [
+            {
+              rawName: 'Omega-3 Index',
+              value: 7.1,
+              unit: '%',
+              refMin: 8,
+              refMax: 12,
+              matched: true,
+              mappedKey: 'spadiaFA.omega3Index',
+              suggestedName: 'Omega-3 Index',
+              suggestedCategoryLabel: 'Spadia',
+              suggestedGroup: 'Fatty Acids',
+            },
+            {
+              rawName: 'Vitamin A',
+              value: 2.39,
+              unit: 'µmol/l',
+              matched: true,
+              mappedKey: 'vitamins.vitaminA',
+            },
+          ],
+        }],
+      };
+      pdfImport.openImportReviewFromSnapshot('snap-spadia-re-review');
+      await pdfImport.confirmImport();
+      const restoredSpadia = state.importedData.entries.find(entry => entry.date === '2024-07-04');
+      const restoredSpadiaDef = state.importedData.customMarkers['spadiaFA.omega3Index'];
+      outcomes.spadiaSnapshotReReviewRestoresVisibleMarkers =
+        restoredSpadia?.markers?.['spadiaFA.omega3Index'] === 7.1
+        && restoredSpadia?.markers?.['vitamins.vitaminA'] === 2.39
+        && restoredSpadia?.markerSources?.['spadiaFA.omega3Index']?.snapshotId === 'snap-spadia-re-review'
+        && restoredSpadiaDef?.name === 'Omega-3 Index'
+        && restoredSpadiaDef?.categoryLabel === 'Spadia'
+        && restoredSpadiaDef?.group === 'Fatty Acids';
     } finally {
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;

@@ -203,6 +203,7 @@
     "js/pdf-import.js",
     "js/pdfjs-loader.js",
     "js/pii.js",
+    "js/profile-fatty-acid-migrations.js",
     "js/profile-marker-migrations.js",
     "js/profile-share.js",
     "js/profile.js",

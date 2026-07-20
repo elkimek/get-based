@@ -39,6 +39,11 @@ return (async function() {
   const reg = await import('../js/wearable-adapters.js');
   const wearables = await import('../js/wearables.js');
   const views = await import('../js/views.js');
+  const testToday = reg.isoDay();
+  const testDay1 = reg.daysAgoIso(1);
+  const testDay2 = reg.daysAgoIso(2);
+  const testDay3 = reg.daysAgoIso(3);
+  const testDay4 = reg.daysAgoIso(4);
 
   state.importedData = state.importedData || {};
   const TEST_PROFILE = state.currentProfile || ('__test-wearables-dom-' + Math.random().toString(36).slice(2, 8));
@@ -52,9 +57,9 @@ return (async function() {
   const stripHost = document.createElement('div');
   try {
     state.importedData.wearableSummary = {
-      sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 } },
+      sources: { oura: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 5 } },
       metrics: {
-        hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: '2026-04-22', baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
+        hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: testToday, baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
       },
     };
     stripHost.innerHTML = wearables.renderWearableStrip();
@@ -76,17 +81,17 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c A. Detail Modal ', 'font-weight:bold;color:#f59e0b');
   const detailSummary = {
-    sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 } },
+    sources: { oura: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 5 } },
     metrics: {
-      hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: '2026-04-22', baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
-      activity_score: { primarySource: 'oura', latest: 0, latestDate: '2026-04-22', baseline: 0, baselineP25: 0, baselineP75: 0, rolling: { d7: 0, d30: 0, d90: 0 }, trend30d: 'flat', weekly: [0,0,0,0,0] },
+      hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: testToday, baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
+      activity_score: { primarySource: 'oura', latest: 0, latestDate: testToday, baseline: 0, baselineP25: 0, baselineP75: 0, rolling: { d7: 0, d30: 0, d90: 0 }, trend30d: 'flat', weekly: [0,0,0,0,0] },
     },
   };
   state.importedData.wearableSummary = detailSummary;
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'oura', date: '2026-04-20', hrv_rmssd: 40, activity_score: 0 },
-    { source: 'oura', date: '2026-04-21', hrv_rmssd: 41, activity_score: 0 },
-    { source: 'oura', date: '2026-04-22', hrv_rmssd: 42, activity_score: 0 },
+    { source: 'oura', date: testDay2, hrv_rmssd: 40, activity_score: 0 },
+    { source: 'oura', date: testDay1, hrv_rmssd: 41, activity_score: 0 },
+    { source: 'oura', date: testToday, hrv_rmssd: 42, activity_score: 0 },
   ]);
 
   await wearables.openWearableDetail('hrv_rmssd');
@@ -130,16 +135,16 @@ return (async function() {
   console.log('%c A2. Blood Pressure Modal Pairing ', 'font-weight:bold;color:#f59e0b');
   localStorage.setItem('wearable-detail-range', '90d');
   state.importedData.wearableSummary = {
-    sources: { manual: { connectedSince: '2026-04-20', lastSyncAt: Date.now(), coverageDays: 3 } },
+    sources: { manual: { connectedSince: testDay2, lastSyncAt: Date.now(), coverageDays: 3 } },
     metrics: {
-      bp_systolic: { primarySource: 'manual', latest: 120, latestDate: '2026-04-22', baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
-      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: '2026-04-22', baseline: 79, baselineP25: 76, baselineP75: 82, rolling: { d7: 80, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [79, 80] },
+      bp_systolic: { primarySource: 'manual', latest: 120, latestDate: testToday, baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
+      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: testToday, baseline: 79, baselineP25: 76, baselineP75: 82, rolling: { d7: 80, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [79, 80] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'manual', date: '2026-04-20', bp_systolic: 122, bp_diastolic: 81 },
-    { source: 'manual', date: '2026-04-21', bp_systolic: 121, bp_diastolic: 79 },
-    { source: 'manual', date: '2026-04-22', bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
+    { source: 'manual', date: testDay2, bp_systolic: 122, bp_diastolic: 81 },
+    { source: 'manual', date: testDay1, bp_systolic: 121, bp_diastolic: 79 },
+    { source: 'manual', date: testToday, bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
   ]);
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
@@ -164,19 +169,19 @@ return (async function() {
   await store.clearSource(TEST_PROFILE, 'withings');
   state.importedData.wearableSummary = {
     sources: {
-      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
-      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+      withings: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 2 },
+      manual: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 1 },
     },
     metrics: {
-      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: '2026-06-24', baseline: 126, baselineP25: 124, baselineP75: 130, rolling: { d7: 127, d30: 126, d90: 126 }, trend30d: 'flat', weekly: [126, 127] },
-      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: '2026-06-20', baseline: 80, baselineP25: 78, baselineP75: 82, rolling: { d7: 80, d30: 80, d90: 80 }, trend30d: 'flat', weekly: [80] },
+      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: testToday, baseline: 126, baselineP25: 124, baselineP75: 130, rolling: { d7: 127, d30: 126, d90: 126 }, trend30d: 'flat', weekly: [126, 127] },
+      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: testDay4, baseline: 80, baselineP25: 78, baselineP75: 82, rolling: { d7: 80, d30: 80, d90: 80 }, trend30d: 'flat', weekly: [80] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'withings', date: '2026-06-20', bp_systolic: 124 },
-    { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
-    { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
-    { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
+    { source: 'withings', date: testDay4, bp_systolic: 124 },
+    { source: 'withings', date: testToday, bp_systolic: 130 },
+    { source: 'manual', date: testDay4, bp_diastolic: 80 },
+    { source: 'manual', date: testDay2, bp_diastolic: 78 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
@@ -202,19 +207,19 @@ return (async function() {
   await store.clearSource(TEST_PROFILE, 'withings');
   state.importedData.wearableSummary = {
     sources: {
-      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
-      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
+      withings: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 0 },
+      manual: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 2 },
     },
     metrics: {
-      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: '2026-06-24', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
-      bp_diastolic: { primarySource: 'manual', latest: 79, latestDate: '2026-06-22', baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
+      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: testToday, baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'manual', latest: 79, latestDate: testDay2, baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'withings', date: '2026-06-20', bp_systolic: 124 },
-    { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
-    { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
-    { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
+    { source: 'withings', date: testDay4, bp_systolic: 124 },
+    { source: 'manual', date: testDay4, bp_diastolic: 80 },
+    { source: 'manual', date: testDay3, bp_systolic: 122, bp_diastolic: 80 },
+    { source: 'manual', date: testDay2, bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
@@ -236,17 +241,17 @@ return (async function() {
   await store.clearSource(TEST_PROFILE, 'withings');
   state.importedData.wearableSummary = {
     sources: {
-      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
-      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+      withings: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 1 },
+      manual: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 1 },
     },
     metrics: {
-      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: '2026-06-24', baseline: 130, baselineP25: 128, baselineP75: 132, rolling: { d7: 130, d30: 130, d90: 130 }, trend30d: 'flat', weekly: [] },
-      bp_diastolic: { primarySource: 'manual', latest: 78, latestDate: '2026-06-22', baseline: 78, baselineP25: 76, baselineP75: 80, rolling: { d7: 78, d30: 78, d90: 78 }, trend30d: 'flat', weekly: [] },
+      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: testToday, baseline: 130, baselineP25: 128, baselineP75: 132, rolling: { d7: 130, d30: 130, d90: 130 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'manual', latest: 78, latestDate: testDay2, baseline: 78, baselineP25: 76, baselineP75: 80, rolling: { d7: 78, d30: 78, d90: 78 }, trend30d: 'flat', weekly: [] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
-    { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
+    { source: 'withings', date: testToday, bp_systolic: 130 },
+    { source: 'manual', date: testDay2, bp_diastolic: 78 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
@@ -267,17 +272,17 @@ return (async function() {
   await store.clearSource(TEST_PROFILE, 'withings');
   state.importedData.wearableSummary = {
     sources: {
-      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
-      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
+      withings: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 0 },
+      manual: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 2 },
     },
     metrics: {
-      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: '2026-06-24', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
-      bp_diastolic: { primarySource: 'withings', latest: 79, latestDate: '2026-06-22', baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
+      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: testToday, baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'withings', latest: 79, latestDate: testDay2, baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
-    { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
+    { source: 'manual', date: testDay3, bp_systolic: 122, bp_diastolic: 80 },
+    { source: 'manual', date: testDay2, bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => state?.chartInstances?.modal?.data?.datasets?.some(d => /^Manual systolic$/.test(d?.label || '')));
@@ -322,13 +327,13 @@ return (async function() {
   // divergence where the modal's inline formatV fell through to .toFixed(1).
   console.log('%c C. SpO2 Modal Parity ', 'font-weight:bold;color:#f59e0b');
   state.importedData.wearableSummary = {
-    sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 10 } },
+    sources: { oura: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 10 } },
     metrics: {
-      spo2_avg: { primarySource: 'oura', latest: 97, latestDate: '2026-04-22', baseline: 96, baselineP25: 95, baselineP75: 98, rolling: { d7: 97, d30: 97, d90: 96 }, trend30d: 'flat', weekly: [96, 96, 97, 97, 97] },
+      spo2_avg: { primarySource: 'oura', latest: 97, latestDate: testToday, baseline: 96, baselineP25: 95, baselineP75: 98, rolling: { d7: 97, d30: 97, d90: 96 }, trend30d: 'flat', weekly: [96, 96, 97, 97, 97] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'oura', date: '2026-04-22', spo2_avg: 97 },
+    { source: 'oura', date: testToday, spo2_avg: 97 },
   ]);
   await wearables.openWearableDetail('spo2_avg');
   await new Promise(r => setTimeout(r, 60));
@@ -342,9 +347,8 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c D. Partial-Day Chart Marker ', 'font-weight:bold;color:#f59e0b');
   localStorage.setItem('wearable-detail-range', '90d');
-  const todayISO = reg.isoDay();
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayISO = reg.isoDay(yesterday);
+  const todayISO = testToday;
+  const yesterdayISO = testDay1;
   state.importedData.wearableSummary = {
     sources: { oura: { connectedSince: yesterdayISO, lastSyncAt: Date.now(), coverageDays: 2 } },
     metrics: {
@@ -459,14 +463,14 @@ return (async function() {
     wearableSummary: {
       summaryUpdatedAt: new Date().toISOString(),
       sources: {
-        oura:   { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 },
-        manual: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 1 },
+        oura:   { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 5 },
+        manual: { connectedSince: testDay4, lastSyncAt: Date.now(), coverageDays: 1 },
       },
       metrics: {
-        hrv_rmssd: { primarySource: 'oura', latest: 38, latestDate: '2026-04-23',
+        hrv_rmssd: { primarySource: 'oura', latest: 38, latestDate: testToday,
           baseline: 36, baselineP25: 32, baselineP75: 40,
           rolling: { d7: 37, d30: 36, d90: 36 }, trend30d: 'flat', weekly: [36, 37, 38] },
-        rhr: { primarySource: 'manual', latest: 62, latestDate: '2026-04-23',
+        rhr: { primarySource: 'manual', latest: 62, latestDate: testToday,
           baseline: 62, baselineP25: 62, baselineP75: 62,
           rolling: { d7: 62, d30: 62, d90: 62 }, trend30d: 'flat', weekly: [62] },
       },
