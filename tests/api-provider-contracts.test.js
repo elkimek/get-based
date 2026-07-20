@@ -479,12 +479,7 @@ describe('AI provider request contracts', () => {
 
     expect(lifecycleEvents.map(event => event.action)).toEqual(['release', 'infer', 'infer']);
     expect(lifecycleEvents[0].body).toEqual({ instance_id: 'lm-instance' });
-    expect(JSON.parse(sessionStorage.getItem('labcharts-local-ai-runtime-use'))).toMatchObject({
-      baseUrl: 'http://localhost:11434',
-      providerId: 'ollama',
-      model: 'ollama-model',
-    });
-    expect(sessionStorage.getItem('labcharts-local-ai-runtime-use')).not.toContain('apiKey');
+    expect(sessionStorage.getItem('labcharts-local-ai-runtime-use')).toBeNull();
   });
 
   it.each(providerContracts)('routes $name through its expected chat-completion contract', async (contract) => {

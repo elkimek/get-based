@@ -6,7 +6,7 @@ import { getOllamaConfig } from './api-provider-storage.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { isCloudModel, normalizeLocalAiBaseUrl } from './local-ai-provider-shared.js';
 
-const LOCAL_AI_RUNTIME_USE_KEY = 'labcharts-local-ai-runtime-use';
+let runtimeUse = null;
 /** @type {Promise<any>} */
 let handoffQueue = Promise.resolve();
 
@@ -40,32 +40,29 @@ export function getLocalAiReleasePlan(discovery, { modelName = '' } = {}) {
 
 function readLocalAiRuntimeUse() {
   try {
-    const raw = sessionStorage.getItem(LOCAL_AI_RUNTIME_USE_KEY);
-    if (!raw) return null;
-    const stored = JSON.parse(raw);
-    if (!stored?.baseUrl || !stored?.model || !stored?.providerId) return null;
+    if (!runtimeUse?.baseUrl || !runtimeUse?.model || !runtimeUse?.providerId) return null;
     const config = getOllamaConfig();
-    const apiKey = normalizeLocalAiBaseUrl(config.url) === stored.baseUrl ? config.apiKey : '';
-    return { ...stored, apiKey };
+    const apiKey = normalizeLocalAiBaseUrl(config.url) === runtimeUse.baseUrl ? config.apiKey : '';
+    return { ...runtimeUse, apiKey };
   } catch {
     return null;
   }
 }
 
 export function rememberLocalAiRuntimeUse({ baseUrl, providerId, model }) {
-  const runtimeUse = {
+  const nextRuntimeUse = {
     baseUrl: normalizeLocalAiBaseUrl(baseUrl),
     providerId: String(providerId || 'openai-compatible'),
     model: String(model || ''),
   };
-  if (!runtimeUse.baseUrl || !runtimeUse.model) return;
-  try { sessionStorage.setItem(LOCAL_AI_RUNTIME_USE_KEY, JSON.stringify(runtimeUse)); } catch {}
+  if (!nextRuntimeUse.baseUrl || !nextRuntimeUse.model) return;
+  runtimeUse = nextRuntimeUse;
 }
 
 export function clearLocalAiRuntimeUse(baseUrl = '') {
-  const runtimeUse = readLocalAiRuntimeUse();
-  if (baseUrl && runtimeUse?.baseUrl !== normalizeLocalAiBaseUrl(baseUrl)) return;
-  try { sessionStorage.removeItem(LOCAL_AI_RUNTIME_USE_KEY); } catch {}
+  const currentRuntimeUse = readLocalAiRuntimeUse();
+  if (baseUrl && currentRuntimeUse?.baseUrl !== normalizeLocalAiBaseUrl(baseUrl)) return;
+  runtimeUse = null;
 }
 
 async function runLocalAiRuntimeHandoff({ baseUrl, model }) {
