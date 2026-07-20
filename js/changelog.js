@@ -11,6 +11,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.305', date: '2026-07-20', title: 'Clearer lab trends at a glance',
+    items: [
+      '<b>A consistent timeline across lab charts.</b> Your selected timeframe sets the start and end for every marker, making trends easy to compare.',
+      '<b>Recent results in one place.</b> Each marker card highlights the latest reading and up to four recent measurements.',
+      '<b>Clear marker context.</b> Status, ranges, and trends are presented consistently across cards, dashboards, and marker details.',
+    ]
+  },
+  {
     version: '1.10.185', date: '2026-07-14', title: 'Biology Scores stay unlocked',
     items: [
       '<b>Biology Scores no longer relock after app or health-context updates.</b> Once you complete the context check, scores stay visible and changed context appears as a refresh recommendation.',

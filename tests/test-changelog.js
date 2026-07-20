@@ -110,6 +110,11 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog gives a simple high-level lab chart overview',
+  /version:\s*'1\.10\.305'[\s\S]{0,500}Clearer lab trends at a glance/.test(changelogSrc)
+    && /version:\s*'1\.10\.305'[\s\S]{0,1200}A consistent timeline across lab charts/.test(changelogSrc)
+    && /version:\s*'1\.10\.305'[\s\S]{0,1200}Recent results in one place/.test(changelogSrc)
+    && /version:\s*'1\.10\.305'[\s\S]{0,1200}Clear marker context/.test(changelogSrc));
 assert('latest changelog explains private AI reliability and Venice limits in user-readable terms',
   /version:\s*'1\.10\.177'[\s\S]{0,1800}Long private replies can finish normally/.test(changelogSrc)
     && /version:\s*'1\.10\.177'[\s\S]{0,1800}Reasoning-heavy models no longer leave an empty chat/.test(changelogSrc)
