@@ -798,6 +798,94 @@ const importCssSrc = read('css/import.css');
     && savedSpadiaFA.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
     && savedSpadiaFA.markerLabels['fattyAcids.epaC20_5'] === undefined);
 
+  const snapshotReadySpadiaFA = {
+    entries: [{
+      date: '2024-07-04',
+      markers: { 'spadiaFA.omega3Index': 7.1, 'vitamins.vitaminA': 2.39 },
+      markerSources: {
+        'spadiaFA.omega3Index': { file: 'Spadia Fatty Acids.pdf', snapshotId: 'snap_spadia_ready' },
+        'vitamins.vitaminA': { file: 'Spadia Fatty Acids.pdf', snapshotId: 'snap_spadia_ready' },
+      },
+    }],
+    customMarkers: {},
+    importSnapshots: [{
+      id: 'snap_spadia_ready',
+      fileName: 'Spadia Fatty Acids.pdf',
+      date: '2024-07-04',
+      markers: [
+        { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'spadiaFA.omega3Index', suggestedName: 'Omega-3 Index', suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
+        { rawName: 'Vitamin A', value: 2.39, unit: 'µmol/l', mappedKey: 'vitamins.vitaminA', matched: true },
+      ],
+    }],
+  };
+  migrateProfileData(snapshotReadySpadiaFA);
+  assert('Profile migration preserves snapshot-ready Spadia values in mixed reports when metadata is missing',
+    snapshotReadySpadiaFA.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    && snapshotReadySpadiaFA.entries[0].markers['vitamins.vitaminA'] === 2.39);
+  assert('Profile migration rebuilds missing custom marker metadata from snapshot-ready Spadia keys',
+    snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.name === 'Omega-3 Index'
+    && snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.unit === '%'
+    && snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.categoryLabel === 'Spadia'
+    && snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.group === 'Fatty Acids');
+
+  const productFAFixtures = [
+    ['zinzinoFA', 'ZinZino'],
+    ['omegaquantFA', 'OmegaQuant'],
+    ['metabolomixFA', 'Fatty Acids'],
+    ['fattyAcidsTest', 'Fatty Acids Test'],
+    ['nutriBalanceFA', 'Nutri Balance'],
+  ];
+  const snapshotBackedProductFA = { entries: [], customMarkers: {}, importSnapshots: [] };
+  for (let i = 0; i < productFAFixtures.length; i++) {
+    const [prefix, categoryLabel] = productFAFixtures[i];
+    const date = `2026-02-0${i + 1}`;
+    const snapshotId = `snap_product_fa_${i}`;
+    const key = `${prefix}.omega3Index`;
+    snapshotBackedProductFA.entries.push({
+      date,
+      markers: { [key]: 7 + i, 'vitamins.vitaminA': 2.39 },
+      markerSources: { [key]: { file: `${categoryLabel}.pdf`, snapshotId } },
+    });
+    snapshotBackedProductFA.importSnapshots.push({
+      id: snapshotId,
+      fileName: `${categoryLabel}.pdf`,
+      date,
+      markers: [{
+        rawName: 'Omega-3 Index',
+        value: 7 + i,
+        unit: '%',
+        mappedKey: key,
+        suggestedName: 'Omega-3 Index',
+        suggestedCategoryLabel: categoryLabel,
+        suggestedGroup: 'Fatty Acids',
+        matched: true,
+      }],
+    });
+  }
+  migrateProfileData(snapshotBackedProductFA);
+  assert('Profile migration preserves snapshot-backed values for every fatty-acid adapter prefix',
+    productFAFixtures.every(([prefix], i) =>
+      snapshotBackedProductFA.entries[i].markers[`${prefix}.omega3Index`] === 7 + i
+      && snapshotBackedProductFA.entries[i].markers['vitamins.vitaminA'] === 2.39));
+  assert('Profile migration rebuilds metadata for known and dynamic fatty-acid adapters',
+    productFAFixtures.every(([prefix, categoryLabel]) => {
+      const def = snapshotBackedProductFA.customMarkers[`${prefix}.omega3Index`];
+      return def?.name === 'Omega-3 Index'
+        && def?.unit === '%'
+        && def?.categoryLabel === categoryLabel
+        && def?.group === 'Fatty Acids';
+    }));
+
+  const unprovenCorruptFA = {
+    entries: [{ date: '2026-02-10', markers: { 'accidentalFA.glucose': 5.2, 'vitamins.vitaminA': 2.39 } }],
+    customMarkers: {},
+    importSnapshots: [],
+  };
+  migrateProfileData(unprovenCorruptFA);
+  assert('Profile migration still removes unproven FA-prefixed blood-marker corruption',
+    unprovenCorruptFA.entries[0].markers['accidentalFA.glucose'] === undefined
+    && unprovenCorruptFA.entries[0].markers['vitamins.vitaminA'] === 2.39);
+
   const savedGenericFA = {
     entries: [{
       date: '2024-07-04',

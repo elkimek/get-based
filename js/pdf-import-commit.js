@@ -128,24 +128,34 @@ export async function confirmImport() {
   const importGroup = (result.testType && result.testType !== 'blood')
     ? (result.testType === 'fattyAcids' ? 'Fatty Acids' : result.testType)
     : null;
-  // Auto-create custom markers for matched specialty keys (uses PDF's reference ranges)
+  // Auto-create custom markers for matched specialty and product-specific keys.
+  // Snapshot re-review can contain an already-matched custom key (for example
+  // spadiaFA.*) whose definition was lost, so matched does not imply schema-backed.
   if (!state.importedData.customMarkers) state.importedData.customMarkers = {};
   for (const m of matched) {
-    if (SPECIALTY_MARKER_DEFS[m.mappedKey]) {
-      const def = SPECIALTY_MARKER_DEFS[m.mappedKey];
-      const existing = state.importedData.customMarkers[m.mappedKey];
-      const cmDef = existing || {};
-      cmDef.name = cmDef.name || def.name;
-      cmDef.unit = m.unit || cmDef.unit || def.unit;
-      cmDef.refMin = m.refMin != null ? m.refMin : (cmDef.refMin != null ? cmDef.refMin : def.refMin);
-      cmDef.refMax = m.refMax != null ? m.refMax : (cmDef.refMax != null ? cmDef.refMax : def.refMax);
-      cmDef.icon = cmDef.icon || def.icon;
-      if (def.singlePoint) cmDef.singlePoint = true;
-      // Always update organizational fields from latest import
-      cmDef.categoryLabel = def.categoryLabel;
-      cmDef.group = importGroup || def.group || null;
-      state.importedData.customMarkers[m.mappedKey] = cmDef;
-    }
+    const [catKey, markerKey] = m.mappedKey.split('.');
+    const schemaMarker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    const exactSpecialtyDef = SPECIALTY_MARKER_DEFS[m.mappedKey];
+    const productBaseDef = catKey === 'spadiaFA'
+      ? SPECIALTY_MARKER_DEFS[`fattyAcids.${markerKey}`]
+      : null;
+    const def = exactSpecialtyDef || productBaseDef || {};
+    if (schemaMarker && !exactSpecialtyDef) continue;
+    const existing = state.importedData.customMarkers[m.mappedKey];
+    const cmDef = existing || {};
+    cmDef.name = cmDef.name || m.suggestedName || def.name || _cleanImportedMarkerDisplayName(m.rawName) || markerKey;
+    cmDef.unit = m.unit || cmDef.unit || def.unit || '';
+    cmDef.refMin = m.refMin != null ? m.refMin : (cmDef.refMin != null ? cmDef.refMin : def.refMin);
+    cmDef.refMax = m.refMax != null ? m.refMax : (cmDef.refMax != null ? cmDef.refMax : def.refMax);
+    cmDef.icon = cmDef.icon || def.icon;
+    if (def.singlePoint) cmDef.singlePoint = true;
+    // Always update organizational fields from latest import.
+    cmDef.categoryLabel = exactSpecialtyDef?.categoryLabel
+      || m.suggestedCategoryLabel
+      || cmDef.categoryLabel
+      || (catKey === 'spadiaFA' ? 'Spadia' : catKey.charAt(0).toUpperCase() + catKey.slice(1));
+    cmDef.group = m.suggestedGroup || importGroup || def.group || cmDef.group || null;
+    state.importedData.customMarkers[m.mappedKey] = cmDef;
   }
   // Save new (custom) marker values and definitions
   for (const m of newMarkers) {

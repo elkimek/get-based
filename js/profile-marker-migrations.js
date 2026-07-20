@@ -4,6 +4,10 @@
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 import { normalizeToSI } from './pdf-import-marker-mapping.js';
+import {
+  ensureProductFattyAcidCustomMarker,
+  repairSnapshotBackedProductFattyAcidMetadata,
+} from './profile-fatty-acid-migrations.js';
 
 /**
  * @typedef {Record<string, any>} ProfileData
@@ -649,29 +653,6 @@ function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
 
 /**
  * @param {ProfileData} data
- * @param {string} oldKey
- * @param {string} nextKey
- * @returns {void}
- */
-function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
-  if (!data.customMarkers) data.customMarkers = {};
-  const sourceDef = data.customMarkers[oldKey] || SPECIALTY_MARKER_DEFS[oldKey] || {};
-  const cmDef = {
-    ...sourceDef,
-    ...(data.customMarkers[nextKey] || {}),
-  };
-  cmDef.name = cmDef.name || sourceDef.name || nextKey.split('.').pop();
-  cmDef.unit = cmDef.unit || sourceDef.unit || '%';
-  cmDef.refMin = cmDef.refMin != null ? cmDef.refMin : (sourceDef.refMin != null ? sourceDef.refMin : null);
-  cmDef.refMax = cmDef.refMax != null ? cmDef.refMax : (sourceDef.refMax != null ? sourceDef.refMax : null);
-  cmDef.icon = cmDef.icon || sourceDef.icon || SPECIALTY_MARKER_DEFS[oldKey]?.icon;
-  cmDef.categoryLabel = 'Spadia';
-  cmDef.group = 'Fatty Acids';
-  data.customMarkers[nextKey] = cmDef;
-}
-
-/**
- * @param {ProfileData} data
  * @param {any} entry
  * @param {string} oldKey
  * @param {string} nextKey
@@ -679,7 +660,7 @@ function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
  */
 function _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey) {
   if (!renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false })) return false;
-  _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
+  ensureProductFattyAcidCustomMarker(data, oldKey, nextKey);
   if (entry.date) {
     _copyDateScopedProfileMarkerData(data, oldKey, nextKey, entry.date);
   }
@@ -716,17 +697,23 @@ function _repairSpadiaFattyAcidKeys(data) {
       const oldKey = marker?.mappedKey?.startsWith('fattyAcids.') ? marker.mappedKey
         : marker?.suggestedKey?.startsWith('fattyAcids.') ? marker.suggestedKey
           : null;
-      const nextKey = remapKey(oldKey);
+      const productKey = marker?.mappedKey?.startsWith('spadiaFA.') ? marker.mappedKey
+        : marker?.suggestedKey?.startsWith('spadiaFA.') ? marker.suggestedKey
+          : null;
+      const nextKey = oldKey ? remapKey(oldKey) : productKey;
       if (!nextKey) continue;
-      const def = SPECIALTY_MARKER_DEFS[oldKey] || {};
+      const markerPart = nextKey.slice('spadiaFA.'.length);
+      const genericKey = oldKey || `fattyAcids.${markerPart}`;
+      const def = SPECIALTY_MARKER_DEFS[genericKey] || {};
       marker.mappedKey = nextKey;
       marker.suggestedKey = null;
       marker.suggestedName = marker.suggestedName || def.name || marker.rawName;
       marker.suggestedCategoryLabel = 'Spadia';
       marker.suggestedGroup = 'Fatty Acids';
       marker.matched = true;
+      ensureProductFattyAcidCustomMarker(data, genericKey, nextKey, marker);
+      if (!oldKey) continue;
       renamedKeys.set(oldKey, nextKey);
-      _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
       if (snap?.date) {
         _copyDateScopedProfileMarkerData(data, oldKey, nextKey, snap.date);
       }
@@ -758,5 +745,6 @@ export function repairProfileMarkerData(data) {
   _repairUnitSuffixedStandardMarkers(data);
   _repairNewlyStandardizedImports(data);
   _repairFractionStoredPercentImports(data);
+  repairSnapshotBackedProductFattyAcidMetadata(data);
   _repairSpadiaFattyAcidKeys(data);
 }
