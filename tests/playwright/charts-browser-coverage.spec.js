@@ -198,36 +198,6 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && suppChart.ctx.calls.some(call => call[0] === 'createLinearGradient')
       && suppChart.ctx.calls.some(call => call[0] === 'fillText' && String(call[1]).includes('Magnesium'));
 
-    const card = document.createElement('div');
-    card.className = 'chart-card';
-    card.innerHTML = `<canvas></canvas><div class="chart-values" style="display:block;width:300px">
-      <div class="chart-value-item" data-chart-value-index="0" style="width:60px"></div>
-      <div class="chart-value-item" data-chart-value-index="1" style="width:60px"></div>
-      <div class="chart-value-item" data-chart-value-index="2" style="width:60px"></div>
-    </div>`;
-    document.body.appendChild(card);
-    const positionChart = {
-      canvas: card.querySelector('canvas'),
-      width: 300,
-      getDatasetMeta: () => ({ data: [{ x: 10 }, { x: 150 }, { x: 295 }] }),
-    };
-    charts.chartValueLabelsPlugin.afterRender(positionChart, {}, { trimOffset: 0 });
-    const positionedItems = [...card.querySelectorAll('.chart-value-item')];
-    const positionedXs = positionedItems.map(item => parseFloat(item.style.getPropertyValue('--chart-value-x')));
-    outcomes.chartValueLabelsFollowPointCoordinatesAndClampToCardEdges =
-      card.querySelector('.chart-values')?.classList.contains('chart-values-positioned')
-      && positionedXs[0] >= 30
-      && positionedXs[1] === 150
-      && positionedXs[2] <= 270
-      && positionedItems.every(item => !item.classList.contains('chart-value-collided'));
-
-    positionChart.getDatasetMeta = () => ({ data: [{ x: 200 }, { x: 215 }, { x: 230 }] });
-    charts.chartValueLabelsPlugin.afterRender(positionChart, {}, { trimOffset: 0 });
-    outcomes.chartValueLabelCollisionsKeepNewestObservationVisible =
-      positionedItems[2].classList.contains('chart-value-collided') === false
-      && positionedItems.slice(0, 2).some(item => item.classList.contains('chart-value-collided'));
-    card.remove();
-
     const captured = {};
     const singlePointCaptured = {};
     const canvas = document.createElement('canvas');

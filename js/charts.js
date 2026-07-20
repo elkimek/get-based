@@ -479,63 +479,6 @@ export const phaseBandPlugin = {
   }
 };
 
-// Keep the compact observation labels below marker charts tied to the actual
-// point coordinates. The row renders a grid as a no-JS fallback; once Chart.js
-// has laid out the time scale, this plugin replaces those slots with measured
-// positions and hides older labels that would collide. The latest label always
-// wins a collision so the summary remains useful on narrow cards.
-function positionChartValueLabels(chart, options = {}) {
-  const card = chart.canvas?.closest?.('.chart-card');
-  const row = card?.querySelector?.('.chart-values');
-  if (!row) return;
-  const items = Array.from(row.querySelectorAll('.chart-value-item'));
-  if (!items.length) return;
-  const meta = chart.getDatasetMeta?.(0);
-  if (!meta?.data) return;
-
-  row.classList.add('chart-values-positioned');
-  const rowWidth = row.clientWidth || chart.width || 0;
-  const chartWidth = chart.width || chart.canvas?.getBoundingClientRect?.().width || rowWidth;
-  if (!(rowWidth > 0) || !(chartWidth > 0)) return;
-  const trimOffset = Number(options.trimOffset) || 0;
-  const positioned = [];
-
-  for (const item of items) {
-    item.classList.remove('chart-value-collided');
-    const originalIndex = Number(item.dataset.chartValueIndex);
-    const point = meta.data[originalIndex - trimOffset];
-    if (!point || !Number.isFinite(point.x)) {
-      item.classList.add('chart-value-collided');
-      continue;
-    }
-    const width = Math.min(item.getBoundingClientRect().width || 82, rowWidth);
-    const rawCenter = (point.x / chartWidth) * rowWidth;
-    const center = Math.max(width / 2, Math.min(rowWidth - width / 2, rawCenter));
-    item.style.setProperty('--chart-value-x', `${center}px`);
-    positioned.push({ item, center, width });
-  }
-
-  const accepted = [];
-  for (let i = positioned.length - 1; i >= 0; i--) {
-    const candidate = positioned[i];
-    const collides = accepted.some(existing =>
-      Math.abs(existing.center - candidate.center) < (existing.width + candidate.width) / 2 + 4
-    );
-    if (collides) candidate.item.classList.add('chart-value-collided');
-    else accepted.push(candidate);
-  }
-}
-
-export const chartValueLabelsPlugin = {
-  id: 'chartValueLabels',
-  afterUpdate(chart, _args, options = {}) {
-    positionChartValueLabels(chart, options);
-  },
-  afterRender(chart, _args, options = {}) {
-    positionChartValueLabels(chart, options);
-  },
-};
-
 export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels) {
   const canvas = document.getElementById("chart-" + id);
   if (!canvas) return;
@@ -654,13 +597,12 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
         optimalBand: state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) ? { optimalMin: marker.optimalMin, optimalMax: marker.optimalMax } : false,
         noteAnnotations: chartNotes.length ? { notes: chartNotes, chartDates: visibleRangeDates } : false,
         supplementBars: chartSupps.length ? { supplements: chartSupps, chartDates: visibleRangeDates } : false,
-        phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates } : false,
-        chartValueLabels: { trimOffset }},
+        phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates } : false},
       layout: { padding: { top: chartSupps.length ? chartSupps.length * 14 + 6 : 0 } },
       scales: { x: xScale,
         y:{min:axisMin, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
     },
-    plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, chartValueLabelsPlugin]
+    plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin]
   });
 }
 

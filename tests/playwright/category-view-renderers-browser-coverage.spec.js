@@ -83,7 +83,9 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && !card.querySelector('.chart-card-unit')
         && card.querySelector('.chart-card-snapshot-meta')?.textContent === 'May 1 · mg/dL'
         && card.querySelectorAll('.chart-value-item').length === 4
-        && [...card.querySelectorAll('.chart-value-item')].map(el => el.getAttribute('data-chart-value-index')).join('|') === '0|2|3|4'
+        && card.querySelector('.chart-values')?.getAttribute('aria-label') === 'Recent results'
+        && card.querySelector('.chart-values-label')?.textContent === 'Recent results'
+        && [...card.querySelectorAll('.chart-value-date')].map(el => el.textContent).join('|') === 'Jan 1|Mar 1|Apr 1|May 1'
         && ![...card.querySelectorAll('.chart-value-date')].some(el => el.textContent === 'Feb 1')
         && !card.querySelector('.chart-value-num.val-missing')
         && !card.querySelector('.chart-card-range, .chart-ref-range')

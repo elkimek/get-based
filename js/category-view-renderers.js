@@ -184,14 +184,15 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
       </div>
     </div>
     <div class="chart-container"><canvas id="chart-${id}" aria-hidden="true"></canvas></div>
-    <div class="chart-values" style="--chart-value-count:${Math.max(1, compactValueIndexes.length)}">`;
+    <div class="chart-values" role="list" aria-label="Recent results" style="--chart-value-count:${Math.max(1, compactValueIndexes.length)}">
+      <span class="chart-values-label" aria-hidden="true">Recent results</span>`;
   for (const i of compactValueIndexes) {
     const v = marker.values[i];
     const ri = getEffectiveRangeForDate(marker, i);
     const s = markerValueStatus(v, ri);
     const itemDateLabel = displayDateLabel(i, false);
     const fullDateLabel = exactObservationLabel(chartDates[i], labels[i] || '', true);
-    html += `<div class="chart-value-item" data-chart-value-index="${i}"><div class="chart-value-date" title="${escapeAttr(fullDateLabel)}">${escapeHTML(itemDateLabel)}</div>
+    html += `<div class="chart-value-item" role="listitem"><div class="chart-value-date" title="${escapeAttr(fullDateLabel)}">${escapeHTML(itemDateLabel)}</div>
       <div class="chart-value-num val-${s}">${v !== null ? formatValue(v) : "—"}</div></div>`;
   }
   html += `</div></div></div>`;

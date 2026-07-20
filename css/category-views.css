@@ -263,26 +263,22 @@
 .chart-values {
   display: grid;
   grid-template-columns: repeat(var(--chart-value-count, 4), minmax(0, 1fr));
-  gap: 6px;
+  column-gap: 6px;
+  row-gap: 7px;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
   overflow: hidden;
   min-height: 54px;
 }
-.chart-values.chart-values-positioned {
-  display: block;
-  position: relative;
-}
-.chart-values.chart-values-positioned .chart-value-item {
-  position: absolute;
-  top: 10px;
-  left: var(--chart-value-x, 50%);
-  width: min(82px, 27%);
-  transform: translateX(-50%);
-}
-.chart-values.chart-values-positioned .chart-value-item.chart-value-collided {
-  visibility: hidden;
+.chart-values-label {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 .chart-value-item {
   min-width: 0;

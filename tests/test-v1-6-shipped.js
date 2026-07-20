@@ -589,7 +589,7 @@ const _origProfileSex = state ? state.profileSex : null;
       /\.chart-card-snapshot\s*\{/.test(cssSrc)
       && /\.chart-container\s*\{[^\}]*height:\s*150px/.test(cssSrc)
       && /\.chart-values\s*\{[\s\S]{0,160}grid-template-columns:\s*repeat\(var\(--chart-value-count/.test(cssSrc)
-      && /\.chart-values\.chart-values-positioned/.test(cssSrc));
+      && /\.chart-values-label\s*\{/.test(cssSrc));
     assert('category-page-view.js: returning to Charts restores tips and sorted card order',
       /sortCategoryChartEntries\(withData, categoryKey\)[\s\S]{0,900}loadChartCardRecs\(\)/.test(categoryPageViewSrc));
     assert('chart-card-recs.js: tips nudge does not cover open marker modal',
