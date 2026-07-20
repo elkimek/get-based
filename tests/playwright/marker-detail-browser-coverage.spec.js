@@ -772,11 +772,30 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         && detailText.includes('coverage-lab.pdf')
         && !!detail?.querySelector('.gb-detail-pin-btn[aria-pressed="false"]')
         && detailText.includes('rec proteins.albumin');
+      outcomes.detailModalBothModeLabelsEachRangeAndUsesNativeEditButtons =
+        detail?.querySelector('.stat-card-value-range')?.textContent.includes('reference')
+        && detail.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal')
+        && [...detail.querySelectorAll('.stat-card-range-controls .ref-editable')].every(control => control.tagName === 'BUTTON')
+        && detailText.includes('History All time');
 
-      detail?.querySelector('[data-marker-detail-action="quick-pin"]')?.click();
-      detail?.querySelector('[data-marker-detail-action="rename-marker"]')?.click();
-      detail?.querySelector('[data-marker-detail-action="revert-marker-name"]')?.click();
-      detail?.querySelector('[data-marker-detail-action="ask-ai"]')?.click();
+      state.rangeMode = 'reference';
+      modal.showDetailModal(albuminId);
+      await wait(20);
+      const referenceDetail = document.getElementById('detail-modal');
+      outcomes.detailModalReferenceModeUsesReferenceAsThePrimaryRange =
+        referenceDetail?.querySelector('.stat-card-value-range')?.textContent.includes('reference')
+        && !referenceDetail.querySelector('.stat-card-value-range')?.textContent.includes('optimal');
+      outcomes.detailModalReferenceModeOmitsOptimalSecondaryRange =
+        !referenceDetail?.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal');
+      state.rangeMode = 'both';
+      modal.showDetailModal(albuminId);
+      await wait(20);
+
+      const restoredDetail = document.getElementById('detail-modal');
+      restoredDetail?.querySelector('[data-marker-detail-action="quick-pin"]')?.click();
+      restoredDetail?.querySelector('[data-marker-detail-action="rename-marker"]')?.click();
+      restoredDetail?.querySelector('[data-marker-detail-action="revert-marker-name"]')?.click();
+      restoredDetail?.querySelector('[data-marker-detail-action="ask-ai"]')?.click();
       outcomes.defaultDelegatesCallInjectedMarkerActions =
         calls.some(call => call[0] === 'pin' && call[1] === albuminId)
         && calls.some(call => call[0] === 'rename' && call[1] === albuminId)

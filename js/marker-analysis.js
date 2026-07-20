@@ -39,7 +39,7 @@ export function getPhaseRefEnvelope(marker) {
 }
 
 export function getLatestValueIndex(values) {
-  for (let i = values.length - 1; i >= 0; i--) if (values[i] !== null) return i;
+  for (let i = values.length - 1; i >= 0; i--) if (values[i] !== null && values[i] !== undefined) return i;
   return -1;
 }
 

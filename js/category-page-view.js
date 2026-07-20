@@ -7,6 +7,7 @@ import {
   getActiveData,
   filterDatesByRange,
   destroyAllCharts,
+  dataActionAttrs,
   renderDateRangeFilter,
   renderChartLayersDropdown,
 } from './data.js';
@@ -98,7 +99,46 @@ export function installCategoryPageActionDelegates(root = typeof document !== 'u
 
 if (typeof document !== 'undefined') installCategoryPageActionDelegates();
 
-function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
+function markerHasData(m) { return m.values?.some(v => v !== null && v !== undefined) ?? false; }
+
+function selectedRangeLabel() {
+  return state.dateRangeFilter === '3m' ? 'the last 3 months'
+    : state.dateRangeFilter === '6m' ? 'the last 6 months'
+    : state.dateRangeFilter === '1y' ? 'the last year'
+    : 'all time';
+}
+
+function renderNoResultsInRange(cat, categoryKey) {
+  return `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
+    <h3>No results in ${escapeHTML(selectedRangeLabel())}</h3>
+    <p>This category has older results. Choose a longer range or show the complete history.</p>
+    <button type="button" class="range-btn" ${dataActionAttrs('set-date-range', { range: 'all' })}>Show all results</button></div>`;
+}
+
+function renderMarkerDataGapSections(allEntries, rawCat, categoryKey) {
+  const withoutVisibleData = allEntries.filter(([, marker]) => !markerHasData(marker));
+  if (!withoutVisibleData.length) return '';
+  const outsideRange = [];
+  const neverRecorded = [];
+  for (const entry of withoutVisibleData) {
+    const [key] = entry;
+    if (state.dateRangeFilter !== 'all' && markerHasData(rawCat?.markers?.[key])) outsideRange.push(entry);
+    else neverRecorded.push(entry);
+  }
+  const renderSection = (entries, heading, suffix) => {
+    if (!entries.length) return '';
+    let html = `<div class="chart-card-gap-section"><p>${escapeHTML(heading)}</p><div class="chart-card-gap-list">`;
+    for (const [key, marker] of entries) {
+      if (!safeMarkerId(key)) continue;
+      const id = categoryKey + '_' + key;
+      html += `<button type="button" class="chart-card chart-card-add" aria-label="Open ${escapeAttr(marker.name)} details" ${markerDetailActionAttrs('show-detail-modal', { id })}>
+        <span>${escapeHTML(marker.name)}</span><span>${escapeHTML(suffix)}</span></button>`;
+    }
+    return html + `</div></div>`;
+  };
+  return renderSection(outsideRange, `Results outside ${selectedRangeLabel()}`, 'view history')
+    + renderSection(neverRecorded, 'No data yet', '+ add value');
+}
 
 function sortCategoryChartEntries(entries, categoryKey) {
   const preserved = state._preserveCategoryCardOrder;
@@ -114,16 +154,16 @@ function sortCategoryChartEntries(entries, categoryKey) {
   // by status (out-of-range before normal).
   const catalogSlots = getCategoryPageCatalogSlots();
   const hasSlot = (k) => catalogSlots?.[categoryKey + '.' + k] ? 0 : 1;
-  const statusOrder = { high: 0, low: 0, normal: 1, missing: 2 };
+  const statusOrder = { high: 0, low: 0, normal: 1, unrated: 2, missing: 3 };
   entries.sort(([ka, a], [kb, b]) => {
     const slotDiff = hasSlot(ka) - hasSlot(kb);
     if (slotDiff !== 0) return slotDiff;
     const ai = getLatestValueIndex(a.values), bi = getLatestValueIndex(b.values);
     const ar = ai !== -1 ? getEffectiveRangeForDate(a, ai) : { min: null, max: null };
     const br = bi !== -1 ? getEffectiveRangeForDate(b, bi) : { min: null, max: null };
-    const as = ai !== -1 ? getStatus(a.values[ai], ar.min, ar.max) : 'missing';
-    const bs = bi !== -1 ? getStatus(b.values[bi], br.min, br.max) : 'missing';
-    return (statusOrder[as] ?? 2) - (statusOrder[bs] ?? 2);
+    const as = ai === -1 ? 'missing' : (ar.min == null && ar.max == null) ? 'unrated' : getStatus(a.values[ai], ar.min, ar.max);
+    const bs = bi === -1 ? 'missing' : (br.min == null && br.max == null) ? 'unrated' : getStatus(b.values[bi], br.min, br.max);
+    return (statusOrder[as] ?? 3) - (statusOrder[bs] ?? 3);
   });
 }
 
@@ -135,12 +175,16 @@ export function showCategory(categoryKey, preData) {
   // Ensure catalog is preloaded for sorting and rec links
   primeCategoryPageCatalogCache();
   const rawData = preData || getActiveData();
-  const data = filterDatesByRange(rawData);
+  const data = filterDatesByRange(rawData, { fallbackToAll: false });
   const cat = data.categories[categoryKey];
+  const rawCat = rawData.categories[categoryKey];
   const main = document.getElementById("main-content");
   const allEntries = Object.entries(cat.markers).filter(([, m]) => !m.hidden);
   const withData = allEntries.filter(([, m]) => markerHasData(m));
-  const countLabel = withData.length < allEntries.length ? `${withData.length} of ${allEntries.length} biomarkers with data` : `${allEntries.length} biomarkers tracked`;
+  const rawWithData = Object.values(rawCat?.markers || {}).filter(markerHasData).length;
+  const countLabel = state.dateRangeFilter !== 'all'
+    ? `${withData.length} of ${allEntries.length} biomarkers with results in ${selectedRangeLabel()}`
+    : withData.length < allEntries.length ? `${withData.length} of ${allEntries.length} biomarkers with data` : `${allEntries.length} biomarkers tracked`;
   const renameBtn = ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename category" title="Rename category" ${categoryPageActionAttrs('rename-category', { category: categoryKey })} style="cursor:pointer;font-size:12px">rename</span>`;
   let html = `<div class="category-header"><h2>${renderCategoryGlyph(categoryKey, cat.label)}<span class="category-title-text">${escapeHTML(cat.label)}</span>${renameBtn}</h2>
     <p>${countLabel}</p></div>`;
@@ -156,8 +200,10 @@ export function showCategory(categoryKey, preData) {
 
   html += `<div id="view-content">`;
   if (withData.length === 0) {
-    html += `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
-      <h3>No Data Available</h3><p>Import lab results containing ${escapeHTML(cat.label.toLowerCase())} markers to see data here.</p></div>`;
+    html += state.dateRangeFilter !== 'all' && rawWithData > 0
+      ? renderNoResultsInRange(cat, categoryKey)
+      : `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
+        <h3>No Data Available</h3><p>Import lab results containing ${escapeHTML(cat.label.toLowerCase())} markers to see data here.</p></div>`;
   } else if (cat.singleDate) {
     html += renderFattyAcidsView(cat, categoryKey);
   } else {
@@ -167,22 +213,10 @@ export function showCategory(categoryKey, preData) {
       // Skip legacy customMarkers with unsafe keys — they can't be safely
       // embedded in inline-onclick handlers.
       if (!safeMarkerId(key)) continue;
-      html += renderChartCard(categoryKey + "_" + key, marker, data.dateLabels);
+      html += renderChartCard(categoryKey + "_" + key, marker, data.dateLabels, data.dates);
     }
     html += `</div>`;
-    // Show empty markers (no data yet) as clickable cards
-    const noData = allEntries.filter(([, m]) => !markerHasData(m));
-    if (noData.length > 0) {
-      html += `<div style="margin-top:16px"><p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">No data yet</p><div style="display:flex;flex-wrap:wrap;gap:8px">`;
-      for (const [key, marker] of noData) {
-        if (!safeMarkerId(key)) continue;
-        const id = categoryKey + '_' + key;
-        html += `<div class="chart-card" role="button" tabindex="0" aria-label="Add value for ${escapeHTML(marker.name)}" ${markerDetailActionAttrs('show-detail-modal', { id })} style="cursor:pointer;padding:12px 16px;min-height:auto;flex:0 0 auto">
-          <span style="color:var(--text-secondary)">${escapeHTML(marker.name)}</span>
-          <span style="color:var(--text-muted);font-size:11px;margin-left:6px">+ add value</span></div>`;
-      }
-      html += `</div></div>`;
-    }
+    html += renderMarkerDataGapSections(allEntries, rawCat, categoryKey);
   }
   html += `</div>`;
   main.innerHTML = html;
@@ -201,7 +235,7 @@ export function showCategory(categoryKey, preData) {
       createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels);
     }
   }
-  loadChartCardRecs();
+  void loadChartCardRecs();
 }
 
 export function switchView(view, categoryKey, btn) {
@@ -220,8 +254,9 @@ export function switchView(view, categoryKey, btn) {
   btn.setAttribute('tabindex', '0');
   destroyAllCharts();
   const rawData = getActiveData();
-  const data = filterDatesByRange(rawData);
+  const data = filterDatesByRange(rawData, { fallbackToAll: false });
   const cat = data.categories[categoryKey];
+  const rawCat = rawData.categories[categoryKey];
   const container = document.getElementById("view-content");
   // Pre-sanitize date labels at the call boundary — CodeQL's taint analysis
   // (js/xss-through-dom) doesn't trace sanitizers across function calls, so
@@ -230,6 +265,12 @@ export function switchView(view, categoryKey, btn) {
   // because renderers treat them as values and escape at the attribute/text
   // boundary where needed.
   const safeLabels = Array.isArray(data.dateLabels) ? data.dateLabels.map(escapeHTML) : data.dateLabels;
+  const categoryHasVisibleData = Object.values(cat.markers || {}).some(markerHasData);
+  const categoryHasHistoricalData = Object.values(rawCat?.markers || {}).some(markerHasData);
+  if (state.dateRangeFilter !== 'all' && !categoryHasVisibleData && categoryHasHistoricalData) {
+    container.innerHTML = renderNoResultsInRange(cat, categoryKey);
+    return;
+  }
   if (view === "table") {
     container.innerHTML = renderTableView(cat, safeLabels, categoryKey, data.dates);
   } else if (view === "heatmap") {
@@ -242,15 +283,25 @@ export function switchView(view, categoryKey, btn) {
       // Per-key safety check skips legacy customMarkers with unsafe keys so
       // they never reach inline-onclick handlers in renderChartCard.
       const withData = Object.entries(cat.markers).filter(([key, m]) => markerHasData(m) && safeMarkerId(key));
+      if (withData.length === 0) {
+        container.innerHTML = state.dateRangeFilter !== 'all' && categoryHasHistoricalData
+          ? renderNoResultsInRange(cat, categoryKey)
+          : `<div class="empty-state"><h3>No Data Available</h3><p>Import lab results to see marker charts here.</p></div>`;
+        return;
+      }
+      sortCategoryChartEntries(withData, categoryKey);
       let html = `<div class="charts-grid">`;
       for (const [key, marker] of withData) {
-        html += renderChartCard(categoryKey + "_" + key, marker, data.dateLabels);
+        html += renderChartCard(categoryKey + "_" + key, marker, data.dateLabels, data.dates);
       }
       html += `</div>`;
+      const allEntries = Object.entries(cat.markers).filter(([, marker]) => !marker.hidden);
+      html += renderMarkerDataGapSections(allEntries, rawCat, categoryKey);
       container.innerHTML = html;
       for (const [key, marker] of withData) {
         createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels);
       }
+      void loadChartCardRecs();
     }
   }
 }

@@ -808,14 +808,17 @@ export function applyUnitConversion(data) {
 // ═══════════════════════════════════════════════
 export function filterDatesByRange(data, options = {}) {
   if (state.dateRangeFilter === 'all') return data;
-  const fallbackToAll = options.fallbackToAll !== false;
+  // A selected timeframe must stay truthful. Callers may explicitly request
+  // the legacy all-history fallback, but UI surfaces default to an honest
+  // empty range and can offer "Show all results" themselves.
+  const fallbackToAll = options.fallbackToAll === true;
   const bounds = getLabDateRangeBounds(data.dates, state.dateRangeFilter, new Date(), { fallbackToAll: false });
   if (!bounds) return data;
   const indices = [];
   for (let i = 0; i < data.dates.length; i++) {
     if (data.dates[i] >= bounds.min && data.dates[i] <= bounds.max) indices.push(i);
   }
-  if (indices.length === 0 && fallbackToAll) return data; // fallback: show all if no dates in range
+  if (indices.length === 0 && fallbackToAll) return data;
   const filteredDates = new Set(indices.map(i => data.dates[i]));
   const filtered = {
     dates: indices.map(i => data.dates[i]),

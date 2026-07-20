@@ -29,7 +29,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     const keyMarkers = getKeyTrendMarkers(filteredData);
     const trendAlerts = detectTrendAlerts(filteredData);
     const trendMarkerIds = new Set(trendAlerts.map(a => a.id));
-    const allFlags = getAllFlaggedMarkers(data);
+    const allFlags = getAllFlaggedMarkers(filteredData);
     const criticalFlags = allFlags.filter(f => {
       if (trendMarkerIds.has(f.id)) return false;
       const refRange = f.refMax - f.refMin;

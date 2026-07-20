@@ -125,6 +125,7 @@
 .gb-detail-status-normal { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--border)); }
 .gb-detail-status-high { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
 .gb-detail-status-low { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, var(--border)); }
+.gb-detail-status-unrated { color: var(--text-muted); }
 .marker-detail-modal .marker-description,
 .marker-detail-modal .gb-detail-summary,
 .marker-detail-modal .gb-range-band,
@@ -269,6 +270,7 @@
 .marker-detail-modal .stat-card-value.val-normal { color: var(--green); }
 .marker-detail-modal .stat-card-value.val-high { color: var(--red); }
 .marker-detail-modal .stat-card-value.val-low { color: var(--yellow); }
+.marker-detail-modal .stat-card-value.val-unrated { color: var(--text-primary); }
 .marker-detail-modal .stat-card-meta {
   margin-top: 7px;
   color: var(--text-secondary);
@@ -613,7 +615,17 @@
 }
 .marker-detail-modal .stat-card-range-controls .ref-editable {
   white-space: nowrap;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
+.marker-detail-modal .stat-card-range-controls .ref-editable:hover { color: var(--accent); border-color: var(--accent); }
+.marker-detail-modal .stat-card-range-controls .ref-editable-optimal { color: var(--green); }
+.marker-detail-modal .gb-detail-section-label > span { margin-left: 5px; color: var(--text-muted); font-size: 10px; font-weight: 500; }
 .marker-detail-modal .marker-history-list {
   grid-template-columns: 1fr;
   gap: 8px;

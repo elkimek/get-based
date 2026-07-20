@@ -103,6 +103,7 @@ test('chart card recommendation browser coverage handles badges reorder clicks a
     await chartCardRecs.loadChartCardRecs();
     outcomes.badgesRenderForMatchingSlotsAndReorderWithinEachGrid =
       badgeTexts().join('|') === 'Tips|Tips|Tips'
+      && [...document.querySelectorAll('.ctx-tips-badge')].every(badge => badge.tagName === 'BUTTON' && badge.tabIndex === 0 && badge.getAttribute('aria-label')?.startsWith('Open actionable tips'))
       && document.querySelector('#chart-rec-missing_marker .ctx-tips-badge') == null
       && cardOrder('primary-grid').join('|') === 'card-apob|card-glucose|card-empty'
       && cardOrder('secondary-grid').join('|') === 'card-secondary-rec|card-secondary-empty';

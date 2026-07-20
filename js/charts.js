@@ -479,6 +479,63 @@ export const phaseBandPlugin = {
   }
 };
 
+// Keep the compact observation labels below marker charts tied to the actual
+// point coordinates. The row renders a grid as a no-JS fallback; once Chart.js
+// has laid out the time scale, this plugin replaces those slots with measured
+// positions and hides older labels that would collide. The latest label always
+// wins a collision so the summary remains useful on narrow cards.
+function positionChartValueLabels(chart, options = {}) {
+  const card = chart.canvas?.closest?.('.chart-card');
+  const row = card?.querySelector?.('.chart-values');
+  if (!row) return;
+  const items = Array.from(row.querySelectorAll('.chart-value-item'));
+  if (!items.length) return;
+  const meta = chart.getDatasetMeta?.(0);
+  if (!meta?.data) return;
+
+  row.classList.add('chart-values-positioned');
+  const rowWidth = row.clientWidth || chart.width || 0;
+  const chartWidth = chart.width || chart.canvas?.getBoundingClientRect?.().width || rowWidth;
+  if (!(rowWidth > 0) || !(chartWidth > 0)) return;
+  const trimOffset = Number(options.trimOffset) || 0;
+  const positioned = [];
+
+  for (const item of items) {
+    item.classList.remove('chart-value-collided');
+    const originalIndex = Number(item.dataset.chartValueIndex);
+    const point = meta.data[originalIndex - trimOffset];
+    if (!point || !Number.isFinite(point.x)) {
+      item.classList.add('chart-value-collided');
+      continue;
+    }
+    const width = Math.min(item.getBoundingClientRect().width || 82, rowWidth);
+    const rawCenter = (point.x / chartWidth) * rowWidth;
+    const center = Math.max(width / 2, Math.min(rowWidth - width / 2, rawCenter));
+    item.style.setProperty('--chart-value-x', `${center}px`);
+    positioned.push({ item, center, width });
+  }
+
+  const accepted = [];
+  for (let i = positioned.length - 1; i >= 0; i--) {
+    const candidate = positioned[i];
+    const collides = accepted.some(existing =>
+      Math.abs(existing.center - candidate.center) < (existing.width + candidate.width) / 2 + 4
+    );
+    if (collides) candidate.item.classList.add('chart-value-collided');
+    else accepted.push(candidate);
+  }
+}
+
+export const chartValueLabelsPlugin = {
+  id: 'chartValueLabels',
+  afterUpdate(chart, _args, options = {}) {
+    positionChartValueLabels(chart, options);
+  },
+  afterRender(chart, _args, options = {}) {
+    positionChartValueLabels(chart, options);
+  },
+};
+
 export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels) {
   const canvas = document.getElementById("chart-" + id);
   if (!canvas) return;
@@ -491,7 +548,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   const tc = getChartColors();
   let dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
   let values = marker.values;
-  let valid = values.filter(v => v !== null);
+  let valid = values.filter(v => v !== null && v !== undefined);
   if (valid.length === 0) return;
   const timelineBounds = marker.singlePoint
     ? null
@@ -538,14 +595,16 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   const minV = Math.min(...allValid, refMinSafe, optMinSafe);
   const maxV = Math.max(...allValid, refMaxSafe, optMaxSafe);
   const pad = (maxV - minV) * 0.15 || 1;
+  const axisMin = minV >= 0 ? Math.max(0, minV - pad) : minV - pad;
   const chartRange = getEffectiveRange(marker);
   const ptColors = []; const ptStyles = []; const ptStatuses = [];
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
-    if (v === null) { ptColors.push("transparent"); ptStyles.push('circle'); ptStatuses.push('missing'); continue; }
+    if (v === null || v === undefined) { ptColors.push("transparent"); ptStyles.push('circle'); ptStatuses.push('missing'); continue; }
     const r = getEffectiveRangeForDate(marker, i + trimOffset);
-    const s = getStatus(v, r.min, r.max);
-    ptColors.push(s==="normal"?tc.green:s==="high"?tc.red:tc.yellow);
+    const hasRange = r.min != null || r.max != null;
+    const s = hasRange ? getStatus(v, r.min, r.max) : 'unrated';
+    ptColors.push(s==="normal"?tc.green:s==="high"?tc.red:s==="low"?tc.yellow:tc.tickColor);
     ptStyles.push('circle');
     ptStatuses.push(s);
   }
@@ -595,12 +654,13 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
         optimalBand: state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) ? { optimalMin: marker.optimalMin, optimalMax: marker.optimalMax } : false,
         noteAnnotations: chartNotes.length ? { notes: chartNotes, chartDates: visibleRangeDates } : false,
         supplementBars: chartSupps.length ? { supplements: chartSupps, chartDates: visibleRangeDates } : false,
-        phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates } : false},
+        phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates } : false,
+        chartValueLabels: { trimOffset }},
       layout: { padding: { top: chartSupps.length ? chartSupps.length * 14 + 6 : 0 } },
       scales: { x: xScale,
-        y:{min:minV-pad, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
+        y:{min:axisMin, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
     },
-    plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin]
+    plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, chartValueLabelsPlugin]
   });
 }
 
@@ -608,6 +668,7 @@ function getStatusChartColor(status, tc) {
   if (status === 'normal') return tc.green;
   if (status === 'high') return tc.red;
   if (status === 'low') return tc.yellow;
+  if (status === 'unrated') return tc.tickColor;
   return 'transparent';
 }
 

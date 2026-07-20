@@ -245,7 +245,8 @@ const dataModule = await import('../js/data.js');
   assert('filterDatesByRange "1y" has dates', Array.isArray(filtered1y.dates));
   assert('filterDatesByRange "1y" has <= all dates', filtered1y.dates.length <= allData.dates.length);
 
-  // Fallback: if no dates in range, show all
+  // Empty selected windows remain empty unless a caller explicitly opts into
+  // the legacy all-history fallback.
   S.dateRangeFilter = '3m';
   const oldData = {
     dates: ['2020-01-01'],
@@ -255,8 +256,11 @@ const dataModule = await import('../js/data.js');
     }}}
   };
   const oldFiltered = dataModule.filterDatesByRange(oldData);
-  assert('filterDatesByRange falls back to all when no dates in range', oldFiltered.dates.length === 1,
+  assert('filterDatesByRange keeps an empty selected timeframe truthful', oldFiltered.dates.length === 0,
     `got ${oldFiltered.dates.length}`);
+  const oldFallback = dataModule.filterDatesByRange(oldData, { fallbackToAll: true });
+  assert('filterDatesByRange still supports an explicit all-history fallback', oldFallback.dates.length === 1,
+    `got ${oldFallback.dates.length}`);
 
   S.dateRangeFilter = 'all';
 

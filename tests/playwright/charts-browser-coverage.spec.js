@@ -198,6 +198,36 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && suppChart.ctx.calls.some(call => call[0] === 'createLinearGradient')
       && suppChart.ctx.calls.some(call => call[0] === 'fillText' && String(call[1]).includes('Magnesium'));
 
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+    card.innerHTML = `<canvas></canvas><div class="chart-values" style="display:block;width:300px">
+      <div class="chart-value-item" data-chart-value-index="0" style="width:60px"></div>
+      <div class="chart-value-item" data-chart-value-index="1" style="width:60px"></div>
+      <div class="chart-value-item" data-chart-value-index="2" style="width:60px"></div>
+    </div>`;
+    document.body.appendChild(card);
+    const positionChart = {
+      canvas: card.querySelector('canvas'),
+      width: 300,
+      getDatasetMeta: () => ({ data: [{ x: 10 }, { x: 150 }, { x: 295 }] }),
+    };
+    charts.chartValueLabelsPlugin.afterRender(positionChart, {}, { trimOffset: 0 });
+    const positionedItems = [...card.querySelectorAll('.chart-value-item')];
+    const positionedXs = positionedItems.map(item => parseFloat(item.style.getPropertyValue('--chart-value-x')));
+    outcomes.chartValueLabelsFollowPointCoordinatesAndClampToCardEdges =
+      card.querySelector('.chart-values')?.classList.contains('chart-values-positioned')
+      && positionedXs[0] >= 30
+      && positionedXs[1] === 150
+      && positionedXs[2] <= 270
+      && positionedItems.every(item => !item.classList.contains('chart-value-collided'));
+
+    positionChart.getDatasetMeta = () => ({ data: [{ x: 200 }, { x: 215 }, { x: 230 }] });
+    charts.chartValueLabelsPlugin.afterRender(positionChart, {}, { trimOffset: 0 });
+    outcomes.chartValueLabelCollisionsKeepNewestObservationVisible =
+      positionedItems[2].classList.contains('chart-value-collided') === false
+      && positionedItems.slice(0, 2).some(item => item.classList.contains('chart-value-collided'));
+    card.remove();
+
     const captured = {};
     const singlePointCaptured = {};
     const canvas = document.createElement('canvas');
@@ -224,7 +254,7 @@ test('charts browser coverage exercises annotation supplement and theme callback
         name: 'Coverage Marker',
         unit: 'mg/L',
         values: [1.2, 4.5, 2.2],
-        refMin: 1,
+        refMin: 0.17,
         refMax: 3,
         optimalMin: 1.5,
         optimalMax: 2.5,
@@ -259,7 +289,8 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && afterLabelText.includes('Phase ref:')
       && chronoAfterLabelText === ''
       && yTickCallback(1.000000000000009) === '1'
-      && yTickCallback(449.6) === '449.6';
+      && yTickCallback(449.6) === '449.6'
+      && captured.config.options.scales.y.min === 0;
     outcomes.createLineChartTooltipCallbacksFormatValuesAndRanges = tooltipCallbacksOk || {
       labelText,
       afterLabelText,
@@ -291,7 +322,7 @@ test('charts browser coverage exercises annotation supplement and theme callback
       },
       data: {
         datasets: [
-          { borderColor: '', backgroundColor: '', pointBackgroundColor: [], pointBorderColor: [], _gbPointStatuses: ['normal', 'high', 'low', 'missing'] },
+          { borderColor: '', backgroundColor: '', pointBackgroundColor: [], pointBorderColor: [], _gbPointStatuses: ['normal', 'high', 'low', 'unrated', 'missing'] },
           { label: 'Chronological Age', borderColor: '' },
         ],
       },
@@ -306,7 +337,7 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && themedChart.options.scales.x.ticks.color === '#94a3b8'
       && themedChart.options.scales.y.grid.color === '#475569'
       && themedChart.data.datasets[0].borderColor === '#38bdf8'
-      && themedChart.data.datasets[0].pointBackgroundColor.join('|') === '#22c55e|#ef4444|#eab308|transparent'
+      && themedChart.data.datasets[0].pointBackgroundColor.join('|') === '#22c55e|#ef4444|#eab308|#94a3b8|transparent'
       && themedChart.data.datasets[1].borderColor === '#94a3b8';
 
     return outcomes;
