@@ -10,6 +10,7 @@ import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './cr
 import { onDataSaved } from './sync.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
 import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';
+import { getLabDateRangeBounds } from './lab-date-range.js';
 import {
   countFlagged,
   detectTrendAlerts,
@@ -807,16 +808,17 @@ export function applyUnitConversion(data) {
 // ═══════════════════════════════════════════════
 export function filterDatesByRange(data, options = {}) {
   if (state.dateRangeFilter === 'all') return data;
-  const fallbackToAll = options.fallbackToAll !== false;
-  const months = state.dateRangeFilter === '3m' ? 3 : state.dateRangeFilter === '6m' ? 6 : 12;
-  const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - months);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  // A selected timeframe must stay truthful. Callers may explicitly request
+  // the legacy all-history fallback, but UI surfaces default to an honest
+  // empty range and can offer "Show all results" themselves.
+  const fallbackToAll = options.fallbackToAll === true;
+  const bounds = getLabDateRangeBounds(data.dates, state.dateRangeFilter, new Date(), { fallbackToAll: false });
+  if (!bounds) return data;
   const indices = [];
   for (let i = 0; i < data.dates.length; i++) {
-    if (data.dates[i] >= cutoffStr) indices.push(i);
+    if (data.dates[i] >= bounds.min && data.dates[i] <= bounds.max) indices.push(i);
   }
-  if (indices.length === 0 && fallbackToAll) return data; // fallback: show all if no dates in range
+  if (indices.length === 0 && fallbackToAll) return data;
   const filteredDates = new Set(indices.map(i => data.dates[i]));
   const filtered = {
     dates: indices.map(i => data.dates[i]),
@@ -835,7 +837,7 @@ export function filterDatesByRange(data, options = {}) {
       if (marker.singlePoint || cat.singlePoint) {
         // Hide single-point markers whose date is outside the filtered range
         const spDate = marker.singleDate || cat.singleDate;
-        if (spDate && spDate < cutoffStr) {
+        if (spDate && (spDate < bounds.min || spDate > bounds.max)) {
           filteredCat.markers[mKey] = { ...marker, values: [null], singleDate: null };
         } else {
           filteredCat.markers[mKey] = marker;

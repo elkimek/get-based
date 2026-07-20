@@ -41,8 +41,9 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const onboardingViewSrc = read('/js/onboarding-view.js');
   const markerDetailSrc = read('/js/marker-detail-modal.js');
   const dashboardLabRenderersSrc = read('/js/dashboard-lab-widget-renderers.js');
-  assert('chart-card has role and tabindex',
-    categoryViewRenderersSrc.match(/<div class="chart-card[^"]*" role="button" tabindex="0"/));
+  assert('chart-card body has role and tabindex without nesting the Tips control',
+    categoryViewRenderersSrc.includes('class="chart-card-main" role="button" tabindex="0"')
+      && categoryViewRenderersSrc.includes('class="chart-card-tips-host"'));
   assert('trend-alert-card has role and tabindex',
     dashboardLabRenderersSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
   assert('alert-card (critical) has role and tabindex',
@@ -55,8 +56,8 @@ console.log('=== Phase 3 A11y Tests ===\n');
     categoryViewRenderersSrc.match(/heatmap-\$\{s\}" role="button" tabindex="0"/));
   assert('fa-card has role+tabindex',
     categoryViewRenderersSrc.includes('class="fa-card" role="button" tabindex="0"'));
-  assert('ref-editable span has role+tabindex',
-    markerDetailSrc.includes('class="ref-editable" role="button" tabindex="0"'));
+  assert('range edit control is a native button',
+    markerDetailSrc.includes('type="button" class="ref-editable'));
   assert('focus-card refresh has aria-label and delegated action',
     focusCardSrc.includes('class="focus-card-refresh"') &&
     focusCardSrc.includes('aria-label="Regenerate insight"') &&

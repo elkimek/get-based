@@ -303,13 +303,18 @@ export function getRangePosition(value, refMin, refMax) {
 // arrow; loose enough that a single decimal-place rounding doesn't.
 const STABLE_TREND_PCT = 2;
 export function getTrend(values, refMin, refMax) {
-  const nn = values.filter(v=>v!==null);
-  if (nn.length<2) return {arrow:"\u2014",cls:"trend-stable"};
+  const nn = values.filter(v=>v!==null && v!==undefined);
+  if (nn.length<2) return {arrow:"\u2014",cls:"trend-stable",label:"No previous result"};
   const prev = nn[nn.length-2];
-  if (prev === 0) return {arrow:"→",cls:"trend-stable"};
   const curr = nn[nn.length-1];
+  if (prev === 0) {
+    if (curr === 0) return {arrow:"Stable",cls:"trend-stable",label:"Stable versus previous result"};
+    return {arrow:"Changed",cls:"trend-stable",label:"Changed versus previous result; percentage unavailable because the previous value was zero"};
+  }
   const pct = ((curr-prev)/prev)*100;
-  if (Math.abs(pct)<STABLE_TREND_PCT) return {arrow:"\u2192",cls:"trend-stable"};
+  if (Math.abs(pct)<STABLE_TREND_PCT) {
+    return {arrow:"Stable",cls:"trend-stable",label:`Stable versus previous result (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`};
+  }
   const dir = pct > 0 ? 'up' : 'down';
   const arrow = pct > 0 ? `\u2191 +${pct.toFixed(1)}%` : `\u2193 ${pct.toFixed(1)}%`;
   // Color based on whether change is good or bad relative to ref range
@@ -318,7 +323,8 @@ export function getTrend(values, refMin, refMax) {
   if (status === 'high') quality = dir === 'down' ? 'good' : 'bad';
   else if (status === 'low') quality = dir === 'up' ? 'good' : 'bad';
   else quality = 'neutral';
-  return {arrow, cls:`trend-${dir} trend-${quality}`};
+  const label = `${pct > 0 ? 'Increased' : 'Decreased'} ${Math.abs(pct).toFixed(1)}% versus previous result`;
+  return {arrow, cls:`trend-${dir} trend-${quality}`, label};
 }
 
 export function formatValue(v) {

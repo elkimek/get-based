@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { adapterById, isMetricValueMeaningful } from './wearable-adapters.js';
-import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
+import { ensureChartJs, formatChartTickValue, isChartDateAdapterReady } from './charts.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getChartColors } from './theme.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
@@ -165,7 +165,7 @@ export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diast
         },
         y: {
           min: ymin - pad, max: ymax + pad,
-          ticks: { color: tc.tickColor, font: { size: 10 } },
+          ticks: { color: tc.tickColor, font: { size: 10 }, callback: formatChartTickValue },
           grid: { color: tc.gridColor },
         },
       },

@@ -299,18 +299,16 @@ export function showDetailModal(id, opts = {}) {
   const hiddenHistoryCount = modalPoints.length - visibleHistoryPoints.length;
   const latestPoint = modalPoints[modalPoints.length - 1] || null;
   const prevPoint = modalPoints.length > 1 ? modalPoints[modalPoints.length - 2] : null;
-  const firstPoint = modalPoints[0] || null;
   const latestRange = latestPoint ? getEffectiveRangeForDate(marker, latestPoint.i) : r;
-  const latestStatus = latestPoint ? getStatus(latestPoint.v, latestRange.min, latestRange.max) : 'missing';
+  const latestHasRange = latestRange.min != null || latestRange.max != null;
+  const latestStatus = latestPoint ? (latestHasRange ? getStatus(latestPoint.v, latestRange.min, latestRange.max) : 'unrated') : 'missing';
   const statusText = latestStatus === 'normal' ? 'In range'
     : latestStatus === 'high' ? 'Above range'
     : latestStatus === 'low' ? 'Below range'
+    : latestStatus === 'unrated' ? 'No range'
     : 'No value';
   const deltaFromPrev = latestPoint && prevPoint && Number(prevPoint.v) !== 0
     ? (((Number(latestPoint.v) - Number(prevPoint.v)) / Number(prevPoint.v)) * 100)
-    : null;
-  const deltaFromFirst = latestPoint && firstPoint && Number(firstPoint.v) !== 0
-    ? (((Number(latestPoint.v) - Number(firstPoint.v)) / Number(firstPoint.v)) * 100)
     : null;
   const latestUnit = marker.unit || '';
   const latestDisplay = latestPoint ? formatValue(latestPoint.v) : '—';
@@ -319,11 +317,39 @@ export function showDetailModal(id, opts = {}) {
   const referenceMinDisplay = hasReferenceRange && marker.refMin != null ? formatValue(marker.refMin) : latestRange.min != null ? formatValue(latestRange.min) : '—';
   const referenceMaxDisplay = hasReferenceRange && marker.refMax != null ? formatValue(marker.refMax) : latestRange.max != null ? formatValue(latestRange.max) : '—';
   const referenceDisplay = `${referenceMinDisplay}–${referenceMaxDisplay} ${latestUnit}`.trim();
-  const referenceMetaLabel = hasReferenceRange ? 'Ref' : 'Range';
-  const hasOptimalRange = marker.optimalMin != null && marker.optimalMax != null;
+  const referenceMetaLabel = hasReferenceRange ? 'Reference' : 'Range';
+  const hasOptimalRange = marker.optimalMin != null || marker.optimalMax != null;
   const optimalDisplay = `${marker.optimalMin != null ? formatValue(marker.optimalMin) : '—'}–${marker.optimalMax != null ? formatValue(marker.optimalMax) : '—'} ${latestUnit}`.trim();
-  const rangeMainDisplay = hasOptimalRange ? optimalDisplay : referenceDisplay;
-  const rangeMainLabel = hasOptimalRange ? 'optimal' : referenceMetaLabel.toLowerCase();
+  const latestPhaseRange = latestPoint ? marker.phaseRefRanges?.[latestPoint.i] : null;
+  const latestPhaseLabel = latestPoint ? marker.phaseLabels?.[latestPoint.i] : null;
+  const hasLatestPhaseRange = latestPhaseRange?.min != null || latestPhaseRange?.max != null;
+  const phaseDisplay = `${latestRange.min != null ? formatValue(latestRange.min) : '—'}–${latestRange.max != null ? formatValue(latestRange.max) : '—'} ${latestUnit}`.trim();
+  let rangeMainDisplay = 'Not set';
+  let rangeMainLabel = 'range';
+  let rangeSecondaryDisplay = '';
+  let rangeSecondaryLabel = '';
+  if (hasLatestPhaseRange) {
+    rangeMainDisplay = phaseDisplay;
+    rangeMainLabel = latestPhaseLabel ? `${latestPhaseLabel} range` : 'phase range';
+  } else if (state.rangeMode === 'both') {
+    if (hasReferenceRange) {
+      rangeMainDisplay = referenceDisplay;
+      rangeMainLabel = 'reference';
+      if (hasOptimalRange) {
+        rangeSecondaryDisplay = optimalDisplay;
+        rangeSecondaryLabel = 'Optimal';
+      }
+    } else if (hasOptimalRange) {
+      rangeMainDisplay = optimalDisplay;
+      rangeMainLabel = 'optimal';
+    }
+  } else if (state.rangeMode === 'optimal' && hasOptimalRange) {
+    rangeMainDisplay = optimalDisplay;
+    rangeMainLabel = 'optimal';
+  } else if (hasReferenceRange) {
+    rangeMainDisplay = referenceDisplay;
+    rangeMainLabel = referenceMetaLabel.toLowerCase();
+  }
   const clampPct = value => Math.max(0, Math.min(100, value));
   const numericOrNull = value => {
     if (value === null || value === undefined || value === '') return null;
@@ -342,9 +368,10 @@ export function showDetailModal(id, opts = {}) {
     const baseMin = refMin ?? effMin;
     const baseMax = refMax ?? effMax;
     if (baseMin == null || baseMax == null || Number(baseMax) === Number(baseMin)) return '';
-    const hasOptimalBand = optMin != null && optMax != null;
-    const goodMin = hasOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
-    const goodMax = hasOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);
+    const usePhaseBand = hasLatestPhaseRange && effMin != null && effMax != null;
+    const useOptimalBand = !usePhaseBand && state.rangeMode !== 'reference' && optMin != null && optMax != null;
+    const goodMin = usePhaseBand ? Math.min(effMin, effMax) : useOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
+    const goodMax = usePhaseBand ? Math.max(effMin, effMax) : useOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);
     let min = Math.min(baseMin, baseMax);
     let max = Math.max(baseMin, baseMax);
     const goodSpan = goodMax - goodMin;
@@ -392,9 +419,8 @@ export function showDetailModal(id, opts = {}) {
     const hasLabStash = type === 'optimal' ? 'labOptimalMin' in overrides : 'labRefMin' in overrides;
     const badgeTitle = source === 'manual' ? (hasLabStash ? 'Manually edited — click to revert to lab range' : 'Manually edited — click to revert to default') : 'Custom range from your lab — click to revert to default';
     const editedBadge = isEdited ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="${badgeTitle}" title="${badgeTitle}" ${markerDetailActionAttrs('revert-ref-range', { id, type })}>${badgeLabel} \u00d7</span>` : '';
-    const displayMin = min != null ? min : '–';
-    const displayMax = max != null ? max : '–';
-    return ` &middot; ${type === 'optimal' ? '<span style="color:var(--green)">' : ''}${label}: <span class="ref-editable" role="button" tabindex="0" aria-label="Edit ${label} range" ${markerDetailActionAttrs('edit-ref-range', { id, type })} title="Click to edit">${displayMin} \u2013 ${displayMax}</span>${editedBadge}${type === 'optimal' ? '</span>' : ''}`;
+    const currentRange = `${min != null ? min : '–'} to ${max != null ? max : '–'}`;
+    return ` &middot; <button type="button" class="ref-editable${type === 'optimal' ? ' ref-editable-optimal' : ''}" aria-label="Edit ${label} range, currently ${escapeAttr(currentRange)}" ${markerDetailActionAttrs('edit-ref-range', { id, type })}>Edit ${label.toLowerCase()}</button>${editedBadge}`;
   };
   const isCustom = !!state.importedData?.customMarkers?.[dotKey];
   const hasRef = marker.refMin != null || marker.refMax != null;
@@ -475,20 +501,23 @@ export function showDetailModal(id, opts = {}) {
       <div class="stat-card">
         <div class="stat-card-label">Ranges</div>
         <div class="stat-card-value stat-card-value-range">${escapeHTML(rangeMainDisplay)} <span>${escapeHTML(rangeMainLabel)}</span></div>
-        <div class="stat-card-meta">${escapeHTML(referenceMetaLabel)} ${escapeHTML(referenceDisplay)}${deltaFromFirst != null ? ` · ${deltaFromFirst >= 0 ? '+' : ''}${deltaFromFirst.toFixed(1)}% vs first` : ''}</div>
+        ${rangeSecondaryDisplay
+          ? `<div class="stat-card-meta">${escapeHTML(rangeSecondaryLabel)} ${escapeHTML(rangeSecondaryDisplay)}</div>`
+          : hasLatestPhaseRange ? `<div class="stat-card-meta">Used for the latest status</div>` : ''}
         ${rangeCardControls ? `<div class="stat-card-range-controls">${rangeCardControls}</div>` : ''}
       </div>
     </div>
     ${rangeBandHtml}
     <div class="gb-detail-section-label">Trend</div>
     <div class="modal-chart"><canvas id="chart-modal"></canvas></div>
-    <div class="gb-detail-section-label">History</div>
+    <div class="gb-detail-section-label">History <span>All time</span></div>
     <div class="modal-values-grid marker-history-list">`;
   for (const point of visibleHistoryPoints) {
     const { v, i } = point;
     const ri = getEffectiveRangeForDate(marker, i);
-    const s = getStatus(v, ri.min, ri.max);
-    const sl = s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":"Unknown";
+    const hasPointRange = ri.min != null || ri.max != null;
+    const s = hasPointRange ? getStatus(v, ri.min, ri.max) : 'unrated';
+    const sl = s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
     const phaseLabel = marker.phaseLabels && marker.phaseLabels[i];
     const phaseInfo = phaseLabel ? `<div class="mv-phase">${phaseLabel} \u2022 ${formatValue(ri.min)}\u2013${formatValue(ri.max)}</div>` : '';
     const rawDate = marker.singlePoint ? null : data.dates[i];
@@ -759,7 +788,7 @@ export function showDetailModal(id, opts = {}) {
   // Async-fill recommendation section (unified: genetics + actionable tips)
   if (shouldRenderRecommendations) {
     const _latestVal = marker.values?.filter(v => v !== null).pop();
-    const _markerStatus = _latestVal != null ? getStatus(_latestVal, r.min, r.max) : 'missing';
+    const _markerStatus = latestStatus === 'unrated' ? 'missing' : latestStatus;
     renderRecommendationSectionRuntime(id.replace('_','.'), { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
       .then(h => {
         const el = document.getElementById('rec-modal-' + id);

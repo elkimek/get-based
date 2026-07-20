@@ -17,10 +17,12 @@ export async function loadChartCardRecs() {
     const slotKey = id.replace('_', '.');
     const slot = catalog.slots[slotKey];
     if (!slot) continue;
-    const badge = document.createElement('span');
+    const badge = document.createElement('button');
+    badge.type = 'button';
     badge.className = 'ctx-tips-badge';
     badge.textContent = 'Tips';
     badge.title = 'What can help';
+    badge.setAttribute('aria-label', `Open actionable tips for ${id.replaceAll('_', ' ')}`);
     badge.onclick = e => {
       e.stopPropagation();
       showDetailModal(id, { scrollToRec: true });

@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
-import { ensureChartJs } from './charts.js';
+import { ensureChartJs, formatChartTickValue } from './charts.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
@@ -65,7 +65,33 @@ function renderSemanticRangeRail(value, minValue, maxValue, status, style = '') 
   </div>`;
 }
 
-export function renderChartCard(id, marker, dateLabels) {
+function hasRangeBounds(range) {
+  return range?.min != null || range?.max != null;
+}
+
+function markerValueStatus(value, range) {
+  if (value === null || value === undefined) return 'missing';
+  return hasRangeBounds(range) ? getStatus(value, range.min, range.max) : 'unrated';
+}
+
+function formatPhaseRangeLabel(phaseLabel) {
+  if (!phaseLabel) return 'Phase range';
+  const readable = String(phaseLabel).replace(/[_-]+/g, ' ');
+  return `${readable.charAt(0).toUpperCase()}${readable.slice(1)} range`;
+}
+
+function exactObservationLabel(isoDate, fallback, includeYear = true) {
+  if (typeof isoDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return fallback;
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' } : {}),
+  });
+}
+
+export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   // id is interpolated into delegated data attributes and DOM ids below.
   // Single chokepoint guard for every caller (dashboard, showCategory,
   // switchView).
@@ -74,81 +100,102 @@ export function renderChartCard(id, marker, dateLabels) {
   const latestIdx = getLatestValueIndex(marker.values);
   const latestVal = latestIdx !== -1 ? marker.values[latestIdx] : null;
   const lr = getEffectiveRangeForDate(marker, latestIdx);
-  const status = latestVal !== null ? getStatus(latestVal, lr.min, lr.max) : "missing";
-  const statusLabel = status === "normal" ? "Normal" : status === "high" ? "High" : status === "low" ? "Low" : "N/A";
+  const status = markerValueStatus(latestVal, lr);
+  const statusLabel = status === "normal" ? "Normal" : status === "high" ? "High" : status === "low" ? "Low" : status === 'unrated' ? 'No range' : "N/A";
   const sIcon = statusIcon(status);
 
   const trend = getTrend(marker.values, lr.min, lr.max);
-  const trendBadge = trend.cls !== 'trend-stable' || trend.arrow !== '—' ? `<span class="chart-card-trend ${trend.cls}">${trend.arrow}</span>` : '';
+  const trendBadge = trend.arrow !== '—'
+    ? `<span class="chart-card-trend ${trend.cls}" aria-label="${escapeAttr(trend.label)}" title="${escapeAttr(trend.label)}">${escapeHTML(trend.arrow)}</span>`
+    : '';
   const markerName = marker.name || '';
   const labels = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
   const fmtRange = (min, max) => `${min != null ? formatValue(min) : '–'} – ${max != null ? formatValue(max) : '–'}`;
   const effectiveRange = getEffectiveRange(marker);
-  const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
-  const rangeSummary = effectiveRange.min != null || effectiveRange.max != null
-    ? `${rangeLabel}: ${fmtRange(effectiveRange.min, effectiveRange.max)}`
-    : 'No range set';
-  const latestDateLabel = latestIdx !== -1 ? (labels[latestIdx] || 'Latest') : 'No value';
+  const latestPhaseRange = latestIdx !== -1 ? marker.phaseRefRanges?.[latestIdx] : null;
+  const rangeRows = [];
+  if (hasRangeBounds(latestPhaseRange)) {
+    rangeRows.push({
+      label: formatPhaseRangeLabel(marker.phaseLabels?.[latestIdx]),
+      value: fmtRange(lr.min, lr.max),
+    });
+  } else if (state.rangeMode === 'both') {
+    if (marker.refMin != null || marker.refMax != null) {
+      rangeRows.push({ label: 'Reference', value: fmtRange(marker.refMin, marker.refMax) });
+    }
+    if (marker.optimalMin != null || marker.optimalMax != null) {
+      rangeRows.push({ label: 'Optimal', value: fmtRange(marker.optimalMin, marker.optimalMax) });
+    }
+  } else if (hasRangeBounds(effectiveRange)) {
+    const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
+    rangeRows.push({ label: rangeLabel, value: fmtRange(effectiveRange.min, effectiveRange.max) });
+  }
+  if (rangeRows.length === 0) rangeRows.push({ label: 'Range', value: 'Not set' });
+
+  // Show only actual observations so missing dates do not consume summary slots.
+  const visibleValueIndexes = [];
+  for (let i = 0; i < marker.values.length; i++) {
+    if (marker.values[i] !== null && marker.values[i] !== undefined) visibleValueIndexes.push(i);
+  }
+  const compactValueIndexes = visibleValueIndexes.length > 4 ? visibleValueIndexes.slice(-4) : visibleValueIndexes;
+  const labelCounts = new Map();
+  for (const i of visibleValueIndexes) {
+    const label = labels[i] || '';
+    labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+  }
+  const displayDateLabel = (index, includeYear) => {
+    const fallback = labels[index] || '';
+    return labelCounts.get(fallback) > 1
+      ? exactObservationLabel(chartDates[index], fallback, includeYear)
+      : fallback;
+  };
+
+  const latestDateLabel = latestIdx !== -1 ? (displayDateLabel(latestIdx, true) || 'Latest') : 'No value';
   const latestDisplay = latestVal !== null ? formatValue(latestVal) : '—';
   const latestUnit = marker.unit || '';
   const latestMeta = latestVal !== null
     ? `${latestDateLabel}${latestUnit ? ' · ' + latestUnit : ''}`
     : 'Add a value to start the trend';
+  const rangeAria = rangeRows.map(row => `${row.label} ${row.value}`).join('; ');
+  const cardLabel = latestVal !== null
+    ? `${markerName}. ${statusLabel}. Latest ${latestDisplay}${latestUnit ? ` ${latestUnit}` : ''}, ${latestDateLabel}. ${rangeAria}.${trendBadge ? ` ${trend.label}.` : ''}`
+    : `${markerName}. No values. ${rangeAria}.`;
+  const detailAttrs = markerDetailActionAttrs('show-detail-modal', { id });
 
-  let html = `<div class="chart-card chart-card-${status}" role="button" tabindex="0" aria-label="${escapeAttr(markerName + ' - ' + statusLabel)}" ${markerDetailActionAttrs('show-detail-modal', { id })}>
+  let html = `<div class="chart-card chart-card-${status}" ${detailAttrs}>
     <div class="chart-card-header">
       <div class="chart-card-title-block">
         <div class="chart-card-title" title="${escapeAttr(markerName)}">
           <span class="chart-card-title-text">${escapeHTML(markerName)}</span>
           <span class="chart-card-tips-host" id="chart-rec-${id}"></span>
         </div>
-        <div class="chart-card-meta">
-          <span class="chart-card-unit">${escapeHTML(latestUnit || 'unitless')}</span>
-          <span class="chart-card-range">${escapeHTML(rangeSummary)}${latestUnit ? ` ${escapeHTML(latestUnit)}` : ''}</span>
-        </div>
       </div>
       <div class="chart-card-state"><span class="chart-card-status status-${status}">${sIcon ? sIcon + ' ' : ''}${statusLabel}</span>${trendBadge}</div>
     </div>
+    <div class="chart-card-main" role="button" tabindex="0" aria-label="${escapeAttr(cardLabel)}" ${detailAttrs}>
     <div class="chart-card-snapshot">
       <div>
         <span class="chart-card-snapshot-label">Latest</span>
         <strong class="chart-card-latest-value val-${status}">${escapeHTML(latestDisplay)}</strong>
         <span class="chart-card-snapshot-meta">${escapeHTML(latestMeta)}</span>
       </div>
-      <div class="chart-card-snapshot-side">
-        <span>${escapeHTML(rangeLabel)}</span>
-        <strong>${escapeHTML(fmtRange(effectiveRange.min, effectiveRange.max))}</strong>
+      <div class="chart-card-snapshot-side" aria-label="${escapeAttr(rangeAria)}">
+        ${rangeRows.map(row => `<div class="chart-card-range-row"><span>${escapeHTML(row.label)}</span><strong>${escapeHTML(row.value)}</strong></div>`).join('')}
       </div>
     </div>
-    <div class="chart-container"><canvas id="chart-${id}"></canvas></div>
-    <div class="chart-values">`;
-  // Trim leading/trailing nulls to match chart trimming, then show the most
-  // recent points only so category cards stay scannable.
-  let valStart = 0, valEnd = marker.values.length - 1;
-  if (!marker.singlePoint && marker.values.length > 1) {
-    valStart = marker.values.findIndex(v => v !== null);
-    if (valStart < 0) valStart = 0;
-    while (valEnd > valStart && marker.values[valEnd] === null) valEnd--;
-  }
-  const visibleValueIndexes = [];
-  for (let i = valStart; i <= valEnd; i++) visibleValueIndexes.push(i);
-  const compactValueIndexes = visibleValueIndexes.length > 4 ? visibleValueIndexes.slice(-4) : visibleValueIndexes;
+    <div class="chart-container"><canvas id="chart-${id}" aria-hidden="true"></canvas></div>
+    <div class="chart-values" role="list" aria-label="Recent results" style="--chart-value-count:${Math.max(1, compactValueIndexes.length)}">
+      <span class="chart-values-label" aria-hidden="true">Recent results</span>`;
   for (const i of compactValueIndexes) {
     const v = marker.values[i];
     const ri = getEffectiveRangeForDate(marker, i);
-    const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
-    html += `<div class="chart-value-item"><div class="chart-value-date">${labels[i] || ''}</div>
+    const s = markerValueStatus(v, ri);
+    const itemDateLabel = displayDateLabel(i, false);
+    const fullDateLabel = exactObservationLabel(chartDates[i], labels[i] || '', true);
+    html += `<div class="chart-value-item" role="listitem"><div class="chart-value-date" title="${escapeAttr(fullDateLabel)}">${escapeHTML(itemDateLabel)}</div>
       <div class="chart-value-num val-${s}">${v !== null ? formatValue(v) : "—"}</div></div>`;
   }
-  let rangeHtml = '';
-  if (state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) && (marker.refMin != null || marker.refMax != null)) {
-    rangeHtml = `<div class="chart-ref-range">Ref: ${fmtRange(marker.refMin, marker.refMax)} · <span style="color:var(--green)">Optimal: ${fmtRange(marker.optimalMin, marker.optimalMax)}</span> ${escapeHTML(marker.unit)}</div>`;
-  } else {
-    const r = getEffectiveRange(marker);
-    const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
-    rangeHtml = r.min != null || r.max != null ? `<div class="chart-ref-range">${rangeLabel}: ${fmtRange(r.min, r.max)} ${escapeHTML(marker.unit)}</div>` : '';
-  }
-  html += `</div>${rangeHtml}</div>`;
+  html += `</div></div></div>`;
   return html;
 }
 
@@ -323,7 +370,7 @@ export function renderFattyAcidsCharts(cat) {
     ]},
     options: { responsive:true, maintainAspectRatio:false,
       plugins: { legend:{display:false}, tooltip:{ backgroundColor:tc.tooltipBg, titleColor:tc.tooltipTitle, bodyColor:tc.tooltipBody, borderColor:tc.tooltipBorder, borderWidth:1 }},
-      scales: { x:{ticks:{color:tc.tickColor,font:{size:10},maxRotation:45},grid:{display:false}}, y:{ticks:{color:tc.tickColor},grid:{color:tc.gridColor}} }
+      scales: { x:{ticks:{color:tc.tickColor,font:{size:10},maxRotation:45},grid:{display:false}}, y:{ticks:{color:tc.tickColor,callback:formatChartTickValue},grid:{color:tc.gridColor}} }
     }
   });
   if (chart) state.chartInstances["fa-bar"] = chart;

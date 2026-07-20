@@ -119,6 +119,7 @@ const APP_SHELL = [
   '/js/import-drop-zone-runtime.js',
   '/js/ai-verdict-engine-runtime.js',
   '/js/ai-verdict-engine.js',
+  '/js/lab-date-range.js',
   '/js/profile-fatty-acid-migrations.js',
   '/js/profile-marker-migrations.js',
   '/js/profile.js',

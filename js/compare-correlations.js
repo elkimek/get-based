@@ -7,7 +7,7 @@ import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
-import { ensureChartJs, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
+import { ensureChartJs, formatChartTickValue, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 
 /** @type {{ askAIAboutCorrelations: () => void, renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
@@ -422,7 +422,7 @@ export function renderCorrelationChart() {
       layout: { padding: { top: (function() { const s = getSupplementsForChart(data.dates); return s.length ? s.length * 14 + 6 : 0; })() } },
       scales: {
         x: { ticks: { color: tc.tickColor, font: { size: 11 } }, grid: { display: false } },
-        y: { min: minY, max: maxY, ticks: { color: tc.tickColor, font: { size: 10 }, callback: v => v + '%' }, grid: { color: tc.gridColor } }
+        y: { min: minY, max: maxY, ticks: { color: tc.tickColor, font: { size: 10 }, callback: v => `${formatChartTickValue(v)}%` }, grid: { color: tc.gridColor } }
       }
     },
     plugins: [refBandPlugin, noteAnnotationPlugin, supplementBarPlugin]

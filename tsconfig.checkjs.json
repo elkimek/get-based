@@ -129,6 +129,7 @@
     "js/import-review-row-actions.js",
     "js/lab-context.js",
     "js/lab-context-wearables.js",
+    "js/lab-date-range.js",
     "js/lens-actions.js",
     "js/lens-cache.js",
     "js/lens-knowledge-base-ui.js",

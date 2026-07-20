@@ -689,6 +689,12 @@ const savedRangeForBiologyScores = state.dateRangeFilter;
 const oldOnlyData = { ...data, dates: ['2025-01-01'], dateLabels: ['Jan 2025'] };
 state.dateRangeFilter = '3m';
 const strictOldOnly = filterDatesByRange(oldOnlyData, { fallbackToAll: false });
+const defaultOldOnly = filterDatesByRange(oldOnlyData);
+assert('filterDatesByRange defaults to an honest empty timeframe instead of silently showing all history',
+  defaultOldOnly.dates.length === 0
+    && Object.values(defaultOldOnly.categories).every(cat =>
+      Object.values(cat.markers || {}).every(marker => marker.singlePoint || marker.values.length === 0)
+    ));
 const contextFilteredData = {
   dates: ['2025-01-01', '2026-06-01'],
   dateLabels: ['Jan 2025', 'Jun 2026'],

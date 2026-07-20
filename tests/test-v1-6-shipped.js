@@ -584,11 +584,14 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('styles.css: marker cards stretch to preserve row alignment',
       /\.charts-grid\s*\{[\s\S]{0,220}align-items:\s*stretch/.test(cssSrc)
       && /\.chart-card\s*\{[\s\S]{0,260}height:\s*100%/.test(cssSrc)
-      && /\.chart-card-meta\s*\{[\s\S]{0,180}flex-wrap:\s*nowrap/.test(cssSrc));
+      && /\.chart-card-title-block,[\s\S]{0,140}flex:\s*1/.test(cssSrc));
     assert('styles.css: marker cards are compact summary-first cards',
       /\.chart-card-snapshot\s*\{/.test(cssSrc)
       && /\.chart-container\s*\{[^\}]*height:\s*150px/.test(cssSrc)
-      && /\.chart-values\s*\{[\s\S]{0,140}grid-template-columns:\s*repeat\(4/.test(cssSrc));
+      && /\.chart-values\s*\{[\s\S]{0,160}grid-template-columns:\s*repeat\(var\(--chart-value-count/.test(cssSrc)
+      && /\.chart-values-label\s*\{/.test(cssSrc));
+    assert('category-page-view.js: returning to Charts restores tips and sorted card order',
+      /sortCategoryChartEntries\(withData, categoryKey\)[\s\S]{0,900}loadChartCardRecs\(\)/.test(categoryPageViewSrc));
     assert('chart-card-recs.js: tips nudge does not cover open marker modal',
       /const modalOpen\s*=\s*!!document\.querySelector\('\.modal-overlay\.show'\)/.test(chartCardRecsSrc)
       && /recLinks\.length > 0 && !modalOpen/.test(chartCardRecsSrc));
@@ -649,14 +652,16 @@ const _origProfileSex = state ? state.profileSex : null;
       /const refMin\s*=\s*numericOrNull\(marker\.refMin\)/.test(markerDetailSrc)
       && /const effMin\s*=\s*numericOrNull\(latestRange\.min\)/.test(markerDetailSrc)
       && /const baseMin\s*=\s*refMin \?\? effMin/.test(markerDetailSrc)
-      && /const hasOptimalBand\s*=\s*optMin != null && optMax != null/.test(markerDetailSrc)
-      && /const goodMin\s*=\s*hasOptimalBand \? Math\.min\(optMin, optMax\) : Math\.min\(baseMin, baseMax\)/.test(markerDetailSrc)
+      && /const usePhaseBand\s*=\s*hasLatestPhaseRange/.test(markerDetailSrc)
+      && /const useOptimalBand\s*=\s*!usePhaseBand && state\.rangeMode !== 'reference'/.test(markerDetailSrc)
+      && /const goodMin\s*=\s*usePhaseBand \? Math\.min\(effMin, effMax\) : useOptimalBand/.test(markerDetailSrc)
       && /const zonePad\s*=\s*goodSpan \* 0\.1/.test(markerDetailSrc)
       && /for \(const value of \[goodMin, goodMax, latestValue\]\)/.test(markerDetailSrc)
       && /if \(latestValue >= max\) max \+= span \* 0\.08/.test(markerDetailSrc)
       && /const referenceDisplay\s*=/.test(markerDetailSrc)
-      && /const referenceMetaLabel\s*=\s*hasReferenceRange \? 'Ref' : 'Range'/.test(markerDetailSrc)
-      && /const rangeMainDisplay\s*=\s*hasOptimalRange \? optimalDisplay : referenceDisplay/.test(markerDetailSrc));
+      && /const referenceMetaLabel\s*=\s*hasReferenceRange \? 'Reference' : 'Range'/.test(markerDetailSrc)
+      && /let rangeMainDisplay\s*=\s*'Not set'/.test(markerDetailSrc)
+      && /state\.rangeMode === 'optimal'[\s\S]{0,400}else if \(hasReferenceRange\) \{\s*rangeMainDisplay = referenceDisplay/.test(markerDetailSrc));
     assert('marker-detail-modal.js/styles.css: marker range band colors non-optimal zones',
       /gb-range-band-zone-low/.test(markerDetailSrc)
       && /gb-range-band-zone-high/.test(markerDetailSrc)

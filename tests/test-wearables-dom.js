@@ -109,6 +109,8 @@ return (async function() {
   assert('Chart primary dataset carries 3 dated points',
     modalChart?.data?.datasets?.[0]?.data?.filter(p => p?.x && typeof p?.y === 'number')?.length === 3);
   assert('Chart x-axis is time type', modalChart?.options?.scales?.x?.type === 'time');
+  assert('Wearable y-axis hides floating-point tick artifacts',
+    modalChart?.options?.scales?.y?.ticks?.callback?.(1.000000000000009) === '1');
   const rangeButtons = Array.from(document.querySelectorAll('#detail-modal .wearable-detail-range .ctx-btn-option'));
   assert('Detail modal renders 90d / 6m / 1y / All range buttons',
     rangeButtons.map(b => b.textContent.trim()).join('|') === '90d|6m|1y|All');
@@ -161,6 +163,8 @@ return (async function() {
     !bpLabels.some(l => /^Manual diastolic$/.test(l)), bpLabels.join('|'));
   assert('BP diastolic dataset has 3 dated points',
     bpChart?.data?.datasets?.find(d => /^Diastolic/.test(d.label))?.data?.length === 3);
+  assert('Blood-pressure y-axis hides floating-point tick artifacts',
+    bpChart?.options?.scales?.y?.ticks?.callback?.(1.000000000000009) === '1');
   assert('BP manual entries preserve paired sys/dia row value',
     !!document.querySelector('#detail-modal .wearable-manual-entry-val')?.textContent?.includes('120/80'));
   views.closeModal();

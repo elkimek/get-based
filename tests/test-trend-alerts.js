@@ -27,7 +27,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Trend Alerts & Status Tests ===\n');
 
-const { linearRegression, getStatus } = await import('../js/utils.js');
+const { linearRegression, getStatus, getTrend } = await import('../js/utils.js');
 const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await import('../js/marker-analysis.js');
 
   // =======================================
@@ -100,6 +100,15 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('Only refMax, value below = normal', getStatus(3, null, 10) === 'normal');
   assert('Only refMax, value above = high', getStatus(15, null, 10) === 'high');
   assert('Zero value, within range = normal', getStatus(0, -1, 1) === 'normal');
+  const stableTrend = getTrend([100, 101], 80, 120);
+  const fallingTrend = getTrend([100, 90], 80, 120);
+  const zeroBaselineTrend = getTrend([0, 5], 0, 10);
+  assert('stable marker change uses clear text instead of an unexplained arrow',
+    stableTrend.arrow === 'Stable' && stableTrend.label.includes('versus previous result'));
+  assert('non-stable marker change exposes an accessible previous-result label',
+    fallingTrend.arrow === '↓ -10.0%' && fallingTrend.label === 'Decreased 10.0% versus previous result');
+  assert('zero-baseline marker change explains why no percentage is shown',
+    zeroBaselineTrend.arrow === 'Changed' && zeroBaselineTrend.label.includes('previous value was zero'));
 
   // =======================================
   // 6. detectTrendAlerts — sudden change (high)

@@ -64,18 +64,70 @@ test('category view renderers browser coverage exercises chart table heatmap and
       state.markerRegistry = {};
       state.chartInstances = {};
 
-      fixture.innerHTML = renderers.renderChartCard('lipids_apob', apoBMarker, dateLabels);
+      fixture.innerHTML = renderers.renderChartCard('lipids_apob', apoBMarker, dateLabels, dates);
       const card = fixture.querySelector('.chart-card');
+      const cardMain = card?.querySelector('.chart-card-main');
       outcomes.chartCardEscapesMarkerStoresRegistryAndShowsLatest =
         state.markerRegistry.lipids_apob === apoBMarker
-        && card?.getAttribute('aria-label') === 'ApoB <script> - Normal'
+        && card?.getAttribute('role') == null
+        && cardMain?.getAttribute('role') === 'button'
+        && cardMain.getAttribute('tabindex') === '0'
+        && cardMain.getAttribute('aria-label')?.includes('ApoB <script>. Normal. Latest 90 mg/dL, May 1.')
         && card.getAttribute('data-marker-detail-action') === 'show-detail-modal'
         && card.getAttribute('data-marker-detail-id') === 'lipids_apob'
+        && cardMain.getAttribute('data-marker-detail-action') === 'show-detail-modal'
         && !card.hasAttribute('onclick')
         && card.querySelector('.chart-card-title-text')?.textContent === 'ApoB <script>'
         && card.querySelector('.chart-card-latest-value')?.textContent === '90'
+        && card.querySelector('canvas')?.getAttribute('aria-hidden') === 'true'
+        && !card.querySelector('.chart-card-unit')
+        && card.querySelector('.chart-card-snapshot-meta')?.textContent === 'May 1 · mg/dL'
+        && card.querySelectorAll('.chart-value-item').length === 4
+        && card.querySelector('.chart-values')?.getAttribute('aria-label') === 'Recent results'
+        && card.querySelector('.chart-values-label')?.textContent === 'Recent results'
+        && [...card.querySelectorAll('.chart-value-date')].map(el => el.textContent).join('|') === 'Jan 1|Mar 1|Apr 1|May 1'
+        && ![...card.querySelectorAll('.chart-value-date')].some(el => el.textContent === 'Feb 1')
+        && !card.querySelector('.chart-value-num.val-missing')
+        && !card.querySelector('.chart-card-range, .chart-ref-range')
+        && [...card.querySelectorAll('.chart-card-range-row > span')].map(el => el.textContent).join('|') === 'Reference|Optimal'
+        && [...card.querySelectorAll('.chart-card-range-row > strong')].map(el => el.textContent).join('|') === '60 – 100|60 – 90'
         && card.querySelector('#chart-rec-lipids_apob')
         && !card.querySelector('script');
+
+      state.rangeMode = 'optimal';
+      const phaseMarker = {
+        name: 'Progesterone', unit: 'nmol/L', values: [17],
+        refMin: 0.18, refMax: 75.9, optimalMin: 14, optimalMax: 36,
+        phaseLabels: ['luteal'], phaseRefRanges: [{ min: 20, max: 30 }],
+      };
+      fixture.innerHTML = renderers.renderChartCard('hormones_progesterone', phaseMarker, ['May 2026'], ['2026-05-20']);
+      const phaseCard = fixture.querySelector('.chart-card');
+      outcomes.chartCardStatusAndDisplayedRangeUseSamePhaseBounds =
+        phaseCard?.classList.contains('chart-card-low')
+        && phaseCard.querySelector('.chart-card-status')?.textContent.includes('Low')
+        && phaseCard.querySelector('.chart-card-range-row > span')?.textContent === 'Luteal range'
+        && phaseCard.querySelector('.chart-card-range-row > strong')?.textContent === '20 – 30'
+        && phaseCard.querySelector('.chart-card-main')?.getAttribute('aria-label')?.includes('Luteal range 20 – 30');
+
+      const unratedMarker = { name: 'Unrated', unit: 'u', values: [1.2], refMin: null, refMax: null };
+      fixture.innerHTML = renderers.renderChartCard('custom_unrated', unratedMarker, ['May 2026'], ['2026-05-20']);
+      const unratedCard = fixture.querySelector('.chart-card');
+      outcomes.chartCardDoesNotCallAValueNormalWithoutARange =
+        unratedCard?.classList.contains('chart-card-unrated')
+        && unratedCard.querySelector('.chart-card-status')?.textContent === 'No range'
+        && unratedCard.querySelector('.chart-card-range-row > strong')?.textContent === 'Not set'
+        && unratedCard.querySelector('.chart-value-num')?.classList.contains('val-unrated');
+
+      fixture.innerHTML = renderers.renderChartCard('lipids_duplicate_dates', {
+        ...apoBMarker,
+        name: 'Duplicate month dates',
+        values: [80, 90],
+      }, ['May 2026', 'May 2026'], ['2026-05-01', '2026-05-20']);
+      outcomes.chartCardDisambiguatesMultipleResultsInTheSameMonth =
+        [...fixture.querySelectorAll('.chart-value-date')].map(el => el.textContent).join('|') === 'May 1|May 20'
+        && fixture.querySelector('.chart-card-snapshot-meta')?.textContent === 'May 20, 2026 · mg/dL';
+
+      state.rangeMode = 'both';
       outcomes.chartCardRejectsUnsafeIds =
         renderers.renderChartCard('lipids_bad"id', apoBMarker, dateLabels) === '';
 
@@ -221,6 +273,9 @@ test('category view renderers browser coverage exercises chart table heatmap and
 
   const expectedOutcomeKeys = [
     'chartCardEscapesMarkerStoresRegistryAndShowsLatest',
+    'chartCardStatusAndDisplayedRangeUseSamePhaseBounds',
+    'chartCardDoesNotCallAValueNormalWithoutARange',
+    'chartCardDisambiguatesMultipleResultsInTheSameMonth',
     'chartCardRejectsUnsafeIds',
     'scrollableTableShellClampsWidthEscapesColsAndSyncsScroll',
     'tableViewFiltersEmptyMarkersEscapesNamesAndAddsManualEntryCells',

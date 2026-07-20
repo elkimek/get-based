@@ -318,6 +318,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
         dataIndex: 1,
         parsed: { y: firstDataset?.data?.[1] },
       });
+      const yTickLabel = firstChart?.config?.options?.scales?.y?.ticks?.callback?.(1.000000000000009);
       outcomes.secondMarkerBuildsNormalizedChart =
         state.selectedCorrelationMarkers.length === 2
         && document.getElementById('corr-chart-container')?.style.display === 'block'
@@ -329,6 +330,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
         && Math.abs(firstDataset.data[1] - expectedLdlPct) < 0.001
         && String(tooltipLabel).includes('LDL Cholesterol')
         && String(tooltipLabel).includes('mmol')
+        && yTickLabel === '1%'
         && firstChart.config.options.plugins.refBand.refMin === 0
         && firstChart.config.options.plugins.refBand.refMax === 100
         && firstChart.config.plugins.length === 3;
