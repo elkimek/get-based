@@ -40,7 +40,11 @@ function makeCaches() {
     match: vi.fn(async (request) => {
       return matches.get(cacheKey(request));
     }),
-    keys: vi.fn(async () => ['labcharts-vold', 'labcharts-v9.9.9-deadbeef']),
+    keys: vi.fn(async () => [
+      'labcharts-vold',
+      'labcharts-v9.9.9-deadbeef',
+      'transformers-cache',
+    ]),
     delete: vi.fn(async () => true),
   };
   return { cache, caches, matches, opened };
@@ -70,7 +74,7 @@ async function loadServiceWorker({ hostname = 'preview.getbased.health', fetchIm
     APP_VERSION: '9.9.9',
     location: { hostname, origin: `https://${hostname}` },
     skipWaiting: vi.fn(),
-    clients: { claim: vi.fn() },
+    clients: { claim: vi.fn(async () => {}) },
     addEventListener: vi.fn((type, listener) => {
       listeners.set(type, listener);
     }),
@@ -110,7 +114,7 @@ afterEach(() => {
 });
 
 describe('service worker runtime cache behavior', () => {
-  it('pre-caches the app shell and deletes stale caches using preview commit-specific names', async () => {
+  it('pre-caches the app shell and deletes only stale app caches using preview commit-specific names', async () => {
     const { cache, caches, listeners, self } = await loadServiceWorker();
 
     expect(globalThis.importScripts).toHaveBeenCalledWith('/version.js');
@@ -123,10 +127,10 @@ describe('service worker runtime cache behavior', () => {
     await install.done();
 
     expect(caches.open).toHaveBeenCalledWith('labcharts-v9.9.9-deadbeef');
-    expect(cache.addAll).toHaveBeenCalled();
-    expect(cache.addAll.mock.calls[0][0]).toContain('/app');
-    expect(cache.addAll.mock.calls[0][0]).toContain('/js/main.js');
-    expect(cache.addAll.mock.calls[0][0]).toContain('/js/service-worker-update.js');
+    expect(cache.addAll).not.toHaveBeenCalled();
+    expect(cache.put).toHaveBeenCalledWith('/app', expect.any(Response));
+    expect(cache.put).toHaveBeenCalledWith('/js/main.js', expect.any(Response));
+    expect(cache.put).toHaveBeenCalledWith('/js/service-worker-update.js', expect.any(Response));
     expect(self.skipWaiting).not.toHaveBeenCalled();
 
     const activate = makeWaitEvent();
@@ -135,8 +139,68 @@ describe('service worker runtime cache behavior', () => {
 
     expect(caches.delete).toHaveBeenCalledWith('labcharts-vold');
     expect(caches.delete).not.toHaveBeenCalledWith('labcharts-v9.9.9-deadbeef');
+    expect(caches.delete).not.toHaveBeenCalledWith('transformers-cache');
     expect(self.clients.claim).toHaveBeenCalled();
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/commit', { cache: 'no-store' });
+  });
+
+  it('resumes partial app-shell caches and retries transient entry failures', async () => {
+    let mainAttempts = 0;
+    const fetchImpl = vi.fn(async (request) => {
+      const href = typeof request === 'string' ? request : request.url;
+      if (href === '/api/commit') return jsonResponse({ sha: 'deadbeefcafebabe' });
+      if (href === '/js/main.js') {
+        mainAttempts += 1;
+        if (mainAttempts < 3) throw new Error('temporary network failure');
+      }
+      return new Response(`network:${href}`, { status: 200 });
+    });
+    const { listeners, matches } = await loadServiceWorker({ fetchImpl });
+    matches.set('/app', new Response('already-cached-app'));
+
+    const install = makeWaitEvent();
+    listeners.get('install')(install);
+    await install.done();
+
+    expect(mainAttempts).toBe(3);
+    expect(fetchImpl.mock.calls.some(([request]) => request === '/app')).toBe(false);
+    expect(matches.get('/app')).toBeDefined();
+    expect(matches.get('/js/main.js')).toBeDefined();
+  });
+
+  it('rejects installation when a required app-shell entry stays unavailable', async () => {
+    const fetchImpl = vi.fn(async (request) => {
+      const href = typeof request === 'string' ? request : request.url;
+      if (href === '/api/commit') return jsonResponse({ sha: 'deadbeefcafebabe' });
+      if (href === '/js/main.js') throw new Error('offline');
+      return new Response(`network:${href}`, { status: 200 });
+    });
+    const { listeners, matches } = await loadServiceWorker({ fetchImpl });
+
+    const install = makeWaitEvent();
+    listeners.get('install')(install);
+
+    await expect(install.done()).rejects.toThrow('Failed to precache /js/main.js');
+    expect(fetchImpl.mock.calls.filter(([request]) => request === '/js/main.js')).toHaveLength(3);
+    expect(matches.get('/styles.css')).toBeDefined();
+  });
+
+  it('keeps activation alive until clients are claimed', async () => {
+    const { listeners, self } = await loadServiceWorker();
+    let resolveClaim;
+    const claimPending = new Promise((resolve) => { resolveClaim = resolve; });
+    self.clients.claim.mockReturnValue(claimPending);
+
+    const activate = makeWaitEvent();
+    listeners.get('activate')(activate);
+    let completed = false;
+    const completion = activate.done().then(() => { completed = true; });
+
+    await vi.waitFor(() => expect(self.clients.claim).toHaveBeenCalled());
+    expect(completed).toBe(false);
+    resolveClaim();
+    await completion;
+    expect(completed).toBe(true);
   });
 
   it('uses network-first preview assets, navigation fallback, and network-only APIs', async () => {
