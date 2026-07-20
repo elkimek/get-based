@@ -107,7 +107,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
           // The localhost:11434 fixture represents Ollama; only compat.local
           // exposes LM Studio's native model endpoint.
           if (new URL(href).hostname === 'localhost') return jsonResponse({ error: 'unsupported' }, 404);
-          if (mode === 'lm-native-non-ok') return jsonResponse({ error: 'unsupported' }, 404);
+          if (mode === 'lm-native-non-ok' || mode === 'all-models-non-ok') {
+            return jsonResponse({ error: 'unsupported' }, 404);
+          }
           return jsonResponse({
             models: [
               {
@@ -139,7 +141,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
               options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
             });
           }
-          if (mode === 'models-non-ok') return jsonResponse({ error: 'locked' }, 401);
+          if (mode === 'models-non-ok' || mode === 'all-models-non-ok') {
+            return jsonResponse({ error: 'locked' }, 401);
+          }
           if (mode === 'models-throws') throw new Error('models offline');
           return jsonResponse({
             data: [
@@ -235,7 +239,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       const compatibleNonOk = await pii.checkOpenAICompatible('http://compat.local/', '');
       mode = 'models-throws';
       const compatibleThrows = await pii.checkOpenAICompatible('http://compat.local/', '');
-      check('OpenAI-compatible probe covers model parsing and auth header',
+      mode = 'all-models-non-ok';
+      const compatibleUnavailable = await pii.checkOpenAICompatible('http://compat.local/', '');
+      check('OpenAI-compatible probe covers model parsing, auth, and LM Studio native fallback',
         compatibleOk.available === true &&
         compatibleOk.provider === 'lmstudio' &&
         compatibleOk.models.includes('qwen2.5:7b-instruct-q4_k_m') &&
@@ -249,8 +255,11 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
           model.contextLength === 16384) &&
         fetchCalls.some(call => call.href === 'http://compat.local/v1/models' && call.auth === 'Bearer compat-key') &&
         fetchCalls.some(call => call.href === 'http://compat.local/api/v1/models' && call.auth === 'Bearer compat-key') &&
-        compatibleNonOk.available === false &&
-        compatibleThrows.available === false);
+        compatibleNonOk.available === true &&
+        compatibleNonOk.provider === 'lmstudio' &&
+        compatibleThrows.available === true &&
+        compatibleThrows.provider === 'lmstudio' &&
+        compatibleUnavailable.available === false);
 
       mode = 'lm-native-non-ok';
       const compatibleFallback = await pii.checkOpenAICompatible('http://compat.local/', 'compat-key');

@@ -68,6 +68,7 @@ import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import {
   benchmarkResultPatch,
+  captureImportBenchmarkReviewBaseline,
   finishImportBenchmark,
   startImportBenchmark,
   updateImportBenchmark,
@@ -195,9 +196,21 @@ export async function extractPDFText(file) {
   return extractPdfTextFromFile(file);
 }
 
-export async function parseLabPDFWithAI(pdfText, fileName, onProgress) {
-  const markerRef = buildMarkerReference();
-  const country = (getProfileLocation(getActiveProfileId())?.country || '').trim();
+/**
+ * @param {string} pdfText
+ * @param {string} fileName
+ * @param {((pct: number) => void) | undefined} onProgress
+ * @param {{captureRawModelOutput?: boolean, deterministicBenchmark?: boolean}} [options]
+ * @returns {Promise<any>}
+ */
+export async function parseLabPDFWithAI(pdfText, fileName, onProgress, options = {}) {
+  const deterministicBenchmark = options.deterministicBenchmark === true;
+  const markerRef = buildMarkerReference(deterministicBenchmark
+    ? { profileSex: 'male', includeCustomMarkers: false }
+    : undefined);
+  const country = deterministicBenchmark
+    ? 'United States'
+    : (getProfileLocation(getActiveProfileId())?.country || '').trim();
   const dateHint = country
     ? `   IMPORTANT — the user's region is ${country}. Disambiguate ambiguous numeric dates like "12/7/2025" using the format common to that region (US, Philippines = MM/DD/YYYY; UK, EU, India, Australia, most of Canada = DD/MM/YYYY). Do not assume MM/DD by default.`
     : `   IMPORTANT — for ambiguous numeric dates like "12/7/2025", look for context (other dates, a printed format like "DD/MM/YYYY" in the report header, or month names elsewhere) before deciding. Do not assume MM/DD by default — most of the world uses DD/MM/YYYY.`;
@@ -289,7 +302,7 @@ Return ONLY valid JSON in this exact format, no other text:
     };
   }
   // Include previously imported marker keys so the AI reuses consistent mappings
-  const existingKeys = getExistingImportMarkerKeys();
+  const existingKeys = deterministicBenchmark ? new Set() : getExistingImportMarkerKeys();
   const existingKeysNote = existingKeys.size > 0
     ? `\n\nIMPORTANT — These marker keys were used in previous imports for this profile. Reuse them for the same biomarkers to ensure consistency:\n${[...existingKeys].join(', ')}`
     : '';
@@ -318,6 +331,13 @@ Return ONLY valid JSON in this exact format, no other text:
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
   const parsed = tryParseJSON(jsonStr);
+  const rawModelResult = options.captureRawModelOutput ? {
+    date: parsed.date || null,
+    testType: parsed.testType || 'blood',
+    markers: Array.isArray(parsed.markers)
+      ? parsed.markers.map(marker => ({ ...marker }))
+      : [],
+  } : null;
 
   const { testType, markers } = normalizeParsedImportMarkers(parsed, {
     markerRef,
@@ -336,6 +356,7 @@ Return ONLY valid JSON in this exact format, no other text:
     provider,
     diagnostics,
     imageMode: false,
+    ...(rawModelResult ? { benchmarkRawModelResult: rawModelResult } : {}),
   };
 }
 
@@ -622,9 +643,9 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
         cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
       };
       trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
-      result.importHash = hashString(file.name + file.size);
+      result.importHash = hashString(images.map(image => image.base64).join('|'));
       result.benchmarkId = benchmarkId;
-      result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
+      captureImportBenchmarkReviewBaseline(result);
       result._importProfileId = _startProfileId;
       if (!result.date) showNotification("Could not find collection date in PDF", "error");
       if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification("No biomarkers found in PDF images", "error"); return; }
@@ -740,7 +761,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(pdfText);
     result.benchmarkId = benchmarkId;
-    result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
+    captureImportBenchmarkReviewBaseline(result);
     result._importProfileId = _startProfileId;
     if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
     if (!result.date) { showNotification(`Could not find collection date in ${textImportKind}`, "error"); }
@@ -859,7 +880,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
   result.importHash = hashString(pdfText);
   result.benchmarkId = benchmarkId;
-  result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
+  captureImportBenchmarkReviewBaseline(result);
   if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
   if (result.markers.length === 0) { finishBatchBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); showNotification(`${file.name}: No markers found`, 'error'); return 'no-markers'; }
   finishBatchBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
@@ -970,9 +991,9 @@ export async function handleImageFile(file) {
       cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
     };
     trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
-    result.importHash = hashString(file.name + file.size);
+    result.importHash = hashString(base64);
     result.benchmarkId = benchmarkId;
-    result._benchmarkInitialMappings = result.markers.map(marker => marker.mappedKey || marker.suggestedKey || null);
+    captureImportBenchmarkReviewBaseline(result);
     result._importProfileId = _startProfileId;
     if (!result.date) showNotification("Could not find collection date in image", "error");
     if (result.markers.length === 0) {

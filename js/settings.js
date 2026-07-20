@@ -47,7 +47,6 @@ import { updateChatNudgeRuntime } from './chat-runtime.js';
 import { isPIIEligibleModel } from './local-ai-discovery.js';
 import {
   confirmDisablePIIReview,
-  openImportBenchmarksModal,
   refreshDataEntriesSection,
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
@@ -55,6 +54,10 @@ import {
   renderDataEntriesSection,
   resetCurrentProfileUsage,
 } from './settings-data.js';
+import {
+  openImportBenchmarksModal,
+  renderImportBenchmarksEntrySection,
+} from './settings-import-benchmark-controller.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
@@ -848,7 +851,7 @@ export function openSettingsModal(tab) {
           <div class="settings-action-row">
             <div class="settings-copy">
               <label class="settings-label">Debug Mode</label>
-              <div class="settings-copy-desc">Adds detailed log output and reveals diagnostic UI such as sync details and import benchmarks. No data leaves your device.</div>
+              <div class="settings-copy-desc">Adds detailed log output and reveals low-level diagnostic details for troubleshooting. No data leaves your device.</div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} data-settings-action="set-debug-mode">
@@ -892,6 +895,12 @@ export function openSettingsModal(tab) {
           <button class="ai-provider-btn${provider === 'ollama' ? ' active' : ''}" data-provider="ollama" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-3-8c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1s1 .45 1 1v2c0 .55-.45 1-1 1z"/></svg> Local</button>
         </div>
         <div id="ai-provider-panel">${renderAIProviderPanelBridge(provider)}</div>
+      </div>
+
+      <div class="settings-group-title">Import Benchmarks</div>
+
+      <div class="settings-section" id="import-benchmarks-section">
+        ${renderImportBenchmarksEntrySection()}
       </div>
 
       <div class="settings-group-title">AI Usage</div>

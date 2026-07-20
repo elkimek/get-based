@@ -16,10 +16,18 @@ import {
 } from './api.js';
 import {
   discoverLocalAI,
+  clearLocalAiDiscovery,
   filterPIIEligibleModels,
   getLocalAiExecutionLocation,
   isCloudModel,
 } from './local-ai-discovery.js';
+import {
+  clearLocalAiRuntimeUse,
+  getLocalAiReleasePlan,
+  localAiEndpointsShareMachine,
+  releaseLocalAiModels,
+} from './local-ai-lifecycle.js';
+import { isLocalAiLoopbackUrl } from './local-ai-provider-shared.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import {
   cacheLocalAiModelDetails,
@@ -122,9 +130,10 @@ export function initSettingsOllamaCheck() {
 
 function isLocalUrl(url) {
   try {
-    const host = new URL(url).hostname;
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
-  } catch { return true; }
+    new URL(url);
+    return isLocalAiLoopbackUrl(url);
+  }
+  catch { return true; }
 }
 
 function closestLocalAiAction(target) {
@@ -138,6 +147,16 @@ function toggleHardwareOverride(actionEl) {
   const shouldOpen = body.style.display === 'none';
   body.style.display = shouldOpen ? 'flex' : 'none';
   actionEl.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+async function releasePlan(plan, config) {
+  const outcome = await releaseLocalAiModels({
+    baseUrl: config.url,
+    apiKey: config.apiKey,
+    discovery: { provider: plan.providerId, modelDetails: plan.models },
+  });
+  if (outcome.complete) clearLocalAiDiscovery(config.url);
+  return outcome;
 }
 
 function handleLocalAiAction(actionEl) {
@@ -235,9 +254,10 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
   const ramLabel = hw.ram.gb ? `${hw.ram.gb} GB` : 'Unknown';
   const cpuLabel = hw.cpuThreads ? `${hw.cpuThreads} threads` : '';
   const allocatedVram = modelDetails.reduce((total, model) => total + (Number(model.vramAllocated) || 0), 0);
-  const providerName = isOllama
-    ? 'Ollama'
-    : modelDetails.some(model => model.source === 'lmstudio') ? 'LM Studio' : 'Local AI';
+  const providerId = isOllama ? 'ollama'
+    : modelDetails.some(model => model.source === 'lmstudio') ? 'lmstudio' : 'openai-compatible';
+  const releasePlan = getLocalAiReleasePlan({ provider: providerId, modelDetails });
+  const providerName = releasePlan.providerLabel;
 
   const fitnessLabel = { recommended: '\u2605 Recommended', capable: 'Capable', underpowered: 'Underpowered', inadequate: 'Inadequate' };
   const fitnessCss = { recommended: 'fitness-great', capable: 'fitness-good', underpowered: 'fitness-fair', inadequate: 'fitness-poor' };
@@ -316,9 +336,7 @@ function isHttpsToNonLocalhost(url) {
   if (location.protocol !== 'https:') return false;
   try {
     const parsed = new URL(url);
-    const host = parsed.hostname;
-    const local = host === 'localhost' || host === '127.0.0.1' || host === '::1';
-    return parsed.protocol === 'http:' && !local;
+    return parsed.protocol === 'http:' && !isLocalAiLoopbackUrl(url);
   } catch { return false; }
 }
 
@@ -380,6 +398,23 @@ function getCORSHelpText() {
   return `Blocked by CORS \u2014 start Ollama with OLLAMA_ORIGINS=${origin}. LM Studio: enable CORS and API authentication.`;
 }
 
+async function releasePreviousLocalAiBeforeSwitch(config, previousDiscovery, nextDiscovery, dot, text) {
+  const plan = getLocalAiReleasePlan(previousDiscovery, { modelName: getOllamaMainModel() });
+  if (!plan.supported || plan.models.length === 0) return true;
+  const nextProvider = getLocalAiReleasePlan(nextDiscovery).providerLabel;
+  text.textContent = `Releasing ${plan.providerLabel} VRAM...`;
+  const outcome = await releasePlan(plan, config);
+  if (outcome.complete) {
+    clearLocalAiRuntimeUse(config.url);
+    showNotification(`${plan.providerLabel} VRAM released. Connecting to ${nextProvider}.`, 'success', 4000);
+    return true;
+  }
+  dot.classList.add('disconnected');
+  text.textContent = `${nextProvider} is reachable, but ${plan.providerLabel} could not release its loaded model. Unload it manually, then retry.`;
+  showNotification(`Could not release ${outcome.failedModels.join(', ')} from ${plan.providerLabel}. The server switch was not saved.`, 'error', 7000);
+  return false;
+}
+
 export async function testOllamaConnection() {
   const generation = ++mainDiscoveryGeneration;
   const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-url-input'));
@@ -403,6 +438,12 @@ export async function testOllamaConnection() {
     text.textContent = 'Browser mixed-content rules block an HTTP LAN server from an HTTPS page. Use HTTPS for the server, localhost, or an encrypted local tunnel.';
     return;
   }
+  const previousUrlCheck = normalizeLocalAiBaseUrl(config.url);
+  const previousUrl = previousUrlCheck.url || config.url;
+  const endpointChanged = previousUrl !== url;
+  const previousDiscoveryPromise = endpointChanged && localAiEndpointsShareMachine(previousUrl, url)
+    ? discoverLocalAI(previousUrl, config.apiKey, { force: true }).catch(() => null)
+    : Promise.resolve(null);
   try {
     try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}) }); }
     catch (preErr) { if (await handleLocalAiPreflightError(preErr, url, dot, text)) return; }
@@ -416,13 +457,17 @@ export async function testOllamaConnection() {
     if (models.length === 0) {
       applyMainDiscoveryResult(result);
     } else {
+      const previousDiscovery = await previousDiscoveryPromise;
+      if (generation !== mainDiscoveryGeneration) return;
+      if (previousDiscovery && !await releasePreviousLocalAiBeforeSwitch(config, previousDiscovery, result, dot, text)) return;
+      if (generation !== mainDiscoveryGeneration) return;
       dot.classList.add('connected');
       let currentModel = getOllamaMainModel();
       if (!models.includes(currentModel)) {
         currentModel = models[0];
         setOllamaMainModel(currentModel);
       }
-      await saveOllamaConfig({ ...config, url, model: currentModel, apiKey });
+      await saveOllamaConfig({ ...config, url, model: currentModel, mode: result.provider, apiKey });
       applyMainDiscoveryResult(result);
     }
     updatePrivacyStatusCardFromRuntime();

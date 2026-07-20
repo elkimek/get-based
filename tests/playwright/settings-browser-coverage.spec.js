@@ -23,7 +23,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
 
   const results = await page.evaluate(async () => {
     const settingsModule = await import('/js/settings.js');
-    const settingsData = await import('/js/settings-data.js');
+    const benchmarkController = await import('/js/settings-import-benchmark-controller.js');
     const settingsRuntime = await import('/js/settings-runtime.js');
     const themeModule = await import('/js/theme.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -170,7 +170,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       }));
       localStorage.setItem('labcharts-debug', 'false');
       settingsModule.openSettingsModal('ai');
-      results.importBenchmarksHiddenOutsideDebugMode = document.querySelector('[data-settings-action="open-import-benchmarks"]') === null;
+      results.importBenchmarksVisibleOutsideDebugMode = document.querySelector('[data-settings-action="open-import-benchmarks"]') !== null;
       settingsModule.openSettingsModal('display');
       const debugToggle = document.getElementById('debug-mode-toggle');
       debugToggle.checked = true;
@@ -187,7 +187,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         && benchmarkText.includes('1.5k in')
         && benchmarkText.includes('250.0 tok/s')
         && benchmarkText.includes('24')
-        && benchmarkText.includes('schema retry + stream retry');
+        && benchmarkText.includes('import complete · retried');
       benchmarkOverlay.querySelector('[data-import-benchmarks-action="close"]').click();
       results.importBenchmarksModalCloses = document.getElementById('import-benchmarks-overlay') === null;
       document.querySelector('#ai-usage-section [data-settings-action="reset-profile-usage"]').click();
@@ -247,7 +247,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       restoreStorage(usageKey, saved.usage);
       restoreStorage('labcharts-global-usage', saved.globalUsage);
       restoreStorage('labcharts-debug', saved.debug);
-      settingsData.closeImportBenchmarksModal();
+      benchmarkController.closeImportBenchmarksModal();
       settingsModule.closeTweaksPanel();
       document.getElementById('sun-source-fixture')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();

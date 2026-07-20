@@ -1233,6 +1233,9 @@ async function run(browser, testInfo) {
 }
 
 test('theme responsive E2E', async ({ browser }, testInfo) => {
-  testInfo.setTimeout(240_000);
+  // This single test intentionally walks every theme/viewport combination.
+  // Leave headroom for shared CI runners where the full browser suite runs in
+  // parallel; the assertions retain their own short operation timeouts.
+  testInfo.setTimeout(360_000);
   await run(browser, testInfo);
 });

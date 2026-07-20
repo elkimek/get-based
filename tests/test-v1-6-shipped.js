@@ -292,6 +292,7 @@ const _origProfileSex = state ? state.profileSex : null;
     const streamingProviderSrc = [
       fetchSrc('js/api-openai-compatible.js'),
       fetchSrc('js/api-local.js'),
+      fetchSrc('js/local-ai-provider-ollama.js'),
       fetchSrc('js/api-venice.js'),
     ].join('\n');
     assert('api-transport.js: readWithStallTimeout exists',

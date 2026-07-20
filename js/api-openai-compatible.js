@@ -12,6 +12,9 @@ import {
 import { needsMaxCompletionTokens } from './api-models.js';
 import { getAIProvider, getCustomApiUrl } from './api-provider-storage.js';
 import { showOpenRouterInsufficientBalanceDialogRuntime } from './api-runtime.js';
+import { redactApiSecretText } from './local-ai-provider-shared.js';
+
+export { redactApiSecretText };
 
 export function isTokenLimitFinish(reason) {
   const r = String(reason || '').toLowerCase();
@@ -39,18 +42,6 @@ export function useCustomApiProxy() {
 }
 
 const proxyFetch = createProxyFetch(useCustomApiProxy);
-
-export function redactApiSecretText(value, secrets = []) {
-  let text = String(value ?? '');
-  for (const secret of secrets) {
-    const s = String(secret || '');
-    if (s.length >= 6) text = text.split(s).join('[redacted]');
-  }
-  return text
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{6,}/gi, 'Bearer [redacted]')
-    .replace(/\bsk-[A-Za-z0-9._~+/=-]{6,}/g, '[redacted]')
-    .replace(/\bcashu[A-Za-z0-9._~+/=-]{8,}/gi, '[redacted]');
-}
 
 export async function fetchWithApiRetry(url, options, retries = 2, useProxy = true, requestTimeoutMs = FETCH_REQUEST_TIMEOUT_MS) {
   return fetchWithRetry(url, options, {

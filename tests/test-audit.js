@@ -73,6 +73,11 @@ assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('SW APP_SHELL includes API OpenAI-compatible transport module', swAuditSrc.includes("'/js/api-openai-compatible.js'"));
 assert('SW APP_SHELL includes API local provider module', swAuditSrc.includes("'/js/api-local.js'"));
+assert('SW APP_SHELL includes Local AI provider registry', swAuditSrc.includes("'/js/local-ai-provider-registry.js'"));
+assert('SW APP_SHELL includes Local AI lifecycle coordinator', swAuditSrc.includes("'/js/local-ai-lifecycle.js'"));
+assert('SW APP_SHELL includes native local provider adapters',
+  swAuditSrc.includes("'/js/local-ai-provider-lmstudio.js'") &&
+  swAuditSrc.includes("'/js/local-ai-provider-ollama.js'"));
 assert('SW APP_SHELL includes API Venice provider module', swAuditSrc.includes("'/js/api-venice.js'"));
 assert('SW APP_SHELL includes API OpenRouter provider module', swAuditSrc.includes("'/js/api-openrouter.js'"));
 assert('SW APP_SHELL includes API OpenRouter OAuth module', swAuditSrc.includes("'/js/api-openrouter-oauth.js'"));

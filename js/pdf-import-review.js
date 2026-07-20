@@ -1,6 +1,4 @@
-// @ts-check
-// pdf-import-review.js - Import review modal rendering and interaction state
-
+// @ts-check — Import review modal rendering and interaction state
 import { state } from './state.js';
 import { formatCost } from './schema.js';
 import { escapeHTML, showNotification, isDebugMode } from './utils.js';
@@ -44,7 +42,6 @@ import {
   takeBatchImportResolve,
 } from './pdf-import-review-runtime.js';
 import { finishImportBenchmark } from './import-benchmarks.js';
-
 function clearPendingImport() {
   clearPendingImportRuntime();
   clearImportReviewDraft();
@@ -184,7 +181,9 @@ function updateImportMarkerValue(inputEl) {
   const marker = result.markers[idx];
   if (!marker) return;
   const val = parseFloat(inputEl.value.replace(',', '.'));
-  marker.value = isNaN(val) ? null : val;
+  const nextValue = isNaN(val) ? null : val;
+  if (!Object.is(marker.value, nextValue)) marker._benchmarkValueEdited = true;
+  marker.value = nextValue;
   persistCurrentImportReviewDraft();
 }
 
@@ -207,6 +206,7 @@ function updateImportMarkerUnitValue(controlEl, nextUnit) {
   if (!marker) return;
   const previousUnit = marker.unit || null;
   if (previousUnit !== nextUnit) {
+    marker._benchmarkUnitEdited = true;
     const row = getImportReviewRow(idx, controlEl);
     const nextValue = convertImportReviewUnitValue(marker, marker.value, previousUnit, nextUnit);
     if (nextValue != null) {
@@ -641,6 +641,8 @@ function applyImportMarkerMapping(controlEl, key) {
   const idx = parseInt(controlEl.dataset.markerIdx, 10);
   const marker = result.markers[idx];
   if (!marker) return;
+  const previousKey = marker.mappedKey || marker.suggestedKey || null;
+  if (previousKey !== (key || marker.suggestedKey || null)) marker._benchmarkMappingEdited = true;
   marker.mappedKey = key || null;
   marker.matched = !!key;
   const row = controlEl.closest('tr');
@@ -742,6 +744,7 @@ export function applyManualImportDate(dateStr) {
   const pendingImport = getPendingImport();
   if (!pendingImport) return;
   const nextDate = (dateStr || '').trim();
+  if (pendingImport.date !== nextDate) pendingImport._benchmarkDateEdited = true;
   pendingImport.date = nextDate;
   if (btn) {
     btn.disabled = !nextDate;

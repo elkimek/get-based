@@ -26,12 +26,13 @@ const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const schemaSrc = read('js/schema.js');
 const { UNIT_CONVERSIONS, MARKER_SCHEMA } = await import('../js/schema.js');
 const { assessTextQuality } = await import('../js/pdf-import.js');
+const { normalizeToSI: normalizeImportedValueToSI } = await import('../js/pdf-import-marker-mapping.js');
 
   // ═══════════════════════════════════════
   // Replicate normalizeUnitStr for functional tests
   // ═══════════════════════════════════════
   function normalizeUnitStr(s) {
-    return s.toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
+    return s.normalize('NFKC').toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
   }
 
   // Replicate normalizeToSI for functional tests
@@ -78,6 +79,11 @@ const { assessTextQuality } = await import('../js/pdf-import.js');
   assert('removes internal spaces', normalizeUnitStr('n g / m l') === 'ng/ml');
   assert('removes leading/trailing whitespace', normalizeUnitStr(' mg/dl ') === 'mg/dl');
   assert('already normalized passes through', normalizeUnitStr('mmol/l') === 'mmol/l');
+  assert('superscript area unit matches ASCII area unit',
+    normalizeUnitStr('mL/min/1.73m²') === normalizeUnitStr('mL/min/1.73m2'));
+  assert('eGFR superscript and ASCII area units normalize to the same value',
+    normalizeImportedValueToSI('biochemistry.egfr', 106, 'mL/min/1.73m²')
+      === normalizeImportedValueToSI('biochemistry.egfr', 106, 'mL/min/1.73m2'));
 
   // ═══════════════════════════════════════
   // 2. normalizeUnitStr — Unicode micro sign
@@ -134,6 +140,7 @@ const { assessTextQuality } = await import('../js/pdf-import.js');
   console.log('%c 6. normalizeUnitStr — source verification ', 'font-weight:bold;color:#f59e0b');
 
   assert('normalizeUnitStr defined in source', mappingSrc.includes('function normalizeUnitStr(s)'));
+  assert('normalizes Unicode compatibility forms in source', mappingSrc.includes("normalize('NFKC')"));
   assert('handles U+00B5 in source', mappingSrc.includes('\\u00b5'));
   assert('handles U+03BC in source', mappingSrc.includes('\\u03bc'));
   assert('mcg replacement in source', mappingSrc.includes("replace(/^mcg/, 'ug')"));

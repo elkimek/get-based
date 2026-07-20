@@ -13,6 +13,7 @@ import {
   isPIIEligibleModel,
 } from './local-ai-discovery.js';
 import { createInitialResponseTimeout } from './api-transport.js';
+import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 import { state } from './state.js';
 
@@ -84,20 +85,16 @@ export async function checkOllamaPII() {
 
 export function unloadOllamaPIIModel() {
   const piiUrl = getOllamaPIIUrl();
-  const discovery = getCachedLocalAiDiscovery(piiUrl, getOllamaPIIApiKey());
-  let isOllamaServer = discovery?.provider === 'ollama';
-  if (!discovery) {
-    try { isOllamaServer = new URL(piiUrl).port === '11434'; } catch { return; }
-  }
-  if (!isOllamaServer) return;
-  const piiModel = getOllamaPIIModel();
   const apiKey = getOllamaPIIApiKey();
-  fetch(`${piiUrl}/api/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
-    body: JSON.stringify({ model: piiModel, prompt: '', stream: false, keep_alive: 0 }),
-    signal: AbortSignal.timeout(5000)
-  }).catch(() => {});
+  const discovery = getCachedLocalAiDiscovery(piiUrl, apiKey);
+  let providerId = discovery?.provider || '';
+  if (!providerId) {
+    try { providerId = new URL(piiUrl).port === '11434' ? 'ollama' : ''; } catch { return; }
+  }
+  const adapter = getLocalAiProviderAdapter(providerId);
+  if (!adapter.unload) return;
+  const piiModel = getOllamaPIIModel();
+  adapter.unload({ baseUrl: piiUrl, apiKey, model: piiModel }).catch(() => {});
 }
 
 const PII_PROMPT_PREFIX = `TASK: Replace ONLY personal identifiers in this lab report. Output the FULL text with minimal changes.

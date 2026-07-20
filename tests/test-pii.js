@@ -196,8 +196,8 @@ const piiSrc = read('js/pii.js');
   // ═══════════════════════════════════════
   console.log('%c 8. Ollama Unload Guard ', 'font-weight:bold;color:#f59e0b');
 
-  assert('unloadOllamaPIIModel checks discovered provider before Ollama unload',
-    piiSrc.includes("discovery?.provider === 'ollama'") && piiSrc.includes("port === '11434'"),
+  assert('unloadOllamaPIIModel delegates lifecycle behavior to the detected provider adapter',
+    piiSrc.includes('getLocalAiProviderAdapter(providerId)') && piiSrc.includes("port === '11434'"),
     'should use provider discovery with a default-port compatibility fallback');
 
   // ═══════════════════════════════════════

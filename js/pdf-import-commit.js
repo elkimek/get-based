@@ -255,6 +255,7 @@ export async function confirmImport() {
     timings: snapshotTimings,
     importMode: result.imageMode ? 'image' : 'text',
     diagnostics: snapshotDiagnostics,
+    importHash: result.importHash || '',
     benchmarkId: result.benchmarkId || null,
   };
   if (isReReview) {
@@ -289,16 +290,19 @@ export async function confirmImport() {
     });
   }
 
+  // Finalize the benchmark before the canonical import save so the health-data
+  // snapshot and its comparable model run are committed atomically. Previously
+  // the benchmark used a second fire-and-forget save and could remain "preview"
+  // after a successful import.
+  const benchmarkId = result.benchmarkId || null;
+  if (benchmarkId) markImportBenchmarkConfirmed(benchmarkId, result, excludedIdxs, { persist: false });
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {
     restoreImportedDataSnapshot(rollback);
     if (confirmBtn) confirmBtn.disabled = false;
     return;
   }
-  if (result.benchmarkId) {
-    markImportBenchmarkConfirmed(result.benchmarkId, result, excludedIdxs);
-    result.benchmarkId = null;
-  }
+  if (benchmarkId) result.benchmarkId = null;
   // Resolve batch promise before closeImportModal (which would resolve with 'skip').
   if (!resolveImportPreviewBatch('import')) closeImportModal();
   // During batch mode, defer expensive UI refreshes until the batch completes

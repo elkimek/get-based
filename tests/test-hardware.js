@@ -174,13 +174,18 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   console.log('%c 7. Local AI Discovery Return Shape ', 'font-weight:bold;color:#f59e0b');
 
   const discoverySrc = read('js/local-ai-discovery.js');
-  assert('checkOllama returns modelDetails', discoverySrc.includes('modelDetails'));
-  assert('Ollama discovery probes running models', discoverySrc.includes("request('/api/ps')"));
-  assert('Ollama model details include allocated VRAM', discoverySrc.includes('vramAllocated'));
-  assert('LM Studio discovery probes native model metadata', discoverySrc.includes('/api/v1/models'));
-  assert('LM Studio model details include exact size', discoverySrc.includes('size_bytes'));
-  assert('modelDetails includes quantLevel', discoverySrc.includes('quantization_level'));
-  assert('modelDetails includes paramSize', discoverySrc.includes('parameter_size'));
+  const registrySrc = read('js/local-ai-provider-registry.js');
+  const ollamaProviderSrc = read('js/local-ai-provider-ollama.js');
+  const lmStudioProviderSrc = read('js/local-ai-provider-lmstudio.js');
+  assert('Local AI discovery delegates provider probing to the adapter registry',
+    discoverySrc.includes('discoverLocalAiProviders') && registrySrc.includes('LOCAL_AI_PROVIDER_ADAPTERS'));
+  assert('Ollama adapter returns modelDetails', ollamaProviderSrc.includes('modelDetails'));
+  assert('Ollama discovery probes running models', ollamaProviderSrc.includes("request('/api/ps')"));
+  assert('Ollama model details include allocated VRAM', ollamaProviderSrc.includes('vramAllocated'));
+  assert('LM Studio discovery probes native model metadata', lmStudioProviderSrc.includes('/api/v1/models'));
+  assert('LM Studio model details include exact size', lmStudioProviderSrc.includes('size_bytes'));
+  assert('modelDetails includes quantLevel', ollamaProviderSrc.includes('quantization_level'));
+  assert('modelDetails includes paramSize', ollamaProviderSrc.includes('parameter_size'));
 
   // ═══════════════════════════════════════
   // 8. Settings integration
