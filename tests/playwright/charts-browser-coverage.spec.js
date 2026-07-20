@@ -14,9 +14,10 @@ test('charts browser coverage exercises annotation supplement and theme callback
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ chartsUrl }) => {
-    const [{ state }, charts] = await Promise.all([
+    const [{ state }, charts, { getLabDateRangeBounds }] = await Promise.all([
       import('/js/state.js'),
       import(chartsUrl),
+      import('/js/lab-date-range.js'),
     ]);
     const outcomes = {};
 
@@ -198,15 +199,25 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && suppChart.ctx.calls.some(call => call[0] === 'fillText' && String(call[1]).includes('Magnesium'));
 
     const captured = {};
+    const singlePointCaptured = {};
     const canvas = document.createElement('canvas');
     canvas.id = 'chart-coverage-marker';
     document.body.appendChild(canvas);
+    const singlePointCanvas = document.createElement('canvas');
+    singlePointCanvas.id = 'chart-range-single-point';
+    document.body.appendChild(singlePointCanvas);
     const originalChart = window.Chart;
+    const originalDateAdapterReady = window.__labChartDateAdapterLoaded;
+    window.__labChartDateAdapterLoaded = true;
     window.Chart = function ChartStub(canvasArg, config) {
-      captured.canvas = canvasArg;
-      captured.config = config;
+      const target = canvasArg === singlePointCanvas ? singlePointCaptured : captured;
+      target.canvas = canvasArg;
+      target.config = config;
       return { canvas: canvasArg, options: config.options, data: config.data, update: () => {} };
     };
+    const originalDateRange = state.dateRangeFilter;
+    let expectedSinglePointBounds = null;
+    let singlePointDate = null;
     try {
       state.rangeMode = 'optimal';
       charts.createLineChart('coverage-marker', {
@@ -219,24 +230,53 @@ test('charts browser coverage exercises annotation supplement and theme callback
         optimalMax: 2.5,
         phaseLabels: ['Follicular', 'Luteal', 'Luteal'],
       }, ['Jan', 'Feb', 'Mar'], ['2026-01-01', '2026-02-01', '2026-03-01'], ['follicular', 'luteal', 'luteal']);
+
+      state.dateRangeFilter = '3m';
+      const recent = new Date();
+      recent.setUTCMonth(recent.getUTCMonth() - 1);
+      singlePointDate = recent.toISOString().slice(0, 10);
+      expectedSinglePointBounds = getLabDateRangeBounds([singlePointDate], '3m');
+      charts.createLineChart('range-single-point', {
+        name: 'Single Result Marker',
+        unit: 'mg/L',
+        values: [2.2],
+        refMin: 1,
+        refMax: 3,
+      }, ['Only result'], [singlePointDate]);
     } finally {
+      state.dateRangeFilter = originalDateRange;
       window.Chart = originalChart;
+      window.__labChartDateAdapterLoaded = originalDateAdapterReady;
     }
     const callbacks = captured.config.options.plugins.tooltip.callbacks;
     const labelText = callbacks.label({ dataset: captured.config.data.datasets[0], parsed: { y: 4.5 } });
     const afterLabelText = callbacks.afterLabel({ datasetIndex: 0, dataIndex: 1 });
     const chronoAfterLabelText = callbacks.afterLabel({ datasetIndex: 1, dataIndex: 1 });
+    const yTickCallback = captured.config.options.scales.y.ticks.callback;
     const tooltipCallbacksOk = captured.canvas === canvas
       && labelText === '4.50 mg/L'
       && afterLabelText.includes('Phase: Luteal')
       && afterLabelText.includes('Phase ref:')
-      && chronoAfterLabelText === '';
+      && chronoAfterLabelText === ''
+      && yTickCallback(1.000000000000009) === '1'
+      && yTickCallback(449.6) === '449.6';
     outcomes.createLineChartTooltipCallbacksFormatValuesAndRanges = tooltipCallbacksOk || {
       labelText,
       afterLabelText,
       chronoAfterLabelText,
       capturedCanvas: captured.canvas === canvas,
     };
+    outcomes.singlePointLabTimelineUsesSharedBoundsWithoutSyntheticDates =
+      singlePointCaptured.canvas === singlePointCanvas
+      && singlePointCaptured.config?.options?.scales?.x?.type === 'time'
+      && singlePointCaptured.config?.options?.scales?.x?.display === false
+      && singlePointCaptured.config?.options?.scales?.x?.min === expectedSinglePointBounds?.min
+      && singlePointCaptured.config?.options?.scales?.x?.max === expectedSinglePointBounds?.max
+      && singlePointCaptured.config?.data?.labels?.length === 1
+      && singlePointCaptured.config?.data?.labels?.[0] === singlePointDate
+      && singlePointCaptured.config?.data?.datasets?.[0]?.data?.length === 1
+      && singlePointCaptured.config?.data?.datasets?.[0]?.data?.[0] === 2.2
+      && !singlePointCaptured.config?.data?.labels?.includes('Today');
 
     const themedChart = {
       options: {

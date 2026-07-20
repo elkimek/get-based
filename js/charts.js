@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './marker-analysis.js';
+import { getLabDateRangeBounds } from './lab-date-range.js';
 import {
   createChartRuntime,
   getChartConstructorRuntime,
@@ -19,6 +20,17 @@ const CHART_DATE_ADAPTER_SRC = '/vendor/chartjs-adapter-native.js';
 
 let _chartJsLoad = null;
 let _chartDateAdapterLoad = null;
+
+/**
+ * Keep Chart.js floating-point tick artifacts out of user-facing labels.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function formatChartTickValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value ?? '');
+  return String(Number(numeric.toPrecision(12)));
+}
 
 export function isChartDateAdapterReady() {
   return isChartDateAdapterReadyRuntime();
@@ -481,7 +493,16 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   let values = marker.values;
   let valid = values.filter(v => v !== null);
   if (valid.length === 0) return;
-  const useTimeScale = !marker.singlePoint && valid.length > 1;
+  const timelineBounds = marker.singlePoint
+    ? null
+    : getLabDateRangeBounds(chartDates, state.dateRangeFilter);
+  const useTimeScale = !!timelineBounds;
+  if (useTimeScale && !isChartDateAdapterReady()) {
+    ensureChartJs().then(() => {
+      if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels);
+    }).catch(() => {});
+    return;
+  }
   // Trim leading/trailing nulls for category scale (time scale handles gaps proportionally)
   let trimOffset = 0;
   if (!useTimeScale && !marker.singlePoint && values.length > 1) {
@@ -494,19 +515,6 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
       dates = dates.slice(first, last + 1);
       if (chartDates) chartDates = chartDates.slice(first, last + 1);
       if (phaseLabels) phaseLabels = phaseLabels.slice(first, last + 1);
-    }
-  }
-
-  // Extend chart to today so supplements/notes after last lab date are visible (skip if <30 days)
-  if (!marker.singlePoint && chartDates && chartDates.length > 0) {
-    const today = new Date().toISOString().slice(0, 10);
-    const lastDate = chartDates[chartDates.length - 1];
-    const daysSince = Math.round((new Date(today).getTime() - new Date(lastDate + 'T00:00:00').getTime()) / 86400000);
-    if (daysSince >= 30) {
-      chartDates = [...chartDates, today];
-      dates = [...dates, 'Today'];
-      values = [...values, null];
-      if (phaseLabels) phaseLabels = [...phaseLabels, null];
     }
   }
 
@@ -542,8 +550,9 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
     ptStatuses.push(s);
   }
   const rawDates = chartDates || [];
-  const chartNotes = marker.singlePoint ? [] : getNotesForChart(rawDates);
-  const chartSupps = marker.singlePoint ? [] : getSupplementsForChart(rawDates);
+  const visibleRangeDates = timelineBounds ? [timelineBounds.min, timelineBounds.max] : rawDates;
+  const chartNotes = marker.singlePoint ? [] : getNotesForChart(visibleRangeDates);
+  const chartSupps = marker.singlePoint ? [] : getSupplementsForChart(visibleRangeDates);
   const datasets = /** @type {Array<Record<string, any>>} */ ([{
     data: values, borderColor: tc.lineColor, backgroundColor: tc.lineFill,
     borderWidth: 2.5, pointBackgroundColor: ptColors, pointBorderColor: ptColors,
@@ -561,6 +570,9 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   const chartLabels = useTimeScale ? rawDates : dates;
   const xScale = useTimeScale
     ? { type: 'time',
+        display: false,
+        min: timelineBounds.min,
+        max: timelineBounds.max,
         time: { tooltipFormat: 'MMM d, yyyy', displayFormats: { day: 'MMM d, yyyy', month: 'MMM yyyy', year: 'yyyy' } },
         // `source: 'labels'` forces a tick at every datapoint, which
         // collides at "Dec 2025 / Jan 2026" zoom levels — adjacent
@@ -571,7 +583,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
         // and the day-precision is still in the tooltip on hover.
         ticks: { color: tc.tickColor, font: { size: 11 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 },
         grid: { display: false } }
-    : { ticks: { color: tc.tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } };
+    : { display: false, ticks: { color: tc.tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } };
   state.chartInstances[id] = createChartRuntime(/** @type {HTMLCanvasElement} */ (canvas), {
     type: "line",
     data: { labels: chartLabels, datasets },
@@ -581,12 +593,12 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
           callbacks:{ label:(c)=>`${c.dataset.label ? c.dataset.label + ': ' : ''}${formatValue(c.parsed.y)} ${marker.unit}`, afterLabel:(c)=> { if (c.datasetIndex !== 0) return ''; const di = c.dataIndex; const oi = di + trimOffset; const pr = getEffectiveRangeForDate(marker, oi); const phaseLabel = marker.phaseLabels && marker.phaseLabels[oi]; const lines = []; if (phaseLabel) lines.push(`Phase: ${phaseLabel}`); if (pr.min != null || pr.max != null) { const rl = phaseLabel ? 'Phase ref' : (state.rangeMode === 'optimal' && marker.optimalMin != null ? 'Optimal' : 'Ref'); const rMin = pr.min != null ? formatValue(pr.min) : '–'; const rMax = pr.max != null ? formatValue(pr.max) : '–'; lines.push(`${rl}: ${rMin} \u2013 ${rMax}`); } return lines.join('\n'); } }},
         refBand: (() => { const env = getPhaseRefEnvelope(marker); if (state.rangeMode === 'both') return { refMin: marker.refMin, refMax: marker.refMax }; if (env) return { refMin: env.min, refMax: env.max }; return { refMin: chartRange.min, refMax: chartRange.max }; })(),
         optimalBand: state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) ? { optimalMin: marker.optimalMin, optimalMax: marker.optimalMax } : false,
-        noteAnnotations: chartNotes.length ? { notes: chartNotes, chartDates: rawDates } : false,
-        supplementBars: chartSupps.length ? { supplements: chartSupps, chartDates: rawDates } : false,
+        noteAnnotations: chartNotes.length ? { notes: chartNotes, chartDates: visibleRangeDates } : false,
+        supplementBars: chartSupps.length ? { supplements: chartSupps, chartDates: visibleRangeDates } : false,
         phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates } : false},
       layout: { padding: { top: chartSupps.length ? chartSupps.length * 14 + 6 : 0 } },
       scales: { x: xScale,
-        y:{min:minV-pad, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10}}, grid:{color:tc.gridColor}}}
+        y:{min:minV-pad, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
     },
     plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin]
   });

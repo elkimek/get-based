@@ -584,7 +584,7 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('styles.css: marker cards stretch to preserve row alignment',
       /\.charts-grid\s*\{[\s\S]{0,220}align-items:\s*stretch/.test(cssSrc)
       && /\.chart-card\s*\{[\s\S]{0,260}height:\s*100%/.test(cssSrc)
-      && /\.chart-card-meta\s*\{[\s\S]{0,180}flex-wrap:\s*nowrap/.test(cssSrc));
+      && /\.chart-card-title-block,[\s\S]{0,140}flex:\s*1/.test(cssSrc));
     assert('styles.css: marker cards are compact summary-first cards',
       /\.chart-card-snapshot\s*\{/.test(cssSrc)
       && /\.chart-container\s*\{[^\}]*height:\s*150px/.test(cssSrc)

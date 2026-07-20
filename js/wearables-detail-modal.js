@@ -13,7 +13,7 @@ import { getActiveProfileId } from './profile.js';
 import { getDailyRange } from './wearables-store.js';
 import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
-import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
+import { ensureChartJs, formatChartTickValue, isChartDateAdapterReady } from './charts.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 import { _collectActiveChips, _renderNoteField, _renderTagChips, inputValueById, inputValueFromElement } from './wearables-manual-form-ui.js';
 import { renderBloodPressureChart } from './wearables-bp-detail-chart.js';
@@ -632,7 +632,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
         },
         y: {
           min: ymin - pad, max: ymax + pad,
-          ticks: { color: tc.tickColor, font: { size: 10 } },
+          ticks: { color: tc.tickColor, font: { size: 10 }, callback: formatChartTickValue },
           grid: { color: tc.gridColor },
         },
       },

@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
-import { ensureChartJs } from './charts.js';
+import { ensureChartJs, formatChartTickValue } from './charts.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
@@ -85,9 +85,13 @@ export function renderChartCard(id, marker, dateLabels) {
   const fmtRange = (min, max) => `${min != null ? formatValue(min) : '–'} – ${max != null ? formatValue(max) : '–'}`;
   const effectiveRange = getEffectiveRange(marker);
   const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
-  const rangeSummary = effectiveRange.min != null || effectiveRange.max != null
-    ? `${rangeLabel}: ${fmtRange(effectiveRange.min, effectiveRange.max)}`
-    : 'No range set';
+  const showBothRanges = state.rangeMode === 'both'
+    && (marker.optimalMin != null || marker.optimalMax != null)
+    && (marker.refMin != null || marker.refMax != null);
+  const snapshotRangeLabel = showBothRanges ? 'Reference / Optimal' : rangeLabel;
+  const snapshotRangeValue = showBothRanges
+    ? `${escapeHTML(fmtRange(marker.refMin, marker.refMax))}<br>${escapeHTML(fmtRange(marker.optimalMin, marker.optimalMax))}`
+    : escapeHTML(fmtRange(effectiveRange.min, effectiveRange.max));
   const latestDateLabel = latestIdx !== -1 ? (labels[latestIdx] || 'Latest') : 'No value';
   const latestDisplay = latestVal !== null ? formatValue(latestVal) : '—';
   const latestUnit = marker.unit || '';
@@ -102,10 +106,6 @@ export function renderChartCard(id, marker, dateLabels) {
           <span class="chart-card-title-text">${escapeHTML(markerName)}</span>
           <span class="chart-card-tips-host" id="chart-rec-${id}"></span>
         </div>
-        <div class="chart-card-meta">
-          <span class="chart-card-unit">${escapeHTML(latestUnit || 'unitless')}</span>
-          <span class="chart-card-range">${escapeHTML(rangeSummary)}${latestUnit ? ` ${escapeHTML(latestUnit)}` : ''}</span>
-        </div>
       </div>
       <div class="chart-card-state"><span class="chart-card-status status-${status}">${sIcon ? sIcon + ' ' : ''}${statusLabel}</span>${trendBadge}</div>
     </div>
@@ -116,22 +116,17 @@ export function renderChartCard(id, marker, dateLabels) {
         <span class="chart-card-snapshot-meta">${escapeHTML(latestMeta)}</span>
       </div>
       <div class="chart-card-snapshot-side">
-        <span>${escapeHTML(rangeLabel)}</span>
-        <strong>${escapeHTML(fmtRange(effectiveRange.min, effectiveRange.max))}</strong>
+        <span>${snapshotRangeLabel}</span>
+        <strong>${snapshotRangeValue}</strong>
       </div>
     </div>
     <div class="chart-container"><canvas id="chart-${id}"></canvas></div>
     <div class="chart-values">`;
-  // Trim leading/trailing nulls to match chart trimming, then show the most
-  // recent points only so category cards stay scannable.
-  let valStart = 0, valEnd = marker.values.length - 1;
-  if (!marker.singlePoint && marker.values.length > 1) {
-    valStart = marker.values.findIndex(v => v !== null);
-    if (valStart < 0) valStart = 0;
-    while (valEnd > valStart && marker.values[valEnd] === null) valEnd--;
-  }
+  // Show only actual observations so missing dates do not consume summary slots.
   const visibleValueIndexes = [];
-  for (let i = valStart; i <= valEnd; i++) visibleValueIndexes.push(i);
+  for (let i = 0; i < marker.values.length; i++) {
+    if (marker.values[i] !== null) visibleValueIndexes.push(i);
+  }
   const compactValueIndexes = visibleValueIndexes.length > 4 ? visibleValueIndexes.slice(-4) : visibleValueIndexes;
   for (const i of compactValueIndexes) {
     const v = marker.values[i];
@@ -140,15 +135,7 @@ export function renderChartCard(id, marker, dateLabels) {
     html += `<div class="chart-value-item"><div class="chart-value-date">${labels[i] || ''}</div>
       <div class="chart-value-num val-${s}">${v !== null ? formatValue(v) : "—"}</div></div>`;
   }
-  let rangeHtml = '';
-  if (state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) && (marker.refMin != null || marker.refMax != null)) {
-    rangeHtml = `<div class="chart-ref-range">Ref: ${fmtRange(marker.refMin, marker.refMax)} · <span style="color:var(--green)">Optimal: ${fmtRange(marker.optimalMin, marker.optimalMax)}</span> ${escapeHTML(marker.unit)}</div>`;
-  } else {
-    const r = getEffectiveRange(marker);
-    const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
-    rangeHtml = r.min != null || r.max != null ? `<div class="chart-ref-range">${rangeLabel}: ${fmtRange(r.min, r.max)} ${escapeHTML(marker.unit)}</div>` : '';
-  }
-  html += `</div>${rangeHtml}</div>`;
+  html += `</div></div>`;
   return html;
 }
 
@@ -323,7 +310,7 @@ export function renderFattyAcidsCharts(cat) {
     ]},
     options: { responsive:true, maintainAspectRatio:false,
       plugins: { legend:{display:false}, tooltip:{ backgroundColor:tc.tooltipBg, titleColor:tc.tooltipTitle, bodyColor:tc.tooltipBody, borderColor:tc.tooltipBorder, borderWidth:1 }},
-      scales: { x:{ticks:{color:tc.tickColor,font:{size:10},maxRotation:45},grid:{display:false}}, y:{ticks:{color:tc.tickColor},grid:{color:tc.gridColor}} }
+      scales: { x:{ticks:{color:tc.tickColor,font:{size:10},maxRotation:45},grid:{display:false}}, y:{ticks:{color:tc.tickColor,callback:formatChartTickValue},grid:{color:tc.gridColor}} }
     }
   });
   if (chart) state.chartInstances["fa-bar"] = chart;

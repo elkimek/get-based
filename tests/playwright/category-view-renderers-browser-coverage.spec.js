@@ -74,6 +74,15 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && !card.hasAttribute('onclick')
         && card.querySelector('.chart-card-title-text')?.textContent === 'ApoB <script>'
         && card.querySelector('.chart-card-latest-value')?.textContent === '90'
+        && !card.querySelector('.chart-card-unit')
+        && card.querySelector('.chart-card-snapshot-meta')?.textContent === 'May 1 · mg/dL'
+        && card.querySelectorAll('.chart-value-item').length === 4
+        && ![...card.querySelectorAll('.chart-value-date')].some(el => el.textContent === 'Feb 1')
+        && !card.querySelector('.chart-value-num.val-missing')
+        && !card.querySelector('.chart-card-range, .chart-ref-range')
+        && card.querySelector('.chart-card-snapshot-side > span')?.textContent === 'Reference / Optimal'
+        && card.querySelector('.chart-card-snapshot-side > strong')?.textContent.includes('60 – 100')
+        && card.querySelector('.chart-card-snapshot-side > strong')?.textContent.includes('60 – 90')
         && card.querySelector('#chart-rec-lipids_apob')
         && !card.querySelector('script');
       outcomes.chartCardRejectsUnsafeIds =
