@@ -78,6 +78,7 @@ const APP_SHELL = [
   '/js/app-event-listeners.js',
   '/js/context-card-dashboard-ai-runtime.js',
   '/js/startup-orchestrator.js',
+  '/js/legal-consent.js',
   '/js/schema.js',
   '/js/schema-environment.js',
   '/js/constants.js',
@@ -125,12 +126,17 @@ const APP_SHELL = [
   '/js/import-drop-zone-runtime.js',
   '/js/ai-verdict-engine-runtime.js',
   '/js/ai-verdict-engine.js',
+  '/js/ai-action-delegates.js',
+  '/js/health-goals-utils.js',
   '/js/lab-date-range.js',
   '/js/profile-fatty-acid-migrations.js',
   '/js/profile-marker-migrations.js',
   '/js/profile.js',
   '/js/profile-runtime.js',
+  '/js/profile-share.js',
   '/js/data.js',
+  '/js/lab-entry.js',
+  '/js/lab-entry-mutations.js',
   '/js/marker-analysis.js',
   '/js/blob-storage.js',
   '/js/local-ai-discovery.js',
@@ -155,6 +161,7 @@ const APP_SHELL = [
   '/js/cycle-runtime.js',
   '/js/context-cards.js',
   '/js/context-cards-runtime.js',
+  '/js/context-card-health-dots.js',
   '/js/context-source-registry.js',
   '/js/context-card-summaries.js',
   '/js/context-card-editor-ui.js',
@@ -209,12 +216,14 @@ const APP_SHELL = [
   '/js/chat-discussion-picker.js',
   '/js/chat-discussion-ui.js',
   '/js/chat-onboarding.js',
+  '/js/chat-onboarding-host-bindings.js',
   '/js/chat-empty-state.js',
   '/js/chat-runtime.js',
   '/js/chat-render-runtime.js',
   '/js/chat-render.js',
   '/js/chat-send.js',
   '/js/chat-send-runtime.js',
+  '/js/chat-message-action-attrs.js',
   '/js/chat-icons.js',
   '/js/chat-personalities.js',
   '/js/chat-history.js',
@@ -538,6 +547,61 @@ const APP_SHELL = [
   '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs',
   '/vendor/evolu/sqlite3.wasm',
   '/vendor/fonts/fonts.css',
+  '/vendor/fonts/inter-400.woff2',
+  '/vendor/fonts/inter-400-2.woff2',
+  '/vendor/fonts/inter-400-3.woff2',
+  '/vendor/fonts/inter-400-4.woff2',
+  '/vendor/fonts/inter-400-5.woff2',
+  '/vendor/fonts/inter-400-6.woff2',
+  '/vendor/fonts/inter-400-7.woff2',
+  '/vendor/fonts/inter-500.woff2',
+  '/vendor/fonts/inter-500-2.woff2',
+  '/vendor/fonts/inter-500-3.woff2',
+  '/vendor/fonts/inter-500-4.woff2',
+  '/vendor/fonts/inter-500-5.woff2',
+  '/vendor/fonts/inter-500-6.woff2',
+  '/vendor/fonts/inter-500-7.woff2',
+  '/vendor/fonts/inter-600.woff2',
+  '/vendor/fonts/inter-600-2.woff2',
+  '/vendor/fonts/inter-600-3.woff2',
+  '/vendor/fonts/inter-600-4.woff2',
+  '/vendor/fonts/inter-600-5.woff2',
+  '/vendor/fonts/inter-600-6.woff2',
+  '/vendor/fonts/inter-600-7.woff2',
+  '/vendor/fonts/inter-700.woff2',
+  '/vendor/fonts/inter-700-2.woff2',
+  '/vendor/fonts/inter-700-3.woff2',
+  '/vendor/fonts/inter-700-4.woff2',
+  '/vendor/fonts/inter-700-5.woff2',
+  '/vendor/fonts/inter-700-6.woff2',
+  '/vendor/fonts/inter-700-7.woff2',
+  '/vendor/fonts/jetbrains-mono-500.woff2',
+  '/vendor/fonts/jetbrains-mono-500-2.woff2',
+  '/vendor/fonts/jetbrains-mono-500-3.woff2',
+  '/vendor/fonts/jetbrains-mono-500-4.woff2',
+  '/vendor/fonts/jetbrains-mono-500-5.woff2',
+  '/vendor/fonts/jetbrains-mono-500-6.woff2',
+  '/vendor/fonts/jetbrains-mono-600.woff2',
+  '/vendor/fonts/jetbrains-mono-600-2.woff2',
+  '/vendor/fonts/jetbrains-mono-600-3.woff2',
+  '/vendor/fonts/jetbrains-mono-600-4.woff2',
+  '/vendor/fonts/jetbrains-mono-600-5.woff2',
+  '/vendor/fonts/jetbrains-mono-600-6.woff2',
+  '/vendor/fonts/jetbrains-mono-700.woff2',
+  '/vendor/fonts/jetbrains-mono-700-2.woff2',
+  '/vendor/fonts/jetbrains-mono-700-3.woff2',
+  '/vendor/fonts/jetbrains-mono-700-4.woff2',
+  '/vendor/fonts/jetbrains-mono-700-5.woff2',
+  '/vendor/fonts/jetbrains-mono-700-6.woff2',
+  '/vendor/fonts/outfit-500.woff2',
+  '/vendor/fonts/outfit-500-2.woff2',
+  '/vendor/fonts/outfit-600.woff2',
+  '/vendor/fonts/outfit-600-2.woff2',
+  '/vendor/fonts/outfit-700.woff2',
+  '/vendor/fonts/outfit-700-2.woff2',
+  '/vendor/fonts/vt323-400.woff2',
+  '/vendor/fonts/vt323-400-2.woff2',
+  '/vendor/fonts/vt323-400-3.woff2',
   '/data/recommendations.json',
   '/data/light-device-presets.json',
   '/data/mito-compounds.json',
@@ -550,6 +614,55 @@ const APP_SHELL = [
   '/data/import-benchmark-reference-us-v2.gold.json',
   '/data/emf-assessment-template.html',
 ];
+
+// Store successful responses one-by-one instead of using Cache.addAll(). If a
+// large install is interrupted, the next install attempt can resume from the
+// entries already written. The install still rejects when any required entry
+// cannot be fetched, so an incomplete app shell is never allowed to activate.
+const PRECACHE_CONCURRENCY = 12;
+const PRECACHE_ATTEMPTS = 3;
+
+async function cacheAppShellEntry(cache, url) {
+  if (await cache.match(url)) return;
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= PRECACHE_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(url, { cache: 'reload' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await cache.put(url, response);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(`Failed to precache ${url}: ${lastError?.message || 'network error'}`);
+}
+
+async function precacheAppShell(cache) {
+  let nextIndex = 0;
+  const failures = [];
+
+  async function cacheNextEntries() {
+    while (nextIndex < APP_SHELL.length) {
+      const url = APP_SHELL[nextIndex];
+      nextIndex += 1;
+      try {
+        await cacheAppShellEntry(cache, url);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  }
+
+  const workerCount = Math.min(PRECACHE_CONCURRENCY, APP_SHELL.length);
+  await Promise.all(Array.from({ length: workerCount }, () => cacheNextEntries()));
+  if (failures.length) {
+    const detail = failures.slice(0, 3).map((error) => error.message).join('; ');
+    throw new Error(`App shell precache failed for ${failures.length} resource(s): ${detail}`);
+  }
+}
 
 function cacheResponse(request, response) {
   if (!response || response.status === 206 || !response.ok) return Promise.resolve();
@@ -602,7 +715,7 @@ function isLocalOrPrivateHost(hostname) {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     resolveCacheName().then((name) =>
-      caches.open(name).then((cache) => cache.addAll(APP_SHELL))
+      caches.open(name).then((cache) => precacheAppShell(cache))
     )
   );
 });
@@ -627,11 +740,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     resolveCacheName().then((name) =>
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((k) => k !== name).map((k) => caches.delete(k)))
+        Promise.all(keys
+          .filter((k) => k.startsWith('labcharts-v') && k !== name)
+          .map((k) => caches.delete(k)))
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch: route-based caching strategies

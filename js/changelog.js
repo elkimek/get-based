@@ -11,6 +11,13 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.317', date: '2026-07-20', title: 'More reliable offline use',
+    items: [
+      '<b>The installed app now opens reliably without a connection.</b> Required app files and fonts are kept together for offline use, and interrupted installations resume safely.',
+      '<b>Your downloaded Knowledge Base models survive app updates.</b> Updating getbased no longer clears caches owned by the local research engine.',
+    ]
+  },
+  {
     version: '1.10.316', date: '2026-07-20', title: 'Better Local AI and model comparisons',
     items: [
       '<b>Local AI setup is clearer and more reliable.</b> getbased now works more smoothly with LM Studio, Ollama, and other compatible servers, with better connection details, model guidance, and memory handling.',

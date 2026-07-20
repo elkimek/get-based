@@ -6,7 +6,6 @@
   "start_url": "/app",
   "scope": "/app",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "categories": ["health", "productivity", "medical"],
   "background_color": "#0f1117",
   "theme_color": "#0a0a12",
