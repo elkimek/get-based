@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../lib/proxy-network.js', () => ({
+  fetchWithPinnedProxyDns: (url, options) => globalThis.fetch(url, options),
+}));
+
 import commitHandler from '../api/commit.js';
 import proxyHandler from '../api/proxy.js';
 import {
@@ -24,6 +28,9 @@ const ENV_KEYS = [
   'POLAR_CLIENT_SECRET',
   'UVDATA_UPSTREAM',
   'UVDATA_BEARER',
+  'PROXY_RATE_LIMIT_MAX',
+  'PROXY_RATE_LIMIT_WINDOW_MS',
+  'PROXY_UPSTREAM_TIMEOUT_MS',
   'VERCEL_GIT_COMMIT_SHA',
   'VERCEL_GIT_COMMIT_REF',
 ];
@@ -54,11 +61,18 @@ function makeShareRequest(method, body, { id, origin = 'https://app.getbased.hea
   });
 }
 
-function makeProxyRequest(body, { method = 'POST', origin = 'https://app.getbased.health', rawBody } = {}) {
+function makeProxyRequest(body, {
+  method = 'POST',
+  origin = 'https://app.getbased.health',
+  rawBody,
+  clientIp,
+  requestUrl = 'https://getbased.health/api/proxy',
+} = {}) {
   const headers = new Headers();
   if (origin) headers.set('origin', origin);
+  if (clientIp) headers.set('x-forwarded-for', clientIp);
   if (body !== undefined || rawBody !== undefined) headers.set('content-type', 'application/json');
-  return new Request('https://getbased.health/api/proxy', {
+  return new Request(requestUrl, {
     method,
     headers,
     body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
@@ -448,8 +462,20 @@ describe('AI proxy runtime behavior', () => {
       method: 'OPTIONS',
       origin: 'https://evil.example',
     }));
-    expect(blockedPreflight.status).toBe(204);
+    expect(blockedPreflight.status).toBe(403);
     expect(blockedPreflight.headers.get('Access-Control-Allow-Origin')).toBeNull();
+
+    const blocked = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }, {
+      origin: 'https://evil.example',
+    }));
+    expect(blocked.status).toBe(403);
+    expect(await responseJson(blocked)).toEqual({ error: 'Origin not allowed.' });
+
+    const missingOrigin = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }, {
+      origin: '',
+    }));
+    expect(missingOrigin.status).toBe(403);
+    expect(await responseJson(missingOrigin)).toEqual({ error: 'Origin not allowed.' });
 
     const wrongMethod = await proxyHandler(makeProxyRequest(undefined, { method: 'GET' }));
     expect(wrongMethod.status).toBe(405);
@@ -460,6 +486,10 @@ describe('AI proxy runtime behavior', () => {
     const badJson = await proxyHandler(makeProxyRequest(undefined, { rawBody: '{' }));
     expect(badJson.status).toBe(400);
     expect(await responseJson(badJson)).toEqual({ error: 'Invalid JSON body' });
+
+    const nullPayload = await proxyHandler(makeProxyRequest(null));
+    expect(nullPayload.status).toBe(400);
+    expect(await responseJson(nullPayload)).toEqual({ error: 'Proxy payload must be an object' });
 
     process.env.OURA_CLIENT_ID = 'oura-selfhost';
     process.env.FITBIT_CLIENT_ID = 'fitbit-selfhost';
@@ -472,6 +502,12 @@ describe('AI proxy runtime behavior', () => {
         fitbit: 'fitbit-selfhost',
       },
     });
+
+    const selfHosted = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }, {
+      origin: 'https://health.example.net',
+      requestUrl: 'https://health.example.net/api/proxy',
+    }));
+    expect(selfHosted.status).toBe(200);
   });
 
   it('blocks SSRF targets and forwards allowed custom HTTPS endpoints', async () => {
@@ -492,7 +528,10 @@ describe('AI proxy runtime behavior', () => {
       'https://[::ffff:c0a8:101]/private',
       'https://[::ffff:ac10:1]/private',
       'https://[2002:c0a8:0101::1]/private',
+      'https://metadata.google.internal/computeMetadata/v1/',
+      'https://user:secret@api.example.com/v1/chat',
       'not a url',
+      { href: 'https://api.example.com/v1/chat' },
     ]) {
       const response = await proxyHandler(makeProxyRequest({ url }));
       expect(response.status).toBe(403);
@@ -512,6 +551,8 @@ describe('AI proxy runtime behavior', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('https://models.example.com/v1/list', {
       method: 'GET',
       headers: { Authorization: 'Bearer model-key' },
+      redirect: 'manual',
+      signal: expect.any(AbortSignal),
     });
 
     globalThis.fetch = vi.fn(async () => {
@@ -523,6 +564,133 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(failed.status).toBe(502);
     expect(await responseJson(failed)).toEqual({ error: 'Upstream error: offline' });
+  });
+
+  it('revalidates redirect targets and never forwards credentials across origins', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(null, {
+      status: 302,
+      headers: { Location: 'https://169.254.169.254/latest/meta-data/' },
+    }));
+    const privateRedirect = await proxyHandler(makeProxyRequest({
+      url: 'https://custom.example.com/v1/chat',
+      headers: { Authorization: 'Bearer private-key' },
+      body: { prompt: 'hello' },
+    }));
+    expect(privateRedirect.status).toBe(502);
+    expect(await responseJson(privateRedirect)).toEqual({
+      error: 'Upstream error: Proxy redirect target not allowed',
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    globalThis.fetch = vi.fn(async () => new Response(null, {
+      status: 307,
+      headers: { Location: 'https://collector.example.net/capture' },
+    }));
+    const crossOriginRedirect = await proxyHandler(makeProxyRequest({
+      url: 'https://custom.example.com/v1/chat',
+      headers: { 'x-api-key': 'private-key' },
+      body: { prompt: 'hello' },
+    }));
+    expect(crossOriginRedirect.status).toBe(502);
+    expect(await responseJson(crossOriginRedirect)).toEqual({
+      error: 'Upstream error: Cross-origin proxy redirects with a request body are not allowed',
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url === 'https://shop.example.com/product') {
+        return new Response(null, {
+          status: 301,
+          headers: { Location: 'https://www.example.com/product' },
+        });
+      }
+      return new Response('<html><body>product</body></html>', {
+        headers: { 'Content-Type': 'text/html' },
+      });
+    });
+    const safePageRedirect = await proxyHandler(makeProxyRequest({
+      url: 'https://shop.example.com/product',
+      method: 'GET',
+      headers: { 'x-api-key': 'must-not-cross-origins' },
+    }));
+    expect(safePageRedirect.status).toBe(200);
+    expect(await safePageRedirect.text()).toContain('product');
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    const [pageRedirectUrl, pageRedirectInit] = globalThis.fetch.mock.calls[1];
+    expect(pageRedirectUrl).toBe('https://www.example.com/product');
+    expect(pageRedirectInit.headers).not.toHaveProperty('x-api-key');
+
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url === 'https://custom.example.com/v1/chat') {
+        return new Response(null, {
+          status: 303,
+          headers: { Location: '/v1/result' },
+        });
+      }
+      return jsonResponse({ redirected: true });
+    });
+    const sameOriginRedirect = await proxyHandler(makeProxyRequest({
+      url: 'https://custom.example.com/v1/chat',
+      headers: { Authorization: 'Bearer private-key' },
+      body: { prompt: 'hello' },
+    }));
+    expect(sameOriginRedirect.status).toBe(200);
+    expect(await responseJson(sameOriginRedirect)).toEqual({ redirected: true });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    const [redirectUrl, redirectInit] = globalThis.fetch.mock.calls[1];
+    expect(redirectUrl).toBe('https://custom.example.com/v1/result');
+    expect(redirectInit).toMatchObject({
+      method: 'GET',
+      headers: { Authorization: 'Bearer private-key' },
+      redirect: 'manual',
+    });
+    expect(redirectInit.body).toBeUndefined();
+
+    globalThis.fetch = vi.fn(async () => new Response(null, {
+      status: 302,
+      headers: { Location: '/v1/loop' },
+    }));
+    const redirectLoop = await proxyHandler(makeProxyRequest({
+      url: 'https://custom.example.com/v1/loop',
+      method: 'GET',
+    }));
+    expect(redirectLoop.status).toBe(502);
+    expect(await responseJson(redirectLoop)).toEqual({
+      error: 'Upstream error: Proxy redirect limit exceeded',
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(6);
+  });
+
+  it('bounds upstream header waits and throttles repeated clients', async () => {
+    process.env.PROXY_UPSTREAM_TIMEOUT_MS = '10';
+    globalThis.fetch = vi.fn((_url, init) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+    }));
+    const timedOut = await proxyHandler(makeProxyRequest({
+      url: 'https://slow.example.com/v1/chat',
+    }, { clientIp: '203.0.113.80' }));
+    expect(timedOut.status).toBe(504);
+    expect(await responseJson(timedOut)).toEqual({
+      error: 'Upstream error: Proxy upstream timed out',
+    });
+
+    delete process.env.PROXY_UPSTREAM_TIMEOUT_MS;
+    process.env.PROXY_RATE_LIMIT_MAX = '2';
+    process.env.PROXY_RATE_LIMIT_WINDOW_MS = '1000';
+    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+    const request = () => proxyHandler(makeProxyRequest({
+      url: 'https://models.example.com/v1/chat',
+    }, { clientIp: '203.0.113.81' }));
+    expect((await request()).status).toBe(200);
+    expect((await request()).status).toBe(200);
+    const limited = await request();
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('Retry-After'))).toBeGreaterThan(0);
+    expect(await responseJson(limited)).toMatchObject({
+      error: 'Too many proxy requests. Try again later.',
+      retryAfterSeconds: expect.any(Number),
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('preserves provider-compatible headers for proxied custom API calls', async () => {
@@ -547,6 +715,8 @@ describe('AI proxy runtime behavior', () => {
         'OpenAI-Organization': 'org_123',
         'OpenAI-Project': 'proj_123',
       },
+      redirect: 'manual',
+      signal: expect.any(AbortSignal),
     });
 
     const chatBody = JSON.stringify({
@@ -577,6 +747,8 @@ describe('AI proxy runtime behavior', () => {
         'Content-Type': 'application/json',
       },
       body: chatBody,
+      redirect: 'manual',
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -636,6 +808,8 @@ describe('AI proxy runtime behavior', () => {
           Authorization: 'Bearer polar',
           'Content-Type': 'application/json',
         },
+        redirect: 'manual',
+        signal: expect.any(AbortSignal),
       },
     );
   });
