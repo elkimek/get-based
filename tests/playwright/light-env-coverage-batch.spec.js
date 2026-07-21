@@ -1,5 +1,12 @@
 import { expect, test } from './coverage-fixture.js';
 
+async function waitForInitialView(page) {
+  await page.waitForFunction(async () => {
+    const { state } = await import('/js/state.js');
+    return typeof state.currentView === 'string' && state.currentView.length > 0;
+  });
+}
+
 test('Light environment assessment drives delegated room and screen controls', async ({ page }) => {
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
@@ -7,6 +14,7 @@ test('Light environment assessment drives delegated room and screen controls', a
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
+  await waitForInitialView(page);
 
   const results = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
