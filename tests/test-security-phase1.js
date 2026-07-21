@@ -124,6 +124,18 @@ if (exists('dev-server.js')) {
       && edgeProxySrc.includes('sanitizeProxyHeaders(headers)')
       && edgeProxySrc.includes('PROXY_MAX_REQUEST_BYTES')
       && edgeProxySrc.includes('PROXY_MAX_RESPONSE_BYTES'));
+  assert('api/proxy.js rejects disallowed callers server-side',
+    edgeProxySrc.includes('if (!isAllowedCallerOrigin(req))')
+      && edgeProxySrc.includes("error: 'Origin not allowed.'"));
+  assert('api/proxy.js manually validates every redirect destination',
+    edgeProxySrc.includes("redirect: 'manual'")
+      && edgeProxySrc.includes('isAllowedProxyUrl(nextUrl)')
+      && edgeProxySrc.includes('stripProxyCredentialHeaders(nextOptions)')
+      && edgeProxySrc.includes('Cross-origin proxy redirects with a request body are not allowed'));
+  assert('api/proxy.js bounds upstream waits and applies an abuse brake',
+    edgeProxySrc.includes('PROXY_UPSTREAM_TIMEOUT_MS')
+      && edgeProxySrc.includes('enforceProxyRateLimit(req)')
+      && edgeProxySrc.includes("'Retry-After'"));
 } else {
   console.log('  (dev-server.js not present — production build, skipping CORS source asserts)');
 }

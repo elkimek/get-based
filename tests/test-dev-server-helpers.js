@@ -286,7 +286,13 @@ assert('blocks compressed IPv4-mapped private IP', !_isAllowedProxyUrl('https://
 assert('blocks 6to4 private IP',       !_isAllowedProxyUrl('https://[2002:c0a8:0101::1]/admin'));
 assert('blocks cloud metadata',        !_isAllowedProxyUrl('https://169.254.169.254/latest/meta-data/'));
 assert('blocks .local',                !_isAllowedProxyUrl('https://box.local/admin'));
+assert('blocks internal-only host suffixes',
+  !_isAllowedProxyUrl('https://metadata.google.internal/computeMetadata/v1/') &&
+  !_isAllowedProxyUrl('https://router.lan/admin') &&
+  !_isAllowedProxyUrl('https://service.test/private'));
+assert('blocks URL userinfo',          !_isAllowedProxyUrl('https://user:secret@api.example.com/v1/chat'));
 assert('blocks malformed URL',         !_isAllowedProxyUrl('not a url'));
+assert('blocks non-string URL values', !_isAllowedProxyUrl({ toString: () => 'https://api.example.com' }));
 
 console.log('\n── shared proxy request policy ──');
 

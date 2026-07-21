@@ -13,13 +13,33 @@ import {
 } from '../lib/proxy-policy.js';
 
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
+const PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const PROXY_MAX_REDIRECTS = 5;
+const DEFAULT_PROXY_UPSTREAM_TIMEOUT_MS = 180_000;
+const DEFAULT_PROXY_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_PROXY_RATE_LIMIT_MAX = 300;
+const MAX_PROXY_RATE_LIMIT_BUCKETS = 4_096;
+const proxyRateLimitBuckets = new Map();
 
 export default async function handler(req) {
-  // CORS preflight
+  // Treat Origin as a server-side browser boundary, not merely a response
+  // decoration. It prevents another website from driving this credentialed
+  // relay. Non-browser clients can forge Origin, so the rate limit below and
+  // deployment-level firewall controls remain important defence in depth.
   if (req.method === 'OPTIONS') {
+    if (!isAllowedCallerOrigin(req)) {
+      return new Response(null, { status: 403, headers: { 'Vary': 'Origin' } });
+    }
     return new Response(null, {
       status: 204,
       headers: corsHeaders(req),
+    });
+  }
+
+  if (!isAllowedCallerOrigin(req)) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed.' }), {
+      status: 403,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 
@@ -27,6 +47,21 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ error: 'Method not allowed. Use POST with {url, headers, body?, method?}' }), {
       status: 405,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+
+  const rateLimit = enforceProxyRateLimit(req);
+  if (rateLimit.limited) {
+    return new Response(JSON.stringify({
+      error: 'Too many proxy requests. Try again later.',
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+    }), {
+      status: 429,
+      headers: {
+        ...corsHeaders(req),
+        'Content-Type': 'application/json',
+        'Retry-After': String(rateLimit.retryAfterSeconds),
+      },
     });
   }
 
@@ -49,6 +84,12 @@ export default async function handler(req) {
     payload = JSON.parse(rawBody);
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return new Response(JSON.stringify({ error: 'Proxy payload must be an object' }), {
       status: 400,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
@@ -152,7 +193,7 @@ export default async function handler(req) {
     if (fetchMethod !== 'GET' && body) {
       fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
     }
-    const upstreamRes = await fetch(url, fetchOpts);
+    const upstreamRes = await fetchWithValidatedRedirects(url, fetchOpts);
 
     // For non-streaming responses or errors, forward as-is
     const contentType = upstreamRes.headers.get('content-type') || '';
@@ -180,11 +221,177 @@ export default async function handler(req) {
       },
     });
   } catch (e) {
+    const timedOut = e?.code === 'PROXY_UPSTREAM_TIMEOUT';
     return new Response(JSON.stringify({ error: `Upstream error: ${e.message}` }), {
-      status: 502,
+      status: timedOut ? 504 : 502,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
+}
+
+function readBoundedEnvInteger(name, fallback, min, max) {
+  const raw = typeof process !== 'undefined' ? process.env?.[name] : undefined;
+  if (!raw) return fallback;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+}
+
+function proxyRuntimeError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function redirectRequestOptions(status, options) {
+  const method = String(options.method || 'GET').toUpperCase();
+  if (status !== 303 && !((status === 301 || status === 302) && method === 'POST')) {
+    return options;
+  }
+  const headers = { ...(options.headers || {}) };
+  for (const name of Object.keys(headers)) {
+    if (['content-length', 'content-type'].includes(name.toLowerCase())) delete headers[name];
+  }
+  return { ...options, method: 'GET', headers, body: undefined };
+}
+
+function stripProxyCredentialHeaders(options) {
+  const headers = { ...(options.headers || {}) };
+  for (const name of Object.keys(headers)) {
+    if (['api-key', 'authorization', 'x-api-key'].includes(name.toLowerCase())) delete headers[name];
+  }
+  return { ...options, headers };
+}
+
+async function discardResponseBody(response) {
+  try { await response.body?.cancel?.(); } catch {}
+}
+
+// Fetch redirects manually so every destination passes the same SSRF policy.
+// Credentialed/body-bearing cross-origin redirects are constrained so API
+// secrets and request payloads never migrate to a new host. Safe GET redirects
+// remain supported for ordinary product pages that canonicalize to `www`.
+async function fetchWithValidatedRedirects(initialUrl, initialOptions) {
+  const timeoutMs = readBoundedEnvInteger(
+    'PROXY_UPSTREAM_TIMEOUT_MS',
+    DEFAULT_PROXY_UPSTREAM_TIMEOUT_MS,
+    10,
+    300_000,
+  );
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  let url = new URL(initialUrl).toString();
+  let options = { ...initialOptions };
+  let redirects = 0;
+
+  try {
+    while (true) {
+      if (!isAllowedProxyUrl(url)) {
+        throw proxyRuntimeError('PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed');
+      }
+      let response;
+      try {
+        response = await fetch(url, {
+          ...options,
+          redirect: 'manual',
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (timedOut || controller.signal.aborted) {
+          throw proxyRuntimeError('PROXY_UPSTREAM_TIMEOUT', 'Proxy upstream timed out');
+        }
+        throw error;
+      }
+
+      if (!PROXY_REDIRECT_STATUSES.has(response.status)) return response;
+      const location = response.headers.get('location');
+      if (!location) return response;
+      if (redirects >= PROXY_MAX_REDIRECTS) {
+        await discardResponseBody(response);
+        throw proxyRuntimeError('PROXY_REDIRECT_LIMIT', 'Proxy redirect limit exceeded');
+      }
+
+      let nextUrl;
+      try {
+        nextUrl = new URL(location, url).toString();
+      } catch {
+        await discardResponseBody(response);
+        throw proxyRuntimeError('PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed');
+      }
+      if (!isAllowedProxyUrl(nextUrl)) {
+        await discardResponseBody(response);
+        throw proxyRuntimeError('PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed');
+      }
+      let nextOptions = redirectRequestOptions(response.status, options);
+      if (new URL(nextUrl).origin !== new URL(url).origin && nextOptions.body != null) {
+        await discardResponseBody(response);
+        throw proxyRuntimeError(
+          'PROXY_CROSS_ORIGIN_BODY_REDIRECT',
+          'Cross-origin proxy redirects with a request body are not allowed',
+        );
+      }
+      if (new URL(nextUrl).origin !== new URL(url).origin) {
+        nextOptions = stripProxyCredentialHeaders(nextOptions);
+      }
+
+      await discardResponseBody(response);
+      options = nextOptions;
+      url = nextUrl;
+      redirects++;
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function getProxyRateLimitSubject(req) {
+  const forwarded = req.headers.get('x-forwarded-for') || '';
+  const ip = forwarded.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || req.headers.get('cf-connecting-ip')
+    || 'unknown-client';
+  return `${req.headers.get('origin') || 'no-origin'}|${String(ip).slice(0, 128)}`;
+}
+
+// Edge isolates do not share memory, so this is a per-isolate abuse brake,
+// not a replacement for a deployment-level distributed rate limit.
+function enforceProxyRateLimit(req) {
+  const now = Date.now();
+  const windowMs = readBoundedEnvInteger(
+    'PROXY_RATE_LIMIT_WINDOW_MS',
+    DEFAULT_PROXY_RATE_LIMIT_WINDOW_MS,
+    1_000,
+    60 * 60 * 1000,
+  );
+  const maxRequests = readBoundedEnvInteger(
+    'PROXY_RATE_LIMIT_MAX',
+    DEFAULT_PROXY_RATE_LIMIT_MAX,
+    1,
+    10_000,
+  );
+  const subject = getProxyRateLimitSubject(req);
+  let bucket = proxyRateLimitBuckets.get(subject);
+  if (!bucket || bucket.resetAt <= now) {
+    bucket = { count: 0, resetAt: now + windowMs };
+  }
+  bucket.count++;
+  proxyRateLimitBuckets.set(subject, bucket);
+
+  if (proxyRateLimitBuckets.size > MAX_PROXY_RATE_LIMIT_BUCKETS) {
+    for (const [key, candidate] of proxyRateLimitBuckets) {
+      if (candidate.resetAt <= now || proxyRateLimitBuckets.size > MAX_PROXY_RATE_LIMIT_BUCKETS) {
+        proxyRateLimitBuckets.delete(key);
+      }
+    }
+  }
+
+  return {
+    limited: bucket.count > maxRequests,
+    retryAfterSeconds: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
+  };
 }
 
 async function readResponseTextWithCap(response) {
@@ -238,22 +445,33 @@ function capReadableStream(body, maxBytes) {
   });
 }
 
-// Origins permitted to call /api/proxy. Lock to our production surfaces +
-// localhost:8000 dev. Previously we returned `Access-Control-Allow-Origin: *`
-// which let any page on the internet use our proxy as an authenticated-request
-// relay; now the browser enforces the allowlist via CORS.
+// Origins permitted to call /api/proxy. Same-origin requests support self-hosted
+// deployments; explicit production surfaces cover app.getbased.health calling
+// the apex API. Localhost:8000 remains available for the documented dev server.
 const ALLOWED_CALLER_ORIGINS = [
   'https://app.getbased.health',
   'https://getbased.health',
+  'https://www.getbased.health',
+  'https://get-based.vercel.app',
   'http://localhost:8000',
+  'http://127.0.0.1:8000',
 ];
 
-function corsHeaders(req) {
-  // Reflect the caller's Origin if and only if it's in the allowlist. Any
-  // other origin gets no Allow-Origin header at all, which causes the browser
-  // to block the response (effective 403 client-side).
+function isAllowedCallerOrigin(req) {
   const origin = req?.headers?.get?.('origin') || '';
-  const allow = ALLOWED_CALLER_ORIGINS.includes(origin) ? origin : '';
+  if (!origin) return false;
+  try {
+    const caller = new URL(origin);
+    const requestUrl = new URL(req.url);
+    return caller.origin === requestUrl.origin || ALLOWED_CALLER_ORIGINS.includes(caller.origin);
+  } catch {
+    return false;
+  }
+}
+
+function corsHeaders(req) {
+  const origin = req?.headers?.get?.('origin') || '';
+  const allow = isAllowedCallerOrigin(req) ? origin : '';
   const h = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
