@@ -31,7 +31,7 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "@vercel/blob": "^2.4.0",
+    "@vercel/blob": "^2.6.1",
     "ehbp": "0.2.3",
     "tinfoil": "^1.1.7",
     "undici": "^7.28.0"
