@@ -4,5 +4,5 @@
   "serious": {},
   "moderate": {},
   "minor": {},
-  "_note": "Baseline counts of axe-core violations as of v1.7.135 after resolving the remaining serious color-contrast and nested-interactive findings. The CI gate fails when any critical/serious rule INCREASES vs these numbers. Refresh intentionally with `A11Y_REBASELINE=1 ./run-tests.sh` after verified fixes. _axeVersion pins the runtime axe-core load (cdnjs URL); rule renames across versions would otherwise look like a regression."
+  "_note": "Baseline counts of axe-core violations as of v1.7.135 after resolving the remaining serious color-contrast and nested-interactive findings. The CI gate fails when any critical/serious rule INCREASES vs these numbers. Refresh intentionally with `A11Y_REBASELINE=1 ./run-tests.sh` after verified fixes. _axeVersion pins the local axe-core dev dependency; rule renames across versions would otherwise look like a regression."
 }
