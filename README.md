@@ -169,9 +169,9 @@ User and developer documentation live at [docs.getbased.health](https://docs.get
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https://github.com/users/elkimek/projects/2).
 
-## Star History
+## GitHub Stars
 
-[![Star History Chart](https://api.star-history.com/svg?repos=elkimek/get-based&type=Date)](https://star-history.com/#elkimek/get-based&Date)
+[![GitHub stars](https://img.shields.io/github/stars/elkimek/get-based?style=for-the-badge&logo=github&label=Stars)](https://github.com/elkimek/get-based)
 
 ## License
 
