@@ -860,6 +860,394 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
   }
 });
 
+test('PDF import commit rolls back failed storage and retries safely', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async () => {
+    const [commit, review, reviewRuntime] = await Promise.all([
+      import('/js/pdf-import-commit.js'),
+      import('/js/pdf-import-review.js'),
+      import('/js/pdf-import-review-runtime.js'),
+    ]);
+    const { state } = await import('/js/state.js');
+    const outcomes = {};
+    const original = {
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      currentProfile: state.currentProfile,
+      currentView: state.currentView,
+      profileSex: state.profileSex,
+    };
+    const refreshCalls = [];
+    let nudgeCalls = 0;
+    const previousCommitDeps = commit.configurePdfImportCommitDeps({
+      maybeShowEncryptionNudge: () => { nudgeCalls += 1; },
+    });
+    const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
+      buildSidebar: () => { refreshCalls.push('sidebar'); },
+      navigate: route => { refreshCalls.push(`navigate:${route}`); },
+      updateHeaderDates: () => { refreshCalls.push('dates'); },
+    });
+    const clearNotifications = () => document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+    const emptyImportedData = () => ({
+      entries: [],
+      notes: [],
+      supplements: [],
+      customMarkers: {},
+      markerNotes: {},
+      markerValueNotes: {},
+      manualValues: {},
+      refOverrides: {},
+      importSnapshots: [],
+    });
+
+    try {
+      state.currentProfile = 'pdf-import-commit-retry-coverage';
+      state.currentView = 'labs';
+      state.profileSex = 'male';
+      const failingData = emptyImportedData();
+      const rollbackData = JSON.parse(JSON.stringify(failingData));
+      let stringifyCalls = 0;
+      Object.defineProperty(failingData, 'toJSON', {
+        configurable: true,
+        value: () => {
+          stringifyCalls += 1;
+          if (stringifyCalls === 1) return rollbackData;
+          throw new Error('forced PDF import persistence failure');
+        },
+      });
+      state.importedData = failingData;
+      review.showImportPreview({
+        _importProfileId: state.currentProfile,
+        date: '2026-07-20',
+        fileName: 'retry-import.pdf',
+        testType: 'blood',
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.2,
+          unit: 'mmol/L',
+          refMin: 4.11,
+          refMax: 5.6,
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+        }],
+      });
+      const adoptRanges = document.getElementById('import-adopt-ranges');
+      if (adoptRanges) adoptRanges.checked = true;
+
+      await commit.confirmImport();
+      outcomes.failedSaveRollsBackAndKeepsPreviewRetryable =
+        state.importedData.entries.length === 0
+        && state.importedData.importSnapshots.length === 0
+        && review.getPendingImport()?.fileName === 'retry-import.pdf'
+        && document.getElementById('import-confirm-btn')?.disabled === false
+        && refreshCalls.length === 0
+        && nudgeCalls === 0
+        && Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('Storage limit reached'));
+
+      clearNotifications();
+      await commit.confirmImport();
+      const retriedEntry = state.importedData.entries.find(entry => entry.date === '2026-07-20');
+      outcomes.retryCommitsOnceAndClosesPreview =
+        retriedEntry?.markers?.['biochemistry.glucose'] === 5.2
+        && state.importedData.importSnapshots.length === 1
+        && !Object.hasOwn(state.importedData.refOverrides, 'biochemistry.glucose')
+        && review.getPendingImport() === null
+        && refreshCalls.filter(call => call === 'sidebar').length === 1
+        && refreshCalls.includes('dates')
+        && refreshCalls.includes('navigate:labs')
+        && nudgeCalls === 1
+        && Array.from(document.querySelectorAll('.notification-toast.success'))
+          .some(toast => toast.textContent.includes('Imported 1 markers'));
+
+      clearNotifications();
+      state.importedData = {
+        ...emptyImportedData(),
+        entries: [{
+          date: '2026-07-19',
+          markers: { 'biochemistry.glucose': 5.1 },
+          markerSources: {
+            'biochemistry.glucose': { file: 're-review.pdf', at: 100, snapshotId: 'snap-re-review-cleanup' },
+          },
+        }],
+        manualValues: {
+          'biochemistry.glucose:2026-07-19': { value: 5.1 },
+        },
+        importSnapshots: [{
+          id: 'snap-re-review-cleanup',
+          fileName: 're-review.pdf',
+          date: '2026-07-19',
+          importedAt: 100,
+          markers: [{
+            rawName: 'Glucose',
+            value: 5.4,
+            unit: 'mmol/L',
+            matched: true,
+            mappedKey: 'biochemistry.glucose',
+          }],
+        }],
+      };
+      commit.openImportReviewFromSnapshot('snap-re-review-cleanup');
+      await commit.confirmImport();
+      const reReviewedEntry = state.importedData.entries.find(entry => entry.date === '2026-07-19');
+      outcomes.reReviewReplacesOldSnapshotEntryWithoutStaleManualData =
+        state.importedData.entries.length === 1
+        && reReviewedEntry?.markers?.['biochemistry.glucose'] === 5.4
+        && reReviewedEntry?.markerSources?.['biochemistry.glucose']?.snapshotId === 'snap-re-review-cleanup'
+        && !Object.hasOwn(state.importedData.manualValues, 'biochemistry.glucose:2026-07-19')
+        && state.importedData.importSnapshots[0]?.markers?.[0]?.value === 5.4
+        && Number.isFinite(state.importedData.importSnapshots[0]?.importedAt);
+
+      clearNotifications();
+      state.importedData = emptyImportedData();
+      state.currentProfile = 'pdf-import-current-profile';
+      review.showImportPreview({
+        _importProfileId: 'pdf-import-previous-profile',
+        date: '2026-07-21',
+        fileName: 'wrong-profile.pdf',
+        markers: [{
+          rawName: 'Ferritin',
+          value: 70,
+          unit: 'µg/L',
+          matched: true,
+          mappedKey: 'iron.ferritin',
+        }],
+      });
+      await commit.confirmImport();
+      outcomes.profileSwapCancelsWithoutMutation = state.importedData.entries.length === 0
+        && review.getPendingImport() === null
+        && Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('Profile changed during import'));
+
+      clearNotifications();
+      review.showImportPreview({
+        _importProfileId: state.currentProfile,
+        date: '2026-07-21',
+        fileName: 'fully-excluded.pdf',
+        _excludedImportIndices: [0],
+        markers: [{
+          rawName: 'Unknown marker',
+          value: 1,
+          unit: null,
+          matched: false,
+          suggestedKey: 'custom.unknown',
+        }],
+      });
+      await commit.confirmImport();
+      outcomes.emptySelectionCancelsWithoutSnapshot = state.importedData.entries.length === 0
+        && state.importedData.importSnapshots.length === 0
+        && review.getPendingImport() === null
+        && Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('No markers to import'));
+    } finally {
+      state.importedData = original.importedData;
+      state.currentProfile = original.currentProfile;
+      state.currentView = original.currentView;
+      state.profileSex = original.profileSex;
+      commit.configurePdfImportCommitDeps(previousCommitDeps);
+      reviewRuntime.configurePdfImportReviewRuntimeDeps(previousReviewRuntime);
+      review.closeImportModal();
+      clearNotifications();
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('PDF import snapshot deletion restores provenance and rolls back failures', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async () => {
+    const [commit, review, reviewRuntime] = await Promise.all([
+      import('/js/pdf-import-commit.js'),
+      import('/js/pdf-import-review.js'),
+      import('/js/pdf-import-review-runtime.js'),
+    ]);
+    const { state } = await import('/js/state.js');
+    const outcomes = {};
+    const original = {
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      currentProfile: state.currentProfile,
+      currentView: state.currentView,
+    };
+    const refreshCalls = [];
+    const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
+      buildSidebar: () => { refreshCalls.push('sidebar'); },
+      navigate: route => { refreshCalls.push(`navigate:${route}`); },
+      updateHeaderDates: () => { refreshCalls.push('dates'); },
+    });
+    const clearNotifications = () => document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+
+    try {
+      state.currentProfile = 'pdf-import-delete-coverage';
+      state.currentView = 'labs';
+      state.importedData = {
+        entries: [{
+          date: '2026-07-18',
+          markers: {
+            'biochemistry.glucose': 5.8,
+            'iron.ferritin': 72,
+          },
+          markerSources: {
+            'biochemistry.glucose': { file: 'new.pdf', at: 200, snapshotId: 'snap-new' },
+            'iron.ferritin': { file: 'new.pdf', at: 200, snapshotId: 'snap-new' },
+          },
+        }],
+        manualValues: {
+          'biochemistry.glucose:2026-07-18': { value: 5.8 },
+          'iron.ferritin:2026-07-18': { value: 72 },
+          'vitamins.vitaminD:2026-07-18': { value: 110 },
+        },
+        customMarkers: {},
+        importSnapshots: [
+          {
+            id: 'snap-older',
+            fileName: 'older.xlsx',
+            date: '2026-07-18',
+            importedAt: 50,
+            markers: [
+              { mappedKey: 'biochemistry.glucose', value: 4.6, unit: 'mmol/L' },
+            ],
+          },
+          {
+            id: 'snap-old',
+            fileName: 'old.csv',
+            date: '2026-07-18',
+            importedAt: 100,
+            excludedIndices: [0],
+            markers: [
+              { mappedKey: 'iron.ferritin', value: 65, unit: 'µg/L' },
+              { suggestedKey: 'biochemistry.glucose', value: 4.9, unit: 'mmol/L' },
+            ],
+          },
+          {
+            id: 'snap-new',
+            fileName: 'new.pdf',
+            date: '2026-07-18',
+            importedAt: 200,
+            markers: [
+              { mappedKey: 'biochemistry.glucose', value: 5.8, unit: 'mmol/L' },
+              { mappedKey: 'iron.ferritin', value: 72, unit: 'µg/L' },
+            ],
+          },
+        ],
+      };
+
+      outcomes.missingSnapshotIsRejected = await commit.deleteImportSnapshot('missing-snapshot') === false
+        && Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('Import snapshot not found'));
+      clearNotifications();
+
+      const deleted = await commit.deleteImportSnapshot('snap-new');
+      const restoredEntry = state.importedData.entries.find(entry => entry.date === '2026-07-18');
+      outcomes.deletionRestoresLatestPriorMarkerProvenance = deleted === true
+        && restoredEntry?.markers?.['biochemistry.glucose'] === 4.9
+        && restoredEntry?.markerSources?.['biochemistry.glucose']?.snapshotId === 'snap-old'
+        && restoredEntry?.markerSources?.['biochemistry.glucose']?.file === 'old.csv'
+        && !Object.hasOwn(restoredEntry?.markers || {}, 'iron.ferritin')
+        && !Object.hasOwn(state.importedData.manualValues, 'biochemistry.glucose:2026-07-18')
+        && !Object.hasOwn(state.importedData.manualValues, 'iron.ferritin:2026-07-18')
+        && Object.hasOwn(state.importedData.manualValues, 'vitamins.vitaminD:2026-07-18')
+        && state.importedData.importSnapshots.map(snapshot => snapshot.id).join(',') === 'snap-older,snap-old'
+        && state.importedData._deleted?.importSnapshots?.includes('snap-new') === true
+        && refreshCalls.includes('navigate:labs');
+
+      commit.openImportReviewFromSnapshot('snap-old');
+      const pendingReview = review.getPendingImport();
+      outcomes.restoredSnapshotCanBeReviewedFromClonedData = pendingReview?._reReviewSnapshotId === 'snap-old'
+        && pendingReview._excludedImportIndices?.[0] === 0
+        && pendingReview.markers?.[1]?.suggestedKey === 'biochemistry.glucose'
+        && pendingReview.markers[1] !== state.importedData.importSnapshots.find(snapshot => snapshot.id === 'snap-old')?.markers[1];
+      review.closeImportModal();
+
+      state.importedData = {
+        entries: [{
+          date: '2026-07-19',
+          markers: { 'proteins.hsCRP': 0.8 },
+          markerSources: { 'proteins.hsCRP': { file: 'only.pdf', at: 300, snapshotId: 'snap-only' } },
+        }],
+        manualValues: {},
+        customMarkers: {},
+        importSnapshots: [{
+          id: 'snap-only',
+          fileName: 'only.pdf',
+          date: '2026-07-19',
+          importedAt: 300,
+          markers: [{ mappedKey: 'proteins.hsCRP', value: 0.8, unit: 'mg/L' }],
+        }],
+      };
+      outcomes.lastMarkerDeletionRemovesAndTombstonesEntry = await commit.deleteImportSnapshot('snap-only') === true
+        && state.importedData.entries.length === 0
+        && state.importedData._deleted?.entries?.includes('2026-07-19') === true
+        && state.importedData._deleted?.importSnapshots?.includes('snap-only') === true;
+
+      const failingData = {
+        entries: [{
+          date: '2026-07-17',
+          markers: { 'iron.ferritin': 88 },
+          markerSources: { 'iron.ferritin': { file: 'retry-delete.pdf', at: 400, snapshotId: 'snap-delete-retry' } },
+        }],
+        manualValues: { 'iron.ferritin:2026-07-17': { value: 88 } },
+        customMarkers: {},
+        importSnapshots: [{
+          id: 'snap-delete-retry',
+          fileName: 'retry-delete.pdf',
+          date: '2026-07-17',
+          importedAt: 400,
+          markers: [{ mappedKey: 'iron.ferritin', value: 88, unit: 'µg/L' }],
+        }],
+      };
+      const rollbackData = JSON.parse(JSON.stringify(failingData));
+      let stringifyCalls = 0;
+      Object.defineProperty(failingData, 'toJSON', {
+        configurable: true,
+        value: () => {
+          stringifyCalls += 1;
+          if (stringifyCalls === 1) return rollbackData;
+          throw new Error('forced snapshot deletion persistence failure');
+        },
+      });
+      state.importedData = failingData;
+      const failedDelete = await commit.deleteImportSnapshot('snap-delete-retry');
+      outcomes.failedDeletionRestoresMarkersAndSnapshot = failedDelete === false
+        && state.importedData.entries[0]?.markers?.['iron.ferritin'] === 88
+        && state.importedData.entries[0]?.markerSources?.['iron.ferritin']?.snapshotId === 'snap-delete-retry'
+        && state.importedData.importSnapshots[0]?.id === 'snap-delete-retry'
+        && state.importedData.manualValues['iron.ferritin:2026-07-17']?.value === 88;
+      outcomes.deletionRetrySucceedsAfterRollback = await commit.deleteImportSnapshot('snap-delete-retry') === true
+        && state.importedData.entries.length === 0
+        && state.importedData.importSnapshots.length === 0;
+
+      clearNotifications();
+      commit.openImportReviewFromSnapshot('missing-review');
+      state.importedData.importSnapshots.push({ id: 'empty-review', date: '2026-07-16', markers: [] });
+      commit.openImportReviewFromSnapshot('empty-review');
+      const errors = Array.from(document.querySelectorAll('.notification-toast.error')).map(toast => toast.textContent);
+      outcomes.reviewErrorsAreActionable = errors.some(text => text.includes('Import snapshot not found'))
+        && errors.some(text => text.includes('no saved marker review data'));
+    } finally {
+      state.importedData = original.importedData;
+      state.currentProfile = original.currentProfile;
+      state.currentView = original.currentView;
+      reviewRuntime.configurePdfImportReviewRuntimeDeps(previousReviewRuntime);
+      review.closeImportModal();
+      clearNotifications();
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('PDF import preflight covers model mismatch and unsupported lab dialogs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('.header-import-btn', { state: 'attached' });

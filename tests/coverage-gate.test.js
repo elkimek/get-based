@@ -5,13 +5,13 @@ import {
   resolveCoverageMinimum,
 } from '../scripts/coverage-gate.mjs';
 
-const BASELINE = { minimumFunctionPct: 67 };
+const BASELINE = { minimumFunctionPct: 67.1 };
 
 describe('coverage ratchet', () => {
   it('uses the committed minimum by default', () => {
     expect(resolveCoverageMinimum({ baseline: BASELINE })).toEqual({
-      minimum: 67,
-      baselineMinimum: 67,
+      minimum: 67.1,
+      baselineMinimum: 67.1,
       source: 'scripts/coverage-baseline.json',
     });
   });
@@ -19,7 +19,7 @@ describe('coverage ratchet', () => {
   it('accepts an environment override that raises the minimum', () => {
     expect(resolveCoverageMinimum({ baseline: BASELINE, envValue: '67.25' })).toEqual({
       minimum: 67.25,
-      baselineMinimum: 67,
+      baselineMinimum: 67.1,
       source: 'COVERAGE_MIN',
     });
   });
@@ -40,14 +40,14 @@ describe('coverage ratchet', () => {
     const gate = resolveCoverageMinimum({ baseline: BASELINE });
     const result = enforceFunctionCoverage(67.23, gate);
     expect(result.actual).toBe(67.23);
-    expect(result.minimum).toBe(67);
-    expect(result.margin).toBeCloseTo(0.23);
-    expect(() => enforceFunctionCoverage(67, gate)).not.toThrow();
+    expect(result.minimum).toBe(67.1);
+    expect(result.margin).toBeCloseTo(0.13);
+    expect(() => enforceFunctionCoverage(67.1, gate)).not.toThrow();
   });
 
   it('fails below the minimum with an actionable message', () => {
     const gate = resolveCoverageMinimum({ baseline: BASELINE });
-    expect(() => enforceFunctionCoverage(66.99, gate))
-      .toThrow('function coverage 66.99% is below 67.00%');
+    expect(() => enforceFunctionCoverage(67.09, gate))
+      .toThrow('function coverage 67.09% is below 67.10%');
   });
 });
