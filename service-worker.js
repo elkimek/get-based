@@ -619,8 +619,25 @@ const APP_SHELL = [
 // large install is interrupted, the next install attempt can resume from the
 // entries already written. The install still rejects when any required entry
 // cannot be fetched, so an incomplete app shell is never allowed to activate.
-const PRECACHE_CONCURRENCY = 12;
+const PRECACHE_CONCURRENCY = 48;
 const PRECACHE_ATTEMPTS = 3;
+const PRECACHE_PROGRESS_MESSAGE = 'PRECACHE_PROGRESS';
+let lastPrecacheProgressPercent = -1;
+
+async function reportPrecacheProgress(completed, total, { force = false } = {}) {
+  const percent = total > 0 ? Math.floor((completed / total) * 100) : 0;
+  if (!force && percent <= lastPrecacheProgressPercent) return;
+  lastPrecacheProgressPercent = percent;
+  if (typeof self.clients?.matchAll !== 'function') return;
+
+  try {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const message = { type: PRECACHE_PROGRESS_MESSAGE, completed, total };
+    clients.forEach((client) => client.postMessage(message));
+  } catch {
+    // Progress is optional; caching must continue even if no client is reachable.
+  }
+}
 
 async function cacheAppShellEntry(cache, url) {
   if (await cache.match(url)) return;
@@ -642,7 +659,10 @@ async function cacheAppShellEntry(cache, url) {
 
 async function precacheAppShell(cache) {
   let nextIndex = 0;
+  let cachedCount = 0;
   const failures = [];
+  lastPrecacheProgressPercent = -1;
+  await reportPrecacheProgress(0, APP_SHELL.length, { force: true });
 
   async function cacheNextEntries() {
     while (nextIndex < APP_SHELL.length) {
@@ -650,6 +670,8 @@ async function precacheAppShell(cache) {
       nextIndex += 1;
       try {
         await cacheAppShellEntry(cache, url);
+        cachedCount += 1;
+        await reportPrecacheProgress(cachedCount, APP_SHELL.length);
       } catch (error) {
         failures.push(error);
       }
@@ -658,6 +680,7 @@ async function precacheAppShell(cache) {
 
   const workerCount = Math.min(PRECACHE_CONCURRENCY, APP_SHELL.length);
   await Promise.all(Array.from({ length: workerCount }, () => cacheNextEntries()));
+  await reportPrecacheProgress(cachedCount, APP_SHELL.length, { force: true });
   if (failures.length) {
     const detail = failures.slice(0, 3).map((error) => error.message).join('; ');
     throw new Error(`App shell precache failed for ${failures.length} resource(s): ${detail}`);

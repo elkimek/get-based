@@ -151,14 +151,25 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
   animation: analytics-consent-in 0.25s ease-out;
 }
-.version-update-body { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-secondary); line-height: 1.45; flex: 1 1 240px; min-width: 0; }
+.version-update-body { display: grid; gap: 6px; font-size: 12px; color: var(--text-secondary); line-height: 1.45; flex: 1 1 240px; min-width: 0; }
 .version-update-body strong { color: var(--text-primary); }
+.version-update-copy-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; min-width: 0; }
+.version-update-copy { min-width: 0; }
+.version-update-percent { flex: 0 0 auto; color: var(--accent); font-family: var(--font-mono); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.version-update-progress[hidden], .version-update-actions[hidden] { display: none; }
+.version-update-progress { display: grid; gap: 4px; width: 100%; }
+.version-update-progress-track { height: 7px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border)); border-radius: 999px; background: color-mix(in srgb, var(--accent) 7%, var(--bg-secondary)); }
+.version-update-progress-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, var(--green)), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 35%, transparent); transition: width .2s ease; }
+.version-update-progress-meta { overflow: hidden; color: var(--text-muted); font-family: var(--font-mono); font-size: 8px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .version-update-actions { display: flex; gap: 6px; flex: 0 0 auto; }
 .version-update-btn { font-size: 12px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
 .version-update-btn:hover { background: var(--bg-elevated, rgba(255,255,255,0.04)); color: var(--text-primary); border-color: var(--text-muted); }
 .version-update-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .version-update-btn-primary:hover { filter: brightness(1.08); background: var(--accent); color: var(--on-accent); }
 body.analytics-consent-visible .version-update-banner { bottom: 78px; }
+@media (prefers-reduced-motion: reduce) {
+  .version-update-progress-fill { transition: none; }
+}
 
 /* Terms/Privacy acceptance gate */
 .modal-overlay.legal-consent-overlay {

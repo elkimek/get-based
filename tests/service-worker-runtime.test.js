@@ -70,11 +70,15 @@ function makeFetchEvent(url, init = {}) {
 async function loadServiceWorker({ hostname = 'preview.getbased.health', fetchImpl } = {}) {
   const listeners = new Map();
   const { cache, caches, matches, opened } = makeCaches();
+  const progressClient = { postMessage: vi.fn() };
   const self = {
     APP_VERSION: '9.9.9',
     location: { hostname, origin: `https://${hostname}` },
     skipWaiting: vi.fn(),
-    clients: { claim: vi.fn(async () => {}) },
+    clients: {
+      claim: vi.fn(async () => {}),
+      matchAll: vi.fn(async () => [progressClient]),
+    },
     addEventListener: vi.fn((type, listener) => {
       listeners.set(type, listener);
     }),
@@ -95,7 +99,7 @@ async function loadServiceWorker({ hostname = 'preview.getbased.health', fetchIm
 
   vi.resetModules();
   await import('../service-worker.js');
-  return { cache, caches, listeners, matches, opened, self };
+  return { cache, caches, listeners, matches, opened, progressClient, self };
 }
 
 beforeEach(() => {
@@ -115,7 +119,7 @@ afterEach(() => {
 
 describe('service worker runtime cache behavior', () => {
   it('pre-caches the app shell and deletes only stale app caches using preview commit-specific names', async () => {
-    const { cache, caches, listeners, self } = await loadServiceWorker();
+    const { cache, caches, listeners, progressClient, self } = await loadServiceWorker();
 
     expect(globalThis.importScripts).toHaveBeenCalledWith('/version.js');
     expect(listeners.has('install')).toBe(true);
@@ -132,6 +136,14 @@ describe('service worker runtime cache behavior', () => {
     expect(cache.put).toHaveBeenCalledWith('/js/main.js', expect.any(Response));
     expect(cache.put).toHaveBeenCalledWith('/js/service-worker-update.js', expect.any(Response));
     expect(self.skipWaiting).not.toHaveBeenCalled();
+    const progressMessages = progressClient.postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.type === 'PRECACHE_PROGRESS');
+    expect(progressMessages[0]).toMatchObject({ completed: 0, total: expect.any(Number) });
+    expect(progressMessages.at(-1)).toMatchObject({
+      completed: progressMessages[0].total,
+      total: progressMessages[0].total,
+    });
 
     const activate = makeWaitEvent();
     listeners.get('activate')(activate);
@@ -166,6 +178,34 @@ describe('service worker runtime cache behavior', () => {
     expect(fetchImpl.mock.calls.some(([request]) => request === '/app')).toBe(false);
     expect(matches.get('/app')).toBeDefined();
     expect(matches.get('/js/main.js')).toBeDefined();
+  });
+
+  it('uses bounded high-concurrency precaching', async () => {
+    let activeFetches = 0;
+    let maxActiveFetches = 0;
+    let releaseFetches;
+    const fetchGate = new Promise((resolve) => { releaseFetches = resolve; });
+    const fetchImpl = vi.fn(async (request) => {
+      activeFetches += 1;
+      maxActiveFetches = Math.max(maxActiveFetches, activeFetches);
+      await fetchGate;
+      activeFetches -= 1;
+      return new Response(`network:${request}`, { status: 200 });
+    });
+    const { listeners } = await loadServiceWorker({
+      hostname: 'app.getbased.health',
+      fetchImpl,
+    });
+
+    const install = makeWaitEvent();
+    listeners.get('install')(install);
+    const completion = install.done();
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(48));
+    expect(maxActiveFetches).toBe(48);
+
+    releaseFetches();
+    await completion;
+    expect(maxActiveFetches).toBe(48);
   });
 
   it('rejects installation when a required app-shell entry stays unavailable', async () => {

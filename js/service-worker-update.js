@@ -7,6 +7,7 @@ const DEV_SW_QUERY_RE = /(?:^|[?&])dev-sw=1(?:&|$)/;
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const VERSION_CHECK_URL = '/version.js?update-check=1';
 const LAST_VERSION_CHECK_KEY = 'labcharts-version-update-last-check';
+const PRECACHE_PROGRESS_MESSAGE = 'PRECACHE_PROGRESS';
 const APP_VERSION_RE = /\bAPP_VERSION\s*=\s*(['"])([^'"]+)\1/;
 
 let pendingRegistration = null;
@@ -17,6 +18,10 @@ let updateRequested = false;
 let updateInstallPending = false;
 let reloadAvailable = false;
 let lastUpdateCheckAt = 0;
+let updateProgressCompleted = 0;
+let updateProgressTotal = 0;
+let updateProgressStartedAt = 0;
+let updateProgressTimer = null;
 
 /**
  * @returns {(Window & { caches?: CacheStorage }) | null}
@@ -76,6 +81,33 @@ let reloadPage = () => {
   getDefaultServiceWorkerWindow()?.location.reload();
 };
 
+function stopUpdateProgressTimer() {
+  if (updateProgressTimer == null) return;
+  getDefaultServiceWorkerWindow()?.clearInterval?.(updateProgressTimer);
+  updateProgressTimer = null;
+}
+
+function resetUpdateProgress() {
+  stopUpdateProgressTimer();
+  updateProgressCompleted = 0;
+  updateProgressTotal = 0;
+  updateProgressStartedAt = 0;
+}
+
+function startUpdateProgress() {
+  resetUpdateProgress();
+  updateProgressStartedAt = Date.now();
+  const win = getDefaultServiceWorkerWindow();
+  updateProgressTimer = win?.setInterval?.(() => {
+    if (!updateInstallPending) {
+      stopUpdateProgressTimer();
+      return;
+    }
+    const banner = document.getElementById(UPDATE_BANNER_ID);
+    if (banner) renderVersionUpdateBanner(banner);
+  }, 1000) ?? null;
+}
+
 export function isDevServiceWorkerHost(hostname) {
   if (!hostname) return false;
   return hostname === 'localhost'
@@ -108,6 +140,7 @@ function removeBanner() {
 
 export function hideVersionUpdateBanner() {
   reloadAvailable = false;
+  resetUpdateProgress();
   removeBanner();
 }
 
@@ -129,7 +162,16 @@ export function showVersionUpdateBanner(registration) {
     banner.setAttribute('aria-live', 'polite');
     banner.innerHTML = `
       <div class="version-update-body">
-        <span class="version-update-copy"><strong>New version available.</strong> Update when you are ready.</span>
+        <div class="version-update-copy-row">
+          <span class="version-update-copy"><strong>New version available.</strong> Update when you are ready.</span>
+          <span class="version-update-percent" hidden>0%</span>
+        </div>
+        <div class="version-update-progress" hidden>
+          <div class="version-update-progress-track" role="progressbar" aria-label="App update progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="version-update-progress-fill"></span>
+          </div>
+          <span class="version-update-progress-meta">Preparing app files…</span>
+        </div>
       </div>
       <div class="version-update-actions">
         <button type="button" class="version-update-btn version-update-btn-primary" ${UPDATE_ACTION_ATTR}="apply">Update</button>
@@ -149,7 +191,23 @@ function renderVersionUpdateBanner(banner) {
   const copy = banner.querySelector('.version-update-copy');
   const primaryButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="apply"]`);
   const dismissButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="dismiss"]`);
+  const actions = banner.querySelector('.version-update-actions');
+  const percentCopy = banner.querySelector('.version-update-percent');
+  const progress = banner.querySelector('.version-update-progress');
+  const progressTrack = banner.querySelector('.version-update-progress-track');
+  const progressFill = banner.querySelector('.version-update-progress-fill');
+  const progressMeta = banner.querySelector('.version-update-progress-meta');
+
+  const showInstallingLayout = (visible) => {
+    if (actions instanceof HTMLElement) actions.hidden = visible;
+    if (percentCopy instanceof HTMLElement) percentCopy.hidden = !visible;
+    if (progress instanceof HTMLElement) progress.hidden = !visible;
+  };
+
   if (reloadAvailable) {
+    showInstallingLayout(false);
+    banner.setAttribute('aria-live', 'polite');
+    banner.setAttribute('aria-busy', 'false');
     if (copy) copy.innerHTML = '<strong>New version installed.</strong> Reload when you are ready.';
     if (primaryButton) primaryButton.textContent = 'Reload';
     if (primaryButton) primaryButton.disabled = false;
@@ -159,7 +217,33 @@ function renderVersionUpdateBanner(banner) {
   }
 
   if (updateInstallPending) {
-    if (copy) copy.innerHTML = '<strong>Installing update…</strong> The app will reload when it is ready.';
+    showInstallingLayout(true);
+    banner.setAttribute('aria-live', 'off');
+    banner.setAttribute('aria-busy', 'true');
+    const completed = Math.max(0, Math.min(updateProgressCompleted, updateProgressTotal || updateProgressCompleted));
+    const total = Math.max(0, updateProgressTotal);
+    const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+    const elapsedSeconds = updateProgressStartedAt
+      ? Math.max(0, Math.round((Date.now() - updateProgressStartedAt) / 1000))
+      : 0;
+    const finishedCaching = total > 0 && completed >= total;
+    if (copy) copy.innerHTML = finishedCaching
+      ? '<strong>Finalizing update…</strong> The app will reload when it is ready.'
+      : '<strong>Installing update…</strong> The app will reload when it is ready.';
+    if (percentCopy) percentCopy.textContent = `${percent}%`;
+    if (progressFill instanceof HTMLElement) progressFill.style.width = `${percent}%`;
+    if (progressTrack) {
+      progressTrack.setAttribute('aria-valuenow', String(percent));
+      progressTrack.setAttribute('aria-valuetext', total > 0
+        ? `${completed} of ${total} app files cached`
+        : 'Preparing app files');
+    }
+    if (progressMeta) {
+      const elapsedCopy = elapsedSeconds > 0 ? ` · ${elapsedSeconds}s` : '';
+      progressMeta.textContent = total > 0
+        ? `${completed} of ${total} files cached${elapsedCopy}`
+        : `Preparing app files${elapsedCopy}`;
+    }
     if (primaryButton) primaryButton.textContent = 'Installing…';
     if (primaryButton) primaryButton.disabled = true;
     if (dismissButton) dismissButton.disabled = true;
@@ -167,6 +251,9 @@ function renderVersionUpdateBanner(banner) {
     return;
   }
 
+  showInstallingLayout(false);
+  banner.setAttribute('aria-live', 'polite');
+  banner.setAttribute('aria-busy', 'false');
   if (copy) copy.innerHTML = '<strong>New version available.</strong> Update when you are ready.';
   if (primaryButton) primaryButton.textContent = 'Update';
   if (primaryButton) primaryButton.disabled = false;
@@ -215,6 +302,7 @@ export function applyPendingServiceWorkerUpdate(registration = pendingRegistrati
   updateRequested = true;
   updateInstallPending = true;
   dismissedAvailableVersion = '';
+  startUpdateProgress();
   showVersionUpdateBanner(registration);
 
   if (registration.installing) return true;
@@ -231,11 +319,13 @@ export function applyPendingServiceWorkerUpdate(registration = pendingRegistrati
     if (!registration.installing) {
       updateRequested = false;
       updateInstallPending = false;
+      resetUpdateProgress();
       showVersionUpdateBanner(registration);
     }
   }).catch(() => {
     updateRequested = false;
     updateInstallPending = false;
+    resetUpdateProgress();
     showVersionUpdateBanner(registration);
   });
   return true;
@@ -271,6 +361,7 @@ export function watchServiceWorkerRegistration(
       if (installingWorker.state === 'redundant' && updateInstallPending) {
         updateRequested = false;
         updateInstallPending = false;
+        resetUpdateProgress();
         showVersionUpdateBanner(registration);
       }
     });
@@ -384,6 +475,16 @@ export async function registerServiceWorkerUpdates({
     const registration = await serviceWorkerContainer.register('/service-worker.js', { updateViaCache: 'none' });
     reloadPage = () => win.location.reload();
     let refreshing = false;
+    serviceWorkerContainer.addEventListener('message', (event) => {
+      if (event?.data?.type !== PRECACHE_PROGRESS_MESSAGE || !updateInstallPending) return;
+      const total = Math.max(0, Math.round(Number(event.data.total) || 0));
+      const completed = Math.max(0, Math.min(total, Math.round(Number(event.data.completed) || 0)));
+      if (total <= 0) return;
+      updateProgressCompleted = completed;
+      updateProgressTotal = total;
+      const banner = document.getElementById(UPDATE_BANNER_ID);
+      if (banner) renderVersionUpdateBanner(banner);
+    });
     serviceWorkerContainer.addEventListener('controllerchange', () => {
       if (refreshing) return;
       if (!updateRequested) {
