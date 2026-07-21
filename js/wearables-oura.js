@@ -297,7 +297,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
   // 'awake' / 'rest' / 'sleep' / 'workout' / 'live'. 'awake' is the waking-but-
   // sedentary window we want; mean across awake samples per day = hr_day.
   // Oura v2 does not expose daytime rMSSD samples in this stream, so hrv_day
-  // stays null for now (gap documented in CLAUDE.md / wearables architecture).
+  // stays null for now (documented in the public wearables internals guide).
   const hrDayBuckets = new Map(); // day → number[]
   for (const sample of (heartrateSamples || [])) {
     if (sample?.source !== 'awake') continue;

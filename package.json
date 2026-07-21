@@ -8,6 +8,8 @@
     "node": "24.x"
   },
   "scripts": {
+    "architecture:build": "node scripts/architecture-map.mjs --write",
+    "architecture:check": "node scripts/architecture-map.mjs --check",
     "dev-server": "node dev-server.js",
     "quality": "node scripts/quality-guardrails.mjs",
     "test": "vitest run",

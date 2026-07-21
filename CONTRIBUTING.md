@@ -1,6 +1,6 @@
 # Contributing to getbased
 
-Thanks for wanting to help. This is the short version — the in-depth developer docs live in the Mintlify docs repo at [docs.getbased.health/developers](https://docs.getbased.health/developers). The local [`dev-docs/`](dev-docs/) directory is only a pointer.
+Thanks for wanting to help. This is the short version — the in-depth developer docs live in the Mintlify docs repo at [docs.getbased.health/developers](https://docs.getbased.health/developers). Code ownership and dependency rules live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
@@ -26,6 +26,13 @@ Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server,
 
 Auto-starts a server, runs Vitest, the origin guard, and the Playwright browser suite. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See the [Testing developer doc](https://docs.getbased.health/developers/testing) for how the harness works.
 
+If you add, remove, rename, or rewire a runtime module, regenerate and inspect the file map:
+
+```bash
+npm run architecture:build
+npm run architecture:check
+```
+
 ---
 
 ## Pull request guidelines
@@ -33,13 +40,15 @@ Auto-starts a server, runs Vitest, the origin guard, and the Playwright browser 
 - Keep PRs focused. One thing at a time is easier to review.
 - Run `./run-tests.sh` before opening a PR.
 - If you touch any app file (JS, CSS, HTML, manifest), bump the version in `version.js` — this busts the service worker cache for existing users.
-- Update [`CLAUDE.md`](CLAUDE.md) if you change architecture, add a module, or change how something works at a system level.
+- Commit the regenerated [`MODULE_MAP.md`](MODULE_MAP.md) when runtime modules or imports change.
+- Update [`ARCHITECTURE.md`](ARCHITECTURE.md) when responsibilities, entry points, major data flows, or allowed dependency directions change.
 
 ---
 
 ## Architecture & deeper docs
 
-- **[CLAUDE.md](CLAUDE.md)** — the comprehensive architecture reference: data flow, every module, storage keys, the AI pipeline. Read it before any non-trivial change.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — the human-maintained module ownership, dependency, state, storage, and privacy contract.
+- **[MODULE_MAP.md](MODULE_MAP.md)** — generated file-level ESM inventory, coupling hotspots, and current dependency cycles.
 - **[Developer docs](https://docs.getbased.health/developers)** — architecture, module reference, data pipeline, storage schema, testing, deployment, and feature internals. Source lives in the separate `getbased-docs` Mintlify repo.
 
 ---

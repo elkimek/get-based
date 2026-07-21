@@ -148,9 +148,11 @@ get-based/
 │   ├── wearables*.js                # Wearable adapters, storage, settings, summaries
 │   └── light*.js / sun*.js          # Light & Sun tools, sessions, environment, AI summaries
 ├── api/                             # Vercel/serverless routes
+├── lib/                             # Node-only server policy and transport
 ├── tests/                           # Vitest and Playwright coverage
 ├── vendor/                          # Vendored browser libraries
-├── dev-docs/                        # Pointer to canonical developer docs
+├── ARCHITECTURE.md                  # Maintained ownership and dependency contract
+├── MODULE_MAP.md                    # Generated runtime module/import map
 └── .github/workflows/               # CI
 ```
 
