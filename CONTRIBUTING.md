@@ -22,11 +22,13 @@ Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server,
 
 ```bash
 ./run-tests.sh
+COVERAGE=1 ./run-tests.sh
 npx playwright install firefox
 npm run test:firefox
 ```
 
 `./run-tests.sh` auto-starts a server, runs Vitest, the origin guard, and the full Chromium Playwright suite. The Firefox command runs a focused cross-browser check of startup, demo data, navigation, settings, JSON round trips, and offline app-shell readiness. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See the [Testing developer doc](https://docs.getbased.health/developers/testing) for how the harness works.
+`COVERAGE=1 ./run-tests.sh` additionally enforces the combined function-coverage minimum in `scripts/coverage-baseline.json`. Raise that committed minimum when coverage improves; `COVERAGE_MIN` may temporarily demand a stricter local threshold but cannot weaken the repository baseline.
 
 If you add, remove, rename, or rewire a runtime module, regenerate and inspect the file map:
 

@@ -103,6 +103,13 @@ baseline. CI has no positive coverage threshold, Playwright runs only Chromium,
 and the axe test can skip when its CDN download fails. `js/data-wipe.js`, a
 high-consequence path, measured 0% function coverage.
 
+Remediation status: **addressed after the audit**. The destructive data-wipe
+path now has focused behavioral coverage, axe is installed locally and cannot
+silently skip, a Firefox critical-flow smoke suite runs in CI, and the full
+Vitest/Playwright coverage run now enforces a committed 67.0% combined function
+coverage floor. The fresh reference measurement is 67.23%; the floor is a
+ratchet to raise as meaningful coverage is added.
+
 ### 5. Supply-chain visibility
 
 Vendored dependencies are integrity checked, but most are outside Dependabot
@@ -118,7 +125,7 @@ current dependency-vulnerability state was not verified.
 3. Add route/feature lazy loading and CI budgets for request count, transferred
    bytes, and decoded bytes.
 4. Vendor axe locally, fail when it cannot run, add a Firefox smoke suite, and
-   ratchet function coverage upward.
+   ratchet function coverage upward. **Completed in follow-up changes.**
 5. Add linting and stricter type checking incrementally; lower large-file
    baselines rather than preserving them.
 6. Add automated SBOM/CVE monitoring for vendored libraries.

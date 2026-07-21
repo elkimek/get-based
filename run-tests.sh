@@ -99,7 +99,5 @@ else
   PLAYWRIGHT_REUSE_SERVER=1 PORT=$PORT npm run test:playwright || exit 1
 fi
 if [ "$COVERAGE_ENABLED" = "1" ]; then
-  : "${COVERAGE_MIN:=0}"
-  export COVERAGE_MIN
   INCLUDE_VITEST_COVERAGE=1 REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
 fi

@@ -127,9 +127,11 @@ npm run quality
 npm test
 npm run test:firefox
 ./run-tests.sh
+COVERAGE=1 ./run-tests.sh
 ```
 
 `./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets, and static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs Playwright browser assertions.
+`COVERAGE=1 ./run-tests.sh` also combines Vitest and Playwright V8 function coverage and enforces the committed ratchet in `scripts/coverage-baseline.json`; CI runs this mode on every change.
 `npm run test:firefox` runs the focused Firefox critical-flow suite; install its browser binary once with `npx playwright install firefox`.
 
 ## Tech stack

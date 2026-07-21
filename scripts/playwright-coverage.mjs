@@ -10,12 +10,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
+import { enforceFunctionCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.PORT || '8000';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 const jsonPath = path.join(repoRoot, 'tests', '.coverage.json');
+const coverageBaselinePath = path.join(repoRoot, 'scripts', 'coverage-baseline.json');
 const playwrightCoverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
   path.join(repoRoot, 'tests', '.playwright-coverage');
 const vitestCoveragePath = process.env.VITEST_COVERAGE_JSON ||
@@ -360,10 +362,16 @@ function readPlaywrightCoverageShards() {
 }
 
 function enforceCoverageGate(report) {
-  const minPct = Number.parseFloat(process.env.COVERAGE_MIN || '0');
-  if (Number.isFinite(minPct) && minPct > 0 && report.globalFnPct < minPct) {
-    throw new Error(`Coverage gate failed: function coverage ${report.globalFnPct.toFixed(2)}% is below COVERAGE_MIN=${minPct}.`);
-  }
+  const baseline = JSON.parse(fs.readFileSync(coverageBaselinePath, 'utf8'));
+  const gate = resolveCoverageMinimum({
+    baseline,
+    envValue: process.env.COVERAGE_MIN,
+  });
+  const result = enforceFunctionCoverage(report.globalFnPct, gate);
+  console.log(
+    `Coverage ratchet passed: ${result.actual.toFixed(2)}% functions `
+    + `>= ${result.minimum.toFixed(2)}% (${gate.source}; +${result.margin.toFixed(2)}pt).`,
+  );
 }
 
 function writeCoverageReport(entries, fixtures, options = {}) {
