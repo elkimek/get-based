@@ -63,8 +63,12 @@ Remediation status: **addressed immediately after this audit**. The follow-up
 change requires an allowed or same-site caller origin, handles redirects
 manually, validates each hop, strips credentials from safe cross-origin GET
 redirects, refuses cross-origin redirects that retain request bodies, bounds
-redirect count and header wait time, and
-adds per-client throttling plus Edge runtime regression tests. Because a
+redirect count and header wait time, resolves every upstream hostname, rejects
+any DNS answer set containing a private address, pins the validated addresses
+at the socket connection boundary, and adds per-client throttling plus runtime
+regression tests. The proxy uses Vercel's Node.js runtime because the Edge
+runtime does not expose the DNS and connection controls required for safe
+pinning. Because a
 static browser app cannot authenticate arbitrary custom-provider calls with a
 server-held secret, deployment-level distributed rate limiting remains useful
 defence in depth.

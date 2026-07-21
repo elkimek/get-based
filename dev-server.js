@@ -28,7 +28,7 @@ export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 // Self-host OAuth client_id overrides — extracted as an exported helper so
 // tests can exercise the env→override mapping without spinning up the HTTP
 // server. See issue #145. The same six VAR→adapter pairs are mirrored in
-// api/proxy.js (Vercel Edge); keep both in sync.
+// api/proxy.js (Vercel Function); keep both in sync.
 export const WEARABLE_CLIENT_ID_VARS = [
   ['OURA_CLIENT_ID', 'oura'],
   ['WITHINGS_CLIENT_ID', 'withings'],
@@ -933,7 +933,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // API: AI proxy — mirrors Vercel Edge Function for local CORS bypass
+  // API: AI proxy — mirrors the Vercel Function for local CORS bypass
   if (pathname === '/api/proxy' && req.method === 'POST') {
     let body = '';
     let bytes = 0;

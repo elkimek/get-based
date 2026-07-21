@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../lib/proxy-network.js', () => ({
+  fetchWithPinnedProxyDns: (url, options) => globalThis.fetch(url, options),
+}));
+
 import commitHandler from '../api/commit.js';
 import proxyHandler from '../api/proxy.js';
 import {

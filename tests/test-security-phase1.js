@@ -136,6 +136,10 @@ if (exists('dev-server.js')) {
     edgeProxySrc.includes('PROXY_UPSTREAM_TIMEOUT_MS')
       && edgeProxySrc.includes('enforceProxyRateLimit(req)')
       && edgeProxySrc.includes("'Retry-After'"));
+  assert('api/proxy.js resolves and pins public DNS answers before connecting',
+    edgeProxySrc.includes("from '../lib/proxy-network.js'")
+      && edgeProxySrc.includes('fetchWithPinnedProxyDns(url')
+      && !edgeProxySrc.includes("runtime: 'edge'"));
 } else {
   console.log('  (dev-server.js not present — production build, skipping CORS source asserts)');
 }

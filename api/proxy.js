@@ -1,8 +1,6 @@
-// Vercel Edge Function — AI API proxy
+// Vercel Node.js Function — AI API proxy
 // Eliminates CORS restrictions for all AI providers.
 // Keys pass through from the client, never stored server-side.
-
-export const config = { runtime: 'edge' };
 
 import {
   PROXY_MAX_REQUEST_BYTES,
@@ -11,6 +9,7 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from '../lib/proxy-policy.js';
+import { fetchWithPinnedProxyDns } from '../lib/proxy-network.js';
 
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 const PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -221,9 +220,11 @@ export default async function handler(req) {
       },
     });
   } catch (e) {
+    const dnsBlocked = e?.code === 'PROXY_DNS_BLOCKED';
     const timedOut = e?.code === 'PROXY_UPSTREAM_TIMEOUT';
-    return new Response(JSON.stringify({ error: `Upstream error: ${e.message}` }), {
-      status: timedOut ? 504 : 502,
+    const error = dnsBlocked ? 'URL not allowed' : `Upstream error: ${e.message}`;
+    return new Response(JSON.stringify({ error }), {
+      status: dnsBlocked ? 403 : (timedOut ? 504 : 502),
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
@@ -294,7 +295,7 @@ async function fetchWithValidatedRedirects(initialUrl, initialOptions) {
       }
       let response;
       try {
-        response = await fetch(url, {
+        response = await fetchWithPinnedProxyDns(url, {
           ...options,
           redirect: 'manual',
           signal: controller.signal,
@@ -356,7 +357,7 @@ function getProxyRateLimitSubject(req) {
   return `${req.headers.get('origin') || 'no-origin'}|${String(ip).slice(0, 128)}`;
 }
 
-// Edge isolates do not share memory, so this is a per-isolate abuse brake,
+// Function instances do not share memory, so this is a per-instance abuse brake,
 // not a replacement for a deployment-level distributed rate limit.
 function enforceProxyRateLimit(req) {
   const now = Date.now();
@@ -521,7 +522,7 @@ async function handleOuraTokenRequest(payload, req) {
   }
 
   try {
-    const res = await fetch('https://api.ouraring.com/oauth/token', {
+    const res = await fetchWithPinnedProxyDns('https://api.ouraring.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString(),
@@ -584,7 +585,7 @@ async function handleWithingsTokenRequest(payload, req) {
   }
 
   try {
-    const res = await fetch('https://wbsapi.withings.net/v2/oauth2', {
+    const res = await fetchWithPinnedProxyDns('https://wbsapi.withings.net/v2/oauth2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString(),
@@ -636,7 +637,7 @@ async function handleUltrahumanTokenRequest(payload, req) {
   }
 
   try {
-    const res = await fetch('https://partner.ultrahuman.com/api/partners/oauth/token', {
+    const res = await fetchWithPinnedProxyDns('https://partner.ultrahuman.com/api/partners/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString(),
@@ -693,7 +694,7 @@ async function handlePolarTokenRequest(payload, req) {
 
   const basicAuth = 'Basic ' + btoa(`${clientId}:${secret}`);
   try {
-    const res = await fetch('https://polarremote.com/v2/oauth2/token', {
+    const res = await fetchWithPinnedProxyDns('https://polarremote.com/v2/oauth2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -761,7 +762,7 @@ async function handleCamsRelay(payload, req) {
   const headers = { 'Accept': 'application/json' };
   if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetchWithPinnedProxyDns(url, { headers });
     // Cap upstream response so a misbehaving / compromised CAMS relay
     // can't blow up the function's memory. Real CAMS UV payloads sit
     // around 5-10 KB; 256 KB leaves generous headroom while bounding
