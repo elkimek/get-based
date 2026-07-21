@@ -189,7 +189,7 @@ function renderLightMethodsWidgetBody() {
       <p><strong>The ±50% range.</strong> Estimate is "central x 0.6 to x 1.5" because the spectral reconstruction model, skin response, and exposed area all vary. Treat the band as honest — the central number alone is false precision.</p>
       <p><strong>Channels.</strong> Sun does six things you can see on this page, each with its own action spectrum: vitamin D synthesis, circadian/melanopic light, cardiovascular nitric-oxide release, mood/alpha-MSH on skin, violet-eye dopamine, and near-infrared cellular repair. Sun and therapy panels both feed these channels by wavelength.</p>
       <p><strong>Atmosphere data.</strong> CAMS by default — real ozone column and aerosols from the hosted getbased-uvdata relay, merged with Open-Meteo clouds, temperature, air quality, and hourly UV baseline. All math runs on-device — your location is rounded before network calls unless you change the privacy slider.</p>
-      <p><strong>Want the math?</strong> See <a href="https://github.com/elkimek/get-based/blob/main/dev-docs/sun-spectrum-model.md" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
+      <p><strong>Want the math?</strong> See <a href="https://docs.getbased.health/developers/sun-spectrum-model" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
     </div>
   </details>`;
   const dataSourceSettings = lightPageDeps.renderSunDataSourceSettings();

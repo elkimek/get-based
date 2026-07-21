@@ -81,6 +81,14 @@ crypto, and utilities have high fan-in, while shell assembly has high fan-out.
 Several dynamic imports do not create code-splitting boundaries because the
 same modules are imported statically elsewhere.
 
+Foundation status: **architecture mapping and non-regression guardrails added
+after the proxy remediation**. `ARCHITECTURE.md` now defines module ownership
+and target dependency direction, while generated `MODULE_MAP.md` records the
+file-level import graph. CI rejects stale maps, cross-runtime boundary
+violations, new computed dynamic imports, new modules entering dependency
+cycles, and increases to the cyclic-module or largest-component budgets. The
+existing cycle remains refactoring debt and is not marked complete.
+
 ### 3. Cold-load performance
 
 The browser requests nearly the entire application as native modules, and the

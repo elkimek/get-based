@@ -25,7 +25,7 @@ import {
 import { isDebugMode } from './utils.js';
 
 // ─────────────────────────────────────────────────────────
-// Tunables — see dev-docs/module-reference.md (wearables-summary.js section)
+// Tunables — see https://docs.getbased.health/developers/wearables-internals
 // ─────────────────────────────────────────────────────────
 const GATE_D7_DELTA_PCT     = 5;       // |d7 rolling mean shift| ≥ 5% triggers L2 write
 const GATE_WEEKLY_DELTA_PCT = 5;       // any weekly-series metric delta ≥ 5% triggers L2 write

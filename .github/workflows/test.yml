@@ -36,6 +36,9 @@ jobs:
       - name: Run checkJs pilot
         run: npm run typecheck:checkjs
 
+      - name: Verify architecture map and boundaries
+        run: npm run architecture:check
+
       - name: Run quality guardrails
         run: npm run quality
 

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "name": "browser",
+      "description": "Native browser modules shipped with the static application.",
+      "roots": ["js"],
+      "mayImport": ["browser"]
+    },
+    {
+      "name": "serverless",
+      "description": "Vercel request handlers and hosted API entry points.",
+      "roots": ["api"],
+      "mayImport": ["serverless", "server-shared"]
+    },
+    {
+      "name": "server-shared",
+      "description": "Node-only policy and transport code shared by hosted runtimes.",
+      "roots": ["lib"],
+      "mayImport": ["server-shared"]
+    }
+  ],
+  "entryPoints": [
+    "js/main.js",
+    "api/commit.js",
+    "api/proxy.js",
+    "api/share.js"
+  ],
+  "forbiddenRepositoryImportRoots": ["tests", "scripts"]
+}
