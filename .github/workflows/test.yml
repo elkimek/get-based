@@ -4,6 +4,7 @@
 #   - Node-side tests (native-dialog guard, lens-local-utils, dev-server
 #     origin guard)
 #   - Playwright-driven web-app suite
+#   - Focused Firefox smoke coverage for critical browser flows
 
 name: Tests
 
@@ -46,18 +47,21 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
-            playwright-${{ runner.os }}-
+            playwright-browsers-${{ runner.os }}-
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
 
       - name: Resolve catalog file (fetch from private source if creds set, else use stub)
         env:
           CATALOG_FETCH_URL: ${{ secrets.CATALOG_FETCH_URL }}
           CATALOG_FETCH_TOKEN: ${{ secrets.CATALOG_FETCH_TOKEN }}
         run: node scripts/fetch-catalog.mjs
+
+      - name: Run Firefox smoke suite
+        run: npm run test:firefox
 
       - name: Run test suite
         run: SKIP_TYPECHECK=1 ./run-tests.sh

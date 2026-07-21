@@ -13,6 +13,7 @@
     "dev-server": "node dev-server.js",
     "quality": "node scripts/quality-guardrails.mjs",
     "test": "vitest run",
+    "test:firefox": "playwright test --config=playwright.firefox.config.js",
     "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
