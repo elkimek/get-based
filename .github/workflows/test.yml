@@ -18,7 +18,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -63,8 +63,8 @@ jobs:
       - name: Run Firefox smoke suite
         run: npm run test:firefox
 
-      - name: Run test suite
-        run: SKIP_TYPECHECK=1 ./run-tests.sh
+      - name: Run test suite with coverage ratchet
+        run: COVERAGE=1 SKIP_TYPECHECK=1 ./run-tests.sh
 
       - name: Upload test logs on failure
         if: failure()
