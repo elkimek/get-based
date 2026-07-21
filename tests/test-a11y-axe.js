@@ -200,11 +200,12 @@ return (async () => {
       const r = await fetch(BASELINE_URL, { cache: 'no-store' });
       if (r.ok) baseline = await r.json();
     } catch (_) {}
-    // A version mismatch can rename rules and make the count comparison
-    // misleading, so require the baseline and runtime to agree.
-    if (baseline?._axeVersion && baseline._axeVersion !== window.axe.version) {
+    // A missing or mismatched version can make the count comparison
+    // misleading. Explicit rebaseline mode may repair old metadata.
+    if (baseline && !window.A11Y_REBASELINE
+        && baseline._axeVersion !== window.axe.version) {
       throw new Error(
-        `accessibility baseline pins axe ${baseline._axeVersion}; runtime is ${window.axe.version}`,
+        `accessibility baseline pins axe ${baseline._axeVersion || 'missing'}; runtime is ${window.axe.version}`,
       );
     }
 
@@ -219,11 +220,12 @@ return (async () => {
     // can pipe into the file by hand. CI sets A11Y_REBASELINE=1 only on
     // intentional baseline refresh.
     if (!baseline || window.A11Y_REBASELINE) {
+      const generatedBaseline = { _axeVersion: PINNED_AXE_VERSION, ...current };
       console.log('▶ [a11y/baseline] No baseline file found OR A11Y_REBASELINE=1.');
       console.log('▶ [a11y/baseline] Write this JSON to tests/.a11y-baseline.json to lock the gate:');
-      console.log('▶ ' + JSON.stringify(current));
+      console.log('▶ ' + JSON.stringify(generatedBaseline));
       assert('a11y baseline established (no regression check possible on first run)', true);
-      return;
+      return generatedBaseline;
     }
 
     // Regression check: per impact tier, per rule, current must be ≤ baseline.

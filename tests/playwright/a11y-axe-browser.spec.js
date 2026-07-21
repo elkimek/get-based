@@ -1,9 +1,10 @@
 import { createRequire } from 'node:module';
-import { test } from './coverage-fixture.js';
+import { expect, test } from './coverage-fixture.js';
 import { runBrowserScript } from './browser-script-runner.js';
 
 const require = createRequire(import.meta.url);
 const axeScriptPath = require.resolve('axe-core/axe.min.js');
+const axeVersion = require('axe-core/package.json').version;
 
 test('axe accessibility browser scan', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000);
@@ -17,9 +18,13 @@ test('axe accessibility browser scan', async ({ page }, testInfo) => {
     });
   }
 
-  await runBrowserScript(page, 'tests/test-a11y-axe.js', {
+  const result = await runBrowserScript(page, 'tests/test-a11y-axe.js', {
     viewport: { width: 800, height: 600 },
     readyTimeout: 20_000,
     settleMs: 250,
   });
+
+  if (rebaseline) {
+    expect(result.returnValue?._axeVersion).toBe(axeVersion);
+  }
 });
