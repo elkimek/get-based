@@ -182,12 +182,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https:
 
 ## Star History
 
-<!-- Refreshed by .github/workflows/star-history.yml using this repository's Actions token. -->
 <a href="https://www.star-history.com/?repos=elkimek%2Fget-based">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/star-history/star-history-dark.svg">
-    <img alt="Star History Chart" src=".github/assets/star-history/star-history-light.svg">
-  </picture>
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=elkimek/get-based&type=date&theme=dark&legend=top-left&sealed_token=tR0YBBg7mhV8DAAqVCwu7vt6fpm6DyNMF7EYWIjNXxpTE8uiBRf0W1EDP0IiEu7Ov6gMA46kNxfZyJvUK_sJejxhtNCbmYRK1tzjtJ57CF8vn-mZ_MvxXEFnfC7nK1Dwpc90Uius9o0_sSqP5Jfq1xMuUrJLLgNNML6uvlTILTno7HO-M5H7ukKpPaY5" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=elkimek/get-based&type=date&legend=top-left&sealed_token=tR0YBBg7mhV8DAAqVCwu7vt6fpm6DyNMF7EYWIjNXxpTE8uiBRf0W1EDP0IiEu7Ov6gMA46kNxfZyJvUK_sJejxhtNCbmYRK1tzjtJ57CF8vn-mZ_MvxXEFnfC7nK1Dwpc90Uius9o0_sSqP5Jfq1xMuUrJLLgNNML6uvlTILTno7HO-M5H7ukKpPaY5" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=elkimek/get-based&type=date&legend=top-left&sealed_token=tR0YBBg7mhV8DAAqVCwu7vt6fpm6DyNMF7EYWIjNXxpTE8uiBRf0W1EDP0IiEu7Ov6gMA46kNxfZyJvUK_sJejxhtNCbmYRK1tzjtJ57CF8vn-mZ_MvxXEFnfC7nK1Dwpc90Uius9o0_sSqP5Jfq1xMuUrJLLgNNML6uvlTILTno7HO-M5H7ukKpPaY5" />
+ </picture>
 </a>
 
 ## License
