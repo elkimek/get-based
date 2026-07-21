@@ -2,7 +2,7 @@
 
 **getbased** is an open-source health dashboard for people who want to understand their own biology without handing the whole record to a black-box health app. It brings labs, DNA, wearables, light exposure, lifestyle context, notes, and optional AI analysis into one browser-based workspace.
 
-You can use it with no account. Most data lives in your browser by default. Network features — AI providers, encrypted sync, profile sharing, Knowledge Base, and Agent Access — are opt-in.
+You can use it with no account. Most data lives in your browser by default. Health-data network features — AI providers, encrypted sync, profile sharing, external Knowledge Bases, and Agent Access — are opt-in. On the hosted app, cookieless anonymous pageview and outbound affiliate-click counts are enabled by default; they contain no health data and can be disabled in **Settings → Privacy**.
 
 **[Live app](https://app.getbased.health)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
 
@@ -22,6 +22,7 @@ You can use it with no account. Most data lives in your browser by default. Netw
 - **Ask AI with context** — chat can use your labs, notes, scores, wearables, Knowledge Base passages, and selected interpretive lens. It can also read attached images when your provider supports it.
 - **Build reports** — export a practitioner-readable PDF with selected labs, context, and summary sections.
 - **Use multiple profiles** — separate profiles for yourself, family, clients, or test/demo data.
+- **Protect and move your data** — create full backups, optionally encrypt browser storage with a passphrase, sync encrypted profiles across devices, or share a password-protected copy.
 
 ## The five spaces
 
@@ -41,13 +42,13 @@ getbased is private by default, not magic. The boundary depends on which feature
 - **Browser-first storage.** Profile data is stored in localStorage and IndexedDB by default.
 - **Optional encryption at rest.** A passphrase-derived key can protect browser storage.
 - **Optional AI.** PDF import and chat need either an AI provider or a local OpenAI-compatible server. Non-AI tracking features still work without one.
-- **PII review for imports.** Personal info can be stripped from lab text before it is sent to an AI provider.
+- **PII review for text imports.** Deterministic patterns and an optional trusted self-hosted model can strip likely identifiers before lab text is sent to an AI provider. Automated detection can miss unusual layouts, so review is still recommended. Image imports cannot be scrubbed and always show a separate warning before upload.
 - **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads.
 - **Optional sharing.** Profile sharing creates an encrypted, password-protected copy for someone else.
 - **Optional Agent Access.** External agents receive only the context you enable, via an encrypted relay flow and a local decryption key.
-- **Optional anonymous usage stats.** Analytics can be disabled in Settings.
+- **Anonymous hosted-app usage stats.** Cookieless pageview and outbound affiliate-click counts are enabled by default. No health data, viewed records, identity, or health context is sent, and analytics can be disabled in **Settings → Privacy**.
 
-If you want the strictest setup, use a local AI server and keep sync, sharing, and Agent Access off.
+If you want the strictest setup, use an AI server on the same device, disable analytics, and leave sync, sharing, Agent Access, connected wearable integrations, external Knowledge Bases, and other remote data sources off.
 
 ## AI providers
 
@@ -86,13 +87,15 @@ How it works:
 4. Copy the private setup command.
 5. Paste it into that agent's terminal.
 
-The public installer:
+The public installer provides one-command setup on Linux:
 
 ```bash
 curl -fsSL https://getbased.health/install.sh | bash
 ```
 
-installs the local agent stack only. Private access requires the setup command copied from the app:
+This installs the local agent stack only. On macOS, Windows, and WSL1, follow the [manual Agent Access setup](https://docs.getbased.health/guides/agent-access) instead; the installer cannot configure systemd user services there.
+
+Private access requires the setup command copied from the app:
 
 ```bash
 curl -fsSL https://getbased.health/install.sh | bash -s -- connect <target> --setup 'gbsetup_v1_...'
@@ -102,26 +105,30 @@ That setup payload contains the read-only relay token and the local Agent Contex
 
 ## Local development
 
+Requires Node.js 24.
+
 ```bash
 git clone https://github.com/elkimek/get-based
 cd get-based
-npm install
-node dev-server.js
+npm ci
+npm run dev-server
 ```
 
-Open `http://localhost:8000`.
+Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
 
 Useful checks:
 
 ```bash
 npm run typecheck
 npm run typecheck:checkjs
+npm run architecture:check
+npm run vendor:check
 npm run quality
 npm test
 ./run-tests.sh
 ```
 
-`./run-tests.sh` starts a local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs Playwright browser assertions.
+`./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets, and static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs Playwright browser assertions.
 
 ## Tech stack
 
@@ -133,13 +140,14 @@ npm test
 - Evolu for optional encrypted CRDT sync.
 - Vercel serverless endpoints for provider proxying, OAuth callbacks, profile sharing, and related hosted edges.
 - Vitest, TypeScript checkers, quality guardrails, and Playwright for verification.
-- PWA install support; non-AI features work offline once loaded.
+- PWA install support; core local tracking and cached app data work offline. Integrations, synchronization, sharing, remote Knowledge Bases, and live environmental data require connectivity.
 
 ## Repo structure
 
 ```text
 get-based/
 ├── index.html, styles.css, css/     # App shell and feature styles
+├── service-worker.js                # PWA caching, offline shell, and network routing
 ├── js/                              # Native ES modules
 │   ├── settings-agent-access-panel.js
 │   ├── sync*.js                     # Optional encrypted sync and Agent Access plumbing
@@ -149,6 +157,9 @@ get-based/
 │   └── light*.js / sun*.js          # Light & Sun tools, sessions, environment, AI summaries
 ├── api/                             # Vercel/serverless routes
 ├── lib/                             # Node-only server policy and transport
+├── data/                            # Curated marker, SNP, lens, and reference data
+├── brands/                          # Product and provider brand assets
+├── scripts/                         # Architecture, vendor, catalog, and maintenance tooling
 ├── tests/                           # Vitest and Playwright coverage
 ├── vendor/                          # Vendored browser libraries
 ├── ARCHITECTURE.md                  # Maintained ownership and dependency contract
@@ -171,7 +182,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https:
 
 ## Star History
 
-![Star History Chart](.github/assets/star-history.svg)
+<!-- Refreshed by .github/workflows/star-history.yml using this repository's Actions token. -->
+<a href="https://www.star-history.com/?repos=elkimek%2Fget-based">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/star-history/star-history-dark.svg">
+    <img alt="Star History Chart" src=".github/assets/star-history/star-history-light.svg">
+  </picture>
+</a>
 
 ## License
 
