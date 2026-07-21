@@ -11,8 +11,8 @@
 //   • moderate / minor     → logged as info, doesn't fail (too easy to
 //                             over-block on rules where axe is opinionated)
 //
-// axe-core is loaded from cdnjs at runtime. Network unreachable → skip,
-// not fail (a11y testing without the scanner is meaningless).
+// axe-core is injected from the pinned local dev dependency. If that runtime
+// is missing or mismatched, the test fails instead of silently skipping.
 //
 // State pollution: this test runs DURING a session where many other tests
 // have left arbitrary state. We snapshot the importedData reference up
@@ -45,36 +45,21 @@ return (async () => {
   };
 
   try {
-    // ── 1. Load axe-core from cdnjs ─────────────────────────────────────
+    // ── 1. Verify the locally injected axe-core runtime ─────────────────
     // Pinned version. The baseline file's `_axeVersion` field is asserted
     // against this string below — a mismatched bump (e.g. 4.11) would
     // surface a rule rename as a false regression. If you bump axe, also
     // bump _axeVersion in tests/.a11y-baseline.json.
     const PINNED_AXE_VERSION = '4.10.0';
-    const AXE_URL = `https://cdnjs.cloudflare.com/ajax/libs/axe-core/${PINNED_AXE_VERSION}/axe.min.js`;
-    if (!window.axe) {
-      try {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = AXE_URL;
-          s.onload = resolve;
-          s.onerror = () => reject(new Error(`failed to load axe-core from ${AXE_URL}`));
-          document.head.appendChild(s);
-          setTimeout(() => reject(new Error('axe-core load timed out after 10s')), 10000);
-        });
-      } catch (e) {
-        console.warn('[a11y] skipping: ' + e.message);
-        return;
-      }
-    }
     if (typeof window.axe?.run !== 'function') {
-      note('axe-core failed to expose axe.run — skipping');
-      return;
+      throw new Error('local axe-core failed to expose axe.run');
     }
-    assert('axe-core loaded', true);
-    if (window.axe.version && window.axe.version !== PINNED_AXE_VERSION) {
-      note(`axe-core version ${window.axe.version} differs from PINNED_AXE_VERSION ${PINNED_AXE_VERSION} — rule renames may show as false regressions`);
+    if (window.axe.version !== PINNED_AXE_VERSION) {
+      throw new Error(
+        `local axe-core version ${window.axe.version || 'unknown'} does not match pinned ${PINNED_AXE_VERSION}`,
+      );
     }
+    assert(`local axe-core ${PINNED_AXE_VERSION} loaded`, true);
 
     // ── 2. Demo data ────────────────────────────────────────────────────
     // Only load if the dashboard would otherwise be empty. loadDemoData is
@@ -215,13 +200,13 @@ return (async () => {
       const r = await fetch(BASELINE_URL, { cache: 'no-store' });
       if (r.ok) baseline = await r.json();
     } catch (_) {}
-    // axe rules sometimes get renamed across major versions. If the
-    // baseline was captured under a different runtime version than the
-    // one currently loaded, surface a hint — the regression check can
-    // still pass numerically while a rule has silently rotated names.
-    if (baseline?._axeVersion && window.axe?.version
+    // A missing or mismatched version can make the count comparison
+    // misleading. Explicit rebaseline mode may repair old metadata.
+    if (baseline && !window.A11Y_REBASELINE
         && baseline._axeVersion !== window.axe.version) {
-      note(`baseline pins axe ${baseline._axeVersion}, runtime is ${window.axe.version} — refresh baseline if rule shapes drifted`);
+      throw new Error(
+        `accessibility baseline pins axe ${baseline._axeVersion || 'missing'}; runtime is ${window.axe.version}`,
+      );
     }
 
     const current = { critical: {}, serious: {}, moderate: {}, minor: {} };
@@ -235,11 +220,12 @@ return (async () => {
     // can pipe into the file by hand. CI sets A11Y_REBASELINE=1 only on
     // intentional baseline refresh.
     if (!baseline || window.A11Y_REBASELINE) {
+      const generatedBaseline = { _axeVersion: PINNED_AXE_VERSION, ...current };
       console.log('▶ [a11y/baseline] No baseline file found OR A11Y_REBASELINE=1.');
       console.log('▶ [a11y/baseline] Write this JSON to tests/.a11y-baseline.json to lock the gate:');
-      console.log('▶ ' + JSON.stringify(current));
+      console.log('▶ ' + JSON.stringify(generatedBaseline));
       assert('a11y baseline established (no regression check possible on first run)', true);
-      return;
+      return generatedBaseline;
     }
 
     // Regression check: per impact tier, per rule, current must be ≤ baseline.
