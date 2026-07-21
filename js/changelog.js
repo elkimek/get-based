@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.320', date: '2026-07-21', title: 'Faster, clearer app updates',
+    items: [
+      '<b>App updates finish faster and show their progress.</b> The update banner now displays a themed progress bar, percentage, file count, and elapsed time while the complete offline app is refreshed.',
+    ]
+  },
+  {
     version: '1.10.318', date: '2026-07-20', title: 'Clearer marker measurements',
     items: [
       '<b>Marker values are easier to read at a glance.</b> Units now sit beside the latest result and its reference or optimal range, while the measurement date stays clearly separated below.',

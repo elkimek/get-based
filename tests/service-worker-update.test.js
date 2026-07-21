@@ -181,6 +181,66 @@ describe('service worker update prompt', () => {
     expect(document.getElementById('version-update-banner')).toBeNull();
   });
 
+  it('renders themed, accessible install progress from service-worker messages', async () => {
+    const { checkForAppVersionUpdate, registerServiceWorkerUpdates } = serviceWorkerUpdate;
+    let onMessage = null;
+    let resolveUpdate;
+    const updatePending = new Promise((resolve) => { resolveUpdate = resolve; });
+    const registration = {
+      waiting: null,
+      installing: null,
+      addEventListener: vi.fn(),
+      update: vi.fn(() => updatePending),
+    };
+    const win = {
+      APP_VERSION: '1.2.3',
+      fetch: vi.fn(async () => new Response("self.APP_VERSION = '1.2.3';")),
+      location: { hostname: 'getbased.health', search: '', reload: vi.fn() },
+      localStorage: { getItem: vi.fn(() => null), setItem: vi.fn() },
+      performance: { getEntriesByType: vi.fn(() => [{ type: 'navigate' }]) },
+      document: { visibilityState: 'visible', addEventListener: vi.fn() },
+      addEventListener: vi.fn(),
+      setInterval: vi.fn(() => 7),
+      clearInterval: vi.fn(),
+    };
+    const serviceWorkerContainer = {
+      controller: {},
+      register: vi.fn(async () => registration),
+      addEventListener: vi.fn((type, listener) => {
+        if (type === 'message') onMessage = listener;
+      }),
+    };
+
+    await registerServiceWorkerUpdates({ win, serviceWorkerContainer, cacheStorage: null });
+    await checkForAppVersionUpdate(registration, serviceWorkerContainer, win, {
+      force: true,
+      fetchImpl: vi.fn(async () => new Response("self.APP_VERSION = '1.2.4';")),
+    });
+
+    document.querySelector('[data-version-update-action="apply"]').click();
+    expect(onMessage).toEqual(expect.any(Function));
+    onMessage({ data: { type: 'PRECACHE_PROGRESS', completed: 293, total: 586 } });
+
+    const banner = document.getElementById('version-update-banner');
+    const track = banner.querySelector('.version-update-progress-track');
+    expect(banner.querySelector('.version-update-percent').textContent).toBe('50%');
+    expect(banner.querySelector('.version-update-progress-fill').style.width).toBe('50%');
+    expect(banner.querySelector('.version-update-progress-meta').textContent).toContain('293 of 586 files cached');
+    expect(track.getAttribute('role')).toBe('progressbar');
+    expect(track.getAttribute('aria-valuenow')).toBe('50');
+    expect(track.getAttribute('aria-valuetext')).toBe('293 of 586 app files cached');
+    expect(banner.getAttribute('aria-live')).toBe('off');
+    expect(banner.getAttribute('aria-busy')).toBe('true');
+    expect(banner.querySelector('.version-update-actions').hidden).toBe(true);
+
+    onMessage({ data: { type: 'PRECACHE_PROGRESS', completed: 586, total: 586 } });
+    expect(banner.textContent).toContain('Finalizing update');
+    expect(banner.querySelector('.version-update-percent').textContent).toBe('100%');
+
+    resolveUpdate();
+    await updatePending;
+  });
+
   it('shares the version-check throttle across tabs while allowing forced reload checks', async () => {
     const { checkForAppVersionUpdate } = serviceWorkerUpdate;
     const stored = new Map();
