@@ -1,7 +1,7 @@
 {
-  "minimumFunctionPct": 67.0,
-  "referenceFunctionPct": 67.23,
-  "referenceCommit": "dd49ab62",
+  "minimumFunctionPct": 67.1,
+  "referenceFunctionPct": 67.27,
+  "referenceCommit": "73c4c56a",
   "measuredAt": "2026-07-21",
   "metric": "combined Vitest/Node and Playwright V8 function coverage"
 }
