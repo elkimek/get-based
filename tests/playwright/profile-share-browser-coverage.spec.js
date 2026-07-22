@@ -13,15 +13,21 @@ test('Share Profile entry points open the sharing modal', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'networkidle' });
 
   await page.evaluate(async () => {
-    const [{ closeChatPanel }, { endTour }] = await Promise.all([
-      import('/js/chat-panel.js'),
-      import('/js/tour.js'),
-    ]);
+    const { endTour } = await import('/js/tour.js');
     endTour({ openEmptyChat: false });
-    closeChatPanel();
   });
   await expect(page.locator('#tour-overlay')).toHaveCount(0);
-  await expect(page.locator('#chat-panel')).not.toHaveClass(/\bopen\b/);
+
+  // A returning desktop user with no chat history intentionally gets the
+  // onboarding panel after a short delay. Let that startup task settle before
+  // closing the panel so it cannot race the share-profile assertions below.
+  const chatPanel = page.locator('#chat-panel');
+  await expect(chatPanel).toHaveClass(/\bopen\b/);
+  await page.evaluate(async () => {
+    const { closeChatPanel } = await import('/js/chat-panel.js');
+    closeChatPanel();
+  });
+  await expect(chatPanel).not.toHaveClass(/\bopen\b/);
   await page.locator('[data-shell-action="share-profile"]').click();
 
   await expect(page.locator('#profile-share-overlay')).toBeVisible();
