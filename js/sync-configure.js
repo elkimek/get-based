@@ -21,7 +21,8 @@ import {
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
 import { configureSyncRecovery } from './sync-recovery.js';
-import { configureSyncReconcile } from './sync-reconcile.js';
+import { configureSyncInit } from './sync-init.js';
+import { configureSyncReconcile, reconcileLocalStorageWithEvolu } from './sync-reconcile.js';
 import {
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 } from './sync-cutover.js';
@@ -179,4 +180,6 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     pushProfile,
     debug: dbg,
   });
+
+  configureSyncInit({ reconcileLocalStorageWithEvolu });
 }

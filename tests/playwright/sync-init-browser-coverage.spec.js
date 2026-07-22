@@ -216,6 +216,11 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
       localStorage.setItem('labcharts-debug', 'true');
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example/ws');
       window.__syncInitTrace = { rows: [{ profileId: 'debug-profile' }] };
+      init.configureSyncInit({
+        reconcileLocalStorageWithEvolu: async () => {
+          window.__syncInitTrace.reconciledCount = (window.__syncInitTrace.reconciledCount || 0) + 1;
+        },
+      });
       window.setTimeout = (fn, delay = 0, ...args) => {
         timeouts.push(delay);
         return original.setTimeout.call(window, fn, delay, ...args);
@@ -232,6 +237,8 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
       const profileQuery = runtime.getSyncProfileQuery();
       const tombstoneQuery = runtime.getSyncTombstoneQuery();
       const itemRowQuery = runtime.getSyncItemRowQuery();
+
+      outcomes.waitsToReconcileUntilReady = !trace.reconciledCount;
 
       outcomes.createsEvoluWithSchemaRelayAndDebug =
         trace.createdCount === 1
@@ -256,6 +263,8 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
         trace.loadedQueries.join(',') === '1,2,3'
         && runtime.getSyncAppOwner()?.id === 'owner-init'
         && runtime.getSyncAppOwnerError() === null;
+
+      outcomes.runsConfiguredReconciliationAfterReady = trace.reconciledCount === 1;
 
       outcomes.bindsSubscriptionsAndRelayProbe =
         trace.subscriptions.join(',') === '1,2,3'
