@@ -414,7 +414,12 @@ await import('../js/settings.js');
       && syncMessengerSrc.includes('ownerId: ownerProof.ownerId')
       && syncMessengerSrc.includes('signature: ownerProof.signature'));
   assert('Agent Access context push ignores in-app Context source toggles',
-    syncMessengerSrc.includes('buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true })')
+    syncConfigureSrc.includes("from './lab-context.js'")
+      && syncConfigureSrc.includes('buildLabContext,')
+      && syncConfigureSrc.includes('buildWearableSeriesSection,')
+      && syncConfigureSrc.includes('getAgentWearableSeriesDays,')
+      && !syncMessengerSrc.includes("import('./lab-context.js')")
+      && syncMessengerSrc.includes('buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true })')
       && syncMessengerSrc.includes('buildWearableSeriesSection(seriesDays, { ignoreContextToggles: true })'));
   assert('service worker precaches sync-messenger.js',
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));

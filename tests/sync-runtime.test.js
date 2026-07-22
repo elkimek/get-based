@@ -168,7 +168,14 @@ beforeEach(() => {
   state.currentProfile = PROFILE_ID;
   state.importedData = { entries: [], agentAccess: null };
   localStorage.setItem('labcharts-active-profile', PROFILE_ID);
-  configureSyncMessenger({ getSyncRelay: () => 'wss://sync.getbased.health', getAppOwner: () => null, debug: vi.fn() });
+  configureSyncMessenger({
+    getSyncRelay: () => 'wss://sync.getbased.health',
+    getAppOwner: () => null,
+    debug: vi.fn(),
+    buildLabContext: () => '',
+    buildWearableSeriesSection: async () => '',
+    getAgentWearableSeriesDays: () => 0,
+  });
   configureRuntimeDeps(makeEvolu());
   configureSyncDiagnosticsContext();
 });
@@ -912,6 +919,44 @@ describe('synced Agent Access state', () => {
     });
     expect(isMessengerEnabled()).toBe(true);
     vi.clearAllTimers();
+  });
+
+  it('builds Agent Access payloads through configured context providers', async () => {
+    vi.useFakeTimers();
+    const buildLabContext = vi.fn(() => 'base context');
+    const buildWearableSeriesSection = vi.fn(async () => 'wearable series');
+    const getAgentWearableSeriesDays = vi.fn(() => 7);
+    let markPushComplete = () => {};
+    const pushComplete = new Promise(resolve => { markPushComplete = resolve; });
+    const debug = vi.fn(message => {
+      if (String(message).startsWith('Encrypted context pushed')) markPushComplete();
+    });
+    const fetchSpy = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    configureSyncMessenger({
+      getSyncRelay: () => 'wss://sync.getbased.health',
+      getAppOwner: () => ({ id: 'abcdefghijklmnopqrstuv', writeKey: new Uint8Array(32).fill(7) }),
+      debug,
+      buildLabContext,
+      buildWearableSeriesSection,
+      getAgentWearableSeriesDays,
+    });
+    state.importedData.agentAccess = {
+      version: 1,
+      enabled: true,
+      token: 'q'.repeat(64),
+      contextKey: 'gbctx_v1_' + 'Q'.repeat(43),
+      updatedAt: 123,
+    };
+
+    pushContextToGateway();
+    await vi.advanceTimersByTimeAsync(5000);
+    await pushComplete;
+
+    expect(buildLabContext).toHaveBeenCalledWith({ skipGroupFilter: true, ignoreContextToggles: true });
+    expect(getAgentWearableSeriesDays).toHaveBeenCalledOnce();
+    expect(buildWearableSeriesSection).toHaveBeenCalledWith(7, { ignoreContextToggles: true });
+    expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
   it('cancels a pending context push when switching to a profile without Agent Access', async () => {
