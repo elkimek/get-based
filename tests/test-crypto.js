@@ -56,8 +56,10 @@ const settingsModule = await import('../js/settings.js');
 await import('../js/chat.js');
 await import('../js/utils.js');
 const backupModule = await import('../js/backup.js');
+const backupSrc = read('js/backup.js');
 const cryptoStoreSrc = read('js/crypto.js');
 const cycleStoreSrc = read('js/cycle-store.js');
+const profileStorageKeySrc = read('js/profile-storage-key.js');
 
 // Seed a minimal profile registry — the app bootstraps one via
 // initProfilesCache() on page load; in Node we seed it so the section-15
@@ -91,6 +93,12 @@ assert('cycle storage receives crypto providers without a reverse import',
   cryptoStoreSrc.includes('configureCycleStoreCrypto({')
     && cycleStoreSrc.includes('export function configureCycleStoreCrypto')
     && !cycleStoreSrc.includes("import('./crypto.js')"));
+assert('backup and crypto use the leaf profile storage-key helper',
+  backupSrc.includes("from './profile-storage-key.js'")
+    && !backupSrc.includes("from './profile.js'")
+    && cryptoStoreSrc.includes("from './profile-storage-key.js'")
+    && !cryptoStoreSrc.includes("from './profile.js'")
+    && profileStorageKeySrc.includes('export function profileStorageKey'));
 assert('profile.initProfilesCache exists', typeof profileModule.initProfilesCache === 'function');
 assert('window.initProfilesCache stays module-only', !('initProfilesCache' in window));
 

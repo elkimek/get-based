@@ -2,7 +2,7 @@
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
-import { profileStorageKey } from './profile.js';
+import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { collectCycleBackup, restoreCycleBackup } from './backup-cycle.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
