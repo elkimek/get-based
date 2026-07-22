@@ -47,6 +47,25 @@ export async function reloadProfileRuntimeShell(profileId) {
   nav.renderProfileButton();
 }
 
+// Refresh wearable summary for the freshly-loaded profile so the strip
+// reflects this profile's L1 IDB rather than carrying over stale state from
+// the boot profile. Migration runs first (idempotent per profile), then the
+// summary recomputes from this profile's connected sources.
+export async function refreshProfileWearables(profileId, biometrics) {
+  const [manual, summary, connect] = await Promise.all([
+    import('./wearables-manual.js'),
+    import('./wearables-summary.js'),
+    import('./wearables-connect.js'),
+  ]);
+  try { await manual.migrateBiometricsToManual(profileId, biometrics); } catch {}
+  // The user can swap profile A→B during an IDB read. Abort before and after
+  // summary persistence so A's metrics can never be saved into B's profile.
+  if (state.currentProfile !== profileId) return;
+  try { await summary.syncWearableSummary(profileId, connect.listConnectedSources()); } catch {}
+  if (state.currentProfile !== profileId) return;
+  connect.syncStaleWearablesNow?.().catch(() => {});
+}
+
 export async function refreshProfileButton() {
   try {
     const mod = await import('./nav.js');

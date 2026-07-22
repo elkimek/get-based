@@ -43,6 +43,7 @@ export function configureProfileDeps(deps = {}) {
  *   invalidateProfileContextCache: null | (() => Promise<void> | void),
  *   refreshProfileButton: null | (() => Promise<void> | void),
  *   reloadProfileRuntimeShell: null | ((profileId: string) => Promise<void> | void),
+ *   refreshProfileWearables: null | ((profileId: string, biometrics: any) => Promise<void> | void),
  * }} ProfileRuntimeDeps
  */
 
@@ -52,6 +53,7 @@ const profileRuntimeDeps = {
   invalidateProfileContextCache: null,
   refreshProfileButton: null,
   reloadProfileRuntimeShell: null,
+  refreshProfileWearables: null,
 };
 
 /** @param {Partial<ProfileRuntimeDeps>} [deps] */
@@ -77,6 +79,11 @@ export function configureProfileRuntimeDeps(deps = {}) {
       ? deps.reloadProfileRuntimeShell
       : null;
   }
+  if (Object.hasOwn(deps, 'refreshProfileWearables')) {
+    profileRuntimeDeps.refreshProfileWearables = typeof deps.refreshProfileWearables === 'function'
+      ? deps.refreshProfileWearables
+      : null;
+  }
   return previous;
 }
 
@@ -94,6 +101,13 @@ async function refreshProfileButton() {
 
 async function reloadProfileRuntimeShell(profileId) {
   await profileRuntimeDeps.reloadProfileRuntimeShell?.(profileId);
+}
+
+function refreshProfileWearables(profileId, biometrics) {
+  try {
+    const pending = profileRuntimeDeps.refreshProfileWearables?.(profileId, biometrics);
+    Promise.resolve(pending).catch(() => {});
+  } catch {}
 }
 
 /**
@@ -619,28 +633,7 @@ export async function loadProfile(profileId) {
   state.currentThreadId = null;
   state.markerRegistry = {};
   await reloadProfileRuntimeShell(profileId);
-  // Refresh wearable summary for the freshly-loaded profile so the strip
-  // reflects THIS profile's L1 IDB rather than carrying over stale state
-  // from the boot profile. Both modules dynamic-imported to avoid circular
-  // deps (profile.js → wearables-* → profile.js for getActiveProfileId).
-  // Migration runs first (idempotent — it self-flag-gates after one run per
-  // profile), then summary recomputes from this profile's IDB.
-  Promise.all([
-    import('./wearables-manual.js'),
-    import('./wearables-summary.js'),
-    import('./wearables-connect.js'),
-  ]).then(async ([manualMod, summaryMod, connectMod]) => {
-    try { await manualMod.migrateBiometricsToManual(profileId, state.importedData?.biometrics); } catch {}
-    // Profile-switch race guard: the user can swap profile A→B during the
-    // ~100ms cold-cache IDB read interval. If that happens, abort BEFORE
-    // syncWearableSummary persists A's metrics into B's wearableSummary
-    // and saves them under B's localStorage key. Same shape as the
-    // v1.24.1 OAuth-callback profile-swap guard.
-    if (state.currentProfile !== profileId) return;
-    try { await summaryMod.syncWearableSummary(profileId, connectMod.listConnectedSources()); } catch {}
-    if (state.currentProfile !== profileId) return; // re-check post-await — sync also takes IDB time
-    connectMod.syncStaleWearablesNow?.().catch(() => {});
-  }).catch(() => {});
+  refreshProfileWearables(profileId, state.importedData?.biometrics);
 }
 
 /**
