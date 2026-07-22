@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import { getDeltaCutoverReadiness, getDeltaTelemetry } from './sync-delta.js';
 import { getSyncRelay } from './sync-environment.js';
-import { parseSyncPayload } from './sync-payload.js';
+import { parseSyncPayload } from './sync-payload-codec.js';
 import { logSyncEvent } from './sync-state.js';
 import {
   currentDiagnosticAppOwner,

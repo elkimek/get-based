@@ -1008,16 +1008,21 @@ await import('../js/settings.js');
   assert('buildSyncPayload includes chatData', syncPayloadSrc.includes('chatData'));
   assert('buildSyncPayload includes displayPrefs', syncPayloadSrc.includes('displayPrefs'));
 
-  assert('parseSyncPayload handles v3 format', syncPayloadSrc.includes('parsed._v === 3'));
-  assert('parseSyncPayload handles v2 compat', syncPayloadSrc.includes('parsed._v === 2'));
+  assert('sync-payload re-exports the pure inbound parser',
+    syncPayloadSrc.includes('MAX_SYNC_PAYLOAD_BYTES, parseSyncPayload'));
+  assert('sync diagnostics imports the pure inbound parser directly',
+    syncDiagnosticsSnapshotSrc.includes("from './sync-payload-codec.js'")
+      && !syncDiagnosticsSnapshotSrc.includes("from './sync-payload.js'"));
+  assert('parseSyncPayload handles v3 format', syncPayloadCodecSrc.includes('parsed._v === 3'));
+  assert('parseSyncPayload handles v2 compat', syncPayloadCodecSrc.includes('parsed._v === 2'));
   assert('parseSyncPayload has v1 backward compat (gated on importedData shape)',
-    syncPayloadSrc.includes('importedData: safe(parsed)'));
-  assert('parseSyncPayload validates payload size (5 MB cap)', syncPayloadSrc.includes('MAX_SYNC_PAYLOAD_BYTES'));
+    syncPayloadCodecSrc.includes('importedData: safe(parsed)'));
+  assert('parseSyncPayload validates payload size (5 MB cap)', syncPayloadCodecSrc.includes('MAX_SYNC_PAYLOAD_BYTES'));
   assert('parseSyncPayload strips wearableConnections from incoming blob (defence-in-depth)',
-    syncPayloadSrc.includes("'wearableConnections' in imp"));
+    syncPayloadCodecSrc.includes("'wearableConnections' in imp"));
   assert('parseSyncPayload v1 compat rejects unknown shapes',
-    syncPayloadSrc.includes("Invalid sync payload: unknown shape"));
-  assert('parseSyncPayload validates payload type', syncPayloadSrc.includes("typeof dataJson !== 'string'"));
+    syncPayloadCodecSrc.includes("Invalid sync payload: unknown shape"));
+  assert('parseSyncPayload validates payload type', syncPayloadCodecSrc.includes("typeof dataJson !== 'string'"));
 
   // v1.6.3: gzip envelope. Pushes >1 KB get compressed before storing
   // in Evolu's CRDT log; cuts the per-message size ~3× and pushes the
@@ -1025,10 +1030,10 @@ await import('../js/settings.js');
   assert('buildSyncPayload gzip envelope (>1 KB compressed)',
     /CompressionStream/.test(syncPayloadSrc) && /GZ\|v1\|/.test(syncPayloadSrc) && /inner\.length > 1024/.test(syncPayloadSrc));
   assert('parseSyncPayload detects + decompresses gzip envelope',
-    /dataJson\.startsWith\('GZ\|v1\|'\)/.test(syncPayloadSrc) && /DecompressionStream/.test(syncPayloadSrc));
+    /dataJson\.startsWith\('GZ\|v1\|'\)/.test(syncPayloadCodecSrc) && /DecompressionStream/.test(syncPayloadCodecSrc));
   assert('parseSyncPayload caps decompressed size via streaming cap (zip-bomb guard)',
-    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
-  assert('parseSyncPayload is async (gzip decode)', /async function parseSyncPayload/.test(syncPayloadSrc));
+    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadCodecSrc));
+  assert('parseSyncPayload is async (gzip decode)', /async function parseSyncPayload/.test(syncPayloadCodecSrc));
 
   // v1.6.6: recovery from compaction-induced empty profileId column.
   // After /compact-owner drops the original `evolu.insert` from the
@@ -2336,7 +2341,7 @@ await import('../js/settings.js');
   assert('v4 payload omits importedData when cutover is on',
     /cutover\s*\?\s*4\s*:\s*3[\s\S]{0,500}cutover\s*\?\s*undefined\s*:\s*safeImported/.test(syncPayloadSrc));
   assert('parseSyncPayload handles _v: 4 (importedData=null sentinel)',
-    /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncPayloadSrc));
+    /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncPayloadCodecSrc));
   assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
     /function isMalformedPulledImportedData[\s\S]{0,160}importedData\s*!==\s*null[\s\S]{0,160}!importedData/.test(syncPullMergeSrc));
   assert('Receive path uses local as baseline when v4 (no blob to merge)',
@@ -2483,7 +2488,7 @@ await import('../js/settings.js');
   // only gunzip entry point post-2026-05-10 audit (the bare
   // _gunzipToString wrapper was deleted as dead).
   assert('Blob path uses _gunzipToStringCapped with MAX_SYNC_PAYLOAD_BYTES',
-    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
+    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadCodecSrc));
   assert('Dead _gunzipToString wrapper removed (only capped variant remains)',
     !/async function _gunzipToString\(bytes\)/.test(syncSrc + syncPayloadSrc + syncPayloadCodecSrc));
 
@@ -2617,9 +2622,9 @@ await import('../js/settings.js');
 
   // P1: parseSyncPayload now uses capped gunzip (decompression-bomb defence on blob path)
   assert('parseSyncPayload routes blob gunzip through _gunzipToStringCapped',
-    /parseSyncPayload[\s\S]{0,1500}_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
+    /parseSyncPayload[\s\S]{0,1500}_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadCodecSrc));
   assert('parseSyncPayload no longer post-buffers via uncapped _gunzipToString',
-    !/parseSyncPayload[\s\S]{0,1000}inner\s*=\s*await _gunzipToString\(bytes\)/.test(syncPayloadSrc));
+    !/parseSyncPayload[\s\S]{0,1000}inner\s*=\s*await _gunzipToString\(bytes\)/.test(syncPayloadCodecSrc));
 
   // P1: -relay-bytes- and -relay-quota-warned cleared on owner change
   assert('disableSync clears -relay-bytes- keys on owner change',

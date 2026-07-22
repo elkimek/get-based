@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 40,
-  "maxLargestCyclicComponent": 40,
+  "maxCyclicModules": 37,
+  "maxLargestCyclicComponent": 37,
   "allowedCyclicModules": [
     "js/backup-cycle.js",
     "js/backup.js",
@@ -20,9 +20,6 @@
     "js/sync-chat-apply.js",
     "js/sync-configure.js",
     "js/sync-cutover.js",
-    "js/sync-diagnose-ui.js",
-    "js/sync-diagnostics-snapshot.js",
-    "js/sync-diagnostics.js",
     "js/sync-init.js",
     "js/sync-lifecycle.js",
     "js/sync-messenger.js",
