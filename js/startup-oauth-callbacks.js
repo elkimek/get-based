@@ -18,8 +18,7 @@ import { showNotification as showAppNotification } from './utils.js';
 /** @type {{ showNotification: Function | null, showInsufficientBalanceDialog: Function | null }} */
 const startupOAuthCallbackDeps = {
   showNotification: showAppNotification,
-  showInsufficientBalanceDialog: () => import('./provider-panels.js')
-    .then(providerPanels => providerPanels.showInsufficientBalanceDialog()),
+  showInsufficientBalanceDialog: null,
 };
 
 export function configureStartupOAuthCallbackDeps(deps = {}) {

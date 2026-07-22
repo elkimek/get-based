@@ -3,6 +3,7 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { setAIPaused } from './api.js';
+import { configureApiRuntimeCallbacks } from './api-runtime.js';
 import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';
@@ -140,6 +141,7 @@ import {
   configureShellProfileShareDeps,
 } from './shell-actions.js';
 import { configureStartupUIDeps } from './startup-ui.js';
+import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
 import { configureSyncPull } from './sync-pull.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
@@ -151,6 +153,16 @@ import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.j
 import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
 
+function showInsufficientBalanceDialog() {
+  if (typeof document === 'undefined') return false;
+  import('./provider-panels.js')
+    .then(providerPanels => providerPanels.showInsufficientBalanceDialog())
+    .catch(() => {});
+  return true;
+}
+
+configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
+configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureDashboardViewFactory(createDashboardViewComposition);
 configureLabContext({ buildBiologyScoresAIContext });
 configureProfileRuntimeDeps({

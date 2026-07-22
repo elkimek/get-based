@@ -232,12 +232,13 @@ test('app refresh callback uses configured shell dependencies', async ({ page })
   await openBlankPage(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data, appEvents] = await Promise.all([
+    const [{ state }, data, appEvents, apiRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/app-event-listeners.js'),
-      import('/js/app-shell-hooks.js'),
+      import('/js/api-runtime.js'),
     ]);
+    await import('/js/app-shell-hooks.js');
     const calls = [];
     const saved = {
       currentView: state.currentView,
@@ -255,10 +256,16 @@ test('app refresh callback uses configured shell dependencies', async ({ page })
       data.invalidateActiveDataCache();
       appEvents.registerAppRefreshCallback();
       data._runRegisteredRefreshCallback();
+      const dialogDelegated = apiRuntime.showOpenRouterInsufficientBalanceDialogRuntime();
+      for (let attempt = 0; attempt < 50 && !document.getElementById('or-no-balance-overlay'); attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
       return {
         navigatesCurrentView: calls.some(call => call[0] === 'navigate' && call[1] === 'labs'),
         updatesChatNudge: calls.some(call => call[0] === 'updateChatNudge'),
         buildsSidebarAgainstSameDataModule: document.querySelectorAll('#sidebar-nav .nav-item').length > 0,
+        apiRuntimeUsesComposedBalanceDialog: dialogDelegated
+          && document.getElementById('or-no-balance-overlay')?.getAttribute('aria-hidden') !== 'true',
       };
     } finally {
       appEvents.configureAppEventListeners(previous);
@@ -273,5 +280,6 @@ test('app refresh callback uses configured shell dependencies', async ({ page })
     navigatesCurrentView: true,
     updatesChatNudge: true,
     buildsSidebarAgainstSameDataModule: true,
+    apiRuntimeUsesComposedBalanceDialog: true,
   });
 });
