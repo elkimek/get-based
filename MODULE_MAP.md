@@ -12,9 +12,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Modules | 463 |
 | Internal import edges | 2059 |
 | Dynamic internal edges | 57 |
-| Modules participating in cycles | 11 |
+| Modules participating in cycles | 10 |
 | Cyclic components | 2 |
-| Largest cyclic component | 8 |
+| Largest cyclic component | 7 |
 | Computed dynamic imports | 2 |
 
 ## Enforced source boundaries
@@ -43,7 +43,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 24 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 51 | [`js/settings.js`](js/settings.js) | 24 |
-| [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
+| [`js/profile.js`](js/profile.js) | 47 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/views.js`](js/views.js) | 20 |
 | [`js/crypto.js`](js/crypto.js) | 27 | [`js/wearables-connect.js`](js/wearables-connect.js) | 20 |
@@ -58,9 +58,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 These are existing debt, not approved architecture. CI prevents new modules from joining a cycle and prevents the cycle budgets from increasing.
 
-<details><summary>Component 1 — 8 modules</summary>
+<details><summary>Component 1 — 7 modules</summary>
 
-[`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js)
+[`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js)
 
 </details>
 
@@ -824,7 +824,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-recovery.js`](js/sync-recovery.js) → no in-scope imports
 - [`js/sync-relay-health.js`](js/sync-relay-health.js) → no in-scope imports
 - [`js/sync-runtime.js`](js/sync-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) *(dynamic)*
-- [`js/sync-save-hooks.js`](js/sync-save-hooks.js) → [`js/crypto.js`](js/crypto.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/utils-runtime.js`](js/utils-runtime.js)
+- [`js/sync-save-hooks.js`](js/sync-save-hooks.js) → [`js/crypto.js`](js/crypto.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/utils-runtime.js`](js/utils-runtime.js)
 - [`js/sync-schema.js`](js/sync-schema.js) → no in-scope imports
 - [`js/sync-settings-state.js`](js/sync-settings-state.js) → no in-scope imports
 - [`js/sync-state.js`](js/sync-state.js) → no in-scope imports

@@ -3,7 +3,7 @@
 
 import { showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
-import { getProfiles } from './profile.js';
+import { createDefaultProfileData, getProfiles, migrateProfileData } from './profile.js';
 import { configureRelayHealth } from './sync-relay-health.js';
 import { logSyncEvent, updateSyncStatus } from './sync-state.js';
 import { isSyncEnabled } from './sync-settings-state.js';
@@ -164,6 +164,8 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     isSyncEnabled,
     isEvoluReady: isSyncEvoluReady,
     isSyncing: isSyncPushInFlight,
+    createDefaultProfileData,
+    migrateProfileData,
   });
   bindSyncSaveHookEvents();
 

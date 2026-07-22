@@ -2,7 +2,7 @@
 // sync-save-hooks.js - Save/chat/profile sync debounce hooks.
 
 import { state } from './state.js';
-import { profileStorageKey, createDefaultProfileData, migrateProfileData } from './profile.js';
+import { profileStorageKey } from './profile-storage-key.js';
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { markChatDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
@@ -13,6 +13,9 @@ let _pushProfile = async () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
 let _isSyncing = () => false;
+let _createDefaultProfileData = () => ({ entries: [] });
+/** @type {(data: any) => any} */
+let _migrateProfileData = (data) => data;
 
 // Per-profile debounce timers. Switching profiles mid-debounce previously
 // dropped the pending push for the prior profile because the single shared
@@ -29,6 +32,8 @@ let _eventsBound = false;
  *   isSyncEnabled?: () => boolean,
  *   isEvoluReady?: () => boolean,
  *   isSyncing?: () => boolean,
+ *   createDefaultProfileData?: () => any,
+ *   migrateProfileData?: (data: any) => any,
  * }} [deps]
  */
 export function configureSyncSaveHooks({
@@ -36,11 +41,24 @@ export function configureSyncSaveHooks({
   isSyncEnabled,
   isEvoluReady,
   isSyncing,
+  createDefaultProfileData,
+  migrateProfileData,
 } = {}) {
+  const previous = {
+    pushProfile: _pushProfile,
+    isSyncEnabled: _isSyncEnabled,
+    isEvoluReady: _isEvoluReady,
+    isSyncing: _isSyncing,
+    createDefaultProfileData: _createDefaultProfileData,
+    migrateProfileData: _migrateProfileData,
+  };
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
   if (typeof isSyncing === 'function') _isSyncing = isSyncing;
+  if (typeof createDefaultProfileData === 'function') _createDefaultProfileData = createDefaultProfileData;
+  if (typeof migrateProfileData === 'function') _migrateProfileData = migrateProfileData;
+  return previous;
 }
 
 export function bindSyncSaveHookEvents() {
@@ -86,7 +104,7 @@ export function clearSyncSaveTimers() {
  */
 export async function readProfileImportedData(profileId, fallback = null) {
   const normalize = (data) => {
-    if (data && typeof data === 'object') migrateProfileData(data);
+    if (data && typeof data === 'object') _migrateProfileData(data);
     return data;
   };
   if (fallback && typeof fallback === 'object') return normalize(fallback);
@@ -100,7 +118,7 @@ export async function readProfileImportedData(profileId, fallback = null) {
   } catch (e) {
     console.warn('[sync] Could not read profile importedData for profile sync:', e?.message || e);
   }
-  return createDefaultProfileData();
+  return _createDefaultProfileData();
 }
 
 /** @param {string} profileId
