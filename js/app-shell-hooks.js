@@ -233,7 +233,8 @@ configureExportImportRuntimeDeps({
   renderThreadList,
   updateHeaderDates,
 });
-configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
+const confirmPdfImport = () => import('./pdf-import-commit.js').then(module => module.confirmImport());
+configurePdfImportReviewRuntimeDeps({ buildSidebar, confirmImport: confirmPdfImport, navigate });
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ closeModal, openChatPanel, openProfileLocationEditor, openSettingsModal });
 configureSupplementsRuntimeDeps({ closeModal, navigate });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 44,
+  "maxCyclicModules": 40,
   "maxLargestCyclicComponent": 40,
   "allowedCyclicModules": [
     "js/backup-cycle.js",
@@ -13,10 +13,6 @@
     "js/data.js",
     "js/lab-context-wearables.js",
     "js/lab-context.js",
-    "js/pdf-import-commit.js",
-    "js/pdf-import-persistence.js",
-    "js/pdf-import-review-runtime.js",
-    "js/pdf-import-review.js",
     "js/profile.js",
     "js/supplement-impact.js",
     "js/sync-actions.js",
