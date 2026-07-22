@@ -1,7 +1,8 @@
 // @ts-check
 // import-marker-map-modal.js - category/search picker for mapping imported rows.
 
-import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
+import { MARKER_SCHEMA } from './schema.js';
+import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { getValidUnitsForMarker } from './pdf-import-marker-mapping.js';
 import { escapeHTML } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';

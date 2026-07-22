@@ -457,10 +457,6 @@ export const CORRELATION_PRESETS = [
 ];
 export const CHIP_COLORS = ['#4f8cff','#34d399','#f87171','#fbbf24','#a78bfa','#f472b6','#38bdf8','#fb923c'];
 
-// SPECIALTY_MARKER_DEFS — re-exported from adapters.js (single source of truth)
-// Used by migrateProfileData() in profile.js and buildMarkerReference() in pdf-import.js
-export { ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS } from './adapters.js';
-
 // NOTE: The marker data that was previously inline here (194 entries for OAT + Fatty Acids)
 // now lives in js/adapters.js as part of the parser adapter registry.
 

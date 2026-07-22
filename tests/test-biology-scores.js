@@ -23,7 +23,8 @@ import {
 } from '../js/lab-context.js';
 import { getBiologyProfileContext } from '../js/profile-context.js';
 import { state } from '../js/state.js';
-import { MARKER_SCHEMA, OPTIMAL_RANGES, SPECIALTY_MARKER_DEFS } from '../js/schema.js';
+import { MARKER_SCHEMA, OPTIMAL_RANGES } from '../js/schema.js';
+import { SPECIALTY_MARKER_DEFS } from '../js/adapters.js';
 
 let pass = 0, fail = 0;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

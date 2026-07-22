@@ -541,5 +541,6 @@ export function normalizeWithAdapter(adapter, markers, fileName, pdfText, detect
   }
 }
 
-/** Backward compat: re-export all adapter markers as SPECIALTY_MARKER_DEFS shape */
+/** All adapter markers, with the legacy specialty name kept at this ownership boundary. */
 export const ADAPTER_MARKERS = getAllAdapterMarkers();
+export { ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS };

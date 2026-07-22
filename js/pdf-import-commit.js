@@ -3,7 +3,8 @@
 
 import { state } from './state.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
-import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
+import { MARKER_SCHEMA } from './schema.js';
+import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';

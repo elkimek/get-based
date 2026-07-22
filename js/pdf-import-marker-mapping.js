@@ -2,7 +2,8 @@
 // pdf-import-marker-mapping.js — marker key safety, reference lookup, and unit normalization for imports
 
 import { state } from './state.js';
-import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, UNIT_CONVERSIONS } from './schema.js';
+import { MARKER_SCHEMA, UNIT_CONVERSIONS } from './schema.js';
+import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
 
 // ═══════════════════════════════════════════════

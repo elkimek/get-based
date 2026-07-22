@@ -1,8 +1,8 @@
 // @ts-check
 // pdf-import-marker-normalization.js - AI marker normalization shared by text/image import
 
-import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
-import { detectProduct, getAdapterByTestType, normalizeWithAdapter } from './adapters.js';
+import { MARKER_SCHEMA } from './schema.js';
+import { SPECIALTY_MARKER_DEFS, detectProduct, getAdapterByTestType, normalizeWithAdapter } from './adapters.js';
 import { isDebugMode } from './utils.js';
 import { _sanitizeAIMarker, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
 
