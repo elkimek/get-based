@@ -175,8 +175,10 @@ assert('App shell injects the lazy EMF editor close callback without bridge look
     && !emfSrc.includes('getViewRuntimeFunction')
     && emfSrc.includes('emfRuntimeDeps.closeModal?.();')
     && emfRuntimeSrc.includes('mod.configureEMFRuntimeDeps(emfRuntimeDeps);')
+    && !emfRuntimeSrc.includes("import('./emf.js')")
+    && emfRuntimeSrc.includes('emfRuntimeDeps.loadModule()')
     && appShellHooksSrc.includes("import { configureEMFRuntimeDeps } from './emf-runtime.js';")
-    && appShellHooksSrc.includes('configureEMFRuntimeDeps({ closeModal });'));
+    && appShellHooksSrc.includes("loadModule: () => import('./emf.js')"));
 
 assert('App shell injects wearable navigation without view bridge lookups',
   appShellHooksSrc.includes('configureWearablesConnectRuntimeDeps({ navigate });')

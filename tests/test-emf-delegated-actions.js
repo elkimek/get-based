@@ -77,6 +77,7 @@ assert('EMF editor runtime hooks avoid counted direct window globals',
     !emfSrc.includes('getViewRuntimeFunction') &&
     emfSrc.includes('emfRuntimeDeps.closeModal?.()') &&
     emfRuntimeSrc.includes('mod.configureEMFRuntimeDeps(emfRuntimeDeps);') &&
+    !emfRuntimeSrc.includes("import('./emf.js')") &&
     emfSrc.includes('return showPromptDialog(message, options);') &&
     !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
 assert('EMF interpretation runtime hooks avoid counted direct window globals',
