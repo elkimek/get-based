@@ -1331,11 +1331,10 @@ console.log('17r. Behavioral Coverage');
 // Asserts plaintext path passes through, encrypted path round-trips.
 try {
   window.__WEARABLES_TEST = true;
-  // CRITICAL: do NOT cache-bust the crypto/store modules. wearables-store
-  // imports crypto.js without cache-bust; if we bust here we'd get a
-  // separate module instance with its own private _sessionKey, and the
-  // store's encrypt path would still see the production module's null
-  // key. Use the production singleton.
+  // CRITICAL: do NOT cache-bust the crypto/store modules. crypto.js injects
+  // its providers into the production store singleton; a cache-busted crypto
+  // instance would own a separate private _sessionKey. Use the production
+  // singletons so encryption state and providers stay paired.
   const cryptoB = await import('../js/crypto.js');
   const storeB  = await import('../js/wearables-store.js');
   const TEST_PROFILE_E = '__test-encrypt-' + Date.now().toString(36);
@@ -1524,6 +1523,10 @@ const storeSrc31 = await fetch('/js/wearables-store.js').then(r => r.text());
 assert('Encrypt-or-throw: session-locked path throws session-locked error (no silent plaintext)',
   /code\s*=\s*'session-locked'/.test(storeSrc31) &&
   /encrypted;\s*unlock with your passphrase before syncing/.test(storeSrc31));
+assert('Wearable storage receives crypto providers without a reverse import',
+  /configureWearablesStoreCrypto\(\{/.test(cryptoSrc31)
+  && /export function configureWearablesStoreCrypto/.test(storeSrc31)
+  && !/import\(['"]\.\/crypto\.js['"]\)/.test(storeSrc31));
 
 // ═══════════════════════════════════════
 // 17t. Settings tab split — Wearables + Agent Access (v1.30.0)

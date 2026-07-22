@@ -8,6 +8,7 @@ import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 import { configureCycleStoreCrypto } from './cycle-store.js';
+import { configureWearablesStoreCrypto } from './wearables-store.js';
 
 export { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 
@@ -307,6 +308,13 @@ export function isEncryptedObject(o) {
 }
 
 configureCycleStoreCrypto({
+  getEncryptionEnabled,
+  encryptObject,
+  isEncryptedObject,
+  decryptObject,
+});
+
+configureWearablesStoreCrypto({
   getEncryptionEnabled,
   encryptObject,
   isEncryptedObject,

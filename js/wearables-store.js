@@ -21,6 +21,35 @@ const STORE_META = 'meta';
 
 const _dbPromises = new Map();
 
+/**
+ * @typedef {{
+ *   getEncryptionEnabled: () => boolean,
+ *   encryptObject: (value: any) => Promise<any>,
+ *   isEncryptedObject: (value: any) => boolean,
+ *   decryptObject: (value: any) => Promise<any>,
+ * }} WearablesStoreCryptoDeps
+ */
+
+/** @type {WearablesStoreCryptoDeps} */
+const wearablesStoreCryptoDeps = {
+  getEncryptionEnabled: () => {
+    try { return localStorage.getItem('labcharts-encryption-enabled') === 'true'; } catch { return false; }
+  },
+  encryptObject: async () => null,
+  isEncryptedObject: value => !!(value && typeof value === 'object' && value._enc === 'v1'),
+  decryptObject: async () => null,
+};
+
+/** @param {Partial<WearablesStoreCryptoDeps>} [deps] */
+export function configureWearablesStoreCrypto(deps = {}) {
+  const previous = { ...wearablesStoreCryptoDeps };
+  if (typeof deps.getEncryptionEnabled === 'function') wearablesStoreCryptoDeps.getEncryptionEnabled = deps.getEncryptionEnabled;
+  if (typeof deps.encryptObject === 'function') wearablesStoreCryptoDeps.encryptObject = deps.encryptObject;
+  if (typeof deps.isEncryptedObject === 'function') wearablesStoreCryptoDeps.isEncryptedObject = deps.isEncryptedObject;
+  if (typeof deps.decryptObject === 'function') wearablesStoreCryptoDeps.decryptObject = deps.decryptObject;
+  return previous;
+}
+
 function dbNameFor(profileId) {
   // Fall back to 'default' so a missing profile id still gets a valid db name.
   return DB_PREFIX + (profileId || 'default');
@@ -87,16 +116,14 @@ function txPromise(tx) {
 // the write; better than landing cleartext rows in an "encrypted at rest"
 // IDB without telling anyone.
 async function _encryptRowIfEnabled(row) {
-  let crypto;
-  try { crypto = await import('./crypto.js'); } catch { return row; }
-  if (!crypto.getEncryptionEnabled?.()) return row;
+  if (!wearablesStoreCryptoDeps.getEncryptionEnabled()) return row;
   // Already-encrypted rows (e.g. from a backup-restore RAW path) pass through
   // untouched. Note: when encryption is OFF we DON'T hit this branch because
   // we returned above; that scenario goes through the RAW upsert API
   // (upsertDailyBatchRaw) which doesn't call this helper.
   const { source, date, _payload, ...rest } = row;
   if (_payload?._enc === 'v1') return row;
-  const env = await crypto.encryptObject(rest);
+  const env = await wearablesStoreCryptoDeps.encryptObject(rest);
   if (!env) {
     // Encryption-on but session locked (or unavailable). Refuse rather than
     // silently writing cleartext. The error propagates up to the adapter
@@ -112,10 +139,8 @@ async function _encryptRowIfEnabled(row) {
 
 async function _decryptRowIfWrapped(row) {
   if (!row || !row._payload) return row;
-  let crypto;
-  try { crypto = await import('./crypto.js'); } catch { return null; }
-  if (!crypto.isEncryptedObject?.(row._payload)) return row;
-  const decrypted = await crypto.decryptObject(row._payload).catch(() => null);
+  if (!wearablesStoreCryptoDeps.isEncryptedObject(row._payload)) return row;
+  const decrypted = await wearablesStoreCryptoDeps.decryptObject(row._payload).catch(() => null);
   // Session locked / corrupt → return null. Earlier we returned the
   // wrapped row, but downstream consumers (`_mergeManualRow`,
   // `upsertDailyBatch`'s read-modify-write) would spread `_payload` into

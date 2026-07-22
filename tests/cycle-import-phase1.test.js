@@ -265,6 +265,29 @@ describe('cycle import phase 1 primitives', () => {
     }
   });
 
+  it('fails closed when wearable encryption is enabled without an unlocked provider', async () => {
+    const profileId = 'wearable-encryption-provider-locked';
+    const wearableStore = await import('../js/wearables-store.js');
+    const previous = wearableStore.configureWearablesStoreCrypto({
+      getEncryptionEnabled: () => true,
+      encryptObject: async () => null,
+      isEncryptedObject: value => value?._enc === 'v1',
+      decryptObject: async () => null,
+    });
+
+    try {
+      await expect(wearableStore.upsertDaily(profileId, {
+        source: 'manual',
+        date: '2026-01-01',
+        rhr: 61,
+      })).rejects.toMatchObject({ code: 'session-locked' });
+      expect(await wearableStore.getAllDailyRaw(profileId)).toEqual([]);
+    } finally {
+      wearableStore.configureWearablesStoreCrypto(previous);
+      await wearableStore.deleteWearablesDB(profileId).catch(() => {});
+    }
+  });
+
   it('migrates cycle, wearable, blob, and hyphenated-profile storage across key changes', async () => {
     const profileId = 'cycle-encryption-migration-profile';
     const importedKey = `labcharts-${profileId}-imported`;
