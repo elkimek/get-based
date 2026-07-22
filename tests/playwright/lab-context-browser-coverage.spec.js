@@ -23,6 +23,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
     ]);
     const { state } = stateModule;
     const outcomes = {};
+    const biologyContextCalls = [];
     const legacyWindowGlobals = [
       'buildLabContext', 'invalidateLabContextCache', 'getContextSummary',
       'isGroupInAIContext', 'setGroupInAIContext',
@@ -52,6 +53,10 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       rangeMode: state.rangeMode,
     };
     const originalLabContextDeps = labContext.configureLabContext({
+      buildBiologyScoresAIContext: (_data, options = {}) => {
+        biologyContextCalls.push({ ignoreContextToggles: options.ignoreContextToggles === true });
+        return '[section:biologyScores]\nInjected Biology Scores context\n[/section:biologyScores]\n\n';
+      },
       buildSunContext: () => '[section:sun]\nSun context\n[/section:sun]\n\n',
     });
 
@@ -378,6 +383,10 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       outcomes.buildLabContextIncludesWearablesAndSunHook =
         context.includes('[section:wearables]')
         && context.includes('[section:sun]');
+      outcomes.buildLabContextUsesInjectedBiologyScoreBuilder =
+        context.includes('Injected Biology Scores context')
+        && biologyContextCalls.some(call => call.ignoreContextToggles === false)
+        && biologyContextCalls.some(call => call.ignoreContextToggles === true);
       outcomes.contextSummaryCoversLabMedicalAndNotes =
         summary.some(area => area.label === 'Lab values' && area.detail.includes('2 markers'))
         && summary.some(area => area.label === 'Medical History' && area.detail.includes('condition'))

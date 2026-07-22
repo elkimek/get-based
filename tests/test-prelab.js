@@ -51,7 +51,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   assert('Lab values section gated by hasLabData', labCtxSrc.includes('if (hasLabData) {') && labCtxSrc.includes("const rangeLabel"),
     'Lab values + flagged results should be wrapped in if (hasLabData)');
   assert('Biology Scores context receives Agent Access context override',
-    labCtxSrc.includes('buildBiologyScoresAIContext(data, { limit: 7, ignoreContextToggles })'),
+    labCtxSrc.includes('labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles })'),
     'Agent Access should not lose Biology Score context flags when in-app Context sources are disabled');
   assert('Flagged results inside hasLabData guard', labCtxSrc.includes("const allFlags = getAllFlaggedMarkers(data)") && labCtxSrc.includes("if (flags.length > 0)"),
     'Flagged results should be inside the hasLabData block');

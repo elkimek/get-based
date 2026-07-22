@@ -14,7 +14,6 @@ import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfi
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
-import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 import {
   CONTEXT_SOURCE_IDS,
   INSIGHT_CONTEXT_CHANGE_FIELDS,
@@ -43,15 +42,26 @@ import {
 
 const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindowHooks} */ (typeof window !== 'undefined' ? window : {});
 
-/** @type {{ buildSunContext: ((options: { tier: string, ignoreContextToggles?: boolean }) => string) | null }} */
+/** @type {{
+ *   buildBiologyScoresAIContext: ((data: any, options: { limit: number, ignoreContextToggles?: boolean }) => string) | null,
+ *   buildSunContext: ((options: { tier: string, ignoreContextToggles?: boolean }) => string) | null,
+ * }} */
 const labContextDeps = {
+  buildBiologyScoresAIContext: null,
   buildSunContext: null,
 };
 
 export function configureLabContext(deps = {}) {
   const previous = { ...labContextDeps };
+  if (Object.prototype.hasOwnProperty.call(deps, 'buildBiologyScoresAIContext')) {
+    labContextDeps.buildBiologyScoresAIContext = typeof deps.buildBiologyScoresAIContext === 'function'
+      ? deps.buildBiologyScoresAIContext
+      : null;
+  }
   if (Object.prototype.hasOwnProperty.call(deps, 'buildSunContext')) {
-    labContextDeps.buildSunContext = deps.buildSunContext;
+    labContextDeps.buildSunContext = typeof deps.buildSunContext === 'function'
+      ? deps.buildSunContext
+      : null;
   }
   return previous;
 }
@@ -399,7 +409,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
     const rangeLabel = state.rangeMode === 'optimal' ? 'optimal' : 'reference';
     ctx += `Note: status labels below use ${rangeLabel} ranges.\n\n`;
-    ctx += buildBiologyScoresAIContext(data, { limit: 7, ignoreContextToggles });
+    ctx += labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles }) || '';
     for (const [catKey, cat] of Object.entries(data.categories)) {
       if (!skipGroupFilter && !ignoreContextToggles && cat.group && !isGroupInAIContext(cat.group)) continue;
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null));
