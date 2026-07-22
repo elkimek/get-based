@@ -163,6 +163,18 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
     }
 
     await deleteCashuDb();
+    const [walletStore, cryptoStore] = await Promise.all([
+      import('/js/cashu-wallet-store.js'),
+      import('/js/crypto.js'),
+    ]);
+    walletStore.configureCashuWalletStoreCryptoDeps({
+      decryptObject: cryptoStore.decryptObject,
+      encryptedGetItem: cryptoStore.encryptedGetItem,
+      encryptedSetItem: cryptoStore.encryptedSetItem,
+      encryptObject: cryptoStore.encryptObject,
+      getEncryptionEnabled: cryptoStore.getEncryptionEnabled,
+      isEncryptedObject: cryptoStore.isEncryptedObject,
+    });
     const wallet = await import(`/js/cashu-wallet.js?cashuWalletCoverage=${Date.now()}`);
     const outcomes = {};
 
@@ -416,6 +428,18 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
     let wallet;
     try {
       await deleteCashuDb();
+      const [walletStore, cryptoStore] = await Promise.all([
+        import('/js/cashu-wallet-store.js'),
+        import('/js/crypto.js'),
+      ]);
+      walletStore.configureCashuWalletStoreCryptoDeps({
+        decryptObject: cryptoStore.decryptObject,
+        encryptedGetItem: cryptoStore.encryptedGetItem,
+        encryptedSetItem: cryptoStore.encryptedSetItem,
+        encryptObject: cryptoStore.encryptObject,
+        getEncryptionEnabled: cryptoStore.getEncryptionEnabled,
+        isEncryptedObject: cryptoStore.isEncryptedObject,
+      });
       wallet = await import(`/js/cashu-wallet.js?cashuFeeCoverage=${Date.now()}`);
       await wallet.setMintUrl('https://mint.fee-coverage.test/Bitcoin');
       const received = await wallet.receiveToken('cashuA-fee-token');
@@ -460,7 +484,18 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
 
   const results = await page.evaluate(async () => {
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const cryptoStore = await import('/js/crypto.js');
+    const [walletStore, cryptoStore] = await Promise.all([
+      import('/js/cashu-wallet-store.js'),
+      import('/js/crypto.js'),
+    ]);
+    walletStore.configureCashuWalletStoreCryptoDeps({
+      decryptObject: cryptoStore.decryptObject,
+      encryptedGetItem: cryptoStore.encryptedGetItem,
+      encryptedSetItem: cryptoStore.encryptedSetItem,
+      encryptObject: cryptoStore.encryptObject,
+      getEncryptionEnabled: cryptoStore.getEncryptionEnabled,
+      isEncryptedObject: cryptoStore.isEncryptedObject,
+    });
     const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
     const previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
       encryptedSetItem: cryptoStore.encryptedSetItem,
