@@ -1,13 +1,11 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 22,
-  "maxLargestCyclicComponent": 19,
+  "maxCyclicModules": 20,
+  "maxLargestCyclicComponent": 17,
   "allowedCyclicModules": [
-    "js/backup-cycle.js",
     "js/backup.js",
     "js/crypto.js",
     "js/cycle-import.js",
-    "js/cycle-store.js",
     "js/cycle.js",
     "js/data.js",
     "js/profile.js",

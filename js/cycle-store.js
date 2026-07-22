@@ -20,6 +20,35 @@ const STORE_META = 'meta';
 
 const _dbPromises = new Map();
 
+/**
+ * @typedef {{
+ *   getEncryptionEnabled: () => boolean,
+ *   encryptObject: (value: any) => Promise<any>,
+ *   isEncryptedObject: (value: any) => boolean,
+ *   decryptObject: (value: any) => Promise<any>,
+ * }} CycleStoreCryptoDeps
+ */
+
+/** @type {CycleStoreCryptoDeps} */
+const cycleStoreCryptoDeps = {
+  getEncryptionEnabled: () => {
+    try { return localStorage.getItem('labcharts-encryption-enabled') === 'true'; } catch { return false; }
+  },
+  encryptObject: async () => null,
+  isEncryptedObject: value => !!(value && typeof value === 'object' && value._enc === 'v1'),
+  decryptObject: async () => null,
+};
+
+/** @param {Partial<CycleStoreCryptoDeps>} [deps] */
+export function configureCycleStoreCrypto(deps = {}) {
+  const previous = { ...cycleStoreCryptoDeps };
+  if (typeof deps.getEncryptionEnabled === 'function') cycleStoreCryptoDeps.getEncryptionEnabled = deps.getEncryptionEnabled;
+  if (typeof deps.encryptObject === 'function') cycleStoreCryptoDeps.encryptObject = deps.encryptObject;
+  if (typeof deps.isEncryptedObject === 'function') cycleStoreCryptoDeps.isEncryptedObject = deps.isEncryptedObject;
+  if (typeof deps.decryptObject === 'function') cycleStoreCryptoDeps.decryptObject = deps.decryptObject;
+  return previous;
+}
+
 function dbNameFor(profileId) {
   return DB_PREFIX + (profileId || 'default');
 }
@@ -95,13 +124,11 @@ function txPromise(tx) {
 }
 
 async function _encryptRowIfEnabled(row) {
-  let crypto;
-  try { crypto = await import('./crypto.js'); } catch { return row; }
-  if (!crypto.getEncryptionEnabled?.()) return row;
+  if (!cycleStoreCryptoDeps.getEncryptionEnabled()) return row;
   const identified = withObservationIdentity(row);
   const { source, date, importId, _payload, ...rest } = identified;
   if (_payload?._enc === 'v1') return identified;
-  const env = await crypto.encryptObject(rest);
+  const env = await cycleStoreCryptoDeps.encryptObject(rest);
   if (!env) {
     const e = new Error('Cycle storage is encrypted; unlock with your passphrase before importing cycle data.');
     /** @type {Error & { code?: string }} */ (e).code = 'session-locked';
@@ -112,10 +139,8 @@ async function _encryptRowIfEnabled(row) {
 
 async function _decryptRowIfWrapped(row) {
   if (!row || !row._payload) return row;
-  let crypto;
-  try { crypto = await import('./crypto.js'); } catch { return null; }
-  if (!crypto.isEncryptedObject?.(row._payload)) return row;
-  const decrypted = await crypto.decryptObject(row._payload).catch(() => null);
+  if (!cycleStoreCryptoDeps.isEncryptedObject(row._payload)) return row;
+  const decrypted = await cycleStoreCryptoDeps.decryptObject(row._payload).catch(() => null);
   if (!decrypted) return null;
   return {
     source: row.source,
@@ -126,12 +151,10 @@ async function _decryptRowIfWrapped(row) {
 }
 
 async function _encryptImportMetaIfEnabled(meta) {
-  let crypto;
-  try { crypto = await import('./crypto.js'); } catch { return meta; }
-  if (!crypto.getEncryptionEnabled?.()) return meta;
+  if (!cycleStoreCryptoDeps.getEncryptionEnabled()) return meta;
   const { importId, source, _payload, ...rest } = meta;
   if (_payload?._enc === 'v1') return meta;
-  const env = await crypto.encryptObject(rest);
+  const env = await cycleStoreCryptoDeps.encryptObject(rest);
   if (!env) {
     const e = new Error('Cycle storage is encrypted; unlock with your passphrase before importing cycle data.');
     /** @type {Error & { code?: string }} */ (e).code = 'session-locked';
@@ -142,10 +165,8 @@ async function _encryptImportMetaIfEnabled(meta) {
 
 async function _decryptImportMetaIfWrapped(meta) {
   if (!meta || !meta._payload) return meta;
-  let crypto;
-  try { crypto = await import('./crypto.js'); } catch { return null; }
-  if (!crypto.isEncryptedObject?.(meta._payload)) return meta;
-  const decrypted = await crypto.decryptObject(meta._payload).catch(() => null);
+  if (!cycleStoreCryptoDeps.isEncryptedObject(meta._payload)) return meta;
+  const decrypted = await cycleStoreCryptoDeps.decryptObject(meta._payload).catch(() => null);
   if (!decrypted) return null;
   return { importId: meta.importId, source: meta.source, ...decrypted };
 }

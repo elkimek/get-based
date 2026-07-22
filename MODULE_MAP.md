@@ -10,11 +10,11 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 462 |
-| Internal import edges | 2059 |
-| Dynamic internal edges | 62 |
-| Modules participating in cycles | 22 |
+| Internal import edges | 2058 |
+| Dynamic internal edges | 60 |
+| Modules participating in cycles | 20 |
 | Cyclic components | 2 |
-| Largest cyclic component | 19 |
+| Largest cyclic component | 17 |
 | Computed dynamic imports | 2 |
 
 ## Enforced source boundaries
@@ -45,8 +45,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 51 | [`js/sync-configure.js`](js/sync-configure.js) | 24 |
 | [`js/profile.js`](js/profile.js) | 50 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/chat-send.js`](js/chat-send.js) | 22 |
-| [`js/crypto.js`](js/crypto.js) | 29 | [`js/views.js`](js/views.js) | 20 |
-| [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/wearables-connect.js`](js/wearables-connect.js) | 20 |
+| [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/views.js`](js/views.js) | 20 |
+| [`js/crypto.js`](js/crypto.js) | 28 | [`js/wearables-connect.js`](js/wearables-connect.js) | 20 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 18 | [`js/profile.js`](js/profile.js) | 18 |
 | [`js/constants.js`](js/constants.js) | 17 | [`js/sun.js`](js/sun.js) | 18 |
@@ -58,9 +58,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 These are existing debt, not approved architecture. CI prevents new modules from joining a cycle and prevents the cycle budgets from increasing.
 
-<details><summary>Component 1 — 19 modules</summary>
+<details><summary>Component 1 — 17 modules</summary>
 
-[`js/backup-cycle.js`](js/backup-cycle.js), [`js/backup.js`](js/backup.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+[`js/backup.js`](js/backup.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 
 </details>
 
@@ -296,7 +296,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>crypto</code> family — 2 modules</summary>
 
 - [`js/crypto-key-cache.js`](js/crypto-key-cache.js) → no in-scope imports
-- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*, [`js/data-merge.js`](js/data-merge.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
+- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
 
 </details>
 
@@ -306,7 +306,7 @@ Native browser modules shipped with the static application.
 - [`js/cycle-import-file.js`](js/cycle-import-file.js) → no in-scope imports
 - [`js/cycle-import.js`](js/cycle-import.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js), [`js/cycle-import-file.js`](js/cycle-import-file.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/cycle.js`](js/cycle.js) *(dynamic)*, [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*
 - [`js/cycle-runtime.js`](js/cycle-runtime.js) → no in-scope imports
-- [`js/cycle-store.js`](js/cycle-store.js) → [`js/crypto.js`](js/crypto.js) *(dynamic)*
+- [`js/cycle-store.js`](js/cycle-store.js) → no in-scope imports
 - [`js/cycle-summary.js`](js/cycle-summary.js) → no in-scope imports
 - [`js/cycle.js`](js/cycle.js) → [`js/constants.js`](js/constants.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js)
 

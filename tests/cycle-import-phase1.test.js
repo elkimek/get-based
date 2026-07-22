@@ -26,6 +26,7 @@ import { createDefaultProfileData } from '../js/profile.js';
 import { state } from '../js/state.js';
 import {
   clearCycleImport,
+  configureCycleStoreCrypto,
   countCycleSource,
   deleteCycleDB,
   getAllCycleObservationsRaw,
@@ -237,6 +238,29 @@ describe('cycle import phase 1 primitives', () => {
       localStorage.removeItem('labcharts-encryption-enabled');
       if (previousTestFlag === undefined) delete globalThis.__WEARABLES_TEST;
       else globalThis.__WEARABLES_TEST = previousTestFlag;
+      await deleteCycleDB(profileId).catch(() => {});
+    }
+  });
+
+  it('fails closed when cycle encryption is enabled without an unlocked provider', async () => {
+    const profileId = 'cycle-encryption-provider-locked';
+    const previous = configureCycleStoreCrypto({
+      getEncryptionEnabled: () => true,
+      encryptObject: async () => null,
+      isEncryptedObject: value => value?._enc === 'v1',
+      decryptObject: async () => null,
+    });
+
+    try {
+      await expect(upsertCycleObservationBatch(profileId, [{
+        source: 'drip',
+        importId: 'locked-import',
+        date: '2026-01-01',
+        note: 'must not land as plaintext',
+      }])).rejects.toMatchObject({ code: 'session-locked' });
+      expect(await getAllCycleObservationsRaw(profileId)).toEqual([]);
+    } finally {
+      configureCycleStoreCrypto(previous);
       await deleteCycleDB(profileId).catch(() => {});
     }
   });
