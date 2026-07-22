@@ -267,8 +267,9 @@ assert('App shell injects sync pull profile refresh without bridge lookups',
     && appShellHooksSrc.includes("import { configureSyncPull } from './sync-pull.js';")
     && appShellHooksSrc.includes('configureSyncPull({ renderProfileButton });'));
 
-assert('App shell injects PDF import review view callbacks without bridge lookups',
-  appShellHooksSrc.includes('configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });'));
+assert('App shell injects PDF import review callbacks without a runtime back-import',
+  appShellHooksSrc.includes("const confirmPdfImport = () => import('./pdf-import-commit.js')")
+    && appShellHooksSrc.includes('configurePdfImportReviewRuntimeDeps({ buildSidebar, confirmImport: confirmPdfImport, navigate });'));
 
 assert('App shell injects views router callbacks without bridge lookups',
   appShellHooksSrc.includes('configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });'));

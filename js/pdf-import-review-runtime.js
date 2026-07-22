@@ -11,7 +11,7 @@ function getRuntimeWindow() {
 
 const pdfImportReviewRuntimeDeps = {
   buildSidebar: /** @type {null | (() => void)} */ (null),
-  confirmImport: () => import('./pdf-import-commit.js').then(module => module.confirmImport()),
+  confirmImport: /** @type {null | (() => unknown)} */ (null),
   navigate: /** @type {null | ((route: string) => void)} */ (null),
   updateHeaderDates,
 };
@@ -23,7 +23,11 @@ export function configurePdfImportReviewRuntimeDeps(deps = {}) {
       ? /** @type {() => void} */ (deps.buildSidebar)
       : null;
   }
-  if (typeof deps.confirmImport === 'function') pdfImportReviewRuntimeDeps.confirmImport = deps.confirmImport;
+  if ('confirmImport' in deps) {
+    pdfImportReviewRuntimeDeps.confirmImport = typeof deps.confirmImport === 'function'
+      ? /** @type {() => unknown} */ (deps.confirmImport)
+      : null;
+  }
   if ('navigate' in deps) {
     pdfImportReviewRuntimeDeps.navigate = typeof deps.navigate === 'function'
       ? /** @type {(route: string) => void} */ (deps.navigate)
@@ -45,8 +49,9 @@ export function clearPendingImportRuntime() {
 }
 
 export function confirmImportFromRuntime() {
-  if (!getRuntimeWindow()) return;
-  return pdfImportReviewRuntimeDeps.confirmImport();
+  const confirmImport = pdfImportReviewRuntimeDeps.confirmImport;
+  if (!getRuntimeWindow() || !confirmImport) return false;
+  return confirmImport();
 }
 
 export function getPendingImportFromRuntime() {

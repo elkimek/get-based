@@ -68,6 +68,7 @@ try {
   setPendingImportRuntime(parseResult, refLookup);
   assert('pending import stored in runtime', getPendingImportFromRuntime() === parseResult);
   assert('pending import ref lookup stored in runtime', getPendingImportRefLookup() === refLookup);
+  assert('unconfigured confirm callback is a safe no-op', confirmImportFromRuntime() === false);
 
   const viewCalls = [];
   configurePdfImportReviewRuntimeDeps({
@@ -112,6 +113,8 @@ try {
   });
   confirmImportFromRuntime();
   assert('confirm callback uses configured module dependency', confirmCalls === 1);
+  configurePdfImportReviewRuntimeDeps({ confirmImport: null });
+  assert('confirm callback can be cleared safely', confirmImportFromRuntime() === false);
 
   let diffArgs = null;
   let diffThis = null;
