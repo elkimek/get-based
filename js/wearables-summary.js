@@ -8,7 +8,6 @@
 // Evolu sync writes to ~4–8/month instead of ~30/month.
 
 import { state } from './state.js';
-import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
   ensureImportedArray,
@@ -23,6 +22,20 @@ import {
   isoDay,
 } from './wearable-adapters.js';
 import { isDebugMode } from './utils.js';
+
+/** @type {{ saveImportedData: () => any }} */
+const wearableSummaryDeps = {
+  saveImportedData: () => {},
+};
+
+/** @param {{ saveImportedData?: () => any }} [deps] */
+export function configureWearableSummary(deps = {}) {
+  const previous = { ...wearableSummaryDeps };
+  if (typeof deps.saveImportedData === 'function') {
+    wearableSummaryDeps.saveImportedData = deps.saveImportedData;
+  }
+  return previous;
+}
 
 // ─────────────────────────────────────────────────────────
 // Tunables — see https://docs.getbased.health/developers/wearables-internals
@@ -369,7 +382,7 @@ export function persistWearableSummary(newSummary, anomalyEvents) {
   if (!state.importedData) return false;
   state.importedData.wearableSummary = newSummary;
   appendAnomalyToChangeHistory(anomalyEvents);
-  saveImportedData();
+  wearableSummaryDeps.saveImportedData();
   return true;
 }
 
