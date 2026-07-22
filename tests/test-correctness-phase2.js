@@ -317,6 +317,12 @@ assert('app shell injects dashboard composition into the views facade',
   dashboardCompositionSrc.includes('export function createDashboardViewComposition') &&
   dashboardCompositionSrc.includes('createDashboardWidgetRenderers') &&
   dashboardCompositionSrc.includes('createDashboardWidgetControls'));
+assert('app shell injects Biology Score AI context into lab context',
+  !lcSrc.includes("from './biology-score-ai-context.js'") &&
+  lcSrc.includes('labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles })') &&
+  appShellHooksSrc.includes("from './biology-score-ai-context.js'") &&
+  appShellHooksSrc.includes("from './lab-context.js'") &&
+  appShellHooksSrc.includes('configureLabContext({ buildBiologyScoresAIContext })'));
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
 console.log('\n5. Polar OAuth callback');

@@ -3,6 +3,7 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { setAIPaused } from './api.js';
+import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';
 import { closeChangelog } from './changelog.js';
@@ -88,6 +89,7 @@ import { closeImportModal } from './pdf-import-review.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
+import { configureLabContext } from './lab-context.js';
 import { configureLensPageShell } from './lens-page-shell.js';
 import { closeModal, rememberModalTrigger } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
@@ -150,6 +152,7 @@ import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
 
 configureDashboardViewFactory(createDashboardViewComposition);
+configureLabContext({ buildBiologyScoresAIContext });
 configureProfileRuntimeDeps({
   dispatchProfileSwitched,
   invalidateProfileContextCache,

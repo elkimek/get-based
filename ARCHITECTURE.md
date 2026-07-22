@@ -91,10 +91,10 @@ foundation, storage adapters, and pure utilities
   service locators.
 
 This fine-grained direction is a migration target, not a claim about the
-current graph. The current baseline still contains a 204-module strongly
-connected component. The checker prevents new modules from entering cycles
-and prevents the cycle budgets from increasing while existing edges are
-removed incrementally.
+current graph. The baseline still contains legacy strongly connected
+components. The checker prevents new modules from entering cycles and prevents
+the cycle budgets from increasing while existing edges are removed
+incrementally.
 
 ## Module ownership map
 
