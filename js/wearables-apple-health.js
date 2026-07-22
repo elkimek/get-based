@@ -20,7 +20,11 @@ import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode } from './utils.js';
-import { getAppleHealthJSZip } from './wearables-apple-health-runtime.js';
+import {
+  getAppleHealthJSZip,
+  parseAppleHealthCycleRuntime,
+  showAppleHealthCyclePreviewRuntime,
+} from './wearables-apple-health-runtime.js';
 
 // ─────────────────────────────────────────────────────────
 // File ingestion entry point
@@ -83,14 +87,13 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
   let cycleError = null;
   try {
     onProgress?.({ stage: 'checking-cycle', pct: 96, rows: rows.length, startDate, endDate });
-    const cycleMod = await import('./cycle-import.js');
-    const cycleParsed = await cycleMod.parseAppleHealthCycleBlob(xmlBlob, file.name || 'apple-health-export.xml', () => {
+    const cycleParsed = await parseAppleHealthCycleRuntime(xmlBlob, file.name || 'apple-health-export.xml', () => {
       onProgress?.({ stage: 'parsing-cycle', pct: 96, rows: rows.length, startDate, endDate });
     });
     if (cycleParsed?.observations?.length) {
       onProgress?.({ stage: 'reviewing-cycle', pct: 98, rows: rows.length, startDate, endDate });
       await options.beforeCycleReview?.();
-      cycleImport = await cycleMod.showCycleImportPreview(cycleParsed);
+      cycleImport = await showAppleHealthCyclePreviewRuntime(cycleParsed);
     }
   } catch (err) {
     cycleError = err?.message || String(err);

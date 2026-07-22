@@ -1,11 +1,8 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 2,
-  "maxLargestCyclicComponent": 2,
-  "allowedCyclicModules": [
-    "js/cycle-import.js",
-    "js/wearables-apple-health.js"
-  ],
+  "maxCyclicModules": 0,
+  "maxLargestCyclicComponent": 0,
+  "allowedCyclicModules": [],
   "allowedComputedDynamicImports": [
     {
       "file": "js/lens-local-worker.js",

@@ -232,6 +232,12 @@ assert('App shell injects Cycle view callbacks without bridge lookups',
     && appShellHooksSrc.includes("import { openMenstrualCycleEditor } from './cycle.js'")
     && appShellHooksSrc.includes('openEditor: openMenstrualCycleEditor,'));
 
+assert('App shell injects Apple Health cycle import callbacks',
+  appShellHooksSrc.includes("import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import.js'")
+    && appShellHooksSrc.includes("import { configureAppleHealthRuntimeDeps } from './wearables-apple-health-runtime.js'")
+    && appShellHooksSrc.includes('parseCycleBlob: parseAppleHealthCycleBlob,')
+    && appShellHooksSrc.includes('showCyclePreview: showCycleImportPreview,'));
+
 assert('App shell injects Supplements view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")
     && appShellHooksSrc.includes('configureSupplementsRuntimeDeps({ closeModal, navigate });'));
