@@ -3,7 +3,7 @@
 
 import {
   _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
-} from './sync-payload.js';
+} from './sync-payload-codec.js';
 import {
   DELTA_MAP_CONFIG,
   _djb2, _isAllowlistSafeId, _isProtoPollutionKey,

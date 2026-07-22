@@ -361,6 +361,7 @@
     "js/sync-storage-cleanup.js",
     "js/sync-recovery.js",
     "js/sync-payload-collectors.js",
+    "js/sync-payload-codec.js",
     "js/sync-payload.js",
     "js/sync-apply.js",
     "js/sync-reconcile.js",

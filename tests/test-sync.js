@@ -118,6 +118,7 @@ await import('../js/settings.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
+  const syncPayloadCodecSrc = await fetchWithRetry('js/sync-payload-codec.js');
   const apiProviderStorageSrc = await fetchWithRetry('js/api-provider-storage.js');
   const apiProviderStorageRuntimeSrc = await fetchWithRetry('js/api-provider-storage-runtime.js');
   const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
@@ -981,6 +982,22 @@ await import('../js/settings.js');
       && syncPayloadCollectorsSrc.includes('export function collectDisplayPrefs'));
   assert('service worker precaches sync-payload-collectors.js',
     serviceWorkerSrc.includes("'/js/sync-payload-collectors.js'"));
+  assert('sync-payload-codec.js owns wire codecs without app-state dependencies',
+    syncPayloadSrc.includes("from './sync-payload-codec.js'")
+      && syncPayloadCodecSrc.includes('export async function _gzipString')
+      && syncPayloadCodecSrc.includes('export async function _gunzipToStringCapped')
+      && syncPayloadCodecSrc.includes('export function _bytesToBase64')
+      && syncPayloadCodecSrc.includes('export function _base64ToBytes')
+      && !/^\s*(?:import|export\s+\{[^}]*\}\s+from)\s/m.test(syncPayloadCodecSrc));
+  assert('delta codecs and planners import the pure payload codec directly',
+    [
+      syncDeltaRowCodecSrc,
+      syncDeltaArrayPlannerSrc,
+      syncDeltaMapPlannerSrc,
+      syncDeltaScalarPlannerSrc,
+    ].every(src => src.includes("from './sync-payload-codec.js'") && !src.includes("from './sync-payload.js'")));
+  assert('service worker precaches sync-payload-codec.js',
+    serviceWorkerSrc.includes("'/js/sync-payload-codec.js'"));
   assert('sync-payload.js owns buildSyncPayload',
     syncPushSrc.includes("from './sync-payload.js'")
       && syncPayloadSrc.includes('export async function buildSyncPayload'));
@@ -2455,9 +2472,9 @@ await import('../js/settings.js');
 
   // Decompression-bomb defence
   assert('_gunzipToStringCapped defined with size cap',
-    /_PER_ROW_DECOMPRESSED_CAP_BYTES\s*=\s*1024\s*\*\s*1024[\s\S]{0,500}async function _gunzipToStringCapped/.test(syncPayloadSrc));
+    /_PER_ROW_DECOMPRESSED_CAP_BYTES\s*=\s*1024\s*\*\s*1024[\s\S]{0,500}async function _gunzipToStringCapped/.test(syncPayloadCodecSrc));
   assert('_gunzipToStringCapped throws on cap exceeded',
-    /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncPayloadSrc));
+    /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncPayloadCodecSrc));
   assert('All per-row gunzip sites use the capped variant',
     /export async function decodeRowPayload[\s\S]{0,500}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncDeltaRowCodecSrc)
       && (syncDeltaMergeSearchSrc.match(/await decodeRowPayload\(row\)/g) || []).length >= 3);
@@ -2468,7 +2485,7 @@ await import('../js/settings.js');
   assert('Blob path uses _gunzipToStringCapped with MAX_SYNC_PAYLOAD_BYTES',
     /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
   assert('Dead _gunzipToString wrapper removed (only capped variant remains)',
-    !/async function _gunzipToString\(bytes\)/.test(syncSrc + syncPayloadSrc));
+    !/async function _gunzipToString\(bytes\)/.test(syncSrc + syncPayloadSrc + syncPayloadCodecSrc));
 
   // Runtime boundary test for the gunzip cap. Crafts a payload that
   // gunzips to (cap - 1) bytes and asserts it passes; then a payload

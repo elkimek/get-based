@@ -1,7 +1,7 @@
 // @ts-check
 // sync-delta-array-planner.js - Push-side array delta planner.
 
-import { _bytesToBase64, _gzipString } from './sync-payload.js';
+import { _bytesToBase64, _gzipString } from './sync-payload-codec.js';
 import {
   DELTA_ARRAY_CONFIG,
   _djb2, _isAllowlistSafeId,

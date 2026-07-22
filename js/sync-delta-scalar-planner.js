@@ -1,7 +1,7 @@
 // @ts-check
 // sync-delta-scalar-planner.js - Push-side singleton scalar delta planner.
 
-import { _bytesToBase64, _gzipString } from './sync-payload.js';
+import { _bytesToBase64, _gzipString } from './sync-payload-codec.js';
 import { _djb2 } from './sync-delta-registry.js';
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
