@@ -594,6 +594,9 @@ await import('../js/settings.js');
   assert('sync-storage-cleanup.js owns emergency sync storage compaction',
     syncSrc.includes("from './sync-storage-cleanup.js'")
       && syncConfigureSrc.includes("from './sync-storage-cleanup.js'")
+      && syncConfigureSrc.includes('configureSyncStorageCleanup({ saveImportedData })')
+      && syncStorageCleanupSrc.includes('export function configureSyncStorageCleanup')
+      && !syncStorageCleanupSrc.includes("import('./data.js')")
       && syncStorageCleanupSrc.includes('export async function cleanStorage')
       && syncStorageCleanupSrc.includes('changeHistory')
       && syncStorageCleanupSrc.includes('labcharts-openrouter-models')

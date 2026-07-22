@@ -6,6 +6,22 @@ import { showNotification } from './utils.js';
 import { logSyncEvent } from './sync-state.js';
 import { trimImportedArray } from './data-merge.js';
 
+/** @type {{ saveImportedData: () => Promise<any> }} */
+const syncStorageCleanupDeps = {
+  saveImportedData: async () => {
+    throw new Error('Sync storage cleanup is not configured');
+  },
+};
+
+/** @param {{ saveImportedData?: () => Promise<any> }} [deps] */
+export function configureSyncStorageCleanup(deps = {}) {
+  const previous = { ...syncStorageCleanupDeps };
+  if (typeof deps.saveImportedData === 'function') {
+    syncStorageCleanupDeps.saveImportedData = deps.saveImportedData;
+  }
+  return previous;
+}
+
 // "Clean storage" - emergency localStorage compaction. The 'imported'
 // blob can grow past the browser's 5 MB localStorage cap (caps were
 // bypassed by the cross-device merge before the data-merge.js fix).
@@ -37,8 +53,7 @@ export async function cleanStorage() {
     historyTrimmed = state.importedData.changeHistory.length - 200;
     trimImportedArray(state.importedData, 'changeHistory', 200);
     try {
-      const { saveImportedData } = await import('./data.js');
-      await saveImportedData();
+      await syncStorageCleanupDeps.saveImportedData();
     } catch (e) {
       console.warn('[sync] cleanStorage: saveImportedData failed:', e?.message || e);
     }

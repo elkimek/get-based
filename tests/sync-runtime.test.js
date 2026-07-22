@@ -51,6 +51,7 @@ import {
   setSyncAppOwner,
 } from '../js/sync-runtime.js';
 import { getRecentSyncEvents, resetSyncStatus, updateSyncStatus } from '../js/sync-state.js';
+import { cleanStorage, configureSyncStorageCleanup } from '../js/sync-storage-cleanup.js';
 import { state } from '../js/state.js';
 import {
   _resetAgentAccessMigrationStateForTesting,
@@ -705,6 +706,26 @@ describe('sync push runtime behavior', () => {
 });
 
 describe('sync cleanup and rebroadcast runtime behavior', () => {
+  it('persists trimmed change history through the configured data saver', async () => {
+    const previousImportedData = state.importedData;
+    const saveImportedData = vi.fn().mockResolvedValue(true);
+    const previousDeps = configureSyncStorageCleanup({ saveImportedData });
+    state.importedData = {
+      changeHistory: Array.from({ length: 205 }, (_, index) => ({ index })),
+    };
+
+    try {
+      const result = await cleanStorage();
+
+      expect(result.historyTrimmed).toBe(5);
+      expect(state.importedData.changeHistory).toHaveLength(200);
+      expect(saveImportedData).toHaveBeenCalledOnce();
+    } finally {
+      state.importedData = previousImportedData;
+      configureSyncStorageCleanup(previousDeps);
+    }
+  });
+
   it('recognizes and clears disable-time sync storage plus stale pull hash keys', () => {
     expect(isSyncDisableCleanupKey(`labcharts-${PROFILE_ID}-delta-sunSessions`)).toBe(true);
     expect(isSyncDisableCleanupKey(`labcharts-${PROFILE_ID}-sync-cutover-v2`)).toBe(true);

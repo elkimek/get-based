@@ -2,6 +2,7 @@
 // sync-configure.js - Dependency wiring for the sync subsystem.
 
 import { showNotification, isDebugMode } from './utils.js';
+import { saveImportedData } from './data.js';
 import { getProfiles } from './profile.js';
 import { configureRelayHealth } from './sync-relay-health.js';
 import { logSyncEvent, updateSyncStatus } from './sync-state.js';
@@ -34,7 +35,7 @@ import {
 import {
   configureSyncSubscriptions, getSyncSubscriptionFireCount,
 } from './sync-subscriptions.js';
-import { cleanStorage } from './sync-storage-cleanup.js';
+import { cleanStorage, configureSyncStorageCleanup } from './sync-storage-cleanup.js';
 import {
   getSyncAppOwner, getSyncAppOwnerError, getSyncEvolu, getSyncItemRowQuery,
   getSyncProfileQuery, getSyncTombstoneQuery, isSyncEvoluReady,
@@ -46,6 +47,7 @@ function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 /** @param {{ enableSync?: (...args: any[]) => any, disableSync?: (...args: any[]) => any }} [deps] */
 export function configureSyncModules({ enableSync, disableSync } = {}) {
   configureSyncPayload({ getProfiles });
+  configureSyncStorageCleanup({ saveImportedData });
 
   configureRelayHealth({
     getAppOwner: getSyncAppOwner,
