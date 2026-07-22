@@ -37,7 +37,7 @@ import {
   isSyncDisableCleanupKey,
 } from '../js/sync-disable-cleanup.js';
 import { clearStaleSyncHashKeysOnce } from '../js/sync-pull-maintenance.js';
-import { parseSyncPayload } from '../js/sync-payload.js';
+import { buildSyncPayload, configureSyncPayload, parseSyncPayload } from '../js/sync-payload.js';
 import { collectAISettings } from '../js/sync-payload-collectors.js';
 import { maybeScheduleRebroadcast } from '../js/sync-pull-rebroadcast.js';
 import { applyCommittedDeltas, planProfileDeltas } from '../js/sync-push-deltas.js';
@@ -186,6 +186,20 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('sync payload composition', () => {
+  it('uses the configured profile provider for outbound metadata', async () => {
+    const profile = { id: PROFILE_ID, name: 'Configured profile' };
+    const previous = configureSyncPayload({ getProfiles: () => [profile] });
+
+    try {
+      const payload = JSON.parse(await buildSyncPayload(PROFILE_ID, { entries: [] }));
+      expect(payload.profile).toEqual(profile);
+    } finally {
+      configureSyncPayload(previous);
+    }
+  });
 });
 
 describe('sync apply runtime behavior', () => {

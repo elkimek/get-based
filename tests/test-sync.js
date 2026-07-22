@@ -1012,6 +1012,10 @@ await import('../js/settings.js');
   assert('sync-payload.js owns buildSyncPayload',
     syncPushSrc.includes("from './sync-payload.js'")
       && syncPayloadSrc.includes('export async function buildSyncPayload'));
+  assert('sync composition injects profile metadata into the payload builder',
+    syncPayloadSrc.includes('export function configureSyncPayload')
+      && !syncPayloadSrc.includes("from './profile.js'")
+      && syncConfigureSrc.includes('configureSyncPayload({ getProfiles });'));
   assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncPayloadSrc.includes('cutover ? 4 : 3'));
   assert('buildSyncPayload includes importedData', syncPayloadSrc.includes('importedData,') || syncPayloadSrc.includes('importedData:'));
   assert('buildSyncPayload includes profile metadata', syncPayloadSrc.includes('profile: profile'));
