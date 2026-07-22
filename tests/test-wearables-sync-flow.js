@@ -47,6 +47,14 @@ const store = await import('../js/wearables-store.js');
 const summary = await import('../js/wearables-summary.js');
 const manual = await import('../js/wearables-manual.js');
 const syncModule = await import('../js/sync.js');
+const { daysAgoIso } = await import('../js/wearable-adapters.js');
+
+// Keep vendor fixtures inside the production 90-day summary window. Fixed
+// calendar dates eventually age out and turn this orchestration test red even
+// though the backfill and summary behavior is still correct.
+const recentVendorDays = [3, 2, 1].map(days => daysAgoIso(days));
+const [recentVendorDay1, recentVendorDay2, recentVendorDay3] = recentVendorDays;
+const partialFailureDay = daysAgoIso(0);
 
 // ─────────────────────────────────────────────────────────
 // Test profile + harness — isolate state so the live profile is untouched.
@@ -141,15 +149,15 @@ try {
   installRoutes([
     { matcher: 'usercollection/sleep', body: {
       data: [
-        { day: '2026-04-20', total_sleep_duration: 26000, average_hrv: 38, average_heart_rate: 60, lowest_heart_rate: 54 },
-        { day: '2026-04-21', total_sleep_duration: 25000, average_hrv: 42, average_heart_rate: 58, lowest_heart_rate: 52 },
-        { day: '2026-04-22', total_sleep_duration: 27000, average_hrv: 40, average_heart_rate: 59, lowest_heart_rate: 53 },
+        { day: recentVendorDay1, total_sleep_duration: 26000, average_hrv: 38, average_heart_rate: 60, lowest_heart_rate: 54 },
+        { day: recentVendorDay2, total_sleep_duration: 25000, average_hrv: 42, average_heart_rate: 58, lowest_heart_rate: 52 },
+        { day: recentVendorDay3, total_sleep_duration: 27000, average_hrv: 40, average_heart_rate: 59, lowest_heart_rate: 53 },
       ], next_token: null,
     }},
     { matcher: 'usercollection/daily_sleep', body: { data: [
-      { day: '2026-04-20', score: 78 },
-      { day: '2026-04-21', score: 82 },
-      { day: '2026-04-22', score: 75 },
+      { day: recentVendorDay1, score: 78 },
+      { day: recentVendorDay2, score: 82 },
+      { day: recentVendorDay3, score: 75 },
     ], next_token: null }},
     { matcher: /heartrate.*start_datetime/, body: { data: [], next_token: null }},
     { matcher: /usercollection\//, body: { data: [], next_token: null }},
@@ -161,12 +169,12 @@ try {
   assert('backfillWearable returns endDate', !!result.endDate);
   assert('backfillWearable produced ≥3 rows from the sleep payload', result.rows >= 3);
 
-  const rows = await store.getDailyRange(TEST_PROFILE_ID, 'oura', '2026-04-19', '2026-04-25');
+  const rows = await store.getDailyRange(TEST_PROFILE_ID, 'oura', daysAgoIso(4), partialFailureDay);
   assert('Oura rows persisted to L1 IDB', rows.length >= 3);
-  const day20 = rows.find(r => r.date === '2026-04-20');
-  assert('Persisted row carries hrv_rmssd from sleep payload', day20?.hrv_rmssd === 38);
-  assert('Persisted row carries rhr from sleep lowest_heart_rate', day20?.rhr === 54);
-  assert('Persisted row carries sleep_score from daily_sleep', day20?.sleep_score === 78);
+  const firstRecentRow = rows.find(r => r.date === recentVendorDay1);
+  assert('Persisted row carries hrv_rmssd from sleep payload', firstRecentRow?.hrv_rmssd === 38);
+  assert('Persisted row carries rhr from sleep lowest_heart_rate', firstRecentRow?.rhr === 54);
+  assert('Persisted row carries sleep_score from daily_sleep', firstRecentRow?.sleep_score === 78);
 
   const meta = await store.getMeta(TEST_PROFILE_ID, 'last-sync:oura');
   assert('last-sync meta written after backfill', !!meta);
@@ -219,9 +227,10 @@ try {
     return origMockFetch.call(window, input, init);
   };
   await connect.incrementalSyncWearable('oura');
-  assert('incrementalSync requests start_date ≥ 2026-01-01 (no full re-pull)',
-    observedStart !== null && observedStart >= '2026-01-01',
-    `observed start_date=${observedStart}`);
+  const expectedIncrementalStart = daysAgoIso(7);
+  assert('incrementalSync requests only the rolling 7-day window',
+    observedStart === expectedIncrementalStart,
+    `observed start_date=${observedStart}, expected ${expectedIncrementalStart}`);
 } finally { restore(); }
 
 // 3b. Force-mode incrementalSync — when the user clicks "Sync now" we pass
@@ -283,7 +292,7 @@ console.log('4. Partial Failure');
 try {
   installRoutes([
     { matcher: 'usercollection/sleep', body: {
-      data: [{ day: '2026-04-23', total_sleep_duration: 26000, average_hrv: 35, average_heart_rate: 62 }],
+      data: [{ day: partialFailureDay, total_sleep_duration: 26000, average_hrv: 35, average_heart_rate: 62 }],
       next_token: null,
     }},
     { matcher: 'usercollection/daily_readiness', status: 500, body: { error: 'server' }},
@@ -295,9 +304,9 @@ try {
   catch (e) { err = e; }
   assert('Backfill swallows per-endpoint 5xx and continues with the rest',
     err === null);
-  const rows = await store.getDailyRange(TEST_PROFILE_ID, 'oura', '2026-04-23', '2026-04-23');
+  const rows = await store.getDailyRange(TEST_PROFILE_ID, 'oura', partialFailureDay, partialFailureDay);
   assert('Sleep-derived row persists even when daily_readiness 500s',
-    rows.some(r => r.date === '2026-04-23' && r.hrv_rmssd === 35));
+    rows.some(r => r.date === partialFailureDay && r.hrv_rmssd === 35));
 } finally { restore(); }
 
 // ═══════════════════════════════════════
