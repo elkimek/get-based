@@ -577,6 +577,9 @@ await import('../js/settings.js');
   assert('sync-save-hooks.js owns save/chat/profile debounce hooks',
     syncSrc.includes("from './sync-save-hooks.js'")
       && syncSaveHooksSrc.includes('export function configureSyncSaveHooks')
+      && syncSaveHooksSrc.includes("from './profile-storage-key.js'")
+      && !syncSaveHooksSrc.includes("from './profile.js'")
+      && /configureSyncSaveHooks\(\{[\s\S]{0,260}createDefaultProfileData,[\s\S]{0,80}migrateProfileData/.test(syncConfigureSrc)
       && syncSaveHooksSrc.includes('export function bindSyncSaveHookEvents')
       && syncSaveHooksSrc.includes('export function clearSyncSaveTimers')
       && syncSaveHooksSrc.includes('export function onDataSaved')
