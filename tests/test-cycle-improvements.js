@@ -278,20 +278,25 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     const previousCycleRuntime = cycleRuntime.configureCycleRuntimeDeps({
       closeModal: () => runtimeCalls.push(['close']),
       navigate: category => runtimeCalls.push(['navigate', category]),
+      openEditor: () => runtimeCalls.push(['open-editor']),
       renderProfileButton: () => runtimeCalls.push(['render-profile-button']),
     });
     cycleRuntime.closeCycleModalRuntime();
     const didNavigate = cycleRuntime.navigateCycleViewRuntime('cycle');
+    const didOpenEditor = cycleRuntime.openCycleEditorRuntime();
     cycleRuntime.renderCycleProfileButtonRuntime();
-    cycleRuntime.configureCycleRuntimeDeps({ closeModal: null, navigate: null, renderProfileButton: null });
+    cycleRuntime.configureCycleRuntimeDeps({ closeModal: null, navigate: null, openEditor: null, renderProfileButton: null });
     cycleRuntime.closeCycleModalRuntime();
     const didNavigateWithoutCallback = cycleRuntime.navigateCycleViewRuntime('ignored');
+    const didOpenEditorWithoutCallback = cycleRuntime.openCycleEditorRuntime();
     cycleRuntime.renderCycleProfileButtonRuntime();
     cycleRuntime.configureCycleRuntimeDeps(previousCycleRuntime);
     assert('cycle runtime invokes injected callbacks and safely no-ops when cleared',
       didNavigate === true
+        && didOpenEditor === true
         && didNavigateWithoutCallback === false
-        && JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'cycle'], ['render-profile-button']]));
+        && didOpenEditorWithoutCallback === false
+        && JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'cycle'], ['open-editor'], ['render-profile-button']]));
 
     // charts.js
     const chartsSrc = read('js/charts.js');
@@ -327,11 +332,13 @@ const { phaseBandPlugin } = await import('../js/charts.js');
       cycleRuntimeSrc.includes('export function configureCycleRuntimeDeps')
         && cycleRuntimeSrc.includes('cycleRuntimeDeps.closeModal?.()')
         && cycleRuntimeSrc.includes('cycleRuntimeDeps.navigate(category)')
+        && cycleRuntimeSrc.includes('cycleRuntimeDeps.openEditor()')
         && cycleRuntimeSrc.includes('cycleRuntimeDeps.renderProfileButton?.()')
         && cycleSrc.includes("from './cycle-runtime.js'")
         && cycleImportSrc.includes("from './cycle-runtime.js'")
         && !cycleImportSrc.includes('views-runtime-bridge.js')
         && !cycleImportSrc.includes('appWindow')
+        && !cycleImportSrc.includes("import('./cycle.js')")
         && !cycleSrc.includes('views-runtime-bridge.js')
         && !cycleSrc.includes('getViewRuntimeFunction'));
 

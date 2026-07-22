@@ -229,7 +229,8 @@ assert('App shell injects crypto cross-tab refresh callbacks without bridge look
 
 assert('App shell injects Cycle view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCycleRuntimeDeps } from './cycle-runtime.js'")
-    && appShellHooksSrc.includes('configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });'));
+    && appShellHooksSrc.includes("import { openMenstrualCycleEditor } from './cycle.js'")
+    && appShellHooksSrc.includes('openEditor: openMenstrualCycleEditor,'));
 
 assert('App shell injects Supplements view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")

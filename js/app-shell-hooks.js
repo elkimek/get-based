@@ -88,6 +88,7 @@ import {
   getEncryptionEnabled,
   isEncryptedObject,
 } from './crypto.js';
+import { openMenstrualCycleEditor } from './cycle.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDataRuntimeDeps, saveImportedData, updateHeaderDates } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
@@ -223,7 +224,12 @@ configureClientListRuntimeDeps({ navigate, renderProfileButton });
 configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });
 configureCategoryPageViewDeps({ renameCategory });
 configureCryptoProfileDeps({ buildSidebar, navigate });
-configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });
+configureCycleRuntimeDeps({
+  closeModal,
+  navigate,
+  openEditor: openMenstrualCycleEditor,
+  renderProfileButton,
+});
 configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });
 configureDnaRuntimeDeps({ buildSidebar, navigate });
 configureExportRuntimeDeps({ buildSidebar, navigate });

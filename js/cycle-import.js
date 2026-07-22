@@ -9,7 +9,9 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { endTour } from './tour.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
-import { navigateCycleViewRuntime, renderCycleProfileButtonRuntime } from './cycle-runtime.js';
+import {
+  navigateCycleViewRuntime, openCycleEditorRuntime, renderCycleProfileButtonRuntime,
+} from './cycle-runtime.js';
 import {
   buildCycleCoverage,
   normalizeCyclePeriods,
@@ -71,8 +73,7 @@ function renderCycleProfileButton() {
 }
 
 async function openCycleEditorFromImport() {
-  const { openMenstrualCycleEditor } = await import('./cycle.js');
-  openMenstrualCycleEditor();
+  openCycleEditorRuntime();
 }
 
 function importActionAttrs(action, data = {}) {
