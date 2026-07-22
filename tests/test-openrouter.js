@@ -54,6 +54,9 @@ assert('getOpenRouterModelDisplay exists', apiProviderStorageSrc.includes('funct
 assert('api.js re-exports OpenRouter model helpers', apiSrc.includes("from './api-models.js'"));
 assert('fetchOpenRouterModels exists', apiModelsSrc.includes('function fetchOpenRouterModels('));
 assert('validateOpenRouterKey exists', apiModelsSrc.includes('function validateOpenRouterKey('));
+assert('API model pricing reads cloud classification from pure provider helpers',
+  apiModelsSrc.includes("from './local-ai-provider-shared.js'")
+    && !apiModelsSrc.includes("from './local-ai-discovery.js'"));
 assert('callOpenRouterAPI exists', apiOpenRouterSrc.includes('function callOpenRouterAPI('));
 assert('extraHeaders in helper signature', apiOpenAICompatibleSrc.includes('extraHeaders = {}'));
 assert('extraHeaders spread in fetch headers', apiOpenAICompatibleSrc.includes('...extraHeaders'));
@@ -293,6 +296,9 @@ else localStorage.removeItem('labcharts-openrouter-pricing');
 const ollamaPricing = api.renderModelPricingHint('ollama', '');
 assert('Local AI pricing avoids claiming remote or cloud servers are free',
   ollamaPricing.includes('configured server') && !ollamaPricing.includes('Free'));
+const cloudOllamaPricing = api.renderModelPricingHint('ollama', 'qwen3:cloud');
+assert('Ollama cloud model pricing retains the provider-terms warning',
+  cloudOllamaPricing.includes('Cloud model') && cloudOllamaPricing.includes('provider terms'));
 
 // ─── 12. Key removal clears pricing cache ───
 console.log('\n12. Key removal clears pricing cache');
