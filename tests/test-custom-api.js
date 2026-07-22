@@ -63,7 +63,7 @@ assert('supportsWebSearch false for custom', apiModelsSrc.includes("provider ===
 assert('supportsVision true for custom', apiModelsSrc.includes("provider === 'custom') return true"));
 assert('callCustomAPI routes through shared provider transport',
   apiCustomSrc.includes("'Custom',\n    opts,\n    {}"));
-assert('saveCustomApiKey uses encryptedSetItem', apiProviderStorageSrc.includes("encryptedSetItem('labcharts-custom-key'"));
+assert('saveCustomApiKey uses encrypted provider storage runtime', apiProviderStorageSrc.includes("encryptedSetProviderItemRuntime('labcharts-custom-key'"));
 assert('getCustomApiKey uses getCachedKey', apiProviderStorageSrc.includes("getCachedKey('labcharts-custom-key')"));
 
 // ─── 2. Module and UI handler exports ───

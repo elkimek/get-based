@@ -1041,6 +1041,8 @@ test('reference model tests use deterministic prompts and explicit protocol iden
 test('gold-reference baseline is permanent and auto-compares the latest matching run', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
+    localStorage.setItem('labcharts-reference-benchmark-profile-emptyTour', 'completed');
+    localStorage.setItem('labcharts-reference-benchmark-profile-tour', 'completed');
     const { state } = await import('/js/state.js');
     state.currentProfile = 'reference-benchmark-profile';
     state.profiles = [{ id: 'reference-benchmark-profile', name: 'Reference Benchmark' }];

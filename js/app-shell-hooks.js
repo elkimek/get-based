@@ -2,6 +2,7 @@
 // app-shell-hooks.js - wire app shell actions without window lookups.
 
 import { configureAppEventListeners } from './app-event-listeners.js';
+import { configureApiProviderStorageRuntimeDeps } from './api-provider-storage-runtime.js';
 import { setAIPaused } from './api.js';
 import { configureApiRuntimeCallbacks } from './api-runtime.js';
 import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
@@ -77,7 +78,7 @@ import { closeClientList, configureClientListRuntime, openClientList, openProfil
 import { configureClientListRuntimeDeps } from './client-list-runtime.js';
 import { configureCompareCorrelationViews } from './compare-correlations.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
-import { configureCryptoProfileDeps } from './crypto.js';
+import { configureCryptoProfileDeps, encryptedSetItem } from './crypto.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDataRuntimeDeps } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
@@ -162,6 +163,7 @@ function showInsufficientBalanceDialog() {
 }
 
 configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
+configureApiProviderStorageRuntimeDeps({ encryptedSetItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureDashboardViewFactory(createDashboardViewComposition);
 configureLabContext({ buildBiologyScoresAIContext });

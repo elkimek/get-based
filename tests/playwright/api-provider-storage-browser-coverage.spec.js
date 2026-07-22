@@ -17,6 +17,7 @@ test('api provider storage browser coverage handles provider gates and model cac
   const results = await page.evaluate(async ({ providerStorageUrl }) => {
     const storage = await import(providerStorageUrl);
     const cryptoStore = await import('/js/crypto.js');
+    const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
     const chatRuntime = await import('/js/chat-runtime.js');
     const outcomes = {};
 
@@ -78,11 +79,15 @@ test('api provider storage browser coverage handles provider gates and model cac
     let headerUpdates = 0;
     let searchRefreshes = 0;
     let previousChatRuntime = null;
+    let previousProviderStorageRuntime = null;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       for (const key of sessionKeys) sessionStorage.removeItem(key);
       for (const key of cachedKeyNames) cryptoStore.updateKeyCache(key, null);
+      previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
+        encryptedSetItem: cryptoStore.encryptedSetItem,
+      });
       previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
         updateChatHeaderModel: () => { headerUpdates += 1; },
         refreshWebSearchToggle: () => { searchRefreshes += 1; },
@@ -274,6 +279,9 @@ test('api provider storage browser coverage handles provider gates and model cac
     } finally {
       window.removeEventListener('labcharts-ai-settings-local-changed', onLocalSettingsChanged);
       if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
+      if (previousProviderStorageRuntime) {
+        providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
+      }
       for (const [key, value] of Object.entries(saved.localStorage)) {
         restoreStoredValue(localStorage, key, value);
       }

@@ -6,6 +6,29 @@ import {
   updateChatHeaderModelRuntime,
 } from './chat-runtime.js';
 
+async function rejectUnconfiguredProviderWrite() {
+  throw new Error('Encrypted provider storage is not configured.');
+}
+
+/** @type {{ encryptedSetItem: (key: string, value: string) => Promise<void> }} */
+const apiProviderStorageRuntimeDeps = {
+  encryptedSetItem: rejectUnconfiguredProviderWrite,
+};
+
+export function configureApiProviderStorageRuntimeDeps(deps = {}) {
+  const previous = { ...apiProviderStorageRuntimeDeps };
+  if (Object.hasOwn(deps, 'encryptedSetItem')) {
+    apiProviderStorageRuntimeDeps.encryptedSetItem = typeof deps.encryptedSetItem === 'function'
+      ? deps.encryptedSetItem
+      : rejectUnconfiguredProviderWrite;
+  }
+  return previous;
+}
+
+export function encryptedSetProviderItemRuntime(key, value) {
+  return apiProviderStorageRuntimeDeps.encryptedSetItem(key, value);
+}
+
 function getApiProviderStorageRuntime() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)

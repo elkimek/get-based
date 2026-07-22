@@ -34,6 +34,10 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
     const pii = await import(piiUrl);
     const cryptoStore = await import(cryptoUrl);
     const providerStorage = await import(providerStorageUrl);
+    const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
+    const previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
+      encryptedSetItem: cryptoStore.encryptedSetItem,
+    });
 
     const storageKeys = [
       'labcharts-ollama',
@@ -417,6 +421,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         probeError);
     } finally {
       window.fetch = saved.fetch;
+      providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
       if (saved.aiSettingsLock == null) sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');
       else sessionStorage.setItem('labcharts-ai-settings-local-lock-until', saved.aiSettingsLock);
       document.body.style.overflow = saved.bodyOverflow;

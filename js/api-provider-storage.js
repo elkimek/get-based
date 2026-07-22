@@ -1,9 +1,10 @@
 // @ts-check
 // api-provider-storage.js — persisted AI provider settings, keys, and model caches.
 
-import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
+import { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 import {
   dispatchAISettingsLocalChangedRuntime,
+  encryptedSetProviderItemRuntime,
   refreshAIProviderSelectionRuntime,
   touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
@@ -66,7 +67,7 @@ export function getOllamaConfig() {
 }
 export async function saveOllamaConfig(config) {
   const json = JSON.stringify({ ...config, url: cleanLocalAiServerUrl(config.url) });
-  await encryptedSetItem('labcharts-ollama', json);
+  await encryptedSetProviderItemRuntime('labcharts-ollama', json);
   updateKeyCache('labcharts-ollama', json);
   markAISettingsLocal();
 }
@@ -93,7 +94,7 @@ export function getOllamaPIIApiKey() {
   }
 }
 export async function saveOllamaPIIApiKey(key) {
-  await encryptedSetItem('labcharts-ollama-pii-key', key);
+  await encryptedSetProviderItemRuntime('labcharts-ollama-pii-key', key);
   updateKeyCache('labcharts-ollama-pii-key', key);
   markAISettingsLocal();
 }
@@ -104,7 +105,7 @@ export function setOllamaPIIModel(model) {
 }
 
 export function getVeniceKey() { return getCachedKey('labcharts-venice-key') || ''; }
-export async function saveVeniceKey(key) { await encryptedSetItem('labcharts-venice-key', key); updateKeyCache('labcharts-venice-key', key); markAISettingsLocal(); }
+export async function saveVeniceKey(key) { await encryptedSetProviderItemRuntime('labcharts-venice-key', key); updateKeyCache('labcharts-venice-key', key); markAISettingsLocal(); }
 export function hasVeniceKey() { return !!getVeniceKey(); }
 export function getVeniceModel() { return localStorage.getItem('labcharts-venice-model') || 'llama-3.3-70b'; }
 export function setVeniceModel(model) {
@@ -239,7 +240,7 @@ export function isVeniceE2EEActive() {
 }
 
 export function getOpenRouterKey() { return getCachedKey('labcharts-openrouter-key') || ''; }
-export async function saveOpenRouterKey(key) { await encryptedSetItem('labcharts-openrouter-key', key); updateKeyCache('labcharts-openrouter-key', key); markAISettingsLocal(); }
+export async function saveOpenRouterKey(key) { await encryptedSetProviderItemRuntime('labcharts-openrouter-key', key); updateKeyCache('labcharts-openrouter-key', key); markAISettingsLocal(); }
 export function hasOpenRouterKey() { return !!getOpenRouterKey(); }
 export function getOpenRouterModel() {
   let m = localStorage.getItem('labcharts-openrouter-model');
@@ -269,7 +270,7 @@ export function touchRoutstrSession() {
   markAISettingsLocal();
 }
 export async function saveRoutstrKey(key) {
-  await encryptedSetItem('labcharts-routstr-key', key);
+  await encryptedSetProviderItemRuntime('labcharts-routstr-key', key);
   updateKeyCache('labcharts-routstr-key', key);
   touchRoutstrSession();
 }
@@ -320,7 +321,7 @@ export function syncRoutstrModelSelection(regularModels, privateModels) {
 }
 
 export function getPpqKey() { return getCachedKey('labcharts-ppq-key') || ''; }
-export async function savePpqKey(key) { await encryptedSetItem('labcharts-ppq-key', key); updateKeyCache('labcharts-ppq-key', key); markAISettingsLocal(); }
+export async function savePpqKey(key) { await encryptedSetProviderItemRuntime('labcharts-ppq-key', key); updateKeyCache('labcharts-ppq-key', key); markAISettingsLocal(); }
 export function hasPpqKey() { return !!getPpqKey(); }
 export function getPpqModel() { return localStorage.getItem('labcharts-ppq-model') || 'claude-sonnet-4.6'; }
 export function setPpqModel(model) {
@@ -382,7 +383,7 @@ export function setCustomApiUrl(url) {
   markAISettingsLocal();
 }
 export function getCustomApiKey() { return getCachedKey('labcharts-custom-key') || ''; }
-export async function saveCustomApiKey(key) { await encryptedSetItem('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); markAISettingsLocal(); }
+export async function saveCustomApiKey(key) { await encryptedSetProviderItemRuntime('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); markAISettingsLocal(); }
 export function hasCustomApiKey() { return !!getCustomApiKey(); }
 export function getCustomApiModel() { return localStorage.getItem('labcharts-custom-model') || ''; }
 export function setCustomApiModel(model) {
