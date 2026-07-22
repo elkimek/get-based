@@ -70,12 +70,13 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
     !lipidsBlock.includes('cholHdlRatio: {') && calculatedRatiosBlock.includes('cholHdlRatio: {'));
 
   // ═══════════════════════════════════════
-  // 2. SPECIALTY_MARKER_DEFS re-exported from adapters.js
+  // 2. SPECIALTY_MARKER_DEFS owned by adapters.js
   // ═══════════════════════════════════════
   console.log('%c 2. SPECIALTY_MARKER_DEFS (via adapters.js) ', 'font-weight:bold;color:#f59e0b');
 
-  assert('schema.js re-exports SPECIALTY_MARKER_DEFS from adapters.js',
-    schemaSrc.includes('ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS') && schemaSrc.includes("from './adapters.js'"));
+  assert('adapters.js exports SPECIALTY_MARKER_DEFS',
+    adaptersSrc.includes('export { ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS }'));
+  assert('schema.js does not reverse-import adapters.js', !schemaSrc.includes("from './adapters.js'"));
 
   // Count entries in adapters.js (the single source of truth)
   const entryCount = (adaptersSrc.match(/"[a-zA-Z]+\.\w+": \{/g) || []).length;
@@ -127,8 +128,9 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   // ═══════════════════════════════════════
   console.log('%c 4. Migration in profile.js ', 'font-weight:bold;color:#f59e0b');
 
-  assert('profile.js imports MARKER_SCHEMA and SPECIALTY_MARKER_DEFS',
-    profileSrc.includes('MARKER_SCHEMA') && profileSrc.includes('SPECIALTY_MARKER_DEFS') && profileSrc.includes("from './schema.js'"));
+  assert('profile.js imports standard and specialty markers from their owners',
+    profileSrc.includes("import { MARKER_SCHEMA } from './schema.js'")
+      && profileSrc.includes("import { SPECIALTY_MARKER_DEFS } from './adapters.js'"));
   assert('Migration scans entry markers', profileSrc.includes('SPECIALTY_MARKER_DEFS[key]'));
   assert('Migration writes to customMarkers', profileSrc.includes('data.customMarkers[key]'));
   assert('Migration includes icon', profileSrc.includes('icon: def.icon'));

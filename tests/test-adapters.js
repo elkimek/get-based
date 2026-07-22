@@ -197,8 +197,9 @@ const schemaSrc = read('js/schema.js');
   // getAllAdapterMarkers merges all adapter markers
   assert('getAllAdapterMarkers uses Object.assign', adaptersSrc.includes('Object.assign(all, adapter.markers)'));
 
-  // SPECIALTY_MARKER_DEFS re-exported from schema.js
-  assert('schema.js re-exports SPECIALTY_MARKER_DEFS', schemaSrc.includes("export { ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS } from './adapters.js'"));
+  // Specialty markers stay owned by adapters.js; schema.js must not reverse-import them.
+  assert('adapters.js exports SPECIALTY_MARKER_DEFS', adaptersSrc.includes('export { ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS }'));
+  assert('schema.js does not import adapters.js', !schemaSrc.includes("from './adapters.js'"));
 
   // Adapter interface comment documents required fields
   assert('Adapter interface documented', adaptersSrc.includes('Adapter interface:'));

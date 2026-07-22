@@ -1,7 +1,7 @@
 // @ts-check
 // profile-fatty-acid-migrations.js - Snapshot-backed product fatty-acid metadata repairs.
 
-import { SPECIALTY_MARKER_DEFS } from './schema.js';
+import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 
 /**
  * @typedef {Record<string, any>} ProfileData

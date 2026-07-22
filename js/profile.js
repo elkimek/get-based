@@ -2,7 +2,8 @@
 // profile.js — Profile CRUD, sex/DOB, location, data migration
 
 import { state } from './state.js';
-import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
+import { MARKER_SCHEMA } from './schema.js';
+import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { callClaudeAPI } from './api.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';

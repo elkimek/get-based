@@ -1,9 +1,8 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 206,
+  "maxCyclicModules": 204,
   "maxLargestCyclicComponent": 204,
   "allowedCyclicModules": [
-    "js/adapters.js",
     "js/ai-verdict-engine.js",
     "js/api-custom.js",
     "js/api-local.js",
@@ -143,7 +142,6 @@
     "js/recommendations-products.js",
     "js/recommendations-runtime.js",
     "js/recommendations.js",
-    "js/schema.js",
     "js/settings-agent-access-panel.js",
     "js/settings-sync-panel.js",
     "js/sun-active-session.js",
