@@ -9,13 +9,7 @@ function getApiRuntime() {
 
 /** @type {{ showInsufficientBalanceDialog: Function }} */
 const apiRuntimeCallbacks = {
-  showInsufficientBalanceDialog: () => {
-    if (typeof document === 'undefined') return false;
-    import('./provider-panels.js')
-      .then(providerPanels => providerPanels.showInsufficientBalanceDialog())
-      .catch(() => {});
-    return true;
-  },
+  showInsufficientBalanceDialog: () => false,
 };
 
 export function configureApiRuntimeCallbacks(callbacks = {}) {
