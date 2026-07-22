@@ -1165,6 +1165,8 @@
   assert('Active profile ID is string', typeof activeId === 'string' && activeId.length > 0);
   const storageKey = profileModule.profileStorageKey(activeId, 'imported');
   assert('profileStorageKey works', typeof storageKey === 'string' && storageKey.includes(activeId));
+  assert('profile runtime dependency configuration is exported',
+    typeof profileModule.configureProfileRuntimeDeps === 'function');
 
   // ═══════════════════════════════════════════════
   // 9. THEME SYSTEM — toggle works

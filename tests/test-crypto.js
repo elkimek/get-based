@@ -442,6 +442,7 @@ console.log('17. profile.js async');
 try {
   const src = await fetchWithRetry('js/profile.js');
   const runtimeSrc = await fetchWithRetry('js/profile-runtime.js');
+  const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
   const exportSrc = await fetchWithRetry('js/export.js');
   const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
   const swSrc = await fetchWithRetry('service-worker.js');
@@ -449,8 +450,11 @@ try {
   assert('saveProfiles is async', src.includes('async function saveProfiles'));
   assert('initProfilesCache exists', src.includes('async function initProfilesCache'));
   assert('loadProfile uses encryptedGetItem', src.includes('encryptedGetItem'));
-  assert('profile.js delegates browser refresh wiring to profile-runtime',
-    src.includes("from './profile-runtime.js'") &&
+  assert('app shell injects profile browser refresh wiring from profile-runtime',
+    !src.includes("from './profile-runtime.js'") &&
+    src.includes('export function configureProfileRuntimeDeps') &&
+    appShellHooksSrc.includes("from './profile-runtime.js'") &&
+    appShellHooksSrc.includes('configureProfileRuntimeDeps({') &&
     src.includes('await invalidateProfileContextCache()') &&
     src.includes('await reloadProfileRuntimeShell(profileId)') &&
     runtimeSrc.includes('export async function invalidateProfileContextCache') &&

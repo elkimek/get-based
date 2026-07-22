@@ -16,12 +16,6 @@ import {
   syncLabEntryInsulinMirror,
 } from './lab-entry.js';
 import { normalizeContextSourceSettings } from './context-source-registry.js';
-import {
-  dispatchProfileSwitched,
-  invalidateProfileContextCache,
-  refreshProfileButton,
-  reloadProfileRuntimeShell,
-} from './profile-runtime.js';
 import { repairProfileMarkerData } from './profile-marker-migrations.js';
 
 const profileDeps = {
@@ -38,6 +32,65 @@ export function configureProfileDeps(deps = {}) {
   if (typeof deps.showConfirmDialog === 'function') profileDeps.showConfirmDialog = deps.showConfirmDialog;
   if (typeof deps.showNotification === 'function') profileDeps.showNotification = deps.showNotification;
   return previous;
+}
+
+/**
+ * @typedef {{
+ *   dispatchProfileSwitched: null | ((profileId: string) => void),
+ *   invalidateProfileContextCache: null | (() => Promise<void> | void),
+ *   refreshProfileButton: null | (() => Promise<void> | void),
+ *   reloadProfileRuntimeShell: null | ((profileId: string) => Promise<void> | void),
+ * }} ProfileRuntimeDeps
+ */
+
+/** @type {ProfileRuntimeDeps} */
+const profileRuntimeDeps = {
+  dispatchProfileSwitched: null,
+  invalidateProfileContextCache: null,
+  refreshProfileButton: null,
+  reloadProfileRuntimeShell: null,
+};
+
+/** @param {Partial<ProfileRuntimeDeps>} [deps] */
+export function configureProfileRuntimeDeps(deps = {}) {
+  const previous = { ...profileRuntimeDeps };
+  if (Object.hasOwn(deps, 'dispatchProfileSwitched')) {
+    profileRuntimeDeps.dispatchProfileSwitched = typeof deps.dispatchProfileSwitched === 'function'
+      ? deps.dispatchProfileSwitched
+      : null;
+  }
+  if (Object.hasOwn(deps, 'invalidateProfileContextCache')) {
+    profileRuntimeDeps.invalidateProfileContextCache = typeof deps.invalidateProfileContextCache === 'function'
+      ? deps.invalidateProfileContextCache
+      : null;
+  }
+  if (Object.hasOwn(deps, 'refreshProfileButton')) {
+    profileRuntimeDeps.refreshProfileButton = typeof deps.refreshProfileButton === 'function'
+      ? deps.refreshProfileButton
+      : null;
+  }
+  if (Object.hasOwn(deps, 'reloadProfileRuntimeShell')) {
+    profileRuntimeDeps.reloadProfileRuntimeShell = typeof deps.reloadProfileRuntimeShell === 'function'
+      ? deps.reloadProfileRuntimeShell
+      : null;
+  }
+  return previous;
+}
+
+function dispatchProfileSwitched(profileId) {
+  profileRuntimeDeps.dispatchProfileSwitched?.(profileId);
+}
+
+async function invalidateProfileContextCache() {
+  await profileRuntimeDeps.invalidateProfileContextCache?.();
+}
+
+async function refreshProfileButton() {
+  await profileRuntimeDeps.refreshProfileButton?.();
+}
+
+async function reloadProfileRuntimeShell(profileId) {
+  await profileRuntimeDeps.reloadProfileRuntimeShell?.(profileId);
 }
 
 /**

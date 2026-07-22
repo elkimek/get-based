@@ -121,7 +121,13 @@ import {
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share.js';
-import { getActiveProfileId } from './profile.js';
+import { configureProfileRuntimeDeps, getActiveProfileId } from './profile.js';
+import {
+  dispatchProfileSwitched,
+  invalidateProfileContextCache,
+  refreshProfileButton,
+  reloadProfileRuntimeShell,
+} from './profile-runtime.js';
 import { detectWearableTrendSlots } from './recommendations.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
@@ -144,6 +150,12 @@ import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
 
 configureDashboardViewFactory(createDashboardViewComposition);
+configureProfileRuntimeDeps({
+  dispatchProfileSwitched,
+  invalidateProfileContextCache,
+  refreshProfileButton,
+  reloadProfileRuntimeShell,
+});
 
 configureClientListRuntime({
   exportAllDataJSON,
