@@ -254,7 +254,10 @@ configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
 configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
-configureEMFRuntimeDeps({ closeModal });
+configureEMFRuntimeDeps({
+  closeModal,
+  loadModule: () => import('./emf.js'),
+});
 configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });
 
 function resumeAI() {
