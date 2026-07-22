@@ -9,12 +9,12 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 461 |
-| Internal import edges | 2057 |
+| Modules | 462 |
+| Internal import edges | 2058 |
 | Dynamic internal edges | 63 |
-| Modules participating in cycles | 63 |
+| Modules participating in cycles | 49 |
 | Cyclic components | 3 |
-| Largest cyclic component | 54 |
+| Largest cyclic component | 40 |
 | Computed dynamic imports | 2 |
 
 ## Enforced source boundaries
@@ -58,9 +58,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 These are existing debt, not approved architecture. CI prevents new modules from joining a cycle and prevents the cycle budgets from increasing.
 
-<details><summary>Component 1 — 54 modules</summary>
+<details><summary>Component 1 — 40 modules</summary>
 
-[`js/backup-cycle.js`](js/backup-cycle.js), [`js/backup.js`](js/backup.js), [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-apply.js`](js/sync-apply.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-delta-array-merge.js`](js/sync-delta-array-merge.js), [`js/sync-delta-array-planner.js`](js/sync-delta-array-planner.js), [`js/sync-delta-map-merge.js`](js/sync-delta-map-merge.js), [`js/sync-delta-map-planner.js`](js/sync-delta-map-planner.js), [`js/sync-delta-merge-shapes.js`](js/sync-delta-merge-shapes.js), [`js/sync-delta-merge.js`](js/sync-delta-merge.js), [`js/sync-delta-planners.js`](js/sync-delta-planners.js), [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js), [`js/sync-delta-scalar-merge.js`](js/sync-delta-scalar-merge.js), [`js/sync-delta-scalar-planner.js`](js/sync-delta-scalar-planner.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-actions.js`](js/sync-diagnose-actions.js), [`js/sync-diagnose-cutover-actions.js`](js/sync-diagnose-cutover-actions.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics-snapshot.js`](js/sync-diagnostics-snapshot.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push-deltas.js`](js/sync-push-deltas.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/tour.js`](js/tour.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+[`js/backup-cycle.js`](js/backup-cycle.js), [`js/backup.js`](js/backup.js), [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-apply.js`](js/sync-apply.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics-snapshot.js`](js/sync-diagnostics-snapshot.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/tour.js`](js/tour.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 
 </details>
 
@@ -767,7 +767,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sync</code> family — 68 modules</summary>
+<details><summary><code>sync</code> family — 69 modules</summary>
 
 - [`js/sync-actions.js`](js/sync-actions.js) → [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-apply.js`](js/sync-apply.js) → [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js)
@@ -775,10 +775,10 @@ Native browser modules shipped with the static application.
 - [`js/sync-configure.js`](js/sync-configure.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-cutover.js`](js/sync-cutover.js) → [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-payload.js`](js/sync-payload.js)
 - [`js/sync-delta-array-merge.js`](js/sync-delta-array-merge.js) → [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js)
-- [`js/sync-delta-array-planner.js`](js/sync-delta-array-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload.js`](js/sync-payload.js)
+- [`js/sync-delta-array-planner.js`](js/sync-delta-array-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js)
 - [`js/sync-delta-id.js`](js/sync-delta-id.js) → no in-scope imports
 - [`js/sync-delta-map-merge.js`](js/sync-delta-map-merge.js) → [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js)
-- [`js/sync-delta-map-planner.js`](js/sync-delta-map-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload.js`](js/sync-payload.js)
+- [`js/sync-delta-map-planner.js`](js/sync-delta-map-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js)
 - [`js/sync-delta-merge-shapes.js`](js/sync-delta-merge-shapes.js) → [`js/sync-delta-array-merge.js`](js/sync-delta-array-merge.js), [`js/sync-delta-map-merge.js`](js/sync-delta-map-merge.js), [`js/sync-delta-scalar-merge.js`](js/sync-delta-scalar-merge.js)
 - [`js/sync-delta-merge.js`](js/sync-delta-merge.js) → [`js/sync-delta-merge-shapes.js`](js/sync-delta-merge-shapes.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js)
 - [`js/sync-delta-observability-context.js`](js/sync-delta-observability-context.js) → no in-scope imports
@@ -788,9 +788,9 @@ Native browser modules shipped with the static application.
 - [`js/sync-delta-pull-snapshot.js`](js/sync-delta-pull-snapshot.js) → no in-scope imports
 - [`js/sync-delta-readiness.js`](js/sync-delta-readiness.js) → [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js), [`js/sync-delta-observability-context.js`](js/sync-delta-observability-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js)
 - [`js/sync-delta-registry.js`](js/sync-delta-registry.js) → [`js/sync-delta-id.js`](js/sync-delta-id.js), [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js), [`js/sync-delta-surfaces.js`](js/sync-delta-surfaces.js)
-- [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js) → [`js/sync-payload.js`](js/sync-payload.js)
+- [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js) → [`js/sync-payload-codec.js`](js/sync-payload-codec.js)
 - [`js/sync-delta-scalar-merge.js`](js/sync-delta-scalar-merge.js) → [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js)
-- [`js/sync-delta-scalar-planner.js`](js/sync-delta-scalar-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload.js`](js/sync-payload.js)
+- [`js/sync-delta-scalar-planner.js`](js/sync-delta-scalar-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js)
 - [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js) → no in-scope imports
 - [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js) → [`js/sync-delta-id.js`](js/sync-delta-id.js)
 - [`js/sync-delta-surfaces.js`](js/sync-delta-surfaces.js) → no in-scope imports
@@ -814,8 +814,9 @@ Native browser modules shipped with the static application.
 - [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-lifecycle.js`](js/sync-lifecycle.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-messenger.js`](js/sync-messenger.js) → [`js/lab-context.js`](js/lab-context.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/sync-payload-codec.js`](js/sync-payload-codec.js) → no in-scope imports
 - [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js) → [`js/crypto.js`](js/crypto.js)
-- [`js/sync-payload.js`](js/sync-payload.js) → [`js/profile.js`](js/profile.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js)
+- [`js/sync-payload.js`](js/sync-payload.js) → [`js/profile.js`](js/profile.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js)
 - [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js) → no in-scope imports
 - [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js) → [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js) → no in-scope imports
