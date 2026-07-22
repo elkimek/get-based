@@ -1714,6 +1714,10 @@ const summarySrc = await fetch('/js/wearables-summary.js').then(r => r.text());
 assert('coverageDays counts rows with at least one finite metric value (not bare stubs)',
   /coverageDays:\s*nonEmpty/.test(summarySrc) &&
   /hasAnyValue\s*=\s*Object\.entries\(row\)\.some/.test(summarySrc));
+assert('wearable summary persistence is injected without importing the data domain',
+  summarySrc.includes('export function configureWearableSummary') &&
+  summarySrc.includes('wearableSummaryDeps.saveImportedData()') &&
+  !summarySrc.includes("from './data.js'"));
 
 // P2: wearablePrimaryOverride pruned on import.
 const exportImportSrcP2 = await fetch('/js/export-import.js').then(r => r.text());

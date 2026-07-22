@@ -89,7 +89,7 @@ import {
   isEncryptedObject,
 } from './crypto.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
-import { configureDataRuntimeDeps, updateHeaderDates } from './data.js';
+import { configureDataRuntimeDeps, saveImportedData, updateHeaderDates } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { configureEMFRuntimeDeps } from './emf-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
@@ -163,6 +163,7 @@ import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtim
 import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';
 import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
+import { configureWearableSummary } from './wearables-summary.js';
 
 function showInsufficientBalanceDialog() {
   if (typeof document === 'undefined') return false;
@@ -339,6 +340,7 @@ configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureWearablesRuntime({ closeModal, navigate });
 configureWearableSettingsRuntimeDeps({ navigate });
+configureWearableSummary({ saveImportedData });
 configureDashboardAIContextStatus(updateChatContextStatus);
 
 configureAppEventListeners({

@@ -201,6 +201,10 @@ assert('App shell injects wearable dashboard actions without view bridge lookups
     && appShellHooksSrc.includes("import { configureWearablesRuntime } from './wearables-runtime.js';")
     && appShellHooksSrc.includes('configureWearablesRuntime({ closeModal, navigate });'));
 
+assert('App shell injects wearable summary persistence',
+  appShellHooksSrc.includes("import { configureWearableSummary } from './wearables-summary.js';")
+    && appShellHooksSrc.includes('configureWearableSummary({ saveImportedData });'));
+
 assert('App shell injects category customization view callbacks',
   appShellHooksSrc.includes('configureCategoryCustomizationRuntimeDeps({ buildSidebar, navigate });'));
 
