@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { showNotification } from './utils.js';
-import { profileStorageKey, getProfiles, saveProfiles, loadProfile } from './profile.js';
+import { profileStorageKey } from './profile-storage-key.js';
 import { getEncryptionEnabled, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
 
@@ -19,6 +19,12 @@ let _isSyncEnabled = () => false;
 let _pushProfile = null;
 /** @type {(...args: any[]) => void} */
 let _debug = () => {};
+/** @type {() => any[]} */
+let _getProfiles = () => [];
+/** @type {(profiles: any[]) => Promise<void>} */
+let _saveProfiles = async () => {};
+/** @type {(profileId: string) => any} */
+let _loadProfile = () => {};
 
 /** @param {{
  *   getEvolu?: () => any,
@@ -27,6 +33,9 @@ let _debug = () => {};
  *   isSyncEnabled?: () => boolean,
  *   pushProfile?: (profileId: string, data: any) => Promise<any>,
  *   debug?: (...args: any[]) => void,
+ *   getProfiles?: () => any[],
+ *   saveProfiles?: (profiles: any[]) => Promise<void>,
+ *   loadProfile?: (profileId: string) => any,
  * }} [deps]
  */
 export function configureSyncTombstones({
@@ -36,13 +45,31 @@ export function configureSyncTombstones({
   isSyncEnabled,
   pushProfile,
   debug,
+  getProfiles,
+  saveProfiles,
+  loadProfile,
 } = {}) {
+  const previous = {
+    getEvolu: _getEvolu,
+    getProfileQuery: _getProfileQuery,
+    getTombstoneQuery: _getTombstoneQuery,
+    isSyncEnabled: _isSyncEnabled,
+    pushProfile: _pushProfile,
+    debug: _debug,
+    getProfiles: _getProfiles,
+    saveProfiles: _saveProfiles,
+    loadProfile: _loadProfile,
+  };
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof getTombstoneQuery === 'function') _getTombstoneQuery = getTombstoneQuery;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof debug === 'function') _debug = debug;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
+  if (typeof saveProfiles === 'function') _saveProfiles = saveProfiles;
+  if (typeof loadProfile === 'function') _loadProfile = loadProfile;
+  return previous;
 }
 
 function currentEvolu() {
@@ -131,7 +158,7 @@ export async function applyRemoteTombstones() {
   if (!evolu || !tombstoneQuery) return;
   const tombs = evolu.getQueryRows(tombstoneQuery) || [];
   if (tombs.length === 0) return;
-  const profiles = getProfiles();
+  const profiles = _getProfiles();
 
   // Same payload fallback as the live-row pull path: compaction can lose
   // the profileId column, but profile.id still exists inside dataJson.
@@ -179,19 +206,19 @@ export async function applyRemoteTombstones() {
   }
   if (wipedIds.length === 0) return;
 
-  await saveProfiles(survivors);
+  await _saveProfiles(survivors);
   for (const id of wipedIds) localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(id));
   dbg(`Applied ${wipedIds.length} remote tombstone(s):`, wipedIds.join(', '));
 
   if (wipedIds.includes(state.currentProfile)) {
     showNotification(`Profile was deleted on another device - switching to "${survivors[0].name || 'next'}"`, 'info', 3500);
-    loadProfile(survivors[0].id);
+    _loadProfile(survivors[0].id);
   }
 }
 
 export function listPendingTombstones() {
   const out = [];
-  const profiles = getProfiles();
+  const profiles = _getProfiles();
   for (const p of profiles) {
     const raw = localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(p.id));
     if (!raw) continue;
@@ -203,13 +230,13 @@ export function listPendingTombstones() {
 
 /** @param {string} profileId */
 export async function applyPendingTombstone(profileId) {
-  const profiles = getProfiles();
+  const profiles = _getProfiles();
   const survivors = profiles.filter(p => p.id !== profileId);
   if (survivors.length === 0) return { ok: false, reason: 'last-profile' };
   await wipeProfileLocal(profileId);
-  await saveProfiles(survivors);
+  await _saveProfiles(survivors);
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-  if (state.currentProfile === profileId) loadProfile(survivors[0].id);
+  if (state.currentProfile === profileId) _loadProfile(survivors[0].id);
   return { ok: true };
 }
 
