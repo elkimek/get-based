@@ -3,18 +3,29 @@
 
 import { state } from './state.js';
 import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
-import { rollingVitaminDIU } from './sun-channel-metrics.js';
 
+/** @typedef {{
+ * rollingChannelTotals: null | ((days?: number) => any),
+ * rollingVitaminDIU: null | ((days?: number) => number),
+ * }} ProfileContextLightDeps */
+
+/** @type {ProfileContextLightDeps} */
 const profileContextLightDeps = {
   rollingChannelTotals: null,
+  rollingVitaminDIU: null,
 };
 
-/** @param {{ rollingChannelTotals?: ((days?: number) => any) | null }} deps */
+/** @param {Partial<ProfileContextLightDeps>} [deps] */
 export function configureProfileContextLightDeps(deps = {}) {
   const previous = { ...profileContextLightDeps };
   if ('rollingChannelTotals' in deps) {
     profileContextLightDeps.rollingChannelTotals = typeof deps.rollingChannelTotals === 'function'
       ? deps.rollingChannelTotals
+      : null;
+  }
+  if ('rollingVitaminDIU' in deps) {
+    profileContextLightDeps.rollingVitaminDIU = typeof deps.rollingVitaminDIU === 'function'
+      ? deps.rollingVitaminDIU
       : null;
   }
   return previous;
@@ -137,7 +148,10 @@ function collectLightModifiers(data, options = {}) {
   const recentAny = [...sunSessions, ...deviceSessions].filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   let vitD7 = null, circadian7 = null;
   try {
-    vitD7 = Number(rollingVitaminDIU(7));
+    if (profileContextLightDeps.rollingVitaminDIU) {
+      const total = Number(profileContextLightDeps.rollingVitaminDIU(7));
+      if (Number.isFinite(total)) vitD7 = total;
+    }
     if (profileContextLightDeps.rollingChannelTotals) {
       const totals = profileContextLightDeps.rollingChannelTotals(7) || {};
       if (Number.isFinite(totals.circadian)) circadian7 = Number(totals.circadian);
