@@ -16,6 +16,12 @@ let _getSyncRelay = () => 'wss://sync.getbased.health';
 let _getAppOwner = () => null;
 /** @type {(...args: any[]) => void} */
 let _debug = () => {};
+/** @type {(options?: any) => string} */
+let _buildLabContext = () => '';
+/** @type {(days: number, options?: any) => Promise<string>} */
+let _buildWearableSeriesSection = async () => '';
+/** @type {() => number} */
+let _getAgentWearableSeriesDays = () => 0;
 /** @type {number | null} */
 let _contextPushTimer = null;
 let _agentAccessMigrationDirty = false;
@@ -27,11 +33,29 @@ function cancelPendingContextPush() {
   }
 }
 
-/** @param {{ getSyncRelay?: () => string, getAppOwner?: () => any, debug?: (...args: any[]) => void }} [deps] */
-export function configureSyncMessenger({ getSyncRelay, getAppOwner, debug } = {}) {
+/** @param {{
+ *   getSyncRelay?: () => string,
+ *   getAppOwner?: () => any,
+ *   debug?: (...args: any[]) => void,
+ *   buildLabContext?: (options?: any) => string,
+ *   buildWearableSeriesSection?: (days: number, options?: any) => Promise<string>,
+ *   getAgentWearableSeriesDays?: () => number,
+ * }} [deps]
+ */
+export function configureSyncMessenger({
+  getSyncRelay,
+  getAppOwner,
+  debug,
+  buildLabContext,
+  buildWearableSeriesSection,
+  getAgentWearableSeriesDays,
+} = {}) {
   if (typeof getSyncRelay === 'function') _getSyncRelay = getSyncRelay;
   if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
   if (typeof debug === 'function') _debug = debug;
+  if (typeof buildLabContext === 'function') _buildLabContext = buildLabContext;
+  if (typeof buildWearableSeriesSection === 'function') _buildWearableSeriesSection = buildWearableSeriesSection;
+  if (typeof getAgentWearableSeriesDays === 'function') _getAgentWearableSeriesDays = getAgentWearableSeriesDays;
 }
 
 function currentSyncRelay() {
@@ -44,6 +68,18 @@ function currentAppOwner() {
 
 function dbg(...args) {
   try { _debug(...args); } catch {}
+}
+
+function buildLabContext(options) {
+  return _buildLabContext(options);
+}
+
+function buildWearableSeriesSection(days, options) {
+  return _buildWearableSeriesSection(days, options);
+}
+
+function getAgentWearableSeriesDays() {
+  return _getAgentWearableSeriesDays();
 }
 
 function nowTs() { return Date.now(); }
@@ -503,7 +539,6 @@ export function pushContextToGateway() {
         dbg(`Skipped stale Agent Access context push (profile: ${profileId})`);
         return;
       }
-      const { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } = await import('./lab-context.js');
       const baseContext = buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true });
       // Optional wearable daily-series section - user picks 0 (off) / 7 /
       // 30 / 90 days in Settings -> Agent Access. Reads L1 IDB on the

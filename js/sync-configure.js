@@ -8,6 +8,7 @@ import { isSyncEnabled } from './sync-settings-state.js';
 import { configureSyncDelta } from './sync-delta.js';
 import { configureSyncTombstones } from './sync-tombstones.js';
 import { configureSyncMessenger } from './sync-messenger.js';
+import { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } from './lab-context.js';
 import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
 import { configureSyncIdentity, restoreFromMnemonic } from './sync-identity.js';
 import { configureSyncDiagnostics } from './sync-diagnostics.js';
@@ -99,6 +100,9 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     getSyncRelay,
     getAppOwner: getSyncAppOwner,
     debug: dbg,
+    buildLabContext,
+    buildWearableSeriesSection,
+    getAgentWearableSeriesDays,
   });
 
   configureSyncIdentity({
