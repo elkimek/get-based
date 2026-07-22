@@ -6,7 +6,7 @@ import {
   collectAISettings, collectChatData, collectDisplayPrefs,
 } from './sync-payload-collectors.js';
 import {
-  _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
+  _bytesToBase64, _gzipString,
 } from './sync-payload-codec.js';
 
 export {
@@ -15,7 +15,7 @@ export {
 } from './sync-payload-collectors.js';
 export {
   _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
-  _PER_ROW_DECOMPRESSED_CAP_BYTES,
+  _PER_ROW_DECOMPRESSED_CAP_BYTES, MAX_SYNC_PAYLOAD_BYTES, parseSyncPayload,
 } from './sync-payload-codec.js';
 
 // Phase 2 cutover flag — when set, buildSyncPayload omits importedData
@@ -111,51 +111,4 @@ export function stripLocalOnlyProfileData(importedData) {
     ...rest
   } = importedData;
   return rest;
-}
-
-// 5 MB cap. Normal payloads are well under 1 MB, so this is already generous.
-export const MAX_SYNC_PAYLOAD_BYTES = 5_000_000;
-
-/** @param {string} dataJson */
-export async function parseSyncPayload(dataJson) {
-  if (typeof dataJson !== 'string' || dataJson.length > MAX_SYNC_PAYLOAD_BYTES) {
-    throw new Error('Invalid sync payload: bad type or too large');
-  }
-  let inner = dataJson;
-  if (dataJson.startsWith('GZ|v1|')) {
-    if (typeof DecompressionStream === 'undefined') {
-      throw new Error('Invalid sync payload: gzip envelope but no DecompressionStream');
-    }
-    const b64 = dataJson.slice(6);
-    const bytes = _base64ToBytes(b64);
-    inner = await _gunzipToStringCapped(bytes, MAX_SYNC_PAYLOAD_BYTES);
-  }
-  const parsed = JSON.parse(inner);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Invalid sync payload');
-  }
-  // Defence-in-depth: strip wearableConnections from any incoming blob,
-  // regardless of producer version.
-  /** @param {any} imp */
-  function safe(imp) {
-    if (!imp || typeof imp !== 'object') return imp;
-    if ('wearableConnections' in imp) {
-      const { wearableConnections: _drop, ...rest } = imp;
-      return rest;
-    }
-    return imp;
-  }
-  if (parsed._v === 4) {
-    return { importedData: null, profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
-  }
-  if (parsed._v === 3) {
-    return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
-  }
-  if (parsed._v === 2) {
-    return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: null, displayPrefs: null };
-  }
-  if (parsed.entries || parsed.notes || parsed.supplements) {
-    return { importedData: safe(parsed), profile: null, aiSettings: null, chatData: null, displayPrefs: null };
-  }
-  throw new Error('Invalid sync payload: unknown shape');
 }
