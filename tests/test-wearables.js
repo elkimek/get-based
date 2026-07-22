@@ -1489,8 +1489,10 @@ console.log('17s. Encryption Hardening');
 
 // P0-1: profile-switch race in loadProfile refresh
 const profileSrc31 = await fetch('/js/profile.js').then(r => r.text());
+const profileRuntimeSrc31 = await fetch('/js/profile-runtime.js').then(r => r.text());
 assert('loadProfile refresh aborts when state.currentProfile changes mid-await',
-  /state\.currentProfile\s*!==\s*profileId\)\s*return/.test(profileSrc31));
+  profileSrc31.includes('refreshProfileWearables(profileId, state.importedData?.biometrics)') &&
+  /state\.currentProfile\s*!==\s*profileId\)\s*return/.test(profileRuntimeSrc31));
 
 // P0-1 (the orchestrator side): syncWearableSummary bails on profile swap.
 const summarySrc31 = await fetch('/js/wearables-summary.js').then(r => r.text());
@@ -1698,10 +1700,13 @@ console.log('17w. P2 Cleanup');
 // P2: loadProfile triggers wearable-summary refresh on profile switch
 // (was only running once at boot in main.js).
 const profileSrcP2 = await fetch('/js/profile.js').then(r => r.text());
+const profileRuntimeSrcP2 = await fetch('/js/profile-runtime.js').then(r => r.text());
 assert('loadProfile dispatches migrateBiometricsToManual + syncWearableSummary on every load',
-  /export\s+async\s+function\s+loadProfile[\s\S]*?migrateBiometricsToManual\(profileId/.test(profileSrcP2) &&
-  /loadProfile[\s\S]*?syncWearableSummary\(profileId,\s*connectMod\.listConnectedSources\(\)\)/.test(profileSrcP2) &&
-  /loadProfile[\s\S]*?connectMod\.syncStaleWearablesNow\?\.\(\)\.catch/.test(profileSrcP2));
+  profileSrcP2.includes('refreshProfileWearables(profileId, state.importedData?.biometrics)') &&
+  !profileSrcP2.includes("import('./wearables-manual.js')") &&
+  profileRuntimeSrcP2.includes('manual.migrateBiometricsToManual(profileId, biometrics)') &&
+  profileRuntimeSrcP2.includes('summary.syncWearableSummary(profileId, connect.listConnectedSources())') &&
+  profileRuntimeSrcP2.includes('connect.syncStaleWearablesNow?.().catch'));
 
 // P2: deleteWearablesDB closes the cached connection before deleting
 // (otherwise indexedDB.deleteDatabase hits onblocked).

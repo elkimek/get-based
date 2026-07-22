@@ -472,7 +472,9 @@ try {
     src.includes('await invalidateProfileContextCache()') &&
     src.includes('await reloadProfileRuntimeShell(profileId)') &&
     runtimeSrc.includes('export async function invalidateProfileContextCache') &&
-    runtimeSrc.includes('export async function reloadProfileRuntimeShell'));
+    runtimeSrc.includes('export async function reloadProfileRuntimeShell') &&
+    runtimeSrc.includes('export async function refreshProfileWearables') &&
+    appShellHooksSrc.includes('refreshProfileWearables,'));
   assert('profile delete awaits profile list save before completion',
     src.includes('await saveProfiles(updated)') &&
     (src.includes('await loadProfile(updated[0].id)') || src.includes('await refreshProfileButton()')));

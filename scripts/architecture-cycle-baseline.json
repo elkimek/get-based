@@ -1,15 +1,11 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 7,
-  "maxLargestCyclicComponent": 4,
+  "maxCyclicModules": 3,
+  "maxLargestCyclicComponent": 3,
   "allowedCyclicModules": [
     "js/cycle-import.js",
     "js/cycle.js",
-    "js/data.js",
-    "js/profile.js",
-    "js/wearables-apple-health.js",
-    "js/wearables-connect.js",
-    "js/wearables-manual.js"
+    "js/wearables-apple-health.js"
   ],
   "allowedComputedDynamicImports": [
     {

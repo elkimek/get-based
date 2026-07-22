@@ -12,9 +12,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Modules | 463 |
 | Internal import edges | 2058 |
 | Dynamic internal edges | 57 |
-| Modules participating in cycles | 7 |
-| Cyclic components | 2 |
-| Largest cyclic component | 4 |
+| Modules participating in cycles | 3 |
+| Cyclic components | 1 |
+| Largest cyclic component | 3 |
 | Computed dynamic imports | 2 |
 
 ## Enforced source boundaries
@@ -48,9 +48,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/views.js`](js/views.js) | 20 |
 | [`js/crypto.js`](js/crypto.js) | 27 | [`js/wearables-connect.js`](js/wearables-connect.js) | 20 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 18 | [`js/profile.js`](js/profile.js) | 19 |
-| [`js/constants.js`](js/constants.js) | 17 | [`js/sun.js`](js/sun.js) | 18 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 16 | [`js/export.js`](js/export.js) | 17 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 18 | [`js/sun.js`](js/sun.js) | 18 |
+| [`js/constants.js`](js/constants.js) | 17 | [`js/export.js`](js/export.js) | 17 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 16 | [`js/profile.js`](js/profile.js) | 16 |
 | [`js/recommendations-runtime.js`](js/recommendations-runtime.js) | 15 | [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) | 15 |
 | [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 15 | [`js/context-cards.js`](js/context-cards.js) | 15 |
 
@@ -58,13 +58,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 These are existing debt, not approved architecture. CI prevents new modules from joining a cycle and prevents the cycle budgets from increasing.
 
-<details><summary>Component 1 — 4 modules</summary>
-
-[`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js)
-
-</details>
-
-<details><summary>Component 2 — 3 modules</summary>
+<details><summary>Component 1 — 3 modules</summary>
 
 [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle.js`](js/cycle.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js)
 
@@ -607,10 +601,10 @@ Native browser modules shipped with the static application.
 - [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/state.js`](js/state.js)
 - [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js) → [`js/adapters.js`](js/adapters.js)
 - [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js), [`js/schema.js`](js/schema.js)
-- [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-discussion.js`](js/chat-discussion.js) *(dynamic)*, [`js/chat-history.js`](js/chat-history.js) *(dynamic)*, [`js/chat-personalities.js`](js/chat-personalities.js) *(dynamic)*, [`js/chat-threads.js`](js/chat-threads.js) *(dynamic)*, [`js/data.js`](js/data.js) *(dynamic)*, [`js/lab-context.js`](js/lab-context.js) *(dynamic)*, [`js/nav.js`](js/nav.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/views.js`](js/views.js) *(dynamic)*
+- [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-discussion.js`](js/chat-discussion.js) *(dynamic)*, [`js/chat-history.js`](js/chat-history.js) *(dynamic)*, [`js/chat-personalities.js`](js/chat-personalities.js) *(dynamic)*, [`js/chat-threads.js`](js/chat-threads.js) *(dynamic)*, [`js/data.js`](js/data.js) *(dynamic)*, [`js/lab-context.js`](js/lab-context.js) *(dynamic)*, [`js/nav.js`](js/nav.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/views.js`](js/views.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
 - [`js/profile-share.js`](js/profile-share.js) → [`js/export.js`](js/export.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-storage-key.js`](js/profile-storage-key.js) → no in-scope imports
-- [`js/profile.js`](js/profile.js) → [`js/adapters.js`](js/adapters.js), [`js/api.js`](js/api.js), [`js/blob-storage.js`](js/blob-storage.js) *(dynamic)*, [`js/constants.js`](js/constants.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*, [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.js`](js/utils.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*, [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
+- [`js/profile.js`](js/profile.js) → [`js/adapters.js`](js/adapters.js), [`js/api.js`](js/api.js), [`js/blob-storage.js`](js/blob-storage.js) *(dynamic)*, [`js/constants.js`](js/constants.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*, [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
 
 </details>
 

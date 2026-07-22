@@ -140,6 +140,7 @@ import {
   dispatchProfileSwitched,
   invalidateProfileContextCache,
   refreshProfileButton,
+  refreshProfileWearables,
   reloadProfileRuntimeShell,
 } from './profile-runtime.js';
 import { detectWearableTrendSlots } from './recommendations.js';
@@ -190,6 +191,7 @@ configureProfileRuntimeDeps({
   dispatchProfileSwitched,
   invalidateProfileContextCache,
   refreshProfileButton,
+  refreshProfileWearables,
   reloadProfileRuntimeShell,
 });
 
