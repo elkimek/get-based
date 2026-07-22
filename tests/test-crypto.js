@@ -479,28 +479,25 @@ try {
     !exportSrc.includes('publishExportGlobals') &&
     !exportRuntimeSrc.includes('publishExportGlobals') &&
     exportRuntimeSrc.includes('export async function refreshImportRuntimeShell'));
-  assert('export-runtime falls back to published globals when shell module imports fail',
-    exportRuntimeSrc.includes('function getRuntimeFunction(module, name)') &&
-    exportRuntimeSrc.includes('module?.[name]') &&
-    exportRuntimeSrc.includes('runtime[name]') &&
-    exportRuntimeSrc.includes("getRuntimeFunction(chatThreads, 'loadChatThreads')") &&
-    exportRuntimeSrc.includes("getRuntimeFunction(nav, 'buildSidebar')") &&
-    exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')"));
-  const exportRuntimeFunctionStart = exportRuntimeSrc.indexOf('function getRuntimeFunction(module, name)');
-  assert('export-runtime preserves browser runtime stubs before imported shell modules',
-    exportRuntimeFunctionStart >= 0 &&
-    exportRuntimeSrc.indexOf('typeof runtime[name]', exportRuntimeFunctionStart) <
-      exportRuntimeSrc.indexOf('typeof module?.[name]', exportRuntimeFunctionStart));
-  assert('export-runtime can refresh imported chat threads without chat module fallback globals',
+  assert('app shell injects export import refresh callbacks without shell module lookups',
+    exportRuntimeSrc.includes('export function configureExportImportRuntimeDeps(deps = {})') &&
+    appShellHooksSrc.includes("import { configureExportImportRuntimeDeps } from './export-runtime.js';") &&
+    appShellHooksSrc.includes('configureExportImportRuntimeDeps({') &&
+    !/import\(['"]\.\/(?:chat-threads|data|nav|views)\.js['"]\)/.test(exportRuntimeSrc));
+  assert('export-runtime prioritizes injected callbacks before compatibility globals',
+    exportRuntimeSrc.includes("exportImportRuntimeDeps.loadChatThreads || getRuntimeFunction('loadChatThreads')") &&
+    exportRuntimeSrc.includes("exportImportRuntimeDeps.buildSidebar || getRuntimeFunction('buildSidebar')") &&
+    exportRuntimeSrc.includes("exportImportRuntimeDeps.navigate || getRuntimeFunction('navigate')"));
+  assert('export-runtime can refresh chat threads without configured or global callbacks',
     exportRuntimeSrc.includes("from './crypto.js'") &&
     exportRuntimeSrc.includes('function loadChatThreadsFromStorageFallback') &&
     exportRuntimeSrc.includes('await encryptedGetItem(`labcharts-${state.currentProfile}-chat-threads`)') &&
     exportRuntimeSrc.includes('return false') &&
     exportRuntimeSrc.includes('labcharts-${state.currentProfile}-chat-threads') &&
     exportRuntimeSrc.includes('function renderThreadListFallback') &&
-    exportRuntimeSrc.includes('async function refreshChatThreadsRuntime(chatThreads)') &&
+    exportRuntimeSrc.includes('async function refreshChatThreadsRuntime()') &&
     exportRuntimeSrc.includes('if (!threadsLoaded) return') &&
-    exportRuntimeSrc.includes('if (chat) await refreshChatThreadsRuntime(chatThreads)'));
+    exportRuntimeSrc.includes('if (chat) await refreshChatThreadsRuntime()'));
   assert('export.js no longer calls import UI globals through window',
     !/window\.(loadChatThreads|buildSidebar|updateHeaderDates|renderProfileButton|navigate|cashuGetMintUrl|nostrGetSelectedNode|cashuRestoreWalletFromSeed|cashuSetMintUrl|nostrSetSelectedNode|cashuDestroyWalletDB)/.test(exportSrc));
   assert('export.js uses the Nostr module for wallet metadata',

@@ -41,7 +41,7 @@ assert('data view callbacks use shell injection instead of bridge or window look
   && dataSrc.includes('dataRuntimeDeps.navigate?.(route, data);')
   && dataSrc.includes('dataRuntimeDeps.buildSidebar?.(data);')
   && dataSrc.includes('dataRuntimeDeps.showDetailModal?.(openId);')
-  && appShellHooksSrc.includes("import { configureDataRuntimeDeps } from './data.js';")
+  && /import\s*\{[^}]*\bconfigureDataRuntimeDeps\b[^}]*\}\s*from\s*['"]\.\/data\.js['"]/.test(appShellHooksSrc)
   && appShellHooksSrc.includes('configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });'));
 
 assert('data action attribute helpers are exported',

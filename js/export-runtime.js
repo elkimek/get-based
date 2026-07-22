@@ -5,16 +5,73 @@ import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
 import { destroyWalletDB } from './cashu-wallet.js';
 
+/** @typedef {{
+ * buildSidebar: null | (() => void),
+ * ensureActiveThread: null | (() => void),
+ * loadChatThreads: null | (() => any),
+ * navigate: null | ((route?: string) => void),
+ * renderProfileButton: null | (() => void),
+ * renderThreadList: null | (() => void),
+ * updateHeaderDates: null | (() => void),
+ * }} ExportImportRuntimeDeps */
+
+/** @type {ExportImportRuntimeDeps} */
+const exportImportRuntimeDeps = {
+  buildSidebar: null,
+  ensureActiveThread: null,
+  loadChatThreads: null,
+  navigate: null,
+  renderProfileButton: null,
+  renderThreadList: null,
+  updateHeaderDates: null,
+};
+
+/** @param {Partial<ExportImportRuntimeDeps>} [deps] */
+export function configureExportImportRuntimeDeps(deps = {}) {
+  const previous = { ...exportImportRuntimeDeps };
+  if ('buildSidebar' in deps) {
+    exportImportRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function' ? deps.buildSidebar : null;
+  }
+  if ('ensureActiveThread' in deps) {
+    exportImportRuntimeDeps.ensureActiveThread = typeof deps.ensureActiveThread === 'function'
+      ? deps.ensureActiveThread
+      : null;
+  }
+  if ('loadChatThreads' in deps) {
+    exportImportRuntimeDeps.loadChatThreads = typeof deps.loadChatThreads === 'function'
+      ? deps.loadChatThreads
+      : null;
+  }
+  if ('navigate' in deps) {
+    exportImportRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
+  }
+  if ('renderProfileButton' in deps) {
+    exportImportRuntimeDeps.renderProfileButton = typeof deps.renderProfileButton === 'function'
+      ? deps.renderProfileButton
+      : null;
+  }
+  if ('renderThreadList' in deps) {
+    exportImportRuntimeDeps.renderThreadList = typeof deps.renderThreadList === 'function'
+      ? deps.renderThreadList
+      : null;
+  }
+  if ('updateHeaderDates' in deps) {
+    exportImportRuntimeDeps.updateHeaderDates = typeof deps.updateHeaderDates === 'function'
+      ? deps.updateHeaderDates
+      : null;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : /** @type {any} */ (globalThis);
 }
 
-function getRuntimeFunction(module, name) {
+function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
   if (typeof runtime[name] === 'function') return runtime[name];
-  if (typeof module?.[name] === 'function') return module[name];
   return null;
 }
 
@@ -104,10 +161,10 @@ function renderThreadListFallback() {
   }).join('');
 }
 
-async function refreshChatThreadsRuntime(chatThreads) {
-  const loadChatThreads = getRuntimeFunction(chatThreads, 'loadChatThreads');
-  const ensureActiveThread = getRuntimeFunction(chatThreads, 'ensureActiveThread');
-  const renderThreadList = getRuntimeFunction(chatThreads, 'renderThreadList');
+async function refreshChatThreadsRuntime() {
+  const loadChatThreads = exportImportRuntimeDeps.loadChatThreads || getRuntimeFunction('loadChatThreads');
+  const ensureActiveThread = exportImportRuntimeDeps.ensureActiveThread || getRuntimeFunction('ensureActiveThread');
+  const renderThreadList = exportImportRuntimeDeps.renderThreadList || getRuntimeFunction('renderThreadList');
   let threadsLoaded = true;
 
   if (loadChatThreads) threadsLoaded = await loadChatThreads() !== false;
@@ -141,24 +198,12 @@ export function clearDemoLoadingProfile(profileId) {
 
 export async function refreshImportRuntimeShell(options = {}) {
   const { chat = false, profileButton = false, route = 'dashboard' } = options;
-  const [
-    chatThreads,
-    nav,
-    data,
-    views,
-  ] = await Promise.all([
-    chat ? import('./chat-threads.js').catch(() => null) : Promise.resolve(null),
-    import('./nav.js').catch(() => null),
-    import('./data.js').catch(() => null),
-    import('./views.js').catch(() => null),
-  ]);
+  const buildSidebar = exportImportRuntimeDeps.buildSidebar || getRuntimeFunction('buildSidebar');
+  const updateHeaderDates = exportImportRuntimeDeps.updateHeaderDates || getRuntimeFunction('updateHeaderDates');
+  const renderProfileButton = exportImportRuntimeDeps.renderProfileButton || getRuntimeFunction('renderProfileButton');
+  const navigate = exportImportRuntimeDeps.navigate || getRuntimeFunction('navigate');
 
-  const buildSidebar = getRuntimeFunction(nav, 'buildSidebar');
-  const updateHeaderDates = getRuntimeFunction(data, 'updateHeaderDates');
-  const renderProfileButton = getRuntimeFunction(nav, 'renderProfileButton');
-  const navigate = getRuntimeFunction(views, 'navigate');
-
-  if (chat) await refreshChatThreadsRuntime(chatThreads);
+  if (chat) await refreshChatThreadsRuntime();
   buildSidebar?.();
   updateHeaderDates?.();
   if (profileButton) renderProfileButton?.();

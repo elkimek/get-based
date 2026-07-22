@@ -89,12 +89,13 @@ import {
   isEncryptedObject,
 } from './crypto.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
-import { configureDataRuntimeDeps } from './data.js';
+import { configureDataRuntimeDeps, updateHeaderDates } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { configureEMFRuntimeDeps } from './emf-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
+import { configureExportImportRuntimeDeps } from './export-runtime.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
@@ -223,6 +224,15 @@ configureCycleRuntimeDeps({ closeModal, navigate, renderProfileButton });
 configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });
 configureDnaRuntimeDeps({ buildSidebar, navigate });
 configureExportRuntimeDeps({ buildSidebar, navigate });
+configureExportImportRuntimeDeps({
+  buildSidebar,
+  ensureActiveThread,
+  loadChatThreads,
+  navigate,
+  renderProfileButton,
+  renderThreadList,
+  updateHeaderDates,
+});
 configurePdfImportReviewRuntimeDeps({ buildSidebar, navigate });
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ closeModal, openChatPanel, openProfileLocationEditor, openSettingsModal });
