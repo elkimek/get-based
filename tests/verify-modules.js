@@ -745,7 +745,7 @@
   // views.js is module-only; cycle-sensitive consumers use scoped runtime adapters.
   const viewsLegacyExports = [];
   const viewsFacadeModuleExports = [
-    'getInitialView','navigate','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
+    'configureDashboardViewFactory','getInitialView','navigate','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
     'showBodyLens','showInsightLens','showRecommendations','openRecommendationDetail',
     'discussRecommendation','saveRecommendation','dismissRecommendation','showLight',
     '_expandLightToolsSection','_toggleChannelDetail','_openChannelOnLightPage',

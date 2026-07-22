@@ -29,6 +29,7 @@ import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifesty
 import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js';
 import { configureDashboardRecommendationRuntimeDeps } from './dashboard-recommendation-widget.js';
 import { configureDashboardWidgetRuntimeDeps } from './dashboard-widget-runtime.js';
+import { createDashboardViewComposition } from './dashboard-view-composition.js';
 import {
   closeChatPanel,
   configureChatPanel,
@@ -98,6 +99,7 @@ import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime, openSet
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
 import {
   clearDashboardWidgets,
+  configureDashboardViewFactory,
   getInitialView,
   navigate,
   openChatProviderQuiz,
@@ -140,6 +142,8 @@ import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtim
 import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';
 import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
+
+configureDashboardViewFactory(createDashboardViewComposition);
 
 configureClientListRuntime({
   exportAllDataJSON,
