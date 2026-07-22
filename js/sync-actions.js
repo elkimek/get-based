@@ -3,7 +3,6 @@
 
 import { state } from './state.js';
 import { showNotification } from './utils.js';
-import { getProfiles, createDefaultProfileData } from './profile.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { logSyncEvent } from './sync-state.js';
 import {
@@ -20,6 +19,8 @@ let _pushProfile = async () => {};
 let _forcePull = () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
+let _getProfiles = () => [];
+let _createDefaultProfileData = () => ({ entries: [] });
 
 /** @param {{
  *   pushProfile?: (...args: any[]) => Promise<any>,
@@ -27,6 +28,8 @@ let _isEvoluReady = () => false;
  *   isSyncEnabled?: () => boolean,
  *   isEvoluReady?: () => boolean,
  *   isSyncing?: () => boolean,
+ *   getProfiles?: () => any[],
+ *   createDefaultProfileData?: () => any,
  * }} [deps]
  */
 export function configureSyncActions({
@@ -35,11 +38,15 @@ export function configureSyncActions({
   isSyncEnabled,
   isEvoluReady,
   isSyncing,
+  getProfiles,
+  createDefaultProfileData,
 } = {}) {
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof forcePull === 'function') _forcePull = forcePull;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
+  if (typeof createDefaultProfileData === 'function') _createDefaultProfileData = createDefaultProfileData;
   configureSyncSaveHooks({ pushProfile, isSyncEnabled, isEvoluReady, isSyncing });
 }
 
@@ -76,12 +83,12 @@ export async function syncNow() {
 // Push all profiles on first enable.
 /** @param {any} [options] */
 export async function pushAllProfiles(options = {}) {
-  const profiles = getProfiles();
+  const profiles = _getProfiles();
   for (const p of profiles) {
     try {
       let dataJson;
       if (p.id === state.currentProfile) {
-        dataJson = state.importedData || createDefaultProfileData();
+        dataJson = state.importedData || _createDefaultProfileData();
       } else {
         dataJson = await readProfileImportedData(p.id);
       }
