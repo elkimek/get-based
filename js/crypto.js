@@ -7,6 +7,7 @@ import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, getCachedKey, updateKeyCache } from './crypto-key-cache.js';
+import { configureCycleStoreCrypto } from './cycle-store.js';
 
 export { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 
@@ -304,6 +305,13 @@ export function isEncryptedObject(o) {
   return o && typeof o === 'object' && o._enc === 'v1' &&
          o.iv instanceof Uint8Array && o.ct instanceof Uint8Array;
 }
+
+configureCycleStoreCrypto({
+  getEncryptionEnabled,
+  encryptObject,
+  isEncryptedObject,
+  decryptObject,
+});
 
 // TEST-ONLY: injects a freshly-derived key so behavioral tests can drive
 // the encrypt/decrypt round-trip without going through the passphrase

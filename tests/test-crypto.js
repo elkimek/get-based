@@ -56,6 +56,8 @@ const settingsModule = await import('../js/settings.js');
 await import('../js/chat.js');
 await import('../js/utils.js');
 const backupModule = await import('../js/backup.js');
+const cryptoStoreSrc = read('js/crypto.js');
+const cycleStoreSrc = read('js/cycle-store.js');
 
 // Seed a minimal profile registry — the app bootstraps one via
 // initProfilesCache() on page load; in Node we seed it so the section-15
@@ -85,6 +87,10 @@ assert('backup.exportEncryptedBackup module export exists', typeof backupModule.
 assert('backup.importEncryptedBackup module export exists', typeof backupModule.importEncryptedBackup === 'function');
 assert('window.exportEncryptedBackup stays module-only', !('exportEncryptedBackup' in window));
 assert('window.importEncryptedBackup stays module-only', !('importEncryptedBackup' in window));
+assert('cycle storage receives crypto providers without a reverse import',
+  cryptoStoreSrc.includes('configureCycleStoreCrypto({')
+    && cycleStoreSrc.includes('export function configureCycleStoreCrypto')
+    && !cycleStoreSrc.includes("import('./crypto.js')"));
 assert('profile.initProfilesCache exists', typeof profileModule.initProfilesCache === 'function');
 assert('window.initProfilesCache stays module-only', !('initProfilesCache' in window));
 
