@@ -797,7 +797,7 @@ configureSunSessionUI({
 });
 
 configureAIVerdictRuntimeDeps({ refreshSunSurfaces: _refreshSurfaces });
-configureProfileContextLightDeps({ rollingChannelTotals });
+configureProfileContextLightDeps({ rollingChannelTotals, rollingVitaminDIU });
 configureSunDefaultsRuntimeDeps({ getSunCoords, requestPreciseLocation });
 
 // Reset all sun.js module-singleton state. Called on profile switch so

@@ -145,6 +145,12 @@ test('Context hub data source toggles control prompt and score context', async (
   await expect(overlay.locator('.context-affect-chip').filter({ hasText: 'Scores' }).first()).toBeVisible();
   await expect(overlay.locator('[data-context-toggle="body-regions"]')).toHaveCount(0);
 
+  const configuredLightRollups = await page.evaluate(async () => {
+    const { getBiologyProfileContext } = await import('/js/profile-context.js');
+    const { light } = getBiologyProfileContext();
+    return { vitD7: light.vitD7, circadian7: light.circadian7 };
+  });
+
   await overlay.locator('.context-source-row[data-context-group="Fatty Acids"] [data-context-toggle="lab-group"]').evaluate(el => {
     const input = /** @type {HTMLInputElement} */ (el);
     input.checked = false;
@@ -245,6 +251,7 @@ test('Context hub data source toggles control prompt and score context', async (
   expect(labWithoutDna).toContain('Context diet');
   expect(labWithoutDna).toContain('Context magnesium');
   expect(labWithoutDna).not.toContain('GENETICS');
+  expect(configuredLightRollups).toEqual({ vitD7: 0, circadian7: null });
   expect(labWithoutFattyAcids).toContain('Context CRP');
   expect(labWithoutFattyAcids).not.toContain('Omega-3 Index');
   expect(insightOffSupplementsOn).not.toContain('Medical History / Diagnoses');
