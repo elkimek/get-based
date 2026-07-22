@@ -3331,7 +3331,10 @@ await import('../js/settings.js');
   assert('reconcileLocalStorageWithEvolu defined',
     /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
   assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
+    syncConfigureSrc.includes("from './sync-init.js'")
+      && syncConfigureSrc.includes('configureSyncInit({ reconcileLocalStorageWithEvolu });')
+      && !syncInitSrc.includes("from './sync-reconcile.js'")
+      && /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
     /reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',

@@ -6,7 +6,6 @@ import { createSyncQueries, createSyncSchema } from './sync-schema.js';
 import { getSyncBlocker, getSyncRelay } from './sync-environment.js';
 import { primeSyncState, setSyncEnabled } from './sync-settings-state.js';
 import { bindSyncRecoveryEvents } from './sync-recovery.js';
-import { reconcileLocalStorageWithEvolu } from './sync-reconcile.js';
 import { bindSyncSubscriptions, startRelayProbe } from './sync-subscriptions.js';
 import {
   getSyncAppOwner, getSyncEvolu, getSyncReloadUrlRuntime,
@@ -14,6 +13,20 @@ import {
   setSyncQueries, setSyncQueryLoadedPromise,
   setSyncReadyPromise,
 } from './sync-runtime.js';
+
+/** @type {() => Promise<any>} */
+let _reconcileLocalStorageWithEvolu = async () => {};
+
+/** @param {{ reconcileLocalStorageWithEvolu?: () => Promise<any> }} [deps] */
+export function configureSyncInit({ reconcileLocalStorageWithEvolu } = {}) {
+  if (typeof reconcileLocalStorageWithEvolu === 'function') {
+    _reconcileLocalStorageWithEvolu = reconcileLocalStorageWithEvolu;
+  }
+}
+
+function reconcileLocalStorageWithEvolu() {
+  return _reconcileLocalStorageWithEvolu();
+}
 
 /** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
