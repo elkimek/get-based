@@ -132,6 +132,7 @@ const APP_SHELL = [
   '/js/lab-date-range.js',
   '/js/profile-fatty-acid-migrations.js',
   '/js/profile-marker-migrations.js',
+  '/js/profile-storage-key.js',
   '/js/profile.js',
   '/js/profile-runtime.js',
   '/js/profile-share.js',

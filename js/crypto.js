@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
-import { profileStorageKey } from './profile.js';
+import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, getCachedKey, updateKeyCache } from './crypto-key-cache.js';

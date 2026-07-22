@@ -17,6 +17,9 @@ import {
 } from './lab-entry.js';
 import { normalizeContextSourceSettings } from './context-source-registry.js';
 import { repairProfileMarkerData } from './profile-marker-migrations.js';
+import { profileStorageKey } from './profile-storage-key.js';
+
+export { profileStorageKey };
 
 const profileDeps = {
   callClaudeAPI,
@@ -257,15 +260,6 @@ export function setActiveProfileId(id) {
  */
 function _normalizeProfileId(id) {
   return String(id || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 128);
-}
-
-/**
- * @param {string} profileId
- * @param {string} suffix
- * @returns {string}
- */
-export function profileStorageKey(profileId, suffix) {
-  return `labcharts-${profileId}-${suffix}`;
 }
 
 /**
