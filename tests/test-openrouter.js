@@ -343,6 +343,7 @@ assert('startup-oauth-callbacks.js marks fresh OpenRouter settings local for syn
   startupOAuthSrc.includes('markOpenRouterOAuthSettingsLocal()'));
 const syncSrc = read('js/sync.js');
 const syncConfigureSrc = read('js/sync-configure.js');
+const startupOrchestratorSrc = read('js/startup-orchestrator.js');
 const syncReconcileSrc = read('js/sync-reconcile.js');
 const syncApplySrc = read('js/sync-apply.js');
 assert('sync preserves fresh OpenRouter OAuth provider/key against stale pull',
@@ -355,7 +356,9 @@ assert('sync refreshes AI header after remote AI settings apply',
     && !syncApplySrc.includes('window.refreshWebSearchToggle'));
 assert('startup sync reconciliation pushes local AI setting drift',
   syncConfigureSrc.includes("from './sync-reconcile.js'")
-    && syncSrc.includes("from './sync-configure.js'")
+    && !syncSrc.includes("from './sync-configure.js'")
+    && startupOrchestratorSrc.includes("from './sync-configure.js'")
+    && startupOrchestratorSrc.includes('configureSyncModules({ enableSync, disableSync });')
     && syncReconcileSrc.includes('newer local AI settings')
     && syncReconcileSrc.includes('collectAISettings()'));
 const cssSrc = read('styles.css') + '\n' + read('css/settings.css');
