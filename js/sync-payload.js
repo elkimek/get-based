@@ -1,7 +1,6 @@
 // @ts-check
 // sync-payload.js - outbound/inbound wire payload helpers for Evolu sync
 
-import { getProfiles } from './profile.js';
 import {
   collectAISettings, collectChatData, collectDisplayPrefs,
 } from './sync-payload-collectors.js';
@@ -17,6 +16,25 @@ export {
   _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
   _PER_ROW_DECOMPRESSED_CAP_BYTES, MAX_SYNC_PAYLOAD_BYTES, parseSyncPayload,
 } from './sync-payload-codec.js';
+
+/** @type {{ getProfiles: () => any[] }} */
+const syncPayloadDeps = {
+  getProfiles: () => {
+    try {
+      const profiles = JSON.parse(localStorage.getItem('labcharts-profiles') || '[]');
+      return Array.isArray(profiles) ? profiles : [];
+    } catch {
+      return [];
+    }
+  },
+};
+
+/** @param {{ getProfiles?: () => any[] }} [deps] */
+export function configureSyncPayload(deps = {}) {
+  const previous = { ...syncPayloadDeps };
+  if (typeof deps.getProfiles === 'function') syncPayloadDeps.getProfiles = deps.getProfiles;
+  return previous;
+}
 
 // Phase 2 cutover flag — when set, buildSyncPayload omits importedData
 // from the blob entirely. Per-row CRDT deltas carry every field instead.
@@ -47,7 +65,7 @@ export function disablePhase2CutoverFlag(profileId) {
  * @param {any} importedData
  */
 export async function buildSyncPayload(profileId, importedData) {
-  const profiles = getProfiles();
+  const profiles = syncPayloadDeps.getProfiles();
   const profile = profiles.find(p => p.id === profileId);
   const aiSettings = await collectAISettings();
   const chatData = await collectChatData(profileId);
