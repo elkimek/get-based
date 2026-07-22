@@ -29,8 +29,13 @@ console.log('=== OpenRouter Integration Tests ===\n');
 // Provider helpers and provider-panel UI handlers are module-only APIs.
 await import('../js/state.js');
 const api = await import('../js/api.js');
+const cryptoModule = await import('../js/crypto.js');
 const providerPanels = await import('../js/provider-panels.js');
 const chatRuntime = await import('../js/chat-runtime.js');
+const providerStorageRuntime = await import('../js/api-provider-storage-runtime.js');
+const previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
+  encryptedSetItem: cryptoModule.encryptedSetItem,
+});
 
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
@@ -233,14 +238,16 @@ assert('providerPanels.updateOpenRouterModelPricing is function', typeof provide
 // ─── 8. Key/model management (localStorage) ───
 console.log('\n8. Key/model management');
 const oldKey = localStorage.getItem('labcharts-openrouter-key');
-api.saveOpenRouterKey('test-key-123');
+await api.saveOpenRouterKey('test-key-123');
 assert('saveOpenRouterKey stores to localStorage', localStorage.getItem('labcharts-openrouter-key') === 'test-key-123');
 assert('getOpenRouterKey returns saved key', api.getOpenRouterKey() === 'test-key-123');
 assert('hasOpenRouterKey returns true with key', api.hasOpenRouterKey() === true);
 localStorage.removeItem('labcharts-openrouter-key');
+cryptoModule.updateKeyCache('labcharts-openrouter-key', null);
 assert('hasOpenRouterKey returns false without key', api.hasOpenRouterKey() === false);
 assert('getOpenRouterKey returns empty without key', api.getOpenRouterKey() === '');
 if (oldKey) localStorage.setItem('labcharts-openrouter-key', oldKey);
+cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey);
 
 const oldModel = localStorage.getItem('labcharts-openrouter-model');
 localStorage.removeItem('labcharts-openrouter-model');
@@ -256,13 +263,15 @@ const oldProvider = localStorage.getItem('labcharts-ai-provider');
 const oldORKey = localStorage.getItem('labcharts-openrouter-key');
 api.setAIProvider('openrouter');
 localStorage.removeItem('labcharts-openrouter-key');
+cryptoModule.updateKeyCache('labcharts-openrouter-key', null);
 assert('hasAIProvider false for openrouter without key', api.hasAIProvider() === false);
-api.saveOpenRouterKey('sk-or-test');
+await api.saveOpenRouterKey('sk-or-test');
 assert('hasAIProvider true for openrouter with key', api.hasAIProvider() === true);
 if (oldProvider) localStorage.setItem('labcharts-ai-provider', oldProvider);
 else localStorage.removeItem('labcharts-ai-provider');
 if (oldORKey) localStorage.setItem('labcharts-openrouter-key', oldORKey);
 else localStorage.removeItem('labcharts-openrouter-key');
+cryptoModule.updateKeyCache('labcharts-openrouter-key', oldORKey);
 
 // Section 10 (Settings modal DOM) lives in
 // tests/playwright/openrouter-settings.spec.js.
@@ -354,5 +363,6 @@ assert('Chat setup guide has delegated startOpenRouterOAuth action',
   chatOnboardingSrc.includes('data-chat-onboarding-action') &&
   chatOnboardingSrc.includes('start-openrouter-oauth'));
 
+providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

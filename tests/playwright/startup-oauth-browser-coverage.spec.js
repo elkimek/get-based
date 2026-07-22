@@ -19,6 +19,8 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     const startup = await import(startupUrl);
     const wearables = await import('/js/wearables-connect.js');
     const chatRuntime = await import('/js/chat-runtime.js');
+    const cryptoStore = await import('/js/crypto.js');
+    const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
     const outcomes = {};
 
     const snapshotStorage = storage => new Map(Array.from({ length: storage.length }, (_, index) => storage.key(index))
@@ -39,6 +41,9 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     const originalPushState = history.pushState;
     const hadCoverageDispatch = Object.prototype.hasOwnProperty.call(wearables.OAUTH_DISPATCH, 'coverage');
     const savedCoverageDispatch = wearables.OAUTH_DISPATCH.coverage;
+    const originalProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
+      encryptedSetItem: cryptoStore.encryptedSetItem,
+    });
 
     let notifications = [];
     let fetchCalls = [];
@@ -61,6 +66,7 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
 
     const resetCase = (query = '') => {
       localStorage.clear();
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', null);
       sessionStorage.clear();
       notifications = [];
       fetchCalls = [];
@@ -268,9 +274,11 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
       window.setTimeout = originalSetTimeout;
       history.replaceState = originalReplaceState;
       chatRuntime.configureChatRuntimeCallbacks(originalChatRuntime);
+      providerStorageRuntime.configureApiProviderStorageRuntimeDeps(originalProviderStorageRuntime);
       if (hadCoverageDispatch) wearables.OAUTH_DISPATCH.coverage = savedCoverageDispatch;
       else delete wearables.OAUTH_DISPATCH.coverage;
       restoreStorage(localStorage, savedLocal);
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', savedLocal.get('labcharts-openrouter-key'));
       restoreStorage(sessionStorage, savedSession);
       originalPushState.call(history, null, '', '/startup-oauth-browser-coverage');
     }

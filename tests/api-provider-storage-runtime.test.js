@@ -49,13 +49,14 @@ describe('api provider storage runtime adapter', () => {
     localStorage.removeItem('labcharts-encryption-enabled');
 
     try {
-      await expect(encryptedSetProviderItemRuntime(key, 'plain-ok')).resolves.toBeUndefined();
-      expect(localStorage.getItem(key)).toBe('plain-ok');
+      await expect(encryptedSetProviderItemRuntime(key, 'must-not-leak'))
+        .rejects.toThrow('Encrypted provider storage is not configured.');
+      expect(localStorage.getItem(key)).toBeNull();
 
       localStorage.setItem('labcharts-encryption-enabled', 'true');
       await expect(encryptedSetProviderItemRuntime(key, 'must-not-leak'))
         .rejects.toThrow('Encrypted provider storage is not configured.');
-      expect(localStorage.getItem(key)).toBe('plain-ok');
+      expect(localStorage.getItem(key)).toBeNull();
     } finally {
       configureApiProviderStorageRuntimeDeps(previous);
       localStorage.removeItem(key);

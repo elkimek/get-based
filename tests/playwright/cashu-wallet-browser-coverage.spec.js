@@ -460,6 +460,11 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
 
   const results = await page.evaluate(async () => {
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const cryptoStore = await import('/js/crypto.js');
+    const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
+    const previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
+      encryptedSetItem: cryptoStore.encryptedSetItem,
+    });
     const oldGlobals = {};
     const globalNames = [
       'cashuGetBalance',
@@ -821,6 +826,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
     } finally {
       panels?.clearRoutstrWalletTimers?.();
       panels?.configureRoutstrWalletRuntime?.();
+      providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
+      cryptoStore.updateKeyCache('labcharts-routstr-key', null);
       root.remove();
       window.showNotification = oldNotification;
       window.qrcode = oldQrcode;
