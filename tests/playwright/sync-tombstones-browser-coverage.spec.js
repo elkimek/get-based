@@ -76,10 +76,11 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ tombstonesUrl }) => {
-    const [tombstones, { state }, blobStorage] = await Promise.all([
+    const [tombstones, { state }, blobStorage, profileStore] = await Promise.all([
       import(tombstonesUrl),
       import('/js/state.js'),
       import('/js/blob-storage.js'),
+      import('/js/profile.js'),
     ]);
     const outcomes = {};
     const profileIds = ['keep', 'wipe', 'batch-a', 'batch-b', 'rejectme', 'lastonly'];
@@ -133,6 +134,9 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
         isSyncEnabled: () => syncEnabled,
         pushProfile,
         debug: () => {},
+        getProfiles: profileStore.getProfiles,
+        saveProfiles: profileStore.saveProfiles,
+        loadProfile: profileStore.loadProfile,
       });
     };
 
@@ -260,6 +264,9 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
         isSyncEnabled: () => false,
         pushProfile: async () => {},
         debug: () => {},
+        getProfiles: () => [],
+        saveProfiles: async () => {},
+        loadProfile: () => {},
       });
       state.profiles = saved.profilesState;
       state.importedData = saved.importedData;

@@ -1,14 +1,12 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 9,
-  "maxLargestCyclicComponent": 6,
+  "maxCyclicModules": 7,
+  "maxLargestCyclicComponent": 4,
   "allowedCyclicModules": [
     "js/cycle-import.js",
     "js/cycle.js",
     "js/data.js",
     "js/profile.js",
-    "js/sync-tombstones.js",
-    "js/sync.js",
     "js/wearables-apple-health.js",
     "js/wearables-connect.js",
     "js/wearables-manual.js"
