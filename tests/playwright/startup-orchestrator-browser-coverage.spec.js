@@ -73,6 +73,29 @@ async function openStartupOrchestratorPage(page) {
       }
     `,
   }));
+  await page.route('**/js/sync.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export function configureSyncLifecycleDeps({ enableSync, disableSync }) {
+        window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync]);
+      }
+    `,
+  }));
+  await page.route('**/js/sync-configure.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export function configureSyncModules({ enableSync, disableSync }) {
+        window.__startupCalls.push(['sync-modules', typeof enableSync, typeof disableSync]);
+      }
+    `,
+  }));
+  await page.route('**/js/sync-lifecycle.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export async function enableSync() {}
+      export async function disableSync() {}
+    `,
+  }));
   await page.goto('/startup-orchestrator-browser-coverage', { waitUntil: 'load' });
 }
 
@@ -114,6 +137,8 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
 
       outcomes.startAppInstallsOneSetOfShellHooksWithoutUsageGlobal =
         !window.__startupCalls.includes('emf')
+        && window.__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-lifecycle-deps').length === 1
+        && window.__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-modules').length === 1
         && window.__startupCalls.filter(call => call === 'events').length === 1
         && window.__startupCalls.filter(call => call === 'refresh').length === 1
         && !('_getActiveProfileId' in window);

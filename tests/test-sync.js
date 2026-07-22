@@ -128,6 +128,7 @@ await import('../js/settings.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const settingsSyncPanelSrc = await fetchWithRetry('js/settings-sync-panel.js');
   const dataSrc = await fetchWithRetry('js/data.js');
+  const startupOrchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
   const appShellCssSrc = await fetchWithRetry('css/app-shell.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
@@ -200,7 +201,8 @@ await import('../js/settings.js');
   assert('service worker precaches sync-runtime.js',
     serviceWorkerSrc.includes("'/js/sync-runtime.js'"));
   assert('sync-configure.js owns sync dependency wiring',
-    syncSrc.includes("from './sync-configure.js'")
+    !syncSrc.includes("from './sync-configure.js'")
+      && startupOrchestratorSrc.includes("from './sync-configure.js'")
       && syncConfigureSrc.includes('export function configureSyncModules')
       && syncConfigureSrc.includes('configureRelayHealth({')
       && syncConfigureSrc.includes('configureSyncPush({')
@@ -210,7 +212,7 @@ await import('../js/settings.js');
       && syncConfigureSrc.includes('configureSyncDiagnostics({')
       && syncConfigureSrc.includes('configureSyncUI({')
       && syncConfigureSrc.includes('forceResendCurrentProfile,')
-      && syncSrc.includes('configureSyncModules({ enableSync, disableSync });'));
+      && startupOrchestratorSrc.includes('configureSyncModules({ enableSync, disableSync });'));
   assert('service worker precaches sync-configure.js',
     serviceWorkerSrc.includes("'/js/sync-configure.js'"));
   assert('sync-init.js owns Evolu startup orchestration',
@@ -226,14 +228,18 @@ await import('../js/settings.js');
   assert('service worker precaches sync-init.js',
     serviceWorkerSrc.includes("'/js/sync-init.js'"));
   assert('sync-lifecycle.js owns enable/disable lifecycle actions',
-    syncSrc.includes("from './sync-lifecycle.js'")
+    !syncSrc.includes("from './sync-lifecycle.js'")
+      && startupOrchestratorSrc.includes("from './sync-lifecycle.js'")
+      && syncSrc.includes('export function configureSyncLifecycleDeps')
+      && syncSrc.includes('return syncLifecycleDeps.enableSync(...args)')
+      && syncSrc.includes('return syncLifecycleDeps.disableSync(...args)')
+      && startupOrchestratorSrc.includes('configureSyncLifecycleDeps({ enableSync, disableSync });')
       && syncLifecycleSrc.includes('export async function enableSync')
       && syncLifecycleSrc.includes('export async function disableSync')
       && syncLifecycleSrc.includes('await initSync()')
       && syncLifecycleSrc.includes('await forcePull()')
       && syncLifecycleSrc.includes('await pushAllProfiles()')
-      && syncLifecycleSrc.includes('clearSyncRuntimeState();')
-      && exportBlockIncludes(syncSrc, ['enableSync', 'disableSync']));
+      && syncLifecycleSrc.includes('clearSyncRuntimeState();'));
   assert('service worker precaches sync-lifecycle.js',
     serviceWorkerSrc.includes("'/js/sync-lifecycle.js'"));
   assert('sync-disable-cleanup.js owns disable localStorage cleanup',

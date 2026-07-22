@@ -55,14 +55,43 @@ import {
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 } from './sync-cutover.js';
 import { initSync } from './sync-init.js';
-import { disableSync, enableSync } from './sync-lifecycle.js';
-import { configureSyncModules } from './sync-configure.js';
+
+/** @type {{
+ *   enableSync: (...args: any[]) => Promise<any>,
+ *   disableSync: (...args: any[]) => Promise<any>,
+ * }} */
+const syncLifecycleDeps = {
+  enableSync: async () => { throw new Error('Sync lifecycle is not configured'); },
+  disableSync: async () => { throw new Error('Sync lifecycle is not configured'); },
+};
+
+/** @param {{
+ *   enableSync?: (...args: any[]) => Promise<any>,
+ *   disableSync?: (...args: any[]) => Promise<any>,
+ * }} [deps]
+ */
+export function configureSyncLifecycleDeps(deps = {}) {
+  const previous = { ...syncLifecycleDeps };
+  if (typeof deps.enableSync === 'function') syncLifecycleDeps.enableSync = deps.enableSync;
+  if (typeof deps.disableSync === 'function') syncLifecycleDeps.disableSync = deps.disableSync;
+  return previous;
+}
+
+/** @param {...any} args */
+export function enableSync(...args) {
+  return syncLifecycleDeps.enableSync(...args);
+}
+
+/** @param {...any} args */
+export function disableSync(...args) {
+  return syncLifecycleDeps.disableSync(...args);
+}
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
   getRelayQuotaEstimate, resetRelayQuotaEstimate, verifyPushLanded,
   getRecentSyncEvents, subscribeSyncStatus,
-  isSyncEnabled, initSync, primeSyncState, enableSync, disableSync,
+  isSyncEnabled, initSync, primeSyncState,
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
   rejectPendingTombstone,
   clearAgentAccessMigrationDirty, clearLegacyAgentAccessSecrets,
@@ -84,5 +113,3 @@ export {
   pushCurrentProfile, syncNow,
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 };
-
-configureSyncModules({ enableSync, disableSync });

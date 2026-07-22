@@ -10,11 +10,11 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 462 |
-| Internal import edges | 2058 |
+| Internal import edges | 2059 |
 | Dynamic internal edges | 63 |
-| Modules participating in cycles | 37 |
+| Modules participating in cycles | 29 |
 | Cyclic components | 1 |
-| Largest cyclic component | 37 |
+| Largest cyclic component | 29 |
 | Computed dynamic imports | 2 |
 
 ## Enforced source boundaries
@@ -51,16 +51,16 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 18 | [`js/profile.js`](js/profile.js) | 18 |
 | [`js/constants.js`](js/constants.js) | 17 | [`js/sun.js`](js/sun.js) | 18 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 16 | [`js/export.js`](js/export.js) | 17 |
-| [`js/recommendations-runtime.js`](js/recommendations-runtime.js) | 15 | [`js/sync.js`](js/sync.js) | 17 |
-| [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 15 | [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) | 15 |
+| [`js/recommendations-runtime.js`](js/recommendations-runtime.js) | 15 | [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) | 15 |
+| [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 15 | [`js/context-cards.js`](js/context-cards.js) | 15 |
 
 ## Existing cyclic components
 
 These are existing debt, not approved architecture. CI prevents new modules from joining a cycle and prevents the cycle budgets from increasing.
 
-<details><summary>Component 1 — 37 modules</summary>
+<details><summary>Component 1 — 29 modules</summary>
 
-[`js/backup-cycle.js`](js/backup-cycle.js), [`js/backup.js`](js/backup.js), [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-apply.js`](js/sync-apply.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/tour.js`](js/tour.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+[`js/backup-cycle.js`](js/backup-cycle.js), [`js/backup.js`](js/backup.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync.js`](js/sync.js), [`js/tour.js`](js/tour.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 
 </details>
 
@@ -701,7 +701,7 @@ Native browser modules shipped with the static application.
 - [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js) → [`js/sun-sessions-store.js`](js/sun-sessions-store.js)
 - [`js/startup-maintenance.js`](js/startup-maintenance.js) → [`js/light-devices.js`](js/light-devices.js), [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js), [`js/state.js`](js/state.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
 - [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js) → [`js/api.js`](js/api.js), [`js/utils.js`](js/utils.js), [`js/wearables-connect.js`](js/wearables-connect.js)
-- [`js/startup-orchestrator.js`](js/startup-orchestrator.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/import-loader.js`](js/import-loader.js), [`js/startup-foundation.js`](js/startup-foundation.js), [`js/startup-maintenance.js`](js/startup-maintenance.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/utils.js`](js/utils.js)
+- [`js/startup-orchestrator.js`](js/startup-orchestrator.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/import-loader.js`](js/import-loader.js), [`js/startup-foundation.js`](js/startup-foundation.js), [`js/startup-maintenance.js`](js/startup-maintenance.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/startup-profile.js`](js/startup-profile.js) → [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
 - [`js/startup-ui.js`](js/startup-ui.js) → [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/dna.js`](js/dna.js), [`js/import-file-input.js`](js/import-file-input.js), [`js/legal-consent.js`](js/legal-consent.js), [`js/nav.js`](js/nav.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/sync.js`](js/sync.js), [`js/theme.js`](js/theme.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 
@@ -825,7 +825,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-subscriptions.js`](js/sync-subscriptions.js) → no in-scope imports
 - [`js/sync-tombstones.js`](js/sync-tombstones.js) → [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
 - [`js/sync-ui.js`](js/sync-ui.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
-- [`js/sync.js`](js/sync.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js)
+- [`js/sync.js`](js/sync.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js)
 
 </details>
 
