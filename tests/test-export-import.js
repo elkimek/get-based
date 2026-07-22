@@ -459,7 +459,7 @@ return (async function() {
   assert('Calls navigate(dashboard) after clear through export runtime',
     exportSrc.includes('refreshImportRuntimeShell({ chat: true, profileButton: true })') &&
     exportRuntimeSrc.includes("route = 'dashboard'") &&
-    exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')") &&
+    exportRuntimeSrc.includes("exportImportRuntimeDeps.navigate || getRuntimeFunction('navigate')") &&
     exportRuntimeSrc.includes('navigate?.(route)'));
 
   // ═══════════════════════════════════════

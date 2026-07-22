@@ -966,11 +966,12 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ exportUrl, profileUrl, cryptoUrl }) => {
-    const [exportFacade, profileStore, cryptoStore, dataModule] = await Promise.all([
+    const [exportFacade, profileStore, cryptoStore, dataModule, viewsModule] = await Promise.all([
       import(exportUrl),
       import(profileUrl),
       import(cryptoUrl),
       import('/js/data.js'),
+      import('/js/views.js'),
     ]);
     const { state } = await import('/js/state.js');
     const outcomes = {};
@@ -1156,6 +1157,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
           customPersonalities: [{ id: 'coach', label: 'Coach' }],
         },
       };
+      viewsModule.navigate('labs');
       await exportFacade.importDataJSON(new File([JSON.stringify(singleImport)], 'single-client.json', { type: 'application/json' }));
       const singleProfile = profileStore.getProfiles().find(profile => profile.name === 'Imported Facade Client');
       const singleThreads = singleProfile
@@ -1168,6 +1170,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && state.importedData.contextSourceSettings?.['lab-group-Specialty Panel'] === true
         && singleThreads[0]?.id === 'single-thread'
         && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach';
+      outcomes.singleClientImportRefreshesDashboardThroughInjectedShellDeps = state.currentView === 'dashboard';
 
       let restoredMintUrl = null;
       Object.defineProperty(window, 'cashuSetMintUrl', {
