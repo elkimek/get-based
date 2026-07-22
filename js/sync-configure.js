@@ -157,6 +157,8 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     isSyncEnabled,
     isEvoluReady: isSyncEvoluReady,
     isSyncing: isSyncPushInFlight,
+    getProfiles,
+    createDefaultProfileData,
   });
 
   configureSyncSaveHooks({

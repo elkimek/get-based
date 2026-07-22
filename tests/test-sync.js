@@ -560,6 +560,8 @@ await import('../js/settings.js');
   assert('sync-actions.js owns user sync actions and compatibility exports',
     syncSrc.includes("from './sync-actions.js'")
       && syncActionsSrc.includes('export function configureSyncActions')
+      && !syncActionsSrc.includes("from './profile.js'")
+      && /configureSyncActions\(\{[\s\S]{0,260}getProfiles,[\s\S]{0,80}createDefaultProfileData/.test(syncConfigureSrc)
       && syncActionsSrc.includes('export function bindSyncActionEvents')
       && syncActionsSrc.includes('export function clearSyncActionTimers')
       && syncActionsSrc.includes('export async function pushCurrentProfile')

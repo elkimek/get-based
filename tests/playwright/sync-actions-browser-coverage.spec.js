@@ -309,6 +309,8 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
         isSyncEnabled: () => enabled,
         isEvoluReady: () => ready,
         isSyncing: () => false,
+        getProfiles: () => state.profiles || [],
+        createDefaultProfileData: profile.createDefaultProfileData,
       });
 
       await actions.forceResendCurrentProfile();
@@ -349,6 +351,8 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
         isSyncEnabled: () => false,
         isEvoluReady: () => false,
         isSyncing: () => false,
+        getProfiles: () => [],
+        createDefaultProfileData: () => ({ entries: [] }),
       });
       actions.clearSyncActionTimers();
       state.profiles = saved.profiles;
