@@ -67,6 +67,7 @@ const tourSrc = read('js/tour.js');
 const appShellCss = read('css/app-shell.css');
 const playwrightFixtureSrc = read('tests/playwright/coverage-fixture.js');
 const viewsSrc = read('js/views.js');
+const appShellHooksSrc = read('js/app-shell-hooks.js');
 const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
 const importLoaderSrc = read('js/import-loader.js');
 const importFileInputSrc = read('js/import-file-input.js');
@@ -308,8 +309,11 @@ assert('footer commit hash loader lives in its own module and remains wired',
   && /escapeHTML\(short\)/.test(commitHashSrc)
   && !/_cachedCommitRef|escapeHTML\(ref\)|app-commit-hash[\s\S]{0,360}<span/.test(commitHashSrc)
   && dashboardCompositionSrc.includes("from './commit-hash.js'"));
-assert('views.js delegates dashboard wiring to dashboard-view-composition.js',
-  viewsSrc.includes("from './dashboard-view-composition.js'") &&
+assert('app shell injects dashboard composition into the views facade',
+  !viewsSrc.includes("from './dashboard-view-composition.js'") &&
+  viewsSrc.includes('export function configureDashboardViewFactory') &&
+  appShellHooksSrc.includes("from './dashboard-view-composition.js'") &&
+  appShellHooksSrc.includes('configureDashboardViewFactory(createDashboardViewComposition)') &&
   dashboardCompositionSrc.includes('export function createDashboardViewComposition') &&
   dashboardCompositionSrc.includes('createDashboardWidgetRenderers') &&
   dashboardCompositionSrc.includes('createDashboardWidgetControls'));

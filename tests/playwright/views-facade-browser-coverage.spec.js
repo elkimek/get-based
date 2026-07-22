@@ -18,11 +18,13 @@ test('views facade browser coverage exercises genome lens picker filters and qui
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ viewsUrl }) => {
-    const [views, stateModule, profileModule] = await Promise.all([
+    const [views, dashboardComposition, stateModule, profileModule] = await Promise.all([
       import(viewsUrl),
+      import('/js/dashboard-view-composition.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
     ]);
+    views.configureDashboardViewFactory(dashboardComposition.createDashboardViewComposition);
     const { state } = stateModule;
     const profileId = `viewsFacadeCoverage${Date.now().toString(36)}`;
     const widgetPrefsKey = profileModule.profileStorageKey(profileId, 'dashboardWidgetsV10');
