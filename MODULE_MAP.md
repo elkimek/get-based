@@ -12,8 +12,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Modules | 462 |
 | Internal import edges | 2058 |
 | Dynamic internal edges | 63 |
-| Modules participating in cycles | 49 |
-| Cyclic components | 3 |
+| Modules participating in cycles | 44 |
+| Cyclic components | 2 |
 | Largest cyclic component | 40 |
 | Computed dynamic imports | 2 |
 
@@ -64,13 +64,7 @@ These are existing debt, not approved architecture. CI prevents new modules from
 
 </details>
 
-<details><summary>Component 2 — 5 modules</summary>
-
-[`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js)
-
-</details>
-
-<details><summary>Component 3 — 4 modules</summary>
+<details><summary>Component 2 — 4 modules</summary>
 
 [`js/pdf-import-commit.js`](js/pdf-import-commit.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-review-runtime.js`](js/pdf-import-review-runtime.js), [`js/pdf-import-review.js`](js/pdf-import-review.js)
 
@@ -105,7 +99,7 @@ Native browser modules shipped with the static application.
 
 - [`js/api-custom.js`](js/api-custom.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js)
 - [`js/api-local.js`](js/api-local.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-lifecycle.js`](js/local-ai-lifecycle.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js)
-- [`js/api-models.js`](js/api-models.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/schema.js`](js/schema.js)
+- [`js/api-models.js`](js/api-models.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js), [`js/schema.js`](js/schema.js)
 - [`js/api-openai-compatible.js`](js/api-openai-compatible.js) → [`js/api-models.js`](js/api-models.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/api-transport.js`](js/api-transport.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js), [`js/utils.js`](js/utils.js)
 - [`js/api-openrouter-oauth.js`](js/api-openrouter-oauth.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js)
 - [`js/api-openrouter.js`](js/api-openrouter.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js)

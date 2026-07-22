@@ -1,10 +1,8 @@
 {
   "schemaVersion": 1,
-  "maxCyclicModules": 49,
+  "maxCyclicModules": 44,
   "maxLargestCyclicComponent": 40,
   "allowedCyclicModules": [
-    "js/api-models.js",
-    "js/api-openai-compatible.js",
     "js/backup-cycle.js",
     "js/backup.js",
     "js/biology-score-context-ai.js",
@@ -15,9 +13,6 @@
     "js/data.js",
     "js/lab-context-wearables.js",
     "js/lab-context.js",
-    "js/local-ai-discovery.js",
-    "js/local-ai-provider-openai-compatible.js",
-    "js/local-ai-provider-registry.js",
     "js/pdf-import-commit.js",
     "js/pdf-import-persistence.js",
     "js/pdf-import-review-runtime.js",

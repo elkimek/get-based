@@ -2,7 +2,7 @@
 // api-models.js - Provider model catalogs, pricing, and capability helpers.
 
 import { getModelPricing } from './schema.js';
-import { isCloudModel } from './local-ai-discovery.js';
+import { isCloudModel } from './local-ai-provider-shared.js';
 import {
   getAIProvider,
   getOllamaMainModel,
