@@ -251,7 +251,20 @@ function installCashuStub(options = {}) {
 }
 
 async function loadWallet() {
-  return import(/* @vite-ignore */ `../js/cashu-wallet.js?runtime=${importId++}`);
+  const [wallet, store, cryptoModule] = await Promise.all([
+    import(/* @vite-ignore */ `../js/cashu-wallet.js?runtime=${importId++}`),
+    import('../js/cashu-wallet-store.js'),
+    import('../js/crypto.js'),
+  ]);
+  store.configureCashuWalletStoreCryptoDeps({
+    decryptObject: cryptoModule.decryptObject,
+    encryptedGetItem: cryptoModule.encryptedGetItem,
+    encryptedSetItem: cryptoModule.encryptedSetItem,
+    encryptObject: cryptoModule.encryptObject,
+    getEncryptionEnabled: cryptoModule.getEncryptionEnabled,
+    isEncryptedObject: cryptoModule.isEncryptedObject,
+  });
+  return wallet;
 }
 
 async function readCashuStore(storeName) {
@@ -287,6 +300,26 @@ afterEach(() => {
 });
 
 describe('Cashu wallet runtime behavior', () => {
+  it('fails closed when the Cashu storage encryption runtime is not configured', async () => {
+    const store = await import('../js/cashu-wallet-store.js');
+    const previous = store.configureCashuWalletStoreCryptoDeps({
+      decryptObject: null,
+      encryptedGetItem: null,
+      encryptedSetItem: null,
+      encryptObject: null,
+      getEncryptionEnabled: null,
+      isEncryptedObject: null,
+    });
+    try {
+      await expect(store._saveProofs([proof('must-not-write-plaintext', 1)], 'https://mint.getbased.test/Bitcoin'))
+        .rejects.toThrow('Cashu wallet storage encryption is not configured.');
+      await expect(store._saveMnemonic('must-not-write-plaintext'))
+        .rejects.toThrow('Cashu wallet storage encryption is not configured.');
+    } finally {
+      store.configureCashuWalletStoreCryptoDeps(previous);
+    }
+  });
+
   it('encrypts Cashu bearer state at rest and migrates it without changing wallet behavior', async () => {
     const wallet = await loadWallet();
     const store = await import('../js/cashu-wallet-store.js');

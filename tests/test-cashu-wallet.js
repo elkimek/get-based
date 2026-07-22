@@ -52,6 +52,7 @@ const discoveryModule = await import('../js/nostr-discovery.js');
 
 const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
+const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
 const apiProviderStorageSrc = await fetchWithRetry('js/api-provider-storage.js');
@@ -133,7 +134,9 @@ for (const fn of walletExports) {
 // ═══════════════════════════════════════
 console.log('3. Wallet Security');
 
-assert('Mnemonic uses encrypted storage', walletStoreSrc.includes('encryptedSetItem') && walletStoreSrc.includes('encryptedGetItem'));
+assert('Mnemonic uses injected encrypted storage',
+  walletStoreSrc.includes('cashuWalletStoreCryptoDeps.encryptedSetItem')
+    && walletStoreSrc.includes('cashuWalletStoreCryptoDeps.encryptedGetItem'));
 assert('Mnemonic key in SENSITIVE_PATTERNS', cryptoSrc.includes('labcharts-cashu-wallet-mnemonic'));
 assert('Mnemonic in API_KEY_LS_KEYS cache', cryptoSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Legacy plaintext mnemonic migration', walletStoreSrc.includes("_setMeta('walletMnemonic', null)"));
@@ -163,6 +166,10 @@ assert('Cashu recovery metadata uses encrypted IDB envelopes',
 assert('Cashu storage participates in encryption enable, disable, and passphrase migrations',
   cryptoSrc.includes("import('./cashu-wallet-store.js')")
     && cryptoSrc.includes('cashuStore.migrateCashuWalletStorage(mode)'));
+assert('Cashu storage receives crypto through the app composition root',
+  !walletStoreSrc.includes("from './crypto.js'")
+    && appShellHooksSrc.includes("from './cashu-wallet-store.js'")
+    && appShellHooksSrc.includes('configureCashuWalletStoreCryptoDeps({'));
 assert('Cashu encrypted writes fail closed while the encryption session is locked',
   walletStoreSrc.includes("code = 'session-locked'")
     && walletStoreSrc.includes('if (!envelope) throw _sessionLockedError()'));

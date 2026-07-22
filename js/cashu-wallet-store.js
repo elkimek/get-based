@@ -1,14 +1,6 @@
 // @ts-check
 // cashu-wallet-store.js — Cashu proof, recovery journal, counter, and seed persistence
 
-import {
-  decryptObject,
-  encryptedSetItem,
-  encryptedGetItem,
-  encryptObject,
-  getEncryptionEnabled,
-  isEncryptedObject,
-} from './crypto.js';
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 
@@ -25,6 +17,18 @@ const PROOF_CHECK_COOLDOWN = 60_000;
 const MNEMONIC_KEY = 'labcharts-cashu-wallet-mnemonic';
 
 const storeRuntime = /** @type {any} */ ({});
+function rejectUnconfiguredCryptoDependency() {
+  throw new Error('Cashu wallet storage encryption is not configured.');
+}
+
+const cashuWalletStoreCryptoDeps = /** @type {any} */ ({
+  decryptObject: rejectUnconfiguredCryptoDependency,
+  encryptedSetItem: rejectUnconfiguredCryptoDependency,
+  encryptedGetItem: rejectUnconfiguredCryptoDependency,
+  encryptObject: rejectUnconfiguredCryptoDependency,
+  getEncryptionEnabled: rejectUnconfiguredCryptoDependency,
+  isEncryptedObject: rejectUnconfiguredCryptoDependency,
+});
 let _db = null;
 let _indexedDBFactory = null;
 let _legacyProofsMigrated = false;
@@ -46,12 +50,12 @@ async function _proofStorageKeys(secret) {
 }
 
 async function _encryptWalletPayload(value) {
-  const envelope = await encryptObject(value);
+  const envelope = await cashuWalletStoreCryptoDeps.encryptObject(value);
   if (!envelope) throw _sessionLockedError();
   return envelope;
 }
 
-async function _proofForStorage(proof, mintUrl, mode = getEncryptionEnabled() ? 'encrypted' : 'plain') {
+async function _proofForStorage(proof, mintUrl, mode = cashuWalletStoreCryptoDeps.getEncryptionEnabled() ? 'encrypted' : 'plain') {
   const normalized = _normalizeProofForStorage(proof, mintUrl);
   if (mode === 'plain') return normalized;
   const [, storageKey] = await _proofStorageKeys(normalized.secret);
@@ -60,21 +64,21 @@ async function _proofForStorage(proof, mintUrl, mode = getEncryptionEnabled() ? 
 
 async function _proofFromStorage(row) {
   if (!row?._payload) return row;
-  if (!isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu proof has an invalid envelope.');
-  const proof = await decryptObject(row._payload).catch(() => null);
+  if (!cashuWalletStoreCryptoDeps.isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu proof has an invalid envelope.');
+  const proof = await cashuWalletStoreCryptoDeps.decryptObject(row._payload).catch(() => null);
   if (!proof) throw _sessionLockedError();
   return proof;
 }
 
-async function _metaForStorage(key, value, mode = getEncryptionEnabled() ? 'encrypted' : 'plain') {
+async function _metaForStorage(key, value, mode = cashuWalletStoreCryptoDeps.getEncryptionEnabled() ? 'encrypted' : 'plain') {
   if (mode === 'plain' || String(key).startsWith('counter:')) return { key, value };
   return { key, _payload: await _encryptWalletPayload({ value }) };
 }
 
 async function _metaFromStorage(row) {
   if (!row?._payload) return row?.value ?? null;
-  if (!isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu metadata has an invalid envelope.');
-  const payload = await decryptObject(row._payload).catch(() => null);
+  if (!cashuWalletStoreCryptoDeps.isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu metadata has an invalid envelope.');
+  const payload = await cashuWalletStoreCryptoDeps.decryptObject(row._payload).catch(() => null);
   if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'value')) throw _sessionLockedError();
   return payload.value;
 }
@@ -91,6 +95,17 @@ async function _getAllRaw(storeName) {
 
 export function configureCashuWalletStore(runtime) {
   Object.assign(storeRuntime, runtime);
+}
+
+export function configureCashuWalletStoreCryptoDeps(deps = {}) {
+  const previous = { ...cashuWalletStoreCryptoDeps };
+  for (const dependency of Object.keys(cashuWalletStoreCryptoDeps)) {
+    if (!Object.hasOwn(deps, dependency)) continue;
+    cashuWalletStoreCryptoDeps[dependency] = typeof deps[dependency] === 'function'
+      ? deps[dependency]
+      : rejectUnconfiguredCryptoDependency;
+  }
+  return previous;
 }
 
 export function _amountToNumber(value) {
@@ -459,11 +474,11 @@ async function _migrateFeeProofs() {
 }
 
 export async function _loadMnemonic() {
-  const encrypted = await encryptedGetItem(MNEMONIC_KEY);
+  const encrypted = await cashuWalletStoreCryptoDeps.encryptedGetItem(MNEMONIC_KEY);
   if (encrypted) return encrypted;
   const legacy = await _getMeta('walletMnemonic');
   if (legacy) {
-    await encryptedSetItem(MNEMONIC_KEY, legacy);
+    await cashuWalletStoreCryptoDeps.encryptedSetItem(MNEMONIC_KEY, legacy);
     await _setMeta('walletMnemonic', null);
     return legacy;
   }
@@ -471,7 +486,7 @@ export async function _loadMnemonic() {
 }
 
 export async function _saveMnemonic(mnemonic) {
-  await encryptedSetItem(MNEMONIC_KEY, mnemonic);
+  await cashuWalletStoreCryptoDeps.encryptedSetItem(MNEMONIC_KEY, mnemonic);
 }
 
 export function _createCounterSource(namespace = '', migrateLegacy = true) {
