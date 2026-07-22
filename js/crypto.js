@@ -6,6 +6,9 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
+import { clearKeyCache, getCachedKey, updateKeyCache } from './crypto-key-cache.js';
+
+export { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
@@ -167,10 +170,9 @@ let _sessionKey = null;
 // API KEY CACHE — sync access to decrypted API keys
 // ═══════════════════════════════════════════════
 const API_KEY_LS_KEYS = ['labcharts-api-key', 'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-lens-key', 'labcharts-custom-key', 'labcharts-ollama', 'labcharts-ollama-pii-key', 'labcharts-cashu-wallet-mnemonic'];
-const _keyCache = new Map();
 
 export async function decryptKeyCache() {
-  _keyCache.clear();
+  clearKeyCache();
   for (const lsKey of API_KEY_LS_KEYS) {
     const raw = localStorage.getItem(lsKey);
     if (!raw) continue;
@@ -179,26 +181,12 @@ export async function decryptKeyCache() {
       if (!parsed) continue;
       try {
         const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
-        _keyCache.set(lsKey, plaintext);
+        updateKeyCache(lsKey, plaintext);
       } catch { /* skip if can't decrypt */ }
     } else if (!isEncryptedValue(raw)) {
-      _keyCache.set(lsKey, raw);
+      updateKeyCache(lsKey, raw);
     }
   }
-}
-
-export function getCachedKey(lsKey) {
-  if (_keyCache.has(lsKey)) return _keyCache.get(lsKey);
-  // Fallback: raw localStorage (encryption off or cache not populated)
-  return localStorage.getItem(lsKey);
-}
-
-export function updateKeyCache(lsKey, value) {
-  // Empty string is a meaningful cached tombstone for encrypted provider keys:
-  // without it, getCachedKey() falls back to the on-disk `v1:` wrapper and can
-  // mistake encrypted emptiness for a usable credential.
-  if (value !== null && value !== undefined) _keyCache.set(lsKey, value);
-  else _keyCache.delete(lsKey);
 }
 const PBKDF2_ITERATIONS = 600000;
 
@@ -912,7 +900,7 @@ export async function disableEncryption() {
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-salt');
       _sessionKey = null;
-      _keyCache.clear();
+      clearKeyCache();
       showNotification('Encryption disabled', 'info');
       if (document.getElementById('encryption-section')) {
         document.getElementById('encryption-section').innerHTML = renderEncryptionSection();

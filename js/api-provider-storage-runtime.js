@@ -6,6 +6,32 @@ import {
   updateChatHeaderModelRuntime,
 } from './chat-runtime.js';
 
+async function writeProviderItemWithoutEncryption(key, value) {
+  if (localStorage.getItem('labcharts-encryption-enabled') === 'true') {
+    throw new Error('Encrypted provider storage is not configured.');
+  }
+  localStorage.setItem(key, value);
+}
+
+/** @type {{ encryptedSetItem: (key: string, value: string) => Promise<void> }} */
+const apiProviderStorageRuntimeDeps = {
+  encryptedSetItem: writeProviderItemWithoutEncryption,
+};
+
+export function configureApiProviderStorageRuntimeDeps(deps = {}) {
+  const previous = { ...apiProviderStorageRuntimeDeps };
+  if (Object.hasOwn(deps, 'encryptedSetItem')) {
+    apiProviderStorageRuntimeDeps.encryptedSetItem = typeof deps.encryptedSetItem === 'function'
+      ? deps.encryptedSetItem
+      : writeProviderItemWithoutEncryption;
+  }
+  return previous;
+}
+
+export function encryptedSetProviderItemRuntime(key, value) {
+  return apiProviderStorageRuntimeDeps.encryptedSetItem(key, value);
+}
+
 function getApiProviderStorageRuntime() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)

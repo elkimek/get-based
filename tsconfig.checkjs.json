@@ -104,6 +104,7 @@
     "js/context-source-registry.js",
     "js/context-cards-runtime.js",
     "js/context-cards.js",
+    "js/crypto-key-cache.js",
     "js/crypto.js",
     "js/dashboard-page-view.js",
     "js/dashboard-lab-widget-renderers.js",
