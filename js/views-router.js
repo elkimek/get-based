@@ -123,17 +123,18 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     }
     syncImportStatusFabFromRuntime();
     destroyAllCharts?.();
-    if (routeCategory === "dashboard") routeHandlers.dashboard?.(routeData);
-    else if (routeCategory === "labs") routeHandlers.labs?.(routeData);
-    else if (routeCategory === "genome") routeHandlers.genome?.(routeData);
-    else if (routeCategory === "body") routeHandlers.body?.(routeData);
-    else if (routeCategory === "insight") routeHandlers.insight?.(routeData);
-    else if (routeCategory === "recommendations") routeHandlers.recommendations?.(routeData);
-    else if (routeCategory === "correlations") routeHandlers.correlations?.(routeData);
-    else if (routeCategory === "compare") routeHandlers.compare?.(routeData);
-    else if (routeCategory === "light") routeHandlers.light?.(routeData);
-    else if (routeCategory === "biology-scores") routeHandlers.biologyScores?.(routeData);
-    else routeHandlers.category?.(routeCategory, routeData);
+    let routeResult;
+    if (routeCategory === "dashboard") routeResult = routeHandlers.dashboard?.(routeData);
+    else if (routeCategory === "labs") routeResult = routeHandlers.labs?.(routeData);
+    else if (routeCategory === "genome") routeResult = routeHandlers.genome?.(routeData);
+    else if (routeCategory === "body") routeResult = routeHandlers.body?.(routeData);
+    else if (routeCategory === "insight") routeResult = routeHandlers.insight?.(routeData);
+    else if (routeCategory === "recommendations") routeResult = routeHandlers.recommendations?.(routeData);
+    else if (routeCategory === "correlations") routeResult = routeHandlers.correlations?.(routeData);
+    else if (routeCategory === "compare") routeResult = routeHandlers.compare?.(routeData);
+    else if (routeCategory === "light") routeResult = routeHandlers.light?.(routeData);
+    else if (routeCategory === "biology-scores") routeResult = routeHandlers.biologyScores?.(routeData);
+    else routeResult = routeHandlers.category?.(routeCategory, routeData);
     state.currentView = routeCategory;
     _persistCurrentView(routeCategory);
     syncMobileBottomNav?.(routeCategory);
@@ -183,6 +184,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
       };
       requestAnimationFrame(reapply);
     }
+    return routeResult;
   };
 }
 

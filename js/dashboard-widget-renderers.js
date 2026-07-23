@@ -28,6 +28,7 @@ function dashboardMarkerDetailAttrs(id) {
 
 export function createDashboardWidgetRenderers(deps) {
   let _dashboardGenomeSnpLoadPromise = null;
+  let _lightSunModulesLoadPromise = null;
 
   const {
     markerHasData,
@@ -40,10 +41,28 @@ export function createDashboardWidgetRenderers(deps) {
     formatMobileWearableValue,
     formatMobileWearableDelta,
     getMobileWearablePriority = () => [],
+    isLightSunModulesLoaded = () => true,
+    loadLightSunModules = async () => {},
     rerenderDashboardFromWidgetChange,
     renderLightTodayHero = () => '',
     showRecommendations,
   } = deps;
+
+  function renderLightSunLoadingState() {
+    if (!_lightSunModulesLoadPromise) {
+      _lightSunModulesLoadPromise = loadLightSunModules()
+        .then(() => rerenderDashboardFromWidgetChange())
+        .catch(err => console.error('Failed to load Light & Sun dashboard modules', err))
+        .finally(() => { _lightSunModulesLoadPromise = null; });
+    }
+    return `<div class="dashboard-widget-empty" aria-busy="true" aria-live="polite">
+      Loading Light &amp; Sun…
+    </div>`;
+  }
+
+  function lightSunModulesReady() {
+    return isLightSunModulesLoaded() || false;
+  }
 
   const labRenderers = createDashboardLabWidgetRenderers({
     markerHasData,
@@ -94,14 +113,17 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function renderDashboardLightConditionsWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
     return renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' });
   }
 
   function renderDashboardLightSessionLogWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
     return renderLightSessionLogActions();
   }
 
   function renderDashboardLightChannelsWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
     const sessions = getDashboardLightSessions();
     const deviceSessionsAll = getDashboardDeviceSessions();
     const totalSessions = sessions.length + deviceSessionsAll.length;

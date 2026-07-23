@@ -165,3 +165,9 @@ the measurement tracks the shipped app graph rather than network availability.
 The browser check runs in the normal Chromium suite and therefore in CI. Lower
 the ceilings as route and feature lazy loading removes startup resources; do
 not raise them to absorb an unexplained regression.
+
+Light & Sun keeps `sun-context-hooks.js` in the startup graph so dashboard,
+chat, and Agent Access context remains complete. Its analysis and feature hook
+group is loaded through `light-sun-loader.js` when the Light route or an
+optional Light dashboard widget is opened, or when a background Light/Sun
+session finishes and needs analysis.

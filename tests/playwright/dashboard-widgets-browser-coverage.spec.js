@@ -203,7 +203,7 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
         visibleWithoutEmpty.map(entry => entry.def.id).join('|') === 'focus'
         && visibleInOrganize.map(entry => entry.def.id).join('|') === 'focus|marker_lipids.apob|bio-age'
         && visibleWithExclude.map(entry => entry.def.id).join('|') === 'marker_lipids.apob|bio-age'
-        && calls.some(call => call.join('|') === 'render|wearables|visible')
+        && !calls.some(call => call[0] === 'render' && call[1] === 'wearables')
         && calls.some(call => call.join('|') === 'render|marker_lipids.apob|exclude');
 
       registry.resetDashboardWidgetPrefs();
@@ -241,6 +241,74 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
   expect(Object.keys(results)).toEqual(expectedOutcomeKeys);
   for (const [name, passed] of Object.entries(results)) {
     expect.soft(passed, name).toBe(true);
+  }
+});
+
+test('dashboard Light widgets share lazy initialization before rendering', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async ({ renderersUrl }) => {
+    const { createDashboardWidgetRenderers } = await import(renderersUrl);
+    let loaded = false;
+    let loadCalls = 0;
+    let rerenderCalls = 0;
+    let heroCalls = 0;
+    let resolveLoad;
+    const pendingLoad = new Promise(resolve => { resolveLoad = resolve; });
+    const renderers = createDashboardWidgetRenderers({
+      markerHasData: () => false,
+      renderDashboardLightChannelPills: () => '<div>channels</div>',
+      renderLightConditionsWidgetBody: () => '<div>conditions</div>',
+      renderLightSessionLogActions: () => '<div>sessions</div>',
+      getMobileDashboardMarkers: () => [],
+      getMobileDashboardInsights: () => [],
+      getMobileWearableTiles: () => [],
+      formatMobileWearableValue: () => '',
+      formatMobileWearableDelta: () => '',
+      isLightSunModulesLoaded: () => loaded,
+      loadLightSunModules: () => {
+        loadCalls += 1;
+        return pendingLoad.then(() => { loaded = true; });
+      },
+      rerenderDashboardFromWidgetChange: () => { rerenderCalls += 1; },
+      renderLightTodayHero: () => {
+        heroCalls += 1;
+        return '<div>today</div>';
+      },
+      showRecommendations: () => {},
+    });
+
+    const todayBeforeLoad = renderers.renderDashboardLightTodayWidget();
+    const first = renderers.renderDashboardLightConditionsWidget();
+    const second = renderers.renderDashboardLightChannelsWidget();
+    const third = renderers.renderDashboardLightSessionLogWidget();
+    const loadingStateIsShared =
+      loadCalls === 1
+      && [first, second, third].every(html => html.includes('Loading Light &amp; Sun'))
+      && todayBeforeLoad.includes('today')
+      && heroCalls === 1;
+
+    resolveLoad();
+    await pendingLoad;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const readyToday = renderers.renderDashboardLightTodayWidget();
+    const readyConditions = renderers.renderDashboardLightConditionsWidget();
+    return {
+      visibleLightWidgetsShareOneLazyLoad: loadingStateIsShared && loadCalls === 1,
+      successfulLazyLoadRerendersDashboardOnce: rerenderCalls === 1,
+      initializedLightWidgetsRenderTheirRealBodies:
+        readyToday.includes('today')
+        && readyConditions.includes('conditions')
+        && heroCalls === 2,
+    };
+  }, {
+    renderersUrl: moduleUrl('/js/dashboard-widget-renderers.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
   }
 });
 

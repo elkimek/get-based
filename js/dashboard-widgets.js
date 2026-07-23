@@ -164,9 +164,10 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     const includeEmpty = options.includeEmpty ?? isOrganizeMode();
     const excludeIds = options.excludeIds || new Set();
     return getOrderedDashboardWidgets(prefs, ctx)
+      .filter(def => !excludeIds.has(def.id))
+      .filter(def => !prefs.hidden.includes(def.id))
       .map(def => ({ def, body: def.render(ctx) || '' }))
-      .filter(entry => !excludeIds.has(entry.def.id))
-      .filter(entry => !prefs.hidden.includes(entry.def.id) && (entry.body || includeEmpty));
+      .filter(entry => entry.body || includeEmpty);
   }
 
   return {

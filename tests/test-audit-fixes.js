@@ -423,6 +423,7 @@ return (async function () {
     const appFoundationFeatures = await fetchSrc('js/app-foundation-modules.js');
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
+    const lightSunLoader = await fetchSrc('js/light-sun-loader.js');
     const appDataIoFeatures = await fetchSrc('js/app-data-io-modules.js');
     const appAiInteractionFeatures = await fetchSrc('js/app-ai-interaction-modules.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
@@ -434,8 +435,11 @@ return (async function () {
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(main));
     assert('app-feature-modules.js delegates Foundation imports',
       /import\s+['"]\.\/app-foundation-modules\.js['"]/.test(appFeatures));
-    assert('app-feature-modules.js delegates Light & Sun imports',
-      /import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js keeps Sun context eager and lazy-loads Light & Sun hooks',
+      /import\s+['"]\.\/sun-context-hooks\.js['"]/.test(appFeatures)
+        && /import\s+['"]\.\/light-sun-loader\.js['"]/.test(appFeatures)
+        && !/import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures)
+        && /import\(['"]\.\/app-light-sun-modules\.js['"]\)/.test(lightSunLoader));
     assert('app-feature-modules.js delegates Health & Data imports',
       /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates Data I/O imports',
