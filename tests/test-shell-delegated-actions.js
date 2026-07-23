@@ -282,6 +282,11 @@ assert('App shell injects PDF import review callbacks without a runtime back-imp
   appShellHooksSrc.includes("const confirmPdfImport = () => import('./pdf-import-commit.js')")
     && appShellHooksSrc.includes('configurePdfImportReviewRuntimeDeps({ buildSidebar, confirmImport: confirmPdfImport, navigate });'));
 
+assert('App shell lazy-loads the PDF import review close handler',
+  !appShellHooksSrc.includes("from './pdf-import-review.js'")
+    && /const closeImportModal = \(\) => \{\s*import\('\.\/pdf-import-review\.js'\)/.test(appShellHooksSrc)
+    && appShellHooksSrc.includes('closeImportModal,'));
+
 assert('App shell injects views router callbacks without bridge lookups',
   appShellHooksSrc.includes('configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });'));
 
