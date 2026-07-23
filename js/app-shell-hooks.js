@@ -99,7 +99,6 @@ import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
 import { configureExportImportRuntimeDeps } from './export-runtime.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
-import { closeImportModal } from './pdf-import-review.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
@@ -245,6 +244,11 @@ configureExportImportRuntimeDeps({
   updateHeaderDates,
 });
 const confirmPdfImport = () => import('./pdf-import-commit.js').then(module => module.confirmImport());
+const closeImportModal = () => {
+  import('./pdf-import-review.js')
+    .then(module => module.closeImportModal())
+    .catch(() => {});
+};
 configurePdfImportReviewRuntimeDeps({ buildSidebar, confirmImport: confirmPdfImport, navigate });
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ closeModal, openChatPanel, openProfileLocationEditor, openSettingsModal });
