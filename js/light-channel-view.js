@@ -731,21 +731,14 @@ export function _openChannelOnLightPage(channelKey) {
     requestAnimationFrame(() => requestAnimationFrame(flashPanel));
     return;
   }
-  const expandAfterNavigation = () => {
-    // Two rAFs keep the devices/env/tools slot from racing the toggle.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      _toggleChannelDetail(channelKey);
-      flashPanel();
-    }));
-  };
+  // Two rAFs keep the devices/env/tools slot from racing the toggle.
+  const expandAfterNavigation = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+    _toggleChannelDetail(channelKey);
+    flashPanel();
+  }));
   const navigation = lightChannelDeps.navigate('light');
-  if (navigation && typeof navigation.then === 'function') {
-    void navigation
-      .then(expandAfterNavigation)
-      .catch(err => console.error('Failed to open Light & Sun channel', err));
-  } else {
-    expandAfterNavigation();
-  }
+  if (!navigation || typeof navigation.then !== 'function') { expandAfterNavigation(); return; }
+  void navigation.then(expandAfterNavigation).catch(err => console.error('Failed to open Light & Sun channel', err));
 }
 
 // Toggle a per-channel detail panel below the pill row. One channel
