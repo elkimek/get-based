@@ -25,9 +25,15 @@ function syntheticSettingsModule() {
     export function closeSettingsModal() { return 'closed-settings'; }
     export function openTweaksPanel() { return 'opened-tweaks'; }
     export function closeTweaksPanel() { return 'closed-tweaks'; }
-    export function updatePrivacyStatusCard() {}
-    export function updateSettingsUI() {}
-    export function updateTweaksUI() {}
+    export function updatePrivacyStatusCard() {
+      globalThis.__settingsRefreshes = [...(globalThis.__settingsRefreshes || []), 'privacy'];
+    }
+    export function updateSettingsUI() {
+      globalThis.__settingsRefreshes = [...(globalThis.__settingsRefreshes || []), 'settings'];
+    }
+    export function updateTweaksUI() {
+      globalThis.__settingsRefreshes = [...(globalThis.__settingsRefreshes || []), 'tweaks'];
+    }
   `;
 }
 
@@ -47,6 +53,8 @@ test('Settings loader caches initialization and preserves lazy bridge actions', 
     const loader = await import('/js/settings-loader.js');
     const bridge = await import('/js/settings-runtime-bridge.js');
     const startsUnloaded = loader.isSettingsModuleLoaded() === false;
+    const unloadedRefreshStaysLazy =
+      bridge.getSettingsModuleFunction('updateSettingsUI')?.() === undefined;
     const previous = loader.configureSettingsLoader({
       configureModule(module) {
         module.configureSettingsRuntime({ marker: 'configured-once' });
@@ -58,9 +66,16 @@ test('Settings loader caches initialization and preserves lazy bridge actions', 
     ]);
     const third = await loader.loadSettingsModule();
     const openedTab = await bridge.getSettingsModuleFunction('openSettingsModal')?.('privacy');
+    const closedSettings = await bridge.getSettingsModuleFunction('closeSettingsModal')?.();
+    const openedTweaks = await bridge.getSettingsModuleFunction('openTweaksPanel')?.();
+    const closedTweaks = await bridge.getSettingsModuleFunction('closeTweaksPanel')?.();
+    await bridge.getSettingsModuleFunction('updatePrivacyStatusCard')?.();
+    await bridge.getSettingsModuleFunction('updateSettingsUI')?.();
+    await bridge.getSettingsModuleFunction('updateTweaksUI')?.();
     loader.configureSettingsLoader(previous);
     return {
       startsUnloaded,
+      unloadedRefreshStaysLazy,
       concurrentCallsShareModuleNamespace: first === second,
       laterCallsReuseModuleNamespace: first === third,
       loadedStateFlipsAfterInitialization: loader.isSettingsModuleLoaded() === true,
@@ -72,6 +87,12 @@ test('Settings loader caches initialization and preserves lazy bridge actions', 
         openedTab === 'privacy'
         && globalThis.__openedSettingsTabs?.length === 1
         && globalThis.__openedSettingsTabs[0] === 'privacy',
+      bridgeRunsRemainingModalActions:
+        closedSettings === 'closed-settings'
+        && openedTweaks === 'opened-tweaks'
+        && closedTweaks === 'closed-tweaks',
+      bridgeRefreshesLoadedSettings:
+        globalThis.__settingsRefreshes?.join(',') === 'privacy,settings,tweaks',
     };
   });
   results.lazyModuleRequestedOnce = settingsRequests === 1;
