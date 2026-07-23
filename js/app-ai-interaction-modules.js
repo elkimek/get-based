@@ -3,7 +3,6 @@
 
 import './chat.js';
 import './image-utils.js';
-import './settings.js';
 import './lens.js';
 import './cashu-wallet.js';
 import './nostr-discovery.js';

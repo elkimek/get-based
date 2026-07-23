@@ -171,3 +171,9 @@ chat, and Agent Access context remains complete. Its analysis and feature hook
 group is loaded through `light-sun-loader.js` when the Light route or an
 optional Light dashboard widget is opened, or when a background Light/Sun
 session finishes and needs analysis.
+
+Settings and Tweaks are loaded through `settings-loader.js` on their first
+shell, startup deep-link, or feature action. Theme-owned accent initialization
+stays in `theme.js`, while the Light page imports its Sun data-source renderer
+from `settings-privacy.js`; neither path requires the full Settings modal
+during normal startup.

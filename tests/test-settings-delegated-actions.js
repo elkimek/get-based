@@ -8,6 +8,10 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
+const appAIInteractionSrc = fs.readFileSync(path.join(root, 'js/app-ai-interaction-modules.js'), 'utf8');
+const chatOnboardingHostSrc = fs.readFileSync(path.join(root, 'js/chat-onboarding-host-bindings.js'), 'utf8');
+const lightPageUIHooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-ui-hooks.js'), 'utf8');
+const loaderSrc = fs.readFileSync(path.join(root, 'js/settings-loader.js'), 'utf8');
 const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
 const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
@@ -34,9 +38,22 @@ function matchBlock(label, pattern) {
 
 console.log('=== Settings Delegated Actions ===');
 
+assert('Settings is absent from the static startup graph',
+  !appAIInteractionSrc.includes("import './settings.js'")
+    && !appShellHooksSrc.includes("from './settings.js'")
+    && !chatOnboardingHostSrc.includes("from './settings.js'")
+    && !lightPageUIHooksSrc.includes("from './settings.js'"));
+assert('Settings entry points use the cached lazy loader',
+  appShellHooksSrc.includes("from './settings-loader.js'")
+    && chatOnboardingHostSrc.includes("from './settings-loader.js'")
+    && loaderSrc.includes("import('./settings.js')")
+    && loaderSrc.includes("import('./settings.js?lazy-retry=1')"));
+assert('Light page owns only the Sun data-source Settings leaf',
+  lightPageUIHooksSrc.includes("from './settings-privacy.js'"));
+
 const displayBlock = matchBlock('Display tab', /<!-- Display Tab -->[\s\S]*?<!-- AI Tab -->/);
-const tweaksBlock = matchBlock('Tweaks panel', /export function openTweaksPanel\(\) \{[\s\S]*?\n}\n\napplyAccentOverride/);
-const renderThemeButtonBlock = matchBlock('renderThemeButton', /function renderThemeButton[\s\S]*?\n}\n\nfunction getAccentOverride/);
+const tweaksBlock = matchBlock('Tweaks panel', /export function openTweaksPanel\(\) \{[\s\S]*?\n}\n\ninstallSunDataSourceDelegates/);
+const renderThemeButtonBlock = matchBlock('renderThemeButton', /function renderThemeButton[\s\S]*?\n}\n\nfunction refreshVisualSurfaces/);
 
 const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
 const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*focusDelay:\s*0[\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/;
@@ -139,7 +156,7 @@ assert('Tweaks feedback action uses configured module runtime',
 assert('Product recommendations toggle uses configured navigation',
   src.includes("settingsRuntime.navigate('dashboard')")
     && !src.includes("from './views-runtime-bridge.js'")
-    && appShellHooksSrc.includes('navigate,\n  openFeedbackModal,'));
+    && /navigate,\s*openFeedbackModal,/.test(appShellHooksSrc));
 assert('Settings version label uses the shared runtime adapter',
   src.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
     && src.includes('escapeHTML(getAppVersionRuntime())')

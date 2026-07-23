@@ -110,7 +110,12 @@ import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileBut
 import { configureNavRuntime } from './nav-runtime.js';
 import { configureNotesRuntimeDeps } from './notes-runtime.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
-import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime, openSettingsModal } from './settings.js';
+import {
+  closeSettingsModal,
+  closeTweaksPanel,
+  configureSettingsLoader,
+  openSettingsModal,
+} from './settings-loader.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
 import {
   clearDashboardWidgets,
@@ -205,18 +210,22 @@ configureClientListRuntime({
   openProfileShareModal,
 });
 
-configureSettingsRuntime({
-  clearDashboardWidgets,
-  clearAllData,
-  exportAllDataJSON,
-  exportClientJSON,
-  getActiveProfileId,
-  navigate,
-  openFeedbackModal,
-  openProfileShareModal,
-  refreshMobileDashboardActiveTab,
-  resetDashboardWidgets,
-  toggleDashboardOrganizeMode,
+configureSettingsLoader({
+  configureModule(settingsModule) {
+    settingsModule.configureSettingsRuntime({
+      clearDashboardWidgets,
+      clearAllData,
+      exportAllDataJSON,
+      exportClientJSON,
+      getActiveProfileId,
+      navigate,
+      openFeedbackModal,
+      openProfileShareModal,
+      refreshMobileDashboardActiveTab,
+      resetDashboardWidgets,
+      toggleDashboardOrganizeMode,
+    });
+  },
 });
 
 configureNavActions({ openClientList });

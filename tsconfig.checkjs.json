@@ -223,6 +223,7 @@
     "js/recommendations-runtime.js",
     "js/recommendations.js",
     "js/settings.js",
+    "js/settings-loader.js",
     "js/settings-privacy.js",
     "js/settings-runtime.js",
     "js/settings-runtime-bridge.js",
