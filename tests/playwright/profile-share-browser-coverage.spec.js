@@ -43,8 +43,8 @@ test('Share Profile entry points open the sharing modal', async ({ page }) => {
       ...state.importedData,
       entries: [{ date: '2026-07-20', markers: { metabolic: { glucose: 5.1 } } }],
     };
-    const { openSettingsModal } = await import('/js/settings.js');
-    openSettingsModal('data');
+    const { openSettingsModal } = await import('/js/settings-loader.js');
+    await openSettingsModal('data');
   });
   await expect(page.locator('#settings-modal-overlay')).toBeVisible();
   await page.locator('[data-settings-action="share-profile"]').click();
@@ -55,10 +55,10 @@ test('Share Profile entry points open the sharing modal', async ({ page }) => {
   const profile = await page.evaluate(async () => {
     const [{ state }, { closeSettingsModal }, { openClientList }] = await Promise.all([
       import('/js/state.js'),
-      import('/js/settings.js'),
+      import('/js/settings-loader.js'),
       import('/js/client-list.js'),
     ]);
-    closeSettingsModal();
+    await closeSettingsModal();
     openClientList();
     return {
       id: state.currentProfile,

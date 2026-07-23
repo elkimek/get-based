@@ -22,7 +22,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
   await preparePage(page);
 
   const results = await page.evaluate(async () => {
-    const settingsModule = await import('/js/settings.js');
+    const settingsModule = await (await import('/js/settings-loader.js')).loadSettingsModule();
     const benchmarkController = await import('/js/settings-import-benchmark-controller.js');
     const settingsRuntime = await import('/js/settings-runtime.js');
     const themeModule = await import('/js/theme.js');
