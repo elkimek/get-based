@@ -4,6 +4,7 @@
 #   - Node-side tests (native-dialog guard, lens-local-utils, dev-server
 #     origin guard)
 #   - Playwright-driven web-app suite
+#   - Cold mobile-load resource budgets
 #   - Focused Firefox smoke coverage for critical browser flows
 
 name: Tests

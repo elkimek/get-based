@@ -90,11 +90,10 @@ foundation, storage adapters, and pure utilities
   inversion seams. Keep them narrow; do not turn them into alternate global
   service locators.
 
-This fine-grained direction is a migration target, not a claim about the
-current graph. The baseline still contains legacy strongly connected
-components. The checker prevents new modules from entering cycles and prevents
-the cycle budgets from increasing while existing edges are removed
-incrementally.
+This fine-grained direction remains a migration target for coupling cleanup,
+but the runtime graph no longer contains strongly connected components. Both
+cycle ceilings are fixed at zero, so the checker rejects any new cyclic
+dependency.
 
 ## Module ownership map
 
@@ -151,13 +150,18 @@ the higher-layer behavior through a narrow runtime seam.
 - `npm run architecture:check` verifies the generated file, resolves every
   relative ESM import, enforces source boundaries, and rejects cycle growth.
 - [`scripts/architecture-cycle-baseline.json`](scripts/architecture-cycle-baseline.json)
-  records existing cyclic modules and numeric ceilings. It is debt, not an
-  allowlist for new design.
-- After a refactor removes cyclic modules, lower the baseline with
-  `node scripts/architecture-map.mjs --write --update-cycle-baseline`, inspect
-  both diffs, and never raise the baseline merely to pass CI.
+  fixes both cycle ceilings at zero. Never raise either ceiling merely to pass
+  CI; a new cycle is a design failure.
 
-The first refactoring objective is to isolate foundation modules (`state`,
-`crypto`, profile/data persistence, and storage) from feature UI. Work in
-small behavior-preserving slices, beginning with a single reverse edge and
-running the complete regression suite after each coherent batch.
+## Cold-load performance budget
+
+`npm run performance:check` measures a fresh mobile returning-user load of
+`/app` with the browser cache and service workers disabled. The committed
+ceilings in [`scripts/cold-load-budget.json`](scripts/cold-load-budget.json)
+cover same-origin application request count, compressed transfer bytes, and
+decoded bytes. Runtime `/api/*` calls and cross-origin services are excluded so
+the measurement tracks the shipped app graph rather than network availability.
+
+The browser check runs in the normal Chromium suite and therefore in CI. Lower
+the ceilings as route and feature lazy loading removes startup resources; do
+not raise them to absorb an unexplained regression.

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "route": "/app",
+  "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
+  "maximums": {
+    "requests": 480,
+    "transferBytes": 2050000,
+    "decodedBytes": 6350000
+  },
+  "reference": {
+    "requests": 474,
+    "transferBytes": 2017210,
+    "decodedBytes": 6252286
+  },
+  "referenceCommit": "bb2b1e38",
+  "measuredAt": "2026-07-23"
+}
