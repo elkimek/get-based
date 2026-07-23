@@ -24,6 +24,7 @@ import { ensureActiveDeviceTicker } from './light-devices.js';
 import { renderDashboardLightChannelPills, renderLightSessionLogActions } from './light-page-view.js';
 import { renderLightTodayHero } from './light-today-ai.js';
 import { navigateViewportRuntime } from './views-router-runtime.js';
+import { isLightSunModulesLoaded, loadLightSunModules } from './light-sun-loader.js';
 import {
   configureMobileDashboardView,
   getMobileDashboardMarkers,
@@ -64,6 +65,8 @@ export function createDashboardViewComposition({
     formatMobileWearableValue,
     formatMobileWearableDelta,
     getMobileWearablePriority,
+    isLightSunModulesLoaded,
+    loadLightSunModules,
     rerenderDashboardFromWidgetChange,
     renderLightTodayHero,
     showRecommendations,

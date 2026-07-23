@@ -285,6 +285,21 @@ test('light channel view covers pills detail panels suggestions and light-page r
     });
 
     try {
+      document.body.appendChild(host);
+      host.innerHTML = `<div class="light-pills-row">
+        <button type="button" data-light-channel-action="quick-log-sun">Sun</button>
+        <button type="button" data-light-channel-action="quick-log-device">Device</button>
+      </div><div data-channel-detail-slot></div>`;
+      channel.installLightChannelActionDelegates(host);
+      channel._toggleChannelDetail('vitamin_d');
+      host.querySelector('[data-light-channel-action="quick-log-sun"]')?.click();
+      host.querySelector('[data-light-channel-action="quick-log-device"]')?.click();
+      state.currentView = 'dashboard';
+      channel._openChannelOnLightPage('circadian');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      outcomes.defaultDependenciesRenderAndHandleActionsSafely =
+        !!host.querySelector('#light-pill-detail-circadian');
+
       const channelDisplay = {
         vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'UVB synthesis', dailyTarget: 100 },
         circadian: { label: 'Circadian', icon: 'C', what: 'Melanopic entrainment', dailyTarget: 100 },
@@ -341,7 +356,6 @@ test('light channel view covers pills detail panels suggestions and light-page r
         weeklyChannelTier,
       });
 
-      document.body.appendChild(host);
       const merged = channel.mergeTotals({ vitamin_d: 10, circadian: 5 }, { vitamin_d: 7, nir_solar: 3 });
       outcomes.mergeTotalsAddsAndPreservesKeys = merged.vitamin_d === 17
         && merged.circadian === 5

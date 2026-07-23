@@ -160,6 +160,14 @@ test('views router browser coverage exercises route state and scroll restoration
         && !document.body.classList.contains('mobile-dashboard-active')
         && !document.body.classList.contains('empty-dashboard-active');
 
+      const asyncRouteResult = Promise.resolve('light-ready');
+      const navigateWithAsyncLight = createNavigator({
+        ...createHandlers(),
+        light: () => asyncRouteResult,
+      });
+      outcomes.navigateReturnsSelectedRouteHandlerResult =
+        navigateWithAsyncLight('light') === asyncRouteResult;
+
       calls.length = 0;
       navigate('bad-id', { categories: { 'bad-id': {} }, _tag: 'unsafeRouteData' });
       outcomes.navigateFallsBackToDashboardForUnsafeRoutes =
@@ -296,6 +304,7 @@ test('views router browser coverage exercises route state and scroll restoration
     'initialViewUsesTheActiveProfileKey',
     'initialViewFallsBackForUnsafeOrUnknownStoredRoutes',
     'navigateDispatchesCoreRoutesUpdatesChromeAndPersists',
+    'navigateReturnsSelectedRouteHandlerResult',
     'navigateFallsBackToDashboardForUnsafeRoutes',
     'navigateDispatchesKnownCategoryRoutes',
     'preserveScrollRestoresPixelsAndStripsOptionsOnlyPayload',

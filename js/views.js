@@ -12,6 +12,8 @@ import {
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
+import { isLightSunModulesLoaded, loadLightSunModules } from './light-sun-loader.js';
+import { state } from './state.js';
 import { createLensPageHandlers } from './lens-pages.js';
 import { lensPageActionAttrs, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
 import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } from './focus-card.js';
@@ -21,7 +23,7 @@ import { renderChartCard, renderTableColgroup, renderScrollableTableShell, rende
 import { showCategory, switchView } from './category-page-view.js';
 import { configureCategoryCustomization, renameCategory, renameMarker, revertMarkerName, showEmojiPicker, changeCategoryIcon } from './category-customization.js';
 import { renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi } from './light-conditions-now.js';
-import { _openAllSessionsModal } from './light-sessions-view.js';
+import { _openAllSessionsModal as openAllSessionsModal } from './light-sessions-view.js';
 import { _toggleChannelDetail, _openChannelOnLightPage } from './light-channel-view.js';
 import {
   showLight,
@@ -126,7 +128,6 @@ export {
   _expandLightToolsSection,
   _toggleChannelDetail,
   _openChannelOnLightPage,
-  _openAllSessionsModal,
   renderLightTodayStrip,
   renderLightChannelsLive,
   renderConditionsNow,
@@ -198,6 +199,48 @@ function getRecommendationActions() {
 
 export function showDashboard(data) { return getDashboardView().showDashboard(data); }
 
+export async function _openAllSessionsModal() {
+  await loadLightSunModules();
+  return openAllSessionsModal();
+}
+
+function renderLightRouteStatus(content, message, { busy = false, error = false } = {}) {
+  const status = document.createElement('section');
+  status.className = 'dashboard-widget-empty';
+  status.textContent = message;
+  if (busy) {
+    status.setAttribute('aria-busy', 'true');
+    status.setAttribute('aria-live', 'polite');
+  }
+  if (error) status.setAttribute('role', 'alert');
+  content.replaceChildren(status);
+}
+
+function showLightRoute(data) {
+  if (isLightSunModulesLoaded()) return showLight(data);
+
+  const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
+  if (content) renderLightRouteStatus(content, 'Loading Light & Sun…', { busy: true });
+
+  return loadLightSunModules()
+    .then(() => {
+      if (state.currentView !== 'light') return false;
+      showLight(data);
+      return true;
+    })
+    .catch(err => {
+      console.error('Failed to load Light & Sun modules', err);
+      if (state.currentView === 'light' && content) {
+        renderLightRouteStatus(
+          content,
+          'Light & Sun could not be loaded. Try opening the page again.',
+          { error: true },
+        );
+      }
+      return false;
+    });
+}
+
 const _navigate = createNavigate({
   routeHandlers: {
     dashboard: showDashboard,
@@ -209,7 +252,7 @@ const _navigate = createNavigate({
     recommendations: showRecommendations,
     correlations: showCorrelations,
     compare: showCompare,
-    light: showLight,
+    light: showLightRoute,
     category: showCategory,
   },
   syncMobileBottomNav,

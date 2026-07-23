@@ -1,5 +1,5 @@
 // @ts-check
-// app-light-sun-modules.js - startup-loaded Light & Sun feature modules
+// app-light-sun-modules.js - lazy-loaded Light & Sun analysis and UI hooks
 
 import './sun-uvdata.js';
 import './sun-spectrum.js';
