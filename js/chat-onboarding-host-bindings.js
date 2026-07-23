@@ -9,7 +9,7 @@ import { getActiveData } from './data.js';
 import { renderProfileButton } from './nav.js';
 import { openChatProviderQuiz } from './onboarding-view.js';
 import { setProfileHeight } from './profile.js';
-import { openSettingsModal } from './settings.js';
+import { openSettingsModal } from './settings-loader.js';
 import { switchAIProviderBridge } from './settings-provider-bridge.js';
 import { renderSupplementsSection } from './supplements.js';
 import { navigate } from './views.js';

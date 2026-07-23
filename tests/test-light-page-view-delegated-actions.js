@@ -75,9 +75,10 @@ assert('Light Today AI renderers are wired without a window facade',
     && dashboardRenderersSrc.includes('const hero = renderLightTodayHero();')
     && dashboardCompositionSrc.includes("import { renderLightTodayHero } from './light-today-ai.js';")
     && dashboardCompositionSrc.includes('renderLightTodayHero,'));
-assert('Light page UI hook wires router and settings dependencies',
+assert('Light page UI hook wires router and Sun settings leaf dependencies',
   /import \{ navigate \} from '\.\/views\.js';/.test(uiHooksSrc)
-    && /import \{ renderSunDataSourceSettings \} from '\.\/settings\.js';/.test(uiHooksSrc)
+    && /import \{ renderSunDataSourceSettings \} from '\.\/settings-privacy\.js';/.test(uiHooksSrc)
+    && !/from '\.\/settings\.js'/.test(uiHooksSrc)
     && /configureLightPageView\(\{[\s\S]*navigate[\s\S]*renderSunDataSourceSettings[\s\S]*\}\);/.test(uiHooksSrc));
 assert('Light page hooks are loaded during startup',
   lightSunModulesSrc.includes("import './light-page-view-hooks.js';")

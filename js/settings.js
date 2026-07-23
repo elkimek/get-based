@@ -5,7 +5,23 @@ import { state } from './state.js';
 import { refreshChartThemeColors } from './charts.js';
 import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
-import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
+import {
+  accentSwatchSpec,
+  applyAccentOverride,
+  getAccentOverride,
+  getTheme,
+  getTimeFormat,
+  isCrtEffectsEnabled,
+  isSunsetMode,
+  setCrtEffectsEnabled,
+  setAccentOverride,
+  setSunsetMode,
+  setTheme,
+  setTimeFormat,
+  supportsCrtEffects,
+  THEMES,
+  TWEAK_ACCENTS,
+} from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
@@ -23,7 +39,6 @@ import {
   toggleAIPauseBridge,
 } from './settings-provider-bridge.js';
 import {
-  addSettingsRuntimeEventListener,
   cancelSettingsFrame,
   refreshSettingsRuntimeSurfaces,
   requestSettingsFrame,
@@ -100,6 +115,7 @@ export function configureSettingsRuntime(runtime = {}) {
 }
 
 export {
+  applyAccentOverride,
   confirmDisablePIIReview,
   refreshDataEntriesSection,
   renderPrivacySection,
@@ -118,28 +134,6 @@ export {
 // ═══════════════════════════════════════════════
 let _activeSettingsTab = 'display';
 
-const ACCENT_STORAGE_KEY = 'labcharts-accent-override';
-const THEME_DEFAULT_ACCENTS = {
-  dark: { color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
-  light: { color: '#3b7cf5', light: '#2b6ce5', fill: 'rgba(59,124,245,0.10)', gradient: 'linear-gradient(135deg, #3b7cf5 0%, #5b5bf6 100%)' },
-  cyberterm: { color: '#4ade80', light: '#6df09a', fill: 'rgba(74,222,128,0.10)', gradient: 'linear-gradient(135deg, #4ade80 0%, #4ade80 100%)' },
-  glass: { color: '#c986ff', light: '#e0a5ff', fill: 'rgba(201,134,255,0.10)', gradient: 'linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%)' },
-  'synth-sunrise': { color: '#ff2bd6', light: '#ff6ce0', fill: 'rgba(255,43,214,0.10)', gradient: 'linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%)' },
-  neuromancer: { color: '#00e5ff', light: '#5cf2ff', fill: 'rgba(0,229,255,0.10)', gradient: 'linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%)' },
-};
-const TWEAK_ACCENTS = [
-  { id: '', label: 'Theme default' },
-  { id: 'blue', label: 'Blue', color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
-  { id: 'green', label: 'Green', color: '#34d399', light: '#6ee7b7', fill: 'rgba(52, 211, 153, 0.12)', gradient: 'linear-gradient(135deg, #34d399 0%, #14b8a6 100%)' },
-  { id: 'amber', label: 'Amber', color: '#f59e0b', light: '#fbbf24', fill: 'rgba(245, 158, 11, 0.12)', gradient: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' },
-  { id: 'rose', label: 'Rose', color: '#f43f5e', light: '#fb7185', fill: 'rgba(244, 63, 94, 0.12)', gradient: 'linear-gradient(135deg, #f43f5e 0%, #d946ef 100%)' },
-  { id: 'cyan', label: 'Cyan', color: '#06b6d4', light: '#22d3ee', fill: 'rgba(6, 182, 212, 0.12)', gradient: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)' },
-];
-
-function accentSwatchSpec(accent, theme = getTheme()) {
-  return accent?.id ? accent : (THEME_DEFAULT_ACCENTS[theme] || THEME_DEFAULT_ACCENTS.dark);
-}
-
 function renderThemeButton(t, currentTheme, ctx = 'settings') {
   const id = escapeAttr(t.id);
   const label = escapeHTML(t.label);
@@ -156,40 +150,6 @@ function renderThemeButton(t, currentTheme, ctx = 'settings') {
       <span${labelClass}>${label}</span>
     </button>
   `;
-}
-
-function getAccentOverride() {
-  const value = localStorage.getItem(ACCENT_STORAGE_KEY) || '';
-  return TWEAK_ACCENTS.some(a => a.id === value) ? value : '';
-}
-
-export function applyAccentOverride(id = getAccentOverride()) {
-  const root = document.documentElement;
-  const props = ['--accent', '--accent-light', '--accent-fill', '--accent-gradient', '--shadow-glow', '--ref-band', '--ref-border'];
-  const setProp = (prop, value) => {
-    if (root.style?.setProperty) root.style.setProperty(prop, value);
-    else if (root.style) root.style[prop] = value;
-  };
-  const removeProp = (prop) => {
-    if (root.style?.removeProperty) root.style.removeProperty(prop);
-    else if (root.style) delete root.style[prop];
-  };
-  if (isSunsetMode()) {
-    props.forEach(removeProp);
-    return;
-  }
-  const accent = TWEAK_ACCENTS.find(a => a.id === id);
-  if (!accent || !accent.id) {
-    props.forEach(removeProp);
-    return;
-  }
-  setProp('--accent', accent.color);
-  setProp('--accent-light', accent.light);
-  setProp('--accent-fill', accent.fill || 'color-mix(in srgb, var(--accent) 10%, transparent)');
-  setProp('--accent-gradient', accent.gradient);
-  setProp('--shadow-glow', `0 0 0 1px ${accent.color}, 0 4px 12px ${accent.fill}`);
-  setProp('--ref-band', accent.fill);
-  setProp('--ref-border', accent.color);
 }
 
 function refreshVisualSurfaces() {
@@ -602,10 +562,7 @@ export function selectTweaksTheme(themeId) {
 }
 
 export function selectTweaksAccent(accentId) {
-  const next = TWEAK_ACCENTS.some(a => a.id === accentId) ? accentId : '';
-  if (next) localStorage.setItem(ACCENT_STORAGE_KEY, next);
-  else localStorage.removeItem(ACCENT_STORAGE_KEY);
-  applyAccentOverride(next);
+  setAccentOverride(accentId);
   refreshVisualSurfaces();
 }
 
@@ -741,8 +698,6 @@ export function openTweaksPanel() {
   }
 }
 
-applyAccentOverride();
-addSettingsRuntimeEventListener('labcharts-themechange', () => applyAccentOverride());
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {

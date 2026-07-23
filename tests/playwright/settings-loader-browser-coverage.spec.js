@@ -1,0 +1,183 @@
+import { expect, test } from './coverage-fixture.js';
+
+async function openBlankPage(page, path) {
+  await page.route(`**${path}`, route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><html><body><main id="main-content"></main></body></html>',
+  }));
+  await page.goto(path, { waitUntil: 'load' });
+}
+
+function syntheticSettingsModule() {
+  return `
+    globalThis.__settingsModuleEvalCount = (globalThis.__settingsModuleEvalCount || 0) + 1;
+    export function configureSettingsRuntime(runtime) {
+      globalThis.__settingsRuntimeConfigs = [
+        ...(globalThis.__settingsRuntimeConfigs || []),
+        runtime.marker,
+      ];
+    }
+    export function openSettingsModal(tab) {
+      globalThis.__openedSettingsTabs = [...(globalThis.__openedSettingsTabs || []), tab];
+      return tab;
+    }
+    export function closeSettingsModal() { return 'closed-settings'; }
+    export function openTweaksPanel() { return 'opened-tweaks'; }
+    export function closeTweaksPanel() { return 'closed-tweaks'; }
+    export function updatePrivacyStatusCard() {
+      globalThis.__settingsRefreshes = [...(globalThis.__settingsRefreshes || []), 'privacy'];
+    }
+    export function updateSettingsUI() {
+      globalThis.__settingsRefreshes = [...(globalThis.__settingsRefreshes || []), 'settings'];
+    }
+    export function updateTweaksUI() {
+      globalThis.__settingsRefreshes = [...(globalThis.__settingsRefreshes || []), 'tweaks'];
+    }
+  `;
+}
+
+test('Settings loader caches initialization and preserves lazy bridge actions', async ({ page }) => {
+  let settingsRequests = 0;
+  await page.route('**/js/settings.js*', route => {
+    settingsRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: syntheticSettingsModule(),
+    });
+  });
+  await openBlankPage(page, '/settings-loader-cache-coverage');
+
+  const results = await page.evaluate(async () => {
+    const loader = await import('/js/settings-loader.js');
+    const bridge = await import('/js/settings-runtime-bridge.js');
+    const startsUnloaded = loader.isSettingsModuleLoaded() === false;
+    const unloadedRefreshStaysLazy =
+      bridge.getSettingsModuleFunction('updateSettingsUI')?.() === undefined;
+    const previous = loader.configureSettingsLoader({
+      configureModule(module) {
+        module.configureSettingsRuntime({ marker: 'configured-once' });
+      },
+    });
+    const [first, second] = await Promise.all([
+      loader.loadSettingsModule(),
+      loader.loadSettingsModule(),
+    ]);
+    const third = await loader.loadSettingsModule();
+    const openedTab = await bridge.getSettingsModuleFunction('openSettingsModal')?.('privacy');
+    const closedSettings = await bridge.getSettingsModuleFunction('closeSettingsModal')?.();
+    const openedTweaks = await bridge.getSettingsModuleFunction('openTweaksPanel')?.();
+    const closedTweaks = await bridge.getSettingsModuleFunction('closeTweaksPanel')?.();
+    await bridge.getSettingsModuleFunction('updatePrivacyStatusCard')?.();
+    await bridge.getSettingsModuleFunction('updateSettingsUI')?.();
+    await bridge.getSettingsModuleFunction('updateTweaksUI')?.();
+    loader.configureSettingsLoader(previous);
+    return {
+      startsUnloaded,
+      unloadedRefreshStaysLazy,
+      concurrentCallsShareModuleNamespace: first === second,
+      laterCallsReuseModuleNamespace: first === third,
+      loadedStateFlipsAfterInitialization: loader.isSettingsModuleLoaded() === true,
+      lazyModuleEvaluatesOnce: globalThis.__settingsModuleEvalCount === 1,
+      runtimeConfiguredOnce:
+        globalThis.__settingsRuntimeConfigs?.length === 1
+        && globalThis.__settingsRuntimeConfigs[0] === 'configured-once',
+      bridgeOpensRequestedTab:
+        openedTab === 'privacy'
+        && globalThis.__openedSettingsTabs?.length === 1
+        && globalThis.__openedSettingsTabs[0] === 'privacy',
+      bridgeRunsRemainingModalActions:
+        closedSettings === 'closed-settings'
+        && openedTweaks === 'opened-tweaks'
+        && closedTweaks === 'closed-tweaks',
+      bridgeRefreshesLoadedSettings:
+        globalThis.__settingsRefreshes?.join(',') === 'privacy,settings,tweaks',
+    };
+  });
+  results.lazyModuleRequestedOnce = settingsRequests === 1;
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('Settings loader retries direct loads after a failed import', async ({ page }) => {
+  let settingsRequests = 0;
+  await page.route('**/js/settings.js*', route => {
+    settingsRequests += 1;
+    if (settingsRequests === 1) return route.abort('failed');
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: syntheticSettingsModule(),
+    });
+  });
+  await openBlankPage(page, '/settings-loader-retry-coverage');
+
+  const results = await page.evaluate(async () => {
+    const loader = await import('/js/settings-loader.js');
+    let firstRejected = false;
+    try {
+      await loader.loadSettingsModule();
+    } catch {
+      firstRejected = true;
+    }
+    const retried = await loader.loadSettingsModule();
+    return {
+      firstRejected,
+      retrySucceeds: retried.openSettingsModal('display') === 'display',
+      loadedAfterRetry: loader.isSettingsModuleLoaded() === true,
+    };
+  });
+  results.retryIssuedSecondRequest = settingsRequests === 2;
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('Settings lazy entry points contain load failures', async ({ page }) => {
+  let settingsRequests = 0;
+  await page.route('**/js/settings.js*', route => {
+    settingsRequests += 1;
+    return route.abort('failed');
+  });
+  await openBlankPage(page, '/settings-loader-entry-failure-coverage');
+
+  const actionFailureContained = await page.evaluate(async () => (
+    (await import('/js/settings-loader.js')).openSettingsModal('privacy')
+  )) === false;
+  expect(actionFailureContained).toBe(true);
+  expect(settingsRequests).toBe(1);
+});
+
+test('returning-user startup defers Settings until a shell action opens it', async ({ page }) => {
+  let settingsRequests = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/js/settings.js') settingsRequests += 1;
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-accent-override', 'blue');
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-ai-reminder-dismissed', '1');
+    localStorage.setItem('labcharts-onboard-extras-done-default', '1');
+    localStorage.setItem('labcharts-onboard-provider-skipped-default', '1');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
+
+  await page.goto('/app', { waitUntil: 'networkidle' });
+  expect(settingsRequests).toBe(0);
+  await expect.poll(() => page.evaluate(() => (
+    document.documentElement.style.getPropertyValue('--accent')
+  ))).toBe('#4f8cff');
+  await page.locator('[data-shell-action="open-settings"]').click();
+  await expect(page.locator('#settings-modal-overlay')).toHaveClass(/show/);
+  await expect(page.locator('[data-settings-tab="display"]')).toHaveAttribute('aria-selected', 'true');
+  expect(settingsRequests).toBe(1);
+  await expect.poll(() => page.evaluate(async () => (
+    (await import('/js/settings-loader.js')).isSettingsModuleLoaded()
+  ))).toBe(true);
+});
