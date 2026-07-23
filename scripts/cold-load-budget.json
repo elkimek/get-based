@@ -3,15 +3,15 @@
   "route": "/app",
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
-    "requests": 480,
-    "transferBytes": 2050000,
-    "decodedBytes": 6350000
+    "requests": 477,
+    "transferBytes": 2038000,
+    "decodedBytes": 6303000
   },
   "reference": {
-    "requests": 474,
-    "transferBytes": 2017210,
-    "decodedBytes": 6252286
+    "requests": 471,
+    "transferBytes": 2004946,
+    "decodedBytes": 6204797
   },
-  "referenceCommit": "bb2b1e38",
+  "referenceCommit": "fb7e21ad",
   "measuredAt": "2026-07-23"
 }
