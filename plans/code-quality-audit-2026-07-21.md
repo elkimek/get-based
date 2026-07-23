@@ -103,10 +103,10 @@ returning-user load with cache and service workers disabled and enforces
 ceilings for same-origin application requests, compressed transfer bytes, and
 decoded bytes. The initial reference was 474 requests, 2,017,210 compressed
 bytes, and 6,252,286 decoded bytes. Lazy-loading the PDF import review,
-Light/Sun analysis hooks, and Settings/Tweaks reduced that reference to 450
-requests, 1,915,305 compressed bytes, and 5,918,162 decoded bytes. Route and
-feature lazy loading remains active, with the ceilings ratcheting downward
-after each reproducible slice.
+Light/Sun analysis hooks, Settings/Tweaks, and Profile Sharing reduced that
+reference to 449 requests, 1,908,488 compressed bytes, and 5,890,321 decoded
+bytes. Route and feature lazy loading remains active, with the ceilings
+ratcheting downward after each reproducible slice.
 
 ### 4. Guardrails and test gaps
 
