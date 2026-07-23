@@ -87,7 +87,9 @@ and target dependency direction, while generated `MODULE_MAP.md` records the
 file-level import graph. CI rejects stale maps, cross-runtime boundary
 violations, new computed dynamic imports, new modules entering dependency
 cycles, and increases to the cyclic-module or largest-component budgets. The
-existing cycle remains refactoring debt and is not marked complete.
+initial cycle was then removed in behavior-preserving dependency-inversion
+slices. Remediation status: **completed on 2026-07-23**. The current graph has
+zero cyclic modules and both cycle ceilings are fixed at zero.
 
 ### 3. Cold-load performance
 
@@ -95,6 +97,13 @@ The browser requests nearly the entire application as native modules, and the
 service worker precaches essentially all of them. Local performance is fine,
 but the request and decoded-byte totals are expensive on constrained mobile
 networks. There is no CI request-count or transfer-size budget.
+
+Remediation status: **in progress**. CI now measures a fresh mobile
+returning-user load with cache and service workers disabled and enforces
+ceilings for same-origin application requests, compressed transfer bytes, and
+decoded bytes. The initial reference is 474 requests, 2,017,210 compressed
+bytes, and 6,252,286 decoded bytes. Route and feature lazy loading remains the
+next implementation phase, with the ceilings intended to ratchet downward.
 
 ### 4. Guardrails and test gaps
 
@@ -121,9 +130,10 @@ current dependency-vulnerability state was not verified.
 
 1. Harden the production proxy boundary. **Completed in the immediate follow-up.**
 2. Break the large dependency cycle around state, crypto, profiles, storage,
-   and feature UI; enforce import boundaries.
+   and feature UI; enforce import boundaries. **Completed.**
 3. Add route/feature lazy loading and CI budgets for request count, transferred
-   bytes, and decoded bytes.
+   bytes, and decoded bytes. **In progress: CI budgets added; lazy loading
+   remains.**
 4. Vendor axe locally, fail when it cannot run, add a Firefox smoke suite, and
    ratchet function coverage upward. **Completed in follow-up changes.**
 5. Add linting and stricter type checking incrementally; lower large-file

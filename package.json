@@ -11,6 +11,7 @@
     "architecture:build": "node scripts/architecture-map.mjs --write",
     "architecture:check": "node scripts/architecture-map.mjs --check",
     "dev-server": "node dev-server.js",
+    "performance:check": "playwright test tests/playwright/cold-load-budget.spec.js --workers=1",
     "quality": "node scripts/quality-guardrails.mjs",
     "test": "vitest run",
     "test:firefox": "playwright test --config=playwright.firefox.config.js",
