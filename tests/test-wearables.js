@@ -853,6 +853,13 @@ assert('Apple Health delegates browser globals to runtime adapter',
     !/\bwindow(?:\.|\s*\[)/.test(ahSrc) &&
     ahRuntimeSrc.includes('export function getAppleHealthJSZip') &&
     !ahRuntimeSrc.includes('exposeAppleHealthDebugBindings'));
+assert('Apple Health delegates cycle import callbacks to its runtime adapter',
+  !ahSrc.includes("import('./cycle-import.js')")
+    && ahSrc.includes('parseAppleHealthCycleRuntime(')
+    && ahSrc.includes('showAppleHealthCyclePreviewRuntime(')
+    && ahRuntimeSrc.includes('export function configureAppleHealthRuntimeDeps')
+    && ahRuntimeSrc.includes('export async function parseAppleHealthCycleRuntime')
+    && ahRuntimeSrc.includes('export async function showAppleHealthCyclePreviewRuntime'));
 assert('Apple Health debug bridge stays off window',
   !ahSrc.includes('exposeAppleHealthDebugBindings') &&
     typeof window._appleHealth === 'undefined');

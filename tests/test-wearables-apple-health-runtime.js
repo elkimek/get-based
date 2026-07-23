@@ -2,7 +2,12 @@
 // Apple Health import runtime adapter behavior.
 
 import './_node-shim.js';
-import { getAppleHealthJSZip } from '../js/wearables-apple-health-runtime.js';
+import {
+  configureAppleHealthRuntimeDeps,
+  getAppleHealthJSZip,
+  parseAppleHealthCycleRuntime,
+  showAppleHealthCyclePreviewRuntime,
+} from '../js/wearables-apple-health-runtime.js';
 
 let passed = 0;
 let failed = 0;
@@ -57,6 +62,41 @@ try {
   delete globalThis.window;
   assert('Apple Health runtime adapter no-ops without a browser window',
     getAppleHealthJSZip() === null && typeof globalThis._appleHealth === 'undefined');
+
+  const runtimeCalls = [];
+  const parsed = { observations: [{ date: '2026-07-22' }] };
+  const previousRuntime = configureAppleHealthRuntimeDeps({
+    parseCycleBlob: async (blob, fileName, onProgress) => {
+      runtimeCalls.push(['parse', blob.size, fileName]);
+      onProgress?.({ stage: 'parsing-cycle' });
+      return parsed;
+    },
+    showCyclePreview: async value => {
+      runtimeCalls.push(['preview', value]);
+      return { periods: 1 };
+    },
+  });
+  let progressStage = '';
+  const parsedResult = await parseAppleHealthCycleRuntime(
+    new Blob(['cycle']),
+    'export.xml',
+    event => { progressStage = event.stage; }
+  );
+  const previewResult = await showAppleHealthCyclePreviewRuntime(parsedResult);
+  configureAppleHealthRuntimeDeps({ parseCycleBlob: null, showCyclePreview: null });
+  const missingParsedResult = await parseAppleHealthCycleRuntime(new Blob(), 'missing.xml');
+  const missingPreviewResult = await showAppleHealthCyclePreviewRuntime(parsed);
+  configureAppleHealthRuntimeDeps(previousRuntime);
+  assert('Apple Health runtime invokes injected cycle import callbacks',
+    parsedResult === parsed
+      && previewResult?.periods === 1
+      && progressStage === 'parsing-cycle'
+      && JSON.stringify(runtimeCalls) === JSON.stringify([
+        ['parse', 5, 'export.xml'],
+        ['preview', parsed],
+      ]));
+  assert('Apple Health cycle runtime safely no-ops without callbacks',
+    missingParsedResult === null && missingPreviewResult === null);
 } finally {
   restoreRuntime();
 }

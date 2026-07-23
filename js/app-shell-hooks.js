@@ -89,6 +89,7 @@ import {
   isEncryptedObject,
 } from './crypto.js';
 import { openMenstrualCycleEditor } from './cycle.js';
+import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDataRuntimeDeps, saveImportedData, updateHeaderDates } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
@@ -161,6 +162,7 @@ import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 import { configureSunRuntimeDeps } from './sun-runtime.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
+import { configureAppleHealthRuntimeDeps } from './wearables-apple-health-runtime.js';
 import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtime.js';
 import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';
 import { configureWearablesRuntime } from './wearables-runtime.js';
@@ -344,6 +346,10 @@ configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, op
 configureTourRuntimeDeps({ openChatPanel });
 configureSyncPull({ renderProfileButton });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
+configureAppleHealthRuntimeDeps({
+  parseCycleBlob: parseAppleHealthCycleBlob,
+  showCyclePreview: showCycleImportPreview,
+});
 configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureWearablesRuntime({ closeModal, navigate });
