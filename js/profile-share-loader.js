@@ -25,6 +25,26 @@ function loadProfileShareRetryModule() {
   return import('./profile-share.js?lazy-retry=1');
 }
 
+/**
+ * @param {ProfileShareModule} module
+ * @returns {ProfileShareModule}
+ */
+function completeProfileShareModuleLoad(module) {
+  _profileShareModuleLoaded = true;
+  return module;
+}
+
+/**
+ * @param {unknown} err
+ * @returns {never}
+ */
+function resetProfileShareModuleLoad(err) {
+  _profileShareModuleLoad = null;
+  _profileShareModuleLoaded = false;
+  _useProfileShareRetryUrl = true;
+  throw err;
+}
+
 /** @returns {Promise<ProfileShareModule>} */
 export function loadProfileShareModule() {
   if (!_profileShareModuleLoad) {
@@ -34,16 +54,8 @@ export function loadProfileShareModule() {
       ? loadProfileShareRetryModule()
       : import('./profile-share.js');
     _profileShareModuleLoad = moduleLoad
-      .then(module => {
-        _profileShareModuleLoaded = true;
-        return module;
-      })
-      .catch(err => {
-        _profileShareModuleLoad = null;
-        _profileShareModuleLoaded = false;
-        _useProfileShareRetryUrl = true;
-        throw err;
-      });
+      .then(completeProfileShareModuleLoad)
+      .catch(resetProfileShareModuleLoad);
   }
   return _profileShareModuleLoad;
 }
@@ -96,6 +108,10 @@ export async function handleProfileShareLoaderDeepLink() {
   return runProfileShareAction('handleProfileShareDeepLink', []);
 }
 
+function queueProfileShareLoaderDeepLink() {
+  void handleProfileShareLoaderDeepLink();
+}
+
 export function initProfileShareLoaderLinks() {
   if (
     _profileShareLinksInitialized
@@ -104,17 +120,11 @@ export function initProfileShareLoaderLinks() {
   ) return false;
   _profileShareLinksInitialized = true;
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      void handleProfileShareLoaderDeepLink();
-    }, { once: true });
+    document.addEventListener('DOMContentLoaded', queueProfileShareLoaderDeepLink, { once: true });
   } else {
-    setTimeout(() => {
-      void handleProfileShareLoaderDeepLink();
-    }, 0);
+    setTimeout(queueProfileShareLoaderDeepLink, 0);
   }
-  addUtilsRuntimeListener('hashchange', () => {
-    void handleProfileShareLoaderDeepLink();
-  });
+  addUtilsRuntimeListener('hashchange', queueProfileShareLoaderDeepLink);
   return true;
 }
 

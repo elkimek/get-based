@@ -58,8 +58,13 @@ test('loads demo data and supports core navigation and settings', async ({ brows
   await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.currentView)).toBe('labs');
   await expect(page.locator('.lens-page-widgets[data-lens-route="labs"]')).toBeVisible();
 
+  // A returning user with no chat history gets the onboarding panel after a
+  // short startup delay. Wait for that task before closing so it cannot race
+  // the Settings assertions below.
+  const chatPanel = page.locator('#chat-panel');
+  await expect(chatPanel).toHaveClass(/\bopen\b/);
   await page.evaluate(async () => (await import('/js/chat-panel.js')).closeChatPanel());
-  await expect(page.locator('#chat-panel')).not.toHaveClass(/\bopen\b/);
+  await expect(chatPanel).not.toHaveClass(/\bopen\b/);
   await page.locator('.settings-btn').click();
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
   await page.locator('[data-settings-tab="privacy"]').click();
