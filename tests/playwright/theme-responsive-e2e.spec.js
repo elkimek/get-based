@@ -53,10 +53,11 @@ async function waitForApp(page) {
 
 async function seedDemoData(page) {
   await page.evaluate(async () => {
-    const [{ state }, dataModule, profileModule] = await Promise.all([
+    const [{ state }, dataModule, profileModule, { loadLightSunModules }] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/profile.js'),
+      import('/js/light-sun-loader.js'),
     ]);
     const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => r.json());
     const profileId = state.currentProfile || 'default';
@@ -102,6 +103,7 @@ async function seedDemoData(page) {
       };
     };
     window.fetchAtmosphere = fetchAtmosphereStub;
+    await loadLightSunModules();
     const conditionsNow = await import('/js/light-conditions-now.js');
     conditionsNow.configureLightConditionsNow?.({ fetchAtmosphere: fetchAtmosphereStub });
     state.importedData = demo;
