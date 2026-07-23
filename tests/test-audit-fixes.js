@@ -424,9 +424,10 @@ return (async function () {
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
     const lightSunLoader = await fetchSrc('js/light-sun-loader.js');
-    const appDataIoFeatures = await fetchSrc('js/app-data-io-modules.js');
+    const profileShareLoader = await fetchSrc('js/profile-share-loader.js');
     const appAiInteractionFeatures = await fetchSrc('js/app-ai-interaction-modules.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
+    const appShellHooks = await fetchSrc('js/app-shell-hooks.js');
     assert('main.js delegates feature side-effect imports',
       /import\s+['"]\.\/app-feature-modules\.js['"]/.test(main));
     assert('app-feature-modules.js drops device-session-ai-analysis import',
@@ -442,8 +443,13 @@ return (async function () {
         && /import\(['"]\.\/app-light-sun-modules\.js['"]\)/.test(lightSunLoader));
     assert('app-feature-modules.js delegates Health & Data imports',
       /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
-    assert('app-feature-modules.js delegates Data I/O imports',
-      /import\s+['"]\.\/app-data-io-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js drops the obsolete Data I/O composition wrapper',
+      !/import\s+['"]\.\/app-data-io-modules\.js['"]/.test(appFeatures));
+    assert('Profile Sharing is lazy-loaded behind the shell entry point',
+      /import\(['"]\.\/profile-share\.js['"]\)/.test(profileShareLoader)
+        && /import\(['"]\.\/profile-share\.js\?lazy-retry=1['"]\)/.test(profileShareLoader)
+        && /from\s+['"]\.\/profile-share-loader\.js['"]/.test(appShellHooks)
+        && !/from\s+['"]\.\/profile-share\.js['"]/.test(appShellHooks));
     assert('app-feature-modules.js delegates AI interaction imports',
       /import\s+['"]\.\/app-ai-interaction-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates UI shell imports',
@@ -457,8 +463,6 @@ return (async function () {
     // light-device-ai-analysis is still wired (the live version).
     assert('app-light-sun-modules.js retains light-device-ai-analysis import',
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));
-    assert('app-data-io-modules.js retains export import',
-      /import\s+['"]\.\/export\.js['"]/.test(appDataIoFeatures));
     assert('app-ai-interaction-modules.js retains chat import',
       /import\s+['"]\.\/chat\.js['"]/.test(appAiInteractionFeatures));
     assert('app-ui-shell-modules.js retains views import',

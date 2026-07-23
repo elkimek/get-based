@@ -23,7 +23,9 @@ const profileShareSrc = read('js/profile-share.js');
 const exportSrc = read('js/export.js');
 const settingsSrc = read('js/settings.js');
 const settingsDataSrc = read('js/settings-data.js');
-const appDataIoSrc = read('js/app-data-io-modules.js');
+const profileShareLoaderSrc = read('js/profile-share-loader.js');
+const appFeatureSrc = read('js/app-feature-modules.js');
+const appShellHooksSrc = read('js/app-shell-hooks.js');
 const apiShareSrc = read('api/share.js');
 const devServerSrc = read('dev-server.js');
 const modalCss = read('css/modal-shared.css');
@@ -91,14 +93,20 @@ try {
 console.log('3. App wiring and UI source');
 assert('profile-share module imports reusable export builder',
   profileShareSrc.includes("import { buildClientExportObject, importDataJSON } from './export.js'"));
-assert('Profile share module is startup-loaded',
-  appDataIoSrc.includes("import './profile-share.js';"));
+assert('Profile share module loads lazily with a cached retry path',
+  profileShareLoaderSrc.includes("import('./profile-share.js')") &&
+  profileShareLoaderSrc.includes("import('./profile-share.js?lazy-retry=1')") &&
+  profileShareLoaderSrc.includes('let _profileShareModuleLoad = null') &&
+  profileShareLoaderSrc.includes('handleProfileShareLoaderDeepLink') &&
+  !appFeatureSrc.includes('app-data-io-modules.js') &&
+  !appShellHooksSrc.includes("from './profile-share.js'") &&
+  appShellHooksSrc.includes("from './profile-share-loader.js'"));
 assert('Settings Data tab exposes Share Profile action',
   settingsDataSrc.includes("data-settings-action=\"share-profile\"") &&
   settingsSrc.includes('settingsRuntime.openProfileShareModal()') &&
   settingsSrc.includes('openProfileShareModal: () => {}') &&
-  read('js/app-shell-hooks.js').includes('configureSettingsRuntime') &&
-  read('js/app-shell-hooks.js').includes('openProfileShareModal'));
+  appShellHooksSrc.includes('configureSettingsRuntime') &&
+  appShellHooksSrc.includes('openProfileShareModal'));
 assert('Share modal has dedicated shared-modal styling',
   modalCss.includes('#profile-share-overlay.modal-overlay') &&
   modalCss.includes('.profile-share-modal') &&
