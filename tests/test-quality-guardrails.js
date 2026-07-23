@@ -411,7 +411,7 @@ assert('checkJs pilot includes chat workflow modules',
   missingChatWorkflowCheckJsModules.length ? `missing: ${missingChatWorkflowCheckJsModules.join(', ')}` : '');
 const startupAppShellCheckJsModules = [
   'js/app-ai-interaction-modules.js',
-  'js/app-data-io-modules.js',
+  'js/profile-share-loader.js',
   'js/app-event-listeners.js',
   'js/app-feature-modules.js',
   'js/app-foundation-modules.js',

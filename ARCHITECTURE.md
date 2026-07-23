@@ -177,3 +177,10 @@ shell, startup deep-link, or feature action. Theme-owned accent initialization
 stays in `theme.js`, while the Light page imports its Sun data-source renderer
 from `settings-privacy.js`; neither path requires the full Settings modal
 during normal startup.
+
+Profile Sharing is loaded through `profile-share-loader.js` when a shell,
+Settings, or client-list action opens it, or when startup/hash routing detects
+a shared-profile link. The loader owns only lazy loading and route detection;
+`profile-share.js` retains link validation, encryption, import, and UI
+responsibilities. `export.js` remains shell-owned without a Data I/O
+composition wrapper.

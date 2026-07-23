@@ -5,6 +5,10 @@ function moduleUrl(path) {
 }
 
 test('Share Profile entry points open the sharing modal', async ({ page }) => {
+  let profileShareRequests = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/js/profile-share.js') profileShareRequests += 1;
+  });
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-default-emptyTour', 'completed');
     localStorage.setItem('labcharts-default-tour', 'completed');
@@ -28,9 +32,11 @@ test('Share Profile entry points open the sharing modal', async ({ page }) => {
     closeChatPanel();
   });
   await expect(chatPanel).not.toHaveClass(/\bopen\b/);
+  expect(profileShareRequests).toBe(0);
   await page.locator('[data-shell-action="share-profile"]').click();
 
   await expect(page.locator('#profile-share-overlay')).toBeVisible();
+  expect(profileShareRequests).toBe(1);
   await expect(page.locator('#profile-share-overlay [role="dialog"]')).toHaveAttribute('aria-label', 'Share Profile');
   await expect(page.locator('#profile-share-overlay [data-profile-share-action="close"]').first()).toBeFocused();
   await page.keyboard.press('Escape');
@@ -268,7 +274,7 @@ test('profile share modal creates copies and manages active encrypted links', as
   }
 });
 
-test('profile share loader covers deep-link parsing and close paths', async ({ page }) => {
+test('profile share module covers deep-link parsing and close paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ shareUrl }) => {

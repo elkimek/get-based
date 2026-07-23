@@ -72,7 +72,7 @@ const APP_SHELL = [
   '/js/app-health-data-modules.js',
   '/js/app-light-sun-modules.js',
   '/js/light-sun-loader.js',
-  '/js/app-data-io-modules.js',
+  '/js/profile-share-loader.js',
   '/js/app-ai-interaction-modules.js',
   '/js/app-ui-shell-modules.js',
   '/js/app-shell-hooks.js',

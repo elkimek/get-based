@@ -140,7 +140,7 @@ import {
   toggleDashboardOrganizeMode,
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
-import { openProfileShareModal } from './profile-share.js';
+import { openProfileShareModal } from './profile-share-loader.js';
 import { configureProfileRuntimeDeps, getActiveProfileId } from './profile.js';
 import {
   dispatchProfileSwitched,
