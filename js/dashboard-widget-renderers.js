@@ -41,8 +41,8 @@ export function createDashboardWidgetRenderers(deps) {
     formatMobileWearableValue,
     formatMobileWearableDelta,
     getMobileWearablePriority = () => [],
-    isLightSunModulesLoaded = () => true,
-    loadLightSunModules = async () => {},
+    isLightSunUILoaded = () => true,
+    loadLightSunUI = async () => {},
     rerenderDashboardFromWidgetChange,
     renderLightTodayHero = () => '',
     showRecommendations,
@@ -50,7 +50,7 @@ export function createDashboardWidgetRenderers(deps) {
 
   function renderLightSunLoadingState() {
     if (!_lightSunModulesLoadPromise) {
-      _lightSunModulesLoadPromise = loadLightSunModules()
+      _lightSunModulesLoadPromise = loadLightSunUI()
         .then(() => rerenderDashboardFromWidgetChange())
         .catch(err => console.error('Failed to load Light & Sun dashboard modules', err))
         .finally(() => { _lightSunModulesLoadPromise = null; });
@@ -61,7 +61,7 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function lightSunModulesReady() {
-    return isLightSunModulesLoaded() || false;
+    return isLightSunUILoaded() || false;
   }
 
   const labRenderers = createDashboardLabWidgetRenderers({
@@ -100,6 +100,7 @@ export function createDashboardWidgetRenderers(deps) {
   } = recommendationWidget;
 
   function renderDashboardLightTodayWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
     const hero = renderLightTodayHero();
     const heroHtml = hero || `<div class="light-today-hero light-today-hero-dashboard-fallback">
       <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>

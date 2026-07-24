@@ -440,7 +440,9 @@ return (async function () {
       /import\s+['"]\.\/sun-context-hooks\.js['"]/.test(appFeatures)
         && /import\s+['"]\.\/light-sun-loader\.js['"]/.test(appFeatures)
         && !/import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures)
-        && /import\(['"]\.\/app-light-sun-modules\.js['"]\)/.test(lightSunLoader));
+        && /import\(['"]\.\/app-light-sun-modules\.js['"]\)/.test(lightSunLoader)
+        && /export function loadLightSunUI\(\)/.test(lightSunLoader)
+        && /data-light-sun-stylesheet-anchor/.test(lightSunLoader));
     assert('app-feature-modules.js delegates Health & Data imports',
       /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js drops the obsolete Data I/O composition wrapper',

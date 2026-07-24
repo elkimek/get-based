@@ -3,7 +3,7 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { closeLightEnvironmentAssessment, configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';
-import { loadLightSunModules } from './light-sun-loader.js';
+import { loadLightSunUI } from './light-sun-loader.js';
 import { getMeasurementsForRoom } from './light-tools.js';
 import { configureNavActions } from './nav.js';
 import { navigate } from './views.js';
@@ -12,7 +12,7 @@ configureLightEnv({ getMeasurementsForRoom, navigate });
 
 configureNavActions({
   openLightEnvironmentAssessment() {
-    void loadLightSunModules()
+    void loadLightSunUI()
       .then(() => openLightEnvironmentAssessment())
       .catch(err => console.error('Failed to load Light & Sun modules', err));
   },

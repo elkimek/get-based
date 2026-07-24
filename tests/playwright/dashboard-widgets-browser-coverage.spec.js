@@ -265,8 +265,8 @@ test('dashboard Light widgets share lazy initialization before rendering', async
       getMobileWearableTiles: () => [],
       formatMobileWearableValue: () => '',
       formatMobileWearableDelta: () => '',
-      isLightSunModulesLoaded: () => loaded,
-      loadLightSunModules: () => {
+      isLightSunUILoaded: () => loaded,
+      loadLightSunUI: () => {
         loadCalls += 1;
         return pendingLoad.then(() => { loaded = true; });
       },
@@ -285,8 +285,8 @@ test('dashboard Light widgets share lazy initialization before rendering', async
     const loadingStateIsShared =
       loadCalls === 1
       && [first, second, third].every(html => html.includes('Loading Light &amp; Sun'))
-      && todayBeforeLoad.includes('today')
-      && heroCalls === 1;
+      && todayBeforeLoad.includes('Loading Light &amp; Sun')
+      && heroCalls === 0;
 
     resolveLoad();
     await pendingLoad;
@@ -301,7 +301,7 @@ test('dashboard Light widgets share lazy initialization before rendering', async
       initializedLightWidgetsRenderTheirRealBodies:
         readyToday.includes('today')
         && readyConditions.includes('conditions')
-        && heroCalls === 2,
+        && heroCalls === 1,
     };
   }, {
     renderersUrl: moduleUrl('/js/dashboard-widget-renderers.js'),

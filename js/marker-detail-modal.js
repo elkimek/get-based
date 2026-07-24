@@ -578,9 +578,9 @@ export function showDetailModal(id, opts = {}) {
     const historyButtonLabel = showAllHistory
       ? `Show ${showCount} older ${showCount === 1 ? 'value' : 'values'}`
       : `View more history (${modalPoints.length} values)`;
-    html += `<button class="light-sessions-show-more marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true })}>${historyButtonLabel}</button>`;
+    html += `<button class="marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true })}>${historyButtonLabel}</button>`;
   } else if (showAllHistory && modalPoints.length > MARKER_HISTORY_DEFAULT_CAP) {
-    html += `<button class="light-sessions-show-more marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, scrollToHistory: true })}>Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`;
+    html += `<button class="marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, scrollToHistory: true })}>Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`;
   }
   const nonNull = modalPoints;
   if (nonNull.length >= 2) {

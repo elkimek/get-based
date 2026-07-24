@@ -221,6 +221,21 @@
 }
 .marker-detail-modal .marker-history-show-more {
   width: calc(100% - 56px);
+  display: block;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.marker-detail-modal .marker-history-show-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
 }
 .marker-detail-modal .marker-description {
   margin-top: 18px;

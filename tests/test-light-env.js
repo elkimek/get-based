@@ -727,11 +727,11 @@ const {
     appUiShellSrc.includes("import './light-env-shell-hooks.js';") &&
     lightEnvShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
     lightEnvShellHooksSrc.includes("import { closeLightEnvironmentAssessment, configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
-    lightEnvShellHooksSrc.includes("import { loadLightSunModules } from './light-sun-loader.js';") &&
+    lightEnvShellHooksSrc.includes("import { loadLightSunUI } from './light-sun-loader.js';") &&
     lightEnvShellHooksSrc.includes("import { getMeasurementsForRoom } from './light-tools.js';") &&
     lightEnvShellHooksSrc.includes("import { navigate } from './views.js';") &&
     lightEnvShellHooksSrc.includes('configureLightEnv({ getMeasurementsForRoom, navigate });') &&
-    lightEnvShellHooksSrc.includes('loadLightSunModules()') &&
+    lightEnvShellHooksSrc.includes('loadLightSunUI()') &&
     lightEnvShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
     navSrc.includes("typeof value === 'function'") &&
     appEventSrc.includes("typeof value === 'function'") &&

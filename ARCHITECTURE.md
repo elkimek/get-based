@@ -170,7 +170,13 @@ Light & Sun keeps `sun-context-hooks.js` in the startup graph so dashboard,
 chat, and Agent Access context remains complete. Its analysis and feature hook
 group is loaded through `light-sun-loader.js` when the Light route or an
 optional Light dashboard widget is opened, or when a background Light/Sun
-session finishes and needs analysis.
+session finishes and needs analysis. Background completion uses the module-only
+loader so it does not fetch presentation assets. Visual entry points use the
+UI loader, which waits for the module graph and all seven ordered Light
+stylesheets before rendering. An HTML anchor preserves the original cascade
+position. Marker-history controls and the context-card Ott badge keep their
+cross-feature styles in their eager owning bundles, while the deferred Light
+stylesheets remain in the service-worker app shell for offline first use.
 
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization

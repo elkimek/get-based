@@ -206,17 +206,25 @@ const LIGHT_CSS_BUNDLES = [
   'css/light-tools.css',
   'css/light-env.css',
 ];
+const lightSunLoaderSrc = read('js/light-sun-loader.js');
 for (const lightCss of LIGHT_CSS_BUNDLES) {
-  assert(`index loads ${lightCss}`, indexSrc.includes(`href="${lightCss}"`));
+  assert(`index defers ${lightCss}`, !indexSrc.includes(`href="${lightCss}"`));
+  assert(`Light UI loader owns ${lightCss}`, lightSunLoaderSrc.includes(`'../${lightCss}'`));
   assert(`SW APP_SHELL includes ${lightCss}`, swAuditSrc.includes(`'/${lightCss}'`));
 }
+assert('index keeps an ordered Light stylesheet anchor at the original cascade position',
+  indexSrc.includes('data-light-sun-stylesheet-anchor') &&
+  indexSrc.indexOf('href="css/wearables.css"') <
+    indexSrc.indexOf('data-light-sun-stylesheet-anchor') &&
+  indexSrc.indexOf('data-light-sun-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/chat-panel.css"'));
 assert('light CSS split preserves override order',
-  indexSrc.indexOf('href="css/light-sun.css"') < indexSrc.indexOf('href="css/light-channels.css"') &&
-  indexSrc.indexOf('href="css/light-channels.css"') < indexSrc.indexOf('href="css/light-devices.css"') &&
-  indexSrc.indexOf('href="css/light-devices.css"') < indexSrc.indexOf('href="css/light-conditions-now.css"') &&
-  indexSrc.indexOf('href="css/light-conditions-now.css"') < indexSrc.indexOf('href="css/light-setup.css"') &&
-  indexSrc.indexOf('href="css/light-setup.css"') < indexSrc.indexOf('href="css/light-tools.css"') &&
-  indexSrc.indexOf('href="css/light-tools.css"') < indexSrc.indexOf('href="css/light-env.css"') &&
+  lightSunLoaderSrc.indexOf("'../css/light-sun.css'") < lightSunLoaderSrc.indexOf("'../css/light-channels.css'") &&
+  lightSunLoaderSrc.indexOf("'../css/light-channels.css'") < lightSunLoaderSrc.indexOf("'../css/light-devices.css'") &&
+  lightSunLoaderSrc.indexOf("'../css/light-devices.css'") < lightSunLoaderSrc.indexOf("'../css/light-conditions-now.css'") &&
+  lightSunLoaderSrc.indexOf("'../css/light-conditions-now.css'") < lightSunLoaderSrc.indexOf("'../css/light-setup.css'") &&
+  lightSunLoaderSrc.indexOf("'../css/light-setup.css'") < lightSunLoaderSrc.indexOf("'../css/light-tools.css'") &&
+  lightSunLoaderSrc.indexOf("'../css/light-tools.css'") < lightSunLoaderSrc.indexOf("'../css/light-env.css'") &&
   swAuditSrc.indexOf("'/css/light-sun.css'") < swAuditSrc.indexOf("'/css/light-channels.css'") &&
   swAuditSrc.indexOf("'/css/light-channels.css'") < swAuditSrc.indexOf("'/css/light-devices.css'") &&
   swAuditSrc.indexOf("'/css/light-devices.css'") < swAuditSrc.indexOf("'/css/light-conditions-now.css'") &&
@@ -275,12 +283,17 @@ const dashboardLabRenderersSrc = read('js/dashboard-lab-widget-renderers.js');
 const dashboardViewCompositionSrc = read('js/dashboard-view-composition.js');
 const geneticsCssAuditSrc = read('css/genetics.css');
 const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
+const contextProfileCssAuditSrc = read('css/context-profile.css');
 const dnaSrc = read('js/dna.js');
 assert('Trend alert name escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.name)'));
 assert('Trend alert category escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.category)'));
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardLabRenderersSrc));
 assert('Category label escaped in header', categoryPageViewSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
+assert('marker history controls keep their styling in the eager marker-detail bundle',
+  markerDetailSrc.includes('class="marker-history-show-more"') &&
+  !markerDetailSrc.includes('light-sessions-show-more marker-history-show-more') &&
+  markerDetailCssAuditSrc.includes('.marker-detail-modal .marker-history-show-more:hover'));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
 assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
@@ -357,6 +370,11 @@ console.log('3c. innerHTML sanitizer sweep');
 
 const contextCardEditorSrc = read('js/context-card-editor-ui.js');
 const contextCardLifestyleSrc = read('js/context-card-lifestyle-editors.js');
+assert('context Light setup mirror owns its eager Ott badge styling',
+  contextCardLifestyleSrc.includes('ctx-lightsetup-ott-badge') &&
+  !contextCardLifestyleSrc.includes('class="light-ott-badge') &&
+  contextProfileCssAuditSrc.includes('.ctx-lightsetup-ott-badge') &&
+  contextProfileCssAuditSrc.includes('.ctx-lightsetup-ott-tier-4'));
 assert('Context select field escapes label text',
   /function renderSelectField[\s\S]{0,220}<label class="ctx-field-label">\$\{escapeHTML\(label\)\}<\/label>/.test(contextCardEditorSrc));
 assert('Context tags field escapes label text',
