@@ -13,13 +13,14 @@ function expectAll(outcomes) {
 test('cycle browser coverage exercises editor save clear and period guards', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async ({ cycleUrl }) => {
-    const [{ state }, cycle, cycleRuntime, tour, cycleStore, contextCardsRuntime] = await Promise.all([
+  const results = await page.evaluate(async ({ cycleStoreCoverageUrl, cycleUrl }) => {
+    const [{ state }, cycle, cycleRuntime, tour, cycleStore, cycleStoreCoverage, contextCardsRuntime] = await Promise.all([
       import('/js/state.js'),
       import(cycleUrl),
       import('/js/cycle-runtime.js'),
       import('/js/tour.js'),
       import('/js/cycle-store.js'),
+      import(cycleStoreCoverageUrl),
       import('/js/context-cards-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -30,7 +31,9 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     const saved = {
       importedData: clone(state.importedData),
       profileDob: state.profileDob,
+      encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
     };
+    const cycleStoreCoverageProfile = `cycle-store-coverage-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       recordChange: field => calls.push(['record', field]),
     });
@@ -65,6 +68,63 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     });
 
     try {
+      localStorage.setItem('labcharts-encryption-enabled', 'false');
+      await cycleStoreCoverage.upsertCycleObservation(cycleStoreCoverageProfile, {
+        source: 'coverage',
+        importId: 'coverage-import',
+        date: '2026-07-01',
+        bleeding: { flow: 'light' },
+      });
+      const storedObservation = await cycleStoreCoverage.getCycleObservation(
+        cycleStoreCoverageProfile,
+        'coverage',
+        '2026-07-01',
+      );
+      const rawRange = await cycleStoreCoverage.getCycleObservationRangeRaw(
+        cycleStoreCoverageProfile,
+        'coverage',
+        '2026-07-01',
+        '2026-07-31',
+      );
+      await cycleStoreCoverage.setCycleMeta(cycleStoreCoverageProfile, 'coverage-key', { ready: true });
+      const storedMeta = await cycleStoreCoverage.getCycleMeta(cycleStoreCoverageProfile, 'coverage-key');
+      await cycleStoreCoverage.deleteCycleMeta(cycleStoreCoverageProfile, 'coverage-key');
+      const deletedMeta = await cycleStoreCoverage.getCycleMeta(cycleStoreCoverageProfile, 'coverage-key');
+      await cycleStoreCoverage.clearCycleSource(cycleStoreCoverageProfile, 'coverage');
+      const clearedSourceCount = await cycleStoreCoverage.countCycleSource(cycleStoreCoverageProfile, 'coverage');
+
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      let lockedWriteRejected = false;
+      try {
+        await cycleStoreCoverage.upsertCycleObservation(cycleStoreCoverageProfile, {
+          source: 'coverage',
+          importId: 'locked-import',
+          date: '2026-07-02',
+        });
+      } catch (error) {
+        lockedWriteRejected = error?.code === 'session-locked';
+      }
+      localStorage.setItem('labcharts-encryption-enabled', 'false');
+      await cycleStoreCoverage.upsertCycleObservationBatchRaw(cycleStoreCoverageProfile, [{
+        source: 'coverage',
+        importId: 'encrypted-import',
+        date: '2026-07-03',
+        _payload: { _enc: 'v1', iv: 'coverage', ct: 'coverage' },
+      }]);
+      const unavailableDecryption = await cycleStoreCoverage.getCycleObservation(
+        cycleStoreCoverageProfile,
+        'coverage',
+        '2026-07-03',
+      );
+      outcomes.cycleStoreCoversObservationSourceMetaAndDefaultCryptoPaths =
+        storedObservation?.bleeding?.flow === 'light'
+        && rawRange.length === 1
+        && storedMeta?.ready === true
+        && deletedMeta === null
+        && clearedSourceCount === 0
+        && lockedWriteRejected
+        && unavailableDecryption === null;
+
       if (!overlay()) {
         const createdOverlay = document.createElement('div');
         createdOverlay.id = 'modal-overlay';
@@ -241,6 +301,9 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     } finally {
       state.importedData = saved.importedData;
       state.profileDob = saved.profileDob;
+      if (saved.encryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
+      else localStorage.setItem('labcharts-encryption-enabled', saved.encryptionEnabled);
+      await cycleStoreCoverage.deleteCycleDB(cycleStoreCoverageProfile).catch(() => {});
       cycleRuntime.configureCycleRuntimeDeps(previousCycleRuntime);
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       tour.endTour();
@@ -253,7 +316,10 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     }
 
     return outcomes;
-  }, { cycleUrl: moduleUrl('/js/cycle.js') });
+  }, {
+    cycleStoreCoverageUrl: moduleUrl('/js/cycle-store.js'),
+    cycleUrl: moduleUrl('/js/cycle.js'),
+  });
 
   expectAll(results);
 });

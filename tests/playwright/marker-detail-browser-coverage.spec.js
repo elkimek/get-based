@@ -818,14 +818,21 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       showAltUnits: state.showAltUnits,
       rangeMode: state.rangeMode,
       chartInstances: state.chartInstances,
+      scrollIntoView: Element.prototype.scrollIntoView,
+    };
+    let scrollCalls = 0;
+    Element.prototype.scrollIntoView = function scrollIntoView() {
+      scrollCalls += 1;
     };
     const date = '2026-06-01';
     const albuminId = 'proteins_albumin';
     const albuminKey = 'proteins.albumin';
     const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       askAIAboutMarker: id => calls.push(['ask-ai', id]),
+      buildSidebar: () => calls.push(['sidebar']),
       closeEMFInterpretation: () => calls.push(['close-emf']),
       isDashboardQuickMarkerPinned: () => false,
+      navigate: (...args) => calls.push(['navigate', ...args]),
       renameMarker: id => calls.push(['rename', id]),
       revertMarkerName: id => calls.push(['revert-name', id]),
       showEmojiPicker: () => {},
@@ -889,7 +896,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       outcomes.markerDetailStylesheetIsAbsentBeforeFirstOpen =
         document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
       const firstOpenStartedAt = performance.now();
-      await modal.showDetailModal(albuminId, { scrollToRec: true });
+      await modal.showDetailModal(albuminId, { scrollToHistory: true, scrollToRec: true });
       outcomes.firstOpenCompletesWithinInteractionBudget =
         performance.now() - firstOpenStartedAt < 1000;
       await wait(80);
@@ -905,6 +912,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         && detailText.includes('coverage-lab.pdf')
         && !!detail?.querySelector('.gb-detail-pin-btn[aria-pressed="false"]')
         && detailText.includes('rec proteins.albumin');
+      outcomes.detailModalRunsRequestedScrollCallbacks = scrollCalls >= 2;
       outcomes.detailModalBothModeLabelsEachRangeAndUsesNativeEditButtons =
         detail?.querySelector('.stat-card-value-range')?.textContent.includes('reference')
         && detail.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal')
@@ -949,6 +957,113 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         && !bioText.includes('Missing: hs-CRP')
         && !bioText.includes('Missing on latest date');
 
+      await modal.openManualEntryForm(albuminId, '2026-06-02');
+      await wait(70);
+      const escapeInput = document.getElementById('me-value');
+      escapeInput?.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      }));
+      await wait(20);
+      outcomes.manualEntryEscapeReturnsToDetail =
+        document.getElementById('detail-modal')?.textContent.includes('Albumin renamed') === true;
+
+      await modal.openManualEntryForm(albuminId, '2026-06-02');
+      await wait(70);
+      document.getElementById('me-value').value = '43';
+      await modal.saveManualEntry(albuminId, { keepOpen: true });
+      await wait(20);
+      outcomes.keepOpenManualSaveRunsDefaultSidebarAndFormCallbacks =
+        calls.some(call => call[0] === 'sidebar')
+        && calls.some(call => call[0] === 'navigate')
+        && document.getElementById('me-date')?.value === '2026-06-02';
+
+      document.getElementById('me-date').value = '2026-06-03';
+      document.getElementById('me-value').value = '44';
+      await modal.saveManualEntry(albuminId);
+      await wait(80);
+      outcomes.closingManualSaveRunsDefaultCloseCallback =
+        !document.getElementById('modal-overlay')?.classList.contains('show')
+        || document.getElementById('detail-modal')?.textContent.includes('Albumin renamed') === true;
+
+      state.importedData.entries = [{
+        date: '2026-06-10',
+        markers: { 'proteins.crp': 1.2 },
+      }];
+      data.invalidateActiveDataCache();
+      const sparseData = data.getActiveData();
+      if (sparseData.categories.proteins?.markers.hsCRP) {
+        sparseData.categories.proteins.markers.hsCRP.values = sparseData.dates.map(() => null);
+      }
+      await modal.showDetailModal('calculatedRatios_phenoAge');
+      await wait(20);
+      const sparseIssue = document.querySelector('.calc-missing-inputs')?.textContent || '';
+      outcomes.bioAgeFallbackRebuildsRemainingMissingInputs =
+        sparseIssue.includes('Missing:')
+        && sparseIssue.includes('Albumin')
+        && !sparseIssue.includes('hs-CRP');
+
+      state.importedData.entries = [{
+        date: '2026-06-11',
+        markers: {
+          [albuminKey]: 42,
+          'biochemistry.creatinine': 82,
+          'biochemistry.glucose': 5.1,
+          'proteins.crp': 1.2,
+          'differential.lymphocytesPct': 0.28,
+          'hematology.mcv': 90,
+          'hematology.rdwcv': 12.5,
+          'biochemistry.alp': 1.1,
+          'hematology.wbc': 5.4,
+        },
+      }, {
+        date: '2026-06-12',
+        markers: { 'proteins.crp': 1.1 },
+      }];
+      data.invalidateActiveDataCache();
+      const latestGapData = data.getActiveData();
+      if (latestGapData.categories.proteins?.markers.hsCRP) {
+        latestGapData.categories.proteins.markers.hsCRP.values = latestGapData.dates.map(() => null);
+      }
+      await modal.showDetailModal('calculatedRatios_phenoAge');
+      await wait(20);
+      const latestGapIssue = document.querySelector('.calc-missing-inputs')?.textContent || '';
+      outcomes.bioAgeFallbackNamesLatestPanelGaps =
+        latestGapIssue.includes('Missing on latest date')
+        && latestGapIssue.includes('Albumin');
+
+      const customKey = 'customCoverage.marker';
+      const customId = 'customCoverage_marker';
+      state.importedData.entries = [{
+        date,
+        markers: {
+          [albuminKey]: 42,
+          [customKey]: 7,
+        },
+      }];
+      state.importedData.customMarkers = {
+        [customKey]: {
+          name: 'Coverage marker',
+          unit: 'u',
+          categoryLabel: 'Coverage',
+        },
+      };
+      data.invalidateActiveDataCache();
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-marker-desc', JSON.stringify({
+        'coverage.cached': 'Cached marker description',
+        [customId]: 'Cached custom marker description',
+      }));
+      await modal.showDetailModal(customId);
+      await wait(20);
+      const customDescription = document.getElementById('marker-desc');
+      outcomes.customMarkerDescriptionPromiseUpdatesTheModal =
+        customDescription?.textContent === 'Cached custom marker description'
+        && customDescription.classList.contains('loaded')
+        && !customDescription.classList.contains('loading');
+
       modal.closeModal();
       outcomes.closeModalRunsCleanupHooks =
         calls.some(call => call[0] === 'close-emf')
@@ -965,6 +1080,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       state.showAltUnits = saved.showAltUnits;
       state.rangeMode = saved.rangeMode;
       state.chartInstances = saved.chartInstances;
+      Element.prototype.scrollIntoView = saved.scrollIntoView;
       markerRuntime.configureMarkerDetailRuntime(restoreMarkerRuntime);
       dnaBridge.configureDnaModuleBridge({ getRelevantSNPs: null, ...restoreDnaBridge });
       recommendationRuntime.configureRecommendationModuleBridge({

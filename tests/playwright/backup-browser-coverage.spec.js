@@ -124,6 +124,23 @@ test('backup browser coverage exercises export import auto backup and folder sta
         && snapshot.profiles?.[0]?.keys?.units === 'EU'
         && snapshot.profiles?.[0]?.keys?.chatRailOpen === 'true';
 
+      const serializedBytes = backup.serializeBackupSnapshot({
+        bytes: new Uint8Array([0, 127, 255]),
+        encrypted: {
+          _enc: 'v1',
+          iv: { 0: 1, 1: 2 },
+          ct: { 0: 3, 1: 4 },
+        },
+      });
+      const parsedBytes = backup.parseBackupSnapshot(serializedBytes);
+      outcomes.backupSerializationRoundTripsCurrentAndLegacyByteArrays =
+        parsedBytes.bytes instanceof Uint8Array
+        && parsedBytes.bytes.join(',') === '0,127,255'
+        && parsedBytes.encrypted.iv instanceof Uint8Array
+        && parsedBytes.encrypted.iv.join(',') === '1,2'
+        && parsedBytes.encrypted.ct instanceof Uint8Array
+        && parsedBytes.encrypted.ct.join(',') === '3,4';
+
       localStorage.removeItem(importedKey);
       await blobStorage.setBlob(importedKey, JSON.stringify({ entries: [{ date: '2026-06-11', markers: { cobalt: 3 } }] }));
       const fullSnapshot = await backup.buildFullBackupSnapshot();
