@@ -21,7 +21,11 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     window.showDirectoryPicker = async () => ({ name: 'Coverage Backups' });
     const dashboardAi = await import(dashboardUrl);
     const dashboardAiRuntime = await import('/js/context-card-dashboard-ai-runtime.js');
+    const aiActionDelegates = await import('/js/ai-action-delegates.js');
+    const apiRuntime = await import('/js/api-runtime.js');
+    const apiVenice = await import('/js/api-venice.js');
     const lens = await import('/js/lens.js');
+    const walletRenderers = await import('/js/provider-wallet-panel-renderers.js');
     const { state } = await import('/js/state.js');
     const contextCardsRuntime = await import('/js/context-cards-runtime.js');
     const dnaBridge = await import('/js/dna-runtime-bridge.js');
@@ -64,6 +68,9 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const previousDataProtectionDeps = dashboardAi.configureDashboardAIDataProtectionDeps({
       pickFolderForBackup: () => calls.push('backup'),
       showEnableEncryptionModal: () => calls.push('encryption'),
+    });
+    const previousApiRuntime = apiRuntime.configureApiRuntimeCallbacks({
+      showInsufficientBalanceDialog: null,
     });
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       openInterpretiveLensEditor: () => calls.push('lens'),
@@ -229,6 +236,16 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       dashboardAiRuntime.configureDashboardAIContextStatus(null);
       dashboardAiRuntime.notifyDashboardAIContextStatusChanged();
       outcomes.contextStatusRuntimeFallsBackToSafeNoop = true;
+      outcomes.unconfiguredApiDialogFallsBackSafely =
+        apiRuntime.showOpenRouterInsufficientBalanceDialogRuntime() === false;
+      outcomes.unknownAiActionHasNoHandler =
+        aiActionDelegates.getRegisteredAIActionHandler('coverage-unknown') === null;
+      outcomes.emptyVeniceSessionClearsSafely = apiVenice.clearVeniceE2EESession() === false;
+      const seedMarkup = walletRenderers.walletSeedManagementHtml('alpha <coverage>');
+      outcomes.walletSeedManagementEscapesSharedImportButtonMarkup =
+        seedMarkup.includes('class="import-btn import-btn-secondary"')
+        && seedMarkup.includes('alpha &lt;coverage&gt;')
+        && !seedMarkup.includes('alpha <coverage>');
 
       dashboardAi.triggerDNAFilePicker();
       const input = document.getElementById('dna-dashboard-input');
@@ -264,6 +281,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       dashboardAi.configureDashboardAISyncSetup();
       dashboardAiRuntime.configureDashboardAIContextStatus(previousContextStatusHandler);
       dashboardAi.configureDashboardAIDataProtectionDeps(previousDataProtectionDeps);
+      apiRuntime.configureApiRuntimeCallbacks(previousApiRuntime);
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       dnaBridge.configureDnaModuleBridge({ handleDNAFile: null, ...previousDnaBridge });
       HTMLInputElement.prototype.click = originalInputClick;
