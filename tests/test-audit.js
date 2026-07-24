@@ -351,41 +351,62 @@ assert('light CSS split preserves override order',
   swAuditSrc.indexOf("'/css/light-tools.css'") < swAuditSrc.indexOf("'/css/light-env.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
-const CHAT_CSS_BUNDLES = [
+assert('index loads Chat redesign overrides eagerly',
+  indexSrc.includes('href="css/chat-redesign.css"') &&
+  swAuditSrc.includes("'/css/chat-redesign.css'"));
+const DEFERRED_CHAT_PRESENTATION_BUNDLES = [
   'css/chat-personality.css',
   'css/chat-messages.css',
   'css/chat-composer.css',
+  'css/chat-onboarding.css',
   'css/chat-responsive.css',
   'css/chat-actions.css',
   'css/chat-mobile.css',
-  'css/chat-redesign.css',
 ];
-for (const chatCss of CHAT_CSS_BUNDLES) {
-  assert(`index loads ${chatCss}`, indexSrc.includes(`href="${chatCss}"`));
-  assert(`SW APP_SHELL includes ${chatCss}`, swAuditSrc.includes(`'/${chatCss}'`));
-}
 const chatPanelAuditSrc = read('js/chat-panel.js');
-assert('index defers Chat onboarding CSS behind its ordered lazy-load anchor',
-  !indexSrc.includes('href="css/chat-onboarding.css"') &&
-  indexSrc.includes('data-chat-onboarding-stylesheet-anchor') &&
-  chatPanelAuditSrc.includes("new URL('../css/chat-onboarding.css', import.meta.url)") &&
-  chatPanelAuditSrc.includes('loadChatOnboardingStylesheetForAction'));
-assert('Chat panel waits for onboarding presentation before opening',
-  chatPanelAuditSrc.includes('await loadChatOnboardingStylesheetForAction()') &&
-  chatPanelAuditSrc.indexOf('await loadChatOnboardingStylesheetForAction()') <
+for (const chatCss of DEFERRED_CHAT_PRESENTATION_BUNDLES) {
+  assert(`index defers ${chatCss} through the Chat presentation boundary`,
+    !indexSrc.includes(`href="${chatCss}"`) &&
+    chatPanelAuditSrc.includes(`new URL('../${chatCss}', import.meta.url)`) &&
+    swAuditSrc.includes(`'/${chatCss}'`));
+}
+assert('index defers Chat presentation behind its ordered lazy-load anchor',
+  indexSrc.includes('data-chat-presentation-stylesheet-anchor') &&
+  chatPanelAuditSrc.includes('loadChatPresentationStylesheetsForAction'));
+assert('Chat panel waits for complete presentation before opening',
+  chatPanelAuditSrc.includes('await loadChatPresentationStylesheetsForAction()') &&
+  chatPanelAuditSrc.indexOf('await loadChatPresentationStylesheetsForAction()') <
     chatPanelAuditSrc.indexOf("panel.classList.add('open')"));
-assert('Chat onboarding CSS lazy-load anchor preserves the original cascade position',
-  indexSrc.indexOf('href="css/chat-composer.css"') <
-    indexSrc.indexOf('data-chat-onboarding-stylesheet-anchor') &&
-  indexSrc.indexOf('data-chat-onboarding-stylesheet-anchor') <
-    indexSrc.indexOf('href="css/chat-responsive.css"'));
-assert('SW APP_SHELL includes Chat onboarding CSS bundle',
-  swAuditSrc.includes("'/css/chat-onboarding.css'"));
-assert('chat CSS split loads before chat redesign overrides',
-  indexSrc.indexOf('href="css/chat-mobile.css"') < indexSrc.indexOf('href="css/redesign-shell.css"') &&
+assert('Chat presentation loader and service worker preserve stylesheet cascade order',
+  DEFERRED_CHAT_PRESENTATION_BUNDLES.every((chatCss, index) => (
+    index === 0 ||
+    chatPanelAuditSrc.indexOf(`new URL('../${DEFERRED_CHAT_PRESENTATION_BUNDLES[index - 1]}'`) <
+      chatPanelAuditSrc.indexOf(`new URL('../${chatCss}'`)
+  )) &&
+  DEFERRED_CHAT_PRESENTATION_BUNDLES.every((chatCss, index) => (
+    index === 0 ||
+    swAuditSrc.indexOf(`'/${DEFERRED_CHAT_PRESENTATION_BUNDLES[index - 1]}'`) <
+      swAuditSrc.indexOf(`'/${chatCss}'`)
+  )));
+assert('Chat presentation lazy-load anchor precedes redesign overrides',
+  indexSrc.indexOf('data-chat-presentation-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/redesign-shell.css"') &&
   indexSrc.indexOf('href="css/redesign-shell.css"') < indexSrc.indexOf('href="css/chat-redesign.css"') &&
   swAuditSrc.indexOf("'/css/chat-mobile.css'") < swAuditSrc.indexOf("'/css/redesign-shell.css'") &&
   swAuditSrc.indexOf("'/css/redesign-shell.css'") < swAuditSrc.indexOf("'/css/chat-redesign.css'"));
+const chatComposerCssSrc = read('css/chat-composer.css');
+const chatPanelCssSrc = read('css/chat-panel.css');
+const chatMobileCssSrc = read('css/chat-mobile.css');
+const markerDetailCssSrc = read('css/marker-detail-modal.css');
+assert('cold-visible mobile Chat launcher sizing remains in the eager panel bundle',
+  chatPanelCssSrc.includes('@media (max-width: 480px)') &&
+  chatPanelCssSrc.includes('.chat-fab { width: 48px; height: 48px;') &&
+  !chatMobileCssSrc.includes('.chat-fab'));
+assert('marker detail presentation no longer depends on deferred Chat composer CSS',
+  markerDetailCssSrc.includes('.calc-missing-inputs') &&
+  markerDetailCssSrc.includes('.ask-ai-btn') &&
+  !chatComposerCssSrc.includes('.calc-missing-inputs') &&
+  !chatComposerCssSrc.includes('.ask-ai-btn'));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
 assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
 

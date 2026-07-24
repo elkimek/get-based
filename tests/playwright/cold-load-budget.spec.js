@@ -100,8 +100,17 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/themes-extra.css'
   ))).toBe(false);
+  const deferredChatStylesheets = new Set([
+    '/css/chat-personality.css',
+    '/css/chat-messages.css',
+    '/css/chat-composer.css',
+    '/css/chat-onboarding.css',
+    '/css/chat-responsive.css',
+    '/css/chat-actions.css',
+    '/css/chat-mobile.css',
+  ]);
   expect(entries.some(entry => (
-    new URL(entry.name).pathname === '/css/chat-onboarding.css'
+    deferredChatStylesheets.has(new URL(entry.name).pathname)
   ))).toBe(false);
   const deferredLightStylesheets = new Set([
     '/css/light-sun.css',

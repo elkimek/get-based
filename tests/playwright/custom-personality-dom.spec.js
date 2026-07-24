@@ -85,6 +85,7 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       outcomes.editInactiveLoadsFields = document.getElementById('chat-personality-custom-name')?.value === 'Functional Doc'
         && document.querySelector('.chat-personality-custom-textarea')?.value === 'Functional prompt';
 
+      await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
       const selectors = new Set();
       for (const sheet of Array.from(document.styleSheets)) {
         try {
