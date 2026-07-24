@@ -221,15 +221,30 @@ assert('genetics CSS lazy-load anchor preserves the original cascade position',
   indexSrc.indexOf('href="css/context-profile.css"') <
     indexSrc.indexOf('data-genetics-stylesheet-anchor') &&
   indexSrc.indexOf('data-genetics-stylesheet-anchor') <
-    indexSrc.indexOf('href="css/data-protection.css"'));
+    indexSrc.indexOf('data-data-protection-stylesheet-anchor'));
 assert('SW APP_SHELL includes genetics CSS bundle', swAuditSrc.includes("'/css/genetics.css'"));
-assert('index loads data protection CSS bundle', indexSrc.includes('href="css/data-protection.css"'));
+const dataProtectionLifecycleAuditSrc = read('js/modal-lifecycle.js');
+const settingsLoaderAuditSrc = read('js/settings-loader.js');
+const cryptoAuditSrc = read('js/crypto.js');
+const piiAuditSrc = read('js/pii.js');
+assert('index defers data protection CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/data-protection.css"') &&
+  indexSrc.includes('data-data-protection-stylesheet-anchor') &&
+  dataProtectionLifecycleAuditSrc.includes("new URL('../css/data-protection.css', import.meta.url)") &&
+  dataProtectionLifecycleAuditSrc.includes('data-data-protection-stylesheet-anchor'));
+assert('data protection presentation joins every owning first-open boundary',
+  importLoaderAuditSrc.includes('loadDataProtectionStylesheet()') &&
+  settingsLoaderAuditSrc.includes('loadDataProtectionStylesheet()') &&
+  cryptoAuditSrc.includes('runWithDataProtectionStylesheet') &&
+  piiAuditSrc.includes('loadDataProtectionStylesheetForAction'));
 assert('SW APP_SHELL includes data protection CSS bundle', swAuditSrc.includes("'/css/data-protection.css'"));
 assert('index defers settings CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/settings.css"') &&
   indexSrc.includes('data-settings-stylesheet-anchor'));
-assert('settings CSS lazy-load anchor preserves the original cascade position',
-  indexSrc.indexOf('href="css/data-protection.css"') <
+assert('data protection and settings lazy-load anchors preserve cascade order',
+  indexSrc.indexOf('data-genetics-stylesheet-anchor') <
+    indexSrc.indexOf('data-data-protection-stylesheet-anchor') &&
+  indexSrc.indexOf('data-data-protection-stylesheet-anchor') <
     indexSrc.indexOf('data-settings-stylesheet-anchor') &&
   indexSrc.indexOf('data-settings-stylesheet-anchor') <
     indexSrc.indexOf('href="css/mobile-dashboard.css"'));

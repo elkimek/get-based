@@ -379,7 +379,10 @@ assert('PDF import dialogs and review modal use shared overlay lifecycle helpers
     !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
 
 assert('PII diff and review overlays use shared overlay lifecycle helpers',
-  piiSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
+  piiSrc.includes("from './modal-lifecycle.js';") &&
+    piiSrc.includes('openModalOverlay,') &&
+    piiSrc.includes('removeModalOverlay,') &&
+    piiSrc.includes('trapModalFocus,') &&
     piiSrc.includes('function openPIIOverlay(overlay, options = {})') &&
     piiSrc.includes('requestAnimationFrame(() => {') &&
     piiSrc.includes('if (!overlay.isConnected) return;') &&

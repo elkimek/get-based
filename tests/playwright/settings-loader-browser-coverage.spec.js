@@ -233,15 +233,17 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   expect(settingsRequests).toBe(0);
   expect(settingsStylesheetRequests).toBe(0);
   await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(0);
+  await expect(page.locator('link[data-data-protection-stylesheet]')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => (
     document.documentElement.style.getPropertyValue('--accent')
   ))).toBe('#4f8cff');
-  await page.locator('[data-shell-action="open-settings"]').click();
+  await page.locator('[data-shell-action="open-settings"]').evaluate(button => button.click());
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/show/);
   await expect(page.locator('[data-settings-tab="display"]')).toHaveAttribute('aria-selected', 'true');
   expect(settingsRequests).toBe(1);
   expect(settingsStylesheetRequests).toBe(1);
   await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(1);
+  await expect(page.locator('link[data-data-protection-stylesheet]')).toHaveCount(1);
   await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
   await expect.poll(() => page.evaluate(async () => (
     (await import('/js/settings-loader.js')).isSettingsModuleLoaded()

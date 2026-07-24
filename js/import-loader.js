@@ -2,6 +2,7 @@
 // import-loader.js — shared lazy loaders for heavyweight import flows
 
 import { hasImportReviewDraft } from './import-review-draft.js';
+import { loadDataProtectionStylesheet } from './modal-lifecycle.js';
 
 const IMPORT_STYLESHEET_URL = new URL('../css/import.css', import.meta.url).href;
 
@@ -62,13 +63,17 @@ export async function loadImportUI() {
   const [importModule] = await Promise.all([
     loadPdfImport(),
     loadImportStylesheet(),
+    loadDataProtectionStylesheet(),
   ]);
   return importModule;
 }
 
 export async function restorePendingImportReviewDraft() {
   if (!hasImportReviewDraft()) return false;
-  await loadImportStylesheet();
+  await Promise.all([
+    loadImportStylesheet(),
+    loadDataProtectionStylesheet(),
+  ]);
   const review = await import('./pdf-import-review.js');
   return review.restoreImportReviewDraft();
 }
