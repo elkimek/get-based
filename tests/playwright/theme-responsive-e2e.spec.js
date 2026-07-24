@@ -1067,7 +1067,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   await page.evaluate(async () => {
     const viewsModule = await import('/js/views.js');
     window.scrollTo(0, 0);
-    viewsModule.showCategory?.('biochemistry');
+    await viewsModule.navigate('biochemistry');
   });
   await page.waitForSelector('.category-header', { timeout: 5000 });
   for (const view of ['table', 'heatmap']) {

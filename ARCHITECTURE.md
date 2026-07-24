@@ -206,6 +206,16 @@ the original cascade position, while dashboard genome tiles remain in the
 eager `dashboard-data.css` bundle. The service-worker app shell retains the
 deferred stylesheet for offline first use.
 
+Category, Compare, and Correlations behavior stays module-eager for route
+compatibility, but `category-page-runtime.js` loads `css/category-views.css`
+when one of those routes first opens. Each route waits for the stylesheet
+before rendering, concurrent route entries share one request, failed links are
+removed and cache-busted for retry, and an HTML anchor preserves the original
+cascade position. Dashboard greeting spacing, alert cards, and date-range
+controls remain in eager dashboard bundles because the returning-user dashboard
+renders them without entering a category-backed route. The service-worker app
+shell retains the deferred stylesheet for offline first use.
+
 Client List remains module-eager because shell, profile, and location actions
 use it, but `css/client-list.css` loads only when `openClientList()` is first
 called. Opening waits for the stylesheet, concurrent opens share one request,
