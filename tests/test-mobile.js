@@ -25,7 +25,9 @@ return (async function() {
     return css;
   }
 
-  const css = getCSS();
+  // Settings styles are lazy-loaded in production. Include their source in
+  // this static responsive-rule audit without making them startup resources.
+  const css = `${getCSS()}\n${await fetchWithRetry('css/settings.css')}`;
 
   // ═══ Section 1: Header mobile layout ═══
   console.log('%c[1] Header Mobile Layout', 'font-weight:bold');

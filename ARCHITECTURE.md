@@ -176,7 +176,11 @@ Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization
 stays in `theme.js`, while the Light page imports its Sun data-source renderer
 from `settings-privacy.js`; neither path requires the full Settings modal
-during normal startup.
+during normal startup. The loader also fetches `css/settings.css` on first use
+and waits for both resources before opening the UI. An HTML anchor preserves
+the stylesheet's cascade position, while the shell-owned Settings button rule
+stays in `app-shell.css`. The deferred stylesheet remains in the service-worker
+app shell for offline first use.
 
 Profile Sharing is loaded through `profile-share-loader.js` when a shell,
 Settings, or client-list action opens it, or when startup/hash routing detects

@@ -18,6 +18,7 @@
 .header-group { display: flex; align-items: center; gap: 8px; }
 .header-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
 [data-theme="light"] .header { box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-bottom-color: transparent; }
+.settings-btn:hover { background: var(--bg-hover); }
 
 /* Header/settings toggles */
 .sex-toggle { display: flex; align-items: center; gap: 4px; }

@@ -177,7 +177,14 @@ assert('index loads genetics CSS bundle', indexSrc.includes('href="css/genetics.
 assert('SW APP_SHELL includes genetics CSS bundle', swAuditSrc.includes("'/css/genetics.css'"));
 assert('index loads data protection CSS bundle', indexSrc.includes('href="css/data-protection.css"'));
 assert('SW APP_SHELL includes data protection CSS bundle', swAuditSrc.includes("'/css/data-protection.css'"));
-assert('index loads settings CSS bundle', indexSrc.includes('href="css/settings.css"'));
+assert('index defers settings CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/settings.css"') &&
+  indexSrc.includes('data-settings-stylesheet-anchor'));
+assert('settings CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/data-protection.css"') <
+    indexSrc.indexOf('data-settings-stylesheet-anchor') &&
+  indexSrc.indexOf('data-settings-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
 assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
