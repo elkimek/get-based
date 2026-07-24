@@ -1,6 +1,16 @@
 import { expect, test } from './coverage-fixture.js';
 
-test('Chat onboarding presentation stays cold until the panel opens and preserves cascade order', async ({ page }) => {
+const CHAT_PRESENTATION_PATHS = [
+  '/css/chat-personality.css',
+  '/css/chat-messages.css',
+  '/css/chat-composer.css',
+  '/css/chat-onboarding.css',
+  '/css/chat-responsive.css',
+  '/css/chat-actions.css',
+  '/css/chat-mobile.css',
+];
+
+test('Chat presentation stays cold until the panel opens and preserves cascade order', async ({ page }) => {
   let stylesheetRoute;
   let stylesheetRequests = 0;
   await page.route('**/css/chat-onboarding.css*', route => {
@@ -9,7 +19,7 @@ test('Chat onboarding presentation stays cold until the panel opens and preserve
   });
   await page.goto('/app', { waitUntil: 'load' });
 
-  await expect(page.locator('link[data-chat-onboarding-stylesheet]')).toHaveCount(0);
+  await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(0);
   expect(stylesheetRequests).toBe(0);
 
   await page.evaluate(async () => {
@@ -17,7 +27,7 @@ test('Chat onboarding presentation stays cold until the panel opens and preserve
   });
   await expect.poll(() => !!stylesheetRoute).toBe(true);
   await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
-  await expect(page.locator('link[data-chat-onboarding-stylesheet]')).toHaveCount(1);
+  await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(7);
 
   await stylesheetRoute.fulfill({
     status: 200,
@@ -27,23 +37,23 @@ test('Chat onboarding presentation stays cold until the panel opens and preserve
 
   const outcome = await page.evaluate(async () => {
     const opened = await window.__chatOpenResult;
-    const link = document.querySelector('link[data-chat-onboarding-stylesheet]');
-    const anchor = document.querySelector('[data-chat-onboarding-stylesheet-anchor]');
+    const links = Array.from(document.querySelectorAll('link[data-chat-presentation-stylesheet]'));
+    const anchor = document.querySelector('[data-chat-presentation-stylesheet-anchor]');
     return {
       opened,
       panelOpen: document.getElementById('chat-panel')?.classList.contains('open'),
       token: getComputedStyle(document.getElementById('chat-panel')).getPropertyValue('--coverage-chat-onboarding').trim(),
-      linkPrecedesAnchor: link?.nextElementSibling === anchor,
+      paths: links.map(link => new URL(link.href).pathname),
+      finalLinkPrecedesAnchor: links.at(-1)?.nextElementSibling === anchor,
     };
   });
 
   expect(stylesheetRequests).toBe(1);
-  expect(outcome).toEqual({
-    opened: true,
-    panelOpen: true,
-    token: 'ready',
-    linkPrecedesAnchor: true,
-  });
+  expect(outcome.opened).toBe(true);
+  expect(outcome.panelOpen).toBe(true);
+  expect(outcome.token).toBe('ready');
+  expect(outcome.paths).toEqual(CHAT_PRESENTATION_PATHS);
+  expect(outcome.finalLinkPrecedesAnchor).toBe(true);
 
   await page.evaluate(async () => {
     const chatPanel = await import('/js/chat-panel.js');
@@ -53,9 +63,10 @@ test('Chat onboarding presentation stays cold until the panel opens and preserve
   expect(stylesheetRequests).toBe(1);
 });
 
-test('Chat onboarding stylesheet failure is contained and retries with a fresh URL', async ({ page }) => {
+test('Chat presentation failure is contained and retries the group with fresh URLs', async ({ page }) => {
   const stylesheetRequests = [];
-  await page.route('**/css/chat-onboarding.css*', route => {
+  const presentationPattern = /\/css\/chat-(?:personality|messages|composer|onboarding|responsive|actions|mobile)\.css/;
+  await page.route(presentationPattern, route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
   });
@@ -64,22 +75,23 @@ test('Chat onboarding stylesheet failure is contained and retries with a fresh U
   const firstOpened = await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
   expect(firstOpened).toBe(false);
   await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
-  await expect(page.locator('link[data-chat-onboarding-stylesheet]')).toHaveCount(0);
+  await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(0);
   await expect(page.locator('.notification-toast')).toContainText('Chat could not be opened');
 
-  await page.unroute('**/css/chat-onboarding.css*');
+  await page.unroute(presentationPattern);
   const retry = await page.evaluate(async () => {
     const opened = await (await import('/js/chat-panel.js')).openChatPanel();
-    const link = document.querySelector('link[data-chat-onboarding-stylesheet]');
+    const links = Array.from(document.querySelectorAll('link[data-chat-presentation-stylesheet]'));
     return {
       opened,
       panelOpen: document.getElementById('chat-panel')?.classList.contains('open'),
-      href: link?.href || '',
+      hrefs: links.map(link => link.href),
     };
   });
 
-  expect(stylesheetRequests).toHaveLength(1);
+  expect(stylesheetRequests).toHaveLength(7);
   expect(retry.opened).toBe(true);
   expect(retry.panelOpen).toBe(true);
-  expect(new URL(retry.href).searchParams.get('lazy-retry')).toBe('1');
+  expect(retry.hrefs).toHaveLength(7);
+  expect(retry.hrefs.every(href => new URL(href).searchParams.get('lazy-retry') === '1')).toBe(true);
 });

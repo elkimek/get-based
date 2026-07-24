@@ -16,12 +16,20 @@ import { showNotification } from './utils.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
-const CHAT_ONBOARDING_STYLESHEET_URL = new URL('../css/chat-onboarding.css', import.meta.url).href;
+const CHAT_PRESENTATION_STYLESHEETS = [
+  { name: 'personality', url: new URL('../css/chat-personality.css', import.meta.url).href },
+  { name: 'messages', url: new URL('../css/chat-messages.css', import.meta.url).href },
+  { name: 'composer', url: new URL('../css/chat-composer.css', import.meta.url).href },
+  { name: 'onboarding', url: new URL('../css/chat-onboarding.css', import.meta.url).href },
+  { name: 'responsive', url: new URL('../css/chat-responsive.css', import.meta.url).href },
+  { name: 'actions', url: new URL('../css/chat-actions.css', import.meta.url).href },
+  { name: 'mobile', url: new URL('../css/chat-mobile.css', import.meta.url).href },
+];
 
-/** @type {Promise<HTMLLinkElement> | null} */
-let chatOnboardingStylesheetPromise = null;
-let chatOnboardingStylesheetLoaded = false;
-let useChatOnboardingStylesheetRetryUrl = false;
+/** @type {Promise<HTMLLinkElement[]> | null} */
+let chatPresentationStylesheetPromise = null;
+let chatPresentationStylesheetsLoaded = false;
+let useChatPresentationStylesheetRetryUrl = false;
 
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
@@ -61,14 +69,16 @@ export function isChatThreadInputBlocked() {
   return chatThreadInputBlocked;
 }
 
-function existingChatOnboardingStylesheet() {
+/** @param {{ name: string, url: string }} stylesheet */
+function existingChatPresentationStylesheet(stylesheet) {
   if (typeof document === 'undefined') return null;
   return /** @type {HTMLLinkElement | null} */ (
-    document.querySelector('link[data-chat-onboarding-stylesheet]')
+    document.querySelector(`link[data-chat-presentation-stylesheet="${stylesheet.name}"]`)
     || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
       .find(link => {
         try {
-          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/chat-onboarding.css';
+          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname
+            === new URL(stylesheet.url).pathname;
         } catch {
           return false;
         }
@@ -77,62 +87,84 @@ function existingChatOnboardingStylesheet() {
   );
 }
 
-function chatOnboardingStylesheetUrl() {
-  if (!useChatOnboardingStylesheetRetryUrl) return CHAT_ONBOARDING_STYLESHEET_URL;
-  const retryUrl = new URL(CHAT_ONBOARDING_STYLESHEET_URL);
+/** @param {{ url: string }} stylesheet */
+function chatPresentationStylesheetUrl(stylesheet) {
+  if (!useChatPresentationStylesheetRetryUrl) return stylesheet.url;
+  const retryUrl = new URL(stylesheet.url);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
-export function isChatOnboardingStylesheetLoaded() {
-  return chatOnboardingStylesheetLoaded || !!existingChatOnboardingStylesheet()?.sheet;
+export function areChatPresentationStylesheetsLoaded() {
+  return chatPresentationStylesheetsLoaded || CHAT_PRESENTATION_STYLESHEETS.every(
+    stylesheet => !!existingChatPresentationStylesheet(stylesheet)?.sheet,
+  );
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
-export function loadChatOnboardingStylesheet() {
-  const existing = existingChatOnboardingStylesheet();
+/**
+ * @param {{ name: string, url: string }} stylesheet
+ * @param {Element | null} anchor
+ * @returns {Promise<HTMLLinkElement>}
+ */
+function loadChatPresentationStylesheet(stylesheet, anchor) {
+  const existing = existingChatPresentationStylesheet(stylesheet);
   if (existing?.sheet) {
-    chatOnboardingStylesheetLoaded = true;
     return Promise.resolve(existing);
   }
-  if (!chatOnboardingStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Chat onboarding stylesheet requires a document'));
-    }
-    const link = existing || document.createElement('link');
+  const link = existing || document.createElement('link');
+  if (!existing) {
     link.rel = 'stylesheet';
-    link.href = chatOnboardingStylesheetUrl();
-    link.dataset.chatOnboardingStylesheet = '';
-    chatOnboardingStylesheetPromise = new Promise(function beginChatOnboardingStylesheetLoad(resolve, reject) {
-      link.addEventListener('load', function markChatOnboardingStylesheetLoaded() {
-        chatOnboardingStylesheetLoaded = true;
-        resolve(link);
-      }, { once: true });
-      link.addEventListener('error', function rejectChatOnboardingStylesheetLoad() {
-        reject(new Error('Chat onboarding stylesheet could not be loaded'));
-      }, { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-chat-onboarding-stylesheet-anchor]');
-        const parent = anchor?.parentNode || document.head;
-        parent.insertBefore(link, anchor || null);
-      }
-    }).catch(function resetChatOnboardingStylesheetLoad(err) {
+    link.href = chatPresentationStylesheetUrl(stylesheet);
+    link.dataset.chatPresentationStylesheet = stylesheet.name;
+  }
+  return new Promise(function beginChatPresentationStylesheetLoad(resolve, reject) {
+    link.addEventListener('load', function markChatPresentationStylesheetLoaded() {
+      resolve(link);
+    }, { once: true });
+    link.addEventListener('error', function rejectChatPresentationStylesheetLoad() {
       link.remove();
-      chatOnboardingStylesheetPromise = null;
-      chatOnboardingStylesheetLoaded = false;
-      useChatOnboardingStylesheetRetryUrl = true;
+      reject(new Error(`Chat ${stylesheet.name} stylesheet could not be loaded`));
+    }, { once: true });
+    if (!link.isConnected) {
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }
+  });
+}
+
+/** @returns {Promise<HTMLLinkElement[]>} */
+export function loadChatPresentationStylesheets() {
+  if (areChatPresentationStylesheetsLoaded()) {
+    return Promise.resolve(CHAT_PRESENTATION_STYLESHEETS.map(
+      stylesheet => /** @type {HTMLLinkElement} */ (existingChatPresentationStylesheet(stylesheet)),
+    ));
+  }
+  if (!chatPresentationStylesheetPromise) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Chat presentation stylesheets require a document'));
+    }
+    const anchor = document.querySelector('[data-chat-presentation-stylesheet-anchor]');
+    chatPresentationStylesheetPromise = Promise.all(
+      CHAT_PRESENTATION_STYLESHEETS.map(stylesheet => loadChatPresentationStylesheet(stylesheet, anchor)),
+    ).then(function markChatPresentationStylesheetsLoaded(links) {
+      chatPresentationStylesheetsLoaded = true;
+      return links;
+    }).catch(function resetChatPresentationStylesheetLoad(err) {
+      chatPresentationStylesheetPromise = null;
+      chatPresentationStylesheetsLoaded = false;
+      useChatPresentationStylesheetRetryUrl = true;
       throw err;
     });
   }
-  return chatOnboardingStylesheetPromise;
+  return chatPresentationStylesheetPromise;
 }
 
-export async function loadChatOnboardingStylesheetForAction() {
+export async function loadChatPresentationStylesheetsForAction() {
   try {
-    await loadChatOnboardingStylesheet();
+    await loadChatPresentationStylesheets();
     return true;
   } catch (err) {
-    console.error('Failed to load Chat onboarding presentation', err);
+    console.error('Failed to load Chat presentation', err);
     showNotification('Chat could not be opened. Try again.', 'error');
     return false;
   }
@@ -169,7 +201,7 @@ export async function openChatPanel(prefillMessage) {
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
   if (!panel || !backdrop) return false;
-  if (!(await loadChatOnboardingStylesheetForAction())) return false;
+  if (!(await loadChatPresentationStylesheetsForAction())) return false;
   panel.classList.add('open');
   // Restore the user's last fullscreen preference. Persisted in
   // localStorage so reopening chat keeps the mode they chose last.

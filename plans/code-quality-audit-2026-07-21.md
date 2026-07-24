@@ -54,10 +54,11 @@ Sun, Wearables, and conditionally relevant Cycle presentation styles behind
 their first visual entry points. Optional-theme presentation is now conditional
 too: dark/light startup stays cold, while saved or newly selected visual themes
 load at the original final cascade position. Cross-theme shell and Sunset Mode
-rules remain eager after that anchor. Chat onboarding presentation now waits
-for the first Chat open while its persistent launcher and shell remain eager.
-Each boundary keeps offline assets precached, preserves cascade order, and
-retains shared rules in eager bundles or the HTML shell.
+rules remain eager after that anchor. Chat personality, messages, composer,
+onboarding, responsive, actions, and mobile presentation now wait for the first
+Chat open while its persistent launcher, closed panel shell, and redesign
+overrides remain eager. Each boundary keeps offline assets precached, preserves
+cascade order, and retains shared rules in eager bundles or the HTML shell.
 
 ## Findings
 

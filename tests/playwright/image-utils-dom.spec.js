@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 
-test('chat image attachment DOM and CSS are loaded', async ({ page }) => {
+test('chat image attachment DOM is present and its CSS loads on demand', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   await expect(page.locator('#chat-attach-btn')).toHaveCount(1);
@@ -9,7 +9,8 @@ test('chat image attachment DOM and CSS are loaded', async ({ page }) => {
   await expect(page.locator('.chat-input-row')).toHaveCount(1);
   await expect(page.locator('#chat-image-input')).toHaveAttribute('accept', /image\//);
 
-  const loadedRules = await page.evaluate(() => {
+  const loadedRules = await page.evaluate(async () => {
+    await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
     const selectors = [
       '.chat-attach-btn',
       '.chat-attach-preview',

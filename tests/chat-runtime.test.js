@@ -179,6 +179,94 @@ describe('chat discussion callback bridge runtime behavior', () => {
   });
 });
 
+describe('chat presentation stylesheet runtime behavior', () => {
+  it('loads the ordered group, resets after failure, and reuses successful links', async () => {
+    const originalCreateElement = document.createElement;
+    const originalQuerySelector = document.querySelector;
+    const originalQuerySelectorAll = document.querySelectorAll;
+    const originalHeadInsertBefore = document.head.insertBefore;
+    const links = [];
+    const failOnce = new Set(['onboarding']);
+    const anchorParent = {
+      insertBefore(link) {
+        links.push(link);
+        link.isConnected = true;
+        queueMicrotask(() => {
+          if (failOnce.delete(link.dataset.chatPresentationStylesheet)) {
+            link.dispatchEvent(new Event('error'));
+          } else {
+            link.sheet = {};
+            link.dispatchEvent(new Event('load'));
+          }
+        });
+      },
+    };
+    const anchor = { parentNode: anchorParent };
+
+    function createLink() {
+      const events = new EventTarget();
+      return {
+        rel: '',
+        href: '',
+        dataset: {},
+        isConnected: false,
+        sheet: null,
+        addEventListener: events.addEventListener.bind(events),
+        dispatchEvent: events.dispatchEvent.bind(events),
+        remove() {
+          this.isConnected = false;
+          const index = links.indexOf(this);
+          if (index >= 0) links.splice(index, 1);
+        },
+      };
+    }
+
+    document.createElement = vi.fn(tag => tag === 'link' ? createLink() : originalCreateElement(tag));
+    document.querySelector = vi.fn(selector => {
+      if (selector === '[data-chat-presentation-stylesheet-anchor]') return anchor;
+      const match = selector.match(/^link\[data-chat-presentation-stylesheet="([^"]+)"\]$/);
+      return match ? links.find(link => link.dataset.chatPresentationStylesheet === match[1]) || null : null;
+    });
+    document.querySelectorAll = vi.fn(selector => (
+      selector === 'link[rel="stylesheet"][href]' ? links : []
+    ));
+    document.head.insertBefore = anchorParent.insertBefore;
+
+    try {
+      const chatPanel = await import('../js/chat-panel.js');
+      expect(chatPanel.configureChatPanel({})).toEqual({
+        restoreDiscussionContinuePrompt: null,
+        refreshMobileDashboardActiveTab: null,
+      });
+      expect(chatPanel.isChatThreadInputBlocked()).toBe(false);
+      await expect(chatPanel.loadChatPresentationStylesheets()).rejects.toThrow(
+        'Chat onboarding stylesheet could not be loaded',
+      );
+      expect(chatPanel.areChatPresentationStylesheetsLoaded()).toBe(false);
+      expect(links).toHaveLength(6);
+
+      const loaded = await chatPanel.loadChatPresentationStylesheets();
+      expect(loaded).toHaveLength(7);
+      expect(chatPanel.areChatPresentationStylesheetsLoaded()).toBe(true);
+      expect(links).toHaveLength(7);
+      expect(links.find(link => link.dataset.chatPresentationStylesheet === 'onboarding')?.href)
+        .toContain('lazy-retry=1');
+
+      await expect(chatPanel.loadChatPresentationStylesheetsForAction()).resolves.toBe(true);
+      await expect(chatPanel.loadChatPresentationStylesheets()).resolves.toEqual(loaded);
+
+      const chatImages = await import('../js/chat-images.js');
+      chatImages.removeImageAttachment(0);
+      expect(chatImages.hasPendingAttachments()).toBe(false);
+    } finally {
+      document.createElement = originalCreateElement;
+      document.querySelector = originalQuerySelector;
+      document.querySelectorAll = originalQuerySelectorAll;
+      document.head.insertBefore = originalHeadInsertBefore;
+    }
+  });
+});
+
 function installRoundStateMocks() {
   const deps = {
     state: {
