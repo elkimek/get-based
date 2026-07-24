@@ -22,12 +22,18 @@ describe('EMF lazy runtime', () => {
       closeEMFInterpretation,
     }));
     const closeModal = vi.fn();
+    const loadStylesheet = vi.fn(async () => {});
 
-    runtime.configureEMFRuntimeDeps({ closeModal, loadModule });
+    runtime.configureEMFRuntimeDeps({ closeModal, loadModule, loadStylesheet });
 
     await expect(runtime.openEMFAssessmentEditor()).resolves.toBe('opened');
     await expect(runtime.closeEMFInterpretation()).resolves.toBe('closed');
     expect(loadModule).toHaveBeenCalledTimes(1);
-    expect(configureEMFRuntimeDeps).toHaveBeenCalledWith(expect.objectContaining({ closeModal, loadModule }));
+    expect(loadStylesheet).toHaveBeenCalledTimes(1);
+    expect(configureEMFRuntimeDeps).toHaveBeenCalledWith(expect.objectContaining({
+      closeModal,
+      loadModule,
+      loadStylesheet,
+    }));
   });
 });

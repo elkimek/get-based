@@ -1,5 +1,140 @@
 import { expect, test } from './coverage-fixture.js';
 
+function moduleUrl(path) {
+  return `${path}?emfRuntimeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function openEMFLoaderPage(page, path) {
+  await page.route(`**${path}`, route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<!doctype html><html><head><meta data-emf-stylesheet-anchor></head><body>
+      <div id="notification-container"></div>
+    </body></html>`,
+  }));
+  await page.goto(path, { waitUntil: 'load' });
+}
+
+test('EMF stylesheet loader single-flights and preserves cascade order', async ({ page }) => {
+  let stylesheetRequests = 0;
+  await page.route('**/css/emf.css*', route => {
+    stylesheetRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.emf-editor-actions { display: flex; }',
+    });
+  });
+  await openEMFLoaderPage(page, '/emf-stylesheet-cache-coverage');
+
+  const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
+    const runtime = await import(runtimeUrl);
+    const [first, second] = await Promise.all([
+      runtime.loadEMFStylesheet(),
+      runtime.loadEMFStylesheet(),
+    ]);
+    const third = await runtime.loadEMFStylesheet();
+    const anchor = document.querySelector('[data-emf-stylesheet-anchor]');
+    return {
+      concurrentCallsShareTheSameLink: first === second,
+      laterCallsReuseTheResolvedLink: first === third,
+      oneStylesheetLink: document.querySelectorAll('link[data-emf-stylesheet]').length === 1,
+      linkPrecedesAnchor: first.nextElementSibling === anchor,
+    };
+  }, { runtimeUrl: moduleUrl('/js/emf-runtime.js') });
+
+  expect(outcomes).toEqual({
+    concurrentCallsShareTheSameLink: true,
+    laterCallsReuseTheResolvedLink: true,
+    oneStylesheetLink: true,
+    linkPrecedesAnchor: true,
+  });
+  expect(stylesheetRequests).toBe(1);
+});
+
+test('EMF stylesheet loader removes a failure and retries', async ({ page }) => {
+  const stylesheetRequests = [];
+  let failFirstRequest = true;
+  await page.route('**/css/emf.css*', route => {
+    stylesheetRequests.push(route.request().url());
+    if (failFirstRequest) {
+      failFirstRequest = false;
+      return route.abort('failed');
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.emf-editor-actions { display: flex; }',
+    });
+  });
+  await openEMFLoaderPage(page, '/emf-stylesheet-retry-coverage');
+
+  const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
+    const runtime = await import(runtimeUrl);
+    let firstRejected = false;
+    try {
+      await runtime.loadEMFStylesheet();
+    } catch {
+      firstRejected = true;
+    }
+    const failedLinkWasRemoved =
+      document.querySelectorAll('link[data-emf-stylesheet]').length === 0;
+    const retryLink = await runtime.loadEMFStylesheet();
+    return {
+      firstRejected,
+      failedLinkWasRemoved,
+      retryLoaded: retryLink.sheet !== null,
+      retryUsesCacheBuster:
+        new URL(retryLink.href).searchParams.get('lazy-retry') === '1',
+    };
+  }, { runtimeUrl: moduleUrl('/js/emf-runtime.js') });
+
+  expect(outcomes).toEqual({
+    firstRejected: true,
+    failedLinkWasRemoved: true,
+    retryLoaded: true,
+    retryUsesCacheBuster: true,
+  });
+  expect(stylesheetRequests).toHaveLength(2);
+  expect(new URL(stylesheetRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+});
+
+test('EMF entry contains a stylesheet load failure', async ({ page }) => {
+  await page.route('**/css/emf.css*', route => route.abort('failed'));
+  await openEMFLoaderPage(page, '/emf-stylesheet-entry-failure-coverage');
+
+  const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
+    const runtime = await import(runtimeUrl);
+    let opened = 0;
+    runtime.configureEMFRuntimeDeps({
+      loadModule: async () => ({
+        configureEMFRuntimeDeps() {},
+        openEMFAssessmentEditor() {
+          opened += 1;
+        },
+        closeEMFInterpretation() {},
+      }),
+    });
+    const result = await runtime.openEMFAssessmentEditor();
+    return {
+      returnsFalse: result === false,
+      editorStayedClosed: opened === 0,
+      failedLinkWasRemoved:
+        document.querySelectorAll('link[data-emf-stylesheet]').length === 0,
+      errorWasExplained:
+        document.getElementById('notification-container')?.textContent
+          ?.includes('Could not open the EMF assessment') === true,
+    };
+  }, { runtimeUrl: moduleUrl('/js/emf-runtime.js') });
+
+  expect(outcomes).toEqual({
+    returnsFalse: true,
+    editorStayedClosed: true,
+    failedLinkWasRemoved: true,
+    errorWasExplained: true,
+  });
+});
+
 function seedCompletedTour() {
   const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
   localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -88,7 +223,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       document.querySelectorAll('.emf-lightbox,.notification-container').forEach(el => el.remove());
       document.getElementById('confirm-dialog-overlay')?.remove();
 
-      await emf.openEMFAssessmentEditor();
+      await emfRuntime.openEMFAssessmentEditor();
       await waitFor('#detail-modal .emf-editor-actions', 'EMF editor actions');
       document.querySelector('.emf-editor-actions .import-btn-primary')?.click();
       await waitUntil(() => assessments().length === 1, 'new EMF assessment');

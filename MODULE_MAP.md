@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 465 |
-| Internal import edges | 2075 |
+| Internal import edges | 2076 |
 | Dynamic internal edges | 61 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,7 +38,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 208 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
+| [`js/utils.js`](js/utils.js) | 209 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
 | [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
@@ -337,7 +337,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>emf</code> family — 3 modules</summary>
 
 - [`js/emf-interpretation.js`](js/emf-interpretation.js) → [`js/api.js`](js/api.js), [`js/data.js`](js/data.js), [`js/markdown.js`](js/markdown.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/recommendations.js`](js/recommendations.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/emf-runtime.js`](js/emf-runtime.js) → no in-scope imports
+- [`js/emf-runtime.js`](js/emf-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/emf.js`](js/emf.js) → [`js/api.js`](js/api.js), [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/data.js`](js/data.js), [`js/emf-interpretation.js`](js/emf-interpretation.js), [`js/image-utils.js`](js/image-utils.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js), [`js/pii.js`](js/pii.js), [`js/recommendations.js`](js/recommendations.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
