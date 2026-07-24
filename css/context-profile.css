@@ -563,6 +563,21 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   min-width: 0;
 }
+.ctx-lightsetup-ott-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.ctx-lightsetup-ott-tier-0 { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.ctx-lightsetup-ott-tier-1 { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--text-muted); }
+.ctx-lightsetup-ott-tier-2 { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+.ctx-lightsetup-ott-tier-3 { background: var(--orange-bg); color: var(--orange); border-color: var(--orange); }
+.ctx-lightsetup-ott-tier-4 { background: var(--red-bg); color: var(--red); border-color: var(--red); }
 .ctx-lightsetup-edit {
   background: transparent; border: none;
   color: var(--accent); font-size: 12px; font-weight: 500;

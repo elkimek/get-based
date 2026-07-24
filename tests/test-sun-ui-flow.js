@@ -11,6 +11,14 @@ return (async function() {
     else { fail++; console.error(`FAIL  ${name}` + (detail ? ` — ${detail}` : '')); }
   }
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  async function waitFor(condition, timeout = 3000, interval = 20) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      if (condition()) return true;
+      await wait(interval);
+    }
+    return condition();
+  }
   const main = document.getElementById('main-content');
   const { state: S } = await import('/js/state.js');
   const dataModule = await import('/js/data.js');
@@ -53,11 +61,12 @@ return (async function() {
   console.log('%c 1. Light Today hero on dashboard ', 'font-weight:bold;color:#6366f1');
 
   viewsModule.navigate('dashboard');
-  await wait(80);
+  await waitFor(() => !!main.querySelector('.dashboard-widgets'));
   if (!main.querySelector('.dashboard-widget[data-widget-id="light-today"]')) {
     viewsModule.showDashboardWidget?.('light-today');
-    await wait(120);
   }
+  await waitFor(() =>
+    !!main.querySelector('.dashboard-widget[data-widget-id="light-today"] .light-today-hero'));
   const todayWidget = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');
   const hero = todayWidget?.querySelector('.light-today-hero');
   assert('Dashboard renders the Light Today widget',
@@ -91,7 +100,8 @@ return (async function() {
   assert('logCompletedSession returns id', typeof id === 'string');
 
   viewsModule.navigate('dashboard');
-  await wait(80);
+  await waitFor(() =>
+    !!main.querySelector('.dashboard-widget[data-widget-id="light-today"] .light-today-hero'));
   const todayWidgetAfter = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');
   assert('Dashboard Light Today still renders as hero after logging',
     !!todayWidgetAfter?.querySelector('.light-today-hero'));

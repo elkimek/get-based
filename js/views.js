@@ -12,7 +12,7 @@ import {
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
-import { isLightSunModulesLoaded, loadLightSunModules } from './light-sun-loader.js';
+import { isLightSunUILoaded, loadLightSunUI } from './light-sun-loader.js';
 import { state } from './state.js';
 import { createLensPageHandlers } from './lens-pages.js';
 import { lensPageActionAttrs, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
@@ -200,7 +200,7 @@ function getRecommendationActions() {
 export function showDashboard(data) { return getDashboardView().showDashboard(data); }
 
 export async function _openAllSessionsModal() {
-  await loadLightSunModules();
+  await loadLightSunUI();
   return openAllSessionsModal();
 }
 
@@ -217,12 +217,12 @@ function renderLightRouteStatus(content, message, { busy = false, error = false 
 }
 
 function showLightRoute(data) {
-  if (isLightSunModulesLoaded()) return showLight(data);
+  if (isLightSunUILoaded()) return showLight(data);
 
   const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
   if (content) renderLightRouteStatus(content, 'Loading Light & Sun…', { busy: true });
 
-  return loadLightSunModules()
+  return loadLightSunUI()
     .then(() => {
       if (state.currentView !== 'light') return false;
       showLight(data);

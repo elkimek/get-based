@@ -152,7 +152,15 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
       '/index.html',
       '/styles.css',
       '/css/settings.css',
+      '/css/light-sun.css',
+      '/css/light-channels.css',
+      '/css/light-devices.css',
+      '/css/light-conditions-now.css',
+      '/css/light-setup.css',
+      '/css/light-tools.css',
+      '/css/light-env.css',
       '/js/main.js',
+      '/js/app-light-sun-modules.js',
       '/js/legal-consent.js',
       '/js/settings.js',
       '/vendor/fonts/inter-400-7.woff2',
@@ -173,7 +181,15 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
     { path: '/index.html', available: true },
     { path: '/styles.css', available: true },
     { path: '/css/settings.css', available: true },
+    { path: '/css/light-sun.css', available: true },
+    { path: '/css/light-channels.css', available: true },
+    { path: '/css/light-devices.css', available: true },
+    { path: '/css/light-conditions-now.css', available: true },
+    { path: '/css/light-setup.css', available: true },
+    { path: '/css/light-tools.css', available: true },
+    { path: '/css/light-env.css', available: true },
     { path: '/js/main.js', available: true },
+    { path: '/js/app-light-sun-modules.js', available: true },
     { path: '/js/legal-consent.js', available: true },
     { path: '/js/settings.js', available: true },
     { path: '/vendor/fonts/inter-400-7.woff2', available: true },
@@ -185,5 +201,12 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   await page.locator('.settings-btn').evaluate(button => button.click());
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
   await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
+  await page.evaluate(async () => {
+    (await import('/js/settings-loader.js')).closeSettingsModal();
+    return (await import('/js/views.js')).navigate('light');
+  });
+  await expect(page.locator('.light-page')).toBeVisible();
+  await expect(page.locator('.light-page')).toHaveCSS('display', 'grid');
+  await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
   expect(pageErrors).toEqual([]);
 });

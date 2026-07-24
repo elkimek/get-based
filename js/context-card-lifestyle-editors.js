@@ -390,9 +390,9 @@ function renderLightSetupMirror(current) {
   let ottBadge = '';
   if (sd && typeof sd.ottScore === 'number') {
     const { label, tier } = ottScoreToLabel(sd.ottScore);
-    ottBadge = `<span class="light-ott-badge light-ott-tier-${tier}">${escapeHTML(label)}</span>`;
+    ottBadge = `<span class="ctx-lightsetup-ott-badge ctx-lightsetup-ott-tier-${tier}">${escapeHTML(label)}</span>`;
   } else if (sd?.skipped) {
-    ottBadge = `<span class="light-ott-badge">skipped</span>`;
+    ottBadge = `<span class="ctx-lightsetup-ott-badge">skipped</span>`;
   }
 
   const hasAny = !!(skin || sd?.homeLight || sd?.eyewear || ottBadge);
