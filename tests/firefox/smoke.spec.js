@@ -58,10 +58,11 @@ test('loads demo data and supports core navigation and settings', async ({ brows
   await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.currentView)).toBe('labs');
   await expect(page.locator('.lens-page-widgets[data-lens-route="labs"]')).toBeVisible();
 
-  // A returning user with no chat history gets the onboarding panel after a
-  // short startup delay. Wait for that task before closing so it cannot race
-  // the Settings assertions below.
+  // Exercise chat after demo loading and navigation have settled. Depending on
+  // the delayed startup auto-open makes this assertion race with demo loading,
+  // which can close the panel again before the check runs.
   const chatPanel = page.locator('#chat-panel');
+  await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
   await expect(chatPanel).toHaveClass(/\bopen\b/);
   await page.evaluate(async () => (await import('/js/chat-panel.js')).closeChatPanel());
   await expect(chatPanel).not.toHaveClass(/\bopen\b/);
@@ -150,8 +151,10 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
     const requiredPaths = [
       '/index.html',
       '/styles.css',
+      '/css/settings.css',
       '/js/main.js',
       '/js/legal-consent.js',
+      '/js/settings.js',
       '/vendor/fonts/inter-400-7.woff2',
     ];
     const entries = await Promise.all(requiredPaths.map(async path => {
@@ -169,10 +172,18 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   expect(cached.entries).toEqual([
     { path: '/index.html', available: true },
     { path: '/styles.css', available: true },
+    { path: '/css/settings.css', available: true },
     { path: '/js/main.js', available: true },
     { path: '/js/legal-consent.js', available: true },
+    { path: '/js/settings.js', available: true },
     { path: '/vendor/fonts/inter-400-7.woff2', available: true },
   ]);
   expect(cached.offline).toBe(true);
+  // The delayed chat-onboarding panel can cover the header while the full app
+  // shell finishes installing. Dispatch the same delegated shell action
+  // directly so this check remains about offline first use, not panel timing.
+  await page.locator('.settings-btn').evaluate(button => button.click());
+  await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
+  await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
   expect(pageErrors).toEqual([]);
 });

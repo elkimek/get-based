@@ -39,12 +39,21 @@ function syntheticSettingsModule() {
 
 test('Settings loader caches initialization and preserves lazy bridge actions', async ({ page }) => {
   let settingsRequests = 0;
+  let settingsStylesheetRequests = 0;
   await page.route('**/js/settings.js*', route => {
     settingsRequests += 1;
     return route.fulfill({
       status: 200,
       contentType: 'application/javascript',
       body: syntheticSettingsModule(),
+    });
+  });
+  await page.route('**/css/settings.css*', route => {
+    settingsStylesheetRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.settings-modal { display: block; }',
     });
   });
   await openBlankPage(page, '/settings-loader-cache-coverage');
@@ -96,6 +105,7 @@ test('Settings loader caches initialization and preserves lazy bridge actions', 
     };
   });
   results.lazyModuleRequestedOnce = settingsRequests === 1;
+  results.lazyStylesheetRequestedOnce = settingsStylesheetRequests === 1;
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
@@ -137,6 +147,54 @@ test('Settings loader retries direct loads after a failed import', async ({ page
   }
 });
 
+test('Settings loader retries a failed stylesheet without re-evaluating its module', async ({ page }) => {
+  let settingsRequests = 0;
+  let settingsStylesheetRequests = 0;
+  await page.route('**/js/settings.js*', route => {
+    settingsRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: syntheticSettingsModule(),
+    });
+  });
+  await page.route('**/css/settings.css*', route => {
+    settingsStylesheetRequests += 1;
+    if (settingsStylesheetRequests === 1) return route.abort('failed');
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.settings-modal { display: block; }',
+    });
+  });
+  await openBlankPage(page, '/settings-stylesheet-retry-coverage');
+
+  const results = await page.evaluate(async () => {
+    const loader = await import('/js/settings-loader.js');
+    let firstRejected = false;
+    try {
+      await loader.loadSettingsModule();
+    } catch {
+      firstRejected = true;
+    }
+    const retried = await loader.loadSettingsModule();
+    const stylesheet = document.querySelector('link[data-settings-stylesheet]');
+    return {
+      firstRejected,
+      retrySucceeds: retried.openSettingsModal('display') === 'display',
+      loadedAfterRetry: loader.isSettingsModuleLoaded() === true,
+      moduleEvaluatedOnce: globalThis.__settingsModuleEvalCount === 1,
+      retryUsesFixedStylesheetUrl: stylesheet?.href.includes('lazy-retry=1') === true,
+    };
+  });
+  results.moduleRequestedOnce = settingsRequests === 1;
+  results.stylesheetRequestedTwice = settingsStylesheetRequests === 2;
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('Settings lazy entry points contain load failures', async ({ page }) => {
   let settingsRequests = 0;
   await page.route('**/js/settings.js*', route => {
@@ -154,8 +212,11 @@ test('Settings lazy entry points contain load failures', async ({ page }) => {
 
 test('returning-user startup defers Settings until a shell action opens it', async ({ page }) => {
   let settingsRequests = 0;
+  let settingsStylesheetRequests = 0;
   page.on('request', request => {
-    if (new URL(request.url()).pathname === '/js/settings.js') settingsRequests += 1;
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === '/js/settings.js') settingsRequests += 1;
+    if (pathname === '/css/settings.css') settingsStylesheetRequests += 1;
   });
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-accent-override', 'blue');
@@ -170,6 +231,8 @@ test('returning-user startup defers Settings until a shell action opens it', asy
 
   await page.goto('/app', { waitUntil: 'networkidle' });
   expect(settingsRequests).toBe(0);
+  expect(settingsStylesheetRequests).toBe(0);
+  await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => (
     document.documentElement.style.getPropertyValue('--accent')
   ))).toBe('#4f8cff');
@@ -177,6 +240,9 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/show/);
   await expect(page.locator('[data-settings-tab="display"]')).toHaveAttribute('aria-selected', 'true');
   expect(settingsRequests).toBe(1);
+  expect(settingsStylesheetRequests).toBe(1);
+  await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(1);
+  await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
   await expect.poll(() => page.evaluate(async () => (
     (await import('/js/settings-loader.js')).isSettingsModuleLoaded()
   ))).toBe(true);

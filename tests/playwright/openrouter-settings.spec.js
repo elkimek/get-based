@@ -13,7 +13,7 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
     document.getElementById('tour-tooltip')?.remove();
-    (await import('/js/settings.js')).openSettingsModal('ai');
+    await (await import('/js/settings-loader.js')).openSettingsModal('ai');
   });
 
   const providerButtons = page.locator('.ai-provider-btn');

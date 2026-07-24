@@ -1,7 +1,5 @@
 /* Settings modal and settings-owned controls */
 
-.settings-btn:hover { background: var(--bg-hover); }
-
 .settings-modal {
   padding: 0;
   width: min(94vw, 860px);

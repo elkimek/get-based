@@ -70,6 +70,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     transferSize: entry.transferSize,
     decodedBodySize: entry.decodedBodySize,
   })));
+  expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/css/settings.css'
+  ))).toBe(false);
   const metrics = summarizeColdLoad(entries, appOrigin);
 
   console.log(`Cold-load budget: ${formatColdLoadSummary(metrics)}`);

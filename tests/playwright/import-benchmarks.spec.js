@@ -19,6 +19,8 @@ async function preparePage(page) {
     document.getElementById('tour-overlay')?.remove();
     const { state } = await import('/js/state.js');
     state.currentProfile = 'benchmark-ui-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: 'benchmark-ui-profile', name: 'Benchmark UI' }];
     state.importedData = {
       entries: [{ date: '2026-07-19', markers: { glucose: 91 } }],
@@ -91,7 +93,7 @@ async function preparePage(page) {
         markerCount: 12,
       }],
     };
-    (await import('/js/settings.js')).openSettingsModal('ai');
+    await (await import('/js/settings-loader.js')).openSettingsModal('ai');
   });
 }
 
@@ -234,6 +236,8 @@ test('comparison headers distinguish the same model across cloud providers', asy
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     state.currentProfile = 'provider-identity-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'Provider identity' }];
     const base = {
       benchmarkAt: Date.now(),
@@ -519,6 +523,8 @@ test('eGFR unit typography does not create false benchmark differences and repai
 
     const { state } = await import('/js/state.js');
     state.currentProfile = 'reference-equivalence-repair-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.importedData = {
       entries: [],
       importSnapshots: [],
@@ -591,6 +597,8 @@ test('two successful imports persist as two distinct comparable model runs', asy
     const { setPendingImportRuntime } = await import('/js/pdf-import-review-runtime.js');
     const { confirmImport } = await import('/js/pdf-import-commit.js');
     state.currentProfile = 'two-model-benchmark-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'Two model benchmark' }];
     state.importedData = {
       entries: [],
@@ -653,7 +661,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
       modelId: run.modelId,
       status: run.status,
     }));
-    (await import('/js/settings.js')).openSettingsModal('ai');
+    await (await import('/js/settings-loader.js')).openSettingsModal('ai');
     return { records, snapshotCount: state.importedData.importSnapshots.length };
   });
 
@@ -698,6 +706,8 @@ test('benchmark history remains device-local across saves and inbound sync merge
       isSyncing: () => false,
     });
     state.currentProfile = profileId;
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.importedData = {
       entries: [],
       notes: [{ id: 'local-note', text: 'kept locally' }],
@@ -751,6 +761,8 @@ test('LM Studio is shown as the local backend instead of the internal Ollama pro
     const { state } = await import('/js/state.js');
     const { getImportBenchmarkProviderLabel } = await import('/js/import-benchmarks.js');
     state.currentProfile = 'lm-studio-benchmark-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'LM Studio test' }];
     state.importedData = {
       entries: [],
@@ -793,6 +805,8 @@ test('comparison model header opens exact expected-versus-returned differences',
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     state.currentProfile = 'difference-review-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'Difference review' }];
     state.importedData = {
       entries: [],
@@ -970,6 +984,8 @@ test('reference model tests use deterministic prompts and explicit protocol iden
     const { parseLabPDFWithAI } = await import('/js/pdf-import.js');
     const { importBenchmarksUseSameInput } = await import('/js/settings-data.js');
     state.currentProfile = 'deterministic-benchmark-profile';
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     localStorage.setItem('labcharts-active-profile', state.currentProfile);
     state.profileSex = 'female';
     state.profiles = [{

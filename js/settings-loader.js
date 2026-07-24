@@ -7,10 +7,17 @@ import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 
 /** @typedef {typeof import('./settings.js')} SettingsModule */
 
+const SETTINGS_STYLESHEET_URL = new URL('../css/settings.css', import.meta.url).href;
+
+/** @type {Promise<SettingsModule> | null} */
+let _settingsJavaScriptLoad = null;
 /** @type {Promise<SettingsModule> | null} */
 let _settingsModuleLoad = null;
+/** @type {Promise<HTMLLinkElement> | null} */
+let _settingsStylesheetLoad = null;
 let _settingsModuleLoaded = false;
 let _useSettingsRetryUrl = false;
+let _useSettingsStylesheetRetryUrl = false;
 /** @type {(module: SettingsModule) => void} */
 let _configureSettingsModule = () => {};
 
@@ -37,15 +44,65 @@ function loadSettingsRetryModule() {
 }
 
 /** @returns {Promise<SettingsModule>} */
-export function loadSettingsModule() {
-  if (!_settingsModuleLoad) {
+function loadSettingsJavaScript() {
+  if (!_settingsJavaScriptLoad) {
     // Browsers cache failed module-map fetches by URL. A fixed second literal
     // gives the user one genuine retry without introducing a computed import.
     const moduleLoad = _useSettingsRetryUrl
       ? loadSettingsRetryModule()
       : import('./settings.js');
-    _settingsModuleLoad = moduleLoad
-      .then(module => {
+    _settingsJavaScriptLoad = moduleLoad.catch(err => {
+      _settingsJavaScriptLoad = null;
+      _useSettingsRetryUrl = true;
+      throw err;
+    });
+  }
+  return _settingsJavaScriptLoad;
+}
+
+function settingsStylesheetUrl() {
+  if (!_useSettingsStylesheetRetryUrl) return SETTINGS_STYLESHEET_URL;
+  const retryUrl = new URL(SETTINGS_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+function loadSettingsStylesheet() {
+  if (!_settingsStylesheetLoad) {
+    _settingsStylesheetLoad = new Promise((resolve, reject) => {
+      if (typeof document === 'undefined') {
+        reject(new Error('Settings stylesheet requires a document'));
+        return;
+      }
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = settingsStylesheetUrl();
+      link.dataset.settingsStylesheet = '';
+      link.addEventListener('load', () => resolve(link), { once: true });
+      link.addEventListener('error', () => {
+        link.remove();
+        reject(new Error('Settings stylesheet could not be loaded'));
+      }, { once: true });
+      const anchor = document.querySelector('[data-settings-stylesheet-anchor]');
+      (anchor?.parentNode || document.head).insertBefore(link, anchor || null);
+    }).catch(err => {
+      _settingsStylesheetLoad = null;
+      _useSettingsStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return _settingsStylesheetLoad;
+}
+
+/** @returns {Promise<SettingsModule>} */
+export function loadSettingsModule() {
+  if (!_settingsModuleLoad) {
+    _settingsModuleLoad = Promise.all([
+      loadSettingsJavaScript(),
+      loadSettingsStylesheet(),
+    ])
+      .then(([module]) => {
         _configureSettingsModule(module);
         _settingsModuleLoaded = true;
         return module;
@@ -53,7 +110,6 @@ export function loadSettingsModule() {
       .catch(err => {
         _settingsModuleLoad = null;
         _settingsModuleLoaded = false;
-        _useSettingsRetryUrl = true;
         installSettingsLoaderBridge();
         throw err;
       });

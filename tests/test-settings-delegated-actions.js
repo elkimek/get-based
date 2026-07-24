@@ -15,6 +15,8 @@ const loaderSrc = fs.readFileSync(path.join(root, 'js/settings-loader.js'), 'utf
 const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
 const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
+const appShellCss = fs.readFileSync(path.join(root, 'css/app-shell.css'), 'utf8');
+const settingsCss = fs.readFileSync(path.join(root, 'css/settings.css'), 'utf8');
 const settingsSurfaceSrc = `${src}\n${privacySrc}\n${settingsDataSrc}`;
 
 let passed = 0;
@@ -48,6 +50,13 @@ assert('Settings entry points use the cached lazy loader',
     && chatOnboardingHostSrc.includes("from './settings-loader.js'")
     && loaderSrc.includes("import('./settings.js')")
     && loaderSrc.includes("import('./settings.js?lazy-retry=1')"));
+assert('Settings loader owns the deferred stylesheet boundary',
+  loaderSrc.includes("new URL('../css/settings.css', import.meta.url)")
+    && loaderSrc.includes('data-settings-stylesheet-anchor')
+    && loaderSrc.includes('lazy-retry'));
+assert('Settings shell control styling remains in the eager shell bundle',
+  appShellCss.includes('.settings-btn:hover')
+    && !settingsCss.includes('.settings-btn:hover'));
 assert('Light page owns only the Sun data-source Settings leaf',
   lightPageUIHooksSrc.includes("from './settings-privacy.js'"));
 
