@@ -355,7 +355,6 @@ const CHAT_CSS_BUNDLES = [
   'css/chat-personality.css',
   'css/chat-messages.css',
   'css/chat-composer.css',
-  'css/chat-onboarding.css',
   'css/chat-responsive.css',
   'css/chat-actions.css',
   'css/chat-mobile.css',
@@ -365,6 +364,23 @@ for (const chatCss of CHAT_CSS_BUNDLES) {
   assert(`index loads ${chatCss}`, indexSrc.includes(`href="${chatCss}"`));
   assert(`SW APP_SHELL includes ${chatCss}`, swAuditSrc.includes(`'/${chatCss}'`));
 }
+const chatPanelAuditSrc = read('js/chat-panel.js');
+assert('index defers Chat onboarding CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/chat-onboarding.css"') &&
+  indexSrc.includes('data-chat-onboarding-stylesheet-anchor') &&
+  chatPanelAuditSrc.includes("new URL('../css/chat-onboarding.css', import.meta.url)") &&
+  chatPanelAuditSrc.includes('loadChatOnboardingStylesheetForAction'));
+assert('Chat panel waits for onboarding presentation before opening',
+  chatPanelAuditSrc.includes('await loadChatOnboardingStylesheetForAction()') &&
+  chatPanelAuditSrc.indexOf('await loadChatOnboardingStylesheetForAction()') <
+    chatPanelAuditSrc.indexOf("panel.classList.add('open')"));
+assert('Chat onboarding CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/chat-composer.css"') <
+    indexSrc.indexOf('data-chat-onboarding-stylesheet-anchor') &&
+  indexSrc.indexOf('data-chat-onboarding-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/chat-responsive.css"'));
+assert('SW APP_SHELL includes Chat onboarding CSS bundle',
+  swAuditSrc.includes("'/css/chat-onboarding.css'"));
 assert('chat CSS split loads before chat redesign overrides',
   indexSrc.indexOf('href="css/chat-mobile.css"') < indexSrc.indexOf('href="css/redesign-shell.css"') &&
   indexSrc.indexOf('href="css/redesign-shell.css"') < indexSrc.indexOf('href="css/chat-redesign.css"') &&

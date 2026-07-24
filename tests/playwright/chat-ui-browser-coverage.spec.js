@@ -393,7 +393,7 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       localStorage.removeItem(threadIndexKey);
       mobileRefreshes = 0;
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
-      chatPanel.toggleChatPanel();
+      await chatPanel.toggleChatPanel();
       outcomes.togglePanelOpensChrome =
         panel?.classList.contains('open') === true
         && backdrop?.classList.contains('open') === true
@@ -401,7 +401,7 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
         && fab?.classList.contains('hidden') === true
         && checkbox?.checked === false;
 
-      chatPanel.toggleChatPanel();
+      await chatPanel.toggleChatPanel();
       outcomes.togglePanelClosesChrome =
         panel?.classList.contains('open') === false
         && backdrop?.classList.contains('open') === false

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 465 |
-| Internal import edges | 2083 |
+| Internal import edges | 2084 |
 | Dynamic internal edges | 61 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,7 +38,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 212 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
+| [`js/utils.js`](js/utils.js) | 213 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
 | [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
@@ -224,7 +224,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-nudge.js`](js/chat-nudge.js) → [`js/api.js`](js/api.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
 - [`js/chat-onboarding-host-bindings.js`](js/chat-onboarding-host-bindings.js) → [`js/api.js`](js/api.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/context-cards.js`](js/context-cards.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/nav.js`](js/nav.js), [`js/onboarding-view.js`](js/onboarding-view.js), [`js/profile.js`](js/profile.js), [`js/settings-loader.js`](js/settings-loader.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/supplements.js`](js/supplements.js), [`js/views.js`](js/views.js)
 - [`js/chat-onboarding.js`](js/chat-onboarding.js) → [`js/api.js`](js/api.js), [`js/constants.js`](js/constants.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/chat-panel.js`](js/chat-panel.js) → [`js/api.js`](js/api.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/lens.js`](js/lens.js)
+- [`js/chat-panel.js`](js/chat-panel.js) → [`js/api.js`](js/api.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/lens.js`](js/lens.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-personalities.js`](js/chat-personalities.js) → [`js/api.js`](js/api.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/constants.js`](js/constants.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lens.js`](js/lens.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-prompt-context.js`](js/chat-prompt-context.js) → no in-scope imports
 - [`js/chat-render-runtime.js`](js/chat-render-runtime.js) → [`js/recommendations-runtime.js`](js/recommendations-runtime.js)
