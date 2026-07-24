@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
   };
   return {
     importModule,
-    loadPdfImport: vi.fn(),
+    loadImportUI: vi.fn(),
     detectDropZoneDNAFile: vi.fn(),
     handleDropZoneDNAFile: vi.fn(),
     handleDropZoneMtDNAFile: vi.fn(),
@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('../js/import-loader.js', () => ({
-  loadPdfImport: mocks.loadPdfImport,
+  loadImportUI: mocks.loadImportUI,
 }));
 
 vi.mock('../js/import-drop-zone-runtime.js', () => ({
@@ -71,7 +71,7 @@ async function runInput(files) {
 describe('import file input runtime routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.loadPdfImport.mockResolvedValue(mocks.importModule);
+    mocks.loadImportUI.mockResolvedValue(mocks.importModule);
     mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets());
     mocks.hasDropZoneMtDNAHandler.mockReturnValue(true);
     mocks.isDropZoneImportRunning.mockReturnValue(false);
@@ -82,21 +82,21 @@ describe('import file input runtime routing', () => {
     const target = await runInput([makeFile('profile.json')]);
 
     expect(target.value).toBe('');
-    expect(mocks.loadPdfImport).not.toHaveBeenCalled();
+    expect(mocks.loadImportUI).not.toHaveBeenCalled();
   });
 
   it('notifies and clears selection when the lazy import module fails', async () => {
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mocks.loadPdfImport.mockRejectedValue(new Error('load failed'));
+    mocks.loadImportUI.mockRejectedValue(new Error('load failed'));
     const target = await runInput([makeFile('report.pdf')]);
 
     expect(target.value).toBe('');
     expect(errorLog).toHaveBeenCalledWith(
-      '[import-file-input] Could not load PDF import module:',
+      '[import-file-input] Could not load import UI:',
       expect.any(Error),
     );
     expect(mocks.showDropZoneImportNotification).toHaveBeenCalledWith(
-      'Could not load import module. Reload the app to finish updating, then try again.',
+      'Could not load import UI. Reload the app to finish updating, then try again.',
       'error',
     );
     errorLog.mockRestore();

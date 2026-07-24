@@ -1,7 +1,7 @@
 // @ts-check
 // import-drop-zone.js — shared import drop-zone event binding
 
-import { loadPdfImport } from './import-loader.js';
+import { loadImportUI } from './import-loader.js';
 import {
   detectDropZoneDNAFile,
   handleDropZoneDNAFile,
@@ -40,10 +40,10 @@ export function setupDropZone() {
     if (files.length === 0) return;
     let importMod;
     try {
-      importMod = await loadPdfImport();
+      importMod = await loadImportUI();
     } catch (err) {
-      console.error('[import-drop-zone] Could not load PDF import module:', err);
-      showDropZoneImportNotification('Could not load import module. Reload the app to finish updating, then try again.', 'error');
+      console.error('[import-drop-zone] Could not load import UI:', err);
+      showDropZoneImportNotification('Could not load import UI. Reload the app to finish updating, then try again.', 'error');
       return;
     }
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await importMod.classifyImportFiles(files);

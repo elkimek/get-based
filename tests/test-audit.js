@@ -129,20 +129,30 @@ assert('SW APP_SHELL includes service worker update module', swAuditSrc.includes
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('SW APP_SHELL includes theme runtime module', swAuditSrc.includes("'/js/theme-runtime.js'"));
+const appShellCssAuditSrc = read('css/app-shell.css');
+const importLoaderAuditSrc = read('js/import-loader.js');
 assert('app shell CSS loads after core CSS and before feature CSS',
   indexSrc.indexOf('href="styles.css"') < indexSrc.indexOf('href="css/app-shell.css"') &&
-  indexSrc.indexOf('href="css/app-shell.css"') < indexSrc.indexOf('href="css/import.css"') &&
+  indexSrc.indexOf('href="css/app-shell.css"') < indexSrc.indexOf('data-import-stylesheet-anchor') &&
   swAuditSrc.indexOf("'/styles.css'") < swAuditSrc.indexOf("'/css/app-shell.css'") &&
   swAuditSrc.indexOf("'/css/app-shell.css'") < swAuditSrc.indexOf("'/css/import.css'"));
-assert('index loads import CSS bundle', indexSrc.includes('href="css/import.css"'));
+assert('index defers import CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/import.css"') &&
+  indexSrc.includes('data-import-stylesheet-anchor') &&
+  importLoaderAuditSrc.includes("new URL('../css/import.css', import.meta.url)") &&
+  importLoaderAuditSrc.includes('data-import-stylesheet-anchor'));
+assert('shared import controls remain in the eager app shell',
+  appShellCssAuditSrc.includes('.import-btn {') &&
+  appShellCssAuditSrc.includes('.header-icon-btn.header-import-btn {') &&
+  appShellCssAuditSrc.includes('.drop-zone {'));
 assert('SW APP_SHELL includes import CSS bundle', swAuditSrc.includes("'/css/import.css'"));
 assert('index loads EMF CSS bundle', indexSrc.includes('href="css/emf.css"'));
 assert('SW APP_SHELL includes EMF CSS bundle', swAuditSrc.includes("'/css/emf.css'"));
-assert('EMF CSS loads after import CSS',
-  indexSrc.indexOf('href="css/import.css"') < indexSrc.indexOf('href="css/emf.css"') &&
+assert('import CSS lazy-load anchor preserves its position before EMF CSS',
+  indexSrc.indexOf('data-import-stylesheet-anchor') < indexSrc.indexOf('href="css/emf.css"') &&
   swAuditSrc.indexOf("'/css/import.css'") < swAuditSrc.indexOf("'/css/emf.css'"));
-assert('import CSS loads before modal shell CSS',
-  indexSrc.indexOf('href="css/import.css"') < indexSrc.indexOf('href="css/modal-shared.css"') &&
+assert('import CSS lazy-load anchor preserves its position before modal shell CSS',
+  indexSrc.indexOf('data-import-stylesheet-anchor') < indexSrc.indexOf('href="css/modal-shared.css"') &&
   swAuditSrc.indexOf("'/css/import.css'") < swAuditSrc.indexOf("'/css/modal-shared.css'"));
 assert('index loads dashboard core CSS bundle', indexSrc.includes('href="css/dashboard-core.css"'));
 assert('SW APP_SHELL includes dashboard core CSS bundle', swAuditSrc.includes("'/css/dashboard-core.css'"));

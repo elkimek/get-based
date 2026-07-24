@@ -59,6 +59,10 @@ test('Drip CSV import previews, commits, and opens cycle history', async ({ page
   await page.goto('/app', { waitUntil: 'load' });
 
   const profileId = await initializeCycleProfile(page, 'cycle_import_browser');
+  await expect(page.locator('link[data-import-stylesheet]')).toHaveCount(0);
+  await page.evaluate(async () => (await import('/js/views.js')).navigate('labs'));
+  await expect(page.locator('#drop-zone')).toBeVisible();
+  await expect(page.locator('#drop-zone')).toHaveCSS('border-top-style', 'dashed');
 
   await page.locator('#pdf-input').setInputFiles({
     name: 'drip-export.csv',
@@ -68,6 +72,9 @@ test('Drip CSV import previews, commits, and opens cycle history', async ({ page
 
   const preview = page.locator('#import-modal-overlay');
   await expect(preview).toHaveClass(/show/);
+  await expect(page.locator('link[data-import-stylesheet]')).toHaveCount(1);
+  await expect(page.locator('#import-modal .import-review-summary')).toHaveCSS('display', 'grid');
+  await expect(page.locator('#import-modal .cycle-import-table-heading')).toHaveCSS('display', 'flex');
   await expect(page.locator('#import-modal .gb-modal-title')).toHaveText('Review cycle import');
   await expect(page.locator('#import-modal .gb-modal-kicker')).toContainText('Drip');
   await expect(page.locator('#import-modal')).toContainText('4 daily observations');

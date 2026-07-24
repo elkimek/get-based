@@ -244,7 +244,10 @@ assert('PDF import lazy loader is shared by file input and import-drop-zone.js',
   startupUiSrc.includes("from './import-file-input.js'") &&
   importFileInputSrc.includes("from './import-loader.js'") &&
   importDropZoneSrc.includes("from './import-loader.js'") &&
-  importLoaderSrc.includes("import('./pdf-import.js')"),
+  importLoaderSrc.includes("import('./pdf-import.js')") &&
+  importLoaderSrc.includes('export async function loadImportUI()') &&
+  importFileInputSrc.includes('await loadImportUI()') &&
+  importDropZoneSrc.includes('await loadImportUI()'),
   'separate per-module promise caches can issue duplicate first-use imports');
 assert('file input shares import browser-runtime adapter with drop zone',
   importFileInputSrc.includes("from './import-drop-zone-runtime.js'") &&
@@ -253,11 +256,11 @@ assert('file input shares import browser-runtime adapter with drop zone',
   !/\bwindow(?:\.|\s*\[)/.test(importFileInputSrc) &&
   importDropZoneRuntimeSrc.includes('export function isDropZoneImportRunning'),
   'file-picker import path should not keep a parallel set of window global lookups');
-assert('PDF lazy import failure notifies from file input and clears selection',
-  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import module\. Reload the app to finish updating, then try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
+assert('Import UI lazy-load failure notifies from file input and clears selection',
+  /try\s*{\s*importMod\s*=\s*await loadImportUI\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import UI\. Reload the app to finish updating, then try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
   'file-picker import path should fail loudly and clear stale selection');
-assert('PDF lazy import failure notifies from drop zone',
-  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import module\. Reload the app to finish updating, then try again\./.test(importDropZoneSrc),
+assert('Import UI lazy-load failure notifies from drop zone',
+  /try\s*{\s*importMod\s*=\s*await loadImportUI\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import UI\. Reload the app to finish updating, then try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
 assert('analytics consent remains deferred after first paint and behind legal gate',
   /const showAnalyticsConsent = \(\) => \{\s*startupUIDeps\.maybeShowAnalyticsConsent\?\.\(\);\s*\};/.test(startupUiSrc)

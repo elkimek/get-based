@@ -201,3 +201,11 @@ called. Opening waits for the stylesheet, concurrent opens share one request,
 and a failed request is removed so the next open can retry. An HTML anchor
 preserves the stylesheet's cascade position, and the service-worker app shell
 retains it for offline first use.
+
+Import review presentation loads through `import-loader.js` on the first file
+input/drop interaction, pending-draft restoration, or direct cycle-import
+preview. The generic action buttons, header import status, and empty-Labs drop
+zone remain in `app-shell.css` because non-import features and startup routes
+use them. Concurrent stylesheet requests share one load, failures are removed
+for retry, an HTML anchor preserves cascade order, and the service-worker app
+shell retains `css/import.css` for offline first use.

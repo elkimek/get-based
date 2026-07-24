@@ -99,6 +99,7 @@ import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
 import { configureExportImportRuntimeDeps } from './export-runtime.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
+import { loadImportStylesheet } from './import-loader.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
@@ -236,6 +237,7 @@ configureCategoryPageViewDeps({ renameCategory });
 configureCryptoProfileDeps({ buildSidebar, navigate });
 configureCycleRuntimeDeps({
   closeModal,
+  loadImportStylesheet,
   navigate,
   openEditor: openMenstrualCycleEditor,
   renderProfileButton,

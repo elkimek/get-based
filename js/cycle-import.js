@@ -10,7 +10,8 @@ import { endTour } from './tour.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import {
-  navigateCycleViewRuntime, openCycleEditorRuntime, renderCycleProfileButtonRuntime,
+  loadCycleImportStylesheetRuntime, navigateCycleViewRuntime, openCycleEditorRuntime,
+  renderCycleProfileButtonRuntime,
 } from './cycle-runtime.js';
 import {
   buildCycleCoverage,
@@ -604,13 +605,19 @@ function renderCycleImportPreview(parsed, conflictMode = 'keep-existing') {
     </div>`;
 }
 
-export function showCycleImportPreview(parsed) {
+export async function showCycleImportPreview(parsed) {
+  if (!parsed || (!parsed.observations?.length && !parsed.periods?.length)) {
+    showNotification('No cycle data found in this file', 'info');
+    return null;
+  }
+  try {
+    await loadCycleImportStylesheetRuntime();
+  } catch (err) {
+    console.error('[cycle-import] Could not load import stylesheet:', err);
+    showNotification('Could not load import review. Reload the app to finish updating, then try again.', 'error');
+    return null;
+  }
   return new Promise(resolve => {
-    if (!parsed || (!parsed.observations?.length && !parsed.periods?.length)) {
-      showNotification('No cycle data found in this file', 'info');
-      resolve(null);
-      return;
-    }
     endTour({ openEmptyChat: false });
     pendingCycleImport = { parsed, conflictMode: 'keep-existing', resolve };
     const overlay = document.getElementById('import-modal-overlay');
