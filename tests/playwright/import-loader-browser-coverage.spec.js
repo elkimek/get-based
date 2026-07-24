@@ -52,6 +52,8 @@ test('import loader browser coverage caches the successful pdf import module', a
       sharedUiLoaderReturnsTheCachedModule: uiModule === first,
       sharedUiLoaderLoadsTheStylesheet:
         document.querySelectorAll('link[data-import-stylesheet]').length === 1,
+      sharedUiLoaderLoadsDataProtectionPresentation:
+        document.querySelectorAll('link[data-data-protection-stylesheet]').length === 1,
       pdfImportModuleEvaluatesOnce: globalThis.__pdfImportSuccessEvalCount === 1,
       exportedPdfImportFunctionsRemainAvailable:
         first.marker === 'success-stub'

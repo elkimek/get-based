@@ -329,7 +329,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       check('PII diff long-line fallback highlights whole changed lines',
         longDiff.leftHtml.includes('pii-word-removed') && longDiff.rightHtml.includes('pii-word-added'));
 
-      pii.showPIIDiffViewer('Name: Alice', 'Name: Jana');
+      await pii.showPIIDiffViewer('Name: Alice', 'Name: Jana');
       await wait(25);
       const viewer = document.querySelector('.pii-warning-overlay');
       check('showPIIDiffViewer opens modal and locks body scroll',

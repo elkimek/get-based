@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 465 |
-| Internal import edges | 2084 |
+| Internal import edges | 2087 |
 | Dynamic internal edges | 61 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -42,7 +42,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 51 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 54 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/chat-send.js`](js/chat-send.js) | 22 |
@@ -285,7 +285,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>crypto</code> family — 2 modules</summary>
 
 - [`js/crypto-key-cache.js`](js/crypto-key-cache.js) → no in-scope imports
-- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 
@@ -395,7 +395,7 @@ Native browser modules shipped with the static application.
 - [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/export.js`](js/export.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/utils.js`](js/utils.js)
 - [`js/import-drop-zone.js`](js/import-drop-zone.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js)
 - [`js/import-file-input.js`](js/import-file-input.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js)
-- [`js/import-loader.js`](js/import-loader.js) → [`js/import-review-draft.js`](js/import-review-draft.js), [`js/pdf-import-review.js`](js/pdf-import-review.js) *(dynamic)*, [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*
+- [`js/import-loader.js`](js/import-loader.js) → [`js/import-review-draft.js`](js/import-review-draft.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-review.js`](js/pdf-import-review.js) *(dynamic)*, [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*
 - [`js/import-marker-map-modal.js`](js/import-marker-map-modal.js) → [`js/adapters.js`](js/adapters.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
 - [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js)
 - [`js/import-review-draft.js`](js/import-review-draft.js) → no in-scope imports
@@ -672,7 +672,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js) → [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-data.js`](js/settings-data.js), [`js/utils.js`](js/utils.js)
-- [`js/settings-loader.js`](js/settings-loader.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings.js`](js/settings.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-loader.js`](js/settings-loader.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings.js`](js/settings.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-privacy.js`](js/settings-privacy.js) → [`js/api.js`](js/api.js), [`js/pii.js`](js/pii.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js) → [`js/api.js`](js/api.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*
 - [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) → no in-scope imports

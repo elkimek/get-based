@@ -9,12 +9,23 @@ import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 import { configureCycleStoreCrypto } from './cycle-store.js';
 import { configureWearablesStoreCrypto } from './wearables-store.js';
+import { isDataProtectionStylesheetLoaded, loadDataProtectionStylesheetForAction } from './modal-lifecycle.js';
 
 export { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
 }} */ (typeof window !== 'undefined' ? window : {});
+
+const needsDataProtectionStylesheet = () => typeof document !== 'undefined' && !!document.querySelector('[data-data-protection-stylesheet-anchor]') && !isDataProtectionStylesheetLoaded();
+function runWithDataProtectionStylesheet(action) {
+  if (!needsDataProtectionStylesheet()) return action();
+  return loadDataProtectionStylesheetForAction().then(loaded => {
+    if (loaded) return action();
+    showNotification('Data protection controls could not be loaded. Try again.', 'error');
+    return false;
+  });
+}
 /**
  * @typedef {{
  *   buildSidebar: null | (() => void),
@@ -429,6 +440,7 @@ export async function encryptedRemoveItem(key) {
 // ═══════════════════════════════════════════════
 export async function initEncryption() {
   if (!getEncryptionEnabled()) return;
+  if (needsDataProtectionStylesheet()) await loadDataProtectionStylesheetForAction();
   await new Promise((resolve) => {
     showPassphraseModal(resolve);
   });
@@ -576,6 +588,7 @@ function getPassphraseStrength(p) {
 // ENABLE / DISABLE ENCRYPTION
 // ═══════════════════════════════════════════════
 export function showEnableEncryptionModal() {
+  if (needsDataProtectionStylesheet()) return runWithDataProtectionStylesheet(() => showEnableEncryptionModal());
   let overlay = document.getElementById('passphrase-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -689,6 +702,7 @@ export function showEnableEncryptionModal() {
 export function maybeShowEncryptionNudge() {
   if (getEncryptionEnabled()) return;
   if (localStorage.getItem('labcharts-encryption-nudge-dismissed')) return;
+  if (needsDataProtectionStylesheet()) return void runWithDataProtectionStylesheet(() => maybeShowEncryptionNudge());
   setTimeout(() => {
     let overlay = document.getElementById('passphrase-overlay');
     if (!overlay) {
@@ -755,6 +769,10 @@ export function maybeShowBackupNudge() {
   // Skip if another overlay is already showing
   const overlay = document.getElementById('passphrase-overlay');
   if (overlay && overlay.style.display === 'flex') return;
+  if (needsDataProtectionStylesheet()) {
+    void runWithDataProtectionStylesheet(() => maybeShowBackupNudge());
+    return;
+  }
 
   setTimeout(() => {
     // Re-check overlay (encryption nudge may have appeared during delay)
@@ -928,6 +946,9 @@ export async function disableEncryption() {
 }
 
 export async function changePassphrase() {
+  if (needsDataProtectionStylesheet()) {
+    return runWithDataProtectionStylesheet(() => changePassphrase());
+  }
   let overlay = document.getElementById('passphrase-overlay');
   if (!overlay) {
     overlay = document.createElement('div');

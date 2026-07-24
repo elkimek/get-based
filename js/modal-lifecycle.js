@@ -1,6 +1,89 @@
 // @ts-check
 // modal-lifecycle.js — shared modal backdrop, focus trap, and scroll lock.
 
+const DATA_PROTECTION_STYLESHEET_URL = new URL('../css/data-protection.css', import.meta.url).href;
+
+/** @type {Promise<HTMLLinkElement> | null} */
+let dataProtectionStylesheetPromise = null;
+let dataProtectionStylesheetLoaded = false;
+let useDataProtectionStylesheetRetryUrl = false;
+
+function existingDataProtectionStylesheet() {
+  if (typeof document === 'undefined') return null;
+  return /** @type {HTMLLinkElement | null} */ (
+    document.querySelector('link[data-data-protection-stylesheet]')
+    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+      .find(link => {
+        try {
+          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/data-protection.css';
+        } catch {
+          return false;
+        }
+      })
+    || null
+  );
+}
+
+function dataProtectionStylesheetUrl() {
+  if (!useDataProtectionStylesheetRetryUrl) return DATA_PROTECTION_STYLESHEET_URL;
+  const retryUrl = new URL(DATA_PROTECTION_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+export function isDataProtectionStylesheetLoaded() {
+  return dataProtectionStylesheetLoaded || !!existingDataProtectionStylesheet()?.sheet;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+export function loadDataProtectionStylesheet() {
+  const existing = existingDataProtectionStylesheet();
+  if (existing?.sheet) {
+    dataProtectionStylesheetLoaded = true;
+    return Promise.resolve(existing);
+  }
+  if (!dataProtectionStylesheetPromise) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Data protection stylesheet requires a document'));
+    }
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = dataProtectionStylesheetUrl();
+    link.dataset.dataProtectionStylesheet = '';
+    dataProtectionStylesheetPromise = new Promise((resolve, reject) => {
+      link.addEventListener('load', () => {
+        dataProtectionStylesheetLoaded = true;
+        resolve(link);
+      }, { once: true });
+      link.addEventListener('error', () => {
+        reject(new Error('Data protection stylesheet could not be loaded'));
+      }, { once: true });
+      if (!link.isConnected) {
+        const anchor = document.querySelector('[data-data-protection-stylesheet-anchor]');
+        const parent = anchor?.parentNode || document.head;
+        parent.insertBefore(link, anchor || null);
+      }
+    }).catch(err => {
+      link.remove();
+      dataProtectionStylesheetPromise = null;
+      dataProtectionStylesheetLoaded = false;
+      useDataProtectionStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return dataProtectionStylesheetPromise;
+}
+
+export async function loadDataProtectionStylesheetForAction() {
+  try {
+    await loadDataProtectionStylesheet();
+    return true;
+  } catch (err) {
+    console.error('Failed to load data protection presentation', err);
+    return false;
+  }
+}
+
 export function wireBackdropClose(overlay, closeFn) {
   const close = typeof closeFn === 'function' ? closeFn : () => overlay.remove();
   let mouseDownInside = false;

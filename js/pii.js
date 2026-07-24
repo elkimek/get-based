@@ -14,7 +14,13 @@ import {
 } from './local-ai-discovery.js';
 import { createInitialResponseTimeout } from './api-transport.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
-import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
+import {
+  isDataProtectionStylesheetLoaded,
+  loadDataProtectionStylesheetForAction,
+  openModalOverlay,
+  removeModalOverlay,
+  trapModalFocus,
+} from './modal-lifecycle.js';
 import { state } from './state.js';
 
 export { checkOllama, checkOpenAICompatible };
@@ -592,6 +598,13 @@ function closePIIOverlay(overlay) {
 }
 
 export function showPIIDiffViewer(originalText, obfuscatedText) {
+  if (!isDataProtectionStylesheetLoaded()) {
+    return loadDataProtectionStylesheetForAction().then(loaded => {
+      if (loaded) return showPIIDiffViewer(originalText, obfuscatedText);
+      showNotification('Privacy review could not be loaded. Try again.', 'error');
+      return false;
+    });
+  }
   const overlay = document.createElement('div');
   overlay.className = 'pii-warning-overlay';
   const { leftHtml, rightHtml } = buildPIIDiffHTML(originalText, obfuscatedText);
@@ -629,6 +642,13 @@ function wirePIIOverlayNudge(overlay) {
 }
 
 export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamFn = null } = {}) {
+  if (!isDataProtectionStylesheetLoaded()) {
+    return loadDataProtectionStylesheetForAction().then(loaded => {
+      if (loaded) return reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn });
+      showNotification('Privacy review could not be loaded. Try again.', 'error');
+      return 'cancel';
+    });
+  }
   return new Promise(resolve => {
     const isStreaming = typeof streamFn === 'function';
     const overlay = document.createElement('div');

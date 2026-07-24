@@ -35,7 +35,8 @@ return (async function() {
   // startup resources.
   const css = `${getCSS()}
 ${await fetchWithRetry('css/settings.css')}
-${await fetchWithRetry('css/category-views.css')}`;
+${await fetchWithRetry('css/category-views.css')}
+${await fetchWithRetry('css/data-protection.css')}`;
 
   // ═══ Section 1: Header mobile layout ═══
   console.log('%c[1] Header Mobile Layout', 'font-weight:bold');
