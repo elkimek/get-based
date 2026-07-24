@@ -195,7 +195,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
         && promptHtml.includes('Track your cycle for better lab interpretation');
       state.importedData.menstrualCycle = savedCycle;
 
-      cycle.openMenstrualCycleEditor();
+      await cycle.openMenstrualCycleEditor();
       const statusSelect = document.getElementById('mc-cycle-status');
       statusSelect.value = 'postmenopause';
       statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -272,7 +272,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       clearToasts();
       tour.endTour();
 
-      cycle.openMenstrualCycleEditor();
+      await cycle.openMenstrualCycleEditor();
       const clearCancel = cycle.clearMenstrualCycle();
       await waitForDialog('#confirm-cancel');
       document.getElementById('confirm-cancel')?.click();

@@ -111,6 +111,15 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       chatEmptyState.renderEmptyChatState(container, panel);
       const bubbledBeforeOptionalActions = bubbledClicks;
       container.querySelector('[data-chat-empty-action="open-cycle-editor"]')?.click();
+      await new Promise(resolve => {
+        const started = performance.now();
+        const waitForEditor = () => {
+          if (document.querySelector('#detail-modal .gb-modal-title')?.textContent === 'Menstrual Cycle'
+            || performance.now() - started >= 2000) resolve();
+          else requestAnimationFrame(waitForEditor);
+        };
+        waitForEditor();
+      });
       const cycleEditorOpenedThroughModule = document.getElementById('modal-overlay')?.classList.contains('show') === true
         && document.querySelector('#detail-modal .gb-modal-title')?.textContent === 'Menstrual Cycle';
       container.querySelector('[data-chat-empty-action="open-supplements-editor"]')?.click();

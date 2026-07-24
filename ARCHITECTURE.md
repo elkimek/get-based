@@ -197,6 +197,13 @@ empty manual-card shell retain their small shared rules in
 for offline first use, and its HTML anchor preserves its original cascade
 position between Client List and Light & Sun.
 
+Cycle presentation is loaded through `cycle-runtime.js`. Female Dashboard and
+Body routes wait for it before rendering, and editor or import-review actions
+share the same single-flight boundary. Profiles that are not female do not pay
+for `css/cycle.css` on startup. Failed loads are removed and cache-busted for a
+later retry; the deferred sheet stays precached for offline use and its anchor
+keeps the original position between Mobile Dashboard and marker-detail styles.
+
 Profile Sharing is loaded through `profile-share-loader.js` when a shell,
 Settings, or client-list action opens it, or when startup/hash routing detects
 a shared-profile link. The loader owns only lazy loading and route detection;

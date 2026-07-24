@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 465 |
-| Internal import edges | 2080 |
+| Internal import edges | 2082 |
 | Dynamic internal edges | 61 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,12 +38,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 210 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
+| [`js/utils.js`](js/utils.js) | 211 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
 | [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 51 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 24 |
+| [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 27 | [`js/wearables-connect.js`](js/wearables-connect.js) | 20 |
@@ -294,7 +294,7 @@ Native browser modules shipped with the static application.
 - [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js) → [`js/cycle-summary.js`](js/cycle-summary.js)
 - [`js/cycle-import-file.js`](js/cycle-import-file.js) → no in-scope imports
 - [`js/cycle-import.js`](js/cycle-import.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js), [`js/cycle-import-file.js`](js/cycle-import-file.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*
-- [`js/cycle-runtime.js`](js/cycle-runtime.js) → no in-scope imports
+- [`js/cycle-runtime.js`](js/cycle-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/cycle-store.js`](js/cycle-store.js) → no in-scope imports
 - [`js/cycle-summary.js`](js/cycle-summary.js) → no in-scope imports
 - [`js/cycle.js`](js/cycle.js) → [`js/constants.js`](js/constants.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js)
@@ -872,7 +872,7 @@ Native browser modules shipped with the static application.
 
 - [`js/views-router-runtime.js`](js/views-router-runtime.js) → [`js/pdf-import-progress.js`](js/pdf-import-progress.js)
 - [`js/views-router.js`](js/views-router.js) → [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/views-router-runtime.js`](js/views-router-runtime.js)
-- [`js/views.js`](js/views.js) → [`js/category-customization.js`](js/category-customization.js), [`js/category-glyphs.js`](js/category-glyphs.js), [`js/category-page-runtime.js`](js/category-page-runtime.js), [`js/category-page-view.js`](js/category-page-view.js), [`js/category-view-renderers.js`](js/category-view-renderers.js), [`js/compare-correlations.js`](js/compare-correlations.js), [`js/data.js`](js/data.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/focus-card.js`](js/focus-card.js), [`js/import-drop-zone.js`](js/import-drop-zone.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/lens-pages.js`](js/lens-pages.js), [`js/light-channel-view.js`](js/light-channel-view.js), [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/light-page-view.js`](js/light-page-view.js), [`js/light-sessions-view.js`](js/light-sessions-view.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/nav.js`](js/nav.js), [`js/onboarding-view.js`](js/onboarding-view.js), [`js/recommendation-actions.js`](js/recommendation-actions.js), [`js/state.js`](js/state.js), [`js/views-router.js`](js/views-router.js)
+- [`js/views.js`](js/views.js) → [`js/category-customization.js`](js/category-customization.js), [`js/category-glyphs.js`](js/category-glyphs.js), [`js/category-page-runtime.js`](js/category-page-runtime.js), [`js/category-page-view.js`](js/category-page-view.js), [`js/category-view-renderers.js`](js/category-view-renderers.js), [`js/compare-correlations.js`](js/compare-correlations.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/data.js`](js/data.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/focus-card.js`](js/focus-card.js), [`js/import-drop-zone.js`](js/import-drop-zone.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/lens-pages.js`](js/lens-pages.js), [`js/light-channel-view.js`](js/light-channel-view.js), [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/light-page-view.js`](js/light-page-view.js), [`js/light-sessions-view.js`](js/light-sessions-view.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/nav.js`](js/nav.js), [`js/onboarding-view.js`](js/onboarding-view.js), [`js/recommendation-actions.js`](js/recommendation-actions.js), [`js/state.js`](js/state.js), [`js/views-router.js`](js/views-router.js)
 
 </details>
 

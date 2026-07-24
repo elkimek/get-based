@@ -1,6 +1,15 @@
 // @ts-check
 // cycle-runtime.js - Explicit application callbacks for Cycle views.
 
+import { showNotification } from './utils.js';
+
+const CYCLE_STYLESHEET_URL = new URL('../css/cycle.css', import.meta.url).href;
+
+/** @type {Promise<HTMLLinkElement> | null} */
+let cycleStylesheetPromise = null;
+let cycleStylesheetLoaded = false;
+let useCycleStylesheetRetryUrl = false;
+
 /** @type {{ closeModal: (() => void) | null, loadImportStylesheet: (() => Promise<unknown>) | null, navigate: ((category: string) => void) | null, openEditor: (() => void) | null, renderProfileButton: (() => void) | null }} */
 const cycleRuntimeDeps = {
   closeModal: null,
@@ -9,6 +18,83 @@ const cycleRuntimeDeps = {
   openEditor: null,
   renderProfileButton: null,
 };
+
+function existingCycleStylesheet() {
+  if (typeof document === 'undefined') return null;
+  return /** @type {HTMLLinkElement | null} */ (
+    document.querySelector('link[data-cycle-stylesheet]')
+    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+      .find(link => {
+        try {
+          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/cycle.css';
+        } catch {
+          return false;
+        }
+      })
+    || null
+  );
+}
+
+function cycleStylesheetUrl() {
+  if (!useCycleStylesheetRetryUrl) return CYCLE_STYLESHEET_URL;
+  const retryUrl = new URL(CYCLE_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+export function isCycleStylesheetLoaded() {
+  return cycleStylesheetLoaded || !!existingCycleStylesheet()?.sheet;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+export function loadCycleStylesheet() {
+  const existing = existingCycleStylesheet();
+  if (existing?.sheet) {
+    cycleStylesheetLoaded = true;
+    return Promise.resolve(existing);
+  }
+  if (!cycleStylesheetPromise) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Cycle stylesheet requires a document'));
+    }
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = cycleStylesheetUrl();
+    link.dataset.cycleStylesheet = '';
+    cycleStylesheetPromise = new Promise(function beginCycleStylesheetLoad(resolve, reject) {
+      link.addEventListener('load', function markCycleStylesheetLoaded() {
+        cycleStylesheetLoaded = true;
+        resolve(link);
+      }, { once: true });
+      link.addEventListener('error', function rejectCycleStylesheetLoad() {
+        reject(new Error('Cycle stylesheet could not be loaded'));
+      }, { once: true });
+      if (!link.isConnected) {
+        const anchor = document.querySelector('[data-cycle-stylesheet-anchor]');
+        const parent = anchor?.parentNode || document.head;
+        parent.insertBefore(link, anchor || null);
+      }
+    }).catch(function resetCycleStylesheetLoad(err) {
+      link.remove();
+      cycleStylesheetPromise = null;
+      cycleStylesheetLoaded = false;
+      useCycleStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return cycleStylesheetPromise;
+}
+
+export async function loadCycleStylesheetForAction() {
+  try {
+    await loadCycleStylesheet();
+    return true;
+  } catch (err) {
+    console.error('Failed to load Cycle presentation', err);
+    showNotification('Cycle tools could not be loaded. Try again.', 'error');
+    return false;
+  }
+}
 
 /**
  * @param {{ closeModal?: (() => void) | null, loadImportStylesheet?: (() => Promise<unknown>) | null, navigate?: ((category: string) => void) | null, openEditor?: (() => void) | null, renderProfileButton?: (() => void) | null }} deps
@@ -38,7 +124,10 @@ export function closeCycleModalRuntime() {
 }
 
 export async function loadCycleImportStylesheetRuntime() {
-  await cycleRuntimeDeps.loadImportStylesheet?.();
+  await Promise.all([
+    loadCycleStylesheet(),
+    cycleRuntimeDeps.loadImportStylesheet?.(),
+  ]);
 }
 
 /** @param {string} category */

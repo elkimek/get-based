@@ -73,6 +73,7 @@ test('Drip CSV import previews, commits, and opens cycle history', async ({ page
   const preview = page.locator('#import-modal-overlay');
   await expect(preview).toHaveClass(/show/);
   await expect(page.locator('link[data-import-stylesheet]')).toHaveCount(1);
+  await expect(page.locator('link[data-cycle-stylesheet]')).toHaveCount(1);
   await expect(page.locator('#import-modal .import-review-summary')).toHaveCSS('display', 'grid');
   await expect(page.locator('#import-modal .cycle-import-table-heading')).toHaveCSS('display', 'flex');
   await expect(page.locator('#import-modal .gb-modal-title')).toHaveText('Review cycle import');
