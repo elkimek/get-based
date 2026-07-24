@@ -64,6 +64,7 @@ const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprint
   console.log('\n3. CSS bundle — Demo card styles');
   const cssSrc = [
     read('styles.css'),
+    read('css/app-shell.css'),
     read('css/dashboard-core.css'),
     read('css/dashboard-widgets.css'),
     read('css/dashboard-welcome.css'),

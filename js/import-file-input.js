@@ -1,7 +1,7 @@
 // @ts-check
 // import-file-input.js - file picker import binding and routing
 
-import { loadPdfImport } from './import-loader.js';
+import { loadImportUI } from './import-loader.js';
 import {
   detectDropZoneDNAFile as detectImportDNAFileRuntime,
   handleDropZoneDNAFile as handleImportDNAFileRuntime,
@@ -24,10 +24,10 @@ export async function handleImportInputChange(e) {
 
   let importMod;
   try {
-    importMod = await loadPdfImport();
+    importMod = await loadImportUI();
   } catch (err) {
-    console.error('[import-file-input] Could not load PDF import module:', err);
-    showImportNotificationRuntime('Could not load import module. Reload the app to finish updating, then try again.', 'error');
+    console.error('[import-file-input] Could not load import UI:', err);
+    showImportNotificationRuntime('Could not load import UI. Reload the app to finish updating, then try again.', 'error');
     e.target.value = '';
     return;
   }

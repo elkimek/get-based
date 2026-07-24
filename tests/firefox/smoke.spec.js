@@ -151,6 +151,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
     const requiredPaths = [
       '/index.html',
       '/styles.css',
+      '/css/import.css',
       '/css/settings.css',
       '/css/client-list.css',
       '/css/light-sun.css',
@@ -181,6 +182,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   expect(cached.entries).toEqual([
     { path: '/index.html', available: true },
     { path: '/styles.css', available: true },
+    { path: '/css/import.css', available: true },
     { path: '/css/settings.css', available: true },
     { path: '/css/client-list.css', available: true },
     { path: '/css/light-sun.css', available: true },
@@ -214,5 +216,29 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   await expect(page.locator('#client-list-overlay')).toHaveClass(/\bshow\b/);
   await expect(page.locator('#client-list-modal')).toHaveCSS('display', 'flex');
   await expect(page.locator('link[data-client-list-stylesheet]')).toHaveCount(1);
+  await page.evaluate(async () => {
+    (await import('/js/client-list.js')).closeClientList();
+    void (await import('/js/cycle-import.js')).showCycleImportPreview({
+      source: 'drip',
+      sourceLabel: 'Drip',
+      sourceFile: 'offline-cycle.csv',
+      importId: 'offline-cycle',
+      observations: [{
+        date: '2026-07-01',
+        bleeding: { value: 'light', excluded: false },
+      }],
+      periods: [{
+        startDate: '2026-07-01',
+        endDate: '2026-07-01',
+        source: 'drip',
+        importId: 'offline-cycle',
+      }],
+      warnings: [],
+    });
+  });
+  await expect(page.locator('#import-modal-overlay')).toHaveClass(/\bshow\b/);
+  await expect(page.locator('#import-modal .import-review-summary')).toHaveCSS('display', 'grid');
+  await expect(page.locator('link[data-import-stylesheet]')).toHaveCount(1);
+  await page.locator('.import-review-actions [data-cycle-import-action="close"]').click();
   expect(pageErrors).toEqual([]);
 });

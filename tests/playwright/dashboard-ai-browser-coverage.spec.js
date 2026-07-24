@@ -226,6 +226,9 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       outcomes.contextToggleUsesConfiguredModuleCallback = calls.includes('context-status')
         && !('updateChatContextStatus' in window);
       document.querySelector('#context-hub-overlay')?.remove();
+      dashboardAiRuntime.configureDashboardAIContextStatus(null);
+      dashboardAiRuntime.notifyDashboardAIContextStatusChanged();
+      outcomes.contextStatusRuntimeFallsBackToSafeNoop = true;
 
       dashboardAi.triggerDNAFilePicker();
       const input = document.getElementById('dna-dashboard-input');

@@ -4,8 +4,15 @@ function moduleUrl(path) {
   return `${path}?importReviewCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-test('import file input and drop zone route browser file types and busy states', async ({ page }) => {
+async function openImportApp(page) {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    await (await import('/js/import-loader.js')).loadImportStylesheet();
+  });
+}
+
+test('import file input and drop zone route browser file types and busy states', async ({ page }) => {
+  await openImportApp(page);
   await page.waitForSelector('#pdf-input', { state: 'attached' });
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
@@ -129,7 +136,7 @@ test('import file input and drop zone route browser file types and busy states',
 });
 
 test('PDF import review modal covers filtering mapping exclusion and batch close paths', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
+  await openImportApp(page);
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
@@ -432,7 +439,7 @@ test('PDF import review mobile layout keeps actions compact and visible', async 
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
-  await page.goto('/app', { waitUntil: 'load' });
+  await openImportApp(page);
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reviewUrl }) => {
@@ -521,7 +528,7 @@ test('PDF import review mobile layout keeps actions compact and visible', async 
 });
 
 test('PDF import review draft restores after refresh', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
+  await openImportApp(page);
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   await page.evaluate(async ({ reviewUrl }) => {
@@ -578,7 +585,7 @@ test('PDF import review draft restores after refresh', async ({ page }) => {
 });
 
 test('PDF import review modal covers privacy cost and debug details', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
+  await openImportApp(page);
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reviewUrl }) => {
@@ -663,7 +670,7 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
 });
 
 test('PDF import persistence covers snapshots removal and date rename prompts', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
+  await openImportApp(page);
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ persistenceUrl }) => {
