@@ -107,6 +107,7 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     new URL(entry.name).pathname === '/themes-extra.css'
   ))).toBe(false);
   const deferredChatStylesheets = new Set([
+    '/css/chat-panel-open.css',
     '/css/chat-personality.css',
     '/css/chat-messages.css',
     '/css/chat-composer.css',
