@@ -472,7 +472,7 @@
     'interpretEMFComparison','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','saveEMFExplicit'
   ];
   const emfLegacyGlobals = emfExports.filter(name => !name.startsWith('configureEMF'));
-  const emfRuntimeExports = ['configureEMFRuntimeDeps','loadEMFModule','openEMFAssessmentEditor','closeEMFInterpretation'];
+  const emfRuntimeExports = ['configureEMFRuntimeDeps','loadEMFModule','loadEMFStylesheet','openEMFAssessmentEditor','closeEMFInterpretation'];
 
   // data.js (30 former browser globals plus one test hook, now module-only)
   const dataExports = [

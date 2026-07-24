@@ -146,13 +146,18 @@ assert('shared import controls remain in the eager app shell',
   appShellCssAuditSrc.includes('.header-icon-btn.header-import-btn {') &&
   appShellCssAuditSrc.includes('.drop-zone {'));
 assert('SW APP_SHELL includes import CSS bundle', swAuditSrc.includes("'/css/import.css'"));
-assert('index loads EMF CSS bundle', indexSrc.includes('href="css/emf.css"'));
+const emfRuntimeSrc = read('js/emf-runtime.js');
+assert('index defers EMF CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/emf.css"') &&
+  indexSrc.includes('data-emf-stylesheet-anchor') &&
+  emfRuntimeSrc.includes("new URL('../css/emf.css', import.meta.url)") &&
+  emfRuntimeSrc.includes('data-emf-stylesheet-anchor'));
 assert('SW APP_SHELL includes EMF CSS bundle', swAuditSrc.includes("'/css/emf.css'"));
-assert('import CSS lazy-load anchor preserves its position before EMF CSS',
-  indexSrc.indexOf('data-import-stylesheet-anchor') < indexSrc.indexOf('href="css/emf.css"') &&
+assert('import and EMF CSS lazy-load anchors preserve their original order',
+  indexSrc.indexOf('data-import-stylesheet-anchor') < indexSrc.indexOf('data-emf-stylesheet-anchor') &&
   swAuditSrc.indexOf("'/css/import.css'") < swAuditSrc.indexOf("'/css/emf.css'"));
-assert('import CSS lazy-load anchor preserves its position before modal shell CSS',
-  indexSrc.indexOf('data-import-stylesheet-anchor') < indexSrc.indexOf('href="css/modal-shared.css"') &&
+assert('EMF CSS lazy-load anchor preserves its position before modal shell CSS',
+  indexSrc.indexOf('data-emf-stylesheet-anchor') < indexSrc.indexOf('href="css/modal-shared.css"') &&
   swAuditSrc.indexOf("'/css/import.css'") < swAuditSrc.indexOf("'/css/modal-shared.css'"));
 assert('index loads dashboard core CSS bundle', indexSrc.includes('href="css/dashboard-core.css"'));
 assert('SW APP_SHELL includes dashboard core CSS bundle', swAuditSrc.includes("'/css/dashboard-core.css'"));

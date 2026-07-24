@@ -145,7 +145,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
         && call[1]?.scrollAnchor === '[data-id="room-2"]');
       modalBlocker.remove();
       await lightTools.saveMeasurement('darkness', 0.2, { roomId: 'room-2' });
-      await wait(80);
+      await waitUntil(() => navigateCalls.some(call => call[0] === 'light'
+        && call[1]?.scrollAnchor === '[data-id="room-2"]'), 2500);
       results.navigateUsesRoomScrollAnchor = navigateCalls.some(call => call[0] === 'light'
         && call[1]?.scrollAnchor === '[data-id="room-2"]');
 
@@ -196,7 +197,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
       const durationInput = document.getElementById('sunrise-duration');
       if (durationInput) durationInput.value = '500';
       document.getElementById('sunrise-save')?.click();
-      await wait(20);
+      await waitUntil(() => navigateCalls.slice(sunriseNavigateStart)
+        .some(call => call[0] === 'light' && !call[1]), 2500);
       results.sunriseLoggerSavesClampedSession = !document.querySelector('[aria-label="Golden hour log"]')
         && loggedSessions[0]?.eyeExposure?.durationSec === 120 * 60
         && loggedSessions[0]?.bodyExposure?.preset === 'face_hands'

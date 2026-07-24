@@ -219,3 +219,12 @@ requests share one load, failed links are removed and cache-busted for retry,
 and an HTML anchor preserves the original cascade position before
 Recommendations. The service-worker app shell retains the stylesheet for
 offline first use.
+
+The EMF assessment module and `css/emf.css` load together through
+`emf-runtime.js` when an EMF editor entry point is first used. Cross-feature
+launchers keep their presentation in their eager owning bundles, so the
+deferred stylesheet contains only EMF editor and interpretation UI. Opening
+waits for both resources, concurrent stylesheet requests share one load, and a
+failed link is removed and cache-busted for retry. An HTML anchor preserves
+the original cascade position, and the service-worker app shell retains the
+stylesheet for offline first use.
