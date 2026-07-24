@@ -152,6 +152,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
       '/index.html',
       '/styles.css',
       '/css/settings.css',
+      '/css/client-list.css',
       '/css/light-sun.css',
       '/css/light-channels.css',
       '/css/light-devices.css',
@@ -181,6 +182,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
     { path: '/index.html', available: true },
     { path: '/styles.css', available: true },
     { path: '/css/settings.css', available: true },
+    { path: '/css/client-list.css', available: true },
     { path: '/css/light-sun.css', available: true },
     { path: '/css/light-channels.css', available: true },
     { path: '/css/light-devices.css', available: true },
@@ -208,5 +210,9 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   await expect(page.locator('.light-page')).toBeVisible();
   await expect(page.locator('.light-page')).toHaveCSS('display', 'grid');
   await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
+  await page.locator('#profile-selector .profile-compact-btn').click();
+  await expect(page.locator('#client-list-overlay')).toHaveClass(/\bshow\b/);
+  await expect(page.locator('#client-list-modal')).toHaveCSS('display', 'flex');
+  await expect(page.locator('link[data-client-list-stylesheet]')).toHaveCount(1);
   expect(pageErrors).toEqual([]);
 });

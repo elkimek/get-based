@@ -186,7 +186,17 @@ assert('settings CSS lazy-load anchor preserves the original cascade position',
   indexSrc.indexOf('data-settings-stylesheet-anchor') <
     indexSrc.indexOf('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
-assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
+const clientListSrc = read('js/client-list.js');
+assert('index defers client list CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/client-list.css"') &&
+  indexSrc.includes('data-client-list-stylesheet-anchor') &&
+  clientListSrc.includes("new URL('../css/client-list.css', import.meta.url)") &&
+  clientListSrc.includes('data-client-list-stylesheet-anchor'));
+assert('client list CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/recommendations.css"') <
+    indexSrc.indexOf('data-client-list-stylesheet-anchor') &&
+  indexSrc.indexOf('data-client-list-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/wearables.css"'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
 assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes("'/css/mobile-dashboard.css'"));

@@ -79,7 +79,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
       renderProfileButton: () => calls.push(['render-profile-button']),
     });
     const openList = async () => {
-      clientList.openClientList();
+      await clientList.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list overlay');
       await waitFor(() => document.activeElement?.id === 'cl-search', 'client list search focus');
     };
@@ -358,7 +358,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
         document.body.appendChild(strip);
       }
 
-      clientList.openClientList();
+      await clientList.openClientList();
       clientList.openClientForm('client-active');
       await waitFor(() => !!document.querySelector('.cl-form'), 'client edit form');
       document.querySelector('[data-cl-action="health-metrics"]')?.click();
@@ -372,7 +372,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
         && clientListRuntimeSrc.includes('clientListRuntimeDeps.renderProfileButton?.()')
         && !clientListRuntimeSrc.includes('getViewRuntimeFunction');
 
-      clientList.openClientList();
+      await clientList.openClientList();
       clientList.openClientForm('client-active');
       await waitFor(() => !!document.querySelector('.cl-form'), 'reopened client edit form');
       document.querySelector('.cl-avatar-picker')?.dispatchEvent(new KeyboardEvent('keydown', {
@@ -400,7 +400,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
         && calls.some(call => call[0] === 'notification' && call[1] === '"Active Browser" updated' && call[2] === 'info');
 
       document.getElementById('modal-overlay')?.classList.add('show');
-      clientList.openProfileLocationEditor();
+      await clientList.openProfileLocationEditor();
       await waitFor(() => document.activeElement?.id === 'cl-country', 'location editor focus');
       outcomes.locationEditorOpensVisibleFormAndHidesOtherModal = document.getElementById('client-list-overlay')?.classList.contains('show') === true
         && !document.getElementById('modal-overlay')?.classList.contains('show')
@@ -527,7 +527,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
         },
       ];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
-      clientList.openClientList();
+      await clientList.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list open');
       const search = document.getElementById('cl-search');
       search.value = 'alpha';

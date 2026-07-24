@@ -73,6 +73,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/css/settings.css'
   ))).toBe(false);
+  expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/css/client-list.css'
+  ))).toBe(false);
   const deferredLightStylesheets = new Set([
     '/css/light-sun.css',
     '/css/light-channels.css',

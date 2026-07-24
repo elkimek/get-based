@@ -16,6 +16,8 @@ import {
   showClientListNotification,
 } from './client-list-runtime.js';
 
+const CLIENT_LIST_STYLESHEET_URL = new URL('../css/client-list.css', import.meta.url).href;
+
 /**
  * @typedef {{
  *   exportAllDataJSON: () => Promise<void> | void,
@@ -49,6 +51,11 @@ let _tagFilter = '';
 let _editingId = null;
 let _pendingAvatar = undefined; // undefined = no change, null = remove, string = new dataURL
 let clientListDelegatesInstalled = false;
+/** @type {Promise<HTMLLinkElement> | null} */
+let _clientListStylesheetLoad = null;
+/** @type {Promise<boolean> | null} */
+let _clientListOpen = null;
+let _useClientListStylesheetRetryUrl = false;
 
 const CL_ICONS = Object.freeze({
   archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
@@ -155,16 +162,66 @@ function _renderAvatarEl(profile) {
 // ═══════════════════════════════════════════════
 // OPEN / CLOSE
 // ═══════════════════════════════════════════════
+function clientListStylesheetUrl() {
+  if (!_useClientListStylesheetRetryUrl) return CLIENT_LIST_STYLESHEET_URL;
+  const retryUrl = new URL(CLIENT_LIST_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+function loadClientListStylesheet() {
+  if (!_clientListStylesheetLoad) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Client List stylesheet requires a document'));
+    }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = clientListStylesheetUrl();
+    link.dataset.clientListStylesheet = '';
+    _clientListStylesheetLoad = new Promise((resolve, reject) => {
+      link.addEventListener('load', () => resolve(link), { once: true });
+      link.addEventListener('error', () => {
+        reject(new Error('Client List stylesheet could not be loaded'));
+      }, { once: true });
+      const anchor = document.querySelector('[data-client-list-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }).catch(err => {
+      link.remove();
+      _clientListStylesheetLoad = null;
+      _useClientListStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return _clientListStylesheetLoad;
+}
+
+/** @returns {Promise<boolean>} */
 export function openClientList() {
-  _search = '';
-  _statusFilter = 'active';
-  _tagFilter = '';
-  _editingId = null;
-  _pendingAvatar = undefined;
-  const overlay = document.getElementById('client-list-overlay');
-  if (!overlay) return;
-  renderClientList();
-  openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true });
+  if (!_clientListOpen) {
+    _clientListOpen = loadClientListStylesheet()
+      .then(() => {
+        _search = '';
+        _statusFilter = 'active';
+        _tagFilter = '';
+        _editingId = null;
+        _pendingAvatar = undefined;
+        const overlay = document.getElementById('client-list-overlay');
+        if (!overlay) return false;
+        renderClientList();
+        openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true });
+        return true;
+      })
+      .catch(err => {
+        console.error('Failed to load Client List stylesheet', err);
+        return false;
+      })
+      .finally(() => {
+        _clientListOpen = null;
+      });
+  }
+  return _clientListOpen;
 }
 
 export function closeClientList() {
@@ -1054,12 +1111,13 @@ function _clHeightUnitChanged() {
 // .show class); openClientForm(id) replaces the list view with the form.
 // Calling openClientForm alone leaves the overlay hidden — the form
 // renders in the DOM but isn't visible to the user.
-export function openProfileLocationEditor() {
+export async function openProfileLocationEditor() {
   // Close any other modal that might be on top first (marker modal, etc.)
   // so the client-list overlay isn't sitting behind it.
   const otherOverlay = document.getElementById('modal-overlay');
   if (otherOverlay) otherOverlay.classList.remove('show');
-  openClientList();
+  const opened = await openClientList();
+  if (!opened) return false;
   const id = state?.currentProfile;
   if (id) openClientForm(id);
   // Focus the country input after the form mounts.
@@ -1067,6 +1125,7 @@ export function openProfileLocationEditor() {
     const el = document.getElementById('cl-country');
     if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }, 80);
+  return true;
 }
 
 installClientListDelegates();
