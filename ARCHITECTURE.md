@@ -188,6 +188,17 @@ the stylesheet's cascade position, while the shell-owned Settings button rule
 stays in `app-shell.css`. The deferred stylesheet remains in the service-worker
 app shell for offline first use.
 
+The four optional visual themes share a conditional presentation boundary in
+`theme.js`. Default dark and light startup skip `themes-extra.css`; a saved
+optional theme inserts the sheet from the head bootstrap before first paint,
+while later selections use the same single-flight loader. Failed action loads
+restore the core dark theme and retry with a fresh URL later. The sheet remains
+in the service-worker app shell for offline first use, and its HTML anchor
+preserves the original final cascade position after chat redesign styles.
+Cross-theme shell geometry and Sunset Mode rules remain in a final eager
+inline block after that anchor, preserving their original cascade while keeping
+the deferred sheet scoped to the four optional themes.
+
 Wearables presentation is loaded through the single-flight stylesheet boundary
 in `wearables-runtime.js` when a biometric detail, inline manual log, or the
 Wearables settings tab is opened. The dashboard's compact biometric tiles and

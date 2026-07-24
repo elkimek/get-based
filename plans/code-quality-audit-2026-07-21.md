@@ -51,9 +51,12 @@ security gap, a heavily cyclic import graph, and a costly cold-load footprint.
 Cold-load remediation status: subsequent focused slices moved Import, Settings,
 Client List, marker-detail, EMF, Genome, category/compare/correlation, Light &
 Sun, Wearables, and conditionally relevant Cycle presentation styles behind
-their first visual entry points. Each boundary keeps offline assets precached,
-preserves cascade order, and retains any dashboard-owned shared rules in eager
-dashboard bundles.
+their first visual entry points. Optional-theme presentation is now conditional
+too: dark/light startup stays cold, while saved or newly selected visual themes
+load at the original final cascade position. Cross-theme shell and Sunset Mode
+rules remain eager after that anchor. Each boundary keeps offline assets
+precached, preserves cascade order, and retains shared rules in eager bundles
+or the HTML shell.
 
 ## Findings
 

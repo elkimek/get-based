@@ -238,6 +238,8 @@ const clientListSrc = read('js/client-list.js');
 const wearablesRuntimeAuditSrc = read('js/wearables-runtime.js');
 const cycleRuntimeAuditSrc = read('js/cycle-runtime.js');
 const cycleViewsAuditSrc = read('js/views.js');
+const themeAuditSrc = read('js/theme.js');
+const extraThemesAuditSrc = read('themes-extra.css');
 assert('index defers client list CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/client-list.css"') &&
   indexSrc.includes('data-client-list-stylesheet-anchor') &&
@@ -280,6 +282,22 @@ assert('female Dashboard and Body routes wait for Cycle presentation',
   cycleViewsAuditSrc.includes('dashboard: showDashboardRoute') &&
   cycleViewsAuditSrc.includes('body: showBodyRoute'));
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));
+assert('index conditionally loads optional theme presentation',
+  !indexSrc.includes('<link rel="stylesheet" href="themes-extra.css">') &&
+  indexSrc.includes('data-extra-themes-stylesheet-anchor') &&
+  indexSrc.includes("selectedTheme === 'light'") &&
+  themeAuditSrc.includes("new URL('../themes-extra.css', import.meta.url)") &&
+  themeAuditSrc.includes('data-extra-themes-stylesheet-anchor'));
+assert('optional theme CSS anchor preserves the final cascade position',
+  indexSrc.indexOf('href="css/chat-redesign.css"') <
+    indexSrc.indexOf('data-extra-themes-stylesheet-anchor'));
+assert('cross-theme shell and sunset rules remain eager after the optional split',
+  indexSrc.includes('<style data-shared-theme-modes>') &&
+  indexSrc.includes(':root[data-sunset-mode="on"]') &&
+  indexSrc.includes('[data-theme] .sidebar') &&
+  !extraThemesAuditSrc.includes(':root[data-sunset-mode="on"]') &&
+  !extraThemesAuditSrc.includes('[data-theme] .sidebar'));
+assert('SW APP_SHELL includes optional theme presentation', swAuditSrc.includes("'/themes-extra.css'"));
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const markerDetailRuntimeSrc = read('js/marker-detail-runtime.js');
 assert('index defers marker detail CSS behind its ordered lazy-load anchor',
