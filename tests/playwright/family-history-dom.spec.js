@@ -58,7 +58,7 @@ test('medical history default dependencies no-op while saving editor state', asy
         changeHistory: [],
       };
 
-      editor.openDiagnosesEditor();
+      await editor.openDiagnosesEditor();
       const controlsReady = await waitFor(() => [
         'condition-input',
         'condition-since',
@@ -114,6 +114,7 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
 
   const results = await page.evaluate(async () => {
     const cards = await import('/js/context-cards.js');
+    await (await import('/js/context-card-editor-ui.js')).loadContextEditorStylesheet();
     const { state } = await import('/js/state.js');
     const outcomes = {};
 
@@ -299,7 +300,7 @@ test('medical history editor handlers cover autocomplete save clear and close fl
         saveAndRefresh: (msg, field) => calls.push(['saveRefresh', msg, field]),
       });
 
-      editor.openDiagnosesEditor();
+      await editor.openDiagnosesEditor();
       const editorReady = await waitFor(() => [
         'condition-input',
         'condition-suggestions',

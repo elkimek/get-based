@@ -1,8 +1,75 @@
 // @ts-check
 // context-card-editor-ui.js - Shared context-card editor modal and field controls
 
-import { escapeHTML } from './utils.js';
+import { escapeHTML, showNotification } from './utils.js';
 import { closeContextCardModalRuntime } from './context-cards-runtime.js';
+
+const CONTEXT_EDITOR_STYLESHEET_URL = new URL('../css/context-editor.css', import.meta.url).href;
+/** @type {Promise<HTMLLinkElement> | null} */
+let contextEditorStylesheetPromise = null;
+let useContextEditorStylesheetRetryUrl = false;
+
+function existingContextEditorStylesheet() {
+  if (typeof document === 'undefined') return null;
+  return /** @type {HTMLLinkElement | null} */ (
+    document.querySelector('link[data-context-editor-stylesheet]')
+    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+      .find(link => {
+        try {
+          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/context-editor.css';
+        } catch {
+          return false;
+        }
+      })
+    || null
+  );
+}
+
+export function isContextEditorStylesheetLoaded() {
+  return !!existingContextEditorStylesheet()?.sheet;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+export function loadContextEditorStylesheet() {
+  const existing = existingContextEditorStylesheet();
+  if (existing?.sheet) return Promise.resolve(existing);
+  if (!contextEditorStylesheetPromise) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Context editor stylesheet requires a document'));
+    }
+    const link = existing || document.createElement('link');
+    const url = new URL(CONTEXT_EDITOR_STYLESHEET_URL);
+    if (useContextEditorStylesheetRetryUrl) url.searchParams.set('lazy-retry', '1');
+    link.rel = 'stylesheet';
+    link.href = url.href;
+    link.dataset.contextEditorStylesheet = '';
+    contextEditorStylesheetPromise = new Promise((resolve, reject) => {
+      link.addEventListener('load', () => resolve(link), { once: true });
+      link.addEventListener('error', () => reject(new Error('Context editor stylesheet could not be loaded')), { once: true });
+      if (!link.isConnected) {
+        const anchor = document.querySelector('[data-context-editor-stylesheet-anchor]');
+        const parent = anchor?.parentNode || document.head;
+        parent.insertBefore(link, anchor || null);
+      }
+    }).catch(err => {
+      link.remove();
+      contextEditorStylesheetPromise = null;
+      useContextEditorStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return contextEditorStylesheetPromise;
+}
+
+/** @param {() => any} action */
+export function runWithContextEditorStylesheet(action) {
+  if (isContextEditorStylesheetLoaded()) return action();
+  return loadContextEditorStylesheet().then(() => action()).catch(err => {
+    console.error('Failed to load context editor presentation', err);
+    showNotification('Context editor could not be loaded. Try again.', 'error');
+    return false;
+  });
+}
 
 /**
  * @param {string} action

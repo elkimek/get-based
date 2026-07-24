@@ -82,6 +82,7 @@ import {
   contextEditorActions,
   getSelectedOption,
   getSelectedTags,
+  isContextEditorStylesheetLoaded, runWithContextEditorStylesheet,
   renderContextEditorModal,
   renderNoteField,
   renderSelectField,
@@ -97,7 +98,6 @@ import {
   returnToLifestyleContextModalRuntime,
   updateLifestyleChatHeaderModelRuntime,
 } from './context-card-lifestyle-runtime.js';
-
 /** @type {(field: string) => void} */
 let recordContextChange = () => {};
 /** @type {(msg: string, field?: string) => void} */
@@ -235,7 +235,7 @@ function getTimePlaceholder() {
 // DIET
 // ═══════════════════════════════════════════════
 
-export function openDietEditor() {
+export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDietEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
@@ -307,7 +307,7 @@ export function clearDiet() {
 // SLEEP & REST
 // ═══════════════════════════════════════════════
 
-export function openSleepRestEditor() {
+export function openSleepRestEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openSleepRestEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.sleepRest || { duration: null, quality: null, schedule: null, roomTemp: null, issues: [], environment: [], practices: [], note: '' };
@@ -351,7 +351,7 @@ export function clearSleepRest() {
 // LIGHT & CIRCADIAN
 // ═══════════════════════════════════════════════
 
-export function openLightCircadianEditor() {
+export function openLightCircadianEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLightCircadianEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.lightCircadian || { amLight: null, daytime: null, uvExposure: null, skinType: null, evening: [], screenTime: null, techEnv: [], cold: null, grounding: null, mealTiming: [], note: '' };
@@ -454,7 +454,7 @@ export function clearLightCircadian() {
 // EXERCISE
 // ═══════════════════════════════════════════════
 
-export function openExerciseEditor() {
+export function openExerciseEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openExerciseEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.exercise || { frequency: null, types: [], intensity: null, dailyMovement: null, note: '' };
@@ -491,7 +491,7 @@ export function clearExercise() {
 // STRESS
 // ═══════════════════════════════════════════════
 
-export function openStressEditor() {
+export function openStressEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openStressEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.stress || { level: null, sources: [], management: [], note: '' };
@@ -526,7 +526,7 @@ export function clearStress() {
 // LOVE LIFE
 // ═══════════════════════════════════════════════
 
-export function openLoveLifeEditor() {
+export function openLoveLifeEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLoveLifeEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.loveLife || { status: null, satisfaction: null, relationship: null, libido: null, frequency: null, orgasm: null, concerns: [], note: '' };
@@ -575,7 +575,7 @@ export function clearLoveLife() {
 // ENVIRONMENT
 // ═══════════════════════════════════════════════
 
-export function openEnvironmentEditor() {
+export function openEnvironmentEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openEnvironmentEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.environment || { setting: null, climate: null, water: null, waterConcerns: [], emf: [], emfMitigation: [], homeLight: null, air: [], toxins: [], building: null, note: '' };
@@ -634,7 +634,7 @@ export function clearEnvironment() {
 // HEALTH GOALS
 // ═══════════════════════════════════════════════
 
-export function openHealthGoalsEditor() {
+export function openHealthGoalsEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openHealthGoalsEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   renderHealthGoalsModal(modal);
@@ -715,7 +715,7 @@ export function clearHealthGoals() {
 // INTERPRETIVE LENS
 // ═══════════════════════════════════════════════
 
-export function openInterpretiveLensEditor() {
+export function openInterpretiveLensEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openInterpretiveLensEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.interpretiveLens || '';

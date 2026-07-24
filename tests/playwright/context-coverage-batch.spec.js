@@ -294,7 +294,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         interpretiveLens: '',
         emfAssessment: { assessments: [] },
       };
-      lifestyle.openExerciseEditor();
+      await lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
       const defaultExerciseSave = modal.querySelector('[data-lifestyle-action="save-exercise"]');
       defaultExerciseSave?.click();
@@ -305,7 +305,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       state.importedData.exercise = null;
 
       state.importedData.healthGoals = [{ text: 'Initial sync goal', severity: 'major' }];
-      lifestyle.openHealthGoalsEditor();
+      await lifestyle.openHealthGoalsEditor();
       outcomes.healthGoalsModalStartsWithInitialSyncGoal = modal.textContent.includes('Initial sync goal');
       outcomes.healthGoalsModalUsesDelegatedActions = !modal.querySelector('[onclick], [onkeydown]');
       state.importedData.healthGoals = [{ text: 'Synced goal from sync', severity: 'minor' }];
@@ -320,7 +320,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         saveAndRefresh: (msg, field) => calls.push(['save', msg, field || '']),
       });
 
-      lifestyle.openDietEditor();
+      await lifestyle.openDietEditor();
       const dietType = setOption('diet-type');
       const dietPattern = setOption('diet-pattern', 1);
       const dietRestriction = setTag('diet-restrictions');
@@ -351,12 +351,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       await delay(350);
       outcomes.dietContaminantsDiscussesWithAI = calls.some(call => call[0] === 'chat')
         && calls.some(call => call[0] === 'prompt' && call[1].includes('food contaminants'));
-      lifestyle.openDietEditor();
+      await lifestyle.openDietEditor();
       const dietClear = modal.querySelector('[data-lifestyle-action="clear-diet"]');
       dietClear?.click();
       outcomes.clearDietNullsDiet = state.importedData.diet === null && !!dietClear;
 
-      lifestyle.openSleepRestEditor();
+      await lifestyle.openSleepRestEditor();
       const sleepDuration = setOption('sleep-duration');
       const sleepIssue = setTag('sleep-issues');
       document.getElementById('ctx-note-input').value = 'cool room';
@@ -369,7 +369,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
 
       state.importedData.sunDefaults = { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', ottScore: 4 };
       state.importedData.lightCircadian = { skinType: 'III' };
-      lifestyle.openLightCircadianEditor();
+      await lifestyle.openLightCircadianEditor();
       outcomes.lightCircadianMirrorRendersSetup = modal.textContent.includes('Mostly LED — warm white')
         && modal.textContent.includes('Sunglasses outdoors')
         && modal.textContent.includes('moderate light burden');
@@ -384,7 +384,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.clearLightCircadian();
       outcomes.clearLightCircadianNullsValue = state.importedData.lightCircadian === null;
 
-      lifestyle.openExerciseEditor();
+      await lifestyle.openExerciseEditor();
       const exerciseFrequency = setOption('exercise-freq');
       const exerciseType = setTag('exercise-types');
       lifestyle.saveExercise();
@@ -393,7 +393,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.clearExercise();
       outcomes.clearExerciseNullsExercise = state.importedData.exercise === null;
 
-      lifestyle.openStressEditor();
+      await lifestyle.openStressEditor();
       const stressLevel = setOption('stress-level');
       const stressSource = setTag('stress-sources');
       lifestyle.saveStress();
@@ -402,7 +402,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.clearStress();
       outcomes.clearStressNullsStress = state.importedData.stress === null;
 
-      lifestyle.openLoveLifeEditor();
+      await lifestyle.openLoveLifeEditor();
       outcomes.loveLifeFiltersSexSpecificConcern = modal.textContent.includes('erectile issues')
         && !modal.textContent.includes('vaginal dryness');
       const loveStatus = setOption('love-status');
@@ -413,7 +413,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.clearLoveLife();
       outcomes.clearLoveLifeNullsValue = state.importedData.loveLife === null;
 
-      lifestyle.openEnvironmentEditor();
+      await lifestyle.openEnvironmentEditor();
       const setting = setOption('env-setting');
       const waterConcern = setTag('env-water-concerns');
       const emfTag = setTag('env-emf');
@@ -423,7 +423,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         && state.importedData.environment?.emf?.includes(emfTag);
       state.importedData.emfAssessment = { assessments: [{ id: 'emf-one', date: '2026-06-07', rooms: [] }] };
       state.importedData.environment = { emf: ['existing emf'], emfMitigation: ['existing mitigation'] };
-      lifestyle.openEnvironmentEditor();
+      await lifestyle.openEnvironmentEditor();
       outcomes.environmentWithAssessmentUsesLauncherInsteadOfFallbackTags = !!modal.querySelector('.ctx-emf-launcher.has-data')
         && !document.getElementById('env-emf');
       lifestyle.saveEnvironment();
@@ -432,7 +432,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.clearEnvironment();
       outcomes.clearEnvironmentNullsValue = state.importedData.environment === null;
 
-      lifestyle.openHealthGoalsEditor();
+      await lifestyle.openHealthGoalsEditor();
       document.getElementById('goal-text-input').value = 'Improve sleep timing';
       document.querySelectorAll('#goal-severity-select .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('#goal-severity-select .ctx-btn-option')[1]?.click();
@@ -446,20 +446,20 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       document.querySelector('[data-lifestyle-action="close-health-goals"]')?.click();
       outcomes.closeHealthGoalsClosesAndNavigates = calls.some(call => call[0] === 'close')
         && calls.some(call => call[0] === 'navigate');
-      lifestyle.openHealthGoalsEditor();
+      await lifestyle.openHealthGoalsEditor();
       document.querySelector('[data-lifestyle-action="clear-health-goals"]')?.click();
       outcomes.clearHealthGoalsEmptiesArray = Array.isArray(state.importedData.healthGoals)
         && state.importedData.healthGoals.length === 0;
 
-      lifestyle.openInterpretiveLensEditor();
+      await lifestyle.openInterpretiveLensEditor();
       document.getElementById('interpretive-lens-textarea').value = 'Functional endocrinology';
       document.querySelector('[data-lifestyle-action="save-interpretive-lens"]')?.click();
       outcomes.saveInterpretiveLensStoresTrimmedText = state.importedData.interpretiveLens === 'Functional endocrinology';
-      lifestyle.openInterpretiveLensEditor();
+      await lifestyle.openInterpretiveLensEditor();
       document.querySelector('[data-lifestyle-action="clear-interpretive-lens"]')?.click();
       outcomes.clearInterpretiveLensBlanksText = state.importedData.interpretiveLens === '';
 
-      lifestyle.openHealthGoalsEditor();
+      await lifestyle.openHealthGoalsEditor();
       document.getElementById('goal-text-input').value = 'Callback coverage goal';
       lifestyle.addHealthGoal();
       outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'save' && call[2] === 'sleepRest')

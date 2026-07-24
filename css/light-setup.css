@@ -4,6 +4,65 @@
 .light-page .dashboard-widget[data-widget-id="light-setup"] .dashboard-widget-body {
   gap: 0;
 }
+
+/* Skin-type slider used by the deferred Light setup surface. */
+.ctx-skin-slider-wrap { padding: 8px 0 4px; }
+.ctx-skin-emojis {
+  position: relative;
+  margin: 0 14px 18px;
+  height: 50px;
+}
+.ctx-skin-face {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 28px;
+  opacity: 0.4;
+  transition: opacity 0.15s, transform 0.15s;
+  cursor: pointer;
+  padding: 2px 6px 14px;
+  display: flex; justify-content: center;
+}
+.ctx-skin-face[data-idx="0"] { left: 0%; }
+.ctx-skin-face[data-idx="1"] { left: 20%; }
+.ctx-skin-face[data-idx="2"] { left: 40%; }
+.ctx-skin-face[data-idx="3"] { left: 60%; }
+.ctx-skin-face[data-idx="4"] { left: 80%; }
+.ctx-skin-face[data-idx="5"] { left: 100%; }
+.ctx-skin-face:hover { opacity: 0.7; }
+.ctx-skin-face.active {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.25);
+}
+.ctx-skin-face::after {
+  content: attr(data-roman);
+  position: absolute;
+  left: 50%; bottom: 0;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+.ctx-skin-face.active::after { color: var(--text-primary); }
+.ctx-skin-range {
+  width: calc(100% - 28px);
+  margin: 0 14px;
+  accent-color: var(--accent);
+  display: block;
+}
+.ctx-skin-label {
+  font-size: 13px; color: var(--text-primary);
+  text-align: center; margin-top: 10px;
+  font-weight: 600;
+}
+.ctx-skin-label-detail {
+  display: block;
+  font-size: 11px; color: var(--text-muted);
+  font-weight: 400; margin-top: 2px;
+  font-style: italic;
+}
 .light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-card,
 .light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-summary {
   margin: 0;

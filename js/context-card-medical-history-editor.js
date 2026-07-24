@@ -7,6 +7,8 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
+  isContextEditorStylesheetLoaded,
+  runWithContextEditorStylesheet,
   renderContextEditorModal,
   getSelectedOption,
   renderNoteField,
@@ -187,6 +189,7 @@ function getFormControl(id) {
 }
 
 export function openDiagnosesEditor() {
+  if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDiagnosesEditor);
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
   const modal = document.getElementById("detail-modal");

@@ -37,6 +37,7 @@ const APP_SHELL = [
   '/css/dashboard-data.css',
   '/css/category-views.css',
   '/css/context-profile.css',
+  '/css/context-editor.css',
   '/css/genetics.css',
   '/css/data-protection.css',
   '/css/settings.css',

@@ -137,6 +137,7 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       await cards.loadContextCardTips();
       const dietBadge = document.querySelector('#ctx-tips-diet .ctx-tips-badge');
       dietBadge?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await waitFor(() => document.getElementById('modal-overlay')?.classList.contains('show') === true);
       outcomes.cardTipsBadgeLoadsCatalogAndOpensModal = calls.some(call => call[0] === 'catalog')
         && !!dietBadge
         && document.getElementById('modal-overlay')?.classList.contains('show') === true

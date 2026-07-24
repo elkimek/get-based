@@ -337,7 +337,7 @@ const _realFetch = globalThis.fetch;
 
   // Node port: read styles.css directly. Browser styleSheets walk is
   // brittle (cross-origin, parsing race); source inspection is more reliable.
-  const cssSrc = read('/styles.css') + '\n' + read('/css/category-views.css') + '\n' + read('/css/context-profile.css') + '\n' + read('/css/marker-detail-modal.css') + '\n' + read('/css/recommendations.css');
+  const cssSrc = read('/styles.css') + '\n' + read('/css/category-views.css') + '\n' + read('/css/context-profile.css') + '\n' + read('/css/context-editor.css') + '\n' + read('/css/marker-detail-modal.css') + '\n' + read('/css/recommendations.css');
   assert('CSS has .rec-section rule', cssSrc.includes('.rec-section'));
   assert('CSS keeps Tips badge outside line-clamped chart title text', cssSrc.includes('.chart-card-title-text') && cssSrc.includes('.chart-card-tips-host .ctx-tips-badge'));
   assert('CSS gives detail modal recommendation sections horizontal spacing', cssSrc.includes('.marker-detail-modal [id^="rec-modal-"]'));
