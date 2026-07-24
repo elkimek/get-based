@@ -18,6 +18,7 @@ import {
   cacheDnaSnpTable, clearPendingDnaImport,
   confirmDnaDeleteDialog, getPendingDnaImport,
   isDnaLabImportRunning, logDnaDebugError, logDnaDebugWarn,
+  loadGeneticsStylesheetForAction,
   navigateDnaRoute, refreshDnaShell,
   refreshDnaSidebar, setPendingDnaImport,
   triggerDnaFilePicker, updateDnaChatNudge,
@@ -708,6 +709,7 @@ function openDnaModalOverlay(overlay, initialFocus) {
 }
 
 export async function openManualSnpModal() {
+  if (!await loadGeneticsStylesheetForAction()) return false;
   await loadSNPTable();
   clearPendingDnaImport();
   const html = `<div class="dna-preview-header dna-manual-header">
@@ -802,6 +804,7 @@ export async function importSnpReport() {
 
 export async function handleSnpReportFile(file) {
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
+  if (!await loadGeneticsStylesheetForAction()) return false;
   _dnaImportRunning = true;
   try {
     showNotification('Reading SNP report...', 'info');
@@ -837,6 +840,7 @@ let _dnaImportRunning = false;
 export async function handleDNAFile(file) {
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
   if (isDnaLabImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return; }
+  if (!await loadGeneticsStylesheetForAction()) return false;
   _dnaImportRunning = true;
   try {
     showNotification('Parsing DNA file...', 'info');

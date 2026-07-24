@@ -188,7 +188,17 @@ assert('shared modal CSS loads before feature modal overrides',
   swAuditSrc.indexOf("'/css/modal-shared.css'") < swAuditSrc.indexOf("'/css/context-profile.css'"));
 assert('index loads context/profile CSS bundle', indexSrc.includes('href="css/context-profile.css"'));
 assert('SW APP_SHELL includes context/profile CSS bundle', swAuditSrc.includes("'/css/context-profile.css'"));
-assert('index loads genetics CSS bundle', indexSrc.includes('href="css/genetics.css"'));
+const dnaRuntimeAuditSrc = read('js/dna-runtime.js');
+assert('index defers genetics CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/genetics.css"') &&
+  indexSrc.includes('data-genetics-stylesheet-anchor') &&
+  dnaRuntimeAuditSrc.includes("new URL('../css/genetics.css', import.meta.url)") &&
+  dnaRuntimeAuditSrc.includes('data-genetics-stylesheet-anchor'));
+assert('genetics CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/context-profile.css"') <
+    indexSrc.indexOf('data-genetics-stylesheet-anchor') &&
+  indexSrc.indexOf('data-genetics-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/data-protection.css"'));
 assert('SW APP_SHELL includes genetics CSS bundle', swAuditSrc.includes("'/css/genetics.css'"));
 assert('index loads data protection CSS bundle', indexSrc.includes('href="css/data-protection.css"'));
 assert('SW APP_SHELL includes data protection CSS bundle', swAuditSrc.includes("'/css/data-protection.css'"));

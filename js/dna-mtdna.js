@@ -10,6 +10,7 @@ import {
   clearPendingMtDnaImport,
   getDnaProfileLatitudeBand,
   getPendingMtDnaImport,
+  loadGeneticsStylesheetForAction,
   logDnaDebugError,
   refreshDnaShell,
   setPendingMtDnaImport,
@@ -139,6 +140,7 @@ let _mtdnaImportRunning = false;
 
 export async function handleMtDNAFile(file) {
   if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return; }
+  if (!await loadGeneticsStylesheetForAction()) return false;
   _mtdnaImportRunning = true;
   try {
     const text = await file.text();
