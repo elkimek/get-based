@@ -16,6 +16,9 @@ import { showNotification } from './utils.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
+/** @typedef {{ name: string, url: string, anchorSelector?: string }} ChatPresentationStylesheet */
+
+/** @type {ChatPresentationStylesheet[]} */
 const CHAT_PRESENTATION_STYLESHEETS = [
   { name: 'panel-open', url: new URL('../css/chat-panel-open.css', import.meta.url).href },
   { name: 'personality', url: new URL('../css/chat-personality.css', import.meta.url).href },
@@ -25,6 +28,11 @@ const CHAT_PRESENTATION_STYLESHEETS = [
   { name: 'responsive', url: new URL('../css/chat-responsive.css', import.meta.url).href },
   { name: 'actions', url: new URL('../css/chat-actions.css', import.meta.url).href },
   { name: 'mobile', url: new URL('../css/chat-mobile.css', import.meta.url).href },
+  {
+    name: 'redesign-open',
+    url: new URL('../css/chat-redesign-open.css', import.meta.url).href,
+    anchorSelector: '[data-chat-redesign-open-stylesheet-anchor]',
+  },
 ];
 
 /** @type {Promise<HTMLLinkElement[]> | null} */
@@ -70,7 +78,7 @@ export function isChatThreadInputBlocked() {
   return chatThreadInputBlocked;
 }
 
-/** @param {{ name: string, url: string }} stylesheet */
+/** @param {ChatPresentationStylesheet} stylesheet */
 function existingChatPresentationStylesheet(stylesheet) {
   if (typeof document === 'undefined') return null;
   return /** @type {HTMLLinkElement | null} */ (
@@ -88,7 +96,7 @@ function existingChatPresentationStylesheet(stylesheet) {
   );
 }
 
-/** @param {{ url: string }} stylesheet */
+/** @param {ChatPresentationStylesheet} stylesheet */
 function chatPresentationStylesheetUrl(stylesheet) {
   if (!useChatPresentationStylesheetRetryUrl) return stylesheet.url;
   const retryUrl = new URL(stylesheet.url);
@@ -103,7 +111,7 @@ export function areChatPresentationStylesheetsLoaded() {
 }
 
 /**
- * @param {{ name: string, url: string }} stylesheet
+ * @param {ChatPresentationStylesheet} stylesheet
  * @param {Element | null} anchor
  * @returns {Promise<HTMLLinkElement>}
  */
@@ -144,9 +152,12 @@ export function loadChatPresentationStylesheets() {
     if (typeof document === 'undefined') {
       return Promise.reject(new Error('Chat presentation stylesheets require a document'));
     }
-    const anchor = document.querySelector('[data-chat-presentation-stylesheet-anchor]');
+    const defaultAnchor = document.querySelector('[data-chat-presentation-stylesheet-anchor]');
     chatPresentationStylesheetPromise = Promise.all(
-      CHAT_PRESENTATION_STYLESHEETS.map(stylesheet => loadChatPresentationStylesheet(stylesheet, anchor)),
+      CHAT_PRESENTATION_STYLESHEETS.map(stylesheet => loadChatPresentationStylesheet(
+        stylesheet,
+        stylesheet.anchorSelector ? document.querySelector(stylesheet.anchorSelector) : defaultAnchor,
+      )),
     ).then(function markChatPresentationStylesheetsLoaded(links) {
       chatPresentationStylesheetsLoaded = true;
       return links;

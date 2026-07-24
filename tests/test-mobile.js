@@ -30,13 +30,14 @@ return (async function() {
   const { loadMarkerDetailStylesheet } = await import('/js/marker-detail-modal.js');
   await loadMarkerDetailStylesheet();
 
-  // Settings and category-route styles are lazy-loaded in production. Include
-  // their source in this static responsive-rule audit without making them
-  // startup resources.
+  // Settings, category-route, and open Chat styles are lazy-loaded in
+  // production. Include their source in this static responsive-rule audit
+  // without making them startup resources.
   const css = `${getCSS()}
 ${await fetchWithRetry('css/settings.css')}
 ${await fetchWithRetry('css/category-views.css')}
-${await fetchWithRetry('css/data-protection.css')}`;
+${await fetchWithRetry('css/data-protection.css')}
+${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
   // ═══ Section 1: Header mobile layout ═══
   console.log('%c[1] Header Mobile Layout', 'font-weight:bold');

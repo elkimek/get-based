@@ -187,6 +187,7 @@ const cssSrc = [
   await fetchWithRetry('css/chat-panel-open.css'),
   await fetchWithRetry('css/chat-composer.css'),
   await fetchWithRetry('css/chat-redesign.css'),
+  await fetchWithRetry('css/chat-redesign-open.css'),
 ].join('\n');
 assert('.chat-attach-btn style exists in CSS bundle', cssSrc.includes('.chat-attach-btn'));
 assert('.chat-attach-preview style exists in CSS bundle', cssSrc.includes('.chat-attach-preview'));
