@@ -23,6 +23,7 @@ import { renderCategoryGlyph } from './category-glyphs.js';
 import { renderChartCard, renderTableColgroup, renderScrollableTableShell, renderTableView, renderHeatmapView, renderFattyAcidsView, renderFattyAcidsCharts } from './category-view-renderers.js';
 import { showCategory, switchView } from './category-page-view.js';
 import { isCategoryViewsStylesheetLoaded, loadCategoryViewsStylesheet } from './category-page-runtime.js';
+import { isCycleStylesheetLoaded, loadCycleStylesheet } from './cycle-runtime.js';
 import { configureCategoryCustomization, renameCategory, renameMarker, revertMarkerName, showEmojiPicker, changeCategoryIcon } from './category-customization.js';
 import { renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi } from './light-conditions-now.js';
 import { _openAllSessionsModal as openAllSessionsModal } from './light-sessions-view.js';
@@ -298,13 +299,52 @@ function showCategoryPresentationRoute(route, label, render) {
     });
 }
 
+/**
+ * @param {string} route
+ * @param {string} label
+ * @param {(...args: any[]) => any} render
+ * @param {any[]} [args]
+ */
+function showCycleAwareRoute(route, label, render, args = []) {
+  if (state.profileSex !== 'female' || isCycleStylesheetLoaded()) return render(...args);
+
+  const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
+  if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
+
+  return loadCycleStylesheet()
+    .then(function renderCycleRouteAfterStylesheet() {
+      if (state.currentView !== route) return false;
+      render(...args);
+      return true;
+    })
+    .catch(function handleCycleRouteLoadFailure(err) {
+      console.error(`Failed to load ${label} Cycle presentation`, err);
+      if (state.currentView === route && content) {
+        renderDeferredRouteStatus(
+          content,
+          `${label} could not be loaded. Try opening the page again.`,
+          { error: true },
+        );
+      }
+      return false;
+    });
+}
+
+function showDashboardRoute(data) {
+  return showCycleAwareRoute('dashboard', 'Dashboard', showDashboard, [data]);
+}
+
+function showBodyRoute() {
+  return showCycleAwareRoute('body', 'Body', showBodyLens);
+}
+
 const _navigate = createNavigate({
   routeHandlers: {
-    dashboard: showDashboard,
+    dashboard: showDashboardRoute,
     labs: showLabs,
     biologyScores: showBiologyScoresLens,
     genome: showGenomeRoute,
-    body: showBodyLens,
+    body: showBodyRoute,
     insight: showInsightLens,
     recommendations: showRecommendations,
     correlations: data => showCategoryPresentationRoute(

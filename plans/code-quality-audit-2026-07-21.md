@@ -50,9 +50,10 @@ security gap, a heavily cyclic import graph, and a costly cold-load footprint.
 
 Cold-load remediation status: subsequent focused slices moved Import, Settings,
 Client List, marker-detail, EMF, Genome, category/compare/correlation, Light &
-Sun, and Wearables presentation styles behind their first visual entry points.
-Each boundary keeps offline assets precached, preserves cascade order, and
-retains any dashboard-owned shared rules in eager dashboard bundles.
+Sun, Wearables, and conditionally relevant Cycle presentation styles behind
+their first visual entry points. Each boundary keeps offline assets precached,
+preserves cascade order, and retains any dashboard-owned shared rules in eager
+dashboard bundles.
 
 ## Findings
 

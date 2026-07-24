@@ -8,7 +8,7 @@ import { startCycleTour } from './tour.js';
 import { createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
-import { closeCycleModalRuntime, navigateCycleViewRuntime } from './cycle-runtime.js';
+import { closeCycleModalRuntime, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -402,10 +402,13 @@ export function detectCycleIronAlerts(mc, data) {
 }
 
 export function openMenstrualCycleEditor() {
+  if (typeof document !== 'undefined' && document.querySelector('[data-cycle-stylesheet-anchor]') && !isCycleStylesheetLoaded()) {
+    return loadCycleStylesheetForAction().then(function openCycleEditorAfterStylesheet(loaded) { return loaded ? openMenstrualCycleEditor() : false; });
+  }
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const mc = state.importedData.menstrualCycle || {};
-  const periods = (mc.periods || []).slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const periods = (mc.periods || []).slice().sort(function newestCyclePeriodFirst(a, b) { return b.startDate.localeCompare(a.startDate); });
   const stats = calculateCycleStats(mc.periods);
   const regLabels = { regular: 'Regular', irregular: 'Irregular', very_irregular: 'Very Irregular' };
   const activeCycle = isActiveCycleStatus(mc.cycleStatus);

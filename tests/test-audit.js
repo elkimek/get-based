@@ -236,6 +236,8 @@ assert('settings CSS lazy-load anchor preserves the original cascade position',
 assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
 const clientListSrc = read('js/client-list.js');
 const wearablesRuntimeAuditSrc = read('js/wearables-runtime.js');
+const cycleRuntimeAuditSrc = read('js/cycle-runtime.js');
+const cycleViewsAuditSrc = read('js/views.js');
 assert('index defers client list CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/client-list.css"') &&
   indexSrc.includes('data-client-list-stylesheet-anchor') &&
@@ -260,7 +262,23 @@ assert('wearables CSS lazy-load anchor preserves the original cascade position',
 assert('SW APP_SHELL includes wearables CSS bundle', swAuditSrc.includes("'/css/wearables.css'"));
 assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes("'/css/mobile-dashboard.css'"));
-assert('index loads cycle CSS bundle', indexSrc.includes('href="css/cycle.css"'));
+assert('index defers cycle CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/cycle.css"') &&
+  indexSrc.includes('data-cycle-stylesheet-anchor') &&
+  cycleRuntimeAuditSrc.includes("new URL('../css/cycle.css', import.meta.url)") &&
+  cycleRuntimeAuditSrc.includes('data-cycle-stylesheet-anchor'));
+assert('cycle CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/mobile-dashboard.css"') <
+    indexSrc.indexOf('data-cycle-stylesheet-anchor') &&
+  indexSrc.indexOf('data-cycle-stylesheet-anchor') <
+    indexSrc.indexOf('data-marker-detail-stylesheet-anchor'));
+assert('female Dashboard and Body routes wait for Cycle presentation',
+  cycleViewsAuditSrc.includes('showCycleAwareRoute') &&
+  cycleViewsAuditSrc.includes("state.profileSex !== 'female'") &&
+  cycleViewsAuditSrc.includes("showCycleAwareRoute('dashboard', 'Dashboard', showDashboard") &&
+  cycleViewsAuditSrc.includes("showCycleAwareRoute('body', 'Body', showBodyLens") &&
+  cycleViewsAuditSrc.includes('dashboard: showDashboardRoute') &&
+  cycleViewsAuditSrc.includes('body: showBodyRoute'));
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const markerDetailRuntimeSrc = read('js/marker-detail-runtime.js');
@@ -271,7 +289,7 @@ assert('index defers marker detail CSS behind its ordered lazy-load anchor',
   markerDetailRuntimeSrc.includes("new URL('../css/marker-detail-modal.css', import.meta.url)") &&
   markerDetailRuntimeSrc.includes('data-marker-detail-stylesheet-anchor'));
 assert('marker detail CSS lazy-load anchor preserves the original cascade position',
-  indexSrc.indexOf('href="css/cycle.css"') <
+  indexSrc.indexOf('data-cycle-stylesheet-anchor') <
     indexSrc.indexOf('data-marker-detail-stylesheet-anchor') &&
     indexSrc.indexOf('data-marker-detail-stylesheet-anchor') <
     indexSrc.indexOf('href="css/recommendations.css"'));
