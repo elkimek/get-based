@@ -235,6 +235,7 @@ assert('settings CSS lazy-load anchor preserves the original cascade position',
     indexSrc.indexOf('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
 const clientListSrc = read('js/client-list.js');
+const wearablesRuntimeAuditSrc = read('js/wearables-runtime.js');
 assert('index defers client list CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/client-list.css"') &&
   indexSrc.includes('data-client-list-stylesheet-anchor') &&
@@ -244,8 +245,19 @@ assert('client list CSS lazy-load anchor preserves the original cascade position
   indexSrc.indexOf('href="css/recommendations.css"') <
     indexSrc.indexOf('data-client-list-stylesheet-anchor') &&
   indexSrc.indexOf('data-client-list-stylesheet-anchor') <
-    indexSrc.indexOf('href="css/wearables.css"'));
+    indexSrc.indexOf('data-wearables-stylesheet-anchor'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
+assert('index defers wearables CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/wearables.css"') &&
+  indexSrc.includes('data-wearables-stylesheet-anchor') &&
+  wearablesRuntimeAuditSrc.includes("new URL('../css/wearables.css', import.meta.url)") &&
+  wearablesRuntimeAuditSrc.includes('data-wearables-stylesheet-anchor'));
+assert('wearables CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('data-client-list-stylesheet-anchor') <
+    indexSrc.indexOf('data-wearables-stylesheet-anchor') &&
+  indexSrc.indexOf('data-wearables-stylesheet-anchor') <
+    indexSrc.indexOf('data-light-sun-stylesheet-anchor'));
+assert('SW APP_SHELL includes wearables CSS bundle', swAuditSrc.includes("'/css/wearables.css'"));
 assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes("'/css/mobile-dashboard.css'"));
 assert('index loads cycle CSS bundle', indexSrc.includes('href="css/cycle.css"'));
@@ -284,7 +296,7 @@ for (const lightCss of LIGHT_CSS_BUNDLES) {
 }
 assert('index keeps an ordered Light stylesheet anchor at the original cascade position',
   indexSrc.includes('data-light-sun-stylesheet-anchor') &&
-  indexSrc.indexOf('href="css/wearables.css"') <
+  indexSrc.indexOf('data-wearables-stylesheet-anchor') <
     indexSrc.indexOf('data-light-sun-stylesheet-anchor') &&
   indexSrc.indexOf('data-light-sun-stylesheet-anchor') <
     indexSrc.indexOf('href="css/chat-panel.css"'));

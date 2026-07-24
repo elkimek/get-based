@@ -188,6 +188,15 @@ the stylesheet's cascade position, while the shell-owned Settings button rule
 stays in `app-shell.css`. The deferred stylesheet remains in the service-worker
 app shell for offline first use.
 
+Wearables presentation is loaded through the single-flight stylesheet boundary
+in `wearables-runtime.js` when a biometric detail, inline manual log, or the
+Wearables settings tab is opened. The dashboard's compact biometric tiles and
+empty manual-card shell retain their small shared rules in
+`css/dashboard-data.css`, so the default dashboard paints without
+`css/wearables.css`. The deferred sheet stays in the service-worker app shell
+for offline first use, and its HTML anchor preserves its original cascade
+position between Client List and Light & Sun.
+
 Profile Sharing is loaded through `profile-share-loader.js` when a shell,
 Settings, or client-list action opens it, or when startup/hash routing detects
 a shared-profile link. The loader owns only lazy loading and route detection;

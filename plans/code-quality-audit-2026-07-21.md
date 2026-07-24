@@ -48,6 +48,12 @@ security gap, a heavily cyclic import graph, and a costly cold-load footprint.
 - Recent ownership was highly concentrated: 352 of 364 commits in the prior 30
   days came from one contributor.
 
+Cold-load remediation status: subsequent focused slices moved Import, Settings,
+Client List, marker-detail, EMF, Genome, category/compare/correlation, Light &
+Sun, and Wearables presentation styles behind their first visual entry points.
+Each boundary keeps offline assets precached, preserves cascade order, and
+retains any dashboard-owned shared rules in eager dashboard bundles.
+
 ## Findings
 
 ### 1. Production proxy boundary — high priority

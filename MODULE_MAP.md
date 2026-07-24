@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 465 |
-| Internal import edges | 2078 |
+| Internal import edges | 2080 |
 | Dynamic internal edges | 61 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,11 +38,11 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 209 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
+| [`js/utils.js`](js/utils.js) | 210 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
 | [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 51 | [`js/settings.js`](js/settings.js) | 24 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 51 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 24 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/chat-send.js`](js/chat-send.js) | 22 |
@@ -678,7 +678,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) → no in-scope imports
 - [`js/settings-runtime.js`](js/settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js)
 - [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
-- [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/charts.js`](js/charts.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
+- [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/charts.js`](js/charts.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
 
 </details>
 
@@ -901,7 +901,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-oura.js`](js/wearables-oura.js) → [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js)
 - [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-polar.js`](js/wearables-polar.js) → [`js/utils.js`](js/utils.js)
-- [`js/wearables-runtime.js`](js/wearables-runtime.js) → [`js/emf-runtime.js`](js/emf-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js)
+- [`js/wearables-runtime.js`](js/wearables-runtime.js) → [`js/emf-runtime.js`](js/emf-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*, [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-store.js`](js/wearables-store.js) → no in-scope imports
