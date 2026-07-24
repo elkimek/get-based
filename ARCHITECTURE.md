@@ -213,8 +213,9 @@ shell retains `css/import.css` for offline first use.
 Marker detail, manual-entry, and custom-marker presentation remains
 module-eager because dashboard, category, Biology Score, and sync refresh paths
 share its behavior, but `css/marker-detail-modal.css` loads only when one of
-those modal surfaces first opens. The entry waits for the stylesheet so an
-unstyled modal is never shown, concurrent requests share one load, failed links
-are removed and cache-busted for retry, and an HTML anchor preserves the
-original cascade position before Recommendations. The service-worker app shell
-retains the stylesheet for offline first use.
+those modal surfaces first opens through its already-eager runtime adapter. The
+entry waits for the stylesheet so an unstyled modal is never shown, concurrent
+requests share one load, failed links are removed and cache-busted for retry,
+and an HTML anchor preserves the original cascade position before
+Recommendations. The service-worker app shell retains the stylesheet for
+offline first use.

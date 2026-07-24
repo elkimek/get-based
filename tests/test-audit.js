@@ -213,15 +213,17 @@ assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes(
 assert('index loads cycle CSS bundle', indexSrc.includes('href="css/cycle.css"'));
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));
 const markerDetailSrc = read('js/marker-detail-modal.js');
+const markerDetailRuntimeSrc = read('js/marker-detail-runtime.js');
 assert('index defers marker detail CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/marker-detail-modal.css"') &&
   indexSrc.includes('data-marker-detail-stylesheet-anchor') &&
-  markerDetailSrc.includes("new URL('../css/marker-detail-modal.css', import.meta.url)") &&
-  markerDetailSrc.includes('data-marker-detail-stylesheet-anchor'));
+  markerDetailSrc.includes('loadMarkerDetailStylesheet') &&
+  markerDetailRuntimeSrc.includes("new URL('../css/marker-detail-modal.css', import.meta.url)") &&
+  markerDetailRuntimeSrc.includes('data-marker-detail-stylesheet-anchor'));
 assert('marker detail CSS lazy-load anchor preserves the original cascade position',
   indexSrc.indexOf('href="css/cycle.css"') <
     indexSrc.indexOf('data-marker-detail-stylesheet-anchor') &&
-  indexSrc.indexOf('data-marker-detail-stylesheet-anchor') <
+    indexSrc.indexOf('data-marker-detail-stylesheet-anchor') <
     indexSrc.indexOf('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
 assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));

@@ -28,6 +28,7 @@ import {
   showEmojiPickerRuntime,
   toggleDashboardQuickMarkerPinRuntime,
   uninstallWearableModalFocusTrapRuntime,
+  loadMarkerDetailStylesheet, openWithMarkerDetailStylesheet,
 } from './marker-detail-runtime.js';
 import {
   configureMarkerDetailEditing,
@@ -46,12 +47,6 @@ import {
   deleteMarkerNote,
 } from './marker-detail-editing.js';
 
-const MARKER_DETAIL_STYLESHEET_URL = new URL('../css/marker-detail-modal.css', import.meta.url).href;
-
-/** @type {Promise<HTMLLinkElement> | null} */
-let _markerDetailStylesheetLoad = null;
-let _useMarkerDetailStylesheetRetryUrl = false;
-
 export {
   editRefRange,
   saveRefRange,
@@ -67,56 +62,7 @@ export {
   saveMarkerNote,
   deleteMarkerNote,
 };
-
-function markerDetailStylesheetUrl() {
-  if (!_useMarkerDetailStylesheetRetryUrl) return MARKER_DETAIL_STYLESHEET_URL;
-  const retryUrl = new URL(MARKER_DETAIL_STYLESHEET_URL);
-  retryUrl.searchParams.set('lazy-retry', '1');
-  return retryUrl.href;
-}
-
-/** @returns {Promise<HTMLLinkElement>} */
-export function loadMarkerDetailStylesheet() {
-  if (!_markerDetailStylesheetLoad) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Marker Detail stylesheet requires a document'));
-    }
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = markerDetailStylesheetUrl();
-    link.dataset.markerDetailStylesheet = '';
-    _markerDetailStylesheetLoad = new Promise((resolve, reject) => {
-      link.addEventListener('load', () => resolve(link), { once: true });
-      link.addEventListener('error', () => {
-        reject(new Error('Marker Detail stylesheet could not be loaded'));
-      }, { once: true });
-      const anchor = document.querySelector('[data-marker-detail-stylesheet-anchor]');
-      const parent = anchor?.parentNode || document.head;
-      parent.insertBefore(link, anchor || null);
-    }).catch(err => {
-      link.remove();
-      _markerDetailStylesheetLoad = null;
-      _useMarkerDetailStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return _markerDetailStylesheetLoad;
-}
-
-/**
- * @template T
- * @param {() => T} open
- * @returns {Promise<T | false>}
- */
-function openWithMarkerDetailStylesheet(open) {
-  return loadMarkerDetailStylesheet()
-    .catch(err => {
-      console.error('[marker-detail] Could not load stylesheet:', err);
-      showNotification('Could not open marker details. Reload the app to finish updating, then try again.', 'error');
-      return null;
-    })
-    .then(link => link ? open() : false);
-}
+export { loadMarkerDetailStylesheet };
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
