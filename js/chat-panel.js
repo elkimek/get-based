@@ -17,6 +17,7 @@ import { showNotification } from './utils.js';
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
 const CHAT_PRESENTATION_STYLESHEETS = [
+  { name: 'panel-open', url: new URL('../css/chat-panel-open.css', import.meta.url).href },
   { name: 'personality', url: new URL('../css/chat-personality.css', import.meta.url).href },
   { name: 'messages', url: new URL('../css/chat-messages.css', import.meta.url).href },
   { name: 'composer', url: new URL('../css/chat-composer.css', import.meta.url).href },

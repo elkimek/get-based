@@ -243,12 +243,12 @@ describe('chat presentation stylesheet runtime behavior', () => {
         'Chat onboarding stylesheet could not be loaded',
       );
       expect(chatPanel.areChatPresentationStylesheetsLoaded()).toBe(false);
-      expect(links).toHaveLength(6);
+      expect(links).toHaveLength(7);
 
       const loaded = await chatPanel.loadChatPresentationStylesheets();
-      expect(loaded).toHaveLength(7);
+      expect(loaded).toHaveLength(8);
       expect(chatPanel.areChatPresentationStylesheetsLoaded()).toBe(true);
-      expect(links).toHaveLength(7);
+      expect(links).toHaveLength(8);
       expect(links.find(link => link.dataset.chatPresentationStylesheet === 'onboarding')?.href)
         .toContain('lazy-retry=1');
 

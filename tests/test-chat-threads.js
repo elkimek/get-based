@@ -415,7 +415,7 @@ assert('chat-threads installs an idempotent click delegate',
 // 18. CSS Inspection
 // ═══════════════════════════════════════════════
 console.log('18. CSS Inspection');
-const cssSrc = ['styles.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css'].map(read).join('\n');
+const cssSrc = ['styles.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css'].map(read).join('\n');
 const indexSrc = read('index.html');
 assert('CSS has .chat-thread-rail', cssSrc.includes('.chat-thread-rail'));
 assert('CSS has .chat-thread-rail.open', cssSrc.includes('.chat-thread-rail.open'));

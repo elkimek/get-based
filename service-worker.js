@@ -55,6 +55,7 @@ const APP_SHELL = [
   '/css/light-tools.css',
   '/css/light-env.css',
   '/css/chat-panel.css',
+  '/css/chat-panel-open.css',
   '/css/chat-personality.css',
   '/css/chat-messages.css',
   '/css/chat-composer.css',

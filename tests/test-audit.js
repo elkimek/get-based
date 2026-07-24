@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -388,6 +388,7 @@ assert('index loads Chat redesign overrides eagerly',
   indexSrc.includes('href="css/chat-redesign.css"') &&
   swAuditSrc.includes("'/css/chat-redesign.css'"));
 const DEFERRED_CHAT_PRESENTATION_BUNDLES = [
+  'css/chat-panel-open.css',
   'css/chat-personality.css',
   'css/chat-messages.css',
   'css/chat-composer.css',
@@ -429,12 +430,19 @@ assert('Chat presentation lazy-load anchor precedes redesign overrides',
   swAuditSrc.indexOf("'/css/redesign-shell.css'") < swAuditSrc.indexOf("'/css/chat-redesign.css'"));
 const chatComposerCssSrc = read('css/chat-composer.css');
 const chatPanelCssSrc = read('css/chat-panel.css');
+const chatPanelOpenCssSrc = read('css/chat-panel-open.css');
 const chatMobileCssSrc = read('css/chat-mobile.css');
 const markerDetailCssSrc = read('css/marker-detail-modal.css');
 assert('cold-visible mobile Chat launcher sizing remains in the eager panel bundle',
   chatPanelCssSrc.includes('@media (max-width: 480px)') &&
   chatPanelCssSrc.includes('.chat-fab { width: 48px; height: 48px;') &&
   !chatMobileCssSrc.includes('.chat-fab'));
+assert('Chat panel interior presentation is deferred while the closed shell stays eager',
+  chatPanelCssSrc.includes('transform: translateX(100%)') &&
+  chatPanelCssSrc.includes('.chat-rail-back { display: none; }') &&
+  !chatPanelCssSrc.includes('.chat-thread-rail') &&
+  chatPanelOpenCssSrc.includes('.chat-panel.open') &&
+  chatPanelOpenCssSrc.includes('.chat-thread-rail'));
 assert('marker detail presentation no longer depends on deferred Chat composer CSS',
   markerDetailCssSrc.includes('.calc-missing-inputs') &&
   markerDetailCssSrc.includes('.ask-ai-btn') &&

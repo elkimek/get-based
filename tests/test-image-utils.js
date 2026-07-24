@@ -184,6 +184,7 @@ assert('PDF text extraction uses resilient file read helper',
 const cssSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/chat-panel.css'),
+  await fetchWithRetry('css/chat-panel-open.css'),
   await fetchWithRetry('css/chat-composer.css'),
   await fetchWithRetry('css/chat-redesign.css'),
 ].join('\n');
