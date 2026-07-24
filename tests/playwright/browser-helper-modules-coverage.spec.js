@@ -10,13 +10,23 @@ async function openBlankPage(page) {
   await page.goto('/browser-helper-coverage', { waitUntil: 'load' });
 }
 
-test('browser helper coverage exercises url safety marker keys markdown brand assets and health goals', async ({ page }) => {
+test('browser helper coverage exercises url safety marker keys markdown legal lens brand assets and health goals', async ({ page }) => {
   await openBlankPage(page);
 
-  const results = await page.evaluate(async ({ brandAssetsUrl, healthGoalsUrl, markdownUrl, urlSafetyUrl, utilsUrl }) => {
-    const [brandAssets, healthGoals, markdown, urlSafety, utils] = await Promise.all([
+  const results = await page.evaluate(async ({
+    brandAssetsUrl,
+    healthGoalsUrl,
+    legalConsentUrl,
+    lensLocalStoreUrl,
+    markdownUrl,
+    urlSafetyUrl,
+    utilsUrl,
+  }) => {
+    const [brandAssets, healthGoals, legalConsent, lensLocalStore, markdown, urlSafety, utils] = await Promise.all([
       import(brandAssetsUrl),
       import(healthGoalsUrl),
+      import(legalConsentUrl),
+      import(lensLocalStoreUrl),
       import(markdownUrl),
       import(urlSafetyUrl),
       import(utilsUrl),
@@ -184,6 +194,64 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
       }
     }
 
+    const normalizedLibraries = lensLocalStore.normaliseLibraryRegistry({
+      activeId: 'missing',
+      revision: '4',
+      updatedAt: '10',
+      libraries: [
+        { id: 'lib-primary', name: '', createdAt: 5, model: 'small' },
+        { id: 'lib-primary', name: 'Duplicate' },
+        { id: 'bad id', name: 'Unsafe' },
+      ],
+    });
+    const sameLibraries = lensLocalStore.normaliseLibraryRegistry({
+      ...normalizedLibraries,
+      libraries: normalizedLibraries?.libraries.map(record => ({ ...record })),
+    });
+    outcomes.lensLocalStoreNormalizesValidatesComparesAndMatchesModels =
+      normalizedLibraries?.activeId === 'lib-primary'
+      && normalizedLibraries.libraries[0].name === 'primary'
+      && normalizedLibraries.revision === 4
+      && lensLocalStore.sameLibraryRegistry(normalizedLibraries, sameLibraries)
+      && lensLocalStore.normaliseLibraryRecord({ id: 'default', createdAt: 1 })?.name === 'My Library'
+      && lensLocalStore.isSafeLibraryId('safe_library-1')
+      && !lensLocalStore.isSafeLibraryId('unsafe library')
+      && lensLocalStore.fallbackLibraryName('lib-recovered_name') === 'recovered name'
+      && lensLocalStore.modelKeyFromManifest(
+        { modelId: 'model-small', dim: 384 },
+        { small: { id: 'model-small', dim: 384 } },
+      ) === 'small';
+
+    const legalKey = 'labcharts-legal-acceptance';
+    const oldLegalAcceptance = localStorage.getItem(legalKey);
+    try {
+      localStorage.removeItem(legalKey);
+      document.getElementById('legal-consent-overlay')?.remove();
+      document.body.classList.remove('legal-consent-visible');
+      const firstShow = legalConsent.maybeShowLegalConsentGate();
+      const checkbox = document.getElementById('legal-consent-checkbox');
+      const acceptButton = document.querySelector('[data-legal-consent-action="accept"]');
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      const buttonEnabled = acceptButton.disabled === false;
+      acceptButton.click();
+      const accepted = legalConsent.getLegalAcceptance();
+      outcomes.legalConsentGatePersistsAndClosesThroughDelegatedEvents =
+        firstShow === true
+        && buttonEnabled
+        && accepted?.accepted === true
+        && typeof accepted.acceptedAt === 'string'
+        && legalConsent.hasAcceptedCurrentLegal()
+        && !legalConsent.isLegalConsentGateVisible()
+        && !document.body.classList.contains('legal-consent-visible');
+    } finally {
+      document.getElementById('legal-consent-overlay')?.remove();
+      document.body.classList.remove('legal-consent-visible');
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      if (oldLegalAcceptance == null) localStorage.removeItem(legalKey);
+      else localStorage.setItem(legalKey, oldLegalAcceptance);
+    }
+
     const inlineHtml = markdown.applyInlineMarkdown(
       '**bold** and *italic* with `code`, [safe](https://example.com/"quoted"), [bad](javascript:alert(1)), https://docs.example/path and <script>'
     );
@@ -275,6 +343,8 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
   }, {
     brandAssetsUrl: moduleUrl('/js/brand-assets.js'),
     healthGoalsUrl: moduleUrl('/js/health-goals-utils.js'),
+    legalConsentUrl: moduleUrl('/js/legal-consent.js'),
+    lensLocalStoreUrl: moduleUrl('/js/lens-local-store.js'),
     markdownUrl: moduleUrl('/js/markdown.js'),
     urlSafetyUrl: moduleUrl('/js/url-safety.js'),
     utilsUrl: moduleUrl('/js/utils.js'),

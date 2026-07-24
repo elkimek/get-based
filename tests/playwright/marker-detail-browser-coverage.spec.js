@@ -4,6 +4,129 @@ function moduleUrl(path) {
   return `${path}?markerDetailCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+async function openMarkerDetailLoaderPage(page, path) {
+  await page.route(`**${path}`, route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<!doctype html><html><head><meta data-marker-detail-stylesheet-anchor></head><body>
+      <div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div>
+      <div id="notification-container"></div>
+    </body></html>`,
+  }));
+  await page.goto(path, { waitUntil: 'load' });
+}
+
+test('marker detail stylesheet loader single-flights and preserves cascade order', async ({ page }) => {
+  let stylesheetRequests = 0;
+  await page.route('**/css/marker-detail-modal.css*', route => {
+    stylesheetRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.marker-detail-modal { padding: 0; }',
+    });
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-cache-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const [first, second] = await Promise.all([
+      modal.loadMarkerDetailStylesheet(),
+      modal.loadMarkerDetailStylesheet(),
+    ]);
+    const third = await modal.loadMarkerDetailStylesheet();
+    const anchor = document.querySelector('[data-marker-detail-stylesheet-anchor]');
+    return {
+      concurrentCallsShareTheSameLink: first === second,
+      laterCallsReuseTheResolvedLink: first === third,
+      oneStylesheetLink: document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1,
+      linkPrecedesAnchor: first.nextElementSibling === anchor,
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    concurrentCallsShareTheSameLink: true,
+    laterCallsReuseTheResolvedLink: true,
+    oneStylesheetLink: true,
+    linkPrecedesAnchor: true,
+  });
+  expect(stylesheetRequests).toBe(1);
+});
+
+test('marker detail stylesheet loader removes a failure and retries', async ({ page }) => {
+  const stylesheetRequests = [];
+  let failFirstRequest = true;
+  await page.route('**/css/marker-detail-modal.css*', route => {
+    stylesheetRequests.push(route.request().url());
+    if (failFirstRequest) {
+      failFirstRequest = false;
+      return route.abort('failed');
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.marker-detail-modal { padding: 0; }',
+    });
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-retry-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    let firstRejected = false;
+    try {
+      await modal.loadMarkerDetailStylesheet();
+    } catch {
+      firstRejected = true;
+    }
+    const failedLinkWasRemoved =
+      document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
+    const retryLink = await modal.loadMarkerDetailStylesheet();
+    return {
+      firstRejected,
+      failedLinkWasRemoved,
+      retryLoaded: retryLink.sheet !== null,
+      retryUsesCacheBuster:
+        new URL(retryLink.href).searchParams.get('lazy-retry') === '1',
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    firstRejected: true,
+    failedLinkWasRemoved: true,
+    retryLoaded: true,
+    retryUsesCacheBuster: true,
+  });
+  expect(stylesheetRequests).toHaveLength(2);
+  expect(new URL(stylesheetRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+});
+
+test('marker detail entry contains a stylesheet load failure', async ({ page }) => {
+  await page.route('**/css/marker-detail-modal.css*', route => route.abort('failed'));
+  await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-entry-failure-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const opened = await modal.openCreateMarkerModal();
+    return {
+      returnsFalse: opened === false,
+      failedLinkWasRemoved:
+        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0,
+      modalStayedClosed:
+        !document.getElementById('modal-overlay')?.classList.contains('show'),
+      errorWasExplained:
+        document.getElementById('notification-container')?.textContent
+          ?.includes('Could not open marker details') === true,
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    returnsFalse: true,
+    failedLinkWasRemoved: true,
+    modalStayedClosed: true,
+    errorWasExplained: true,
+  });
+});
+
 test('marker detail editing covers default dependency callbacks', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
@@ -656,7 +779,8 @@ test('marker detail modal covers default deps descriptions alt units and bio age
   await page.route('**/marker-detail-modal-isolated-coverage', route => route.fulfill({
     status: 200,
     contentType: 'text/html',
-    body: `<!doctype html><html><head><title>Marker detail isolated coverage</title></head>
+    body: `<!doctype html><html><head><title>Marker detail isolated coverage</title>
+        <meta data-marker-detail-stylesheet-anchor></head>
       <body>
         <div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div>
         <div id="notification-container"></div>
@@ -694,14 +818,21 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       showAltUnits: state.showAltUnits,
       rangeMode: state.rangeMode,
       chartInstances: state.chartInstances,
+      scrollIntoView: Element.prototype.scrollIntoView,
+    };
+    let scrollCalls = 0;
+    Element.prototype.scrollIntoView = function scrollIntoView() {
+      scrollCalls += 1;
     };
     const date = '2026-06-01';
     const albuminId = 'proteins_albumin';
     const albuminKey = 'proteins.albumin';
     const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       askAIAboutMarker: id => calls.push(['ask-ai', id]),
+      buildSidebar: () => calls.push(['sidebar']),
       closeEMFInterpretation: () => calls.push(['close-emf']),
       isDashboardQuickMarkerPinned: () => false,
+      navigate: (...args) => calls.push(['navigate', ...args]),
       renameMarker: id => calls.push(['rename', id]),
       revertMarkerName: id => calls.push(['revert-name', id]),
       showEmojiPicker: () => {},
@@ -762,16 +893,26 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       outcomes.fetchCustomMarkerDescriptionUsesCache =
         await modal.fetchCustomMarkerDescription('coverage.cached', 'Coverage cached', 'u') === 'Cached marker description';
 
-      modal.showDetailModal(albuminId, { scrollToRec: true });
+      outcomes.markerDetailStylesheetIsAbsentBeforeFirstOpen =
+        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
+      const firstOpenStartedAt = performance.now();
+      await modal.showDetailModal(albuminId, { scrollToHistory: true, scrollToRec: true });
+      outcomes.firstOpenCompletesWithinInteractionBudget =
+        performance.now() - firstOpenStartedAt < 1000;
       await wait(80);
       const detail = document.getElementById('detail-modal');
       const detailText = detail?.textContent || '';
+      outcomes.firstOpenLoadsAndAppliesMarkerDetailStylesheet =
+        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1
+        && !!detail
+        && getComputedStyle(detail).paddingTop === '0px';
       outcomes.detailModalRendersAltUnitsQuickPinAndRecommendations =
         detailText.includes('Albumin renamed')
         && detailText.includes('g/dl')
         && detailText.includes('coverage-lab.pdf')
         && !!detail?.querySelector('.gb-detail-pin-btn[aria-pressed="false"]')
         && detailText.includes('rec proteins.albumin');
+      outcomes.detailModalRunsRequestedScrollCallbacks = scrollCalls >= 2;
       outcomes.detailModalBothModeLabelsEachRangeAndUsesNativeEditButtons =
         detail?.querySelector('.stat-card-value-range')?.textContent.includes('reference')
         && detail.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal')
@@ -779,7 +920,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         && detailText.includes('History All time');
 
       state.rangeMode = 'reference';
-      modal.showDetailModal(albuminId);
+      await modal.showDetailModal(albuminId);
       await wait(20);
       const referenceDetail = document.getElementById('detail-modal');
       outcomes.detailModalReferenceModeUsesReferenceAsThePrimaryRange =
@@ -788,7 +929,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       outcomes.detailModalReferenceModeOmitsOptimalSecondaryRange =
         !referenceDetail?.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal');
       state.rangeMode = 'both';
-      modal.showDetailModal(albuminId);
+      await modal.showDetailModal(albuminId);
       await wait(20);
 
       const restoredDetail = document.getElementById('detail-modal');
@@ -808,13 +949,120 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       modal.pickNewCatIcon(icon);
       outcomes.defaultEmojiPickerNoops = icon.textContent === '*';
 
-      modal.showDetailModal('calculatedRatios_phenoAge');
+      await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(80);
       const bioText = document.getElementById('detail-modal')?.textContent || '';
       outcomes.bioAgeDetailUsesStandardCrpPresenceFallback =
         bioText.includes('PhenoAge')
         && !bioText.includes('Missing: hs-CRP')
         && !bioText.includes('Missing on latest date');
+
+      await modal.openManualEntryForm(albuminId, '2026-06-02');
+      await wait(70);
+      const escapeInput = document.getElementById('me-value');
+      escapeInput?.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      }));
+      await wait(20);
+      outcomes.manualEntryEscapeReturnsToDetail =
+        document.getElementById('detail-modal')?.textContent.includes('Albumin renamed') === true;
+
+      await modal.openManualEntryForm(albuminId, '2026-06-02');
+      await wait(70);
+      document.getElementById('me-value').value = '43';
+      await modal.saveManualEntry(albuminId, { keepOpen: true });
+      await wait(20);
+      outcomes.keepOpenManualSaveRunsDefaultSidebarAndFormCallbacks =
+        calls.some(call => call[0] === 'sidebar')
+        && calls.some(call => call[0] === 'navigate')
+        && document.getElementById('me-date')?.value === '2026-06-02';
+
+      document.getElementById('me-date').value = '2026-06-03';
+      document.getElementById('me-value').value = '44';
+      await modal.saveManualEntry(albuminId);
+      await wait(80);
+      outcomes.closingManualSaveRunsDefaultCloseCallback =
+        !document.getElementById('modal-overlay')?.classList.contains('show')
+        || document.getElementById('detail-modal')?.textContent.includes('Albumin renamed') === true;
+
+      state.importedData.entries = [{
+        date: '2026-06-10',
+        markers: { 'proteins.crp': 1.2 },
+      }];
+      data.invalidateActiveDataCache();
+      const sparseData = data.getActiveData();
+      if (sparseData.categories.proteins?.markers.hsCRP) {
+        sparseData.categories.proteins.markers.hsCRP.values = sparseData.dates.map(() => null);
+      }
+      await modal.showDetailModal('calculatedRatios_phenoAge');
+      await wait(20);
+      const sparseIssue = document.querySelector('.calc-missing-inputs')?.textContent || '';
+      outcomes.bioAgeFallbackRebuildsRemainingMissingInputs =
+        sparseIssue.includes('Missing:')
+        && sparseIssue.includes('Albumin')
+        && !sparseIssue.includes('hs-CRP');
+
+      state.importedData.entries = [{
+        date: '2026-06-11',
+        markers: {
+          [albuminKey]: 42,
+          'biochemistry.creatinine': 82,
+          'biochemistry.glucose': 5.1,
+          'proteins.crp': 1.2,
+          'differential.lymphocytesPct': 0.28,
+          'hematology.mcv': 90,
+          'hematology.rdwcv': 12.5,
+          'biochemistry.alp': 1.1,
+          'hematology.wbc': 5.4,
+        },
+      }, {
+        date: '2026-06-12',
+        markers: { 'proteins.crp': 1.1 },
+      }];
+      data.invalidateActiveDataCache();
+      const latestGapData = data.getActiveData();
+      if (latestGapData.categories.proteins?.markers.hsCRP) {
+        latestGapData.categories.proteins.markers.hsCRP.values = latestGapData.dates.map(() => null);
+      }
+      await modal.showDetailModal('calculatedRatios_phenoAge');
+      await wait(20);
+      const latestGapIssue = document.querySelector('.calc-missing-inputs')?.textContent || '';
+      outcomes.bioAgeFallbackNamesLatestPanelGaps =
+        latestGapIssue.includes('Missing on latest date')
+        && latestGapIssue.includes('Albumin');
+
+      const customKey = 'customCoverage.marker';
+      const customId = 'customCoverage_marker';
+      state.importedData.entries = [{
+        date,
+        markers: {
+          [albuminKey]: 42,
+          [customKey]: 7,
+        },
+      }];
+      state.importedData.customMarkers = {
+        [customKey]: {
+          name: 'Coverage marker',
+          unit: 'u',
+          categoryLabel: 'Coverage',
+        },
+      };
+      data.invalidateActiveDataCache();
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-marker-desc', JSON.stringify({
+        'coverage.cached': 'Cached marker description',
+        [customId]: 'Cached custom marker description',
+      }));
+      await modal.showDetailModal(customId);
+      await wait(20);
+      const customDescription = document.getElementById('marker-desc');
+      outcomes.customMarkerDescriptionPromiseUpdatesTheModal =
+        customDescription?.textContent === 'Cached custom marker description'
+        && customDescription.classList.contains('loaded')
+        && !customDescription.classList.contains('loading');
 
       modal.closeModal();
       outcomes.closeModalRunsCleanupHooks =
@@ -832,6 +1080,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       state.showAltUnits = saved.showAltUnits;
       state.rangeMode = saved.rangeMode;
       state.chartInstances = saved.chartInstances;
+      Element.prototype.scrollIntoView = saved.scrollIntoView;
       markerRuntime.configureMarkerDetailRuntime(restoreMarkerRuntime);
       dnaBridge.configureDnaModuleBridge({ getRelevantSNPs: null, ...restoreDnaBridge });
       recommendationRuntime.configureRecommendationModuleBridge({

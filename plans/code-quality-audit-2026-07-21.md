@@ -105,9 +105,9 @@ decoded bytes. The initial reference was 474 requests, 2,017,210 compressed
 bytes, and 6,252,286 decoded bytes. Lazy-loading the PDF import review,
 Light/Sun analysis hooks, Settings/Tweaks, Profile Sharing, and the Settings
 Light/Sun, Client List, and Import review stylesheets reduced that reference to
-439 requests, 1,850,068 compressed bytes, and 5,612,189 decoded bytes. The
-Import review stylesheet slice saved one request, 4,246 compressed bytes, and
-23,040 decoded bytes in identical before/after runs on the same machine. Route
+438 requests, 1,846,079 compressed bytes, and 5,585,960 decoded bytes. The
+Marker Detail stylesheet slice saved one request, 3,989 compressed bytes, and
+26,229 decoded bytes in identical before/after runs on the same machine. Route
 and feature lazy loading remains active, with the ceilings ratcheting downward
 after each reproducible slice.
 

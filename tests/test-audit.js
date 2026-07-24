@@ -212,7 +212,19 @@ assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/m
 assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes("'/css/mobile-dashboard.css'"));
 assert('index loads cycle CSS bundle', indexSrc.includes('href="css/cycle.css"'));
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));
-assert('index loads marker detail modal CSS bundle', indexSrc.includes('href="css/marker-detail-modal.css"'));
+const markerDetailSrc = read('js/marker-detail-modal.js');
+const markerDetailRuntimeSrc = read('js/marker-detail-runtime.js');
+assert('index defers marker detail CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/marker-detail-modal.css"') &&
+  indexSrc.includes('data-marker-detail-stylesheet-anchor') &&
+  markerDetailSrc.includes('loadMarkerDetailStylesheet') &&
+  markerDetailRuntimeSrc.includes("new URL('../css/marker-detail-modal.css', import.meta.url)") &&
+  markerDetailRuntimeSrc.includes('data-marker-detail-stylesheet-anchor'));
+assert('marker detail CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/cycle.css"') <
+    indexSrc.indexOf('data-marker-detail-stylesheet-anchor') &&
+    indexSrc.indexOf('data-marker-detail-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
 assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
@@ -293,7 +305,6 @@ const categoryViewRenderersSrc = read('js/category-view-renderers.js');
 const categoryCustomizationSrc = read('js/category-customization.js');
 const focusCardSrc = read('js/focus-card.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
-const markerDetailSrc = read('js/marker-detail-modal.js');
 const lightSessionsViewSrc = read('js/light-sessions-view.js');
 const lightPageViewSrc = read('js/light-page-view.js');
 const lightChannelViewSrc = read('js/light-channel-view.js');
@@ -310,7 +321,7 @@ assert('Trend alert category escaped', dashboardLabRenderersSrc.includes('escape
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardLabRenderersSrc));
 assert('Category label escaped in header', categoryPageViewSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
-assert('marker history controls keep their styling in the eager marker-detail bundle',
+assert('marker history controls keep their styling in the lazy marker-detail bundle',
   markerDetailSrc.includes('class="marker-history-show-more"') &&
   !markerDetailSrc.includes('light-sessions-show-more marker-history-show-more') &&
   markerDetailCssAuditSrc.includes('.marker-detail-modal .marker-history-show-more:hover'));

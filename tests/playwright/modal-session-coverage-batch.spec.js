@@ -71,7 +71,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
       markerModal.closeModal();
       outcomes.closeRestoresRememberedFocus = document.activeElement === trigger;
 
-      markerModal.openCreateMarkerModal();
+      await markerModal.openCreateMarkerModal();
       const catSelect = document.getElementById('cm-category');
       if (catSelect) {
         catSelect.value = '__new__';

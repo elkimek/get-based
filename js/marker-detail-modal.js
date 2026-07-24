@@ -28,6 +28,7 @@ import {
   showEmojiPickerRuntime,
   toggleDashboardQuickMarkerPinRuntime,
   uninstallWearableModalFocusTrapRuntime,
+  loadMarkerDetailStylesheet, openWithMarkerDetailStylesheet,
 } from './marker-detail-runtime.js';
 import {
   configureMarkerDetailEditing,
@@ -61,6 +62,7 @@ export {
   saveMarkerNote,
   deleteMarkerNote,
 };
+export { loadMarkerDetailStylesheet };
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
@@ -269,6 +271,11 @@ export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
 }
 
 export function showDetailModal(id, opts = {}) {
+  if (!safeMarkerId(id)) return Promise.resolve(false);
+  return openWithMarkerDetailStylesheet(() => renderDetailModal(id, opts));
+}
+
+function renderDetailModal(id, opts = {}) {
   // id is interpolated into delegated data-action attributes throughout the
   // modal body. Reject anything outside the strict allowlist so a poisoned
   // customMarker key cannot break attribute context or state lookups.
@@ -827,9 +834,14 @@ export function showDetailModal(id, opts = {}) {
       descEl.remove();
     }
   }
+  return true;
 }
 
 export function openManualEntryForm(id, prefillDate) {
+  return openWithMarkerDetailStylesheet(() => renderManualEntryForm(id, prefillDate));
+}
+
+function renderManualEntryForm(id, prefillDate) {
   // Always re-resolve from getActiveData — `state.markerRegistry` carries a
   // marker frozen at the moment it was rendered, and `marker.unit` reflects
   // the unit-system mode in effect *then*. After a US↔EU toggle the registry
@@ -939,6 +951,10 @@ export function openManualEntryForm(id, prefillDate) {
 }
 
 export function openCreateMarkerModal() {
+  return openWithMarkerDetailStylesheet(renderCreateMarkerModal);
+}
+
+function renderCreateMarkerModal() {
   const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
   const overlay = document.getElementById("modal-overlay");
   if (!modal) return;

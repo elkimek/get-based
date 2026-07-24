@@ -194,19 +194,54 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
   }
 });
 
-test('chat send controls cover button state typewriter and abort paths', async ({ page }) => {
+test('chat send controls cover button state typewriter runtime bridges and abort paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-input');
 
-  const results = await page.evaluate(async ({ chatSendUrl }) => {
-    const chatSend = await import(chatSendUrl);
+  const results = await page.evaluate(async ({ chatSendUrl, chatSendRuntimeUrl }) => {
+    const [chatSend, chatSendRuntime, recommendationRuntime] = await Promise.all([
+      import(chatSendUrl),
+      import(chatSendRuntimeUrl),
+      import('/js/recommendations-runtime.js'),
+    ]);
     const outcomes = {};
     const originalProvider = localStorage.getItem('labcharts-ai-provider');
     const originalPaused = localStorage.getItem('labcharts-ai-paused');
+    const attestationKeys = ['_ppqAttestation', '_routstrAttestation', '_veniceAttestation'];
+    const originalAttestations = Object.fromEntries(attestationKeys.map(key => [
+      key,
+      {
+        owned: Object.prototype.hasOwnProperty.call(window, key),
+        value: window[key],
+      },
+    ]));
+    const restoreRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
+      isProductRecsEnabled: () => true,
+      detectSupplementSlots: text => text.includes('magnesium') ? ['magnesium'] : [],
+      detectEMFRelevance: text => text.includes('router'),
+      renderRecommendationSection: async () => '<div>async rec</div>',
+      renderRecommendationSectionSync: () => '<div>sync rec</div>',
+      loadCatalog: async () => ({ products: [] }),
+    });
 
     try {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
+      window._ppqAttestation = 'ppq-attestation';
+      window._routstrAttestation = 'routstr-attestation';
+      window._veniceAttestation = 'venice-attestation';
+
+      const recommendationBridge = chatSendRuntime.getChatSendRecommendationRuntime();
+      outcomes.chatSendRuntimeReadsAttestationsAndRecommendationBridge =
+        chatSendRuntime.getChatSendProviderAttestation('ppq') === 'ppq-attestation'
+        && chatSendRuntime.getChatSendProviderAttestation('routstr') === 'routstr-attestation'
+        && chatSendRuntime.getChatSendProviderAttestation('venice') === 'venice-attestation'
+        && chatSendRuntime.isChatSendProductRecsEnabled() === true
+        && chatSendRuntime.detectChatSendSupplementSlots('try magnesium')[0] === 'magnesium'
+        && chatSendRuntime.isChatSendEMFRelevant('move the router') === true
+        && typeof recommendationBridge?.renderRecommendationSection === 'function'
+        && typeof recommendationBridge?.renderRecommendationSectionSync === 'function'
+        && typeof recommendationBridge?.loadCatalog === 'function';
 
       const input = document.getElementById('chat-input');
       const sendBtn = document.getElementById('chat-send-btn');
@@ -280,10 +315,27 @@ test('chat send controls cover button state typewriter and abort paths', async (
       else localStorage.setItem('labcharts-ai-provider', originalProvider);
       if (originalPaused == null) localStorage.removeItem('labcharts-ai-paused');
       else localStorage.setItem('labcharts-ai-paused', originalPaused);
+      recommendationRuntime.configureRecommendationModuleBridge({
+        isProductRecsEnabled: null,
+        detectSupplementSlots: null,
+        detectEMFRelevance: null,
+        renderRecommendationSection: null,
+        renderRecommendationSectionSync: null,
+        loadCatalog: null,
+        ...restoreRecommendationBridge,
+      });
+      for (const key of attestationKeys) {
+        const original = originalAttestations[key];
+        if (original.owned) window[key] = original.value;
+        else delete window[key];
+      }
     }
 
     return outcomes;
-  }, { chatSendUrl: moduleUrl('/js/chat-send.js') });
+  }, {
+    chatSendUrl: moduleUrl('/js/chat-send.js'),
+    chatSendRuntimeUrl: moduleUrl('/js/chat-send-runtime.js'),
+  });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
