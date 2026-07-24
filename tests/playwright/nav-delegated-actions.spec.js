@@ -20,6 +20,24 @@ async function prepareApp(page) {
   });
 }
 
+test('sidebar Light assessment waits for its lazy UI before opening', async ({ page }) => {
+  await prepareApp(page);
+
+  const assessmentItem = page.locator(
+    '#sidebar-nav .nav-item[data-nav-action="open-light-assessment"]',
+  );
+  await expect(assessmentItem).toHaveCount(1);
+  await assessmentItem.click();
+
+  const overlay = page.locator('#light-env-assessment-overlay');
+  await expect(overlay).toHaveClass(/\bshow\b/);
+  await expect(overlay.locator('.light-env-assessment-modal')).toBeVisible();
+  await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
+
+  await overlay.locator('.modal-close').click();
+  await expect(overlay).toHaveCount(0);
+});
+
 test('sidebar nav delegated actions route, filter, and open utilities', async ({ page }) => {
   await prepareApp(page);
 
