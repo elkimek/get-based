@@ -70,6 +70,7 @@ test('Compare route contains a stylesheet failure and retries with a fresh URL',
     return route.abort('failed');
   });
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('#main-content')).not.toBeEmpty();
 
   const firstOpen = await page.evaluate(async () => {
     const views = await import('/js/views.js');

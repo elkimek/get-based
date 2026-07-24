@@ -59,7 +59,9 @@ onboarding, responsive, actions, and mobile presentation now wait for the first
 Chat open while its persistent launcher, closed panel shell, and redesign
 overrides remain eager. Data-protection presentation now joins the first Import,
 Settings, privacy-review, encryption, or backup surface that needs it; ordinary
-startup remains cold. Each boundary keeps offline assets precached, preserves
+startup remains cold. Context-card editor and tips-modal presentation now waits
+for the first corresponding action, while shared card, button, tag, tooltip, and
+notes rules remain eager. Each boundary keeps offline assets precached, preserves
 cascade order, and retains shared rules in eager bundles or the HTML shell.
 
 ## Findings
@@ -119,13 +121,13 @@ decoded bytes. The initial reference was 474 requests, 2,017,210 compressed
 bytes, and 6,252,286 decoded bytes. Lazy-loading the PDF import review,
 Light/Sun analysis hooks, Settings/Tweaks, Profile Sharing, and the Settings,
 Light/Sun, Client List, Import review, Marker Detail, EMF, Genetics, and
-Category/Compare, Wearables, Cycle, optional-theme, Chat, and data-protection
-stylesheets reduced that reference to 424 requests, 1,809,362 compressed bytes,
-and 5,422,477 decoded bytes. The data-protection stylesheet slice saved one
-request, 1,843 compressed bytes, and 7,287 decoded bytes net of its shared
-loader in identical before/after runs on the same machine. Route and feature
-lazy loading remains active, with the ceilings ratcheting downward after each
-reproducible slice.
+Category/Compare, Wearables, Cycle, optional-theme, Chat, data-protection, and
+context-editor stylesheets reduced that reference to 424 requests, 1,807,746
+compressed bytes, and 5,411,168 decoded bytes. The context-editor stylesheet
+slice saved 1,616 compressed bytes and 11,309 decoded bytes net of its loader
+without changing the request count, in identical before/after runs on the same
+machine. Route and feature lazy loading remains active, with the ceilings
+ratcheting downward after each reproducible slice.
 
 ### 4. Guardrails and test gaps
 

@@ -100,6 +100,7 @@ test('Cycle stylesheet failure is contained and retries with a fresh URL', async
 test('Female Body route contains a Cycle stylesheet failure and retries', async ({ page }) => {
   await page.route('**/css/cycle.css*', route => route.abort('failed'));
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('#main-content')).not.toBeEmpty();
 
   const firstOpened = await page.evaluate(async () => {
     const [{ state }, views] = await Promise.all([
@@ -126,6 +127,7 @@ test('Female Body route waits for Cycle presentation while the default path stay
     stylesheetRoute = route;
   });
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('#main-content')).not.toBeEmpty();
   await expect(page.locator('link[data-cycle-stylesheet]')).toHaveCount(0);
 
   const beforeLoad = await page.evaluate(async () => {

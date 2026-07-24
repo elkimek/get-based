@@ -613,7 +613,7 @@ return (async function() {
   await wait(50);
 
   // Open diet editor
-  contextCards.openDietEditor();
+  await contextCards.openDietEditor();
   await wait(50);
   assert('Diet editor opens', modalOverlay.classList.contains('show'));
   const editorModal = document.getElementById('detail-modal');

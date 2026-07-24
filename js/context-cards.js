@@ -51,6 +51,8 @@ import {
   triggerDNAFilePicker,
 } from './context-card-dashboard-ai.js';
 import {
+  isContextEditorStylesheetLoaded,
+  runWithContextEditorStylesheet,
   renderContextEditorModal,
   renderSelectField,
   selectCtxOption,
@@ -469,6 +471,9 @@ export async function loadContextCardTips() {
 
 // ── Card tips modal ──
 export function openCardTipsModal(cardKey) {
+  if (!isContextEditorStylesheetLoaded()) {
+    return runWithContextEditorStylesheet(() => openCardTipsModal(cardKey));
+  }
   const renderCardTipsModal = getRecommendationModuleFunction('renderCardTipsModal');
   if (!renderCardTipsModal) return;
   const html = renderCardTipsModal(cardKey);

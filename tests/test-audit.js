@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -211,6 +211,22 @@ assert('shared modal CSS loads before feature modal overrides',
   swAuditSrc.indexOf("'/css/modal-shared.css'") < swAuditSrc.indexOf("'/css/context-profile.css'"));
 assert('index loads context/profile CSS bundle', indexSrc.includes('href="css/context-profile.css"'));
 assert('SW APP_SHELL includes context/profile CSS bundle', swAuditSrc.includes("'/css/context-profile.css'"));
+const contextEditorAuditSrc = read('js/context-card-editor-ui.js');
+assert('index defers context editor CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/context-editor.css"') &&
+  indexSrc.includes('data-context-editor-stylesheet-anchor') &&
+  contextEditorAuditSrc.includes("new URL('../css/context-editor.css', import.meta.url)") &&
+  contextEditorAuditSrc.includes('data-context-editor-stylesheet-anchor'));
+assert('context editor and tips actions wait for their presentation',
+  read('js/context-card-medical-history-editor.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
+  read('js/context-card-lifestyle-editors.js').includes('runWithContextEditorStylesheet(openDietEditor)') &&
+  read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey))'));
+assert('context editor split preserves shared context controls eagerly',
+  read('css/context-profile.css').includes('.ctx-btn-option') &&
+  read('css/context-profile.css').includes('.ctx-tag') &&
+  read('css/context-profile.css').includes('.context-info-icon') &&
+  read('css/context-profile.css').includes('.ctx-notes-textarea'));
+assert('SW APP_SHELL includes context editor CSS bundle', swAuditSrc.includes("'/css/context-editor.css'"));
 const dnaRuntimeAuditSrc = read('js/dna-runtime.js');
 assert('index defers genetics CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/genetics.css"') &&
@@ -219,6 +235,8 @@ assert('index defers genetics CSS behind its ordered lazy-load anchor',
   dnaRuntimeAuditSrc.includes('data-genetics-stylesheet-anchor'));
 assert('genetics CSS lazy-load anchor preserves the original cascade position',
   indexSrc.indexOf('href="css/context-profile.css"') <
+    indexSrc.indexOf('data-context-editor-stylesheet-anchor') &&
+  indexSrc.indexOf('data-context-editor-stylesheet-anchor') <
     indexSrc.indexOf('data-genetics-stylesheet-anchor') &&
   indexSrc.indexOf('data-genetics-stylesheet-anchor') <
     indexSrc.indexOf('data-data-protection-stylesheet-anchor'));
@@ -453,6 +471,7 @@ const dashboardViewCompositionSrc = read('js/dashboard-view-composition.js');
 const geneticsCssAuditSrc = read('css/genetics.css');
 const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
 const contextProfileCssAuditSrc = read('css/context-profile.css');
+const contextEditorCssAuditSrc = read('css/context-editor.css');
 const dnaSrc = read('js/dna.js');
 assert('Trend alert name escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.name)'));
 assert('Trend alert category escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.category)'));
@@ -539,11 +558,11 @@ console.log('3c. innerHTML sanitizer sweep');
 
 const contextCardEditorSrc = read('js/context-card-editor-ui.js');
 const contextCardLifestyleSrc = read('js/context-card-lifestyle-editors.js');
-assert('context Light setup mirror owns its eager Ott badge styling',
+assert('context Light setup mirror owns its deferred editor styling',
   contextCardLifestyleSrc.includes('ctx-lightsetup-ott-badge') &&
   !contextCardLifestyleSrc.includes('class="light-ott-badge') &&
-  contextProfileCssAuditSrc.includes('.ctx-lightsetup-ott-badge') &&
-  contextProfileCssAuditSrc.includes('.ctx-lightsetup-ott-tier-4'));
+  contextEditorCssAuditSrc.includes('.ctx-lightsetup-ott-badge') &&
+  contextEditorCssAuditSrc.includes('.ctx-lightsetup-ott-tier-4'));
 assert('Context select field escapes label text',
   /function renderSelectField[\s\S]{0,220}<label class="ctx-field-label">\$\{escapeHTML\(label\)\}<\/label>/.test(contextCardEditorSrc));
 assert('Context tags field escapes label text',
