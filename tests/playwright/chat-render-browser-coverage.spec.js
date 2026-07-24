@@ -6,7 +6,7 @@ function moduleUrl(path) {
 
 test('chat render browser coverage handles lens sources and rich transcript UI', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-messages');
+  await page.waitForSelector('#chat-messages', { state: 'attached' });
 
   const results = await page.evaluate(async ({ chatRenderUrl }) => {
     const [{ state }, chatRender, chatActions, recommendationRuntime] = await Promise.all([

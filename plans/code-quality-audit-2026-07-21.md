@@ -127,10 +127,13 @@ compressed bytes, and 5,411,168 decoded bytes. The context-editor stylesheet
 slice saved 1,616 compressed bytes and 11,309 decoded bytes net of its loader.
 Deferring the Chat panel's open-state and interior presentation then saved
 another 3,299 compressed bytes and 17,624 decoded bytes, bringing the reference
-to 424 requests, 1,804,447 compressed bytes, and 5,393,544 decoded bytes. Each
-result was reproduced in identical before/after runs on the same machine.
-Route and feature lazy loading remains active, with the ceilings ratcheting
-downward after each reproducible slice.
+to 424 requests, 1,804,447 compressed bytes, and 5,393,544 decoded bytes.
+Splitting the remaining Chat redesign overrides into an eager shell and an
+open-only bundle saved a further 1,869 compressed bytes and 10,578 decoded
+bytes, bringing the reference to 424 requests, 1,802,578 compressed bytes, and
+5,382,966 decoded bytes. Each result was reproduced in identical before/after
+runs on the same machine. Route and feature lazy loading remains active, with
+the ceilings ratcheting downward after each reproducible slice.
 
 ### 4. Guardrails and test gaps
 

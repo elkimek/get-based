@@ -224,6 +224,7 @@ describe('chat presentation stylesheet runtime behavior', () => {
     document.createElement = vi.fn(tag => tag === 'link' ? createLink() : originalCreateElement(tag));
     document.querySelector = vi.fn(selector => {
       if (selector === '[data-chat-presentation-stylesheet-anchor]') return anchor;
+      if (selector === '[data-chat-redesign-open-stylesheet-anchor]') return anchor;
       const match = selector.match(/^link\[data-chat-presentation-stylesheet="([^"]+)"\]$/);
       return match ? links.find(link => link.dataset.chatPresentationStylesheet === match[1]) || null : null;
     });
@@ -243,12 +244,12 @@ describe('chat presentation stylesheet runtime behavior', () => {
         'Chat onboarding stylesheet could not be loaded',
       );
       expect(chatPanel.areChatPresentationStylesheetsLoaded()).toBe(false);
-      expect(links).toHaveLength(7);
+      expect(links).toHaveLength(8);
 
       const loaded = await chatPanel.loadChatPresentationStylesheets();
-      expect(loaded).toHaveLength(8);
+      expect(loaded).toHaveLength(9);
       expect(chatPanel.areChatPresentationStylesheetsLoaded()).toBe(true);
-      expect(links).toHaveLength(8);
+      expect(links).toHaveLength(9);
       expect(links.find(link => link.dataset.chatPresentationStylesheet === 'onboarding')?.href)
         .toContain('lazy-retry=1');
 

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -384,7 +384,7 @@ assert('light CSS split preserves override order',
   swAuditSrc.indexOf("'/css/light-tools.css'") < swAuditSrc.indexOf("'/css/light-env.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
-assert('index loads Chat redesign overrides eagerly',
+assert('index keeps cold-visible Chat redesign shell overrides eager',
   indexSrc.includes('href="css/chat-redesign.css"') &&
   swAuditSrc.includes("'/css/chat-redesign.css'"));
 const DEFERRED_CHAT_PRESENTATION_BUNDLES = [
@@ -396,6 +396,7 @@ const DEFERRED_CHAT_PRESENTATION_BUNDLES = [
   'css/chat-responsive.css',
   'css/chat-actions.css',
   'css/chat-mobile.css',
+  'css/chat-redesign-open.css',
 ];
 const chatPanelAuditSrc = read('js/chat-panel.js');
 for (const chatCss of DEFERRED_CHAT_PRESENTATION_BUNDLES) {
@@ -422,16 +423,24 @@ assert('Chat presentation loader and service worker preserve stylesheet cascade 
     swAuditSrc.indexOf(`'/${DEFERRED_CHAT_PRESENTATION_BUNDLES[index - 1]}'`) <
       swAuditSrc.indexOf(`'/${chatCss}'`)
   )));
-assert('Chat presentation lazy-load anchor precedes redesign overrides',
+assert('Chat presentation split anchors preserve redesign and optional-theme cascade order',
   indexSrc.indexOf('data-chat-presentation-stylesheet-anchor') <
     indexSrc.indexOf('href="css/redesign-shell.css"') &&
   indexSrc.indexOf('href="css/redesign-shell.css"') < indexSrc.indexOf('href="css/chat-redesign.css"') &&
+  indexSrc.indexOf('href="css/chat-redesign.css"') <
+    indexSrc.indexOf('data-chat-redesign-open-stylesheet-anchor') &&
+  indexSrc.indexOf('data-chat-redesign-open-stylesheet-anchor') <
+    indexSrc.indexOf('data-extra-themes-stylesheet-anchor') &&
+  chatPanelAuditSrc.includes("anchorSelector: '[data-chat-redesign-open-stylesheet-anchor]'") &&
   swAuditSrc.indexOf("'/css/chat-mobile.css'") < swAuditSrc.indexOf("'/css/redesign-shell.css'") &&
-  swAuditSrc.indexOf("'/css/redesign-shell.css'") < swAuditSrc.indexOf("'/css/chat-redesign.css'"));
+  swAuditSrc.indexOf("'/css/redesign-shell.css'") < swAuditSrc.indexOf("'/css/chat-redesign.css'") &&
+  swAuditSrc.indexOf("'/css/chat-redesign.css'") < swAuditSrc.indexOf("'/css/chat-redesign-open.css'"));
 const chatComposerCssSrc = read('css/chat-composer.css');
 const chatPanelCssSrc = read('css/chat-panel.css');
 const chatPanelOpenCssSrc = read('css/chat-panel-open.css');
 const chatMobileCssSrc = read('css/chat-mobile.css');
+const chatRedesignCssSrc = read('css/chat-redesign.css');
+const chatRedesignOpenCssSrc = read('css/chat-redesign-open.css');
 const markerDetailCssSrc = read('css/marker-detail-modal.css');
 assert('cold-visible mobile Chat launcher sizing remains in the eager panel bundle',
   chatPanelCssSrc.includes('@media (max-width: 480px)') &&
@@ -443,6 +452,14 @@ assert('Chat panel interior presentation is deferred while the closed shell stay
   !chatPanelCssSrc.includes('.chat-thread-rail') &&
   chatPanelOpenCssSrc.includes('.chat-panel.open') &&
   chatPanelOpenCssSrc.includes('.chat-thread-rail'));
+assert('Chat redesign interior is deferred while cold shell and reservation rules stay eager',
+  chatRedesignCssSrc.includes('.chat-fab') &&
+  chatRedesignCssSrc.includes('body.chat-autostart-reserved .main') &&
+  chatRedesignCssSrc.includes('@media (prefers-reduced-motion: reduce)') &&
+  !chatRedesignCssSrc.includes('.chat-panel-conversation') &&
+  chatRedesignOpenCssSrc.includes('.chat-panel-conversation') &&
+  chatRedesignOpenCssSrc.includes('body.chat-open .main') &&
+  !chatRedesignOpenCssSrc.includes('body.chat-autostart-reserved .main'));
 assert('marker detail presentation no longer depends on deferred Chat composer CSS',
   markerDetailCssSrc.includes('.calc-missing-inputs') &&
   markerDetailCssSrc.includes('.ask-ai-btn') &&

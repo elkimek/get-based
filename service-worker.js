@@ -65,6 +65,7 @@ const APP_SHELL = [
   '/css/chat-mobile.css',
   '/css/redesign-shell.css',
   '/css/chat-redesign.css',
+  '/css/chat-redesign-open.css',
   '/themes-extra.css',
   '/js/service-worker-update.js',
   '/js/main.js',

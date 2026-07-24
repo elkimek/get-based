@@ -597,7 +597,7 @@ test('chat summaries cover saved summary modal actions without network calls', a
 
 test('chat discussion picker lifecycle and resume binding cover browser state paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-messages');
+  await page.waitForSelector('#chat-messages', { state: 'attached' });
 
   const results = await page.evaluate(async ({ pickerUrl, lifecycleUrl, bindingsUrl }) => {
     const [{ state }, { CHAT_PERSONALITIES }, picker, lifecycle, , chatRuntime] = await Promise.all([

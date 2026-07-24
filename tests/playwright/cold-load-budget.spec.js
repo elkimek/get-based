@@ -115,6 +115,7 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     '/css/chat-responsive.css',
     '/css/chat-actions.css',
     '/css/chat-mobile.css',
+    '/css/chat-redesign-open.css',
   ]);
   expect(entries.some(entry => (
     deferredChatStylesheets.has(new URL(entry.name).pathname)
