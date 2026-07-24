@@ -46,6 +46,12 @@ import {
   deleteMarkerNote,
 } from './marker-detail-editing.js';
 
+const MARKER_DETAIL_STYLESHEET_URL = new URL('../css/marker-detail-modal.css', import.meta.url).href;
+
+/** @type {Promise<HTMLLinkElement> | null} */
+let _markerDetailStylesheetLoad = null;
+let _useMarkerDetailStylesheetRetryUrl = false;
+
 export {
   editRefRange,
   saveRefRange,
@@ -61,6 +67,56 @@ export {
   saveMarkerNote,
   deleteMarkerNote,
 };
+
+function markerDetailStylesheetUrl() {
+  if (!_useMarkerDetailStylesheetRetryUrl) return MARKER_DETAIL_STYLESHEET_URL;
+  const retryUrl = new URL(MARKER_DETAIL_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+export function loadMarkerDetailStylesheet() {
+  if (!_markerDetailStylesheetLoad) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Marker Detail stylesheet requires a document'));
+    }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = markerDetailStylesheetUrl();
+    link.dataset.markerDetailStylesheet = '';
+    _markerDetailStylesheetLoad = new Promise((resolve, reject) => {
+      link.addEventListener('load', () => resolve(link), { once: true });
+      link.addEventListener('error', () => {
+        reject(new Error('Marker Detail stylesheet could not be loaded'));
+      }, { once: true });
+      const anchor = document.querySelector('[data-marker-detail-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }).catch(err => {
+      link.remove();
+      _markerDetailStylesheetLoad = null;
+      _useMarkerDetailStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return _markerDetailStylesheetLoad;
+}
+
+/**
+ * @template T
+ * @param {() => T} open
+ * @returns {Promise<T | false>}
+ */
+function openWithMarkerDetailStylesheet(open) {
+  return loadMarkerDetailStylesheet()
+    .catch(err => {
+      console.error('[marker-detail] Could not load stylesheet:', err);
+      showNotification('Could not open marker details. Reload the app to finish updating, then try again.', 'error');
+      return null;
+    })
+    .then(link => link ? open() : false);
+}
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
@@ -269,6 +325,11 @@ export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
 }
 
 export function showDetailModal(id, opts = {}) {
+  if (!safeMarkerId(id)) return Promise.resolve(false);
+  return openWithMarkerDetailStylesheet(() => renderDetailModal(id, opts));
+}
+
+function renderDetailModal(id, opts = {}) {
   // id is interpolated into delegated data-action attributes throughout the
   // modal body. Reject anything outside the strict allowlist so a poisoned
   // customMarker key cannot break attribute context or state lookups.
@@ -827,9 +888,14 @@ export function showDetailModal(id, opts = {}) {
       descEl.remove();
     }
   }
+  return true;
 }
 
 export function openManualEntryForm(id, prefillDate) {
+  return openWithMarkerDetailStylesheet(() => renderManualEntryForm(id, prefillDate));
+}
+
+function renderManualEntryForm(id, prefillDate) {
   // Always re-resolve from getActiveData — `state.markerRegistry` carries a
   // marker frozen at the moment it was rendered, and `marker.unit` reflects
   // the unit-system mode in effect *then*. After a US↔EU toggle the registry
@@ -939,6 +1005,10 @@ export function openManualEntryForm(id, prefillDate) {
 }
 
 export function openCreateMarkerModal() {
+  return openWithMarkerDetailStylesheet(renderCreateMarkerModal);
+}
+
+function renderCreateMarkerModal() {
   const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
   const overlay = document.getElementById("modal-overlay");
   if (!modal) return;

@@ -154,6 +154,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
       '/css/import.css',
       '/css/settings.css',
       '/css/client-list.css',
+      '/css/marker-detail-modal.css',
       '/css/light-sun.css',
       '/css/light-channels.css',
       '/css/light-devices.css',
@@ -185,6 +186,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
     { path: '/css/import.css', available: true },
     { path: '/css/settings.css', available: true },
     { path: '/css/client-list.css', available: true },
+    { path: '/css/marker-detail-modal.css', available: true },
     { path: '/css/light-sun.css', available: true },
     { path: '/css/light-channels.css', available: true },
     { path: '/css/light-devices.css', available: true },
@@ -240,5 +242,26 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   await expect(page.locator('#import-modal .import-review-summary')).toHaveCSS('display', 'grid');
   await expect(page.locator('link[data-import-stylesheet]')).toHaveCount(1);
   await page.locator('.import-review-actions [data-cycle-import-action="close"]').click();
+  await page.evaluate(async () => {
+    const [{ state }, data, views] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/views.js'),
+    ]);
+    state.importedData = {
+      ...state.importedData,
+      entries: [{
+        date: '2026-07-01',
+        markers: { 'proteins.albumin': 42 },
+      }],
+    };
+    data.invalidateActiveDataCache();
+    await views.showDetailModal('proteins_albumin');
+  });
+  await expect(page.locator('#modal-overlay')).toHaveClass(/\bshow\b/);
+  await expect(page.locator('#detail-modal')).toHaveClass(/\bmarker-detail-modal\b/);
+  await expect(page.locator('#detail-modal')).toHaveCSS('padding-top', '0px');
+  await expect(page.locator('link[data-marker-detail-stylesheet]')).toHaveCount(1);
+  await page.evaluate(async () => (await import('/js/views.js')).closeModal());
   expect(pageErrors).toEqual([]);
 });

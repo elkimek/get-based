@@ -4,6 +4,129 @@ function moduleUrl(path) {
   return `${path}?markerDetailCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+async function openMarkerDetailLoaderPage(page, path) {
+  await page.route(`**${path}`, route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<!doctype html><html><head><meta data-marker-detail-stylesheet-anchor></head><body>
+      <div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div>
+      <div id="notification-container"></div>
+    </body></html>`,
+  }));
+  await page.goto(path, { waitUntil: 'load' });
+}
+
+test('marker detail stylesheet loader single-flights and preserves cascade order', async ({ page }) => {
+  let stylesheetRequests = 0;
+  await page.route('**/css/marker-detail-modal.css*', route => {
+    stylesheetRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.marker-detail-modal { padding: 0; }',
+    });
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-cache-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const [first, second] = await Promise.all([
+      modal.loadMarkerDetailStylesheet(),
+      modal.loadMarkerDetailStylesheet(),
+    ]);
+    const third = await modal.loadMarkerDetailStylesheet();
+    const anchor = document.querySelector('[data-marker-detail-stylesheet-anchor]');
+    return {
+      concurrentCallsShareTheSameLink: first === second,
+      laterCallsReuseTheResolvedLink: first === third,
+      oneStylesheetLink: document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1,
+      linkPrecedesAnchor: first.nextElementSibling === anchor,
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    concurrentCallsShareTheSameLink: true,
+    laterCallsReuseTheResolvedLink: true,
+    oneStylesheetLink: true,
+    linkPrecedesAnchor: true,
+  });
+  expect(stylesheetRequests).toBe(1);
+});
+
+test('marker detail stylesheet loader removes a failure and retries', async ({ page }) => {
+  const stylesheetRequests = [];
+  let failFirstRequest = true;
+  await page.route('**/css/marker-detail-modal.css*', route => {
+    stylesheetRequests.push(route.request().url());
+    if (failFirstRequest) {
+      failFirstRequest = false;
+      return route.abort('failed');
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '.marker-detail-modal { padding: 0; }',
+    });
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-retry-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    let firstRejected = false;
+    try {
+      await modal.loadMarkerDetailStylesheet();
+    } catch {
+      firstRejected = true;
+    }
+    const failedLinkWasRemoved =
+      document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
+    const retryLink = await modal.loadMarkerDetailStylesheet();
+    return {
+      firstRejected,
+      failedLinkWasRemoved,
+      retryLoaded: retryLink.sheet !== null,
+      retryUsesCacheBuster:
+        new URL(retryLink.href).searchParams.get('lazy-retry') === '1',
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    firstRejected: true,
+    failedLinkWasRemoved: true,
+    retryLoaded: true,
+    retryUsesCacheBuster: true,
+  });
+  expect(stylesheetRequests).toHaveLength(2);
+  expect(new URL(stylesheetRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+});
+
+test('marker detail entry contains a stylesheet load failure', async ({ page }) => {
+  await page.route('**/css/marker-detail-modal.css*', route => route.abort('failed'));
+  await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-entry-failure-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const opened = await modal.openCreateMarkerModal();
+    return {
+      returnsFalse: opened === false,
+      failedLinkWasRemoved:
+        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0,
+      modalStayedClosed:
+        !document.getElementById('modal-overlay')?.classList.contains('show'),
+      errorWasExplained:
+        document.getElementById('notification-container')?.textContent
+          ?.includes('Could not open marker details') === true,
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    returnsFalse: true,
+    failedLinkWasRemoved: true,
+    modalStayedClosed: true,
+    errorWasExplained: true,
+  });
+});
+
 test('marker detail editing covers default dependency callbacks', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
@@ -656,7 +779,8 @@ test('marker detail modal covers default deps descriptions alt units and bio age
   await page.route('**/marker-detail-modal-isolated-coverage', route => route.fulfill({
     status: 200,
     contentType: 'text/html',
-    body: `<!doctype html><html><head><title>Marker detail isolated coverage</title></head>
+    body: `<!doctype html><html><head><title>Marker detail isolated coverage</title>
+        <meta data-marker-detail-stylesheet-anchor></head>
       <body>
         <div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div>
         <div id="notification-container"></div>
@@ -762,10 +886,19 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       outcomes.fetchCustomMarkerDescriptionUsesCache =
         await modal.fetchCustomMarkerDescription('coverage.cached', 'Coverage cached', 'u') === 'Cached marker description';
 
-      modal.showDetailModal(albuminId, { scrollToRec: true });
+      outcomes.markerDetailStylesheetIsAbsentBeforeFirstOpen =
+        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
+      const firstOpenStartedAt = performance.now();
+      await modal.showDetailModal(albuminId, { scrollToRec: true });
+      outcomes.firstOpenCompletesWithinInteractionBudget =
+        performance.now() - firstOpenStartedAt < 1000;
       await wait(80);
       const detail = document.getElementById('detail-modal');
       const detailText = detail?.textContent || '';
+      outcomes.firstOpenLoadsAndAppliesMarkerDetailStylesheet =
+        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1
+        && !!detail
+        && getComputedStyle(detail).paddingTop === '0px';
       outcomes.detailModalRendersAltUnitsQuickPinAndRecommendations =
         detailText.includes('Albumin renamed')
         && detailText.includes('g/dl')
@@ -779,7 +912,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         && detailText.includes('History All time');
 
       state.rangeMode = 'reference';
-      modal.showDetailModal(albuminId);
+      await modal.showDetailModal(albuminId);
       await wait(20);
       const referenceDetail = document.getElementById('detail-modal');
       outcomes.detailModalReferenceModeUsesReferenceAsThePrimaryRange =
@@ -788,7 +921,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       outcomes.detailModalReferenceModeOmitsOptimalSecondaryRange =
         !referenceDetail?.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal');
       state.rangeMode = 'both';
-      modal.showDetailModal(albuminId);
+      await modal.showDetailModal(albuminId);
       await wait(20);
 
       const restoredDetail = document.getElementById('detail-modal');
@@ -808,7 +941,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       modal.pickNewCatIcon(icon);
       outcomes.defaultEmojiPickerNoops = icon.textContent === '*';
 
-      modal.showDetailModal('calculatedRatios_phenoAge');
+      await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(80);
       const bioText = document.getElementById('detail-modal')?.textContent || '';
       outcomes.bioAgeDetailUsesStandardCrpPresenceFallback =

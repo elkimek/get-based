@@ -25,8 +25,13 @@ return (async function() {
     return css;
   }
 
-  // Settings styles are lazy-loaded in production. Include their source in
-  // this static responsive-rule audit without making them startup resources.
+  // Exercise the production loader before auditing marker-detail responsive
+  // rules. The stylesheet remains absent from the real cold-start path.
+  const { loadMarkerDetailStylesheet } = await import('/js/marker-detail-modal.js');
+  await loadMarkerDetailStylesheet();
+
+  // Settings styles are also lazy-loaded in production. Include their source
+  // in this static responsive-rule audit without making them startup resources.
   const css = `${getCSS()}\n${await fetchWithRetry('css/settings.css')}`;
 
   // ═══ Section 1: Header mobile layout ═══
