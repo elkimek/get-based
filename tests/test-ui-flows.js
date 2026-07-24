@@ -203,7 +203,7 @@ return (async function() {
   console.log('%c 2. Navigation', 'font-weight:bold;color:#6366f1');
 
   // Navigate to biochemistry
-  viewsModule.navigate('biochemistry');
+  await viewsModule.navigate('biochemistry');
   await wait(50);
   const bioNav = sidebar.querySelector('.nav-item[data-category="biochemistry"]');
   assert('Biochemistry nav item active', bioNav?.classList.contains('active'));

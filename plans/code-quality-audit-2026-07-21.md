@@ -104,12 +104,13 @@ ceilings for same-origin application requests, compressed transfer bytes, and
 decoded bytes. The initial reference was 474 requests, 2,017,210 compressed
 bytes, and 6,252,286 decoded bytes. Lazy-loading the PDF import review,
 Light/Sun analysis hooks, Settings/Tweaks, Profile Sharing, and the Settings,
-Light/Sun, Client List, Import review, Marker Detail, EMF, and Genetics
-stylesheets reduced that reference to 436 requests, 1,841,186 compressed
-bytes, and 5,562,340 decoded bytes. The Genetics stylesheet slice saved one
-request, 3,058 compressed bytes, and 15,230 decoded bytes in identical
-before/after runs on the same machine. Route and feature lazy loading remains
-active, with the ceilings ratcheting downward after each reproducible slice.
+Light/Sun, Client List, Import review, Marker Detail, EMF, Genetics, and
+Category/Compare stylesheets reduced that reference to 435 requests, 1,836,218
+compressed bytes, and 5,539,354 decoded bytes. The Category/Compare stylesheet
+slice saved one request, 4,968 compressed bytes, and 22,986 decoded bytes in
+identical before/after runs on the same machine. Route and feature lazy loading
+remains active, with the ceilings ratcheting downward after each reproducible
+slice.
 
 ### 4. Guardrails and test gaps
 

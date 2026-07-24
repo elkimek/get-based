@@ -197,6 +197,27 @@
   margin-bottom: 6px;
 }
 .trend-alert-card:hover { background: var(--bg-hover); }
+.alerts-section { margin-bottom: 32px; }
+.alerts-title {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.alert-card {
+  background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); padding: 14px 18px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s;
+}
+.alert-card:hover { border-color: var(--accent); }
+.alert-card.alert-high { border-left: 3px solid var(--red); }
+.alert-card.alert-low { border-left: 3px solid var(--yellow); }
+.alert-indicator {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+}
+.alert-high .alert-indicator { background: var(--red-bg); color: var(--red); }
+.alert-low .alert-indicator { background: var(--yellow-bg); color: var(--yellow); }
+.alert-name { font-size: 14px; font-weight: 500; flex: 1; }
+.alert-value { font-family: var(--font-mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.alert-ref { font-size: 12px; color: var(--text-muted); width: 120px; text-align: right; }
 .trend-alert-danger { border-left: 3px solid var(--red); }
 .trend-alert-warning { border-left: 3px solid var(--yellow); }
 .trend-alert-sudden { border-left: 3px solid var(--orange); }
@@ -431,6 +452,18 @@
   color: var(--text-muted);
   font-size: 10px;
 }
+.date-range-filter {
+  display: flex; gap: 4px; background: var(--bg-secondary); padding: 3px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  width: fit-content;
+}
+.range-btn {
+  padding: 6px 12px; border-radius: 6px; border: none; background: transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer;
+  font-weight: 600; transition: all 0.15s; font-family: inherit;
+}
+.range-btn.active { background: var(--accent-gradient); color: white; }
+.range-btn:hover:not(.active) { background: var(--bg-hover); }
 .db-insights-list { display: grid; gap: 10px; }
 .db-insight {
   width: 100%; padding: 14px 16px; border-radius: var(--radius-sm);
@@ -529,6 +562,7 @@
 .db-wearable-foot { display: flex; justify-content: space-between; gap: 6px; color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; }
 .db-wearable-foot em { font-style: normal; color: var(--text-secondary); }
 @media (pointer: coarse) {
+  .range-btn { min-height: 44px; }
   .db-biometric-remove {
     width: 44px;
     height: 44px;

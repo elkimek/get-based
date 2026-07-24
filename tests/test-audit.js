@@ -174,12 +174,35 @@ assert('dashboard CSS split loads before category views',
   indexSrc.indexOf('href="css/dashboard-core.css"') < indexSrc.indexOf('href="css/dashboard-widgets.css"') &&
   indexSrc.indexOf('href="css/dashboard-widgets.css"') < indexSrc.indexOf('href="css/dashboard-welcome.css"') &&
   indexSrc.indexOf('href="css/dashboard-welcome.css"') < indexSrc.indexOf('href="css/dashboard-data.css"') &&
-  indexSrc.indexOf('href="css/dashboard-data.css"') < indexSrc.indexOf('href="css/category-views.css"') &&
+  indexSrc.indexOf('href="css/dashboard-data.css"') < indexSrc.indexOf('data-category-views-stylesheet-anchor') &&
   swAuditSrc.indexOf("'/css/dashboard-core.css'") < swAuditSrc.indexOf("'/css/dashboard-widgets.css'") &&
   swAuditSrc.indexOf("'/css/dashboard-widgets.css'") < swAuditSrc.indexOf("'/css/dashboard-welcome.css'") &&
   swAuditSrc.indexOf("'/css/dashboard-welcome.css'") < swAuditSrc.indexOf("'/css/dashboard-data.css'") &&
   swAuditSrc.indexOf("'/css/dashboard-data.css'") < swAuditSrc.indexOf("'/css/category-views.css'"));
-assert('index loads category views CSS bundle', indexSrc.includes('href="css/category-views.css"'));
+const categoryPageRuntimeAuditSrc = read('js/category-page-runtime.js');
+const categoryViewsRouteAuditSrc = read('js/views.js');
+const dashboardCoreAuditSrc = read('css/dashboard-core.css');
+const dashboardDataAuditSrc = read('css/dashboard-data.css');
+assert('index defers category views CSS behind its ordered lazy-load anchor',
+  !indexSrc.includes('href="css/category-views.css"') &&
+  indexSrc.includes('data-category-views-stylesheet-anchor') &&
+  categoryPageRuntimeAuditSrc.includes("new URL('../css/category-views.css', import.meta.url)") &&
+  categoryPageRuntimeAuditSrc.includes('data-category-views-stylesheet-anchor'));
+assert('category views CSS lazy-load anchor preserves the original cascade position',
+  indexSrc.indexOf('href="css/dashboard-data.css"') <
+    indexSrc.indexOf('data-category-views-stylesheet-anchor') &&
+  indexSrc.indexOf('data-category-views-stylesheet-anchor') <
+    indexSrc.indexOf('href="css/context-profile.css"'));
+assert('category, compare, and correlations routes wait for category presentation',
+  categoryViewsRouteAuditSrc.includes("category: (category, data) => showCategoryPresentationRoute(") &&
+  categoryViewsRouteAuditSrc.includes("showCategoryPresentationRoute('compare'") &&
+  categoryViewsRouteAuditSrc.includes("'correlations',\n      'Correlations',"));
+assert('dashboard-owned category primitives remain eager',
+  dashboardCoreAuditSrc.includes('.category-header { margin-bottom: 24px; }') &&
+  dashboardDataAuditSrc.includes('.alerts-section') &&
+  dashboardDataAuditSrc.includes('.alert-card') &&
+  dashboardDataAuditSrc.includes('.date-range-filter') &&
+  dashboardDataAuditSrc.includes('.range-btn'));
 assert('SW APP_SHELL includes category views CSS bundle', swAuditSrc.includes("'/css/category-views.css'"));
 assert('index loads shared modal CSS bundle', indexSrc.includes('href="css/modal-shared.css"'));
 assert('SW APP_SHELL includes shared modal CSS bundle', swAuditSrc.includes("'/css/modal-shared.css'"));

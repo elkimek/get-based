@@ -22,6 +22,7 @@ import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionRemi
 import { renderCategoryGlyph } from './category-glyphs.js';
 import { renderChartCard, renderTableColgroup, renderScrollableTableShell, renderTableView, renderHeatmapView, renderFattyAcidsView, renderFattyAcidsCharts } from './category-view-renderers.js';
 import { showCategory, switchView } from './category-page-view.js';
+import { isCategoryViewsStylesheetLoaded, loadCategoryViewsStylesheet } from './category-page-runtime.js';
 import { configureCategoryCustomization, renameCategory, renameMarker, revertMarkerName, showEmojiPicker, changeCategoryIcon } from './category-customization.js';
 import { renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi } from './light-conditions-now.js';
 import { _openAllSessionsModal as openAllSessionsModal } from './light-sessions-view.js';
@@ -267,6 +268,36 @@ function showGenomeRoute() {
     });
 }
 
+/**
+ * @param {string} route
+ * @param {string} label
+ * @param {() => any} render
+ */
+function showCategoryPresentationRoute(route, label, render) {
+  if (isCategoryViewsStylesheetLoaded()) return render();
+
+  const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
+  if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
+
+  return loadCategoryViewsStylesheet()
+    .then(() => {
+      if (state.currentView !== route) return false;
+      render();
+      return true;
+    })
+    .catch(err => {
+      console.error(`Failed to load ${label} presentation`, err);
+      if (state.currentView === route && content) {
+        renderDeferredRouteStatus(
+          content,
+          `${label} could not be loaded. Try opening the page again.`,
+          { error: true },
+        );
+      }
+      return false;
+    });
+}
+
 const _navigate = createNavigate({
   routeHandlers: {
     dashboard: showDashboard,
@@ -276,10 +307,18 @@ const _navigate = createNavigate({
     body: showBodyLens,
     insight: showInsightLens,
     recommendations: showRecommendations,
-    correlations: showCorrelations,
-    compare: showCompare,
+    correlations: data => showCategoryPresentationRoute(
+      'correlations',
+      'Correlations',
+      () => showCorrelations(data),
+    ),
+    compare: data => showCategoryPresentationRoute('compare', 'Compare', () => showCompare(data)),
     light: showLightRoute,
-    category: showCategory,
+    category: (category, data) => showCategoryPresentationRoute(
+      category,
+      'Category',
+      () => showCategory(category, data),
+    ),
   },
   syncMobileBottomNav,
   destroyAllCharts,

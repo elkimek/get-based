@@ -1,5 +1,4 @@
 /* Category routes: headers, marker cards, tables, heatmaps, and compare views */
-.category-header { margin-bottom: 24px; }
 .category-header h2 {
   font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.3px;
   display: flex; align-items: center; gap: 10px;
@@ -61,28 +60,6 @@
 }
 .view-btn.active { background: var(--accent-gradient); color: white; }
 .view-btn:hover:not(.active) { background: var(--bg-hover); }
-
-.alerts-section { margin-bottom: 32px; }
-.alerts-title {
-  font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 12px;
-  display: flex; align-items: center; gap: 8px;
-}
-.alert-card {
-  background: var(--bg-card); border-radius: var(--radius-sm);
-  border: 1px solid var(--border); padding: 14px 18px; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s;
-}
-.alert-card:hover { border-color: var(--accent); }
-.alert-card.alert-high { border-left: 3px solid var(--red); }
-.alert-card.alert-low { border-left: 3px solid var(--yellow); }
-.alert-indicator {
-  font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
-}
-.alert-high .alert-indicator { background: var(--red-bg); color: var(--red); }
-.alert-low .alert-indicator { background: var(--yellow-bg); color: var(--yellow); }
-.alert-name { font-size: 14px; font-weight: 500; flex: 1; }
-.alert-value { font-family: var(--font-mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.alert-ref { font-size: 12px; color: var(--text-muted); width: 120px; text-align: right; }
 
 #view-content {
   width: 100%;
@@ -496,20 +473,6 @@
 .fa-card-value { font-family: var(--font-mono); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .fa-card-ref { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-/* Date range filter */
-.date-range-filter {
-  display: flex; gap: 4px; background: var(--bg-secondary); padding: 3px;
-  border-radius: var(--radius-sm); border: 1px solid var(--border);
-  width: fit-content;
-}
-.range-btn {
-  padding: 6px 12px; border-radius: 6px; border: none; background: transparent;
-  color: var(--text-secondary); font-size: 12px; cursor: pointer;
-  font-weight: 600; transition: all 0.15s; font-family: inherit;
-}
-.range-btn.active { background: var(--accent-gradient); color: white; }
-.range-btn:hover:not(.active) { background: var(--bg-hover); }
-
 /* Chart Layers Dropdown */
 .chart-layers-wrapper { position: relative; }
 .chart-layers-trigger { white-space: nowrap; }
@@ -788,5 +751,4 @@
 @media (pointer: coarse) {
   .compare-swap-btn { min-height: 44px; }
   .chart-layers-row { min-height: 44px; }
-  .range-btn { min-height: 44px; }
 }
