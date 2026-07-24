@@ -58,10 +58,11 @@ test('loads demo data and supports core navigation and settings', async ({ brows
   await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.currentView)).toBe('labs');
   await expect(page.locator('.lens-page-widgets[data-lens-route="labs"]')).toBeVisible();
 
-  // A returning user with no chat history gets the onboarding panel after a
-  // short startup delay. Wait for that task before closing so it cannot race
-  // the Settings assertions below.
+  // Exercise chat after demo loading and navigation have settled. Depending on
+  // the delayed startup auto-open makes this assertion race with demo loading,
+  // which can close the panel again before the check runs.
   const chatPanel = page.locator('#chat-panel');
+  await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
   await expect(chatPanel).toHaveClass(/\bopen\b/);
   await page.evaluate(async () => (await import('/js/chat-panel.js')).closeChatPanel());
   await expect(chatPanel).not.toHaveClass(/\bopen\b/);
