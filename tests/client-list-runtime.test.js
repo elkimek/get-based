@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import { configureClientListRuntimeDeps } from '../js/client-list-runtime.js';
@@ -35,6 +35,20 @@ async function loadClientList() {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  document.querySelectorAll(
+    '[data-client-list-stylesheet-anchor], link[data-client-list-stylesheet]',
+  ).forEach(element => element.remove());
+  const stylesheetAnchor = document.createElement('meta');
+  stylesheetAnchor.dataset.clientListStylesheetAnchor = '';
+  document.head.appendChild(stylesheetAnchor);
+  const insertBefore = document.head.insertBefore.bind(document.head);
+  vi.spyOn(document.head, 'insertBefore').mockImplementation((node, referenceNode) => {
+    const inserted = insertBefore(node, referenceNode);
+    if (node instanceof HTMLLinkElement && node.dataset.clientListStylesheet !== undefined) {
+      queueMicrotask(() => node.dispatchEvent(new Event('load')));
+    }
+    return inserted;
+  });
   document.body.innerHTML = `
     <div id="modal-overlay" class="show"></div>
     <div id="client-list-overlay"><div id="client-list-modal"></div></div>
@@ -57,6 +71,13 @@ beforeEach(() => {
   ];
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+  document.querySelectorAll(
+    '[data-client-list-stylesheet-anchor], link[data-client-list-stylesheet]',
+  ).forEach(element => element.remove());
+});
+
 describe('client list runtime behavior', () => {
   it('drives list filters, row menus, and edit form through delegated handlers', async () => {
     const clientList = await loadClientList();
@@ -68,7 +89,7 @@ describe('client list runtime behavior', () => {
     });
     const topLevelNames = () => [...document.querySelectorAll('.cl-list > .cl-row .cl-row-name')].map(el => el.textContent);
 
-    clientList.openClientList();
+    await clientList.openClientList();
     expect(document.getElementById('client-list-overlay').classList.contains('show')).toBe(true);
     expect(document.body.style.overflow).toBe('hidden');
     expect(topLevelNames()).toEqual(['Alice', 'Bob']);

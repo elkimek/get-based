@@ -65,7 +65,7 @@ test('Share Profile entry points open the sharing modal', async ({ page }) => {
       import('/js/client-list.js'),
     ]);
     await closeSettingsModal();
-    openClientList();
+    await openClientList();
     return {
       id: state.currentProfile,
       name: state.profiles.find(item => item.id === state.currentProfile)?.name || 'Active profile',

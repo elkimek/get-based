@@ -194,3 +194,10 @@ a shared-profile link. The loader owns only lazy loading and route detection;
 `profile-share.js` retains link validation, encryption, import, and UI
 responsibilities. `export.js` remains shell-owned without a Data I/O
 composition wrapper.
+
+Client List remains module-eager because shell, profile, and location actions
+use it, but `css/client-list.css` loads only when `openClientList()` is first
+called. Opening waits for the stylesheet, concurrent opens share one request,
+and a failed request is removed so the next open can retry. An HTML anchor
+preserves the stylesheet's cascade position, and the service-worker app shell
+retains it for offline first use.
