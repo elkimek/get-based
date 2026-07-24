@@ -3,6 +3,14 @@
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+import { showNotification } from './utils.js';
+
+const WEARABLES_STYLESHEET_URL = new URL('../css/wearables.css', import.meta.url).href;
+
+/** @type {Promise<HTMLLinkElement> | null} */
+let wearablesStylesheetPromise = null;
+let wearablesStylesheetLoaded = false;
+let useWearablesStylesheetRetryUrl = false;
 
 /** @type {{
  *   closeModal: (() => void) | null,
@@ -40,6 +48,83 @@ export function getWearablesModuleFunction(name) {
   return typeof wearableModuleBridge[name] === 'function'
     ? wearableModuleBridge[name]
     : null;
+}
+
+function existingWearablesStylesheet() {
+  if (typeof document === 'undefined') return null;
+  return /** @type {HTMLLinkElement | null} */ (
+    document.querySelector('link[data-wearables-stylesheet]')
+    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+      .find(link => {
+        try {
+          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/wearables.css';
+        } catch {
+          return false;
+        }
+      })
+    || null
+  );
+}
+
+function wearablesStylesheetUrl() {
+  if (!useWearablesStylesheetRetryUrl) return WEARABLES_STYLESHEET_URL;
+  const retryUrl = new URL(WEARABLES_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+export function isWearablesStylesheetLoaded() {
+  return wearablesStylesheetLoaded || !!existingWearablesStylesheet()?.sheet;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+export function loadWearablesStylesheet() {
+  const existing = existingWearablesStylesheet();
+  if (existing?.sheet) {
+    wearablesStylesheetLoaded = true;
+    return Promise.resolve(existing);
+  }
+  if (!wearablesStylesheetPromise) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Wearables stylesheet requires a document'));
+    }
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = wearablesStylesheetUrl();
+    link.dataset.wearablesStylesheet = '';
+    wearablesStylesheetPromise = new Promise((resolve, reject) => {
+      link.addEventListener('load', () => {
+        wearablesStylesheetLoaded = true;
+        resolve(link);
+      }, { once: true });
+      link.addEventListener('error', () => {
+        reject(new Error('Wearables stylesheet could not be loaded'));
+      }, { once: true });
+      if (!link.isConnected) {
+        const anchor = document.querySelector('[data-wearables-stylesheet-anchor]');
+        const parent = anchor?.parentNode || document.head;
+        parent.insertBefore(link, anchor || null);
+      }
+    }).catch(err => {
+      link.remove();
+      wearablesStylesheetPromise = null;
+      wearablesStylesheetLoaded = false;
+      useWearablesStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return wearablesStylesheetPromise;
+}
+
+export async function loadWearablesStylesheetForAction() {
+  try {
+    await loadWearablesStylesheet();
+    return true;
+  } catch (err) {
+    console.error('Failed to load Wearables presentation', err);
+    showNotification('Wearables could not be loaded. Try again.', 'error');
+    return false;
+  }
 }
 
 export function configureWearablesRuntime(deps = {}) {

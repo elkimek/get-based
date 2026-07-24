@@ -73,6 +73,10 @@ import {
   openImportBenchmarksModal,
   renderImportBenchmarksEntrySection,
 } from './settings-import-benchmark-controller.js';
+import {
+  isWearablesStylesheetLoaded,
+  loadWearablesStylesheetForAction,
+} from './wearables-runtime.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
@@ -349,7 +353,7 @@ async function handleSettingsClick(event) {
   const tabButton = closestWithin(event, '[data-settings-tab]', modal);
   if (tabButton) {
     event.preventDefault();
-    switchSettingsTab(tabButton.dataset.settingsTab || 'display');
+    await switchSettingsTab(tabButton.dataset.settingsTab || 'display');
     return;
   }
 
@@ -708,6 +712,10 @@ export function openSettingsModal(tab) {
   // Legacy v1.27 tab id 'integrations' — same redirect as switchSettingsTab.
   // Older deep-links / tour steps / external links may still pass it.
   if (tab === 'integrations') tab = 'wearables';
+  if (tab === 'wearables' && !isWearablesStylesheetLoaded()) {
+    return loadWearablesStylesheetForAction()
+      .then(loaded => loaded ? openSettingsModal(tab) : false);
+  }
   if (tab) _activeSettingsTab = tab;
 
   modal.className = 'modal settings-modal';
@@ -978,6 +986,10 @@ export function switchSettingsTab(tabId) {
   // v1.30.0 split them. Land on Wearables for the back-compat redirect — most
   // pre-existing deep-links pointed at the wearable adapter rows.
   if (tabId === 'integrations') tabId = 'wearables';
+  if (tabId === 'wearables' && !isWearablesStylesheetLoaded()) {
+    return loadWearablesStylesheetForAction()
+      .then(loaded => loaded ? switchSettingsTab(tabId) : false);
+  }
   _activeSettingsTab = tabId;
   const modal = document.getElementById('settings-modal');
   if (!modal) return;

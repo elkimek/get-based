@@ -5,7 +5,11 @@ import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.
 import { getDeviceSessions } from './light-devices-store.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getSessions } from './sun-sessions-store.js';
-import { getWearablesModuleFunction } from './wearables-runtime.js';
+import {
+  getWearablesModuleFunction,
+  isWearablesStylesheetLoaded,
+  loadWearablesStylesheetForAction,
+} from './wearables-runtime.js';
 
 const dashboardWidgetRuntimeDeps = {
   navigate: /** @type {null | ((route: string) => unknown)} */ (null),
@@ -102,7 +106,15 @@ export function syncDashboardWearableNow(actionEl) {
 export function openDashboardWearableDetail(id) {
   const openDetail = getWearablesModuleFunction('openWearableDetail');
   if (!openDetail) return false;
-  openDetail(id);
+  const ownsLazyStylesheet = typeof document !== 'undefined'
+    && !!document.querySelector('[data-wearables-stylesheet-anchor]');
+  if (!ownsLazyStylesheet || isWearablesStylesheetLoaded()) {
+    openDetail(id);
+  } else {
+    void loadWearablesStylesheetForAction().then(loaded => {
+      if (loaded) openDetail(id);
+    });
+  }
   return true;
 }
 
@@ -111,7 +123,17 @@ export function openDashboardWearableDetail(id) {
  * @param {Event} event
  */
 export function openDashboardManualLogForm(id, event) {
-  getWearablesModuleFunction('openManualLogForm')?.(id, event);
+  const openManualLogForm = getWearablesModuleFunction('openManualLogForm');
+  if (!openManualLogForm) return;
+  const ownsLazyStylesheet = typeof document !== 'undefined'
+    && !!document.querySelector('[data-wearables-stylesheet-anchor]');
+  if (!ownsLazyStylesheet || isWearablesStylesheetLoaded()) {
+    openManualLogForm(id, event);
+  } else {
+    void loadWearablesStylesheetForAction().then(loaded => {
+      if (loaded) openManualLogForm(id, event);
+    });
+  }
 }
 
 /** @param {string} id */

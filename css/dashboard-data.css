@@ -516,13 +516,68 @@
 }
 .wearable-card.db-biometric-manual-empty {
   background: var(--bg-hover);
-  border-color: var(--border);
-  border-style: solid;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
   margin: 0;
   opacity: 1;
   box-shadow: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.wearable-card.db-biometric-manual-empty:hover { opacity: 1; }
+.wearable-card.db-biometric-manual-empty:hover {
+  border-color: var(--accent);
+  opacity: 1;
+  transform: translateY(-1px);
+}
+.wearable-card.db-biometric-manual-empty:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.db-biometric-manual-empty .wearable-card-top,
+.db-biometric-manual-empty .wearable-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.db-biometric-manual-empty .wearable-card-bottom { min-height: 18px; }
+.db-biometric-manual-empty .wearable-metric-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.db-biometric-manual-empty .wearable-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px;
+  min-height: 24px;
+}
+.db-biometric-manual-empty .wearable-value {
+  color: var(--text-muted);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  line-height: 1;
+}
+.db-biometric-manual-empty .wearable-empty-cta {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 .db-biometric-remove {
   position: absolute;
   top: 8px;
