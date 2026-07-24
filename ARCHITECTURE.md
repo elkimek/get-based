@@ -199,6 +199,15 @@ Cross-theme shell geometry and Sunset Mode rules remain in a final eager
 inline block after that anchor, preserving their original cascade while keeping
 the deferred sheet scoped to the four optional themes.
 
+Chat shell, message, and composer presentation remains eager because the
+persistent launcher and closed panel are part of startup chrome.
+`chat-panel.js` loads `css/chat-onboarding.css` through a single-flight boundary
+before the panel first opens, so returning users do not fetch empty-state and
+guided-setup presentation until they enter Chat. Failed links are removed and
+cache-busted for retry, an HTML anchor preserves the sheet's original position
+between composer and responsive overrides, and the service worker keeps it
+precached for offline first use.
+
 Wearables presentation is loaded through the single-flight stylesheet boundary
 in `wearables-runtime.js` when a biometric detail, inline manual log, or the
 Wearables settings tab is opened. The dashboard's compact biometric tiles and

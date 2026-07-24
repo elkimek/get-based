@@ -12,8 +12,16 @@ import {
 import { renderSavedSummaries } from './chat-summaries.js';
 import { updateLensIndicator } from './lens.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
+import { showNotification } from './utils.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
+
+const CHAT_ONBOARDING_STYLESHEET_URL = new URL('../css/chat-onboarding.css', import.meta.url).href;
+
+/** @type {Promise<HTMLLinkElement> | null} */
+let chatOnboardingStylesheetPromise = null;
+let chatOnboardingStylesheetLoaded = false;
+let useChatOnboardingStylesheetRetryUrl = false;
 
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
@@ -53,16 +61,94 @@ export function isChatThreadInputBlocked() {
   return chatThreadInputBlocked;
 }
 
+function existingChatOnboardingStylesheet() {
+  if (typeof document === 'undefined') return null;
+  return /** @type {HTMLLinkElement | null} */ (
+    document.querySelector('link[data-chat-onboarding-stylesheet]')
+    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+      .find(link => {
+        try {
+          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/chat-onboarding.css';
+        } catch {
+          return false;
+        }
+      })
+    || null
+  );
+}
+
+function chatOnboardingStylesheetUrl() {
+  if (!useChatOnboardingStylesheetRetryUrl) return CHAT_ONBOARDING_STYLESHEET_URL;
+  const retryUrl = new URL(CHAT_ONBOARDING_STYLESHEET_URL);
+  retryUrl.searchParams.set('lazy-retry', '1');
+  return retryUrl.href;
+}
+
+export function isChatOnboardingStylesheetLoaded() {
+  return chatOnboardingStylesheetLoaded || !!existingChatOnboardingStylesheet()?.sheet;
+}
+
+/** @returns {Promise<HTMLLinkElement>} */
+export function loadChatOnboardingStylesheet() {
+  const existing = existingChatOnboardingStylesheet();
+  if (existing?.sheet) {
+    chatOnboardingStylesheetLoaded = true;
+    return Promise.resolve(existing);
+  }
+  if (!chatOnboardingStylesheetPromise) {
+    if (typeof document === 'undefined') {
+      return Promise.reject(new Error('Chat onboarding stylesheet requires a document'));
+    }
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = chatOnboardingStylesheetUrl();
+    link.dataset.chatOnboardingStylesheet = '';
+    chatOnboardingStylesheetPromise = new Promise(function beginChatOnboardingStylesheetLoad(resolve, reject) {
+      link.addEventListener('load', function markChatOnboardingStylesheetLoaded() {
+        chatOnboardingStylesheetLoaded = true;
+        resolve(link);
+      }, { once: true });
+      link.addEventListener('error', function rejectChatOnboardingStylesheetLoad() {
+        reject(new Error('Chat onboarding stylesheet could not be loaded'));
+      }, { once: true });
+      if (!link.isConnected) {
+        const anchor = document.querySelector('[data-chat-onboarding-stylesheet-anchor]');
+        const parent = anchor?.parentNode || document.head;
+        parent.insertBefore(link, anchor || null);
+      }
+    }).catch(function resetChatOnboardingStylesheetLoad(err) {
+      link.remove();
+      chatOnboardingStylesheetPromise = null;
+      chatOnboardingStylesheetLoaded = false;
+      useChatOnboardingStylesheetRetryUrl = true;
+      throw err;
+    });
+  }
+  return chatOnboardingStylesheetPromise;
+}
+
+export async function loadChatOnboardingStylesheetForAction() {
+  try {
+    await loadChatOnboardingStylesheet();
+    return true;
+  } catch (err) {
+    console.error('Failed to load Chat onboarding presentation', err);
+    showNotification('Chat could not be opened. Try again.', 'error');
+    return false;
+  }
+}
+
 // ═══════════════════════════════════════════════
 // PANEL OPEN/CLOSE
 // ═══════════════════════════════════════════════
 export function toggleChatPanel() {
   const panel = document.getElementById('chat-panel');
-  if (!panel) return;
+  if (!panel) return false;
   if (panel.classList.contains('open')) {
     closeChatPanel();
+    return false;
   } else {
-    openChatPanel();
+    return openChatPanel();
   }
 }
 
@@ -82,7 +168,8 @@ export function toggleChatFullscreen() {
 export async function openChatPanel(prefillMessage) {
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
-  if (!panel || !backdrop) return;
+  if (!panel || !backdrop) return false;
+  if (!(await loadChatOnboardingStylesheetForAction())) return false;
   panel.classList.add('open');
   // Restore the user's last fullscreen preference. Persisted in
   // localStorage so reopening chat keeps the mode they chose last.
@@ -127,6 +214,7 @@ export async function openChatPanel(prefillMessage) {
     if (prefillMessage) input.value = prefillMessage;
     input.focus();
   }
+  return true;
 }
 
 export function updateChatInputState() {
