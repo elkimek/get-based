@@ -195,6 +195,17 @@ a shared-profile link. The loader owns only lazy loading and route detection;
 responsibilities. `export.js` remains shell-owned without a Data I/O
 composition wrapper.
 
+Genome and DNA behavior stays module-eager because dashboard summaries,
+recommendations, startup catalog hydration, and import routing share it.
+`dna-runtime.js` owns the narrower presentation boundary: `css/genetics.css`
+loads when the Genome route or a DNA preview/manual-entry surface first opens.
+Every styled entry waits for the stylesheet, concurrent calls share one
+request, failed links are removed and cache-busted for retry, and route/action
+failures remain contained with an explanatory status. An HTML anchor preserves
+the original cascade position, while dashboard genome tiles remain in the
+eager `dashboard-data.css` bundle. The service-worker app shell retains the
+deferred stylesheet for offline first use.
+
 Client List remains module-eager because shell, profile, and location actions
 use it, but `css/client-list.css` loads only when `openClientList()` is first
 called. Opening waits for the stylesheet, concurrent opens share one request,

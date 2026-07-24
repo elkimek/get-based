@@ -12,6 +12,7 @@ import {
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
+import { isGeneticsStylesheetLoaded, loadGeneticsStylesheet } from './dna-runtime.js';
 import { isLightSunUILoaded, loadLightSunUI } from './light-sun-loader.js';
 import { state } from './state.js';
 import { createLensPageHandlers } from './lens-pages.js';
@@ -204,7 +205,7 @@ export async function _openAllSessionsModal() {
   return openAllSessionsModal();
 }
 
-function renderLightRouteStatus(content, message, { busy = false, error = false } = {}) {
+function renderDeferredRouteStatus(content, message, { busy = false, error = false } = {}) {
   const status = document.createElement('section');
   status.className = 'dashboard-widget-empty';
   status.textContent = message;
@@ -220,7 +221,7 @@ function showLightRoute(data) {
   if (isLightSunUILoaded()) return showLight(data);
 
   const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
-  if (content) renderLightRouteStatus(content, 'Loading Light & Sun…', { busy: true });
+  if (content) renderDeferredRouteStatus(content, 'Loading Light & Sun…', { busy: true });
 
   return loadLightSunUI()
     .then(() => {
@@ -231,9 +232,34 @@ function showLightRoute(data) {
     .catch(err => {
       console.error('Failed to load Light & Sun modules', err);
       if (state.currentView === 'light' && content) {
-        renderLightRouteStatus(
+        renderDeferredRouteStatus(
           content,
           'Light & Sun could not be loaded. Try opening the page again.',
+          { error: true },
+        );
+      }
+      return false;
+    });
+}
+
+function showGenomeRoute() {
+  if (isGeneticsStylesheetLoaded()) return showGenomeLens();
+
+  const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
+  if (content) renderDeferredRouteStatus(content, 'Loading Genome…', { busy: true });
+
+  return loadGeneticsStylesheet()
+    .then(() => {
+      if (state.currentView !== 'genome') return false;
+      showGenomeLens();
+      return true;
+    })
+    .catch(err => {
+      console.error('Failed to load Genome presentation', err);
+      if (state.currentView === 'genome' && content) {
+        renderDeferredRouteStatus(
+          content,
+          'Genome could not be loaded. Try opening the page again.',
           { error: true },
         );
       }
@@ -246,7 +272,7 @@ const _navigate = createNavigate({
     dashboard: showDashboard,
     labs: showLabs,
     biologyScores: showBiologyScoresLens,
-    genome: showGenomeLens,
+    genome: showGenomeRoute,
     body: showBodyLens,
     insight: showInsightLens,
     recommendations: showRecommendations,
