@@ -41,8 +41,7 @@ test('dark theme primary dashboard CTA hover text stays readable', async ({ page
 
   for (const theme of THEMES) {
     await page.evaluate(async (nextTheme) => {
-      if (nextTheme === 'dark') delete document.documentElement.dataset.theme;
-      else document.documentElement.dataset.theme = nextTheme;
+      await (await import('/js/theme.js')).setTheme(nextTheme);
       document.body.insertAdjacentHTML(
         'beforeend',
         `<button id="hover-contrast-cta" class="dashboard-action-btn dashboard-action-btn-primary" style="position:fixed;left:24px;top:24px;z-index:9999">Primary CTA</button>`

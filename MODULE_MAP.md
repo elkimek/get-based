@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 465 |
-| Internal import edges | 2082 |
+| Internal import edges | 2083 |
 | Dynamic internal edges | 61 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,7 +38,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 211 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
+| [`js/utils.js`](js/utils.js) | 212 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
 | [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
@@ -831,7 +831,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>theme</code> family — 2 modules</summary>
 
 - [`js/theme-runtime.js`](js/theme-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js)
-- [`js/theme.js`](js/theme.js) → [`js/theme-runtime.js`](js/theme-runtime.js) *(dynamic)*
+- [`js/theme.js`](js/theme.js) → [`js/theme-runtime.js`](js/theme-runtime.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
 </details>
 

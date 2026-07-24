@@ -81,7 +81,168 @@
   <link rel="stylesheet" href="css/chat-mobile.css">
   <link rel="stylesheet" href="css/redesign-shell.css">
   <link rel="stylesheet" href="css/chat-redesign.css">
-  <link rel="stylesheet" href="themes-extra.css">
+  <meta data-extra-themes-stylesheet-anchor>
+  <script>
+    (() => {
+      const selectedTheme = document.documentElement.dataset.theme;
+      if (!selectedTheme || selectedTheme === 'light') return;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'themes-extra.css';
+      link.dataset.extraThemesStylesheet = '';
+      link.addEventListener('error', () => {
+        link.remove();
+        delete document.documentElement.dataset.theme;
+        document.documentElement.style.colorScheme = 'dark';
+        try { localStorage.setItem('labcharts-theme', 'dark'); } catch {}
+      }, { once: true });
+      const anchor = document.querySelector('[data-extra-themes-stylesheet-anchor]');
+      anchor?.parentNode?.insertBefore(link, anchor);
+    })();
+  </script>
+  <style data-shared-theme-modes>
+    /* Keep shell geometry stable when any named theme is active. These rules
+       stay eager because light mode uses data-theme and sunset is cross-theme. */
+    [data-theme] .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    [data-theme] .layout,
+    [data-theme] .main {
+      position: static;
+      z-index: auto;
+    }
+    @media (min-width: 1025px) {
+      [data-theme] .sidebar {
+        position: fixed;
+        top: 64px;
+        left: 0;
+        height: calc(100vh - 64px);
+        z-index: 10;
+      }
+    }
+    @media (max-width: 1024px) {
+      [data-theme] .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100vh;
+        z-index: 360;
+      }
+    }
+
+    /* Cross-theme long-wavelength palette for red blue-blocking glasses. */
+    :root[data-sunset-mode="on"] {
+      color-scheme: dark;
+      --bg-primary: #0b0201;
+      --bg-secondary: #150503;
+      --bg-card: #21100a;
+      --bg-hover: #31170d;
+      --border: #663014;
+      --text-primary: #ffe8bb;
+      --text-secondary: #f7b46a;
+      --text-muted: #c9793f;
+      --accent: #ffb000;
+      --accent-light: #ffd166;
+      --on-accent: #180500;
+      --donate-accent: #ff9a26;
+      --on-donate-accent: #160400;
+      --accent-fill: rgba(255, 176, 0, 0.16);
+      --accent-gradient: linear-gradient(135deg, #ff5a2e 0%, #ffb000 58%, #ffd166 100%);
+      --green: #ffd166;
+      --green-bg: rgba(255, 209, 102, 0.13);
+      --red: #ff5a2e;
+      --red-bg: rgba(255, 90, 46, 0.16);
+      --yellow: #ffb000;
+      --yellow-bg: rgba(255, 176, 0, 0.14);
+      --orange: #ff7a1a;
+      --orange-bg: rgba(255, 122, 26, 0.15);
+      --purple: #ff9b54;
+      --purple-light: rgba(255, 155, 84, 0.18);
+      --cyan: rgba(255, 200, 87, 0.68);
+      --neutral-soft-bg: rgba(247, 180, 106, 0.10);
+      --alert-soft-bg: rgba(255, 90, 46, 0.12);
+      --ref-band: rgba(255, 176, 0, 0.08);
+      --ref-border: rgba(255, 176, 0, 0.30);
+      --chart-grid: rgba(102, 48, 20, 0.55);
+      --chart-tooltip-bg: rgba(21, 5, 3, 0.96);
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 18px 52px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 176, 0, 0.12);
+      --shadow-glow: 0 0 0 1px var(--accent), 0 0 22px rgba(255, 122, 26, 0.18);
+      --status-high: var(--red);
+      --status-low: var(--yellow);
+      --status-normal: var(--green);
+    }
+    :root[data-sunset-mode="on"] body {
+      background:
+        radial-gradient(75% 55% at 50% 0%, rgba(255, 90, 46, 0.16), transparent 62%),
+        linear-gradient(180deg, #150503 0%, #0b0201 72%);
+      color: var(--text-primary);
+    }
+    :root[data-sunset-mode="on"] body::before,
+    :root[data-sunset-mode="on"] .m-bg {
+      display: none !important;
+    }
+    :root[data-sunset-mode="on"] .chart-card,
+    :root[data-sunset-mode="on"] .dashboard-widget,
+    :root[data-sunset-mode="on"] .context-card,
+    :root[data-sunset-mode="on"] .focus-card,
+    :root[data-sunset-mode="on"] .lens-section,
+    :root[data-sunset-mode="on"] .trend-alert-card,
+    :root[data-sunset-mode="on"] .supp-timeline,
+    :root[data-sunset-mode="on"] .alert-card,
+    :root[data-sunset-mode="on"] .modal,
+    :root[data-sunset-mode="on"] .header,
+    :root[data-sunset-mode="on"] .sidebar,
+    :root[data-sunset-mode="on"] .m-tabbar,
+    :root[data-sunset-mode="on"] .m-stat-card,
+    :root[data-sunset-mode="on"] .m-section,
+    :root[data-sunset-mode="on"] .light-today-strip,
+    :root[data-sunset-mode="on"] .light-conditions-now-wrap,
+    :root[data-sunset-mode="on"] .light-channels-section,
+    :root[data-sunset-mode="on"] .light-channel-detail,
+    :root[data-sunset-mode="on"] .sun-session {
+      background-color: var(--bg-card);
+      border-color: color-mix(in srgb, var(--border) 82%, transparent);
+    }
+    :root[data-sunset-mode="on"] .header,
+    :root[data-sunset-mode="on"] .sidebar,
+    :root[data-sunset-mode="on"] .tweaks-panel,
+    :root[data-sunset-mode="on"] .chat-panel {
+      background: color-mix(in srgb, var(--bg-secondary) 94%, #000);
+    }
+    :root[data-sunset-mode="on"] .status-normal,
+    :root[data-sunset-mode="on"] .status-high,
+    :root[data-sunset-mode="on"] .status-low,
+    :root[data-sunset-mode="on"] .chart-card-status,
+    :root[data-sunset-mode="on"] .sun-chip,
+    :root[data-sunset-mode="on"] .light-pill,
+    :root[data-sunset-mode="on"] .ctx-tag {
+      text-shadow: none;
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel],
+    :root[data-sunset-mode="on"] .light-pill[data-channel],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel] {
+      --channel-accent: var(--orange);
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel="vitamin_d"],
+    :root[data-sunset-mode="on"] .light-pill[data-channel="vitamin_d"],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="vitamin_d"] {
+      --channel-accent: var(--yellow);
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel="circadian"],
+    :root[data-sunset-mode="on"] .light-pill[data-channel="circadian"],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="circadian"] {
+      --channel-accent: var(--accent);
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel="no_cv"],
+    :root[data-sunset-mode="on"] .light-pill[data-channel="no_cv"],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="no_cv"] {
+      --channel-accent: var(--green);
+    }
+  </style>
 </head>
 <body>
 

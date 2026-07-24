@@ -197,7 +197,7 @@ async function prepareScenario(page, theme, viewport) {
     settings.applyAccentOverride('');
     if (nextTheme === 'dark') localStorage.setItem('labcharts-theme', 'dark');
     else localStorage.setItem('labcharts-theme', nextTheme);
-    themeModule.setTheme(nextTheme);
+    await themeModule.setTheme(nextTheme);
   }, theme);
   await seedDemoData(page);
   await page.evaluate(async () => {
