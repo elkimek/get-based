@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 468 |
-| Internal import edges | 2097 |
-| Dynamic internal edges | 67 |
+| Modules | 469 |
+| Internal import edges | 2101 |
+| Dynamic internal edges | 68 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -38,8 +38,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 214 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 89 |
-| [`js/state.js`](js/state.js) | 147 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
+| [`js/utils.js`](js/utils.js) | 215 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 89 |
+| [`js/state.js`](js/state.js) | 148 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 56 | [`js/settings.js`](js/settings.js) | 25 |
@@ -266,14 +266,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>context</code> family — 12 modules</summary>
+<details><summary><code>context</code> family — 13 modules</summary>
 
 - [`js/context-card-dashboard-ai-actions.js`](js/context-card-dashboard-ai-actions.js) → [`js/utils.js`](js/utils.js)
 - [`js/context-card-dashboard-ai-runtime.js`](js/context-card-dashboard-ai-runtime.js) → no in-scope imports
 - [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) → [`js/backup.js`](js/backup.js), [`js/context-card-dashboard-ai-actions.js`](js/context-card-dashboard-ai-actions.js), [`js/context-card-dashboard-ai-runtime.js`](js/context-card-dashboard-ai-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-health-dots.js`](js/context-card-health-dots.js) → [`js/api.js`](js/api.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js) → [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) *(dynamic)*, [`js/food-contaminants.js`](js/food-contaminants.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js)
 - [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-summaries.js`](js/context-card-summaries.js) → [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)

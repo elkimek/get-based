@@ -121,7 +121,7 @@ try {
     calls.filter(call => call[0] !== 'timer').length === shellCallCount);
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const editorSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors.js'), 'utf8');
+  const editorSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors-impl.js'), 'utf8');
   const runtimeSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-runtime.js'), 'utf8');
   const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
   assert('lifestyle editor delegates browser globals through runtime adapter',

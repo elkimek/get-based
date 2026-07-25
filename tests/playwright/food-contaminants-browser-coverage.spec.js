@@ -113,6 +113,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
       contextCard.innerHTML = badge;
       fixture.append(contextCard);
       contextCard.querySelector('.diet-contaminants')?.click();
+      await lifestyle.loadLifestyleContextEditors();
       outcomes.dashboardBadgeClickBypassesParentCard =
         openedDietEditor === false
         && document.getElementById('modal-overlay')?.classList.contains('show') === true

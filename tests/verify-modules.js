@@ -54,6 +54,7 @@
     '/js/supplement-impact.js',
     '/js/context-card-lifestyle-runtime.js',
     '/js/context-card-lifestyle-editors.js',
+    '/js/context-card-lifestyle-editors-impl.js',
     '/js/wearables-detail-modal.js',
     '/js/wearables-detail-runtime.js',
     '/js/wearables-bp-detail-chart.js',
