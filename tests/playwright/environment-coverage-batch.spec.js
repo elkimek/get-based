@@ -474,10 +474,11 @@ test('Light audit history covers save expand update compare interpret and delete
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data, audits] = await Promise.all([
+    const [{ state }, data, audits, { installLightEnvActionDelegates }] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-env-audits.js'),
+      import('/js/light-env-actions.js'),
     ]);
 
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -622,6 +623,7 @@ test('Light audit history covers save expand update compare interpret and delete
       });
 
       const host = renderHost();
+      installLightEnvActionDelegates(audits.lightEnvAuditActionHandlers, host);
       outcomes.auditRenderUsesDelegatedActions =
         host.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit],[ontoggle]') === null
         && host.querySelector('[data-light-env-action="save-audit"]') !== null
