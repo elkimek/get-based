@@ -29,7 +29,9 @@ await import('../js/state.js');
 const { hasCardContent } = await import('../js/utils.js');
 const changelogModule = await import('../js/changelog.js');
 
-const changelogSrc = await fetchWithRetry('js/changelog.js');
+const changelogFacadeSrc = await fetchWithRetry('js/changelog.js');
+const changelogImplSrc = await fetchWithRetry('js/changelog-impl.js');
+const changelogSrc = `${changelogFacadeSrc}\n${changelogImplSrc}`;
 const utilsSrc = await fetchWithRetry('js/utils.js');
 const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
@@ -82,7 +84,22 @@ assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('ge
 assert('changelog.js has _semverGt helper for forceShow gate',
   /function\s+_semverGt\s*\(/.test(changelogSrc));
 assert('maybeShowChangelog scans all entries for forceShow (not just [0])',
-  /CHANGELOG\.some\s*\(\s*e\s*=>\s*e[\s\S]{0,80}forceShow[\s\S]{0,80}_semverGt\(e\.version,\s*seen\)/.test(changelogSrc));
+  /FORCE_SHOW_VERSIONS\.some\s*\(\s*version\s*=>\s*_semverGt\(version,\s*seen\)/.test(changelogFacadeSrc));
+const changelogVersionMatches = [...changelogImplSrc.matchAll(/version:\s*'([^']+)'/g)];
+const forceShowVersionsInArchive = changelogVersionMatches
+  .filter((match, index) => {
+    const nextIndex = changelogVersionMatches[index + 1]?.index ?? changelogImplSrc.length;
+    return /forceShow:\s*true/.test(changelogImplSrc.slice(match.index, nextIndex));
+  })
+  .map(match => match[1])
+  .sort();
+const forceShowGateBlock = changelogFacadeSrc.match(/const FORCE_SHOW_VERSIONS = \[([\s\S]*?)\];/)?.[1] || '';
+const forceShowVersionsInGate = [...forceShowGateBlock.matchAll(/'([^']+)'/g)]
+  .map(match => match[1])
+  .sort();
+assert('cold changelog gate exactly mirrors forceShow archive metadata',
+  JSON.stringify(forceShowVersionsInGate) === JSON.stringify(forceShowVersionsInArchive),
+  `${forceShowVersionsInGate.join(',')} !== ${forceShowVersionsInArchive.join(',')}`);
 // The v1.7.1 entry itself must carry forceShow — its body asks users to
 // re-export their encrypted backup. Lock this in so a future copy edit
 // doesn't silently drop the flag and break the call-to-action.
@@ -261,6 +278,7 @@ assert('No hasCardContent(lc)', !labCtxSrc.includes('hasCardContent(lc)'));
 console.log('9. Service Worker');
 
 assert('APP_SHELL includes /js/changelog.js', swSrc.includes('/js/changelog.js'));
+assert('APP_SHELL includes /js/changelog-impl.js', swSrc.includes('/js/changelog-impl.js'));
 assert('APP_SHELL includes /js/service-worker-update.js', swSrc.includes('/js/service-worker-update.js'));
 
 // ═══════════════════════════════════════

@@ -78,6 +78,7 @@
     "js/client-list.js",
     "js/client-list-impl.js",
     "js/changelog.js",
+    "js/changelog-impl.js",
     "js/commit-hash.js",
     "js/compare-correlations.js",
     "js/constants.js",

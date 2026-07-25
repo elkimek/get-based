@@ -253,6 +253,7 @@ const APP_SHELL = [
   '/js/tour-runtime.js',
   '/js/tour.js',
   '/js/changelog.js',
+  '/js/changelog-impl.js',
   '/js/client-list-runtime.js',
   '/js/client-list.js',
   '/js/client-list-impl.js',

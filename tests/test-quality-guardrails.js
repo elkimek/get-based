@@ -273,6 +273,8 @@ assert('checkJs pilot includes health domain modules',
   missingHealthDomainCheckJsModules.length === 0,
   missingHealthDomainCheckJsModules.length ? `missing: ${missingHealthDomainCheckJsModules.join(', ')}` : '');
 const uiWorkflowCheckJsModules = [
+  'js/changelog.js',
+  'js/changelog-impl.js',
   'js/context-card-dashboard-ai-actions.js',
   'js/context-card-dashboard-ai.js',
   'js/context-card-dashboard-ai-impl.js',

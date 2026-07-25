@@ -77,7 +77,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     suppSrc.includes('class="supp-bar-row" role="button" tabindex="0"'));
 
   // ─── 3. Modal close aria-labels ───
-  for (const f of ['/js/views.js', '/js/feedback.js', '/js/changelog.js', '/js/emf.js', '/js/settings.js']) {
+  for (const f of ['/js/views.js', '/js/feedback.js', '/js/changelog-impl.js', '/js/emf.js', '/js/settings.js']) {
     const src = read(f);
     const closeButtons = (src.match(/class="modal-close"/g) || []).length;
     const labelled = (src.match(/class="modal-close" aria-label="Close"/g) || []).length;
@@ -86,7 +86,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
       `${labelled}/${closeButtons} labelled`);
   }
   const feedbackSrc = read('/js/feedback.js');
-  const changelogSrc = read('/js/changelog.js');
+  const changelogSrc = read('/js/changelog-impl.js');
   assert('feedback modal uses shared overlay lifecycle helpers',
     feedbackSrc.includes("from './modal-lifecycle.js'")
       && feedbackSrc.includes('openModalOverlay(')

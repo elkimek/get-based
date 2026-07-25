@@ -35,6 +35,8 @@
     '/js/startup-oauth-callbacks.js',
     '/js/startup-maintenance.js',
     '/js/startup-ui.js',
+    '/js/changelog.js',
+    '/js/changelog-impl.js',
     '/js/emf-runtime.js',
     '/js/schema-environment.js',
     '/js/views.js',
