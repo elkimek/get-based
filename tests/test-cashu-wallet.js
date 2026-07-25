@@ -52,6 +52,7 @@ const discoveryModule = await import('../js/nostr-discovery.js');
 
 const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
+const appAIInteractionSrc = await fetchWithRetry('js/app-ai-interaction-modules.js');
 const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
@@ -309,8 +310,10 @@ assert('Bundle restores node URL through the Nostr module',
   exportImportSrc.includes('setSelectedNodeUrl(json.wallet.nodeUrl)'));
 assert('clearAllData destroys wallet DB through export runtime',
   exportSrc.includes('destroyWalletRuntimeDB') &&
-  exportRuntimeSrc.includes("import { destroyWalletDB } from './cashu-wallet.js'") &&
-  exportRuntimeSrc.includes('await destroyWalletDB()'));
+  !appAIInteractionSrc.includes("import './cashu-wallet.js'") &&
+  exportRuntimeSrc.includes("import('./cashu-wallet.js')") &&
+  exportRuntimeSrc.includes("import('./cashu-wallet.js?lazy-retry=1')") &&
+  exportRuntimeSrc.includes('await wallet.destroyWalletDB()'));
 assert('clearAllData removes wallet localStorage keys', exportSrc.includes("'labcharts-cashu-wallet-mint'") && exportSrc.includes("'labcharts-cashu-wallet-mnemonic'") && exportSrc.includes("'labcharts-routstr-node'"));
 
 // ═══════════════════════════════════════
