@@ -129,7 +129,7 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
       document.body.appendChild(detachedModal);
     }
 
-    cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
+    await cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
     const conditionInput = document.getElementById('condition-input');
     conditionInput.value = 'Alzheimer';
     conditionInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
@@ -232,7 +232,7 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
 });
 
 test('medical history editor handlers cover autocomplete save clear and close flows', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
+  await page.goto('/js/context-card-medical-history-editor.js', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ editorUrl }) => {
     const [{ state }, editor] = await Promise.all([

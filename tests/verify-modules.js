@@ -52,6 +52,8 @@
     '/js/context-card-dashboard-ai-actions.js',
     '/js/dashboard-recommendation-widget.js',
     '/js/supplement-impact.js',
+    '/js/context-card-medical-history-editor.js',
+    '/js/context-card-medical-history-editor-impl.js',
     '/js/context-card-lifestyle-runtime.js',
     '/js/context-card-lifestyle-editors.js',
     '/js/context-card-lifestyle-editors-impl.js',

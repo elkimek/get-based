@@ -9,9 +9,9 @@
   },
   "reference": {
     "requests": 412,
-    "transferBytes": 1683539,
-    "decodedBytes": 4926305
+    "transferBytes": 1680032,
+    "decodedBytes": 4910131
   },
-  "referenceCommit": "cd6d4d63",
+  "referenceCommit": "e99517b1",
   "measuredAt": "2026-07-25"
 }
