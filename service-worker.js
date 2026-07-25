@@ -200,6 +200,7 @@ const APP_SHELL = [
   '/js/pdf-import-marker-normalization.js',
   '/js/pdf-import-persistence.js',
   '/js/export.js',
+  '/js/export-loader.js',
   '/js/export-import.js',
   '/js/export-runtime.js',
   '/js/export-report.js',

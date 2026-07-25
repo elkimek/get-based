@@ -118,6 +118,14 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/export-report-builder.js'
   ))).toBe(false);
+  const deferredExportFacadeModules = new Set([
+    '/js/export.js',
+    '/js/export-report.js',
+    '/js/export-report-html.js',
+  ]);
+  expect(entries.some(entry => (
+    deferredExportFacadeModules.has(new URL(entry.name).pathname)
+  ))).toBe(false);
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/context-card-lifestyle-editors-impl.js'
   ))).toBe(false);

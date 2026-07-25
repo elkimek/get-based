@@ -2,7 +2,7 @@
 // nav-runtime.js - Browser runtime hooks for sidebar navigation.
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
-import { openReportBuilder } from './export.js';
+import { openReportBuilder } from './export-loader.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
 const navRuntimeDeps = {

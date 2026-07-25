@@ -16,7 +16,7 @@ import {
   getMobileDashboardCounts,
 } from './mobile-dashboard.js';
 import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js';
-import { loadDemoData } from './export.js';
+import { loadDemoData } from './export-loader.js';
 import { resumeActiveTickerIfNeeded } from './sun-active-session.js';
 import {
   getRecommendationModuleFunction,
