@@ -13,7 +13,7 @@
 import { upsertDaily, upsertDailyBatch, countSource, getDaily, deleteDaily, getMeta, setMeta } from './wearables-store.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
-import { isoDay } from './wearables-oura.js';
+import { isoDay } from './wearable-adapters.js';
 
 // Merge helper — read the existing manual row for `date` (if any), shallow-merge
 // the new patch on top, write back. Needed because IDB `put` replaces the whole

@@ -279,6 +279,7 @@
     "js/wearables-apple-health.js",
     "js/wearables-auth-runtime.js",
     "js/wearables-connect-runtime.js",
+    "js/wearables-connect-loader.js",
     "js/wearables-connect.js",
     "js/wearables-bp-detail-chart.js",
     "js/wearables-detail-runtime.js",

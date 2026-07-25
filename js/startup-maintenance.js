@@ -2,9 +2,9 @@
 // startup-maintenance.js - startup service boot and non-blocking maintenance
 
 import { state } from './state.js';
-import { initWearableScheduler, loadWearableRuntimeConfig, syncStaleWearablesNow } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 import { hydrateDevicesFromPresets } from './light-devices.js';
+import { loadWearablesConnectModule } from './wearables-connect-loader.js';
 import {
   getStartupSunEngineVersionRuntime,
   hasSunSessionRehydrateRuntime,
@@ -12,21 +12,26 @@ import {
   rehydrateStaleSunSessionsRuntime,
 } from './startup-maintenance-runtime.js';
 
-export function initializeStartupServices() {
-  // Self-host OAuth client_id overrides - fire-and-forget. Resolves before
-  // any user can click Connect (UI renders well after this microtask), so
-  // beginConnectOAuth() picks up the overridden client_id when present.
-  loadWearableRuntimeConfig();
-
-  // Scheduled wearable sync (only fires when a source is connected).
-  initWearableScheduler();
-}
-
 export function runPostProfileStartupMaintenance() {
-  syncStaleWearablesNow().catch(() => {});
+  startConnectedWearableServices().catch(() => {});
   scheduleSunSessionRehydrate();
   hydrateUserLightDevicesFromPresets();
   migrateLegacyBiometrics();
+}
+
+function hasConnectedOAuthWearable() {
+  return Object.values(state.importedData?.wearableConnections || {})
+    .some(connection => Boolean(connection?.accessToken));
+}
+
+export async function startConnectedWearableServices() {
+  if (!hasConnectedOAuthWearable()) return false;
+  const connect = await loadWearablesConnectModule();
+  // Start the runtime-config request before the scheduler. Its first sync
+  // waits for this bounded request, preserving self-host client overrides.
+  connect.loadWearableRuntimeConfig();
+  connect.initWearableScheduler();
+  return true;
 }
 
 function scheduleSunSessionRehydrate() {
@@ -74,9 +79,22 @@ function migrateLegacyBiometrics() {
       // (shouldWriteL2) prevents redundant writes when nothing has shifted.
       if (await hasManualData(state.currentProfile)) {
         const { syncWearableSummary } = await import('./wearables-summary.js');
-        const { listConnectedSources } = await import('./wearables-connect.js');
-        await syncWearableSummary(state.currentProfile, listConnectedSources());
+        await syncWearableSummary(state.currentProfile, listStoredConnectedSources());
       }
     })
     .catch(() => { /* non-fatal; Safari can refuse IDB in some contexts */ });
+}
+
+function listStoredConnectedSources() {
+  const out = {};
+  for (const [sourceId, connection] of Object.entries(
+    state.importedData?.wearableConnections || {},
+  )) {
+    if (!connection?.connectedAt) continue;
+    out[sourceId] = {
+      connectedSince: connection.connectedAt,
+      lastSyncAt: connection.lastSyncAt || 0,
+    };
+  }
+  return out;
 }

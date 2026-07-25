@@ -205,17 +205,10 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     '**/js/wearables-connect.js*': `
       export function loadWearableRuntimeConfig() {
         window.__startupMaintenanceCalls.push('loadWearableRuntimeConfig');
+        return Promise.resolve();
       }
       export function initWearableScheduler() {
         window.__startupMaintenanceCalls.push('initWearableScheduler');
-      }
-      export function syncStaleWearablesNow() {
-        window.__startupMaintenanceCalls.push('syncStaleWearablesNow');
-        return Promise.reject(new Error('offline'));
-      }
-      export function listConnectedSources() {
-        window.__startupMaintenanceCalls.push('listConnectedSources');
-        return ['manual', 'oura'];
       }
     `,
     '**/js/wearables-manual.js*': `
@@ -247,7 +240,20 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     window.__startupMaintenanceCalls = [];
     window.__startupMaintenanceState = {
       currentProfile: 'startup-maintenance-profile',
-      importedData: { biometrics: { weight: 70 } },
+      importedData: {
+        biometrics: { weight: 70 },
+        wearableConnections: {
+          manual: {
+            connectedAt: '2026-07-01T00:00:00.000Z',
+            lastSyncAt: 11,
+          },
+          oura: {
+            accessToken: 'coverage-token',
+            connectedAt: '2026-07-02T00:00:00.000Z',
+            lastSyncAt: 22,
+          },
+        },
+      },
     };
     const startupRuntime = await import('/js/startup-maintenance-runtime.js');
     const previousStartupSunDeps = startupRuntime.configureStartupMaintenanceSunDeps({
@@ -276,17 +282,17 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
 
     try {
       const maintenance = await import(maintenanceUrl);
-      maintenance.initializeStartupServices();
       maintenance.runPostProfileStartupMaintenance();
       const summarySynced = await waitUntil(() => window.__startupMaintenanceCalls
-        .some(call => Array.isArray(call) && call[0] === 'syncWearableSummary'));
+        .some(call => Array.isArray(call) && call[0] === 'syncWearableSummary')
+        && window.__startupMaintenanceCalls.includes('initWearableScheduler'));
 
       return {
         startupServicesInitializeWearableConfigAndScheduler:
           window.__startupMaintenanceCalls.includes('loadWearableRuntimeConfig')
           && window.__startupMaintenanceCalls.includes('initWearableScheduler'),
-        staleWearableSyncIsStartedAndIgnoredOnFailure:
-          window.__startupMaintenanceCalls.includes('syncStaleWearablesNow'),
+        connectedWearableSchedulerStartsAfterProfileLoad:
+          window.__startupMaintenanceCalls.includes('initWearableScheduler'),
         sunSessionRehydrateIsDeferredAndLogged:
           window.__startupMaintenanceCalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 1500)
           && window.__startupMaintenanceCalls.includes('rehydrateStaleSessions')
@@ -303,7 +309,16 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
           && window.__startupMaintenanceCalls.some(call => Array.isArray(call)
             && call[0] === 'syncWearableSummary'
             && call[1] === 'startup-maintenance-profile'
-            && JSON.stringify(call[2]) === JSON.stringify(['manual', 'oura'])),
+            && JSON.stringify(call[2]) === JSON.stringify({
+              manual: {
+                connectedSince: '2026-07-01T00:00:00.000Z',
+                lastSyncAt: 11,
+              },
+              oura: {
+                connectedSince: '2026-07-02T00:00:00.000Z',
+                lastSyncAt: 22,
+              },
+            })),
       };
     } finally {
       window.setTimeout = originalSetTimeout;
