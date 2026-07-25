@@ -5,7 +5,15 @@ function moduleUrl(path) {
 }
 
 test('backup browser coverage exercises export import auto backup and folder states', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
+  let backupCycleRequests = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/js/backup-cycle.js') {
+      backupCycleRequests += 1;
+    }
+  });
+
+  await page.goto('/app', { waitUntil: 'networkidle' });
+  expect(backupCycleRequests).toBe(0);
 
   const results = await page.evaluate(async ({ backupUrl }) => {
     const [backup, blobStorage] = await Promise.all([
@@ -306,6 +314,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+  expect(backupCycleRequests).toBe(1);
 });
 
 test('backup browser coverage exercises IDB errors and folder reauthorization', async ({ page }) => {

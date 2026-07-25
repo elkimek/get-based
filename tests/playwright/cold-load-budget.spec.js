@@ -169,6 +169,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/light-today-ai.js'
   ))).toBe(false);
+  expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/js/backup-cycle.js'
+  ))).toBe(false);
   const deferredLightEnvironmentUiModules = new Set([
     '/js/light-env.js',
     '/js/light-env-actions.js',

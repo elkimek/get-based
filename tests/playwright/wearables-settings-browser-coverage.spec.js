@@ -94,9 +94,10 @@ test('wearables settings browser coverage exercises import and connection action
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
 
       actions.handleWearableConnect('apple_health');
-      await delay(20);
-      check('connect handler reports non-oauth adapter error',
+      const connectFailureShown = await waitFor(() =>
         document.body.textContent.includes('Connect failed: Adapter apple_health is not OAuth2'));
+      check('connect handler reports non-oauth adapter error',
+        connectFailureShown);
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <HealthData>
