@@ -17,14 +17,13 @@ export function createLensKnowledgeBaseUi(deps) {
     getLensKey,
     saveLensKey,
     removeLens,
-    hasLens,
     clearLensCache,
     getLensStatus,
     updateLensStatus,
     updateLensIndicator,
     isValidLensUrl,
     testLensConnection,
-    hasAIProvider,
+    recordLocalLensStats,
   } = deps;
 
   function renderCustomLensSection() {
@@ -394,12 +393,6 @@ export function createLensKnowledgeBaseUi(deps) {
     return mod.openLocalLens();
   }
 
-  // Module-level cache of the most recent in-browser lens stats. Used by
-  // getLensSummary() so the dashboard's Knowledge Base row can render
-  // synchronously without re-awaiting the worker on every paint. Refreshed
-  // every time _loadLocalLensStats() runs successfully.
-  let _lastLocalStats = null;
-
   async function _loadLocalLensStats() {
     const stats = document.getElementById('lens-local-stats');
     const list = document.getElementById('lens-local-doc-list');
@@ -408,7 +401,7 @@ export function createLensKnowledgeBaseUi(deps) {
     try {
       const lens = await _getLocalLens();
       const s = await lens.getStats();
-      _lastLocalStats = s;
+      recordLocalLensStats(s);
       // Notify dashboard listeners that summary numbers may have changed.
       updateLensStatus({});
       if (!stats) return;
@@ -430,45 +423,6 @@ export function createLensKnowledgeBaseUi(deps) {
     } catch (e) {
       if (stats) stats.innerHTML = `<span style="color:#fbbf24">Failed to load stats: ${escapeHTML(e?.message || String(e))}</span>`;
     }
-  }
-
-  // Synchronous summary used by the dashboard Knowledge Base row.
-  // Returns enough to render a one-line status without awaiting the
-  // worker. Numbers are best-effort — if no successful stats fetch has
-  // happened yet, docCount/chunkCount come back as null and the caller
-  // can render a softer "loading…" affordance.
-  function getLensSummary() {
-    const cfg = getLensConfig();
-    const configured = hasLens();
-    const aiAvailable = hasAIProvider();
-    const summary = {
-      configured,
-      backend: cfg.backend,
-      enabled: !!cfg.enabled,
-      multiQueryOn: configured && aiAvailable && cfg.multiQuery !== false,
-      aiAvailable,
-      displayName: '',
-      docCount: null,
-      chunkCount: null,
-    };
-    if (cfg.backend === 'in-browser') {
-      summary.displayName = (cfg.name || '').trim() || 'My Library';
-      // Only surface doc/chunk counts when there's actually a configured
-      // library — otherwise stale cache from a prior session would leak
-      // numbers into the dashboard's empty-state stub.
-      if (configured && _lastLocalStats) {
-        summary.docCount = Array.isArray(_lastLocalStats.documents) ? _lastLocalStats.documents.length : null;
-        summary.chunkCount = typeof _lastLocalStats.total_chunks === 'number' ? _lastLocalStats.total_chunks : null;
-      }
-    } else {
-      // external-server: take the user-named label, or fall back to the URL host
-      let label = (cfg.name || '').trim();
-      if (!label && cfg.url) {
-        try { label = new URL(cfg.url).host; } catch { label = cfg.url; }
-      }
-      summary.displayName = label || 'Knowledge Base';
-    }
-    return summary;
   }
 
   function _renderLocalDocList(docs) {
@@ -743,7 +697,6 @@ export function createLensKnowledgeBaseUi(deps) {
 
   return {
     closeKnowledgeBaseModal,
-    getLensSummary,
     handleClearLensCache,
     handleLensBackendChange,
     handleLibraryActivate,

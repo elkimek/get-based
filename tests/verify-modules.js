@@ -316,7 +316,7 @@
     'createLineChart','getMarkerDescription'
   ];
 
-  // lens.js (28, module-only)
+  // lens.js (31, module-only)
   const lensExports = [
     'getLensConfig','saveLensConfig','getLensKey','saveLensKey',
     'hasLens','queryLens','queryLensMulti','buildLensSnippet','testLensConnection','clearLensCache',
@@ -327,6 +327,7 @@
     'handleLensBackendChange',
     'handleLocalLensDeleteDoc','handleLocalLensClear',
     'handleLibraryActivate','handleLibraryNew','handleLibraryRename','handleLibraryDelete',
+    'getLensSummary','loadLensKnowledgeBaseUi','isLensKnowledgeBaseUiLoaded',
   ];
 
   // light-tools.js (17 selected exports, module-only)

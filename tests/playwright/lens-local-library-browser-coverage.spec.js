@@ -304,7 +304,7 @@ test('knowledge base modal covers local document ingest and library controls', a
       localStorage.setItem('labcharts-lens-local-count', '3');
 
       lens = await import(lensUrl);
-      lens.openKnowledgeBaseModal();
+      await lens.openKnowledgeBaseModal();
       const initialRendered = await waitFor(() => document.getElementById('lens-local-doc-list')?.textContent.includes('alpha "quote".md')
         && document.getElementById('lens-local-stats')?.textContent.includes('3 excerpts from 2 documents')
         && document.getElementById('lens-library-select')?.textContent.includes('Alpha Papers'));

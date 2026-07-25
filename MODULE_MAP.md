@@ -11,7 +11,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | --- | ---: |
 | Modules | 474 |
 | Internal import edges | 2121 |
-| Dynamic internal edges | 74 |
+| Dynamic internal edges | 75 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -438,7 +438,7 @@ Native browser modules shipped with the static application.
 - [`js/lens-page-shell.js`](js/lens-page-shell.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-pages.js`](js/lens-pages.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores.js`](js/biology-scores.js), [`js/context-cards.js`](js/context-cards.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/dna.js`](js/dna.js), [`js/profile-context.js`](js/profile-context.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/supplements.js`](js/supplements.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-url.js`](js/lens-url.js) → no in-scope imports
-- [`js/lens.js`](js/lens.js) → [`js/api.js`](js/api.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/lens-cache.js`](js/lens-cache.js), [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js), [`js/lens-local.js`](js/lens-local.js) *(dynamic)*, [`js/lens-url.js`](js/lens-url.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/lens.js`](js/lens.js) → [`js/api.js`](js/api.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/lens-cache.js`](js/lens-cache.js), [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) *(dynamic)*, [`js/lens-local.js`](js/lens-local.js) *(dynamic)*, [`js/lens-url.js`](js/lens-url.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
