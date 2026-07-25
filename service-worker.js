@@ -248,6 +248,7 @@ const APP_SHELL = [
   '/js/settings-runtime.js',
   '/js/settings-runtime-bridge.js',
   '/js/settings-sync-panel.js',
+  '/js/settings-sync-panel-impl.js',
   '/js/settings-agent-access-panel.js',
   '/js/feedback.js',
   '/js/tour-runtime.js',

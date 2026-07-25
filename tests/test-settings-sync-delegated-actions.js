@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const src = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
+const src = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
 const agentSrc = fs.readFileSync(path.join(root, 'js/settings-agent-access-panel.js'), 'utf8');
 
 let passed = 0;
@@ -28,9 +28,9 @@ console.log('=== Settings Sync Delegated Actions ===');
 const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
 const directAssignmentRe = /\.(?:onclick|onchange|oninput)\s*=/;
 
-assert('settings-sync-panel.js has no inline event attributes',
+assert('settings-sync-panel implementation has no inline event attributes',
   !inlineHandlerRe.test(src));
-assert('settings-sync-panel.js avoids direct event property assignment',
+assert('settings-sync-panel implementation avoids direct event property assignment',
   !directAssignmentRe.test(src));
 assert('Settings sync delegates click events',
   /document\.addEventListener\('click', handleSettingsSyncClick\)/.test(src));
@@ -120,10 +120,10 @@ assert('Agent Access setup command carries token, context key, and selected clie
 assert('Delegated wearable-series select writes split Agent Access scalar and pushes context only after persisted save',
   /action === 'set-agent-wearable-series-days'[\s\S]*setAgentAccessWearableSeriesDays\(days\)[\s\S]*const saved = await saveImportedData\(\{ reason: 'agent-access-series' \}\)[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while saving Agent Access wearable-series preference'\)[\s\S]*pushContextToGateway/.test(src)
     && !/set-agent-wearable-series-days'[\s\S]*appWindow\.setAgentWearableSeriesDays/.test(src));
-assert('Existing window exports remain for external callers',
-  src.includes('Object.assign(window')
-    && src.includes('toggleSync,')
-    && src.includes('toggleMessenger,'));
+assert('Legacy Settings sync actions stay module-only',
+  !src.includes('Object.assign(window')
+    && !src.includes('window.toggleSync')
+    && !src.includes('window.toggleMessenger'));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

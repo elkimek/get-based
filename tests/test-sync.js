@@ -126,7 +126,10 @@ await import('../js/settings.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
-  const settingsSyncPanelSrc = await fetchWithRetry('js/settings-sync-panel.js');
+  const settingsSyncPanelSrc = [
+    await fetchWithRetry('js/settings-sync-panel.js'),
+    await fetchWithRetry('js/settings-sync-panel-impl.js'),
+  ].join('\n');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupOrchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
@@ -433,6 +436,8 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
   assert('service worker precaches settings-sync-panel.js',
     serviceWorkerSrc.includes("'/js/settings-sync-panel.js'"));
+  assert('service worker precaches settings-sync-panel-impl.js',
+    serviceWorkerSrc.includes("'/js/settings-sync-panel-impl.js'"));
   assert('pushContextToGateway treats gateway HTTP errors as failures with relay error detail',
     /const\s+res\s*=\s*await\s+fetch\(`\$\{relay\}\/api\/context`/.test(syncMessengerSrc)
       && syncMessengerSrc.includes('await res.text()')

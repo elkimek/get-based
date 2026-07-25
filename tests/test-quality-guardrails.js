@@ -175,6 +175,8 @@ const highValueCheckJsModules = [
   'js/recommendations.js',
   'js/settings.js',
   'js/settings-runtime.js',
+  'js/settings-sync-panel.js',
+  'js/settings-sync-panel-impl.js',
   'js/sun.js',
   'js/sun-uvdata-config.js',
   'js/wearables.js',

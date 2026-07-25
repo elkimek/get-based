@@ -1617,7 +1617,7 @@ if (state?.importedData?.wearableSummary) {
 }
 
 // Settings UI is now a select, not a checkbox.
-const settingsSyncPanelV29 = await fetch('/js/settings-sync-panel.js').then(r => r.text());
+const settingsSyncPanelV29 = await fetch('/js/settings-sync-panel-impl.js').then(r => r.text());
 assert('Settings → Agent Access uses a <select> for the series window',
   /id="agent-wearable-series-select"/.test(settingsSyncPanelV29));
 assert('Settings select dispatches to synced Agent Access scalar through delegated action',
@@ -1784,7 +1784,7 @@ assert('Strip-header role="button" carries an aria-label distinct from the live 
 // all gone" check below.)
 
 // P2 copy: Settings → Agent Access label includes "and context".
-const settingsSyncPanelSrcP2 = await fetch('/js/settings-sync-panel.js').then(r => r.text());
+const settingsSyncPanelSrcP2 = await fetch('/js/settings-sync-panel-impl.js').then(r => r.text());
 assert('Settings Agent Access description says "labs and context" (covers wearables + cards too)',
   /Let AI agents query your labs and context/.test(settingsSyncPanelSrcP2));
 
@@ -1971,7 +1971,7 @@ assert('Touch media block extends to .wearable-reorder-arrow (≥44px)',
   /@media\s*\(pointer:\s*coarse\)[\s\S]{0,5000}\.wearable-reorder-arrow[\s\S]{0,200}min-height:\s*44px/.test(cssSrc));
 
 // In-app token-cost copy aligned with measured reality (~400 not ~1500).
-const settingsSyncPanelSrc = await fetch('/js/settings-sync-panel.js').then(r => r.text());
+const settingsSyncPanelSrc = await fetch('/js/settings-sync-panel-impl.js').then(r => r.text());
 // v1.29.0: tri-state toggle (off / 7 / 30 / 90) — copy now cites all three
 // window sizes with their respective costs.
 assert('Agent series tri-state copy cites the 7/30/90 token costs',

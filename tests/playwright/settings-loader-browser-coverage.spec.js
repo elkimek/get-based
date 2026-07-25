@@ -213,10 +213,12 @@ test('Settings lazy entry points contain load failures', async ({ page }) => {
 test('returning-user startup defers Settings until a shell action opens it', async ({ page }) => {
   let settingsRequests = 0;
   let settingsStylesheetRequests = 0;
+  let settingsSyncPanelImplementationRequests = 0;
   page.on('request', request => {
     const pathname = new URL(request.url()).pathname;
     if (pathname === '/js/settings.js') settingsRequests += 1;
     if (pathname === '/css/settings.css') settingsStylesheetRequests += 1;
+    if (pathname === '/js/settings-sync-panel-impl.js') settingsSyncPanelImplementationRequests += 1;
   });
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-accent-override', 'blue');
@@ -232,6 +234,7 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   await page.goto('/app', { waitUntil: 'networkidle' });
   expect(settingsRequests).toBe(0);
   expect(settingsStylesheetRequests).toBe(0);
+  expect(settingsSyncPanelImplementationRequests).toBe(0);
   await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(0);
   await expect(page.locator('link[data-data-protection-stylesheet]')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => (
@@ -242,10 +245,14 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   await expect(page.locator('[data-settings-tab="display"]')).toHaveAttribute('aria-selected', 'true');
   expect(settingsRequests).toBe(1);
   expect(settingsStylesheetRequests).toBe(1);
+  expect(settingsSyncPanelImplementationRequests).toBe(1);
   await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(1);
   await expect(page.locator('link[data-data-protection-stylesheet]')).toHaveCount(1);
   await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
   await expect.poll(() => page.evaluate(async () => (
     (await import('/js/settings-loader.js')).isSettingsModuleLoaded()
+  ))).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (
+    (await import('/js/settings-sync-panel.js')).isSettingsSyncPanelLoaded()
   ))).toBe(true);
 });

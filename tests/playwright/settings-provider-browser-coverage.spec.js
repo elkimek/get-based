@@ -376,6 +376,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
 
   const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl, syncRuntimeUrl, syncMessengerUrl }) => {
     const syncPanel = await import(syncPanelUrl);
+    await syncPanel.loadSettingsSyncPanelModule();
     const syncState = await import(syncStateUrl);
     const syncRuntime = await import(syncRuntimeUrl);
     const syncMessenger = await import(syncMessengerUrl);
