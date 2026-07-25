@@ -150,6 +150,7 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
     });
 
     const syncPanel = await import(syncPanelUrl);
+    await syncPanel.loadSettingsSyncPanelModule();
     const syncSection = document.getElementById('sync-section');
     if (!(syncSection instanceof HTMLElement)) {
       throw new Error('sync-section fixture missing');

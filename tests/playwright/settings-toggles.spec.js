@@ -55,10 +55,10 @@ test('Settings data sync toggle opens and cancels setup modal', async ({ page })
   await preparePage(page);
 
   await page.evaluate(async () => {
-    const settings = await import('/js/settings.js');
+    const settingsLoader = await import('/js/settings-loader.js');
     const syncState = await import('/js/sync-settings-state.js');
     syncState.setSyncEnabled(false);
-    settings.openSettingsModal('data');
+    await settingsLoader.openSettingsModal('data');
   });
 
   await page.locator('#sync-section [data-sync-action="toggle-sync"] + .chat-toggle-slider').click();

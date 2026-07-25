@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 472 |
-| Internal import edges | 2117 |
-| Dynamic internal edges | 71 |
+| Modules | 473 |
+| Internal import edges | 2121 |
+| Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -38,7 +38,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 218 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 89 |
+| [`js/utils.js`](js/utils.js) | 219 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 89 |
 | [`js/state.js`](js/state.js) | 149 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
@@ -674,17 +674,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 10 modules</summary>
+<details><summary><code>settings</code> family — 11 modules</summary>
 
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js) → [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-data.js`](js/settings-data.js), [`js/utils.js`](js/utils.js)
-- [`js/settings-loader.js`](js/settings-loader.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings.js`](js/settings.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-loader.js`](js/settings-loader.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings.js`](js/settings.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-privacy.js`](js/settings-privacy.js) → [`js/api.js`](js/api.js), [`js/pii.js`](js/pii.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js) → [`js/api.js`](js/api.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*
 - [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) → no in-scope imports
 - [`js/settings-runtime.js`](js/settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js)
-- [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) *(dynamic)*, [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/charts.js`](js/charts.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
 
 </details>

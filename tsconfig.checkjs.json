@@ -463,6 +463,7 @@
     "js/settings-import-benchmark-controller.js",
     "js/settings-provider-bridge.js",
     "js/settings-sync-panel.js",
+    "js/settings-sync-panel-impl.js",
     "js/settings-agent-access-panel.js",
     "js/silhouette-paths.js",
     "js/state.js",

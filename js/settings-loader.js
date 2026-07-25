@@ -5,6 +5,7 @@ import { applyAccentOverride } from './theme.js';
 import { showNotification } from './utils.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { loadDataProtectionStylesheet } from './modal-lifecycle.js';
+import { loadSettingsSyncPanelModule } from './settings-sync-panel.js';
 
 /** @typedef {typeof import('./settings.js')} SettingsModule */
 
@@ -103,6 +104,7 @@ export function loadSettingsModule() {
       loadDataProtectionStylesheet(),
       loadSettingsJavaScript(),
       loadSettingsStylesheet(),
+      loadSettingsSyncPanelModule(),
     ])
       .then(([, module]) => {
         _configureSettingsModule(module);

@@ -71,6 +71,8 @@
     '/js/wearables-settings-runtime.js',
     '/js/wearables-connect-runtime.js',
     '/js/settings-runtime-bridge.js',
+    '/js/settings-sync-panel.js',
+    '/js/settings-sync-panel-impl.js',
     '/js/dashboard-view-composition.js',
     '/js/dashboard-page-view.js',
     '/js/mobile-dashboard-runtime.js',
