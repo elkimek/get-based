@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const MOCKED_MODULES = [
   '../js/app-event-listeners.js',
-  '../js/light-env.js',
   '../js/light-sun-loader.js',
   '../js/light-tools.js',
+  '../js/modal-lifecycle.js',
   '../js/nav.js',
   '../js/views.js',
 ];
@@ -19,14 +19,14 @@ describe('Light environment shell hooks', () => {
   it('opens after lazy UI readiness and contains lazy-load failures', async () => {
     let appEventActions;
     let navActions;
-    const closeLightEnvironmentAssessment = vi.fn();
-    const configureLightEnv = vi.fn();
+    const closeModalOverlay = vi.fn();
+    const configureLightEnvironmentLoaderDeps = vi.fn();
     const getMeasurementsForRoom = vi.fn();
     const navigate = vi.fn();
     const openLightEnvironmentAssessment = vi.fn();
     const loadError = new Error('Light UI unavailable');
     const loadLightSunUI = vi.fn()
-      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ openLightEnvironmentAssessment })
       .mockRejectedValueOnce(loadError);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -35,13 +35,12 @@ describe('Light environment shell hooks', () => {
         appEventActions = actions;
       },
     }));
-    vi.doMock('../js/light-env.js', () => ({
-      closeLightEnvironmentAssessment,
-      configureLightEnv,
-      openLightEnvironmentAssessment,
+    vi.doMock('../js/light-sun-loader.js', () => ({
+      configureLightEnvironmentLoaderDeps,
+      loadLightSunUI,
     }));
-    vi.doMock('../js/light-sun-loader.js', () => ({ loadLightSunUI }));
     vi.doMock('../js/light-tools.js', () => ({ getMeasurementsForRoom }));
+    vi.doMock('../js/modal-lifecycle.js', () => ({ closeModalOverlay }));
     vi.doMock('../js/nav.js', () => ({
       configureNavActions(actions) {
         navActions = actions;
@@ -51,8 +50,16 @@ describe('Light environment shell hooks', () => {
 
     await import('../js/light-env-shell-hooks.js');
 
-    expect(configureLightEnv).toHaveBeenCalledWith({ getMeasurementsForRoom, navigate });
-    expect(appEventActions).toEqual({ closeLightEnvironmentAssessment });
+    expect(configureLightEnvironmentLoaderDeps).toHaveBeenCalledWith({ getMeasurementsForRoom, navigate });
+    expect(appEventActions.closeLightEnvironmentAssessment).toBeTypeOf('function');
+
+    const overlay = { remove: vi.fn() };
+    vi.spyOn(document, 'getElementById').mockImplementation(
+      id => id === 'light-env-assessment-overlay' ? overlay : null,
+    );
+    appEventActions.closeLightEnvironmentAssessment();
+    expect(closeModalOverlay).toHaveBeenCalledWith(overlay);
+    expect(overlay.remove).toHaveBeenCalledOnce();
 
     navActions.openLightEnvironmentAssessment();
     await vi.waitFor(() => {

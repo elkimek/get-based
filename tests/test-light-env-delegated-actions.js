@@ -13,7 +13,9 @@ const actionSrc = fs.readFileSync(path.join(root, 'js/light-env-actions.js'), 'u
 const auditSrc = fs.readFileSync(path.join(root, 'js/light-env-audits.js'), 'utf8');
 const appEventSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
 const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
+const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const envShellHooksSrc = fs.readFileSync(path.join(root, 'js/light-env-shell-hooks.js'), 'utf8');
+const lightSunLoaderSrc = fs.readFileSync(path.join(root, 'js/light-sun-loader.js'), 'utf8');
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const envUiSrc = `${envSrc}\n${screenSrc}`;
@@ -105,12 +107,17 @@ assert('Light environment modal shell actions are wired through startup hooks',
     !appEventSrc.includes('window.closeLightEnvironmentAssessment') &&
     envShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
     envShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
-    envShellHooksSrc.includes("import { closeLightEnvironmentAssessment, configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
-    envShellHooksSrc.includes("import { loadLightSunUI } from './light-sun-loader.js';") &&
+    !envShellHooksSrc.includes("from './light-env.js'") &&
+    envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps,') &&
+    envShellHooksSrc.includes('loadLightSunUI,') &&
     envShellHooksSrc.includes("import { getMeasurementsForRoom } from './light-tools.js';") &&
+    envShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
     envShellHooksSrc.includes("import { navigate } from './views.js';") &&
-    envShellHooksSrc.includes('configureLightEnv({ getMeasurementsForRoom, navigate });') &&
+    envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ getMeasurementsForRoom, navigate });') &&
+    envShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     envShellHooksSrc.includes('loadLightSunUI()') &&
+    appLightSunSrc.includes("export { configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
+    lightSunLoaderSrc.includes('applyLightEnvironmentLoaderDeps(module);') &&
     !envSrc.includes('globalThis.navigate') &&
     appUiShellSrc.includes("import './light-env-shell-hooks.js';"));
 assert('light-env screen renderer takes AI renderer from options instead of global lookup',

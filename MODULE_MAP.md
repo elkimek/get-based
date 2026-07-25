@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 475 |
-| Internal import edges | 2124 |
+| Internal import edges | 2125 |
 | Dynamic internal edges | 76 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -42,7 +42,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/state.js`](js/state.js) | 149 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 57 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 58 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/chat-send.js`](js/chat-send.js) | 22 |
@@ -468,7 +468,7 @@ Native browser modules shipped with the static application.
 - [`js/light-env-evening.js`](js/light-env-evening.js) → no in-scope imports
 - [`js/light-env-model.js`](js/light-env-model.js) → [`js/light-env-evening.js`](js/light-env-evening.js)
 - [`js/light-env-screen-ui.js`](js/light-env-screen-ui.js) → [`js/light-env-actions.js`](js/light-env-actions.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/utils.js`](js/utils.js)
-- [`js/light-env-shell-hooks.js`](js/light-env-shell-hooks.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/light-env.js`](js/light-env.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/light-tools.js`](js/light-tools.js), [`js/nav.js`](js/nav.js), [`js/views.js`](js/views.js)
+- [`js/light-env-shell-hooks.js`](js/light-env-shell-hooks.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/light-tools.js`](js/light-tools.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav.js`](js/nav.js), [`js/views.js`](js/views.js)
 - [`js/light-env-store.js`](js/light-env-store.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/state.js`](js/state.js)
 - [`js/light-env.js`](js/light-env.js) → [`js/light-env-actions.js`](js/light-env-actions.js), [`js/light-env-audits.js`](js/light-env-audits.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-screen-ui.js`](js/light-env-screen-ui.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-page-view-hooks.js`](js/light-page-view-hooks.js) → [`js/light-channel-view.js`](js/light-channel-view.js), [`js/light-channels-ai-analysis.js`](js/light-channels-ai-analysis.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/light-devices.js`](js/light-devices.js), [`js/light-env.js`](js/light-env.js), [`js/light-page-view.js`](js/light-page-view.js), [`js/light-today-ai.js`](js/light-today-ai.js), [`js/light-tools.js`](js/light-tools.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun.js`](js/sun.js)
@@ -728,7 +728,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-body-silhouette-runtime.js`](js/sun-body-silhouette-runtime.js) → [`js/profile.js`](js/profile.js)
 - [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js) → [`js/silhouette-paths.js`](js/silhouette-paths.js), [`js/sun-body-silhouette-runtime.js`](js/sun-body-silhouette-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-channel-metrics.js`](js/sun-channel-metrics.js) → [`js/state.js`](js/state.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/supplement-impact.js`](js/supplement-impact.js)
-- [`js/sun-context-hooks.js`](js/sun-context-hooks.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/light-env.js`](js/light-env.js), [`js/sun-context.js`](js/sun-context.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
+- [`js/sun-context-hooks.js`](js/sun-context-hooks.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/sun-context.js`](js/sun-context.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-context.js`](js/sun-context.js) → [`js/lab-context.js`](js/lab-context.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/state.js`](js/state.js), [`js/sun-correlations.js`](js/sun-correlations.js)
 - [`js/sun-correlations.js`](js/sun-correlations.js) → [`js/state.js`](js/state.js), [`js/sun.js`](js/sun.js)
 - [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js) → [`js/profile.js`](js/profile.js)

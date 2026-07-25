@@ -23,6 +23,26 @@ let _lightSunUILoad = null;
 let _lightSunModulesLoaded = false;
 let _lightSunUILoaded = false;
 let _useLightSunStylesheetRetryUrls = false;
+const _lightEnvironmentLoaderDeps = {};
+
+function applyLightEnvironmentLoaderDeps(module) {
+  if (
+    Object.keys(_lightEnvironmentLoaderDeps).length > 0
+    && typeof module.configureLightEnv === 'function'
+  ) {
+    module.configureLightEnv(_lightEnvironmentLoaderDeps);
+  }
+  return module;
+}
+
+export function configureLightEnvironmentLoaderDeps(deps = {}) {
+  for (const [key, value] of Object.entries(deps || {})) {
+    if (typeof value === 'function') _lightEnvironmentLoaderDeps[key] = value;
+  }
+  if (_lightSunModulesLoad) {
+    void _lightSunModulesLoad.then(applyLightEnvironmentLoaderDeps).catch(() => {});
+  }
+}
 
 export function isLightSunModulesLoaded() {
   return _lightSunModulesLoaded;
@@ -37,6 +57,7 @@ export function loadLightSunModules() {
   if (!_lightSunModulesLoad) {
     _lightSunModulesLoad = import('./app-light-sun-modules.js')
       .then(module => {
+        applyLightEnvironmentLoaderDeps(module);
         _lightSunModulesLoaded = true;
         return module;
       })

@@ -603,11 +603,13 @@ const {
   const aiSaveHooksSrc = await fs.readFile(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
   const globalsSrc = await fs.readFile(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
   const lightEnvShellHooksSrc = await fs.readFile(new URL('../js/light-env-shell-hooks.js', import.meta.url), 'utf8');
+  const lightSunLoaderSrc = await fs.readFile(new URL('../js/light-sun-loader.js', import.meta.url), 'utf8');
   const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const screenUiSrc = await fs.readFile(new URL('../js/light-env-screen-ui.js', import.meta.url), 'utf8');
   const measurementAiSrc = await fs.readFile(new URL('../js/light-tools-ai-analysis.js', import.meta.url), 'utf8');
   const roomAiSrc = await fs.readFile(new URL('../js/light-env-ai-analysis.js', import.meta.url), 'utf8');
   const screenAiSrc = await fs.readFile(new URL('../js/light-screen-ai-analysis.js', import.meta.url), 'utf8');
+  const sunContextHooksSrc = await fs.readFile(new URL('../js/sun-context-hooks.js', import.meta.url), 'utf8');
   assert('Light audit renderer emits no inline event attributes',
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light environment render/data helpers stay module exports, not window facade',
@@ -726,13 +728,21 @@ const {
   assert('Light assessment modal shell actions route through startup wiring instead of window lookup',
     appUiShellSrc.includes("import './light-env-shell-hooks.js';") &&
     lightEnvShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
-    lightEnvShellHooksSrc.includes("import { closeLightEnvironmentAssessment, configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
-    lightEnvShellHooksSrc.includes("import { loadLightSunUI } from './light-sun-loader.js';") &&
+    !lightEnvShellHooksSrc.includes("from './light-env.js'") &&
+    lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps,') &&
+    lightEnvShellHooksSrc.includes('loadLightSunUI,') &&
     lightEnvShellHooksSrc.includes("import { getMeasurementsForRoom } from './light-tools.js';") &&
+    lightEnvShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
     lightEnvShellHooksSrc.includes("import { navigate } from './views.js';") &&
-    lightEnvShellHooksSrc.includes('configureLightEnv({ getMeasurementsForRoom, navigate });') &&
+    lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ getMeasurementsForRoom, navigate });') &&
+    lightEnvShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     lightEnvShellHooksSrc.includes('loadLightSunUI()') &&
     lightEnvShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
+    appLightSunSrc.includes("export { configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
+    lightSunLoaderSrc.includes('applyLightEnvironmentLoaderDeps(module);') &&
+    !sunContextHooksSrc.includes("from './light-env.js'") &&
+    sunContextHooksSrc.includes("from './light-env-model.js'") &&
+    sunContextHooksSrc.includes("from './light-env-store.js'") &&
     navSrc.includes("typeof value === 'function'") &&
     appEventSrc.includes("typeof value === 'function'") &&
     !envSrc.includes('globalThis.navigate') &&

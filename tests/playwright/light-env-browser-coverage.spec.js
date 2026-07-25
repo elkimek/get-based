@@ -26,10 +26,11 @@ test('light environment browser coverage handles summary modal prompt and source
   await waitForInitialView(page);
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, lightEnv] = await Promise.all([
+    const [{ state }, data, lightEnv, lightTools] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-env.js'),
+      import('/js/light-tools.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -56,6 +57,7 @@ test('light environment browser coverage handles summary modal prompt and source
     const outcomes = {};
     const calls = [];
     const savedLightEnvDeps = lightEnv.configureLightEnv({
+      getMeasurementsForRoom: lightTools.getMeasurementsForRoom,
       navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
     });
     const env = () => state.importedData.lightEnvironment;
@@ -214,10 +216,11 @@ test('light environment browser coverage handles screens tools and confirm delet
   await waitForInitialView(page);
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, lightEnv] = await Promise.all([
+    const [{ state }, data, lightEnv, lightTools] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-env.js'),
+      import('/js/light-tools.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -244,6 +247,7 @@ test('light environment browser coverage handles screens tools and confirm delet
     const outcomes = {};
     const calls = [];
     const savedLightEnvDeps = lightEnv.configureLightEnv({
+      getMeasurementsForRoom: lightTools.getMeasurementsForRoom,
       navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
       openSpectrumClassifier: opts => calls.push(['spectrum', opts?.roomId || null]),
       openLuxMeter: opts => calls.push(['lux', opts?.roomId || null]),
