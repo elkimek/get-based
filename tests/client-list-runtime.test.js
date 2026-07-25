@@ -79,6 +79,22 @@ afterEach(() => {
 });
 
 describe('client list runtime behavior', () => {
+  it('keeps the lazy facade safe before startup runtime injection', async () => {
+    const clientList = await loadClientList();
+    const defaults = clientList.configureClientListRuntime();
+    const file = new File(['{}'], 'client.json', { type: 'application/json' });
+
+    expect(clientList.isClientListModuleLoaded()).toBe(false);
+    expect(() => {
+      defaults.exportAllDataJSON();
+      defaults.exportClientJSON('alice', true);
+      defaults.importDataJSON(file);
+      defaults.loadDemoData('female');
+      defaults.openProfileShareModal('alice');
+    }).not.toThrow();
+    expect(clientList.isClientListModuleLoaded()).toBe(false);
+  });
+
   it('drives list filters, row menus, and edit form through delegated handlers', async () => {
     const clientList = await loadClientList();
     const renderProfileButtonSpy = vi.fn();

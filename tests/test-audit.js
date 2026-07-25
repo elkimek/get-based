@@ -267,7 +267,9 @@ assert('data protection and settings lazy-load anchors preserve cascade order',
   indexSrc.indexOf('data-settings-stylesheet-anchor') <
     indexSrc.indexOf('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
-const clientListSrc = read('js/client-list.js');
+const clientListEntrySrc = read('js/client-list.js');
+const clientListSrc = read('js/client-list-impl.js');
+const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const wearablesRuntimeAuditSrc = read('js/wearables-runtime.js');
 const cycleRuntimeAuditSrc = read('js/cycle-runtime.js');
 const cycleViewsAuditSrc = read('js/views.js');
@@ -284,6 +286,12 @@ assert('client list CSS lazy-load anchor preserves the original cascade position
   indexSrc.indexOf('data-client-list-stylesheet-anchor') <
     indexSrc.indexOf('data-wearables-stylesheet-anchor'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
+assert('client list implementation stays behind its public lazy entry',
+  clientListEntrySrc.includes("import('./client-list-impl.js')") &&
+  clientListEntrySrc.includes("import('./client-list-impl.js?lazy-retry=1')") &&
+  !appUiShellModulesSrc.includes("import './client-list.js'"));
+assert('SW APP_SHELL includes offline client list implementation',
+  swAuditSrc.includes("'/js/client-list-impl.js'"));
 assert('index defers wearables CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/wearables.css"') &&
   indexSrc.includes('data-wearables-stylesheet-anchor') &&
