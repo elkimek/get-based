@@ -46,9 +46,6 @@ async function openStartupOrchestratorPage(page) {
   await page.route('**/js/startup-maintenance.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
-      export function initializeStartupServices() {
-        window.__startupCalls.push('services');
-      }
       export function runPostProfileStartupMaintenance() {
         window.__startupCalls.push('maintenance');
       }
@@ -144,7 +141,6 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
         && !('_getActiveProfileId' in window);
       outcomes.startupFailureStopsLaterPhasesAndReportsError =
         window.__startupCalls.includes('foundation')
-        && !window.__startupCalls.includes('services')
         && !window.__startupCalls.includes('maintenance')
         && !window.__startupCalls.includes('profile')
         && !window.__startupCalls.includes('oauth')

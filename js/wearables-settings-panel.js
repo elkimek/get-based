@@ -14,6 +14,7 @@ import {
   syncNow,
   listConnectedSources,
   getConnection,
+  loadWearableRuntimeConfig,
 } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
@@ -487,8 +488,9 @@ document.addEventListener('settings:wearables-rendered', () => {
   queueMicrotask(_updateManualCounts);
 });
 
-function handleWearableConnect(adapterId) {
+async function handleWearableConnect(adapterId) {
   try {
+    await loadWearableRuntimeConfig();
     beginConnectOAuth(adapterId);
     // beginOAuth navigates away — nothing else to do here.
   } catch (e) {

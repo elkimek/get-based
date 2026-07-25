@@ -247,6 +247,9 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
         && window.location.search === '';
 
       resetCase('?code=openrouter-code&state=wearable-state&coverageWearable=1');
+      sessionStorage.setItem('coverage-oauth-pending', JSON.stringify({
+        state: 'wearable-state',
+      }));
       wearables.OAUTH_DISPATCH.coverage = {
         isCallback: params => params.get('coverageWearable') === '1',
         complete: async () => {
@@ -259,7 +262,7 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
       sessionStorage.setItem('or_oauth_state', 'wearable-state');
       await startup.handleStartupOAuthCallbacks();
       outcomes.wearableCallbackSkipsOpenRouterProcessing = fakeWearableCompletes === 1
-        && fetchCalls.length === 0
+        && !fetchCalls.some(call => call.url.endsWith('/auth/keys'))
         && sessionStorage.getItem('or_pkce_verifier') === 'verifier-skipped'
         && window.location.search === '';
 

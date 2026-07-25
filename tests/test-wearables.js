@@ -1738,14 +1738,19 @@ assert('importDataJSON prunes wearablePrimaryOverride to live sources only',
 
 // P2: commitAfterWriteIfAny accepts pre-await connection snapshot.
 const connectSrcP2 = await fetch('/js/wearables-connect.js').then(r => r.text());
+const connectLoaderSrcP2 = await fetch('/js/wearables-connect-loader.js').then(r => r.text());
 const startupMaintenanceSrcP2 = await fetch('/js/startup-maintenance.js').then(r => r.text());
 assert('commitAfterWriteIfAny accepts a connection snapshot (profile-swap safety)',
   /async function commitAfterWriteIfAny\(adapterId,\s*rows,\s*connSnapshot\)/.test(connectSrcP2));
 assert('Backfill + incremental pass the pre-await `conn` snapshot to commitAfterWriteIfAny',
   /commitAfterWriteIfAny\(adapterId,\s*rows,\s*conn\)/.test(connectSrcP2));
-assert('Post-profile startup kicks stale wearable sync after importedData loads',
-  /import\s*\{[^}]*syncStaleWearablesNow[^}]*\}\s*from\s*['"]\.\/wearables-connect\.js['"]/.test(startupMaintenanceSrcP2) &&
-  /runPostProfileStartupMaintenance[\s\S]*?syncStaleWearablesNow\(\)\.catch/.test(startupMaintenanceSrcP2));
+assert('Post-profile startup loads wearable vendors only for connected OAuth sources',
+  !startupMaintenanceSrcP2.includes("from './wearables-connect.js'") &&
+  startupMaintenanceSrcP2.includes("from './wearables-connect-loader.js'") &&
+  startupMaintenanceSrcP2.includes('connection?.accessToken') &&
+  startupMaintenanceSrcP2.includes('connect.initWearableScheduler()') &&
+  connectLoaderSrcP2.includes("import('./wearables-connect.js')") &&
+  connectLoaderSrcP2.includes("import('./wearables-connect.js?lazy-retry=1')"));
 assert('Wearable scheduler routes stale sync through a shared in-flight guard',
   /let\s+_staleSyncInFlight\s*=\s*null/.test(connectSrcP2) &&
   /export\s+function\s+syncStaleWearablesNow\(\)/.test(connectSrcP2) &&

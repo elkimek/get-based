@@ -91,6 +91,24 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/wearables.js'
   ))).toBe(false);
+  const deferredWearableConnectionModules = new Set([
+    '/js/wearables-connect.js',
+    '/js/wearables-oura.js',
+    '/js/wearables-oura-auth.js',
+    '/js/wearables-whoop.js',
+    '/js/wearables-whoop-auth.js',
+    '/js/wearables-fitbit.js',
+    '/js/wearables-fitbit-auth.js',
+    '/js/wearables-withings.js',
+    '/js/wearables-withings-auth.js',
+    '/js/wearables-ultrahuman.js',
+    '/js/wearables-ultrahuman-auth.js',
+    '/js/wearables-polar.js',
+    '/js/wearables-polar-auth.js',
+  ]);
+  expect(entries.some(entry => (
+    deferredWearableConnectionModules.has(new URL(entry.name).pathname)
+  ))).toBe(false);
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/light-tool-camera-modals.js'
   ))).toBe(false);

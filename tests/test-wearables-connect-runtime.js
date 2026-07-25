@@ -90,6 +90,7 @@ try {
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const connectSrc = fs.readFileSync(path.join(root, 'js/wearables-connect.js'), 'utf8');
+  const connectLoaderSrc = fs.readFileSync(path.join(root, 'js/wearables-connect-loader.js'), 'utf8');
   const connectRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-connect-runtime.js'), 'utf8');
   const settingsRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-runtime.js'), 'utf8');
   const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
@@ -98,6 +99,10 @@ try {
     connectSrc.includes("from './wearables-connect-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(connectSrc) &&
       swSrc.includes("'/js/wearables-connect-runtime.js'"));
+  assert('wearables connect loader is retryable and available offline',
+    connectLoaderSrc.includes("import('./wearables-connect.js')") &&
+      connectLoaderSrc.includes("import('./wearables-connect.js?lazy-retry=1')") &&
+      swSrc.includes("'/js/wearables-connect-loader.js'"));
   assert('wearable navigation stays dependency-injected from the app shell',
     !connectRuntimeSrc.includes('getViewRuntimeFunction') &&
       !settingsRuntimeSrc.includes('getViewRuntimeFunction') &&

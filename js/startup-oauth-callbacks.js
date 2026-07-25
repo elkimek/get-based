@@ -12,8 +12,8 @@ import {
   hasPendingOpenRouterOAuthSession,
   markOpenRouterOAuthSettingsLocal,
 } from './api.js';
-import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
 import { showNotification as showAppNotification } from './utils.js';
+import { loadWearablesConnectModule } from './wearables-connect-loader.js';
 
 /** @type {{ showNotification: Function | null, showInsufficientBalanceDialog: Function | null }} */
 const startupOAuthCallbackDeps = {
@@ -51,6 +51,24 @@ function currentPathname() {
 
 function currentSearch() {
   return startupRuntime().location?.search || '';
+}
+
+export function hasPendingWearableOAuthCallback(search = currentSearch()) {
+  const returnedState = new URLSearchParams(search).get('state');
+  if (!returnedState) return false;
+  try {
+    const storage = startupRuntime().sessionStorage;
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (!key?.endsWith('-oauth-pending')) continue;
+      const pendingRaw = storage.getItem(key);
+      if (!pendingRaw) continue;
+      try {
+        if (JSON.parse(pendingRaw).state === returnedState) return true;
+      } catch {}
+    }
+  } catch {}
+  return false;
 }
 
 function replaceCurrentUrl() {
@@ -118,12 +136,21 @@ function handleOpenRouterOAuthError(error, description) {
 }
 
 export async function handleStartupOAuthCallbacks() {
+  const search = currentSearch();
+  const urlParams = new URLSearchParams(search);
   // Wearable OAuth2 callbacks must run after profile load so saveConnection
   // writes to the active profile. If handled, skip OpenRouter so the same
   // `?code=` is not processed twice.
-  const wearableHandled = await handleOAuthCallbackOnLoad();
+  let wearableHandled = false;
+  if (hasPendingWearableOAuthCallback(search)) {
+    const wearables = await loadWearablesConnectModule();
+    // The old eager startup path had already installed the scheduler by the
+    // time a callback completed. Preserve that behavior on callback loads.
+    wearables.loadWearableRuntimeConfig();
+    wearables.initWearableScheduler();
+    wearableHandled = await wearables.handleOAuthCallbackOnLoad();
+  }
 
-  const urlParams = new URLSearchParams(currentSearch());
   const oauthCode = urlParams.get('code');
   const oauthState = urlParams.get('state');
   const oauthError = urlParams.get('error');
