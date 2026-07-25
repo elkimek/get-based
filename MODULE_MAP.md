@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 473 |
-| Internal import edges | 2121 |
-| Dynamic internal edges | 72 |
+| Internal import edges | 2120 |
+| Dynamic internal edges | 73 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -106,7 +106,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>app</code> family — 8 modules</summary>
 
-- [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js), [`js/chat.js`](js/chat.js), [`js/image-utils.js`](js/image-utils.js), [`js/lens.js`](js/lens.js), [`js/nostr-discovery.js`](js/nostr-discovery.js)
+- [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) → [`js/chat.js`](js/chat.js), [`js/image-utils.js`](js/image-utils.js), [`js/lens.js`](js/lens.js), [`js/nostr-discovery.js`](js/nostr-discovery.js)
 - [`js/app-event-listeners.js`](js/app-event-listeners.js) → [`js/data.js`](js/data.js), [`js/nav.js`](js/nav.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js)
 - [`js/app-feature-modules.js`](js/app-feature-modules.js) → [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js), [`js/app-foundation-modules.js`](js/app-foundation-modules.js), [`js/app-health-data-modules.js`](js/app-health-data-modules.js), [`js/app-ui-shell-modules.js`](js/app-ui-shell-modules.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/sun-context-hooks.js`](js/sun-context-hooks.js)
 - [`js/app-foundation-modules.js`](js/app-foundation-modules.js) → [`js/constants.js`](js/constants.js), [`js/legal-consent.js`](js/legal-consent.js), [`js/pii.js`](js/pii.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
@@ -353,7 +353,7 @@ Native browser modules shipped with the static application.
 - [`js/export-report-builder.js`](js/export-report-builder.js) → [`js/data.js`](js/data.js), [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/export-report-html.js`](js/export-report-html.js) → [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/utils.js`](js/utils.js)
 - [`js/export-report.js`](js/export-report.js) → [`js/api.js`](js/api.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/utils.js`](js/utils.js)
-- [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
+- [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
 - [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*, [`js/data.js`](js/data.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
 
 </details>

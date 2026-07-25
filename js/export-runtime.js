@@ -3,7 +3,41 @@
 
 import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
-import { destroyWalletDB } from './cashu-wallet.js';
+
+/** @typedef {typeof import('./cashu-wallet.js')} CashuWalletModule */
+/** @type {Promise<CashuWalletModule> | null} */
+let cashuWalletModulePromise = null;
+/** @type {CashuWalletModule | null} */
+let cashuWalletModule = null;
+let useCashuWalletRetryUrl = false;
+
+export function isCashuWalletModuleLoaded() {
+  return cashuWalletModule !== null;
+}
+
+/** @returns {Promise<CashuWalletModule>} */
+function loadCashuWalletRetryModule() {
+  // @ts-expect-error TypeScript resolves only the query-free source path.
+  return import('./cashu-wallet.js?lazy-retry=1');
+}
+
+/** @returns {Promise<CashuWalletModule>} */
+export function loadCashuWalletModule() {
+  if (!cashuWalletModulePromise) {
+    const load = useCashuWalletRetryUrl
+      ? loadCashuWalletRetryModule()
+      : import('./cashu-wallet.js');
+    cashuWalletModulePromise = load
+      .then(module => (cashuWalletModule = module))
+      .catch(err => {
+        cashuWalletModulePromise = null;
+        cashuWalletModule = null;
+        useCashuWalletRetryUrl = true;
+        throw err;
+      });
+  }
+  return cashuWalletModulePromise;
+}
 
 /** @typedef {{
  * buildSidebar: null | (() => void),
@@ -179,7 +213,8 @@ async function refreshChatThreadsRuntime() {
 }
 
 export async function destroyWalletRuntimeDB() {
-  await destroyWalletDB();
+  const wallet = cashuWalletModule || await loadCashuWalletModule();
+  await wallet.destroyWalletDB();
 }
 
 export function markDemoLoadingProfile(profileId) {
