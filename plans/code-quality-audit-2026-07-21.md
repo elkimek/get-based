@@ -155,6 +155,11 @@ then reduced the reference to 414 requests, 1,708,324 compressed bytes, and
 5,023,634 decoded bytes. Two identical runs confirmed savings of one request,
 8,431 compressed bytes, and 35,663 decoded bytes, with the facade retaining an
 awaitable API and a fixed retry URL for failed module fetches.
+Loading the Reports modal builder only when the user opens it then reduced the
+reference to 413 requests, 1,704,671 compressed bytes, and 5,009,775 decoded
+bytes. The result reproduced exactly, saving one request, 3,653 compressed
+bytes, and 13,859 decoded bytes without moving the synchronous report renderer
+or preview-window path behind an asynchronous boundary.
 Route and feature lazy loading remains active, with the ceilings ratcheting
 downward after each reproducible slice.
 

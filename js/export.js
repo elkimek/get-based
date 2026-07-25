@@ -17,10 +17,6 @@ import {
   exportPDFReport as exportPDFReportImpl,
 } from './export-report-html.js';
 import {
-  closeReportBuilder as closeReportBuilderImpl,
-  openReportBuilder as openReportBuilderImpl,
-} from './export-report-builder.js';
-import {
   clearDemoLoadingProfile,
   destroyWalletRuntimeDB,
   markDemoLoadingProfile,
@@ -33,6 +29,12 @@ let exportImportModulePromise = null;
 /** @type {ExportImportModule | null} */
 let exportImportModule = null;
 let useExportImportRetryUrl = false;
+/** @typedef {typeof import('./export-report-builder.js')} ReportBuilderModule */
+/** @type {Promise<ReportBuilderModule> | null} */
+let reportBuilderModulePromise = null;
+/** @type {ReportBuilderModule | null} */
+let reportBuilderModule = null;
+let useReportBuilderRetryUrl = false;
 
 export function isExportImportModuleLoaded() {
   return exportImportModule !== null;
@@ -75,6 +77,41 @@ export async function importDataJSON(file) {
   }
 }
 
+export function isReportBuilderModuleLoaded() {
+  return reportBuilderModule !== null;
+}
+
+/** @returns {Promise<ReportBuilderModule>} */
+function loadReportBuilderRetryModule() {
+  // @ts-expect-error TypeScript resolves only the query-free source path.
+  return import('./export-report-builder.js?lazy-retry=1');
+}
+
+/** @returns {Promise<ReportBuilderModule>} */
+export function loadReportBuilderModule() {
+  if (!reportBuilderModulePromise) {
+    const load = useReportBuilderRetryUrl
+      ? loadReportBuilderRetryModule()
+      : import('./export-report-builder.js');
+    reportBuilderModulePromise = load
+      .then(module => (reportBuilderModule = module))
+      .catch(err => {
+        reportBuilderModulePromise = null;
+        reportBuilderModule = null;
+        useReportBuilderRetryUrl = true;
+        throw err;
+      });
+  }
+  return reportBuilderModulePromise;
+}
+
+/** @param {unknown} err */
+function reportReportBuilderLoadError(err) {
+  console.error('[export] Could not load the report builder:', err);
+  showNotification('Report builder could not be loaded. Try again.', 'error');
+  return false;
+}
+
 /** @type {{
  *   buildSidebar: null | (() => void),
  *   navigate: null | ((route?: string) => void),
@@ -112,11 +149,24 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 }
 
 export function openReportBuilder(presetId) {
-  return openReportBuilderImpl(presetId);
+  try {
+    if (reportBuilderModule) return reportBuilderModule.openReportBuilder(presetId);
+    return loadReportBuilderModule()
+      .then(module => module.openReportBuilder(presetId))
+      .catch(reportReportBuilderLoadError);
+  } catch (err) {
+    return reportReportBuilderLoadError(err);
+  }
 }
 
 export function closeReportBuilder() {
-  return closeReportBuilderImpl();
+  if (!reportBuilderModule) return undefined;
+  try {
+    return reportBuilderModule.closeReportBuilder();
+  } catch (err) {
+    console.error('[export] Could not close the report builder:', err);
+    return undefined;
+  }
 }
 
 // ═══════════════════════════════════════════════
