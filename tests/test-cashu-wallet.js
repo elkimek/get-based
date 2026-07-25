@@ -166,11 +166,13 @@ assert('Cashu recovery metadata uses encrypted IDB envelopes',
   walletStoreSrc.includes("_payload: await _encryptWalletPayload({ value })"));
 assert('Cashu storage participates in encryption enable, disable, and passphrase migrations',
   cryptoSrc.includes("import('./cashu-wallet-store.js')")
+    && cryptoSrc.includes('cashuStore.configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps())')
     && cryptoSrc.includes('cashuStore.migrateCashuWalletStorage(mode)'));
-assert('Cashu storage receives crypto through the app composition root',
+assert('Cashu storage receives crypto only when wallet storage is needed',
   !walletStoreSrc.includes("from './crypto.js'")
-    && appShellHooksSrc.includes("from './cashu-wallet-store.js'")
-    && appShellHooksSrc.includes('configureCashuWalletStoreCryptoDeps({'));
+    && !appShellHooksSrc.includes("from './cashu-wallet-store.js'")
+    && walletSrc.includes("from './crypto.js'")
+    && walletSrc.includes('configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps())'));
 assert('Cashu encrypted writes fail closed while the encryption session is locked',
   walletStoreSrc.includes("code = 'session-locked'")
     && walletStoreSrc.includes('if (!envelope) throw _sessionLockedError()'));

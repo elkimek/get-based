@@ -13,7 +13,6 @@ import { configureChatMessageActionDeps } from './chat-actions.js';
 import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import { configureCategoryCustomizationRuntimeDeps } from './category-customization-runtime.js';
 import { configureCategoryPageViewDeps } from './category-page-view.js';
-import { configureCashuWalletStoreCryptoDeps } from './cashu-wallet-store.js';
 import {
   continueDiscussion,
   endDiscussion,
@@ -81,12 +80,7 @@ import { configureCompareCorrelationViews } from './compare-correlations.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
 import {
   configureCryptoProfileDeps,
-  decryptObject,
-  encryptedGetItem,
   encryptedSetItem,
-  encryptObject,
-  getEncryptionEnabled,
-  isEncryptedObject,
 } from './crypto.js';
 import { openMenstrualCycleEditor } from './cycle.js';
 import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import.js';
@@ -184,14 +178,6 @@ function showInsufficientBalanceDialog() {
 
 configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem });
-configureCashuWalletStoreCryptoDeps({
-  decryptObject,
-  encryptedGetItem,
-  encryptedSetItem,
-  encryptObject,
-  getEncryptionEnabled,
-  isEncryptedObject,
-});
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureDashboardViewFactory(createDashboardViewComposition);
 configureLabContext({ buildBiologyScoresAIContext });

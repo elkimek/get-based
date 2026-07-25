@@ -251,20 +251,7 @@ function installCashuStub(options = {}) {
 }
 
 async function loadWallet() {
-  const [wallet, store, cryptoModule] = await Promise.all([
-    import(/* @vite-ignore */ `../js/cashu-wallet.js?runtime=${importId++}`),
-    import('../js/cashu-wallet-store.js'),
-    import('../js/crypto.js'),
-  ]);
-  store.configureCashuWalletStoreCryptoDeps({
-    decryptObject: cryptoModule.decryptObject,
-    encryptedGetItem: cryptoModule.encryptedGetItem,
-    encryptedSetItem: cryptoModule.encryptedSetItem,
-    encryptObject: cryptoModule.encryptObject,
-    getEncryptionEnabled: cryptoModule.getEncryptionEnabled,
-    isEncryptedObject: cryptoModule.isEncryptedObject,
-  });
-  return wallet;
+  return import(/* @vite-ignore */ `../js/cashu-wallet.js?runtime=${importId++}`);
 }
 
 async function readCashuStore(storeName) {
@@ -342,6 +329,16 @@ describe('Cashu wallet runtime behavior', () => {
 
       localStorage.setItem('labcharts-encryption-enabled', 'true');
       await cryptoModule._setTestSessionKey('CashuEncryptionPass1!');
+      // Exercise the crypto-owned migration seam without relying on the
+      // wallet module's earlier configuration.
+      store.configureCashuWalletStoreCryptoDeps({
+        decryptObject: null,
+        encryptedGetItem: null,
+        encryptedSetItem: null,
+        encryptObject: null,
+        getEncryptionEnabled: null,
+        isEncryptedObject: null,
+      });
       await cryptoModule._migrateAllStorageForTest('encrypted');
       await store._saveProofs([proof('new-encrypted-wallet-secret', 1)], mint);
 

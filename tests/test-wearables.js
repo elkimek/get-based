@@ -1533,7 +1533,7 @@ assert('Encrypt-or-throw: session-locked path throws session-locked error (no si
   /code\s*=\s*'session-locked'/.test(storeSrc31) &&
   /encrypted;\s*unlock with your passphrase before syncing/.test(storeSrc31));
 assert('Wearable storage receives crypto providers without a reverse import',
-  /configureWearablesStoreCrypto\(\{/.test(cryptoSrc31)
+  cryptoSrc31.includes('configureWearablesStoreCrypto(indexedDBCryptoDeps)')
   && /export function configureWearablesStoreCrypto/.test(storeSrc31)
   && !/import\(['"]\.\/crypto\.js['"]\)/.test(storeSrc31));
 

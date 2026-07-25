@@ -90,7 +90,7 @@ assert('backup.importEncryptedBackup module export exists', typeof backupModule.
 assert('window.exportEncryptedBackup stays module-only', !('exportEncryptedBackup' in window));
 assert('window.importEncryptedBackup stays module-only', !('importEncryptedBackup' in window));
 assert('cycle storage receives crypto providers without a reverse import',
-  cryptoStoreSrc.includes('configureCycleStoreCrypto({')
+  cryptoStoreSrc.includes('configureCycleStoreCrypto(indexedDBCryptoDeps)')
     && cycleStoreSrc.includes('export function configureCycleStoreCrypto')
     && !cycleStoreSrc.includes("import('./crypto.js')"));
 assert('backup and crypto use the leaf profile storage-key helper',
