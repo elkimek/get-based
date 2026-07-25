@@ -115,7 +115,10 @@ return (async function() {
   // is: rememberModalTrigger() captures activeElement on open,
   // closeModal() restores it. Wearables detail opens route through a
   // runtime adapter so the modal module stays browser-global free.
-  const markerDetailSrc = await fetch('js/marker-detail-modal.js').then(r => r.text());
+  const markerDetailFacadeSrc = await fetch('js/marker-detail-modal.js').then(r => r.text());
+  const markerDetailImplSrc = await fetch('js/marker-detail-modal-impl.js').then(r => r.text());
+  const modalTriggerMemorySrc = await fetch('js/modal-trigger-memory.js').then(r => r.text());
+  const markerDetailSrc = `${markerDetailFacadeSrc}\n${markerDetailImplSrc}\n${modalTriggerMemorySrc}`;
   const dashboardWidgetsSrc = await fetch('js/dashboard-widgets.js').then(r => r.text());
   const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
   const wearablesDetailRuntimeSrc = await fetch('js/wearables-detail-runtime.js').then(r => r.text());
@@ -126,7 +129,7 @@ return (async function() {
   assert('closeModal uses shared overlay lifecycle helper',
     markerDetailSrc.includes("from './modal-lifecycle.js'") &&
       /function closeModal\(\)[\s\S]{0,180}closeModalOverlay\('modal-overlay'\)/.test(markerDetailSrc));
-  assert('rememberModalTrigger exported', markerDetailSrc.includes('export function rememberModalTrigger'));
+  assert('rememberModalTrigger exported', markerDetailFacadeSrc.includes('rememberModalTrigger'));
   assert('rememberModalTrigger is a views module API', typeof viewsModule.rememberModalTrigger === 'function');
   assert('rememberModalTrigger stays off window', !('rememberModalTrigger' in window));
   assert('wearable detail modal captures trigger',
@@ -533,7 +536,7 @@ return (async function() {
   }
 
   if (testMarkerId) {
-    viewsModule.showDetailModal(testMarkerId);
+    await viewsModule.showDetailModal(testMarkerId);
     await wait(50);
     assert('Detail modal opens', modalOverlay.classList.contains('show'));
 
@@ -565,7 +568,7 @@ return (async function() {
   try {
     S.profileDob = originalProfileDob || '1987-11-22';
     dataModule.invalidateActiveDataCache?.();
-    viewsModule.showDetailModal('calculatedRatios_biologicalAge');
+    await viewsModule.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => document.querySelector('#detail-modal .bio-age-breakdown'));
     const bioModal = document.getElementById('detail-modal');
     let bioText = bioModal?.textContent || '';
@@ -578,7 +581,7 @@ return (async function() {
 
     S.profileDob = '';
     dataModule.invalidateActiveDataCache?.();
-    viewsModule.showDetailModal('calculatedRatios_biologicalAge');
+    await viewsModule.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => /Date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
     const missingDobModal = document.getElementById('detail-modal');
     bioText = missingDobModal?.textContent || '';
@@ -592,7 +595,7 @@ return (async function() {
 
     S.profileDob = '2999-01-01';
     dataModule.invalidateActiveDataCache?.();
-    viewsModule.showDetailModal('calculatedRatios_biologicalAge');
+    await viewsModule.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => /Valid date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
     bioText = document.getElementById('detail-modal')?.textContent || '';
     assert('Biological Age detail surfaces invalid DOB instead of zero missing inputs',
@@ -850,7 +853,7 @@ return (async function() {
 
   if (testMarkerId) {
     // showDetailModal populates markerRegistry, then openManualEntryForm reads it
-    viewsModule.showDetailModal(testMarkerId);
+    await viewsModule.showDetailModal(testMarkerId);
     await wait(50);
     viewsModule.closeModal();
     await wait(20);

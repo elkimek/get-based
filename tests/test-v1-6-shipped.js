@@ -572,7 +572,7 @@ const _origProfileSex = state ? state.profileSex : null;
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
     const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
-    const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
+    const markerDetailSrc = fetchSrc('js/marker-detail-modal-impl.js');
     const dataSrc = fetchSrc('js/data.js');
     const cssSrc = fetchCssSrc();
     assert('category-view-renderers.js: marker cards render latest-value summary before chart',

@@ -84,6 +84,8 @@
     '/js/onboarding-view-runtime.js',
     '/js/onboarding-view.js',
     '/js/marker-detail-modal.js',
+    '/js/marker-detail-modal-impl.js',
+    '/js/modal-trigger-memory.js',
     '/js/marker-detail-runtime.js',
     '/js/marker-detail-editing.js',
     '/js/light-conditions-now.js',

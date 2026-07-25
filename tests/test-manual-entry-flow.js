@@ -20,7 +20,7 @@ function assert(name, condition, detail) {
 console.log('=== Manual Entry Flow Tests ===\n');
 
   const viewsSrc = read('js/views.js');
-  const markerDetailSrc = read('js/marker-detail-modal.js');
+  const markerDetailSrc = read('js/marker-detail-modal-impl.js');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js');
   const markerDetailStoreSrc = read('js/marker-detail-store.js');
   const labEntrySrc = read('js/lab-entry.js');

@@ -142,7 +142,10 @@ await import('../js/settings.js');
   const notesSrc = await fetchWithRetry('js/notes.js');
   const contextCardLifestyleEditorsSrc = await fetchWithRetry('js/context-card-lifestyle-editors.js');
   const chatSummariesSrc = await fetchWithRetry('js/chat-summaries.js');
-  const markerDetailModalSrc = await fetchWithRetry('js/marker-detail-modal.js');
+  const markerDetailModalSrc = [
+    await fetchWithRetry('js/marker-detail-modal.js'),
+    await fetchWithRetry('js/marker-detail-modal-impl.js'),
+  ].join('\n');
   const syncDeltaPlannerSearchSrc = `${syncDeltaPlannersSrc}\n${syncDeltaPlannerContextSrc}\n${syncDeltaArrayPlannerSrc}\n${syncDeltaMapPlannerSrc}\n${syncDeltaScalarPlannerSrc}`;
   const syncDeltaMergeSearchSrc = `${syncDeltaMergeShapesSrc}\n${syncDeltaRowCodecSrc}\n${syncDeltaArrayMergeSrc}\n${syncDeltaMapMergeSrc}\n${syncDeltaScalarMergeSrc}`;
   const syncDeltaRegistrySearchSrc = `${syncDeltaRegistrySrc}\n${syncDeltaSurfacesSrc}\n${syncDeltaSurfaceConfigSrc}\n${syncDeltaIdSrc}`;

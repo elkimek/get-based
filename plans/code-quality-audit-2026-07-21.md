@@ -131,9 +131,13 @@ to 424 requests, 1,804,447 compressed bytes, and 5,393,544 decoded bytes.
 Splitting the remaining Chat redesign overrides into an eager shell and an
 open-only bundle saved a further 1,869 compressed bytes and 10,578 decoded
 bytes, bringing the reference to 424 requests, 1,802,578 compressed bytes, and
-5,382,966 decoded bytes. Each result was reproduced in identical before/after
-runs on the same machine. Route and feature lazy loading remains active, with
-the ceilings ratcheting downward after each reproducible slice.
+5,382,966 decoded bytes. Loading the marker-detail JavaScript implementation
+only on its first action then saved one request, 20,334 compressed bytes, and
+81,571 decoded bytes, bringing the reference to 423 requests, 1,782,244
+compressed bytes, and 5,301,395 decoded bytes. Each result was reproduced in
+identical before/after runs on the same machine. Route and feature lazy loading
+remains active, with the ceilings ratcheting downward after each reproducible
+slice.
 
 ### 4. Guardrails and test gaps
 

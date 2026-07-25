@@ -297,6 +297,8 @@ const APP_SHELL = [
   '/js/category-customization.js',
   '/js/commit-hash.js',
   '/js/marker-detail-modal.js',
+  '/js/marker-detail-modal-impl.js',
+  '/js/modal-trigger-memory.js',
   '/js/marker-detail-runtime.js',
   '/js/marker-detail-actions.js',
   '/js/marker-detail-editing.js',

@@ -141,7 +141,11 @@ const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprint
   const origSex = state.profileSex;
   const origDob = state.profileDob;
   const origRange = state.dateRangeFilter;
+  const origDateNow = Date.now;
   try {
+    // Demo fixture assertions must not age into failure as wall-clock time
+    // advances. Match the fixed import timestamp used above.
+    Date.now = () => Date.parse('2026-06-20T00:00:00.000Z');
     for (const demo of [
       { file: 'data/demo-female.json', sex: 'female', dob: '1991-08-15', label: 'Demo Sarah' },
       { file: 'data/demo-male.json', sex: 'male', dob: '1987-11-22', label: 'Demo Alex' },
@@ -208,6 +212,7 @@ const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprint
     state.profileSex = origSex;
     state.profileDob = origDob;
     state.dateRangeFilter = origRange;
+    Date.now = origDateNow;
     invalidateActiveDataCache();
   }
 

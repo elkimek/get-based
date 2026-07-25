@@ -39,7 +39,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
   const focusCardSrc = read('/js/focus-card.js');
   const onboardingViewSrc = read('/js/onboarding-view.js');
-  const markerDetailSrc = read('/js/marker-detail-modal.js');
+  const markerDetailSrc = read('/js/marker-detail-modal-impl.js');
   const dashboardLabRenderersSrc = read('/js/dashboard-lab-widget-renderers.js');
   assert('chart-card body has role and tabindex without nesting the Tips control',
     categoryViewRenderersSrc.includes('class="chart-card-main" role="button" tabindex="0"')

@@ -315,7 +315,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   const dashboardCompositionSource = read('js/dashboard-view-composition.js');
   const categoryViewRenderersSource = read('js/category-view-renderers.js');
   const compareCorrelationsSource = read('js/compare-correlations.js');
-  const markerDetailSource = read('js/marker-detail-modal.js');
+  const markerDetailSource = read('js/marker-detail-modal-impl.js');
   assert('dashboard composition imports getEffectiveRangeForDate', dashboardCompositionSource.includes('getEffectiveRangeForDate'));
   assert('renderChartCard uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
   assert('renderChartCard per-value uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
