@@ -187,6 +187,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       host.querySelector('[data-dashboard-ai-action="setup-sync"]')?.click();
       host.querySelector('[data-dashboard-ai-action="setup-backup"]')?.click();
       host.querySelector('[data-dashboard-ai-action="open-data-protection-picker"]')?.click();
+      await dashboardAi.loadDashboardAIModule();
       await Promise.resolve();
       outcomes.dashboardAiDelegatedCtasRouteClicks =
         calls.includes('encryption')

@@ -172,6 +172,7 @@ const APP_SHELL = [
   '/js/context-card-summaries.js',
   '/js/context-card-editor-ui.js',
   '/js/context-card-dashboard-ai.js',
+  '/js/context-card-dashboard-ai-impl.js',
   '/js/context-card-dashboard-ai-actions.js',
   '/js/context-card-medical-history-editor.js',
   '/js/context-card-medical-history-editor-impl.js',

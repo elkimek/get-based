@@ -66,7 +66,7 @@ try {
   const lens = await import('../js/lens.js');
   const cards = await import('../js/context-cards.js');
   const contextCardsSrc = fs.readFileSync(new URL('../js/context-cards.js', import.meta.url), 'utf8');
-  const dashboardAISrc = fs.readFileSync(new URL('../js/context-card-dashboard-ai.js', import.meta.url), 'utf8');
+  const dashboardAISrc = fs.readFileSync(new URL('../js/context-card-dashboard-ai-impl.js', import.meta.url), 'utf8');
   const { state } = await import('../js/state.js');
   _state = state;
 

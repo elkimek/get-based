@@ -49,6 +49,7 @@
     '/js/recommendations-products.js',
     '/js/recommendation-actions.js',
     '/js/context-card-dashboard-ai.js',
+    '/js/context-card-dashboard-ai-impl.js',
     '/js/context-card-dashboard-ai-actions.js',
     '/js/dashboard-recommendation-widget.js',
     '/js/supplement-impact.js',

@@ -275,6 +275,7 @@ assert('checkJs pilot includes health domain modules',
 const uiWorkflowCheckJsModules = [
   'js/context-card-dashboard-ai-actions.js',
   'js/context-card-dashboard-ai.js',
+  'js/context-card-dashboard-ai-impl.js',
   'js/context-card-editor-ui.js',
   'js/context-card-health-dots.js',
   'js/context-card-summaries.js',

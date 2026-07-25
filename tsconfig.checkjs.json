@@ -96,6 +96,7 @@
     "js/context-card-dashboard-ai-actions.js",
     "js/context-card-dashboard-ai-runtime.js",
     "js/context-card-dashboard-ai.js",
+    "js/context-card-dashboard-ai-impl.js",
     "js/context-card-editor-ui.js",
     "js/context-card-health-dots.js",
     "js/context-card-lifestyle-runtime.js",
