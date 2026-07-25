@@ -58,7 +58,9 @@ assert('Settings shell control styling remains in the eager shell bundle',
   appShellCss.includes('.settings-btn:hover')
     && !settingsCss.includes('.settings-btn:hover'));
 assert('Light page owns only the Sun data-source Settings leaf',
-  lightPageUIHooksSrc.includes("from './settings-privacy.js'"));
+  !lightPageUIHooksSrc.includes("from './settings-privacy.js'")
+    && fs.readFileSync(path.join(root, 'js/light-page-view-hooks.js'), 'utf8')
+      .includes("from './settings-privacy.js'"));
 
 const displayBlock = matchBlock('Display tab', /<!-- Display Tab -->[\s\S]*?<!-- AI Tab -->/);
 const tweaksBlock = matchBlock('Tweaks panel', /export function openTweaksPanel\(\) \{[\s\S]*?\n}\n\ninstallSunDataSourceDelegates/);

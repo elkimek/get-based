@@ -182,6 +182,14 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/sun-defaults.js'
   ))).toBe(false);
+  const deferredPrivacyModules = new Set([
+    '/js/settings-runtime.js',
+    '/js/settings-privacy.js',
+    '/js/pii.js',
+  ]);
+  expect(entries.some(entry => (
+    deferredPrivacyModules.has(new URL(entry.name).pathname)
+  ))).toBe(false);
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/css/marker-detail-modal.css'
   ))).toBe(false);
