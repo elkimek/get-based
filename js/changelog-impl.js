@@ -1,0 +1,574 @@
+// @ts-check
+// changelog-impl.js — lazy What's New release-note archive and modal renderer
+// APP_VERSION comes from /version.js (loaded as classic script before modules)
+
+import { escapeHTML } from './utils.js';
+import { getAppVersionRuntime } from './utils-runtime.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+
+const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
+const changelogDelegateRoots = new WeakSet();
+
+const CHANGELOG = [
+  {
+    version: '1.10.320', date: '2026-07-21', title: 'Faster, clearer app updates',
+    items: [
+      '<b>App updates finish faster and show their progress.</b> The update banner now displays a themed progress bar, percentage, file count, and elapsed time while the complete offline app is refreshed.',
+    ]
+  },
+  {
+    version: '1.10.318', date: '2026-07-20', title: 'Clearer marker measurements',
+    items: [
+      '<b>Marker values are easier to read at a glance.</b> Units now sit beside the latest result and its reference or optimal range, while the measurement date stays clearly separated below.',
+    ]
+  },
+  {
+    version: '1.10.317', date: '2026-07-20', title: 'More reliable offline use',
+    items: [
+      '<b>The installed app now opens reliably without a connection.</b> Required app files and fonts are kept together for offline use, and interrupted installations resume safely.',
+      '<b>Your downloaded Knowledge Base models survive app updates.</b> Updating getbased no longer clears caches owned by the local research engine.',
+    ]
+  },
+  {
+    version: '1.10.316', date: '2026-07-20', title: 'Better Local AI and model comparisons',
+    items: [
+      '<b>Local AI setup is clearer and more reliable.</b> getbased now works more smoothly with LM Studio, Ollama, and other compatible servers, with better connection details, model guidance, and memory handling.',
+      '<b>You can compare AI models on the same lab report.</b> Use the built-in 68-result benchmark or your own imports to compare accuracy and speed across local models, hosted models, and cloud providers.',
+      '<b>Model test history stays private.</b> Benchmark results and diagnostics remain on this device and do not sync with your health data.',
+    ]
+  },
+  {
+    version: '1.10.305', date: '2026-07-20', title: 'Clearer lab trends at a glance',
+    items: [
+      '<b>A consistent timeline across lab charts.</b> Your selected timeframe sets the start and end for every marker, making trends easy to compare.',
+      '<b>Recent results in one place.</b> Each marker card highlights the latest reading and up to four recent measurements.',
+      '<b>Clear marker context.</b> Status, ranges, and trends are presented consistently across cards, dashboards, and marker details.',
+    ]
+  },
+  {
+    version: '1.10.185', date: '2026-07-14', title: 'Biology Scores stay unlocked',
+    items: [
+      '<b>Biology Scores no longer relock after app or health-context updates.</b> Once you complete the context check, scores stay visible and changed context appears as a refresh recommendation.',
+    ]
+  },
+  {
+    version: '1.10.184', date: '2026-07-14', title: 'Smoother updates and more reliable health tracking',
+    items: [
+      '<b>App updates are lighter and stay under your control.</b> Returning visits reuse installed files, while a small check lets you know when a new version is ready.',
+      '<b>Your health data imports more reliably.</b> Apple Health keeps supported heart, body, and cycle data, while PTH, Free T3, and calcitriol results import and chart consistently across common units.',
+      '<b>Light guidance is clearer.</b> It focuses on sun safety and one practical next step, without irrelevant device warnings or product prompts.',
+    ]
+  },
+  {
+    version: '1.10.177', date: '2026-07-12', title: 'More reliable private AI chats',
+    forceShow: true,
+    items: [
+      '<b>Long private replies can finish normally.</b> Once Venice, PPQ Private, or Routstr Private has connected, getbased no longer lets the startup timer cut off a reply that is still arriving.',
+      '<b>Reasoning-heavy models no longer leave an empty chat.</b> If a model produces no visible answer, getbased now shows a clear message instead of silently removing the thinking bubble.',
+      '<b>PPQ Private handles secure-server key changes.</b> When PPQ rotates its encryption key, getbased refreshes the security evidence and reconnects instead of repeatedly failing with a key mismatch.',
+      '<b>Venice privacy labels are more precise.</b> Message contents are encrypted between your browser and Venice\'s confidential-computing endpoint, but connection metadata remains visible and getbased does not fully verify the hardware quote or running code by default.',
+    ]
+  },
+  {
+    version: '1.10.169', date: '2026-07-11', title: 'Private chats on Routstr',
+    forceShow: true,
+    items: [
+      '<b>Private Mode is now available on supported Routstr nodes.</b> Your prompts and replies are encrypted in your browser and can only be read inside verified secure hardware.',
+      '<b>A lock shows when Private Mode is on.</b> Your balance updates automatically after each chat.',
+    ]
+  },
+  {
+    version: '1.10.168', date: '2026-07-11', title: 'Routstr sync and wallet encryption',
+    items: [
+      '<b>Funded Routstr sessions now follow sync correctly.</b> A node key received on another encrypted device is usable immediately, so its shared node balance no longer appears disconnected until reload.',
+      '<b>Cashu bearer data is encrypted at rest.</b> With app encryption enabled, wallet proofs, fee proofs, pending funding details, and recovery journals are AES-GCM protected in IndexedDB.',
+      '<b>The two balances are clearer.</b> Routstr node funds sync with the session; the Cashu wallet stays on the device to avoid copying spendable proofs between competing browsers.',
+      '<b>New devices cannot receive funds without a recovery seed.</b> Before importing a Cashu token or refunding a synced node balance, each browser must create or restore its separate 12-word Cashu seed.',
+      '<b>Routstr session changes reliably reach other devices.</b> Clearing a session after refund now syncs as a tombstone, and provider-setting pushes retry when Evolu is already busy.',
+      '<b>Open devices refresh shared node balances.</b> Routstr sessions carry their own update clock, so a newer deposit or refund replaces a stale local session and refreshes the receiving browser.',
+      '<b>Existing funded sessions migrate automatically.</b> Reading a funded pre-update Routstr session stamps it for sync, so no extra sats transfer is needed to repair an older second device.',
+      '<b>Node balances are always live.</b> Balance checks bypass the browser HTTP cache so a device cannot keep displaying an earlier zero response after receiving the funded session.',
+      '<b>Old profile rows cannot resurrect stale Routstr keys.</b> Once a clocked session arrives, legacy rows from another profile are ignored instead of overwriting it with an older zero-balance session.',
+      '<b>Device identity mismatches are visible.</b> Settings now shows a safe comparison code: matching codes mean both devices use the same 24-word Data Sync identity, without revealing the mnemonic.',
+    ]
+  },
+  {
+    version: '1.10.157', date: '2026-07-10', title: 'Import your menstrual cycle history',
+    forceShow: true,
+    items: [
+      '<b>Cycle history can now come with you.</b> Import Apple Health, Drip, Natural Cycles, or an extracted Clue JSON export and review the detected periods before saving.',
+      '<b>Detailed observations stay local.</b> Period summaries can sync for lab interpretation, while daily temperatures, fertility signs, symptoms, and notes remain on the importing device.',
+      '<b>Imports remain under your control.</b> Remove one batch, one source, or all cycle data, with encryption and full backups covering the local observations too.',
+    ]
+  },
+  {
+    version: '1.10.62', date: '2026-07-04', title: 'Control what AI uses as context',
+    forceShow: true,
+    items: [
+      '<b>You can now choose what AI uses.</b> Manage → Context lets you turn major context sources on or off, including Genome, labs, wearables, light, Biology Scores, supplements and meds, and insight cards.',
+      '<b>Turning context off does not delete data.</b> Imported data stays in getbased, but disabled sources stop shaping AI answers and missing-data nudges.',
+      '<b>Genome and labs have finer controls.</b> You can include DNA and lab context broadly, or narrow it down by groups like APOE, mtDNA, raw SNPs, other SNPs, blood markers, and specialty lab imports.',
+    ]
+  },
+  {
+    version: '1.10.49', date: '2026-07-01', title: 'Add SNPs from small genetic reports',
+    forceShow: true,
+    items: [
+      '<b>Genome import is less all-or-nothing.</b> You can now add a single SNP manually when a lab only reports one or two variants instead of giving you a raw DNA file.',
+      '<b>Clinical SNP reports are supported as a review flow.</b> Report PDFs or text that mention catalog rsIDs and genotypes are parsed locally, shown in the same DNA preview, and then merged into your existing genetics data instead of replacing it.',
+      '<b>Strand normalization is visible in storage.</b> getbased keeps the reported genotype and the catalog-normalized genotype, so report calls like MTHFR <code>CC</code> can still map safely to the existing health SNP catalog.',
+    ]
+  },
+  {
+    version: '1.10.48', date: '2026-07-01', title: 'Updated AI model recommendations',
+    forceShow: true,
+    items: [
+      '<b>Recommended AI models are cleaner.</b> Model pickers now show a shorter Recommended section with the latest available versions, including newer Claude, GPT, Gemini, Grok, GLM, and Kimi options when each provider offers them.',
+      '<b>Defaults are more predictable.</b> GPT-5.5 is preferred where available, with Claude fallbacks for regular cloud providers. GLM 5.2 is only auto-selected for private or end-to-end encrypted PPQ and Venice modes.',
+    ]
+  },
+  {
+    version: '1.10.29', date: '2026-06-26', title: 'Biology Scores handle updates more safely',
+    forceShow: true,
+    items: [
+      '<b>Biology Scores now separate app updates from real context changes.</b> New context checks store a material snapshot, so getbased can keep scores visible through harmless app, service worker, or fingerprint updates without paying for another AI unlock.',
+      '<b>Changed context still requires a refresh.</b> If labs, profile details, or score-relevant context no longer match the saved review, Biology Scores ask for a fresh context check instead of trusting stale AI flags.',
+      '<b>Profile Context is cleaner.</b> The duplicate AI interpretation, Knowledge Base, encryption, sync, and backup setup pills were removed from the profile context card because those controls now live in the dedicated Manage → Context and Settings flows.',
+    ]
+  },
+  {
+    version: '1.10.28', date: '2026-06-25', title: 'Agent Access for your AI tools',
+    forceShow: true,
+    items: [
+      '<b>Agent Access is now a real private bridge for your agents.</b> getbased can hand your selected health context to local AI tools through the self-hosted MCP while keeping the hosted relay limited to encrypted context.',
+      '<b>It works beyond Hermes.</b> Pick Hermes, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex in Settings → Agent Access, then copy one private setup command for that exact tool.',
+      '<b>Your setup follows your synced profile.</b> Agent Access enabled state, the relay token, the local Agent Context key, and wearable-series window travel inside your existing end-to-end encrypted Sync profile, so a restored browser does not look disconnected.',
+      '<b>The secret boundary is clearer.</b> The token authorizes relay access; the Agent Context key decrypts locally inside your MCP. getbased shows both values separately, and manual-config clients get the exact config snippet to paste next.',
+    ]
+  },
+  {
+    version: '1.10.24', date: '2026-06-24', title: 'Clearer AI context and blood pressure details',
+    forceShow: true,
+    items: [
+      '<b>AI Context is easier to find.</b> Personalize how AI answers and Knowledge Base now live together under Manage → Context, so AI grounding has one clear home instead of being mixed into Profile Context.',
+      '<b>AI Context status is visible in chat.</b> When an Interpretive Lens or Knowledge Base is enabled, chat shows a clickable green context chip that jumps back to Manage → Context.',
+      '<b>Empty Knowledge Base state is visible.</b> If Knowledge Base is enabled but no documents are indexed yet, chat shows an amber KB empty context chip instead of staying silent or pretending answers are grounded.',
+      '<b>Blood pressure details now stay paired.</b> Systolic and diastolic readings open as one BP detail view, even if you enter through the diastolic metric, and the chart keeps the two lines and manual readings visually distinct.',
+      '<b>Mixed-source BP data is safer.</b> When systolic and diastolic come from different sources, getbased fetches each source separately and only shows a Latest BP pair when both halves were recorded on the same date.',
+    ]
+  },
+  {
+    version: '1.10.15', date: '2026-06-23', title: 'Safer Routstr wallet upgrade',
+    forceShow: true,
+    items: [
+      '<b>Routstr wallet upgrades are safer for existing users.</b> getbased now preserves existing Cashu wallet state, pending recovery records, and Routstr session keys more carefully when the wallet runtime updates.',
+      '<b>Funding and refund recovery is better protected.</b> Pending wallet funding, node deposits, and node refunds are checked before any real-funds canary reset, so a half-finished money flow is refused instead of wiped.',
+      '<b>The wallet engine was refreshed.</b> The bundled Cashu runtime was updated and the app cache version was bumped, so returning users receive the compatibility fixes automatically after update.',
+    ]
+  },
+  {
+    version: '1.10.9', date: '2026-06-23', title: 'Terms and Privacy gate priority',
+    forceShow: true,
+    items: [
+      '<b>Terms and Privacy now come first.</b> New browsers and stale-version re-consent see the legal gate before What\'s New, guided tours, backup nudges, analytics prompts, or deferred startup destinations.',
+      '<b>No competing overlays.</b> The changelog and guided tour refuse to open while the Terms/Privacy gate is visible, then resume only after acceptance.',
+    ]
+  },
+  {
+    version: '1.10.8', date: '2026-06-22', title: 'Private PPQ chat with verified end-to-end encryption',
+    forceShow: true,
+    items: [
+      '<b>PPQ Private TEE Mode is now built in.</b> If you use PPQ for AI, you can switch on a private mode that encrypts prompts in your browser and decrypts them only inside a verified Tinfoil secure enclave.',
+      '<b>No local proxy or extra setup required.</b> getbased connects directly to PPQ\'s private endpoint from the app, so the normal provider setup, model picker, balance display, and top-up flow stay in one place.',
+      '<b>Clearer privacy signals.</b> Private models are labeled separately, chat shows the lock/attestation state when the secure path is active, and web search is disabled in private mode so prompts do not leak into external search tools.',
+    ]
+  },
+  {
+    version: '1.10.6', date: '2026-06-21', title: 'Per-file lab import storage',
+    forceShow: true,
+    items: [
+      '<b>Lab imports are now stored per file.</b> Each imported report gets its own saved import record, so you can review, edit, or delete one report without disturbing another report from the same lab date.',
+      '<b>Same-day reports are easier to manage.</b> If two PDFs share a date or overlap on a marker, getbased keeps the report history visible in Settings → Data and preserves the latest live values safely.',
+      '<b>Upgrade note for existing imports.</b> Reports imported before this release were saved in the older date-based storage. To move an old report into the new per-file storage, import that report again.',
+    ]
+  },
+  {
+    version: '1.9.0', date: '2026-06-19', title: 'Biology Scores and Biological Coherence',
+    items: [
+      '<b>A new lens on your biology.</b> Biology Scores turn your labs into plain-English system patterns across metabolism, thyroid, cardiovascular health, inflammation, methylation, kidney and hydration, liver and bile flow, iron and blood health, hormones, stress resilience, cellular energy, gut-immune terrain, and more.',
+      '<b>Biological Coherence shows the whole-body picture.</b> One overview brings the core domains together so you can see what looks strongest, what is most strained, what is missing, and where your biology deserves attention first.',
+      '<b>Built around your context.</b> Scores can use labs, genome/SNP context, wearables and body signals, light exposure, sex, age, cycle timing, sample timing, specialty tests, and calculated ratios — so the result is more personal than a simple reference-range check.',
+      '<b>Know what to test next.</b> The Coverage Planner turns missing evidence into a clear marker plan, helping you improve score confidence without blindly ordering everything.',
+      '<b>Ask why, not just what.</b> Per-score AI explanations can walk through the marker evidence behind a pattern and help translate the score into practical next questions.',
+    ]
+  },
+  {
+    version: '1.8.550', date: '2026-06-18', title: 'Better lab import review',
+    items: [
+      '<b>Review imports before saving.</b> Edit values and units, scan rows more easily, and map unfamiliar lab names through a searchable marker picker.',
+      '<b>Smarter unit handling.</b> Known markers use curated units; new markers get flexible unit entry and common shortcuts. Compatible unit changes update values and ranges automatically.',
+      '<b>Your review survives refresh.</b> In-progress import reviews are restored after a page refresh, so you do not have to re-import the same file while checking rows.',
+      '<b>Bugfixes &amp; improvements.</b> Import review, unit menus, row actions, and import progress fit the app layout better, with tighter conversion behavior and broader test coverage.',
+      '<b>Contributor credit.</b> Thanks to <a href="https://github.com/onlikerop">@onlikerop</a> for the original PR.',
+    ]
+  },
+  {
+    version: '1.8.540', date: '2026-06-17', title: 'Smarter lab import and a broader hormone panel',
+    items: [
+      '<b>Edit values and units in the import review.</b> When a parsed value looks off or the model read the wrong unit, you can now correct the value and switch the unit for any row before confirming an import. Each marker offers a curated list of its valid units, with a fallback for anything unrecognized.',
+      '<b>More hormones tracked.</b> Added Free Testosterone %, Bioactive Testosterone (and its percentage), hCG, and AFP (tumor marker), each with reference ranges and unit conversions so they display and convert consistently with the rest of the panel.',
+      '<b>More reliable non-English lab reports.</b> The importer now translates localized test names and units (especially Cyrillic: Bulgarian, Russian, Ukrainian, and more) to their English equivalents before matching, and recognizes a wider set of secondary clinical units (European mass-concentration, katal enzyme activity, and trace-mineral units).',
+    ]
+  },
+  {
+    version: '1.8.455', date: '2026-06-13', title: 'XLSX lab imports and improvements',
+    items: [
+      '<b>XLSX lab import support.</b> Excel lab reports can now be imported alongside PDFs and CSVs.',
+      '<b>Bugfixes and improvements.</b> Improved import reliability and fixed theme CTA hover contrast issues.',
+      '<b>Substantial codebase improvements.</b> Expanded browser test coverage and cleaned up shared app behavior.',
+    ]
+  },
+  {
+    version: '1.8.358', date: '2026-06-03', title: 'Private profile sharing',
+    items: [
+      '<b>Password-protected profile links.</b> Share an encrypted profile copy with someone else, then keep the link and password separate.',
+      '<b>Link controls and safeguards.</b> Copy or stop links created on this device, with hosted checks to limit weak encryption settings, abuse, and oversized shared files.',
+    ]
+  },
+  {
+    version: '1.8.354', date: '2026-06-02', title: 'Practitioner-ready report builder',
+    items: [
+      '<b>Report feature overhaul.</b> PDF reports now open in a cleaner preview with a readable patient header, compact clinical snapshot, selected lab categories, supplement dosing context, and a structure built for quick practitioner review.',
+      '<b>Editable Practitioner Overview.</b> Generate a one-minute overview from the selected report data, edit the text directly in the report builder, then include the final version in the PDF preview/export.',
+      '<b>Smoother report workflow.</b> The builder now follows the app\'s newer modal patterns, keeps long category lists usable, and gives the preview its own Print / Save PDF action.',
+    ]
+  },
+  {
+    version: '1.8.0', date: '2026-05-18', title: 'Redesigned dashboard, guided onboarding, and recommendations',
+    items: [
+      '<b>A new dashboard built around what matters now.</b> The home screen is now a customizable overview instead of a long all-in-one page. Current Focus, Biological Age, Recommended Next Steps, Current Priority, Quick Markers, Biometrics Overview, Light Today, and Key Trends give you the short version first, with deeper work still one click away.',
+      '<b>Clearer navigation across the whole app.</b> getbased is now organized into focused spaces: Dashboard, Labs, Genome, Body, Light, Insight, and Recommendations, with Compare dates and Correlations kept as analysis tools. Desktop gets the full sidebar; mobile gets bottom tabs and a compact menu.',
+      '<b>First visit is guided, not overwhelming.</b> Fresh profiles now start with a short empty-profile tour, then open guided chat. Chat is the main starting point for new users, while demo profiles and direct import stay available when you want to explore or add files yourself.',
+      '<b>Two tours for two real situations.</b> New users get a tour designed for an empty app. Once a profile has data, the full app tour explains imports, lenses, dashboard widgets, display tweaks, settings, and AI chat.',
+      '<b>Recommendations have their own home.</b> The new Recommendations page turns Labs, Body, Light, Genome, and Insight signals into data-linked next steps. You can save useful items, dismiss ones that are not relevant, and keep product links behind the existing disclosure controls.',
+      '<b>Better workspaces for every lens.</b> Labs owns biomarker charts and tables. Genome owns DNA, APOE, mtDNA, and SNP context. Body owns wearables, manual metrics, supplements, and cycle tracking. Light owns sun, devices, indoor light, and measurement tools. Insight owns Current Focus, AI insights, profile context, and synthesis.',
+      '<b>Mobile and theme polish.</b> The redesigned app is easier to use on smaller screens, and browser chrome now follows the selected theme so Light, Dark, Synth Sunrise, Neuromancer, Glass, and Cypherpunk Terminal feel consistent on mobile.',
+      '<b>Your data model stays the same.</b> Existing profiles, imports, notes, wearables, DNA, context cards, sync, backups, and encryption continue to work. The redesign changes how the app is organized and presented, not who owns your data.',
+    ]
+  },
+  {
+    version: '1.7.7', date: '2026-05-13', title: 'Oura RHR matches the Oura app + zero-sentinel cleanup',
+    items: [
+      '<b>RHR now matches what your Oura app shows.</b> Resting Heart Rate on the dashboard used the night-long average from Oura\'s sleep payload, which runs 5–10 bpm higher than the true RHR. The Oura app\'s "Resting Heart Rate" card and trend graph use the lowest 5-min average during sleep (typically hit in deep sleep) — we now source from the same field. Existing rows refresh on the next sync.',
+      '<b>Bad-night zeros render as gaps instead of floor dots.</b> Oura emits a literal <code>0</code> for HRV/HR scalars when a sleep session has no usable data (ring not worn, signal lost, sub-threshold session). Those zeros used to flow through to the history chart as a dot at the floor and drag the weekly mean down. Now treated as missing across HR, HRV, weight, body composition, and sleep durations — legitimate zeros (rest-day steps, no high-stress minutes, perfect-sleep awake time, body-temp deviation centered at 0) still display normally.',
+      '<b>Oura Rest Mode still gets its dedicated hint.</b> When Rest Mode is on, activity_score is 0 every day by design — the card stays visible and the detail modal shows a short explanation pointing you to the Steps card for raw movement data.',
+    ]
+  },
+  {
+    version: '1.7.6', date: '2026-05-13', title: 'MyHeritage Low-pass WGS: strand-aware SNP matching',
+    items: [
+      '<b>The "Genotype not in lookup" group is gone.</b> MyHeritage\'s 2025 Low-pass WGS export reports every SNP on the build37 forward strand, but our catalog stored a handful of variants keyed on the opposite strand — so calls like <code>AC</code> for <b>PCSK9 R46L</b> or <code>TT</code> for <b>UGT1A1 G71R</b> silently missed the table and ended up labeled "not in lookup" even though they\'re standard, well-characterized genotypes. SNP lookups now try the reverse-complement as a fallback when the direct read misses, so MyHeritage forward-strand calls resolve to the right catalog entry across all eight affected loci (PCSK9, MTR, UGT1A1, MTRR, BHMT, FADS1 coding, LIPC -514, MC1R). Palindromic A/T and C/G SNPs (where strand flipping is ambiguous) keep the strict lookup to avoid false positives.',
+      '<b>Mild-effect SNPs now appear in their own group.</b> Two protective heterozygotes — <b>CETP I405V (AG)</b> and <b>CYP1A2 *1F (AC)</b> — were correctly matched against the catalog but bucketed into "not in lookup" because the import preview only recognized three impact tiers. They\'re now rendered as <b>🟠 Mild findings</b>, between Moderate and Normal.',
+      '<b>Honest coverage count.</b> Imputation-noise calls (alleles that aren\'t valid for the variant under either strand — e.g. a <code>CG</code> read at a C/T SNP) are now dropped at parse time instead of inflating the "not in lookup" group. The "X of Y health-relevant SNPs found" line reflects actually-curated matches.',
+    ]
+  },
+  {
+    version: '1.7.5', date: '2026-05-13', title: 'Accessibility polish across the dark theme',
+    items: [
+      '<b>Better readability in dark mode.</b> The muted grays used for footers, hints, and reference text were brightened to clear WCAG AA contrast on every background. A handful of small-text labels (footer trademarks, recommendation disclaimers) had a faint extra opacity layer that dragged them below threshold — that\'s gone now.',
+      '<b>Form labels and screen reader names.</b> The chat onboarding fields, the Compare Dates picker, and several form selects now properly announce their purpose to screen readers. Marker-group expand/collapse buttons in the sidebar announce their open/closed state correctly as you toggle them.',
+      '<b>Visible link cues.</b> The "primary study" / "more studies" links in the supplements card now carry a persistent underline so they\'re distinguishable without color alone.',
+      '<b>Sidebar marker-group rows.</b> Mouse click-anywhere-on-row to toggle still works; keyboard navigation now lands on a real button rather than a div pretending to be one. The AI-context toggle stayed where it was, next to the flag count.',
+    ]
+  },
+  {
+    version: '1.7.4', date: '2026-05-12', title: 'See your values in both unit systems',
+    items: [
+      '<b>Alternate Units toggle (Settings → Display).</b> When on, the marker detail modal shows each value in both the active system AND the other one — <i>5.20 mmol/L · ≈ 93.7 mg/dL</i> for glucose, <i>140 mmol/L · ≈ 140 mEq/L</i> for sodium, <i>8.5 mU/L · ≈ 8.5 µIU/mL</i> for insulin. Off by default to keep the modal uncluttered for single-locale users. Reference + optimal ranges also render in both systems so a US user reading a Quest report (in <code>µIU/mL</code>) can match it against the app\'s EU SI numbers (in <code>mU/L</code>) without flipping the global toggle. Per-profile preference, persists across sessions.',
+      '<b>Type values in either unit on manual entry.</b> The "+ Add Value Manually" form now offers a small unit picker next to the value field for markers with a known conversion. Default is the current display unit; flip it to type a value straight from a lab report printed in the other system, and the app converts to canonical SI before storage. Round-trip stays exact (5 mmol/L in, 5 mmol/L back out via the alt unit and home). The range sanity-check now uses alt-unit ranges so typing <i>90 mg/dL</i> in EU mode doesn\'t spuriously flag against the SI ref range.',
+      '<b>Expanded unit coverage.</b> Added real conversions for <b>eGFR</b> (mL/s → mL/min), <b>GFR Cystatin</b>, <b>Cystatin C</b>, <b>hs-CRP</b>, and <b>CRP</b> (all now gain mg/dL displays alongside SI). Added label-only entries for markers where the number is the same but the printed label differs on US reports: <b>insulin</b> (mU/L = µIU/mL), <b>TSH</b>, <b>LH</b>, <b>FSH</b>, <b>sodium / potassium / chloride</b> (mmol/L = mEq/L), <b>WBC / RBC / platelets / differential absolute counts</b> (×10⁹/L = K/µL, ×10¹²/L = M/µL). Total coverage: 81 of 124 markers (was 66). Truly universal markers like homocysteine and percentages stay no-toggle since the label is the same in both systems.',
+      '<b>MyHeritage Low-pass WGS imports work again.</b> MyHeritage\'s 2025 raw-data export prepends a <code>##fileformat=MyHeritage</code> comment block before the column header, which the detector was reading as the first line and failing on. The CSV now imports normally.',
+      '<b>Bugfix: stale marker after switching unit systems.</b> If you flipped EU↔US while the manual-entry form was prepared, the form could carry the old display unit forward and convert your input through the wrong factor on save. The form now re-resolves every marker on open and on save, picking up the current display unit each time.',
+    ]
+  },
+  {
+    version: '1.7.2', date: '2026-05-12', title: 'Readable changelog links',
+    items: [
+      '<b>Hyperlinks in the What\'s New modal are now visible.</b> Links rendered as the browser-default blue and disappeared into the dark-theme background. They now use the same accent-blue + underline as chat-message and summary-modal links.',
+    ]
+  },
+  {
+    version: '1.7.1', date: '2026-05-12', title: 'Apple Health ZIP fix, encrypted-backup recovery, security hardening',
+    // Carries a critical user action (re-export the encrypted backup), so
+    // override the patch-skip in maybeShowChangelog and force the modal
+    // even for users on the same major.minor (1.7.0 → 1.7.1).
+    forceShow: true,
+    items: [
+      '<b>Apple Health ZIP imports work again.</b> Dropping an <code>export.zip</code> on Settings → Wearables → Apple Health was throwing "JSZip not loaded" — direct <code>.xml</code> drops were unaffected, but the ZIP path is the one most people use. The vendor unzip bundle now lazy-loads on first use. Thanks to <a href="https://github.com/Savi-1">@Savi-1</a> for the patch.',
+      '<b>Encrypted backups, fixed — please re-export.</b> If you had encryption-at-rest turned on, every backup since v1.6.x silently exported <code>profiles: []</code> — a ~1 KB file with only your global settings, no profile data. Manual export, auto-backup, and folder-backup were all affected. Backups taken before today on encrypted installs are not recoverable; <b>strongly recommend re-exporting a fresh backup after updating.</b> Going forward, backups round-trip your profile data correctly. Thanks to <a href="https://github.com/Savi-1">@Savi-1</a> for the patch.',
+      '<b>Security hardening.</b> Tightened the allowlist for marker keys interpolated into inline click handlers — defense-in-depth against a theoretical XSS via a maliciously-crafted lab PDF. PDF AI extraction was already sanitized at the parse boundary; this adds the same guard at the render boundary so legacy data and sync pulls can\'t slip through either.',
+    ]
+  },
+  {
+    version: '1.7.0', date: '2026-05-12', title: 'Medical History, per-value notes, smoother manual entry',
+    items: [
+      '<b>The Medical Conditions card is now Medical History</b> — same place, broader scope. Beneath your own diagnoses, a new <b>Family history</b> subsection captures first-degree relatives plus grandparents (mother, father, sibling, child, maternal/paternal grandmothers and grandfathers). Each entry takes a condition, optional age of onset, and an optional note. Family history reframes risk interpretation — a father\'s heart attack at 52 makes a borderline LDL more actionable, and the AI sees both your own diagnoses and what runs in the family.',
+      '<b>The conditions list nearly tripled.</b> Was 27 entries (mostly metabolic / endocrine / GI). Now ~117, covering neuro (Alzheimer\'s, Parkinson\'s, Epilepsy, MS, migraine), 19 cancer categories (breast, prostate, colorectal, lung, melanoma, pancreatic, ovarian, lymphoma, leukemia, …), skin (Psoriasis, eczema, rosacea), mental health (bipolar, ADHD, autism, PTSD, OCD), additional autoimmune, musculoskeletal, eye, hearing, infectious / chronic, and several genetic / congenital conditions worth surfacing in family history. Autocomplete-clickable conditions with apostrophes (Alzheimer\'s, Hashimoto\'s, Crohn\'s, Graves\', Sjögren\'s, Cushing\'s, Parkinson\'s, Huntington\'s) — previously broken from the dropdown — are clickable again.',
+      '<b>Notes on individual lab values.</b> Every reading in the marker detail modal now has a small <b>+ note</b> on hover. Attach context tied to a single date/marker: <i>"fasted 14h"</i>, <i>"retook because cuff felt loose"</i>, <i>"different lab"</i>, <i>"post-workout"</i>. Notes show as an italic line beneath the value; click to edit, × to remove. The AI sees these notes grouped by marker so a single reading\'s context can change how it\'s interpreted.',
+      '<b>Manual entry is much faster for paper lab reports.</b> The marker modal\'s "+ Add Value" button moved above the Note section and is renamed <b>+ Add Value Manually</b> for clarity. The form gained: a <b>Save & Add Another</b> button that keeps the date and clears the value (enter a whole report top-to-bottom without re-picking dates), an optional <b>Note</b> field that saves to the per-value notes above, a <b>range sanity check</b> that flags values >10× the upper bound or <1/10 the lower bound (catches decimal/unit slips), a <b>duplicate-date confirm</b> that shows the existing value before overwriting, and a <b>session-remembered last date</b> so the next entry defaults to whatever date you just used. Plus: Enter to save, Esc to cancel, no future dates allowed.',
+      '<b>Click any empty cell in Table view to add a value</b> with that column\'s date pre-filled. The view mode (Charts / Table / Heatmap) now sticks across navigation and survives saves.',
+      '<b>Blood pressure renders as one card</b> ("120/80 mmHg") instead of two. Storage stays unchanged — sys and dia are still tracked separately under the hood — but the card face and detail view present them paired like every other BP app.',
+      '<b>Manual BP entry, fixed.</b> Tapping the diastolic field no longer kicks the cursor back to systolic. The same idempotency fix also stops the form from rebuilding on every click inside it.',
+      '<b>Table and Heatmap views hide markers you have no data for.</b> A 50-row category with values in 8 markers no longer scrolls past 42 rows of dashes — only markers with at least one reading render. Categories with no data at all show a one-line "import a PDF or use the sidebar" hint instead of an empty table.',
+      '<b>Sticky header in Compare Dates.</b> Scroll long tables and the dates header stays on screen. Single page scrollbar (the old approach gave you two).',
+      '<b>Inline value editing</b> now uses a full-width input instead of an 80px cell that clipped multi-digit values, refreshes the underlying table/heatmap on save (was showing stale values), and treats Escape as a real cancel (no longer flips your imported value to "manual" if you press Esc without changing anything).',
+      '<b>PDF import accepts extensionless files</b> — magic-byte sniff catches files exported with no extension (common with OCRFeeder on Linux).',
+      '<b>Wearable manual entry got chip + note parity.</b> The "+ Add reading" form in the detail modal now offers the same context chips (resting / morning-fasted / post-workout / stress for BP and RHR) and a freeform note field that the dashboard empty-card form has had. Notes show up under the reading in the entries list, and feed the AI alongside the numbers.',
+      '<b>Category navigation no longer bounces to Dashboard.</b> Clicking 3M / 6M / 1Y range buttons, deleting a value, or saving a PDF import — anywhere the sidebar rebuilds in response — used to read a stale "active" state and redirect you to Dashboard. Fixed across all 10 places that had the pattern.',
+      '<b>Bugfixes & improvements.</b> Family-history relative picker is grouped into Parents / Siblings & Children / Maternal grandparents / Paternal grandparents. Each family-history entry shows a small relative chip with emoji so a long list reads scannably by "who" before "what". The add-entry form stacks cleanly into two rows on mobile. Manual-entry value input width is now responsive (was clipping 6+ digit values like cholesterol or testosterone). Friendlier empty-state hints throughout Table / Heatmap / Family-history sections. Cross-device sync covers the new per-value notes and family history under the same per-row CRDT path everything else uses — no migration needed.',
+    ]
+  },
+  {
+    version: '1.6.19', date: '2026-05-11', title: 'Airplane-mode resilience + identity recovery',
+    items: [
+      '<b>"Push committed but never arrived"</b> — a small fraction of Evolu sync owners hit a state where the relay acked every push but never persisted anything, so a freshly-imported PDF would simply never show up on another device. Diagnose modal now flags this case explicitly (red dot, "your relay storage is empty despite recent pushes") and offers a one-click <b>Rotate identity</b> to recover. Server-side detection landed in the relay too.',
+      '<b>Sun & weather data on airplane.</b> CAMS / Open-Meteo fetches now time out cleanly, fall back gracefully, and don\'t freeze the UV strip when you\'re offline. AI streams + requests gained timeouts so a wedged provider can\'t hang the chat panel.',
+      '<b>Scroll-anchor stability.</b> Rapid navigation through AI-verdict cards no longer jumps around — the page restores to the element you focused, not a guessed pixel offset.',
+      '<b>Measurement retention redesign.</b> Light & Sun room measurements now keep only the latest reading per (room, tool) instead of every historical sample. Walkthrough audits stay full-history.',
+      '<b>Sessions list compaction</b> on the Light & Sun page — older sessions collapse so the page stays readable at 100+ sessions.',
+    ]
+  },
+  {
+    version: '1.6.2', date: '2026-05-11', title: 'Silent-reject detector foundation',
+    items: [
+      '<b>Chart-modal cleanup</b> — chart instances are now destroyed when the modal closes (small memory leak fix).',
+      '<b>Foundation for the silent-reject detector</b> that landed in v1.6.19.',
+    ]
+  },
+  {
+    version: '1.6.1', date: '2026-05-10', title: 'Bugfixes & improvements',
+    items: [
+      '<b>PDF image import:</b> clicking Cancel on the AI-provider privacy warning aborts cleanly now (was hanging).',
+    ]
+  },
+  {
+    version: '1.6.0', date: '2026-05-04', title: '☀ Light & Sun — the lens for everything sunlight does to you',
+    items: [
+      '<b>☀ Light & Sun lens.</b> Sunlight does a lot more than make vitamin D. Track your exposure across six biological channels — Vitamin D, Body clock, Cardiovascular, Mood & hormones, Cellular repair, and Outdoor eye light — and correlate them with your labs and wearable data over time. One-tap session logging: tap when you go outside, tap again when you come back. Plain-English summary on stop with computed vit-D yield and burn-dose status.',
+      '<b>Sun-safety guardrails.</b> Live alert at 70% + 100% of your daily burn dose. A photosensitizing-medication checkbox drops your threshold (tetracyclines, isotretinoin, NSAIDs, St John\'s Wort, others). Cumulative carry-over warning when yesterday + today push you over. High-altitude flag for locations above 1500m.',
+      '<b>Light therapy devices, first-class.</b> Pick from a preset library (Joovv panels, Mito Red, Sperti UVB, Verilux dawn simulators, full-spectrum bulbs) or add a custom device. Therapy sessions feed the same channels as outdoor sun.',
+      '<b>Indoor light + screens.</b> Map the rooms you spend time in and the screens you stare at. Each audit question carries a one-line photobiology explainer below it. Indoor light deficits feed back into your channel mix.',
+      '<b>Eight on-device measurement tools.</b> Lux meter, flicker detector, color-temperature meter, light classifier, glass-transmission test, sleep darkness meter, sunrise/sunset logger, eye-level audit walkthrough. Camera frames stay on your device.',
+      '<b>AI sees your sun.</b> Every chat now carries your active deficits, device library, week\'s per-channel exposure, and burn-dose state. After ≥4 weeks of overlapping sessions and labs, channel-by-biomarker correlations join the AI context automatically.',
+      '<b>Faster, cleaner cross-device sync.</b> Each push ships only what changed (per-row deltas, gzipped) instead of one fat blob. Concurrent edits from phone and desktop merge cleanly. Self-serve relay-storage compaction lives in the Sync diagnose modal — no more "storage full, ping the maintainer."',
+      '<b>Five Lenses framing.</b> getbased is now organized around five lenses on your biology — 🩸 <b>Labs</b>, 🧬 <b>Genome</b>, ⌚ <b>Body</b>, ☀ <b>Light</b>, 🧠 <b>Insight</b>. Every lens informs every other; the AI synthesizes across all of them.',
+    ]
+  },
+  {
+    version: '1.5.4', date: '2026-05-07', title: 'Bugfixes & improvements',
+    items: [
+      '<b>Don\'t want wearables?</b> Settings → Wearables → "Wearable integrations" toggles them off. The strip stays for your manual weight, BP, and pulse entries.',
+      '<b>Edit a misread import date.</b> Settings → Data → "Edit date" on any imported entry — useful when the AI guessed wrong on an ambiguous numeric date like "12/7/2025".',
+      '<b>Region-aware date parsing.</b> Set your country in the client editor and the PDF importer disambiguates DD/MM vs MM/DD correctly for new imports.',
+    ]
+  },
+  {
+    version: '1.5.2', date: '2026-05-02', title: 'Bugfixes & improvements',
+    items: [
+      'Internal hardening pass — small fixes across input sanitization and worker isolation.',
+    ]
+  },
+  {
+    version: '1.5.1', date: '2026-04-29', title: 'Bugfixes & improvements',
+    items: [
+      '<b>Genetics rows in the marker detail modal no longer duplicate.</b> When a SNP carried both a raw finding and an actionable hint pointing at the same marker, the same gene rendered twice with the same study link. Now collapses to a single row.',
+      '<b>"Open App" link in the docs site works on every host.</b> Was producing https://app.getbased.health/app (which doesn\'t exist) on the app subdomain. Now host-aware — points to the right place from localhost, getbased.health, app.getbased.health, or anywhere else.',
+    ]
+  },
+  {
+    version: '1.5.0', date: '2026-04-29', title: 'Audit, bugfixes & improvements',
+    items: [
+      '<b>Security hardening.</b> PDF importer bumped to close a known font-handling vulnerability. AI-supplied marker keys are now validated before touching your data. OpenRouter login + every wearable OAuth callback gained CSRF + 10-minute pending-state expiry.',
+      '<b>Sync + chat reliability.</b> Profile-swap no longer drops a pending sync push. Wearable data shows up in chat right after you sync (AI context cache now invalidates on summary changes). Streaming AI replies no longer drop the final chunk on missing trailing newline.',
+      '<b>Wearable connect</b> handles the "missing user id" failure mode (Polar) cleanly instead of stranding sync in a reauth loop. OAuth callback during a profile swap is caught — the connection lands in the right profile.',
+      '<b>PWA offline first-launch is fixed</b> — installing and going offline no longer breaks chat or the Knowledge Base.',
+      '<b>Cycle + biological age fixes.</b> Long perimenopause cycles (60–90 days) no longer get truncated to 45. Biological age now requires hs-CRP, not standard CRP — the two assays measure very different ranges.',
+      '<b>Corrupt profile recovery.</b> If your profile data ever gets corrupted (browser crash mid-write), the app preserves the original bytes for recovery instead of silently substituting an empty profile.',
+      '<b>Accessibility pass.</b> Dashboard cards, trend alerts, heatmap cells, supplement rows — every clickable surface is now keyboard-reachable. Settings tabs and the Charts/Table/Heatmap toggle are proper tablists. The Layers dropdown closes on Escape.',
+      '<b>Weight units</b> respect your chosen system everywhere (US users see "lb"). Light-mode mobile address bar picks up your theme on first paint instead of flashing dark.',
+    ]
+  },
+  {
+    version: '1.4.0', date: '2026-04-28', title: 'Smarter chat search, easier setup, more flexibility',
+    items: [
+      '<b>Chat now stays out of your way.</b> When you open chat, the dashboard automatically shifts left to fit alongside the panel — every chart and section stays visible, scroll and clicks work as normal. New <b>⛶ fullscreen toggle</b> in the chat header for when you want an immersive conversation; your preference is remembered between sessions.',
+      '<b>The Knowledge Base finds more of your notes.</b> Your AI provider now rephrases each question before searching — a search for "Black Seed Oil" also finds notes titled "Nigella Sativa"; "insulin sensitivity" pulls in "metabolic flexibility". Adds about a second on the first matching question. Toggle off in <b>Knowledge Base → Improve recall with query rewriting</b> if you want pure local search.',
+      '<b>Knowledge Base has its own dedicated panel</b> with a one-click entry from the dashboard. Modern laptops now default to a stronger embedding model when creating a new on-device library, for noticeably better recall.',
+      '<b>The dashboard nudges you to set up things you might have missed.</b> Three quiet pills appear under the Interpretive Lens row when something is unconfigured: <b>Personalize how AI answers</b> (Lens + Knowledge Base), <b>Protect your data</b> (Encryption + cross-device Sync + auto-backup), and an <b>Add your DNA data</b> CTA in the genetics section. Each pill goes away once everything is set up.',
+      '<b>Self-hosters can bring their own OAuth apps</b> for Oura / Withings / Ultrahuman / Polar / WHOOP / Fitbit. Set <code>OURA_CLIENT_ID</code>, <code>WITHINGS_CLIENT_ID</code>, etc. alongside the existing <code>*_CLIENT_SECRET</code> values in <code>.env.local</code> and the app uses your OAuth app instead of the maintainer\'s. Hosted users see no change. See the updated Wearables guide.',
+      '<b>Marker Glossary retired</b> — it was redundant with the sidebar (browse + search), each marker\'s detail page (ranges + history), and the AI chat (plain-English explanations).',
+      '<b>Accessibility:</b> dashboard rows + clickable cards are now keyboard-activatable (Enter/Space), icon-only buttons gained explicit labels, and modals move focus inside on open + dismiss on backdrop click + Escape.',
+    ]
+  },
+  {
+    version: '1.3.20', date: '2026-04-27', title: 'Region-aware recommendations + clearer privacy',
+    items: [
+      '<b>Set your country in the profile editor</b> and recommendations now show products and URLs available in your market — Czech users land on Czech storefronts, US users on .com sites, etc. Each rec section\'s footer reads "Showing for {country} · change" so you always know what\'s being filtered.',
+      '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a transparency banner on first launch — counts only, no IP, no health data, cookieless. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
+      '<b>EMF assessment</b> now also surfaces recommended meters (empty state) and mitigation products (after interpretation), tied to the issues actually flagged. Toggle Settings → Display → "Show product recommendations" off if you don\'t want them. Affiliate disclosure is built in; brands cannot pay for placement.',
+    ]
+  },
+  {
+    version: '1.3.9', date: '2026-04-27', title: 'App footer — trademark attribution + Privacy/Terms links',
+    items: [
+      'New <b>fineprint block</b> below the dashboard footer: trademark attribution for every wearable vendor whose logo we display (nominative fair use), <b>Privacy</b> and <b>Terms</b> links to the public site, and a Linktree anchor for the maintainer.',
+    ]
+  },
+  {
+    version: '1.3.8', date: '2026-04-26', title: 'Wearables — connect your devices, share with AI agents',
+    items: [
+      '<b>Five wearables, one dashboard.</b> Connect Oura, Fitbit, Withings, Polar, or Apple Health (file import). Or log weight / BP / resting HR by hand. HRV, sleep, recovery, body composition, blood pressure, steps — every signal your hardware produces surfaces in a single strip alongside your blood work. Withings users get the full Body Scan / ScanWatch / BPM picture: body fat %, muscle / bone / water mass, vascular age, PWV, SpO₂, body and skin temperature, sleep architecture (deep / light / REM / awake / breathing rate / snoring / apnea-class), nerve health — cards auto-hide when your device doesn\'t measure that signal. (WHOOP and Ultrahuman support is built but private-beta only while we validate partner credentials.)',
+      '<b>Tap any card for detail.</b> 90-day chart, baselines, rolling averages, every individual reading, manual-entry CRUD. Multiple devices? Tap the <i>via Oura</i> / <i>via Fitbit</i> source badge to switch which one drives the card. Reorder the strip via the ⇄ button — hold per profile, sync across devices.',
+      '<b>Overnight and daytime, separately.</b> HRV and heart rate split into recovery (overnight) and reactivity (daytime) so the AI can reason about both.',
+      '<b>AI chat sees a compact summary</b> by default. External agents (Hermes, OpenClaw, Claude Code, anything MCP) connect via the new Agent Access tab — token, push controls, optional 7 / 30 / 90-day series for time-series reasoning.',
+      '<b>Honest "as of {date}" dates.</b> If a metric\'s latest reading is older than its source\'s freshest reading (e.g. HRV from Oura\'s <code>/sleep</code> often lags daily_sleep by hours while the night\'s analysis finishes), the card surfaces the actual date so the value reads honestly. Hover for the explanation.',
+      '<b>Privacy.</b> Raw daily samples never leave your device. Sync carries only the compact summary, encrypted end-to-end. OAuth tokens never sync — re-connect each device independently. Wearable storage is wrapped in AES-GCM when encryption-at-rest is enabled.',
+      '<b>Settings reorganised.</b> Old Integrations tab split into <b>Wearables</b> (your devices) and <b>Agent Access</b> (read permission for AI). See the <a href="https://docs.getbased.health/guides/wearables">user guide</a> for the full setup walkthrough.',
+    ]
+  },
+];
+
+/** Extract major.minor from a semver string (e.g. '1.0.1' → '1.0') */
+function getMajorMinor(ver) {
+  const parts = String(ver).split('.');
+  return parts.slice(0, 2).join('.');
+}
+
+function getSeenVersion() {
+  return localStorage.getItem('labcharts-changelog-seen') || '';
+}
+
+function markChangelogSeen() {
+  localStorage.setItem('labcharts-changelog-seen', getAppVersionRuntime());
+}
+
+// Changelog items are authored in source code (CHANGELOG above) — trusted.
+// We escape everything by default and then re-allow a small whitelist of
+// inline emphasis tags + safe-href anchors. Anything else (script, img,
+// arbitrary attributes, javascript: URLs, etc.) stays escaped — defense-
+// in-depth in case an entry ever incorporates user content.
+function renderChangelogItem(item) {
+  let out = escapeHTML(item);
+  // Inline emphasis: <b>/<i>/<em>/<strong>/<code> render as styling.
+  out = out.replace(/&lt;(\/?)(b|i|em|strong|code)&gt;/g, '<$1$2>');
+  // Anchors: <a href="…">text</a>. Validate the protocol — only http,
+  // https, and mailto pass; anything else (javascript:, data:, etc.)
+  // strips back to plain text. External links open in a new tab with
+  // noopener/noreferrer so the opener can't be navigated.
+  out = out.replace(
+    /&lt;a href=&quot;(.+?)&quot;&gt;(.+?)&lt;\/a&gt;/g,
+    (match, escapedUrl, inner) => {
+      // The captured URL is HTML-escaped (& → &amp; etc.). Decode for the
+      // protocol check, but emit the escaped form back into the href so
+      // ampersand-bearing URLs (?foo=1&bar=2) round-trip correctly.
+      const decoded = escapedUrl.replace(/&amp;/g, '&');
+      if (!/^(https?:|mailto:)/i.test(decoded)) return inner; // unsafe → drop the wrapper, keep text
+      const isExternal = /^https?:/i.test(decoded);
+      const attrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return `<a href="${escapedUrl}"${attrs}>${inner}</a>`;
+    }
+  );
+  return out;
+}
+
+export function openChangelog(showAll) {
+  const overlay = document.getElementById('changelog-modal-overlay');
+  const modal = document.getElementById('changelog-modal');
+  if (!overlay || !modal) return;
+
+  const entries = showAll ? CHANGELOG : CHANGELOG.slice(0, 3);
+
+  modal.className = 'modal changelog-modal gb-history-modal';
+  let html = `<div class="gb-modal-head">
+    <div>
+      <div class="gb-modal-kicker">Release notes</div>
+      <div class="gb-modal-title">What's New</div>
+    </div>
+    <button type="button" class="modal-close" aria-label="Close" ${CHANGELOG_ACTION_ATTR}="close">&times;</button>
+  </div>
+  <div class="gb-form-body">`;
+
+  for (const entry of entries) {
+    html += `<div class="changelog-entry">`;
+    html += `<div class="changelog-header"><span class="changelog-version">v${escapeHTML(entry.version)} — ${escapeHTML(entry.title)}</span><span class="changelog-date">${escapeHTML(entry.date)}</span></div>`;
+    html += '<ul class="changelog-items">';
+    for (const item of entry.items) {
+      html += `<li class="changelog-item">${renderChangelogItem(item)}</li>`;
+    }
+    html += '</ul></div>';
+  }
+
+  html += `</div>`;
+  modal.innerHTML = html;
+  installChangelogDelegates(modal);
+  openModalOverlay(overlay);
+}
+
+function handleChangelogActionClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = target.closest(`[${CHANGELOG_ACTION_ATTR}]`);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute(CHANGELOG_ACTION_ATTR) === 'close') {
+    event.preventDefault();
+    event.stopPropagation();
+    closeChangelog();
+  }
+}
+
+function installChangelogDelegates(root) {
+  if (!root || changelogDelegateRoots.has(root)) return;
+  changelogDelegateRoots.add(root);
+  root.addEventListener('click', handleChangelogActionClick);
+}
+
+export function closeChangelog() {
+  closeModalOverlay('changelog-modal-overlay');
+  markChangelogSeen();
+}
+
+// Compare two semver strings — returns true when `a` is strictly newer
+// than `b`. Tolerant of missing parts (treats "1.7" as "1.7.0").
+function _semverGt(a, b) {
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const ai = pa[i] || 0, bi = pb[i] || 0;
+    if (ai > bi) return true;
+    if (ai < bi) return false;
+  }
+  return false;
+}
+
+export function maybeShowChangelog() {
+  if (document.getElementById('legal-consent-overlay')) return;
+  const seen = getSeenVersion();
+  const appVersion = getAppVersionRuntime();
+  // First visit — no changelog, just mark as seen
+  if (!seen) { markChangelogSeen(); return; }
+  // Only show What's New on minor/major bumps, not patch
+  if (appVersion && getMajorMinor(seen) !== getMajorMinor(appVersion)) {
+    openChangelog(false);
+    return;
+  }
+  // Patch-level bumps normally don't auto-show, but a maintainer can flag
+  // an entry as forceShow when it carries a critical user-action notice
+  // (e.g. "re-export your encrypted backup" in v1.7.1). Scan all entries
+  // newer than the user's seen version — a later non-forceShow patch must
+  // not shadow an earlier critical entry. Idempotent because closeChangelog
+  // advances seen to the current APP_VERSION.
+  const hasForceShowAheadOfSeen = CHANGELOG.some(
+    e => e && e.forceShow && _semverGt(e.version, seen)
+  );
+  if (hasForceShowAheadOfSeen) openChangelog(false);
+}

@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 471 |
-| Internal import edges | 2113 |
-| Dynamic internal edges | 70 |
+| Modules | 472 |
+| Internal import edges | 2117 |
+| Dynamic internal edges | 71 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -38,16 +38,16 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 217 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 89 |
+| [`js/utils.js`](js/utils.js) | 218 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 89 |
 | [`js/state.js`](js/state.js) | 149 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 56 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 57 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 28 | [`js/wearables-connect.js`](js/wearables-connect.js) | 20 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 19 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/sun.js`](js/sun.js) | 18 |
 | [`js/constants.js`](js/constants.js) | 17 | [`js/export.js`](js/export.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 16 | [`js/profile.js`](js/profile.js) | 16 |
@@ -178,9 +178,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>changelog</code> family — 1 module</summary>
+<details><summary><code>changelog</code> family — 2 modules</summary>
 
-- [`js/changelog.js`](js/changelog.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/changelog-impl.js`](js/changelog-impl.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/changelog.js`](js/changelog.js) → [`js/changelog-impl.js`](js/changelog-impl.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

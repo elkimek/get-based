@@ -12,7 +12,7 @@ test('changelog modal opens, closes, and marks the current version as seen', asy
 
   await page.evaluate(async () => {
     const { openChangelog } = await import('/js/changelog.js');
-    openChangelog(true);
+    await openChangelog(true);
   });
 
   await expect(overlay).toHaveClass(SHOW_CLASS_TOKEN);
@@ -39,16 +39,16 @@ test('changelog forceShow entries auto-open until the latest version is seen', a
 
     localStorage.setItem('labcharts-changelog-seen', '1.7.0');
     overlay.classList.remove('show');
-    maybeShowChangelog();
+    await maybeShowChangelog();
     const opensWhenForceShowIsNewer = overlay.classList.contains('show') === true;
 
     closeChangelog();
-    maybeShowChangelog();
+    await maybeShowChangelog();
     const staysClosedAfterLatestSeen = overlay.classList.contains('show') === false;
 
     localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION);
     overlay.classList.remove('show');
-    maybeShowChangelog();
+    await maybeShowChangelog();
     const staysClosedWhenNoForceShowIsNewer = overlay.classList.contains('show') === false;
 
     return {
@@ -70,7 +70,7 @@ test('changelog renders whitelisted inline tags and safe links', async ({ page }
 
   await page.evaluate(async () => {
     const { openChangelog } = await import('/js/changelog.js');
-    openChangelog(true);
+    await openChangelog(true);
   });
 
   const itemsHTML = await page.locator('#changelog-modal').evaluate((modal) => modal.innerHTML);

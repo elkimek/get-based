@@ -411,6 +411,7 @@
     "js/category-page-view.js",
     "js/category-view-renderers.js",
     "js/changelog.js",
+    "js/changelog-impl.js",
     "js/chart-card-recs.js",
     "js/charts-runtime.js",
     "js/charts.js",
