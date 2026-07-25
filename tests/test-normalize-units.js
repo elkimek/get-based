@@ -22,7 +22,6 @@ console.log('=== Unit Normalization Pipeline Tests ===\n');
 
 const src = read('js/pdf-import.js');
 const fileUtilsSrc = read('js/pdf-import-file-utils.js');
-const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const schemaSrc = read('js/schema.js');
 const { UNIT_CONVERSIONS, MARKER_SCHEMA } = await import('../js/schema.js');
 const { assessTextQuality } = await import('../js/pdf-import.js');
@@ -139,13 +138,14 @@ const { normalizeToSI: normalizeImportedValueToSI } = await import('../js/pdf-im
   // ═══════════════════════════════════════
   console.log('%c 6. normalizeUnitStr — source verification ', 'font-weight:bold;color:#f59e0b');
 
-  assert('normalizeUnitStr defined in source', mappingSrc.includes('function normalizeUnitStr(s)'));
-  assert('normalizes Unicode compatibility forms in source', mappingSrc.includes("normalize('NFKC')"));
-  assert('handles U+00B5 in source', mappingSrc.includes('\\u00b5'));
-  assert('handles U+03BC in source', mappingSrc.includes('\\u03bc'));
-  assert('mcg replacement in source', mappingSrc.includes("replace(/^mcg/, 'ug')"));
-  assert('iu/ replacement in source', mappingSrc.includes("replace(/^iu\\//, 'u/')"));
-  assert('ug/l → ng/ml alias in source', mappingSrc.includes("replace(/^ug\\/l$/, 'ng/ml')"));
+  assert('normalizeClinicalUnit defined in schema source',
+    schemaSrc.includes('function normalizeClinicalUnit(unit)'));
+  assert('normalizes Unicode compatibility forms in source', schemaSrc.includes("normalize('NFKC')"));
+  assert('handles U+00B5 in source', schemaSrc.includes('\\u00b5'));
+  assert('handles U+03BC in source', schemaSrc.includes('\\u03bc'));
+  assert('mcg replacement in source', schemaSrc.includes("replace(/^mcg/, 'ug')"));
+  assert('iu/ replacement in source', schemaSrc.includes("replace(/^iu\\//, 'u/')"));
+  assert('ug/l → ng/ml alias in source', schemaSrc.includes("replace(/^ug\\/l$/, 'ng/ml')"));
 
   // ═══════════════════════════════════════
   // 7. normalizeToSI — glucose (mg/dL → mmol/L)

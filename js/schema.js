@@ -360,6 +360,85 @@ export const UNIT_CONVERSIONS = {
 
 export { SECONDARY_UNIT_CONVERSIONS };
 
+/** Normalize clinical unit spellings for import and migration comparisons. @param {unknown} unit */
+export function normalizeClinicalUnit(unit) {
+  return String(unit || '')
+    .normalize('NFKC').toLowerCase().replace(/\s/g, '')
+    .replace(/[\u00b5\u03bc]/g, 'u')
+    .replace(/^mcg/, 'ug').replace(/^iu\//, 'u/')
+    .replace(/^ug\/l$/, 'ng/ml');
+}
+
+function isPercentClinicalUnit(unit) {
+  const normalized = normalizeClinicalUnit(unit);
+  return ['%', 'pct', 'percent', 'percentage'].includes(normalized);
+}
+
+function isFractionStoredPercentMarker(key) {
+  const [catKey, markerKey] = String(key || '').split('.');
+  const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+  const conversion = UNIT_CONVERSIONS[key];
+  return !!marker && (marker.unit || '') === '' && marker.refMax != null && marker.refMax <= 1
+    && conversion?.type === 'multiply'
+    && conversion.factor === 100 && isPercentClinicalUnit(conversion.usUnit);
+}
+
+function normalizeFractionStoredPercentValue(key, value, unit, context = null) {
+  if (!isFractionStoredPercentMarker(key) || !isPercentClinicalUnit(unit)) return null;
+  const [catKey, markerKey] = String(key || '').split('.');
+  const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);
+  const reportRefMax = Number(context?.refMax);
+  const hasWholePercentRange = reportRefMax > 1 && reportRefMax > schemaRefMax
+    && !(Number.isFinite(schemaRefMax) && value <= schemaRefMax);
+  const siValue = value > 1 || hasWholePercentRange ? value / 100 : value;
+  return parseFloat(siValue.toPrecision(6));
+}
+
+/**
+ * Convert an imported or legacy marker value to the schema's canonical SI unit.
+ * @param {string} key
+ * @param {any} value
+ * @param {unknown} unit
+ * @param {Record<string, any> | null} [context]
+ */
+export function normalizeToSI(key, value, unit, context = null) {
+  if (value == null || isNaN(value)) return null;
+  // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50).
+  if (key === 'hematology.hematocrit' && value < 1.5) return parseFloat((value * 100).toFixed(1));
+  if (unit) {
+    const normalizedUnit = normalizeClinicalUnit(unit);
+    const fractionPercentValue = normalizeFractionStoredPercentValue(key, value, normalizedUnit, context);
+    if (fractionPercentValue != null) return fractionPercentValue;
+    const primaryConversion = UNIT_CONVERSIONS[key];
+    if (
+      primaryConversion?.type === 'multiply'
+      && normalizedUnit === normalizeClinicalUnit(primaryConversion.usUnit)
+    ) {
+      return parseFloat((value / primaryConversion.factor).toPrecision(6));
+    }
+    if (primaryConversion?.type === 'hba1c' && normalizedUnit === '%') {
+      return parseFloat(((value - 2.15) * 10.929).toFixed(1));
+    }
+    for (const conversion of SECONDARY_UNIT_CONVERSIONS[key] || []) {
+      if (normalizedUnit !== normalizeClinicalUnit(conversion.unit)) continue;
+      if (conversion.type === 'multiply') {
+        return parseFloat((value / conversion.factor).toPrecision(6));
+      }
+      if (conversion.type === 'hba1c') return parseFloat(((value - 2.15) * 10.929).toFixed(1));
+    }
+    return value;
+  }
+  const fallbackConversion = UNIT_CONVERSIONS[key];
+  if (fallbackConversion?.type === 'multiply' && fallbackConversion.factor > 1) {
+    const [catKey, markerKey] = key.split('.');
+    const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    if (marker?.refMax != null && value > marker.refMax * fallbackConversion.factor * 0.3) {
+      return parseFloat((value / fallbackConversion.factor).toPrecision(6));
+    }
+  }
+  return value;
+}
+
 // Returns the converted {value, unit} in the *other* unit system for dual-display,
 // or null when no conversion exists. `displayValue` is what the user currently sees
 // (state.unitSystem-dependent); `isUSMode` is the current display mode flag.
