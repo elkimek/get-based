@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 const facadeUrl = () => `/js/settings-sync-panel.js?loaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const syntheticSettingsSyncPanel = `
