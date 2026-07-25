@@ -41,7 +41,8 @@ export function deduplicateModels(models, familyFn) {
 
 // Curated: latest-gen medically capable models only (prefixes matched against IDs)
 const OPENROUTER_CURATED = [
-  'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4', 'anthropic/claude-opus-4',
+  'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4',
+  'anthropic/claude-opus-5', 'anthropic/claude-opus-4',
   'openai/gpt-5',
   'google/gemini-3', 'google/gemini-2',
   'deepseek/deepseek',
@@ -58,7 +59,7 @@ const OPENROUTER_CURATED = [
 // Venice: "model-version" (hyphens: 4-6, no provider prefix)
 const OPENROUTER_RECOMMENDED = [
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
-  'anthropic/claude-opus-4.8', 'anthropic/claude-opus-4.7',
+  'anthropic/claude-opus-5', 'anthropic/claude-opus-4.7',
   'openai/gpt-5.6-sol', 'openai/gpt-5.4',
   'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
   'z-ai/glm-5.2',
@@ -68,11 +69,11 @@ const OPENROUTER_RECOMMENDED = [
 const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
-const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-2'];
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
-const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
+const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k2-6', 'private/glm-5-2', 'private/gpt-oss-120b'];
 
 function normalizedModelId(modelId) {
@@ -85,7 +86,7 @@ function isClaudeSonnet5Model(modelId) {
 
 function isCustomRecommendedModel(modelId) {
   if (isClaudeSonnet5Model(modelId)) return true;
-  return /(^|[/-])claude-(sonnet-4-6|opus-4-8|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
+  return /(^|[/-])claude-(sonnet-4-6|opus-5|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])gpt-5-[45]($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])gemini-3-(5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])glm-5-2($|[-:])/.test(normalizedModelId(modelId))
@@ -125,9 +126,9 @@ export function isRecommendedModel(provider, modelId) {
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelStartsWithRecommended(modelId, prefix); });
   if (provider === 'venice') {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5/.test(modelId);
-    // claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7) is intentionally narrow. When newer
+    // claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return /^(claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k3|grok-4[1-9]?)(-|$)/.test(modelId);
+    return /^(claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k3|grok-4[1-9]?)(-|$)/.test(modelId);
   }
   if (provider === 'routstr') {
     if (modelId.startsWith('tinfoil-')) return ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);

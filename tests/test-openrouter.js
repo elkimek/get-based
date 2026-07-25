@@ -81,6 +81,7 @@ assert('getModelPricing checks openrouter-pricing cache', schemaSrc.includes('la
 assert('OPENROUTER_CURATED whitelist exists', apiModelsSrc.includes('OPENROUTER_CURATED'));
 assert('Curated: anthropic/claude-sonnet-5 prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-5'"));
 assert('Curated: anthropic/claude-sonnet prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-4'"));
+assert('Curated: anthropic/claude-opus-5 prefix', apiModelsSrc.includes("'anthropic/claude-opus-5'"));
 assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropic/claude-opus-4'"));
 assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
 assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
