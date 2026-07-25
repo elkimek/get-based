@@ -215,6 +215,8 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
 
       const lensPickerClosed = await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="lens"]');
       const kbPickerClosed = await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="kb"]');
+      await lens.loadLensKnowledgeBaseUi();
+      await Promise.resolve();
       outcomes.personalizePickerRoutesLensAndKnowledgeBase =
         lensPickerClosed
         && kbPickerClosed

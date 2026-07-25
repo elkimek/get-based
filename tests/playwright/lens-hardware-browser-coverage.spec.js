@@ -304,7 +304,7 @@ test('external lens browser contract covers validation fetch cache save and remo
         return makeJsonResponse({ chunks: [] });
       };
 
-      lens.openKnowledgeBaseModal();
+      await lens.openKnowledgeBaseModal();
       document.getElementById('lens-name-input').value = 'Saved KB';
       document.getElementById('lens-url-input').value = 'https://kb.example.test/query///';
       document.getElementById('lens-key-input').value = 'new-token';
@@ -407,6 +407,7 @@ test('in-browser lens render covers local panel status and backend switching wit
       }));
       cryptoStore.updateKeyCache('labcharts-lens-key', '');
 
+      await lens.loadLensKnowledgeBaseUi();
       section.innerHTML = lens.renderCustomLensSection();
       document.body.appendChild(section);
       const remoteFields = /** @type {HTMLElement | null} */ (section.querySelector('#lens-remote-fields'));

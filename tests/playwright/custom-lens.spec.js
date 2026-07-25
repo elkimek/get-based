@@ -32,7 +32,7 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
       testProbe: 'vitamin D deficiency supplementation',
       multiQuery: true,
     }));
-    openKnowledgeBaseModal();
+    await openKnowledgeBaseModal();
   });
 
   const lensSection = page.locator('#custom-lens-section');
@@ -47,7 +47,7 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
   await page.evaluate(async () => {
     const { closeKnowledgeBaseModal } = await import('/js/lens.js');
     const settings = await import('/js/settings.js');
-    closeKnowledgeBaseModal();
+    await closeKnowledgeBaseModal();
     settings.openSettingsModal('ai');
   });
 

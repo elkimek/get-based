@@ -55,6 +55,13 @@ assert('handleRemoveLens exists', lensSrc.includes('function handleRemoveLens()'
 assert('handleToggleLens exists', lensSrc.includes('function handleToggleLens('));
 assert('handleClearLensCache exists', lensSrc.includes('function handleClearLensCache()'));
 assert('updateLensIndicator exists', lensSrc.includes('function updateLensIndicator()'));
+assert('Knowledge Base UI is dynamically imported',
+  lensSrc.includes("import('./lens-knowledge-base-ui.js')") &&
+    !lensSrc.includes("from './lens-knowledge-base-ui.js'"));
+assert('Knowledge Base UI loader retries through a stable URL',
+  lensSrc.includes("import('./lens-knowledge-base-ui.js?lazy-retry=1')"));
+assert('dashboard summary stays in the cold-safe lens facade',
+  lensSrc.includes('function getLensSummary()'));
 assert("fetch uses credentials:'omit'", lensSrc.includes("credentials: 'omit'"));
 assert("fetch uses referrerPolicy:'no-referrer'", lensSrc.includes("referrerPolicy: 'no-referrer'"));
 assert("fetch uses redirect:'error'", lensSrc.includes("redirect: 'error'"));
@@ -147,6 +154,7 @@ for (const name of [
   'queryLens', 'buildLensSnippet', 'testLensConnection', 'clearLensCache',
   'isValidLensUrl', 'renderCustomLensSection', 'handleSaveLensConfig',
   'handleRemoveLens', 'updateLensIndicator', 'subscribeLensStatus',
+  'getLensSummary', 'loadLensKnowledgeBaseUi', 'isLensKnowledgeBaseUiLoaded',
 ]) {
   assert(`lens.${name} is function`, typeof lens[name] === 'function');
 }

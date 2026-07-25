@@ -8,10 +8,10 @@
     "decodedBytes": 5099000
   },
   "reference": {
-    "requests": 396,
-    "transferBytes": 1575122,
-    "decodedBytes": 4563299
+    "requests": 393,
+    "transferBytes": 1558957,
+    "decodedBytes": 4507515
   },
-  "referenceCommit": "152e77cd",
+  "referenceCommit": "3702506a",
   "measuredAt": "2026-07-25"
 }

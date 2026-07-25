@@ -3,11 +3,10 @@
 // User-configured RAG endpoint that backs the Interpretive Lens with retrieved chunks.
 import { state } from './state.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
-import { hashString, isDebugMode } from './utils.js';
+import { hashString, isDebugMode, showNotification } from './utils.js';
 import { hasAIProvider, callClaudeAPI } from './api.js';
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
 import { clearLensCache as clearLensCacheImpl, getLensCacheEntry, setLensCacheEntry } from './lens-cache.js';
-import { createLensKnowledgeBaseUi } from './lens-knowledge-base-ui.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
@@ -465,37 +464,196 @@ export function updateLensIndicator() {
 subscribeLensStatus(updateLensIndicator);
 
 // ═══════════════════════════════════════════════
-// KNOWLEDGE BASE UI FACADE
+// KNOWLEDGE BASE SUMMARY + LAZY UI FACADE
 // ═══════════════════════════════════════════════
-const lensKnowledgeBaseUi = createLensKnowledgeBaseUi({
+
+// The dashboard summary must stay synchronous and cold-safe. The UI reports
+// richer local-library stats after it loads; until then the localStorage count
+// used by hasLens() is enough to distinguish configured from empty.
+let lastLocalLensStats = null;
+
+function recordLocalLensStats(stats) {
+  lastLocalLensStats = stats;
+}
+
+export function getLensSummary() {
+  const cfg = getLensConfig();
+  const configured = hasLens();
+  const aiAvailable = hasAIProvider();
+  const summary = {
+    configured,
+    backend: cfg.backend,
+    enabled: !!cfg.enabled,
+    multiQueryOn: configured && aiAvailable && cfg.multiQuery !== false,
+    aiAvailable,
+    displayName: '',
+    docCount: null,
+    chunkCount: null,
+  };
+  if (cfg.backend === 'in-browser') {
+    summary.displayName = (cfg.name || '').trim() || 'My Library';
+    if (configured && lastLocalLensStats) {
+      summary.docCount = Array.isArray(lastLocalLensStats.documents)
+        ? lastLocalLensStats.documents.length
+        : null;
+      summary.chunkCount = typeof lastLocalLensStats.total_chunks === 'number'
+        ? lastLocalLensStats.total_chunks
+        : null;
+    }
+  } else {
+    let label = (cfg.name || '').trim();
+    if (!label && cfg.url) {
+      try { label = new URL(cfg.url).host; } catch { label = cfg.url; }
+    }
+    summary.displayName = label || 'Knowledge Base';
+  }
+  return summary;
+}
+
+/** @typedef {ReturnType<import('./lens-knowledge-base-ui.js')['createLensKnowledgeBaseUi']>} LensKnowledgeBaseUi */
+/** @type {Promise<LensKnowledgeBaseUi> | null} */
+let lensKnowledgeBaseUiPromise = null;
+/** @type {LensKnowledgeBaseUi | null} */
+let lensKnowledgeBaseUi = null;
+let useLensKnowledgeBaseUiRetryUrl = false;
+
+const lensKnowledgeBaseUiDeps = {
   defaultTestProbe: DEFAULT_TEST_PROBE,
   getLensConfig,
   saveLensConfig,
   getLensKey,
   saveLensKey,
   removeLens,
-  hasLens,
   clearLensCache,
   getLensStatus,
   updateLensStatus,
   updateLensIndicator,
   isValidLensUrl,
   testLensConnection,
-  hasAIProvider,
-});
+  recordLocalLensStats,
+};
 
-export function renderCustomLensSection() { return lensKnowledgeBaseUi.renderCustomLensSection(); }
-export function openKnowledgeBaseModal() { return lensKnowledgeBaseUi.openKnowledgeBaseModal(); }
-export function closeKnowledgeBaseModal() { return lensKnowledgeBaseUi.closeKnowledgeBaseModal(); }
-export async function handleSaveLensConfig() { return lensKnowledgeBaseUi.handleSaveLensConfig(); }
-export function handleLensBackendChange(backend) { return lensKnowledgeBaseUi.handleLensBackendChange(backend); }
-export function getLensSummary() { return lensKnowledgeBaseUi.getLensSummary(); }
-export async function handleLocalLensDeleteDoc(source) { return lensKnowledgeBaseUi.handleLocalLensDeleteDoc(source); }
-export async function handleLocalLensClear() { return lensKnowledgeBaseUi.handleLocalLensClear(); }
-export function handleLibraryActivate(libraryId) { return lensKnowledgeBaseUi.handleLibraryActivate(libraryId); }
-export function handleLibraryNew() { return lensKnowledgeBaseUi.handleLibraryNew(); }
-export function handleLibraryRename() { return lensKnowledgeBaseUi.handleLibraryRename(); }
-export function handleLibraryDelete() { return lensKnowledgeBaseUi.handleLibraryDelete(); }
-export function handleToggleLens(checked) { return lensKnowledgeBaseUi.handleToggleLens(checked); }
-export function handleClearLensCache() { return lensKnowledgeBaseUi.handleClearLensCache(); }
-export async function handleRemoveLens() { return lensKnowledgeBaseUi.handleRemoveLens(); }
+export function isLensKnowledgeBaseUiLoaded() {
+  return lensKnowledgeBaseUi !== null;
+}
+
+function loadLensKnowledgeBaseUiRetryModule() {
+  // @ts-expect-error TypeScript resolves only the query-free source path.
+  return import('./lens-knowledge-base-ui.js?lazy-retry=1');
+}
+
+/** @returns {Promise<LensKnowledgeBaseUi>} */
+export function loadLensKnowledgeBaseUi() {
+  if (!lensKnowledgeBaseUiPromise) {
+    const load = useLensKnowledgeBaseUiRetryUrl
+      ? loadLensKnowledgeBaseUiRetryModule()
+      : import('./lens-knowledge-base-ui.js');
+    lensKnowledgeBaseUiPromise = load
+      .then(module => {
+        lensKnowledgeBaseUi = module.createLensKnowledgeBaseUi(lensKnowledgeBaseUiDeps);
+        return lensKnowledgeBaseUi;
+      })
+      .catch(err => {
+        lensKnowledgeBaseUiPromise = null;
+        lensKnowledgeBaseUi = null;
+        useLensKnowledgeBaseUiRetryUrl = true;
+        throw err;
+      });
+  }
+  return lensKnowledgeBaseUiPromise;
+}
+
+/**
+ * @param {keyof LensKnowledgeBaseUi} name
+ * @param {any[]} args
+ * @param {boolean} [shouldLoad]
+ */
+function runLensKnowledgeBaseUiAction(name, args, shouldLoad = true) {
+  const run = (/** @type {LensKnowledgeBaseUi} */ ui) => {
+    const action = ui[name];
+    if (typeof action !== 'function') {
+      throw new Error(`Knowledge Base UI action ${String(name)} is unavailable`);
+    }
+    return Reflect.apply(action, ui, args);
+  };
+  if (!lensKnowledgeBaseUi && !shouldLoad) return undefined;
+  try {
+    if (lensKnowledgeBaseUi) return run(lensKnowledgeBaseUi);
+    return loadLensKnowledgeBaseUi()
+      .then(run)
+      .catch(err => {
+        console.error(`[lens] Could not run ${String(name)}:`, err);
+        showNotification('Knowledge Base controls could not be loaded. Try again.', 'error');
+        return false;
+      });
+  } catch (err) {
+    console.error(`[lens] Could not run ${String(name)}:`, err);
+    if (shouldLoad) showNotification('Knowledge Base controls could not be loaded. Try again.', 'error');
+    return shouldLoad ? false : undefined;
+  }
+}
+
+export function renderCustomLensSection() {
+  if (lensKnowledgeBaseUi) return lensKnowledgeBaseUi.renderCustomLensSection();
+  void loadLensKnowledgeBaseUi()
+    .then(ui => {
+      const section = document.getElementById('custom-lens-section');
+      if (section?.querySelector('[data-lens-ui-loading]')) {
+        section.innerHTML = ui.renderCustomLensSection();
+      }
+    })
+    .catch(() => {});
+  return '<div class="settings-loading-placeholder" data-lens-ui-loading>Loading Knowledge Base controls…</div>';
+}
+
+export function openKnowledgeBaseModal() {
+  return runLensKnowledgeBaseUiAction('openKnowledgeBaseModal', []);
+}
+
+export function closeKnowledgeBaseModal() {
+  return runLensKnowledgeBaseUiAction('closeKnowledgeBaseModal', [], false);
+}
+
+export function handleSaveLensConfig() {
+  return runLensKnowledgeBaseUiAction('handleSaveLensConfig', []);
+}
+
+export function handleLensBackendChange(backend) {
+  return runLensKnowledgeBaseUiAction('handleLensBackendChange', [backend]);
+}
+
+export function handleLocalLensDeleteDoc(source) {
+  return runLensKnowledgeBaseUiAction('handleLocalLensDeleteDoc', [source]);
+}
+
+export function handleLocalLensClear() {
+  return runLensKnowledgeBaseUiAction('handleLocalLensClear', []);
+}
+
+export function handleLibraryActivate(libraryId) {
+  return runLensKnowledgeBaseUiAction('handleLibraryActivate', [libraryId]);
+}
+
+export function handleLibraryNew() {
+  return runLensKnowledgeBaseUiAction('handleLibraryNew', []);
+}
+
+export function handleLibraryRename() {
+  return runLensKnowledgeBaseUiAction('handleLibraryRename', []);
+}
+
+export function handleLibraryDelete() {
+  return runLensKnowledgeBaseUiAction('handleLibraryDelete', []);
+}
+
+export function handleToggleLens(checked) {
+  return runLensKnowledgeBaseUiAction('handleToggleLens', [checked]);
+}
+
+export function handleClearLensCache() {
+  return runLensKnowledgeBaseUiAction('handleClearLensCache', []);
+}
+
+export function handleRemoveLens() {
+  return runLensKnowledgeBaseUiAction('handleRemoveLens', []);
+}
