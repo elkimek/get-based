@@ -143,7 +143,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   const healthDotsSrc = read('js/context-card-health-dots.js');
   const ctxEditorSrc = read('js/context-card-editor-ui.js');
   const lifestyleEditorSrc = read('js/context-card-lifestyle-editors-impl.js');
-  const medicalHistoryEditorSrc = read('js/context-card-medical-history-editor.js');
+  const medicalHistoryEditorSrc = read('js/context-card-medical-history-editor-impl.js');
 
   assert('context-cards imports getActiveData', ccSrc.includes("import { saveImportedData, getActiveData } from './data.js'"),
     'Should import getActiveData for lab data check');

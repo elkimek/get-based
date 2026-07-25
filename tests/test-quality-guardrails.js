@@ -219,6 +219,7 @@ const broadSurfaceCheckJsModules = [
   'js/context-card-lifestyle-editors.js',
   'js/context-card-lifestyle-editors-impl.js',
   'js/context-card-medical-history-editor.js',
+  'js/context-card-medical-history-editor-impl.js',
   'js/context-cards.js',
   'js/export-report.js',
   'js/light-devices.js',

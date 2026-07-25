@@ -183,7 +183,7 @@ const contextCards = await import('../js/context-cards.js');
   console.log('15. saveAndRefresh Field Param');
 
   const ctxSrc = read('js/context-cards.js');
-  const ctxMedicalSrc = read('js/context-card-medical-history-editor.js');
+  const ctxMedicalSrc = read('js/context-card-medical-history-editor-impl.js');
   const ctxLifestyleSrc = read('js/context-card-lifestyle-editors-impl.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
   assert('Diet passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Diet & Digestion saved', 'diet')"));

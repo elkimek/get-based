@@ -80,7 +80,8 @@ console.log('2. Apostrophe click fix');
 
 const ctxSrc = await fetch('js/context-cards.js').then(r => r.text());
 const ctxSummarySrc = await fetch('js/context-card-summaries.js').then(r => r.text());
-const ctxMedicalSrc = await fetch('js/context-card-medical-history-editor.js').then(r => r.text());
+const ctxMedicalFacadeSrc = await fetch('js/context-card-medical-history-editor.js').then(r => r.text());
+const ctxMedicalSrc = await fetch('js/context-card-medical-history-editor-impl.js').then(r => r.text());
 const ctxCardSrc = `${ctxSrc}\n${ctxSummarySrc}\n${ctxMedicalSrc}`;
 assert('Condition suggestions use delegated data values',
   /data-medical-history-suggestion="condition" data-medical-history-value="\$\{escapeHTML\(m\)\}"/.test(ctxMedicalSrc));
@@ -94,7 +95,7 @@ assert('Medical history editor has no inline event attributes',
 // ═══════════════════════════════════════
 console.log('3. FAMILY_RELATIVES + addEntry guards');
 
-// FAMILY_RELATIVES isn't exported (private to context-card-medical-history-editor.js), so we
+// FAMILY_RELATIVES isn't exported (private to the editor implementation), so we
 // assert its allowlist + the handler's guards via the source. The live
 // handler-mutation test lives in tests/playwright/family-history-dom.spec.js.
 assert('FAMILY_RELATIVES declared with 8 first-degree+grandparent keys',
@@ -211,7 +212,7 @@ assert('Add form is split into two rows for legibility',
 assert('Relative chip emoji mapping defined',
   /RELATIVE_EMOJI\s*=\s*\{/.test(ctxMedicalSrc));
 assert("Closing-suggestions handler also clears fh-condition-suggestions",
-  /fh-condition-suggestions[\s\S]{0,200}fhContainer\.innerHTML\s*=\s*''/.test(ctxMedicalSrc));
+  /fh-condition-suggestions[\s\S]{0,260}fhContainer\.innerHTML\s*=\s*''/.test(ctxMedicalFacadeSrc));
 assert('Condition rows expose delegated edit action',
   ctxMedicalSrc.includes("medicalHistoryActionAttrs('edit-condition'"));
 assert('Family rows expose delegated edit action',

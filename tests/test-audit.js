@@ -114,7 +114,9 @@ assert('SW APP_SHELL includes PDF import support modules',
   && swAuditSrc.includes("'/js/pdf-import-persistence.js'"));
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
-assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
+assert('SW APP_SHELL includes context card medical history modules',
+  swAuditSrc.includes("'/js/context-card-medical-history-editor.js'")
+  && swAuditSrc.includes("'/js/context-card-medical-history-editor-impl.js'"));
 assert('SW APP_SHELL includes EMF interpretation module', swAuditSrc.includes("'/js/emf-interpretation.js'"));
 assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
 assert('SW APP_SHELL includes lens Knowledge Base UI module', swAuditSrc.includes("'/js/lens-knowledge-base-ui.js'"));
@@ -218,7 +220,7 @@ assert('index defers context editor CSS behind its ordered lazy-load anchor',
   contextEditorAuditSrc.includes("new URL('../css/context-editor.css', import.meta.url)") &&
   contextEditorAuditSrc.includes('data-context-editor-stylesheet-anchor'));
 assert('context editor and tips actions wait for their presentation',
-  read('js/context-card-medical-history-editor.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
+  read('js/context-card-medical-history-editor-impl.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
   read('js/context-card-lifestyle-editors-impl.js').includes('runWithContextEditorStylesheet(openDietEditor)') &&
   read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey))'));
 assert('context editor split preserves shared context controls eagerly',
@@ -646,7 +648,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-modal-impl.js', 'marker-detail-editing.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-modal-impl.js', 'marker-detail-editing.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'context-card-medical-history-editor-impl.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
