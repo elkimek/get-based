@@ -33,6 +33,7 @@ import { openLightEnvironmentAssessment, renderEnvironmentAssessmentSummary } fr
 import { renderLightTools } from './light-tools.js';
 import { renderChannelMixVerdict } from './light-channels-ai-analysis.js';
 import { renderLightTodayDashboardChip, renderLightTodayHero } from './light-today-ai.js';
+import { renderSunDataSourceSettings } from './settings-privacy.js';
 import { configureLightPageView } from './light-page-view.js';
 
 configureLightPageView({
@@ -59,6 +60,7 @@ configureLightPageView({
   renderLightTodayDashboardChip,
   renderLightTodayHero,
   renderLightTools,
+  renderSunDataSourceSettings,
   renderSunSessionRow,
   renderSunSetupCard,
   requestPreciseLocation,

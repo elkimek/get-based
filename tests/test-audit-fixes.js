@@ -459,8 +459,8 @@ return (async function () {
       /import\s+['"]\.\/app-ui-shell-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js has no direct leaf imports',
       !/import\s+['"]\.\/(?:schema|constants|utils|pii|export)\.js['"]/.test(appFeatures));
-    assert('app-foundation-modules.js retains pii import',
-      /import\s+['"]\.\/pii\.js['"]/.test(appFoundationFeatures));
+    assert('PII runtime is absent from the startup Foundation graph',
+      !/import\s+['"]\.\/pii\.js['"]/.test(appFoundationFeatures));
     assert('Wearables implementation is lazy-loaded through its runtime bridge',
       !/import\s+['"]\.\/wearables\.js['"]/.test(appHealthDataFeatures)
         && /import\(['"]\.\/wearables\.js['"]\)/.test(appShellHooks)

@@ -341,10 +341,18 @@ test('returning-user startup defers Light UI resources until the Light route ope
   ]);
   const stylesheetRequests = [];
   let moduleRequests = 0;
+  const privacyModuleRequests = [];
   page.on('request', request => {
     const pathname = new URL(request.url()).pathname;
     if (lightStylesheetPaths.has(pathname)) stylesheetRequests.push(pathname);
     if (pathname === '/js/app-light-sun-modules.js') moduleRequests += 1;
+    if (
+      pathname === '/js/settings-runtime.js'
+      || pathname === '/js/settings-privacy.js'
+      || pathname === '/js/pii.js'
+    ) {
+      privacyModuleRequests.push(pathname);
+    }
   });
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
@@ -366,13 +374,21 @@ test('returning-user startup defers Light UI resources until the Light route ope
   await page.goto('/app', { waitUntil: 'networkidle' });
   expect(stylesheetRequests).toEqual([]);
   expect(moduleRequests).toBe(0);
+  expect(privacyModuleRequests).toEqual([]);
   await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(0);
 
   await page.evaluate(async () => (await import('/js/views.js')).navigate('light'));
   await expect(page.locator('.light-page')).toBeVisible();
+  await expect(page.locator('#sun-data-source-section')).toHaveCount(1);
+  await expect(page.locator('#sun-data-source-section')).toContainText('Sun data source');
   await expect(page.locator('.light-page')).toHaveCSS('display', 'grid');
   await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
   expect(moduleRequests).toBe(1);
+  expect(new Set(privacyModuleRequests)).toEqual(new Set([
+    '/js/settings-runtime.js',
+    '/js/settings-privacy.js',
+    '/js/pii.js',
+  ]));
   expect(stylesheetRequests.length).toBe(7);
   expect(new Set(stylesheetRequests)).toEqual(lightStylesheetPaths);
 });
