@@ -17,11 +17,23 @@ import {
 } from './sun-spectrum.js';
 import { getMeteoConfig } from './sun-uvdata.js';
 import { rollingDeviceTotals } from './light-devices-store.js';
-import { computeDeficitAxes, computeIndoorBurden } from './light-env.js';
+import {
+  computeDeficitAxesForEnvironment,
+  computeIndoorBurdenForEnvironment,
+} from './light-env-model.js';
+import { getEnvironment, isActiveToday } from './light-env-store.js';
 import { configureDataContextDependencies } from './data.js';
 import { configureLabContext, invalidateLabContextCache } from './lab-context.js';
 import { isDebugMode } from './utils.js';
 import { buildSunContext, configureSunContext } from './sun-context.js';
+
+function computeDeficitAxes() {
+  return computeDeficitAxesForEnvironment(getEnvironment(), { isActiveToday });
+}
+
+function computeIndoorBurden() {
+  return computeIndoorBurdenForEnvironment(getEnvironment(), { isActiveToday });
+}
 
 configureLabContext({ buildSunContext });
 configureDataContextDependencies({ invalidateLabContextCache });

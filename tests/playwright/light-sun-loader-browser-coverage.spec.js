@@ -20,6 +20,9 @@ test('Light & Sun module loader caches background initialization without loading
       body: `
         globalThis.__lightSunModuleEvalCount = (globalThis.__lightSunModuleEvalCount || 0) + 1;
         export const marker = 'light-sun-ready';
+        export function configureLightEnv(deps) {
+          globalThis.__lightEnvironmentLoaderDepKeys = Object.keys(deps).sort();
+        }
       `,
     });
   });
@@ -53,6 +56,10 @@ test('Light & Sun module loader caches background initialization without loading
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
     const loader = await import(loaderUrl);
+    loader.configureLightEnvironmentLoaderDeps({
+      getMeasurementsForRoom() {},
+      navigate() {},
+    });
     const startsUnloaded = loader.isLightSunModulesLoaded() === false;
     const startsUIUnloaded = loader.isLightSunUILoaded() === false;
     const [first, second] = await Promise.all([
@@ -101,6 +108,8 @@ test('Light & Sun module loader caches background initialization without loading
       lazyModuleEvaluatesOnce:
         globalThis.__lightSunModuleEvalCount === 1
         && first.marker === 'light-sun-ready',
+      lightEnvironmentDepsAppliedOnLazyLoad:
+        globalThis.__lightEnvironmentLoaderDepKeys?.join(',') === 'getMeasurementsForRoom,navigate',
       deferredSunCompletionAnalyzedOnce:
         globalThis.__deferredSunAnalysisIds?.length === 1
         && globalThis.__deferredSunAnalysisIds[0] === sunId,
