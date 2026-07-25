@@ -11,7 +11,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | --- | ---: |
 | Modules | 468 |
 | Internal import edges | 2097 |
-| Dynamic internal edges | 64 |
+| Dynamic internal edges | 65 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -479,7 +479,7 @@ Native browser modules shipped with the static application.
 - [`js/light-tool-camera.js`](js/light-tool-camera.js) → [`js/utils.js`](js/utils.js)
 - [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-tools-ui-hooks.js`](js/light-tools-ui-hooks.js) → [`js/light-tools.js`](js/light-tools.js), [`js/views.js`](js/views.js)
-- [`js/light-tools.js`](js/light-tools.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-tool-camera-modals.js`](js/light-tool-camera-modals.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tools.js`](js/light-tools.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-tool-camera-modals.js`](js/light-tool-camera-modals.js) *(dynamic)*, [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

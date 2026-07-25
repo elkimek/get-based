@@ -233,9 +233,11 @@ const tools = await import('../js/light-tools.js');
     // ─── 10. Camera lifecycle regressions ────────────────────────────────
     console.log('%c 10. Camera lifecycle source guards ', 'font-weight:bold;color:#f59e0b');
 
-    assert('light-tools.js delegates camera-backed tools to extracted module',
-      lightToolsSrc.includes("from './light-tool-camera-modals.js'") &&
-      lightToolsSrc.includes('return openLuxMeterModal(opts, { saveMeasurement });'));
+    assert('light-tools.js lazy-loads camera-backed tools through its facade',
+      !lightToolsSrc.includes("from './light-tool-camera-modals.js'") &&
+      lightToolsSrc.includes("import('./light-tool-camera-modals.js')") &&
+      lightToolsSrc.includes("import('./light-tool-camera-modals.js?lazy-retry=1')") &&
+      lightToolsSrc.includes("openLuxMeter = openCameraTool('openLuxMeter')"));
     assert('light-tools AI save hook routes through startup wiring',
       lightToolsSrc.includes('export function configureLightTools') &&
       lightToolsSrc.includes('maybeAnalyzeMeasurementAfterSave: () => {}') &&
@@ -281,7 +283,8 @@ const tools = await import('../js/light-tools.js');
       lightToolCameraModalsSrc.includes('export function closeCCTMeter()') &&
       lightToolCameraModalsSrc.includes('export function closeSpectrumClassifier()') &&
       lightToolCameraModalsSrc.includes('export function closeGlassTransmission()') &&
-      lightToolsSrc.includes('export { closeLuxMeter, closeFlickerDetector') &&
+      lightToolsSrc.includes("closeLuxMeter = closeCameraToolIfLoaded('closeLuxMeter')") &&
+      lightToolsSrc.includes("closeFlickerDetector = closeCameraToolIfLoaded('closeFlickerDetector')") &&
       lightToolsSrc.includes('export function closeEyeLevelAudit()') &&
       !lightToolCameraModalsSrc.includes('window._close') &&
       !lightToolsSrc.includes('window._close') &&
