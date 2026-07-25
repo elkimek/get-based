@@ -161,6 +161,12 @@ test('supplements browser coverage handles editor ingredients imports sync and A
 
       supplements.openSupplementsEditor();
       await waitUntil(() => document.getElementById('modal-overlay')?.classList.contains('show'), 'supplement editor open');
+      document.querySelector('[data-supp-action="close-modal"]')?.click();
+      await waitUntil(() => !document.getElementById('modal-overlay')?.classList.contains('show'), 'supplement editor close');
+      outcomes.closeButtonDelegatesToSupplementModalRuntime =
+        !document.getElementById('modal-overlay')?.classList.contains('show');
+      supplements.openSupplementsEditor();
+      await waitUntil(() => document.getElementById('modal-overlay')?.classList.contains('show'), 'supplement editor reopen');
       supplements.toggleSuppAccordion(0);
       await waitUntil(() => !!document.querySelector('.supp-list-expanded'), 'supplement row expanded');
       const expanded = document.querySelector('.supp-list-expanded');
