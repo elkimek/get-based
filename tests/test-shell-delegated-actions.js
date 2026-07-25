@@ -19,6 +19,7 @@ const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const dashboardRecommendationWidgetSrc = fs.readFileSync(path.join(root, 'js/dashboard-recommendation-widget.js'), 'utf8');
 const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
+const exportLoaderSrc = fs.readFileSync(path.join(root, 'js/export-loader.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
@@ -284,8 +285,11 @@ assert('App shell injects export demo refresh callbacks without bridge lookups',
     && exportSrc.includes('export function configureExportRuntimeDeps(deps = {})')
     && exportSrc.includes('exportRuntimeDeps.buildSidebar?.();')
     && exportSrc.includes("exportRuntimeDeps.navigate?.('biology-scores')")
-    && appShellHooksSrc.includes("import { clearAllData, closeReportBuilder, configureExportRuntimeDeps } from './export.js';")
-    && appShellHooksSrc.includes('configureExportRuntimeDeps({ buildSidebar, navigate });'));
+    && exportLoaderSrc.includes("import('./export.js')")
+    && exportLoaderSrc.includes('module.configureExportRuntimeDeps(exportFacadeLoaderDeps);')
+    && appShellHooksSrc.includes("} from './export-loader.js';")
+    && appShellHooksSrc.includes('configureExportFacadeLoaderDeps({ buildSidebar, navigate });')
+    && !appShellHooksSrc.includes("from './export.js'"));
 
 assert('App shell injects sync pull profile refresh without bridge lookups',
   !syncPullSrc.includes("from './views-runtime-bridge.js'")

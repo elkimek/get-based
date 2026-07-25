@@ -4,7 +4,7 @@
 import { isImportRunning } from './pdf-import-progress.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
-import { importDataJSON } from './export.js';
+import { importDataJSON } from './export-loader.js';
 
 const importDropZoneRuntimeDeps = { importDataJSON, isImportRunning, showNotification };
 
