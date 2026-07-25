@@ -145,6 +145,11 @@ and manual-form helpers behind the first Wearables action then reduced the
 reference from that same 423-request baseline to 416 requests, 1,731,010
 compressed bytes, and 5,117,921 decoded bytes. The result reproduced exactly,
 saving seven requests, 40,483 compressed bytes, and 136,911 decoded bytes.
+Loading the six camera-backed Light tool modals only after a user opens one of
+them then reduced the reference to 415 requests, 1,716,755 compressed bytes,
+and 5,059,297 decoded bytes. The result again reproduced exactly, saving one
+request, 14,255 compressed bytes, and 58,624 decoded bytes while preserving
+the synchronous close behavior once the implementation is resident.
 Route and feature lazy loading remains active, with the ceilings ratcheting
 downward after each reproducible slice.
 

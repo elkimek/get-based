@@ -1,21 +1,9 @@
 // @ts-check
 // light-tools.js — In-browser measurement tools for the Light lens.
-//
 // All tools run fully on-device. Camera frames are processed in-browser
-// and never leave the user's device. Eight tools ship:
-//
-//   Tool 1: Lux Meter             — AmbientLightSensor (Chrome Android) or
-//                                    camera fallback with one-shot calibration.
-//   Tool 2: Flicker Detector      — getUserMedia at the highest-available
-//                                    frame rate, FFT on intensity to find PWM.
-//   Tool 3: CCT Meter             — color temperature with solar-coherence check.
-//   Tool 4: Spectrum Classifier   — LED / fluorescent / incandescent / daylight.
-//   Tool 5: Glass Transmission    — two-step bare/through-glass camera capture.
-//   Tool 6: Sleep Darkness Meter  — long-exposure pillow-level reading.
-//   Tool 7: Sunrise/Sunset Logger — solar-geometry session entry.
-//   Tool 8: Eye-Level Audit       — 4 fps walkthrough with pause-detection
-//                                    that auto-snapshots a reading per room.
-//
+// and never leave the user's device. Camera tools cover lux, flicker, CCT,
+// spectrum, glass transmission, and sleep darkness; the remaining tools log
+// sunrise/sunset sessions and run a room-by-room eye-level walkthrough.
 // Measurements persist via importedData.lightMeasurements[]. Each entry
 // stores tool, timestamp, value, confidence, optional location label.
 
@@ -24,20 +12,11 @@ import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
-import {
-  aimingGuideHTML,
-  lockCameraForMeasurement,
-  loadLuxCalibration,
-} from './light-tool-camera.js';
-import {
-  openLuxMeter as openLuxMeterModal,
-  openFlickerDetector as openFlickerDetectorModal,
-  openDarknessMeter as openDarknessMeterModal,
-  openCCTMeter as openCCTMeterModal,
-  openSpectrumClassifier as openSpectrumClassifierModal,
-  openGlassTransmission as openGlassTransmissionModal,
-} from './light-tool-camera-modals.js';
-export { closeLuxMeter, closeFlickerDetector, closeDarknessMeter, closeCCTMeter, closeSpectrumClassifier, closeGlassTransmission } from './light-tool-camera-modals.js';
+import { aimingGuideHTML, lockCameraForMeasurement, loadLuxCalibration } from './light-tool-camera.js';
+/** @typedef {typeof import('./light-tool-camera-modals.js')} LightToolCameraModals */
+/** @type {Promise<LightToolCameraModals> | null} */ let lightToolCameraModalsPromise = null;
+/** @type {LightToolCameraModals | null} */ let lightToolCameraModals = null;
+let useLightToolCameraModalsRetryUrl = false;
 
 const LIGHT_TOOLS_ACTION_ATTR = 'data-light-tools-action';
 const LIGHT_TOOL_ID_ATTR = 'data-light-tool-id';
@@ -306,13 +285,53 @@ export async function deleteMeasurement(id) {
 }
 
 // ─── Camera-backed tool modal facade ──────────────────────────────────
-
-export async function openLuxMeter(opts = {}) { return openLuxMeterModal(opts, { saveMeasurement }); }
-export async function openFlickerDetector(opts = {}) { return openFlickerDetectorModal(opts, { saveMeasurement }); }
-export async function openDarknessMeter(opts = {}) { return openDarknessMeterModal(opts, { saveMeasurement }); }
-export async function openCCTMeter(opts = {}) { return openCCTMeterModal(opts, { saveMeasurement }); }
-export async function openSpectrumClassifier(opts = {}) { return openSpectrumClassifierModal(opts, { saveMeasurement }); }
-export async function openGlassTransmission(opts = {}) { return openGlassTransmissionModal(opts, { saveMeasurement }); }
+export function isLightToolCameraModalsLoaded() { return lightToolCameraModals !== null; }
+/** @returns {Promise<LightToolCameraModals>} */
+function loadLightToolCameraModalsRetryModule() {
+  // @ts-expect-error TypeScript resolves only the query-free source path.
+  return import('./light-tool-camera-modals.js?lazy-retry=1');
+}
+/** @returns {Promise<LightToolCameraModals>} */
+export function loadLightToolCameraModals() {
+  if (lightToolCameraModalsPromise) return lightToolCameraModalsPromise;
+  // Failed module-map fetches are cached; retry once with a second fixed URL.
+  const load = useLightToolCameraModalsRetryUrl
+    ? loadLightToolCameraModalsRetryModule()
+    : import('./light-tool-camera-modals.js');
+  lightToolCameraModalsPromise = load.then(module => (lightToolCameraModals = module)).catch(err => {
+    lightToolCameraModalsPromise = null; lightToolCameraModals = null;
+    useLightToolCameraModalsRetryUrl = true; throw err;
+  });
+  return lightToolCameraModalsPromise;
+}
+/** @param {keyof LightToolCameraModals} name @param {any[]} args @param {boolean} [shouldLoad] */
+function runLightToolCameraAction(name, args, shouldLoad = true) {
+  const run = (/** @type {LightToolCameraModals} */ module) => {
+    const action = module[name];
+    if (typeof action !== 'function') throw new Error(`Light tool camera action ${String(name)} is unavailable`);
+    return Reflect.apply(action, module, args);
+  };
+  if (!lightToolCameraModals && !shouldLoad) return undefined;
+  try {
+    if (lightToolCameraModals) return run(lightToolCameraModals);
+    return loadLightToolCameraModals().then(run).catch(err => {
+      console.error(`[light-tools] Could not run ${String(name)}:`, err);
+      showNotification('Camera tool could not be loaded. Try again.', 'error');
+      return false;
+    });
+  } catch (err) {
+    console.error(`[light-tools] Could not ${shouldLoad ? 'run' : 'clean up'} ${String(name)}:`, err);
+    if (shouldLoad) showNotification('Camera tool could not be loaded. Try again.', 'error');
+    return shouldLoad ? false : undefined;
+  }
+}
+/** @param {keyof LightToolCameraModals} name */
+const openCameraTool = name => async (opts = {}) => runLightToolCameraAction(name, [opts, { saveMeasurement }]);
+/** @param {keyof LightToolCameraModals} name */
+const closeCameraToolIfLoaded = name => () => runLightToolCameraAction(name, [], false);
+export const openLuxMeter = openCameraTool('openLuxMeter'), openFlickerDetector = openCameraTool('openFlickerDetector'), openDarknessMeter = openCameraTool('openDarknessMeter'), openCCTMeter = openCameraTool('openCCTMeter'), openSpectrumClassifier = openCameraTool('openSpectrumClassifier'), openGlassTransmission = openCameraTool('openGlassTransmission');
+// Escape/teardown cleanup must not fetch an implementation that was never used.
+export const closeLuxMeter = closeCameraToolIfLoaded('closeLuxMeter'), closeFlickerDetector = closeCameraToolIfLoaded('closeFlickerDetector'), closeDarknessMeter = closeCameraToolIfLoaded('closeDarknessMeter'), closeCCTMeter = closeCameraToolIfLoaded('closeCCTMeter'), closeSpectrumClassifier = closeCameraToolIfLoaded('closeSpectrumClassifier'), closeGlassTransmission = closeCameraToolIfLoaded('closeGlassTransmission');
 
 // ─── Tool 7: Sunrise / Sunset Logger ──────────────────────────────────
 
