@@ -7,24 +7,33 @@
 // MitoTox or any third-party database.
 
 // ── Lazy-loaded compound data ──
+/** @type {Array<any> | null} */
 let _mitoData = null;
-let _mitoLoading = false;
+/** @type {Promise<Array<any> | null> | null} */
+let _mitoDataLoad = null;
 
-async function _loadMitoData() {
-  if (_mitoData) return _mitoData;
-  if (_mitoLoading) return null;
-  _mitoLoading = true;
-  try {
-    const res = await fetch('data/mito-compounds.json');
-    if (!res.ok) return null;
-    _mitoData = await res.json();
-    return _mitoData;
-  } catch { return null; }
-  finally { _mitoLoading = false; }
+export function hasMitoCompoundData() {
+  return Array.isArray(_mitoData);
 }
 
-// Preload on import (fire-and-forget, silent fail if file missing)
-_loadMitoData();
+export function preloadMitoCompoundData() {
+  if (_mitoData) return Promise.resolve(_mitoData);
+  if (!_mitoDataLoad) {
+    _mitoDataLoad = fetch('data/mito-compounds.json')
+      .then(async res => {
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!Array.isArray(data)) return null;
+        _mitoData = data;
+        return _mitoData;
+      })
+      .catch(() => null)
+      .finally(() => {
+        _mitoDataLoad = null;
+      });
+  }
+  return _mitoDataLoad;
+}
 
 /**
  * Look up a compound in the mito database by name.
@@ -83,7 +92,10 @@ function _isHarmfulEffect(e) {
  */
 export function scanSupplementsForWarnings(supplements) {
   if (!supplements || supplements.length === 0) return [];
-  if (!_mitoData) return [];
+  if (!_mitoData) {
+    void preloadMitoCompoundData();
+    return [];
+  }
   const warnings = [];
   const seen = new Set();
 

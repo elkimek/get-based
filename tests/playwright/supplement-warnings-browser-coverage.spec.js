@@ -34,26 +34,53 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
     const savedFetch = window.fetch;
 
     try {
-      window.fetch = async () => new Response('[]', { status: 503 });
+      let notOkFetchCalls = 0;
+      window.fetch = async () => {
+        notOkFetchCalls += 1;
+        return new Response('[]', { status: 503 });
+      };
       const notOk = await import(notOkUrl);
-      await wait(0);
+      outcomes.notOkImportStaysCold = notOkFetchCalls === 0;
+      await notOk.preloadMitoCompoundData();
       outcomes.notOkDataLoadLeavesLookupEmpty = notOk.lookupMitoCompound('metformin') === null;
       outcomes.notOkDataLoadLeavesScanEmpty =
         notOk.scanSupplementsForWarnings([{ name: 'Metformin' }]).length === 0;
+      outcomes.notOkDataLoadAttemptedOnDemand = notOkFetchCalls >= 1
+        && notOk.hasMitoCompoundData() === false;
 
-      window.fetch = async () => { throw new Error('offline'); };
+      let throwingFetchCalls = 0;
+      window.fetch = async () => {
+        throwingFetchCalls += 1;
+        throw new Error('offline');
+      };
       const thrown = await import(throwUrl);
-      await wait(0);
+      outcomes.throwingImportStaysCold = throwingFetchCalls === 0;
+      await thrown.preloadMitoCompoundData();
       outcomes.throwingDataLoadLeavesLookupEmpty = thrown.lookupMitoCompound('metformin') === null;
       outcomes.throwingDataLoadLeavesScanEmpty =
         thrown.scanSupplementsForWarnings([{ name: 'Metformin' }]).length === 0;
+      outcomes.throwingDataLoadAttemptedOnDemand = throwingFetchCalls >= 1
+        && thrown.hasMitoCompoundData() === false;
 
-      window.fetch = savedFetch;
+      let successFetchCalls = 0;
+      window.fetch = (...args) => {
+        successFetchCalls += 1;
+        return savedFetch(...args);
+      };
       const warnings = await import(successUrl);
+      outcomes.successImportStaysCold = successFetchCalls === 0
+        && warnings.hasMitoCompoundData() === false;
+      const firstColdScan = warnings.scanSupplementsForWarnings([{ name: 'Metformin' }]);
+      const joinedLoad = warnings.preloadMitoCompoundData();
+      outcomes.firstScanStartsSingleFlightLoad = firstColdScan.length === 0
+        && joinedLoad === warnings.preloadMitoCompoundData()
+        && successFetchCalls === 1;
+      await joinedLoad;
       await waitUntil(
         () => warnings.lookupMitoCompound('metformin') !== null,
         'mitochondrial compound data',
       );
+      outcomes.successfulLoadMarksDataReady = warnings.hasMitoCompoundData() === true;
 
       const metformin = warnings.lookupMitoCompound(' METFORMIN ');
       const tylenol = warnings.lookupMitoCompound('daily tylenol tablets');

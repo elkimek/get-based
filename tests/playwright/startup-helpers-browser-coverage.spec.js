@@ -226,6 +226,12 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         return true;
       }
     `,
+    '**/js/supplement-warnings.js*': `
+      export async function preloadMitoCompoundData() {
+        window.__startupMaintenanceCalls.push('preloadMitoCompoundData');
+        return [];
+      }
+    `,
     '**/js/wearables-summary.js*': `
       export async function syncWearableSummary(profileId, sources) {
         window.__startupMaintenanceCalls.push(['syncWearableSummary', profileId, sources]);
@@ -242,6 +248,7 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
       currentProfile: 'startup-maintenance-profile',
       importedData: {
         biometrics: { weight: 70 },
+        supplements: [{ name: 'Metformin' }],
         wearableConnections: {
           manual: {
             connectedAt: '2026-07-01T00:00:00.000Z',
@@ -300,6 +307,8 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         lightDeviceHydrationRunsAndLogsDirtyState:
           window.__startupMaintenanceCalls.includes('hydrateDevicesFromPresets')
           && logs.some(line => line.includes('[light] hydrated user devices from preset library')),
+        trackedSupplementsPreloadWarningData:
+          window.__startupMaintenanceCalls.includes('preloadMitoCompoundData'),
         legacyBiometricsMigrationRefreshesManualSummary:
           summarySynced
           && window.__startupMaintenanceCalls.some(call => Array.isArray(call)
