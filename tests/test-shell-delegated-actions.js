@@ -199,7 +199,9 @@ assert('App shell injects wearable dashboard actions without view bridge lookups
     && wearablesRuntimeSrc.includes("wearablesRuntimeDeps.navigate?.(route || 'dashboard');")
     && wearablesRuntimeSrc.includes('wearablesRuntimeDeps.closeModal?.();')
     && appShellHooksSrc.includes("import { configureWearablesRuntime } from './wearables-runtime.js';")
-    && appShellHooksSrc.includes('configureWearablesRuntime({ closeModal, navigate });'));
+    && appShellHooksSrc.includes('configureWearablesRuntime({')
+    && appShellHooksSrc.includes("import('./wearables.js?lazy-retry=1')")
+    && appShellHooksSrc.includes("import('./wearables.js')"));
 
 assert('App shell injects wearable summary persistence',
   appShellHooksSrc.includes("import { configureWearableSummary } from './wearables-summary.js';")

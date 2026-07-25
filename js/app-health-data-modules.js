@@ -8,4 +8,3 @@ import './recommendations.js';
 import './cycle.js';
 import './context-cards.js';
 import './dna.js';
-import './wearables.js';

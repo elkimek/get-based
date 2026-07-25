@@ -425,6 +425,7 @@ return (async function () {
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
     const lightSunLoader = await fetchSrc('js/light-sun-loader.js');
     const profileShareLoader = await fetchSrc('js/profile-share-loader.js');
+    const wearablesRuntime = await fetchSrc('js/wearables-runtime.js');
     const appAiInteractionFeatures = await fetchSrc('js/app-ai-interaction-modules.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
     const appShellHooks = await fetchSrc('js/app-shell-hooks.js');
@@ -460,8 +461,12 @@ return (async function () {
       !/import\s+['"]\.\/(?:schema|constants|utils|pii|export)\.js['"]/.test(appFeatures));
     assert('app-foundation-modules.js retains pii import',
       /import\s+['"]\.\/pii\.js['"]/.test(appFoundationFeatures));
-    assert('app-health-data-modules.js retains wearables import',
-      /import\s+['"]\.\/wearables\.js['"]/.test(appHealthDataFeatures));
+    assert('Wearables implementation is lazy-loaded through its runtime bridge',
+      !/import\s+['"]\.\/wearables\.js['"]/.test(appHealthDataFeatures)
+        && /import\(['"]\.\/wearables\.js['"]\)/.test(appShellHooks)
+        && /import\(['"]\.\/wearables\.js\?lazy-retry=1['"]\)/.test(appShellHooks)
+        && /loadModule\(useWearablesModuleRetryUrl\)/.test(wearablesRuntime)
+        && /configureWearablesModuleBridge\(\{/.test(wearablesRuntime));
     // light-device-ai-analysis is still wired (the live version).
     assert('app-light-sun-modules.js retains light-device-ai-analysis import',
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));

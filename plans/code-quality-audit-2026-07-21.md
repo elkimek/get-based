@@ -140,8 +140,13 @@ then moved behind its first-open boundary. The pre-change reference reproduced
 as 423 requests, 1,782,242 compressed bytes, and 5,301,412 decoded bytes; the
 new reference reproduced as 423 requests, 1,771,493 compressed bytes, and
 5,254,832 decoded bytes, saving 10,749 compressed bytes and 46,580 decoded
-bytes. Route and feature lazy loading remains active, with the ceilings
-ratcheting downward after each reproducible slice.
+bytes. Deferring the Wearables implementation, detail modal, chart, settings,
+and manual-form helpers behind the first Wearables action then reduced the
+reference from that same 423-request baseline to 416 requests, 1,731,010
+compressed bytes, and 5,117,921 decoded bytes. The result reproduced exactly,
+saving seven requests, 40,483 compressed bytes, and 136,911 decoded bytes.
+Route and feature lazy loading remains active, with the ceilings ratcheting
+downward after each reproducible slice.
 
 ### 4. Guardrails and test gaps
 
