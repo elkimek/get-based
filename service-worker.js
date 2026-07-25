@@ -160,6 +160,7 @@ const APP_SHELL = [
   '/js/supplement-impact.js',
   '/js/cycle-import-adapters.js',
   '/js/cycle-import-file.js',
+  '/js/cycle-import-loader.js',
   '/js/cycle-import.js',
   '/js/cycle-store.js',
   '/js/cycle-summary.js',

@@ -147,6 +147,14 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     deferredKnowledgeBaseUiModules.has(new URL(entry.name).pathname)
   ))).toBe(false);
+  const deferredCycleImportModules = new Set([
+    '/js/cycle-import.js',
+    '/js/cycle-import-adapters.js',
+    '/js/cycle-import-file.js',
+  ]);
+  expect(entries.some(entry => (
+    deferredCycleImportModules.has(new URL(entry.name).pathname)
+  ))).toBe(false);
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/sun-defaults.js'
   ))).toBe(false);

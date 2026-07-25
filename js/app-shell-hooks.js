@@ -83,7 +83,7 @@ import {
   encryptedSetItem,
 } from './crypto.js';
 import { openMenstrualCycleEditor } from './cycle.js';
-import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import.js';
+import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDataRuntimeDeps, saveImportedData, updateHeaderDates } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
