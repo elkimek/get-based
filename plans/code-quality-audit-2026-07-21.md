@@ -150,6 +150,11 @@ them then reduced the reference to 415 requests, 1,716,755 compressed bytes,
 and 5,059,297 decoded bytes. The result again reproduced exactly, saving one
 request, 14,255 compressed bytes, and 58,624 decoded bytes while preserving
 the synchronous close behavior once the implementation is resident.
+Deferring the JSON import implementation until a file is actually imported
+then reduced the reference to 414 requests, 1,708,324 compressed bytes, and
+5,023,634 decoded bytes. Two identical runs confirmed savings of one request,
+8,431 compressed bytes, and 35,663 decoded bytes, with the facade retaining an
+awaitable API and a fixed retry URL for failed module fetches.
 Route and feature lazy loading remains active, with the ceilings ratcheting
 downward after each reproducible slice.
 

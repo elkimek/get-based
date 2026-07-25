@@ -80,6 +80,10 @@ const importCssSrc = read('css/import.css');
       && !/\? \{ \.\.\.entry\.markerSources\[key\], at: importTs \}/.test(jsonImportBlock));
   assert('JSON import mirrors insulin through shared lab entry helper',
     /setLabEntryMarker\(existing, key, value,[\s\S]{0,180}mirrorInsulin: true/.test(jsonImportBlock));
+  assert('JSON import implementation loads only on the first import action',
+    !exportSrc.includes("from './export-import.js'")
+      && exportSrc.includes("import('./export-import.js')")
+      && exportSrc.includes("import('./export-import.js?lazy-retry=1')"));
   const removeBlock = persistenceSrc.substring(persistenceSrc.indexOf('export async function removeImportedEntry'), persistenceSrc.indexOf('export async function renameImportedEntryDate'));
   assert('import delete records entries tombstone before removing row',
     /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*date\)[\s\S]{0,180}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e\.date === date\)/.test(removeBlock));
