@@ -2,41 +2,23 @@
 // pdf-import-marker-mapping.js — marker key safety, reference lookup, and unit normalization for imports
 
 import { state } from './state.js';
-import { MARKER_SCHEMA, UNIT_CONVERSIONS } from './schema.js';
+import {
+  MARKER_SCHEMA,
+  normalizeClinicalUnit as normalizeUnitStr,
+  normalizeToSI,
+  UNIT_CONVERSIONS,
+} from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
+
+export { normalizeToSI };
 
 // ═══════════════════════════════════════════════
 // UNIT NORMALIZATION — convert US-unit values to SI before storage
 // ═══════════════════════════════════════════════
-function normalizeUnitStr(s) {
-  return s.normalize('NFKC').toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
-}
-
 function isPercentImportUnit(unit) {
   const norm = normalizeUnitStr(String(unit || ''));
   return norm === '%' || norm === 'pct' || norm === 'percent' || norm === 'percentage';
-}
-
-function isFractionStoredPercentMarker(key) {
-  const [catKey, markerKey] = String(key || '').split('.');
-  const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-  const conv = UNIT_CONVERSIONS[key];
-  return !!marker
-    && (marker.unit || '') === ''
-    && marker.refMax != null
-    && marker.refMax <= 1
-    && conv?.type === 'multiply'
-    && conv.factor === 100
-    && isPercentImportUnit(conv.usUnit);
-}
-
-function normalizeFractionStoredPercentValue(key, value, unit, context = null) {
-  if (!isFractionStoredPercentMarker(key) || !isPercentImportUnit(unit)) return null;
-  const [catKey, markerKey] = String(key || '').split('.');
-  const [schemaRefMax, reportRefMax] = [Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax), Number(context?.refMax)];
-  const siValue = value > 1 || (reportRefMax > 1 && reportRefMax > schemaRefMax && !(Number.isFinite(schemaRefMax) && value <= schemaRefMax)) ? value / 100 : value;
-  return parseFloat(siValue.toPrecision(6));
 }
 
 export const GENERIC_IMPORT_UNITS = [
@@ -677,65 +659,6 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
     }
   }
   return markers;
-}
-
-export function normalizeToSI(key, value, unit, context = null) {
-  if (value == null || isNaN(value)) return null;
-
-  // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50)
-  if (key === 'hematology.hematocrit' && value < 1.5) {
-    return parseFloat((value * 100).toFixed(1));
-  }
-
-  // When a unit string is present, systematically evaluate all conversion registries
-  if (unit) {
-    const aiUnit = normalizeUnitStr(unit);
-    const fractionPercentValue = normalizeFractionStoredPercentValue(key, value, aiUnit, context);
-    if (fractionPercentValue != null) return fractionPercentValue;
-
-    // 1. Evaluate primary US conversions
-    const primaryConv = UNIT_CONVERSIONS[key];
-    if (primaryConv && primaryConv.type === 'multiply') {
-      if (aiUnit === normalizeUnitStr(primaryConv.usUnit)) {
-        return parseFloat((value / primaryConv.factor).toPrecision(6));
-      }
-    } else if (primaryConv && primaryConv.type === 'hba1c' && aiUnit === '%') {
-      return parseFloat(((value - 2.15) * 10.929).toFixed(1));
-    }
-
-    // 2. Evaluate systematic secondary conversions (European, trace mineral, and specialized units)
-    const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
-    if (secondaryList) {
-      for (const sec of secondaryList) {
-        if (sec.type === 'multiply' && aiUnit === normalizeUnitStr(sec.unit)) {
-          return parseFloat((value / sec.factor).toPrecision(6));
-        } else if (sec.type === 'hba1c' && aiUnit === normalizeUnitStr(sec.unit)) {
-          return parseFloat(((value - 2.15) * 10.929).toFixed(1));
-        }
-      }
-    }
-
-    // 3. Exact SI passthrough match
-    const [catKey, markerKey] = key.split('.');
-    const siUnit = MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.unit;
-    if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return value;
-    // A unit was provided but matched nothing — return as-is rather than guessing
-    return value;
-  }
-
-  // Fallback heuristic for unit-less data (only triggers when no unit string was provided)
-  const fallbackConv = UNIT_CONVERSIONS[key];
-  if (fallbackConv && fallbackConv.type === 'multiply' && fallbackConv.factor > 1) {
-    const [catKey, markerKey] = key.split('.');
-    const markerDef = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-    if (markerDef && markerDef.refMax != null) {
-      if (value > markerDef.refMax * fallbackConv.factor * 0.3) {
-        return parseFloat((value / fallbackConv.factor).toPrecision(6));
-      }
-    }
-  }
-
-  return value;
 }
 
 /**

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 477 |
-| Internal import edges | 2128 |
+| Internal import edges | 2127 |
 | Dynamic internal edges | 79 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -606,7 +606,7 @@ Native browser modules shipped with the static application.
 
 - [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/state.js`](js/state.js)
 - [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js) → [`js/adapters.js`](js/adapters.js)
-- [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js), [`js/schema.js`](js/schema.js)
+- [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js), [`js/schema.js`](js/schema.js)
 - [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-discussion.js`](js/chat-discussion.js) *(dynamic)*, [`js/chat-history.js`](js/chat-history.js) *(dynamic)*, [`js/chat-personalities.js`](js/chat-personalities.js) *(dynamic)*, [`js/chat-threads.js`](js/chat-threads.js) *(dynamic)*, [`js/data.js`](js/data.js) *(dynamic)*, [`js/lab-context.js`](js/lab-context.js) *(dynamic)*, [`js/nav.js`](js/nav.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/views.js`](js/views.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
 - [`js/profile-share-loader.js`](js/profile-share-loader.js) → [`js/profile-share.js`](js/profile-share.js) *(dynamic)*, [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-share.js`](js/profile-share.js) → [`js/export.js`](js/export.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)

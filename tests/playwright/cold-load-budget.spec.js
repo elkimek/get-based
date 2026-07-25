@@ -163,6 +163,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     deferredCycleImportModules.has(new URL(entry.name).pathname)
   ))).toBe(false);
+  expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/js/pdf-import-marker-mapping.js'
+  ))).toBe(false);
   const deferredLightEnvironmentUiModules = new Set([
     '/js/light-env.js',
     '/js/light-env-actions.js',

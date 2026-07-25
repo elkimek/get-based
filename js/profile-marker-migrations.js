@@ -1,10 +1,9 @@
 // @ts-check
 // profile-marker-migrations.js - Marker alias, unit-suffix, and specialty import repairs.
 
-import { MARKER_SCHEMA } from './schema.js';
+import { MARKER_SCHEMA, normalizeToSI } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { renameLabEntryMarker } from './lab-entry.js';
-import { normalizeToSI } from './pdf-import-marker-mapping.js';
 import {
   ensureProductFattyAcidCustomMarker,
   repairSnapshotBackedProductFattyAcidMetadata,

@@ -26,6 +26,7 @@ const aiUtilsSrc = read('js/pdf-import-ai-utils.js');
 const exportSrc = read('js/export.js');
 const exportImportSrc = read('js/export-import.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
+const schemaSrc = read('js/schema.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const persistenceSrc = read('js/pdf-import-persistence.js');
 const settingsDataSrc = read('js/settings-data.js');
@@ -41,9 +42,12 @@ const importCssSrc = read('css/import.css');
   // ═══════════════════════════════════════
   console.log('%c 1. normalizeToSI function ', 'font-weight:bold;color:#f59e0b');
 
-  assert('normalizeToSI defined', mappingSrc.includes('function normalizeToSI('));
-  assert('normalizeToSI checks UNIT_CONVERSIONS', mappingSrc.includes('UNIT_CONVERSIONS[key]'));
-  assert('normalizeUnitStr handles µ variants', mappingSrc.includes('normalizeUnitStr') && mappingSrc.includes('\\u03bc'));
+  assert('normalizeToSI is schema-owned and re-exported by the import mapper',
+    schemaSrc.includes('function normalizeToSI(')
+      && /export\s*\{\s*normalizeToSI\s*\}/.test(mappingSrc));
+  assert('normalizeToSI checks UNIT_CONVERSIONS', schemaSrc.includes('UNIT_CONVERSIONS[key]'));
+  assert('clinical unit normalization handles µ variants',
+    schemaSrc.includes('normalizeClinicalUnit') && schemaSrc.includes('\\u03bc'));
 
   // ═══════════════════════════════════════
   // 2. UNIT_CONVERSIONS is imported
@@ -202,8 +206,8 @@ const importCssSrc = read('css/import.css');
   // ═══════════════════════════════════════
   console.log('%c 4. Conversion logic ', 'font-weight:bold;color:#f59e0b');
 
-  assert('divides by factor for multiply type', /value \/ \w+\.factor/.test(mappingSrc));
-  assert('handles hba1c inverse', mappingSrc.includes('(value - 2.15) * 10.929'));
+  assert('divides by factor for multiply type', /value \/ \w+\.factor/.test(schemaSrc));
+  assert('handles hba1c inverse', schemaSrc.includes('(value - 2.15) * 10.929'));
 
   // ═══════════════════════════════════════
   // 5. Functional test via module import

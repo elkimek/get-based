@@ -24,6 +24,37 @@ function pdfImportStubBody(counterName, marker) {
   `;
 }
 
+test('PDF marker mapping stays cold until the real import implementation loads', async ({ page }) => {
+  let markerMappingRequests = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/js/pdf-import-marker-mapping.js') {
+      markerMappingRequests += 1;
+    }
+  });
+  await openBlankPage(page, '/import-marker-mapping-demand-coverage');
+
+  const outcomes = await page.evaluate(async ({ loaderUrl }) => {
+    const loader = await import(loaderUrl);
+    const mappingStayedColdAfterLoaderImport = performance.getEntriesByType('resource')
+      .every(entry => new URL(entry.name).pathname !== '/js/pdf-import-marker-mapping.js');
+    const pdfImport = await loader.loadPdfImport();
+    return {
+      mappingStayedColdAfterLoaderImport,
+      realImportApiLoaded:
+        typeof pdfImport.buildMarkerReference === 'function'
+        && typeof pdfImport.reconcileImportMarkerMappings === 'function',
+    };
+  }, {
+    loaderUrl: moduleUrl('/js/import-loader.js'),
+  });
+
+  expect(outcomes).toEqual({
+    mappingStayedColdAfterLoaderImport: true,
+    realImportApiLoaded: true,
+  });
+  expect(markerMappingRequests).toBe(1);
+});
+
 test('import loader browser coverage caches the successful pdf import module', async ({ page }) => {
   let pdfImportRequests = 0;
   await page.route('**/js/pdf-import.js', route => {
