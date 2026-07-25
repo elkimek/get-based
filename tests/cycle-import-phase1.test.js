@@ -15,8 +15,13 @@ import {
   parseDripCycleCsv,
   parseNaturalCyclesCsv,
   parseNaturalCyclesCsvBundle,
+  renderCycleImportPickerControls,
   renderCycleImportSummarySection,
 } from '../js/cycle-import.js';
+import {
+  renderCycleImportPickerControls as renderColdCycleImportPickerControls,
+  renderCycleImportSummarySection as renderColdCycleImportSummarySection,
+} from '../js/cycle-import-loader.js';
 import {
   recentCyclePeriods,
   stitchCyclePeriodsFromObservations,
@@ -618,6 +623,9 @@ describe('cycle import phase 1 primitives', () => {
     expect((await getAllCycleObservationsRaw(profileId)).map(row => row.importId).sort()).toEqual(['import-a', 'import-b']);
     expect(state.importedData.menstrualCycle.coverage.sources.drip.importIds).toEqual(['import-a', 'import-b']);
     expect(renderCycleImportSummarySection(state.importedData.menstrualCycle)).toContain('data-cycle-import-import-id="import-b"');
+    expect(renderColdCycleImportPickerControls()).toBe(renderCycleImportPickerControls());
+    expect(renderColdCycleImportSummarySection(state.importedData.menstrualCycle))
+      .toBe(renderCycleImportSummarySection(state.importedData.menstrualCycle));
 
     await deleteCycleImportFromProfile('import-b');
     expect(await getCycleObservationRange(profileId, 'drip', '2026-05-01', '2026-05-01')).toEqual([

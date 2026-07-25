@@ -14,6 +14,8 @@ const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-sco
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
 const chatRuntimeSrc = fs.readFileSync(path.join(root, 'js/chat-runtime.js'), 'utf8');
+const cycleImportLoaderSrc = fs.readFileSync(path.join(root, 'js/cycle-import-loader.js'), 'utf8');
+const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const dashboardRecommendationWidgetSrc = fs.readFileSync(path.join(root, 'js/dashboard-recommendation-widget.js'), 'utf8');
 const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
@@ -235,10 +237,22 @@ assert('App shell injects Cycle view callbacks without bridge lookups',
     && appShellHooksSrc.includes('openEditor: openMenstrualCycleEditor,'));
 
 assert('App shell injects Apple Health cycle import callbacks',
-  appShellHooksSrc.includes("import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import.js'")
+  appShellHooksSrc.includes("import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js'")
     && appShellHooksSrc.includes("import { configureAppleHealthRuntimeDeps } from './wearables-apple-health-runtime.js'")
     && appShellHooksSrc.includes('parseCycleBlob: parseAppleHealthCycleBlob,')
-    && appShellHooksSrc.includes('showCyclePreview: showCycleImportPreview,'));
+    && appShellHooksSrc.includes('showCyclePreview: showCycleImportPreview,')
+    && !appShellHooksSrc.includes("from './cycle-import.js'"));
+
+assert('Cycle import implementation stays behind a retryable cold facade',
+  cycleSrc.includes('clearCycleProfileData')
+    && cycleSrc.includes('renderCycleImportPickerControls')
+    && cycleSrc.includes('renderCycleImportSummarySection')
+    && cycleSrc.includes("from './cycle-import-loader.js'")
+    && !cycleSrc.includes("from './cycle-import.js'")
+    && cycleImportLoaderSrc.includes("import('./cycle-import.js')")
+    && cycleImportLoaderSrc.includes("import('./cycle-import.js?lazy-retry=1')")
+    && cycleImportLoaderSrc.includes("document.addEventListener('click', handleDeferredCycleImportAction)")
+    && cycleImportLoaderSrc.includes("document.addEventListener('change', handleDeferredCycleImportAction)"));
 
 assert('App shell injects Supplements view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")

@@ -63,7 +63,6 @@ const SOURCE_LABELS = {
   manual: 'Manual',
 };
 let pendingCycleImport = null;
-let cycleImportDelegatesInstalled = false;
 
 function navigateCycleImportView(category) {
   return navigateCycleViewRuntime(category);
@@ -642,7 +641,7 @@ function closeCycleImportPreview(value = null) {
   pending?.resolve?.(value);
 }
 
-async function handleCycleImportAction(event) {
+export async function handleCycleImportAction(event) {
   const target = event.target instanceof Element ? event.target.closest(`[${CYCLE_IMPORT_ACTION}]`) : null;
   if (!(target instanceof HTMLElement)) return;
   const action = target.getAttribute(CYCLE_IMPORT_ACTION) || '';
@@ -700,13 +699,6 @@ async function handleCycleImportAction(event) {
     showNotification('Imported cycle batch removed', 'info');
     await openCycleEditorFromImport();
   }
-}
-
-export function installCycleImportDelegates() {
-  if (cycleImportDelegatesInstalled || typeof document === 'undefined') return;
-  cycleImportDelegatesInstalled = true;
-  document.addEventListener('click', event => { handleCycleImportAction(event).catch(error => showNotification(`Cycle action failed: ${error.message}`, 'error')); });
-  document.addEventListener('change', event => { handleCycleImportAction(event).catch(error => showNotification(`Cycle action failed: ${error.message}`, 'error')); });
 }
 
 export async function handleCycleImportFile(file) {
@@ -777,4 +769,3 @@ export function renderCycleImportSummarySection(mc) {
     ${sourceRows ? `<div class="cycle-source-list">${sourceRows}</div>` : ''}
   </section>`;
 }
-installCycleImportDelegates();

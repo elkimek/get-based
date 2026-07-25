@@ -97,6 +97,7 @@ assert('SW APP_SHELL includes marker analysis module', swAuditSrc.includes("'/js
 assert('SW APP_SHELL includes cycle import modules',
   swAuditSrc.includes("'/js/cycle-import-adapters.js'")
   && swAuditSrc.includes("'/js/cycle-import-file.js'")
+  && swAuditSrc.includes("'/js/cycle-import-loader.js'")
   && swAuditSrc.includes("'/js/cycle-import.js'")
   && swAuditSrc.includes("'/js/cycle-store.js'")
   && swAuditSrc.includes("'/js/cycle-summary.js'"));
