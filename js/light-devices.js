@@ -38,9 +38,13 @@ import {
   stopDeviceSession,
   updateDeviceSession,
 } from './light-devices-store.js';
-import { openDeviceSessionDialog as openDeviceSessionDialogModal } from './light-device-session-modal.js';
-import { configureLightDeviceSetup, openAddDeviceDialog, openCustomDeviceDialog } from './light-device-setup-modal.js';
 import { configureLightDevicesActions, installLightDevicesActionDelegates } from './light-devices-actions.js';
+import {
+  configureLightDeviceModalLoader,
+  openAddDeviceDialog,
+  openCustomDeviceDialog,
+  openDeviceSessionDialog,
+} from './light-device-modal-loader.js';
 import {
   getLightDeviceChannelDisplay,
   getLightDeviceChannelHelpers,
@@ -64,7 +68,7 @@ export function configureLightDevices(deps = {}) {
 if (typeof document !== 'undefined') installLightDevicesActionDelegates();
 
 export { installLightDevicesActionDelegates };
-export { openAddDeviceDialog, openCustomDeviceDialog };
+export { openAddDeviceDialog, openCustomDeviceDialog, openDeviceSessionDialog };
 export {
   addCustomDevice,
   deleteDevice,
@@ -89,6 +93,28 @@ function _wireModal(overlay, closeFn) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
   openAppendedModalOverlay(overlay, closeFn);
 }
+
+configureLightDeviceModalLoader({
+  setup: {
+    loadPresets: loadLightDevicePresets,
+    addDeviceFromPreset,
+    addCustomDevice,
+    wireModal: _wireModal,
+    refreshLightView: () => refreshLightDevicesView(),
+  },
+  session: {
+    hydrateDevicesFromPresets,
+    getDevices,
+    logDeviceSession,
+    getActiveDeviceSession,
+    startDeviceSession,
+    ensureActiveDeviceTicker,
+    validateModeCoupling,
+    renderBodySilhouette,
+    bindBodySilhouette,
+    navigate: navigateLightDevicesRoute,
+  },
+});
 
 export async function loadLightDevicePresets() {
   if (_PRESETS) return { presets: _PRESETS, types: _PRESET_TYPES };
@@ -634,33 +660,6 @@ function _relativeTimeShort(ts) {
   }
   const y = Math.floor(days / 365);
   return `${y} year${y !== 1 ? 's' : ''} ago`;
-}
-
-configureLightDeviceSetup({
-  loadPresets: loadLightDevicePresets,
-  addDeviceFromPreset,
-  addCustomDevice,
-  wireModal: _wireModal,
-  refreshLightView: () => {
-    refreshLightDevicesView();
-  },
-});
-
-// ─── UI: log device session modal ──────────────────────────────────────
-
-export async function openDeviceSessionDialog(deviceId) {
-  return openDeviceSessionDialogModal(deviceId, {
-    hydrateDevicesFromPresets,
-    getDevices,
-    logDeviceSession,
-    getActiveDeviceSession,
-    startDeviceSession,
-    ensureActiveDeviceTicker,
-    validateModeCoupling,
-    renderBodySilhouette,
-    bindBodySilhouette,
-    navigate: navigateLightDevicesRoute,
-  });
 }
 
 // ─── Quick-log entry point ────────────────────────────────────────────

@@ -333,13 +333,18 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // modals (Log device session) require explicit Cancel/Save so accidental
   // taps don't lose typed values.
   const lightDevSrc = read('/js/light-devices.js');
+  const lightDevModalLoaderSrc = read('/js/light-device-modal-loader.js');
   const lightDevSetupSrc = read('/js/light-device-setup-modal.js');
   const lightDevSessionSrc = read('/js/light-device-session-modal.js');
   const lightDevCss = read('/css/light-devices.css');
-  assert('light-devices.js delegates session dialog rendering to extracted module',
-    lightDevSrc.includes("from './light-device-session-modal.js'"));
-  assert('light-devices.js delegates add/custom-device setup rendering to extracted module',
-    lightDevSrc.includes("from './light-device-setup-modal.js'"));
+  assert('light-devices.js lazily delegates session dialog rendering',
+    lightDevSrc.includes("from './light-device-modal-loader.js'")
+      && !lightDevSrc.includes("from './light-device-session-modal.js'")
+      && lightDevModalLoaderSrc.includes("import('./light-device-session-modal.js')"));
+  assert('light-devices.js lazily delegates add/custom-device setup rendering',
+    lightDevSrc.includes('configureLightDeviceModalLoader({')
+      && !lightDevSrc.includes("from './light-device-setup-modal.js'")
+      && lightDevModalLoaderSrc.includes("import('./light-device-setup-modal.js')"));
   assert('Add-device preset picker stays inside modal as button rows, not a native dropdown',
     lightDevSetupSrc.includes('light-device-preset-groups') &&
     lightDevSetupSrc.includes('light-device-preset-row') &&

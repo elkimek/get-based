@@ -163,6 +163,7 @@
     "js/light-conditions-now.js",
     "js/light-conditions-now-hooks.js",
     "js/light-device-ai-analysis.js",
+    "js/light-device-modal-loader.js",
     "js/light-device-session-engine.js",
     "js/light-device-session-modal.js",
     "js/light-device-setup-modal.js",

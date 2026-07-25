@@ -506,6 +506,7 @@ const APP_SHELL = [
   '/js/light-devices-actions.js',
   '/js/light-devices-store.js',
   '/js/light-device-session-engine.js',
+  '/js/light-device-modal-loader.js',
   '/js/light-device-setup-modal.js',
   '/js/light-device-session-modal.js',
   '/js/light-env.js',
