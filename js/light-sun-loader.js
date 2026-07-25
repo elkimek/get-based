@@ -16,6 +16,8 @@ const LIGHT_SUN_STYLESHEET_URLS = [
 
 /** @type {Promise<typeof import('./app-light-sun-modules.js')> | null} */
 let _lightSunModulesLoad = null;
+/** @type {typeof import('./app-light-sun-modules.js') | null} */
+let _lightSunModules = null;
 /** @type {Promise<HTMLLinkElement[]> | null} */
 let _lightSunStylesheetsLoad = null;
 /** @type {Promise<typeof import('./app-light-sun-modules.js')> | null} */
@@ -52,17 +54,24 @@ export function isLightSunUILoaded() {
   return _lightSunUILoaded;
 }
 
+export function renderLoadedLightTodayHero() {
+  return _lightSunModules?.renderLightTodayHero?.() || '';
+}
+
 /** @returns {Promise<typeof import('./app-light-sun-modules.js')>} */
 export function loadLightSunModules() {
   if (!_lightSunModulesLoad) {
     _lightSunModulesLoad = import('./app-light-sun-modules.js')
       .then(module => {
         applyLightEnvironmentLoaderDeps(module);
+        _lightSunModules = module;
         _lightSunModulesLoaded = true;
         return module;
       })
       .catch(err => {
         _lightSunModulesLoad = null;
+        _lightSunModules = null;
+        _lightSunModulesLoaded = false;
         throw err;
       });
   }

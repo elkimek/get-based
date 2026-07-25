@@ -23,6 +23,9 @@ test('Light & Sun module loader caches background initialization without loading
         export function configureLightEnv(deps) {
           globalThis.__lightEnvironmentLoaderDepKeys = Object.keys(deps).sort();
         }
+        export function renderLightTodayHero() {
+          return '<section>loaded Light Today hero</section>';
+        }
       `,
     });
   });
@@ -56,6 +59,7 @@ test('Light & Sun module loader caches background initialization without loading
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
     const loader = await import(loaderUrl);
+    const heroBeforeLoad = loader.renderLoadedLightTodayHero();
     loader.configureLightEnvironmentLoaderDeps({
       getMeasurementsForRoom() {},
       navigate() {},
@@ -99,9 +103,12 @@ test('Light & Sun module loader caches background initialization without loading
     return {
       startsUnloaded,
       startsUIUnloaded,
+      loadedHeroUnavailableBeforeInitialization: heroBeforeLoad === '',
       concurrentCallsShareModuleNamespace: first === second,
       laterCallsReuseModuleNamespace: first === third,
       loadedStateFlipsAfterInitialization: loader.isLightSunModulesLoaded() === true,
+      loadedHeroAvailableAfterInitialization:
+        loader.renderLoadedLightTodayHero() === '<section>loaded Light Today hero</section>',
       backgroundLoadLeavesUIUninitialized: loader.isLightSunUILoaded() === false,
       backgroundLoadAddsNoStylesheets:
         document.querySelectorAll('link[data-light-sun-stylesheet]').length === 0,
@@ -341,11 +348,13 @@ test('returning-user startup defers Light UI resources until the Light route ope
   ]);
   const stylesheetRequests = [];
   let moduleRequests = 0;
+  let lightTodayAIRequests = 0;
   const privacyModuleRequests = [];
   page.on('request', request => {
     const pathname = new URL(request.url()).pathname;
     if (lightStylesheetPaths.has(pathname)) stylesheetRequests.push(pathname);
     if (pathname === '/js/app-light-sun-modules.js') moduleRequests += 1;
+    if (pathname === '/js/light-today-ai.js') lightTodayAIRequests += 1;
     if (
       pathname === '/js/settings-runtime.js'
       || pathname === '/js/settings-privacy.js'
@@ -374,6 +383,7 @@ test('returning-user startup defers Light UI resources until the Light route ope
   await page.goto('/app', { waitUntil: 'networkidle' });
   expect(stylesheetRequests).toEqual([]);
   expect(moduleRequests).toBe(0);
+  expect(lightTodayAIRequests).toBe(0);
   expect(privacyModuleRequests).toEqual([]);
   await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(0);
 
@@ -384,6 +394,7 @@ test('returning-user startup defers Light UI resources until the Light route ope
   await expect(page.locator('.light-page')).toHaveCSS('display', 'grid');
   await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
   expect(moduleRequests).toBe(1);
+  expect(lightTodayAIRequests).toBe(1);
   expect(new Set(privacyModuleRequests)).toEqual(new Set([
     '/js/settings-runtime.js',
     '/js/settings-privacy.js',
