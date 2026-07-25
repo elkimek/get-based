@@ -135,9 +135,13 @@ bytes, bringing the reference to 424 requests, 1,802,578 compressed bytes, and
 only on its first action then saved one request, 20,334 compressed bytes, and
 81,571 decoded bytes, bringing the reference to 423 requests, 1,782,244
 compressed bytes, and 5,301,395 decoded bytes. Each result was reproduced in
-identical before/after runs on the same machine. Route and feature lazy loading
-remains active, with the ceilings ratcheting downward after each reproducible
-slice.
+identical before/after runs on the same machine. The Client List implementation
+then moved behind its first-open boundary. The pre-change reference reproduced
+as 423 requests, 1,782,242 compressed bytes, and 5,301,412 decoded bytes; the
+new reference reproduced as 423 requests, 1,771,493 compressed bytes, and
+5,254,832 decoded bytes, saving 10,749 compressed bytes and 46,580 decoded
+bytes. Route and feature lazy loading remains active, with the ceilings
+ratcheting downward after each reproducible slice.
 
 ### 4. Guardrails and test gaps
 

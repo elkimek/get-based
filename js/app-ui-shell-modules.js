@@ -4,7 +4,6 @@
 import './feedback.js';
 import './tour.js';
 import './touch-tooltip.js';
-import './client-list.js';
 import './views.js';
 import './chat-onboarding-host-bindings.js';
 import './app-shell-hooks.js';

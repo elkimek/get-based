@@ -76,6 +76,7 @@
     "js/chat.js",
     "js/client-list-runtime.js",
     "js/client-list.js",
+    "js/client-list-impl.js",
     "js/changelog.js",
     "js/commit-hash.js",
     "js/compare-correlations.js",

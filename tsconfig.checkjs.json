@@ -91,6 +91,7 @@
     "js/chat.js",
     "js/client-list-runtime.js",
     "js/client-list.js",
+    "js/client-list-impl.js",
     "js/constants.js",
     "js/context-card-dashboard-ai-actions.js",
     "js/context-card-dashboard-ai-runtime.js",

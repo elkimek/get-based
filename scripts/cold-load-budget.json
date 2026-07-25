@@ -4,14 +4,14 @@
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
     "requests": 429,
-    "transferBytes": 1814000,
-    "decodedBytes": 5392000
+    "transferBytes": 1803000,
+    "decodedBytes": 5345000
   },
   "reference": {
     "requests": 423,
-    "transferBytes": 1782244,
-    "decodedBytes": 5301395
+    "transferBytes": 1771493,
+    "decodedBytes": 5254832
   },
-  "referenceCommit": "deca0fd7",
+  "referenceCommit": "7c251c91",
   "measuredAt": "2026-07-25"
 }
