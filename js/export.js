@@ -8,7 +8,6 @@ import { getProfiles, profileStorageKey, saveProfiles, migrateProfileData } from
 import { encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
-import { importDataJSON } from './export-import.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
 import {
   generateReportAISummary as generateReportAISummaryImpl,
@@ -28,7 +27,53 @@ import {
   refreshImportRuntimeShell,
 } from './export-runtime.js';
 
-export { importDataJSON };
+/** @typedef {typeof import('./export-import.js')} ExportImportModule */
+/** @type {Promise<ExportImportModule> | null} */
+let exportImportModulePromise = null;
+/** @type {ExportImportModule | null} */
+let exportImportModule = null;
+let useExportImportRetryUrl = false;
+
+export function isExportImportModuleLoaded() {
+  return exportImportModule !== null;
+}
+
+/** @returns {Promise<ExportImportModule>} */
+function loadExportImportRetryModule() {
+  // @ts-expect-error TypeScript resolves only the query-free source path.
+  return import('./export-import.js?lazy-retry=1');
+}
+
+/** @returns {Promise<ExportImportModule>} */
+export function loadExportImportModule() {
+  if (!exportImportModulePromise) {
+    // Failed module-map fetches are cached; retry once with a second fixed URL.
+    const load = useExportImportRetryUrl
+      ? loadExportImportRetryModule()
+      : import('./export-import.js');
+    exportImportModulePromise = load
+      .then(module => (exportImportModule = module))
+      .catch(err => {
+        exportImportModulePromise = null;
+        exportImportModule = null;
+        useExportImportRetryUrl = true;
+        throw err;
+      });
+  }
+  return exportImportModulePromise;
+}
+
+/** @param {File} file */
+export async function importDataJSON(file) {
+  try {
+    const module = exportImportModule || await loadExportImportModule();
+    return await module.importDataJSON(file);
+  } catch (err) {
+    console.error('[export] Could not load the JSON import flow:', err);
+    showNotification('JSON import could not be loaded. Try again.', 'error');
+    return undefined;
+  }
+}
 
 /** @type {{
  *   buildSidebar: null | (() => void),
