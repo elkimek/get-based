@@ -4,9 +4,21 @@
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
-import { collectCycleBackup, restoreCycleBackup } from './backup-cycle.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
+
+/** @type {Promise<typeof import('./backup-cycle.js')> | null} */
+let backupCycleModuleLoad = null;
+
+function loadBackupCycleModule() {
+  if (!backupCycleModuleLoad) {
+    backupCycleModuleLoad = import('./backup-cycle.js').catch(err => {
+      backupCycleModuleLoad = null;
+      throw err;
+    });
+  }
+  return backupCycleModuleLoad;
+}
 
 // Crypto imports this module for backup UI helpers, so inject the two crypto
 // operations backup needs instead of coupling the modules through globals.
@@ -321,6 +333,7 @@ export async function buildFullBackupSnapshot() {
   }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
   snap.wearableIDB = await collectWearableIDB(profileIds);
+  const { collectCycleBackup } = await loadBackupCycleModule();
   const cycleBackup = await collectCycleBackup(profileIds);
   snap.cycleIDB = cycleBackup.observations;
   snap.cycleImportMeta = cycleBackup.importMeta;
@@ -400,7 +413,8 @@ export function importEncryptedBackup(file) {
 
         Promise.all([
           restoreWearableIDB(backup.wearableIDB),
-          restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta),
+          loadBackupCycleModule()
+            .then(({ restoreCycleBackup }) => restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta)),
         ]).finally(() => {
           showNotification('Backup restored \u2014 reloading...', 'success');
           setTimeout(() => location.reload(), 1000);
@@ -548,7 +562,8 @@ export async function restoreAutoBackup(id) {
     // along with everything else.
     Promise.all([
       restoreWearableIDB(backup.wearableIDB),
-      restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta),
+      loadBackupCycleModule()
+        .then(({ restoreCycleBackup }) => restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta)),
     ]).finally(() => {
       showNotification('Backup restored \u2014 reloading...', 'success');
       setTimeout(() => location.reload(), 1000);

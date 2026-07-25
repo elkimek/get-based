@@ -11,7 +11,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | --- | ---: |
 | Modules | 477 |
 | Internal import edges | 2126 |
-| Dynamic internal edges | 79 |
+| Dynamic internal edges | 80 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -121,7 +121,7 @@ Native browser modules shipped with the static application.
 
 - [`js/backup-cycle.js`](js/backup-cycle.js) → [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*
 - [`js/backup-serialization.js`](js/backup-serialization.js) → no in-scope imports
-- [`js/backup.js`](js/backup.js) → [`js/backup-cycle.js`](js/backup-cycle.js), [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
+- [`js/backup.js`](js/backup.js) → [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
 
 </details>
 
