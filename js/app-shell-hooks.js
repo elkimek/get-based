@@ -367,7 +367,18 @@ configureAppleHealthRuntimeDeps({
 });
 configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
-configureWearablesRuntime({ closeModal, navigate });
+configureWearablesRuntime({
+  closeModal,
+  loadModule: useRetryUrl => {
+    if (useRetryUrl) {
+      // @ts-expect-error The browser accepts a fixed query-string module URL;
+      // TypeScript resolves declarations only for the query-free source path.
+      return import('./wearables.js?lazy-retry=1');
+    }
+    return import('./wearables.js');
+  },
+  navigate,
+});
 configureWearableSettingsRuntimeDeps({ navigate });
 configureWearableSummary({ saveImportedData });
 configureDashboardAIContextStatus(updateChatContextStatus);

@@ -5,7 +5,15 @@ import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { showNotification } from './utils.js';
 
+/** @typedef {typeof import('./wearables.js')} WearablesModule */
+
 const WEARABLES_STYLESHEET_URL = new URL('../css/wearables.css', import.meta.url).href;
+
+/** @type {Promise<WearablesModule> | null} */
+let wearablesModulePromise = null;
+/** @type {WearablesModule | null} */
+let wearablesModule = null;
+let useWearablesModuleRetryUrl = false;
 
 /** @type {Promise<HTMLLinkElement> | null} */
 let wearablesStylesheetPromise = null;
@@ -14,11 +22,13 @@ let useWearablesStylesheetRetryUrl = false;
 
 /** @type {{
  *   closeModal: (() => void) | null,
+ *   loadModule: (useRetryUrl: boolean) => Promise<WearablesModule>,
  *   navigate: ((route: string) => void) | null,
  *   openEMFAssessmentEditor: typeof openEMFAssessmentEditor,
  * }} */
 const wearablesRuntimeDeps = {
   closeModal: null,
+  loadModule: () => Promise.reject(new Error('Wearables module loader is not configured')),
   navigate: null,
   openEMFAssessmentEditor,
 };
@@ -49,6 +59,96 @@ export function getWearablesModuleFunction(name) {
     ? wearableModuleBridge[name]
     : null;
 }
+
+export function isWearablesModuleLoaded() {
+  return wearablesModule !== null;
+}
+
+/**
+ * @param {WearablesModule} module
+ * @returns {WearablesModule}
+ */
+function completeWearablesModuleLoad(module) {
+  wearablesModule = module;
+  return module;
+}
+
+/**
+ * @param {unknown} err
+ * @returns {never}
+ */
+function resetWearablesModuleLoad(err) {
+  wearablesModulePromise = null;
+  wearablesModule = null;
+  useWearablesModuleRetryUrl = true;
+  throw err;
+}
+
+/** @returns {Promise<WearablesModule>} */
+export function loadWearablesModule() {
+  if (!wearablesModulePromise) {
+    // Browsers cache failed module-map fetches by URL. A fixed second literal
+    // is selected by the app shell loader after the first request fails.
+    wearablesModulePromise = Promise.resolve()
+      .then(() => wearablesRuntimeDeps.loadModule(useWearablesModuleRetryUrl))
+      .then(completeWearablesModuleLoad)
+      .catch(resetWearablesModuleLoad);
+  }
+  return wearablesModulePromise;
+}
+
+/**
+ * @param {keyof WearablesModule} name
+ * @param {any[]} args
+ */
+function runWearablesAction(name, args) {
+  const run = (/** @type {WearablesModule} */ module) => {
+    const action = module[name];
+    if (typeof action !== 'function') {
+      throw new Error(`Wearables action ${String(name)} is unavailable`);
+    }
+    return Reflect.apply(action, module, args);
+  };
+  try {
+    if (wearablesModule) return run(wearablesModule);
+    return loadWearablesModule()
+      .then(run)
+      .catch(err => {
+        console.error(`Failed to run Wearables action ${String(name)}`, err);
+        showNotification('Wearables could not be loaded. Try again.', 'error');
+        return false;
+      });
+  } catch (err) {
+    console.error(`Failed to run Wearables action ${String(name)}`, err);
+    showNotification('Wearables could not be loaded. Try again.', 'error');
+    return false;
+  }
+}
+
+/**
+ * Close cleanup must not pull the full Wearables graph into an otherwise cold
+ * marker-modal visit.
+ *
+ * @param {any[]} args
+ */
+function uninstallWearableFocusTrapIfLoaded(args) {
+  if (!wearablesModule) return undefined;
+  const action = wearablesModule._uninstallWearableModalFocusTrap;
+  if (typeof action !== 'function') return undefined;
+  try {
+    return Reflect.apply(action, wearablesModule, args);
+  } catch (err) {
+    console.error('Failed to clean up Wearables modal focus', err);
+    return undefined;
+  }
+}
+
+configureWearablesModuleBridge({
+  openWearableDetail: (...args) => runWearablesAction('openWearableDetail', args),
+  syncWearableNow: (...args) => runWearablesAction('syncWearableNow', args),
+  openManualLogForm: (...args) => runWearablesAction('openManualLogForm', args),
+  _uninstallWearableModalFocusTrap: (...args) => uninstallWearableFocusTrapIfLoaded(args),
+});
 
 function existingWearablesStylesheet() {
   if (typeof document === 'undefined') return null;
@@ -131,6 +231,9 @@ export function configureWearablesRuntime(deps = {}) {
   const previous = { ...wearablesRuntimeDeps };
   if (Object.hasOwn(deps, 'closeModal')) {
     wearablesRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
+  }
+  if (Object.hasOwn(deps, 'loadModule') && typeof deps.loadModule === 'function') {
+    wearablesRuntimeDeps.loadModule = deps.loadModule;
   }
   if (Object.hasOwn(deps, 'navigate')) {
     wearablesRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
