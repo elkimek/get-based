@@ -178,6 +178,9 @@ return (async function() {
       reportSrc.includes("reportBuilderActionAttrs('export')"));
   assert('Report builder facade delegates default preset to implementation',
     exportSrc.includes('export function openReportBuilder(presetId)') &&
+      !exportSrc.includes("from './export-report-builder.js'") &&
+      exportSrc.includes("import('./export-report-builder.js')") &&
+      exportSrc.includes("import('./export-report-builder.js?lazy-retry=1')") &&
       !exportSrc.includes("openReportBuilder(presetId = 'clinician')"));
   assert('Report builder supports AI overview generation',
     reportSrc.includes('export async function generateReportAISummary') &&
@@ -636,8 +639,7 @@ return (async function() {
   assert('Module has clearAllData', typeof exportModule.clearAllData === 'function');
   assert('Module has loadDemoData', typeof exportModule.loadDemoData === 'function');
 
-  exportModule.openReportBuilder();
-  await wait(20);
+  await exportModule.openReportBuilder();
   const reportBuilder = document.getElementById('report-builder-overlay');
   assert('Report builder modal renders', !!reportBuilder);
   assert('Report builder has presets, sections, date range, and categories',
