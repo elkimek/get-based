@@ -331,8 +331,15 @@ assert('cross-theme shell and sunset rules remain eager after the optional split
   !extraThemesAuditSrc.includes(':root[data-sunset-mode="on"]') &&
   !extraThemesAuditSrc.includes('[data-theme] .sidebar'));
 assert('SW APP_SHELL includes optional theme presentation', swAuditSrc.includes("'/themes-extra.css'"));
-const markerDetailSrc = read('js/marker-detail-modal.js');
+const markerDetailFacadeSrc = read('js/marker-detail-modal.js');
+const markerDetailImplSrc = read('js/marker-detail-modal-impl.js');
+const markerDetailSrc = `${markerDetailFacadeSrc}\n${markerDetailImplSrc}`;
 const markerDetailRuntimeSrc = read('js/marker-detail-runtime.js');
+assert('marker detail implementation loads only through the public lazy facade',
+  markerDetailFacadeSrc.includes("import('./marker-detail-modal-impl.js')") &&
+  markerDetailFacadeSrc.includes("import('./marker-detail-modal-impl.js?lazy-retry=1')") &&
+  markerDetailFacadeSrc.includes('let markerDetailModulePromise = null') &&
+  !/from ['"]\.\/marker-detail-modal-impl\.js['"]/.test(markerDetailFacadeSrc));
 assert('index defers marker detail CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/marker-detail-modal.css"') &&
   indexSrc.includes('data-marker-detail-stylesheet-anchor') &&
@@ -345,6 +352,9 @@ assert('marker detail CSS lazy-load anchor preserves the original cascade positi
     indexSrc.indexOf('data-marker-detail-stylesheet-anchor') <
     indexSrc.indexOf('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
+assert('SW APP_SHELL includes marker detail lazy implementation and focus memory',
+  swAuditSrc.includes("'/js/marker-detail-modal-impl.js'") &&
+  swAuditSrc.includes("'/js/modal-trigger-memory.js'"));
 assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
 assert('SW APP_SHELL includes recommendations product module', swAuditSrc.includes("'/js/recommendations-products.js'"));
@@ -628,7 +638,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-editing.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-modal-impl.js', 'marker-detail-editing.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

@@ -16,6 +16,100 @@ async function openMarkerDetailLoaderPage(page, path) {
   await page.goto(path, { waitUntil: 'load' });
 }
 
+test('marker detail implementation loads on demand and single-flights', async ({ page }) => {
+  let implementationRequests = 0;
+  await page.route('**/js/marker-detail-modal-impl.js*', route => {
+    implementationRequests += 1;
+    return route.continue();
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-module-cache-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const loadedBeforeAction = modal.isMarkerDetailModuleLoaded();
+    const [first, second] = await Promise.all([
+      modal.loadMarkerDetailModule(),
+      modal.loadMarkerDetailModule(),
+    ]);
+    return {
+      loadedBeforeAction,
+      concurrentCallsShareModule: first === second,
+      loadedAfterAction: modal.isMarkerDetailModuleLoaded(),
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    loadedBeforeAction: false,
+    concurrentCallsShareModule: true,
+    loadedAfterAction: true,
+  });
+  expect(implementationRequests).toBe(1);
+});
+
+test('marker detail implementation removes a failure and retries once', async ({ page }) => {
+  const implementationRequests = [];
+  let failFirstRequest = true;
+  await page.route('**/js/marker-detail-modal-impl.js*', route => {
+    implementationRequests.push(route.request().url());
+    if (failFirstRequest) {
+      failFirstRequest = false;
+      return route.abort('failed');
+    }
+    return route.continue();
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-module-retry-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    let firstRejected = false;
+    try {
+      await modal.loadMarkerDetailModule();
+    } catch {
+      firstRejected = true;
+    }
+    const retryModule = await modal.loadMarkerDetailModule();
+    return {
+      firstRejected,
+      loadedAfterRetry: modal.isMarkerDetailModuleLoaded(),
+      retryHasPublicAction: typeof retryModule.showDetailModal === 'function',
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    firstRejected: true,
+    loadedAfterRetry: true,
+    retryHasPublicAction: true,
+  });
+  expect(implementationRequests).toHaveLength(2);
+  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+});
+
+test('marker detail entry contains an implementation load failure', async ({ page }) => {
+  await page.route('**/js/marker-detail-modal-impl.js*', route => route.abort('failed'));
+  await openMarkerDetailLoaderPage(page, '/marker-detail-module-entry-failure-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const opened = await modal.openCreateMarkerModal();
+    return {
+      returnsFalse: opened === false,
+      implementationStayedUnloaded: !modal.isMarkerDetailModuleLoaded(),
+      modalStayedClosed:
+        !document.getElementById('modal-overlay')?.classList.contains('show'),
+      errorWasExplained:
+        document.getElementById('notification-container')?.textContent
+          ?.includes('Could not open marker details') === true,
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(outcomes).toEqual({
+    returnsFalse: true,
+    implementationStayedUnloaded: true,
+    modalStayedClosed: true,
+    errorWasExplained: true,
+  });
+});
+
 test('marker detail stylesheet loader single-flights and preserves cascade order', async ({ page }) => {
   let stylesheetRequests = 0;
   await page.route('**/css/marker-detail-modal.css*', route => {

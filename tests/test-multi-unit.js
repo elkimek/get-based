@@ -219,7 +219,7 @@ console.log('\n-- new conversions reachable via helpers --');
 console.log('\n-- source-shape pins (UI wiring) --');
 {
   const fs = await import('node:fs');
-  const markerDetail = fs.readFileSync(new URL('../js/marker-detail-modal.js', import.meta.url), 'utf8');
+  const markerDetail = fs.readFileSync(new URL('../js/marker-detail-modal-impl.js', import.meta.url), 'utf8');
   const markerDetailEditing = fs.readFileSync(new URL('../js/marker-detail-editing.js', import.meta.url), 'utf8');
   const settings = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');

@@ -306,9 +306,9 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('Plugin has ovulatory color', chartsSrc.includes('ovulatory') && chartsSrc.includes('rgba(168, 85, 247'));
     assert('Plugin has luteal color', chartsSrc.includes('luteal') && chartsSrc.includes('rgba(245, 158, 11'));
 
-    // category-page-view.js and marker-detail-modal.js pass phaseLabels
+    // category-page-view.js and marker-detail-modal-impl.js pass phaseLabels
     const categoryPageViewSrc = read('js/category-page-view.js');
-    const markerDetailSrc = read('js/marker-detail-modal.js');
+    const markerDetailSrc = read('js/marker-detail-modal-impl.js');
     const phasePassCount = (categoryPageViewSrc.match(/phaseLabels/g) || []).length + (markerDetailSrc.match(/phaseLabels/g) || []).length;
     assert('category-page-view.js + marker-detail-modal.js pass phaseLabels to createLineChart', phasePassCount >= 4, `found ${phasePassCount} references`);
 

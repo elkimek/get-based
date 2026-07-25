@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 465 |
-| Internal import edges | 2087 |
-| Dynamic internal edges | 61 |
+| Modules | 467 |
+| Internal import edges | 2095 |
+| Dynamic internal edges | 62 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -38,11 +38,11 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 213 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
-| [`js/state.js`](js/state.js) | 146 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
+| [`js/utils.js`](js/utils.js) | 214 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 88 |
+| [`js/state.js`](js/state.js) | 147 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 27 |
 | [`js/data.js`](js/data.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 63 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 54 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 55 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/pdf-import.js`](js/pdf-import.js) | 23 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/chat-send.js`](js/chat-send.js) | 22 |
@@ -512,12 +512,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 6 modules</summary>
+<details><summary><code>marker</code> family — 7 modules</summary>
 
 - [`js/marker-analysis.js`](js/marker-analysis.js) → [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-actions.js`](js/marker-detail-actions.js) → [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-editing.js`](js/marker-detail-editing.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-detail-store.js`](js/marker-detail-store.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/api.js`](js/api.js), [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) → [`js/api.js`](js/api.js), [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/context-cards.js`](js/context-cards.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
 
@@ -530,9 +531,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>modal</code> family — 1 module</summary>
+<details><summary><code>modal</code> family — 2 modules</summary>
 
 - [`js/modal-lifecycle.js`](js/modal-lifecycle.js) → no in-scope imports
+- [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js) → no in-scope imports
 
 </details>
 

@@ -33,7 +33,7 @@ assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedK
 
 // ─── 2. Manual Entry Provenance ───
 console.log('\n2. Manual Entry Provenance');
-const markerDetailSrc = read('js/marker-detail-modal.js');
+const markerDetailSrc = read('js/marker-detail-modal-impl.js');
 const markerDetailEditingSrc = read('js/marker-detail-editing.js');
 const markerDetailStoreSrc = read('js/marker-detail-store.js');
 assert('saveManualEntry inits markerSources', labEntrySrc.includes('function ensureMarkerSources(entry)'));

@@ -35,7 +35,10 @@ const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
 const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
-const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
+const markerDetailSrc = [
+  'marker-detail-modal.js',
+  'marker-detail-modal-impl.js',
+].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.js'), 'utf8');
