@@ -109,6 +109,16 @@ test('supplements browser coverage handles editor ingredients imports sync and A
             usage: { prompt_tokens: 12, completion_tokens: 18 },
           });
         }
+        if (urlText === 'data/mito-compounds.json') {
+          return jsonResponse([{
+            name: 'Magnesium',
+            k: ['magnesium glycinate'],
+            cat: 'supplement',
+            effects: [{ f: 'Complex I', a: 'inhibits', t: 'coverage fixture' }],
+            pmid: 12345678,
+            more: 'magnesium+mitochondria',
+          }]);
+        }
         throw new Error(`Unexpected fetch ${urlText}`);
       };
 
@@ -136,6 +146,18 @@ test('supplements browser coverage handles editor ingredients imports sync and A
         changeHistory: [],
       };
       data.invalidateActiveDataCache();
+
+      const supplementSectionHost = document.createElement('div');
+      supplementSectionHost.id = 'supplement-warning-refresh-fixture';
+      supplementSectionHost.innerHTML = supplements.renderSupplementsSection();
+      document.body.appendChild(supplementSectionHost);
+      await waitUntil(
+        () => !!supplementSectionHost.querySelector('.supp-mitotox'),
+        'deferred mitochondrial warning refresh',
+      );
+      outcomes.supplementWarningsLoadOnDemandAndRefreshTheSection =
+        fetchCalls.filter(call => call.url === 'data/mito-compounds.json').length === 1
+        && supplementSectionHost.textContent.includes('may inhibit Complex I');
 
       supplements.openSupplementsEditor();
       await waitUntil(() => document.getElementById('modal-overlay')?.classList.contains('show'), 'supplement editor open');
@@ -245,6 +267,7 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       document.getElementById('modal-overlay')?.classList.remove('show');
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       document.getElementById('supplements-ai-context-fixture')?.remove();
+      document.getElementById('supplement-warning-refresh-fixture')?.remove();
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
