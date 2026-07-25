@@ -5,11 +5,13 @@
 
 import { isDebugMode, loadScriptOnce } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
+import { getCashuWalletStoreCryptoDeps } from './crypto.js';
 import {
   DEFAULT_MINT,
   PENDING_QUOTE_PREFIX,
   PENDING_SWAP_KEY,
   configureCashuWalletStore,
+  configureCashuWalletStoreCryptoDeps,
   _amountToNumber,
   _normalizeMintUrl,
   _getAllProofs,
@@ -39,6 +41,8 @@ import {
   _counterNamespaceForSeed,
   _destroyWalletDBStorage,
 } from './cashu-wallet-store.js';
+
+configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps());
 
 // ═══════════════════════════════════════════════
 // CONSTANTS

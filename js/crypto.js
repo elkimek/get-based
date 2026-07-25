@@ -317,20 +317,16 @@ export function isEncryptedObject(o) {
   return o && typeof o === 'object' && o._enc === 'v1' &&
          o.iv instanceof Uint8Array && o.ct instanceof Uint8Array;
 }
-
-configureCycleStoreCrypto({
-  getEncryptionEnabled,
-  encryptObject,
-  isEncryptedObject,
-  decryptObject,
+const indexedDBCryptoDeps = {
+  getEncryptionEnabled, encryptObject, isEncryptedObject, decryptObject,
+};
+export const getCashuWalletStoreCryptoDeps = () => ({
+  ...indexedDBCryptoDeps,
+  encryptedGetItem,
+  encryptedSetItem,
 });
-
-configureWearablesStoreCrypto({
-  getEncryptionEnabled,
-  encryptObject,
-  isEncryptedObject,
-  decryptObject,
-});
+configureCycleStoreCrypto(indexedDBCryptoDeps);
+configureWearablesStoreCrypto(indexedDBCryptoDeps);
 
 // TEST-ONLY: injects a freshly-derived key so behavioral tests can drive
 // the encrypt/decrypt round-trip without going through the passphrase
@@ -912,6 +908,7 @@ async function migrateLocalIDB(mode) {
     import('./cycle-store.js'),
     import('./cashu-wallet-store.js'),
   ]);
+  cashuStore.configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps());
   let migrated = await cashuStore.migrateCashuWalletStorage(mode);
   for (const profileId of await migrationProfileIds()) {
     const wearableRows = await transformPayloadRows(await wearableStore.getAllDailyRaw(profileId), ['source', 'date'], mode);
