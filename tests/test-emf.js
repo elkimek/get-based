@@ -142,7 +142,7 @@ assert('45d. former EMF globals are not installed', emfWindowFns.every(fn => typ
 assert('45d2. main.js starts the startup orchestrator', mainSrc.includes('startApp()'));
 assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
 const navSrc = read('js/nav.js');
-const contextCardLifestyleEditorsSrc = read('js/context-card-lifestyle-editors.js');
+const contextCardLifestyleEditorsSrc = read('js/context-card-lifestyle-editors-impl.js');
 const contextCardSummariesSrc = read('js/context-card-summaries.js');
 const contextEditorCss = read('css/context-editor.css');
 const lensPagesSrc = read('js/lens-pages.js');

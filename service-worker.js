@@ -176,6 +176,7 @@ const APP_SHELL = [
   '/js/context-card-medical-history-editor.js',
   '/js/context-card-lifestyle-runtime.js',
   '/js/context-card-lifestyle-editors.js',
+  '/js/context-card-lifestyle-editors-impl.js',
   '/js/focus-card.js',
   '/js/onboarding-view-runtime.js',
   '/js/onboarding-view.js',

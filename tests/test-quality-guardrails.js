@@ -217,6 +217,7 @@ const broadSurfaceCheckJsModules = [
   'js/chat-threads.js',
   'js/constants.js',
   'js/context-card-lifestyle-editors.js',
+  'js/context-card-lifestyle-editors-impl.js',
   'js/context-card-medical-history-editor.js',
   'js/context-cards.js',
   'js/export-report.js',

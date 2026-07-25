@@ -219,7 +219,7 @@ assert('index defers context editor CSS behind its ordered lazy-load anchor',
   contextEditorAuditSrc.includes('data-context-editor-stylesheet-anchor'));
 assert('context editor and tips actions wait for their presentation',
   read('js/context-card-medical-history-editor.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
-  read('js/context-card-lifestyle-editors.js').includes('runWithContextEditorStylesheet(openDietEditor)') &&
+  read('js/context-card-lifestyle-editors-impl.js').includes('runWithContextEditorStylesheet(openDietEditor)') &&
   read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey))'));
 assert('context editor split preserves shared context controls eagerly',
   read('css/context-profile.css').includes('.ctx-btn-option') &&
@@ -600,7 +600,7 @@ assert('marker rename refreshes the backing view before reopening modal',
 console.log('3c. innerHTML sanitizer sweep');
 
 const contextCardEditorSrc = read('js/context-card-editor-ui.js');
-const contextCardLifestyleSrc = read('js/context-card-lifestyle-editors.js');
+const contextCardLifestyleSrc = read('js/context-card-lifestyle-editors-impl.js');
 assert('context Light setup mirror owns its deferred editor styling',
   contextCardLifestyleSrc.includes('ctx-lightsetup-ott-badge') &&
   !contextCardLifestyleSrc.includes('class="light-ott-badge') &&

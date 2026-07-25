@@ -101,6 +101,12 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     new URL(entry.name).pathname === '/js/export-report-builder.js'
   ))).toBe(false);
   expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/js/context-card-lifestyle-editors-impl.js'
+  ))).toBe(false);
+  expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/js/sun-defaults.js'
+  ))).toBe(false);
+  expect(entries.some(entry => (
     new URL(entry.name).pathname === '/css/marker-detail-modal.css'
   ))).toBe(false);
   expect(entries.some(entry => (
