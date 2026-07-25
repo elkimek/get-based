@@ -794,8 +794,9 @@ assert('Light dashboard registry exposes only dashboard-safe Light widgets',
 assert('Dashboard Light Today uses the same hero surface as the Light page',
   dashboardRenderersSrc.includes('function renderDashboardLightTodayWidget()') &&
   dashboardRenderersSrc.includes('const hero = renderLightTodayHero();') &&
-  dashboardViewCompositionSrc.includes("import { renderLightTodayHero } from './light-today-ai.js';") &&
-  dashboardViewCompositionSrc.includes('renderLightTodayHero,') &&
+  dashboardViewCompositionSrc.includes('renderLoadedLightTodayHero,') &&
+  dashboardViewCompositionSrc.includes('renderLightTodayHero: renderLoadedLightTodayHero,') &&
+  !dashboardViewCompositionSrc.includes("from './light-today-ai.js'") &&
   /id: 'light-today'[\s\S]*?render: renderers\.renderDashboardLightTodayWidget/.test(dashboardWidgetsBlock) &&
   !/id: 'light-today'[\s\S]*?render:\s*\(\)\s*=>\s*renderLightTodayStrip\(\)/.test(dashboardWidgetsBlock));
 assert('Dashboard Light Today stays separate from Conditions Now',

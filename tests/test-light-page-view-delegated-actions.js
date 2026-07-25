@@ -73,8 +73,9 @@ assert('Light Today AI renderers are wired without a window facade',
     && !globalsSrc.includes('renderLightTodayDashboardChip')
     && dashboardRenderersSrc.includes('renderLightTodayHero = () =>')
     && dashboardRenderersSrc.includes('const hero = renderLightTodayHero();')
-    && dashboardCompositionSrc.includes("import { renderLightTodayHero } from './light-today-ai.js';")
-    && dashboardCompositionSrc.includes('renderLightTodayHero,'));
+    && dashboardCompositionSrc.includes('renderLoadedLightTodayHero,')
+    && dashboardCompositionSrc.includes('renderLightTodayHero: renderLoadedLightTodayHero,')
+    && !dashboardCompositionSrc.includes("from './light-today-ai.js'"));
 assert('Light page UI hook wires router and Sun settings leaf dependencies',
   /import \{ navigate \} from '\.\/views\.js';/.test(uiHooksSrc)
     && !/from '\.\/settings-privacy\.js'/.test(uiHooksSrc)

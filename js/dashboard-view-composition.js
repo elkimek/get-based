@@ -22,9 +22,12 @@ import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { renderLightConditionsWidgetBody } from './light-conditions-now.js';
 import { ensureActiveDeviceTicker } from './light-devices.js';
 import { renderDashboardLightChannelPills, renderLightSessionLogActions } from './light-page-view.js';
-import { renderLightTodayHero } from './light-today-ai.js';
 import { navigateViewportRuntime } from './views-router-runtime.js';
-import { isLightSunUILoaded, loadLightSunUI } from './light-sun-loader.js';
+import {
+  isLightSunUILoaded,
+  loadLightSunUI,
+  renderLoadedLightTodayHero,
+} from './light-sun-loader.js';
 import {
   configureMobileDashboardView,
   getMobileDashboardMarkers,
@@ -68,7 +71,7 @@ export function createDashboardViewComposition({
     isLightSunUILoaded,
     loadLightSunUI,
     rerenderDashboardFromWidgetChange,
-    renderLightTodayHero,
+    renderLightTodayHero: renderLoadedLightTodayHero,
     showRecommendations,
   });
 
