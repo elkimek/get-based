@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 import { hydrateDevicesFromPresets } from './light-devices.js';
 import { loadWearablesConnectModule } from './wearables-connect-loader.js';
+import { preloadMitoCompoundData } from './supplement-warnings.js';
 import {
   getStartupSunEngineVersionRuntime,
   hasSunSessionRehydrateRuntime,
@@ -13,10 +14,17 @@ import {
 } from './startup-maintenance-runtime.js';
 
 export function runPostProfileStartupMaintenance() {
+  preloadTrackedSupplementWarnings();
   startConnectedWearableServices().catch(() => {});
   scheduleSunSessionRehydrate();
   hydrateUserLightDevicesFromPresets();
   migrateLegacyBiometrics();
+}
+
+function preloadTrackedSupplementWarnings() {
+  if (state.importedData?.supplements?.length) {
+    void preloadMitoCompoundData();
+  }
 }
 
 function hasConnectedOAuthWearable() {

@@ -14,7 +14,12 @@ import { callClaudeAPI, getAIProvider, hasAIProvider, supportsVision } from './a
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { initSupplementActionDelegates, suppActionAttrs } from './supplement-action-delegates.js';
-import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
+import {
+  hasMitoCompoundData,
+  humanizeEffect,
+  preloadMitoCompoundData,
+  scanSupplementsForWarnings,
+} from './supplement-warnings.js';
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
 import { closeSupplementsModalRuntime, navigateSupplementsViewRuntime } from './supplements-runtime.js';
 import {
@@ -46,6 +51,25 @@ function closeSupplementModal() {
 
 function navigateSupplementView(category) {
   navigateSupplementsViewRuntime(category);
+}
+
+/** @type {Promise<void> | null} */
+let supplementWarningRefreshLoad = null;
+
+/**
+ * @param {Array<any>} supplements
+ */
+function scheduleSupplementWarningRefresh(supplements) {
+  if (!supplements.length || hasMitoCompoundData() || supplementWarningRefreshLoad) return;
+  supplementWarningRefreshLoad = preloadMitoCompoundData()
+    .then(data => {
+      if (!data) return;
+      const section = document.querySelector('.supp-timeline-section');
+      if (section) section.outerHTML = renderSupplementsSection();
+    })
+    .finally(() => {
+      supplementWarningRefreshLoad = null;
+    });
 }
 
 /**
@@ -128,6 +152,7 @@ if (typeof window !== 'undefined') {
 
 export function renderSupplementsSection() {
   const supps = state.importedData.supplements || [];
+  scheduleSupplementWarningRefresh(supps);
   let html = `<div class="supp-timeline-section">
     <div class="supp-timeline-header">
       <span class="context-section-title">Supplements & Medications</span>
