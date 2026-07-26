@@ -69,6 +69,20 @@ test('sync delta helper browser coverage exercises registry ids config and row c
     const plainDecoded = await rowCodec.decodeRowPayload({
       payload: JSON.stringify({ k: 'plain', v: { ok: true } }),
     });
+    const chunkBoundaryBytes = Uint8Array.from(
+      { length: 0x8000 + 3 },
+      (_, index) => index % 251,
+    );
+    const chunkBoundaryRoundTrip = syncPayload._base64ToBytes(
+      syncPayload._bytesToBase64(chunkBoundaryBytes),
+    );
+    outcomes.byteCodecRoundTripsAcrossItsArgumentChunkBoundary =
+      chunkBoundaryRoundTrip.length === chunkBoundaryBytes.length
+      && chunkBoundaryRoundTrip[0] === chunkBoundaryBytes[0]
+      && chunkBoundaryRoundTrip[0x7fff] === chunkBoundaryBytes[0x7fff]
+      && chunkBoundaryRoundTrip[0x8000] === chunkBoundaryBytes[0x8000]
+      && chunkBoundaryRoundTrip.at(-1) === chunkBoundaryBytes.at(-1);
+
     const gzipEnvelope = `GZ|v1|${syncPayload._bytesToBase64(
       await syncPayload._gzipString(JSON.stringify({ k: 'gzip', v: [1, 2, 3] }))
     )}`;

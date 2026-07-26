@@ -39,7 +39,7 @@ const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
 /**
  * @typedef {{ data: any, filteredData: any, keyMarkers?: any[], trendAlerts?: any[], criticalFlags?: any[] }} MobileDashboardWidgetContext
  * @typedef {{ def: { id: string, [key: string]: any }, body?: string, [key: string]: any }} MobileDashboardWidgetEntry
- * @typedef {Record<string, any>} MobileDashboardWidgetPrefs
+ * @typedef {{ order: string[], hidden: string[], [key: string]: any }} MobileDashboardWidgetPrefs
  * @typedef {{
  *   buildDashboardWidgetContext: (data: any) => MobileDashboardWidgetContext,
  *   getDashboardWidgetPrefs: () => MobileDashboardWidgetPrefs,
@@ -60,7 +60,7 @@ const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
 /** @type {MobileDashboardDeps} */
 const mobileDashboardDeps = {
   buildDashboardWidgetContext: (_data) => ({ data: getActiveData(), filteredData: getActiveData() }),
-  getDashboardWidgetPrefs: () => ({}),
+  getDashboardWidgetPrefs: () => ({ order: [], hidden: [] }),
   getVisibleDashboardWidgetEntries: (_ctx, _prefs) => [],
   renderDashboardControlButtons: (_options) => '',
   isDashboardOrganizeMode: () => false,

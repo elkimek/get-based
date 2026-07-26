@@ -1,5 +1,5 @@
 {
-  "description": "Pilot checkJs config for selected JavaScript modules and their local dependency graph.",
+  "description": "Full-app checkJs config for JavaScript modules and their local dependency graph.",
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "checkJs": true

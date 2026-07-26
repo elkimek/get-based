@@ -35,7 +35,7 @@ jobs:
       - name: Run typecheck
         run: npm run typecheck
 
-      - name: Run checkJs pilot
+      - name: Run full-app checkJs
         run: npm run typecheck:checkjs
 
       - name: Verify architecture map and boundaries

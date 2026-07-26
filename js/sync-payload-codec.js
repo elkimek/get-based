@@ -40,7 +40,7 @@ export function _bytesToBase64(bytes) {
   let s = '';
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
-    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    s += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
   }
   return btoa(s);
 }
