@@ -672,7 +672,7 @@ const {
     !burdenSrc.includes('window.refreshBurdenAIAnalysis') &&
     !burdenSrc.includes('window.analyzeBurdenAI') &&
     !burdenSrc.includes('window.renderBurdenInterp') &&
-    burdenSrc.includes("import { computeDeficitAxes, computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
+    burdenSrc.includes("import { computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
     burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
   assert('Channel mix AI renderer routes through Light page wiring instead of window lookup',
     appLightSunSrc.includes("import './light-channels-ai-analysis.js';") &&

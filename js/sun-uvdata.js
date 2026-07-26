@@ -149,7 +149,6 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   // Provider order based on config
   const order = providerOrder(cfg, { lat: rLat, lon: rLon });
 
-  let lastError = null;
   for (let i = 0; i < order.length; i++) {
     const provider = order[i];
     try {
@@ -187,8 +186,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
         writeCache(cacheKey, result);
         return result;
       }
-    } catch (e) {
-      lastError = e;
+    } catch {
       // continue to next provider
     }
   }

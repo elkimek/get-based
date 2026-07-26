@@ -12,15 +12,7 @@ import { recalculateLabEntryHOMAIR } from './lab-entry.js';
 import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
 import {
-  countFlagged,
-  detectTrendAlerts,
   getAllFlaggedMarkers as getAllFlaggedMarkersForData,
-  getEffectiveRange,
-  getEffectiveRangeForDate,
-  getKeyTrendMarkers,
-  getLatestValueIndex,
-  getPhaseRefEnvelope,
-  statusIcon,
 } from './marker-analysis.js';
 
 export {

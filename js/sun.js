@@ -11,7 +11,7 @@
 // in profile.js migrateProfileData().
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
@@ -66,7 +66,6 @@ import {
 } from './sun-spectrum.js';
 import {
   configureSunSessionsStore,
-  SUN_ENGINE_VERSION,
   getSessions,
   getActiveSession,
   startSession,
@@ -80,7 +79,6 @@ import {
   setSessionCoverage,
   updateSession,
   hydrateSession,
-  rehydrateStaleSessions,
   _applyAtmOverrides,
   resetSunSessionsStoreState,
 } from './sun-sessions-store.js';
@@ -95,9 +93,6 @@ import {
   TOO_SHORT_FOR_CHANNEL_VERDICT_MIN,
   formatChannelUnit,
   rollingVitaminDIU,
-  dailyVitaminDIUBreakdown,
-  cumulativeVitaminDIUToday,
-  vitaminDBudgetStatus,
 } from './sun-channel-metrics.js';
 import {
   addSunProfileSwitchListener,

@@ -556,7 +556,6 @@ export function createDashboardWidgetControls(deps) {
 
   function openDashboardBiometricPicker() {
     closeDashboardWidgetPicker();
-    const prefs = getDashboardWidgetPrefs();
     const biometricOptions = getDashboardBiometricWidgetOptions();
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
     openDashboardWidgetPickerOverlay(`<div class="modal-overlay" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>

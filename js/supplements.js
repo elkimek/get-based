@@ -23,13 +23,10 @@ import {
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
 import { closeSupplementsModalRuntime, navigateSupplementsViewRuntime } from './supplements-runtime.js';
 import {
-  computeAllImpacts,
-  computeSupplementImpact,
   effectiveTimesPerDay,
   formatSupplementTotal,
   getSupplementPeriods,
   ingredientDailyTotal,
-  parseAmount,
   refreshSupplementImpact,
   renderSupplementImpact,
 } from './supplement-impact.js';

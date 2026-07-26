@@ -132,7 +132,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   // Category tables
   if (reportIncludes(reportOptions, 'categories')) {
-    for (const [catKey, cat] of Object.entries(data.categories)) {
+    for (const cat of Object.values(data.categories)) {
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values && m.values.some(hasReportValue));
       if (markersWithData.length === 0) continue;
       const dateColumns = cat.singleDate
@@ -144,7 +144,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       body += `<h2>${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Reference</th>`;
       for (const column of dateColumns) body += `<th>${esc(column.label)}</th>`;
       body += `<th>Trend</th></tr></thead><tbody>`;
-      for (const [mKey, marker] of markersWithData) {
+      for (const [, marker] of markersWithData) {
         const r = getEffectiveRange(marker);
         const trendValues = marker.values.map(v => hasReportValue(v) ? v : null);
         const trend = getTrend(trendValues, r.min, r.max);

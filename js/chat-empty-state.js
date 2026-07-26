@@ -480,7 +480,6 @@ function renderFullContextNoDataState(container, panel, { personality, name }) {
 
 function renderPartialContextNoDataState(container, panel, { personality, name }, filled) {
   setOnboardingActive(panel);
-  const remaining = 9 - filled;
   const progressPct = Math.round((filled / 9) * 100);
   const providerConnected = hasAIProvider();
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>

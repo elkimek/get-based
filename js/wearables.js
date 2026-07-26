@@ -18,10 +18,10 @@
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { state } from './state.js';
-import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, isMetricValueMeaningful, isoDay } from './wearable-adapters.js';
+import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, isoDay } from './wearable-adapters.js';
 import { syncNow, listConnectedSources } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
-import { isWearableStripHidden, setWearableStripHidden } from './wearables-settings-panel.js';
+import { isWearableStripHidden } from './wearables-settings-panel.js';
 import { getActiveProfileId } from './profile.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 import {

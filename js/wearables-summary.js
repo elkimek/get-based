@@ -43,7 +43,6 @@ export function configureWearableSummary(deps = {}) {
 const GATE_D7_DELTA_PCT     = 5;       // |d7 rolling mean shift| ≥ 5% triggers L2 write
 const GATE_WEEKLY_DELTA_PCT = 5;       // any weekly-series metric delta ≥ 5% triggers L2 write
 const MIN_L2_REFRESH_MS     = 14 * 24 * 60 * 60 * 1000; // force-write after 14d silence
-const ANOMALY_STREAK_DAYS   = 3;       // sustained breach length to fire an anomaly event
 const CHANGE_HISTORY_CAP    = 200;     // existing global cap; honour it when appending
 const SUMMARY_WINDOW_DAYS   = 90;
 const MANUAL_SUMMARY_START_DATE = '1970-01-01';

@@ -29,7 +29,6 @@ const MOBILE_WEARABLE_PRIORITY = [
   'bp_systolic',
 ];
 
-let _mobileDashboardManualTabLockUntil = 0;
 let _mobileChromeStateObserver = null;
 let _mobileDashboardActionsInstalled = false;
 
@@ -194,8 +193,7 @@ export function syncMobileBottomNav(route = state.currentView || 'dashboard') {
 
 export function refreshMobileDashboardActiveTab() {
   if (!document.body.classList.contains('mobile-dashboard-active')) return;
-  _mobileDashboardManualTabLockUntil = 0;
-  mobileDashboardSetTab('dashboard', { fromScroll: true });
+  mobileDashboardSetTab('dashboard');
 }
 
 const refreshDashboardForBreakpoint = () => {
@@ -436,8 +434,7 @@ function renderMobileIcon(name) {
   return `<svg class="m-svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.labs}</svg>`;
 }
 
-export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
-  if (!fromScroll) _mobileDashboardManualTabLockUntil = Date.now() + 600;
+export function mobileDashboardSetTab(tab) {
   document.querySelectorAll('.m-tab').forEach(btn => {
     const tabButton = /** @type {HTMLElement} */ (btn);
     const isActive = tabButton.dataset.tab === tab;

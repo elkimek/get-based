@@ -40,11 +40,6 @@ function startupRuntime() {
   return /** @type {Record<string, any>} */ (globalThis);
 }
 
-function callStartupRuntime(name, ...args) {
-  const fn = startupRuntime()[name];
-  return typeof fn === 'function' ? fn(...args) : undefined;
-}
-
 function currentPathname() {
   return startupRuntime().location?.pathname || '/';
 }

@@ -407,7 +407,7 @@ export function migrateProfileData(data) {
   }
   // Remove singlePoint from fatty acid custom markers (FA now supports trends)
   if (data.customMarkers) {
-    for (const [key, def] of Object.entries(data.customMarkers)) {
+    for (const def of Object.values(data.customMarkers)) {
       if (def.singlePoint && def.group === 'Fatty Acids') delete def.singlePoint;
     }
   }
@@ -449,7 +449,7 @@ export function migrateProfileData(data) {
       for (const mk of Object.keys(cat.markers)) _stdLookup[mk] = `${catKey}.${mk}`;
     }
     const toDelete = [];
-    for (const [fullKey, def] of Object.entries(data.customMarkers)) {
+    for (const fullKey of Object.keys(data.customMarkers)) {
       const [catKey, markerKey] = fullKey.split('.');
       if (!markerKey || MARKER_SCHEMA[catKey]) continue;
       // Don't relocate legitimate specialty markers that happen to share a name with standard ones

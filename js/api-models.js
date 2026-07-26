@@ -24,7 +24,6 @@ import {
   getPpqModelDisplay,
   isPpqPrivateModel,
   isPpqPrivateModeActive,
-  syncPpqModelSelection,
   getCustomApiModel,
   getCustomApiModelDisplay,
 } from './api-provider-storage.js';
