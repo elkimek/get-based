@@ -122,6 +122,7 @@ const requiredCompilerSafetyOptions = {
   allowUnreachableCode: false,
   allowUnusedLabels: false,
   noFallthroughCasesInSwitch: true,
+  noImplicitReturns: true,
   noImplicitThis: true,
   strictBindCallApply: true,
   strictFunctionTypes: true,

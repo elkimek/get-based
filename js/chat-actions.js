@@ -75,30 +75,30 @@ function runChatMessageAction(actionEl, event) {
     regenerateLastMessage();
   } else if (action === 'copy-message') {
     const index = readMessageIndex(actionEl);
-    if (index == null) return;
+    if (index == null) return false;
     copyMessage(index);
   } else if (action === 'toggle-context-details') {
     const index = readMessageIndex(actionEl);
-    if (index == null) return;
+    if (index == null) return false;
     toggleContextDetails(index);
   } else if (action === 'remove-image-attachment') {
     const index = readMessageIndex(actionEl);
-    if (index == null) return;
+    if (index == null) return false;
     chatMessageActionDeps.removeImageAttachment(index);
   } else if (action === 'open-image-lightbox') {
     const src = actionEl instanceof HTMLImageElement ? actionEl.src : actionEl.dataset.chatMessageSrc;
-    if (!src) return;
+    if (!src) return false;
     chatMessageActionDeps.openImageLightbox(src);
   } else if (action === 'open-emf-assessment') {
     void chatMessageActionDeps.openEMFAssessmentEditor();
   } else if (action === 'jump-search-result') {
     const index = readMessageIndex(actionEl);
     const threadId = actionEl.dataset.chatMessageThreadId || '';
-    if (!threadId || index == null) return;
+    if (!threadId || index == null) return false;
     void chatMessageActionDeps.jumpToSearchResult(threadId, index, actionEl.dataset.chatMessagePrefix || '');
   } else if (action === 'view-summary') {
     const id = actionEl.dataset.chatMessageSummaryId || '';
-    if (!id) return;
+    if (!id) return false;
     chatMessageActionDeps.viewSavedSummary(id);
   } else if (action === 'close-summary') {
     chatMessageActionDeps.closeSummaryModal();
@@ -110,7 +110,7 @@ function runChatMessageAction(actionEl, event) {
     chatMessageActionDeps.printSummary();
   } else if (action === 'delete-summary') {
     const id = actionEl.dataset.chatMessageSummaryId || '';
-    if (!id) return;
+    if (!id) return false;
     void chatMessageActionDeps.deleteSavedSummary(id);
   } else if (action === 'start-discussion-from-picker') {
     void chatMessageActionDeps.startDiscussionFromPicker();

@@ -140,28 +140,31 @@ export function detectMtDNAMismatch(genetics) {
 let _mtdnaImportRunning = false;
 
 export async function handleMtDNAFile(file) {
-  if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return; }
+  if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction()) return false;
   _mtdnaImportRunning = true;
   try {
     const text = await file.text();
     const mutations = parseMtDNAMutations(text);
-    if (mutations.length === 0) { showNotification('No mtDNA mutations found in this file', 'error'); _mtdnaImportRunning = false; return; }
+    if (mutations.length === 0) { showNotification('No mtDNA mutations found in this file', 'error'); _mtdnaImportRunning = false; return false; }
 
     const hapTable = await loadHaplogroupTable();
     const resolved = resolveHaplogroup(mutations, hapTable);
-    if (!resolved) { showNotification('Could not determine haplogroup - try a more complete mtDNA export', 'error'); _mtdnaImportRunning = false; return; }
+    if (!resolved) { showNotification('Could not determine haplogroup - try a more complete mtDNA export', 'error'); _mtdnaImportRunning = false; return false; }
 
     const coupling = classifyCoupling(resolved.haplogroup, hapTable);
     const hgData = hapTable.haplogroups[resolved.haplogroup];
     const source = file.name.toLowerCase().includes('23andme') || file.name.toLowerCase().includes('genome') ? 'mtDNA (23andMe)' : 'mtDNA CSV';
     setPendingMtDnaImport({ mutations, resolved, coupling, hgData, source });
     _showMtDNAPreview(resolved, coupling, mutations, file.name);
+    _mtdnaImportRunning = false;
+    return true;
   } catch (e) {
     logDnaDebugError('mtDNA import error:', e);
     showNotification(e.message || 'Failed to parse mtDNA file', 'error');
+    _mtdnaImportRunning = false;
+    return false;
   }
-  _mtdnaImportRunning = false;
 }
 
 function _showMtDNAPreview(resolved, coupling, mutations, fileName) {

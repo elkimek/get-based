@@ -744,6 +744,7 @@ export async function openManualSnpModal() {
   }
   overlay.innerHTML = `<div class="modal dna-preview-modal dna-manual-modal" role="dialog" aria-label="Add SNPs manually">${html}</div>`;
   openDnaModalOverlay(overlay, '#manual-snp-bulk');
+  return true;
 }
 
 export function parseManualSnpRows(singleRsid, singleGenotype, bulkText) {
@@ -803,7 +804,7 @@ export async function importSnpReport() {
 }
 
 export async function handleSnpReportFile(file) {
-  if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
+  if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction()) return false;
   _dnaImportRunning = true;
   try {
@@ -821,13 +822,15 @@ export async function handleSnpReportFile(file) {
     if (Object.keys(result.matches).length === 0) {
       showNotification('No catalog SNP results found in this report. Add the SNP manually.', 'error');
       _dnaImportRunning = false;
-      return;
+      return false;
     }
     showDNAImportPreview(result, file.name);
+    return true;
   } catch (e) {
     logDnaDebugError('SNP report import error:', e);
     showNotification(e.message || 'Failed to read SNP report', 'error');
     _dnaImportRunning = false;
+    return false;
   }
 }
 
@@ -838,8 +841,8 @@ export async function handleSnpReportFile(file) {
 let _dnaImportRunning = false;
 
 export async function handleDNAFile(file) {
-  if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
-  if (isDnaLabImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return; }
+  if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return false; }
+  if (isDnaLabImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction()) return false;
   _dnaImportRunning = true;
   try {
@@ -848,13 +851,15 @@ export async function handleDNAFile(file) {
     if (Object.keys(result.matches).length === 0) {
       showNotification('No health-relevant SNPs found in this file. Is it a DNA raw data export?', 'error');
       _dnaImportRunning = false;
-      return;
+      return false;
     }
     showDNAImportPreview(result, file.name);
+    return true;
   } catch (e) {
     logDnaDebugError('DNA import error:', e);
     showNotification(e.message || 'Failed to parse DNA file', 'error');
     _dnaImportRunning = false;
+    return false;
   }
 }
 

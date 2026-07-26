@@ -16,11 +16,16 @@ test('default and light startup stay cold without optional theme presentation', 
   await expect(page.locator('link[data-extra-themes-stylesheet]')).toHaveCount(0);
   expect(stylesheetRequests).toBe(0);
 
-  const sunsetAccent = await page.evaluate(async () => {
-    (await import('/js/theme.js')).setSunsetMode(true);
-    return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const defaultThemeOutcome = await page.evaluate(async () => {
+    const theme = await import('/js/theme.js');
+    const applied = theme.setTheme('dark');
+    theme.setSunsetMode(true);
+    return {
+      applied,
+      accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+    };
   });
-  expect(sunsetAccent).toBe('#ffb000');
+  expect(defaultThemeOutcome).toEqual({ applied: true, accent: '#ffb000' });
   expect(stylesheetRequests).toBe(0);
 });
 

@@ -222,17 +222,20 @@ rs999999\t1\t100\tAG
 `;
 
     importRunning = true;
-    await dna.handleDNAFile(textFile(validContent, 'busy.txt'));
-    check('busy import blocks preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
+    const busyImport = await dna.handleDNAFile(textFile(validContent, 'busy.txt'));
+    check('busy import reports failure and blocks preview',
+      busyImport === false && !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
     importRunning = false;
 
-    await dna.handleDNAFile(textFile(noMatchContent, 'nomatch.txt'));
-    check('no-match file does not open preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
+    const noMatchImport = await dna.handleDNAFile(textFile(noMatchContent, 'nomatch.txt'));
+    check('no-match file reports failure and does not open preview',
+      noMatchImport === false && !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
 
-    await dna.handleDNAFile(textFile(validContent, 'ancestry-ui.txt'));
+    const validImport = await dna.handleDNAFile(textFile(validContent, 'ancestry-ui.txt'));
     await wait();
     let overlay = document.getElementById('dna-modal-overlay');
-    check('valid file opens DNA preview', overlay?.classList.contains('show') === true);
+    check('valid file reports success and opens DNA preview',
+      validImport === true && overlay?.classList.contains('show') === true);
     check('preview stores pending import', window._pendingDNAImport?.coverage?.found > 0);
     check('DNA preview uses delegated actions', !overlay?.querySelector('[onclick], [onkeydown]'));
     overlay?.querySelector('.dna-preview-collapsible')?.click();
@@ -361,14 +364,16 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     const invalidBand = dna.detectMtDNAMismatch({ mtdna: { haplogroup: 'J', coupling: { matchedLatBands: [3, 4] } } });
     check('detectMtDNAMismatch covers mismatch, match, invalid band', mismatch?.mismatch === true && matched?.mismatch === false && invalidBand === null);
 
-    await dna.handleMtDNAFile(textFile('not mtdna', 'empty-mtdna.txt'));
-    check('empty mtDNA file does not open preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
+    const emptyMtDnaImport = await dna.handleMtDNAFile(textFile('not mtdna', 'empty-mtdna.txt'));
+    check('empty mtDNA file reports failure and does not open preview',
+      emptyMtDnaImport === false && !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
 
     dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '<25\u00B0 latitude (tropical)' });
-    await dna.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
+    const validMtDnaImport = await dna.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
     await wait();
     let overlay = document.getElementById('dna-modal-overlay');
-    check('handleMtDNAFile opens preview', overlay?.classList.contains('show') === true && window._pendingMtDNA?.resolved?.haplogroup === 'J');
+    check('handleMtDNAFile reports success and opens preview',
+      validMtDnaImport === true && overlay?.classList.contains('show') === true && window._pendingMtDNA?.resolved?.haplogroup === 'J');
     check('mtDNA preview includes mismatch', overlay?.textContent.includes('Environment mismatch'));
     check('mtDNA preview uses delegated actions', !overlay?.querySelector('[onclick], [onkeydown]'));
     overlay?.querySelector('[data-dna-action="close-mtdna-preview"]')?.click();
