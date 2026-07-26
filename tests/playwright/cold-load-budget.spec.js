@@ -291,11 +291,106 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     .map(entry => new URL(entry.name).pathname)
     .filter(pathname => deferredLightCoreModules.has(pathname));
   expect(eagerlyLoadedLightCoreModules).toEqual([]);
+  const deferredHealthDataModules = new Set([
+    '/js/app-health-data-modules.js',
+    '/js/charts.js',
+    '/js/notes.js',
+    '/js/supplements.js',
+    '/js/recommendations.js',
+    '/js/cycle.js',
+    '/js/context-cards.js',
+    '/js/dna.js',
+  ]);
+  const eagerlyLoadedHealthDataModules = entries
+    .map(entry => new URL(entry.name).pathname)
+    .filter(pathname => deferredHealthDataModules.has(pathname));
+  expect(eagerlyLoadedHealthDataModules).toEqual([]);
   const metrics = summarizeColdLoad(entries, appOrigin);
 
   console.log(`Cold-load budget: ${formatColdLoadSummary(metrics)}`);
   console.log(`Cold-load metrics: ${JSON.stringify(metrics)}`);
   expect(() => enforceColdLoadBudget(metrics, budget)).not.toThrow();
+});
+
+test('first data-backed Dashboard loads Health and Data once without duplicate mobile tabs', async ({ page }) => {
+  const requestedPaths = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.origin === appOrigin) requestedPaths.push(url.pathname);
+  });
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.origin === appOrigin) {
+      await route.continue();
+      return;
+    }
+    await route.abort();
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
+      accepted: true,
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
+      acceptedAt: '2026-07-23T00:00:00.000Z',
+      appVersion: 'health-data-lazy-load',
+      location: 'health-data-lazy-load',
+    }));
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-ai-reminder-dismissed', '1');
+    localStorage.setItem('labcharts-onboard-extras-done-default', '1');
+    localStorage.setItem('labcharts-onboard-provider-skipped-default', '1');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
+
+  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  for (const pathname of [
+    '/js/context-cards.js',
+    '/js/recommendations.js',
+    '/js/dna.js',
+  ]) {
+    expect(requestedPaths).not.toContain(pathname);
+  }
+
+  await page.evaluate(async () => {
+    const [{ state }, data, views] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/views.js'),
+    ]);
+    state.importedData = await (await fetch('/data/demo-male.json')).json();
+    state.profileSex = 'male';
+    data.invalidateActiveDataCache();
+    await views.navigate('dashboard');
+  });
+
+  await expect(page.locator('.m-shell')).toBeVisible();
+  await expect(page.locator('.m-tab')).toHaveCount(5);
+  await expect(page.locator('#mobile-bottom-tabs')).toHaveCount(0);
+  for (const pathname of [
+    '/js/context-cards.js',
+    '/js/recommendations.js',
+    '/js/dna.js',
+  ]) {
+    expect(requestedPaths.filter(requested => requested === pathname)).toHaveLength(1);
+  }
+
+  await page.evaluate(async () => {
+    const views = await import('/js/views.js');
+    await views.navigate('labs');
+    await views.navigate('dashboard');
+  });
+  await expect(page.locator('.m-shell')).toBeVisible();
+  await expect(page.locator('.m-tab')).toHaveCount(5);
+  await expect(page.locator('#mobile-bottom-tabs')).toHaveCount(0);
+  for (const pathname of [
+    '/js/context-cards.js',
+    '/js/recommendations.js',
+    '/js/dna.js',
+  ]) {
+    expect(requestedPaths.filter(requested => requested === pathname)).toHaveLength(1);
+  }
 });
 
 test('first Chat action loads the composition once and opens the panel', async ({ page }) => {

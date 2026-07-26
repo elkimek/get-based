@@ -2,7 +2,7 @@
 // marker-detail-modal.js — lightweight public entry point for marker detail UI
 
 import { state } from './state.js';
-import { closeSuggestionsOnClickOutside } from './context-cards.js';
+import { closeSuggestionsOnClickOutside } from './health-data-loader.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import {
   closeEMFInterpretationRuntime,

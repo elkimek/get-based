@@ -73,6 +73,8 @@ const APP_SHELL = [
   '/js/app-feature-modules.js',
   '/js/app-foundation-modules.js',
   '/js/app-health-data-modules.js',
+  '/js/health-data-loader.js',
+  '/js/dna-file-detection.js',
   '/js/app-light-sun-modules.js',
   '/js/light-sun-loader.js',
   '/js/light-sun-analysis-runtime.js',

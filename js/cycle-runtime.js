@@ -19,6 +19,40 @@ const cycleRuntimeDeps = {
   renderProfileButton: null,
 };
 
+/** @type {Record<string, ((...args: any[]) => any) | null>} */
+const cycleAnalysisBridge = {
+  detectCycleIronAlerts: null,
+  detectPerimenopausePattern: null,
+  getBloodDrawPhases: null,
+  getNextBestDrawDate: null,
+};
+
+export function configureCycleAnalysisBridge(api = {}) {
+  const previous = { ...cycleAnalysisBridge };
+  for (const name of Object.keys(cycleAnalysisBridge)) {
+    if (Object.hasOwn(api, name)) {
+      cycleAnalysisBridge[name] = typeof api[name] === 'function' ? api[name] : null;
+    }
+  }
+  return previous;
+}
+
+export function getCycleBloodDrawPhasesRuntime(...args) {
+  return cycleAnalysisBridge.getBloodDrawPhases?.(...args) || {};
+}
+
+export function getCycleNextBestDrawDateRuntime(...args) {
+  return cycleAnalysisBridge.getNextBestDrawDate?.(...args) || null;
+}
+
+export function detectCyclePerimenopausePatternRuntime(...args) {
+  return cycleAnalysisBridge.detectPerimenopausePattern?.(...args) || null;
+}
+
+export function detectCycleIronAlertsRuntime(...args) {
+  return cycleAnalysisBridge.detectCycleIronAlerts?.(...args) || [];
+}
+
 function existingCycleStylesheet() {
   if (typeof document === 'undefined') return null;
   return /** @type {HTMLLinkElement | null} */ (

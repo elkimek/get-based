@@ -3,6 +3,7 @@
 
 import { hasImportReviewDraft } from './import-review-draft.js';
 import { loadDataProtectionStylesheet } from './modal-lifecycle.js';
+import { prepareDnaFileImport } from './health-data-loader.js';
 
 const IMPORT_STYLESHEET_URL = new URL('../css/import.css', import.meta.url).href;
 
@@ -50,10 +51,15 @@ export function loadImportStylesheet() {
 /** @returns {Promise<typeof import('./pdf-import.js')>} */
 export function loadPdfImport() {
   if (!_pdfImportLoad) {
-    _pdfImportLoad = import('./pdf-import.js').catch(err => {
-      _pdfImportLoad = null;
-      throw err;
-    });
+    _pdfImportLoad = Promise.all([
+      import('./pdf-import.js'),
+      prepareDnaFileImport(),
+    ])
+      .then(([module]) => module)
+      .catch(err => {
+        _pdfImportLoad = null;
+        throw err;
+      });
   }
   return _pdfImportLoad;
 }

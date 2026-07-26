@@ -319,10 +319,11 @@ assert('cycle CSS lazy-load anchor preserves the original cascade position',
   indexSrc.indexOf('data-cycle-stylesheet-anchor') <
     indexSrc.indexOf('data-marker-detail-stylesheet-anchor'));
 assert('female Dashboard and Body routes wait for Cycle presentation',
-  cycleViewsAuditSrc.includes('showCycleAwareRoute') &&
-  cycleViewsAuditSrc.includes("state.profileSex !== 'female'") &&
-  cycleViewsAuditSrc.includes("showCycleAwareRoute('dashboard', 'Dashboard', showDashboard") &&
-  cycleViewsAuditSrc.includes("showCycleAwareRoute('body', 'Body', showBodyLens") &&
+  cycleViewsAuditSrc.includes('loadDashboardHealthDataModules') &&
+  cycleViewsAuditSrc.includes('loadBodyHealthDataModules') &&
+  cycleViewsAuditSrc.includes("state.profileSex === 'female'") &&
+  cycleViewsAuditSrc.includes('needsCyclePresentation') &&
+  cycleViewsAuditSrc.includes('loadCycleStylesheet()') &&
   cycleViewsAuditSrc.includes('dashboard: showDashboardRoute') &&
   cycleViewsAuditSrc.includes('body: showBodyRoute'));
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));

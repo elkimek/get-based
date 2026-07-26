@@ -6,9 +6,11 @@ import { safeMarkerId } from './utils.js';
 import { profileStorageKey } from './profile.js';
 
 // Views-owned renderers are injected; direct imports stay limited to lower-layer modules.
-import { renderSupplementsSection } from './supplements.js';
-import { renderMenstrualCycleSection } from './cycle.js';
-import { renderProfileContextCards } from './context-cards.js';
+import {
+  renderMenstrualCycleSection,
+  renderProfileContextCards,
+  renderSupplementsSection,
+} from './health-data-loader.js';
 import { getBiologyScoreWidgetDefinitions } from './biology-scores.js';
 
 const DASHBOARD_WIDGETS_VERSION = 13;

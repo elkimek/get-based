@@ -7,7 +7,7 @@ import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
-import { loadContextHealthDots } from './context-cards.js';
+import { loadContextHealthDots } from './health-data-loader.js';
 import {
   addMobileDashboardBreakpointListener,
   addMobileDashboardVisualViewportListener,

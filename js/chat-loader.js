@@ -31,7 +31,11 @@ export function loadChatModule() {
     const lightSunContextReady = typeof prepareLightSunContext === 'function'
       ? Promise.resolve(prepareLightSunContext()).catch(() => null)
       : Promise.resolve(null);
-    chatModulePromise = Promise.all([load, lightSunContextReady])
+    const prepareHealthDataContext = chatHostDeps.prepareHealthDataContext;
+    const healthDataContextReady = typeof prepareHealthDataContext === 'function'
+      ? Promise.resolve(prepareHealthDataContext()).catch(() => null)
+      : Promise.resolve(null);
+    chatModulePromise = Promise.all([load, lightSunContextReady, healthDataContextReady])
       .then(([module]) => {
         chatModule = module;
         module.configureAppChatHooks(chatHostDeps);

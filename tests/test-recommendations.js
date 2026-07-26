@@ -236,8 +236,11 @@ const _realFetch = globalThis.fetch;
 
   const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
   const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
+  const healthDataLoaderSrc = await fetchWithRetry('js/health-data-loader.js');
   assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app-feature-modules.js'"));
-  assert('app-feature-modules.js delegates health data modules', appFeatureModulesSrc.includes("import './app-health-data-modules.js'"));
+  assert('app-feature-modules.js lazy-loads health data modules',
+    appFeatureModulesSrc.includes("import './health-data-loader.js'")
+      && healthDataLoaderSrc.includes("import('./recommendations.js')"));
   assert('app-health-data-modules.js imports recommendations.js', appHealthDataModulesSrc.includes("import './recommendations.js'"));
   assert('marker-detail-modal.js has rec-modal placeholder', markerDetailSrc.includes('rec-modal-'));
   assert('marker-detail-modal.js calls renderRecommendationSection', markerDetailSrc.includes('renderRecommendationSection'));

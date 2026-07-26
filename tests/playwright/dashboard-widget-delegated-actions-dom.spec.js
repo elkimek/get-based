@@ -325,6 +325,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
 
     try {
 
+    await (await import('/js/health-data-loader.js')).loadRecommendationsModule();
     state.currentProfile = profileId;
     state.profileSex = 'male';
     state.profileDob = '1988-03-14';

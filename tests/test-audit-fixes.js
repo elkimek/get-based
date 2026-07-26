@@ -422,6 +422,7 @@ return (async function () {
     const appFeatures = await fetchSrc('js/app-feature-modules.js');
     const appFoundationFeatures = await fetchSrc('js/app-foundation-modules.js');
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
+    const healthDataLoader = await fetchSrc('js/health-data-loader.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
     const lightSunLoader = await fetchSrc('js/light-sun-loader.js');
     const profileShareLoader = await fetchSrc('js/profile-share-loader.js');
@@ -446,8 +447,12 @@ return (async function () {
         && /import\s+['"]\.\/sun-context-hooks\.js['"]/.test(appLightSunFeatures)
         && /export function loadLightSunUI\(\)/.test(lightSunLoader)
         && /data-light-sun-stylesheet-anchor/.test(lightSunLoader));
-    assert('app-feature-modules.js delegates Health & Data imports',
-      /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js lazy-loads Health & Data imports',
+      /import\s+['"]\.\/health-data-loader\.js['"]/.test(appFeatures)
+        && !/import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures)
+        && /import\(['"]\.\/charts\.js['"]\)/.test(healthDataLoader)
+        && /import\(['"]\.\/dna\.js['"]\)/.test(healthDataLoader)
+        && /import\s+['"]\.\/recommendations\.js['"]/.test(appHealthDataFeatures));
     assert('app-feature-modules.js drops the obsolete Data I/O composition wrapper',
       !/import\s+['"]\.\/app-data-io-modules\.js['"]/.test(appFeatures));
     assert('Profile Sharing is lazy-loaded behind the shell entry point',

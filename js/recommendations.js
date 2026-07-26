@@ -3,7 +3,7 @@
 
 import { escapeHTML } from './utils.js';
 import { state } from './state.js';
-import { findGenotypeInfo, findSnpHint } from './dna.js';
+import { findGenotypeInfo, findSnpHint } from './dna-genotype.js';
 import {
   closeRecommendationsModal,
   configureRecommendationModuleBridge,

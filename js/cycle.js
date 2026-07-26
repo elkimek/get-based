@@ -8,7 +8,7 @@ import { startCycleTour } from './tour.js';
 import { createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import-loader.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
-import { closeCycleModalRuntime, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
+import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -175,7 +175,6 @@ export function getCyclePhase(dateStr, mc) {
     source: basisPeriod.source || null,
   };
 }
-
 export function getNextBestDrawDate(mc) {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
   const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -796,3 +795,4 @@ export function renderMenstrualCycleSection(data, opts = {}) {
   html += `</div>`;
   return html;
 }
+configureCycleAnalysisBridge({ detectCycleIronAlerts, detectPerimenopausePattern, getBloodDrawPhases, getNextBestDrawDate });

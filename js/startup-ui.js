@@ -5,7 +5,7 @@ import { applyProfileDisplayState } from './startup-profile.js';
 import { getTheme, setTheme } from './theme.js';
 import { updateHeaderDates, updateHeaderRangeToggle } from './data.js';
 import { bindImportFileInput } from './import-file-input.js';
-import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
+import { ensureDnaTablesForPersistedState } from './health-data-loader.js';
 import { maybeShowChangelog } from './changelog.js';
 import { buildSidebar, renderProfileDropdown } from './nav.js';
 import { maybeShowBackupNudge } from './crypto.js';
@@ -86,8 +86,7 @@ function scheduleDeferredSyncAndCatalogWarmup() {
     initSync()
       .then(() => renderSyncIndicator())
       .catch(e => console.warn('[sync] deferred init failed:', e));
-    ensureSNPTable(); // Eagerly load SNP table if genetics data exists (e.g. after JSON import)
-    ensureHaplogroupTable(); // Eagerly load haplogroup table if mtDNA data exists
+    void ensureDnaTablesForPersistedState();
   }, 0));
 }
 

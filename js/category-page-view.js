@@ -12,7 +12,7 @@ import {
   renderChartLayersDropdown,
 } from './data.js';
 import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
-import { createLineChart } from './charts.js';
+import { createLineChart } from './health-data-loader.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
 import { renderCategoryGlyph } from './category-glyphs.js';
 import { getCategoryPageCatalogSlots, primeCategoryPageCatalogCache } from './category-page-runtime.js';
