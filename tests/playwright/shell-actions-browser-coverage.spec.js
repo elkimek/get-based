@@ -229,14 +229,34 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
 });
 
 test('app refresh callback uses configured shell dependencies', async ({ page }) => {
+  await page.route('**/js/pdf-import-commit.js', route => route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    body: `
+      export function confirmImport() {
+        window.__shellHookPdfImportConfirmed = true;
+        return 'confirmed';
+      }
+    `,
+  }));
+  await page.route('**/js/pdf-import-review.js', route => route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    body: `
+      export function closeImportModal() {
+        window.__shellHookImportModalClosed = true;
+      }
+    `,
+  }));
   await openBlankPage(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data, appEvents, apiRuntime] = await Promise.all([
+    const [{ state }, data, appEvents, apiRuntime, pdfImportReviewRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/app-event-listeners.js'),
       import('/js/api-runtime.js'),
+      import('/js/pdf-import-review-runtime.js'),
     ]);
     await import('/js/app-shell-hooks.js');
     const calls = [];
@@ -257,7 +277,18 @@ test('app refresh callback uses configured shell dependencies', async ({ page })
       appEvents.registerAppRefreshCallback();
       data._runRegisteredRefreshCallback();
       const dialogDelegated = apiRuntime.showOpenRouterInsufficientBalanceDialogRuntime();
+      const importConfirmed = await pdfImportReviewRuntime.confirmImportFromRuntime();
+      document.body.insertAdjacentHTML('beforeend', `
+        <div id="import-modal-overlay" class="show">
+          <div id="import-modal"></div>
+        </div>
+      `);
+      appEvents.installGlobalEventListeners();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       for (let attempt = 0; attempt < 50 && !document.getElementById('or-no-balance-overlay'); attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      for (let attempt = 0; attempt < 50 && !window.__shellHookImportModalClosed; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 20));
       }
       return {
@@ -266,6 +297,10 @@ test('app refresh callback uses configured shell dependencies', async ({ page })
         buildsSidebarAgainstSameDataModule: document.querySelectorAll('#sidebar-nav .nav-item').length > 0,
         apiRuntimeUsesComposedBalanceDialog: dialogDelegated
           && document.getElementById('or-no-balance-overlay')?.getAttribute('aria-hidden') !== 'true',
+        pdfImportActionsUseComposedLazyDelegates:
+          importConfirmed === 'confirmed'
+          && window.__shellHookPdfImportConfirmed === true
+          && window.__shellHookImportModalClosed === true,
       };
     } finally {
       appEvents.configureAppEventListeners(previous);
@@ -281,5 +316,6 @@ test('app refresh callback uses configured shell dependencies', async ({ page })
     updatesChatNudge: true,
     buildsSidebarAgainstSameDataModule: true,
     apiRuntimeUsesComposedBalanceDialog: true,
+    pdfImportActionsUseComposedLazyDelegates: true,
   });
 });
