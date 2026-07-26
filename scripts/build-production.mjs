@@ -10,6 +10,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_ENTRY = path.join(ROOT, 'js', 'main.js');
 const RETRY_QUERY = '?lazy-retry=1';
 const GENERATED_BUNDLE_RE = /^bundle-[A-Za-z0-9_-]+\.js$/;
+const INDEX_LEGAL_BOOTSTRAP_START = '  <!-- PRODUCTION_LEGAL_BOOTSTRAP_START -->';
+const INDEX_LEGAL_BOOTSTRAP_END = '  <!-- PRODUCTION_LEGAL_BOOTSTRAP_END -->';
 const INDEX_SCRIPT_START = '  <!-- PRODUCTION_MAIN_SCRIPT_START -->';
 const INDEX_SCRIPT_END = '  <!-- PRODUCTION_MAIN_SCRIPT_END -->';
 const SW_BUNDLES_START = '  // PRODUCTION_BUNDLE_ASSETS_START';
@@ -190,12 +192,23 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
   };
   await enforceBuildBudget(summary);
 
-  const [indexSource, serviceWorkerSource] = await Promise.all([
+  const [indexSource, legalBootstrapSource, serviceWorkerSource] = await Promise.all([
     fs.readFile(path.join(ROOT, 'index.html'), 'utf8'),
+    fs.readFile(path.join(ROOT, 'js', 'legal-consent-bootstrap.js'), 'utf8'),
     fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
   ]);
-  const builtIndex = replaceMarkedSection(
+  const indexWithInlineLegalBootstrap = replaceMarkedSection(
     indexSource,
+    INDEX_LEGAL_BOOTSTRAP_START,
+    INDEX_LEGAL_BOOTSTRAP_END,
+    [
+      '  <script>',
+      ...legalBootstrapSource.trim().split('\n').map(line => `    ${line}`),
+      '  </script>',
+    ],
+  );
+  const builtIndex = replaceMarkedSection(
+    indexWithInlineLegalBootstrap,
     INDEX_SCRIPT_START,
     INDEX_SCRIPT_END,
     [

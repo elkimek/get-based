@@ -60,7 +60,9 @@ assert('cacheGet re-inserts on hit',
 // ─── 4. Service worker precaches dynamic modules ───
 console.log('\n4. SW precache');
 const swSrc = read('service-worker.js');
+const indexSrc = read('index.html');
 const startupUiSrc = read('js/startup-ui.js');
+const legalConsentBootstrapSrc = read('js/legal-consent-bootstrap.js');
 const legalConsentSrc = read('js/legal-consent.js');
 const changelogSrc = read('js/changelog.js');
 const tourSrc = read('js/tour.js');
@@ -76,6 +78,7 @@ const importDropZoneRuntimeSrc = read('js/import-drop-zone-runtime.js');
 const commitHashSrc = read('js/commit-hash.js');
 const pwaAppShellAssets = [
   '/app',
+  '/js/legal-consent-bootstrap.js',
   '/vendor/qrcode-generator.js',
   '/vendor/jszip.min.js',
   '/vendor/mammoth.browser.min.js',
@@ -276,6 +279,17 @@ assert('legal gate runs before changelog and resumes changelog only after accept
   && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true })")
   && legalConsentSrc.includes("from './utils-runtime.js'")
   && legalConsentSrc.includes("dispatchUtilsRuntimeEvent('legal-consent-accepted')"));
+assert('legal gate is prerendered and interactive before the main module',
+  indexSrc.indexOf('id="legal-consent-overlay"') >= 0
+  && indexSrc.indexOf('id="legal-consent-overlay"') < indexSrc.indexOf('src="js/main.js"')
+  && indexSrc.indexOf('src="js/legal-consent-bootstrap.js"') < indexSrc.indexOf('src="js/main.js"')
+  && legalConsentBootstrapSrc.includes("overlay.dataset.legalConsentBootstrapBound = 'true'")
+  && legalConsentBootstrapSrc.includes("globalThis.dispatchEvent(new Event('legal-consent-accepted'))"));
+assert('prerendered and module legal versions remain synchronized',
+  indexSrc.includes('data-terms-version="2026-06-22"')
+  && indexSrc.includes('data-privacy-version="2026-06-22"')
+  && /const TERMS_VERSION = '2026-06-22';/.test(legalConsentSrc)
+  && /const PRIVACY_VERSION = '2026-06-22';/.test(legalConsentSrc));
 assert('legal consent notifications use the module dependency instead of a global callback',
   legalConsentSrc.includes("import { showNotification } from './utils.js';")
   && legalConsentSrc.includes("showNotification('Terms and Privacy accepted.'")

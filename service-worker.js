@@ -67,6 +67,7 @@ const APP_SHELL = [
   '/css/chat-redesign.css',
   '/css/chat-redesign-open.css',
   '/themes-extra.css',
+  '/js/legal-consent-bootstrap.js',
   '/js/service-worker-update.js',
   '/js/main.js',
   // PRODUCTION_BUNDLE_ASSETS_START

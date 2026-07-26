@@ -34,6 +34,8 @@ describe('production startup build', () => {
     expect(index).toContain('data-prerendered-welcome');
     expect(index).toContain('data-dashboard-welcome-action="open-chat"');
     expect(index).toContain('Chat starts with the basics');
+    expect(index).not.toContain('<script src="js/legal-consent-bootstrap.js"></script>');
+    expect(index).toContain("overlay.dataset.legalConsentBootstrapBound = 'true'");
   });
 
   it('pre-caches every generated lazy chunk for installed offline use', async () => {
@@ -47,6 +49,7 @@ describe('production startup build', () => {
     }
     expect(serviceWorker).not.toContain("'/js/main.js',");
     expect(serviceWorker).not.toContain("'/js/views.js',");
+    expect(serviceWorker).not.toContain("'/js/legal-consent-bootstrap.js',");
     expect(serviceWorker).toContain("'/js/service-worker-update.js',");
     expect(serviceWorker).toContain("'/js/lens-local-worker.js',");
     expect(serviceWorker).toContain("'/js/lens-local-utils.js',");

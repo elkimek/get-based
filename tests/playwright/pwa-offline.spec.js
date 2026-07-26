@@ -44,6 +44,7 @@ test('installed PWA completes a cache-only cold offline relaunch', async ({ page
   });
   expect(installed.controlled).toBe(true);
   expect(installed.appCacheName).toContain('labcharts-v');
+  expect(installed.cachedPaths).toContain('/js/legal-consent-bootstrap.js');
   expect(installed.cachedPaths).toContain('/js/legal-consent.js');
   expect(installed.cachedPaths).toContain('/js/profile-share.js');
   expect(installed.cachedPaths).toContain('/js/chat-onboarding-host-bindings.js');

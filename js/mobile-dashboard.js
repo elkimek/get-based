@@ -450,7 +450,7 @@ function renderMobileBottomTabs(activeTab = 'dashboard', { id = '' } = {}) {
   const navId = id ? ` id="${id}"` : '';
   const tabAttrs = tab => `class="m-tab${activeTab === tab ? ' active' : ''}" data-tab="${tab}" aria-current="${activeTab === tab ? 'page' : 'false'}"`;
   return `<nav${navId} class="m-tabbar" aria-label="Mobile primary navigation">
-    <button type="button" ${tabAttrs('dashboard')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'dashboard', route: 'dashboard' })} aria-label="Dashboard"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
+    <button type="button" ${tabAttrs('dashboard')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'dashboard', route: 'dashboard' })} aria-label="Home"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
     <button type="button" ${tabAttrs('labs')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'labs', route: 'labs' })} aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
     <button type="button" ${tabAttrs('body')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'body', route: 'body' })} aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
     <button type="button" ${tabAttrs('light')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'light', route: 'light' })} aria-label="Light"><span class="m-tab-icon">${renderMobileIcon('light')}</span><small>Light</small></button>
