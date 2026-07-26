@@ -95,10 +95,30 @@ function hasGenomeSummaryData() {
   return !!(genetics.apoe || genetics.mtdna);
 }
 
+/**
+ * @typedef {{
+ *   name: string,
+ *   count: number,
+ *   products: string[],
+ *   sections: string[],
+ * }} LabSourceGroup
+ */
+
+/**
+ * @typedef {{
+ *   coreMarkers: number,
+ *   totalMarkers: number,
+ *   groups: LabSourceGroup[],
+ * }} LabSourceStats
+ */
+
+/** @returns {LabSourceStats} */
 function getLabSourceStats() {
+  /** @type {LabSourceStats} */
   const stats = { coreMarkers: 0, totalMarkers: 0, groups: [] };
   try {
     const data = getActiveData();
+    /** @type {Map<string, { name: string, count: number, products: Set<string>, sections: Set<string> }>} */
     const groups = new Map();
     const imported = /** @type {any} */ (state.importedData || {});
     const snapshotsById = new Map((imported.importSnapshots || []).filter(s => s?.id).map(s => [s.id, s]));
@@ -161,12 +181,14 @@ function getImportSnapshotProductLabel(snapshot, dotKey) {
   return testType;
 }
 
+/** @param {LabSourceGroup} group */
 function getLabGroupTitle(group) {
   const products = group.products || [];
   if (products.length === 1 && products[0] !== group.name) return `${products[0]} · ${group.name}`;
   return group.name;
 }
 
+/** @param {LabSourceGroup} group */
 function getLabGroupDescription(group) {
   const markerCount = `${group.count} marker${group.count !== 1 ? 's' : ''}`;
   const products = group.products || [];
@@ -237,6 +259,21 @@ function hasSupplementsMedsData() {
   return hasMeaningfulContextValue(imported.supplements);
 }
 
+/**
+ * @param {{
+ *   key: string,
+ *   toggleKey?: string,
+ *   kicker: string,
+ *   title: string,
+ *   description: string,
+ *   status: string,
+ *   checked: boolean,
+ *   disabled?: boolean,
+ *   attrs?: Record<string, unknown>,
+ *   child?: boolean,
+ *   affects?: string[],
+ * }} options
+ */
 function renderContextSourceToggle({ key, toggleKey = key, kicker, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [] }) {
   const id = `context-source-${key}`;
   const titleId = `${id}-title`;
@@ -279,8 +316,11 @@ function renderContextSummaryChip(label) {
 }
 
 function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn }) {
+  /** @type {string[]} */
   const included = [];
+  /** @type {string[]} */
   const excluded = [];
+  /** @type {string[]} */
   const inactive = [];
   if (hasInsight) {
     if (insightOn) included.push('Insight Cards');

@@ -3,6 +3,13 @@
 
 import { escapeAttr, escapeHTML } from './utils.js';
 
+/** @param {HTMLCanvasElement} canvas */
+export function getRequired2DContext(canvas) {
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Camera measurement requires a 2D canvas context');
+  return context;
+}
+
 // Per-tool "where to aim the camera" guide. Spelt out because the
 // difference between "what hits you" tools (lux, sleep darkness, eye-
 // level audit) and "what the source emits" tools (flicker, CCT,

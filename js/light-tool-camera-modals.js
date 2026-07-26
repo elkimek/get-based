@@ -5,6 +5,7 @@ import { escapeHTML, queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   aimingGuideHTML,
+  getRequired2DContext,
   lockCameraForMeasurement,
   cameraLockStatusLine,
   computeRowBanding,
@@ -93,8 +94,7 @@ function luxZone(lux) {
   return LUX_ZONES[LUX_ZONES.length - 1];
 }
 
-let _luxState = { running: false, sensor: null, stream: null, video: null, calibration: 1.0 };
-
+let _luxState = /** @type {{ running: boolean, sensor: { stop: () => void } | null, stream: MediaStream | null, video: HTMLVideoElement | null, calibration: number }} */ ({ running: false, sensor: null, stream: null, video: null, calibration: 1.0 });
 
 export async function openLuxMeter(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
@@ -199,7 +199,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       _luxState.video = video;
       const canvas = document.createElement('canvas');
       canvas.width = 64; canvas.height = 48;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const ctx = getRequired2DContext(canvas);
       const tick = () => {
         if (!_luxState.running || closed) return;
         try {
@@ -315,7 +315,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
         showNotification('Camera not reading yet — wait a moment, then try again.', 'error');
         return;
       }
-      const refLux = parseFloat(calRefInput?.value);
+      const refLux = parseFloat(calRefInput?.value || '');
       if (!Number.isFinite(refLux) || refLux <= 0) {
         showNotification('Enter a positive lux value from your reference.', 'error');
         return;
@@ -363,7 +363,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
 
 // ─── Tool 2: Flicker Detector ──────────────────────────────────────────
 
-let _flickerState = { running: false, stream: null };
+let _flickerState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({ running: false, stream: null });
 
 export async function openFlickerDetector(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
@@ -440,7 +440,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     // Use 64x48 capture so we have enough rows to see banding cleanly.
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 48;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = getRequired2DContext(canvas);
     const frameSamples = [];
     const bandingSamples = [];
     const startTime = performance.now();
@@ -524,7 +524,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
 
 // ─── Tool 6: Sleep Darkness Meter ─────────────────────────────────────
 
-let _darkState = { running: false, stream: null };
+let _darkState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({ running: false, stream: null });
 
 export async function openDarknessMeter(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
@@ -589,7 +589,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       const lock = await lockCameraForMeasurement(stream, { longExposure: true });
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const ctx = getRequired2DContext(canvas);
       const lumas = [];      // mean per sample
       const peaks = [];      // single-pixel max per sample
       const t0 = performance.now();
@@ -692,7 +692,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
 
 // ─── Tool 3: CCT Meter ────────────────────────────────────────────────
 
-let _cctState = { running: false, stream: null };
+let _cctState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({ running: false, stream: null });
 
 export async function openCCTMeter(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
@@ -765,7 +765,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     // PWM-dimmed lights whose CCT shifts during the PWM cycle.
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 48;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = getRequired2DContext(canvas);
     const bandingPeaks = [];
     const tick = () => {
       if (!_cctState.running) return;
@@ -853,7 +853,7 @@ function solarCoherence(k) {
 
 // ─── Tool 4: Spectrum Classifier (simplified) ────────────────────────
 
-let _specState = { running: false, stream: null };
+let _specState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({ running: false, stream: null });
 
 export async function openSpectrumClassifier(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
@@ -920,7 +920,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     // frame-luma variance (which can't see anything above fps/2).
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 48;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = getRequired2DContext(canvas);
     const bandingPeaks = [];   // recent banding ratios — peak across last second wins
     const tick = () => {
       if (!_specState.running) return;
@@ -1107,7 +1107,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       _lastGlassLock = lock;
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const ctx = getRequired2DContext(canvas);
       // Sample over 1s
       const samples = [];
       for (let i = 0; i < 8; i++) {
