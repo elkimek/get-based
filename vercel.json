@@ -5,9 +5,16 @@
       "**": false
     }
   },
-  "buildCommand": "node scripts/fetch-catalog.mjs",
+  "buildCommand": "node scripts/fetch-catalog.mjs && node scripts/build-production.mjs",
   "outputDirectory": ".",
   "routes": [
+    {
+      "src": "^/js/bundle-.*\\.js$",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
     {
       "src": "/(.*)",
       "headers": {

@@ -37,6 +37,40 @@ describe('service worker update prompt', () => {
     expect(shouldRegisterServiceWorker({ hostname: 'tauri.localhost', search: '' })).toBe(true);
   });
 
+  it('waits for page load and browser idle time before registration', async () => {
+    const { scheduleServiceWorkerRegistration } = serviceWorkerUpdate;
+    let onLoad = null;
+    let onIdle = null;
+    const register = vi.fn(async () => null);
+    const win = {
+      document: { readyState: 'loading' },
+      addEventListener: vi.fn((type, listener) => {
+        if (type === 'load') onLoad = listener;
+      }),
+      requestIdleCallback: vi.fn((callback) => {
+        onIdle = callback;
+        return 1;
+      }),
+    };
+    const serviceWorkerContainer = {};
+
+    expect(scheduleServiceWorkerRegistration({
+      win,
+      serviceWorkerContainer,
+      cacheStorage: null,
+      register,
+    })).toBe(true);
+    expect(register).not.toHaveBeenCalled();
+    expect(win.addEventListener).toHaveBeenCalledWith('load', expect.any(Function), { once: true });
+
+    onLoad();
+    expect(register).not.toHaveBeenCalled();
+    expect(win.requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 2000 });
+
+    onIdle();
+    expect(register).toHaveBeenCalledWith({ win, serviceWorkerContainer, cacheStorage: null });
+  });
+
   it('turns a secondary-tab controllerchange into a reload prompt', async () => {
     const { registerServiceWorkerUpdates } = serviceWorkerUpdate;
     let onControllerChange = null;

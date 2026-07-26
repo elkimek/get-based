@@ -503,9 +503,38 @@ export async function registerServiceWorkerUpdates({
   }
 }
 
+export function scheduleServiceWorkerRegistration({
+  win = getDefaultServiceWorkerWindow(),
+  serviceWorkerContainer = getDefaultServiceWorkerContainer(),
+  cacheStorage = getDefaultCacheStorage(),
+  register = registerServiceWorkerUpdates,
+} = {}) {
+  if (!win || !serviceWorkerContainer) return false;
+  let registrationStarted = false;
+
+  const registerWhenIdle = () => {
+    if (registrationStarted) return;
+    registrationStarted = true;
+    const startRegistration = () => {
+      register({ win, serviceWorkerContainer, cacheStorage }).catch(() => {});
+    };
+    if (typeof win.requestIdleCallback === 'function') {
+      win.requestIdleCallback(startRegistration, { timeout: 2000 });
+    } else if (typeof win.setTimeout === 'function') {
+      win.setTimeout(startRegistration, 0);
+    } else {
+      startRegistration();
+    }
+  };
+
+  if (win.document?.readyState === 'complete') registerWhenIdle();
+  else win.addEventListener?.('load', registerWhenIdle, { once: true });
+  return true;
+}
+
 // Skip SW registration on dev hosts by default. WebKit's HTTP cache layer can
 // otherwise keep serving stale module bytes in Tauri/webkit2gtk dev windows.
 // Use ?dev-sw=1 for explicit local offline smoke testing.
 if (getDefaultServiceWorkerWindow() && getDefaultServiceWorkerContainer()) {
-  registerServiceWorkerUpdates();
+  scheduleServiceWorkerRegistration();
 }

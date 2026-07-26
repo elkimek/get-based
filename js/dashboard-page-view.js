@@ -201,6 +201,7 @@ export function createDashboardPageView(deps) {
     try { ensureActiveDeviceTicker(); } catch (e) {}
     if (!data) data = getActiveData();
     const main = document.getElementById("main-content");
+    if (main.hasAttribute('aria-busy')) main.removeAttribute('aria-busy');
     const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');
     document.body.classList.remove('mobile-dashboard-active');
     const wearableMetrics = state.importedData?.wearableSummary?.metrics || {};
@@ -219,6 +220,7 @@ export function createDashboardPageView(deps) {
     //    is set in loadDemoData() and cleared on import success/failure.
     if (!hasData && getDashboardPageRuntimeValue('_demoLoadingProfileId') === state.currentProfile) {
       document.body.classList.add('empty-dashboard-active');
+      main.setAttribute('aria-busy', 'true');
       main.innerHTML = `<div class="welcome-hero" aria-busy="true" role="status" aria-live="polite">
         <h2>Loading demo data…</h2>
         <p class="welcome-hero-subtitle">Setting up the demo profile — this takes a few seconds the first time.</p>
@@ -234,6 +236,7 @@ export function createDashboardPageView(deps) {
       const aiPaused = isAIPaused();
       const importReady = aiReady && !aiPaused;
       const heroClass = importReady ? 'welcome-hero welcome-hero-ready' : 'welcome-hero welcome-hero-noai';
+      const aiConnectionReminder = renderAIConnectionReminder();
       const primaryTitle = aiPaused ? 'Resume guided chat' : 'Start with guided chat';
       const primaryCopy = aiPaused
         ? 'Chat will walk you through re-enabling AI before you add files, connect sources, or ask for recommendations.'
@@ -254,7 +257,7 @@ export function createDashboardPageView(deps) {
           </div>
         </div>
         <div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
-      const html = `${renderAIConnectionReminder()}<div class="${escapeHTML(heroClass)}">
+      const html = `${aiConnectionReminder}<div class="${escapeHTML(heroClass)}">
         <h2>Welcome to getbased</h2>
         <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
         ${primaryPanel}
@@ -274,7 +277,17 @@ export function createDashboardPageView(deps) {
           </div>
         </div>
       </div>`;
-      main.innerHTML = html;
+      const startupWelcome = main.querySelector('[data-prerendered-welcome]');
+      const canHydrateStartupWelcome = startupWelcome
+        && !aiReady
+        && !aiPaused
+        && !aiConnectionReminder;
+      // Preserve the already-painted DOM in the default state so the welcome
+      // copy remains the page's early LCP candidate. Delegated actions are
+      // live after startup without changing the rendered subtree.
+      if (!canHydrateStartupWelcome) {
+        main.innerHTML = html;
+      }
       setupDropZone();
       // First visit starts the empty-state tour from the welcome screen.
       // Delay one tick so header/profile controls are rendered before targets

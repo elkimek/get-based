@@ -41,6 +41,9 @@ jobs:
       - name: Verify architecture map and boundaries
         run: npm run architecture:check
 
+      - name: Verify production bundle and performance budgets
+        run: npm run production:check
+
       - name: Run quality guardrails
         run: npm run quality
 

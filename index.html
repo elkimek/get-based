@@ -272,7 +272,37 @@
   <div class="layout">
     <div class="sidebar-backdrop" id="sidebar-backdrop" data-shell-action="close-mobile-sidebar"></div>
     <nav class="sidebar" id="sidebar-nav"></nav>
-    <main class="main" id="main-content"></main>
+    <main class="main" id="main-content">
+      <div class="welcome-hero welcome-hero-noai" data-prerendered-welcome>
+        <h2>Welcome to getbased</h2>
+        <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
+        <div class="welcome-primary-panel welcome-chat-panel">
+          <span class="welcome-primary-kicker">Start here</span>
+          <strong>Start with guided chat</strong>
+          <p>Chat starts with the basics, then guides AI setup only when it is needed for import or recommendations.</p>
+          <div class="welcome-primary-actions">
+            <button type="button" class="welcome-action-btn welcome-action-primary" data-dashboard-welcome-action="open-chat">Start guided chat</button>
+            <button type="button" class="welcome-action-btn welcome-direct-import-btn" data-dashboard-welcome-action="direct-import">Import file</button>
+          </div>
+        </div>
+        <div class="drop-zone drop-zone-hidden" id="drop-zone"></div>
+        <div class="welcome-demo-section">
+          <span class="welcome-section-label">Preview with demo data</span>
+          <div class="demo-cards">
+            <button type="button" class="demo-card" data-dashboard-welcome-action="load-demo" data-dashboard-welcome-demo="female">
+              <span class="demo-card-avatar">👩</span>
+              <span class="demo-card-name">Sarah, 34</span>
+              <span class="demo-card-desc">Iron + Oura: overtraining clues</span>
+            </button>
+            <button type="button" class="demo-card" data-dashboard-welcome-action="load-demo" data-dashboard-welcome-demo="male">
+              <span class="demo-card-avatar">👨</span>
+              <span class="demo-card-name">Alex, 38</span>
+              <span class="demo-card-desc">Metabolic + Withings body comp</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
   <footer class="app-footer">
@@ -427,7 +457,9 @@
 
   <script src="version.js" defer></script>
   <script type="module" src="js/service-worker-update.js"></script>
+  <!-- PRODUCTION_MAIN_SCRIPT_START -->
   <script type="module" src="js/main.js"></script>
+  <!-- PRODUCTION_MAIN_SCRIPT_END -->
   <script>
     // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on
     // file:// (offline export), .onion (Tor), local dev hosts (so the
