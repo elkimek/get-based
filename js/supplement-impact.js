@@ -1,6 +1,7 @@
 // @ts-check
 // supplement-impact.js - supplement dose math and lab impact analysis
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { callClaudeAPI, hasAIProvider } from './api.js';
 import { getActiveData } from './data.js';
@@ -267,7 +268,7 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
       const keys = Object.keys(cache);
       if (keys.length > 50) { for (const k of keys.slice(0, keys.length - 50)) delete cache[k]; }
       setImpactCache(cache);
-    } catch (e) { if (isDebugMode()) console.warn('[suppImpact] AI failed:', e.message || e); }
+    } catch (e) { if (isDebugMode()) console.warn('[suppImpact] AI failed:', getErrorMessage(e, e)); }
   })();
 
   await _batchPromise;

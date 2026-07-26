@@ -10,6 +10,7 @@
 // came from OAuth2 or from an older PAT. Token refresh happens one layer up
 // in wearables-connect.js via `withFreshToken`. See wearables-oura-auth.js.
 
+import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 const OURA_API = 'https://api.ouraring.com';
@@ -105,7 +106,7 @@ export async function fetchOuraPersonalInfo(accessToken) {
       },
     };
   } catch (e) {
-    return { ok: false, error: e.message, status: e.status };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 

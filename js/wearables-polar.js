@@ -19,6 +19,7 @@
 //      a `polarRegistered: true` flag on the connection blob and we skip the
 //      call on subsequent connects); POST to /v3/users again returns 409.
 
+import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 const POLAR_API   = 'https://www.polaraccesslink.com';
@@ -83,8 +84,8 @@ export async function registerPolarUser(accessToken, memberId) {
     const out = await polarSend(`${POLAR_API}/v3/users`, 'POST', accessToken, { 'member-id': memberId });
     return { ok: true, user: out, alreadyRegistered: false };
   } catch (e) {
-    if (e.status === 409) return { ok: true, user: null, alreadyRegistered: true };
-    return { ok: false, error: e.message, status: e.status };
+    if (getErrorStatus(e) === 409) return { ok: true, user: null, alreadyRegistered: true };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 
@@ -101,7 +102,7 @@ export async function fetchPolarPersonalInfo(accessToken, userId) {
       lastName:  info?.['last-name']  || null,
     }};
   } catch (e) {
-    return { ok: false, error: e.message, status: e.status };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 

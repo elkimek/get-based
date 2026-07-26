@@ -1,6 +1,7 @@
 // @ts-check
 // api-ppq.js - PPQ provider adapter and account helpers.
 
+import { getErrorMessage } from './caught-error.js';
 import {
   getPpqCreditId,
   getPpqKey,
@@ -165,7 +166,7 @@ export async function validatePpqKey(key) {
     const errMsg = errBody?.error?.message || `status ${res.status}`;
     return { valid: false, error: `API error: ${errMsg}` };
   } catch (e) {
-    return { valid: false, error: 'Cannot reach PPQ API: ' + e.message };
+    return { valid: false, error: 'Cannot reach PPQ API: ' + getErrorMessage(e) };
   }
 }
 
@@ -180,7 +181,7 @@ export async function callPpqPrivateAPI(opts) {
   try {
     secure = await createPpqPrivateFetch({ apiBase: 'https://api.ppq.ai' });
   } catch (e) {
-    throw new Error(`PPQ Private TEE setup failed: ${e.message}`);
+    throw new Error(`PPQ Private TEE setup failed: ${getErrorMessage(e)}`);
   }
   apiWindow._ppqAttestation = secure.verification ?? apiWindow._ppqAttestation ?? null;
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));

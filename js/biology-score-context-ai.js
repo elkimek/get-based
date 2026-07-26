@@ -1,6 +1,7 @@
 // @ts-check
 // biology-score-context-ai.js — AI-assisted context flag review for deterministic Biology Scores.
 
+import { getErrorMessage } from './caught-error.js';
 import { filterDatesByRange, getActiveData, invalidateActiveDataCache, saveImportedData } from './data.js';
 import {
   isGeneticsPriorityInAIContext,
@@ -374,7 +375,7 @@ export function installBiologyScoreContextAIDelegates() {
       } else {
         await dismissBiologyScoreContextFlag(el.dataset.contextFlag || ''); showNotification('Context suggestion dismissed', 'info'); biologyScoreContextAIDeps.navigate?.('biology-scores');
       }
-    } catch (err) { showNotification(err?.message || 'Context AI failed', 'error'); }
+    } catch (err) { showNotification(getErrorMessage(err, 'Context AI failed'), 'error'); }
     finally { el.removeAttribute('disabled'); }
   });
 }

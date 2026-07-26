@@ -1,6 +1,7 @@
 // @ts-check
 // pdf-import-preflight.js — duplicate/model/specialty checks before PDF AI import
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider, setAIProvider, setCustomApiModel, setOllamaMainModel, setOpenRouterModel, setPpqModel, setRoutstrModel, setVeniceModel } from './api.js';
 import { detectProduct, getAdapterByTestType } from './adapters.js';
@@ -180,7 +181,7 @@ ${snippet}` }],
     const match = text.match(/\{[^}]*"testType"\s*:\s*"([^"]+)"[^}]*\}/);
     return match ? { testType: match[1], labName: null } : null;
   } catch (e) {
-    if (isDebugMode()) console.log('[Preflight] Test type classification failed:', e.message);
+    if (isDebugMode()) console.log('[Preflight] Test type classification failed:', getErrorMessage(e));
     return null;
   }
 }

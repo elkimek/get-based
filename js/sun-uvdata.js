@@ -1,5 +1,6 @@
 // @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
+import { getErrorName } from './caught-error.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { isSunDebugRuntime } from './sun-runtime.js';
 import { initMeteoConfigCache, getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
@@ -387,7 +388,7 @@ function providerIsAvailable(provider, ctx) {
   } catch (e) {
     try {
       if (typeof console !== 'undefined' && console.warn) {
-        console.warn('[meteo] provider availability check failed; skipping provider.', e?.name || e);
+        console.warn('[meteo] provider availability check failed; skipping provider.', getErrorName(e) || e);
       }
     } catch {}
     return false;
@@ -749,14 +750,14 @@ function readStaleCache(rLat, rLon) {
         if (obj && obj.fetchedAt && (!best || obj.fetchedAt > best.fetchedAt)) best = obj;
       } catch (e) {
         if (isSunDebugRuntime()) {
-          console.warn('[sun-uvdata] readStaleCache parse failed', k, e?.name || e);
+          console.warn('[sun-uvdata] readStaleCache parse failed', k, getErrorName(e) || e);
         }
       }
     }
     return best;
   } catch (e) {
     if (isSunDebugRuntime()) {
-      console.warn('[sun-uvdata] readStaleCache scan failed', e?.name || e);
+      console.warn('[sun-uvdata] readStaleCache scan failed', getErrorName(e) || e);
     }
     return null;
   }
@@ -776,7 +777,7 @@ try {
   }
 } catch (e) {
   if (isSunDebugRuntime()) {
-    console.warn('[sun-uvdata] pre-v2 cache sweep failed', e?.name || e);
+    console.warn('[sun-uvdata] pre-v2 cache sweep failed', getErrorName(e) || e);
   }
 }
 
@@ -787,7 +788,7 @@ function writeCache(key, value) {
     // can triage why their conditions strip stops persisting across reloads.
     try {
       if (isSunDebugRuntime()) {
-        console.warn('[sun-uvdata] writeCache failed', key, e?.name || e);
+        console.warn('[sun-uvdata] writeCache failed', key, getErrorName(e) || e);
       }
     } catch {}
   }
@@ -812,7 +813,7 @@ export function purgeMeteoCache() {
     for (const k of keys) { try { localStorage.removeItem(k); removed++; } catch {} }
   } catch (e) {
     if (isSunDebugRuntime()) {
-      console.warn('[sun-uvdata] purgeMeteoCache failed', e?.name || e);
+      console.warn('[sun-uvdata] purgeMeteoCache failed', getErrorName(e) || e);
     }
   }
   return removed;

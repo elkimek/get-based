@@ -15,6 +15,7 @@
 // in wearable-adapters.js only declares the type→canonical map; the parser
 // resolves it.
 
+import { getErrorMessage } from './caught-error.js';
 import { CANONICAL_METRICS, adapterById } from './wearable-adapters.js';
 import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
@@ -96,7 +97,7 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
       cycleImport = await showAppleHealthCyclePreviewRuntime(cycleParsed);
     }
   } catch (err) {
-    cycleError = err?.message || String(err);
+    cycleError = getErrorMessage(err, String(err));
     if (isDebugMode?.()) console.warn('[apple-health] cycle import skipped:', err);
   }
 

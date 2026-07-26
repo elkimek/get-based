@@ -35,6 +35,7 @@
 // Not the strongest embedder but the only one that runs acceptably in
 // pure WASM. Browser caches it after first load.
 
+import { getErrorMessage } from './caught-error.js';
 import { chunkText, mmrSelect } from './lens-local-utils.js';
 import {
   DEFAULT_LIBRARY_NAME,
@@ -204,7 +205,7 @@ self.addEventListener('message', async (e) => {
       default:                  throw new Error(`Unknown message type: ${msg.type}`);
     }
   } catch (err) {
-    self.postMessage({ type: 'error', message: err.message || String(err) });
+    self.postMessage({ type: 'error', message: getErrorMessage(err, String(err)) });
   }
 });
 
@@ -229,7 +230,7 @@ async function handleInit() {
         _benchmarkVerdict = await _benchmarkEmbedder();
         /** @type {any} */ (self)._lensLocalBenchmark = _benchmarkVerdict;
       } catch (err) {
-        console.warn('[lens-local] mock benchmark failed:', err?.message || err);
+        console.warn('[lens-local] mock benchmark failed:', getErrorMessage(err, err));
         _benchmarkVerdict = null;
       }
     }
@@ -321,7 +322,7 @@ async function _loadEmbedder(modelKey) {
         console.log('[lens-local] navigator.gpu.requestAdapter() returned null — WASM only');
       }
     } catch (e) {
-      console.log('[lens-local] navigator.gpu.requestAdapter() threw — WASM only:', e?.message || e);
+      console.log('[lens-local] navigator.gpu.requestAdapter() threw — WASM only:', getErrorMessage(e, e));
     }
   }
   try {
@@ -330,7 +331,7 @@ async function _loadEmbedder(modelKey) {
     console.log(`[lens-local] Embedder ready on ${device}`);
   } catch (e) {
     if (device !== 'wasm') {
-      console.warn(`[lens-local] ${device} init failed, falling back to WASM:`, e?.message || e);
+      console.warn(`[lens-local] ${device} init failed, falling back to WASM:`, getErrorMessage(e, e));
       _embedder = await pipeline('feature-extraction', MODEL_ID);
       _embedderBackend = 'wasm';
       device = 'wasm';
@@ -360,7 +361,7 @@ async function _loadEmbedder(modelKey) {
         console.log(`[lens-local] WebGPU warmup ${dt.toFixed(0)} ms — backend confirmed`);
       }
     } catch (err) {
-      console.warn('[lens-local] WebGPU warmup threw, falling back to WASM:', err?.message || err);
+      console.warn('[lens-local] WebGPU warmup threw, falling back to WASM:', getErrorMessage(err, err));
       _embedder = await pipeline('feature-extraction', MODEL_ID, { device: 'wasm' });
       _embedderBackend = 'wasm';
     }
@@ -379,7 +380,7 @@ async function _loadEmbedder(modelKey) {
     );
     /** @type {any} */ (self)._lensLocalBenchmark = _benchmarkVerdict; // devtools inspection
   } catch (err) {
-    console.warn('[lens-local] benchmark failed:', err?.message || err);
+    console.warn('[lens-local] benchmark failed:', getErrorMessage(err, err));
     _benchmarkVerdict = null;
   }
 }
@@ -562,7 +563,7 @@ async function loadOrMigrateLibraries() {
         await writeBinaryTo(defaultDir, fn, new Uint8Array(srcBytes));
         await _rootDir.removeEntry(fn);
       } catch (e) {
-        console.warn(`[lens-local] Migration: ${fn} skip — ${e.message}`);
+        console.warn(`[lens-local] Migration: ${fn} skip — ${getErrorMessage(e)}`);
       }
     }
     _libraries = [{ id: 'default', name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
@@ -735,7 +736,7 @@ async function loadCorpusIntoMemory() {
     vecBytes = await readBinaryFrom(dir, FILE_VECTORS);
     chunksText = await readOpfsFileFrom(dir, FILE_CHUNKS);
   } catch (e) {
-    console.warn('[lens-local] Data file missing — resetting to empty.', e.message);
+    console.warn('[lens-local] Data file missing — resetting to empty.', getErrorMessage(e));
     _manifest.numChunks = 0;
     _manifest.docs = [];
     _vectors = new Float32Array(0);

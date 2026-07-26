@@ -128,6 +128,7 @@ const requiredCompilerSafetyOptions = {
   noUnusedParameters: true,
   strictBindCallApply: true,
   strictFunctionTypes: true,
+  useUnknownInCatchVariables: true,
 };
 const missingCompilerSafetyOptions = Object.entries(requiredCompilerSafetyOptions)
   .filter(([option, expected]) => tsConfig.compilerOptions?.[option] !== expected)

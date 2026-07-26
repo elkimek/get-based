@@ -1,6 +1,7 @@
 // @ts-check
 // supplements.js — Supplement/medication editor and dashboard section
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { bindDetailModalSyncRefresh, escapeHTML, showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
@@ -383,7 +384,7 @@ export async function scanSupplementLabel(input) {
     _applyParsedSupplement(JSON.parse(jsonMatch[0]));
   } catch (e) {
     if (isDebugMode()) console.warn('[scanLabel]', e);
-    showNotification('Failed to scan label: ' + (e.message || 'Unknown error'), 'error');
+    showNotification('Failed to scan label: ' + (getErrorMessage(e, 'Unknown error')), 'error');
   } finally {
     if (scanBtn instanceof HTMLButtonElement) { scanBtn.textContent = 'Scan label'; scanBtn.disabled = false; }
   }
@@ -467,7 +468,7 @@ export async function fetchSupplementFromURL() {
     _applyParsedSupplement(JSON.parse(jsonMatch[0]));
   } catch (e) {
     if (isDebugMode()) console.warn('[fetchURL]', e);
-    showNotification('Failed to fetch: ' + (e.message || 'Unknown error'), 'error');
+    showNotification('Failed to fetch: ' + (getErrorMessage(e, 'Unknown error')), 'error');
   } finally {
     if (btn instanceof HTMLButtonElement) { btn.textContent = 'Fetch'; btn.disabled = false; }
   }

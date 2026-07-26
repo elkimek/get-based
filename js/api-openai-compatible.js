@@ -1,6 +1,7 @@
 // @ts-check
 // api-openai-compatible.js - shared OpenAI-compatible provider transport.
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 import {
   FETCH_REQUEST_TIMEOUT_MS,
@@ -61,7 +62,7 @@ async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, reques
     return await fetchImpl(endpoint, requestState.fetchOptions);
   } catch (e) {
     const callerAborted = requestInit.signal?.aborted;
-    const isTimeout = e?.name === 'TimeoutError' || (e?.name === 'AbortError' && !callerAborted);
+    const isTimeout = getErrorName(e) === 'TimeoutError' || (getErrorName(e) === 'AbortError' && !callerAborted);
     if (isTimeout) throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s - check your network`);
     throw e;
   } finally {
@@ -152,7 +153,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       break;
     }
   } catch (e) {
-    throw new Error(`Cannot reach ${providerName} API: ${redactApiSecretText(e.message, [key])}`);
+    throw new Error(`Cannot reach ${providerName} API: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }
 
   if (!res.ok) {

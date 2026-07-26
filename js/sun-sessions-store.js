@@ -4,6 +4,7 @@
 // This module owns importedData.sunSessions[] CRUD and dose hydration. UI flows
 // stay in sun.js / sun-active-session.js and inject live-runtime hooks here.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
@@ -551,7 +552,7 @@ export async function rehydrateStaleSessions() {
       });
       if (result) ok++;
     } catch (e) {
-      globalThis.console?.warn?.('rehydrateStaleSessions:', s.id, e?.message || e);
+      globalThis.console?.warn?.('rehydrateStaleSessions:', s.id, getErrorMessage(e, e));
     }
   }
   return { rehydrated: ok, ofTotal: stale.length };

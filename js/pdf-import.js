@@ -1,6 +1,7 @@
 // @ts-check
 // pdf-import.js — PDF parsing pipeline, import preview, drop zone, batch import
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
@@ -690,7 +691,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
         privacyOriginal = pdfText;
         if (isDebugMode()) console.log(`[PII] Obfuscated via Local AI (${piiTime}s)`);
       } catch (e) {
-        if (isDebugMode()) console.warn('[PII] Local AI failed, falling back to regex:', e.message);
+        if (isDebugMode()) console.warn('[PII] Local AI failed, falling back to regex:', getErrorMessage(e));
         try {
           const result = obfuscatePDFText(pdfText);
           textForAI = result.obfuscated;
@@ -817,14 +818,14 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
       privacyMethod = 'ollama';
       privacyOriginal = pdfText;
     } catch (e) {
-      if (isDebugMode()) console.warn(`[PII] Local AI failed for ${file.name}, regex fallback:`, e.message);
+      if (isDebugMode()) console.warn(`[PII] Local AI failed for ${file.name}, regex fallback:`, getErrorMessage(e));
       try {
         const r = obfuscatePDFText(pdfText);
         textForAI = r.obfuscated; privacyReplacements = r.replacements; privacyOriginal = r.original;
         privacyMethod = 'regex';
       } catch (e2) {
         showNotification(`${file.name}: Privacy protection failed \u2014 skipped`, 'error');
-        finishBatchBenchmark('failed', { stage: 'privacy', error: e2.message }); return 'pii-fail';
+        finishBatchBenchmark('failed', { stage: 'privacy', error: getErrorMessage(e2) }); return 'pii-fail';
       }
     }
   } else {
@@ -834,7 +835,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
       privacyMethod = 'regex';
     } catch (e) {
       showNotification(`${file.name}: Privacy protection failed \u2014 skipped`, 'error');
-      finishBatchBenchmark('failed', { stage: 'privacy', error: e.message }); return 'pii-fail';
+      finishBatchBenchmark('failed', { stage: 'privacy', error: getErrorMessage(e) }); return 'pii-fail';
     }
     if (isPIIReviewEnabled()) {
       const reviewResult = await reviewPIIBeforeSend(pdfText, { obfuscatedText: textForAI });
@@ -873,7 +874,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   const action = await showImportPreviewAsync(result, fileNum, totalFiles);
   return action === 'skip' ? 'skipped' : 'imported';
   } catch (error) {
-    finishBatchBenchmark('failed', { stage: 'analysis', error: error.message });
+    finishBatchBenchmark('failed', { stage: 'analysis', error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -896,8 +897,8 @@ export async function handleBatchPDFs(pdfFiles) {
       else if (result === 'empty' || result === 'pii-fail' || result === 'no-markers') failed++;
     } catch (err) {
       if (isDebugMode()) console.error(`Batch import error (${file.name}):`, err);
-      showNotification(`Error: ${file.name} — ${err.message}`, 'error');
-      failedFiles.push({ file, error: err.message });
+      showNotification(`Error: ${file.name} — ${getErrorMessage(err)}`, 'error');
+      failedFiles.push({ file, error: getErrorMessage(err) });
     }
   }
   // Retry failed files once (rate limit / API error recovery)
@@ -1013,7 +1014,7 @@ export async function handleTextFile(file) {
   try {
     text = isXlsx ? await extractXLSXText(file) : await file.text();
   } catch (err) {
-    const message = err?.message || String(err);
+    const message = getErrorMessage(err, String(err));
     showNotification(isXlsx ? `Could not read Excel workbook: ${message}` : `Could not read text file: ${message}`, 'error');
     return;
   }

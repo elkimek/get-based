@@ -1,6 +1,7 @@
 // @ts-check
 // crypto.js — Encryption at rest, backup/restore, cross-tab sync
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
@@ -400,7 +401,7 @@ export async function encryptedGetItem(key) {
           await setBlob(key, lsRaw);
           try { localStorage.removeItem(key); } catch {}
         } catch (e) {
-          console.warn('[crypto] blob migration failed for', key, '—', e?.message || e);
+          console.warn('[crypto] blob migration failed for', key, '—', getErrorMessage(e, e));
         }
       }
     }
@@ -682,7 +683,7 @@ export function showEnableEncryptionModal() {
         document.getElementById('encryption-section').innerHTML = renderEncryptionSection();
       }
     } catch (err) {
-      errorEl.textContent = 'Encryption failed: ' + err.message;
+      errorEl.textContent = 'Encryption failed: ' + getErrorMessage(err);
       btn.disabled = false;
       btn.textContent = migrationStarted ? 'Retry Encryption' : 'Enable Encryption';
     }
@@ -937,7 +938,7 @@ export async function disableEncryption() {
         document.getElementById('encryption-section').innerHTML = renderEncryptionSection();
       }
     } catch (err) {
-      showNotification('Failed to disable encryption: ' + err.message, 'error');
+      showNotification('Failed to disable encryption: ' + getErrorMessage(err), 'error');
     }
   }
 }

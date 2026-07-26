@@ -9,6 +9,7 @@
 // to this module. If Ultrahuman rotates a field name, the .catch() on each
 // endpoint keeps the backfill alive for the other metrics.
 
+import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 const UH_API = 'https://partner.ultrahuman.com';
@@ -50,7 +51,7 @@ export async function fetchUltrahumanPersonalInfo(accessToken) {
       },
     };
   } catch (e) {
-    return { ok: false, error: e.message, status: e.status };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 

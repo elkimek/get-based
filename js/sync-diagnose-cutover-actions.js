@@ -1,6 +1,7 @@
 // @ts-check
 // sync-diagnose-cutover-actions.js - Telemetry and lean-sync mode actions.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import {
@@ -79,7 +80,7 @@ export async function confirmBackfillBlockers(btn) {
     if (clearDeltaSnapshot(profileId, name)) cleared++;
   }
   try { await pushProfileForDiagnose(profileId, state.importedData, { force: true }); } catch (e) {
-    try { showNotification(`Backfill push failed: ${e?.message || e}`, 'error'); } catch {}
+    try { showNotification(`Backfill push failed: ${getErrorMessage(e, e)}`, 'error'); } catch {}
     return;
   }
   try { showNotification(`Backfilled ${cleared} surface${cleared === 1 ? '' : 's'} — re-open Diagnose to verify`, 'success'); } catch {}

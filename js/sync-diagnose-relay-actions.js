@@ -1,6 +1,7 @@
 // @ts-check
 // sync-diagnose-relay-actions.js - Relay storage operations for Sync Diagnose.
 
+import { getErrorMessage } from './caught-error.js';
 import { showNotification } from './utils.js';
 import {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayQuotaEstimate,
@@ -38,7 +39,7 @@ export async function confirmCompactRelay(btn) {
       toggleSyncDetail(); toggleSyncDetail();
     }
   } catch (e) {
-    showNotification(`Compact failed: ${e?.message || e}`, 'error');
+    showNotification(`Compact failed: ${getErrorMessage(e, e)}`, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Compact storage'; }
   }
 }
@@ -70,7 +71,7 @@ export async function refreshRelayStorage(btn) {
       }
     }
   } catch (e) {
-    showNotification(`Refresh failed: ${e?.message || e}`, 'error');
+    showNotification(`Refresh failed: ${getErrorMessage(e, e)}`, 'error');
   } finally {
     if (btn && !btn.closest?.('.modal-overlay')?.parentElement) return;
     if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }

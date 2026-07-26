@@ -1,6 +1,7 @@
 // @ts-check
 // api-custom.js - custom OpenAI-compatible endpoint adapter.
 
+import { getErrorMessage } from './caught-error.js';
 import {
   getCustomApiKey,
   getCustomApiModel,
@@ -84,7 +85,7 @@ export async function validateCustomApiKey(baseUrl, key) {
     }
     return noModels ? { valid: true, noModels: true } : { valid: true };
   } catch (e) {
-    return { valid: false, error: 'Cannot reach endpoint: ' + e.message };
+    return { valid: false, error: 'Cannot reach endpoint: ' + getErrorMessage(e) };
   }
 }
 

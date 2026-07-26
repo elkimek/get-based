@@ -1,6 +1,7 @@
 // @ts-check
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
@@ -78,7 +79,7 @@ async function readStoredImportedData(localKey, debug, label) {
       : localStorage.getItem(localKey);
     return rawLocal ? JSON.parse(rawLocal) : null;
   } catch (e) {
-    try { debug?.(`Could not read local importedData for ${label}:`, e.message); } catch {}
+    try { debug?.(`Could not read local importedData for ${label}:`, getErrorMessage(e)); } catch {}
     return null;
   }
 }
@@ -220,7 +221,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
   try {
     merged = await _mergeItemRowsIntoImported(profileId, merged) || merged;
   } catch (e) {
-    console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
+    console.warn('[sync] per-row overlay merge failed (blob still applied):', getErrorMessage(e, e));
   }
   // A legacy remote blob starts as the merge baseline. Restore device-local
   // benchmark history after that merge so an inbound sync cannot erase a run

@@ -10,6 +10,7 @@
 // response without nextToken. Kept aligned with Oura's ouraCollect shape
 // so callers don't branch on vendor.
 
+import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 const WHOOP_API = 'https://api.prod.whoop.com';
@@ -56,7 +57,7 @@ export async function fetchWhoopPersonalInfo(accessToken) {
     const info = await whoopGET('developer/v1/user/profile/basic', accessToken);
     return { ok: true, account: { email: info?.email || null, firstName: info?.first_name || null, lastName: info?.last_name || null } };
   } catch (e) {
-    return { ok: false, error: e.message, status: e.status };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 

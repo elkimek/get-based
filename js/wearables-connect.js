@@ -5,6 +5,7 @@
 // (wearables-oura.js, wearables-oura-auth.js), the L1 IndexedDB store, and
 // the L2 summary gate. Keeps UI-side code clean of OAuth plumbing.
 
+import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
@@ -270,7 +271,7 @@ export async function handleOAuthCallbackOnLoad() {
       showNotification?.(`${disp.displayName} backfilled ${bf.rows} days`, 'success');
       navigateWearablesDashboardAfterConnectRuntime();
     } catch (e) {
-      showNotification?.(`${disp.displayName} backfill failed: ${_scrubError(e.message)}`, 'error', 5000);
+      showNotification?.(`${disp.displayName} backfill failed: ${_scrubError(getErrorMessage(e))}`, 'error', 5000);
     }
   })();
   return true;
@@ -309,7 +310,7 @@ async function callWithRefresh(adapter, fetcher) {
   try {
     return await fetcher(conn.accessToken);
   } catch (e) {
-    if (e?.status !== 401) throw e;
+    if (getErrorStatus(e) !== 401) throw e;
     const forced = { ...conn, expiresAt: 0 };
     const refreshed = await wft(forced, getOAuthClientId(adapter), async (u) => saveConnection(adapter.id, u), () => getConnection(adapter.id));
     return fetcher(refreshed.accessToken);
@@ -449,7 +450,7 @@ export async function disconnectWearable(adapterId, { deleteData = true } = {}) 
   const profileId = getActiveProfileId();
   removeConnection(adapterId);
   if (deleteData) {
-    try { await clearSource(profileId, adapterId); } catch (e) { if (isDebugMode?.()) console.warn('[wearables] clearSource failed:', e.message); }
+    try { await clearSource(profileId, adapterId); } catch (e) { if (isDebugMode?.()) console.warn('[wearables] clearSource failed:', getErrorMessage(e)); }
     // Drop the `last-sync:{adapterId}` meta entry too — otherwise a future
     // reconnect's incrementalSyncWearable picks up the stale endDate as
     // start, missing the freshly-cleared backfill range until the
@@ -482,15 +483,15 @@ export async function syncNow(adapterId, { force = false } = {}) {
     return res;
   } catch (e) {
     const displayName = adapterById(adapterId)?.displayName || adapterId;
-    if (e?.code === 'needs-reauth') {
+    if (getErrorCode(e) === 'needs-reauth') {
       showNotification?.(`${displayName} needs reconnection — open Settings → Wearables`, 'error', 5000);
-    } else if (e?.status === 401 || e?.status === 403) {
+    } else if (getErrorStatus(e) === 401 || getErrorStatus(e) === 403) {
       const conn = getConnection(adapterId);
       if (conn) saveConnection(adapterId, { ...conn, needsReauth: true });
       showNotification?.(`${displayName} token rejected — reconnect`, 'error');
     } else {
-      if (isDebugMode?.()) console.warn(`[wearables] syncNow ${adapterId} failed:`, e.message);
-      showNotification?.(`${displayName} sync failed: ${_scrubError(e.message)}`, 'error', 4000);
+      if (isDebugMode?.()) console.warn(`[wearables] syncNow ${adapterId} failed:`, getErrorMessage(e));
+      showNotification?.(`${displayName} sync failed: ${_scrubError(getErrorMessage(e))}`, 'error', 4000);
     }
     throw e;
   }
@@ -537,7 +538,7 @@ async function maybeSyncStaleSources() {
     try {
       await recoverIfL1Empty(sid);
       await syncNow(sid);
-    } catch (e) { if (isDebugMode?.()) console.warn(`[wearables] scheduled sync ${sid} failed:`, e.message); }
+    } catch (e) { if (isDebugMode?.()) console.warn(`[wearables] scheduled sync ${sid} failed:`, getErrorMessage(e)); }
   }
 }
 

@@ -1,6 +1,7 @@
 // @ts-check
 // light-conditions-now.js — Current outdoor conditions widget for Light & Sun
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -280,7 +281,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
       }
     } catch (e) {
       online = false;
-      fetchError = String(e?.message || e);
+      fetchError = String(getErrorMessage(e, e));
       atm = (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
     }
     // Honor the minimum spin duration so the user can actually see feedback

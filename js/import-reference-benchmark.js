@@ -1,6 +1,7 @@
 // @ts-check
 // import-reference-benchmark.js - Bundled synthetic gold-reference scoring.
 
+import { getErrorMessage } from './caught-error.js';
 import { getAIProvider, getActiveModelId, hasAIProvider } from './api.js';
 import { loadPdfImport } from './import-loader.js';
 import {
@@ -492,7 +493,7 @@ export async function runBundledImportReferenceBenchmark({ onProgress } = {}) {
         referenceLabel: manifest.label,
         stage: 'analysis',
         totalMs: Math.max(0, Math.round(performance.now() - startedAt)),
-        error: err?.message || String(err),
+        error: getErrorMessage(err, String(err)),
       }, { persist: false });
       await persistImportBenchmarks();
       throw err;

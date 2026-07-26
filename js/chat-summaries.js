@@ -1,6 +1,7 @@
 // @ts-check
 // chat-summaries.js - conversation summary generation, storage, and modal actions
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
 import { bindModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
@@ -152,10 +153,10 @@ async function _generateSummary() {
     const savedSummary = _getLatestSavedSummary(thread.id);
     _showSummaryModal(text, { ...thread, _savedId: savedSummary?.id }, false, costInfo);
   } catch (e) {
-    if (e.name === 'AbortError') {
+    if (getErrorName(e) === 'AbortError') {
       showNotification('Summary cancelled', 'info');
     } else {
-      showNotification('Summary failed: ' + e.message, 'error');
+      showNotification('Summary failed: ' + getErrorMessage(e), 'error');
     }
     _closeSummaryModal();
   } finally {

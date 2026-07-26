@@ -1,6 +1,7 @@
 // @ts-check
 // settings-import-benchmark-controller.js - Import benchmark modal lifecycle and actions.
 
+import { getErrorMessage } from './caught-error.js';
 import { deleteImportBenchmarks } from './import-benchmarks.js';
 import {
   IMPORT_REFERENCE_FIXTURE,
@@ -199,7 +200,7 @@ export function openImportBenchmarksModal() {
           : `Model test scored ${exact}/${expected} exact markers with ${completed.score.referenceF1Percent}% F1. ${completed.score.referenceDiscrepancyCount || 0} ${referenceDifferenceLabel(completed.score.referenceDiscrepancyCount || 0)} saved for review.`,
         completed.score.referenceExactMatch ? 'success' : 'info');
       } else {
-        showNotification(failure?.message || 'Model test failed. Check the provider and try again.', 'error');
+        showNotification(getErrorMessage(failure, 'Model test failed. Check the provider and try again.'), 'error');
       }
       return;
     }

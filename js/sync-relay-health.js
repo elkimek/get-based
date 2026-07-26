@@ -1,6 +1,8 @@
 // @ts-check
 // sync-relay-health.js - relay quota, self-service, and push persistence checks
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
+
 /** @typedef {{ id?: string | number, writeKey?: BufferSource }} SyncAppOwner */
 /** @typedef {{ bytes: number, cap: number, pct: number, level: string }} RelayQuotaEstimate */
 /** @typedef {{ storedBytes: number, messageCount: number, lastWriteToken: string | null, at: number }} RelaySnapshot */
@@ -240,9 +242,9 @@ export async function compactOwnerSelfServe() {
       signal: ctrl.signal,
     });
   } catch (fetchErr) {
-    const reason = fetchErr?.name === 'AbortError'
+    const reason = getErrorName(fetchErr) === 'AbortError'
       ? 'request timed out'
-      : (fetchErr?.message || fetchErr?.name || 'NetworkError');
+      : getErrorMessage(fetchErr, getErrorName(fetchErr) || 'NetworkError');
     throw new Error(`Relay request failed: ${reason}`);
   } finally { clearTimeout(timer); }
   if (!r.ok) {

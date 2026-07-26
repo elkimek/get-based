@@ -1,6 +1,7 @@
 // @ts-check
 // profile-share.js — encrypted single-profile share links
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { getProfiles } from './profile.js';
 import { buildClientExportObject, importDataJSON } from './export.js';
@@ -618,8 +619,8 @@ async function handleCreateSubmit(form) {
     overlay.querySelector('.profile-share-body').outerHTML = renderShareResultBody(result);
     showNotification('Encrypted profile link created', 'success');
   } catch (err) {
-    setStatus(err?.message || 'Could not create share link.', 'error');
-    showNotification(err?.message || 'Could not create share link.', 'error');
+    setStatus(getErrorMessage(err, 'Could not create share link.'), 'error');
+    showNotification(getErrorMessage(err, 'Could not create share link.'), 'error');
   } finally {
     setBusy(overlay, false);
   }
@@ -642,9 +643,9 @@ async function handleLoadSubmit(form) {
     clearShareHash(id);
     showNotification(`Imported shared profile "${exportObj.profile.name}"`, 'success');
   } catch (err) {
-    const message = /decrypt|operation|key|password/i.test(String(err?.message || ''))
+    const message = /decrypt|operation|key|password/i.test(String(getErrorMessage(err, '')))
       ? 'Could not unlock shared profile. Check the password and try again.'
-      : (err?.message || 'Could not load shared profile.');
+      : (getErrorMessage(err, 'Could not load shared profile.'));
     setStatus(message, 'error');
     showNotification(message, 'error');
   } finally {
@@ -670,8 +671,8 @@ async function handleDeleteShare(actionEl) {
   } catch (err) {
     actionEl.disabled = false;
     actionEl.textContent = previousText || 'Stop sharing';
-    setStatus(err?.message || 'Could not stop sharing link.', 'error');
-    showNotification(err?.message || 'Could not stop sharing link.', 'error');
+    setStatus(getErrorMessage(err, 'Could not stop sharing link.'), 'error');
+    showNotification(getErrorMessage(err, 'Could not stop sharing link.'), 'error');
   }
 }
 

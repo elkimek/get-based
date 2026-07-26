@@ -1774,7 +1774,7 @@ assert('disp.fetchAccountInfo receives only { userId } not the whole connection'
 assert('_scrubError redacts Bearer tokens in error messages',
   /_scrubError[\s\S]*?Bearer\s+\[redacted\]/.test(connectSrcP2));
 assert('Backfill + sync error toasts run their messages through _scrubError',
-  /_scrubError\(e\.message\)/.test(connectSrcP2));
+  /_scrubError\(getErrorMessage\(e\)\)/.test(connectSrcP2));
 
 // P2 a11y: friendlier aria on manual delete button + collapse-arrow header.
 assert('Manual-entry delete aria reads as a sentence (long date + value + unit)',

@@ -1,6 +1,7 @@
 // @ts-check
 // api-venice.js - Venice provider adapter, including E2EE mode.
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { readWithStallTimeout } from './api-transport.js';
 import {
   getVeniceE2EE,
@@ -86,7 +87,7 @@ export async function callVeniceAPI(opts) {
   try {
     session = await apiWindow._veniceE2EE.createSession(modelId);
   } catch (e) {
-    throw new Error(`Venice E2EE setup failed: ${redactApiSecretText(e.message, [key])}`);
+    throw new Error(`Venice E2EE setup failed: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }
   apiWindow._veniceAttestation = session.attestation ?? apiWindow._veniceAttestation ?? null;
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
@@ -132,7 +133,7 @@ export async function callVeniceAPI(opts) {
       signal
     }, 2, true, requestTimeoutMs);
   } catch (e) {
-    throw new Error(`Cannot reach Venice API: ${redactApiSecretText(e.message, [key])}`);
+    throw new Error(`Cannot reach Venice API: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }
 
   if (!res.ok) {
@@ -227,7 +228,7 @@ export async function callVeniceAPI(opts) {
         outputTokens = event.usage.completion_tokens || outputTokens;
       }
     } catch (e) {
-      if (e.name === 'OperationError') throw new Error('E2EE decryption failed - session may be stale. Try sending again.');
+      if (getErrorName(e) === 'OperationError') throw new Error('E2EE decryption failed - session may be stale. Try sending again.');
       if (boundary && e instanceof SyntaxError) return;
       if (streamDiagnostics.status === 'reading') streamDiagnostics.status = 'error';
       throw e;

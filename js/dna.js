@@ -1,5 +1,6 @@
 // @ts-check
 // dna.js — DNA storage, context assembly, and UI orchestration
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
@@ -828,7 +829,7 @@ export async function handleSnpReportFile(file) {
     return true;
   } catch (e) {
     logDnaDebugError('SNP report import error:', e);
-    showNotification(e.message || 'Failed to read SNP report', 'error');
+    showNotification(getErrorMessage(e, 'Failed to read SNP report'), 'error');
     _dnaImportRunning = false;
     return false;
   }
@@ -857,7 +858,7 @@ export async function handleDNAFile(file) {
     return true;
   } catch (e) {
     logDnaDebugError('DNA import error:', e);
-    showNotification(e.message || 'Failed to parse DNA file', 'error');
+    showNotification(getErrorMessage(e, 'Failed to parse DNA file'), 'error');
     _dnaImportRunning = false;
     return false;
   }

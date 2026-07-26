@@ -17,6 +17,7 @@
 //   Skin temp Δ     GET /1/user/-/temp/skin/date/YYYY-MM-DD/YYYY-MM-DD.json
 //   Weight log      GET /1/user/-/body/log/weight/date/YYYY-MM-DD/YYYY-MM-DD.json
 
+import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 const FITBIT_API = 'https://api.fitbit.com';
@@ -47,7 +48,7 @@ export async function fetchFitbitPersonalInfo(accessToken) {
     const u = info?.user || {};
     return { ok: true, account: { email: u.email || null, fullName: u.fullName || u.displayName || null } };
   } catch (e) {
-    return { ok: false, error: e.message, status: e.status };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 

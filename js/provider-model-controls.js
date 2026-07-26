@@ -1,6 +1,7 @@
 // @ts-check
 // provider-model-controls.js - provider model dropdowns, pricing, and custom model selection.
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, showNotification } from './utils.js';
 import {
   fetchOpenRouterModelPricing,
@@ -123,10 +124,10 @@ export async function applyCustomOpenRouterModel(modelId) {
     await fetchOpenRouterModelPricing(id);
     updateOpenRouterModelPricing(id);
   } catch (e) {
-    if (indicator) { indicator.textContent = '\u2717'; indicator.title = e.message || 'Connection failed'; indicator.style.color = 'var(--red)'; }
+    if (indicator) { indicator.textContent = '\u2717'; indicator.title = getErrorMessage(e, 'Connection failed'); indicator.style.color = 'var(--red)'; }
     if (input) input.style.borderColor = 'var(--red)';
     updateOpenRouterModelPricing(id);
-    showNotification('Model check failed: ' + (e.message || 'unknown error'), 'error');
+    showNotification('Model check failed: ' + (getErrorMessage(e, 'unknown error')), 'error');
   }
 }
 

@@ -1,6 +1,7 @@
 // @ts-check
 // Ollama native discovery, lifecycle, context management, and inference adapter.
 
+import { getErrorMessage } from './caught-error.js';
 import { createInitialResponseTimeout, FETCH_REQUEST_TIMEOUT_MS, readWithStallTimeout } from './api-transport.js';
 import {
   createLocalAiHeaders,
@@ -104,7 +105,7 @@ export async function discoverOllamaProvider({
     return localAiResult('ollama', modelDetails, { runningStatusKnown });
   } catch (error) {
     return unavailableLocalAiResult('ollama', localAiDiscoveryError('parse', {
-      message: String(error?.message || error),
+      message: String(getErrorMessage(error, error)),
     }));
   }
 }
@@ -206,7 +207,7 @@ async function requestOllamaChat(config, opts, body) {
   } catch (error) {
     const corsError = localAiCorsError(error);
     if (corsError) throw corsError;
-    throw new Error(`Cannot reach Ollama. Check that it is running. (${redactApiSecretText(error?.message || error, [config.apiKey])})`);
+    throw new Error(`Cannot reach Ollama. Check that it is running. (${redactApiSecretText(getErrorMessage(error, error), [config.apiKey])})`);
   } finally {
     timeoutState.clearRequestTimeout();
   }

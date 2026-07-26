@@ -1,6 +1,7 @@
 // @ts-check
 // sync-delta.js — Evolu per-row delta facade, apply wiring, and compatibility re-exports.
 
+import { getErrorMessage } from './caught-error.js';
 import { configureSyncDeltaObservability } from './sync-delta-observability.js';
 import { configureSyncDeltaMerge } from './sync-delta-merge.js';
 import { configureSyncDeltaPlanners } from './sync-delta-planners.js';
@@ -55,7 +56,7 @@ export function _applyArrayDelta(arrayName, plan) {
       else if (op.kind === 'tombstone') evolu.update("itemRow", op.args);
     } catch (e) {
       allOk = false;
-      console.warn(`[sync] delta op ${op.kind} ${arrayName} failed:`, e?.message || e);
+      console.warn(`[sync] delta op ${op.kind} ${arrayName} failed:`, getErrorMessage(e, e));
     }
   }
   return allOk;
