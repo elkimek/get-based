@@ -19,14 +19,16 @@ import { createDashboardWidgetControls } from './dashboard-widget-controls.js';
 import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js';
 import { configureMarkerDetailModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
-import { renderLightConditionsWidgetBody } from './light-conditions-now.js';
-import { ensureActiveDeviceTicker } from './light-devices.js';
-import { renderDashboardLightChannelPills, renderLightSessionLogActions } from './light-page-view.js';
 import { navigateViewportRuntime } from './views-router-runtime.js';
 import {
+  ensureLoadedActiveDeviceTicker,
   isLightSunUILoaded,
   loadLightSunUI,
+  renderLoadedDashboardLightChannelPills,
+  renderLoadedLightConditionsWidgetBody,
+  renderLoadedLightSessionLogActions,
   renderLoadedLightTodayHero,
+  resumeLoadedActiveSunTickerIfNeeded,
 } from './light-sun-loader.js';
 import {
   configureMobileDashboardView,
@@ -59,9 +61,9 @@ export function createDashboardViewComposition({
 
   const dashboardWidgetRenderers = createDashboardWidgetRenderers({
     markerHasData,
-    renderDashboardLightChannelPills,
-    renderLightConditionsWidgetBody,
-    renderLightSessionLogActions,
+    renderDashboardLightChannelPills: renderLoadedDashboardLightChannelPills,
+    renderLightConditionsWidgetBody: renderLoadedLightConditionsWidgetBody,
+    renderLightSessionLogActions: renderLoadedLightSessionLogActions,
     getMobileDashboardMarkers,
     getMobileDashboardInsights,
     getMobileWearableTiles,
@@ -218,7 +220,8 @@ export function createDashboardViewComposition({
     isDashboardOrganizeMode: () => dashboardWidgetControls.isOrganizeMode(),
     loadFocusCard,
     loadContextCardTips,
-    ensureActiveDeviceTicker,
+    ensureActiveDeviceTicker: ensureLoadedActiveDeviceTicker,
+    resumeActiveTickerIfNeeded: resumeLoadedActiveSunTickerIfNeeded,
   });
 
   configureLensPageShell({

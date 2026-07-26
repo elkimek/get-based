@@ -78,10 +78,12 @@ import { configureExportImportRuntimeDeps } from './export-runtime.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { loadImportStylesheet } from './import-loader.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
-import { _openChannelOnLightPage } from './light-channel-view.js';
-import { configureLightDevicesRuntimeDeps } from './light-devices-runtime.js';
 import { configureLabContext } from './lab-context.js';
 import { configureLensPageShell } from './lens-page-shell.js';
+import {
+  configureLightSunShellLoaderDeps,
+  loadLightSunModulesForPersistedState,
+} from './light-sun-loader.js';
 import { closeModal, rememberModalTrigger } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { buildSidebar, closeMobileSidebar, configureNavActions, renderProfileButton, toggleMobileSidebar } from './nav.js';
@@ -106,8 +108,6 @@ import {
   refreshMobileDashboardActiveTab,
   renameCategory,
   renameMarker,
-  renderLightChannelsLive,
-  renderLightTodayStrip,
   resetDashboardWidgets,
   revertMarkerName,
   showDetailModal,
@@ -141,8 +141,6 @@ import { configureStartupUIDeps } from './startup-ui.js';
 import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
 import { configureSyncPull } from './sync-pull.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
-import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
-import { configureSunRuntimeDeps } from './sun-runtime.js';
 import { renderSupplementsSection } from './supplements.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
@@ -174,6 +172,7 @@ configureChatLoader({
   navigate,
   openChatProviderQuiz,
   openSettingsModal,
+  prepareLightSunContext: loadLightSunModulesForPersistedState,
   recordChange,
   refreshMobileDashboardActiveTab,
   renderMenstrualCycleSection,
@@ -252,13 +251,11 @@ configurePdfImportReviewRuntimeDeps({ buildSidebar, confirmImport: confirmPdfImp
 configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });
 configureRecommendationsRuntime({ closeModal, openChatPanel, openProfileLocationEditor, openSettingsModal });
 configureSupplementsRuntimeDeps({ closeModal, navigate });
-configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
-configureSunRuntimeDeps({
+configureLightSunShellLoaderDeps({
   buildSidebar,
   navigate,
-  openChannelOnLightPage: _openChannelOnLightPage,
-  renderLightChannelsLive,
-  renderLightTodayStrip,
+  openClientList,
+  openProfileLocationEditor,
 });
 configureBiologyScoreContextAIDeps({ navigate });
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
@@ -273,7 +270,6 @@ configureDashboardRecommendationRuntimeDeps({
   saveRecommendation,
   showDetailModal,
 });
-configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });
 configureLensPageShell({ navigate });
 configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });

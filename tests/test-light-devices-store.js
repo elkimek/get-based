@@ -204,7 +204,7 @@ assert('light-devices-store owns synced persistence for devices and sessions',
     && /computeDeviceSessionDoses/.test(storeSrc));
 assert('light-devices-store routes analyzer hook through injected deps',
   storeSrc.includes('configureLightDevicesStore')
-    && storeSrc.includes('maybeAnalyzeDeviceSessionAfterFinish: () => {}')
+    && storeSrc.includes('maybeAnalyzeDeviceSessionAfterFinish: requestDeviceSessionAnalysis')
     && !storeSrc.includes('window.maybeAnalyzeDeviceSessionAfterFinish'));
 assert('light-sun AI hooks wire device analyzer into store deps',
   aiHooksSrc.includes("import { configureLightDevicesStore } from './light-devices-store.js';")

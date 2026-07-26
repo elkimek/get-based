@@ -1,8 +1,8 @@
 // @ts-check
 // light-sun-loader.js — lazy initialization for Light & Sun analysis hooks
 
-import { configureLightDevicesStore } from './light-devices-store.js';
-import { configureSunSessionsStore } from './sun-sessions-store.js';
+import { state } from './state.js';
+import { configureLightSunAnalysisRuntime } from './light-sun-analysis-runtime.js';
 
 const LIGHT_SUN_STYLESHEET_URLS = [
   '../css/light-sun.css',
@@ -26,6 +26,22 @@ let _lightSunModulesLoaded = false;
 let _lightSunUILoaded = false;
 let _useLightSunStylesheetRetryUrls = false;
 const _lightEnvironmentLoaderDeps = {};
+const _lightSunShellLoaderDeps = {};
+
+configureLightSunAnalysisRuntime({
+  analyzeSunSession(session) {
+    void loadLightSunModules()
+      .then(() => import('./sun-ai-analysis.js'))
+      .then(module => module.maybeAnalyzeSessionAfterFinish(session))
+      .catch(() => {});
+  },
+  analyzeDeviceSession(session) {
+    void loadLightSunModules()
+      .then(() => import('./light-device-ai-analysis.js'))
+      .then(module => module.maybeAnalyzeDeviceSessionAfterFinish(session))
+      .catch(() => {});
+  },
+});
 
 function applyLightEnvironmentLoaderDeps(module) {
   if (
@@ -46,6 +62,25 @@ export function configureLightEnvironmentLoaderDeps(deps = {}) {
   }
 }
 
+function applyLightSunShellLoaderDeps(module) {
+  if (
+    Object.keys(_lightSunShellLoaderDeps).length > 0
+    && typeof module.configureLightSunShell === 'function'
+  ) {
+    module.configureLightSunShell(_lightSunShellLoaderDeps);
+  }
+  return module;
+}
+
+export function configureLightSunShellLoaderDeps(deps = {}) {
+  for (const [key, value] of Object.entries(deps || {})) {
+    if (typeof value === 'function') _lightSunShellLoaderDeps[key] = value;
+  }
+  if (_lightSunModulesLoad) {
+    void _lightSunModulesLoad.then(applyLightSunShellLoaderDeps).catch(() => {});
+  }
+}
+
 export function isLightSunModulesLoaded() {
   return _lightSunModulesLoaded;
 }
@@ -54,8 +89,60 @@ export function isLightSunUILoaded() {
   return _lightSunUILoaded;
 }
 
+export function getLoadedLightSunModule() {
+  return _lightSunModules;
+}
+
 export function renderLoadedLightTodayHero() {
   return _lightSunModules?.renderLightTodayHero?.() || '';
+}
+
+export function renderLoadedLightConditionsWidgetBody(options) {
+  return _lightSunModules?.renderLightConditionsWidgetBody?.(options) || '';
+}
+
+export function renderLoadedDashboardLightChannelPills() {
+  return _lightSunModules?.renderDashboardLightChannelPills?.() || '';
+}
+
+export function renderLoadedLightSessionLogActions() {
+  return _lightSunModules?.renderLightSessionLogActions?.() || '';
+}
+
+export function ensureLoadedActiveDeviceTicker() {
+  if (_lightSunModules) return _lightSunModules.ensureActiveDeviceTicker?.();
+  const hasActiveDeviceSession = state.importedData?.deviceSessions
+    ?.some(session => session && !session.endedAt);
+  if (!hasActiveDeviceSession) return undefined;
+  return loadLightSunModules().then(module => module.ensureActiveDeviceTicker?.());
+}
+
+export function resumeLoadedActiveSunTickerIfNeeded() {
+  if (_lightSunModules) return _lightSunModules.resumeActiveTickerIfNeeded?.();
+  const hasActiveSunSession = state.importedData?.sunSessions
+    ?.some(session => session && !session.endedAt);
+  if (!hasActiveSunSession) return undefined;
+  return loadLightSunModules().then(module => module.resumeActiveTickerIfNeeded?.());
+}
+
+export function getLoadedRollingChannelTotals(days) {
+  return _lightSunModules?.rollingChannelTotals?.(days) || null;
+}
+
+export function hasPersistedLightSunState() {
+  const data = state.importedData;
+  if (!data) return false;
+  if (data.sunSessions?.length || data.deviceSessions?.length || data.lightDevices?.length) return true;
+  if (data.sunDefaults && Object.keys(data.sunDefaults).length > 0) return true;
+  if (data.lightCircadian && Object.keys(data.lightCircadian).length > 0) return true;
+  const environment = data.lightEnvironment;
+  return Boolean(environment?.rooms?.length || environment?.screens?.length);
+}
+
+export function loadLightSunModulesForPersistedState() {
+  return hasPersistedLightSunState()
+    ? loadLightSunModules()
+    : Promise.resolve(null);
 }
 
 /** @returns {Promise<typeof import('./app-light-sun-modules.js')>} */
@@ -63,6 +150,7 @@ export function loadLightSunModules() {
   if (!_lightSunModulesLoad) {
     _lightSunModulesLoad = import('./app-light-sun-modules.js')
       .then(module => {
+        applyLightSunShellLoaderDeps(module);
         applyLightEnvironmentLoaderDeps(module);
         _lightSunModules = module;
         _lightSunModulesLoaded = true;
@@ -138,24 +226,3 @@ export function loadLightSunUI() {
   }
   return _lightSunUILoad;
 }
-
-// A session can finish from a dashboard ticker before the user opens the
-// Light route. Load the analysis hooks on demand and analyze that completion;
-// app-light-sun-modules.js replaces these temporary callbacks for later saves.
-configureSunSessionsStore({
-  maybeAnalyzeSessionAfterFinish(session) {
-    void loadLightSunModules()
-      .then(() => import('./sun-ai-analysis.js'))
-      .then(({ maybeAnalyzeSessionAfterFinish }) => maybeAnalyzeSessionAfterFinish(session))
-      .catch(() => {});
-  },
-});
-
-configureLightDevicesStore({
-  maybeAnalyzeDeviceSessionAfterFinish(session) {
-    void loadLightSunModules()
-      .then(() => import('./light-device-ai-analysis.js'))
-      .then(({ maybeAnalyzeDeviceSessionAfterFinish }) => maybeAnalyzeDeviceSessionAfterFinish(session))
-      .catch(() => {});
-  },
-});

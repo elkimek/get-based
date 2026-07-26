@@ -6,12 +6,11 @@ import {
   configureLightEnvironmentLoaderDeps,
   loadLightSunUI,
 } from './light-sun-loader.js';
-import { getMeasurementsForRoom } from './light-tools.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { configureNavActions } from './nav.js';
 import { navigate } from './views.js';
 
-configureLightEnvironmentLoaderDeps({ getMeasurementsForRoom, navigate });
+configureLightEnvironmentLoaderDeps({ navigate });
 
 function closeLightEnvironmentAssessment() {
   const overlay = document.getElementById('light-env-assessment-overlay');

@@ -104,7 +104,8 @@ assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
     uiHookSrc.includes("import { navigate } from './views.js';") &&
     uiHookSrc.includes('configureSunSessionUI({ navigate })') &&
     appLightSunSrc.includes("import './sun-session-ai-render-hooks.js';") &&
-    appUiShellSrc.includes("import './sun-session-ui-hooks.js';") &&
+    appLightSunSrc.includes('configureSunSessionUI({ navigate });') &&
+    !appUiShellSrc.includes("import './sun-session-ui-hooks.js';") &&
     swSrc.includes("'/js/sun-session-ai-render-hooks.js'") &&
     swSrc.includes("'/js/sun-session-ui-hooks.js'"));
 assert('sun.js configures active sun-session delegated actions',

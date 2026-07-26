@@ -110,13 +110,13 @@ assert('Light environment modal shell actions are wired through startup hooks',
     !envShellHooksSrc.includes("from './light-env.js'") &&
     envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps,') &&
     envShellHooksSrc.includes('loadLightSunUI,') &&
-    envShellHooksSrc.includes("import { getMeasurementsForRoom } from './light-tools.js';") &&
+    !envShellHooksSrc.includes("from './light-tools.js'") &&
     envShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
     envShellHooksSrc.includes("import { navigate } from './views.js';") &&
-    envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ getMeasurementsForRoom, navigate });') &&
+    envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ navigate });') &&
     envShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     envShellHooksSrc.includes('loadLightSunUI()') &&
-    appLightSunSrc.includes("export { configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
+    appLightSunSrc.includes('configureLightEnv({ getMeasurementsForRoom, navigate });') &&
     lightSunLoaderSrc.includes('applyLightEnvironmentLoaderDeps(module);') &&
     !envSrc.includes('globalThis.navigate') &&
     appUiShellSrc.includes("import './light-env-shell-hooks.js';"));

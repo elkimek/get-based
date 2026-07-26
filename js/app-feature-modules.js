@@ -3,6 +3,5 @@
 
 import './app-foundation-modules.js';
 import './app-health-data-modules.js';
-import './sun-context-hooks.js';
 import './light-sun-loader.js';
 import './app-ui-shell-modules.js';

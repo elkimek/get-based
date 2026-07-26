@@ -398,8 +398,10 @@ const _origProfileSex = state ? state.profileSex : null;
       /function _renderSessionRowsHTML/.test(sessionsSrc));
     assert('light-sessions-view.js: "View all N sessions" button replaces inline expand',
       /View all \$\{totalCount\} sessions/.test(sessionsSrc));
-    assert('views.js imports light sessions view module',
-      viewsSrc.includes("from './light-sessions-view.js'"));
+    assert('views.js opens the deferred light sessions view through the loader',
+      !viewsSrc.includes("from './light-sessions-view.js'")
+        && viewsSrc.includes('const module = await loadLightSunUI();')
+        && viewsSrc.includes('return module._openAllSessionsModal();'));
     assert('light sessions view: _toggleAllSessions and _showAllSessions removed',
       !/_toggleAllSessions/.test(sessionsSrc) && !/_showAllSessions/.test(sessionsSrc));
     // First: module API existence check — should pass in both Node + browser.

@@ -2,7 +2,7 @@
 // sun-runtime.js - Browser runtime adapters for Sun session facade hooks.
 
 import { isDebugMode } from './utils.js';
-import { getDeviceSessions } from './light-devices-store.js';
+import { state } from './state.js';
 
 /**
  * @typedef {{
@@ -74,12 +74,8 @@ export function isSunDebugRuntime() {
 }
 
 export function getSunDeviceSessionsRuntime() {
-  try {
-    const sessions = getDeviceSessions();
-    return Array.isArray(sessions) ? sessions : [];
-  } catch {
-    return [];
-  }
+  const sessions = state.importedData?.deviceSessions;
+  return Array.isArray(sessions) ? sessions : [];
 }
 
 export function rebuildSunSidebarRuntime() {

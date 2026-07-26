@@ -275,6 +275,22 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     deferredLightStylesheets.has(new URL(entry.name).pathname)
   ))).toBe(false);
+  const deferredLightCoreModules = new Set([
+    '/js/app-light-sun-modules.js',
+    '/js/light-channel-view.js',
+    '/js/light-conditions-now.js',
+    '/js/light-devices.js',
+    '/js/light-page-view.js',
+    '/js/light-tools.js',
+    '/js/sun-context.js',
+    '/js/sun-session-ui.js',
+    '/js/sun-spectrum.js',
+    '/js/sun.js',
+  ]);
+  const eagerlyLoadedLightCoreModules = entries
+    .map(entry => new URL(entry.name).pathname)
+    .filter(pathname => deferredLightCoreModules.has(pathname));
+  expect(eagerlyLoadedLightCoreModules).toEqual([]);
   const metrics = summarizeColdLoad(entries, appOrigin);
 
   console.log(`Cold-load budget: ${formatColdLoadSummary(metrics)}`);
@@ -336,6 +352,64 @@ test('first Chat action loads the composition once and opens the panel', async (
   expect(requestedPaths.filter(
     pathname => pathname === '/js/app-ai-interaction-modules.js',
   )).toHaveLength(1);
+});
+
+test('first Light route loads the feature once and renders end to end', async ({ page }) => {
+  const requestedPaths = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.origin === appOrigin) requestedPaths.push(url.pathname);
+  });
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.origin === appOrigin) {
+      await route.continue();
+      return;
+    }
+    await route.abort();
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
+      accepted: true,
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
+      acceptedAt: '2026-07-23T00:00:00.000Z',
+      appVersion: 'light-lazy-load',
+      location: 'light-lazy-load',
+    }));
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-ai-reminder-dismissed', '1');
+    localStorage.setItem('labcharts-onboard-extras-done-default', '1');
+    localStorage.setItem('labcharts-onboard-provider-skipped-default', '1');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
+
+  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  expect(requestedPaths).not.toContain('/js/app-light-sun-modules.js');
+
+  await page.evaluate(async () => {
+    const views = await import('/js/views.js');
+    await views.navigate('light');
+  });
+  await expect(page.locator('.light-page')).toHaveClass(/\bis-ready\b/);
+  await expect(page.getByRole('heading', { name: 'Light & Sun' })).toBeVisible();
+  expect(requestedPaths.filter(
+    pathname => pathname === '/js/app-light-sun-modules.js',
+  )).toHaveLength(1);
+  await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
+
+  await page.evaluate(async () => {
+    const views = await import('/js/views.js');
+    await views.navigate('dashboard');
+    await views.navigate('light');
+  });
+  await expect(page.locator('.light-page')).toHaveClass(/\bis-ready\b/);
+  expect(requestedPaths.filter(
+    pathname => pathname === '/js/app-light-sun-modules.js',
+  )).toHaveLength(1);
+  await expect(page.locator('link[data-light-sun-stylesheet]')).toHaveCount(7);
 });
 
 test('startup loads Light presets only when persisted devices need hydration', async ({ page }) => {

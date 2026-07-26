@@ -8,6 +8,7 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
+import { requestDeviceSessionAnalysis } from './light-sun-analysis-runtime.js';
 import {
   DEVICE_TYPE_CHANNELS,
   computeDeviceSessionDoses,
@@ -21,7 +22,7 @@ import {
 
 /** @type {LightDevicesStoreDeps} */
 const storeDeps = {
-  maybeAnalyzeDeviceSessionAfterFinish: () => {},
+  maybeAnalyzeDeviceSessionAfterFinish: requestDeviceSessionAnalysis,
 };
 
 /** @param {Partial<LightDevicesStoreDeps>} [deps] */

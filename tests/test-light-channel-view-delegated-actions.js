@@ -59,9 +59,10 @@ assert('Light channel feature hook wires runtime dependencies',
 assert('Light channel UI hook wires router dependency',
   /import \{ navigate \} from '\.\/views\.js';/.test(uiHooksSrc)
     && /configureLightChannelView\(\{ navigate \}\);/.test(uiHooksSrc));
-assert('Light channel hooks are loaded during startup',
+assert('Light channel hooks and router wiring load behind the feature boundary',
   lightSunModulesSrc.includes("import './light-channel-view-hooks.js';")
-    && uiShellModulesSrc.includes("import './light-channel-view-ui-hooks.js';"));
+    && lightSunModulesSrc.includes('configureLightChannelView({ navigate });')
+    && !uiShellModulesSrc.includes("import './light-channel-view-ui-hooks.js';"));
 assert('Service worker caches Light channel hooks',
   swSrc.includes("'/js/light-channel-view-hooks.js'")
     && swSrc.includes("'/js/light-channel-view-ui-hooks.js'"));

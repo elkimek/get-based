@@ -27,8 +27,12 @@ export function loadChatModule() {
     const load = useChatModuleRetryUrl
       ? loadChatRetryModule()
       : import('./app-ai-interaction-modules.js');
-    chatModulePromise = load
-      .then(module => {
+    const prepareLightSunContext = chatHostDeps.prepareLightSunContext;
+    const lightSunContextReady = typeof prepareLightSunContext === 'function'
+      ? Promise.resolve(prepareLightSunContext()).catch(() => null)
+      : Promise.resolve(null);
+    chatModulePromise = Promise.all([load, lightSunContextReady])
+      .then(([module]) => {
         chatModule = module;
         module.configureAppChatHooks(chatHostDeps);
         return module;
