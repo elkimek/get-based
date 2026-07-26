@@ -11,6 +11,11 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
 import { enforceFunctionCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
+import {
+  coverageEntryMatchesSource,
+  coverageFunctionRange,
+  isTopLevelScriptFunction,
+} from './coverage-model-helpers.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.PORT || '8000';
@@ -128,6 +133,11 @@ function sourceForFile(file) {
   return source;
 }
 
+function matchesRepositorySource(entry) {
+  const file = canonicalFile(entry.url);
+  return coverageEntryMatchesSource(entry, sourceForFile(file));
+}
+
 function lineOffsets(source) {
   const offsets = [0];
   for (let i = 0; i < source.length; i += 1) {
@@ -192,7 +202,7 @@ function addBrowserEntriesToModel(model, entries) {
   const canonical = new Map();
 
   for (const entry of entries) {
-    if (!isAppSource(entry.url)) continue;
+    if (!isAppSource(entry.url) || !matchesRepositorySource(entry)) continue;
     const file = canonicalFile(entry.url);
     const total = entrySource(entry).length || sourceForFile(file).length;
     if (!total) continue;
@@ -209,26 +219,37 @@ function addBrowserEntriesToModel(model, entries) {
   for (const [file, entry] of canonical) {
     const metrics = getFileMetrics(model, file, entrySource(entry).length || sourceForFile(file).length, 'playwright');
     coverageFunctions(entry)
-      .filter(fn => fn.functionName)
       .forEach((fn, index) => {
+        const range = coverageFunctionRange(fn);
+        if (!range || isTopLevelScriptFunction(fn, index, metrics.total)) return;
         const called = (fn.ranges || []).some(fnRange => (fnRange.count || 0) > 0);
-        addFunction(metrics, `${fn.functionName}:${index}`, fn.functionName, called);
+        addFunction(
+          metrics,
+          `${range.start}:${range.end}`,
+          fn.functionName || `(anonymous_${index - 1})`,
+          called,
+        );
       });
   }
 
   for (const entry of entries) {
-    if (!isAppSource(entry.url)) continue;
+    if (!isAppSource(entry.url) || !matchesRepositorySource(entry)) continue;
     const file = canonicalFile(entry.url);
     if (entry === canonical.get(file)) continue;
     const metrics = model.get(file);
     if (!metrics) continue;
 
-    for (const fn of coverageFunctions(entry)) {
-      const called = fn.functionName && (fn.ranges || []).some(fnRange => (fnRange.count || 0) > 0);
+    for (const [index, fn] of coverageFunctions(entry).entries()) {
+      const range = coverageFunctionRange(fn);
+      if (!range || isTopLevelScriptFunction(fn, index, metrics.total)) continue;
+      const called = (fn.ranges || []).some(fnRange => (fnRange.count || 0) > 0);
       if (!called) continue;
-      const target = [...metrics.functions.values()]
-        .find(candidate => candidate.name === fn.functionName && !candidate.called);
-      if (target) target.called = true;
+      addFunction(
+        metrics,
+        `${range.start}:${range.end}`,
+        fn.functionName || `(anonymous_${index - 1})`,
+        true,
+      );
     }
   }
 }
@@ -258,7 +279,7 @@ function readVitestCoverageModel() {
     for (const [id, fn] of Object.entries(fileCoverage.fnMap || {})) {
       if (!fn.name) continue;
       const range = locToRange(source, fn.loc, offsets) || locToRange(source, fn.decl, offsets) || { start: 0, end: 0 };
-      addFunction(metrics, `${fn.name}:${range.start}:${range.end}`, fn.name, (fileCoverage.f?.[id] || 0) > 0);
+      addFunction(metrics, `${range.start}:${range.end}`, fn.name, (fileCoverage.f?.[id] || 0) > 0);
     }
   }
 

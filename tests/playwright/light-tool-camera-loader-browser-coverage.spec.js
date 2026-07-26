@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 const lightToolsUrl = () => `/js/light-tools.js?cameraLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 

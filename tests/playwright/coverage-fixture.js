@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { expect, test as base } from '@playwright/test';
+import { sourceFingerprint } from '../../scripts/coverage-model-helpers.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const coverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
@@ -63,10 +64,12 @@ function coverageFile(testInfo, label) {
 }
 
 function shrinkEntry(entry) {
+  const source = entry.source || entry.text || '';
   return {
     url: entry.url,
     ranges: entry.ranges,
     functions: entry.functions,
+    ...sourceFingerprint(source),
     rawScriptCoverage: entry.rawScriptCoverage
       ? { functions: entry.rawScriptCoverage.functions }
       : undefined,
@@ -233,8 +236,9 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
 }
 
 export const test = base.extend({
-  page: async ({ page }, use, testInfo) => {
-    await seedCurrentLegalAcceptance(page);
+  seedLegalAcceptance: [true, { option: true }],
+  page: async ({ page, seedLegalAcceptance }, use, testInfo) => {
+    if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);
 
     if (!isCoverageEnabled()) {
       await use(page);
