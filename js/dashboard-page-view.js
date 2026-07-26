@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { escapeAttr, escapeHTML, formatDate } from './utils.js';
 import { getActiveData } from './data.js';
 import { getProfiles, profileStorageKey } from './profile.js';
-import { loadContextHealthDots } from './context-cards.js';
+import { loadContextHealthDots } from './health-data-loader.js';
 import { hasAIProvider, isAIPaused } from './api.js';
 import { loadCommitHash } from './commit-hash.js';
 import {

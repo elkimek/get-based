@@ -122,6 +122,7 @@ test('Context hub data source toggles control prompt and score context', async (
         },
       },
     };
+    await (await import('/js/health-data-loader.js')).loadDnaModule();
     lab.configureLabContext({
       buildSunContext: () => '[section:sun]\nLight context fixture\n[/section:sun]\n\n',
     });

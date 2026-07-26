@@ -15,11 +15,8 @@ import {
   notifyContextCardSavedRuntime,
 } from './context-cards-runtime.js';
 import {
-  appendImportedArrayItem,
-  ensureImportedArray,
-  replaceImportedArrayItem,
-  trimImportedArray,
-} from './data-merge.js';
+  recordContextCardChange,
+} from './context-cards-runtime.js';
 import {
   getConditionsSummary,
   getDietSummary,
@@ -387,37 +384,7 @@ export function refreshAllHealthDots() {
 // ── Change History ──
 
 export function recordChange(field) {
-  const today = new Date().toISOString().slice(0, 10);
-  const current = state.importedData[field];
-  const snapshot = current != null ? JSON.parse(JSON.stringify(current)) : null;
-  const snapshotStr = JSON.stringify(snapshot);
-  const history = ensureImportedArray(state.importedData, 'changeHistory');
-  // Skip if identical to last snapshot for this field
-  let lastIdx = -1;
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].field === field) {
-      lastIdx = i;
-      break;
-    }
-  }
-  if (lastIdx >= 0 && JSON.stringify(history[lastIdx].snapshot) === snapshotStr) return;
-  // Same field + same day → overwrite. Stamp updatedAt so cross-device
-  // tie-break prefers the newer write (composite-keyed merge in data-merge.js
-  // falls back to Date.parse(date) without this — same-day = tie = local-wins,
-  // silently dropping the remote's newer snapshot).
-  const now = Date.now();
-  const todayIdx = history.findIndex(e => e.field === field && e.date === today);
-  if (todayIdx >= 0) {
-    replaceImportedArrayItem(state.importedData, 'changeHistory', todayIdx, {
-      ...history[todayIdx],
-      snapshot,
-      updatedAt: now,
-    });
-  } else {
-    appendImportedArrayItem(state.importedData, 'changeHistory', { field, date: today, snapshot, updatedAt: now });
-  }
-  // Cap at 200
-  trimImportedArray(state.importedData, 'changeHistory', 200);
+  recordContextCardChange(field);
 }
 
 export function saveAndRefresh(msg, field) {

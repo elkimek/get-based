@@ -380,12 +380,9 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
         window.__startupUICalls.push('bindImportFileInput');
       }
     `,
-    '**/js/dna.js*': `
-      export function ensureSNPTable() {
-        window.__startupUICalls.push('ensureSNPTable');
-      }
-      export function ensureHaplogroupTable() {
-        window.__startupUICalls.push('ensureHaplogroupTable');
+    '**/js/health-data-loader.js*': `
+      export function ensureDnaTablesForPersistedState() {
+        window.__startupUICalls.push('ensureDnaTablesForPersistedState');
       }
     `,
     '**/js/changelog.js*': `
@@ -494,8 +491,7 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
           && window.__startupUICalls.includes('requestAnimationFrame')
           && window.__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 0)
           && window.__startupUICalls.includes('initSync')
-          && window.__startupUICalls.includes('ensureSNPTable')
-          && window.__startupUICalls.includes('ensureHaplogroupTable'),
+          && window.__startupUICalls.includes('ensureDnaTablesForPersistedState'),
         changelogNudgesAndDeferredDestinationsRun:
           window.__startupUICalls.includes('maybeShowChangelog')
           && window.__startupUICalls.includes('maybeShowAnalyticsConsent')

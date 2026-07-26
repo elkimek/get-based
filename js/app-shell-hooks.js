@@ -52,13 +52,14 @@ import { configureChatRuntimeCallbacks } from './chat-runtime.js';
 import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
 import { configureClientListRuntimeDeps } from './client-list-runtime.js';
 import { configureCompareCorrelationViews } from './compare-correlations.js';
-import { recordChange } from './context-cards.js';
-import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
+import {
+  configureContextCardsRuntimeCallbacks,
+  recordContextCardChange as recordChange,
+} from './context-cards-runtime.js';
 import {
   configureCryptoProfileDeps,
   encryptedSetItem,
 } from './crypto.js';
-import { openMenstrualCycleEditor, renderMenstrualCycleSection } from './cycle.js';
 import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import { configureDataRuntimeDeps, getActiveData, saveImportedData, updateHeaderDates } from './data.js';
@@ -80,6 +81,13 @@ import { loadImportStylesheet } from './import-loader.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
 import { configureLabContext } from './lab-context.js';
 import { configureLensPageShell } from './lens-page-shell.js';
+import {
+  detectWearableTrendSlots,
+  loadHealthDataContextForPersistedState,
+  openMenstrualCycleEditor,
+  renderMenstrualCycleSection,
+  renderSupplementsSection,
+} from './health-data-loader.js';
 import {
   configureLightSunShellLoaderDeps,
   loadLightSunModulesForPersistedState,
@@ -127,7 +135,6 @@ import {
   refreshProfileWearables,
   reloadProfileRuntimeShell,
 } from './profile-runtime.js';
-import { detectWearableTrendSlots } from './recommendations.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
   configureShellChatActionDeps,
@@ -141,7 +148,6 @@ import { configureStartupUIDeps } from './startup-ui.js';
 import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
 import { configureSyncPull } from './sync-pull.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
-import { renderSupplementsSection } from './supplements.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
 import { configureAppleHealthRuntimeDeps } from './wearables-apple-health-runtime.js';
@@ -172,6 +178,7 @@ configureChatLoader({
   navigate,
   openChatProviderQuiz,
   openSettingsModal,
+  prepareHealthDataContext: loadHealthDataContextForPersistedState,
   prepareLightSunContext: loadLightSunModulesForPersistedState,
   recordChange,
   refreshMobileDashboardActiveTab,

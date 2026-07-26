@@ -52,8 +52,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
 
       viewsModule.closeDashboardWidgetPicker?.();
       viewsModule.toggleDashboardOrganizeMode?.(false);
-      viewsModule.navigate('dashboard');
-      await delay(100);
+      await viewsModule.navigate('dashboard');
 
       const customizeBtn = document.querySelector('.dashboard-sticky-actions [data-dashboard-widget-action="toggle-organize"]');
       customizeBtn?.click();
@@ -133,8 +132,8 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       };
       localStorage.setItem(biometricSelectionKey, JSON.stringify(['bp_systolic', 'rhr']));
       viewsModule.addDashboardBiometricMetric?.('rhr');
-      viewsModule.navigate('dashboard');
-      await delay(250);
+      await viewsModule.navigate('dashboard');
+      await delay(150);
 
       const biometricWidget = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
       const biometricWidgetRenders = !!biometricWidget;
@@ -325,6 +324,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
 
     try {
 
+    await (await import('/js/health-data-loader.js')).loadRecommendationsModule();
     state.currentProfile = profileId;
     state.profileSex = 'male';
     state.profileDob = '1988-03-14';

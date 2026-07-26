@@ -1,5 +1,5 @@
 // @ts-check
-// app-health-data-modules.js - startup-loaded Health & Data feature modules
+// app-health-data-modules.js - full Health & Data composition for explicit warmup
 
 import './charts.js';
 import './notes.js';

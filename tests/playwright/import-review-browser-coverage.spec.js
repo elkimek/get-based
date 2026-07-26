@@ -57,6 +57,7 @@ test('import file input and drop zone route browser file types and busy states',
     };
 
     try {
+      await (await import('/js/import-loader.js')).loadPdfImport();
       dnaBridge.configureDnaModuleBridge({
         isDNAFileByContent: async file => (await file.text()).includes('MTDNA'),
         detectDNAFile: header => header.includes('MTDNA') ? 'mtdna' : 'autosomal',

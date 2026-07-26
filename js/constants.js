@@ -1,6 +1,8 @@
 // @ts-check
 // constants.js — Option arrays, chat personalities, system prompt, country data
 
+export const HAPLOGROUP_LIST = ['A','B','C','D','E','F','G','H','HV','I','J','K','L0','L1','L2','L3','L4','L5','L6','M','N','R','T','U','V','W','X','Z'];
+
 // ── Profile context card option arrays ──
 export const COMMON_CONDITIONS = [
   // Metabolic / endocrine

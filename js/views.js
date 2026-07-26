@@ -18,6 +18,20 @@ import {
   isLightSunUILoaded,
   loadLightSunUI,
 } from './light-sun-loader.js';
+import {
+  isBodyHealthDataReady,
+  isChartsModuleLoaded,
+  isDashboardHealthDataReady,
+  isDnaModuleLoaded,
+  isInsightHealthDataReady,
+  isRecommendationsHealthDataReady,
+  loadBodyHealthDataModules,
+  loadChartsModule,
+  loadDashboardHealthDataModules,
+  loadDnaModule,
+  loadInsightHealthDataModules,
+  loadRecommendationsHealthDataModules,
+} from './health-data-loader.js';
 import { state } from './state.js';
 import { createLensPageHandlers } from './lens-pages.js';
 import { lensPageActionAttrs, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
@@ -283,98 +297,137 @@ function showLight(data) {
   return showLightRoute(data);
 }
 
-function showGenomeRoute() {
-  if (isGeneticsStylesheetLoaded()) return showGenomeLens();
-
+/**
+ * @param {string} route
+ * @param {string} label
+ * @param {() => boolean} isReady
+ * @param {() => Promise<unknown>} prepare
+ * @param {(...args: any[]) => any} render
+ * @param {any[]} [args]
+ */
+function showPreparedRoute(route, label, isReady, prepare, render, args = []) {
+  if (isReady()) return render(...args);
   const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
-  if (content) renderDeferredRouteStatus(content, 'Loading Genome…', { busy: true });
+  if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
 
-  return loadGeneticsStylesheet()
+  return prepare()
     .then(() => {
-      if (state.currentView !== 'genome') return false;
-      showGenomeLens();
+      if (state.currentView !== route) return false;
+      render(...args);
+      // A prepared Dashboard renders its mobile shell after createNavigate's
+      // initial nav sync. Reconcile again so the temporary lens tab bar is
+      // removed instead of remaining beside the Dashboard-owned tab bar.
+      syncMobileBottomNav(route);
       return true;
     })
     .catch(err => {
-      console.error('Failed to load Genome presentation', err);
-      if (state.currentView === 'genome' && content) {
+      console.error(`Failed to load ${label}`, err);
+      if (state.currentView === route && content) {
         renderDeferredRouteStatus(
           content,
-          'Genome could not be loaded. Try opening the page again.',
+          `${label} could not be loaded. Try opening the page again.`,
           { error: true },
         );
       }
       return false;
     });
+}
+
+function showGenomeRoute() {
+  return showPreparedRoute(
+    'genome',
+    'Genome',
+    () => isGeneticsStylesheetLoaded() && isDnaModuleLoaded(),
+    () => Promise.all([loadGeneticsStylesheet(), loadDnaModule()]),
+    showGenomeLens,
+  );
 }
 
 /**
  * @param {string} route
  * @param {string} label
  * @param {() => any} render
+ * @param {{ charts?: boolean }} [options]
  */
-function showCategoryPresentationRoute(route, label, render) {
-  if (isCategoryViewsStylesheetLoaded()) return render();
-
-  const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
-  if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
-
-  return loadCategoryViewsStylesheet()
-    .then(() => {
-      if (state.currentView !== route) return false;
-      render();
-      return true;
-    })
-    .catch(err => {
-      console.error(`Failed to load ${label} presentation`, err);
-      if (state.currentView === route && content) {
-        renderDeferredRouteStatus(
-          content,
-          `${label} could not be loaded. Try opening the page again.`,
-          { error: true },
-        );
-      }
-      return false;
-    });
+function showCategoryPresentationRoute(route, label, render, options = {}) {
+  const needsCharts = options.charts === true;
+  return showPreparedRoute(
+    route,
+    label,
+    () => isCategoryViewsStylesheetLoaded() && (!needsCharts || isChartsModuleLoaded()),
+    () => Promise.all([
+      loadCategoryViewsStylesheet(),
+      ...(needsCharts ? [loadChartsModule()] : []),
+    ]),
+    render,
+  );
 }
 
-/**
- * @param {string} route
- * @param {string} label
- * @param {(...args: any[]) => any} render
- * @param {any[]} [args]
- */
-function showCycleAwareRoute(route, label, render, args = []) {
-  if (state.profileSex !== 'female' || isCycleStylesheetLoaded()) return render(...args);
-
-  const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
-  if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
-
-  return loadCycleStylesheet()
-    .then(function renderCycleRouteAfterStylesheet() {
-      if (state.currentView !== route) return false;
-      render(...args);
-      return true;
-    })
-    .catch(function handleCycleRouteLoadFailure(err) {
-      console.error(`Failed to load ${label} Cycle presentation`, err);
-      if (state.currentView === route && content) {
-        renderDeferredRouteStatus(
-          content,
-          `${label} could not be loaded. Try opening the page again.`,
-          { error: true },
-        );
-      }
-      return false;
-    });
+function dashboardRouteDataHasContent(data) {
+  const wearableMetrics = state.importedData?.wearableSummary?.metrics || {};
+  return Boolean(
+    data?.dates?.length
+    || Object.values(wearableMetrics).some(metric => metric?.latest != null)
+    || Object.values(data?.categories || {}).some(category => category?.singlePoint && category?.singleDate),
+  );
 }
 
 function showDashboardRoute(data) {
-  return showCycleAwareRoute('dashboard', 'Dashboard', showDashboard, [data]);
+  const routeData = data || getActiveData();
+  if (!dashboardRouteDataHasContent(routeData)) return showDashboard(routeData);
+  const prefs = getDashboardView().getDashboardWidgetPrefs();
+  const visibleWidgetIds = prefs.order.filter(id => !prefs.hidden.includes(id));
+  const needsCyclePresentation = state.profileSex === 'female'
+    && (visibleWidgetIds.includes('cycle') || state.importedData?.menstrualCycle);
+  const options = { visibleWidgetIds };
+  return showPreparedRoute(
+    'dashboard',
+    'Dashboard',
+    () => isDashboardHealthDataReady(routeData, options)
+      && (!needsCyclePresentation || isCycleStylesheetLoaded()),
+    () => Promise.all([
+      loadDashboardHealthDataModules(routeData, options),
+      ...(needsCyclePresentation ? [loadCycleStylesheet()] : []),
+    ]),
+    showDashboard,
+    [routeData],
+  );
 }
 
 function showBodyRoute() {
-  return showCycleAwareRoute('body', 'Body', showBodyLens);
+  return showPreparedRoute(
+    'body',
+    'Body',
+    () => isBodyHealthDataReady()
+      && (state.profileSex !== 'female' || isCycleStylesheetLoaded()),
+    () => Promise.all([
+      loadBodyHealthDataModules(),
+      ...(state.profileSex === 'female' ? [loadCycleStylesheet()] : []),
+    ]),
+    showBodyLens,
+  );
+}
+
+function showInsightRoute(data) {
+  return showPreparedRoute(
+    'insight',
+    'Insight',
+    isInsightHealthDataReady,
+    loadInsightHealthDataModules,
+    showInsightLens,
+    [data],
+  );
+}
+
+function showRecommendationsRoute(data) {
+  return showPreparedRoute(
+    'recommendations',
+    'Recommendations',
+    isRecommendationsHealthDataReady,
+    loadRecommendationsHealthDataModules,
+    showRecommendations,
+    [data],
+  );
 }
 
 const _navigate = createNavigate({
@@ -384,12 +437,13 @@ const _navigate = createNavigate({
     biologyScores: showBiologyScoresLens,
     genome: showGenomeRoute,
     body: showBodyRoute,
-    insight: showInsightLens,
-    recommendations: showRecommendations,
+    insight: showInsightRoute,
+    recommendations: showRecommendationsRoute,
     correlations: data => showCategoryPresentationRoute(
       'correlations',
       'Correlations',
       () => showCorrelations(data),
+      { charts: true },
     ),
     compare: data => showCategoryPresentationRoute('compare', 'Compare', () => showCompare(data)),
     light: showLightRoute,
@@ -397,6 +451,7 @@ const _navigate = createNavigate({
       category,
       'Category',
       () => showCategory(category, data),
+      { charts: true },
     ),
   },
   syncMobileBottomNav,

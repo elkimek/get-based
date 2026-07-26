@@ -415,8 +415,11 @@ console.log('12. Source Integration');
 const mainSrc = await fetchWithRetry('js/main.js');
 const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
 const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
+const healthDataLoaderSrc = await fetchWithRetry('js/health-data-loader.js');
 assert('main.js imports app-feature-modules.js', mainSrc.includes("'./app-feature-modules.js'"));
-assert('app-feature-modules.js delegates health data modules', appFeatureModulesSrc.includes("'./app-health-data-modules.js'"));
+assert('app-feature-modules.js lazy-loads health data modules',
+  appFeatureModulesSrc.includes("'./health-data-loader.js'")
+    && healthDataLoaderSrc.includes("import('./dna.js')"));
 assert('app-health-data-modules.js imports dna.js', appHealthDataModulesSrc.includes("'./dna.js'"));
 // DNA detection in the file-input path is now delegated to
 // classifyImportFiles (pdf-import.js); import-file-input.js consumes the returned

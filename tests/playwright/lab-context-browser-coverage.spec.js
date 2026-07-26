@@ -179,6 +179,11 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
           },
         },
       };
+      const healthData = await import('/js/health-data-loader.js');
+      await Promise.all([
+        healthData.loadCycleModule(),
+        healthData.loadDnaModule(),
+      ]);
       dataModule.invalidateActiveDataCache();
       labContext.invalidateLabContextCache();
 

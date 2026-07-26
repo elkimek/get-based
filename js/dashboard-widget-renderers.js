@@ -12,7 +12,7 @@ import {
 import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { createDashboardLabWidgetRenderers } from './dashboard-lab-widget-renderers.js';
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
-import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './dna.js';
+import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './health-data-loader.js';
 import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
 import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
 

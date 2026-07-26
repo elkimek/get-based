@@ -4,10 +4,13 @@
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { getActiveData, filterDatesByRange, renderDateRangeFilter } from './data.js';
-import { ensureSNPTable } from './dna.js';
-import { renderSupplementsSection } from './supplements.js';
-import { renderMenstrualCycleSection } from './cycle.js';
-import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
+import {
+  ensureSNPTable,
+  loadContextHealthDots,
+  renderMenstrualCycleSection,
+  renderProfileContextCards,
+  renderSupplementsSection,
+} from './health-data-loader.js';
 import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview, hasBiologyScoreContextReview } from './biology-score-context-ai.js';

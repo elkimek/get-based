@@ -2,6 +2,7 @@
 // dna-mtdna.js - mtDNA haplogroup parsing, preview, persistence, and manual entry.
 
 import { state } from './state.js';
+import { HAPLOGROUP_LIST } from './constants.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -251,7 +252,7 @@ export async function deleteMtDNAData() {
   }
 }
 
-export const HAPLOGROUP_LIST = ['A','B','C','D','E','F','G','H','HV','I','J','K','L0','L1','L2','L3','L4','L5','L6','M','N','R','T','U','V','W','X','Z'];
+export { HAPLOGROUP_LIST };
 
 export async function setManualHaplogroup(haplogroup) {
   if (!haplogroup) return;

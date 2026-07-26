@@ -155,10 +155,13 @@ test('empty-dashboard demo action loads the real export facade on demand', async
   await page.locator(
     '[data-dashboard-welcome-action="load-demo"][data-dashboard-welcome-demo="female"]',
   ).click();
-  await page.waitForFunction(async () => {
-    const loader = await import('/js/export-loader.js');
-    return loader.isExportFacadeModuleLoaded();
-  }, undefined, { timeout: 15_000 });
+  await expect.poll(
+    () => page.evaluate(async () => {
+      const loader = await import('/js/export-loader.js');
+      return loader.isExportFacadeModuleLoaded();
+    }),
+    { timeout: 15_000 },
+  ).toBe(true);
 
   const after = await page.evaluate(async () => {
     const loader = await import('/js/export-loader.js');

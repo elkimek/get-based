@@ -7,7 +7,12 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { saveImportedData } from './data.js';
 import { callClaudeAPI, getAIProvider, getActiveModelId, getActiveModelDisplay } from './api.js';
 import { renderMarkdown } from './markdown.js';
-import { loadEMFCatalog, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
+import {
+  detectMitigationsInText,
+  isProductRecsEnabled,
+  loadEMFCatalog,
+  renderEMFMitigationRecs,
+} from './health-data-loader.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 
 /**

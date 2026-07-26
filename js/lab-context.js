@@ -9,7 +9,12 @@ import { getActiveData } from './data.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfileHeight, getProfileLocation, getLatitudeFromLocation } from './profile.js';
-import { getBloodDrawPhases, getNextBestDrawDate, detectPerimenopausePattern, detectCycleIronAlerts } from './cycle.js';
+import {
+  detectCycleIronAlertsRuntime as detectCycleIronAlerts,
+  detectCyclePerimenopausePatternRuntime as detectPerimenopausePattern,
+  getCycleBloodDrawPhasesRuntime as getBloodDrawPhases,
+  getCycleNextBestDrawDateRuntime as getNextBestDrawDate,
+} from './cycle-runtime.js';
 import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
