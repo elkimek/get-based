@@ -123,6 +123,8 @@ npm run typecheck
 npm run typecheck:checkjs
 npm run architecture:check
 npm run vendor:check
+npm run supply-chain:check
+npm run sbom
 npm run quality
 npm test
 npm run test:firefox
@@ -131,10 +133,11 @@ npm run performance:check
 COVERAGE=1 ./run-tests.sh
 ```
 
-`./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets, and static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs Playwright browser assertions.
+`./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets and their supply-chain inventory, and the static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs Playwright browser assertions.
 `COVERAGE=1 ./run-tests.sh` also combines Vitest and Playwright V8 function coverage and enforces the committed ratchet in `scripts/coverage-baseline.json`; CI runs this mode on every change.
 `npm run test:firefox` runs the focused Firefox critical-flow suite; install its browser binary once with `npx playwright install firefox`.
 `npm run performance:check` runs the focused cold mobile-load check and enforces the committed request-count, compressed-transfer, and decoded-byte ceilings.
+`npm run sbom` writes a combined CycloneDX inventory for npm and vendored browser components to `artifacts/getbased.cdx.json`.
 
 ## Tech stack
 

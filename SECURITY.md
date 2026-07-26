@@ -27,3 +27,18 @@ I'll acknowledge receipt within 48 hours and aim to release a fix within 7 days 
 getbased is a client-side application. All health data stays in your browser (localStorage + IndexedDB). There is no server-side database. Optional cross-device sync uses E2E encrypted CRDT replication — the relay only sees ciphertext.
 
 API keys are stored in the browser via `encryptedSetItem` (AES-256-GCM) when encryption is enabled.
+
+## Dependency Monitoring
+
+`vendor/components.json` is the machine-readable inventory for browser
+libraries and assets committed under `vendor/`. `npm run supply-chain:check`
+fails when a vendored file is unowned, multiply owned, or missing the package
+metadata required for its monitoring mode.
+
+`npm run sbom` combines that inventory with `package-lock.json` into
+`artifacts/getbased.cdx.json` in CycloneDX 1.5 format. The Supply chain GitHub
+Actions workflow uploads the SBOM and submits the nine versioned npm vendor
+components to GitHub's dependency graph, where supported packages receive
+Dependabot vulnerability alerts. Non-npm components such as SQLite and
+venice-e2ee remain visible in the SBOM; unversioned font assets are inventory
+checked but are not eligible for version-based advisory matching.

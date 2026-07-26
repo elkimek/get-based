@@ -1,0 +1,82 @@
+name: Supply chain
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/supply-chain.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/supply-chain.mjs"
+      - "tests/supply-chain.test.js"
+      - "vendor/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/supply-chain.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/supply-chain.mjs"
+      - "tests/supply-chain.test.js"
+      - "vendor/**"
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Validate vendored component inventory
+        run: npm run supply-chain:check
+
+      - name: Generate combined CycloneDX SBOM
+        run: npm run sbom
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: getbased-cyclonedx-sbom
+          path: artifacts/getbased.cdx.json
+          if-no-files-found: error
+          retention-days: 14
+
+  submit:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build vendored dependency snapshot
+        run: npm run --silent supply-chain:snapshot > "$RUNNER_TEMP/vendor-dependency-snapshot.json"
+
+      - name: Submit snapshot to GitHub dependency graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh api
+          --method POST
+          -H "X-GitHub-Api-Version: 2026-03-10"
+          "repos/${GITHUB_REPOSITORY}/dependency-graph/snapshots"
+          --input "$RUNNER_TEMP/vendor-dependency-snapshot.json"

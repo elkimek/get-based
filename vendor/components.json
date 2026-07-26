@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "components": [
+    {
+      "name": "chart.js",
+      "version": "4.4.7",
+      "purl": "pkg:npm/chart.js@4.4.7",
+      "license": "MIT",
+      "source": "https://github.com/chartjs/Chart.js",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/chart.min.js"
+      ]
+    },
+    {
+      "name": "pdfjs-dist",
+      "version": "4.10.38",
+      "purl": "pkg:npm/pdfjs-dist@4.10.38",
+      "license": "Apache-2.0",
+      "source": "https://github.com/mozilla/pdf.js",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/pdf.min.mjs",
+        "vendor/pdf.worker.min.mjs"
+      ]
+    },
+    {
+      "name": "mammoth",
+      "version": "1.8.0",
+      "purl": "pkg:npm/mammoth@1.8.0",
+      "license": "BSD-2-Clause",
+      "source": "https://github.com/mwilliamson/mammoth.js",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/mammoth.browser.min.js"
+      ]
+    },
+    {
+      "name": "jszip",
+      "version": "3.10.1",
+      "purl": "pkg:npm/jszip@3.10.1",
+      "license": "MIT",
+      "source": "https://github.com/Stuk/jszip",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/jszip.min.js"
+      ]
+    },
+    {
+      "name": "@cashu/cashu-ts",
+      "version": "4.7.0",
+      "purl": "pkg:npm/%40cashu/cashu-ts@4.7.0",
+      "license": "MIT",
+      "source": "https://github.com/cashubtc/cashu-ts",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/cashu-ts.js"
+      ]
+    },
+    {
+      "name": "qrcode-generator",
+      "version": "1.4.4",
+      "purl": "pkg:npm/qrcode-generator@1.4.4",
+      "license": "MIT",
+      "source": "https://github.com/kazuhikoarase/qrcode-generator",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/qrcode-generator.js"
+      ]
+    },
+    {
+      "name": "venice-e2ee",
+      "version": "0.2.0",
+      "purl": "pkg:github/elkimek/venice-e2ee@0.2.0",
+      "license": "GPL-3.0-only",
+      "source": "https://github.com/elkimek/venice-e2ee",
+      "monitoring": "sbom-only",
+      "files": [
+        "vendor/venice-e2ee.js"
+      ]
+    },
+    {
+      "name": "tinfoil",
+      "version": "1.1.7",
+      "purl": "pkg:npm/tinfoil@1.1.7",
+      "license": "AGPL-3.0-or-later",
+      "source": "https://github.com/tinfoilsh/tinfoil-js",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/tinfoil-browser.js"
+      ]
+    },
+    {
+      "name": "ehbp",
+      "version": "0.2.3",
+      "purl": "pkg:npm/ehbp@0.2.3",
+      "license": "MIT",
+      "source": "https://github.com/tinfoilsh/encrypted-http-body-protocol",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/ehbp-browser.js"
+      ]
+    },
+    {
+      "name": "@evolu/common",
+      "version": "7.4.1",
+      "purl": "pkg:npm/%40evolu/common@7.4.1",
+      "license": "MIT",
+      "source": "https://github.com/evoluhq/evolu",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu/evolu-bundle.js",
+        "vendor/evolu/Db.worker.js"
+      ]
+    },
+    {
+      "name": "SQLite",
+      "version": "3.50.4",
+      "purl": "pkg:generic/sqlite@3.50.4",
+      "license": "Public Domain",
+      "source": "https://www.sqlite.org/",
+      "monitoring": "sbom-only",
+      "files": [
+        "vendor/evolu/sqlite3-bundler-friendly.mjs",
+        "vendor/evolu/sqlite3-opfs-async-proxy.js",
+        "vendor/evolu/sqlite3-worker1-bundler-friendly.mjs",
+        "vendor/evolu/sqlite3.wasm"
+      ]
+    },
+    {
+      "name": "Inter",
+      "license": "OFL-1.1",
+      "source": "https://github.com/rsms/inter",
+      "monitoring": "asset-only",
+      "files": [
+        "vendor/fonts/inter-*.woff2"
+      ]
+    },
+    {
+      "name": "Outfit",
+      "license": "OFL-1.1",
+      "source": "https://github.com/Outfit/Outfit-Fonts",
+      "monitoring": "asset-only",
+      "files": [
+        "vendor/fonts/outfit-*.woff2"
+      ]
+    },
+    {
+      "name": "JetBrains Mono",
+      "license": "OFL-1.1",
+      "source": "https://github.com/JetBrains/JetBrainsMono",
+      "monitoring": "asset-only",
+      "files": [
+        "vendor/fonts/jetbrains-mono-*.woff2"
+      ]
+    },
+    {
+      "name": "VT323",
+      "license": "OFL-1.1",
+      "source": "https://github.com/phoikoi/VT323",
+      "monitoring": "asset-only",
+      "files": [
+        "vendor/fonts/vt323-*.woff2"
+      ]
+    }
+  ],
+  "projectFiles": [
+    "vendor/bip39-minimal.js",
+    "vendor/chartjs-adapter-native.js",
+    "vendor/ppq-private-tee.js"
+  ],
+  "metadataFiles": [
+    "vendor/browser-vendors.json",
+    "vendor/components.json",
+    "vendor/fonts/fonts.css",
+    "vendor/fonts/OFL.txt"
+  ]
+}
