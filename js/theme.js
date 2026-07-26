@@ -354,6 +354,7 @@ export function setTheme(theme) {
         return false;
       });
   }
+  return true;
 }
 
 function refreshThemeDependents() {

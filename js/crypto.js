@@ -337,7 +337,7 @@ export async function _setTestSessionKey(passphrase) {
   if (!appWindow.__WEARABLES_TEST) {
     throw new Error('_setTestSessionKey is test-only — enable the runtime __WEARABLES_TEST flag first');
   }
-  if (passphrase === null) { _sessionKey = null; return; }
+  if (passphrase === null) { _sessionKey = null; return null; }
   const salt = crypto.getRandomValues(new Uint8Array(16));
   _sessionKey = await deriveKey(passphrase, salt);
   return salt;

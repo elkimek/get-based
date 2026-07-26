@@ -1104,6 +1104,8 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1
         && !!detail
         && getComputedStyle(detail).paddingTop === '0px';
+      outcomes.missingMarkerReturnsFalse =
+        await modal.showDetailModal('proteins_missing') === false;
       outcomes.detailModalRendersAltUnitsQuickPinAndRecommendations =
         detailText.includes('Albumin renamed')
         && detailText.includes('g/dl')

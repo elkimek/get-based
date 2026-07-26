@@ -98,7 +98,8 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         && wrongKeyValue === null
         && cryptoStore.getCachedKey('labcharts-api-key') === rawApiKey;
 
-      await cryptoStore._setTestSessionKey(null);
+      const clearedSessionKey = await cryptoStore._setTestSessionKey(null);
+      outcomes.sessionKeyClearReturnsNull = clearedSessionKey === null;
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-salt');
       localStorage.removeItem('labcharts-api-key');

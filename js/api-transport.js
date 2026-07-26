@@ -134,4 +134,5 @@ export async function fetchWithRetry(
     if (options.signal?.aborted) return res;
     await new Promise(r => setTimeout(r, delay));
   }
+  throw new Error('request retry loop exhausted unexpectedly');
 }

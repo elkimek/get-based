@@ -140,7 +140,7 @@ export function clearSyncPullTimers() {
 export function forcePull() {
   if (!currentEvolu() || !currentProfileQuery()) {
     console.warn('[sync] Cannot force pull — Evolu not initialized');
-    return;
+    return undefined;
   }
   _pulling = false;
   dbg('Force pull triggered');

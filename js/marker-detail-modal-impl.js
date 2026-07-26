@@ -258,19 +258,19 @@ function renderDetailModal(id, opts = {}) {
   // id is interpolated into delegated data-action attributes throughout the
   // modal body. Reject anything outside the strict allowlist so a poisoned
   // customMarker key cannot break attribute context or state lookups.
-  if (!safeMarkerId(id)) return;
+  if (!safeMarkerId(id)) return false;
   const data = getActiveData();
   const idx = id.indexOf('_');
   const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
   let marker = data.categories[catKey]?.markers[mKey];
   if (marker) state.markerRegistry[id] = marker;
-  if (!marker) return;
+  if (!marker) return false;
   // Remember which marker is open so toggleAltUnits can re-render in place.
   state._activeDetailMarkerId = id;
   rememberModalTrigger();
   const modal = setDetailModalShell('marker-detail-modal');
   const overlay = document.getElementById("modal-overlay");
-  if (!modal) return;
+  if (!modal) return false;
   modal.dataset.syncRefreshKind = 'marker';
   modal.dataset.syncRefreshItemId = id;
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
