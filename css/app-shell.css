@@ -234,8 +234,11 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   line-height: 1.45;
 }
 .legal-consent-check input { margin-top: 3px; accent-color: var(--accent); }
-.legal-consent-check a { color: var(--accent); text-decoration: none; }
-.legal-consent-check a:hover { text-decoration: underline; }
+.legal-consent-check a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: .16em;
+}
 .legal-consent-actions {
   display: flex;
   align-items: center;

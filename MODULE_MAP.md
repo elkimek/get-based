@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 482 |
+| Modules | 483 |
 | Internal import edges | 2120 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
@@ -424,8 +424,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>legal</code> family — 1 module</summary>
+<details><summary><code>legal</code> family — 2 modules</summary>
 
+- [`js/legal-consent-bootstrap.js`](js/legal-consent-bootstrap.js) → no in-scope imports
 - [`js/legal-consent.js`](js/legal-consent.js) → [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 
 </details>

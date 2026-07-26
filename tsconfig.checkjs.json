@@ -446,6 +446,7 @@
     "js/image-utils.js",
     "js/lab-entry-mutations.js",
     "js/lab-entry.js",
+    "js/legal-consent-bootstrap.js",
     "js/legal-consent.js",
     "js/lighting-hardware-caveats.js",
     "js/local-ai-discovery.js",

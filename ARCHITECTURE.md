@@ -22,14 +22,16 @@ file covers code ownership and dependency rules that must change with the app.
 
 ## Runtime topology
 
-getbased is a static browser application. There is no production bundling
-step: `index.html` loads `js/main.js`, and native ES modules form the runtime
-graph. Hosted deployments add small Vercel functions for operations that
-cannot run directly in the browser.
+getbased is a static browser application. Local development loads
+`js/main.js` and its native ES-module graph directly. Hosted deployments run
+the Rolldown production build, which collapses the static startup graph into a
+hashed entry bundle and preserves lazy feature chunks. Small Vercel functions
+handle operations that cannot run directly in the browser.
 
 ```mermaid
 flowchart TD
-  HTML[index.html + service worker] --> Main[js/main.js]
+  HTML[index.html + service worker] --> Legal[prerendered legal gate + bootstrap]
+  HTML --> Main[js/main.js or production entry bundle]
   Main --> Composition[app-* composition modules]
   Composition --> Startup[startup orchestrator and phases]
   Startup --> Features[feature workflows and UI]
@@ -161,6 +163,16 @@ ceilings in [`scripts/cold-load-budget.json`](scripts/cold-load-budget.json)
 cover same-origin application request count, compressed transfer bytes, and
 decoded bytes. Runtime `/api/*` calls and cross-origin services are excluded so
 the measurement tracks the shipped app graph rather than network availability.
+
+The mandatory Terms/Privacy gate is prerendered at the start of `index.html`.
+`legal-consent-bootstrap.js` validates current acceptance and makes a required
+gate interactive before the main application graph arrives. Development loads
+that bootstrap as a standalone classic script; the production build inlines
+the same checked source into the HTML to avoid an extra render-blocking network
+round trip. `legal-consent.js` retains the full application integration and
+fallback path after startup. Both paths dispatch the same
+`legal-consent-accepted` event so changelog, analytics, backup, and deep-link
+destinations remain ordered behind acceptance.
 
 The browser check runs in the normal Chromium suite and therefore in CI. Lower
 the ceilings as route and feature lazy loading removes startup resources; do

@@ -9,6 +9,7 @@ export const TERMS_VERSION = '2026-06-22';
 export const PRIVACY_VERSION = '2026-06-22';
 
 const LEGAL_ACTION_ATTR = 'data-legal-consent-action';
+let bootstrapNotificationBound = false;
 
 function nowIso() {
   try { return new Date().toISOString(); } catch { return ''; }
@@ -78,7 +79,7 @@ function renderLegalConsentModal({ update = false } = {}) {
       </ul>
       <label class="legal-consent-check">
         <input type="checkbox" id="legal-consent-checkbox">
-        <span>I have read and agree to the <a href="${legalHref('/terms')}" target="_blank" rel="noopener">Terms of Service</a> and <a href="${legalHref('/privacy')}" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+        <span>I have read and agree to the <a href="${legalHref('/terms')}" data-legal-path="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="${legalHref('/privacy')}" data-legal-path="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
       </label>
       <div class="legal-consent-actions">
         <button type="button" class="legal-consent-accept" ${LEGAL_ACTION_ATTR}="accept" disabled>Accept & continue</button>
@@ -89,6 +90,75 @@ function renderLegalConsentModal({ update = false } = {}) {
 function closeLegalConsentGate() {
   document.getElementById('legal-consent-overlay')?.remove();
   document.body.classList.remove('legal-consent-visible');
+}
+
+function backfillBootstrapAcceptanceMetadata() {
+  const accepted = getLegalAcceptance();
+  if (!accepted?.accepted || accepted.appVersion) return;
+  try {
+    localStorage.setItem(LEGAL_ACCEPTANCE_KEY, JSON.stringify({
+      ...accepted,
+      appVersion: getAppVersionRuntime() || null,
+    }));
+  } catch {
+    // Acceptance already succeeded. Metadata backfill must not reopen the gate
+    // when storage becomes unavailable between bootstrap and app startup.
+  }
+}
+
+function showAcceptanceNotification(persisted) {
+  if (persisted) {
+    showNotification('Terms and Privacy accepted.', 'success', 3000);
+  } else {
+    showNotification('Terms accepted for this session. Your browser blocked saving the acceptance record, so you may be asked again next visit.', 'warning', 6000);
+  }
+}
+
+function consumeBootstrapAcceptanceResult() {
+  const result = document.documentElement.dataset.legalConsentBootstrapResult;
+  if (result !== 'persisted' && result !== 'session') return null;
+  delete document.documentElement.dataset.legalConsentBootstrapResult;
+  return result;
+}
+
+function notifyBootstrapAcceptance() {
+  const result = consumeBootstrapAcceptanceResult();
+  if (result) showAcceptanceNotification(result === 'persisted');
+}
+
+function bindBootstrapAcceptanceNotification() {
+  if (bootstrapNotificationBound) return;
+  bootstrapNotificationBound = true;
+  globalThis.addEventListener('legal-consent-accepted', notifyBootstrapAcceptance, { once: true });
+}
+
+function prepareLegalConsentOverlay(overlay, { update = false } = {}) {
+  overlay.querySelectorAll('[data-legal-path]').forEach(link => {
+    if (!(link instanceof HTMLAnchorElement)) return;
+    link.href = legalHref(link.dataset.legalPath || '/');
+  });
+  if (update) {
+    const title = overlay.querySelector('#legal-consent-title');
+    const description = overlay.querySelector('#legal-consent-desc');
+    if (title) title.textContent = 'Review updated Terms & Privacy';
+    if (description) {
+      description.textContent = 'The Terms or Privacy Policy changed since this browser last accepted them. Please review and accept the current versions before continuing.';
+    }
+  }
+}
+
+function bindLegalConsentOverlay(overlay) {
+  if (overlay.dataset.legalConsentModuleBound === 'true') return;
+  overlay.dataset.legalConsentModuleBound = 'true';
+  overlay.addEventListener('click', handleLegalConsentClick);
+  overlay.addEventListener('change', handleLegalConsentChange);
+  const checkbox = /** @type {HTMLInputElement | null} */ (
+    overlay.querySelector('#legal-consent-checkbox')
+  );
+  const acceptButton = /** @type {HTMLButtonElement | null} */ (
+    overlay.querySelector(`[${LEGAL_ACTION_ATTR}="accept"]`)
+  );
+  if (acceptButton) acceptButton.disabled = !checkbox?.checked;
 }
 
 function handleLegalConsentClick(event) {
@@ -110,11 +180,7 @@ function handleLegalConsentClick(event) {
   }
   closeLegalConsentGate();
   dispatchUtilsRuntimeEvent('legal-consent-accepted');
-  if (persisted) {
-    showNotification('Terms and Privacy accepted.', 'success', 3000);
-  } else {
-    showNotification('Terms accepted for this session. Your browser blocked saving the acceptance record, so you may be asked again next visit.', 'warning', 6000);
-  }
+  showAcceptanceNotification(persisted);
 }
 
 function handleLegalConsentChange(event) {
@@ -125,16 +191,36 @@ function handleLegalConsentChange(event) {
 }
 
 export function maybeShowLegalConsentGate() {
-  if (hasAcceptedCurrentLegal()) return false;
-  if (document.getElementById('legal-consent-overlay')) return true;
+  const bootstrapResult = document.documentElement.dataset.legalConsentBootstrapResult;
+  if (hasAcceptedCurrentLegal() || bootstrapResult === 'session') {
+    if (bootstrapResult === 'persisted') backfillBootstrapAcceptanceMetadata();
+    closeLegalConsentGate();
+    notifyBootstrapAcceptance();
+    return false;
+  }
   const previous = getLegalAcceptance();
-  const overlay = document.createElement('div');
-  overlay.id = 'legal-consent-overlay';
-  overlay.className = 'modal-overlay legal-consent-overlay show';
-  overlay.innerHTML = renderLegalConsentModal({ update: !!previous });
-  overlay.addEventListener('click', handleLegalConsentClick);
-  overlay.addEventListener('change', handleLegalConsentChange);
-  document.body.appendChild(overlay);
+  let overlay = /** @type {HTMLElement | null} */ (document.getElementById('legal-consent-overlay'));
+  const prerenderMatchesCurrent = overlay?.dataset.termsVersion === TERMS_VERSION
+    && overlay?.dataset.privacyVersion === PRIVACY_VERSION;
+  if (overlay && !prerenderMatchesCurrent) {
+    overlay.remove();
+    overlay = null;
+  }
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'legal-consent-overlay';
+    overlay.className = 'modal-overlay legal-consent-overlay show';
+    overlay.dataset.termsVersion = TERMS_VERSION;
+    overlay.dataset.privacyVersion = PRIVACY_VERSION;
+    overlay.innerHTML = renderLegalConsentModal({ update: !!previous });
+    document.body.appendChild(overlay);
+  }
+  prepareLegalConsentOverlay(overlay, { update: !!previous });
+  if (overlay.dataset.legalConsentBootstrapBound === 'true') {
+    bindBootstrapAcceptanceNotification();
+  } else {
+    bindLegalConsentOverlay(overlay);
+  }
   document.body.classList.add('legal-consent-visible');
   setTimeout(() => document.getElementById('legal-consent-checkbox')?.focus(), 30);
   return true;
