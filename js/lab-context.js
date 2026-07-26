@@ -68,6 +68,7 @@ export function configureLabContext(deps = {}) {
 // ═══════════════════════════════════════════════
 // LAB CONTEXT MEMOIZATION
 // ═══════════════════════════════════════════════
+/** @type {{ fingerprint: string | null, context: string | null }} */
 let _labContextCache = { fingerprint: null, context: null };
 
 function _getActiveContextProfileId() {

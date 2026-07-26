@@ -23,6 +23,7 @@
     "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
+    "typecheck:strict-null": "node scripts/strict-null-ratchet.mjs",
     "vendor:build": "node scripts/build-browser-vendors.mjs",
     "vendor:check": "node scripts/build-browser-vendors.mjs --check",
     "test:watch": "vitest",

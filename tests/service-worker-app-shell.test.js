@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -24,19 +25,44 @@ function resolveLocalAsset(importerUrl, specifier) {
   return path.posix.normalize(path.posix.join(path.posix.dirname(importerUrl), clean));
 }
 
-function moduleDependencies(moduleUrl) {
-  const source = readRepoFile(moduleUrl);
+function moduleSpecifiers(source, fileName = 'module.js') {
   const specifiers = new Set();
-  const patterns = [
-    /\bfrom\s*['"]([^'"]+)['"]/g,
-    /\bimport\s*['"]([^'"]+)['"]/g,
-    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-    /new\s+URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url\s*\)/g,
-  ];
-  for (const pattern of patterns) {
-    for (const match of source.matchAll(pattern)) specifiers.add(match[1]);
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+
+  function addStringLiteral(node) {
+    if (node && ts.isStringLiteralLike(node)) specifiers.add(node.text);
   }
-  return [...specifiers]
+
+  function isImportMetaUrl(node) {
+    return ts.isPropertyAccessExpression(node)
+      && node.name.text === 'url'
+      && ts.isMetaProperty(node.expression)
+      && node.expression.keywordToken === ts.SyntaxKind.ImportKeyword
+      && node.expression.name.text === 'meta';
+  }
+
+  function visit(node) {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      addStringLiteral(node.moduleSpecifier);
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      addStringLiteral(node.arguments[0]);
+    } else if (
+      ts.isNewExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === 'URL'
+      && node.arguments?.length === 2
+      && isImportMetaUrl(node.arguments[1])
+    ) {
+      addStringLiteral(node.arguments[0]);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return [...specifiers];
+}
+
+function moduleDependencies(moduleUrl) {
+  return moduleSpecifiers(readRepoFile(moduleUrl), moduleUrl)
     .map((specifier) => resolveLocalAsset(moduleUrl, specifier))
     .filter(Boolean);
 }
@@ -79,6 +105,24 @@ function cssDependencies(cssUrl) {
 }
 
 describe('service worker app-shell completeness', () => {
+  it('tracks runtime imports without treating JSDoc import types as modules', () => {
+    const source = `
+      /** @type {import('./types.js').RuntimeContract} */
+      const runtime = {};
+      import './side-effect.js';
+      export { helper } from './helper.js';
+      const lazy = import('./lazy.js');
+      const worker = new Worker(new URL('./worker.js', import.meta.url));
+    `;
+
+    expect(moduleSpecifiers(source).sort()).toEqual([
+      './helper.js',
+      './lazy.js',
+      './side-effect.js',
+      './worker.js',
+    ]);
+  });
+
   it('lists unique app-shell URLs that all resolve to local files', () => {
     const entries = appShellEntries();
     const duplicates = entries.filter((entry, index) => entries.indexOf(entry) !== index);

@@ -628,6 +628,11 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
   });
 }
 
+/**
+ * @template T
+ * @param {T} obj
+ * @returns {obj is NonNullable<T>}
+ */
 export function hasCardContent(obj) {
   if (!obj) return false;
   for (const [key, val] of Object.entries(obj)) {

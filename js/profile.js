@@ -154,46 +154,7 @@ function refreshProfileWearables(profileId, biometrics) {
  *   heightUnit?: string,
  *   pinned?: boolean
  * }} ProfileMetaUpdates
- * @typedef {{
- *   entries: Array<Record<string, any>>,
- *   notes: any[],
- *   supplements: any[],
- *   healthGoals: any[],
- *   diagnoses: any,
- *   diet: any,
- *   exercise: any,
- *   sleepRest: any,
- *   lightCircadian: any,
- *   stress: any,
- *   loveLife: any,
- *   environment: any,
- *   interpretiveLens: string,
- *   contextNotes: string,
- *   menstrualCycle: any,
- *   emfAssessment: any,
- *   customMarkers: Record<string, any>,
- *   markerNotes: Record<string, any>,
- *   markerValueNotes: Record<string, any>,
- *   biologyScoreAI: Record<string, any>,
- *   contextSourceSettings: Record<string, boolean>,
- *   importSnapshots: any[],
- *   markerLabels?: Record<string, any>,
- *   refOverrides?: Record<string, any>,
- *   changeHistory: any[],
- *   genetics: any,
- *   biometrics?: any,
- *   manualValues?: Record<string, any>,
- *   sunSessions?: any[],
- *   deviceSessions?: any[],
- *   lightDevices?: any[],
- *   lightEnvironment?: any,
- *   lightMeasurements?: any[],
- *   lightAudits?: any[],
- *   sunCorrelations?: any,
- *   lifelightProfile?: any,
- *   sunDefaults?: any,
- *   [key: string]: any
- * }} ProfileData
+ * @typedef {import('../types/app-state.js').ProfileData} ProfileData
  */
 
 // ═══════════════════════════════════════════════

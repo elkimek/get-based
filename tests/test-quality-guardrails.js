@@ -36,6 +36,8 @@ const playwrightConfigSrc = fs.readFileSync(path.join(ROOT, 'playwright.config.j
 const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
 const tsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.json'), 'utf8'));
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
+const strictNullRatchetSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-ratchet.mjs'), 'utf8');
+const strictNullBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-baseline.json'), 'utf8'));
 const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
 
 assert('package.json exposes npm run quality',
@@ -117,7 +119,15 @@ assert('quality guardrail exits non-zero on failures',
   guardrailSrc.includes('process.exit(failed > 0 ? 1 : 0)'));
 assert('full local test suite runs typecheck',
   runTestsSrc.includes('npm run typecheck || exit 1') &&
+    runTestsSrc.includes('npm run typecheck:checkjs || exit 1') &&
+    runTestsSrc.includes('npm run typecheck:strict-null || exit 1') &&
     runTestsSrc.includes('SKIP_TYPECHECK'));
+assert('strict-null debt is ratcheted globally and per file',
+  pkg.scripts?.['typecheck:strict-null'] === 'node scripts/strict-null-ratchet.mjs' &&
+    strictNullRatchetSrc.includes('strictNullChecks: true') &&
+    strictNullRatchetSrc.includes('findRegressions') &&
+    strictNullBaseline.totalDiagnostics === Object.values(strictNullBaseline.files)
+      .reduce((sum, count) => sum + count, 0));
 const requiredCompilerSafetyOptions = {
   allowUnreachableCode: false,
   allowUnusedLabels: false,
@@ -154,9 +164,11 @@ assert('full local test suite isolates itself from an occupied default port',
 assert('direct Playwright runs do not silently reuse an unrelated server',
   playwrightConfigSrc.includes("process.env.PLAYWRIGHT_REUSE_SERVER === '1'") &&
     playwrightConfigSrc.includes('reuseExistingServer,'));
-assert('CI keeps a dedicated typecheck step and skips duplicate script typecheck',
+assert('CI keeps dedicated typecheck steps and skips duplicate script typecheck',
   testWorkflowSrc.includes('name: Run typecheck') &&
     testWorkflowSrc.includes('run: npm run typecheck') &&
+    testWorkflowSrc.includes('name: Enforce strict-null debt ratchet') &&
+    testWorkflowSrc.includes('run: npm run typecheck:strict-null') &&
     testWorkflowSrc.includes('SKIP_TYPECHECK=1 ./run-tests.sh'));
 assert('CI enforces quality guardrails',
   testWorkflowSrc.includes('name: Run quality guardrails') &&

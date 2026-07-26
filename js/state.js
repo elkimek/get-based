@@ -1,6 +1,7 @@
 // @ts-check
 // state.js — Centralized mutable application state
 
+/** @type {import('../types/app-state.js').AppState} */
 export const state = {
   chartInstances: {},
   markerRegistry: {},
