@@ -165,7 +165,6 @@ test('sync configure browser coverage wires module actions, UI, and relay quota 
     const originalSetTimeout = window.setTimeout;
     const notificationText = () => document.getElementById('notification-container')?.textContent || '';
     const enableAction = () => 'enabled';
-    const disableAction = () => 'disabled';
     const ownerId = `configure-owner-${Date.now()}`;
     const ownerWarnKey = `labcharts-${ownerId}-relay-quota-warned`;
     let thrownError = null;
@@ -177,7 +176,6 @@ test('sync configure browser coverage wires module actions, UI, and relay quota 
       document.getElementById('notification-container').innerHTML = '';
       configure.configureSyncModules({
         enableSync: enableAction,
-        disableSync: disableAction,
       });
 
       outcomes.configureKeepsLifecycleActionsModuleOnly =

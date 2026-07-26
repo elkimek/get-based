@@ -240,6 +240,7 @@ function hasSupplementsMedsData() {
 function renderContextSourceToggle({ key, toggleKey = key, kicker, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [] }) {
   const id = `context-source-${key}`;
   const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
   const statusId = `${id}-status`;
   const extraAttrs = Object.entries(attrs)
     .filter(([, value]) => value !== undefined && value !== null)
@@ -252,11 +253,12 @@ function renderContextSourceToggle({ key, toggleKey = key, kicker, title, descri
     <div class="context-source-copy">
       <span class="context-source-kicker">${escapeHTML(kicker)}</span>
       <span class="context-source-title" id="${escapeAttr(titleId)}">${escapeHTML(title)}</span>
+      <span class="context-source-desc" id="${escapeAttr(descriptionId)}">${escapeHTML(description)}</span>
       ${affectsHtml}
       <span class="context-source-status" id="${escapeAttr(statusId)}">${escapeHTML(status)}</span>
     </div>
     <label class="toggle-switch" for="${escapeAttr(id)}">
-      <input type="checkbox" id="${escapeAttr(id)}" data-context-toggle="${escapeAttr(toggleKey)}" aria-labelledby="${escapeAttr(titleId)}" aria-describedby="${escapeAttr(statusId)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      <input type="checkbox" id="${escapeAttr(id)}" data-context-toggle="${escapeAttr(toggleKey)}" aria-labelledby="${escapeAttr(titleId)}" aria-describedby="${escapeAttr(descriptionId)} ${escapeAttr(statusId)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
       <span class="toggle-slider"></span>
     </label>
   </div>`;

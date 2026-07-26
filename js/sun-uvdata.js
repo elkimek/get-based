@@ -329,11 +329,11 @@ const PROVIDERS = {
   noaa: {
     name: 'noaa_nws',
     available: ({ lat, lon }) => isUSCoords(lat, lon),
-    fetch: async ({ lat, lon, isoTime }) => {
+    fetch: async ({ lat, lon }) => {
       // NOAA Air Resources Lab UV index endpoint
       const url = `https://www.cpc.ncep.noaa.gov/products/stratosphere/uv_index/json/uv_${Math.round(lat * 10)}_${Math.round(lon * 10)}.json`;
       const json = await fetchJson(url, {});
-      return shapeNoaaResponse(json, isoTime);
+      return shapeNoaaResponse(json);
     },
   },
   openMeteo: {
@@ -604,7 +604,7 @@ function shapeCamsResponse(json, isoTime, sourceLabel) {
   return shaped;
 }
 
-function shapeNoaaResponse(json, isoTime) {
+function shapeNoaaResponse(json) {
   if (!json) return null;
   // NOAA endpoint shape varies — extract UV index, fall through if not parseable
   const uvi = json.uv_index ?? json.UVI ?? null;

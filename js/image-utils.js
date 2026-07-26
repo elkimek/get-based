@@ -127,9 +127,9 @@ export function isValidImageType(type) {
  * Returns a single image content block in the format expected by the provider.
  * @param {string} base64 - raw base64 data (no prefix)
  * @param {string} mediaType - e.g. 'image/jpeg'
- * @param {string} provider - 'openrouter', 'venice', 'routstr', 'ppq', 'ollama'
+ * @param {string} _provider - retained for provider-compatible callers
  */
-export function formatImageBlock(base64, mediaType, provider) {
+export function formatImageBlock(base64, mediaType, _provider) {
   // All providers use OpenAI-compatible format
   return { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } };
 }
@@ -141,10 +141,10 @@ export function formatImageBlock(base64, mediaType, provider) {
  * Builds a content array with image blocks + text block.
  * @param {Array} imageBlocks - from formatImageBlock()
  * @param {string} text
- * @param {string} provider
+ * @param {string} _provider - retained for provider-compatible callers
  * @returns {Array} content array for the messages API
  */
-export function buildVisionContent(imageBlocks, text, provider) {
+export function buildVisionContent(imageBlocks, text, _provider) {
   const content = [...imageBlocks];
   if (text) {
     content.push({ type: 'text', text });

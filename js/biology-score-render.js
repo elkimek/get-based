@@ -347,7 +347,7 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
 /** Legacy summary widget — still exported for backward compatibility. The dashboard
  * now uses renderDashboardBiologyScoreWidget for individual score cards and
  * renderDashboardBiologicalCoherenceWidget for the coherence hero. */
-export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScores) {
+export function renderBiologyScoresWidget(ctx, computeBiologyScores) {
   if (!hasBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const scores = computeBiologyScores(ctx?.data || {});
   const usefulScores = scores.filter((score) => score.score != null || score.coverage > 0);

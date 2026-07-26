@@ -178,7 +178,7 @@ test('category view renderers browser coverage exercises chart table heatmap and
         fixture.textContent.includes('No data yet for this category');
 
       state.markerRegistry = {};
-      fixture.innerHTML = renderers.renderHeatmapView(category, dateLabels, dates, 'lipids');
+      fixture.innerHTML = renderers.renderHeatmapView(category, dateLabels, 'lipids');
       const highHeatmapCell = fixture.querySelector('.heatmap-high');
       const missingHeatmapCell = fixture.querySelector('.heatmap-missing');
       outcomes.heatmapViewRegistersMarkersAndRendersStatusCells =
@@ -191,7 +191,7 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && !fixture.innerHTML.includes('onclick=')
         && highHeatmapCell.getAttribute('aria-label')?.includes('ApoB <script> Mar 1: 130');
 
-      fixture.innerHTML = renderers.renderHeatmapView({ singleDate: false, markers: {} }, dateLabels, dates, 'empty');
+      fixture.innerHTML = renderers.renderHeatmapView({ singleDate: false, markers: {} }, dateLabels, 'empty');
       outcomes.heatmapViewEmptyStateExplainsNoData =
         fixture.textContent.includes('No data yet for this category');
 

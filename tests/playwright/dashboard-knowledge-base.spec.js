@@ -14,6 +14,8 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay).toHaveClass(/show/);
   await expect(overlay.locator('.ai-picker-card')).toHaveCount(2);
   await expect(overlay.locator('.context-source-row')).toHaveCount(8);
+  await expect(overlay.locator('.context-source-desc')).toHaveCount(8);
+  await expect(overlay).toContainText('Health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.');
   await expect(overlay.locator('.context-grounding-panel + .context-source-panel')).toHaveCount(1);
   await expect(overlay).toContainText('Context');
   await expect(overlay).toContainText('Data sources');
@@ -43,6 +45,10 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   }));
   expect(toggleNames).toHaveLength(8);
   expect(toggleNames.every(Boolean)).toBe(true);
+  const describedByCounts = await overlay.locator('[data-context-toggle]').evaluateAll(inputs =>
+    inputs.map(input => (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).length)
+  );
+  expect(describedByCounts.every(count => count === 2)).toBe(true);
 
   await overlay.locator('.ai-picker-card[data-pick="lens"]').click();
   const editorOverlay = page.locator('#modal-overlay');

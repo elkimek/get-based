@@ -52,7 +52,6 @@ test('sync configure browser coverage seeds local profiles through identity rest
 
       configure.configureSyncModules({
         enableSync: () => true,
-        disableSync: () => true,
       });
       actions.configureSyncActions({
         pushProfile: async (...args) => { pushes.push(args); },

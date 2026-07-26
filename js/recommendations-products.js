@@ -120,7 +120,7 @@ export function getLightDeviceProduct(catalog, slug) {
 // Campaign tag is "light-devices" so the partner-side UTM dashboard can
 // attribute device-card traffic separately from the EMF + supplement
 // surfaces.
-export function renderLightDeviceAffiliateRow(catalog, slug, opts = {}) {
+export function renderLightDeviceAffiliateRow(catalog, slug) {
   if (!isProductRecsEnabled() || !catalog || !slug) return '';
   const product = getLightDeviceProduct(catalog, slug);
   if (!product) return '';

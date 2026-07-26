@@ -312,7 +312,7 @@ export async function revertRefRange(id, type) {
   showNotification(result.message, 'info');
 }
 
-export function toggleMarkerNoteEditor(dotKey) {
+export function toggleMarkerNoteEditor() {
   const editor = document.getElementById('marker-note-editor');
   if (!editor) return;
   const isHidden = editor.style.display === 'none';

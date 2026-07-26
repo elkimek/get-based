@@ -408,7 +408,7 @@ function filterReportCategories(data, categoryKeys) {
   return { ...data, categories };
 }
 
-function getReportNotes(data, options) {
+function getReportNotes(options) {
   const notes = (state.importedData.notes || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const cutoffStr = getReportCutoffDate(options.dateRange);
   if (!cutoffStr) return notes;
@@ -546,7 +546,7 @@ export function buildPreparedReportPayload(options = {}) {
   const profileName = profile.name;
   const sexLabel = state.profileSex === 'female' ? 'Female' : state.profileSex === 'male' ? 'Male' : 'Not specified';
   const flags = getAllFlaggedMarkers(data);
-  const notes = getReportNotes(data, reportOptions);
+  const notes = getReportNotes(reportOptions);
   const supps = state.importedData.supplements || [];
   const contextSections = buildReportContextSections(data);
 

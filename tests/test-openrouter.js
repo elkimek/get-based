@@ -136,7 +136,7 @@ assert('provider button with data-provider="openrouter"', settingsSrc.includes('
 assert('OpenRouter provider button uses delegated settings action',
   /<button[^>]*data-provider="openrouter"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
 assert('settings calls provider bridge APIs directly',
-  settingsSrc.includes('renderAIProviderPanelBridge(provider)') &&
+  settingsSrc.includes('renderAIProviderPanelBridge()') &&
     settingsSrc.includes('initSettingsProviderPanels()'));
 assert('settings provider bridge has eager provider switch', settingsBridgeSrc.includes('function switchAIProviderBridge(provider)'));
 assert('eager provider bridge persists selection synchronously', settingsBridgeSrc.includes('setAIProvider(provider);'));
@@ -359,7 +359,7 @@ assert('startup sync reconciliation pushes local AI setting drift',
   syncConfigureSrc.includes("from './sync-reconcile.js'")
     && !syncSrc.includes("from './sync-configure.js'")
     && startupOrchestratorSrc.includes("from './sync-configure.js'")
-    && startupOrchestratorSrc.includes('configureSyncModules({ enableSync, disableSync });')
+    && startupOrchestratorSrc.includes('configureSyncModules({ enableSync });')
     && syncReconcileSrc.includes('newer local AI settings')
     && syncReconcileSrc.includes('collectAISettings()'));
 const cssSrc = read('styles.css') + '\n' + read('css/settings.css');

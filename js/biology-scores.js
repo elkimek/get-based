@@ -343,8 +343,8 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId) {
   return renderDashboardBiologyScoreWidgetImpl(contextForScores(ctx), scoreId, computeBiologyScores);
 }
 
-export function renderBiologyScoresWidget(ctx, options = {}) {
-  return renderBiologyScoresWidgetImpl(contextForScores(ctx), options, computeBiologyScores);
+export function renderBiologyScoresWidget(ctx) {
+  return renderBiologyScoresWidgetImpl(contextForScores(ctx), computeBiologyScores);
 }
 
 export function renderBiologyScoresLens(ctx) {

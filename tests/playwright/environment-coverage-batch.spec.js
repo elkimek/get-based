@@ -273,6 +273,11 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         activeAssessment().rooms.length === 1
         && document.querySelector('.emf-room-tab.active')?.textContent.includes('Bedroom') === true;
 
+      emf.selectEMFRoom('stale-assessment-id', 99);
+      outcomes.staleRoomSelectionCannotChangeActiveAssessment =
+        document.querySelector('.emf-room-tab.active')?.textContent.includes('Bedroom') === true
+        && document.querySelector('[data-emf-room-idx="99"]') === null;
+
       activeAssessment().rooms[0].photos = [{
         name: 'meter.png',
         mediaType: 'image/svg+xml',

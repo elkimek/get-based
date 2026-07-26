@@ -547,6 +547,8 @@ export function toggleEMFAssessment(id) {
 }
 
 export function selectEMFRoom(assessmentId, roomIdx) {
+  // Ignore a stale delegated click after another assessment has become active.
+  if (_editingAssessmentId !== assessmentId) return;
   collectActiveAssessmentState();
   _activeRoomIdx = roomIdx;
   renderEMFEditor(document.getElementById('detail-modal'));

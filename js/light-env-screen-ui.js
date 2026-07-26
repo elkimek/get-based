@@ -10,7 +10,7 @@ const SCREEN_DEVICE_ICONS = {
   phone: '📱', laptop: '💻', monitor: '🖥', tablet: '📲', tv: '📺',
 };
 
-function screenSummary(s, status) {
+function screenSummary(s) {
   const parts = [];
   const hours = s.hoursPerDay;
   if (hours != null && hours > 0) parts.push(`${hours} hr/day`);
@@ -58,7 +58,7 @@ export function renderScreenCard(s, opts = {}) {
   const renderTodayToggle = opts.renderTodayToggle;
   const deviceIcon = SCREEN_DEVICE_ICONS[s.device] || '📱';
   const deviceLabel = (SCREEN_DEVICES.find(d => d.key === s.device)?.label) || 'Device';
-  const summary = screenSummary(s, status);
+  const summary = screenSummary(s);
 
   let html = `<div class="light-env-screen-card light-env-card-sev-${status.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(s.id)}">
     <div class="light-env-screen-card-head" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(deviceLabel + ' — ' + status.label + (summary ? ', ' + summary : '') + (expanded ? ', expanded' : ', collapsed'))}" ${lightEnvActionAttrs('toggle-screen-expanded', { id: s.id })}>
