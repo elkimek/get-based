@@ -250,6 +250,7 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         biometrics: { weight: 70 },
         supplements: [{ name: 'Metformin' }],
         lightDevices: [{ id: 'coverage-light-device', presetId: 'coverage-preset' }],
+        sunSessions: [{ id: 'coverage-stale-sun-session', endedAt: 1 }],
         wearableConnections: {
           manual: {
             connectedAt: '2026-07-01T00:00:00.000Z',

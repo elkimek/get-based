@@ -149,6 +149,7 @@
     "js/light-devices-actions.js",
     "js/light-devices-runtime.js",
     "js/light-devices-store.js",
+    "js/light-sun-analysis-runtime.js",
     "js/light-devices.js",
     "js/light-env-actions.js",
     "js/light-env-ai-analysis.js",

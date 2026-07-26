@@ -1,11 +1,16 @@
 // @ts-check
 // startup-maintenance-runtime.js - Browser runtime adapters for startup maintenance hooks.
 
-import { SUN_ENGINE_VERSION, rehydrateStaleSessions } from './sun-sessions-store.js';
+/** @type {string | number} */
+let loadedSunEngineVersion = '?';
 
 const startupMaintenanceSunDeps = {
-  rehydrateStaleSessions,
-  getSunEngineVersion: () => SUN_ENGINE_VERSION,
+  rehydrateStaleSessions: async () => {
+    const module = await import('./sun-sessions-store.js');
+    loadedSunEngineVersion = module.SUN_ENGINE_VERSION;
+    return module.rehydrateStaleSessions();
+  },
+  getSunEngineVersion: () => loadedSunEngineVersion,
 };
 
 /** @param {{ rehydrateStaleSessions?: (() => any) | null, getSunEngineVersion?: (() => any) | null }} deps */

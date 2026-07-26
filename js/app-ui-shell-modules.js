@@ -7,7 +7,3 @@ import './touch-tooltip.js';
 import './views.js';
 import './app-shell-hooks.js';
 import './light-env-shell-hooks.js';
-import './light-channel-view-ui-hooks.js';
-import './light-page-view-ui-hooks.js';
-import './light-tools-ui-hooks.js';
-import './sun-session-ui-hooks.js';

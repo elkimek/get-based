@@ -24,6 +24,8 @@ const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const exportLoaderSrc = fs.readFileSync(path.join(root, 'js/export-loader.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
 const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
+const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
+const lightSunLoaderSrc = fs.readFileSync(path.join(root, 'js/light-sun-loader.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const notesRuntimeSrc = fs.readFileSync(path.join(root, 'js/notes-runtime.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
@@ -280,12 +282,17 @@ assert('App shell injects Notes view callbacks without bridge or window fallback
     && appShellHooksSrc.includes("import { configureNotesRuntimeDeps } from './notes-runtime.js';")
     && appShellHooksSrc.includes('configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });'));
 
-assert('App shell injects sun defaults navigation without a view bridge lookup',
-  appShellHooksSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));
+assert('App shell defers sun defaults navigation wiring behind the Light loader',
+  appShellHooksSrc.includes('configureLightSunShellLoaderDeps({')
+    && lightSunLoaderSrc.includes('module.configureLightSunShell(_lightSunShellLoaderDeps)')
+    && appLightSunSrc.includes('configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });'));
 
-assert('App shell injects Sun session UI callbacks without bridge lookups',
-  appShellHooksSrc.includes("import { configureSunRuntimeDeps } from './sun-runtime.js'")
-    && appShellHooksSrc.includes('configureSunRuntimeDeps({\n  buildSidebar,\n  navigate,\n  openChannelOnLightPage: _openChannelOnLightPage,\n  renderLightChannelsLive,\n  renderLightTodayStrip,\n});'));
+assert('App shell defers Sun session UI callbacks behind the Light loader',
+  !appShellHooksSrc.includes("from './sun-runtime.js'")
+    && appLightSunSrc.includes('configureSunRuntimeDeps({')
+    && appLightSunSrc.includes('openChannelOnLightPage: _openChannelOnLightPage,')
+    && appLightSunSrc.includes('renderLightChannelsLive,')
+    && appLightSunSrc.includes('renderLightTodayStrip,'));
 
 assert('App shell injects client list view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureClientListRuntimeDeps({ navigate, renderProfileButton });'));
@@ -336,8 +343,10 @@ assert('App shell injects dashboard recommendation actions without dynamic runti
     && appShellHooksSrc.includes('detectWearableTrendSlots,')
     && appShellHooksSrc.includes('openRecommendationDetail,'));
 
-assert('App shell injects Light Devices view callbacks without bridge lookups',
-  appShellHooksSrc.includes('configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChannelOnLightPage });'));
+assert('App shell defers Light Devices view callbacks behind the Light loader',
+  !appShellHooksSrc.includes("from './light-devices-runtime.js'")
+    && appLightSunSrc.includes('configureLightDevicesRuntimeDeps({')
+    && appLightSunSrc.includes('openChannelOnLightPage: _openChannelOnLightPage,'));
 
 assert('App shell injects marker detail shell callbacks without bridge lookups',
   appShellHooksSrc.includes('configureMarkerDetailRuntime({ askAIAboutMarker, buildSidebar, navigate, renameMarker, revertMarkerName });'));

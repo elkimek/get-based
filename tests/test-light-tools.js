@@ -271,7 +271,8 @@ const tools = await import('../js/light-tools.js');
       lightAiSaveHooksSrc.includes('solarZenithAngle') &&
       lightToolsUiHooksSrc.includes("import { navigate } from './views.js';") &&
       lightToolsUiHooksSrc.includes('configureLightTools({ navigate })') &&
-      appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&
+      appLightSunSrc.includes('configureLightTools({ navigate });') &&
+      !appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&
       swSrc.includes("'/js/light-tools-ui-hooks.js'"));
     assert('light-tool-camera.js owns shared camera lock and row-banding helpers',
       lightToolCameraSrc.includes('export async function lockCameraForMeasurement') &&

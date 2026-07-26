@@ -81,7 +81,8 @@ describe('startup maintenance runtime adapter', () => {
     const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 
     expect(startupSrc).toContain("from './startup-maintenance-runtime.js'");
-    expect(startupSrc).toContain("import { hydrateDevicesFromPresets } from './light-devices.js';");
+    expect(startupSrc).toContain("import('./light-devices.js')");
+    expect(startupSrc).not.toContain("from './light-devices.js';");
     expect(/\bwindow(?:\.|\s*\[)/.test(startupSrc)).toBe(false);
     expect(swSrc).toContain("'/js/startup-maintenance-runtime.js'");
   });

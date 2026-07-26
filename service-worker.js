@@ -75,6 +75,7 @@ const APP_SHELL = [
   '/js/app-health-data-modules.js',
   '/js/app-light-sun-modules.js',
   '/js/light-sun-loader.js',
+  '/js/light-sun-analysis-runtime.js',
   '/js/profile-share-loader.js',
   '/js/app-chat-hooks.js',
   '/js/app-ai-interaction-modules.js',

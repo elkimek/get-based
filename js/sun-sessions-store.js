@@ -7,6 +7,7 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
+import { requestSunSessionAnalysis } from './light-sun-analysis-runtime.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
   EXPOSURE_PRESETS,
@@ -39,7 +40,7 @@ const storeDeps = {
   setLiveState: () => {},
   clearLiveState: () => {},
   formatElapsed: (ms) => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
-  maybeAnalyzeSessionAfterFinish: () => {},
+  maybeAnalyzeSessionAfterFinish: requestSunSessionAnalysis,
   fetchAtmosphere: async () => null,
   reconstructSpectrum: () => null,
   computeChannelDoses: () => ({}),

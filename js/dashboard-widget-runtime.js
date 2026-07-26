@@ -2,9 +2,8 @@
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
-import { getDeviceSessions } from './light-devices-store.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { getSessions } from './sun-sessions-store.js';
+import { state } from './state.js';
 import {
   getWearablesModuleFunction,
   isWearablesStylesheetLoaded,
@@ -74,21 +73,13 @@ export function openDashboardWearablesSettings() {
 }
 
 export function getDashboardLightSessions() {
-  try {
-    const sessions = getSessions();
-    return Array.isArray(sessions) ? sessions : [];
-  } catch {
-    return [];
-  }
+  const sessions = state.importedData?.sunSessions;
+  return Array.isArray(sessions) ? sessions : [];
 }
 
 export function getDashboardDeviceSessions() {
-  try {
-    const sessions = getDeviceSessions();
-    return Array.isArray(sessions) ? sessions : [];
-  } catch {
-    return [];
-  }
+  const sessions = state.importedData?.deviceSessions;
+  return Array.isArray(sessions) ? sessions : [];
 }
 
 export function getDashboardSnpTableCache() {

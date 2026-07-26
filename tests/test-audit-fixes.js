@@ -438,11 +438,12 @@ return (async function () {
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(main));
     assert('app-feature-modules.js delegates Foundation imports',
       /import\s+['"]\.\/app-foundation-modules\.js['"]/.test(appFeatures));
-    assert('app-feature-modules.js keeps Sun context eager and lazy-loads Light & Sun hooks',
-      /import\s+['"]\.\/sun-context-hooks\.js['"]/.test(appFeatures)
+    assert('app-feature-modules.js lazy-loads the complete Light & Sun graph',
+      !/import\s+['"]\.\/sun-context-hooks\.js['"]/.test(appFeatures)
         && /import\s+['"]\.\/light-sun-loader\.js['"]/.test(appFeatures)
         && !/import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures)
         && /import\(['"]\.\/app-light-sun-modules\.js['"]\)/.test(lightSunLoader)
+        && /import\s+['"]\.\/sun-context-hooks\.js['"]/.test(appLightSunFeatures)
         && /export function loadLightSunUI\(\)/.test(lightSunLoader)
         && /data-light-sun-stylesheet-anchor/.test(lightSunLoader));
     assert('app-feature-modules.js delegates Health & Data imports',

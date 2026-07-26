@@ -17,7 +17,6 @@ import {
 } from './mobile-dashboard.js';
 import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js';
 import { loadDemoData } from './export-loader.js';
-import { resumeActiveTickerIfNeeded } from './sun-active-session.js';
 import {
   getRecommendationModuleFunction,
   setRecommendationsCatalogCache,
@@ -146,6 +145,7 @@ export function createDashboardPageView(deps) {
     loadFocusCard,
     loadContextCardTips,
     ensureActiveDeviceTicker = () => {},
+    resumeActiveTickerIfNeeded = () => {},
     startEmptyTour = defaultStartEmptyTour,
     startTour = defaultStartTour,
   } = deps;

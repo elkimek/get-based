@@ -146,6 +146,8 @@ test('Context hub data source toggles control prompt and score context', async (
   await expect(overlay.locator('[data-context-toggle="body-regions"]')).toHaveCount(0);
 
   const configuredLightRollups = await page.evaluate(async () => {
+    const { loadLightSunModules } = await import('/js/light-sun-loader.js');
+    await loadLightSunModules();
     const { getBiologyProfileContext } = await import('/js/profile-context.js');
     const { light } = getBiologyProfileContext();
     return { vitD7: light.vitD7, circadian7: light.circadian7 };

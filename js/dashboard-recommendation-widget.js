@@ -13,8 +13,7 @@ import {
   getRecommendationsSnpTable,
   setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
-import { rollingChannelTotals } from './sun.js';
-import { getSessions } from './sun-sessions-store.js';
+import { getLoadedRollingChannelTotals } from './light-sun-loader.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
 
@@ -244,11 +243,14 @@ export function createDashboardRecommendationWidget({
       });
     }
 
-    const sessions = getSessions().filter(s => s?.startedAt || s?.endedAt);
+    const sessions = (Array.isArray(state.importedData?.sunSessions)
+      ? state.importedData.sunSessions
+      : []).filter(s => s?.startedAt || s?.endedAt);
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const hasRecentLightSession = sessions.some(s => Number(s.endedAt || s.startedAt || 0) >= sevenDaysAgo);
-    const totals7d = rollingChannelTotals(7) || {};
-    if (catalog.slots['light.morningLight'] && (!hasRecentLightSession || Number(totals7d.circadian || 0) <= 0)) {
+    const totals7d = getLoadedRollingChannelTotals(7);
+    const hasLoadedCircadianGap = totals7d && Number(totals7d.circadian || 0) <= 0;
+    if (catalog.slots['light.morningLight'] && (!hasRecentLightSession || hasLoadedCircadianGap)) {
       add({
         id: 'light:light.morningLight:recent',
         source: 'Light',

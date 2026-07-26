@@ -13,7 +13,11 @@ import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
 import { isGeneticsStylesheetLoaded, loadGeneticsStylesheet } from './dna-runtime.js';
-import { isLightSunUILoaded, loadLightSunUI } from './light-sun-loader.js';
+import {
+  getLoadedLightSunModule,
+  isLightSunUILoaded,
+  loadLightSunUI,
+} from './light-sun-loader.js';
 import { state } from './state.js';
 import { createLensPageHandlers } from './lens-pages.js';
 import { lensPageActionAttrs, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
@@ -25,15 +29,6 @@ import { showCategory, switchView } from './category-page-view.js';
 import { isCategoryViewsStylesheetLoaded, loadCategoryViewsStylesheet } from './category-page-runtime.js';
 import { isCycleStylesheetLoaded, loadCycleStylesheet } from './cycle-runtime.js';
 import { configureCategoryCustomization, renameCategory, renameMarker, revertMarkerName, showEmojiPicker, changeCategoryIcon } from './category-customization.js';
-import { renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi } from './light-conditions-now.js';
-import { _openAllSessionsModal as openAllSessionsModal } from './light-sessions-view.js';
-import { _toggleChannelDetail, _openChannelOnLightPage } from './light-channel-view.js';
-import {
-  showLight,
-  _expandLightToolsSection,
-  renderLightTodayStrip,
-  renderLightChannelsLive,
-} from './light-page-view.js';
 import {
   syncMobileBottomNav,
   refreshMobileDashboardActiveTab,
@@ -203,8 +198,48 @@ function getRecommendationActions() {
 export function showDashboard(data) { return getDashboardView().showDashboard(data); }
 
 export async function _openAllSessionsModal() {
-  await loadLightSunUI();
-  return openAllSessionsModal();
+  const module = await loadLightSunUI();
+  return module._openAllSessionsModal();
+}
+
+function _expandLightToolsSection() {
+  return loadLightSunUI().then(module => module._expandLightToolsSection());
+}
+
+function _toggleChannelDetail(channel) {
+  return loadLightSunUI().then(module => module._toggleChannelDetail(channel));
+}
+
+function _openChannelOnLightPage(channel) {
+  return loadLightSunUI().then(module => module._openChannelOnLightPage(channel));
+}
+
+function renderLightTodayStrip() {
+  return getLoadedLightSunModule()?.renderLightTodayStrip?.() || '';
+}
+
+function renderLightChannelsLive() {
+  return getLoadedLightSunModule()?.renderLightChannelsLive?.();
+}
+
+function renderConditionsNow(options) {
+  return getLoadedLightSunModule()?.renderConditionsNow?.(options) || '';
+}
+
+function _refreshConditionsNow() {
+  return loadLightSunUI().then(module => module._refreshConditionsNow());
+}
+
+function _inspectConditionsNow() {
+  return loadLightSunUI().then(module => module._inspectConditionsNow());
+}
+
+function _setManualUvi() {
+  return loadLightSunUI().then(module => module._setManualUvi());
+}
+
+function _clearManualUvi() {
+  return loadLightSunUI().then(module => module._clearManualUvi());
 }
 
 function renderDeferredRouteStatus(content, message, { busy = false, error = false } = {}) {
@@ -220,15 +255,15 @@ function renderDeferredRouteStatus(content, message, { busy = false, error = fal
 }
 
 function showLightRoute(data) {
-  if (isLightSunUILoaded()) return showLight(data);
+  if (isLightSunUILoaded()) return getLoadedLightSunModule()?.showLight(data);
 
   const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
   if (content) renderDeferredRouteStatus(content, 'Loading Light & Sun…', { busy: true });
 
   return loadLightSunUI()
-    .then(() => {
+    .then(module => {
       if (state.currentView !== 'light') return false;
-      showLight(data);
+      module.showLight(data);
       return true;
     })
     .catch(err => {
@@ -242,6 +277,10 @@ function showLightRoute(data) {
       }
       return false;
     });
+}
+
+function showLight(data) {
+  return showLightRoute(data);
 }
 
 function showGenomeRoute() {

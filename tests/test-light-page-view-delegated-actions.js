@@ -82,9 +82,10 @@ assert('Light page UI hook wires router and Sun settings leaf dependencies',
     && /import \{ renderSunDataSourceSettings \} from '\.\/settings-privacy\.js';/.test(hooksSrc)
     && !/from '\.\/settings\.js'/.test(uiHooksSrc)
     && /configureLightPageView\(\{[\s\S]*renderSunDataSourceSettings[\s\S]*\}\);/.test(hooksSrc));
-assert('Light page hooks are loaded during startup',
+assert('Light page hooks and router wiring load behind the feature boundary',
   lightSunModulesSrc.includes("import './light-page-view-hooks.js';")
-    && uiShellModulesSrc.includes("import './light-page-view-ui-hooks.js';"));
+    && lightSunModulesSrc.includes('configureLightPageView({ navigate });')
+    && !uiShellModulesSrc.includes("import './light-page-view-ui-hooks.js';"));
 assert('Service worker caches Light page hooks',
   swSrc.includes("'/js/light-page-view-hooks.js'")
     && swSrc.includes("'/js/light-page-view-ui-hooks.js'"));

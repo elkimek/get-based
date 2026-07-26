@@ -3,7 +3,6 @@
 
 import { state } from './state.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
-import { hydrateDevicesFromPresets } from './light-devices.js';
 import { loadWearablesConnectModule } from './wearables-connect-loader.js';
 import { preloadMitoCompoundData } from './supplement-warnings.js';
 import {
@@ -49,7 +48,7 @@ function scheduleSunSessionRehydrate() {
   // it doesn't block init; one network call per stale session,
   // serialized inside rehydrateStaleSessions. No-op when everything is
   // already stamped at the current version.
-  if (hasSunSessionRehydrateRuntime()) {
+  if (state.importedData?.sunSessions?.length && hasSunSessionRehydrateRuntime()) {
     setTimeout(() => {
       rehydrateStaleSunSessionsRuntime().then(r => {
         if (r?.rehydrated) {
@@ -69,9 +68,12 @@ function hydrateUserLightDevicesFromPresets() {
   // dialog can't render the mode picker for them. Idempotent - re-runs
   // are no-ops once devices carry the fields.
   if (!state.importedData?.lightDevices?.length) return;
-  hydrateDevicesFromPresets().then(dirty => {
-    if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
-  }).catch(() => {});
+  import('./light-devices.js')
+    .then(({ hydrateDevicesFromPresets }) => hydrateDevicesFromPresets())
+    .then(dirty => {
+      if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
+    })
+    .catch(() => {});
 }
 
 function migrateLegacyBiometrics() {

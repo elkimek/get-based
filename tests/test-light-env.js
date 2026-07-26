@@ -731,14 +731,14 @@ const {
     !lightEnvShellHooksSrc.includes("from './light-env.js'") &&
     lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps,') &&
     lightEnvShellHooksSrc.includes('loadLightSunUI,') &&
-    lightEnvShellHooksSrc.includes("import { getMeasurementsForRoom } from './light-tools.js';") &&
+    !lightEnvShellHooksSrc.includes("from './light-tools.js'") &&
     lightEnvShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
     lightEnvShellHooksSrc.includes("import { navigate } from './views.js';") &&
-    lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ getMeasurementsForRoom, navigate });') &&
+    lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ navigate });') &&
     lightEnvShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     lightEnvShellHooksSrc.includes('loadLightSunUI()') &&
     lightEnvShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
-    appLightSunSrc.includes("export { configureLightEnv, openLightEnvironmentAssessment } from './light-env.js';") &&
+    appLightSunSrc.includes('configureLightEnv({ getMeasurementsForRoom, navigate });') &&
     lightSunLoaderSrc.includes('applyLightEnvironmentLoaderDeps(module);') &&
     !sunContextHooksSrc.includes("from './light-env.js'") &&
     sunContextHooksSrc.includes("from './light-env-model.js'") &&
