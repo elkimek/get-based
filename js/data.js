@@ -27,7 +27,7 @@ export {
 } from './marker-analysis.js';
 
 /**
- * @typedef {Record<string, any>} ImportedDataRecord
+ * @typedef {import('../types/app-state.js').ProfileData} ImportedDataRecord
  * @typedef {() => Array<number | null | undefined> | undefined} MarkerValueGetter
  * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  * @typedef {{
