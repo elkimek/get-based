@@ -1,4 +1,5 @@
 // @ts-check
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { PERIOD_SYMPTOMS } from './constants.js';
 import { escapeHTML, showNotification, showConfirmDialog, linearRegression } from './utils.js';
@@ -590,7 +591,7 @@ export function saveMenstrualCycle() {
 export async function clearMenstrualCycle() {
   if (await showConfirmDialog('Clear all menstrual cycle data? This cannot be undone.')) {
     try { await clearCycleProfileData(); }
-    catch (error) { showNotification(`Menstrual cycle data could not be cleared: ${error.message}`, 'error'); return; }
+    catch (error) { showNotification(`Menstrual cycle data could not be cleared: ${getErrorMessage(error)}`, 'error'); return; }
     closeCycleModal();
     const activeNav = document.querySelector(".nav-item.active");
     navigateCycleView(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");

@@ -1,6 +1,7 @@
 // @ts-check
 // pii.js — PII obfuscation (Ollama + regex), diff viewer
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { showNotification, escapeHTML } from './utils.js';
 import { getOllamaPIIApiKey, getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
 import {
@@ -287,7 +288,7 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
     const probe = await fetch(`${baseUrl}/v1/models`, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}, signal: probeSignal });
     if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
   } catch (e) {
-    throw new Error(`Local PII server unreachable at ${baseUrl} — falling back to regex obfuscation. (${e.message})`);
+    throw new Error(`Local PII server unreachable at ${baseUrl} — falling back to regex obfuscation. (${getErrorMessage(e)})`);
   }
 
   const requestState = createInitialResponseTimeout({
@@ -399,7 +400,7 @@ export async function sanitizeWithOllama(pdfText) {
     const result = (data.choices?.[0]?.message?.content || '').trim();
     return finalizePIIResult(result, pdfText);
   } catch (e) {
-    if (e.name === 'TimeoutError' || e.message.includes('timed out')) {
+    if (getErrorName(e) === 'TimeoutError' || getErrorMessage(e).includes('timed out')) {
       showNotification(`PII model "${piiModel}" timed out. Falling back to regex. Try a smaller model in Settings → Privacy.`, 'info', 6000);
     }
     throw e;

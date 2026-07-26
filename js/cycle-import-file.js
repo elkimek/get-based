@@ -1,6 +1,8 @@
 // @ts-check
 // cycle-import-file.js - cycle export file detection and ZIP context helpers.
 
+import { getErrorMessage } from './caught-error.js';
+
 const appWindow = /** @type {Window & typeof globalThis & { JSZip?: any }} */ (
   typeof window !== 'undefined' ? window : {}
 );
@@ -39,7 +41,7 @@ export async function buildCycleFileContext(file) {
     try {
       context.archive = await JSZip.loadAsync(file);
     } catch (err) {
-      if (/encrypt|password/i.test(String(err?.message || err))) {
+      if (/encrypt|password/i.test(String(getErrorMessage(err, err)))) {
         throw new Error('This cycle ZIP is password-protected. Extract it first, then import the Clue JSON file inside.');
       }
       throw err;

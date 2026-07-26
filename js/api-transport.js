@@ -1,6 +1,7 @@
 // @ts-check
 // api-transport.js - Shared AI API fetch retry and stream timeout helpers
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 // Mid-stream stall timeout. Streaming SSE / NDJSON readers can hang
@@ -107,11 +108,11 @@ export async function fetchWithRetry(
       // dropped connection, or timeout abort from FETCH_REQUEST_TIMEOUT_MS.
       // Retry with backoff before giving up - matches the airplane-mode
       // toggle pattern where one attempt fails but the next succeeds.
-      const isTimeout = e?.name === 'TimeoutError' || (e?.name === 'AbortError' && !options.signal?.aborted);
-      const isNetwork = e instanceof TypeError || /Failed to fetch|Load failed|NetworkError/.test(e?.message || '');
+      const isTimeout = getErrorName(e) === 'TimeoutError' || (getErrorName(e) === 'AbortError' && !options.signal?.aborted);
+      const isNetwork = e instanceof TypeError || /Failed to fetch|Load failed|NetworkError/.test(getErrorMessage(e, ''));
       if ((isTimeout || isNetwork) && i < retries) {
         const delay = (i + 1) * 1500; // 1.5s, 3s
-        if (debug()) console.log(`[API] Network error ${e?.name || e?.message}, retry ${i + 1}/${retries} in ${delay}ms`);
+        if (debug()) console.log(`[API] Network error ${getErrorName(e) || getErrorMessage(e)}, retry ${i + 1}/${retries} in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }

@@ -1,6 +1,7 @@
 // @ts-check
 // provider-wallet-delegates.js - Delegated Routstr/Cashu wallet UI actions
 
+import { getErrorMessage } from './caught-error.js';
 import { showNotification } from './utils.js';
 import { walletRuntime } from './provider-wallet-runtime.js';
 
@@ -134,7 +135,7 @@ async function _recoverPendingDeposit(el) {
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {
-    showNotification(e.message, 'error');
+    showNotification(getErrorMessage(e), 'error');
   }
 }
 
@@ -146,7 +147,7 @@ async function _recoverPendingWithdraw(el) {
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {
-    showNotification(e.message, 'error');
+    showNotification(getErrorMessage(e), 'error');
   }
 }
 

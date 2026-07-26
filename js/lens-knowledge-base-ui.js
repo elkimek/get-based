@@ -1,6 +1,7 @@
 // @ts-check
 // lens-knowledge-base-ui.js - Knowledge Base settings/modal UI and local ingest.
 
+import { getErrorMessage } from './caught-error.js';
 import { showNotification, showConfirmDialog, escapeHTML, escapeAttr } from './utils.js';
 import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-lifecycle.js';
 import { initLensActionDelegates, lensActionAttrs } from './lens-actions.js';
@@ -421,7 +422,7 @@ export function createLensKnowledgeBaseUi(deps) {
       if (list) list.innerHTML = _renderLocalDocList(s.documents);
       _attachLocalLensDropHandlers();
     } catch (e) {
-      if (stats) stats.innerHTML = `<span style="color:#fbbf24">Failed to load stats: ${escapeHTML(e?.message || String(e))}</span>`;
+      if (stats) stats.innerHTML = `<span style="color:#fbbf24">Failed to load stats: ${escapeHTML(getErrorMessage(e, String(e)))}</span>`;
     }
   }
 
@@ -592,7 +593,7 @@ export function createLensKnowledgeBaseUi(deps) {
       if (modalText) modalText.textContent = doneMsg;
       showNotification(doneMsg, stats.cancelled ? 'info' : 'success');
     } catch (e) {
-      const errMsg = `Couldn't index: ${e.message || e}`;
+      const errMsg = `Couldn't index: ${getErrorMessage(e, e)}`;
       pillText.textContent = errMsg;
       const modalText = document.getElementById('lens-local-progress-text');
       if (modalText) modalText.textContent = errMsg;
@@ -618,7 +619,7 @@ export function createLensKnowledgeBaseUi(deps) {
         showNotification(`Removed ${deleted} excerpt${deleted !== 1 ? 's' : ''}.`, 'success');
         await _loadLocalLensStats();
       } catch (e) {
-        showNotification(`Couldn't delete that document: ${e?.message || e}.`, 'error');
+        showNotification(`Couldn't delete that document: ${getErrorMessage(e, e)}.`, 'error');
       }
     }
   }
@@ -632,7 +633,7 @@ export function createLensKnowledgeBaseUi(deps) {
         showNotification('Knowledge base cleared.', 'success');
         await _loadLocalLensStats();
       } catch (e) {
-        showNotification(`Couldn't clear the knowledge base: ${e?.message || e}.`, 'error');
+        showNotification(`Couldn't clear the knowledge base: ${getErrorMessage(e, e)}.`, 'error');
       }
     }
   }

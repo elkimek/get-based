@@ -1,6 +1,7 @@
 // @ts-check
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
   getVeniceKey, saveVeniceKey, getOpenRouterKey, saveOpenRouterKey, getAIProvider, setAIProvider,
@@ -333,7 +334,7 @@ async function _copyProviderPanelText(text, actionEl) {
       providerPanelClipboardTimers.set(timerKey, timer);
     }
   } catch (e) {
-    showNotification(`Copy failed: ${e?.message || e}`, 'error');
+    showNotification(`Copy failed: ${getErrorMessage(e, e)}`, 'error');
   }
 }
 
@@ -360,7 +361,7 @@ async function _recoverPendingToken(actionEl, clearName) {
     showNotification('Recovered!', 'success');
     providerPanelDeps.reloadPage();
   } catch (e) {
-    showNotification(e?.message || String(e), 'error');
+    showNotification(getErrorMessage(e, String(e)), 'error');
   }
 }
 
@@ -560,7 +561,7 @@ export async function handleSaveRoutstrKey() {
         const wallet = await createRoutstrAccount(key);
         if (wallet.api_key) finalKey = wallet.api_key;
       } catch (e) {
-        status.innerHTML = '<span style="color:var(--red)">' + escapeHTML(e.message) + '</span>';
+        status.innerHTML = '<span style="color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</span>';
         btn.disabled = false; btn.textContent = 'Save & Validate';
         return;
       }

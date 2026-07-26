@@ -1,6 +1,7 @@
 // @ts-check
 // export-report-builder.js — PDF report modal builder
 
+import { getErrorMessage } from './caught-error.js';
 import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
@@ -250,7 +251,7 @@ async function generateReportBuilderAISummary(overlay, actionEl) {
       statusEl.textContent = 'Not generated.';
     }
   } catch (e) {
-    const message = String(e?.message || e || 'Unknown error').slice(0, 180);
+    const message = String(getErrorMessage(e, e) || 'Unknown error').slice(0, 180);
     if (statusEl) statusEl.textContent = 'Generation failed. Try again or preview without the overview.';
     showNotification('AI summary failed: ' + message, 'error');
   } finally {

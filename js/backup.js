@@ -1,6 +1,7 @@
 // @ts-check
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
@@ -421,7 +422,7 @@ export function importEncryptedBackup(file) {
         });
       }
     } catch (err) {
-      showNotification('Error reading backup: ' + err.message, 'error');
+      showNotification('Error reading backup: ' + getErrorMessage(err), 'error');
     }
   };
   reader.readAsText(file);
@@ -650,8 +651,8 @@ export async function pickFolderForBackup() {
     showNotification(`Backup folder set: ${handle.name}`, 'success');
     refreshFolderBackupUI();
   } catch (err) {
-    if (err.name === 'AbortError') return;
-    showNotification('Could not set backup folder: ' + err.message, 'error');
+    if (getErrorName(err) === 'AbortError') return;
+    showNotification('Could not set backup folder: ' + getErrorMessage(err), 'error');
   }
 }
 
@@ -667,7 +668,7 @@ export async function reauthorizeFolderBackup() {
       showNotification('Permission denied — try picking the folder again', 'error');
     }
   } catch (err) {
-    showNotification('Could not restore access: ' + err.message, 'error');
+    showNotification('Could not restore access: ' + getErrorMessage(err), 'error');
   }
 }
 
@@ -731,13 +732,13 @@ async function writeFolderBackup() {
     }
     localStorage.setItem('labcharts-folder-backup-last', new Date().toISOString());
   } catch (err) {
-    if (err.name === 'NotAllowedError') {
+    if (getErrorName(err) === 'NotAllowedError') {
       _folderPermissionLost = true;
       refreshFolderBackupUI();
-    } else if (err.name === 'QuotaExceededError') {
+    } else if (getErrorName(err) === 'QuotaExceededError') {
       showNotification('Backup folder is full — free up disk space', 'error');
     } else {
-      showNotification('Folder backup failed: ' + err.message, 'error');
+      showNotification('Folder backup failed: ' + getErrorMessage(err), 'error');
     }
   } finally {
     _folderWriteInProgress = false;

@@ -3,6 +3,7 @@
 // Keeps provider rows, connection actions, Apple Health import controls, and
 // manual-source management out of the dashboard strip renderer.
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
 import { adapterById, visibleAdapters, getOAuthClientId } from './wearable-adapters.js';
@@ -441,7 +442,7 @@ async function handleManualDisconnect() {
       refreshSettingsWearables();
       navigateWearablesDashboard();
     } catch (e) {
-      showNotification?.(`Couldn't delete: ${e.message}`, 'error', 4000);
+      showNotification?.(`Couldn't delete: ${getErrorMessage(e)}`, 'error', 4000);
     }
   }
 }
@@ -494,7 +495,7 @@ async function handleWearableConnect(adapterId) {
     beginConnectOAuth(adapterId);
     // beginOAuth navigates away — nothing else to do here.
   } catch (e) {
-    showNotification?.(`Connect failed: ${e.message}`, 'error', 5000);
+    showNotification?.(`Connect failed: ${getErrorMessage(e)}`, 'error', 5000);
   }
 }
 
@@ -530,8 +531,8 @@ async function importAppleHealthFlow(file) {
     refreshSettingsWearables();
     navigateWearablesDashboard();
   } catch (e) {
-    showNotification?.(`Apple Health import failed: ${e.message}`, 'error', 6000);
-    if (text) text.textContent = `Failed: ${e.message}`;
+    showNotification?.(`Apple Health import failed: ${getErrorMessage(e)}`, 'error', 6000);
+    if (text) text.textContent = `Failed: ${getErrorMessage(e)}`;
   }
 }
 
@@ -563,7 +564,7 @@ async function handleWearableBackfill(adapterId) {
     refreshSettingsWearables();
     navigateWearablesDashboard();
   } catch (e) {
-    showNotification?.(`Backfill failed: ${e.message}`, 'error', 4000);
+    showNotification?.(`Backfill failed: ${getErrorMessage(e)}`, 'error', 4000);
   }
 }
 

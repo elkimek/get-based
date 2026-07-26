@@ -1,6 +1,7 @@
 // @ts-check
 // startup-oauth-callbacks.js - startup OAuth callback routing
 
+import { getErrorMessage } from './caught-error.js';
 import {
   exchangeOpenRouterCode,
   saveOpenRouterKey,
@@ -113,7 +114,7 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
   } catch (e) {
     restoreOpenRouterOAuthPreviousProvider();
     clearOpenRouterOAuthSession();
-    showNotification('OpenRouter connection failed: ' + e.message, 'error', 6000);
+    showNotification('OpenRouter connection failed: ' + getErrorMessage(e), 'error', 6000);
   }
 }
 

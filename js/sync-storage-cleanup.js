@@ -1,6 +1,7 @@
 // @ts-check
 // sync-storage-cleanup.js - emergency localStorage compaction for sync.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { logSyncEvent } from './sync-state.js';
@@ -55,7 +56,7 @@ export async function cleanStorage() {
     try {
       await syncStorageCleanupDeps.saveImportedData();
     } catch (e) {
-      console.warn('[sync] cleanStorage: saveImportedData failed:', e?.message || e);
+      console.warn('[sync] cleanStorage: saveImportedData failed:', getErrorMessage(e, e));
     }
   }
 

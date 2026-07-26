@@ -1,6 +1,7 @@
 // @ts-check
 // api-models.js - Provider model catalogs, pricing, and capability helpers.
 
+import { getErrorMessage } from './caught-error.js';
 import { getModelPricing } from './schema.js';
 import { isCloudModel } from './local-ai-provider-shared.js';
 import {
@@ -247,7 +248,7 @@ export async function validateOpenRouterKey(key) {
     const errMsg = errBody?.error?.message || `status ${res.status}`;
     return { valid: false, error: `API error: ${errMsg}` };
   } catch (e) {
-    return { valid: false, error: 'Cannot reach OpenRouter API: ' + e.message };
+    return { valid: false, error: 'Cannot reach OpenRouter API: ' + getErrorMessage(e) };
   }
 }
 
@@ -311,7 +312,7 @@ export async function validateVeniceKey(key) {
     const errMsg = errBody?.error?.message || `status ${res.status}`;
     return { valid: false, error: `API error: ${errMsg}` };
   } catch (e) {
-    return { valid: false, error: 'Cannot reach Venice API: ' + e.message };
+    return { valid: false, error: 'Cannot reach Venice API: ' + getErrorMessage(e) };
   }
 }
 

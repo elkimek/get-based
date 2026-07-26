@@ -1,6 +1,7 @@
 // @ts-check
 // export.js — JSON export/import, report facade, clear all data
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData, updateHeaderDates } from './data.js';
@@ -349,7 +350,7 @@ export async function exportClientJSON(profileId, includeChat = false) {
   try {
     exportObj = await buildClientExportObject(profileId, includeChat);
   } catch (err) {
-    showNotification(err?.message || 'Could not export this client', 'error');
+    showNotification(getErrorMessage(err, 'Could not export this client'), 'error');
     return;
   }
   const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
@@ -663,6 +664,6 @@ export async function loadDemoData(sex = 'male') {
     } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
   } catch (err) {
     clearDemoLoadingProfile();
-    showNotification('Could not load demo data: ' + err.message, 'error');
+    showNotification('Could not load demo data: ' + getErrorMessage(err), 'error');
   }
 }

@@ -1,6 +1,7 @@
 // @ts-check
 // settings-sync-panel-impl.js — lazy Cross-device sync and Agent Access settings UI
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
   isSyncEnabled,
@@ -353,7 +354,7 @@ async function toggleSync(enabled) {
       if (el) el.innerHTML = renderSyncSection();
     } catch (e) {
       console.error('[sync] disable failed:', e);
-      showNotification(`Disable failed: ${e?.message || e}`, 'error');
+      showNotification(`Disable failed: ${getErrorMessage(e, e)}`, 'error');
       // Visually un-stick the toggle by re-rendering — the underlying
       // localStorage flag is already false (set early in disableSync) so
       // the toggle will show as off.
@@ -413,7 +414,7 @@ export async function closeSyncSetup() {
     }
   } catch (e) {
     console.error('[sync] setup close cleanup failed:', e);
-    showNotification(`Sync cleanup failed: ${e?.message || e}`, 'error');
+    showNotification(`Sync cleanup failed: ${getErrorMessage(e, e)}`, 'error');
   } finally {
     const el = document.getElementById('sync-section');
     if (el) el.innerHTML = renderSyncSection();

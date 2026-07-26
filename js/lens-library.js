@@ -1,5 +1,6 @@
 // lens-library.js - Local Knowledge Base library picker and actions.
 
+import { getErrorMessage } from './caught-error.js';
 import { showNotification, showConfirmDialog, showPromptDialog, escapeHTML, escapeAttr } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
@@ -94,7 +95,7 @@ export function createLensLibraryHandlers({
       if (cfg.backend === 'in-browser') await loadLocalLensStats();
       updateLensStatusChip();
     } catch (e) {
-      showNotification(`Couldn't switch library: ${e?.message || e}.`, 'error');
+      showNotification(`Couldn't switch library: ${getErrorMessage(e, e)}.`, 'error');
     }
   }
 
@@ -126,7 +127,7 @@ export function createLensLibraryHandlers({
       if (cfg.backend === 'in-browser') await loadLocalLensStats();
       updateLensStatusChip();
     } catch (e) {
-      showNotification(`Couldn't create library: ${e?.message || e}.`, 'error');
+      showNotification(`Couldn't create library: ${getErrorMessage(e, e)}.`, 'error');
     }
   }
 
@@ -268,7 +269,7 @@ export function createLensLibraryHandlers({
       await _loadLibraryPicker();
       updateLensStatusChip();
     } catch (e) {
-      showNotification(`Couldn't rename library: ${e?.message || e}.`, 'error');
+      showNotification(`Couldn't rename library: ${getErrorMessage(e, e)}.`, 'error');
     }
   }
 
@@ -292,7 +293,7 @@ export function createLensLibraryHandlers({
         if (cfg.backend === 'in-browser') await loadLocalLensStats();
         updateLensStatusChip();
       } catch (e) {
-        showNotification(`Couldn't delete library: ${e?.message || e}.`, 'error');
+        showNotification(`Couldn't delete library: ${getErrorMessage(e, e)}.`, 'error');
       }
     }
   }

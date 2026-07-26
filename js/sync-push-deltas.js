@@ -1,6 +1,7 @@
 // @ts-check
 // sync-push-deltas.js - Push-side delta planning and post-commit application.
 
+import { getErrorMessage } from './caught-error.js';
 import { getAt } from './data-merge.js';
 import {
   DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS,
@@ -35,7 +36,7 @@ export async function planProfileDeltas(profileId, importedData) {
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
-      console.warn(`[sync] delta-plan ${arrayName} failed:`, e?.message || e);
+      console.warn(`[sync] delta-plan ${arrayName} failed:`, getErrorMessage(e, e));
     }
   }
 
@@ -54,7 +55,7 @@ export async function planProfileDeltas(profileId, importedData) {
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
-      console.warn(`[sync] delta-plan map ${mapName} failed:`, e?.message || e);
+      console.warn(`[sync] delta-plan map ${mapName} failed:`, getErrorMessage(e, e));
     }
   }
 
@@ -86,7 +87,7 @@ export async function planProfileDeltas(profileId, importedData) {
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
-      console.warn(`[sync] delta-plan scalar ${scalarName} failed:`, e?.message || e);
+      console.warn(`[sync] delta-plan scalar ${scalarName} failed:`, getErrorMessage(e, e));
     }
   }
 

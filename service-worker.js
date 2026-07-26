@@ -96,6 +96,7 @@ const APP_SHELL = [
   '/js/state.js',
   '/js/utils-runtime.js',
   '/js/utils.js',
+  '/js/caught-error.js',
   '/js/theme.js',
   '/js/theme-runtime.js',
   '/js/api-runtime.js',

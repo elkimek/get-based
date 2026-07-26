@@ -16,6 +16,7 @@
 // /v2/heart use `startdateymd`/`enddateymd`. Everything is day-granular on
 // our side — we reduce intra-day samples before writing to L1.
 
+import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 import { isoDay } from './wearables-oura.js';
 
@@ -200,7 +201,7 @@ export async function fetchWithingsPersonalInfo(accessToken) {
     const lastDate = meas?.updatetime ? isoDay(new Date(meas.updatetime * 1000)) : null;
     return { ok: true, account: { email: null, lastMeasure: lastDate, identity: lastDate ? `Withings — last measure ${lastDate}` : 'Withings (account verified)' } };
   } catch (e) {
-    return { ok: false, error: e.message, status: e.status };
+    return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
   }
 }
 

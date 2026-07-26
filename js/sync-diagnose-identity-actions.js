@@ -1,6 +1,7 @@
 // @ts-check
 // sync-diagnose-identity-actions.js - Identity rotation UI for Sync Diagnose.
 
+import { getErrorMessage } from './caught-error.js';
 import { showNotification, escapeHTML } from './utils.js';
 import { ensureBip39, ensureQRCode } from './sync-identity.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -39,7 +40,7 @@ export async function confirmRotateIdentity(btn) {
   try {
     mnemonic = await bip39.generateMnemonic(256);
   } catch (e) {
-    showNotification(`Mnemonic generation failed: ${e?.message || e}`, 'error');
+    showNotification(`Mnemonic generation failed: ${getErrorMessage(e, e)}`, 'error');
     return;
   }
   if (typeof mnemonic !== 'string' || mnemonic.split(/\s+/).filter(Boolean).length !== 24) {
@@ -168,7 +169,7 @@ export async function confirmRotateIdentity(btn) {
       cleanup();
       return;
     } catch (e) {
-      showNotification(`Apply failed: ${e?.message || e}`, 'error');
+      showNotification(`Apply failed: ${getErrorMessage(e, e)}`, 'error');
       applyBtn.disabled = false;
       applyBtn.textContent = 'Apply on this device';
     }

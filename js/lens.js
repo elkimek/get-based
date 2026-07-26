@@ -1,6 +1,7 @@
 // @ts-check
 // lens.js — Custom Knowledge Source
 // User-configured RAG endpoint that backs the Interpretive Lens with retrieved chunks.
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import { hashString, isDebugMode, showNotification } from './utils.js';
@@ -230,7 +231,7 @@ export async function queryLensMulti(queryHint, opts = {}) {
   try {
     variants = await _rewriteQuery(hint, opts.signal);
   } catch (e) {
-    if (isDebugMode?.()) console.warn('[lens] multi-query rewrite failed:', e?.message || e);
+    if (isDebugMode?.()) console.warn('[lens] multi-query rewrite failed:', getErrorMessage(e, e));
   }
 
   // Always include the original — protects against rewrites drifting too
@@ -347,7 +348,7 @@ async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
     updateLensStatus({ state: 'active', lastChunkCount: chunks.length, lastError: null, sourceName });
     return result;
   } catch (e) {
-    const msg = (e && e.name === 'AbortError') ? 'timeout' : (e?.message) || 'unknown error';
+    const msg = (e && getErrorName(e) === 'AbortError') ? 'timeout' : (getErrorMessage(e)) || 'unknown error';
     if (isDebugMode()) console.warn('[Lens] query failed:', backendKey, msg);
     updateLensStatus({ state: 'error', lastError: msg });
     return null;

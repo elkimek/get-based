@@ -1,6 +1,7 @@
 // @ts-check
 // provider-wallet-funding-recovery.js - Pending Lightning funding recovery UI
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, showNotification } from './utils.js';
 
 export async function recoverPendingWalletFunding(walletRuntime, refreshBalance) {
@@ -36,6 +37,6 @@ export async function recoverPendingWalletFunding(walletRuntime, refreshBalance)
     if (result.cleared > 0) return setStatus(result.cleared + ' completed or expired deposit cleared.');
     setStatus('Pending Lightning deposit is not paid yet.');
   } catch (e) {
-    setStatus(escapeHTML(e?.message || String(e)), 'var(--red)');
+    setStatus(escapeHTML(getErrorMessage(e, String(e))), 'var(--red)');
   }
 }

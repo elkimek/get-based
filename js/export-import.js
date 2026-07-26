@@ -1,6 +1,7 @@
 // @ts-check
 // export-import.js — JSON import/restore helpers for the export facade.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
@@ -495,7 +496,7 @@ export function importDataJSON(file) {
         showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${profileMsg}`, 'success');
       } catch (err) {
         clearDemoLoadingProfile();
-        showNotification('Error parsing JSON: ' + err.message, 'error');
+        showNotification('Error parsing JSON: ' + getErrorMessage(err), 'error');
       } finally {
         resolve();
       }
@@ -674,7 +675,7 @@ async function _importDatabaseBundle(json) {
     try {
       if (json.wallet.nodeUrl) setSelectedNodeUrl(json.wallet.nodeUrl);
     } catch (e) {
-      if (isDebugMode()) console.log('[import] Wallet restore failed:', e.message);
+      if (isDebugMode()) console.log('[import] Wallet restore failed:', getErrorMessage(e));
     }
   }
   const total = created + merged;

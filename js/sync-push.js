@@ -1,6 +1,7 @@
 // @ts-check
 // sync-push.js - Evolu profile push path and in-flight watchdog state.
 
+import { getErrorMessage } from './caught-error.js';
 import { buildSyncPayload } from './sync-payload.js';
 import {
   notePushCommitted, trackPushBytes,
@@ -212,13 +213,13 @@ export async function pushProfile(profileId, importedData, opts = {}) {
         // local-sync-ts is now bumped inside onComplete only — see comment there.
       } catch (e) {
         console.error('[sync] Push failed:', e);
-        updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
+        updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: getErrorMessage(e), at: Date.now() } });
         finish({ ok: false, error: e });
       }
     });
   } catch (e) {
     console.error('[sync] Push failed:', e);
-    updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
+    updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: getErrorMessage(e), at: Date.now() } });
     // Synchronous error path — onComplete will never fire, release the lock.
     _syncing = false;
     return { ok: false, error: e };

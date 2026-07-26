@@ -1,6 +1,7 @@
 // @ts-check
 // provider-local-ai-controls.js - Local AI connection checks, model advisor, and hardware overrides.
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
   getOllamaConfig,
@@ -533,7 +534,7 @@ export async function testPIIOllamaConnection() {
   } catch (e) {
     if (generation !== piiDiscoveryGeneration) return;
     dot.classList.add('disconnected');
-    text.textContent = e.message || LOCAL_AI_NOT_CONNECTED_TEXT;
+    text.textContent = getErrorMessage(e, LOCAL_AI_NOT_CONNECTED_TEXT);
     updatePrivacyStatusCardFromRuntime();
   }
 }

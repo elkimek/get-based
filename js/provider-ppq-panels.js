@@ -1,6 +1,7 @@
 // @ts-check
 // provider-ppq-panels.js - PPQ account, balance, and top-up panel behavior.
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import {
   getPpqKey,
@@ -48,7 +49,7 @@ async function _copyPanelText(text, actionEl) {
     _setCopiedText(actionEl);
     return true;
   } catch (e) {
-    showNotification(`Copy failed: ${e?.message || e}`, 'error');
+    showNotification(`Copy failed: ${getErrorMessage(e, e)}`, 'error');
     return false;
   }
 }
@@ -154,7 +155,7 @@ export async function handleCreatePpqAccount() {
       </div>`;
     }
   } catch (e) {
-    if (status) status.innerHTML = '<span style="color:var(--red)">Failed to create account: ' + escapeHTML(e.message) + '</span>';
+    if (status) status.innerHTML = '<span style="color:var(--red)">Failed to create account: ' + escapeHTML(getErrorMessage(e)) + '</span>';
     if (createBtn) { createBtn.disabled = false; createBtn.textContent = 'Create Account (instant, no signup)'; }
   }
   _ppqCreating = false;
@@ -413,7 +414,7 @@ export async function doPpqTopup(amount) {
       } catch { /* ignore poll errors */ }
     }, 3000);
   } catch (e) {
-    area.innerHTML = `<div style="margin-top:8px;padding:10px 12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--red)">${escapeHTML(e.message)}</div>`;
+    area.innerHTML = `<div style="margin-top:8px;padding:10px 12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--red)">${escapeHTML(getErrorMessage(e))}</div>`;
   }
 }
 

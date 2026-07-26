@@ -1,6 +1,7 @@
 // @ts-check
 // sync-diagnostics-snapshot.js - Evolu row diagnostics snapshots.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import { getDeltaCutoverReadiness, getDeltaTelemetry } from './sync-delta.js';
@@ -101,7 +102,7 @@ export async function getEvoluDiagnostics() {
         // render the row as 0/0 - indistinguishable from a real empty row.
         // Log so triage can see which rows the parse path is rejecting
         // (gzip-bomb defence trips, malformed envelope, etc).
-        logSyncEvent('skip', `Diagnose row ${String(row.id || '?').slice(0, 8)} parse failed: ${String(e?.message || e).slice(0, 80)}`);
+        logSyncEvent('skip', `Diagnose row ${String(row.id || '?').slice(0, 8)} parse failed: ${String(getErrorMessage(e, e)).slice(0, 80)}`);
       }
       out.rows.push({
         profileId: row.profileId || payloadProfileId,
@@ -113,7 +114,7 @@ export async function getEvoluDiagnostics() {
         bytes: (row.dataJson || '').length,
       });
     }
-  } catch (e) { out.rowsError = String(e?.message || e); }
+  } catch (e) { out.rowsError = String(getErrorMessage(e, e)); }
   // What's actually in this device's active state right now.
   out.activeImported.sunSessions = Array.isArray(state.importedData?.sunSessions) ? state.importedData.sunSessions.length : 0;
   out.activeImported.lightDevices = Array.isArray(state.importedData?.lightDevices) ? state.importedData.lightDevices.length : 0;

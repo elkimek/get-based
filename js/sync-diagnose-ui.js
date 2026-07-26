@@ -1,6 +1,7 @@
 // @ts-check
 // sync-diagnose-ui.js - Sync Diagnose modal lifecycle and copy handling.
 
+import { getErrorMessage } from './caught-error.js';
 import { showNotification, isDebugMode } from './utils.js';
 import { _evoluDiagnosticsText, getEvoluDiagnostics } from './sync-diagnostics.js';
 import { getRelayQuotaEstimate, verifyPushLanded } from './sync-relay-health.js';
@@ -150,6 +151,6 @@ export async function copySyncDiagnose(btn) {
     btn.textContent = 'Copied';
     setTimeout(() => { btn.textContent = original; }, 1500);
   } catch (e) {
-    try { showNotification(`Copy failed: ${e?.message || e}`, 'error'); } catch {}
+    try { showNotification(`Copy failed: ${getErrorMessage(e, e)}`, 'error'); } catch {}
   }
 }

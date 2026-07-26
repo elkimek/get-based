@@ -5,6 +5,7 @@
 // callbacks. This module owns the preset-picker modal, custom-device form,
 // and AI-assisted URL/photo spec extraction.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
@@ -452,7 +453,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
   } catch (e) {
     if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[fetchCustomDevice]', e);
-    showNotification('Failed to fetch: ' + (e.message || 'Unknown error'), 'error');
+    showNotification('Failed to fetch: ' + (getErrorMessage(e, 'Unknown error')), 'error');
   } finally {
     if (overlay.isConnected && btn) { btn.textContent = 'Fetch & analyse'; btn.disabled = false; }
   }
@@ -483,7 +484,7 @@ async function _scanCustomDeviceLabel(input, overlay) {
   } catch (e) {
     if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[scanCustomDevice]', e);
-    showNotification('Failed to scan: ' + (e.message || 'Unknown error'), 'error');
+    showNotification('Failed to scan: ' + (getErrorMessage(e, 'Unknown error')), 'error');
   } finally {
     if (overlay.isConnected && btn) { btn.textContent = '📷 Scan device label'; btn.disabled = false; }
   }

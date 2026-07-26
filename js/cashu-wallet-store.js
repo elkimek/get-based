@@ -1,6 +1,7 @@
 // @ts-check
 // cashu-wallet-store.js — Cashu proof, recovery journal, counter, and seed persistence
 
+import { getErrorMessage } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 
@@ -244,7 +245,7 @@ export async function _pruneSpentProofs(force = false, forMint) {
     _lastProofCheck = Date.now();
     return [...unspent, ...pending];
   } catch (error) {
-    if (isDebugMode()) console.warn('[cashu-wallet] Proof state check failed:', error.message);
+    if (isDebugMode()) console.warn('[cashu-wallet] Proof state check failed:', getErrorMessage(error));
     return proofs;
   }
 }

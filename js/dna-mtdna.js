@@ -1,6 +1,7 @@
 // @ts-check
 // dna-mtdna.js - mtDNA haplogroup parsing, preview, persistence, and manual entry.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { HAPLOGROUP_LIST } from './constants.js';
 import { escapeHTML, showNotification } from './utils.js';
@@ -161,7 +162,7 @@ export async function handleMtDNAFile(file) {
     return true;
   } catch (e) {
     logDnaDebugError('mtDNA import error:', e);
-    showNotification(e.message || 'Failed to parse mtDNA file', 'error');
+    showNotification(getErrorMessage(e, 'Failed to parse mtDNA file'), 'error');
     _mtdnaImportRunning = false;
     return false;
   }

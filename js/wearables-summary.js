@@ -7,6 +7,7 @@
 // and only persists when a significance threshold trips — this is how we keep
 // Evolu sync writes to ~4–8/month instead of ~30/month.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import {
   appendImportedArrayItem,
@@ -405,7 +406,7 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
   for (const sid of sourceIds) {
     const readStartDate = sid === 'manual' ? MANUAL_SUMMARY_START_DATE : startDate;
     try { rowsBySource[sid] = await getDailyRange(profileId, sid, readStartDate, endDate); }
-    catch (e) { if (isDebugMode?.()) console.warn(`[wearable-summary] L1 read failed for ${sid}:`, e.message); rowsBySource[sid] = []; }
+    catch (e) { if (isDebugMode?.()) console.warn(`[wearable-summary] L1 read failed for ${sid}:`, getErrorMessage(e)); rowsBySource[sid] = []; }
   }
 
   // Profile-swap guard: cross-profile contamination guard. If the user

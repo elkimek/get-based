@@ -1,6 +1,7 @@
 // @ts-check
 // sync-save-hooks.js - Save/chat/profile sync debounce hooks.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
@@ -116,7 +117,7 @@ export async function readProfileImportedData(profileId, fallback = null) {
       : localStorage.getItem(storageKey);
     if (raw) return normalize(JSON.parse(raw));
   } catch (e) {
-    console.warn('[sync] Could not read profile importedData for profile sync:', e?.message || e);
+    console.warn('[sync] Could not read profile importedData for profile sync:', getErrorMessage(e, e));
   }
   return _createDefaultProfileData();
 }

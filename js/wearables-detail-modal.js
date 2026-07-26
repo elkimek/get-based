@@ -1,5 +1,6 @@
 // @ts-check
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { state } from './state.js';
 import {
@@ -26,7 +27,6 @@ import {
   navigateWearableDetailRuntime,
   rememberWearableDetailModalTriggerRuntime,
 } from './wearables-detail-runtime.js';
-
 const WEARABLE_DETAIL_RANGES = [
   { key: '90d', days: 90, label: '90d', coverageSuffix: 'of last 90 days', emptyWindow: 'the last 90 days' },
   { key: '6m', days: 180, label: '6m', coverageSuffix: 'of last 6 months', emptyWindow: 'the last 6 months' },
@@ -111,7 +111,7 @@ export async function openWearableDetail(metricId, opts = {}) {
       pairedRows = rows;
     }
   } catch (e) {
-    showNotification?.(`Couldn't read local history: ${e.message}`, 'error', 4000);
+    showNotification?.(`Couldn't read local history: ${getErrorMessage(e)}`, 'error', 4000);
     return;
   }
   if (op !== _detailOp) return;
@@ -763,7 +763,7 @@ export async function saveManualEntryFromDetail(metricId, kind) {
     navigateWearableDetailRuntime('dashboard');
     openWearableDetail(metricId);
   } catch (e) {
-    showNotification?.(`Couldn't save: ${e.message}`, 'error', 4000);
+    showNotification?.(`Couldn't save: ${getErrorMessage(e)}`, 'error', 4000);
   }
 }
 
@@ -792,7 +792,7 @@ export async function deleteManualEntryFromDetail(metricId, date) {
         closeWearableDetailModalRuntime();
       }
     } catch (e) {
-      showNotification?.(`Couldn't delete: ${e.message}`, 'error', 4000);
+      showNotification?.(`Couldn't delete: ${getErrorMessage(e)}`, 'error', 4000);
     }
   }
 }

@@ -16,6 +16,7 @@
 //                  weekly: number[]         // up to 12 weekly means (oldest → newest)
 //                } }
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { state } from './state.js';
 import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, isoDay } from './wearable-adapters.js';
@@ -1090,7 +1091,7 @@ export async function saveManualLog(kind, event) {
     rerenderCurrentView();
     showNotification?.('Saved', 'success');
   } catch (e) {
-    showNotification?.('Could not save: ' + e.message, 'error');
+    showNotification?.('Could not save: ' + getErrorMessage(e), 'error');
   }
 }
 

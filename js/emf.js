@@ -2,6 +2,7 @@
 // emf.js — Baubiologie EMF Assessment sub-module
 // Room-by-room EMF measurements with SBM-2015 severity ratings
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
 
@@ -799,7 +800,7 @@ export async function handleEMFPDF(file) {
   try {
     pdfText = await extractPDFText(file);
   } catch (e) {
-    showNotification('Failed to read PDF: ' + e.message, 'error');
+    showNotification('Failed to read PDF: ' + getErrorMessage(e), 'error');
     return;
   }
 
@@ -854,7 +855,7 @@ export async function handleEMFPDF(file) {
 
     showEMFImportPreview(parsed);
   } catch (e) {
-    showNotification('Failed to parse EMF report: ' + e.message, 'error');
+    showNotification('Failed to parse EMF report: ' + getErrorMessage(e), 'error');
   }
 }
 

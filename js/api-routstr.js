@@ -1,6 +1,7 @@
 // @ts-check
 // api-routstr.js - Routstr provider adapter and wallet helpers.
 
+import { getErrorMessage } from './caught-error.js';
 import {
   getRoutstrKey,
   getRoutstrModel,
@@ -123,7 +124,7 @@ export async function callRoutstrAPI(opts) {
     try {
       secure = await createTinfoilSecureFetch({ baseUrl: nodeUrl });
     } catch (e) {
-      throw new Error(`Routstr Private TEE setup failed: ${e.message}`);
+      throw new Error(`Routstr Private TEE setup failed: ${getErrorMessage(e)}`);
     }
     apiWindow._routstrAttestation = secure.verification ?? apiWindow._routstrAttestation ?? null;
     document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));

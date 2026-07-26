@@ -3,6 +3,7 @@
 // Uses cashu-ts (vendored IIFE → global `cashuts`) for protocol operations.
 // Durable proofs, counters, recovery journals, and seed storage live in cashu-wallet-store.js.
 
+import { getErrorMessage } from './caught-error.js';
 import { isDebugMode, loadScriptOnce } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { getCashuWalletStoreCryptoDeps } from './crypto.js';
@@ -292,7 +293,7 @@ async function _restoreProofsFromSeed(mnemonic, restoreMintUrl) {
       }
       for (const proof of result.proofs || []) restoredBySecret.set(proof.secret, proof);
     } catch (e) {
-      failures.push(`${keyset.id}: ${e?.message || String(e)}`);
+      failures.push(`${keyset.id}: ${getErrorMessage(e, String(e))}`);
     }
   }
   if (!completedScans) {
@@ -372,7 +373,7 @@ export async function restoreWalletFromSeed(mnemonic) {
 export async function getWalletBalance() {
   return _withWalletLock(async () => {
     try { await _recoverPendingSwapUnlocked(); } catch (e) {
-      if (isDebugMode()) console.warn('[cashu-wallet] Pending swap recovery deferred:', e.message);
+      if (isDebugMode()) console.warn('[cashu-wallet] Pending swap recovery deferred:', getErrorMessage(e));
     }
     const mintUrl = await getMintUrl();
     const proofs = await _pruneSpentProofs(false, mintUrl);
@@ -537,7 +538,7 @@ export async function recoverPendingFunding() {
         pending += 1;
       }
     } catch (e) {
-      errors.push({ quote: quoteId, message: e?.message || String(e) });
+      errors.push({ quote: quoteId, message: getErrorMessage(e, String(e)) });
     }
   }
 
@@ -866,7 +867,7 @@ export async function retryFeeAutoMelt() {
       const remaining = await getFeeBalance();
       return { melted: feeSats, remaining };
     } catch (e) {
-      return { melted: 0, remaining: feeSats, reason: e.message };
+      return { melted: 0, remaining: feeSats, reason: getErrorMessage(e) };
     }
   });
 }
@@ -984,7 +985,7 @@ async function _autoMeltFees(feeProofs, operationMint) {
       _autoMeltConsecutiveFailures = 0;
     } catch (e) {
       if (feeProofs.length) await _saveFeeProofs(feeProofs, mintUrl);
-      if (isDebugMode()) console.log('[cashu-wallet] Fee melt failed, saved for later:', e.message);
+      if (isDebugMode()) console.log('[cashu-wallet] Fee melt failed, saved for later:', getErrorMessage(e));
       // Surface persistent failures so the user can act (top up the
       // LN node, fix the address, etc.). Transient airplane-mode
       // toggles produce one or two failures; only flag when something

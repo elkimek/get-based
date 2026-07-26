@@ -1,6 +1,7 @@
 // @ts-check
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
 
+import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { getRoutstrKey, saveRoutstrKey, touchRoutstrSession, fetchRoutstrModels, getRoutstrBalance } from './api.js';
 import { isValidExternalUrl } from './url-safety.js';
@@ -222,7 +223,7 @@ export async function doRoutstrWalletFund(amountSats) {
       }
     }, FUNDING_POLL_INTERVAL_MS);
   } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 
@@ -259,8 +260,8 @@ async function _receiveRoutstrWalletCashu(token, input = null, statusEl = null) 
     showNotification('Wallet funded \u26a1 +' + result.received + ' sats' + (result.fee > 0 ? ' (' + result.fee + ' fee)' : ''), 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
-    if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
-    else showNotification(e?.message || String(e), 'error');
+    if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
+    else showNotification(getErrorMessage(e, String(e)), 'error');
   }
 }
 
@@ -322,7 +323,7 @@ export async function doRoutstrMintChange() {
     _refreshRoutstrWalletBalance();
     showNotification('Mint changed to ' + url.replace(/^https?:\/\//, ''), 'success');
   } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 
@@ -336,7 +337,7 @@ export async function showRoutstrWalletBackup() {
     clearTimeout(_rsCashuBackupTimer);
     _rsCashuBackupTimer = setTimeout(() => navigator.clipboard.writeText(''), 60000);
   } catch (e) {
-    showNotification('Backup failed: ' + e.message, 'error');
+    showNotification('Backup failed: ' + getErrorMessage(e), 'error');
   }
   setTimeout(() => _setActiveWalletAction(null), 500);
 }
@@ -356,7 +357,7 @@ export async function showRoutstrNodePicker() {
     }
     area.innerHTML = '<div style="margin-top:8px">' + nodes.map(routstrNodePickerRowHtml).join('') + '</div>';
   } catch (e) {
-    area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 
@@ -467,7 +468,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
     refreshRoutstrBalance();
     _returnToChatIfOnboarding();
   } catch (e) {
-    if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
     _refreshRoutstrWalletBalance();
     if (walletRuntime.cashuRecoverPendingDeposit) walletRuntime.cashuRecoverPendingDeposit().then(function(token) {
       if (!token) return;
@@ -530,7 +531,7 @@ async function _withdrawRoutstrNodeToWallet() {
     } catch (importError) {
       if (picker) picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
         '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Node returned a refund token, but wallet import failed</div>' +
-        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Your sats are in this Cashu token. Copy it before changing anything. Error: ' + escapeHTML(importError?.message || String(importError)) + '</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Your sats are in this Cashu token. Copy it before changing anything. Error: ' + escapeHTML(getErrorMessage(importError, String(importError))) + '</div>' +
         '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:48px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-text">' + escapeHTML(token) + '</textarea>' +
         '<div style="display:flex;gap:4px;margin-top:4px">' +
         '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="recover-pending-withdraw" data-clear-pending-withdraw="' + (savedPendingWithdraw !== false ? 'true' : 'false') + '" data-token="' + escapeAttr(token) + '">Try Recover to Wallet</button>' +
@@ -538,7 +539,7 @@ async function _withdrawRoutstrNodeToWallet() {
         '</div></div>';
     }
   } catch (e) {
-    if (picker) picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)"><div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div></div>';
+    if (picker) picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)"><div style="font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div></div>';
   }
 }
 
@@ -679,7 +680,7 @@ export async function doRoutstrSendToken(amount) {
     showNotification('\u26a1 ' + result.amount.toLocaleString() + ' sats token ready', 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
-    resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 
@@ -707,7 +708,7 @@ export async function doRoutstrWithdrawQuote() {
       showNotification('Withdrawal complete', 'success');
       _refreshRoutstrWalletBalance();
     } catch (e) {
-      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
     }
     return;
   }
@@ -725,7 +726,7 @@ export async function doRoutstrWithdrawQuote() {
       <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-execute" data-quote-id="${escapeAttr(quote.quote)}">Confirm Withdraw</button>
     </div>`;
   } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 
@@ -739,7 +740,7 @@ export async function doRoutstrWithdrawExecute(quoteId) {
     showNotification('Withdrawal complete', 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 
@@ -760,7 +761,7 @@ export async function doRoutstrWalletRestore() {
     showNotification('Wallet restored', 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
 }
 

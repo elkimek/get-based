@@ -1,6 +1,7 @@
 // @ts-check
 // cycle-import.js - menstrual-cycle import adapters, preview, commit, deletion.
 
+import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { restoreImportedArray } from './data-merge.js';
@@ -453,7 +454,10 @@ export async function commitCycleImport(parsed, { conflictMode = 'keep-existing'
       await upsertCycleObservationBatchRaw(profileId, priorRows);
       if (priorMeta) await upsertCycleImportMetaBatchRaw(profileId, [priorMeta]);
     } catch (rollbackError) {
-      error.message += ` Rollback also failed: ${rollbackError.message}`;
+      error = new Error(
+        `${getErrorMessage(error, 'Cycle import failed')} Rollback also failed: ${getErrorMessage(rollbackError)}`,
+        { cause: error },
+      );
     }
     restoreCycleState(snapshot, profileId, { restoreSex: true });
     throw error;
@@ -684,7 +688,7 @@ export async function handleCycleImportAction(event) {
       }, didNavigate ? 1550 : 0);
     } catch (err) {
       target.removeAttribute('disabled');
-      showNotification(`Cycle import failed: ${err.message}`, 'error');
+      showNotification(`Cycle import failed: ${getErrorMessage(err)}`, 'error');
     }
   } else if (action === 'delete-source') {
     const source = target.dataset.cycleImportSource || '';
@@ -721,7 +725,7 @@ export async function handleCycleImportFile(file) {
     }
     parsed = await parseCycleImportContext(context);
   } catch (err) {
-    showNotification(`${importLabel} import failed: ${err.message}`, 'error');
+    showNotification(`${importLabel} import failed: ${getErrorMessage(err)}`, 'error');
     return false;
   }
   if (!parsed) {

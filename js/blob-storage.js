@@ -13,6 +13,8 @@
 // Everything else stays in localStorage where the synchronous read
 // API and small payload sizes are a better fit.
 
+import { getErrorMessage } from './caught-error.js';
+
 const DB_NAME = 'labcharts-blobs';
 const STORE_NAME = 'kv';
 const DB_VERSION = 1;
@@ -57,7 +59,7 @@ export async function getBlob(key) {
       req.onerror = () => reject(req.error);
     });
   } catch (e) {
-    console.warn('[blob-storage] getBlob failed:', e?.message || e);
+    console.warn('[blob-storage] getBlob failed:', getErrorMessage(e, e));
     return null;
   }
 }
@@ -86,7 +88,7 @@ export async function deleteBlob(key) {
       req.onerror = () => reject(req.error);
     });
   } catch (e) {
-    console.warn('[blob-storage] deleteBlob failed:', e?.message || e);
+    console.warn('[blob-storage] deleteBlob failed:', getErrorMessage(e, e));
   }
 }
 
