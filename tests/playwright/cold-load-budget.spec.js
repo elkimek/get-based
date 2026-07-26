@@ -175,6 +175,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/data/mito-compounds.json'
   ))).toBe(false);
+  expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/data/light-device-presets.json'
+  ))).toBe(false);
   const deferredLightEnvironmentUiModules = new Set([
     '/js/light-env.js',
     '/js/light-env-actions.js',
@@ -254,4 +257,66 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   console.log(`Cold-load budget: ${formatColdLoadSummary(metrics)}`);
   console.log(`Cold-load metrics: ${JSON.stringify(metrics)}`);
   expect(() => enforceColdLoadBudget(metrics, budget)).not.toThrow();
+});
+
+test('startup loads Light presets only when persisted devices need hydration', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
+      accepted: true,
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
+      acceptedAt: '2026-07-23T00:00:00.000Z',
+      appVersion: 'light-device-hydration',
+      location: 'light-device-hydration',
+    }));
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-ai-reminder-dismissed', '1');
+    localStorage.setItem('labcharts-onboard-extras-done-default', '1');
+    localStorage.setItem('labcharts-onboard-provider-skipped-default', '1');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
+
+  await page.goto('/app', { waitUntil: 'networkidle' });
+  await page.evaluate(async () => {
+    const [{ state }, { saveImportedData }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
+    state.importedData.lightDevices = [{
+      id: 'legacy-maxi-uvb',
+      presetId: 'mitochondriak-maxi-uvb',
+      brand: 'Mitochondriak',
+      model: 'Maxi UVB',
+      type: 'uvb',
+      peakWavelengths: [295, 380, 480, 630, 670, 760, 810, 830, 850],
+      channels: ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'pbm_red', 'pbm_nir'],
+    }];
+    await saveImportedData({ immediate: true });
+  });
+
+  let presetRequests = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/data/light-device-presets.json') {
+      presetRequests += 1;
+    }
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const device = state.importedData.lightDevices
+      .find(candidate => candidate.id === 'legacy-maxi-uvb');
+    return {
+      modes: device?.modes?.map(mode => mode.id) || [],
+      channelGroups: device?.channelGroups?.map(group => group.id) || [],
+      coupling: device?.coupling?.length || 0,
+    };
+  })).toEqual({
+    modes: ['all-on', 'red-nir-only'],
+    channelGroups: ['uv-blue', 'red-nir'],
+    coupling: 1,
+  });
+  expect(presetRequests).toBe(1);
 });

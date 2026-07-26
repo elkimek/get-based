@@ -68,6 +68,7 @@ function hydrateUserLightDevicesFromPresets() {
   // / Trinity device records have no `modes` array, so the session-log
   // dialog can't render the mode picker for them. Idempotent - re-runs
   // are no-ops once devices carry the fields.
+  if (!state.importedData?.lightDevices?.length) return;
   hydrateDevicesFromPresets().then(dirty => {
     if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
   }).catch(() => {});

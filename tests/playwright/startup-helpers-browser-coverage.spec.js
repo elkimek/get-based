@@ -249,6 +249,7 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
       importedData: {
         biometrics: { weight: 70 },
         supplements: [{ name: 'Metformin' }],
+        lightDevices: [{ id: 'coverage-light-device', presetId: 'coverage-preset' }],
         wearableConnections: {
           manual: {
             connectedAt: '2026-07-01T00:00:00.000Z',
@@ -293,6 +294,12 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
       const summarySynced = await waitUntil(() => window.__startupMaintenanceCalls
         .some(call => Array.isArray(call) && call[0] === 'syncWearableSummary')
         && window.__startupMaintenanceCalls.includes('initWearableScheduler'));
+      const trackedDeviceHydrationCount = window.__startupMaintenanceCalls
+        .filter(call => call === 'hydrateDevicesFromPresets').length;
+      window.__startupMaintenanceState.importedData.lightDevices = [];
+      maintenance.runPostProfileStartupMaintenance();
+      const emptyDeviceHydrationCount = window.__startupMaintenanceCalls
+        .filter(call => call === 'hydrateDevicesFromPresets').length;
 
       return {
         startupServicesInitializeWearableConfigAndScheduler:
@@ -305,8 +312,10 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
           && window.__startupMaintenanceCalls.includes('rehydrateStaleSessions')
           && logs.some(line => line.includes('[sun] self-healed 2 session(s) under vmaintenance-test')),
         lightDeviceHydrationRunsAndLogsDirtyState:
-          window.__startupMaintenanceCalls.includes('hydrateDevicesFromPresets')
+          trackedDeviceHydrationCount === 1
           && logs.some(line => line.includes('[light] hydrated user devices from preset library')),
+        emptyProfilesSkipLightDevicePresetHydration:
+          emptyDeviceHydrationCount === trackedDeviceHydrationCount,
         trackedSupplementsPreloadWarningData:
           window.__startupMaintenanceCalls.includes('preloadMitoCompoundData'),
         legacyBiometricsMigrationRefreshesManualSummary:
