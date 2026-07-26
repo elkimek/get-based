@@ -427,6 +427,7 @@ return (async function () {
     const profileShareLoader = await fetchSrc('js/profile-share-loader.js');
     const wearablesRuntime = await fetchSrc('js/wearables-runtime.js');
     const appAiInteractionFeatures = await fetchSrc('js/app-ai-interaction-modules.js');
+    const chatLoader = await fetchSrc('js/chat-loader.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
     const appShellHooks = await fetchSrc('js/app-shell-hooks.js');
     assert('main.js delegates feature side-effect imports',
@@ -453,8 +454,11 @@ return (async function () {
         && /import\(['"]\.\/profile-share\.js\?lazy-retry=1['"]\)/.test(profileShareLoader)
         && /from\s+['"]\.\/profile-share-loader\.js['"]/.test(appShellHooks)
         && !/from\s+['"]\.\/profile-share\.js['"]/.test(appShellHooks));
-    assert('app-feature-modules.js delegates AI interaction imports',
-      /import\s+['"]\.\/app-ai-interaction-modules\.js['"]/.test(appFeatures));
+    assert('Chat composition is lazy-loaded behind the shell entry point',
+      !/import\s+['"]\.\/app-ai-interaction-modules\.js['"]/.test(appFeatures)
+        && /from\s+['"]\.\/chat-loader\.js['"]/.test(appShellHooks)
+        && /import\(['"]\.\/app-ai-interaction-modules\.js['"]\)/.test(chatLoader)
+        && /import\(['"]\.\/app-ai-interaction-modules\.js\?lazy-retry=1['"]\)/.test(chatLoader));
     assert('app-feature-modules.js delegates UI shell imports',
       /import\s+['"]\.\/app-ui-shell-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js has no direct leaf imports',

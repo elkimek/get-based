@@ -230,10 +230,15 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && sunErrorHtml.includes('sun unavailable')
         && deviceErrorHtml.includes('device unavailable');
 
-      let releaseFetch = () => {};
+      let releaseFetch;
+      let signalFetchStarted;
+      const fetchStarted = new Promise(resolve => { signalFetchStarted = resolve; });
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
-          await new Promise(resolve => { releaseFetch = resolve; });
+          await new Promise(resolve => {
+            releaseFetch = resolve;
+            signalFetchStarted();
+          });
           return new Response(JSON.stringify({
             choices: [{ message: { content: '{"dot":"yellow","tip":"pending tip","detail":"pending detail"}' } }],
             usage: { prompt_tokens: 8, completion_tokens: 6 },
@@ -243,7 +248,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       };
       delete sunSession.aiAnalysis;
       const analyzingPromise = sun.analyzeSunSessionAI(sunSession, { force: true });
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await fetchStarted;
       const sunAnalyzingHtml = sun.renderSessionAIInline(sunSession);
       releaseFetch();
       await analyzingPromise;

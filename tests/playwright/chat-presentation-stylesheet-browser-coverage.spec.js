@@ -61,6 +61,9 @@ test('Chat presentation stays cold until the panel opens and preserves cascade o
 
   const outcome = await page.evaluate(async () => {
     const opened = await window.__chatOpenResult;
+    // The send button declares `transition: all`; under a busy parallel run
+    // its 40px → 44px stylesheet transition can still be in flight here.
+    await new Promise(resolve => setTimeout(resolve, 250));
     const links = Array.from(document.querySelectorAll('link[data-chat-presentation-stylesheet]'));
     const primaryAnchor = document.querySelector('[data-chat-presentation-stylesheet-anchor]');
     const redesignAnchor = document.querySelector('[data-chat-redesign-open-stylesheet-anchor]');

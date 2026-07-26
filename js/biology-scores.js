@@ -26,7 +26,7 @@ import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitio
 import { computeThyroidCoherence } from './biology-score-thyroid.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { state } from './state.js';
-import { createNewThread } from './chat-threads.js';
+import { createNewThread } from './chat-loader.js';
 import { renderMarkdown } from './markdown.js';
 import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from './biology-score-coverage-planner.js';
 import {

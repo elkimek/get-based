@@ -375,6 +375,8 @@ const chatDiscussionPickerSrc = read('js/chat-discussion-picker.js');
 const chatDiscussionUiSrc = read('js/chat-discussion-ui.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatOnboardingHostBindingsSrc = read('js/chat-onboarding-host-bindings.js');
+const appChatHooksSrc = read('js/app-chat-hooks.js');
+const appShellHooksSrc = read('js/app-shell-hooks.js');
 const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
@@ -634,11 +636,13 @@ assert('chat window bindings configure onboarding callbacks',
     chatWindowBindingsSrc.includes('updateChatNudge'),
   'found');
 assert('chat onboarding host bindings wire app dependencies',
-  appUiShellModulesSrc.includes("import './chat-onboarding-host-bindings.js'") &&
+  !appUiShellModulesSrc.includes("import './chat-onboarding-host-bindings.js'") &&
     chatOnboardingHostBindingsSrc.includes("from './chat-onboarding.js'") &&
-    chatOnboardingHostBindingsSrc.includes('openSettingsModal') &&
-    chatOnboardingHostBindingsSrc.includes('switchAIProviderBridge') &&
-    chatOnboardingHostBindingsSrc.includes('renderMenstrualCycleSection'),
+    chatOnboardingHostBindingsSrc.includes('configureChatOnboarding(deps)') &&
+    appChatHooksSrc.includes('configureChatOnboardingHostBindings(deps)') &&
+    appShellHooksSrc.includes('configureChatLoader({') &&
+    appShellHooksSrc.includes('switchAIProvider: switchAIProviderBridge,') &&
+    appShellHooksSrc.includes('renderMenstrualCycleSection,'),
   'found');
 assert('chat-onboarding uses configured deps instead of direct window callback lookups',
   !/\bwindow\s*(?:\.|\[\s*['"])/.test(chatOnboardingSrc),

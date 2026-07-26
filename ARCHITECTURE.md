@@ -199,15 +199,27 @@ Cross-theme shell geometry and Sunset Mode rules remain in a final eager
 inline block after that anchor, preserving their original cascade while keeping
 the deferred sheet scoped to the four optional themes.
 
-Only the persistent Chat launcher, closed panel shell, and final redesign
-overrides remain eager. `chat-panel.js` loads the personality, messages,
-composer, onboarding, responsive, actions, and mobile presentation sheets
-through one single-flight boundary before the panel first opens. Failed links
-are removed and cache-busted for group retry, a shared HTML anchor preserves
-the sheets' original order before redesign overrides, and the service worker
-keeps them precached for offline first use. Cold-visible mobile launcher sizing
-stays in `chat-panel.css`; marker-detail controls formerly misplaced in the
-composer sheet live with the lazy marker-detail bundle.
+Only the persistent Chat launcher, closed panel markup, nudge state, base
+shell styles, and final redesign overrides remain eager. `chat-loader.js`
+single-flights the behavior composition on the first shell action, feature
+prompt, keyboard shortcut, or startup deep-link. `app-chat-hooks.js` then wires
+the loaded Chat graph to host callbacks injected by `app-shell-hooks.js`;
+attachment handlers and the rest of the Chat runtime are not initialized
+before that boundary. Failed module loads reset the single-flight state and
+retry with a fresh URL. The same first action makes `chat-panel.js` load the
+personality, messages, composer, onboarding, responsive, actions, and mobile
+presentation sheets before opening the panel. Failed links are removed and
+cache-busted for group retry, a shared HTML anchor preserves their original
+order before redesign overrides, and the service worker keeps the deferred
+modules and stylesheets precached for offline first use.
+
+`api.js` keeps synchronous provider selection, key state, and model metadata in
+the startup graph because dashboards and feature availability checks use them.
+Provider transports for Ollama, Venice, OpenRouter, Routstr, PPQ, and custom
+OpenAI-compatible endpoints load through cached, retryable dynamic adapters
+only when a provider operation is requested. This keeps provider behavior and
+the public API facade stable without paying for every transport on a cold
+dashboard load.
 
 Wearables presentation is loaded through the single-flight stylesheet boundary
 in `wearables-runtime.js` when a biometric detail, inline manual log, or the

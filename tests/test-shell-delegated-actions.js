@@ -8,11 +8,13 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const appChatHooksSrc = fs.readFileSync(path.join(root, 'js/app-chat-hooks.js'), 'utf8');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
 const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
 const biologyScoreContextAISrc = fs.readFileSync(path.join(root, 'js/biology-score-context-ai.js'), 'utf8');
 const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-view.js'), 'utf8');
 const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
+const chatLoaderSrc = fs.readFileSync(path.join(root, 'js/chat-loader.js'), 'utf8');
 const chatRuntimeSrc = fs.readFileSync(path.join(root, 'js/chat-runtime.js'), 'utf8');
 const cycleImportLoaderSrc = fs.readFileSync(path.join(root, 'js/cycle-import-loader.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
@@ -92,18 +94,20 @@ assert('Mobile sidebar shell actions use injected nav dependencies',
     && appShellHooksSrc.includes('configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });'));
 
 assert('App shell wires module-only chat image consumers',
-  appShellHooksSrc.includes("from './chat-images.js'")
-    && appShellHooksSrc.includes('configureChatMessageActionDeps({')
-    && appShellHooksSrc.includes('openImageLightbox,')
-    && appShellHooksSrc.includes('removeImageAttachment,')
+  appShellHooksSrc.includes("from './chat-loader.js'")
     && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
-    && appShellHooksSrc.includes('configureStartupUIDeps({\n  getInitialView,\n  initChatImageHandlers,\n  navigate,\n  openChatPanel,\n  openSettingsModal,\n  updateAttachButtonVisibility,\n});'));
+    && appChatHooksSrc.includes("from './chat-images.js'")
+    && appChatHooksSrc.includes('configureChatMessageActionDeps({')
+    && appChatHooksSrc.includes('openImageLightbox,')
+    && appChatHooksSrc.includes('removeImageAttachment,')
+    && appChatHooksSrc.includes('initChatImageHandlers();')
+    && appChatHooksSrc.includes('updateAttachButtonVisibility();'));
 
 assert('App shell wires module-only chat message actions',
   ['closeSummaryModal', 'continueDiscussion', 'copySummary', 'deleteSavedSummary',
     'downloadSummary', 'endDiscussion', 'jumpToSearchResult', 'printSummary',
     'startDiscussionFromPicker', 'viewSavedSummary']
-    .every(name => appShellHooksSrc.includes(`${name},`)));
+    .every(name => appChatHooksSrc.includes(`${name},`)));
 
 assert('Chat thread shell actions use module dependencies instead of window lookups',
   shellSrc.includes('shellChatThreadDeps.toggleThreadRail()')
@@ -114,27 +118,34 @@ assert('Chat thread shell actions use module dependencies instead of window look
     && !shellSrc.includes("callShellRuntime('filterThreadList'"));
 
 assert('App shell wires module-only chat thread consumers',
-  appShellHooksSrc.includes("from './chat-threads.js'")
+  appShellHooksSrc.includes("from './chat-loader.js'")
+    && chatLoaderSrc.includes("import('./app-ai-interaction-modules.js')")
     && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
     && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });')
-    && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });'));
+    && appShellHooksSrc.includes('ensureActiveThread: ensureActiveThreadIfLoaded,')
+    && appShellHooksSrc.includes('loadChatHistory: loadChatHistoryIfLoaded,')
+    && appShellHooksSrc.includes('loadChatThreads: loadChatThreadsIfLoaded,')
+    && appShellHooksSrc.includes('renderThreadList: renderThreadListIfLoaded,'));
 
 assert('App shell wires Context hub status refresh without a window lookup',
   appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
-    && appShellHooksSrc.includes("from './chat-personalities.js'")
-    && appShellHooksSrc.includes('updateChatContextStatus')
-    && appShellHooksSrc.includes('configureDashboardAIContextStatus(updateChatContextStatus);'));
+    && appShellHooksSrc.includes('updateChatContextStatusIfLoaded')
+    && chatLoaderSrc.includes("callLoadedChatModule('updateChatContextStatus'")
+    && appShellHooksSrc.includes('configureDashboardAIContextStatus(updateChatContextStatusIfLoaded);'));
 
 assert('App shell injects core Context Cards view callbacks without bridge lookups',
-  appShellHooksSrc.includes('configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved });'));
+  appShellHooksSrc.includes('configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved: onContextCardSavedIfLoaded });'));
 
 assert('App shell wires Chat UI refreshes without window globals',
-  appShellHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
-    && appShellHooksSrc.includes('configureChatRuntimeCallbacks({')
-    && appShellHooksSrc.includes('  closeModal,')
-    && appShellHooksSrc.includes('refreshWebSearchToggle,')
-    && appShellHooksSrc.includes('resumeAI,')
-    && appShellHooksSrc.includes('sendChatMessage,'));
+  appShellHooksSrc.includes('configureChatRuntimeCallbacks({')
+    && appShellHooksSrc.includes('updateChatHeaderModel: updateChatHeaderModelIfLoaded,')
+    && appShellHooksSrc.includes('updateChatNudge,')
+    && appChatHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
+    && appChatHooksSrc.includes('configureChatRuntimeCallbacks({')
+    && appChatHooksSrc.includes('closeModal: deps.closeModal,')
+    && appChatHooksSrc.includes('refreshWebSearchToggle,')
+    && appChatHooksSrc.includes('resumeAI,')
+    && appChatHooksSrc.includes('sendChatMessage,'));
 
 assert('App shell injects Chat modal close without a view bridge lookup',
   !chatRuntimeSrc.includes("from './views-runtime-bridge.js'")
@@ -156,9 +167,9 @@ assert('App shell injects Biology Score context navigation without bridge or win
     && appShellHooksSrc.includes('configureBiologyScoreContextAIDeps({ navigate });'));
 
 assert('App shell wires Chat close consumers without window globals',
-  appShellHooksSrc.includes("import { configureChatEmptyStateDeps } from './chat-empty-state.js'")
+  appChatHooksSrc.includes("from './chat-empty-state.js'")
     && appShellHooksSrc.includes("import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js'")
-    && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });')
+    && appChatHooksSrc.includes('configureChatEmptyStateDeps({')
     && appShellHooksSrc.includes('configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });'));
 
 assert('App shell injects Chat empty-state view callbacks without bridge or global fallbacks',
@@ -166,7 +177,8 @@ assert('App shell injects Chat empty-state view callbacks without bridge or glob
     && !chatEmptyStateSrc.includes('chatEmptyRuntime()')
     && chatEmptyStateSrc.includes('chatEmptyStateDeps.openChatProviderQuiz();')
     && chatEmptyStateSrc.includes("chatEmptyStateDeps.setOnboardingFocus(actionEl.dataset.focus || '');")
-    && appShellHooksSrc.includes('configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });'));
+    && appChatHooksSrc.includes('openChatProviderQuiz: deps.openChatProviderQuiz,')
+    && appChatHooksSrc.includes('setOnboardingFocus: deps.setOnboardingFocus,'));
 
 assert('App shell wires remaining Chat open consumers without window globals',
   appShellHooksSrc.includes('configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });')
@@ -234,7 +246,8 @@ assert('App shell injects crypto cross-tab refresh callbacks without bridge look
 
 assert('App shell injects Cycle view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCycleRuntimeDeps } from './cycle-runtime.js'")
-    && appShellHooksSrc.includes("import { openMenstrualCycleEditor } from './cycle.js'")
+    && appShellHooksSrc.includes("from './cycle.js'")
+    && appShellHooksSrc.includes('openMenstrualCycleEditor')
     && appShellHooksSrc.includes('openEditor: openMenstrualCycleEditor,'));
 
 assert('App shell injects Apple Health cycle import callbacks',

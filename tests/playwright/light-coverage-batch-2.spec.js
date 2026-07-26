@@ -514,10 +514,15 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       const idleHtml = analysis.renderMeasurementAIInline(samples[0]);
       localStorage.setItem('labcharts-ollama-model', 'test-light-model');
       window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
-      let releaseFetch = () => {};
+      let releaseFetch;
+      let signalFetchStarted;
+      const fetchStarted = new Promise(resolve => { signalFetchStarted = resolve; });
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
-          await new Promise(resolve => { releaseFetch = resolve; });
+          await new Promise(resolve => {
+            releaseFetch = resolve;
+            signalFetchStarted();
+          });
           return new Response(JSON.stringify({
             choices: [{ message: { content: '{"dot":"yellow","tip":"pending tip","detail":"pending detail"}' } }],
             usage: { prompt_tokens: 5, completion_tokens: 4 },
@@ -526,7 +531,7 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
         return saved.fetch(url, options);
       };
       const analyzingPromise = analysis.analyzeMeasurementAI(samples[1]);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await fetchStarted;
       const analyzingHtml = analysis.renderMeasurementAIInline(samples[1]);
       releaseFetch();
       await analyzingPromise;

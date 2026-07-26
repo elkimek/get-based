@@ -91,6 +91,29 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/wearables.js'
   ))).toBe(false);
+  const deferredChatCompositionModules = new Set([
+    '/js/app-ai-interaction-modules.js',
+    '/js/app-chat-hooks.js',
+    '/js/chat.js',
+    '/js/chat-panel.js',
+    '/js/chat-send.js',
+    '/js/chat-threads.js',
+  ]);
+  expect(entries.some(entry => (
+    deferredChatCompositionModules.has(new URL(entry.name).pathname)
+  ))).toBe(false);
+  const deferredAIProviderModules = new Set([
+    '/js/api-local.js',
+    '/js/api-venice.js',
+    '/js/api-openrouter.js',
+    '/js/api-routstr.js',
+    '/js/api-ppq.js',
+    '/js/api-custom.js',
+    '/js/api-openai-compatible.js',
+  ]);
+  expect(entries.some(entry => (
+    deferredAIProviderModules.has(new URL(entry.name).pathname)
+  ))).toBe(false);
   const deferredWearableConnectionModules = new Set([
     '/js/wearables-connect.js',
     '/js/wearables-oura.js',
@@ -257,6 +280,62 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   console.log(`Cold-load budget: ${formatColdLoadSummary(metrics)}`);
   console.log(`Cold-load metrics: ${JSON.stringify(metrics)}`);
   expect(() => enforceColdLoadBudget(metrics, budget)).not.toThrow();
+});
+
+test('first Chat action loads the composition once and opens the panel', async ({ page }) => {
+  const requestedPaths = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.origin === appOrigin) requestedPaths.push(url.pathname);
+  });
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.origin === appOrigin) {
+      await route.continue();
+      return;
+    }
+    await route.abort();
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
+      accepted: true,
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
+      acceptedAt: '2026-07-23T00:00:00.000Z',
+      appVersion: 'chat-lazy-load',
+      location: 'chat-lazy-load',
+    }));
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-ai-reminder-dismissed', '1');
+    localStorage.setItem('labcharts-onboard-extras-done-default', '1');
+    localStorage.setItem('labcharts-onboard-provider-skipped-default', '1');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
+
+  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  expect(requestedPaths).not.toContain('/js/app-ai-interaction-modules.js');
+
+  await page.getByRole('button', { name: 'Start guided chat' }).click();
+  await expect(page.locator('#chat-panel')).toHaveClass(/\bopen\b/);
+  await expect.poll(() => page.evaluate(async () => (
+    await import('/js/chat-loader.js')
+  ).isChatModuleLoaded())).toBe(true);
+  await expect.poll(() => requestedPaths.filter(
+    pathname => pathname === '/js/app-ai-interaction-modules.js',
+  ).length).toBe(1);
+  await expect(page.locator('link[data-chat-presentation-stylesheet="composer"]')).toHaveCount(1);
+
+  await page.evaluate(async () => {
+    const chat = await import('/js/chat-loader.js');
+    chat.closeChatPanel();
+    await chat.openChatPanel();
+  });
+  await expect(page.locator('#chat-panel')).toHaveClass(/\bopen\b/);
+  expect(requestedPaths.filter(
+    pathname => pathname === '/js/app-ai-interaction-modules.js',
+  )).toHaveLength(1);
 });
 
 test('startup loads Light presets only when persisted devices need hydration', async ({ page }) => {

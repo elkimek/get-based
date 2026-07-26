@@ -17,12 +17,10 @@ import { updateChatNudgeRuntime } from './chat-runtime.js';
 
 const startupUIDeps = {
   getInitialView: /** @type {() => string} */ (() => 'dashboard'),
-  initChatImageHandlers: () => {},
   maybeShowAnalyticsConsent,
   navigate: /** @type {(view: string) => void} */ ((_view) => {}),
   openChatPanel: () => {},
   openSettingsModal: /** @type {(section?: string) => void} */ ((_section) => {}),
-  updateAttachButtonVisibility: () => {},
 };
 
 export function configureStartupUIDeps(deps = {}) {
@@ -35,9 +33,6 @@ export function configureStartupUIDeps(deps = {}) {
       ? /** @type {typeof maybeShowAnalyticsConsent} */ (deps.maybeShowAnalyticsConsent)
       : null;
   }
-  if (typeof deps.initChatImageHandlers === 'function') {
-    startupUIDeps.initChatImageHandlers = deps.initChatImageHandlers;
-  }
   if (typeof deps.openChatPanel === 'function') {
     startupUIDeps.openChatPanel = deps.openChatPanel;
   }
@@ -46,9 +41,6 @@ export function configureStartupUIDeps(deps = {}) {
   }
   if (typeof deps.openSettingsModal === 'function') {
     startupUIDeps.openSettingsModal = deps.openSettingsModal;
-  }
-  if (typeof deps.updateAttachButtonVisibility === 'function') {
-    startupUIDeps.updateAttachButtonVisibility = deps.updateAttachButtonVisibility;
   }
   return previous;
 }
@@ -79,7 +71,7 @@ export function renderStartupUI() {
     openDeferredStartupDestinations();
   }
   refreshStartupChrome();
-  initializeChatAttachments();
+  updateChatNudgeRuntime();
   bindImportFileInput();
 }
 
@@ -148,11 +140,4 @@ function refreshStartupChrome() {
   updateHeaderDates();
   updateHeaderRangeToggle();
   renderProfileDropdown();
-}
-
-function initializeChatAttachments() {
-  // Init chat image attachment handlers (paste, drag-drop, file input).
-  startupUIDeps.initChatImageHandlers();
-  startupUIDeps.updateAttachButtonVisibility();
-  updateChatNudgeRuntime();
 }

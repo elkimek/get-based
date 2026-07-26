@@ -321,14 +321,18 @@ const cryptoSrc = read('js/crypto.js');
 assert('SENSITIVE_PATTERNS includes lens-key', cryptoSrc.includes('labcharts-lens-key'));
 assert('API_KEY_LS_KEYS includes lens-key', /API_KEY_LS_KEYS[\s\S]{0,500}labcharts-lens-key/.test(cryptoSrc));
 
-// ─── 14. Wiring: app-feature-modules.js delegates lens startup import ───
-console.log('\n14. app-feature-modules.js delegates lens startup import');
+// ─── 14. Wiring: Chat loads on demand while Lens remains available ───
+console.log('\n14. Lazy Chat composition wiring');
 const mainSrc = read('js/main.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appAiInteractionModulesSrc = read('js/app-ai-interaction-modules.js');
+const chatLoaderSrc = read('js/chat-loader.js');
 assert("main.js imports './app-feature-modules.js'", mainSrc.includes("import './app-feature-modules.js'"));
-assert("app-feature-modules.js imports './app-ai-interaction-modules.js'", appFeatureModulesSrc.includes("import './app-ai-interaction-modules.js'"));
-assert("app-ai-interaction-modules.js imports './lens.js'", appAiInteractionModulesSrc.includes("import './lens.js'"));
+assert("app-feature-modules.js leaves Chat out of the startup graph", !appFeatureModulesSrc.includes("import './app-ai-interaction-modules.js'"));
+assert("chat-loader.js lazily imports './app-ai-interaction-modules.js'",
+  chatLoaderSrc.includes("import('./app-ai-interaction-modules.js')")
+    && chatLoaderSrc.includes("import('./app-ai-interaction-modules.js?lazy-retry=1')"));
+assert("app-ai-interaction-modules.js composes Chat on first use", appAiInteractionModulesSrc.includes("import './chat.js'"));
 
 // Sections 15 (chat-header indicator DOM) and 16 (KB modal DOM) live in
 // tests/playwright/custom-lens.spec.js.

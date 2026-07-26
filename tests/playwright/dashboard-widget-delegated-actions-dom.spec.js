@@ -19,6 +19,14 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       import('/js/nav.js'),
     ]);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, timeout = 5000) => {
+      const started = Date.now();
+      while (Date.now() - started < timeout) {
+        if (predicate()) return true;
+        await delay(25);
+      }
+      return false;
+    };
     const originalView = state.currentView;
     const biometricSelectionKey = dashboardWidgetsModule.dashboardBiometricSelectionKey();
     const originalBiometricSelection = localStorage.getItem(biometricSelectionKey);
@@ -150,12 +158,14 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
 
       const bpCard = document.querySelector('.db-biometric-overview-grid [data-dashboard-widget-action="open-biometric-manual-log"][data-dashboard-widget-id="bp_systolic"]');
       bpCard?.click();
-      await delay(150);
-      const manualBpFormOpens = !!document.getElementById('wl-bp-sys') && !!document.getElementById('wl-bp-dia');
+      const manualBpFormOpens = await waitFor(
+        () => !!document.getElementById('wl-bp-sys') && !!document.getElementById('wl-bp-dia'),
+      );
       document.querySelector('.db-biometric-overview-grid .wearable-log-cancel')?.click();
-      await delay(200);
-      const wearableCancelClosesBpForm = !document.getElementById('wl-bp-sys')
-        && !!document.querySelector('.db-biometric-overview-grid [data-dashboard-widget-action="open-biometric-manual-log"][data-dashboard-widget-id="bp_systolic"]');
+      const wearableCancelClosesBpForm = await waitFor(
+        () => !document.getElementById('wl-bp-sys')
+          && !!document.querySelector('.db-biometric-overview-grid [data-dashboard-widget-action="open-biometric-manual-log"][data-dashboard-widget-id="bp_systolic"]'),
+      );
 
       const removeRhr = document.querySelector('.db-biometric-overview-grid .db-biometric-remove[data-dashboard-widget-action="remove-biometric-metric"][data-dashboard-widget-id="rhr"]');
       removeRhr?.click();
