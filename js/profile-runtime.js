@@ -1,6 +1,7 @@
 // @ts-check
 // profile-runtime.js - Browser runtime refresh hooks for profile lifecycle.
 
+import { isChatModuleLoaded, loadChatModule } from './chat-loader.js';
 import { state } from './state.js';
 
 export async function invalidateProfileContextCache() {
@@ -12,33 +13,27 @@ export async function invalidateProfileContextCache() {
 
 export async function reloadProfileRuntimeShell(profileId) {
   const [
-    chatPersonalities,
-    chatThreads,
-    chatHistory,
-    chatDiscussion,
+    chat,
     data,
     nav,
     views,
   ] = await Promise.all([
-    import('./chat-personalities.js'),
-    import('./chat-threads.js'),
-    import('./chat-history.js'),
-    import('./chat-discussion.js'),
+    isChatModuleLoaded() ? loadChatModule() : Promise.resolve(null),
     import('./data.js'),
     import('./nav.js'),
     import('./views.js'),
   ]);
 
-  chatPersonalities.loadChatPersonality();
-  const threadsLoaded = await chatThreads.loadChatThreads?.();
-  if (threadsLoaded !== false && state.chatThreads.length > 0) chatThreads.ensureActiveThread?.();
-  if (threadsLoaded !== false) await chatHistory.loadChatHistory?.();
+  chat?.loadChatPersonality();
+  const threadsLoaded = chat ? await chat.loadChatThreads?.() : false;
+  if (threadsLoaded !== false && state.chatThreads.length > 0) chat?.ensureActiveThread?.();
+  if (threadsLoaded !== false) await chat?.loadChatHistory?.();
   if (state.currentProfile !== profileId) return;
 
-  chatThreads.renderThreadList?.();
-  chatPersonalities.updateChatHeaderTitle?.();
-  chatPersonalities.updatePersonalityBar?.();
-  chatDiscussion.updateDiscussButton?.();
+  chat?.renderThreadList?.();
+  chat?.updateChatHeaderTitle?.();
+  chat?.updatePersonalityBar?.();
+  chat?.updateDiscussButton?.();
   data.destroyAllCharts();
   nav.buildSidebar();
   views.navigate(views.getInitialView?.() || 'dashboard');

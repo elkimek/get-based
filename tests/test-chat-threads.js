@@ -352,12 +352,14 @@ assert('loadProfile resets chatThreads', profileSrc.includes('state.chatThreads 
 assert('loadProfile resets currentThreadId', profileSrc.includes('state.currentThreadId = null'));
 assert('loadProfile delegates runtime refresh after profile switch',
   profileSrc.includes('await reloadProfileRuntimeShell(profileId)'));
-assert('profile-runtime reloads active profile chat threads',
-  profileRuntimeSrc.includes('await chatThreads.loadChatThreads?.()'));
-assert('profile-runtime reloads active profile chat history',
-  profileRuntimeSrc.includes('await chatHistory.loadChatHistory?.()'));
-assert('profile-runtime rerenders chat rail after profile switch',
-  profileRuntimeSrc.includes('chatThreads.renderThreadList?.()'));
+assert('profile-runtime reloads active profile chat threads after first use',
+  profileRuntimeSrc.includes('await chat.loadChatThreads?.()'));
+assert('profile-runtime reloads active profile chat history after first use',
+  profileRuntimeSrc.includes('await chat?.loadChatHistory?.()'));
+assert('profile-runtime rerenders chat rail after profile switch when loaded',
+  profileRuntimeSrc.includes('chat?.renderThreadList?.()'));
+assert('profile-runtime preserves the lazy Chat boundary until first use',
+  profileRuntimeSrc.includes('isChatModuleLoaded() ? loadChatModule() : Promise.resolve(null)'));
 
 // ═══════════════════════════════════════════════
 // 17. Thread Search Extraction (source inspection)
@@ -425,7 +427,9 @@ assert('CSS has .chat-panel-conversation', cssSrc.includes('.chat-panel-conversa
 assert('CSS has .chat-rail-toggle', cssSrc.includes('.chat-rail-toggle'));
 assert('CSS has .chat-thread-item-actions', cssSrc.includes('.chat-thread-item-actions'));
 assert('CSS has mobile rail overlay', cssSrc.includes('.chat-thread-rail.open') && cssSrc.includes('768px'));
-assert('chat thread list is keyboard focusable', indexSrc.includes('id="chat-thread-list" tabindex="0"'));
+assert('chat thread list is a named keyboard-focusable region',
+  indexSrc.includes('id="chat-thread-list"')
+    && indexSrc.includes('role="region" tabindex="0" aria-label="Conversation list"'));
 assert('CSS has focus-visible thread list outline', cssSrc.includes('.chat-thread-list:focus-visible'));
 
 // ═══════════════════════════════════════════════

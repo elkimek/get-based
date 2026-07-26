@@ -503,12 +503,12 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
           && window.__startupUICalls.includes('openChatPanel')
           && !('_openSettingsAfterInit' in window)
           && !('_openChatAfterInit' in window),
-        chromeRefreshAndChatAttachmentsRun:
+        chromeRefreshRunsAndChatAttachmentsStayDeferred:
           window.__startupUICalls.includes('updateHeaderDates')
           && window.__startupUICalls.includes('updateHeaderRangeToggle')
           && window.__startupUICalls.includes('renderProfileDropdown')
-          && window.__startupUICalls.includes('initChatImageHandlers')
-          && window.__startupUICalls.includes('updateAttachButtonVisibility')
+          && !window.__startupUICalls.includes('initChatImageHandlers')
+          && !window.__startupUICalls.includes('updateAttachButtonVisibility')
           && window.__startupUICalls.includes('updateChatNudge')
           && window.__startupUICalls.includes('bindImportFileInput'),
       };

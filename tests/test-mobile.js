@@ -105,7 +105,8 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
   assert('mobile dashboard actions stay module-only and use shell dependency wiring',
     renderMobileDashboardIndex >= 0 &&
     !mobileDashboardSrc.includes('exposeMobileDashboardBindings') &&
-    appShellHooksSrc.includes('configureChatPanel({ refreshMobileDashboardActiveTab })') &&
+    appShellHooksSrc.includes('configureChatLoader({') &&
+    appShellHooksSrc.includes('refreshMobileDashboardActiveTab,') &&
     appShellHooksSrc.includes('configureSettingsRuntime({') &&
     appShellHooksSrc.includes('refreshMobileDashboardActiveTab,'));
   assert('mobile dashboard no longer has static duplicate dashboard sections',

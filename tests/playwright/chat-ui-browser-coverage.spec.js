@@ -600,13 +600,14 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
   await page.waitForSelector('#chat-messages', { state: 'attached' });
 
   const results = await page.evaluate(async ({ pickerUrl, lifecycleUrl, bindingsUrl }) => {
-    const [{ state }, { CHAT_PERSONALITIES }, picker, lifecycle, , chatRuntime] = await Promise.all([
+    const [{ state }, { CHAT_PERSONALITIES }, picker, lifecycle, , chatRuntime, chatLoader] = await Promise.all([
       import('/js/state.js'),
       import('/js/constants.js'),
       import(pickerUrl),
       import(lifecycleUrl),
       import(bindingsUrl),
       import('/js/chat-runtime.js'),
+      import('/js/chat-loader.js'),
     ]);
     const outcomes = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
@@ -688,6 +689,7 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
         && localStorage.getItem(`labcharts-${state.currentProfile}-chatPersonality`) === 'longevity';
 
       localStorage.setItem('labcharts-ai-paused', 'true');
+      await chatLoader.loadChatModule();
       chatRuntime.resumeChatAIRuntime();
       outcomes.resumeBindingUnpausesAndKeepsChatImageHelpersModuleOnly = localStorage.getItem('labcharts-ai-paused') === 'false'
         && !('_resumeAI' in window)

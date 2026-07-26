@@ -483,8 +483,10 @@ try {
   assert('profile.js no longer calls profile-load UI globals through window',
     !/window\.(loadChatPersonality|loadChatThreads|loadChatHistory|renderThreadList|destroyAllCharts|buildSidebar|navigate|renderProfileButton)/.test(src));
   assert('profile-runtime keeps profile UI refresh module-owned',
-    runtimeSrc.includes("import('./chat-personalities.js')") &&
-    runtimeSrc.includes("import('./chat-threads.js')") &&
+    runtimeSrc.includes("from './chat-loader.js'") &&
+    runtimeSrc.includes('isChatModuleLoaded() ? loadChatModule() : Promise.resolve(null)') &&
+    !runtimeSrc.includes("import('./chat-personalities.js')") &&
+    !runtimeSrc.includes("import('./chat-threads.js')") &&
     runtimeSrc.includes("import('./data.js')") &&
     !runtimeSrc.includes('Object.assign(window'));
   assert('Service worker precaches profile runtime module',

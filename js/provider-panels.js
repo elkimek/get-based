@@ -17,7 +17,7 @@ import {
   rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession, startOpenRouterOAuth
 } from './api.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
-import { openChatPanel } from './chat-panel.js';
+import { openChatPanel } from './chat-loader.js';
 import { loadFocusCard } from './focus-card.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { clearRoutstrModelCaches } from './routstr-model-cache.js';

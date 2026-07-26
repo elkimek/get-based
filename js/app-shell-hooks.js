@@ -3,89 +3,65 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { configureApiProviderStorageRuntimeDeps } from './api-provider-storage-runtime.js';
-import { setAIPaused } from './api.js';
+import { startOpenRouterOAuth } from './api.js';
 import { configureApiRuntimeCallbacks } from './api-runtime.js';
 import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';
 import { closeChangelog } from './changelog.js';
-import { configureChatMessageActionDeps } from './chat-actions.js';
-import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import { configureCategoryCustomizationRuntimeDeps } from './category-customization-runtime.js';
 import { configureCategoryPageViewDeps } from './category-page-view.js';
 import {
-  continueDiscussion,
-  endDiscussion,
+  askAIAboutCorrelations,
+  askAIAboutMarker,
+  clearChatHistory,
+  closeChatPanel,
+  closeSummaryModal,
+  configureChatLoader,
+  createNewThread,
+  ensureActiveThreadIfLoaded,
+  filterThreadList,
+  handleChatKeydown,
+  loadChatHistoryIfLoaded,
+  loadChatThreadsIfLoaded,
+  onContextCardSavedIfLoaded,
+  openChatPanel,
+  renderThreadListIfLoaded,
+  sendChatMessage,
+  setChatPersonality,
+  setChatWebSearchEnabled,
   startDiscussion,
-  startDiscussionFromPicker,
-  updateDiscussButton,
-} from './chat-discussion.js';
-import {
-  initChatImageHandlers,
-  openImageLightbox,
-  removeImageAttachment,
+  summarizeThread,
+  toggleChatFullscreen,
+  toggleChatPanel,
   toggleHDMode,
-  updateAttachButtonVisibility,
-} from './chat-images.js';
+  togglePersonalityBar,
+  toggleThreadRail,
+  updateChatContextStatusIfLoaded,
+  updateChatHeaderModelIfLoaded,
+  useChatPrompt,
+} from './chat-loader.js';
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js';
 import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js';
 import { configureDashboardRecommendationRuntimeDeps } from './dashboard-recommendation-widget.js';
 import { configureDashboardWidgetRuntimeDeps } from './dashboard-widget-runtime.js';
 import { createDashboardViewComposition } from './dashboard-view-composition.js';
-import {
-  closeChatPanel,
-  configureChatPanel,
-  openChatPanel,
-  refreshWebSearchToggle,
-  setChatWebSearchEnabled,
-  toggleChatFullscreen,
-  toggleChatPanel,
-  updateChatInputState,
-} from './chat-panel.js';
-import { clearChatHistory, loadChatHistory } from './chat-history.js';
-import { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
-import { onContextCardSaved, useChatPrompt } from './chat-onboarding.js';
 import { updateChatNudge } from './chat-nudge.js';
-import {
-  setChatPersonality,
-  togglePersonalityBar,
-  updateChatContextStatus,
-  updateChatHeaderModel,
-} from './chat-personalities.js';
 import { configureChatRuntimeCallbacks } from './chat-runtime.js';
-import { renderChatMessages } from './chat-render.js';
-import { handleChatKeydown, isChatStreaming, sendChatMessage } from './chat-send.js';
-import {
-  closeSummaryModal,
-  copySummary,
-  deleteSavedSummary,
-  downloadSummary,
-  printSummary,
-  summarizeThread,
-  viewSavedSummary,
-} from './chat-summaries.js';
-import { jumpToSearchResult } from './chat-thread-search.js';
-import {
-  createNewThread,
-  ensureActiveThread,
-  filterThreadList,
-  loadChatThreads,
-  renderThreadList,
-  toggleThreadRail,
-} from './chat-threads.js';
 import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
 import { configureClientListRuntimeDeps } from './client-list-runtime.js';
 import { configureCompareCorrelationViews } from './compare-correlations.js';
+import { recordChange } from './context-cards.js';
 import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
 import {
   configureCryptoProfileDeps,
   encryptedSetItem,
 } from './crypto.js';
-import { openMenstrualCycleEditor } from './cycle.js';
+import { openMenstrualCycleEditor, renderMenstrualCycleSection } from './cycle.js';
 import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
-import { configureDataRuntimeDeps, saveImportedData, updateHeaderDates } from './data.js';
+import { configureDataRuntimeDeps, getActiveData, saveImportedData, updateHeaderDates } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { configureEMFRuntimeDeps } from './emf-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
@@ -143,7 +119,7 @@ import {
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share-loader.js';
-import { configureProfileRuntimeDeps, getActiveProfileId } from './profile.js';
+import { configureProfileRuntimeDeps, getActiveProfileId, setProfileHeight } from './profile.js';
 import {
   dispatchProfileSwitched,
   invalidateProfileContextCache,
@@ -160,12 +136,14 @@ import {
   configureShellNavDeps,
   configureShellProfileShareDeps,
 } from './shell-actions.js';
+import { switchAIProviderBridge } from './settings-provider-bridge.js';
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
 import { configureSyncPull } from './sync-pull.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 import { configureSunRuntimeDeps } from './sun-runtime.js';
+import { renderSupplementsSection } from './supplements.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
 import { configureAppleHealthRuntimeDeps } from './wearables-apple-health-runtime.js';
@@ -186,6 +164,26 @@ function showInsufficientBalanceDialog() {
 configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
+configureChatRuntimeCallbacks({
+  updateChatHeaderModel: updateChatHeaderModelIfLoaded,
+  updateChatNudge,
+});
+configureChatLoader({
+  closeModal,
+  getActiveData,
+  navigate,
+  openChatProviderQuiz,
+  openSettingsModal,
+  recordChange,
+  refreshMobileDashboardActiveTab,
+  renderMenstrualCycleSection,
+  renderProfileButton,
+  renderSupplementsSection,
+  setOnboardingFocus,
+  setProfileHeight,
+  startOpenRouterOAuth,
+  switchAIProvider: switchAIProviderBridge,
+});
 configureDashboardViewFactory(createDashboardViewComposition);
 configureLabContext({ buildBiologyScoresAIContext });
 configureProfileRuntimeDeps({
@@ -240,11 +238,8 @@ configureDnaRuntimeDeps({ buildSidebar, navigate });
 configureExportFacadeLoaderDeps({ buildSidebar, navigate });
 configureExportImportRuntimeDeps({
   buildSidebar,
-  ensureActiveThread,
-  loadChatThreads,
   navigate,
   renderProfileButton,
-  renderThreadList,
   updateHeaderDates,
 });
 const confirmPdfImport = () => import('./pdf-import-commit.js').then(module => module.confirmImport());
@@ -282,7 +277,6 @@ configureLightDevicesRuntimeDeps({ navigate, openChannelOnLightPage: _openChanne
 configureLensPageShell({ navigate });
 configureNotesRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });
-configureChatEmptyStateDeps({ closeChatPanel, openChatProviderQuiz, setOnboardingFocus });
 configureDashboardPageRuntimeDeps({ closeChatPanel, openChatPanel });
 configureEMFRuntimeDeps({
   closeModal,
@@ -290,40 +284,8 @@ configureEMFRuntimeDeps({
 });
 configureEMFInterpretationRuntimeDeps({ closeModal, openChatPanel });
 
-function resumeAI() {
-  setAIPaused(false);
-  renderChatMessages();
-  updateChatInputState();
-}
-
-configureChatPanel({ refreshMobileDashboardActiveTab });
-configureChatRuntimeCallbacks({
-  closeModal,
-  isChatStreaming,
-  refreshWebSearchToggle,
-  renderChatMessages,
-  resumeAI,
-  sendChatMessage,
-  updateDiscussButton,
-  updateChatHeaderModel,
-  updateChatNudge,
-});
-configureChatMessageActionDeps({
-  closeSummaryModal,
-  continueDiscussion,
-  copySummary,
-  deleteSavedSummary,
-  downloadSummary,
-  endDiscussion,
-  jumpToSearchResult,
-  openImageLightbox,
-  printSummary,
-  removeImageAttachment,
-  startDiscussionFromPicker,
-  viewSavedSummary,
-});
 configureCompareCorrelationViews({ askAIAboutCorrelations });
-configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved });
+configureContextCardsRuntimeCallbacks({ closeModal, navigate, onContextCardSaved: onContextCardSavedIfLoaded });
 configureMarkerDetailRuntime({ askAIAboutMarker, buildSidebar, navigate, renameMarker, revertMarkerName });
 configureShellChatActionDeps({
   closeChatPanel,
@@ -344,16 +306,21 @@ configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });
 configureShellProfileShareDeps({ openProfileShareModal });
 configureStartupUIDeps({
   getInitialView,
-  initChatImageHandlers,
   navigate,
   openChatPanel,
   openSettingsModal,
-  updateAttachButtonVisibility,
 });
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
 configureSyncPull({ renderProfileButton });
-configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
+configureSyncPullActiveRefreshDeps({
+  buildSidebar,
+  ensureActiveThread: ensureActiveThreadIfLoaded,
+  loadChatHistory: loadChatHistoryIfLoaded,
+  loadChatThreads: loadChatThreadsIfLoaded,
+  navigate,
+  renderThreadList: renderThreadListIfLoaded,
+});
 configureAppleHealthRuntimeDeps({
   parseCycleBlob: parseAppleHealthCycleBlob,
   showCyclePreview: showCycleImportPreview,
@@ -374,7 +341,7 @@ configureWearablesRuntime({
 });
 configureWearableSettingsRuntimeDeps({ navigate });
 configureWearableSummary({ saveImportedData });
-configureDashboardAIContextStatus(updateChatContextStatus);
+configureDashboardAIContextStatus(updateChatContextStatusIfLoaded);
 
 configureAppEventListeners({
   closeChangelog,

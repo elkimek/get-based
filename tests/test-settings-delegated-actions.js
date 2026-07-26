@@ -47,7 +47,9 @@ assert('Settings is absent from the static startup graph',
     && !lightPageUIHooksSrc.includes("from './settings.js'"));
 assert('Settings entry points use the cached lazy loader',
   appShellHooksSrc.includes("from './settings-loader.js'")
-    && chatOnboardingHostSrc.includes("from './settings-loader.js'")
+    && appShellHooksSrc.includes('configureChatLoader({')
+    && appShellHooksSrc.includes('openSettingsModal,')
+    && !chatOnboardingHostSrc.includes("from './settings-loader.js'")
     && loaderSrc.includes("import('./settings.js')")
     && loaderSrc.includes("import('./settings.js?lazy-retry=1')"));
 assert('Settings loader owns the deferred stylesheet boundary',
