@@ -1,8 +1,8 @@
 version: 2
 updates:
-  # npm — devDependencies only (the app itself is no-bundler / no-runtime-npm;
-  # vendor/ ships pinned bundled copies refreshed via update-vendor.sh, NOT
-  # tracked by Dependabot).
+  # npm — package.json/package-lock.json dependencies. Pinned browser copies
+  # under vendor/ are also submitted to the dependency graph by
+  # supply-chain.yml so they receive alerts; their version bumps stay manual.
   - package-ecosystem: npm
     directory: /
     schedule:

@@ -18,6 +18,7 @@ if [ "$SKIP_TYPECHECK" != "1" ] && [ "$SKIP_TYPECHECK" != "true" ]; then
 fi
 npm run architecture:check || exit 1
 npm run vendor:check || exit 1
+npm run supply-chain:check || exit 1
 node "$DIR/tests/verify-modules.js" || exit 1
 
 # Reusing an arbitrary process on the requested port can mix the current tests

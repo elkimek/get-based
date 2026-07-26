@@ -179,10 +179,11 @@ ratchet to raise as meaningful coverage is added.
 
 ### 5. Supply-chain visibility
 
-Vendored dependencies are integrity checked, but most are outside Dependabot
-and CodeQL coverage. The audit could not independently query the current npm
-advisory database because external registry access was not approved, so the
-current dependency-vulnerability state was not verified.
+Vendored dependencies are integrity checked and now have a complete
+machine-readable ownership inventory. A dedicated workflow generates a
+combined CycloneDX SBOM and submits versioned npm vendor components to GitHub's
+dependency graph for Dependabot advisory monitoring. Generic and unversioned
+assets remain explicitly identified as SBOM-only or asset-only.
 
 ## Recommended sequence
 
@@ -196,4 +197,4 @@ current dependency-vulnerability state was not verified.
    ratchet function coverage upward. **Completed in follow-up changes.**
 5. Add linting and stricter type checking incrementally; lower large-file
    baselines rather than preserving them.
-6. Add automated SBOM/CVE monitoring for vendored libraries.
+6. Add automated SBOM/CVE monitoring for vendored libraries. **Completed.**
