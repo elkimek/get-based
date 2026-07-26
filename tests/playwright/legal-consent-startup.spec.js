@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 const CURRENT_ACCEPTANCE = {
   accepted: true,
@@ -9,7 +9,10 @@ const CURRENT_ACCEPTANCE = {
   location: 'playwright',
 };
 
-test.use({ viewport: { width: 412, height: 844 } });
+test.use({
+  viewport: { width: 412, height: 844 },
+  seedLegalAcceptance: false,
+});
 
 async function holdMainModule(page) {
   let release;

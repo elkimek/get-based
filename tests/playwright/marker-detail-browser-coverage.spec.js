@@ -4,6 +4,42 @@ function moduleUrl(path) {
   return `${path}?markerDetailCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function markerDetailFacadeStubBody() {
+  const actions = [
+    'fetchCustomMarkerDescription',
+    'showDetailModal',
+    'editRefRange',
+    'saveRefRange',
+    'revertRefRange',
+    'openManualEntryForm',
+    'saveManualEntry',
+    'saveAndAddAnotherManualEntry',
+    'openCreateMarkerModal',
+    'pickNewCatIcon',
+    'saveCustomMarker',
+    'deleteMarkerValue',
+    'deleteCustomMarker',
+    'editMarkerValue',
+    'revertMarkerValue',
+    'editValueNote',
+    'deleteValueNote',
+    'toggleMarkerNoteEditor',
+    'saveMarkerNote',
+    'deleteMarkerNote',
+  ];
+  return `
+    const record = (name, args) => {
+      window.__markerDetailFacadeCalls ||= [];
+      window.__markerDetailFacadeCalls.push([name, ...args]);
+      return name;
+    };
+    export function configureMarkerDetailModal(deps) {
+      window.__markerDetailFacadeConfigKeys = Object.keys(deps).sort();
+    }
+    ${actions.map(name => `export function ${name}(...args) { return record('${name}', args); }`).join('\n')}
+  `;
+}
+
 async function openMarkerDetailLoaderPage(page, path) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
@@ -44,6 +80,74 @@ test('marker detail implementation loads on demand and single-flights', async ({
     loadedAfterAction: true,
   });
   expect(implementationRequests).toBe(1);
+});
+
+test('marker detail lazy facade forwards its complete editing contract', async ({ page }) => {
+  await page.route('**/js/marker-detail-modal-impl.js*', route => route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    body: markerDetailFacadeStubBody(),
+  }));
+  await openMarkerDetailLoaderPage(page, '/marker-detail-facade-contract-coverage');
+
+  const outcomes = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    modal.configureMarkerDetailModal({ marker: 'configured' });
+    await modal.loadMarkerDetailModule();
+    const results = [
+      modal.fetchCustomMarkerDescription('marker'),
+      modal.showDetailModal('proteins_albumin', { source: 'contract' }),
+      modal.editRefRange('marker'),
+      modal.saveRefRange('marker'),
+      modal.revertRefRange('marker'),
+      modal.openManualEntryForm('marker'),
+      modal.saveManualEntry('marker'),
+      modal.saveAndAddAnotherManualEntry('marker'),
+      modal.openCreateMarkerModal(),
+      modal.pickNewCatIcon('icon'),
+      modal.saveCustomMarker('marker'),
+      modal.deleteMarkerValue('marker'),
+      modal.deleteCustomMarker('marker'),
+      modal.editMarkerValue('marker'),
+      modal.revertMarkerValue('marker'),
+      modal.editValueNote('marker'),
+      modal.deleteValueNote('marker'),
+      modal.toggleMarkerNoteEditor('marker'),
+      modal.saveMarkerNote('marker'),
+      modal.deleteMarkerNote('marker'),
+    ];
+    return {
+      configKeys: window.__markerDetailFacadeConfigKeys,
+      results,
+      calls: window.__markerDetailFacadeCalls,
+    };
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  const expectedActions = [
+    'fetchCustomMarkerDescription',
+    'showDetailModal',
+    'editRefRange',
+    'saveRefRange',
+    'revertRefRange',
+    'openManualEntryForm',
+    'saveManualEntry',
+    'saveAndAddAnotherManualEntry',
+    'openCreateMarkerModal',
+    'pickNewCatIcon',
+    'saveCustomMarker',
+    'deleteMarkerValue',
+    'deleteCustomMarker',
+    'editMarkerValue',
+    'revertMarkerValue',
+    'editValueNote',
+    'deleteValueNote',
+    'toggleMarkerNoteEditor',
+    'saveMarkerNote',
+    'deleteMarkerNote',
+  ];
+  expect(outcomes.configKeys).toEqual(['marker']);
+  expect(outcomes.results).toEqual(expectedActions);
+  expect(outcomes.calls.map(call => call[0])).toEqual(expectedActions);
 });
 
 test('marker detail implementation removes a failure and retries once', async ({ page }) => {
