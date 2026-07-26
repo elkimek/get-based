@@ -34,6 +34,7 @@ const moduleMap = fs.readFileSync(path.join(ROOT, 'MODULE_MAP.md'), 'utf8');
 const runTestsSrc = fs.readFileSync(path.join(ROOT, 'run-tests.sh'), 'utf8');
 const playwrightConfigSrc = fs.readFileSync(path.join(ROOT, 'playwright.config.js'), 'utf8');
 const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
+const tsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.json'), 'utf8'));
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
 const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
 
@@ -117,6 +118,22 @@ assert('quality guardrail exits non-zero on failures',
 assert('full local test suite runs typecheck',
   runTestsSrc.includes('npm run typecheck || exit 1') &&
     runTestsSrc.includes('SKIP_TYPECHECK'));
+const requiredCompilerSafetyOptions = {
+  allowUnreachableCode: false,
+  allowUnusedLabels: false,
+  noFallthroughCasesInSwitch: true,
+  noImplicitThis: true,
+  strictBindCallApply: true,
+  strictFunctionTypes: true,
+};
+const missingCompilerSafetyOptions = Object.entries(requiredCompilerSafetyOptions)
+  .filter(([option, expected]) => tsConfig.compilerOptions?.[option] !== expected)
+  .map(([option]) => option);
+assert('TypeScript keeps incremental compiler safety checks enabled',
+  missingCompilerSafetyOptions.length === 0,
+  missingCompilerSafetyOptions.length
+    ? `missing or disabled: ${missingCompilerSafetyOptions.join(', ')}`
+    : '');
 assert('full local test suite runs static module verification',
   runTestsSrc.includes('node "$DIR/tests/verify-modules.js" || exit 1'));
 assert('full local test suite verifies architecture freshness and boundaries',
@@ -183,7 +200,7 @@ const highValueCheckJsModules = [
 ];
 const missingHighValueCheckJsModules = highValueCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes high-coupling browser modules',
+assert('checkJs includes high-coupling browser modules',
   missingHighValueCheckJsModules.length === 0,
   missingHighValueCheckJsModules.length ? `missing: ${missingHighValueCheckJsModules.join(', ')}` : '');
 const domainUiCheckJsModules = [
@@ -206,7 +223,7 @@ const domainUiCheckJsModules = [
 ];
 const missingDomainUiCheckJsModules = domainUiCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes domain and UI modules',
+assert('checkJs includes domain and UI modules',
   missingDomainUiCheckJsModules.length === 0,
   missingDomainUiCheckJsModules.length ? `missing: ${missingDomainUiCheckJsModules.join(', ')}` : '');
 const broadSurfaceCheckJsModules = [
@@ -236,7 +253,7 @@ const broadSurfaceCheckJsModules = [
 ];
 const missingBroadSurfaceCheckJsModules = broadSurfaceCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes broad UI surface modules',
+assert('checkJs includes broad UI surface modules',
   missingBroadSurfaceCheckJsModules.length === 0,
   missingBroadSurfaceCheckJsModules.length ? `missing: ${missingBroadSurfaceCheckJsModules.join(', ')}` : '');
 const healthDomainCheckJsModules = [
@@ -271,7 +288,7 @@ const healthDomainCheckJsModules = [
 ];
 const missingHealthDomainCheckJsModules = healthDomainCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes health domain modules',
+assert('checkJs includes health domain modules',
   missingHealthDomainCheckJsModules.length === 0,
   missingHealthDomainCheckJsModules.length ? `missing: ${missingHealthDomainCheckJsModules.join(', ')}` : '');
 const uiWorkflowCheckJsModules = [
@@ -307,7 +324,7 @@ const uiWorkflowCheckJsModules = [
 ];
 const missingUiWorkflowCheckJsModules = uiWorkflowCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes UI workflow modules',
+assert('checkJs includes UI workflow modules',
   missingUiWorkflowCheckJsModules.length === 0,
   missingUiWorkflowCheckJsModules.length ? `missing: ${missingUiWorkflowCheckJsModules.join(', ')}` : '');
 const lightWorkflowCheckJsModules = [
@@ -346,7 +363,7 @@ const lightWorkflowCheckJsModules = [
 ];
 const missingLightWorkflowCheckJsModules = lightWorkflowCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes light workflow modules',
+assert('checkJs includes light workflow modules',
   missingLightWorkflowCheckJsModules.length === 0,
   missingLightWorkflowCheckJsModules.length ? `missing: ${missingLightWorkflowCheckJsModules.join(', ')}` : '');
 const wearablesWorkflowCheckJsModules = [
@@ -375,7 +392,7 @@ const wearablesWorkflowCheckJsModules = [
 ];
 const missingWearablesWorkflowCheckJsModules = wearablesWorkflowCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes wearables workflow modules',
+assert('checkJs includes wearables workflow modules',
   missingWearablesWorkflowCheckJsModules.length === 0,
   missingWearablesWorkflowCheckJsModules.length ? `missing: ${missingWearablesWorkflowCheckJsModules.join(', ')}` : '');
 const chatWorkflowCheckJsModules = [
@@ -414,7 +431,7 @@ const chatWorkflowCheckJsModules = [
 ];
 const missingChatWorkflowCheckJsModules = chatWorkflowCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes chat workflow modules',
+assert('checkJs includes chat workflow modules',
   missingChatWorkflowCheckJsModules.length === 0,
   missingChatWorkflowCheckJsModules.length ? `missing: ${missingChatWorkflowCheckJsModules.join(', ')}` : '');
 const startupAppShellCheckJsModules = [
@@ -449,7 +466,7 @@ const startupAppShellCheckJsModules = [
 ];
 const missingStartupAppShellCheckJsModules = startupAppShellCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes startup and app-shell modules',
+assert('checkJs includes startup and app-shell modules',
   missingStartupAppShellCheckJsModules.length === 0,
   missingStartupAppShellCheckJsModules.length ? `missing: ${missingStartupAppShellCheckJsModules.join(', ')}` : '');
 const pdfReportCheckJsModules = [
@@ -468,7 +485,7 @@ const pdfReportCheckJsModules = [
 ];
 const missingPdfReportCheckJsModules = pdfReportCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes PDF import and report modules',
+assert('checkJs includes PDF import and report modules',
   missingPdfReportCheckJsModules.length === 0,
   missingPdfReportCheckJsModules.length ? `missing: ${missingPdfReportCheckJsModules.join(', ')}` : '');
 const appJsModules = fs.readdirSync(path.join(ROOT, 'js'))
@@ -477,7 +494,7 @@ const appJsModules = fs.readdirSync(path.join(ROOT, 'js'))
   .sort();
 const missingAppCheckJsModules = appJsModules
   .filter(file => !checkJsConfig.include?.includes(file));
-assert('checkJs pilot includes every app JS module',
+assert('checkJs includes every app JS module',
   missingAppCheckJsModules.length === 0,
   missingAppCheckJsModules.length ? `missing: ${missingAppCheckJsModules.join(', ')}` : '');
 
