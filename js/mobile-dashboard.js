@@ -50,7 +50,6 @@ const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
  *   setupDropZone: () => void,
  *   loadCommitHash: () => void,
  *   navigate: (route: string) => void,
- *   openChatPanel: () => void,
  *   toggleMobileSidebar: () => void,
  *   loadContextCardTips: () => any,
  *   loadCatalog: () => Promise<any>,
@@ -69,7 +68,6 @@ const mobileDashboardDeps = {
   setupDropZone: () => {},
   loadCommitHash: () => {},
   navigate: () => {},
-  openChatPanel: () => {},
   toggleMobileSidebar: () => {},
   loadContextCardTips: () => {},
   loadCatalog: async () => null,
@@ -112,8 +110,6 @@ function handleMobileDashboardActionClick(event) {
     const route = actionEl.dataset.mobileDashboardRoute || tab;
     mobileDashboardSetTab(tab);
     mobileDashboardDeps.navigate(route);
-  } else if (action === 'open-chat') {
-    mobileDashboardDeps.openChatPanel();
   } else if (action === 'open-search') {
     openMobileDashboardSearch();
   } else {
@@ -515,7 +511,6 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
         ${mobileWidgetStack}
       </div>
     </div>
-    <button type="button" class="m-chat-fab" ${mobileDashboardActionAttrs('open-chat')} aria-label="Ask AI">${renderMobileIcon('chat')}</button>
     ${renderMobileBottomTabs('dashboard')}`;
 
   if (resetScroll) scrollMobileDashboardToTop();

@@ -770,10 +770,13 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   body.empty-dashboard-active.mobile-tabs-active #chat-fab {
     display: none;
   }
+  body.analytics-consent-visible.mobile-dashboard-active #chat-fab,
   body.analytics-consent-visible.mobile-tabs-active #chat-fab,
+  body.version-update-visible.mobile-dashboard-active #chat-fab,
   body.version-update-visible.mobile-tabs-active #chat-fab {
     bottom: calc(186px + env(safe-area-inset-bottom));
   }
+  body.analytics-consent-visible.version-update-visible.mobile-dashboard-active #chat-fab,
   body.analytics-consent-visible.version-update-visible.mobile-tabs-active #chat-fab {
     bottom: calc(250px + env(safe-area-inset-bottom));
   }

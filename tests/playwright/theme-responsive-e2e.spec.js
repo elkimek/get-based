@@ -396,8 +396,8 @@ async function evaluateBaseChecks(page, theme, viewport) {
     if (viewport.mobile) {
       const shell = document.querySelector('.m-shell');
       const tabbar = document.querySelector('.m-tabbar');
-      const fab = document.querySelector('.m-chat-fab');
-      const desktopChatFab = document.getElementById('chat-fab');
+      const fab = document.getElementById('chat-fab');
+      const fabRect = fab?.getBoundingClientRect();
       const headerImportBtn = document.querySelector('.header-import-btn');
       ok('mobile dashboard shell is active', document.body.classList.contains('mobile-dashboard-active'));
       ok('mobile chrome root mirrors dashboard state', document.documentElement.classList.contains('mobile-dashboard-active'));
@@ -407,8 +407,14 @@ async function evaluateBaseChecks(page, theme, viewport) {
       ok('mobile header import button is visible',
         visible(headerImportBtn) && inViewport(headerImportBtn, 2));
       ok('mobile dashboard tabbar is outside clipped shell', tabbar && !tabbar.closest('.m-shell'));
-      ok('mobile chat FAB is visible and above tabbar', visible(fab) && tabbar && rect(fab).bottom < rect(tabbar).top);
-      ok('desktop chat FAB hidden inside mobile shell', !visible(desktopChatFab));
+      ok('mobile dashboard uses the shared chat FAB',
+        visible(fab) && !document.querySelector('.m-chat-fab'));
+      ok('mobile chat FAB has a usable square target and sits above tabbar',
+        !!fabRect && tabbar &&
+        fabRect.width >= 48 &&
+        Math.abs(fabRect.width - fabRect.height) <= 1 &&
+        fabRect.bottom < rect(tabbar).top,
+        fabRect ? `size=${fabRect.width.toFixed(1)}x${fabRect.height.toFixed(1)}` : 'missing');
       ok('donate button hidden on mobile', !visible(document.querySelector('.donate-btn')));
       const mobileWidgets = bySelector('.m-dashboard-widgets .dashboard-widget[data-widget-id]').filter(visible);
       ok('mobile renders the shared dashboard widget stack', mobileWidgets.length >= 5, `widgets=${mobileWidgets.length}`);
@@ -921,6 +927,19 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     JSON.stringify(result));
   await delay(100);
 
+  const homeFabGeometry = await page.evaluate(() => {
+    const fab = document.getElementById('chat-fab');
+    if (!fab) return null;
+    const style = getComputedStyle(fab);
+    return {
+      width: style.width,
+      height: style.height,
+      right: style.right,
+      bottom: style.bottom,
+      borderRadius: style.borderRadius,
+    };
+  });
+
   for (const tab of ['labs', 'body', 'light', 'insight']) {
     await page.evaluate(async () => (await import('/js/views.js')).navigate('dashboard'));
     await delay(180);
@@ -934,7 +953,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         { timeout: 2500 }
       ).catch(() => {});
     }
-    result = await page.evaluate(async ({ tab, theme }) => {
+    result = await page.evaluate(async ({ tab, theme, homeFabGeometry }) => {
       const { state } = await import('/js/state.js');
       const active = document.querySelector(`#mobile-bottom-tabs .m-tab[data-tab="${tab}"], .m-tabbar .m-tab[data-tab="${tab}"]`);
       const conditionsGrid = document.querySelector('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid') || document.querySelector('.conditions-now-grid');
@@ -957,7 +976,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       const tabbar = document.querySelector('.m-tabbar');
       const tabbarStyle = tabbar ? getComputedStyle(tabbar) : null;
       const tabbarRect = tabbar?.getBoundingClientRect();
-      const fab = document.querySelector('.m-chat-fab');
+      const fab = document.getElementById('chat-fab');
       const fabStyle = fab ? getComputedStyle(fab) : null;
       const fabRect = fab?.getBoundingClientRect();
       const lightWidgetRoute = document.querySelector('.lens-page-widgets[data-lens-route="light"]');
@@ -965,6 +984,13 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       const tabbarPaint = shadowReach(tabbarStyle?.boxShadow);
       const fabPaint = shadowReach(fabStyle?.boxShadow);
       const terminalTheme = theme === 'cyberterm' || theme === 'neuromancer';
+      const fabGeometry = fabStyle ? {
+        width: fabStyle.width,
+        height: fabStyle.height,
+        right: fabStyle.right,
+        bottom: fabStyle.bottom,
+        borderRadius: fabStyle.borderRadius,
+      } : null;
       window.scrollTo(0, Math.min(620, document.scrollingElement.scrollHeight));
       const header = document.querySelector('.header');
       const headerStyle = header ? getComputedStyle(header) : null;
@@ -987,6 +1013,9 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         hasBottomTabs: !!document.querySelector('#mobile-bottom-tabs, .m-shell .m-tabbar'),
         currentView: state?.currentView,
         visibleMain: document.getElementById('main-content')?.textContent?.trim().length > 40,
+        fabMatchesHome: !!fabGeometry && JSON.stringify(fabGeometry) === JSON.stringify(homeFabGeometry),
+        fabGeometry,
+        homeFabGeometry,
         rootTabsActive: document.documentElement.classList.contains('mobile-tabs-active'),
         headerSticky:
           headerStyle?.position === 'sticky' &&
@@ -1037,7 +1066,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
           getComputedStyle(sessionWidget.querySelector('.light-session-device .light-session-kind')).whiteSpace !== 'nowrap',
         supportColumns,
       };
-    }, { tab, theme });
+    }, { tab, theme, homeFabGeometry });
     assert(testName(theme, viewportName, `tab ${tab} navigates and stays active`),
       result.active && result.hasBottomTabs && result.visibleMain,
       JSON.stringify(result));
@@ -1046,6 +1075,9 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
         result.horizontalOverflow <= 1 && result.bottomChromePaintContained,
       JSON.stringify(result));
+    assert(testName(theme, viewportName, `tab ${tab} keeps the Home chat FAB geometry`),
+      result.fabMatchesHome,
+      JSON.stringify({ home: result.homeFabGeometry, tab: result.fabGeometry }));
     assert(testName(theme, viewportName, `tab ${tab} keeps top header sticky`),
       result.headerSticky,
       JSON.stringify(result));
