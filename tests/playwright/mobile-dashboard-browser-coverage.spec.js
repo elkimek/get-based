@@ -92,7 +92,6 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       mobileDashboard.configureMobileDashboardView({
         navigate: route => calls.push(['navigate', route]),
         toggleMobileSidebar: () => calls.push(['toggleMobileSidebar']),
-        openChatPanel: () => calls.push(['openChatPanel']),
         loadContextCardTips: () => calls.push(['loadContextCardTips']),
         loadCatalog: async () => {
           calls.push(['loadCatalog']);
@@ -162,11 +161,6 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
         && !document.querySelector('.m-tab[data-tab="light"]')?.hasAttribute('onclick')
         && !firstRenderHtml.includes('onclick=');
 
-      document.querySelector('.m-chat-fab')?.click();
-      outcomes.mobileChatFabUsesDelegatedAction = calls.some(call => call[0] === 'openChatPanel')
-        && document.querySelector('.m-chat-fab')?.getAttribute('data-mobile-dashboard-action') === 'open-chat'
-        && !document.querySelector('.m-chat-fab')?.hasAttribute('onclick');
-
       mobileDashboard.openMobileDashboardSearch();
       await wait(100);
       outcomes.openMobileDashboardSearchTogglesSidebarAndFocusesSearch = calls.some(call => call[0] === 'toggleMobileSidebar')
@@ -194,7 +188,6 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       mobileDashboard.configureMobileDashboardView({
         navigate: () => {},
         toggleMobileSidebar: () => {},
-        openChatPanel: () => {},
         loadContextCardTips: () => {},
         loadCatalog: async () => null,
         cacheCatalog: () => {},

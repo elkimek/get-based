@@ -98,7 +98,7 @@ assert('Step 5: Dashboard overview', tourSrc.includes("target: '.dashboard-greet
 assert('Step 6: Widget customization', tourSrc.includes("target: '.dashboard-sticky-actions', title: 'Customize Widgets'"));
 assert('Step 7: Display tweaks', tourSrc.includes("target: '.tweaks-btn', title: 'Display Tweaks'"));
 assert('Step 8: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
-assert('Step 9: Chat targets', tourSrc.includes("target: '#chat-fab, .m-chat-fab, #chat-panel.open', title: 'Ask AI'"));
+assert('Step 9: Chat targets', tourSrc.includes("target: '#chat-fab, #chat-panel.open', title: 'Ask AI'"));
 
 const tourStepsStart = tourSrc.indexOf('const TOUR_STEPS');
 const cycleStepsStart = tourSrc.indexOf('const CYCLE_TOUR_STEPS');

@@ -23,7 +23,7 @@ const TOUR_STEPS = [
   { target: '.dashboard-sticky-actions', title: 'Customize Widgets', text: 'Use Customize and Add widget to choose the sections that matter for this profile.', position: 'bottom' },
   { target: '.tweaks-btn', title: 'Display Tweaks', text: 'Adjust theme, accent color, density, and motion effects without leaving the current screen.', position: 'bottom' },
   { target: '.settings-btn', title: 'Settings & Connections', text: 'Configure demographics, privacy, AI providers, wearables, sync, and data controls here.', position: 'bottom' },
-  { target: '#chat-fab, .m-chat-fab, #chat-panel.open', title: 'Ask AI', text: 'Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.', position: 'left' },
+  { target: '#chat-fab, #chat-panel.open', title: 'Ask AI', text: 'Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.', position: 'left' },
 ];
 
 const CYCLE_TOUR_STEPS = [

@@ -66,6 +66,9 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
     css.includes('body.mobile-dashboard-active .header') &&
     css.includes('display: flex') &&
     !mobileDashboardSrc.includes('class="m-topbar"'));
+  assert('mobile dashboard home uses the shared chat FAB',
+    css.includes('body.mobile-dashboard-active #chat-fab') &&
+    !mobileDashboardSrc.includes('m-chat-fab'));
   assert('mobile dashboard no longer ships dead private topbar styles',
     !css.includes('.m-topbar-actions') &&
     !css.includes('.m-avatar-btn') &&

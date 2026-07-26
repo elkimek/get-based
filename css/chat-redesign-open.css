@@ -296,8 +296,7 @@ body.chat-open .analytics-consent-banner {
   .chat-msg { font-size: 14px; padding: 12px 14px; }
 }
 @media (max-width: 768px) {
-  body.chat-open .m-tabbar,
-  body.chat-open .m-chat-fab {
+  body.chat-open .m-tabbar {
     display: none;
   }
   body.chat-open .main { padding-right: 0; }

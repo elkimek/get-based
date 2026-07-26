@@ -242,7 +242,6 @@ export function createDashboardViewComposition({
     setupDropZone,
     loadCommitHash,
     navigate,
-    openChatPanel,
     toggleMobileSidebar,
     loadContextCardTips,
     loadCatalog,
