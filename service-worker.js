@@ -69,6 +69,8 @@ const APP_SHELL = [
   '/themes-extra.css',
   '/js/service-worker-update.js',
   '/js/main.js',
+  // PRODUCTION_BUNDLE_ASSETS_START
+  // PRODUCTION_BUNDLE_ASSETS_END
   '/js/shell-actions.js',
   '/js/app-feature-modules.js',
   '/js/app-foundation-modules.js',

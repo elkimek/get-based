@@ -12,6 +12,8 @@
     "architecture:check": "node scripts/architecture-map.mjs --check",
     "dev-server": "node dev-server.js",
     "performance:check": "playwright test tests/playwright/cold-load-budget.spec.js --workers=1",
+    "production:build": "node scripts/build-production.mjs",
+    "production:check": "node scripts/build-production.mjs --check",
     "quality": "node scripts/quality-guardrails.mjs",
     "sbom": "node scripts/supply-chain.mjs --sbom artifacts/getbased.cdx.json",
     "supply-chain:check": "node scripts/supply-chain.mjs --check",
