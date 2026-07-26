@@ -887,7 +887,6 @@ function showDNAImportPreview(result) {
   }
 
   const effectIcon = { significant: '\uD83D\uDD34', moderate: '\uD83D\uDFE0', mild: '\uD83D\uDFE1', beneficial: '\uD83D\uDFE2', none: '\u26AA' };
-  const effectLabel = { significant: 'Significant impact', moderate: 'Moderate impact', mild: 'Mild impact', beneficial: 'Beneficial', none: 'Normal / no impact' };
 
   function renderGroup(items, label) {
     if (items.length === 0) return '';

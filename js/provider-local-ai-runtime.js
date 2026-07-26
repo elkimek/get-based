@@ -9,15 +9,6 @@ function getRuntimeWindow() {
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
 /** @param {boolean} [isAvailable] */
 export function updatePrivacyStatusCardFromRuntime(isAvailable) {
   const update = getSettingsModuleFunction('updatePrivacyStatusCard');

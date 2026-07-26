@@ -39,13 +39,7 @@ import {
 
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean }} LabContextOptions
- * @typedef {{
- *   isGeneticsInventoryInAIContext?: () => boolean,
- *   isLightSunContextEnabled?: () => boolean,
- * }} LabContextWindowHooks
  */
-
-const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindowHooks} */ (typeof window !== 'undefined' ? window : {});
 
 /** @type {{
  *   buildBiologyScoresAIContext: ((data: any, options: { limit: number, ignoreContextToggles?: boolean }) => string) | null,
@@ -178,10 +172,6 @@ function _biologyScoreContextSettings() {
     imported.biologyScoreContextSettings = {};
   }
   return imported.biologyScoreContextSettings;
-}
-
-function _profileContextEnabled(slug, defaultValue = true, legacyKey = null) {
-  return isContextSourceEnabled(slug, { defaultValue, legacyKey });
 }
 
 function _setProfileContextEnabled(slug, on, legacyKey = null) {
@@ -421,7 +411,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       if (markersWithData.length === 0) continue;
       const _catDate = cat.singleDate || (() => { for (let i = data.dates.length - 1; i >= 0; i--) { if (markersWithData.some(([_, m]) => m.values[i] !== null)) return data.dates[i]; } return null; })();
       ctx += `[section:${catKey}${_catDate ? ' updated:' + _catDate : ''}]\n## ${cat.label}\n`;
-      for (const [key, m] of markersWithData) {
+      for (const [, m] of markersWithData) {
         const latestIdx = getLatestValueIndex(m.values);
         // Trajectory narrative: only for flagged markers or those with >25% change
         let trajectory = '';

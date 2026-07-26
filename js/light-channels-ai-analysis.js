@@ -133,8 +133,6 @@ export function buildChannelMixContext() {
   }
 
   // Source split — outdoor vs device contribution per channel
-  const sun7Total = Object.values(t.sun7 || {}).reduce((a, b) => a + b, 0);
-  const dev7Total = Object.values(t.dev7 || {}).reduce((a, b) => a + b, 0);
   const sunSessCount = _getSessions().filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
   const devSessCount = _getDeviceSessions().filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
   lines.push('');

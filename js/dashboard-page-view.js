@@ -54,13 +54,6 @@ function getDashboardPageRuntimeValue(name) {
   return dashboardPageRuntime()[name];
 }
 
-function callDashboardPageRuntime(name, ...args) {
-  const runtime = dashboardPageRuntime();
-  const fn = runtime[name];
-  if (typeof fn !== 'function') return undefined;
-  return fn.apply(runtime, args);
-}
-
 function dashboardWelcomeActionAttrs(action, attrs = {}) {
   let html = `${DASHBOARD_WELCOME_ACTION_ATTR}="${escapeAttr(action)}"`;
   for (const [key, value] of Object.entries(attrs)) {

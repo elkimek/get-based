@@ -212,7 +212,7 @@ export function renderCompareTable(data, idx1, idx2) {
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (cat.singlePoint) continue;
     const rows = [];
-    for (const [mKey, marker] of Object.entries(cat.markers)) {
+    for (const marker of Object.values(cat.markers)) {
       const v1 = marker.values[idx1];
       const v2 = marker.values[idx2];
       if (v1 === null && v2 === null) continue;

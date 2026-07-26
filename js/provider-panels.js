@@ -24,14 +24,10 @@ import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import {
-  applyHardwareOverride,
-  clearHardwareOverride,
   configureLocalAiControls,
-  copyOllamaPullCmd,
   initSettingsOllamaCheck,
   refreshModelAdvisor,
   testOllamaConnection,
-  testPIIOllamaConnection,
 } from './provider-local-ai-controls.js';
 import {
   applyCustomApiManualModel,
@@ -40,17 +36,13 @@ import {
   refreshRoutstrPrivateControls,
   renderCustomApiModelDropdown,
   renderOpenRouterModelDropdown,
-  renderPpqModelDropdown,
   renderRoutstrModelDropdown,
   renderVeniceModelDropdown,
   togglePpqPrivateMode,
   toggleRoutstrPrivateMode,
   toggleVeniceE2EE,
   updateCustomModelPricing,
-  updateOpenRouterModelPricing,
   updatePpqModelPricing,
-  updateRoutstrModelPricing,
-  updateVeniceModelPricing,
 } from './provider-model-controls.js';
 import {
   cancelPpqTopup,
@@ -59,8 +51,6 @@ import {
   copyPpqKeyReveal,
   copyPpqPayment,
   dismissPpqKeyReveal,
-  doPpqTopup,
-  doPpqTopupCustom,
   handlePpqTopupPreset,
   handleCreatePpqAccount,
   handleRemovePpqKey,
@@ -69,7 +59,6 @@ import {
   initSettingsPpqPanel,
   ppqShowCustomInput,
   refreshPpqBalance,
-  selectPpqMethod,
   showPpqTopup,
 } from './provider-ppq-panels.js';
 import {
@@ -78,29 +67,8 @@ import {
   refreshCashuWalletBalance,
   refreshWalletSeedStatus,
   refreshRoutstrBalance,
-  showRoutstrWalletFund,
-  rsWalletFundCustomInput,
-  doRoutstrWalletFundCustom,
-  doRoutstrWalletFund,
-  doRoutstrWalletReceiveCashu,
   showRoutstrMintEdit,
-  doRoutstrMintChange,
-  showRoutstrWalletBackup,
-  showRoutstrNodePicker,
-  connectRoutstrNode,
-  doRoutstrNodeDeposit,
-  doRoutstrNodeWithdraw,
   _setActiveNodeAction,
-  walletSeedAcknowledged,
-  setupRoutstrWalletSeed,
-  showWalletSeedPhrase,
-  showRoutstrWithdraw,
-  showRoutstrWithdrawLightning,
-  showRoutstrWithdrawToken,
-  doRoutstrSendToken,
-  doRoutstrWithdrawQuote,
-  doRoutstrWithdrawExecute,
-  doRoutstrWalletRestore,
   walletRuntime
 } from './provider-wallet-panels.js';
 function openProviderPanelExternal(...args) {

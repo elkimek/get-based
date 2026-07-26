@@ -6,7 +6,7 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
-import { clearKeyCache, getCachedKey, updateKeyCache } from './crypto-key-cache.js';
+import { clearKeyCache, updateKeyCache } from './crypto-key-cache.js';
 import { configureCycleStoreCrypto } from './cycle-store.js';
 import { configureWearablesStoreCrypto } from './wearables-store.js';
 import { isDataProtectionStylesheetLoaded, loadDataProtectionStylesheetForAction } from './modal-lifecycle.js';

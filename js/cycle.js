@@ -614,7 +614,6 @@ export function toggleCycleSymptomTag(btn) {
 }
 
 export function syncMenstrualCycleProfileFromForm() {
-  const stats = calculateCycleStats(state.importedData.menstrualCycle ? state.importedData.menstrualCycle.periods : []);
   const mc = state.importedData.menstrualCycle || {};
   const cycleLengthAuto = document.getElementById('mc-cycle-length-auto');
   const periodLengthAuto = document.getElementById('mc-period-length-auto');

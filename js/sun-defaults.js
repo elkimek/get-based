@@ -299,20 +299,14 @@ export function isOnboardingComplete() {
 
 // ─── UI: setup card (3 questions + indoor-light burden audit) ────────
 
-// Session-level flag kept for compatibility with older callers that expected
-// edit mode to be stateful. The editor now lives in a focused overlay; the
-// widget always renders either a compact prompt or the saved summary.
-let _setupForceOpen = false;
 const LIGHT_SETUP_OVERLAY_ID = 'light-setup-focus-overlay';
 
 export function reopenSunSetup() {
-  _setupForceOpen = true;
   openSunSetupOverlay();
 }
 
 function cancelReopenSunSetup() {
   closeSunSetupOverlay();
-  _setupForceOpen = false;
 }
 
 // Map an indoor-light burden score (0-10, higher = more indoor) to a
@@ -653,7 +647,6 @@ function openSunSetupOverlay() {
   const obs = new MutationObserver(() => {
     if (!document.body.contains(overlay)) {
       obs.disconnect();
-      _setupForceOpen = false;
     }
   });
   obs.observe(document.body, { childList: true, subtree: true });
@@ -675,7 +668,6 @@ function closeSunSetupOverlay() {
     ? document.getElementById(LIGHT_SETUP_OVERLAY_ID)
     : null;
   if (overlay) removeModalOverlay(overlay);
-  _setupForceOpen = false;
 }
 
 function setLightSetupStep(step, opts = {}) {

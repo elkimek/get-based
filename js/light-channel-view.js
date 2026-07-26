@@ -567,7 +567,6 @@ function _renderChannelSourceMix(sun, dev) {
 function _channelNextMove(channelKey, t7, devices, atm) {
   const matchingDevice = (devices || []).find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
   const dev = matchingDevice ? escapeHTML(`${matchingDevice.brand} ${matchingDevice.model}`) : '';
-  const uvi = atm?.uvIndex ?? null;
   const peakTime = atm?.daily?.peakAt || null;
   const peakUVI = atm?.daily?.uvIndexMax ?? null;
   const peakHHMM = peakTime ? new Date(peakTime).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : null;

@@ -18,12 +18,6 @@ function getSilhouetteRuntime() {
     : null;
 }
 
-/** @param {string} name */
-function getRuntimeFunction(name) {
-  const runtime = getSilhouetteRuntime();
-  return typeof runtime?.[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
 export function getActiveSilhouetteProfileIdRuntime() {
   try {
     return sunBodySilhouetteRuntimeDeps.getActiveProfileId() || null;

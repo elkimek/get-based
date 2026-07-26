@@ -4,10 +4,6 @@
 import { getActiveData, destroyAllCharts } from './data.js';
 import {
   buildSidebar,
-  closeMobileSidebar,
-  renderProfileButton,
-  renderProfileDropdown,
-  toggleMobileSidebar,
 } from './nav.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';

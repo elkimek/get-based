@@ -294,13 +294,12 @@ export function openSunSessionDetail(id) {
     const ozoneStr = atm.ozoneDU != null ? `${Math.round(atm.ozoneDU)} DU` : '— (default 300)';
     const cloud = atm.cloudCover != null ? `${Math.round(atm.cloudCover)}%` : '—';
     const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : '—';
-    let zenithStr = '—', elevStr = '';
+    let zenithStr = '—';
     try {
       if (sess.startedAt && sess.endedAt && loc && uiDeps.solarZenithAngle) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
         const z = uiDeps.solarZenithAngle(mid, loc.lat, loc.lon);
         zenithStr = `${z.toFixed(1)}°`;
-        elevStr = `${Math.max(0, 90 - z).toFixed(1)}° above horizon`;
       }
     } catch (e) {}
     const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc.altitudeM)} m` : 'sea level';

@@ -506,7 +506,6 @@ function renderAnswerGroundingPanel({ lensSet, kbSet, kbEnabled, kbSummary, chec
 }
 
 export function openDataProtectionPicker() {
-  const appWindow = /** @type {any} */ (window);
   let overlay = document.getElementById('data-protection-picker-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -599,7 +598,6 @@ function bindContextSourceToggles(overlay) {
 }
 
 export function openContextModal() {
-  const appWindow = /** @type {any} */ (window);
   if (migrateStoredContextSourceSettingsToProfile()) {
     void saveImportedData({ reason: 'context-source-settings-migration' });
   }

@@ -37,9 +37,7 @@ import {
   activeSourceArchetype,
   activeHoursBucket,
   activeEveningBucket,
-  defaultHoursForName,
   computeRoomSeverityForRoom,
-  computeScreenStatus,
   computeDeficitAxesForEnvironment,
   computeIndoorBurdenForEnvironment,
 } from './light-env-model.js';

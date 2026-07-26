@@ -2,12 +2,11 @@
 // export-report.js — PDF report data preparation and HTML export
 
 import { state } from './state.js';
-import { getStatus, formatValue, showNotification, getTrend, escapeHTML } from './utils.js';
+import { getStatus, formatValue, showNotification, escapeHTML } from './utils.js';
 import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRange } from './marker-analysis.js';
 import { getProfiles, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
-import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { trackUsage } from './schema.js';
 

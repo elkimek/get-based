@@ -15,21 +15,6 @@ export function configureSyncDiagnoseRuntimeDeps(deps = {}) {
   return previous;
 }
 
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
 /**
  * @param {string} message
  * @param {{ fallback?: boolean }} [opts]

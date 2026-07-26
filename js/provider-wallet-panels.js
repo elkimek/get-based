@@ -571,10 +571,7 @@ export async function refreshWalletSeedStatus() {
   }
 }
 
-let _activeNodeAction = null;
-
 export function _setActiveNodeAction(actionId) {
-  _activeNodeAction = actionId;
   const el = document.getElementById('routstr-node-actions');
   const nodeUrl = walletRuntime.nostrGetSelectedNode?.() || '';
   const hasKey = !!getRoutstrKey();

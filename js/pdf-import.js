@@ -31,37 +31,22 @@ import { runPreflightChecks } from './pdf-import-preflight.js';
 import { normalizeParsedImportMarkers } from './pdf-import-marker-normalization.js';
 import {
   refreshImportedDataViews,
-  removeImportedEntry,
-  renameImportedEntryDate,
 } from './pdf-import-persistence.js';
 import {
-  handleImportStatusClick,
   hideImportProgress,
   isImportRunning,
   showBatchImportProgress,
   showImportProgress,
-  syncImportStatusFab,
   updateImportProgressPct,
 } from './pdf-import-progress.js';
 import {
   buildMarkerReference, getExistingImportMarkerKeys,
-  reconcileImportMarkerMappings,
 } from './pdf-import-marker-mapping.js';
 import {
   showImportPreview,
-  applyManualImportDate,
-  mapUnmatchedMarker,
-  mapUnmatchedMarkerInput,
-  setImportReviewFilter,
-  applyImportReviewFilters,
-  toggleImportRow,
-  closeImportModal,
   showImportPreviewAsync,
 } from './pdf-import-review.js';
 import {
-  confirmImport,
-  deleteImportSnapshot,
-  openImportReviewFromSnapshot,
   setPdfImportBatchMode,
 } from './pdf-import-commit.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';

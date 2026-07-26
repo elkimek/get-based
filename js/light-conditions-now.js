@@ -548,25 +548,6 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
     else if (uvi >= 3) uviCls = 'moderate';
   }
 
-  // AQI bucket from PM2.5 (WHO 24h guideline)
-  let aqCls = 'good', aqLabel = '—';
-  if (aqPm25 != null) {
-    if (aqPm25 < 12) { aqCls = 'good'; aqLabel = 'Good'; }
-    else if (aqPm25 < 35) { aqCls = 'moderate'; aqLabel = 'Moderate'; }
-    else if (aqPm25 < 55) { aqCls = 'unhealthy-sensitive'; aqLabel = 'Unhealthy for sensitive'; }
-    else if (aqPm25 < 150) { aqCls = 'unhealthy'; aqLabel = 'Unhealthy'; }
-    else { aqCls = 'hazardous'; aqLabel = 'Hazardous'; }
-  }
-
-  const fetchedAgo = Math.max(0, Math.round((Date.now() - (atm.fetchedAt || Date.now())) / 60000));
-  const staleness = offline
-    ? `<span class="conditions-now-stale"${_conditionsTooltipAttr('Network unavailable — using cached values', { focusable: true })}>⚠ offline · cached ${fetchedAgo} min ago</span>`
-    : (fetchedAgo > 60
-        ? `<span class="conditions-now-stale"${_conditionsTooltipAttr('Cached value — refresh to update', { focusable: true })}>cached ${fetchedAgo} min ago — tap ↻ to refresh</span>`
-        : (fetchedAgo > 30
-            ? `<span class="conditions-now-stale conditions-now-stale-mild"${_conditionsTooltipAttr('Conditions can drift with cloud cover; tap refresh for a fresh fetch', { focusable: true })}>data ${fetchedAgo} min old</span>`
-            : ''));
-
   // Resolve user's Fitzpatrick (for time-to-MED). Track whether it's
   // user-set vs the default III fallback so we can qualify the readout.
   const userFp = state.importedData?.sunDefaults?.fitzpatrick ||
@@ -592,8 +573,6 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
     : '';
   // Surface-ozone WHO bucket
   const surfaceOzoneCls = _surfaceOzoneCls(surfaceOzone);
-  // Shadow narrative
-  const shadowText = _shadowNarrative(sunAngle);
   // Multi-pollutant aggregate AQ — "worst-of" so high NO₂ doesn't hide
   // behind low PM2.5. atm.airQuality.european_aqi (when present) is
   // already the official EAQI multi-pollutant aggregation.
@@ -944,23 +923,6 @@ function _computeUvaWindow(coords, dateLike) {
     }
   }
   return { firstUVA, lastUVA };
-}
-
-// Sun-position narrative — uses the "shadow rule" as a UV-strength proxy.
-// Elevation drives UV intensity: shadow shorter than your height = sun
-// high = strong UV. Shadow longer than you = sun low = weak UV. Returns
-// "qualitative phrase · shadow ratio" so users see both the meaning and
-// the underlying number.
-function _shadowNarrative(elevDeg) {
-  if (elevDeg == null) return '';
-  if (elevDeg < 5) return 'sun grazing horizon · UV negligible';
-  const ratio = 1 / Math.tan(elevDeg * Math.PI / 180);
-  const r = ratio.toFixed(1);
-  if (elevDeg >= 70) return `sun overhead · UV peak (shadow ${r}× height)`;
-  if (elevDeg >= 50) return `sun high · UV strong (shadow ${r}× height)`;
-  if (elevDeg >= 30) return `sun mid-sky · UV building (shadow ${r}× height)`;
-  if (elevDeg >= 15) return `sun low · UV moderate (shadow ${r}× height)`;
-  return `sun very low · UV weak (shadow ${r}× height)`;
 }
 
 // Tooltip explainer attached to the Sun-position cell so the shadow-rule

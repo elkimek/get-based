@@ -11,15 +11,6 @@ function getRuntimeWindow() {
 
 /**
  * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
-}
-
-/**
- * @param {string} name
  * @returns {any}
  */
 function getRuntimeValue(name) {

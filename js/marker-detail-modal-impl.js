@@ -773,7 +773,6 @@ function renderDetailModal(id, opts = {}) {
   }
   // Async-fill recommendation section (unified: genetics + actionable tips)
   if (shouldRenderRecommendations) {
-    const _latestVal = marker.values?.filter(v => v !== null).pop();
     const _markerStatus = latestStatus === 'unrated' ? 'missing' : latestStatus;
     renderRecommendationSectionRuntime(id.replace('_','.'), { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
       .then(h => {
