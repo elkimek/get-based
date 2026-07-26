@@ -46,8 +46,8 @@ import {
 /** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
-/** @param {{ enableSync?: (...args: any[]) => any, disableSync?: (...args: any[]) => any }} [deps] */
-export function configureSyncModules({ enableSync, disableSync } = {}) {
+/** @param {{ enableSync?: (...args: any[]) => any }} [deps] */
+export function configureSyncModules({ enableSync } = {}) {
   configureSyncPayload({ getProfiles });
   configureSyncStorageCleanup({ saveImportedData });
 

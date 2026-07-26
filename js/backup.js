@@ -447,7 +447,7 @@ export function openBackupDB() {
   if (_dbPromise) return _dbPromise;
   _dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(BACKUP_DB_NAME, 2);
-    req.onupgradeneeded = (e) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(BACKUP_STORE)) {
         db.createObjectStore(BACKUP_STORE, { keyPath: 'id', autoIncrement: true });

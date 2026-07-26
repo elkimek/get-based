@@ -70,7 +70,7 @@ export function importDataJSON(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onerror = () => resolve();
-    reader.onload = async (e) => {
+    reader.onload = async () => {
       try {
         const json = JSON.parse(/** @type {string} */ (reader.result));
         // Guard: demo data should never be silently imported into a non-demo profile

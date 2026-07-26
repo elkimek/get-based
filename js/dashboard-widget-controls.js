@@ -170,7 +170,7 @@ export function createDashboardWidgetControls(deps) {
     return options.sort((a, b) => String(a.category).localeCompare(String(b.category)) || String(a.name).localeCompare(String(b.name)));
   }
 
-  function getDashboardBiometricWidgetOptions(prefs = getDashboardWidgetPrefs()) {
+  function getDashboardBiometricWidgetOptions() {
     const selected = new Set(getDashboardBiometricSelection());
     const options = [];
     for (const metricId of getDashboardBiometricMetricOrder()) {
@@ -522,7 +522,7 @@ export function createDashboardWidgetControls(deps) {
     const prefs = getDashboardWidgetPrefs();
     const hidden = getAvailableDashboardFixedWidgets().filter(def => prefs.hidden.includes(def.id));
     const hiddenList = renderDashboardPickerFixedGroups(hidden);
-    const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
+    const biometricOptions = getDashboardBiometricWidgetOptions();
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
     const markerOptions = getDashboardMarkerWidgetOptions(getActiveData(), prefs);
     const markerList = markerOptions.length ? markerOptions.map(renderDashboardMarkerWidgetOption).join('') : '';
@@ -557,7 +557,7 @@ export function createDashboardWidgetControls(deps) {
   function openDashboardBiometricPicker() {
     closeDashboardWidgetPicker();
     const prefs = getDashboardWidgetPrefs();
-    const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
+    const biometricOptions = getDashboardBiometricWidgetOptions();
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
     openDashboardWidgetPickerOverlay(`<div class="modal-overlay" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
       <div class="modal dashboard-widget-picker dashboard-biometric-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-biometric-picker-title">

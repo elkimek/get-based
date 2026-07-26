@@ -259,7 +259,7 @@ export {
 // ═══════════════════════════════════════════════
 // CHANGE SUMMARY HELPER
 // ═══════════════════════════════════════════════
-function summarizeChange(field, prev, curr) {
+function summarizeChange(prev, curr) {
   if (prev == null && curr == null) return null;
   if (prev == null) return 'added';
   if (curr == null) return 'cleared';
@@ -981,7 +981,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       const fieldEntries = byField[entry.field];
       const idx = fieldEntries.indexOf(entry);
       const prev = idx > 0 ? fieldEntries[idx - 1].snapshot : null;
-      const diff = summarizeChange(entry.field, prev, entry.snapshot);
+      const diff = summarizeChange(prev, entry.snapshot);
       if (diff) lines.push(`- ${fmtDate(entry.date)}: ${label} — ${diff}`);
     }
     if (lines.length > 0) {

@@ -291,7 +291,7 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   return renderScrollableTableShell('data', 'data-table-wrapper', 'data-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 
-export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
+export function renderHeatmapView(cat, dateLabels, categoryKey) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
   const markerEntries = Object.entries(cat.markers).filter(([, m]) =>
     m.values && m.values.some(v => v !== null)

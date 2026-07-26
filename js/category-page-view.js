@@ -274,7 +274,7 @@ export function switchView(view, categoryKey, btn) {
   if (view === "table") {
     container.innerHTML = renderTableView(cat, safeLabels, categoryKey, data.dates);
   } else if (view === "heatmap") {
-    container.innerHTML = renderHeatmapView(cat, safeLabels, data.dates, categoryKey);
+    container.innerHTML = renderHeatmapView(cat, safeLabels, categoryKey);
   } else {
     if (cat.singleDate) {
       container.innerHTML = renderFattyAcidsView(cat, categoryKey);

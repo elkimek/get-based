@@ -207,7 +207,7 @@ function _trimToBudget(ctx, budget, aggressive = false) {
 
   // 4. Drop older audits past the most recent — keep one full audit
   // block, drop the rest. Same logic as step 1 but at the audit level.
-  ctx = ctx.replace(/(### Light audits[^\n]*\n(?:[^\n]*\n)*?  - [^\n]*\n(?:    · [^\n]*\n)*)([\s\S]*?)(?=\n[A-Z]|\n\[|\n###|$)/, (m, kept, rest) => {
+  ctx = ctx.replace(/(### Light audits[^\n]*\n(?:[^\n]*\n)*?  - [^\n]*\n(?:    · [^\n]*\n)*)([\s\S]*?)(?=\n[A-Z]|\n\[|\n###|$)/, (_match, kept, _rest) => {
     return kept;
   });
   if (ctx.length <= budget) return ctx;
@@ -710,7 +710,7 @@ function standardTierBlock(sessions) {
   const fmtIUCompact = (n) => n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
     : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
   const fmtJ = (n) => n >= 10 ? `${Math.round(n)}` : n >= 1 ? n.toFixed(1) : n.toFixed(2);
-  const _luxHFromAu = (k, weeklyAu) => {
+  const _luxHFromAu = (weeklyAu) => {
     // circadian channel-au needs duration to convert; bucket totals are
     // au-aggregates not lux-h. Approximation: use the always-tier helper
     // pattern but on a representative 1-hour basis. The AI cares about
@@ -738,7 +738,7 @@ function standardTierBlock(sessions) {
     if (k === 'vitamin_d') {
       formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
     } else if (k === 'circadian') {
-      formatted = b.map(v => v > 0 ? fmtIUCompact(_luxHFromAu(k, v)) : '0').join('→');
+      formatted = b.map(v => v > 0 ? fmtIUCompact(_luxHFromAu(v)) : '0').join('→');
     } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
       formatted = b.map(v => {
         if (v <= 0) return '0';

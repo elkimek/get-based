@@ -475,7 +475,7 @@ function getSetupFilledCount() {
   return [skinFilled, homeFilled, eyewearFilled].filter(Boolean).length;
 }
 
-function renderSetupActions(filledCount = getSetupFilledCount()) {
+function renderSetupActions() {
   return `<div class="light-setup-actions" data-setup-actions="core">
     ${isOnboardingComplete()
       ? `<button class="import-btn import-btn-secondary" ${lightSetupActionAttrs('cancel-reopen')}>Cancel</button>
@@ -619,7 +619,7 @@ function renderSetupEditor({ includeActions = true } = {}) {
     </section>
     </section>
 
-    ${includeActions ? renderSetupActions(filledCount) : ''}
+    ${includeActions ? renderSetupActions() : ''}
   </div>`;
   return html;
 }

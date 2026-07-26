@@ -43,7 +43,7 @@ export function mergeTotals(a, b) {
 }
 
 // Mini 7-day sparkline rendered as inline SVG; sub-meaningful days get a faint stub.
-export function _channelSparkline(channelKey, totals = null) {
+export function _channelSparkline(channelKey) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
   if (!breakdown) return '';
   const days = breakdown(channelKey, 7);
@@ -449,7 +449,7 @@ function _meaningfulDayCount(days, dailyTarget, threshold) {
 // exposure not banked. The "X of 7 days" framing matches the biology;
 // the cumulative real-unit (IU / J/cm²) when defensible is shown as
 // a sub-line for completeness.
-function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, weeklyTier = 0) {
+function _channelHero(channelKey, totalCurrent, days7, daysPrev7, weeklyTier = 0) {
   const meta = getChannelDisplay()[channelKey] || {};
   const target = meta.dailyTarget || 0;
   const threshold = _CHANNEL_DAY_THRESHOLD[channelKey] ?? 0.30;
@@ -564,7 +564,7 @@ function _renderChannelSourceMix(sun, dev) {
 // Channel-specific "next move" — a concrete recipe the user can act on
 // right now. Picks the best CTA based on channel + tier + available
 // devices + current sun conditions.
-function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
+function _channelNextMove(channelKey, t7, devices, atm) {
   const matchingDevice = (devices || []).find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
   const dev = matchingDevice ? escapeHTML(`${matchingDevice.brand} ${matchingDevice.model}`) : '';
   const uvi = atm?.uvIndex ?? null;
@@ -667,7 +667,6 @@ function _renderChannelDetailPanel(channelKey) {
   // Previous-week total via 14-day breakdown (first 7 days = the
   // preceding week, last 7 days = current week). Lets the hero show
   // a real "vs last week" delta instead of a vague tier-vs-tier arrow.
-  let totalPrev = 0;
   let days7 = [];
   let daysPrev7 = [];
   try {
@@ -676,7 +675,6 @@ function _renderChannelDetailPanel(channelKey) {
       const days14 = breakdown(channelKey, 14);
       daysPrev7 = days14.slice(0, 7);
       days7 = days14.slice(7);
-      totalPrev = daysPrev7.reduce((s, d) => s + d.sun + d.device, 0);
     }
   } catch (e) {}
 
@@ -693,7 +691,7 @@ function _renderChannelDetailPanel(channelKey) {
       <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" data-light-channel-action="toggle-detail" data-channel="${escapeAttr(channelKey)}">×</button>
     </header>
 
-    ${_channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, t7)}
+    ${_channelHero(channelKey, totalCurrent, days7, daysPrev7, t7)}
 
     <p class="light-channel-detail-body">${escapeHTML(meta.what || '')}</p>
 
@@ -703,7 +701,7 @@ function _renderChannelDetailPanel(channelKey) {
 
     ${_renderDailyBeatsBankingNote(channelKey)}
 
-    ${_channelNextMove(channelKey, t7, totalCurrent, devices, atm)}
+    ${_channelNextMove(channelKey, t7, devices, atm)}
 
     ${_renderChannelCitations(channelKey)}
   </div>`;

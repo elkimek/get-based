@@ -529,7 +529,7 @@ function renderContextImportHandoffState(container, panel, { personality, name }
   return true;
 }
 
-function renderInitialNoDataState(container, panel, { personality, name }) {
+function renderInitialNoDataState(container, panel, { personality }) {
   setOnboardingActive(panel);
   const providerConnected = hasAIProvider();
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>

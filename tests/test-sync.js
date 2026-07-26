@@ -223,7 +223,7 @@ await import('../js/settings.js');
       && syncConfigureSrc.includes('configureSyncDiagnostics({')
       && syncConfigureSrc.includes('configureSyncUI({')
       && syncConfigureSrc.includes('forceResendCurrentProfile,')
-      && startupOrchestratorSrc.includes('configureSyncModules({ enableSync, disableSync });'));
+      && startupOrchestratorSrc.includes('configureSyncModules({ enableSync });'));
   assert('service worker precaches sync-configure.js',
     serviceWorkerSrc.includes("'/js/sync-configure.js'"));
   assert('sync-init.js owns Evolu startup orchestration',

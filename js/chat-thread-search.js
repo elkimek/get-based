@@ -87,10 +87,10 @@ async function searchThreadContent(query) {
   // Re-check input hasn't changed
   const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
   if (!input || input.value.trim().toLowerCase() !== q) return;
-  showSearchResults(q, results);
+  showSearchResults(results);
 }
 
-function showSearchResults(query, results) {
+function showSearchResults(results) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
   if (results.length === 0) {

@@ -36,7 +36,7 @@ function handleStartupSequenceError(error) {
 
 function configureSyncComposition() {
   configureSyncLifecycleDeps({ enableSync, disableSync });
-  configureSyncModules({ enableSync, disableSync });
+  configureSyncModules({ enableSync });
 }
 
 export function startApp() {

@@ -31,7 +31,7 @@ test('lazy provider render follows a provider switch made while loading', async 
     api.setAIProvider('openrouter');
     const panel = document.createElement('div');
     panel.id = 'ai-provider-panel';
-    panel.innerHTML = bridge.renderAIProviderPanelBridge('openrouter');
+    panel.innerHTML = bridge.renderAIProviderPanelBridge();
     document.body.appendChild(panel);
     api.setAIProvider('custom');
   });

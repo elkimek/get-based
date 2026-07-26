@@ -243,7 +243,7 @@ function _heuristicPeakShares(peaks, deviceType) {
   }
   const bandCount = {};
   for (const b of bands) bandCount[b] = (bandCount[b] || 0) + 1;
-  const raw = bands.map((b, i) => (bandWeights[b] || 0) / (bandCount[b] || 1));
+  const raw = bands.map((b) => (bandWeights[b] || 0) / (bandCount[b] || 1));
   const sum = raw.reduce((a, b) => a + b, 0);
   return sum > 0 ? raw.map(w => w / sum) : peaks.map(() => 1 / peaks.length);
 }

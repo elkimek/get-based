@@ -64,7 +64,7 @@ function getDeviceBodyFraction(session, fractionByKey) {
   return null;
 }
 
-export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false, bodyFraction = null) {
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, _zenith = null, rotatedSides = false, bodyFraction = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (durationMin > 0 && durationMin < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) {
     return 'session too short';

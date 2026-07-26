@@ -81,8 +81,8 @@ async function openStartupOrchestratorPage(page) {
   await page.route('**/js/sync-configure.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
-      export function configureSyncModules({ enableSync, disableSync }) {
-        window.__startupCalls.push(['sync-modules', typeof enableSync, typeof disableSync]);
+      export function configureSyncModules({ enableSync }) {
+        window.__startupCalls.push(['sync-modules', typeof enableSync]);
       }
     `,
   }));

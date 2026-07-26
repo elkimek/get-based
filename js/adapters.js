@@ -292,7 +292,7 @@ function _detectMetabolomix(fileName, pdfText) {
   return null;
 }
 
-function _normalizeMetabolomix(markers, fileName, pdfText, detectedProduct) {
+function _normalizeMetabolomix(markers, fileName, pdfText, _detectedProduct) {
   // Metabolomix+ FA add-on (pages 11-12): bloodspot fatty acids appear alongside OAT markers.
   // AI classifies the whole report as testType 'OAT', but FA markers need product-prefixing.
   // Detect FA markers and route them through FA normalization with 'metabolomix' prefix.
@@ -500,7 +500,7 @@ const ADAPTERS = [
     testTypes: ['biostarks'],
     markers: BIOSTARKS_MARKERS,
     detect(fileName, pdfText) { return _detectBiostarks(fileName, pdfText); },
-    normalize(markers, fileName, pdfText, detected) { _normalizeBiostarks(markers); },
+    normalize(markers, _fileName, _pdfText, _detected) { _normalizeBiostarks(markers); },
   },
   // Future adapters: DUTCH, HTMA, GI-MAP, HealthieOne, etc.
 ];

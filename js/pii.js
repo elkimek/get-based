@@ -447,7 +447,7 @@ export function obfuscatePDFText(pdfText) {
   ];
 
   for (const { pattern, gen } of labelReplacements) {
-    text = text.replace(pattern, (match, label, value, offset) => {
+    text = text.replace(pattern, (match, label, _value, offset) => {
       if (isProtectedLine(offset)) return match;
       replacements++;
       return label + gen();

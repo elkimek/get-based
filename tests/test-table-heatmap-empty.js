@@ -72,13 +72,13 @@ const views = await import('../js/views.js');
   // ═══════════════════════════════════════
   console.log('%c 2. renderHeatmapView ', 'font-weight:bold;color:#f59e0b');
 
-  const heatHtml = views.renderHeatmapView(buildCat(), dateLabels, dates, 'testcat');
+  const heatHtml = views.renderHeatmapView(buildCat(), dateLabels, 'testcat');
   assert('Heatmap render includes the "Has Data" marker', heatHtml.includes('Has Data'));
   assert('Heatmap render includes the "Sparse Data" marker', heatHtml.includes('Sparse Data'));
   assert('Heatmap render OMITS the "No Data" marker', !heatHtml.includes('No Data'));
   assert('Heatmap render OMITS the "Another Empty" marker', !heatHtml.includes('Another Empty'));
 
-  const emptyHeat = views.renderHeatmapView(allEmptyCat, dateLabels, dates, 'empty');
+  const emptyHeat = views.renderHeatmapView(allEmptyCat, dateLabels, 'empty');
   assert('All-empty heatmap renders empty-state message',
     emptyHeat.includes('No data yet for this category'));
   assert("Heatmap empty-state doesn't render the <table>",

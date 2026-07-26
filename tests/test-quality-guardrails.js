@@ -124,6 +124,7 @@ const requiredCompilerSafetyOptions = {
   noFallthroughCasesInSwitch: true,
   noImplicitReturns: true,
   noImplicitThis: true,
+  noUnusedParameters: true,
   strictBindCallApply: true,
   strictFunctionTypes: true,
 };

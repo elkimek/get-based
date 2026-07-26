@@ -824,7 +824,7 @@ export async function handleSnpReportFile(file) {
       _dnaImportRunning = false;
       return false;
     }
-    showDNAImportPreview(result, file.name);
+    showDNAImportPreview(result);
     return true;
   } catch (e) {
     logDnaDebugError('SNP report import error:', e);
@@ -853,7 +853,7 @@ export async function handleDNAFile(file) {
       _dnaImportRunning = false;
       return false;
     }
-    showDNAImportPreview(result, file.name);
+    showDNAImportPreview(result);
     return true;
   } catch (e) {
     logDnaDebugError('DNA import error:', e);
@@ -863,7 +863,7 @@ export async function handleDNAFile(file) {
   }
 }
 
-function showDNAImportPreview(result, fileName) {
+function showDNAImportPreview(result) {
   setPendingDnaImport(result);
 
   // Categorize matches by effect — skip raw APOE components when haplotype resolved

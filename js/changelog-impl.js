@@ -467,7 +467,7 @@ function renderChangelogItem(item) {
   // noopener/noreferrer so the opener can't be navigated.
   out = out.replace(
     /&lt;a href=&quot;(.+?)&quot;&gt;(.+?)&lt;\/a&gt;/g,
-    (match, escapedUrl, inner) => {
+    (_match, escapedUrl, inner) => {
       // The captured URL is HTML-escaped (& → &amp; etc.). Decode for the
       // protocol check, but emit the escaped form back into the href so
       // ampersand-bearing URLs (?foo=1&bar=2) round-trip correctly.

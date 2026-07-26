@@ -17,7 +17,7 @@ import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-li
 
 /**
  * @typedef {{ text?: string, model?: string, provider?: string, modelId?: string, inputTokens?: number, outputTokens?: number, date?: string }} EMFInterpretation
- * @typedef {HTMLElement & { _interpretText?: string, _onGenerate?: ((onSave: (((interp: EMFInterpretation) => void) | null)) => void), _onSave?: ((interp: EMFInterpretation) => void) | null, _mouseDownInside?: boolean, _delegatesInstalled?: boolean }} EMFInterpretationOverlay
+ * @typedef {HTMLElement & { _interpretText?: string, _onGenerate?: (() => void), _mouseDownInside?: boolean, _delegatesInstalled?: boolean }} EMFInterpretationOverlay
  * @typedef {{ collectActiveAssessmentState?: () => void, getAssessments?: () => any[] }} EMFInterpretationDeps
  */
 
@@ -135,7 +135,7 @@ function _handleEMFInterpretationClick(event) {
         btn.disabled = true;
         btn.textContent = 'Interpreting\u2026';
       }
-      overlay._onGenerate(overlay._onSave || null);
+      overlay._onGenerate();
       return;
     }
   }
@@ -151,7 +151,7 @@ function installEMFInterpretationDelegates(overlay) {
   overlay.addEventListener('click', _handleEMFInterpretationClick);
 }
 
-function openInterpretationModal(title, existingInterp, onGenerate, onSave, mitigationTags = []) {
+function openInterpretationModal(title, existingInterp, onGenerate, mitigationTags = []) {
   // Create overlay that sits on top of the EMF editor (z-index above modal-overlay)
   let overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
   if (!overlay) {
@@ -192,7 +192,6 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   // Store context for discuss button
   overlay._interpretText = hasExisting ? existingInterp.text : '';
   overlay._onGenerate = onGenerate;
-  overlay._onSave = onSave;
   overlay._mouseDownInside = false;
   installEMFInterpretationDelegates(overlay);
 
@@ -350,13 +349,13 @@ export function interpretEMFAssessment(assessmentId, deps = {}) {
   const data = serializeAssessment(a);
   const tags = _collectMitigationTags(a);
 
-  openInterpretationModal(title, a.interpretation, (onSave) => {
+  openInterpretationModal(title, a.interpretation, () => {
     const prompt = `Interpret this Baubiologie EMF assessment. Identify the most concerning readings, explain health implications (especially for sleeping areas), and recommend specific mitigations in priority order.\n\n${data}`;
     streamInterpretation(prompt, (interp) => {
       a.interpretation = interp;
       saveImportedData();
     });
-  }, null, tags);
+  }, tags);
 }
 
 export function interpretEMFComparison(deps = {}) {
@@ -374,11 +373,11 @@ export function interpretEMFComparison(deps = {}) {
   const seen = new Set();
   for (const t of tags) { if (!seen.has(t)) { seen.add(t); dedup.push(t); } }
 
-  openInterpretationModal(title, emf.comparisonInterpretation, (onSave) => {
+  openInterpretationModal(title, emf.comparisonInterpretation, () => {
     const prompt = `Compare these two Baubiologie EMF assessments (before and after). Evaluate what improved, what worsened, and what still needs attention. Prioritize remaining concerns and suggest next steps.\n\nBEFORE:\n${before}\nAFTER:\n${after}`;
     streamInterpretation(prompt, (interp) => {
       emf.comparisonInterpretation = interp;
       saveImportedData();
     });
-  }, null, dedup);
+  }, dedup);
 }
