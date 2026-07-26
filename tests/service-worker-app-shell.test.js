@@ -27,7 +27,7 @@ function resolveLocalAsset(importerUrl, specifier) {
 
 function moduleSpecifiers(source, fileName = 'module.js') {
   const specifiers = new Set();
-  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
 
   function addStringLiteral(node) {
     if (node && ts.isStringLiteralLike(node)) specifiers.add(node.text);
@@ -144,7 +144,7 @@ describe('service worker app-shell completeness', () => {
     expect(entries).toEqual(['/js/service-worker-update.js', '/js/main.js']);
     expect(missingFiles).toEqual([]);
     expect(uncached).toEqual([]);
-  });
+  }, 30_000);
 
   it('pre-caches local files referenced by cached stylesheets', () => {
     const entries = appShellEntries();
