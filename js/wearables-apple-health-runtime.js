@@ -31,6 +31,11 @@ export function getAppleHealthJSZip() {
   return getRuntimeWindow()?.JSZip || null;
 }
 
+/**
+ * @param {Blob} blob
+ * @param {string} fileName
+ * @param {((event: any) => void) | null} [onProgress]
+ */
 export async function parseAppleHealthCycleRuntime(blob, fileName, onProgress = null) {
   if (!appleHealthRuntimeDeps.parseCycleBlob) return null;
   return appleHealthRuntimeDeps.parseCycleBlob(blob, fileName, onProgress);

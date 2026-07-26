@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 578,
+  "totalDiagnostics": 501,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -33,7 +33,6 @@
     "js/client-list-impl.js": 7,
     "js/client-list-runtime.js": 1,
     "js/compare-correlations.js": 7,
-    "js/context-card-dashboard-ai-impl.js": 26,
     "js/context-card-lifestyle-editors-impl.js": 2,
     "js/context-source-registry.js": 1,
     "js/crypto.js": 19,
@@ -73,7 +72,6 @@
     "js/light-env-audits.js": 2,
     "js/light-page-view.js": 2,
     "js/light-today-ai.js": 4,
-    "js/light-tool-camera-modals.js": 25,
     "js/light-tool-camera.js": 5,
     "js/light-tools.js": 6,
     "js/local-ai-lifecycle.js": 2,
@@ -138,7 +136,6 @@
     "js/touch-tooltip.js": 6,
     "js/tour.js": 3,
     "js/utils.js": 4,
-    "js/wearables-apple-health.js": 26,
     "js/wearables-bp-detail-chart.js": 8,
     "js/wearables-connect-runtime.js": 2,
     "js/wearables-connect.js": 2,

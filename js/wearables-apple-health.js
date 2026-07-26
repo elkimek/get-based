@@ -268,6 +268,36 @@ export function parseAppleHealthXml(xmlText) {
   return _aggregateByDayByMetric(byDayByMetric);
 }
 
+/**
+ * @typedef {{
+ *   source: 'apple_health',
+ *   date: string,
+ *   hrv_rmssd: number | null,
+ *   hrv_sdnn: number | null,
+ *   rhr: number | null,
+ *   hrv_day: number | null,
+ *   hr_day: number | null,
+ *   sleep_score: number | null,
+ *   readiness_score: number | null,
+ *   activity_score: number | null,
+ *   steps: number | null,
+ *   strain: number | null,
+ *   stress_high_min: number | null,
+ *   resilience_level: number | null,
+ *   cardio_age: number | null,
+ *   weight: number | null,
+ *   bp_systolic: number | null,
+ *   bp_diastolic: number | null,
+ *   body_fat_pct: number | null,
+ *   lean_mass_kg: number | null,
+ *   fat_mass_kg: number | null,
+ *   spo2_avg: number | null,
+ *   body_temp_delta: number | null,
+ *   glucose_avg: number | null,
+ *   vo2max: number | null,
+ * }} AppleHealthDailyRow
+ */
+
 function _aggregateByDayByMetric(byDayByMetric) {
   // Aggregate per day → canonical L1 row.
   //   hrv_sdnn   mean of night-window (22:00–06:00 local) samples — deep
@@ -289,6 +319,12 @@ function _aggregateByDayByMetric(byDayByMetric) {
   const isNight = (h) => (typeof h === 'number') && (h < 6 || h >= 22);
   const isDay   = (h) => (typeof h === 'number') && (h >= 6 && h < 22);
   const mean = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  /** @param {number[]} values */
+  const roundedMean = (values) => {
+    const average = mean(values);
+    if (average == null) throw new Error('Cannot average an empty Apple Health sample set');
+    return Math.round(average * 100) / 100;
+  };
   const sumByMaxSource = (samples) => {
     if (!Array.isArray(samples) || samples.length === 0) return null;
     const totals = new Map();
@@ -303,8 +339,10 @@ function _aggregateByDayByMetric(byDayByMetric) {
     return best;
   };
 
+  /** @type {AppleHealthDailyRow[]} */
   const rows = [];
   for (const [day, bucket] of byDayByMetric) {
+    /** @type {AppleHealthDailyRow} */
     const row = {
       source: 'apple_health', date: day,
       hrv_rmssd: null, hrv_sdnn: null, rhr: null,
@@ -331,7 +369,7 @@ function _aggregateByDayByMetric(byDayByMetric) {
       const dayMean   = mean(dayW);
       if (night.length === 0 && dayW.length === 0) {
         // No hour info — keep legacy "mean of all samples → hrv_sdnn" behaviour.
-        row.hrv_sdnn = Math.round(mean(all) * 100) / 100;
+        row.hrv_sdnn = roundedMean(all);
       } else {
         row.hrv_sdnn = nightMean != null ? Math.round(nightMean * 100) / 100 : null;
         row.hrv_day  = dayMean   != null ? Math.round(dayMean   * 100) / 100 : null;
@@ -353,7 +391,7 @@ function _aggregateByDayByMetric(byDayByMetric) {
     if (Array.isArray(bucket.hr_day) && bucket.hr_day.length) {
       const dayW = bucket.hr_day.filter(s => isDay(s.h)).map(s => s.v);
       if (dayW.length > 0) {
-        row.hr_day = Math.round(mean(dayW) * 100) / 100;
+        row.hr_day = roundedMean(dayW);
       }
     }
 
@@ -362,32 +400,32 @@ function _aggregateByDayByMetric(byDayByMetric) {
       row.steps = Math.round(stepsBest * 100) / 100;
     }
     if (Array.isArray(bucket.spo2_avg) && bucket.spo2_avg.length) {
-      row.spo2_avg = Math.round(mean(bucket.spo2_avg.map(s => s.v)) * 100) / 100;
+      row.spo2_avg = roundedMean(bucket.spo2_avg.map(s => s.v));
     }
     if (Array.isArray(bucket.body_temp_delta) && bucket.body_temp_delta.length) {
-      row.body_temp_delta = Math.round(mean(bucket.body_temp_delta.map(s => s.v)) * 100) / 100;
+      row.body_temp_delta = roundedMean(bucket.body_temp_delta.map(s => s.v));
     }
     // VO2max — Apple Watch writes one measurement per outdoor walk/run, so
     // a given day may carry 0, 1, or multiple samples. Mean smooths out
     // back-to-back walks on the same day; the gaps between days are
     // expected and handled by the chart's span-gaps.
     if (Array.isArray(bucket.vo2max) && bucket.vo2max.length) {
-      row.vo2max = Math.round(mean(bucket.vo2max.map(s => s.v)) * 100) / 100;
+      row.vo2max = roundedMean(bucket.vo2max.map(s => s.v));
     }
     if (Array.isArray(bucket.weight) && bucket.weight.length) {
-      row.weight = Math.round(mean(bucket.weight.map(s => s.v)) * 100) / 100;
+      row.weight = roundedMean(bucket.weight.map(s => s.v));
     }
     if (Array.isArray(bucket.body_fat_pct) && bucket.body_fat_pct.length) {
-      row.body_fat_pct = Math.round(mean(bucket.body_fat_pct.map(s => s.v)) * 100) / 100;
+      row.body_fat_pct = roundedMean(bucket.body_fat_pct.map(s => s.v));
     }
     if (Array.isArray(bucket.lean_mass_kg) && bucket.lean_mass_kg.length) {
-      row.lean_mass_kg = Math.round(mean(bucket.lean_mass_kg.map(s => s.v)) * 100) / 100;
+      row.lean_mass_kg = roundedMean(bucket.lean_mass_kg.map(s => s.v));
     }
     if (Array.isArray(bucket.bp_systolic) && bucket.bp_systolic.length) {
-      row.bp_systolic = Math.round(mean(bucket.bp_systolic.map(s => s.v)) * 100) / 100;
+      row.bp_systolic = roundedMean(bucket.bp_systolic.map(s => s.v));
     }
     if (Array.isArray(bucket.bp_diastolic) && bucket.bp_diastolic.length) {
-      row.bp_diastolic = Math.round(mean(bucket.bp_diastolic.map(s => s.v)) * 100) / 100;
+      row.bp_diastolic = roundedMean(bucket.bp_diastolic.map(s => s.v));
     }
     if (row.weight != null && row.body_fat_pct != null) {
       row.fat_mass_kg = Math.round(row.weight * row.body_fat_pct) / 100;
