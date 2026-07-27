@@ -187,13 +187,14 @@ export function createDashboardPageView(deps) {
   }
 
   function showDashboard(data) {
+    const main = document.getElementById("main-content");
+    if (!main) return;
     // Resume the live-session ticker if a session was started before this
     // page loaded — keeps the dashboard Light Today surface ticking after a
     // hard reload mid-session.
     try { resumeActiveTickerIfNeeded(); } catch (e) {}
     try { ensureActiveDeviceTicker(); } catch (e) {}
     if (!data) data = getActiveData();
-    const main = document.getElementById("main-content");
     if (main.hasAttribute('aria-busy')) main.removeAttribute('aria-busy');
     const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');
     document.body.classList.remove('mobile-dashboard-active');
