@@ -1277,7 +1277,7 @@ assert('female hormone axis does not require male testosterone core group',
   JSON.stringify(femaleHormoneScoreThin));
 
 // Severity sub-bands: resolveScoreTone now distinguishes poor/concerning/severe
-import { resolveScoreConfidence, resolveScoreTone, resolveScoreSeverity } from '../js/biology-score-engine.js';
+import { resolveScoreConfidence, resolveScoreTone, resolveScoreSeverity, scoreAgainstRange } from '../js/biology-score-engine.js';
 assert('severity sub-band: score 40 → poor tone', resolveScoreTone(40) === 'poor');
 assert('severity sub-band: score 25 → concerning tone', resolveScoreTone(25) === 'concerning');
 assert('severity sub-band: score 10 → severe tone', resolveScoreTone(10) === 'severe');
@@ -1285,6 +1285,10 @@ assert('severity sub-band: score 40 → mild severity', resolveScoreSeverity(40)
 assert('severity sub-band: score 25 → moderate severity', resolveScoreSeverity(25) === 'moderate');
 assert('severity sub-band: score 10 → severe severity', resolveScoreSeverity(10) === 'severe');
 assert('severity sub-band: score 60 → null severity', resolveScoreSeverity(60) === null);
+assert('range scoring accepts a value inside a two-sided range', scoreAgainstRange(5, { min: 0, max: 10 }) === 100);
+assert('range scoring supports an upper-only bound', scoreAgainstRange(5, { min: null, max: 5 }) === 100);
+assert('range scoring supports a lower-only bound', scoreAgainstRange(5, { min: 5, max: null }) === 100);
+assert('range scoring rejects a range with no finite bounds', scoreAgainstRange(5, { min: null, max: null }) === null);
 assert('score confidence labels missing core markers as low confidence', resolveScoreConfidence({ score: 95, coverage: 0.7, missing: [{ label: 'ApoB', core: true }] }).level === 'low');
 
 // Vitamin D sunlight profile modifier: wheelchair context raises D floor to 100 nmol/L

@@ -252,6 +252,14 @@ function deriveTotalCholesterolHdlRatio(data) {
   return { value: parseFloat((total / hdl).toPrecision(6)), date, ageDays: getAgeDays(date) };
 }
 
+/**
+ * @param {any} data
+ * @param {any} category
+ * @param {string} leftKey
+ * @param {string} rightKey
+ * @param {(left: number, right: number) => number | null} compute
+ * @param {((left: number, right: number, leftMarker: any, rightMarker: any) => boolean) | null} [valuesOk]
+ */
 function deriveRatioFromMarkers(data, category, leftKey, rightKey, compute, valuesOk = null) {
   const leftMarker = category?.markers?.[leftKey];
   const rightMarker = category?.markers?.[rightKey];
@@ -264,7 +272,7 @@ function deriveRatioFromMarkers(data, category, leftKey, rightKey, compute, valu
   if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
   if (valuesOk && !valuesOk(left, right, leftMarker, rightMarker)) return null;
   const raw = compute(left, right);
-  if (!Number.isFinite(raw)) return null;
+  if (raw == null || !Number.isFinite(raw)) return null;
   const leftDate = leftMarker.singleDate || category.singleDate || data?.dates?.[leftIdx] || '';
   const rightDate = rightMarker.singleDate || category.singleDate || data?.dates?.[rightIdx] || '';
   const date = rightDate && leftDate && rightDate !== leftDate ? rightDate : (leftDate || rightDate);
@@ -296,6 +304,7 @@ export function scoreAgainstRange(value, range) {
     return Math.round(clamp(lerp(clamp(value, min - buffer, min), min - buffer, min, 0, 99), 0, 99));
   }
 
+  if (min == null || max == null) return null;
   if (value >= min && value <= max) return 100;
   const span = Math.max(max - min, 1);
   const lowFloor = Math.max(0, min - span);
