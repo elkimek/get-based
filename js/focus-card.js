@@ -57,7 +57,7 @@ function getFocusFlaggedMarkers(data) {
 
 export function renderFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
-  const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey)); } catch(e) { return null; } })();
+  const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
   const text = (cached && cached.fingerprint === fp) ? cached.text : null;
   return `<div class="focus-card" id="focus-card">
@@ -135,9 +135,12 @@ export function buildFocusContext() {
       if (!timing && data.dates.length >= 2) {
         const impacts = computeAllImpacts(s, data);
         if (impacts && impacts.length > 0) {
-          const top = impacts.slice(0, 2).filter(im => im.confidence !== 'low');
+          const top = impacts.slice(0, 2).filter(im => typeof im.pctChange === 'number' && im.confidence !== 'low');
           if (top.length > 0) {
-            impactNote = ' \u2014 impacts: ' + top.map(im => `${im.markerName} ${im.pctChange > 0 ? '+' : ''}${im.pctChange.toFixed(1)}%`).join(', ');
+            impactNote = ' \u2014 impacts: ' + top.map(im => {
+              const pctChange = typeof im.pctChange === 'number' ? im.pctChange : 0;
+              return `${im.markerName} ${pctChange > 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
+            }).join(', ');
           }
         }
       }
@@ -175,7 +178,7 @@ export async function loadFocusCard(opts = {}) {
   if (!el) return;
   const refreshStale = opts.refreshStale !== false;
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
-  const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey)); } catch(e) { return null; } })();
+  const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
   if (cached && cached.text) {
     el.innerHTML = `<span class="focus-card-text">${applyInlineMarkdown(cached.text)}</span>`;
