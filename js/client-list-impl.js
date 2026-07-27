@@ -125,6 +125,11 @@ function _clMenuButton({ icon, label, action, profileId, danger = false }) {
   return `<button type="button" class="cl-menu-item${danger ? ' cl-menu-danger' : ''}" ${_clActionAttrs(action, { 'data-cl-profile-id': profileId })}>${icon}<span>${escapeHTML(label)}</span></button>`;
 }
 
+/** @param {Element} pill */
+function _clTagText(pill) {
+  return pill.firstChild?.textContent?.trim() || '';
+}
+
 // ═══════════════════════════════════════════════
 // AVATAR HELPERS
 // ═══════════════════════════════════════════════
@@ -136,6 +141,10 @@ function _resizeAvatar(file) {
       const canvas = document.createElement('canvas');
       canvas.width = size; canvas.height = size;
       const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas 2D context is unavailable'));
+        return;
+      }
       // Center-crop to square
       const min = Math.min(img.width, img.height);
       const sx = (img.width - min) / 2;
@@ -614,7 +623,7 @@ function _clSaveForm(e) {
   // Collect tags from pills
   const tags = [];
   document.querySelectorAll('#cl-tags-wrap .cl-tag-pill').forEach(pill => {
-    const text = pill.firstChild.textContent.trim();
+    const text = _clTagText(pill);
     if (text && !tags.includes(text)) tags.push(text);
   });
 
@@ -781,18 +790,20 @@ function _clTagKeydown(e) {
   if (e.key !== 'Enter') return;
   e.preventDefault();
   const input = e.target;
+  if (!(input instanceof HTMLInputElement)) return;
   const val = input.value.trim();
   if (!val) return;
   // Check for duplicates
   const existing = [];
   document.querySelectorAll('#cl-tags-wrap .cl-tag-pill').forEach(pill => {
-    existing.push(pill.firstChild.textContent.trim().toLowerCase());
+    existing.push(_clTagText(pill).toLowerCase());
   });
   if (existing.includes(val.toLowerCase())) { input.value = ''; return; }
+  const wrap = document.getElementById('cl-tags-wrap');
+  if (!wrap) return;
   const pill = document.createElement('span');
   pill.className = 'cl-tag-pill';
   pill.innerHTML = `${escapeHTML(val)}<button type="button" class="cl-tag-remove" ${_clActionAttrs('remove-tag')} aria-label="Remove tag">${CL_ICONS.close}</button>`;
-  const wrap = document.getElementById('cl-tags-wrap');
   wrap.insertBefore(pill, input);
   input.value = '';
 }
@@ -873,6 +884,7 @@ function _clToggleMenu(e, id, buttonEl = null) {
   const btn = buttonEl || e.currentTarget;
   if (!(btn instanceof Element)) return;
   const modal = menu.parentElement;
+  if (!modal) return;
   const modalRect = modal.getBoundingClientRect();
   const btnRect = btn.getBoundingClientRect();
   menu.style.right = (modalRect.right - btnRect.right) + 'px';
