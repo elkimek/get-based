@@ -5,6 +5,8 @@
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+node "$DIR/scripts/local-full-suite-guard.mjs" || exit 2
+
 PORT=${PORT:-8000}
 REUSE_TEST_SERVER=${REUSE_TEST_SERVER:-0}
 COVERAGE_ENABLED=0
