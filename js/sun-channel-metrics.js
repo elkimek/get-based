@@ -64,13 +64,13 @@ function getDeviceBodyFraction(session, fractionByKey) {
   return null;
 }
 
-export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, _zenith = null, rotatedSides = false, bodyFraction = null) {
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), _zenith = /** @type {number | null} */ (null), rotatedSides = false, bodyFraction = /** @type {number | null} */ (null)) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (durationMin > 0 && durationMin < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) {
     return 'session too short';
   }
   if (channelKey === 'vitamin_d') {
-    const useSessionCap = Number.isFinite(bodyFraction) && bodyFraction > 0;
+    const useSessionCap = typeof bodyFraction === 'number' && Number.isFinite(bodyFraction) && bodyFraction > 0;
     const central = useSessionCap
       ? vitaminDIUPerSession(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null, bodyFraction)
       : vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null);
