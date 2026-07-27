@@ -1,6 +1,18 @@
 // @ts-check
 // sync-pull-active-refresh-runtime.js - Browser runtime adapters for active sync pull refresh hooks.
 
+/**
+ * @typedef {{
+ *   buildSidebar: null | (() => unknown),
+ *   ensureActiveThread: () => unknown,
+ *   loadChatHistory: () => unknown | Promise<unknown>,
+ *   loadChatThreads: () => boolean | undefined | Promise<boolean | undefined>,
+ *   navigate: null | ((route: string, options?: Record<string, unknown>) => unknown),
+ *   renderThreadList: () => unknown,
+ * }} SyncPullActiveRefreshDeps
+ */
+
+/** @type {SyncPullActiveRefreshDeps} */
 const syncPullActiveRefreshDeps = {
   buildSidebar: null,
   ensureActiveThread: () => {},
@@ -10,6 +22,7 @@ const syncPullActiveRefreshDeps = {
   renderThreadList: () => {},
 };
 
+/** @param {Partial<SyncPullActiveRefreshDeps>} [deps] */
 export function configureSyncPullActiveRefreshDeps(deps = {}) {
   const previous = { ...syncPullActiveRefreshDeps };
   if ('buildSidebar' in deps) syncPullActiveRefreshDeps.buildSidebar = typeof deps.buildSidebar === 'function' ? deps.buildSidebar : null;
@@ -27,6 +40,15 @@ function getRuntimeWindow() {
     : null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is PromiseLike<boolean | undefined>}
+ */
+function isThenableThreadLoad(value) {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return false;
+  return typeof /** @type {{ then?: unknown }} */ (value).then === 'function';
+}
+
 export function refreshPulledChatRuntime() {
   const finishRefresh = (threadsLoaded) => {
     if (threadsLoaded === false) {
@@ -39,7 +61,7 @@ export function refreshPulledChatRuntime() {
   };
 
   const loaded = syncPullActiveRefreshDeps.loadChatThreads();
-  if (loaded && typeof loaded.then === 'function') {
+  if (isThenableThreadLoad(loaded)) {
     return loaded.then(finishRefresh);
   }
   return finishRefresh(loaded);
