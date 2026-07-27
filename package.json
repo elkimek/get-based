@@ -39,7 +39,7 @@
     "jsdom": "^29.1.1",
     "rolldown": "1.0.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@vercel/blob": "^2.4.0",
