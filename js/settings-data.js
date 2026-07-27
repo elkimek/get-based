@@ -313,9 +313,7 @@ function renderReferenceComparisonReviewControl(snap, id) {
 
 function importBenchmarkView(snap) {
   const isGoldStandard = !!snap.benchmarkLocked;
-  const analysisMs = isGoldStandard
-    ? null
-    : Number.isFinite(Number(snap.timings?.analysisMs))
+  const measuredAnalysisMs = Number.isFinite(Number(snap.timings?.analysisMs))
     ? Number(snap.timings.analysisMs)
     : (Number(snap.timings?.analysis) || 0) * 1000;
   const piiMs = Number.isFinite(Number(snap.timings?.piiMs))
@@ -324,7 +322,7 @@ function importBenchmarkView(snap) {
   const inputTokens = Number(snap.usage?.inputTokens ?? snap.costInfo?.inputTokens) || 0;
   const outputTokens = Number(snap.usage?.outputTokens ?? snap.costInfo?.outputTokens) || 0;
   const measuredThroughput = Number(snap.generationTokensPerSecond) || 0;
-  const endToEndRate = analysisMs > 0 && outputTokens > 0 ? outputTokens / (analysisMs / 1000) : 0;
+  const endToEndRate = measuredAnalysisMs > 0 && outputTokens > 0 ? outputTokens / (measuredAnalysisMs / 1000) : 0;
   const throughput = measuredThroughput || endToEndRate;
   const detectedMarkerCount = Number(snap.markerCount) || 0;
   const importedMarkerCount = snap.importedMarkerCount == null
@@ -365,9 +363,9 @@ function importBenchmarkView(snap) {
   return {
     id: importBenchmarkStorageId(snap),
     snap,
-    analysisMs,
+    analysisMs: isGoldStandard ? null : measuredAnalysisMs,
     piiMs,
-    totalMs: isGoldStandard ? null : Number(snap.totalMs) || analysisMs + piiMs,
+    totalMs: isGoldStandard ? null : Number(snap.totalMs) || measuredAnalysisMs + piiMs,
     pdfExtractionMs: isGoldStandard ? null : Number(snap.timings?.pdfExtractionMs) || 0,
     modelLoadMs: Number(snap.timings?.modelLoadMs) || 0,
     timeToFirstTokenMs: Number(snap.timings?.timeToFirstTokenMs) || 0,
@@ -548,6 +546,7 @@ function renderImportBenchmarkCards(snapshots, { selectable = true, emptyCopy = 
 
   return snapshots.map(snap => {
     const view = importBenchmarkView(snap);
+    const pdfExtractionMs = Number(view.pdfExtractionMs) || 0;
     const isReference = isReferenceBenchmark(snap);
     const isGoldStandard = !!snap.benchmarkLocked;
     const recordedAt = Number(snap.benchmarkAt || snap.importedAt);
@@ -642,7 +641,7 @@ function renderImportBenchmarkCards(snapshots, { selectable = true, emptyCopy = 
         ${qualityFields}
         <div><span>Input</span><strong>${Number(snap.inputChars) ? `${formatTokens(Number(snap.inputChars))} chars` : '\u2014'}${Number(snap.pageCount) ? ` \u00b7 ${Number(snap.pageCount)} pages` : ''}</strong></div>
         <div><span>Model setup</span><strong>${contextLength ? `${formatTokens(contextLength)} context` : 'context unknown'}${quant ? ` \u00b7 ${escapeHTML(quant)}` : ''}${executionLocation ? ` \u00b7 ${escapeHTML(executionLocation)}` : ''}${providerApi ? ` \u00b7 ${escapeHTML(providerApi)}` : ''}${loadState ? ` \u00b7 ${escapeHTML(loadState)}` : ''}</strong></div>
-        ${view.pdfExtractionMs > 0 ? `<div><span>Reading the PDF</span><strong>${formatBenchmarkDuration(view.pdfExtractionMs)}</strong></div>` : ''}
+        ${pdfExtractionMs > 0 ? `<div><span>Reading the PDF</span><strong>${formatBenchmarkDuration(pdfExtractionMs)}</strong></div>` : ''}
         ${view.piiMs > 0 ? `<div><span>Privacy preparation</span><strong>${formatBenchmarkDuration(view.piiMs)}</strong></div>` : ''}
         ${view.modelLoadMs > 0 || view.timeToFirstTokenMs > 0 ? `<div><span>Model load / first response</span><strong>${formatOptionalBenchmarkDuration(view.modelLoadMs)} / ${formatOptionalBenchmarkDuration(view.timeToFirstTokenMs)}</strong></div>` : ''}
         ${snap.error ? `<div style="grid-column:1/-1"><span>Error</span><strong>${escapeHTML(snap.error)}</strong></div>` : ''}
