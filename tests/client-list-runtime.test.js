@@ -153,6 +153,9 @@ describe('client list runtime behavior', () => {
     tagInput.value = 'longevity';
     tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     expect([...document.querySelectorAll('.cl-tag-pill')].map(el => el.firstChild.textContent.trim())).toContain('longevity');
+    const emptyTagPill = document.createElement('span');
+    emptyTagPill.className = 'cl-tag-pill';
+    document.getElementById('cl-tags-wrap').prepend(emptyTagPill);
 
     document.getElementById('cl-height').value = '170';
     document.getElementById('cl-height-unit-toggle').click();
