@@ -135,8 +135,9 @@ export function installCompareCorrelationDelegates(root = (typeof document !== '
 // Compare Dates
 
 export function showCompare(data) {
-  if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
+  if (!main) return;
+  if (!data) data = getActiveData();
   let html = `<div class="category-header"><h2>Compare Dates</h2>
     <p>Side-by-side comparison of biomarker values between two collection dates</p></div>`;
   if (data.dates.length < 2) {
@@ -164,8 +165,8 @@ export function showCompare(data) {
   main.innerHTML = html;
   const select1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
   const select2 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-2'));
-  if (select1) select1.value = state.compareDate1;
-  if (select2) select2.value = state.compareDate2;
+  if (select1) select1.value = state.compareDate1 || '';
+  if (select2) select2.value = state.compareDate2 || '';
   updateCompare();
 }
 
@@ -188,8 +189,8 @@ export function swapCompareDates() {
   state.compareDate2 = tmp;
   const s1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
   const s2 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-2'));
-  if (s1) s1.value = state.compareDate1;
-  if (s2) s2.value = state.compareDate2;
+  if (s1) s1.value = state.compareDate1 || '';
+  if (s2) s2.value = state.compareDate2 || '';
   updateCompare();
 }
 
@@ -255,8 +256,9 @@ export function renderCompareTable(data, idx1, idx2) {
 // Correlations
 
 export function showCorrelations(data) {
-  if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
+  if (!main) return;
+  if (!data) data = getActiveData();
   let html = `<div class="category-header"><h2>Correlations</h2>
     <p>Compare biomarkers across categories on a normalized scale</p></div>`;
   html += `<div class="correlation-controls">
