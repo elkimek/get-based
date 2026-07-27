@@ -5,6 +5,20 @@
 
 /* ═══ Chat thread rail: back button on mobile overlay ═══ */
 @media (max-width: 768px) {
+  /*
+   * Mobile keyboards resize and, on iOS, can also pan the visual viewport
+   * without changing the layout viewport used by position: fixed. Keep both
+   * the header and composer inside the actually visible portion.
+   */
+  .chat-panel.open {
+    top: var(--chat-visual-viewport-top, 0px);
+    bottom: var(--chat-visual-viewport-bottom, 0px);
+  }
+  .chat-panel-conversation {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .chat-messages { min-height: 0; }
   .chat-thread-rail.open .chat-thread-rail-header { padding-top: 10px; }
 }
 

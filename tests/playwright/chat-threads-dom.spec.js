@@ -100,8 +100,13 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         showPromptDialog: async () => 'Renamed Thread',
       });
       state.currentThreadId = 't_b';
+      rail?.classList.add('open');
+      localStorage.setItem(railKey, 'true');
       threadItem?.click();
       outcomes.threadItemClickSwitchesThread = await waitFor(() => state.currentThreadId === 't_a');
+      outcomes.desktopThreadSelectionKeepsSplitRailOpen =
+        rail?.classList.contains('open') === true
+        && localStorage.getItem(railKey) === 'true';
 
       document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action')?.click();
       outcomes.renameButtonRenamesThread = await waitFor(() =>
@@ -151,6 +156,86 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       else localStorage.setItem(railKey, originalRailState);
       if (originalThreads.length > 0) chatThreads.saveChatThreadIndex();
       else localStorage.removeItem(chatThreads.getChatThreadsKey());
+      chatThreads.renderThreadList();
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('mobile thread selection and creation return directly to the chat', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const chatThreads = await import('/js/chat-threads.js');
+    const { state } = await import('/js/state.js');
+    const rail = document.getElementById('chat-thread-rail');
+    const railKey = `labcharts-${state.currentProfile}-chatRailOpen`;
+    const originalThreads = state.chatThreads;
+    const originalThreadId = state.currentThreadId;
+    const originalRailState = localStorage.getItem(railKey);
+    const outcomes = {};
+    const waitFor = async (fn, timeoutMs = 500) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (fn()) return true;
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      return false;
+    };
+    const previousDeps = chatThreads.configureChatThreadDeps({
+      saveChatHistory: async () => {},
+      loadChatHistory: async () => {},
+      cleanupDiscussionState: () => {},
+      restoreDiscussionContinuePrompt: () => {},
+      renderChatMessages: () => {},
+      renderSavedSummaries: () => {},
+      updateChatHeaderTitle: () => {},
+      updatePersonalityBar: () => {},
+      getActivePersonality: () => ({ name: 'Default', icon: '' }),
+    });
+
+    try {
+      const now = new Date().toISOString();
+      state.chatThreads = [
+        { id: 'mobile-a', name: 'First conversation', createdAt: now, updatedAt: now, messageCount: 2, personality: 'default' },
+        { id: 'mobile-b', name: 'Second conversation', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
+      ];
+      state.currentThreadId = 'mobile-b';
+      chatThreads.renderThreadList();
+      rail?.classList.add('open');
+      localStorage.setItem(railKey, 'true');
+
+      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"]')?.click();
+      outcomes.selectingThreadClosesMobileRail =
+        await waitFor(() => state.currentThreadId === 'mobile-a')
+        && rail?.classList.contains('open') === false
+        && localStorage.getItem(railKey) === 'false';
+
+      rail?.classList.add('open');
+      localStorage.setItem(railKey, 'true');
+      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"]')?.click();
+      outcomes.selectingActiveThreadAlsoClosesMobileRail =
+        rail?.classList.contains('open') === false
+        && localStorage.getItem(railKey) === 'false';
+
+      rail?.classList.add('open');
+      localStorage.setItem(railKey, 'true');
+      chatThreads.createNewThread({ sync: false });
+      outcomes.creatingThreadClosesMobileRail =
+        rail?.classList.contains('open') === false
+        && localStorage.getItem(railKey) === 'false';
+    } finally {
+      chatThreads.configureChatThreadDeps(previousDeps);
+      state.chatThreads = originalThreads;
+      state.currentThreadId = originalThreadId;
+      if (originalRailState == null) localStorage.removeItem(railKey);
+      else localStorage.setItem(railKey, originalRailState);
       chatThreads.renderThreadList();
     }
 

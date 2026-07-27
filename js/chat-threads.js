@@ -22,6 +22,7 @@ export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 const MAX_THREADS = 50;
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
 let blockedThreadIndexKey = null;
@@ -241,12 +242,14 @@ export function createNewThread({ sync = true } = {}) {
   chatThreadDeps.updateChatHeaderTitle();
   chatThreadDeps.updatePersonalityBar();
   renderThreadList();
+  closeThreadRailAfterMobileSelection();
   // Focus input
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) input.focus();
 }
 
 export async function switchToThread(threadId) {
+  closeThreadRailAfterMobileSelection();
   if (threadId === state.currentThreadId) return;
   // Save current thread messages
   await chatThreadDeps.saveChatHistory();
@@ -349,6 +352,19 @@ export function pruneOldThreads() {
 // ═══════════════════════════════════════════════
 // THREAD RAIL UI
 // ═══════════════════════════════════════════════
+function closeThreadRailAfterMobileSelection() {
+  const isMobile = typeof matchMedia === 'function'
+    ? matchMedia(MOBILE_THREAD_RAIL_QUERY).matches
+    : typeof innerWidth === 'number' && innerWidth <= 768;
+  if (!isMobile) return false;
+
+  const rail = document.getElementById('chat-thread-rail');
+  if (!rail?.classList.contains('open')) return false;
+  rail.classList.remove('open');
+  localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, 'false');
+  return true;
+}
+
 /** @param {Event} event */
 function closestThreadAction(event) {
   const target = event.target;
