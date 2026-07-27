@@ -16,7 +16,7 @@ import {
 /**
  * @typedef {object} DeviceSessionDoseInput
  * @property {any} [device]
- * @property {number} [durationMin]
+ * @property {number} [durationMin=0]
  * @property {number} [distanceCm]
  * @property {string} [bodyArea]
  * @property {string[]|null} [bodyAreas]
@@ -52,6 +52,11 @@ function _runtimeDeps(deps = {}) {
   };
 }
 
+/**
+ * @param {any} device
+ * @param {string|null} [mode]
+ * @param {any} [deps]
+ */
 export function resolveDeviceMode(device, mode = null, deps = {}) {
   if (!Array.isArray(device?.modes) || device.modes.length === 0) return mode ?? null;
   const found = device.modes.find(m => m.id === mode);
@@ -65,6 +70,10 @@ export function resolveDeviceMode(device, mode = null, deps = {}) {
   return resolvedMode;
 }
 
+/**
+ * @param {{ bodyAreas?: string[] | null, bodyArea?: string }} [selection]
+ * @param {Array<{ key: string, fraction: number }> | null} [bodyRegions]
+ */
 export function bodyFractionForDeviceSession({ bodyAreas = null, bodyArea = 'torso' } = {}, bodyRegions = BODY_REGIONS) {
   if (Array.isArray(bodyAreas) && bodyAreas.length > 0) {
     const fracByKey = Object.fromEntries((bodyRegions || []).map(r => [r.key, r.fraction]));
@@ -87,7 +96,7 @@ export function deviceDistanceFactor(device, distanceCm = 15) {
  */
 export function computeDeviceSessionDoses({
   device,
-  durationMin,
+  durationMin = 0,
   distanceCm = 15,
   bodyArea = 'torso',
   bodyAreas = null,
