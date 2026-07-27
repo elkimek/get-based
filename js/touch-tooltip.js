@@ -113,6 +113,10 @@ function _positionTooltip() {
   _tooltip.dataset.placement = placement;
 }
 
+/**
+ * @param {Element} target
+ * @param {{ clientX: number, clientY: number } | null} [touchPoint]
+ */
 function _showTooltip(target, touchPoint = null) {
   const text = _tooltipText(target).trim();
   if (!text) return;
