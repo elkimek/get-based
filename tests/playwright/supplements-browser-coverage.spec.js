@@ -269,6 +269,11 @@ test('supplements browser coverage handles editor ingredients imports sync and A
         calls.some(call => call[0] === 'ask-ai-click')
         && calls.some(call => call[0] === 'chat-input')
         && document.activeElement === textarea;
+
+      document.getElementById('detail-modal')?.remove();
+      document.getElementById('modal-overlay')?.remove();
+      supplements.openSupplementsEditor();
+      outcomes.editorIgnoresMissingModalShell = true;
     } finally {
       document.getElementById('modal-overlay')?.classList.remove('show');
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
