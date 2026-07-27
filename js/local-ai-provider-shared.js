@@ -27,6 +27,10 @@ export function redactApiSecretText(value, secrets = []) {
     .replace(/\bcashu[A-Za-z0-9._~+/=-]{8,}/gi, '[redacted]');
 }
 
+/**
+ * @param {string} kind
+ * @param {Record<string, any>} [detail]
+ */
 export function localAiDiscoveryError(kind, detail = {}) {
   return { kind, ...detail };
 }
@@ -37,6 +41,10 @@ export function localAiFetchFailure(error) {
   return localAiDiscoveryError(name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network', { message });
 }
 
+/**
+ * @param {string} [provider]
+ * @param {Record<string, any> | null} [error]
+ */
 export function unavailableLocalAiResult(provider = 'unknown', error = null) {
   return {
     available: false,

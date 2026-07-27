@@ -846,6 +846,22 @@ describe('AI provider request contracts', () => {
     expect(ollamaStreamError.message).not.toContain(secret);
   });
 
+  it('reports an Ollama streaming response without a readable body', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 }));
+
+    await expect(inferWithOllamaNativeProvider({
+      config: { url: 'http://ollama.test', apiKey: '' },
+      model: 'local-model',
+      opts: {
+        messages: [{ role: 'user', content: 'hello' }],
+        onStream: vi.fn(),
+        requestTimeoutMs: 1000,
+      },
+      plan: { maxTokens: 32 },
+      contextLength: 4096,
+    })).rejects.toThrow('streaming response without a readable body');
+  });
+
   it('uses the native Ollama adapter for imports and normalizes runtime metrics', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('qwen3.6:27b');
