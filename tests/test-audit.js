@@ -1038,8 +1038,9 @@ assert('Diagnoses editor binds suggestion closer once with delegates',
 console.log('12. Cycle Stats Guard');
 
 const cycleSrc = read('js/cycle.js');
-assert('Cycle stats filters periods with endDate', cycleSrc.includes('filter(p => p.endDate)'));
-assert('Period length guards empty array', cycleSrc.includes('if (periodLengths.length > 0)'));
+const cycleSummarySrc = read('js/cycle-summary.js');
+assert('Cycle stats filters periods with endDate', cycleSummarySrc.includes('filter(p => p.endDate)'));
+assert('Period length guards empty array', cycleSummarySrc.includes('if (periodLengths.length > 0)'));
 assert('Cycle renderer no longer uses supplement UI classes',
   !/supp-(timeline-header|add-btn|form-row|form-field|list)/.test(cycleSrc));
 assert('Cycle renderer avoids inline style attributes', !cycleSrc.includes('style='));
