@@ -566,6 +566,7 @@ export function toggleSuppAccordion(idx) {
 export function openSupplementsEditor(editIdx) {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
+  if (!modal || !overlay) return;
   const supps = state.importedData.supplements || [];
   const isEdit = typeof editIdx === 'number' && !!supps[editIdx];
   let html = `<button class="modal-close" ${suppActionAttrs('close-modal')}>&times;</button>
