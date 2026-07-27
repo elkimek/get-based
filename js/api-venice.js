@@ -163,6 +163,7 @@ export async function callVeniceAPI(opts) {
     };
   }
 
+  if (!res.body) throw new Error('Venice E2EE returned no response stream.');
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -177,7 +178,7 @@ export async function callVeniceAPI(opts) {
     eventCount: 0,
     contentChunks: 0,
     reasoningChunks: 0,
-    deltaFields: [],
+    deltaFields: /** @type {string[]} */ ([]),
     finishReason: null,
     usageSeen: false,
     doneSeen: false,
@@ -239,7 +240,7 @@ export async function callVeniceAPI(opts) {
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
-    buffer = lines.pop();
+    buffer = lines.pop() || '';
     for (const line of lines) await handleVeniceLine(line, true);
   }
   if (buffer.startsWith('data: ')) await handleVeniceLine(buffer, false);
