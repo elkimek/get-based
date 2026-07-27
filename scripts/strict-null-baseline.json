@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 360,
+  "totalDiagnostics": 351,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -129,7 +129,6 @@
     "js/wearables-settings-runtime.js": 3,
     "js/wearables-store.js": 2,
     "js/wearables-summary.js": 1,
-    "js/wearables-ultrahuman.js": 9,
     "js/wearables.js": 2
   }
 }
