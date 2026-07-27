@@ -35,7 +35,7 @@ import {
   getPendingImportFromRuntime,
   getPendingImportRefLookup,
   hasBatchImportContext,
-  markImportReviewDelegatesBound,
+  markImportReviewDelegatesBound, parseImportDatasetIndex,
   setPendingImportRuntime,
   showPIIDiffViewerFromRuntime,
   startBatchImport,
@@ -297,11 +297,10 @@ function closeImportUnitPicker() {
     button.setAttribute('aria-expanded', 'false');
   }
 }
-
 /** @param {HTMLElement} button */
 function toggleImportUnitPicker(button) {
   const existing = document.querySelector('.import-unit-menu');
-  const idx = parseInt(button.dataset.markerIdx, 10);
+  const idx = parseImportDatasetIndex(button.dataset.markerIdx); if (idx == null) return;
   if (existing && existing.getAttribute('data-marker-idx') === String(idx)) {
     closeImportUnitPicker();
     return;
@@ -313,7 +312,7 @@ function toggleImportUnitPicker(button) {
 function openImportUnitPicker(button) {
   const result = getPendingImport();
   if (!result) return;
-  const idx = parseInt(button.dataset.markerIdx, 10);
+  const idx = parseImportDatasetIndex(button.dataset.markerIdx); if (idx == null) return;
   const marker = result.markers[idx];
   if (!marker) return;
   const unitOptions = getImportUnitOptions(marker);
@@ -372,7 +371,7 @@ function positionImportUnitMenu(button, menu) {
 /** @param {HTMLElement} optionEl */
 function selectImportUnitOption(optionEl) {
   if (optionEl.hasAttribute('disabled')) return;
-  const idx = parseInt(optionEl.dataset.markerIdx, 10);
+  const idx = parseImportDatasetIndex(optionEl.dataset.markerIdx); if (idx == null) return;
   const nextUnit = optionEl.dataset.importUnitOption || null;
   const row = getImportReviewRow(idx);
   const control = /** @type {HTMLElement | null} */ (row?.querySelector('.import-unit-text, .import-unit-button, .import-unit-picker-btn'));
@@ -381,8 +380,8 @@ function selectImportUnitOption(optionEl) {
   closeImportUnitPicker();
 }
 
-function getImportReviewRow(idx, controlEl = null) {
-  return controlEl?.closest('tr') || document.querySelector(`.import-table tr[data-import-idx="${idx}"]`);
+function getImportReviewRow(idx, controlEl = /** @type {HTMLElement | null} */ (null)) {
+  return /** @type {HTMLElement | null} */ (controlEl?.closest('tr') || document.querySelector(`.import-table tr[data-import-idx="${idx}"]`));
 }
 
 function updateImportUnitControl(idx, unit) {
@@ -427,6 +426,7 @@ export function showImportPreview(parseResult) {
   const { date, markers, fileName } = parseResult;
   const modal = document.getElementById('import-modal');
   const overlay = document.getElementById('import-modal-overlay');
+  if (!modal || !overlay) return;
   const matched = markers.filter(m => m.matched);
   const newMarkers = markers.filter(m => !m.matched && m.suggestedKey);
   const unmatched = markers.filter(m => !m.matched && !m.suggestedKey);
@@ -638,7 +638,7 @@ function resolveImportMarkerKey(raw) {
 function applyImportMarkerMapping(controlEl, key) {
   const result = getPendingImport();
   if (!result) return;
-  const idx = parseInt(controlEl.dataset.markerIdx, 10);
+  const idx = parseImportDatasetIndex(controlEl.dataset.markerIdx); if (idx == null) return;
   const marker = result.markers[idx];
   if (!marker) return;
   const previousKey = marker.mappedKey || marker.suggestedKey || null;
@@ -768,7 +768,7 @@ export function toggleImportRow(btn) {
 export function getExcludedImportIndices() {
   const excluded = new Set();
   for (const row of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.import-table tr.import-excluded[data-import-idx]'))) {
-    excluded.add(parseInt(row.dataset.importIdx, 10));
+    const idx = parseImportDatasetIndex(row.dataset.importIdx); if (idx != null) excluded.add(idx);
   }
   return excluded;
 }
