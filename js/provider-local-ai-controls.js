@@ -421,7 +421,7 @@ export async function testOllamaConnection() {
   const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-url-input'));
   const dot = document.getElementById('local-ai-dot');
   const text = document.getElementById('local-ai-status-text');
-  if (!urlInput || !text) return;
+  if (!urlInput || !dot || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
   const apiKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-apikey-input'));
@@ -488,7 +488,7 @@ export async function testPIIOllamaConnection() {
   const text = document.getElementById('pii-local-status-text');
   const piiDropdown = document.getElementById('pii-model-dropdown');
   const piiSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('pii-model-select'));
-  if (!urlInput || !text) return;
+  if (!urlInput || !dot || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const apiKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-apikey-input'));
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : getOllamaPIIApiKey();
