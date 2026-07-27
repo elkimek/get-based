@@ -1082,6 +1082,24 @@ describe('AI provider request contracts', () => {
     });
   });
 
+  it('rejects a Venice E2EE streaming response without a body', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-no-stream');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-no-stream-contract');
+    localStorage.setItem('labcharts-venice-models', '[]');
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-no-stream-contract' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 }));
+
+    await expect(callClaudeAPI({
+      messages: [{ role: 'user', content: 'stream through e2ee' }],
+      maxTokens: 16,
+      onStream: vi.fn(),
+      requestTimeoutMs: 1000,
+    })).rejects.toThrow('Venice E2EE returned no response stream');
+  });
+
   it('returns encrypted Venice reasoning when a reasoning model emits no final content', async () => {
     setAIProvider('venice');
     updateKeyCache('labcharts-venice-key', 'sk-venice-reasoning');
