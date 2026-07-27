@@ -7,6 +7,8 @@ const LIGHT_DEVICE_SESSION_ID_ATTR = 'data-light-device-session-id';
 const LIGHT_DEVICES_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightDevicesActionDelegatesInstalled');
 const lightDevicesActionDelegateRoots = new WeakSet();
 
+/** @typedef {'stopDeviceSessionAndNotify' | 'openAddDeviceDialog' | 'deleteLightDevice' | 'openDeviceSessionDialog'} LightDevicesActionName */
+/** @type {Record<LightDevicesActionName, ((id?: string) => unknown) | null>} */
 const lightDevicesActions = {
   stopDeviceSessionAndNotify: null,
   openAddDeviceDialog: null,
@@ -14,10 +16,13 @@ const lightDevicesActions = {
   openDeviceSessionDialog: null,
 };
 
-/** @param {Record<string, Function | null>} [actions] */
+/**
+ * @param {Partial<typeof lightDevicesActions>} [actions]
+ * @returns {typeof lightDevicesActions}
+ */
 export function configureLightDevicesActions(actions = {}) {
   const previous = { ...lightDevicesActions };
-  for (const name of Object.keys(lightDevicesActions)) {
+  for (const name of /** @type {LightDevicesActionName[]} */ (Object.keys(lightDevicesActions))) {
     if (name in actions) {
       lightDevicesActions[name] = typeof actions[name] === 'function' ? actions[name] : null;
     }
