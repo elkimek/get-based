@@ -3,6 +3,13 @@
 
 import { updateHeaderDates } from './data.js';
 
+/** @param {string | undefined} raw */
+export function parseImportDatasetIndex(raw) {
+  if (!raw || !/^\d+$/.test(raw)) return null;
+  const idx = Number(raw);
+  return Number.isSafeInteger(idx) ? idx : null;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
