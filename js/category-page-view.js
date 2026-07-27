@@ -172,13 +172,14 @@ export function showCategory(categoryKey, preData) {
   // anything that doesn't match the strict allowlist so a poisoned
   // customMarker key can't break out of the HTML attribute context.
   if (!safeMarkerId(categoryKey)) return;
+  const main = document.getElementById("main-content");
+  if (!main) return;
   // Ensure catalog is preloaded for sorting and rec links
   primeCategoryPageCatalogCache();
   const rawData = preData || getActiveData();
   const data = filterDatesByRange(rawData, { fallbackToAll: false });
   const cat = data.categories[categoryKey];
   const rawCat = rawData.categories[categoryKey];
-  const main = document.getElementById("main-content");
   const allEntries = Object.entries(cat.markers).filter(([, m]) => !m.hidden);
   const withData = allEntries.filter(([, m]) => markerHasData(m));
   const rawWithData = Object.values(rawCat?.markers || {}).filter(markerHasData).length;
@@ -243,6 +244,8 @@ export function switchView(view, categoryKey, btn) {
   // renderFattyAcidsView / renderTableView / renderHeatmapView. Same
   // allowlist guard as showCategory.
   if (!safeMarkerId(categoryKey)) return;
+  const container = document.getElementById("view-content");
+  if (!container) return;
   state.categoryView = view;
   document.querySelectorAll(".view-btn").forEach(b => {
     b.classList.remove("active");
@@ -257,7 +260,6 @@ export function switchView(view, categoryKey, btn) {
   const data = filterDatesByRange(rawData, { fallbackToAll: false });
   const cat = data.categories[categoryKey];
   const rawCat = rawData.categories[categoryKey];
-  const container = document.getElementById("view-content");
   // Pre-sanitize date labels at the call boundary — CodeQL's taint analysis
   // (js/xss-through-dom) doesn't trace sanitizers across function calls, so
   // even though renderTableView/renderHeatmapView re-escape internally,
