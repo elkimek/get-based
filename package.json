@@ -20,7 +20,7 @@
     "supply-chain:snapshot": "node scripts/supply-chain.mjs --snapshot",
     "test": "vitest run",
     "test:firefox": "playwright test --config=playwright.firefox.config.js",
-    "test:playwright": "playwright test",
+    "test:playwright": "node scripts/local-full-suite-guard.mjs && playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
     "typecheck:strict-null": "node scripts/strict-null-ratchet.mjs",
