@@ -106,6 +106,9 @@ const {
   });
   assert('computeDeviceSessionDoses blocks SAD eye dose when eyes protected',
     sadProtected.doses.circadian === undefined);
+  const emptyDose = computeDeviceSessionDoses();
+  assert('computeDeviceSessionDoses defaults an omitted duration to a zero-length session',
+    emptyDose.durationSec === 0 && Object.keys(emptyDose.doses).length === 0);
   const spectrumArgs = [];
   const spectrumDose = computeDeviceSessionDoses({
     device: { peakWavelengths: [660], mwPerCm2At15cm: 20, recommendedDistanceCm: 20, modes: [{ id: 'all-on', default: true }, { id: 'red-only' }] },
