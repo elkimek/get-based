@@ -220,7 +220,7 @@ function renderBiologicalCoherenceHero(score) {
     strongest ? ['Strongest', `${strongest.label} (${Math.round(strongest.partial || 0)}/100)`] : null,
     weakest && weakest !== strongest ? ['Most strained', `${weakest.label} (${Math.round(weakest.partial || 0)}/100)`] : null,
     ['Minimum panel', missingCount ? `${missingCount} domain${missingCount === 1 ? '' : 's'} still missing` : 'Enough data across domains'],
-  ].filter(Boolean);
+  ].filter(item => item !== null);
   const dashboardToggle = renderLensDashboardToggle('biology-score-biologicalCoherence');
   return `<section class="biology-coherence-hero biology-score-card-${escapeAttr(score.tone || 'unknown')}" id="biology-score-${escapeAttr(score.id)}">
     <div class="biology-coherence-copy">
@@ -373,6 +373,11 @@ export function renderBiologyScoresWidget(ctx, computeBiologyScores) {
 }
 
 
+/**
+ * @param {any[]} live
+ * @param {any[]} waiting
+ * @param {{ available?: any[] } | null} [coherence]
+ */
 export function renderBiologyScoresActionSummary(live, waiting, coherence = null) {
   if (!live.length) return '';
   const weakest = live.slice().sort((a, b) => a.score - b.score)[0];
@@ -396,7 +401,7 @@ export function renderBiologyScoresActionSummary(live, waiting, coherence = null
     openFirst ? { label: 'Open first', text: `${openFirst.title}: marker-level explanation behind the most strained domain.`, scoreId: openFirst.id } : null,
     nextMissing ? { label: 'Improve confidence', text: `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.` } : null,
     stale ? { label: 'Retest together', text: `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`, scoreId: stale.id } : { label: 'Avoid over-testing', text: 'Advanced and specialty markers add depth; they do not lower baseline Biological Coherence when absent.' },
-  ].filter(Boolean);
+  ].filter(row => row !== null);
   return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map((row) => {
     const inner = `<strong>${escapeHTML(row.label)}</strong><span>${escapeHTML(row.text)}</span>`;
     return row.scoreId
