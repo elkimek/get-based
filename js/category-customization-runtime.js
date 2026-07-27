@@ -3,12 +3,25 @@
 
 import { showPromptDialog } from './utils.js';
 
+/**
+ * @typedef {{
+ *   buildSidebar: ((data?: any) => void) | null,
+ *   navigate: ((route: string, data?: any) => void) | null,
+ *   showPromptDialog: (typeof showPromptDialog) | null
+ * }} CategoryCustomizationRuntimeDeps
+ */
+
+/** @type {CategoryCustomizationRuntimeDeps} */
 const categoryCustomizationRuntimeDeps = {
   buildSidebar: null,
   navigate: null,
   showPromptDialog,
 };
 
+/**
+ * @param {Partial<CategoryCustomizationRuntimeDeps>} [deps]
+ * @returns {CategoryCustomizationRuntimeDeps}
+ */
 export function configureCategoryCustomizationRuntimeDeps(deps = {}) {
   const previous = { ...categoryCustomizationRuntimeDeps };
   if ('buildSidebar' in deps) {
