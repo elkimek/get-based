@@ -12,6 +12,10 @@ import {
 import { renderSavedSummaries } from './chat-summaries.js';
 import { updateLensIndicator } from './lens.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
+import {
+  startMobileChatViewportSync,
+  stopMobileChatViewportSync,
+} from './chat-mobile-viewport.js';
 import { showNotification } from './utils.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
@@ -215,6 +219,7 @@ export async function openChatPanel(prefillMessage) {
   if (!panel || !backdrop) return false;
   if (!(await loadChatPresentationStylesheetsForAction())) return false;
   panel.classList.add('open');
+  startMobileChatViewportSync(panel);
   // Restore the user's last fullscreen preference. Persisted in
   // localStorage so reopening chat keeps the mode they chose last.
   // Use toggle(force) so previous-session state is fully overwritten —
@@ -279,6 +284,7 @@ export function updateChatInputState() {
 }
 
 export function closeChatPanel() {
+  stopMobileChatViewportSync();
   document.getElementById('chat-panel')?.classList.remove('open');
   document.getElementById('chat-backdrop')?.classList.remove('open');
   // body.style.overflow no longer set on open (so nothing to restore)
