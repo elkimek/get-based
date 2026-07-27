@@ -3,6 +3,7 @@
 
 import { getProfileLocation } from './profile.js';
 
+/** @type {{ getProfileLocation: AnyFunction, getSunCoords: AnyFunction | null, navigate: AnyFunction | null, requestPreciseLocation: AnyFunction | null, openProfileLocationEditor: AnyFunction | null, openClientList: AnyFunction | null }} */
 const sunDefaultsRuntimeDeps = {
   getProfileLocation,
   getSunCoords: null,
