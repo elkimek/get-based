@@ -7,7 +7,17 @@ import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getChartColors } from './theme.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 
-export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diastolicSeries = [], manualSeries = [], pairedMetric = null) {
+/** @typedef {{ primarySource?: string, baseline?: number | null }} BloodPressureMetricSummary */
+
+export function renderBloodPressureChart(
+  canvas,
+  canon,
+  m,
+  systolicSeries,
+  diastolicSeries = [],
+  manualSeries = [],
+  pairedMetric = /** @type {BloodPressureMetricSummary | null} */ (null),
+) {
   if (!hasChartRuntime() || !isChartDateAdapterReady()) {
     const retryToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     canvas.dataset.bpRenderToken = retryToken;
