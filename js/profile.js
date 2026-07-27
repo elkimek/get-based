@@ -165,8 +165,12 @@ function refreshProfileWearables(profileId, biometrics) {
  */
 export function getProfiles() {
   // Read from in-memory cache (populated at init via initProfilesCache)
-  if (state.profiles) return state.profiles;
-  try { return JSON.parse(localStorage.getItem('labcharts-profiles')) || []; }
+  if (Array.isArray(state.profiles)) return state.profiles;
+  try {
+    const raw = localStorage.getItem('labcharts-profiles');
+    const profiles = raw ? JSON.parse(raw) : [];
+    return Array.isArray(profiles) ? profiles : [];
+  }
   catch(e) { return []; }
 }
 
@@ -175,9 +179,14 @@ export function getProfiles() {
  */
 export async function initProfilesCache() {
   const raw = await encryptedGetItem('labcharts-profiles');
-  try { state.profiles = raw ? JSON.parse(raw) : []; }
-  catch(e) { state.profiles = []; }
-  migrateProfiles(state.profiles);
+  /** @type {ProfileRecord[]} */
+  let profiles = [];
+  try {
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) profiles = parsed;
+  } catch(e) {}
+  state.profiles = profiles;
+  migrateProfiles(profiles);
 }
 
 // Backfill new profile-level fields (tags, notes, status, timestamps, pinned)
@@ -352,6 +361,17 @@ export function migrateProfileData(data) {
   // Migrate old lightCircadian format (had practices/timing) → new format (amLight/daytime/uvExposure/evening/cold/grounding/latitude)
   if (data.lightCircadian && data.lightCircadian.timing && !data.lightCircadian.amLight) {
     const old = data.lightCircadian;
+    /** @type {{
+     *   amLight: string | null,
+     *   daytime: string | null,
+     *   uvExposure: string | null,
+     *   evening: string[],
+     *   cold: string | null,
+     *   grounding: string | null,
+     *   latitude: number | null,
+     *   mealTiming: string[],
+     *   note: string
+     * }} */
     const newLc = { amLight: null, daytime: null, uvExposure: null, evening: [], cold: null, grounding: null, latitude: null, mealTiming: old.mealTiming || [], note: old.note || '' };
     if (old.practices && old.practices.length) {
       for (const p of old.practices) {
