@@ -12,7 +12,7 @@ import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
-import { aimingGuideHTML, lockCameraForMeasurement, loadLuxCalibration } from './light-tool-camera.js';
+import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement, loadLuxCalibration } from './light-tool-camera.js';
 /** @typedef {typeof import('./light-tool-camera-modals.js')} LightToolCameraModals */
 /** @type {Promise<LightToolCameraModals> | null} */ let lightToolCameraModalsPromise = null;
 /** @type {LightToolCameraModals | null} */ let lightToolCameraModals = null;
@@ -467,9 +467,7 @@ export function openSunriseLogger() {
 
 // ─── Tool 8: Eye-Level Audit (10-min walkthrough) ─────────────────────
 
-/** @typedef {{ t: number, luma: number }} EyeLevelAuditSample */
-/** @typedef {{ at: number, luma: number, lux: number, label: string }} EyeLevelAuditPause */
-/** @type {{ running: boolean, stream: MediaStream | null, samples: EyeLevelAuditSample[] }} */
+/** @type {{ running: boolean, stream: MediaStream | null, samples: Array<{ t: number, luma: number }> }} */
 let _auditState = { running: false, stream: null, samples: [] };
 /** @type {AnyFunction | null} */
 let activeEyeLevelAuditCloser = null;
@@ -512,8 +510,7 @@ export async function openEyeLevelAudit() {
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
   const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
   const toggleBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#audit-toggle'));
-  /** @type {EyeLevelAuditPause[]} */
-  let pauseDetections = [];
+  /** @type {Array<{ at: number, luma: number, lux: number, label: string }>} */ let pauseDetections = [];
 
   // Common room labels for one-tap selection. The free-text input is
   // always available; this just removes the typing burden mid-walkthrough.
@@ -569,16 +566,8 @@ export async function openEyeLevelAudit() {
         if (lock.exposure !== 'manual') {
           statusEl.innerHTML = `Recording… <span style="color:var(--orange);font-size:11px">⚠ camera auto-exposure on — per-room values will be relative, not absolute lux.</span>`;
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = 32; canvas.height = 24;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) {
-          statusEl.textContent = 'Camera processing is unavailable in this browser.';
-          _auditState.running = false;
-          try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
-          _auditState.stream = null;
-          return;
-        }
+        const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 24;
+        const ctx = getRequired2DContext(canvas);
         let lastSampleLuma = null;
         let pauseStart = null;
         let waitingForMovement = false;
@@ -616,8 +605,8 @@ export async function openEyeLevelAudit() {
         };
         tick();
       } catch (e) {
-        statusEl.innerHTML = 'Camera access denied — audit unavailable. <br><span style="font-size:11px;color:var(--text-muted)">The walkthrough captures 4 frames per second to detect when you\'ve paused in a new room. Open your browser\'s site settings to allow camera access, or log rooms manually from the Light Environment section.</span>';
-        _auditState.running = false;
+        statusEl.innerHTML = e instanceof Error && e.message.includes('2D canvas context') ? 'Camera processing is unavailable in this browser.' : 'Camera access denied — audit unavailable. <br><span style="font-size:11px;color:var(--text-muted)">The walkthrough captures 4 frames per second to detect when you\'ve paused in a new room. Open your browser\'s site settings to allow camera access, or log rooms manually from the Light Environment section.</span>';
+        _auditState.running = false; if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (stopError) {} _auditState.stream = null; }
       }
     } else {
       // Stop
