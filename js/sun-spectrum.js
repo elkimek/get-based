@@ -357,7 +357,7 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   // the Ångström β. Falls back to 0.10 (clean continental sky) when
   // unknown. Polluted city air can reach β=0.5+; the difference matters
   // most in the visible band (~10-20% irradiance shift).
-  const beta = (Number.isFinite(aod) && aod > 0) ? aod : 0.10;
+  const beta = (typeof aod === 'number' && Number.isFinite(aod) && aod > 0) ? aod : 0.10;
 
   const irradiance = WAVELENGTHS.map((nm) => {
     // Extraterrestrial spectral irradiance (rough fit to ASTM E490)
@@ -626,7 +626,7 @@ const MED_BY_FITZPATRICK = { I: 2, II: 2.5, III: 3, IV: 4.5, V: 6, VI: 10 };
 // near-zero erythemal dose (glass blocks UVB entirely); a session with
 // SPF 50 produces ~1/50 the erythemal dose of bare skin. Both feed the
 // burn-risk gauge and the % MED indicator on the dashboard.
-export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = null }) {
+export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = /** @type {{ glassBetween?: boolean, sunscreenSPF?: number } | null} */ (null) }) {
   if (!spectrum || durationMin <= 0) return 0;
   const seconds = durationMin * 60;
   const dlambda = 5;
@@ -825,7 +825,7 @@ export function geneticVitaminDMultiplier(genetics) {
 // no-genotype users see no change. Pass explicitly from the call
 // site since `state` is module-scoped (not on window) and importing
 // it from here would create a circular dependency.
-export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null) {
+export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null)) {
   return Math.min(vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics), VITD_SATURATION_IU);
 }
 
@@ -843,10 +843,10 @@ export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSi
 // `bodyFraction` (0–1) — exposed skin fraction for THIS session.
 // Required for the per-session cap to fire; absent/zero falls back to
 // the daily cap (legacy behavior).
-export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null, bodyFraction = null) {
+export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null), bodyFraction = /** @type {number | null} */ (null)) {
   const raw = vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics);
   if (raw <= 0) return 0;
-  const perSessionCap = (Number.isFinite(bodyFraction) && bodyFraction > 0)
+  const perSessionCap = (typeof bodyFraction === 'number' && Number.isFinite(bodyFraction) && bodyFraction > 0)
     ? bodyFraction * VITD_PER_SESSION_BODYFRAC_CAP_IU
     : VITD_SATURATION_IU;
   // Both caps fire — daily ceiling is still hard biology, per-session
@@ -866,7 +866,7 @@ export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = null,
 //
 // Single-session render paths still call vitaminDIU() (capped) — for
 // one session the cap is the right ceiling.
-export function vitaminDIURaw(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null) {
+export function vitaminDIURaw(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null)) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
   const uviMult = _uviThresholdMultiplier(uvi);
@@ -897,7 +897,7 @@ export const VITD_DAILY_SATURATION_IU = VITD_SATURATION_IU;
 // model is much more accurate than at sunrise/sunset.
 //
 // Returns { central, low, high } in IU.
-export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false) {
+export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), zenith = /** @type {number | null} */ (null), rotatedSides = false) {
   const central = vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides);
   if (central === 0) return { central: 0, low: 0, high: 0 };
   // Per-zenith model uncertainty (multipliers for low/high band):
@@ -906,7 +906,7 @@ export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null, zeni
   //   low sun (z > 55°)      → ±45%   (Bird-Riordan accuracy degrades)
   //   no zenith supplied     → ±35%   (legacy default — was 0.6/1.5)
   let lowMul = 0.65, highMul = 1.35;
-  if (Number.isFinite(zenith)) {
+  if (typeof zenith === 'number' && Number.isFinite(zenith)) {
     if (zenith <= 35) { lowMul = 0.80; highMul = 1.20; }
     else if (zenith <= 55) { lowMul = 0.70; highMul = 1.30; }
     else { lowMul = 0.55; highMul = 1.45; }
@@ -960,12 +960,12 @@ export function circadianMelanopicLux(channelAu, durationMin) {
 // accumulate 4-5 J/m² actinic UV. Linear ramp 85° → 80° avoids a
 // hard cliff — full yield once the sun is more than 10° above the
 // horizon. Pass `null` (or omit) to skip the gate.
-export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = null }) {
+export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = /** @type {number | null} */ (null) }) {
   if (!spectrum || !eyeExposure) return 0;
   const mode = eyeExposure.mode || 'indoor';
   if (mode !== 'direct') return 0;
   let elevationGate = 1.0;
-  if (Number.isFinite(zenithDeg)) {
+  if (typeof zenithDeg === 'number' && Number.isFinite(zenithDeg)) {
     const elevation = 90 - zenithDeg;
     if (elevation <= 5) elevationGate = 0;
     else if (elevation < 10) elevationGate = (elevation - 5) / 5; // 0→1 over 5°-10°
