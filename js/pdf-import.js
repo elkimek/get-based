@@ -161,17 +161,17 @@ export function showAINeededDialog(action = 'import') {
   </div>`;
   openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 });
   const close = () => closeModalOverlay(overlay);
-  document.getElementById('ai-needed-or').onclick = () => { close(); pdfImportDeps.startOpenRouterOAuth(); };
-  document.getElementById('ai-needed-key').onclick = () => {
+  document.getElementById('ai-needed-or')?.addEventListener('click', () => { close(); pdfImportDeps.startOpenRouterOAuth(); });
+  document.getElementById('ai-needed-key')?.addEventListener('click', () => {
     close();
     getSettingsModuleFunction('openSettingsModal')?.('ai');
-  };
-  document.getElementById('ai-needed-demo').onclick = () => {
+  });
+  document.getElementById('ai-needed-demo')?.addEventListener('click', () => {
     close();
     const sex = state.profileSex === 'female' ? 'female' : 'male';
     void pdfImportDeps.loadDemoData(sex);
-  };
-  document.getElementById('ai-needed-cancel').onclick = close;
+  });
+  document.getElementById('ai-needed-cancel')?.addEventListener('click', close);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
 }
 
@@ -355,8 +355,8 @@ export async function isPdfByMagic(file) {
 
 export async function classifyImportFiles(files) {
   return classifyImportFileBuckets(files, {
-    isDNAFile: getDnaModuleFunction('isDNAFile'),
-    isDNAFileByContent: getDnaModuleFunction('isDNAFileByContent'),
+    isDNAFile: getDnaModuleFunction('isDNAFile') || undefined,
+    isDNAFileByContent: getDnaModuleFunction('isDNAFileByContent') || undefined,
     isCycleImportFile,
   });
 }
@@ -367,13 +367,13 @@ export async function classifyImportFiles(files) {
 export function setupDropZone() {
   const dropZone = document.getElementById("drop-zone");
   if (!dropZone) return;
-  dropZone.addEventListener("click", () => { if (isImportRunning()) return; document.getElementById('pdf-input').click(); });
+  dropZone.addEventListener("click", () => { if (isImportRunning()) return; document.getElementById('pdf-input')?.click(); });
   dropZone.addEventListener("dragover", e => { e.preventDefault(); if (!isImportRunning()) dropZone.classList.add("drag-over"); });
   dropZone.addEventListener("dragleave", e => { e.preventDefault(); dropZone.classList.remove("drag-over"); });
   dropZone.addEventListener("drop", async e => {
     e.preventDefault(); dropZone.classList.remove("drag-over");
     if (isImportRunning()) { showNotification("Import already in progress", "info"); return; }
-    const files = Array.from(e.dataTransfer.files);
+    const files = Array.from(e.dataTransfer?.files || []);
     if (files.length === 0) return;
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await classifyImportFiles(files);
     if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0 && cycleFiles.length === 0) {
@@ -559,7 +559,7 @@ async function _showImageModeDialog() {
   });
 }
 
-export async function handlePDFFile(file, forceImageMode = false, preExtractedText = null) {
+export async function handlePDFFile(file, forceImageMode = false, preExtractedText = /** @type {string | null} */ (null)) {
   const _startProfileId = state.currentProfile;
   const benchmarkStarted = performance.now();
   const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: forceImageMode ? 'image' : 'text' });
