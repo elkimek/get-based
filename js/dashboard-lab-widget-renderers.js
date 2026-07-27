@@ -90,7 +90,7 @@ export function createDashboardLabWidgetRenderers(deps) {
   function renderDashboardBioAgeWidget(ctx) {
     const hit = getDashboardBioAgeMarker(ctx);
     const age = getDashboardAge();
-    const value = hit ? Number(hit.value) : null;
+    const value = Number(hit?.value);
     const profileContext = getBiologyProfileContext();
     const hasBioAge = Number.isFinite(value);
     const display = hasBioAge ? value.toFixed(1) : '—';
@@ -208,7 +208,7 @@ export function createDashboardLabWidgetRenderers(deps) {
 
   function getDashboardQuickMarkerPins() {
     try {
-      return normalizeDashboardQuickMarkerPins(JSON.parse(localStorage.getItem(dashboardQuickMarkerPinsKey())));
+      return normalizeDashboardQuickMarkerPins(JSON.parse(localStorage.getItem(dashboardQuickMarkerPinsKey()) || '[]'));
     } catch (e) {
       return [];
     }
