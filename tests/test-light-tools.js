@@ -23,7 +23,7 @@ const tools = await import('../js/light-tools.js');
     cameraLockStatusLine,
     configureLightTools,
     getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
-    normalizeGoldenHourMinutes,
+    loadLuxCalibration, lockCameraForMeasurement, normalizeGoldenHourMinutes, saveLuxCalibration,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
     const lightAiSaveHooksSrc = fs.readFileSync(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
@@ -118,6 +118,51 @@ const tools = await import('../js/light-tools.js');
   const allAuto = cameraLockStatusLine({ exposure: 'auto', whiteBalance: 'auto' });
   assert('All-auto reports both warnings',
     /exposure/.test(allAuto) && /white-balance/.test(allAuto));
+
+  const appliedCameraConstraints = [];
+  const cameraTrack = {
+    getSettings: () => ({
+      exposureMode: 'manual',
+      whiteBalanceMode: 'manual',
+      focusMode: 'manual',
+      frameRate: 120,
+    }),
+    getCapabilities: () => ({
+      exposureMode: ['manual'],
+      exposureCompensation: { min: -2, max: 2 },
+      exposureTime: { min: 1, max: 500 },
+      iso: { min: 50, max: 800 },
+      whiteBalanceMode: ['manual'],
+      colorTemperature: { min: 2000, max: 8000 },
+      focusMode: ['manual'],
+    }),
+    applyConstraints: async constraints => appliedCameraConstraints.push(constraints),
+  };
+  const lockedCamera = await lockCameraForMeasurement({
+    getVideoTracks: () => [cameraTrack],
+  }, { shortExposure: true });
+  assert('Camera lock result preserves numeric frame-rate, exposure, and ISO metadata',
+    lockedCamera.frameRate === 120 && lockedCamera.exposureTime === 83 && lockedCamera.iso === 100);
+  assert('Short-exposure camera lock sends the matching numeric constraints',
+    appliedCameraConstraints[0]?.advanced?.some(item => item.exposureTime === 83)
+    && appliedCameraConstraints[0]?.advanced?.some(item => item.iso === 100));
+  cameraTrack.applyConstraints = async () => { throw new Error('constraints rejected'); };
+  const rejectedCameraLock = await lockCameraForMeasurement({
+    getVideoTracks: () => [cameraTrack],
+  }, { shortExposure: true });
+  assert('Rejected camera constraints return a stable auto-mode result shape',
+    rejectedCameraLock.exposure === 'auto' && rejectedCameraLock.iso === null
+    && rejectedCameraLock.exposureTime === null && rejectedCameraLock.frameRate === 120);
+
+  const savedCalibration = localStorage.getItem('labcharts-lux-calibration');
+  localStorage.removeItem('labcharts-lux-calibration');
+  assert('Missing lux calibration defaults to 1', loadLuxCalibration() === 1);
+  saveLuxCalibration(1.25);
+  assert('Saved lux calibration round-trips as a number', loadLuxCalibration() === 1.25);
+  localStorage.setItem('labcharts-lux-calibration', 'invalid');
+  assert('Invalid lux calibration defaults to 1', loadLuxCalibration() === 1);
+  if (savedCalibration == null) localStorage.removeItem('labcharts-lux-calibration');
+  else localStorage.setItem('labcharts-lux-calibration', savedCalibration);
 
   // ─── 5. getMeasurements lazy init + saveMeasurement ─────────────────
   console.log('%c 5. Measurement persistence ', 'font-weight:bold;color:#f59e0b');

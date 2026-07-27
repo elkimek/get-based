@@ -133,7 +133,10 @@ if (typeof window !== 'undefined') installAimingGuideDelegates();
 //
 // Returns: { exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto',
 //            focus: 'manual' | 'auto', frameRate: <fps actually delivered> }
+/** @typedef {{ exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto', focus: 'manual' | 'auto', frameRate: number | null, iso: number | null, exposureTime: number | null }} CameraLockResult */
+/** @returns {Promise<CameraLockResult>} */
 export async function lockCameraForMeasurement(stream, opts = {}) {
+  /** @type {CameraLockResult} */
   const result = { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: null, iso: null, exposureTime: null };
   if (!stream || !stream.getVideoTracks) return result;
   const track = stream.getVideoTracks()[0];
@@ -205,7 +208,7 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
   } catch (e) {
     // Constraint rejected — typically iOS Safari. Report the auto fallback
     // honestly; caller decides whether to warn the user.
-    return { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: result.frameRate };
+    return { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: result.frameRate, iso: null, exposureTime: null };
   }
   // Re-read settings to confirm the lock actually applied — some platforms
   // accept the constraint without honoring it.
@@ -288,7 +291,7 @@ export function computeRowBanding(data, W, H) {
 
 // Shared lux calibration used by Lux, Darkness, Glass Transmission, and Eye-Level Audit.
 export function loadLuxCalibration() {
-  try { return parseFloat(localStorage.getItem('labcharts-lux-calibration')) || 1.0; }
+  try { return parseFloat(localStorage.getItem('labcharts-lux-calibration') || '') || 1.0; }
   catch (e) { return 1.0; }
 }
 
