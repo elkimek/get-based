@@ -10,7 +10,7 @@ import { buildBiologyScoresAIContext } from '../js/biology-score-ai-context.js';
 import { configureBiologyScoreAIDeps, generateBiologyScoreAIAnswer } from '../js/biology-score-ai.js';
 import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
 import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, buildBiologyScoreContextMaterialSignature, buildBiologyScoreContextMaterialSignaturesByRange, configureBiologyScoreContextAIDeps, generateBiologyScoreContextReview, hasCurrentBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
-import { renderScoreDetail } from '../js/biology-score-render.js';
+import { renderBiologyScoresActionSummary, renderScoreDetail } from '../js/biology-score-render.js';
 import { renderScoreAIAnswer, writeScoreAIAnswer } from '../js/biology-score-sections.js';
 import { computeBiologyScores, getBiologyScoreLensWidgets, getBiologyScoreMapping, getBiologyScoreWidgetDefinitions, renderBiologyScoreCoveragePlanner, renderBiologyScoresLens, renderBiologyScoresWidget, renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
 import { getActiveData, invalidateActiveDataCache, filterDatesByRange } from '../js/data.js';
@@ -755,6 +755,19 @@ if (coherenceNoJumpDomains.length) {
 
 const lensHtml = renderBiologyScoresLens({ data });
 const liveScoresDesc = scores.filter(s => s.id !== 'biologicalCoherence' && Number.isFinite(s.score)).sort((a, b) => b.score - a.score);
+const fallbackActionSummaryHtml = renderBiologyScoresActionSummary([{
+  id: 'fallback-score',
+  title: 'Fallback score',
+  score: 42,
+  scoreConfidence: 'high',
+  recencyStatus: 'fresh',
+  available: [],
+  missing: [],
+}], [], null);
+assert('action summary falls back to the weakest live score when coherence is unavailable',
+  fallbackActionSummaryHtml.includes('data-biology-score-id="fallback-score"')
+  && fallbackActionSummaryHtml.includes('Fallback score: marker-level explanation behind the most strained domain.')
+  && fallbackActionSummaryHtml.includes('Avoid over-testing'));
 assert('lens render includes drilldown stack', lensHtml.includes('biology-score-detail-stack'));
 assert('lens pins Biological Coherence as a distinguished hero before score details', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && lensHtml.includes('System-level score'));
 assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.includes('data-lens-page-action="add-dashboard-widget"') || lensHtml.includes('data-lens-page-action="remove-dashboard-widget"'));
