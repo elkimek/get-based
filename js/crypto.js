@@ -478,7 +478,7 @@ function renderPassphraseForm(overlay, onSuccess) {
   if (!input || !btn || !errorEl || !forgotBtn) return;
   overlay.style.display = 'flex';
 
-  async function attemptUnlock() {
+  const attemptUnlock = async () => {
     const passphrase = input.value;
     if (!passphrase) { errorEl.textContent = 'Please enter your passphrase'; return; }
     btn.disabled = true;
@@ -517,7 +517,7 @@ function renderPassphraseForm(overlay, onSuccess) {
       btn.textContent = 'Unlock';
       input.focus();
     }
-  }
+  };
 
   btn.addEventListener('click', attemptUnlock);
   input.addEventListener('keydown', (e) => {
@@ -634,7 +634,7 @@ export function showEnableEncryptionModal() {
   const barColors = ['var(--red)', 'var(--orange)', 'var(--yellow)', 'var(--green)'];
   let migrationStarted = false;
 
-  function updateStrengthMeter() {
+  const updateStrengthMeter = () => {
     const p = input1.value;
     const score = getPassphraseStrength(p);
     strengthBars.forEach((bar, i) => {
@@ -643,7 +643,7 @@ export function showEnableEncryptionModal() {
     // Update checklist
     const checks = [p.length >= 8, /[a-z]/.test(p), /[A-Z]/.test(p), /[!@#$%^&*()\-_=+\[\]{};:'",.<>?/\\|`~]/.test(p)];
     ruleItems.forEach((li, i) => li.classList.toggle('met', checks[i]));
-  }
+  };
   input1.addEventListener('input', updateStrengthMeter);
 
   cancelBtn.addEventListener('click', () => {
@@ -678,10 +678,8 @@ export function showEnableEncryptionModal() {
       overlay.style.display = 'none';
       overlay.innerHTML = '';
       showNotification('Encryption enabled \u2014 keep your passphrase safe', 'success');
-      // Refresh settings UI
-      if (document.getElementById('encryption-section')) {
-        document.getElementById('encryption-section').innerHTML = renderEncryptionSection();
-      }
+      const section = document.getElementById('encryption-section');
+      if (section) section.innerHTML = renderEncryptionSection();
     } catch (err) {
       errorEl.textContent = 'Encryption failed: ' + getErrorMessage(err);
       btn.disabled = false;
@@ -719,12 +717,14 @@ export function maybeShowEncryptionNudge() {
         </div>
       </div>`;
     overlay.style.display = 'flex';
-    document.getElementById('encryption-nudge-dismiss').addEventListener('click', () => {
+    const dismissBtn = document.getElementById('encryption-nudge-dismiss'), enableBtn = document.getElementById('encryption-nudge-enable');
+    if (!dismissBtn || !enableBtn) return;
+    dismissBtn.addEventListener('click', () => {
       localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true');
       overlay.style.display = 'none';
       overlay.innerHTML = '';
     });
-    document.getElementById('encryption-nudge-enable').addEventListener('click', () => {
+    enableBtn.addEventListener('click', () => {
       overlay.style.display = 'none';
       overlay.innerHTML = '';
       showEnableEncryptionModal();
@@ -794,12 +794,15 @@ export function maybeShowBackupNudge() {
         </div>
       </div>`;
     el.style.display = 'flex';
-    document.getElementById('backup-nudge-snooze').addEventListener('click', () => {
+    const snoozeBtn = document.getElementById('backup-nudge-snooze'),
+      downloadBtn = document.getElementById('backup-nudge-download');
+    if (!snoozeBtn || !downloadBtn) return;
+    snoozeBtn.addEventListener('click', () => {
       localStorage.setItem('labcharts-backup-nudge-snoozed-until', String(Date.now() + THIRTY_DAYS));
       el.style.display = 'none';
       el.innerHTML = '';
     });
-    document.getElementById('backup-nudge-download').addEventListener('click', () => {
+    downloadBtn.addEventListener('click', () => {
       el.style.display = 'none';
       el.innerHTML = '';
       exportEncryptedBackup();
@@ -934,9 +937,8 @@ export async function disableEncryption() {
       _sessionKey = null;
       clearKeyCache();
       showNotification('Encryption disabled', 'info');
-      if (document.getElementById('encryption-section')) {
-        document.getElementById('encryption-section').innerHTML = renderEncryptionSection();
-      }
+      const section = document.getElementById('encryption-section');
+      if (section) section.innerHTML = renderEncryptionSection();
     } catch (err) {
       showNotification('Failed to disable encryption: ' + getErrorMessage(err), 'error');
     }
