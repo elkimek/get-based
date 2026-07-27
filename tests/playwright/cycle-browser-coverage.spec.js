@@ -298,6 +298,11 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
         && toasts().some(text => text.includes('Menstrual cycle data cleared'));
       outcomes.clearConfirmDeletesRawCycleDatabase = (await cycleStore.getAllCycleObservationsRaw(state.currentProfile)).length === 0
         && (await cycleStore.getAllCycleImportMetaRaw(state.currentProfile)).length === 0;
+
+      const detachedModal = modal();
+      detachedModal?.remove();
+      outcomes.openEditorFailsClosedWithoutModal = detachedModal instanceof HTMLElement
+        && await cycle.openMenstrualCycleEditor() === false;
     } finally {
       state.importedData = saved.importedData;
       state.profileDob = saved.profileDob;

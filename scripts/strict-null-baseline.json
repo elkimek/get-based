@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 482,
+  "totalDiagnostics": 457,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -39,8 +39,6 @@
     "js/cycle-import-file.js": 2,
     "js/cycle-import.js": 3,
     "js/cycle-store.js": 4,
-    "js/cycle-summary.js": 9,
-    "js/cycle.js": 16,
     "js/dashboard-lab-widget-renderers.js": 4,
     "js/dashboard-page-view.js": 7,
     "js/dashboard-view-composition.js": 2,

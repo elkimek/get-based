@@ -366,12 +366,12 @@ assert('guard message references aborted connect',
 
 // ─── 7. Cycle perimenopause clamp ───
 console.log('\n7. Cycle clamp relax');
-const cycleSrc = read('js/cycle.js');
-assert('cycle.js no longer hard-clamps to 45 unconditionally',
-  !cycleSrc.includes('Math.max(20, Math.min(45, avgCycle))'),
+const cycleSummarySrc = read('js/cycle-summary.js');
+assert('cycle stats no longer hard-clamp to 45',
+  !cycleSummarySrc.includes('Math.max(20, Math.min(45, avgCycle))'),
   'old clamp truncated 60–90 day perimenopause cycles to 45');
-assert('cycle.js uses a 90-day ceiling',
-  cycleSrc.includes('Math.max(20, Math.min(90, avgCycle))'),
+assert('cycle stats use a 90-day ceiling',
+  cycleSummarySrc.includes('clamp(avgCycle, 20, 90)'),
   'regular-and-long perimenopause cycles need to land at their real average, not 45');
 
 // ─── 8. SSE trailing buffer flush + parse error filter ───

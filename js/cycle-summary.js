@@ -25,6 +25,10 @@ const FLOW_ALIASES = {
   high: 'heavy',
 };
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, any>}
+ */
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -210,6 +214,19 @@ export function normalizeCyclePeriod(period, {
   };
 }
 
+/**
+ * @param {{
+ *   startDate: string,
+ *   endDate?: string | null,
+ *   flow?: string,
+ *   symptoms?: string[],
+ *   notes?: string,
+ *   source?: string,
+ *   confidence?: string,
+ *   updatedAt?: string,
+ *   importId?: string | null,
+ * }} period
+ */
 export function createCyclePeriod({
   startDate,
   endDate,
@@ -235,6 +252,11 @@ export function createCyclePeriod({
   }, { defaultSource: source, defaultUpdatedAt: updatedAt });
 }
 
+/**
+ * @param {unknown} periods
+ * @param {Record<string, any>} [options]
+ * @returns {Array<Record<string, any>>}
+ */
 export function normalizeCyclePeriods(periods, options = {}) {
   if (!Array.isArray(periods)) return [];
   const byStart = new Map();
@@ -263,6 +285,53 @@ export function summarizeCyclePeriods(periods) {
     regularity: regularityFromIntervals(intervals),
     flow,
   };
+}
+
+export function calculateCycleStats(periods) {
+  /** @type {{ cycleLength: number | null, periodLength: number | null, regularity: 'regular' | 'irregular' | 'very_irregular' | null, flow: string | null }} */
+  const result = { cycleLength: null, periodLength: null, regularity: null, flow: null };
+  if (!periods || periods.length === 0) return result;
+  const sorted = periods.slice().sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+  const periodLengths = sorted.filter(p => p.endDate).map(p => {
+    const start = new Date(p.startDate + 'T00:00:00');
+    const end = new Date(p.endDate + 'T00:00:00');
+    return Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1;
+  });
+  if (periodLengths.length > 0) {
+    const avgPeriod = Math.round(periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length);
+    result.periodLength = clamp(avgPeriod, 2, 10);
+  }
+
+  const recent = sorted.slice(-6).filter(p => p.flow);
+  if (recent.length > 0) {
+    const counts = {};
+    for (const p of recent) counts[p.flow] = (counts[p.flow] || 0) + 1;
+    result.flow = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  if (sorted.length >= 2) {
+    const cycleLengths = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = new Date(sorted[i - 1].startDate + 'T00:00:00');
+      const curr = new Date(sorted[i].startDate + 'T00:00:00');
+      cycleLengths.push(Math.round((curr.getTime() - prev.getTime()) / DAY_MS));
+    }
+    const avgCycle = Math.round(cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length);
+    // Preserve long irregular and perimenopause cycles; the former 45-day
+    // ceiling shifted predicted draw windows by weeks.
+    result.cycleLength = clamp(avgCycle, 20, 90);
+    if (cycleLengths.length >= 2) {
+      const mean = cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length;
+      const variance = cycleLengths.reduce((sum, value) => sum + (value - mean) ** 2, 0) / cycleLengths.length;
+      const deviation = Math.sqrt(variance);
+      if (deviation <= 2) result.regularity = 'regular';
+      else if (deviation <= 7) result.regularity = 'irregular';
+      else result.regularity = 'very_irregular';
+    }
+  }
+
+  return result;
 }
 
 export function buildCycleHistorySummary(periods) {
@@ -300,6 +369,10 @@ export function buildCycleHistorySummary(periods) {
   };
 }
 
+/**
+ * @param {unknown} periods
+ * @param {Record<string, any> | null} [previousCoverage]
+ */
 export function buildCycleCoverage(periods, previousCoverage = null) {
   const normalized = normalizeCyclePeriods(periods);
   const previousSources = isPlainObject(previousCoverage?.sources) ? previousCoverage.sources : {};
@@ -345,6 +418,7 @@ export function upgradeMenstrualCycleProfile(mc, {
   });
   const stats = summarizeCyclePeriods(periods);
   const cycleStatus = mc.cycleStatus || mc.status || 'regular';
+  /** @type {Record<string, any>} */
   const next = {
     ...mc,
     schemaVersion: 2,
@@ -384,7 +458,9 @@ export function stitchCyclePeriodsFromObservations(observations, {
     .filter(row => isPlainObject(row) && isISODate(row.date) && observationFlow(row))
     .slice()
     .sort((a, b) => a.date.localeCompare(b.date));
+  /** @type {Array<Record<string, any>>} */
   const periods = [];
+  /** @type {{ days: Array<Record<string, any>>, symptoms: any[] } | null} */
   let current = null;
   let prevDate = null;
   const closeCurrent = () => {
