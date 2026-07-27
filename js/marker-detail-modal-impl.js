@@ -173,6 +173,21 @@ function bioAgeReferenceIndex(data, marker, latestPoint) {
   return data.dates?.length ? data.dates.length - 1 : -1;
 }
 
+/**
+ * @typedef {{
+ *   label: string,
+ *   present: boolean,
+ *   kind: string,
+ * }} BioAgeInputStatus
+ */
+
+/**
+ * @param {any} data
+ * @param {number} idx
+ * @param {string[][]} inputs
+ * @param {BioAgeInputStatus | null} [profileRequirement]
+ * @returns {BioAgeInputStatus[]}
+ */
 function bioAgeInputStatusAtIndex(data, idx, inputs, profileRequirement = null) {
   const status = inputs.map(([cat, key, label]) => ({
     label,
@@ -681,13 +696,15 @@ function renderDetailModal(id, opts = {}) {
       const age = state.profileDob && refDate
         ? ((new Date(refDate + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))
         : null;
-      const ageIsUsable = Number.isFinite(age) && age > 0;
+      const usableAge = typeof age === 'number' && Number.isFinite(age) && age > 0
+        ? age
+        : null;
       const profileRequirement = !state.profileDob
         ? { label: 'Date of birth', present: false, kind: 'profile' }
-        : (refDate && !ageIsUsable)
+        : (refDate && usableAge == null)
           ? { label: 'Valid date of birth', present: false, kind: 'profile' }
           : null;
-      const profileIssue = state.profileDob && refDate && !ageIsUsable
+      const profileIssue = state.profileDob && refDate && usableAge == null
         ? 'Date of birth must be before the panel date'
         : null;
       const phenoStatus = bioAgeInputStatusAtIndex(data, refIdx, BIO_AGE_PHENO_INPUTS, profileRequirement);
@@ -702,7 +719,7 @@ function renderDetailModal(id, opts = {}) {
         const missing = status.filter(s => !s.present);
         let header;
         if (value != null) {
-          const delta = ageIsUsable ? ` <span class="bio-age-delta">(${value - age > 0 ? '+' : ''}${(value - age).toFixed(1)}y)</span>` : '';
+          const delta = usableAge != null ? ` <span class="bio-age-delta">(${value - usableAge > 0 ? '+' : ''}${(value - usableAge).toFixed(1)}y)</span>` : '';
           header = `<span class="bio-age-glyph">✓</span> <strong>${escapeHTML(name)}:</strong> ${formatValue(value)}${delta}`;
         } else {
           const noun = missing.length === 1 ? 'input' : 'inputs';
@@ -1014,11 +1031,12 @@ export function saveCustomMarker() {
   const name = nameInput.value.trim();
   // Determine category key and label
   let catKey, catLabel;
+  let newCatIcon = null;
   if (catSelect.value === '__new__') {
     catLabel = (newCatInput?.value || '').trim();
     if (!catLabel) { showNotification('Please enter a category name', 'error'); return; }
     const iconEl = /** @type {HTMLElement | null} */ (document.getElementById('cm-new-cat-icon'));
-    var newCatIcon = iconEl?.dataset.custom === '1' ? iconEl.textContent.trim() : null;
+    newCatIcon = iconEl?.dataset.custom === '1' ? iconEl.textContent.trim() : null;
     catKey = catLabel.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)
       .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join('');
@@ -1045,6 +1063,8 @@ export function saveCustomMarker() {
   // Parse optional ref range
   const refMin = refMinInput?.value ? parseFloat(refMinInput.value) : null;
   const refMax = refMaxInput?.value ? parseFloat(refMaxInput.value) : null;
+  const validRefMin = refMin != null && !Number.isNaN(refMin) ? refMin : null;
+  const validRefMax = refMax != null && !Number.isNaN(refMax) ? refMax : null;
   const optMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-min'));
   const optMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-max'));
   const optMin = optMinInput?.value ? parseFloat(optMinInput.value) : null;
@@ -1054,10 +1074,10 @@ export function saveCustomMarker() {
   const cmDef = {
     name,
     unit: (unitInput?.value || '').trim(),
-    refMin: isNaN(refMin) ? null : refMin,
-    refMax: isNaN(refMax) ? null : refMax,
+    refMin: validRefMin,
+    refMax: validRefMax,
     categoryLabel: catLabel,
-    ...(typeof newCatIcon !== 'undefined' && newCatIcon ? { icon: newCatIcon } : {})
+    ...(newCatIcon ? { icon: newCatIcon } : {})
   };
   state.importedData.customMarkers[fullKey] = cmDef;
   // Save optimal range as refOverride if provided
@@ -1078,8 +1098,8 @@ export function saveCustomMarker() {
   state.markerRegistry[id] = {
     name,
     unit: (unitInput?.value || '').trim(),
-    refMin: isNaN(refMin) ? null : refMin,
-    refMax: isNaN(refMax) ? null : refMax,
+    refMin: validRefMin,
+    refMax: validRefMax,
     custom: true
   };
   setTimeout(() => openManualEntryForm(id), 100);
