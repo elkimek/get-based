@@ -220,6 +220,7 @@ const APP_SHELL = [
   '/js/chat-attestation.js',
   '/js/chat-actions.js',
   '/js/chat-nudge.js',
+  '/js/chat-mobile-viewport.js',
   '/js/chat-panel.js',
   '/js/chat-discussion.js',
   '/js/chat-discussion-callbacks.js',

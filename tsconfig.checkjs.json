@@ -79,6 +79,7 @@
     "js/chat-nudge.js",
     "js/chat-onboarding-host-bindings.js",
     "js/chat-onboarding.js",
+    "js/chat-mobile-viewport.js",
     "js/chat-panel.js",
     "js/chat-personalities.js",
     "js/chat-prompt-context.js",
