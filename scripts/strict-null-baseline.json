@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 351,
+  "totalDiagnostics": 342,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -13,7 +13,6 @@
     "js/app-shell-hooks.js": 2,
     "js/backup.js": 3,
     "js/biology-score-context-ai.js": 1,
-    "js/biology-score-engine.js": 9,
     "js/biology-score-iron.js": 1,
     "js/biology-score-profile-modifiers.js": 2,
     "js/biology-score-render.js": 6,
