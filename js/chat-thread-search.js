@@ -58,7 +58,7 @@ export function filterThreadList(value) {
   // Instant: filter thread names
   threadSearchCallbacks.renderThreadList(value);
   // Debounced: search message content
-  clearTimeout(_threadSearchTimer);
+  if (_threadSearchTimer !== null) clearTimeout(_threadSearchTimer);
   _threadSearchTimer = setTimeout(() => searchThreadContent(value.trim()), 250);
 }
 
@@ -170,7 +170,7 @@ function highlightInMessage(el, query) {
     let remainder = node;
     for (let j = positions.length - 1; j >= 0; j--) {
       const idx = positions[j];
-      const current = remainder.textContent;
+      const current = remainder.textContent || '';
       const before = current.slice(0, idx);
       const match = current.slice(idx, idx + qLen);
       const after = current.slice(idx + qLen);
