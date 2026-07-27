@@ -217,6 +217,8 @@ export async function openStartSunSessionDialog() {
   const selected = new Set(lastRegions);
   const slot = overlay.querySelector('#sun-start-silhouette-slot');
   const hint = overlay.querySelector('#sun-start-hint');
+  const confirm = overlay.querySelector('#start-confirm');
+  if (!(slot instanceof HTMLElement) || !(hint instanceof HTMLElement) || !(confirm instanceof HTMLElement)) { closeDialog(); return; }
   const updateHint = () => {
     const fraction = Array.from(selected).reduce((sum, key) => {
       const r = BODY_REGIONS.find(b => b.key === key);
@@ -250,7 +252,7 @@ export async function openStartSunSessionDialog() {
     }
   }).catch(() => {});
 
-  overlay.querySelector('#start-confirm').addEventListener('click', async () => {
+  confirm.addEventListener('click', async () => {
     const eyeMode = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-eye-mode'))?.value || 'direct';
     const lensTint = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-lens-tint'))?.value || 'clear';
     const glassBetween = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#start-glass'))?.checked;
@@ -570,7 +572,7 @@ function _renderActiveCardBody(sess) {
   }
   const channelChips = live?.doses ? renderChannelChips(live.doses, sess) : '';
   let vitaminDStr = '';
-  if (live?.doses?.vitamin_d > 0) {
+  if (live && live.doses?.vitamin_d > 0) {
     const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
     const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
     const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
@@ -595,7 +597,7 @@ function _renderActiveCardBody(sess) {
     heatStr = `<span class="sun-session-heat" title="Ambient ${tempC.toFixed(0)}°C — heat-stress risk rises with duration. Drink water, take a 10-min shade break.">🌡 ${Math.round(tempC)}°C · take a break</span>`;
   }
   let retinalStr = '';
-  if (sess.eyeExposure?.mode === 'direct' && Number.isFinite(live?.retinalUV) && live.retinalUV > 3) {
+  if (live && sess.eyeExposure?.mode === 'direct' && Number.isFinite(live.retinalUV) && live.retinalUV > 3) {
     const ruv = live.retinalUV;
     const ruvDisplay = ruv >= 10 ? Math.round(ruv) : ruv.toFixed(1);
     const cls = ruv >= 15 ? ' warn' : '';
@@ -746,7 +748,7 @@ function _refreshLiveChannelSurfaces() {
         if (fresh) {
           for (const attr of fresh.getAttributeNames()) {
             const newVal = fresh.getAttribute(attr);
-            if (strip.getAttribute(attr) !== newVal) strip.setAttribute(attr, newVal);
+            if (newVal !== null && strip.getAttribute(attr) !== newVal) strip.setAttribute(attr, newVal);
           }
           const freshInner = fresh.innerHTML;
           if (strip.innerHTML !== freshInner) strip.innerHTML = freshInner;
@@ -776,9 +778,7 @@ export async function hydrateSunSessionFromProfileCoords(id) {
   await activeDeps.hydrateSession(id);
 }
 
-const _JARGON_DEFINITIONS = {
-  med: 'MED = the smallest UV dose that turns your skin slightly pink (Fitzpatrick-tuned). ',
-};
+const _JARGON_DEFINITIONS = { med: 'MED = the smallest UV dose that turns your skin slightly pink (Fitzpatrick-tuned). ' };
 function _jargonPrefix(key) {
   if (typeof localStorage === 'undefined') return '';
   const def = _JARGON_DEFINITIONS[key];
