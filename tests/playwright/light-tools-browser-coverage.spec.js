@@ -334,6 +334,20 @@ test('light tools browser coverage exercises storage render and modal flows', as
       lightTools.closeGlassTransmission();
       results.cameraFacadeStreamsStoppedOnClose = streamStops.length >= 5;
 
+      const streamStopsBeforeMissingCanvas = streamStops.length;
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: async () => makeStream() },
+      });
+      HTMLCanvasElement.prototype.getContext = () => null;
+      await lightTools.openEyeLevelAudit();
+      document.getElementById('audit-toggle')?.click();
+      await waitUntil(() => (document.getElementById('audit-status')?.textContent || '')
+        .includes('Camera processing is unavailable'));
+      results.auditMissingCanvasStopsStreamAndShowsMessage =
+        streamStops.length === streamStopsBeforeMissingCanvas + 1;
+      lightTools.closeEyeLevelAudit();
+
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: {

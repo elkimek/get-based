@@ -467,6 +467,9 @@ export function openSunriseLogger() {
 
 // ─── Tool 8: Eye-Level Audit (10-min walkthrough) ─────────────────────
 
+/** @typedef {{ t: number, luma: number }} EyeLevelAuditSample */
+/** @typedef {{ at: number, luma: number, lux: number, label: string }} EyeLevelAuditPause */
+/** @type {{ running: boolean, stream: MediaStream | null, samples: EyeLevelAuditSample[] }} */
 let _auditState = { running: false, stream: null, samples: [] };
 /** @type {AnyFunction | null} */
 let activeEyeLevelAuditCloser = null;
@@ -509,6 +512,7 @@ export async function openEyeLevelAudit() {
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
   const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
   const toggleBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#audit-toggle'));
+  /** @type {EyeLevelAuditPause[]} */
   let pauseDetections = [];
 
   // Common room labels for one-tap selection. The free-text input is
@@ -568,6 +572,13 @@ export async function openEyeLevelAudit() {
         const canvas = document.createElement('canvas');
         canvas.width = 32; canvas.height = 24;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) {
+          statusEl.textContent = 'Camera processing is unavailable in this browser.';
+          _auditState.running = false;
+          try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+          _auditState.stream = null;
+          return;
+        }
         let lastSampleLuma = null;
         let pauseStart = null;
         let waitingForMovement = false;
