@@ -217,7 +217,9 @@ test('touch tooltip browser coverage handles long press drift and touch focus su
       const touchTip = document.getElementById('app-tooltip');
       const longPressShown = touchTip?.textContent === 'Touch tip'
         && touchTip.classList.contains('is-visible')
-        && target.getAttribute('aria-describedby') === 'app-tooltip';
+        && target.getAttribute('aria-describedby') === 'app-tooltip'
+        && Number.isFinite(Number.parseInt(touchTip.style.left, 10))
+        && Number.isFinite(Number.parseInt(touchTip.style.top, 10));
       dispatchTouch(target, 'touchmove', [{ clientX: 45, clientY: 65 }]);
       await waitFrame();
       const smallDriftKeepsTooltip = touchTip.classList.contains('is-visible');
