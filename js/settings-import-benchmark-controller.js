@@ -24,6 +24,10 @@ import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 
 const IMPORT_BENCHMARKS_REFRESH_EVENT = 'import-benchmarks-refresh';
 
+/** @typedef {Awaited<ReturnType<typeof runBundledImportReferenceBenchmark>>} ImportReferenceBenchmarkCompletion */
+/** @typedef {{ benchmarkId: string, manifestId: string }} ImportBenchmarksRefreshDetail */
+
+/** @param {ImportReferenceBenchmarkCompletion | null} [completed] */
 function refreshOpenImportBenchmarksModal(completed = null) {
   const activeOverlay = document.getElementById('import-benchmarks-overlay');
   if (!activeOverlay) return;
@@ -70,6 +74,7 @@ export function openImportBenchmarksModal() {
       ${renderImportBenchmarksBody(snapshots)}
     </div>
   </div>`;
+  /** @param {ImportBenchmarksRefreshDetail | null} [detail] */
   const refreshOverlay = (detail = null) => {
     snapshots = getImportBenchmarkSnapshots();
     selectedIds.clear();
