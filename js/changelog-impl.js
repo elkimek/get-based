@@ -11,6 +11,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.397', date: '2026-07-27', title: 'Smoother mobile chat and clearer Biology Scores',
+    items: [
+      '<b>Chat is smoother on mobile.</b> The header and message box stay visible while typing, and choosing or starting a conversation takes you straight back to the chat.',
+      '<b>Biology Coherence is easier to read.</b> The score circle now has better contrast in the Glass / Liquid, Synth Sunrise, and Neuromancer themes.',
+      '<b>General fixes and improvements.</b> This update also includes codebase improvements, bug fixes, and small usability refinements.',
+    ]
+  },
+  {
     version: '1.10.320', date: '2026-07-21', title: 'Faster, clearer app updates',
     items: [
       '<b>App updates finish faster and show their progress.</b> The update banner now displays a themed progress bar, percentage, file count, and elapsed time while the complete offline app is refreshed.',

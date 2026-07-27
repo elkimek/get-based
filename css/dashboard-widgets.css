@@ -558,7 +558,7 @@
   height: 100%;
   border-radius: 50%;
   background:
-    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
     conic-gradient(
       var(--accent) calc(var(--bc-score) * 1%),
       color-mix(in srgb, var(--accent) 20%, var(--border)) 0
@@ -568,7 +568,7 @@
 .db-bio-coherence-excellent .db-bio-coherence-ring,
 .db-bio-coherence-good .db-bio-coherence-ring {
   background:
-    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
     conic-gradient(
       var(--green, #22c55e) calc(var(--bc-score) * 1%),
       color-mix(in srgb, var(--green, #22c55e) 20%, var(--border)) 0
@@ -577,7 +577,7 @@
 }
 .db-bio-coherence-strained .db-bio-coherence-ring {
   background:
-    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
     conic-gradient(
       var(--yellow, #f59e0b) calc(var(--bc-score) * 1%),
       color-mix(in srgb, var(--yellow, #f59e0b) 20%, var(--border)) 0
@@ -588,7 +588,7 @@
 .db-bio-coherence-concerning .db-bio-coherence-ring,
 .db-bio-coherence-severe .db-bio-coherence-ring {
   background:
-    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
     conic-gradient(
       var(--red, #ef4444) calc(var(--bc-score) * 1%),
       color-mix(in srgb, var(--red, #ef4444) 20%, var(--border)) 0
