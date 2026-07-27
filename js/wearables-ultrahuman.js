@@ -15,6 +15,32 @@ import { isDebugMode } from './utils.js';
 const UH_API = 'https://partner.ultrahuman.com';
 const PROXY_URL = '/api/proxy';
 
+/**
+ * @typedef {{
+ *   source: 'ultrahuman',
+ *   date: string,
+ *   hrv_rmssd: number | null,
+ *   hrv_sdnn: number | null,
+ *   rhr: number | null,
+ *   hrv_day: number | null,
+ *   hr_day: number | null,
+ *   sleep_score: number | null,
+ *   readiness_score: number | null,
+ *   activity_score: number | null,
+ *   steps: number | null,
+ *   strain: number | null,
+ *   stress_high_min: number | null,
+ *   resilience_level: number | null,
+ *   cardio_age: number | null,
+ *   weight: number | null,
+ *   bp_systolic: number | null,
+ *   bp_diastolic: number | null,
+ *   spo2_avg: number | null,
+ *   body_temp_delta: number | null,
+ *   glucose_avg: number | null,
+ * }} UltrahumanDailyRow
+ */
+
 async function uhGET(path, accessToken, params = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${UH_API}/${path.replace(/^\//, '')}${qs ? '?' + qs : ''}`;
@@ -77,8 +103,12 @@ export async function fetchUltrahumanDailyRange(accessToken, startDate, endDate)
 // Ultrahuman returns nested `metric_data` blocks; the exact shape varies by
 // scope (ring_data vs cgm_data). This function is the ONE place that knows
 // vendor-specific field names — if Ultrahuman renames anything, patch here.
+/**
+ * @returns {UltrahumanDailyRow | null}
+ */
 function canonicalizeDay(day, payload) {
   const data = payload?.data?.metric_data || payload?.metric_data || payload?.data || payload || {};
+  /** @type {UltrahumanDailyRow} */
   const row = {
     source: 'ultrahuman', date: day,
     hrv_rmssd: null, hrv_sdnn: null, rhr: null,
@@ -107,7 +137,8 @@ function canonicalizeDay(day, payload) {
   row.glucose_avg     = numOrNull(pick('glucose.avg'))             ?? numOrNull(pick('glucose'));
 
   // Drop entirely-null days (ring wasn't worn, scope didn't cover this user)
-  if (Object.keys(row).filter(k => k !== 'source' && k !== 'date').every(k => row[k] === null)) return null;
+  const metrics = Object.entries(row).filter(([key]) => key !== 'source' && key !== 'date');
+  if (metrics.every(([, value]) => value === null)) return null;
   return row;
 }
 
