@@ -264,6 +264,19 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
       piiText.textContent);
     assert('Malformed PII Local AI URL does not fetch', fetchCalls === 0, `fetch calls: ${fetchCalls}`);
 
+    elements = {
+      'local-ai-url-input': { value: 'http://localhost:11434' },
+      'local-ai-status-text': mainText,
+    };
+    await localAiControls.testOllamaConnection();
+    assert('Main Local AI connection fails closed when its status dot is missing', fetchCalls === 0);
+    elements = {
+      'pii-local-url-input': { value: 'http://localhost:11434' },
+      'pii-local-status-text': piiText,
+    };
+    await localAiControls.testPIIOllamaConnection();
+    assert('PII Local AI connection fails closed when its status dot is missing', fetchCalls === 0);
+
     fetchCalls = 0;
     globalThis.fetch = async () => {
       fetchCalls++;
