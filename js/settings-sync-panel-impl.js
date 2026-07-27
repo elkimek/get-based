@@ -425,11 +425,12 @@ export async function closeSyncSetup() {
 let _syncSetupInProgress = false;
 async function syncSetupNew() {
   if (_syncSetupInProgress) return;
-  _syncSetupInProgress = true;
   const choicesEl = document.getElementById('sync-setup-choices');
   const newEl = document.getElementById('sync-setup-new');
-  if (choicesEl) choicesEl.style.display = 'none';
-  if (newEl) newEl.style.display = 'block';
+  if (!choicesEl || !newEl) return;
+  _syncSetupInProgress = true;
+  choicesEl.style.display = 'none';
+  newEl.style.display = 'block';
   newEl.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--text-muted);font-size:13px">Generating identity...</div>';
 
   try {
@@ -489,16 +490,23 @@ function syncSetupDone() {
 }
 
 function syncSetupRestore() {
-  document.getElementById('sync-setup-choices').style.display = 'none';
-  document.getElementById('sync-setup-restore').style.display = 'block';
+  const choicesEl = document.getElementById('sync-setup-choices');
+  const restoreEl = document.getElementById('sync-setup-restore');
+  if (!choicesEl || !restoreEl) return;
+  choicesEl.style.display = 'none';
+  restoreEl.style.display = 'block';
   const input = document.getElementById('sync-setup-restore-input');
   if (input) input.focus();
 }
 
 function syncSetupBack() {
-  document.getElementById('sync-setup-choices').style.display = '';
-  document.getElementById('sync-setup-restore').style.display = 'none';
-  document.getElementById('sync-setup-new').style.display = 'none';
+  const choicesEl = document.getElementById('sync-setup-choices');
+  const restoreEl = document.getElementById('sync-setup-restore');
+  const newEl = document.getElementById('sync-setup-new');
+  if (!choicesEl || !restoreEl || !newEl) return;
+  choicesEl.style.display = '';
+  restoreEl.style.display = 'none';
+  newEl.style.display = 'none';
 }
 
 async function syncSetupDoRestore() {
