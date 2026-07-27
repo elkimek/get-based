@@ -29,10 +29,10 @@ export { configureRoutstrWalletRuntime, walletRuntime };
 export { buildRoutstrNodeActions, routstrWalletActionButtons };
 
 const walletCallbacks = {
-  renderAIProviderPanel: null,
-  renderRoutstrModelDropdown: null,
-  initSettingsModelFetch: null,
-  returnToChatIfOnboarding: null
+  renderAIProviderPanel: /** @type {((provider: string) => string) | null} */ (null),
+  renderRoutstrModelDropdown: /** @type {((models: any[]) => void) | null} */ (null),
+  initSettingsModelFetch: /** @type {(() => void) | null} */ (null),
+  returnToChatIfOnboarding: /** @type {(() => void) | null} */ (null)
 };
 
 export function configureRoutstrWalletPanels(callbacks = {}) {
@@ -248,7 +248,11 @@ export async function doRoutstrWalletReceiveCashu() {
   await _receiveRoutstrWalletCashu(token, input, statusEl);
 }
 
-async function _receiveRoutstrWalletCashu(token, input = null, statusEl = null) {
+async function _receiveRoutstrWalletCashu(
+  token,
+  input = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (null),
+  statusEl = /** @type {HTMLElement | null} */ (null)
+) {
   statusEl = statusEl || document.getElementById('routstr-wfund-status');
   input = input || _getWalletInput('routstr-wcashu-input');
   if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
@@ -319,7 +323,7 @@ export async function doRoutstrMintChange() {
     await walletRuntime.cashuSetMintUrl(url);
     const label = document.getElementById('routstr-mint-label');
     if (label) label.textContent = url.replace(/^https?:\/\//, '');
-    document.getElementById('routstr-mint-edit').style.display = 'none';
+    const mintEdit = document.getElementById('routstr-mint-edit'); if (mintEdit) mintEdit.style.display = 'none';
     _refreshRoutstrWalletBalance();
     showNotification('Mint changed to ' + url.replace(/^https?:\/\//, ''), 'success');
   } catch (e) {
@@ -646,7 +650,8 @@ export function showRoutstrWithdrawLightning() {
   input?.addEventListener('input', () => {
     const val = input.value.trim();
     const needsAmount = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
-    document.getElementById('routstr-withdraw-ln-amount').style.display = needsAmount ? 'block' : 'none';
+    const amount = document.getElementById('routstr-withdraw-ln-amount');
+    if (amount) amount.style.display = needsAmount ? 'block' : 'none';
   });
 }
 
