@@ -3,7 +3,8 @@
 
 async function deleteIndexedDBDatabase(name) {
   if (!name || typeof indexedDB === 'undefined') return;
-  await new Promise((resolve) => {
+  /** @type {Promise<void>} */
+  const deletion = new Promise((resolve) => {
     try {
       const req = indexedDB.deleteDatabase(name);
       req.onsuccess = () => resolve();
@@ -15,6 +16,7 @@ async function deleteIndexedDBDatabase(name) {
       resolve();
     }
   });
+  await deletion;
 }
 
 function collectKnownProfileIds() {
