@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 457,
+  "totalDiagnostics": 443,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -102,7 +102,6 @@
     "js/settings.js": 2,
     "js/startup-oauth-callbacks.js": 1,
     "js/startup-ui.js": 1,
-    "js/sun-active-session.js": 14,
     "js/sun-ai-analysis.js": 2,
     "js/sun-body-silhouette.js": 5,
     "js/sun-channel-metrics.js": 11,

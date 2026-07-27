@@ -685,7 +685,7 @@ const _origProfileSex = state ? state.profileSex : null;
   {
     const sunActiveSrc = fetchSrc('js/sun-active-session.js');
     const startHandler = sunActiveSrc.slice(
-      sunActiveSrc.indexOf("overlay.querySelector('#start-confirm').addEventListener"),
+      sunActiveSrc.indexOf("confirm.addEventListener('click'"),
       sunActiveSrc.indexOf('function _plainStopSummary')
     );
     assert('sun-active-session.js: start flow uses one consolidated start-session toast helper',
