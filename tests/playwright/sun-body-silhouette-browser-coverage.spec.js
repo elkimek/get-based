@@ -14,7 +14,7 @@ function expectAll(outcomes) {
 test('sun body silhouette covers stock render region map overlay and input paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const outcomes = await page.evaluate(async ({ pathsUrl, silhouetteUrl }) => {
+  const outcomes = await page.evaluate(async ({ missingCanvasSilhouetteUrl, pathsUrl, silhouetteUrl }) => {
     const [silhouette, silhouetteRuntime] = await Promise.all([
       import(silhouetteUrl),
       import('/js/sun-body-silhouette-runtime.js'),
@@ -153,6 +153,28 @@ test('sun body silhouette covers stock render region map overlay and input paths
       window.dispatchEvent(new CustomEvent('sun-overlay-ready'));
       await delay(0);
       outcomes.detachedOverlayReadyDoesNotMutateHost = detachedHost.innerHTML === detachedSnapshot;
+
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      silhouette.resetBodySilhouetteState();
+      HTMLCanvasElement.prototype.getContext = () => null;
+      try {
+        const missingOverlayContextMarkup = silhouette.renderBodySilhouette(new Set(['face']));
+        outcomes.missingOverlayContextKeepsPickerUsable =
+          missingOverlayContextMarkup.includes('data-selection-overlay="pending"')
+          && !missingOverlayContextMarkup.includes('blob:');
+
+        const missingCanvasSilhouette = await import(missingCanvasSilhouetteUrl);
+        let missingMapContextError = '';
+        try {
+          await missingCanvasSilhouette._testLoadRegionMap();
+        } catch (error) {
+          missingMapContextError = error?.message || String(error);
+        }
+        outcomes.missingMapContextFailsClearly =
+          missingMapContextError === 'Body silhouette requires a 2D canvas context';
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
     } finally {
       silhouette.resetBodySilhouetteState();
       silhouetteRuntime.configureSunBodySilhouetteRuntimeDeps(previousSilhouetteRuntimeDeps);
@@ -161,6 +183,7 @@ test('sun body silhouette covers stock render region map overlay and input paths
 
     return outcomes;
   }, {
+    missingCanvasSilhouetteUrl: moduleUrl('/js/sun-body-silhouette.js'),
     pathsUrl: moduleUrl('/js/silhouette-paths.js'),
     silhouetteUrl: moduleUrl('/js/sun-body-silhouette.js'),
   });

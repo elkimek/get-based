@@ -316,6 +316,7 @@ function _loadRegionMap() {
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const ctx = c.getContext('2d');
+    if (!ctx) throw new Error('Body silhouette requires a 2D canvas context');
     ctx.drawImage(img, 0, 0, W, H);
     const src = ctx.getImageData(0, 0, W, H);
     const out = ctx.createImageData(W, H);
@@ -396,6 +397,7 @@ function _renderSelectionOverlay(selected, onReady) {
   c.width = W;
   c.height = H;
   const ctx = c.getContext('2d');
+  if (!ctx) return _overlayCache.url || null;
   const out = ctx.createImageData(W, H);
   const outData = out.data;
   for (let i = 0; i < inData.length; i += 4) {
