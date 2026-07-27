@@ -7,10 +7,16 @@ import {
 } from './sync-disable-cleanup.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 
+/** @typedef {{ id?: unknown, mnemonic?: string }} SyncAppOwner */
+/** @typedef {{ restoreAppOwner: (mnemonic: string) => unknown }} SyncEvolu */
+
 let _bip39Load = null;
 let _qrCodeLoad = null;
+/** @type {() => SyncAppOwner | null} */
 let _getAppOwner = () => null;
+/** @type {() => any} */
 let _getAppOwnerError = () => null;
+/** @type {() => SyncEvolu | null} */
 let _getEvolu = () => null;
 /** @type {(...args: any[]) => Promise<any>} */
 let _seedLocalProfiles = async () => {};
@@ -18,9 +24,9 @@ let _seedLocalProfiles = async () => {};
 export const RESTORE_JOIN_PENDING_KEY = 'labcharts-sync-restore-join-pending';
 
 /** @param {{
- *   getAppOwner?: () => any,
+ *   getAppOwner?: () => SyncAppOwner | null,
  *   getAppOwnerError?: () => any,
- *   getEvolu?: () => any,
+ *   getEvolu?: () => SyncEvolu | null,
  *   seedLocalProfiles?: (...args: any[]) => Promise<any>,
  * }} [deps]
  */
