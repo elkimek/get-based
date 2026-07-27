@@ -188,7 +188,7 @@ export async function _saveProofs(proofs, forMint) {
     const tx = db.transaction(STORE_PROOFS, 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
     for (const row of rows) store.put(row);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -201,7 +201,7 @@ async function _deleteProofs(proofs) {
     const tx = db.transaction(STORE_PROOFS, 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
     for (const key of keys) store.delete(key);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -222,7 +222,7 @@ export async function _replaceProofs(previousProofs, nextProofs, forMint) {
       reject(error);
       return;
     }
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Cashu proof update aborted'));
   });
@@ -274,7 +274,7 @@ export async function _setMeta(key, value) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_META, 'readwrite');
     tx.objectStore(STORE_META).put(row);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -284,7 +284,7 @@ export async function _deleteMeta(key) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_META, 'readwrite');
     tx.objectStore(STORE_META).delete(key);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -431,7 +431,7 @@ export async function _saveFeeProofs(proofs, forMint) {
     const tx = db.transaction(STORE_FEES, 'readwrite');
     const store = tx.objectStore(STORE_FEES);
     for (const row of rows) store.put(row);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -452,7 +452,7 @@ export async function _replaceFeeProofs(previousProofs, nextProofs, forMint) {
       reject(error);
       return;
     }
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Cashu fee proof update aborted'));
   });
@@ -616,7 +616,7 @@ export async function _destroyWalletDBStorage() {
   _legacyProofsMigrated = false;
   return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve();
+    req.onsuccess = () => resolve(undefined);
     req.onerror = () => reject(req.error);
   });
 }
