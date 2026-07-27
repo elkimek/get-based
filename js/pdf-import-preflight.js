@@ -46,6 +46,22 @@ function openPreflightOverlay(overlay, cancel) {
   };
 }
 
+/**
+ * @param {HTMLElement} overlay
+ * @param {Record<string, () => void>} actions
+ * @param {() => void} fallback
+ */
+function bindPreflightActions(overlay, actions, fallback) {
+  for (const [id, handler] of Object.entries(actions)) {
+    const button = overlay.querySelector(`#${id}`);
+    if (!(button instanceof HTMLButtonElement)) {
+      fallback();
+      return;
+    }
+    button.onclick = handler;
+  }
+}
+
 function showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
   return new Promise(resolve => {
     const overlay = ensurePreflightOverlay();
@@ -65,8 +81,10 @@ function showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
       resolve(result);
     };
     cleanup = openPreflightOverlay(overlay, () => close(false));
-    document.getElementById('confirm-ok').onclick = () => close(true);
-    document.getElementById('confirm-cancel').onclick = () => close(false);
+    bindPreflightActions(overlay, {
+      'confirm-ok': () => close(true),
+      'confirm-cancel': () => close(false),
+    }, () => close(false));
   });
 }
 
@@ -131,12 +149,14 @@ function showModelMismatchDialog(mismatch) {
       resolve(result);
     };
     cleanup = openPreflightOverlay(overlay, () => close('cancel'));
-    document.getElementById('confirm-switch').onclick = () => {
-      tryAutoSwitchModel(mismatch.prevModel, mismatch.prevProvider);
-      close('switched');
-    };
-    document.getElementById('confirm-continue').onclick = () => close('continue');
-    document.getElementById('confirm-cancel').onclick = () => close('cancel');
+    bindPreflightActions(overlay, {
+      'confirm-switch': () => {
+        tryAutoSwitchModel(mismatch.prevModel, mismatch.prevProvider);
+        close('switched');
+      },
+      'confirm-continue': () => close('continue'),
+      'confirm-cancel': () => close('cancel'),
+    }, () => close('cancel'));
   });
 }
 
@@ -212,8 +232,10 @@ function showUnsupportedLabDialog(testType) {
       resolve(result);
     };
     cleanup = openPreflightOverlay(overlay, () => close(false));
-    document.getElementById('confirm-ok').onclick = () => close(true);
-    document.getElementById('confirm-cancel').onclick = () => close(false);
+    bindPreflightActions(overlay, {
+      'confirm-ok': () => close(true),
+      'confirm-cancel': () => close(false),
+    }, () => close(false));
   });
 }
 
