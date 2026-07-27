@@ -642,7 +642,8 @@ function wirePIIOverlayNudge(overlay) {
   });
 }
 
-export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamFn = null } = {}) {
+/** @typedef {(onChunk: (chunk: string) => void, signal: AbortSignal, onThinking: (chunk: string) => void) => Promise<any>} PIIStreamFunction */
+export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamFn = /** @type {PIIStreamFunction | null} */ (null) } = {}) {
   if (!isDataProtectionStylesheetLoaded()) {
     return loadDataProtectionStylesheetForAction().then(loaded => {
       if (loaded) return reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn });
@@ -815,6 +816,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
     // Streaming mode
     let abortController = null;
     if (isStreaming) {
+      const runStream = /** @type {PIIStreamFunction} */ (streamFn);
       if (!statusEl || !stopBtn) {
         closePIIOverlay(overlay);
         resolve('cancel');
@@ -877,7 +879,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
           if (!rafPending) { rafPending = true; requestAnimationFrame(flushToTextarea); }
         };
 
-        streamFn(
+        runStream(
           (chunk) => {
             pendingText += chunk;
             if (!rafPending) { rafPending = true; requestAnimationFrame(flushToTextarea); }

@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 398,
+  "totalDiagnostics": 385,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -49,7 +49,7 @@
     "js/dna-runtime.js": 1,
     "js/dna.js": 3,
     "js/emf-interpretation.js": 2,
-    "js/emf.js": 3,
+    "js/emf.js": 2,
     "js/export-report.js": 1,
     "js/export.js": 1,
     "js/focus-card.js": 4,
@@ -83,8 +83,7 @@
     "js/pdf-import-progress.js": 4,
     "js/pdf-import-review-runtime.js": 1,
     "js/pdf-import-review.js": 8,
-    "js/pdf-import.js": 11,
-    "js/pii.js": 2,
+    "js/pii.js": 1,
     "js/profile-context.js": 1,
     "js/profile-share.js": 3,
     "js/profile.js": 7,
