@@ -227,7 +227,8 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
   };
   if (opts.jsonMode) body.format = opts.jsonSchema || 'json';
   if (opts.jsonMode || opts.reasoningEffort === 'none') body.think = false;
-  let response;
+  /** @type {Response | null} */
+  let response = null;
   let structuredOutputFallback = false;
   let reasoningControlFallback = false;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -246,6 +247,7 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
     }
     break;
   }
+  if (!response) throw new Error('Ollama request ended without a response.');
   if (!response.ok) {
     let detail = '';
     try {
@@ -268,6 +270,7 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
     return normalizedOllamaResult(text, data, requestDiagnostics);
   }
 
+  if (!response.body) throw new Error('Ollama returned a streaming response without a readable body.');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -298,7 +301,7 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
       throw new Error(`Ollama stream exceeded ${maxBuffer} bytes without a newline - aborting.`);
     }
     const lines = buffer.split('\n');
-    buffer = lines.pop();
+    buffer = lines.pop() ?? '';
     for (const line of lines) handleNdjsonLine(line, true);
   }
   if (buffer.trim()) handleNdjsonLine(buffer, false);
