@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 173,
+  "totalDiagnostics": 169,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/api-local.js": 3,
@@ -75,7 +75,6 @@
     "js/sun-session-ui.js": 1,
     "js/sun-uvdata.js": 1,
     "js/sun.js": 3,
-    "js/supplement-impact.js": 4,
     "js/sync-actions.js": 1,
     "js/sync-delta-merge.js": 1,
     "js/sync-delta-planner-context.js": 1,

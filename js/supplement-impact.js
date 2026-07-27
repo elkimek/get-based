@@ -94,9 +94,8 @@ export function computeAllImpacts(supplement, data) {
         supplement, dotKey, marker.name, marker.unit,
         marker.values, data.dates, marker.refMin, marker.refMax
       );
-      if (impact && impact.pctChange !== null && Math.abs(impact.pctChange) >= 1) {
-        results.push(impact);
-      }
+      if (!impact || impact.pctChange === null || Math.abs(impact.pctChange) < 1) continue;
+      results.push({ ...impact, pctChange: impact.pctChange });
     }
   }
   results.sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange));
