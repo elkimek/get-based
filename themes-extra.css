@@ -64,6 +64,7 @@
   --bg-primary: #0a0817;
   --bg-secondary: rgba(28, 22, 56, 0.5);
   --bg-card: rgba(38, 30, 72, 0.35);
+  --biology-coherence-center-bg: #261e48;
   --sync-popover-bg: #181230;
   --bg-hover: rgba(50, 40, 92, 0.45);
   --border: rgba(255, 255, 255, 0.12);
@@ -155,6 +156,7 @@
   --bg-primary: #0d0524;
   --bg-secondary: #150830;
   --bg-card: rgba(28, 14, 64, 0.65);
+  --biology-coherence-center-bg: #1c0e40;
   --sync-popover-bg: #150830;
   --bg-hover: rgba(40, 22, 80, 0.75);
   --border: rgba(255, 43, 214, 0.35);
@@ -240,6 +242,7 @@
   --bg-primary: #050608;
   --bg-secondary: #0a0d12;
   --bg-card: rgba(8, 11, 16, 0.7);
+  --biology-coherence-center-bg: #080b10;
   --sync-popover-bg: #0a0d12;
   --bg-hover: rgba(14, 20, 28, 0.85);
   --border: rgba(0, 229, 255, 0.22);

@@ -1,5 +1,30 @@
 import { expect, test } from './coverage-fixture.js';
 
+const TRANSLUCENT_THEMES = ['glass', 'synth-sunrise', 'neuromancer'];
+
+function parseCssColor(value) {
+  const match = String(value || '').match(/rgba?\(([^)]+)\)/i);
+  if (!match) return null;
+  const parts = match[1].split(',').map(part => part.trim());
+  return {
+    r: Number(parts[0]),
+    g: Number(parts[1]),
+    b: Number(parts[2]),
+    a: parts[3] === undefined ? 1 : Number(parts[3]),
+  };
+}
+
+function luminance(channel) {
+  const value = channel / 255;
+  return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+function contrastRatio(foreground, background) {
+  const fg = 0.2126 * luminance(foreground.r) + 0.7152 * luminance(foreground.g) + 0.0722 * luminance(foreground.b);
+  const bg = 0.2126 * luminance(background.r) + 0.7152 * luminance(background.g) + 0.0722 * luminance(background.b);
+  return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+}
+
 async function prepareDemoProfile(page) {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(async () => {
@@ -60,6 +85,52 @@ test('dashboard renders Biological Coherence hero and domain rows', async ({ pag
   const firstRow = domainRows.first();
   await expect(firstRow).toHaveAttribute('data-biology-score-action', 'jump-to-domain');
   await expect(firstRow).toHaveAttribute('data-biology-score-id', /.+/);
+});
+
+test('translucent themes keep the dashboard coherence score center readable', async ({ page }) => {
+  await prepareDemoProfile(page);
+  await page.evaluate(async () => {
+    (await import('/js/views.js')).navigate('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+  });
+
+  const hero = page.locator('[data-widget-id="biology-score-biologicalCoherence"]').first();
+  await expect(hero.locator('.db-bio-coherence-ring')).toBeVisible();
+
+  for (const theme of TRANSLUCENT_THEMES) {
+    await page.evaluate(async nextTheme => {
+      await (await import('/js/theme.js')).setTheme(nextTheme);
+      await new Promise(requestAnimationFrame);
+    }, theme);
+
+    const styles = await hero.evaluate(element => {
+      const ring = element.querySelector('.db-bio-coherence-ring');
+      const number = element.querySelector('.db-bio-coherence-number strong');
+      const rootStyle = getComputedStyle(document.documentElement);
+      const centerToken = rootStyle.getPropertyValue('--biology-coherence-center-bg').trim();
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = centerToken;
+      document.body.appendChild(probe);
+      const centerColor = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return {
+        centerColor,
+        numberColor: number ? getComputedStyle(number).color : '',
+        ringBackground: ring ? getComputedStyle(ring).backgroundImage : '',
+      };
+    });
+
+    const foreground = parseCssColor(styles.numberColor);
+    const center = parseCssColor(styles.centerColor);
+    expect(foreground, `${theme} score color ${styles.numberColor}`).toBeTruthy();
+    expect(center, `${theme} center color ${styles.centerColor}`).toBeTruthy();
+    expect(center.a, `${theme} center must be opaque`).toBe(1);
+    expect(styles.ringBackground, `${theme} ring must use ${styles.centerColor}`).toContain(styles.centerColor);
+    expect(
+      contrastRatio(foreground, center),
+      `${theme} score contrast (${styles.numberColor} on ${styles.centerColor})`,
+    ).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test('dashboard coherence domain row navigates to Biology Scores lens and scrolls to score', async ({ page }) => {

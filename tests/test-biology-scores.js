@@ -1088,7 +1088,16 @@ assert('removed mito-thyroid experiment is not kept in the service worker app sh
   !swSrc.includes('/js/biology-score-mitothyroid.js'),
   swSrc.slice(swSrc.indexOf('/js/biology-scores.js'), swSrc.indexOf('/js/profile-context.js')));
 const dashboardWidgetsCss = fs.readFileSync(path.join(ROOT, 'css/dashboard-widgets.css'), 'utf8');
+const extraThemesCss = fs.readFileSync(path.join(ROOT, 'themes-extra.css'), 'utf8');
 assert('collapsed scores needing data have explicit spacing between cards', dashboardWidgetsCss.includes('.biology-score-unavailable-group .biology-score-detail + .biology-score-detail') && dashboardWidgetsCss.includes('margin-top: 16px'));
+assert('translucent themes give the dashboard coherence score an opaque center',
+  (dashboardWidgetsCss.match(/var\(--biology-coherence-center-bg, var\(--bg-card\)\)/g) || []).length === 4
+  && extraThemesCss.includes('[data-theme="glass"]')
+  && extraThemesCss.includes('--biology-coherence-center-bg: #261e48')
+  && extraThemesCss.includes('[data-theme="synth-sunrise"]')
+  && extraThemesCss.includes('--biology-coherence-center-bg: #1c0e40')
+  && extraThemesCss.includes('[data-theme="neuromancer"]')
+  && extraThemesCss.includes('--biology-coherence-center-bg: #080b10'));
 const biologyScoreRenderSrc = fs.readFileSync(path.join(ROOT, 'js/biology-score-render.js'), 'utf8');
 const biologyScoreRailCss = dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('.biology-score-rail-fill'), dashboardWidgetsCss.indexOf('.biology-score-pin'));
 const dashboardCoherenceToneCss = dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('.db-bio-coherence-excellent .db-bio-coherence-ring'), dashboardWidgetsCss.indexOf('.db-bio-coherence-number'));
