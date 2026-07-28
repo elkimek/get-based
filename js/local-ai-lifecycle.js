@@ -125,14 +125,21 @@ export function localAiEndpointsShareMachine(firstUrl, secondUrl) {
 export async function releaseLocalAiModels({ baseUrl, apiKey = '', discovery }) {
   const plan = getLocalAiReleasePlan(discovery);
   const adapter = getLocalAiProviderAdapter(plan.providerId);
+  const unload = adapter.unload;
   const releasedModels = [];
   const failedModels = [];
-  if (!plan.supported || plan.models.length === 0) {
-    return { ...plan, releasedModels, failedModels, complete: plan.models.length === 0 };
+  if (typeof unload !== 'function' || plan.models.length === 0) {
+    return {
+      ...plan,
+      supported: typeof unload === 'function',
+      releasedModels,
+      failedModels,
+      complete: plan.models.length === 0,
+    };
   }
   for (const modelDetail of plan.models) {
     try {
-      const released = await adapter.unload({
+      const released = await unload({
         baseUrl: normalizeLocalAiBaseUrl(baseUrl),
         apiKey,
         model: modelDetail.name,

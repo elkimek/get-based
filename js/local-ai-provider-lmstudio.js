@@ -272,6 +272,15 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
   };
 }
 
+/**
+ * @param {{
+ *   baseUrl: string,
+ *   apiKey?: string,
+ *   model: string,
+ *   modelDetail?: { loadedInstanceId?: string } | null,
+ *   timeoutMs?: number,
+ * }} context
+ */
 export async function unloadLMStudioModel({ baseUrl, apiKey = '', model, modelDetail = null, timeoutMs = 5000 }) {
   const instanceId = modelDetail?.loadedInstanceId || model;
   if (!instanceId) return false;
