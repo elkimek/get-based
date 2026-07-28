@@ -46,6 +46,8 @@ const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
 const markerDetailSrc = [
   'marker-detail-modal.js',
   'marker-detail-modal-impl.js',
+  'marker-detail-manual-entry.js',
+  'marker-detail-custom-markers.js',
 ].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
