@@ -369,6 +369,10 @@ assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includ
 assert('SW APP_SHELL includes marker detail lazy implementation and focus memory',
   swAuditSrc.includes("'/js/marker-detail-modal-impl.js'") &&
   swAuditSrc.includes("'/js/modal-trigger-memory.js'"));
+assert('SW APP_SHELL includes marker detail subflow owners',
+  swAuditSrc.includes("'/js/marker-detail-content.js'") &&
+  swAuditSrc.includes("'/js/marker-detail-manual-entry.js'") &&
+  swAuditSrc.includes("'/js/marker-detail-custom-markers.js'"));
 assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
 assert('SW APP_SHELL includes recommendations product module', swAuditSrc.includes("'/js/recommendations-products.js'"));
@@ -652,7 +656,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-modal-impl.js', 'marker-detail-editing.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'context-card-medical-history-editor-impl.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-modal-impl.js', 'marker-detail-editing.js', 'marker-detail-manual-entry.js', 'marker-detail-custom-markers.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'context-card-medical-history-editor-impl.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

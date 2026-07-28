@@ -13,6 +13,13 @@ const MARKER_DETAIL_STYLESHEET_URL = new URL('../css/marker-detail-modal.css', i
 let _markerDetailStylesheetLoad = null;
 let _useMarkerDetailStylesheetRetryUrl = false;
 
+export function setDetailModalShell(...classes) {
+  const modal = document.getElementById('detail-modal');
+  if (!modal) return null;
+  modal.className = ['modal', ...classes.filter(Boolean)].join(' ');
+  return modal;
+}
+
 function markerDetailStylesheetUrl() {
   if (!_useMarkerDetailStylesheetRetryUrl) return MARKER_DETAIL_STYLESHEET_URL;
   const retryUrl = new URL(MARKER_DETAIL_STYLESHEET_URL);
