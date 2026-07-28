@@ -357,7 +357,7 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete line
+      buffer = lines.pop() || ''; // keep incomplete line
       for (const line of lines) {
         if (processLine(line)) { streamDone = true; break; }
       }

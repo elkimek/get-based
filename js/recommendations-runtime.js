@@ -7,7 +7,7 @@ const recommendationsRuntimeDeps = {
   closeModal: /** @type {null | (() => unknown)} */ (null),
   openEMFAssessmentEditor,
   openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
-  openProfileLocationEditor: null,
+  openProfileLocationEditor: /** @type {null | (() => unknown)} */ (null),
   openSettingsModal: /** @type {null | ((tab?: string) => unknown)} */ (null),
 };
 
@@ -66,7 +66,7 @@ export function configureRecommendationsRuntime(deps = {}) {
   }
   if ('openProfileLocationEditor' in deps) {
     recommendationsRuntimeDeps.openProfileLocationEditor = typeof deps.openProfileLocationEditor === 'function'
-      ? deps.openProfileLocationEditor
+      ? /** @type {() => unknown} */ (deps.openProfileLocationEditor)
       : null;
   }
   if ('openSettingsModal' in deps) {

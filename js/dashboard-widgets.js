@@ -120,7 +120,9 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
   function getDashboardWidgetPrefs() {
     const fallback = getDashboardDefaultWidgetPrefs();
     try {
-      const raw = JSON.parse(localStorage.getItem(dashboardWidgetStorageKey()));
+      const stored = localStorage.getItem(dashboardWidgetStorageKey());
+      if (!stored) return fallback;
+      const raw = JSON.parse(stored);
       if (!raw || !Array.isArray(raw.order) || !Array.isArray(raw.hidden)) return fallback;
       const fixedIds = getAvailableDashboardFixedWidgetIds();
       const rawOrder = raw.order.filter(id => typeof id === 'string');

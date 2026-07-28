@@ -2,7 +2,7 @@
 // ai-verdict-engine-runtime.js - Browser runtime adapters for AI verdicts.
 
 const aiVerdictRuntimeDeps = {
-  refreshSunSurfaces: null,
+  refreshSunSurfaces: /** @type {null | ((anchor: string | null) => any)} */ (null),
 };
 
 /** @param {{ refreshSunSurfaces?: ((anchor: string | null) => any) | null }} deps */

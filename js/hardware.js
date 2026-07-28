@@ -93,7 +93,7 @@ const LS_KEY = 'labcharts-hw-vram-override';
 
 export function getHardwareOverride() {
   try {
-    const v = parseFloat(localStorage.getItem(LS_KEY));
+    const v = parseFloat(localStorage.getItem(LS_KEY) || '');
     return isNaN(v) || v <= 0 ? null : v;
   } catch { return null; }
 }

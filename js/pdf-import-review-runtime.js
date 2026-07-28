@@ -20,7 +20,7 @@ const pdfImportReviewRuntimeDeps = {
   buildSidebar: /** @type {null | (() => void)} */ (null),
   confirmImport: /** @type {null | (() => unknown)} */ (null),
   navigate: /** @type {null | ((route: string) => void)} */ (null),
-  updateHeaderDates,
+  updateHeaderDates: /** @type {null | typeof updateHeaderDates} */ (updateHeaderDates),
 };
 
 export function configurePdfImportReviewRuntimeDeps(deps = {}) {

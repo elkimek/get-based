@@ -120,6 +120,10 @@ export function createDashboardViewComposition({
   });
   configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, toggleDashboardQuickMarkerPin, showEmojiPicker });
 
+  /**
+   * @param {string} widgetId
+   * @param {{data: any, filteredData: any} | null} [ctx]
+   */
   function getDashboardMarkerWidgetDefinition(widgetId, ctx = null) {
     const markerId = dashboardMarkerIdFromWidgetId(widgetId);
     if (!markerId) return null;

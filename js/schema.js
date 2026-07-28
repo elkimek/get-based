@@ -376,14 +376,21 @@ function isPercentClinicalUnit(unit) {
 
 function isFractionStoredPercentMarker(key) {
   const [catKey, markerKey] = String(key || '').split('.');
-  const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+  const marker = /** @type {{unit?: string, refMax?: number} | undefined} */ (
+    MARKER_SCHEMA[catKey]?.markers?.[markerKey]
+  );
   const conversion = UNIT_CONVERSIONS[key];
   return !!marker && (marker.unit || '') === '' && marker.refMax != null && marker.refMax <= 1
     && conversion?.type === 'multiply'
     && conversion.factor === 100 && isPercentClinicalUnit(conversion.usUnit);
 }
 
-function normalizeFractionStoredPercentValue(key, value, unit, context = null) {
+function normalizeFractionStoredPercentValue(
+  key,
+  value,
+  unit,
+  context = /** @type {Record<string, any> | null} */ (null),
+) {
   if (!isFractionStoredPercentMarker(key) || !isPercentClinicalUnit(unit)) return null;
   const [catKey, markerKey] = String(key || '').split('.');
   const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);

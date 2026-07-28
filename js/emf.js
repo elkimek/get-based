@@ -863,6 +863,7 @@ function showEMFImportPreview(parsed) {
   installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
+  if (!modal || !overlay) return;
   const fmtDate = parsed.date ? new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date';
 
   let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-preview')}>&times;</button>
@@ -905,9 +906,11 @@ function showEMFImportPreview(parsed) {
   </div>`;
 
   modal.innerHTML = html;
+  const confirmButton = modal.querySelector('#emf-confirm-btn');
+  if (!confirmButton) return;
   openModalOverlay(overlay);
 
-  document.getElementById('emf-confirm-btn').addEventListener('click', () => {
+  confirmButton.addEventListener('click', () => {
     const assessments = ensureAssessments();
     const assessment = {
       id: 'emf_' + Date.now(),

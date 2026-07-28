@@ -162,7 +162,7 @@ function collectLightModifiers(data, options = {}) {
   const lowVitaminDSynthesis = vitD7 != null && vitD7 < 4000;
   if (lowLoggedSunlight) flags.push('Light context: no recent outdoor sun sessions are logged; if accurate, vitamin D, inflammation, sleep, recovery, and hormone patterns may be light-constrained.');
   if (lowCircadianLight) flags.push('Light context: recent circadian-channel exposure appears absent/low; morning-light habits may be relevant to stress, sleep, glucose, and hormone patterns.');
-  if (lowVitaminDSynthesis) flags.push(`Light context: logged 7-day vitamin-D synthesis is low (~${Math.round(vitD7)} IU), so low 25-OH vitamin D should be interpreted with sunlight exposure, not only supplementation.`);
+  if (lowVitaminDSynthesis && vitD7 != null) flags.push(`Light context: logged 7-day vitamin-D synthesis is low (~${Math.round(vitD7)} IU), so low 25-OH vitamin D should be interpreted with sunlight exposure, not only supplementation.`);
   if (!hasLightData) flags.push('Light context: Light tracking is enabled by default for Biology Scores, but no light data is logged yet; scores can only infer light exposure from profile notes/labs.');
   return { includeLight, hasLightData, recentSunDays: recentSun.length, vitD7, circadian7, lowLoggedSunlight, lowCircadianLight, lowVitaminDSynthesis, flags };
 }

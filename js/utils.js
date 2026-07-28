@@ -530,6 +530,12 @@ export function showConfirmDialog(message) {
       <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
       <button class="confirm-btn confirm-btn-danger" id="confirm-ok">Confirm</button>
     </div></div>`;
+    const ok = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#confirm-ok'));
+    const cancel = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#confirm-cancel'));
+    if (!ok || !cancel) {
+      resolve(false);
+      return;
+    }
     let settled = false;
     const previousOnclick = overlay.onclick;
     overlay.dataset.escapeOwner = 'utils-confirm';
@@ -562,8 +568,8 @@ export function showConfirmDialog(message) {
       }
     };
     openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 0 });
-    document.getElementById("confirm-ok").onclick = () => close(true);
-    document.getElementById("confirm-cancel").onclick = () => close(false);
+    ok.onclick = () => close(true);
+    cancel.onclick = () => close(false);
   });
 }
 
@@ -595,9 +601,13 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
         <button class="confirm-btn confirm-btn-danger" id="prompt-ok" style="background:var(--accent)">${escapeHTML(okLabel)}</button>
       </div></div>`;
 
-    const input = /** @type {HTMLInputElement} */ (document.getElementById('prompt-dialog-input'));
-    const ok = document.getElementById('prompt-ok');
-    const cancel = document.getElementById('prompt-cancel');
+    const input = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#prompt-dialog-input'));
+    const ok = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#prompt-ok'));
+    const cancel = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#prompt-cancel'));
+    if (!input || !ok || !cancel) {
+      resolve(null);
+      return;
+    }
     let settled = false;
     const previousOnclick = overlay.onclick;
 

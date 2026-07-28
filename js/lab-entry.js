@@ -160,7 +160,7 @@ export function syncLabEntryInsulinMirror(entry, opts = {}) {
   const now = Number.isFinite(opts.now) ? opts.now : Date.now();
   const hormonesKey = 'hormones.insulin';
   const diabetesKey = 'diabetes.insulin_d';
-  let sourceKey = null;
+  let sourceKey = /** @type {'hormones.insulin' | 'diabetes.insulin_d' | null} */ (null);
   if (entry.markers[hormonesKey] !== undefined) {
     entry.markers[diabetesKey] = entry.markers[hormonesKey];
     sourceKey = hormonesKey;
@@ -170,9 +170,12 @@ export function syncLabEntryInsulinMirror(entry, opts = {}) {
   } else {
     return false;
   }
-  clearLabEntryMarkerTombstone(entry, getInsulinMirrorMarkerKey(sourceKey));
-  if (entry.markerSources?.[sourceKey]) {
-    ensureMarkerSources(entry)[getInsulinMirrorMarkerKey(sourceKey)] = entry.markerSources[sourceKey];
+  if (!sourceKey) return false;
+  const mirrorKey = sourceKey === hormonesKey ? diabetesKey : hormonesKey;
+  const markerSource = entry.markerSources?.[sourceKey];
+  clearLabEntryMarkerTombstone(entry, mirrorKey);
+  if (markerSource) {
+    ensureMarkerSources(entry)[mirrorKey] = markerSource;
   }
   recalculateLabEntryHOMAIR(entry);
   if (opts.stamp !== false) stampLabEntryUpdated(entry, now);

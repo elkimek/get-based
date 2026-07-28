@@ -177,9 +177,13 @@ function runTour(steps, storageKey, auto) {
     document.body.appendChild(tooltip);
   }
 
-  document.getElementById('tour-overlay').style.display = 'block';
-  document.getElementById('tour-spotlight').style.display = 'block';
-  document.getElementById('tour-tooltip').style.display = 'block';
+  const overlay = document.getElementById('tour-overlay');
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip = document.getElementById('tour-tooltip');
+  if (!overlay || !spotlight || !tooltip) return false;
+  overlay.style.display = 'block';
+  spotlight.style.display = 'block';
+  tooltip.style.display = 'block';
 
   goToStep(0);
   return true;
