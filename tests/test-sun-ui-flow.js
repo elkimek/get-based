@@ -273,6 +273,12 @@ return (async function() {
     const globalModalDeps = [];
     for (const file of [
       'js/light-tool-camera-modals.js',
+      'js/light-tool-cct-meter.js',
+      'js/light-tool-darkness-meter.js',
+      'js/light-tool-flicker-detector.js',
+      'js/light-tool-glass-transmission.js',
+      'js/light-tool-lux-meter.js',
+      'js/light-tool-spectrum-classifier.js',
       'js/light-device-session-modal.js',
       'js/light-tools.js',
       'js/sun-defaults.js',

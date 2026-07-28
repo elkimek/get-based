@@ -7,9 +7,18 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const modalSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
+const facadeSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
+const runtimeSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modal-runtime.js'), 'utf8');
+const modalSrc = [
+  'light-tool-lux-meter.js',
+  'light-tool-flicker-detector.js',
+  'light-tool-darkness-meter.js',
+  'light-tool-cct-meter.js',
+  'light-tool-spectrum-classifier.js',
+  'light-tool-glass-transmission.js',
+].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const cameraSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera.js'), 'utf8');
-const src = `${modalSrc}\n${cameraSrc}`;
+const src = `${facadeSrc}\n${runtimeSrc}\n${modalSrc}\n${cameraSrc}`;
 
 let passed = 0;
 let failed = 0;
@@ -43,10 +52,10 @@ console.log('=== Light Tool Camera Modal Delegates ===');
 assert('light camera modal templates render no inline event attributes',
   !inlineHandlerRe.test(src));
 assert('light camera modals use shared delegated action helper',
-  modalSrc.includes('function lightToolModalActionAttrs') &&
-    modalSrc.includes('data-light-tool-modal-action') &&
-    modalSrc.includes('function _handleLightToolModalClick') &&
-    modalSrc.includes("overlay.addEventListener('click', _handleLightToolModalClick);"));
+  runtimeSrc.includes('function lightToolModalActionAttrs') &&
+    runtimeSrc.includes('data-light-tool-modal-action') &&
+    runtimeSrc.includes('function handleLightToolModalClick') &&
+    runtimeSrc.includes("overlay.addEventListener('click', handleLightToolModalClick);"));
 assert('light camera aiming guide dismiss uses delegated action helper',
   cameraSrc.includes('data-aiming-guide-action="dismiss"') &&
     cameraSrc.includes('function _handleAimingGuideClick') &&
@@ -58,7 +67,7 @@ for (const action of closeActions) {
   assert(`light camera close action ${action} is rendered twice`,
     modalSrc.split(`lightToolModalActionAttrs('${action}')`).length - 1 === 2);
   assert(`light camera close action ${action} is handled`,
-    modalSrc.includes(`closeCameraTool('${action}')`) &&
+    facadeSrc.includes(`closeCameraTool('${action}')`) &&
       modalSrc.includes(`registerCameraToolCloser('${action}'`) &&
       modalSrc.includes(`clearCameraToolCloser('${action}'`));
 }

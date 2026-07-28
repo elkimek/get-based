@@ -31,7 +31,15 @@ const lightDevicesSrc = fs.readFileSync(path.join(root, 'js/light-devices.js'), 
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
 const lightSessionsViewHooksSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view-hooks.js'), 'utf8');
 const lightSessionsViewSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view.js'), 'utf8');
-const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
+const lightToolCameraModalsSrc = [
+  'light-tool-camera-modal-runtime.js',
+  'light-tool-lux-meter.js',
+  'light-tool-flicker-detector.js',
+  'light-tool-darkness-meter.js',
+  'light-tool-cct-meter.js',
+  'light-tool-spectrum-classifier.js',
+  'light-tool-glass-transmission.js',
+].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
 const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
