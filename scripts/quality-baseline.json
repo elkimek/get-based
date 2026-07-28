@@ -7,6 +7,6 @@
   "viewRuntimeBridgeLookups": 0,
   "labStateAppFiles": 0,
   "labStateTestFiles": 0,
-  "largeJsFilesOver800Lines": 21,
+  "largeJsFilesOver800Lines": 20,
   "maxJsFileLines": 1168
 }

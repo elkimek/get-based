@@ -273,6 +273,7 @@ const APP_SHELL = [
   '/js/client-list-runtime.js',
   '/js/client-list.js',
   '/js/client-list-impl.js',
+  '/js/client-list-form.js',
   '/js/nav-runtime.js',
   '/js/nav.js',
   '/js/views-router-runtime.js',

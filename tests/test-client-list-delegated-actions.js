@@ -7,7 +7,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const clientListSrc = fs.readFileSync(path.join(root, 'js/client-list-impl.js'), 'utf8');
+const clientListImplSrc = fs.readFileSync(path.join(root, 'js/client-list-impl.js'), 'utf8');
+const clientListFormSrc = fs.readFileSync(path.join(root, 'js/client-list-form.js'), 'utf8');
+const clientListSrc = `${clientListImplSrc}\n${clientListFormSrc}`;
 const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);
 const clientListClosesOverlay = /closeModalOverlay\s*\(\s*['"]client-list-overlay['"]\s*\)/.test(clientListSrc);
 
@@ -69,7 +71,7 @@ assert('client-list modal uses shared overlay lifecycle helpers',
     !clientListSrc.includes("document.body.style.overflow = 'hidden'") &&
     !clientListSrc.includes("document.body.style.overflow = ''"));
 assert('dynamic avatar and tag buttons avoid direct onclick assignment',
-  clientListSrc.includes("btn.setAttribute('data-cl-action', 'remove-avatar')") &&
+  /\.setAttribute\(\s*['"]data-cl-action['"]\s*,\s*['"]remove-avatar['"]\s*\)/.test(clientListSrc) &&
     !clientListSrc.includes('.onclick'));
 assert('height display rounds cm to whole numbers and inches to one decimal',
   clientListSrc.includes("unit === 'in' ? (heightCm / 2.54).toFixed(1) : String(Math.round(heightCm))") &&
@@ -78,7 +80,7 @@ assert('height display rounds cm to whole numbers and inches to one decimal',
 assert('latitude AI refinement rechecks provider availability inside debounce',
   clientListSrc.includes('const hasAIProvider = hasClientListAIProvider();') &&
     clientListSrc.includes('if (!hasClientListAIProvider()) return;') &&
-    /_clLatTimer\s*=\s*setTimeout/.test(clientListSrc));
+    /latitudeTimer\s*=\s*setTimeout/.test(clientListSrc));
 
 [
   'close',

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 495 |
-| Internal import edges | 2232 |
+| Modules | 496 |
+| Internal import edges | 2238 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,13 +38,13 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 229 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 154 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/utils.js`](js/utils.js) | 230 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 155 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 72 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 64 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 63 | [`js/chat-send.js`](js/chat-send.js) | 22 |
-| [`js/profile.js`](js/profile.js) | 44 | [`js/views.js`](js/views.js) | 22 |
+| [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
@@ -250,9 +250,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>client</code> family — 3 modules</summary>
+<details><summary><code>client</code> family — 4 modules</summary>
 
-- [`js/client-list-impl.js`](js/client-list-impl.js) → [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/constants.js`](js/constants.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/client-list-form.js`](js/client-list-form.js) → [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/constants.js`](js/constants.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/client-list-impl.js`](js/client-list-impl.js) → [`js/client-list-form.js`](js/client-list-form.js), [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/client-list-runtime.js`](js/client-list-runtime.js) → [`js/api.js`](js/api.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/client-list.js`](js/client-list.js) → [`js/client-list-impl.js`](js/client-list-impl.js) *(dynamic)*, [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js)
 

@@ -295,6 +295,8 @@ assert('client list implementation stays behind its public lazy entry',
   !appUiShellModulesSrc.includes("import './client-list.js'"));
 assert('SW APP_SHELL includes offline client list implementation',
   swAuditSrc.includes("'/js/client-list-impl.js'"));
+assert('SW APP_SHELL includes offline client list form owner',
+  swAuditSrc.includes("'/js/client-list-form.js'"));
 assert('index defers wearables CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/wearables.css"') &&
   indexSrc.includes('data-wearables-stylesheet-anchor') &&

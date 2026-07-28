@@ -97,6 +97,7 @@ const pwaAppShellAssets = [
   '/js/profile-share-loader.js',
   '/js/app-ai-interaction-modules.js',
   '/js/app-ui-shell-modules.js',
+  '/js/client-list-form.js',
   '/js/app-event-listeners.js',
   '/js/crypto-key-cache.js',
   '/js/startup-orchestrator.js',
