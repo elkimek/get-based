@@ -44,6 +44,14 @@ export function useCustomApiProxy() {
 
 const proxyFetch = createProxyFetch(useCustomApiProxy);
 
+/**
+ * @typedef {{
+ *   useProxy?: boolean,
+ *   extraBody?: Record<string, any>,
+ *   fetchImpl?: typeof fetch | null,
+ * }} OpenAICompatibleTransportOptions
+ */
+
 export async function fetchWithApiRetry(url, options, retries = 2, useProxy = true, requestTimeoutMs = FETCH_REQUEST_TIMEOUT_MS) {
   return fetchWithRetry(url, options, {
     retries,
@@ -92,7 +100,7 @@ function localAIReasoningControlRejected(res, errorText) {
   return (res.status === 400 || res.status === 422) && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = {}) {
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -240,7 +248,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
         throw new Error(`${providerName} stream exceeded ${MAX_SSE_BUFFER} bytes without a newline - aborting.`);
       }
       const lines = buffer.split('\n');
-      buffer = lines.pop();
+      buffer = lines.pop() || '';
       for (const line of lines) handleSSELine(line, true);
     }
     if (buffer.startsWith('data: ')) handleSSELine(buffer, false);

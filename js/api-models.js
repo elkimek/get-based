@@ -97,7 +97,7 @@ function isCustomRecommendedModel(modelId) {
 function modelStartsWithRecommended(modelId, prefix) {
   const id = normalizedModelId(modelId);
   const p = normalizedModelId(prefix);
-  const slug = id.split('/').pop();
+  const slug = id.split('/').pop() || '';
   return id.startsWith(p) || slug.startsWith(p);
 }
 
@@ -363,6 +363,6 @@ export function supportsVision() {
 export function needsMaxCompletionTokens(modelId) {
   if (!modelId) return false;
   const id = String(modelId).toLowerCase();
-  const bare = id.includes('/') ? id.split('/').pop() : id;
+  const bare = id.includes('/') ? id.split('/').pop() || '' : id;
   return /^(gpt-5|o[1-9])([-.]|$)/.test(bare);
 }
