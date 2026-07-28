@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 507 |
-| Internal import edges | 2289 |
+| Modules | 508 |
+| Internal import edges | 2296 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,11 +38,11 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 236 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 162 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/utils.js`](js/utils.js) | 237 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 163 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 67 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 68 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 33 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
@@ -338,7 +338,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>dna</code> family — 8 modules</summary>
+<details><summary><code>dna</code> family — 9 modules</summary>
 
 - [`js/dna-actions.js`](js/dna-actions.js) → [`js/utils.js`](js/utils.js)
 - [`js/dna-file-detection.js`](js/dna-file-detection.js) → no in-scope imports
@@ -347,7 +347,8 @@ Native browser modules shipped with the static application.
 - [`js/dna-parser.js`](js/dna-parser.js) → [`js/dna-file-detection.js`](js/dna-file-detection.js), [`js/dna-genotype.js`](js/dna-genotype.js)
 - [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js) → no in-scope imports
 - [`js/dna-runtime.js`](js/dna-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/profile.js`](js/profile.js), [`js/utils.js`](js/utils.js)
-- [`js/dna.js`](js/dna.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-parser.js`](js/dna-parser.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/dna-ui.js`](js/dna-ui.js) → [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/dna.js`](js/dna.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-parser.js`](js/dna-parser.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/dna-ui.js`](js/dna-ui.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

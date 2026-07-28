@@ -198,6 +198,7 @@ const highValueCheckJsModules = [
   'js/dashboard-lab-widget-renderers.js',
   'js/dashboard-widget-renderers.js',
   'js/dna.js',
+  'js/dna-ui.js',
   'js/dna-runtime.js',
   'js/export-import.js',
   'js/export.js',

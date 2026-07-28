@@ -126,6 +126,7 @@
     "js/data-merge.js",
     "js/data.js",
     "js/dna.js",
+    "js/dna-ui.js",
     "js/dna-file-detection.js",
     "js/dna-parser.js",
     "js/dna-runtime.js",

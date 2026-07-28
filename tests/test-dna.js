@@ -491,11 +491,13 @@ assert('Genome lens header keeps affiliate link on its own row',
   stylesSrc.includes('flex-basis: 100%'));
 
 const dnaSrc = await fetchWithRetry('js/dna.js');
+const dnaUiSrc = await fetchWithRetry('js/dna-ui.js');
+const dnaSurfaceSrc = `${dnaSrc}\n${dnaUiSrc}`;
 const dnaRuntimeSrc = await fetchWithRetry('js/dna-runtime.js');
 const dnaMtDnaSrc = await fetchWithRetry('js/dna-mtdna.js');
 assert('dna.js delegates browser runtime hooks to dna-runtime',
   dnaSrc.includes("from './dna-runtime.js'") &&
-    !/\bwindow\b/.test(dnaSrc));
+    !/\bwindow\b/.test(dnaSurfaceSrc));
 assert('dna-runtime owns DNA transient runtime state and shell integration',
   dnaRuntimeSrc.includes('_pendingDNAImport') &&
     dnaRuntimeSrc.includes('_pendingMtDNA') &&
@@ -511,23 +513,23 @@ assert('dna-mtdna delegates browser runtime hooks to dna-runtime',
     dnaMtDnaSrc.includes('getDnaProfileLatitudeBand') &&
     dnaMtDnaSrc.includes('refreshDnaShell') &&
     !/\bwindow(?:\.|\s*\[)/.test(dnaMtDnaSrc));
-assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
+assert('genetics section collapses non-priority SNP calls', dnaUiSrc.includes('genetics-other-snps') && dnaUiSrc.includes('Other imported SNPs'));
 assert('genetics actions expose manual SNP and report import escape hatches',
-  dnaSrc.includes("dnaActionAttrs('add-manual-snp')") &&
-  dnaSrc.includes("dnaActionAttrs('import-snp-report')") &&
+  dnaUiSrc.includes("dnaActionAttrs('add-manual-snp')") &&
+  dnaUiSrc.includes("dnaActionAttrs('import-snp-report')") &&
   dnaSrc.includes("accept = '.pdf,.txt,.csv,.text'") &&
-  dnaSrc.includes('manual-snp-bulk') &&
-  dnaSrc.includes('Save SNPs') &&
-  dnaSrc.includes('Same path, no duplicate modes'));
+  dnaUiSrc.includes('manual-snp-bulk') &&
+  dnaUiSrc.includes('Save SNPs') &&
+  dnaUiSrc.includes('Same path, no duplicate modes'));
 assert('manual SNP UI uses one paste surface instead of duplicate single/bulk mechanisms',
-  dnaSrc.includes('<textarea id="manual-snp-bulk"') &&
-  !dnaSrc.includes('id="manual-snp-rsid"') &&
-  !dnaSrc.includes('id="manual-snp-genotype"') &&
-  !dnaSrc.includes('Single SNP'));
+  dnaUiSrc.includes('<textarea id="manual-snp-bulk"') &&
+  !dnaUiSrc.includes('id="manual-snp-rsid"') &&
+  !dnaUiSrc.includes('id="manual-snp-genotype"') &&
+  !dnaUiSrc.includes('Single SNP'));
 assert('manual SNP modal uses genetics-styled controls instead of generic form-input fields',
-  dnaSrc.includes('dna-manual-input') &&
-  dnaSrc.includes('dna-manual-textarea') &&
-  !dnaSrc.includes('id="manual-snp-rsid" class="form-input"'));
+  dnaUiSrc.includes('dna-manual-input') &&
+  dnaUiSrc.includes('dna-manual-textarea') &&
+  !dnaUiSrc.includes('id="manual-snp-rsid" class="form-input"'));
 assert('manual SNP CSS gives inputs app-native surfaces and focus rings',
   stylesSrc.includes('.dna-manual-input') &&
   stylesSrc.includes('background: var(--bg-primary)') &&
@@ -540,19 +542,20 @@ assert('manual/report SNP imports stage changes in a draft and restore memory on
   dnaSrc.includes('state.importedData = originalData'));
 assert('manual/report SNP imports merge through upsert instead of replacing genetics',
   dnaSrc.includes('result.mergeSnps') && dnaSrc.includes('upsertGeneticsSnp(draftData'));
-assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
+assert('DNA import preview separates beneficial findings', dnaUiSrc.includes('Beneficial findings') && dnaUiSrc.includes("impact: match.valence === 'protective' ? 'beneficial' : match.effect"));
 assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nudge',
-  dnaSrc.includes("from './modal-lifecycle.js'") &&
-    dnaSrc.includes('nudgeDnaModal') &&
-    dnaSrc.includes("classList.add('modal-nudge')") &&
-    dnaSrc.includes('handleDnaBackdropClick') &&
-    dnaSrc.includes("target.id !== 'dna-modal-overlay'") &&
-    dnaSrc.includes('handleDnaModalEscape') &&
-    dnaSrc.includes("event.key !== 'Escape'") &&
+  dnaUiSrc.includes("from './modal-lifecycle.js'") &&
+    dnaUiSrc.includes('nudgeDnaModal') &&
+    dnaUiSrc.includes("classList.add('modal-nudge')") &&
+    dnaUiSrc.includes('handleDnaBackdropClick') &&
+    dnaUiSrc.includes("target.id !== 'dna-modal-overlay'") &&
+    dnaUiSrc.includes('handleDnaModalEscape') &&
+    dnaUiSrc.includes("event.key !== 'Escape'") &&
     dnaMtDnaSrc.includes("from './modal-lifecycle.js'") &&
-    dnaSrc.includes('openDnaModalOverlay(overlay') &&
+    dnaUiSrc.includes('openDnaModalOverlay(overlay') &&
     dnaMtDnaSrc.includes('openModalOverlay(overlay)') &&
     ((dnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length
+      + (dnaUiSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length
       + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 4);
 assert('DNA import success waits for persistence',
   /async function confirmDNAImport\(\)[\s\S]{0,900}await saveImportedData\(\)/.test(dnaSrc));
@@ -565,8 +568,8 @@ assert('mtDNA save paths wait for persistence',
   /export async function confirmMtDNAImport\(\)[\s\S]{0,1200}await saveImportedData\(\)/.test(dnaMtDnaSrc) &&
   /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaMtDnaSrc));
 assert('DNA reference links use attribute escaping instead of quote-only replacement',
-  dnaSrc.includes('escapeAttr(primaryRef)') &&
-  !dnaSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));
+  dnaUiSrc.includes('escapeAttr(primaryRef)') &&
+  !dnaSurfaceSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));
 
 const labCtxSrc = await fetchWithRetry('js/lab-context.js');
 assert('lab-context.js uses the DNA module bridge for genetics context',

@@ -127,6 +127,7 @@ assert('SW APP_SHELL includes lens URL helper module', swAuditSrc.includes("'/js
 assert('SW APP_SHELL includes lens local store helper module', swAuditSrc.includes("'/js/lens-local-store.js'"));
 assert('SW APP_SHELL includes DNA action delegates module', swAuditSrc.includes("'/js/dna-actions.js'"));
 assert('SW APP_SHELL includes DNA genotype helper module', swAuditSrc.includes("'/js/dna-genotype.js'"));
+assert('SW APP_SHELL includes DNA UI owner module', swAuditSrc.includes("'/js/dna-ui.js'"));
 assert('SW APP_SHELL includes DNA mtDNA helper module', swAuditSrc.includes("'/js/dna-mtdna.js'"));
 assert('SW APP_SHELL includes service worker update module', swAuditSrc.includes("'/js/service-worker-update.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
@@ -526,6 +527,8 @@ const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
 const contextProfileCssAuditSrc = read('css/context-profile.css');
 const contextEditorCssAuditSrc = read('css/context-editor.css');
 const dnaSrc = read('js/dna.js');
+const dnaUiSrc = read('js/dna-ui.js');
+const dnaSurfaceSrc = `${dnaSrc}\n${dnaUiSrc}`;
 assert('Trend alert name escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.name)'));
 assert('Trend alert category escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.category)'));
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardLabRenderersSrc));
@@ -539,7 +542,7 @@ assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(com
 assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 assert('Genome genetics refs keep shared unscoped CSS',
-  dnaSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(geneticsCssAuditSrc));
+  dnaUiSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(geneticsCssAuditSrc));
 assert('Marker detail bundle does not own shared genetics refs',
   !/\.marker-detail-modal\s+\.detail-genetics(?:-ref)?/.test(markerDetailCssAuditSrc));
 
@@ -640,11 +643,11 @@ assert('Lens page controls use delegated shell actions',
     && lensPageShellSrc.includes('open-privacy-settings')
     && !/\son(?:click|change|input)\s*=/.test(lensPagesSrc));
 assert('DNA controls use delegated actions',
-  dnaSrc.includes("from './dna-actions.js'")
+  dnaSurfaceSrc.includes("from './dna-actions.js'")
     && dnaActionsSrc.includes('function handleDnaActionClick')
     && dnaActionsSrc.includes('function handleDnaActionKeydown')
     && dnaActionsSrc.includes('export function dnaActionAttrs')
-    && !/\son(?:click|keydown|change|input)\s*=/.test(dnaSrc));
+    && !/\son(?:click|keydown|change|input)\s*=/.test(dnaSurfaceSrc));
 
 const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
 const _SAFE_HELPERS = new Set([
