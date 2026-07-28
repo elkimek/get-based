@@ -191,6 +191,8 @@ const pwaAppShellAssets = [
   '/js/sun-sessions-store.js',
   '/js/sun-session-ui.js',
   '/js/sun-session-actions.js',
+  '/js/sun-spectrum-actions.js',
+  '/js/sun-spectrum-device.js',
   '/js/sun-spectrum.js',
   '/js/sun-uvdata-config.js',
   '/js/sun-uvdata.js',

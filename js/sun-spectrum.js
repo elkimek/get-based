@@ -24,288 +24,38 @@
 // This is a coarse spectral model — explicitly an estimate, not measurement.
 // Output marked with `confidence` matching the underlying UV-data source.
 
-const WAVELENGTHS = (() => {
-  const arr = [];
-  for (let nm = 280; nm <= 2500; nm += 5) arr.push(nm);
-  return arr;
-})();
+import {
+  erythemalAt,
+  melanopicAt,
+  nirSolarAt,
+  noReleaseAt,
+  opn5At,
+  pbmNirAt,
+  pbmRedAt,
+  vitaminDAt,
+} from './sun-spectrum-actions.js';
+import {
+  glassTransmission,
+  SPECTRUM_WAVELENGTHS as WAVELENGTHS,
+  sunscreenTransmission,
+} from './sun-spectrum-device.js';
 
-// ─── Action spectra (relative, 0-1) ────────────────────────────────────
-// Tabulated at 5nm resolution to match WAVELENGTHS array.
-
-// Erythemal action spectrum — McKinlay-Diffey 1987 (CIE Journal 6:17),
-// codified as CIE S 007 / ISO 17166:1999. Peaks at 297nm, drops sharply.
-function erythemalAt(nm) {
-  if (nm < 250) return 0;
-  if (nm <= 298) return 1.0;
-  if (nm <= 328) return Math.pow(10, 0.094 * (298 - nm));
-  if (nm <= 400) return Math.pow(10, 0.015 * (140 - nm));
-  return 0;
-}
-
-// CIE 174:2006 previtamin-D3 action spectrum — peaks at 297nm, narrower window than erythemal
-function vitaminDAt(nm) {
-  if (nm < 252 || nm > 330) return 0;
-  // Smoothed approximation of the CIE 174:2006 tabulated action spectrum
-  if (nm <= 297) return Math.pow(10, -0.25 * (297 - nm));
-  if (nm <= 330) return Math.pow(10, -0.13 * (nm - 297));
-  return 0;
-}
-
-// CIE melanopic — peaks at 490nm, gaussian-like, sensitive 420-560nm
-function melanopicAt(nm) {
-  if (nm < 380 || nm > 720) return 0;
-  // Smolders et al. melanopic V'(λ) approximation
-  const sigma = 50;
-  return Math.exp(-Math.pow(nm - 490, 2) / (2 * sigma * sigma));
-}
-
-// OPN5 violet — dual peak ~380nm + ~471nm (Buhr 2019)
-function opn5At(nm) {
-  if (nm < 320 || nm > 540) return 0;
-  const a = Math.exp(-Math.pow(nm - 380, 2) / (2 * 25 * 25));
-  const b = 0.7 * Math.exp(-Math.pow(nm - 471, 2) / (2 * 30 * 30));
-  return Math.max(a, b);
-}
-
-// CCO red+NIR (Karu 1999) — broad, peaks at 620, 670, 760, 830nm
-function ccoAt(nm) {
-  if (nm < 580 || nm > 1100) return 0;
-  // Sum of gaussians at the four CCO absorption bands
-  const peaks = [
-    { c: 620, w: 18, h: 0.5 },
-    { c: 670, w: 22, h: 0.9 },
-    { c: 760, w: 30, h: 0.7 },
-    { c: 830, w: 38, h: 1.0 },
-  ];
-  let sum = 0;
-  for (const p of peaks) {
-    sum += p.h * Math.exp(-Math.pow(nm - p.c, 2) / (2 * p.w * p.w));
-  }
-  return Math.min(1, sum);
-}
-
-// NO release in skin (Liu 2014) — UVA peak ~330-360nm
-function noReleaseAt(nm) {
-  if (nm < 300 || nm > 410) return 0;
-  return Math.exp(-Math.pow(nm - 345, 2) / (2 * 25 * 25));
-}
-
-// NIR-solar broadband (600-1400nm Wunsch optical tissue window)
-function nirSolarAt(nm) {
-  if (nm < 600 || nm > 1400) return 0;
-  // Roughly flat across the window with modest weighting toward 800-1000nm
-  return 0.5 + 0.5 * Math.exp(-Math.pow(nm - 900, 2) / (2 * 200 * 200));
-}
-
-// PBM bands — narrowband artificial sources only (used by deviceSessions, not sun)
-function pbmRedAt(nm) {
-  if (nm < 600 || nm > 700) return 0;
-  return Math.exp(-Math.pow(nm - 660, 2) / (2 * 15 * 15));
-}
-function pbmNirAt(nm) {
-  if (nm < 700 || nm > 1100) return 0;
-  return Math.exp(-Math.pow(nm - 850, 2) / (2 * 25 * 25));
-}
-
-// ─── Body-side modifiers ──────────────────────────────────────────────
-//
-// When a session is logged "behind glass" or "with sunscreen," skin-channel
-// doses must be attenuated wavelength-by-wavelength, not via a single
-// global multiplier. UVB at 297 nm and NIR at 850 nm pass through glass
-// very differently, and SPF-rated sunscreen leaves visible/NIR untouched
-// while blocking ~98% of UVB.
-
-// Standard clear soda-lime window glass transmission. Approximates Pilkington
-// optical-data datasheets: total UVB block, partial UVA, mostly clear visible,
-// tapering NIR. Single-pane; double glazing roughly halves NIR transmission
-// further (not modeled — bigger fish to fry).
-export function glassTransmission(nm) {
-  if (nm < 320) return 0.0;        // UVB blocked entirely
-  if (nm < 340) return 0.05;       // short UVA — almost entirely blocked
-  if (nm < 380) return 0.4;        // long UVA — partial pass
-  if (nm < 700) return 0.85;       // visible — most passes (~80-90%)
-  if (nm < 1100) return 0.7;       // NIR — partial pass through glass
-  if (nm < 2500) return 0.3;       // longer NIR — heavily attenuated
-  return 0.0;                       // mid-IR blocked
-}
-
-// Synthesize a sparse spectrum for a therapy device from its declared
-// peak wavelengths + total irradiance. Each peak becomes a narrow Gaussian
-// (30 nm FWHM, typical for an LED), and the device's `mwPerCm2At15cm`
-// total is split across peaks so the integrated irradiance ∫ E(λ)dλ
-// matches the device rating.
-//
-// Inputs:
-//   device: { peakWavelengths: number[], mwPerCm2At15cm: number, lux?: number }
-//   bandShares?: optional Record<nm, fraction> overriding equal distribution
-// Output: { wavelengths[], irradiance[] (W/m²/nm) } — same shape as
-//   reconstructSpectrum, so it drops straight into computeChannelDoses.
-//
-// Why this matters: the previous heuristic gave each declared `channel`
-// the FULL device irradiance, double-counting the same photons across
-// pbm_red, pbm_nir, vitamin_d, etc. Routing through computeChannelDoses
-// with a real (synthesized) spectrum produces wavelength-correct, non-
-// duplicating per-channel doses by construction — and inherits glass +
-// sunscreen attenuation for free.
-//
-// The 30 nm FWHM (sigma ~12.7) reflects typical LED bin width. Narrowband
-// laser sources (e.g. Pulse torch, Sperti UVB tubes) are slightly wider
-// in this approximation than reality — acceptable for relative-trend
-// correlation; not a radiometric reference.
-// Per-band Gaussian sigma for LED/tube emission. Pre-2026-05-08 a single
-// 12.7 sigma (~30 nm FWHM) was applied to every peak. That's correct for
-// red/NIR LEDs (typical FWHM 25–35 nm) but ~3× too wide for UVB/UVA LEDs
-// (typical FWHM 8–12 nm). Wider σ spreads device output away from the
-// action-spectrum peak and under-attributes the channel dose — Žofka
-// audit 2026-05-08 caught this on a 295nm UVB session that produced
-// ~3× less Vit-D IU than back-of-envelope biology predicted.
-//
-// Bandwidths sourced from typical commercial LED bin widths:
-//   UVB 280–320 nm  → ~10 nm FWHM (σ 4.3)
-//   UVA 320–410 nm  → ~14 nm FWHM (σ 5.9)
-//   Blue/violet 410–500 nm → ~20 nm FWHM (σ 8.5)
-//   Red/NIR 500+ nm → ~30 nm FWHM (σ 12.7)
-function _peakSigmaForWavelength(nm) {
-  if (nm < 320) return 4.3;
-  if (nm < 410) return 5.9;
-  if (nm < 500) return 8.5;
-  return 12.7;
-}
-
-// Heuristic peakShares for devices that declare peakWavelengths but no
-// explicit peakShares.
-//
-// Two distinct device classes need different defaults:
-//
-//   1. PURE UV/UVB device (only UV+blue peaks declared, no red/NIR) —
-//      narrowband phototherapy tube or dedicated UV LED. The rated
-//      mW/cm² IS the UV output. UV bands carry essentially all the
-//      power.
-//
-//   2. HYBRID panel (UV+blue AND red/NIR peaks declared) — devices like
-//      Mitochondriak Maxi UVB, Chroma Trinity. The rated mW/cm² is the
-//      FULL-PANEL output across all diodes. UV LEDs are expensive +
-//      low-efficiency, so manufacturers fit only a few; UVB is
-//      typically <10% of total panel power, the rest is red/NIR.
-//      Žofka audit 2026-05-08 round 6 caught this: a 30% UVB share for
-//      type='uvb' hybrid panels saturated the per-session cap on every
-//      duration, hiding any duration response.
-//
-// Detection: presence of UV peaks AND red/NIR peaks → hybrid; otherwise
-// fall back to type-only classification.
-//
-// Per-band weights then distribute evenly across peaks present in that
-// band (e.g. 4 NIR peaks share the NIR allotment). User-imported devices
-// via AI extraction inherit this heuristic automatically — they get
-// physics-correct shares from `type` + peak-wavelength layout alone,
-// without the AI prompt needing to extract per-band power (which most
-// spec sheets don't publish).
-// Exported public alias of `_heuristicPeakShares` so that mode-aware
-// callers (light-devices.js) can compute the per-peak power split on
-// the FULL device first, then renormalize over the firing subset for
-// a partial-mode session. Keeping the underscore-prefixed internal
-// reference for backward compatibility within this module.
-export function heuristicPeakShares(peaks, deviceType) {
-  return _heuristicPeakShares(peaks, deviceType);
-}
-
-function _heuristicPeakShares(peaks, deviceType) {
-  const bandOf = (nm) => {
-    if (nm < 320) return 'uvb';
-    if (nm < 410) return 'uva';
-    if (nm < 500) return 'blue';
-    if (nm < 700) return 'red';
-    return 'nir';
-  };
-  const t = String(deviceType || '').toLowerCase();
-  const bands = peaks.map(bandOf);
-  const hasUv = bands.some(b => b === 'uvb' || b === 'uva');
-  const hasRedNir = bands.some(b => b === 'red' || b === 'nir');
-  const isHybrid = hasUv && hasRedNir;
-
-  let bandWeights;
-  if (isHybrid) {
-    // Hybrid panel: UV diodes are the minority of total panel power.
-    // Real-world ratios for panels like Mitochondriak Maxi UVB / Chroma
-    // Trinity hover around UVB 5% / UVA 5% / blue 5% / red 35% / nir 50%.
-    bandWeights = { uvb: 0.05, uva: 0.05, blue: 0.05, red: 0.35, nir: 0.50 };
-  } else if (t === 'uvb' || t === 'uva') {
-    // Pure UV/UVB device (no red/NIR peaks): rated power is the UV
-    // output; UV+blue bands carry essentially all of it.
-    bandWeights = { uvb: 0.40, uva: 0.40, blue: 0.20, red: 0.0, nir: 0.0 };
-  } else if (t === 'pbm' || t === 'pbm-targeted') {
-    bandWeights = { uvb: 0.02, uva: 0.03, blue: 0.05, red: 0.40, nir: 0.50 };
-  } else if (t === 'sad' || t === 'dawn') {
-    bandWeights = { uvb: 0.0, uva: 0.05, blue: 0.45, red: 0.30, nir: 0.20 };
-  } else {
-    bandWeights = { uvb: 0.20, uva: 0.20, blue: 0.20, red: 0.20, nir: 0.20 };
-  }
-  const bandCount = {};
-  for (const b of bands) bandCount[b] = (bandCount[b] || 0) + 1;
-  const raw = bands.map((b) => (bandWeights[b] || 0) / (bandCount[b] || 1));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return sum > 0 ? raw.map(w => w / sum) : peaks.map(() => 1 / peaks.length);
-}
-
-export function synthesizeDeviceSpectrum(device) {
-  if (!device) return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
-  const peaks = Array.isArray(device.peakWavelengths) ? device.peakWavelengths : [];
-  // Convert mW/cm² → W/m² (×10) so units match reconstructSpectrum
-  const totalWm2 = (Number(device.mwPerCm2At15cm) || 0) * 10;
-  if (peaks.length === 0 || totalWm2 <= 0) {
-    return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
-  }
-  // Per-peak power split. Devices may declare `peakShares` (parallel to
-  // peakWavelengths, sums to 1). When omitted, fall back to a type-aware
-  // heuristic — never equal-N split, which silently understated UVB
-  // channel-au by ~10× on hybrid red+UV panels and overstated red+NIR
-  // on UVB-mode-dominant panels.
-  const rawShares = Array.isArray(device.peakShares) && device.peakShares.length === peaks.length
-    ? device.peakShares.map(s => Math.max(0, Number(s) || 0))
-    : null;
-  let shares;
-  if (rawShares) {
-    const sum = rawShares.reduce((a, b) => a + b, 0);
-    shares = sum > 0 ? rawShares.map(s => s / sum) : _heuristicPeakShares(peaks, device.type);
-  } else {
-    shares = _heuristicPeakShares(peaks, device.type);
-  }
-  // Per-peak Gaussian: peak amplitude such that integral over wavelength
-  // equals share × totalWm2. Gaussian integrand factor 1/(sigma·√(2π))
-  // keeps ∫ E(λ)dλ ≈ peakWm2 over the band. Sigma is per-band so UVB/UVA
-  // peaks aren't artificially smeared with the red/NIR FWHM.
-  const irradiance = WAVELENGTHS.map(() => 0);
-  for (let p = 0; p < peaks.length; p++) {
-    const peak = peaks[p];
-    if (!Number.isFinite(peak)) continue;
-    const peakWm2 = shares[p] * totalWm2;
-    const sigma = _peakSigmaForWavelength(peak);
-    const norm = 1 / (sigma * Math.sqrt(2 * Math.PI));
-    for (let i = 0; i < WAVELENGTHS.length; i++) {
-      const nm = WAVELENGTHS[i];
-      const g = Math.exp(-Math.pow(nm - peak, 2) / (2 * sigma * sigma)) * norm;
-      irradiance[i] += peakWm2 * g;
-    }
-  }
-  return { wavelengths: WAVELENGTHS, irradiance };
-}
-
-// Broad-spectrum sunscreen wavelength-dependent transmission for a given
-// SPF rating. SPF is defined relative to erythemal dose (UVB-weighted),
-// so 1/SPF is exact for UVB. UVA-PF (UVA protection factor) is typically
-// ~1/3 of SPF for broad-spectrum products, so UVA transmission is higher.
-// Visible + NIR pass essentially unattenuated (most sunscreens are clear
-// to those bands; tinted iron-oxide sunscreens that block HEV are not
-// the typical case and aren't modeled here).
-export function sunscreenTransmission(nm, spf) {
-  const s = Number(spf) || 0;
-  if (s <= 1) return 1.0;
-  if (nm < 320) return 1.0 / s;                    // UVB — defined target of SPF
-  if (nm < 360) return Math.min(1, 1.4 / s);       // UVA short — broad-spectrum is ~70% of SPF
-  if (nm < 400) return Math.min(1, 2.0 / s);       // UVA long — typically ~50% of SPF
-  return 1.0;                                       // visible + NIR pass
-}
+export {
+  ccoAt,
+  erythemalAt,
+  melanopicAt,
+  noReleaseAt,
+  opn5At,
+  vitaminDAt,
+} from './sun-spectrum-actions.js';
+export {
+  effectiveDeviceForMode,
+  glassTransmission,
+  heuristicPeakShares,
+  sunscreenTransmission,
+  synthesizeDeviceSpectrum,
+  validateModeCoupling,
+} from './sun-spectrum-device.js';
 
 const CHANNELS = [
   { id: 1, key: 'vitamin_d',  fn: vitaminDAt,   label: 'Vit D synthesis' },
@@ -984,95 +734,6 @@ export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = /** @type {nu
   return actinic_irradiance * seconds * elevationGate;
 }
 
-// Mode-aware effective-device builder. Devices like Mitochondriak Maxi
-// UVB (UV+blue coupled to red/NIR) and Chroma Trinity (3 named modes —
-// Ironforge / Lux Vital / D-Light) gate which LED groups fire per
-// session via touchscreen / mode selection. Without this, every session
-// is implicitly "all groups firing" — wrong for any vendor mode that
-// fires a subset.
-//
-// Strategy:
-//   1. Compute peak shares on the FULL device (preserves hybrid
-//      detection: a hybrid panel firing only its red/NIR subset is
-//      still a "hybrid panel running ~85% of total power", not a
-//      pure-PBM device — the original 5/5/5/35/50 weights gave 85%
-//      to red+NIR, so partial-mode irradiance scales by that).
-//   2. Filter peakWavelengths + matching peakShares to the firing
-//      subset.
-//   3. Sum firing shares → that's the fraction of full-panel power
-//      this mode delivers; scale mwPerCm2At15cm by it.
-//   4. Renormalize firing shares so they sum to 1 (synthesize expects
-//      a normalized split within the firing peaks).
-//
-// Returned device is structurally identical to the input — synthesize
-// downstream stays mode-agnostic. mode='all-on' (or undefined modeId
-// on a device with no `modes`) returns the device unchanged: identity.
-//
-// Coupling rules (e.g. Maxi UVB UV-requires-redNIR) are NOT enforced
-// here — that's a session-creation concern. This builder honors
-// whatever modeId is passed.
-export function effectiveDeviceForMode(device, modeId) {
-  if (!device || !Array.isArray(device.peakWavelengths) || device.peakWavelengths.length === 0) return device;
-  if (!Array.isArray(device.modes) || device.modes.length === 0) return device;
-  const mode = device.modes.find(m => m.id === modeId)
-    || device.modes.find(m => m.default)
-    || device.modes[0];
-  if (!mode || !Array.isArray(mode.groups) || mode.groups.length === 0) return device;
-  if (!Array.isArray(device.channelGroups)) return device;
-  const firingPeakSet = new Set();
-  for (const groupId of mode.groups) {
-    const group = device.channelGroups.find(g => g.id === groupId);
-    if (!group || !Array.isArray(group.peaks)) continue;
-    for (const p of group.peaks) firingPeakSet.add(p);
-  }
-  const allPeaks = device.peakWavelengths;
-  const allShares = Array.isArray(device.peakShares) && device.peakShares.length === allPeaks.length
-    ? (() => { const s = device.peakShares.reduce((a, b) => a + b, 0); return s > 0 ? device.peakShares.map(x => x / s) : _heuristicPeakShares(allPeaks, device.type); })()
-    : _heuristicPeakShares(allPeaks, device.type);
-  const firingPeaks = [];
-  const firingSharesRaw = [];
-  for (let i = 0; i < allPeaks.length; i++) {
-    if (firingPeakSet.has(allPeaks[i])) {
-      firingPeaks.push(allPeaks[i]);
-      firingSharesRaw.push(allShares[i]);
-    }
-  }
-  if (firingPeaks.length === 0) return device;
-  const firingFraction = firingSharesRaw.reduce((a, b) => a + b, 0);
-  if (firingFraction <= 0) return device;
-  const firingShares = firingSharesRaw.map(s => s / firingFraction);
-  return {
-    ...device,
-    peakWavelengths: firingPeaks,
-    peakShares: firingShares,
-    mwPerCm2At15cm: (Number(device.mwPerCm2At15cm) || 0) * firingFraction,
-  };
-}
-
-// Validate a (device, modeId) pair against the device's coupling rules.
-// Returns { ok: true } when the mode satisfies all rules, otherwise
-// { ok: false, error: '<human-readable reason>' }. Devices without
-// `coupling` always pass.
-export function validateModeCoupling(device, modeId) {
-  if (!device || !Array.isArray(device.coupling) || device.coupling.length === 0) return { ok: true };
-  if (!Array.isArray(device.modes) || device.modes.length === 0) return { ok: true };
-  const mode = device.modes.find(m => m.id === modeId);
-  if (!mode || !Array.isArray(mode.groups)) return { ok: true };
-  const firing = new Set(mode.groups);
-  for (const rule of device.coupling) {
-    if (!rule || !rule.if || !Array.isArray(rule.requires)) continue;
-    if (!firing.has(rule.if)) continue;
-    for (const req of rule.requires) {
-      if (!firing.has(req)) {
-        const reason = rule.reason || `Group "${rule.if}" requires "${req}" to also be firing.`;
-        return { ok: false, error: reason };
-      }
-    }
-  }
-  return { ok: true };
-}
-
 // ─── Public exports ────────────────────────────────────────────────────
 
 export const SUN_CHANNELS = CHANNELS.map(({ id, key, label }) => ({ id, key, label }));
-export { erythemalAt, vitaminDAt, melanopicAt, opn5At, ccoAt, noReleaseAt };
