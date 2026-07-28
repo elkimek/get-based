@@ -48,6 +48,7 @@ const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
 const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.js'), 'utf8');
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
+const settingsTweaksSrc = fs.readFileSync(path.join(root, 'js/settings-tweaks.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
 const serviceWorkerSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
@@ -158,12 +159,12 @@ assert('settings modal opens and closes through shared overlay lifecycle helpers
     !settingsSrc.includes("document.getElementById('settings-modal-overlay').classList.remove('show')"));
 
 assert('settings tweaks panel uses shared overlay lifecycle helpers',
-  settingsSrc.includes("from './modal-lifecycle.js'") &&
-    settingsSrc.includes("from './settings-runtime.js'") &&
-    settingsSrc.includes('removeModalOverlay(overlay)') &&
-    /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/.test(settingsSrc) &&
-    !settingsSrc.includes('_tweaksPriorBodyOverflow') &&
-    !settingsSrc.includes("document.body.style.overflow = 'hidden'"));
+  settingsTweaksSrc.includes("from './modal-lifecycle.js'") &&
+    settingsTweaksSrc.includes("from './settings-runtime.js'") &&
+    settingsTweaksSrc.includes('removeModalOverlay(overlay)') &&
+    /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/.test(settingsTweaksSrc) &&
+    !settingsTweaksSrc.includes('_tweaksPriorBodyOverflow') &&
+    !settingsTweaksSrc.includes("document.body.style.overflow = 'hidden'"));
 
 assert('mobile sidebar uses shared scroll lock lifecycle helpers',
   navSrc.includes("from './modal-lifecycle.js'") &&
