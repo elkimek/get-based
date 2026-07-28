@@ -13,11 +13,14 @@ const chatOnboardingHostSrc = fs.readFileSync(path.join(root, 'js/chat-onboardin
 const lightPageUIHooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-ui-hooks.js'), 'utf8');
 const loaderSrc = fs.readFileSync(path.join(root, 'js/settings-loader.js'), 'utf8');
 const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
+const displaySrc = fs.readFileSync(path.join(root, 'js/settings-display-panel.js'), 'utf8');
+const eventTargetSrc = fs.readFileSync(path.join(root, 'js/settings-event-target.js'), 'utf8');
 const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
 const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
+const tweaksSrc = fs.readFileSync(path.join(root, 'js/settings-tweaks.js'), 'utf8');
 const appShellCss = fs.readFileSync(path.join(root, 'css/app-shell.css'), 'utf8');
 const settingsCss = fs.readFileSync(path.join(root, 'css/settings.css'), 'utf8');
-const settingsSurfaceSrc = `${src}\n${privacySrc}\n${settingsDataSrc}`;
+const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${settingsDataSrc}\n${tweaksSrc}`;
 
 let passed = 0;
 let failed = 0;
@@ -32,8 +35,8 @@ function assert(name, condition, detail = '') {
   }
 }
 
-function matchBlock(label, pattern) {
-  const m = src.match(pattern);
+function matchBlock(label, pattern, source = src) {
+  const m = source.match(pattern);
   assert(`${label} block found`, !!m);
   return m ? m[0] : '';
 }
@@ -64,15 +67,27 @@ assert('Light page owns only the Sun data-source Settings leaf',
     && fs.readFileSync(path.join(root, 'js/light-page-view-hooks.js'), 'utf8')
       .includes("from './settings-privacy.js'"));
 
-const displayBlock = matchBlock('Display tab', /<!-- Display Tab -->[\s\S]*?<!-- AI Tab -->/);
-const tweaksBlock = matchBlock('Tweaks panel', /export function openTweaksPanel\(\) \{[\s\S]*?\n}\n\ninstallSunDataSourceDelegates/);
-const renderThemeButtonBlock = matchBlock('renderThemeButton', /function renderThemeButton[\s\S]*?\n}\n\nfunction refreshVisualSurfaces/);
+const displayBlock = matchBlock(
+  'Display tab',
+  /export function renderDisplaySettingsPanel[\s\S]*?\n}\n\nexport function updateDisplaySettingsPanel/,
+  displaySrc,
+);
+const tweaksBlock = matchBlock(
+  'Tweaks panel',
+  /export function openTweaksPanel\(\) \{[\s\S]*?\n\}/,
+  tweaksSrc,
+);
+const renderThemeButtonBlock = matchBlock(
+  'renderThemeButton',
+  /function renderThemeButton[\s\S]*?\n}\n\nfunction refreshVisualSurfaces/,
+  tweaksSrc,
+);
 
 const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
 const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*focusDelay:\s*0[\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/;
 
 assert('settings.js has no inline event attributes',
-  !inlineHandlerRe.test(src));
+  !inlineHandlerRe.test(settingsSurfaceSrc));
 assert('Display tab has no inline event attributes',
   displayBlock && !inlineHandlerRe.test(displayBlock));
 assert('Tweaks panel has no inline event attributes',
@@ -85,15 +100,15 @@ assert('Settings modal installs delegated click listener',
 assert('Settings modal installs delegated change listener',
   /modal\.addEventListener\('change', handleSettingsChange\)/.test(src));
 assert('Tweaks panel installs delegated click listener',
-  /overlay\.addEventListener\('click', handleTweaksClick\)/.test(src));
+  /overlay\.addEventListener\('click', handleTweaksClick\)/.test(tweaksSrc));
 assert('Tweaks panel installs delegated change listener',
-  /overlay\.addEventListener\('change', handleTweaksChange\)/.test(src));
+  /overlay\.addEventListener\('change', handleTweaksChange\)/.test(tweaksSrc));
 assert('Tweaks panel uses shared overlay lifecycle helpers',
-  src.includes("from './modal-lifecycle.js'") &&
-    src.includes("from './settings-runtime.js'") &&
+  tweaksSrc.includes("from './modal-lifecycle.js'") &&
+    tweaksSrc.includes("from './settings-runtime.js'") &&
     tweaksBlock &&
     tweaksLifecycleOpenRe.test(tweaksBlock) &&
-    /removeModalOverlay\(overlay\)/.test(src) &&
+    /removeModalOverlay\(overlay\)/.test(tweaksSrc) &&
     !tweaksBlock.includes('document.body.style.overflow'));
 
 [
@@ -107,7 +122,7 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
   'start-guided-tour',
   'open-changelog',
 ].forEach(action => {
-  assert(`Display action ${action} is rendered`, src.includes(`data-settings-action="${action}"`));
+  assert(`Display action ${action} is rendered`, displaySrc.includes(`data-settings-action="${action}"`));
 });
 
 [
@@ -145,7 +160,7 @@ assert('Settings AI no longer owns context source toggles',
   'organize-dashboard',
   'send-feedback',
 ].forEach(action => {
-  assert(`Tweaks action ${action} is rendered`, src.includes(`data-tweaks-action="${action}"`));
+  assert(`Tweaks action ${action} is rendered`, tweaksSrc.includes(`data-tweaks-action="${action}"`));
 });
 
 [
@@ -160,20 +175,20 @@ assert('Settings tabs use data-settings-tab',
   /class="settings-tab-btn[\s\S]*data-settings-tab="display"/.test(src)
     && /class="settings-tab-btn[\s\S]*data-settings-tab="agent"/.test(src));
 assert('Delegated settings handler switches tabs',
-  /closestWithin\(event, '\[data-settings-tab\]', modal\)[\s\S]*switchSettingsTab/.test(src));
+  /closestSettingsTarget\(event, '\[data-settings-tab\]', modal\)[\s\S]*switchSettingsTab/.test(src));
 assert('Delegated tweaks handler closes on backdrop click',
-  /event\.target === overlay[\s\S]*closeTweaksPanel\(\)/.test(src));
+  /event\.target === overlay[\s\S]*closeTweaksPanel\(\)/.test(tweaksSrc));
 assert('Tweaks feedback action uses configured module runtime',
-  src.includes('settingsRuntime.openFeedbackModal()')
-    && !src.includes('settingsWindow.openFeedbackModal'));
+  tweaksSrc.includes('settingsTweaksRuntime.openFeedbackModal()')
+    && !tweaksSrc.includes('settingsWindow.openFeedbackModal'));
 assert('Product recommendations toggle uses configured navigation',
   src.includes("settingsRuntime.navigate('dashboard')")
     && !src.includes("from './views-runtime-bridge.js'")
     && /navigate,\s*openFeedbackModal,/.test(appShellHooksSrc));
 assert('Settings version label uses the shared runtime adapter',
-  src.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
-    && src.includes('escapeHTML(getAppVersionRuntime())')
-    && !src.includes('settingsWindow.APP_VERSION'));
+  displaySrc.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
+    && displaySrc.includes('escapeHTML(getAppVersionRuntime())')
+    && !displaySrc.includes('settingsWindow.APP_VERSION'));
 assert('Delegated settings handler switches AI providers',
   /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
 assert('Delegated settings handler updates PII model selection',

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 485 |
-| Internal import edges | 2193 |
+| Modules | 488 |
+| Internal import edges | 2204 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,12 +38,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 222 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/utils.js`](js/utils.js) | 224 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 154 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 72 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/api.js`](js/api.js) | 63 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 58 | [`js/chat-send.js`](js/chat-send.js) | 22 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 59 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 44 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
@@ -690,10 +690,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 11 modules</summary>
+<details><summary><code>settings</code> family — 14 modules</summary>
 
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-display-panel.js`](js/settings-display-panel.js) → [`js/recommendations.js`](js/recommendations.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-event-target.js`](js/settings-event-target.js) → no in-scope imports
 - [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-data.js`](js/settings-data.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-loader.js`](js/settings-loader.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings.js`](js/settings.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-privacy.js`](js/settings-privacy.js) → [`js/api.js`](js/api.js), [`js/pii.js`](js/pii.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/utils.js`](js/utils.js)
@@ -702,7 +704,8 @@ Native browser modules shipped with the static application.
 - [`js/settings-runtime.js`](js/settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js)
 - [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) *(dynamic)*, [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
-- [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/charts.js`](js/charts.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
+- [`js/settings-tweaks.js`](js/settings-tweaks.js) → [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-display-panel.js`](js/settings-display-panel.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings-tweaks.js`](js/settings-tweaks.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
 
 </details>
 

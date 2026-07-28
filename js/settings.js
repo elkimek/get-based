@@ -1,34 +1,15 @@
 // @ts-check
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 
-import { state } from './state.js';
-import { refreshChartThemeColors } from './charts.js';
-import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
-import { getAppVersionRuntime } from './utils-runtime.js';
-import {
-  accentSwatchSpec,
-  applyAccentOverride,
-  getAccentOverride,
-  getTheme,
-  getTimeFormat,
-  isCrtEffectsEnabled,
-  isSunsetMode,
-  setCrtEffectsEnabled,
-  setAccentOverride,
-  setSunsetMode,
-  setTheme,
-  setTimeFormat,
-  supportsCrtEffects,
-  THEMES,
-  TWEAK_ACCENTS,
-} from './theme.js';
+import { isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
+import { applyAccentOverride, setTimeFormat } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
-import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
-import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { setProductRecsEnabled } from './recommendations.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   configureSettingsProviderBridgeDeps,
   initSettingsProviderPanels,
@@ -39,12 +20,29 @@ import {
   toggleAIPauseBridge,
 } from './settings-provider-bridge.js';
 import {
-  cancelSettingsFrame,
-  refreshSettingsRuntimeSurfaces,
   requestSettingsFrame,
   settingsMediaMatches,
 } from './settings-runtime.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
+import {
+  closestSettingsTarget,
+  getSettingsProxyToggle,
+} from './settings-event-target.js';
+import {
+  renderDisplaySettingsPanel,
+  updateDisplaySettingsPanel,
+} from './settings-display-panel.js';
+import {
+  closeTweaksPanel,
+  configureSettingsTweaksRuntime,
+  openTweaksPanel,
+  scheduleSettingsThemeChange,
+  selectTweaksAccent,
+  selectTweaksTheme,
+  toggleTweaksCrtEffects,
+  toggleTweaksSunsetMode,
+  updateTweaksUI,
+} from './settings-tweaks.js';
 import {
   installSunDataSourceDelegates,
   renderPrivacyAnalyticsSection,
@@ -120,12 +118,19 @@ export function configureSettingsRuntime(runtime = {}) {
 
 export {
   applyAccentOverride,
+  closeTweaksPanel,
   confirmDisablePIIReview,
+  openTweaksPanel,
   refreshDataEntriesSection,
   renderPrivacySection,
   renderSunDataSourceSettings,
+  selectTweaksAccent,
+  selectTweaksTheme,
   togglePrivacyConfigure,
   toggleOllamaPII,
+  toggleTweaksCrtEffects,
+  toggleTweaksSunsetMode,
+  updateTweaksUI,
   updatePrivacyStatusCard,
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
@@ -138,103 +143,6 @@ export {
 // ═══════════════════════════════════════════════
 let _activeSettingsTab = 'display';
 
-function renderThemeButton(t, currentTheme, ctx = 'settings') {
-  const id = escapeAttr(t.id);
-  const label = escapeHTML(t.label);
-  const active = currentTheme === t.id ? ' active' : '';
-  const isTweaks = ctx === 'tweaks';
-  const className = isTweaks ? 'tweaks-theme-btn' : 'settings-theme-btn';
-  const actionAttr = isTweaks
-    ? 'data-tweaks-action="select-theme"'
-    : 'data-settings-action="select-theme"';
-  const labelClass = isTweaks ? '' : ' class="settings-theme-label"';
-  return `
-    <button type="button" class="${className}${active}" data-theme-id="${id}" ${actionAttr}>
-      <span class="settings-theme-swatch settings-theme-swatch-${id}" aria-hidden="true"></span>
-      <span${labelClass}>${label}</span>
-    </button>
-  `;
-}
-
-function refreshVisualSurfaces() {
-  const settingsVisible = document.getElementById('settings-modal')?.classList.contains('show') === true;
-  refreshSettingsRuntimeSurfaces({
-    settingsVisible,
-    updateSettingsUI,
-    updateTweaksUI,
-  });
-  scheduleChartThemeRefresh();
-}
-
-let chartThemeRefreshFrame = 0;
-let chartThemeRefreshTimer = 0;
-function scheduleChartThemeRefresh() {
-  if (chartThemeRefreshFrame) cancelSettingsFrame(chartThemeRefreshFrame);
-  if (chartThemeRefreshTimer) clearTimeout(chartThemeRefreshTimer);
-  const refresh = () => refreshChartThemeColors({ batchSize: 4 });
-  const frame = requestSettingsFrame(() => {
-    chartThemeRefreshFrame = 0;
-    chartThemeRefreshTimer = setTimeout(() => {
-      chartThemeRefreshTimer = 0;
-      refresh();
-    }, 0);
-  });
-  if (frame !== null) {
-    chartThemeRefreshFrame = frame;
-  } else {
-    chartThemeRefreshTimer = setTimeout(() => {
-      chartThemeRefreshFrame = 0;
-      chartThemeRefreshTimer = 0;
-      refresh();
-    }, 0);
-  }
-}
-
-let themeChangeFrame = 0;
-let themeChangeTimer = 0;
-let pendingThemeId = '';
-function markThemeControls(themeId) {
-  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.settings-theme-btn,.tweaks-theme-btn')));
-  buttons.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.themeId === themeId);
-  });
-}
-function applyThemeChange(themeId) {
-  setTheme(themeId);
-  applyAccentOverride();
-  refreshVisualSurfaces();
-}
-function scheduleThemeChange(themeId) {
-  pendingThemeId = themeId;
-  markThemeControls(themeId);
-  if (themeChangeFrame) cancelSettingsFrame(themeChangeFrame);
-  if (themeChangeTimer) clearTimeout(themeChangeTimer);
-  const commit = () => {
-    themeChangeTimer = 0;
-    applyThemeChange(pendingThemeId);
-  };
-  const frame = requestSettingsFrame(() => {
-    const nextFrame = requestSettingsFrame(() => {
-      themeChangeFrame = 0;
-      commit();
-    });
-    if (nextFrame !== null) {
-      themeChangeFrame = nextFrame;
-    } else {
-      themeChangeFrame = 0;
-      commit();
-    }
-  });
-  if (frame !== null) {
-    themeChangeFrame = frame;
-  } else {
-    themeChangeTimer = setTimeout(() => {
-      themeChangeFrame = 0;
-      commit();
-    }, 0);
-  }
-}
-
 function requestSettingsScrollFrame(callback) {
   const frame = requestSettingsFrame(callback);
   if (frame === null) {
@@ -242,37 +150,7 @@ function requestSettingsScrollFrame(callback) {
   }
 }
 
-settingsWindow.handleThemeChange = scheduleThemeChange;
-
-/**
- * @param {Event} event
- * @param {string} selector
- * @param {Element} root
- * @returns {HTMLElement | null}
- */
-function closestWithin(event, selector, root) {
-  const target = event.target;
-  if (!(target instanceof Element)) return null;
-  const el = target.closest(selector);
-  return el instanceof HTMLElement && root.contains(el) ? el : null;
-}
-
-/**
- * @param {Event} event
- * @param {string} selector
- * @param {Element} root
- * @returns {HTMLInputElement | null}
- */
-function toggleInputFromProxyClick(event, selector, root) {
-  const target = event.target;
-  if (!(target instanceof Element)) return null;
-  if (target.matches(selector)) return null;
-  const toggle = target.closest('.toggle-switch');
-  if (!toggle || !root.contains(toggle)) return null;
-  const input = toggle.querySelector(selector);
-  if (!(input instanceof HTMLInputElement) || input.disabled) return null;
-  return input;
-}
+settingsWindow.handleThemeChange = scheduleSettingsThemeChange;
 
 function applySettingsToggle(actionEl) {
   if (actionEl instanceof HTMLInputElement && actionEl.disabled) return false;
@@ -318,31 +196,11 @@ function isSettingsToggleAction(actionEl) {
     || actionEl.dataset.settingsAction === 'set-analytics';
 }
 
-function applyTweaksToggle(actionEl) {
-  if (actionEl instanceof HTMLInputElement && actionEl.disabled) return false;
-
-  const action = actionEl.dataset.tweaksAction;
-  if (action === 'toggle-sunset') {
-    toggleTweaksSunsetMode(actionEl instanceof HTMLInputElement && actionEl.checked);
-    return true;
-  }
-  if (action === 'toggle-crt') {
-    toggleTweaksCrtEffects(actionEl instanceof HTMLInputElement && actionEl.checked);
-    return true;
-  }
-  return false;
-}
-
-function isTweaksToggleAction(actionEl) {
-  return actionEl.dataset.tweaksAction === 'toggle-sunset'
-    || actionEl.dataset.tweaksAction === 'toggle-crt';
-}
-
 async function handleSettingsClick(event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
 
-  const toggleInput = toggleInputFromProxyClick(event, '[data-settings-action]', modal);
+  const toggleInput = getSettingsProxyToggle(event, '[data-settings-action]', modal);
   if (toggleInput && isSettingsToggleAction(toggleInput)) {
     event.preventDefault();
     toggleInput.checked = !toggleInput.checked;
@@ -350,14 +208,14 @@ async function handleSettingsClick(event) {
     return;
   }
 
-  const tabButton = closestWithin(event, '[data-settings-tab]', modal);
+  const tabButton = closestSettingsTarget(event, '[data-settings-tab]', modal);
   if (tabButton) {
     event.preventDefault();
     await switchSettingsTab(tabButton.dataset.settingsTab || 'display');
     return;
   }
 
-  const actionEl = closestWithin(event, '[data-settings-action]', modal);
+  const actionEl = closestSettingsTarget(event, '[data-settings-action]', modal);
   if (!actionEl) return;
 
   const action = actionEl.dataset.settingsAction;
@@ -368,7 +226,7 @@ async function handleSettingsClick(event) {
     closeSettingsModal();
   } else if (action === 'select-theme') {
     event.preventDefault();
-    scheduleThemeChange(actionEl.dataset.themeId || 'dark');
+    scheduleSettingsThemeChange(actionEl.dataset.themeId || 'dark');
   } else if (action === 'switch-unit') {
     event.preventDefault();
     switchUnitSystem(actionEl.dataset.unit || 'EU');
@@ -459,7 +317,7 @@ async function handleSettingsClick(event) {
 function handleSettingsChange(event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
-  const actionEl = closestWithin(event, '[data-settings-action]', modal);
+  const actionEl = closestSettingsTarget(event, '[data-settings-action]', modal);
   if (!actionEl) return;
 
   if (isSettingsToggleAction(actionEl)) {
@@ -484,222 +342,6 @@ function installSettingsDelegates(modal) {
   modal.dataset.delegatedActions = '1';
   modal.addEventListener('click', handleSettingsClick);
   modal.addEventListener('change', handleSettingsChange);
-}
-
-function handleTweaksClick(event) {
-  const overlay = document.getElementById('tweaks-panel-overlay');
-  if (!overlay) return;
-
-  const toggleInput = toggleInputFromProxyClick(event, '[data-tweaks-action]', overlay);
-  if (toggleInput && isTweaksToggleAction(toggleInput)) {
-    event.preventDefault();
-    toggleInput.checked = !toggleInput.checked;
-    applyTweaksToggle(toggleInput);
-    return;
-  }
-
-  if (event.target === overlay) {
-    closeTweaksPanel();
-    return;
-  }
-
-  const actionEl = closestWithin(event, '[data-tweaks-action]', overlay);
-  if (!actionEl) return;
-
-  const action = actionEl.dataset.tweaksAction;
-  if (!action) return;
-
-  if (action === 'close') {
-    event.preventDefault();
-    closeTweaksPanel();
-  } else if (action === 'select-theme') {
-    event.preventDefault();
-    selectTweaksTheme(actionEl.dataset.themeId || 'dark');
-  } else if (action === 'select-accent') {
-    event.preventDefault();
-    selectTweaksAccent(actionEl.dataset.accentId || '');
-  } else if (action === 'reset-dashboard') {
-    event.preventDefault();
-    settingsRuntime.resetDashboardWidgets();
-    closeTweaksPanel();
-  } else if (action === 'clear-dashboard') {
-    event.preventDefault();
-    settingsRuntime.clearDashboardWidgets();
-    closeTweaksPanel();
-  } else if (action === 'organize-dashboard') {
-    event.preventDefault();
-    settingsRuntime.toggleDashboardOrganizeMode(true);
-    closeTweaksPanel();
-  } else if (action === 'send-feedback') {
-    event.preventDefault();
-    closeTweaksPanel();
-    settingsRuntime.openFeedbackModal();
-  }
-}
-
-function handleTweaksChange(event) {
-  const overlay = document.getElementById('tweaks-panel-overlay');
-  if (!overlay) return;
-  const actionEl = closestWithin(event, '[data-tweaks-action]', overlay);
-  if (!actionEl) return;
-
-  if (isTweaksToggleAction(actionEl)) {
-    applyTweaksToggle(actionEl);
-  }
-}
-
-function installTweaksDelegates(overlay) {
-  if (!overlay || overlay.dataset.delegatedActions === '1') return;
-  overlay.dataset.delegatedActions = '1';
-  overlay.addEventListener('click', handleTweaksClick);
-  overlay.addEventListener('change', handleTweaksChange);
-}
-
-export function selectTweaksTheme(themeId) {
-  if (themeChangeFrame) cancelSettingsFrame(themeChangeFrame);
-  if (themeChangeTimer) clearTimeout(themeChangeTimer);
-  themeChangeFrame = 0;
-  themeChangeTimer = 0;
-  pendingThemeId = themeId;
-  markThemeControls(themeId);
-  applyThemeChange(themeId);
-}
-
-export function selectTweaksAccent(accentId) {
-  setAccentOverride(accentId);
-  refreshVisualSurfaces();
-}
-
-export function toggleTweaksSunsetMode(enabled) {
-  setSunsetMode(!!enabled);
-  applyAccentOverride();
-  refreshVisualSurfaces();
-}
-
-export function toggleTweaksCrtEffects(enabled) {
-  setCrtEffectsEnabled(!!enabled);
-  refreshVisualSurfaces();
-}
-
-export function updateTweaksUI() {
-  const panel = document.getElementById('tweaks-panel');
-  if (!panel) return;
-  const theme = getTheme();
-  const accentId = getAccentOverride();
-  const sunset = isSunsetMode();
-  const crtEffects = isCrtEffectsEnabled();
-  const crtSupported = supportsCrtEffects(theme);
-  panel.classList.toggle('sunset-active', sunset);
-  panel.classList.toggle('crt-active', crtEffects);
-  panel.classList.toggle('crt-supported', crtSupported);
-  const sunsetToggle = /** @type {HTMLInputElement | null} */ (panel.querySelector('#tweaks-sunset-mode'));
-  if (sunsetToggle) sunsetToggle.checked = sunset;
-  const crtRow = /** @type {HTMLElement | null} */ (panel.querySelector('#tweaks-crt-effects-row'));
-  if (crtRow) crtRow.hidden = !crtSupported;
-  const crtToggle = /** @type {HTMLInputElement | null} */ (panel.querySelector('#tweaks-crt-effects'));
-  if (crtToggle) {
-    crtToggle.checked = crtEffects;
-    crtToggle.disabled = !crtSupported;
-  }
-  const themeButtons = /** @type {HTMLElement[]} */ (Array.from(panel.querySelectorAll('.tweaks-theme-btn')));
-  themeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
-  const accentButtons = /** @type {HTMLElement[]} */ (Array.from(panel.querySelectorAll('.tweaks-accent-btn')));
-  accentButtons.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.accentId === accentId);
-    if (btn.dataset.accentId === '') {
-      const swatch = /** @type {HTMLElement | null} */ (btn.querySelector('.tweaks-accent-swatch'));
-      const spec = accentSwatchSpec(null, theme);
-      swatch?.style.setProperty('--tweak-accent', spec.color);
-      swatch?.style.setProperty('--tweak-gradient', spec.gradient);
-    }
-  });
-}
-
-export function closeTweaksPanel() {
-  const overlay = document.getElementById('tweaks-panel-overlay');
-  if (overlay) removeModalOverlay(overlay);
-}
-
-export function openTweaksPanel() {
-  closeTweaksPanel();
-  const currentTheme = getTheme();
-  const currentAccent = getAccentOverride();
-  const currentSunset = isSunsetMode();
-  const currentCrtEffects = isCrtEffectsEnabled();
-  const currentCrtSupported = supportsCrtEffects(currentTheme);
-  const themeButtons = THEMES.map(t => renderThemeButton(t, currentTheme, 'tweaks')).join('');
-  const accentButtons = TWEAK_ACCENTS.map(a => {
-    const swatch = accentSwatchSpec(a, currentTheme);
-    return `
-    <button type="button" class="tweaks-accent-btn${currentAccent === a.id ? ' active' : ''}" data-accent-id="${escapeAttr(a.id)}" data-tweaks-action="select-accent" title="${escapeAttr(a.label)}" aria-label="${escapeAttr(a.label)}">
-      <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(swatch.color)};--tweak-gradient:${escapeAttr(swatch.gradient)}"></span>
-    </button>`;
-  }).join('');
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="tweaks-overlay" id="tweaks-panel-overlay">
-      <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
-        <div class="tweaks-head">
-          <div>
-            <div class="gb-modal-kicker">Controls</div>
-            <div class="gb-modal-title">Tweaks</div>
-          </div>
-          <button class="modal-close" aria-label="Close" data-tweaks-action="close">&times;</button>
-        </div>
-        <div class="tweaks-body">
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Theme world</div>
-            <div class="tweaks-theme-grid">${themeButtons}</div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Accent color</div>
-            <div class="tweaks-accent-row">${accentButtons}</div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Visual modes</div>
-            <div class="tweaks-option-row">
-              <div class="settings-copy">
-                <div class="settings-copy-title">Sunset mode</div>
-                <div class="settings-copy-desc">Warm high-contrast palette for red blue-blocking glasses.</div>
-              </div>
-              <label class="toggle-switch" title="Use warm tokens that remain legible through red lenses">
-                <input type="checkbox" id="tweaks-sunset-mode" ${currentSunset ? 'checked' : ''} data-tweaks-action="toggle-sunset">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="tweaks-option-row" id="tweaks-crt-effects-row"${currentCrtSupported ? '' : ' hidden'}>
-              <div class="settings-copy">
-                <div class="settings-copy-title">CRT effects</div>
-                <div class="settings-copy-desc">Scanlines and phosphor glow for Terminal, Synth Sunrise, and Neuromancer.</div>
-              </div>
-              <label class="toggle-switch" title="Apply CRT scanline effects to terminal-style themes">
-                <input type="checkbox" id="tweaks-crt-effects" ${currentCrtEffects ? 'checked' : ''}${currentCrtSupported ? '' : ' disabled'} data-tweaks-action="toggle-crt">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Dashboard</div>
-            <div class="tweaks-action-grid">
-              <button type="button" data-tweaks-action="reset-dashboard">Reset layout</button>
-              <button type="button" data-tweaks-action="clear-dashboard">Clear all widgets</button>
-              <button type="button" data-tweaks-action="organize-dashboard">Organize widgets</button>
-              <button type="button" data-tweaks-action="send-feedback">Send feedback</button>
-            </div>
-          </section>
-        </div>
-      </aside>
-    </div>
-  `);
-  const overlay = document.getElementById('tweaks-panel-overlay');
-  installTweaksDelegates(overlay);
-  updateTweaksUI();
-  if (overlay) {
-    openModalOverlay(overlay, {
-      initialFocus: '#tweaks-panel button',
-      focusDelay: 0,
-      scrollLock: settingsMediaMatches('(max-width: 768px)'),
-    });
-  }
 }
 
 installSunDataSourceDelegates();
@@ -758,82 +400,7 @@ export function openSettingsModal(tab) {
     </div>
     <div class="settings-content">
 
-    <!-- Display Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab-panel="display">
-      <div class="settings-row">
-        <div class="settings-section">
-          <label class="settings-label">Unit System</label>
-          <div class="unit-toggle">
-            <button class="unit-toggle-btn${state.unitSystem === 'EU' ? ' active' : ''}" data-unit="EU" data-settings-action="switch-unit">EU (SI)</button>
-            <button class="unit-toggle-btn${state.unitSystem === 'US' ? ' active' : ''}" data-unit="US" data-settings-action="switch-unit">US</button>
-          </div>
-        </div>
-        <div class="settings-section">
-          <label class="settings-label" title="When on, the marker detail view also shows values in the alternate unit system (e.g. mg/dL alongside mmol/L). Useful for cross-checking against a lab report printed in the other system.">Alternate Units</label>
-          <div class="unit-toggle">
-            <button class="unit-toggle-btn${!state.showAltUnits ? ' active' : ''}" data-alt-units="off" data-settings-action="toggle-alt-units">Off</button>
-            <button class="unit-toggle-btn${state.showAltUnits ? ' active' : ''}" data-alt-units="on" data-settings-action="toggle-alt-units">Show both</button>
-          </div>
-        </div>
-        <div class="settings-section">
-          <label class="settings-label">Range Display</label>
-          <div class="range-toggle">
-            <button class="range-toggle-btn${state.rangeMode === 'optimal' ? ' active' : ''}" data-range="optimal" data-settings-action="switch-range">Optimal</button>
-            <button class="range-toggle-btn${state.rangeMode === 'reference' ? ' active' : ''}" data-range="reference" data-settings-action="switch-range">Reference</button>
-            <button class="range-toggle-btn${state.rangeMode === 'both' ? ' active' : ''}" data-range="both" data-settings-action="switch-range">Both</button>
-          </div>
-        </div>
-        <div class="settings-section">
-          <label class="settings-label">Time Format</label>
-          <div class="unit-toggle">
-            <button class="time-toggle-btn${getTimeFormat() === '24h' ? ' active' : ''}" data-timefmt="24h" data-settings-action="set-time-format">24h</button>
-            <button class="time-toggle-btn${getTimeFormat() === '12h' ? ' active' : ''}" data-timefmt="12h" data-settings-action="set-time-format">12h (AM/PM)</button>
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-action-row">
-            <div class="settings-copy">
-              <div class="settings-copy-title">Appearance</div>
-              <div class="settings-copy-desc">Themes, accent color, and dashboard layout live in the quick Tweaks panel.</div>
-            </div>
-            <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="open-tweaks">Open Tweaks</button>
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-action-row">
-            <div class="settings-copy">
-              <label class="settings-label">Tips & Recommendations</label>
-              <div class="settings-copy-desc">Supplement, food, and lifestyle guidance on markers</div>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="settings-product-recs" ${isProductRecsEnabled() ? 'checked' : ''} data-settings-action="set-product-recs">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-action-row">
-            <div class="settings-copy">
-              <label class="settings-label">Debug Mode</label>
-              <div class="settings-copy-desc">Adds detailed log output and reveals low-level diagnostic details for troubleshooting. No data leaves your device.</div>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} data-settings-action="set-debug-mode">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-group-title">Resources</div>
-      <div class="settings-links-row">
-        <a href="/docs" class="settings-link-btn">Documentation</a>
-        <button class="settings-link-btn" data-settings-action="start-guided-tour">Guided Tour</button>
-        <button class="settings-link-btn" data-settings-action="open-changelog">What's New</button>
-      </div>
-
-      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);opacity:0.6">v${escapeHTML(getAppVersionRuntime())} · <span id="settings-commit-hash">···</span></div>
-    </div>
+    ${renderDisplaySettingsPanel(_activeSettingsTab === 'display')}
 
     <!-- AI Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab-panel="ai">
@@ -1022,25 +589,7 @@ export function switchSettingsTab(tabId) {
 }
 
 export function updateSettingsUI() {
-  const modal = document.getElementById('settings-modal');
-  if (!modal) return;
-  // Scope by data-attribute so the shared `.unit-toggle-btn` style class can be
-  // reused for the Alternate Units row without the Unit System updater
-  // accidentally deactivating it (its buttons lack a data-unit attribute).
-  const unitButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-unit]')));
-  unitButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.unit === state.unitSystem));
-  const rangeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.range-toggle-btn')));
-  rangeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.range === state.rangeMode));
-  const altUnitButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-alt-units]')));
-  altUnitButtons.forEach(btn => btn.classList.toggle('active', (btn.dataset.altUnits === 'on') === !!state.showAltUnits));
-  const theme = getTheme();
-  const themeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-theme-btn')));
-  themeButtons.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.themeId === theme);
-  });
-  const timeFmt = getTimeFormat();
-  const timeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.time-toggle-btn')));
-  timeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.timefmt === timeFmt));
+  updateDisplaySettingsPanel();
 }
 
 export function closeSettingsModal() {
@@ -1048,6 +597,14 @@ export function closeSettingsModal() {
   updateChatNudgeRuntime();
   settingsRuntime.refreshMobileDashboardActiveTab();
 }
+
+configureSettingsTweaksRuntime({
+  clearDashboardWidgets: () => settingsRuntime.clearDashboardWidgets(),
+  openFeedbackModal: () => settingsRuntime.openFeedbackModal(),
+  resetDashboardWidgets: () => settingsRuntime.resetDashboardWidgets(),
+  toggleDashboardOrganizeMode: force => settingsRuntime.toggleDashboardOrganizeMode(force),
+  updateSettingsUI,
+});
 
 configureSettingsModuleBridge({
   openSettingsModal,
