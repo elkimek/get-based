@@ -107,8 +107,9 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
     try {
       const balance = await getOpenRouterBalance();
       const remaining = balance?.remaining;
-      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && typeof startupOAuthCallbackDeps.showInsufficientBalanceDialog === 'function') {
-        setTimeout(() => startupOAuthCallbackDeps.showInsufficientBalanceDialog(), 1500);
+      const showInsufficientBalanceDialog = startupOAuthCallbackDeps.showInsufficientBalanceDialog;
+      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && typeof showInsufficientBalanceDialog === 'function') {
+        setTimeout(() => showInsufficientBalanceDialog(), 1500);
       }
     } catch {}
   } catch (e) {

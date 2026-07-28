@@ -214,7 +214,7 @@ configureSettingsLoader({
       clearDashboardWidgets,
       clearAllData,
       exportAllDataJSON,
-      exportClientJSON,
+      exportClientJSON: profileId => profileId ? exportClientJSON(profileId) : undefined,
       getActiveProfileId,
       navigate,
       openFeedbackModal,

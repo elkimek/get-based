@@ -178,6 +178,7 @@ export function buildSidebar(data) {
   if (!data) data = getActiveData();
   data = filterDatesByRange(data);
   const nav = document.getElementById("sidebar-nav");
+  if (!nav) return;
   const counts = (() => {
     let markerCount = 0;
     for (const cat of Object.values(data.categories || {})) {

@@ -17,7 +17,7 @@ import { updateChatNudgeRuntime } from './chat-runtime.js';
 
 const startupUIDeps = {
   getInitialView: /** @type {() => string} */ (() => 'dashboard'),
-  maybeShowAnalyticsConsent,
+  maybeShowAnalyticsConsent: /** @type {null | typeof maybeShowAnalyticsConsent} */ (maybeShowAnalyticsConsent),
   navigate: /** @type {(view: string) => void} */ ((_view) => {}),
   openChatPanel: () => {},
   openSettingsModal: /** @type {(section?: string) => void} */ ((_section) => {}),

@@ -138,6 +138,12 @@ function runCycleImportAction(name, args) {
   }
 }
 
+/**
+ * @param {Blob} blob
+ * @param {string} fileName
+ * @param {((event: any) => void) | null} [onProgress]
+ * @returns {Promise<any>}
+ */
 export function parseAppleHealthCycleBlob(blob, fileName, onProgress = null) {
   return runCycleImportAction('parseAppleHealthCycleBlob', [blob, fileName, onProgress]);
 }
