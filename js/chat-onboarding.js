@@ -439,8 +439,8 @@ export function _updatePeriodBtn() {
   const endVal = textControlById('chat-onboard-period-end')?.value;
   const btn = buttonById('chat-onboard-period-btn');
   const preview = document.getElementById('chat-onboard-period-preview');
-  const startDay = parseInt(startVal);
-  const endDay = parseInt(endVal);
+  const startDay = parseInt(startVal || '', 10);
+  const endDay = parseInt(endVal || '', 10);
   if (btn) btn.disabled = !(startDay && endDay);
   if (preview && startDay && endDay) {
     const { startDate, endDate } = _inferPeriodDates(startDay, endDay);

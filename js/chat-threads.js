@@ -246,6 +246,7 @@ export function createNewThread({ sync = true } = {}) {
   // Focus input
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) input.focus();
+  return thread;
 }
 
 export async function switchToThread(threadId) {

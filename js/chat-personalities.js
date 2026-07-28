@@ -355,8 +355,10 @@ export function updatePersonalityBar() {
   const currentEl = document.querySelector('.chat-personality-current');
   if (currentEl) {
     const p = getActivePersonality();
-    currentEl.querySelector('.chat-personality-current-icon').textContent = p.icon;
-    currentEl.querySelector('.chat-personality-current-name').textContent = p.name;
+    const icon = currentEl.querySelector('.chat-personality-current-icon');
+    const name = currentEl.querySelector('.chat-personality-current-name');
+    if (icon) icon.textContent = p.icon;
+    if (name) name.textContent = p.name;
   }
   document.querySelectorAll('.chat-personality-opt[data-personality="default"], .chat-personality-opt[data-personality="house"]').forEach(btn => {
     const option = /** @type {HTMLElement} */ (btn);

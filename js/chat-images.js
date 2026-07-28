@@ -43,7 +43,12 @@ function makeThumbnail(previewUrl, width, height) {
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const context = canvas.getContext('2d');
+      if (!context) {
+        resolve(null);
+        return;
+      }
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL('image/jpeg', 0.6));
     };
     img.onerror = () => resolve(null);
