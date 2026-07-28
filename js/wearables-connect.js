@@ -98,12 +98,14 @@ export function beginConnectOAuth(adapterId) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
+  const oauth = adapter.oauth;
+  if (!oauth) throw new Error(`Adapter ${adapterId} is missing OAuth configuration`);
   const kick = OAUTH_DISPATCH[adapter.id]?.begin;
   if (!kick) throw new Error(`Unsupported OAuth adapter: ${adapter.id}`);
   kick({
     clientId: getOAuthClientId(adapter),
-    registeredUris: adapter.oauth.redirectUris,
-    scopes: adapter.oauth.scopes,
+    registeredUris: oauth.redirectUris,
+    scopes: oauth.scopes,
     profileId: state.currentProfile,
   });
 }

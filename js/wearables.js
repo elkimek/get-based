@@ -599,7 +599,10 @@ export function renderWearableStrip() {
     ? (() => {
         const byId = new Map(displayOrder.map(d => [d.id, d]));
         const out = [];
-        for (const id of savedOrder) { if (byId.has(id)) { out.push(byId.get(id)); byId.delete(id); } }
+        for (const id of savedOrder) {
+          const item = byId.get(id);
+          if (item) { out.push(item); byId.delete(id); }
+        }
         for (const d of displayOrder) if (byId.has(d.id)) out.push(d);
         return out;
       })()

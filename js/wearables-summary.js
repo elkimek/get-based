@@ -155,7 +155,7 @@ function deriveMetric(rowsByDate, metricId, primarySource, todayISO = isoDay()) 
   if (slopeNorm > 0.002)       trend30d = 'rising';
   else if (slopeNorm < -0.002) trend30d = 'declining';
 
-  const weekly = weeklyMeans(series, 12).map(w => Math.round(w.mean * 100) / 100);
+  const weekly = weeklyMeans(series, 12).map(w => Math.round((w.mean ?? 0) * 100) / 100);
 
   return {
     primarySource,

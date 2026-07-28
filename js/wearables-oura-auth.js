@@ -118,7 +118,7 @@ export async function completeOAuthCallback(urlParams) {
   // 5xx's the /oauth/token endpoint. The auth code is single-use and short-
   // lived, so we retry quickly — 3 tries, exponential backoff — before
   // surfacing the failure to the user.
-  let exchangeRes, body;
+  let exchangeRes = null, body;
   for (let attempt = 0; attempt < 3; attempt++) {
     exchangeRes = await fetch(PROXY_URL, {
       method: 'POST',
@@ -137,6 +137,7 @@ export async function completeOAuthCallback(urlParams) {
     if (exchangeRes.status < 500 || attempt === 2) break;
     await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
   }
+  if (!exchangeRes) return { ok: false, error: 'Token exchange failed before receiving a response' };
   if (!exchangeRes.ok) {
     // Oura sometimes returns HTML (CloudFront error page) instead of JSON on 5xx;
     // body?.error is then undefined and we'd leak a wall of HTML into the toast.
