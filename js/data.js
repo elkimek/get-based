@@ -332,8 +332,8 @@ export function getActiveData() {
   const cacheMeta = _makeActiveDataCacheMeta();
   if (_activeDataCacheMatches(cacheMeta)) return _activeDataCache;
   const data = {
-    dates: [],
-    dateLabels: [],
+    dates: /** @type {string[]} */ ([]),
+    dateLabels: /** @type {string[]} */ ([]),
     categories: JSON.parse(JSON.stringify(MARKER_SCHEMA))
   };
 

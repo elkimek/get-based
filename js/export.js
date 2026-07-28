@@ -371,7 +371,12 @@ export async function exportClientJSON(profileId, includeChat = false) {
 export async function buildAllDataBundle() {
   const profiles = getProfiles();
   if (profiles.length === 0) return null;
-  const bundle = { version: 2, type: 'database', exportedAt: new Date().toISOString(), profiles: [] };
+  const bundle = {
+    version: 2,
+    type: 'database',
+    exportedAt: new Date().toISOString(),
+    profiles: /** @type {Array<Record<string, any>>} */ ([]),
+  };
   for (const p of profiles) {
     const raw = await encryptedGetItem(profileStorageKey(p.id, 'imported'));
     let data;

@@ -337,7 +337,7 @@ export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexL
     { label: 'Location', value: formatReportLocationLabel(profile?.location) },
     { label: 'Height', value: formatReportHeightLabel(heightInfo) },
     { label: 'Weight', value: latestWeight ? formatReportValueWithDate(`${formatValue(latestWeight.value)} ${latestWeight.unit || 'kg'}`, latestWeight.date) : '' },
-    { label: 'BMI', value: Number.isFinite(bmi) ? formatReportValueWithDate(bmi.toFixed(1), latestWeight?.date) : '' },
+    { label: 'BMI', value: bmi != null && Number.isFinite(bmi) ? formatReportValueWithDate(bmi.toFixed(1), latestWeight?.date) : '' },
     { label: 'Blood pressure', value: latestBp ? formatReportValueWithDate(latestBp.value, latestBp.date) : '' },
     { label: 'Resting pulse', value: latestPulse ? formatReportValueWithDate(latestPulse.value, latestPulse.date) : '' },
     { label: 'Body fat', value: latestBodyFat ? formatReportValueWithDate(latestBodyFat.value, latestBodyFat.date) : '' },
