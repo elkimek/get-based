@@ -182,6 +182,7 @@
     "js/light-env-actions.js",
     "js/light-env-ai-analysis.js",
     "js/light-env-audits.js",
+    "js/light-env-editor.js",
     "js/light-env-evening.js",
     "js/light-env-model.js",
     "js/light-env-screen-ui.js",

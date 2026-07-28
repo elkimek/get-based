@@ -30,7 +30,10 @@ const tools = await import('../js/light-tools.js');
     const lightToolsUiHooksSrc = fs.readFileSync(new URL('../js/light-tools-ui-hooks.js', import.meta.url), 'utf8');
     const appLightSunSrc = fs.readFileSync(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
     const appUiShellSrc = fs.readFileSync(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
-    const lightEnvSrc = fs.readFileSync(new URL('../js/light-env.js', import.meta.url), 'utf8');
+    const lightEnvSrc = [
+      fs.readFileSync(new URL('../js/light-env.js', import.meta.url), 'utf8'),
+      fs.readFileSync(new URL('../js/light-env-editor.js', import.meta.url), 'utf8'),
+    ].join('\n');
     const globalsSrc = fs.readFileSync(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
     const swSrc = fs.readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
     const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');

@@ -14,23 +14,15 @@
 //   }
 
 import { state } from './state.js';
-import { bindModalSyncRefresh, escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { bindModalSyncRefresh, escapeHTML, escapeAttr } from './utils.js';
 import { roomUsesEveningAfterSunset } from './light-env-evening.js';
 import {
-  addRoom,
-  addScreen,
-  deleteRoom,
-  deleteScreen,
   getEnvironment,
   getScreensForRoom,
   isActiveToday,
-  setTodayActive,
-  updateRoom,
-  updateScreen,
 } from './light-env-store.js';
 import {
   PRIMARY_SOURCES,
-  SCREEN_DEVICES,
   SOURCE_ARCHETYPES,
   HOURS_BUCKETS,
   EVENING_BUCKETS,
@@ -48,7 +40,15 @@ import {
   renderLightAuditsBlock,
 } from './light-env-audits.js';
 import { installLightEnvActionDelegates, lightEnvActionAttrs } from './light-env-actions.js';
-import { SCREEN_HOURS_BUCKETS, renderScreenCard } from './light-env-screen-ui.js';
+import {
+  configureLightEnvEditor,
+  isLightEnvScreenExpanded,
+  lightEnvEditorActionHandlers,
+  nextDefaultRoomName,
+  resolveActiveRoomId,
+  suggestRoomSourceFromSpectrum,
+} from './light-env-editor.js';
+import { renderScreenCard } from './light-env-screen-ui.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 export { getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit } from './light-env-audits.js';
@@ -81,10 +81,7 @@ export {
   hasRoomEveningAnswer,
   roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
-
-// Common room names used as smarter defaults — cycle through these in order
-// before falling back to "Room N" so a fresh user lands on familiar labels.
-const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
+export { nextDefaultRoomName, suggestRoomSourceFromSpectrum };
 
 /** @type {{ getMeasurementsForRoom: AnyFunction | null, navigate: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null, openSpectrumClassifier: AnyFunction | null, openLuxMeter: AnyFunction | null, openFlickerDetector: AnyFunction | null, openCCTMeter: AnyFunction | null, openDarknessMeter: AnyFunction | null }} */
 const lightEnvDeps = {
@@ -110,19 +107,6 @@ export function configureLightEnv(deps = {}) {
   }
   return previous;
 }
-
-// Pick the next default room name based on which common names haven't been
-// used yet. Names are matched case-insensitively so "bedroom" and "Bedroom"
-// don't collide. Falls back to "Room N" once the curated list is exhausted.
-export function nextDefaultRoomName() {
-  const env = getEnvironment();
-  const usedLC = new Set((env?.rooms || []).map(r => (r.name || '').trim().toLowerCase()));
-  for (const candidate of DEFAULT_ROOM_NAMES) {
-    if (!usedLC.has(candidate.toLowerCase())) return candidate;
-  }
-  return `Room ${(env?.rooms?.length || 0) + 1}`;
-}
-
 
 // Step 1 chip-picker render helpers — produce the inline chip rows
 // for source / hours / evening, plus the "More options" reveal that
@@ -202,40 +186,6 @@ export function computeIndoorBurden() {
 // mental model. First render auto-expands a useful room, but explicit
 // user collapse is preserved.
 
-const ACTIVE_ROOM_KEY = 'labcharts-light-env-active-room';
-const COLLAPSED_ROOM_ID = '__none__';
-
-function readActiveRoomId() {
-  try { return localStorage.getItem(ACTIVE_ROOM_KEY); } catch (e) { return null; }
-}
-function writeActiveRoomId(id) {
-  try { id ? localStorage.setItem(ACTIVE_ROOM_KEY, id) : localStorage.removeItem(ACTIVE_ROOM_KEY); } catch (e) {}
-}
-function isRoomCollapseSentinel(id) {
-  return id === COLLAPSED_ROOM_ID;
-}
-function cssAttrSelectorValue(value) {
-  return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-function lightEnvRoomAnchor(id) {
-  return `.light-env-room-disclosure[data-id="${cssAttrSelectorValue(id)}"]`;
-}
-function lightEnvScreenAnchor(id) {
-  return `.light-env-screen-card[data-id="${cssAttrSelectorValue(id)}"]`;
-}
-function defaultActiveRoomId(rooms) {
-  if (!Array.isArray(rooms) || rooms.length === 0) return null;
-  if (rooms.length === 1) return rooms[0]?.id || null;
-  const sorted = rooms.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  return sorted[0]?.id || null;
-}
-function resolveActiveRoomId(rooms) {
-  const storedActiveId = readActiveRoomId();
-  if (isRoomCollapseSentinel(storedActiveId)) return null;
-  if (storedActiveId && rooms.find(r => r.id === storedActiveId)) return storedActiveId;
-  return defaultActiveRoomId(rooms);
-}
-
 function getMeasurementsFor(roomId) {
   if (typeof lightEnvDeps.getMeasurementsForRoom !== 'function') return [];
   try {
@@ -296,14 +246,9 @@ function _renderTodayToggle(kind, id, activeToday, opts = {}) {
 // Screen card — disclosure pattern matching rooms + audits + EMF.
 // Collapsed header shows: status dot + device-icon + device-label +
 // one-line summary (hours, evening, blocker) + today-toggle + chevron.
-// Expanded body holds the full controls. Tracking expansion isn't worth
-// localStorage persistence, so light-env.js owns the single active id and
-// passes render context into light-env-screen-ui.js.
-let _expandedScreenId = null;
-
 function renderLightEnvScreenCard(s, rooms) {
   return renderScreenCard(s, {
-    expanded: _expandedScreenId === s.id,
+    expanded: isLightEnvScreenExpanded(s.id),
     renderTodayToggle: _renderTodayToggle,
     renderScreenAIBlock: lightEnvDeps.renderScreenAIBlock,
     rooms,
@@ -793,261 +738,6 @@ export function renderEnvironmentSection(options = {}) {
   return html;
 }
 
-async function addLightEnvRoom() {
-  const env = getEnvironment();
-  const before = env?.rooms?.length || 0;
-  await addRoom(nextDefaultRoomName());
-  // Auto-expand the new room so the user can fill it out immediately.
-  const after = env?.rooms || [];
-  if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
-  refreshLightEnvironmentUI();
-}
-
-// Quick-pick chip handler — adds a room with the exact chosen name
-// (no "Room N" fallback). Auto-expands the new room.
-async function addLightEnvRoomNamed(name) {
-  const env = getEnvironment();
-  const before = env?.rooms?.length || 0;
-  await addRoom(name);
-  const after = env?.rooms || [];
-  if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
-  refreshLightEnvironmentUI();
-}
-
-// "Other…" quick-pick — opens the prompt dialog for a custom name.
-async function addLightEnvRoomCustom() {
-  const name = await showPromptDialog('Room name', {
-    defaultValue: '',
-    okLabel: 'Add room',
-    placeholder: 'e.g. Workshop, Garage, Studio',
-  });
-  if (name === null) return;
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  const env = getEnvironment();
-  const before = env?.rooms?.length || 0;
-  await addRoom(trimmed);
-  const after = env?.rooms || [];
-  if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
-  refreshLightEnvironmentUI();
-}
-
-// Disclosure toggle — clicking the header expands/collapses. The
-// event check ignores clicks on interactive children (the today-
-// toggle button, severity dot tooltip area) so they don't double-
-// fire as both their own action AND a card toggle.
-function toggleLightEnvRoomExpanded(id, event) {
-  if (event) {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-  }
-  // Bail if the click landed on an interactive descendant (button,
-  // input, select, label, anchor) — let it handle its own action.
-  if (event && event.target) {
-    const t = event.target;
-    if (t.closest('button, input, select, textarea, a, label')) {
-      // The header itself doesn't have buttons that should bubble;
-      // the today-toggle is a button, so its click reaches here too.
-      // Only allow expand-toggle when the click was on a non-
-      // interactive part of the header.
-      if (!t.classList.contains('light-env-room-disclosure-head')
-          && !t.classList.contains('light-env-room-disclosure-name')
-          && !t.classList.contains('light-env-room-disclosure-signals')
-          && !t.classList.contains('light-env-room-signal')
-          && !t.classList.contains('light-env-room-disclosure-chevron')
-          && !t.classList.contains('light-env-room-disclosure-spacer')
-          && !t.classList.contains('light-env-sev-dot')) {
-        return;
-      }
-    }
-  }
-  const rooms = getEnvironment()?.rooms || [];
-  const current = resolveActiveRoomId(rooms);
-  writeActiveRoomId(current === id ? COLLAPSED_ROOM_ID : id);
-  refreshLightEnvironmentUI({ scrollAnchor: lightEnvRoomAnchor(id) });
-}
-
-async function updateLightEnvRoom(id, patch) {
-  await updateRoom(id, patch);
-}
-
-// Chip-picker setters — translate archetype/bucket choices into
-// canonical schema values, then call updateRoom + re-render so the
-// active chip + severity dot reflect the new state.
-async function setLightEnvRoomSourceArchetype(id, archetypeKey) {
-  const a = SOURCE_ARCHETYPES.find(x => x.key === archetypeKey);
-  if (!a) return;
-  await updateRoom(id, { primarySource: a.storeAs });
-  refreshLightEnvironmentUI();
-}
-
-async function setLightEnvRoomHoursBucket(id, bucketKey) {
-  const b = HOURS_BUCKETS.find(x => x.key === bucketKey);
-  if (!b) return;
-  await updateRoom(id, { hoursOccupiedPerDay: b.midpoint });
-  refreshLightEnvironmentUI();
-}
-
-// Auto-fill a room's primarySource from the Spectrum tool's
-// classification — only when the user hasn't picked one yet, so
-// we don't silently overwrite a manual answer. Mapping mirrors
-// light-tools.js classifyLight() label values.
-export async function suggestRoomSourceFromSpectrum(roomId, spectrumLabel) {
-  const env = getEnvironment();
-  const room = (env?.rooms || []).find(r => r.id === roomId);
-  if (!room) return;
-  // Bail if user has already given us a non-default source.
-  if (room.primarySource && room.primarySource !== 'unknown') return;
-  const SPECTRUM_TO_SOURCE = {
-    'Fluorescent / CFL':            'fluorescent',
-    'Incandescent / halogen':       'incandescent',
-    'Cool LED (4000K+)':            'led-cool',
-    'Cool LED with PWM dimming':    'led-cool',
-    'Warm LED (2700–3000K)':        'led-warm',
-    'Warm LED with PWM dimming':    'led-warm',
-    'Daylight or full-spectrum':    'natural-only',
-    'Mixed / unclassified':         'mixed',
-  };
-  const mapped = SPECTRUM_TO_SOURCE[spectrumLabel];
-  if (!mapped) return;
-  await updateRoom(roomId, { primarySource: mapped });
-  showNotification(`Auto-set ${room.name || 'this room'}'s light source to ${mapped.replace('-', ' ')} from spectrum reading.`);
-}
-
-async function setLightEnvRoomEveningBucket(id, bucketKey) {
-  const b = EVENING_BUCKETS.find(x => x.key === bucketKey);
-  if (!b) return;
-  await updateRoom(id, { eveningHoursAfterSunset: b.midpoint });
-  refreshLightEnvironmentUI();
-}
-
-// Discrete-toggle variant — same persistence as updateLightEnvRoom
-// but refreshes the Light page / assessment modal so the severity
-// chip and accent strip update. Use for select/checkbox handlers
-// where focus-loss isn't a concern; keep plain updateLightEnvRoom
-// for text + number inputs to preserve cursor mid-typing.
-async function updateLightEnvRoomAndRender(id, patch) {
-  await updateRoom(id, patch);
-  refreshLightEnvironmentUI();
-}
-
-async function deleteLightEnvRoom(id) {
-  await deleteRoom(id);
-  if (readActiveRoomId() === id) writeActiveRoomId(null);
-  refreshLightEnvironmentUI();
-}
-
-// Confirm-dialog wrapped delete — reachable from the expanded room's header.
-// The bare delete handler stays in case anything else wires it without confirmation.
-async function deleteLightEnvRoomConfirm(id) {
-  if (await showConfirmDialog('Delete this room? Room-linked readings will be removed.')) {
-    await deleteRoom(id);
-    if (readActiveRoomId() === id) writeActiveRoomId(null);
-    refreshLightEnvironmentUI();
-  }
-}
-
-function setActiveLightEnvRoom(id) {
-  writeActiveRoomId(id);
-  refreshLightEnvironmentUI();
-}
-
-// Quick-pick variant — adds a screen with an explicit device type
-// (phone / laptop / monitor / tablet / tv). Auto-expands the new
-// screen card so the user can fill in hours immediately.
-async function addLightEnvScreenWithDevice(roomId, device) {
-  const validDevices = SCREEN_DEVICES.map(d => d.key);
-  const deviceKey = validDevices.includes(device) ? device : 'phone';
-  await addScreen(deviceKey, roomId || null);
-  const env = getEnvironment();
-  const after = env?.screens || [];
-  if (after.length > 0) _expandedScreenId = after[after.length - 1].id;
-  refreshLightEnvironmentUI();
-}
-
-async function addLightEnvScreen(roomId = null) {
-  // Sensible default device by room name — laptop for office, TV
-  // for living room, phone for everything else (incl. portable).
-  // User can change immediately via the device dropdown.
-  let device = 'phone';
-  if (roomId) {
-    const env = getEnvironment();
-    const room = (env?.rooms || []).find(r => r.id === roomId);
-    const name = (room?.name || '').toLowerCase();
-    if (/office|study|desk/.test(name)) device = 'laptop';
-    else if (/living|family|tv/.test(name)) device = 'tv';
-    else if (/bedroom|sleep/.test(name)) device = 'phone';
-  }
-  await addScreen(device, roomId);
-  refreshLightEnvironmentUI();
-}
-
-async function updateLightEnvScreen(id, patch) {
-  await updateScreen(id, patch);
-}
-
-async function updateLightEnvScreenAndRender(id, patch) {
-  await updateScreen(id, patch);
-  refreshLightEnvironmentUI();
-}
-
-async function deleteLightEnvScreen(id) {
-  await deleteScreen(id);
-  if (_expandedScreenId === id) _expandedScreenId = null;
-  refreshLightEnvironmentUI();
-}
-
-async function deleteLightEnvScreenConfirm(id) {
-  if (await showConfirmDialog('Delete this screen?')) {
-    await deleteScreen(id);
-    if (_expandedScreenId === id) _expandedScreenId = null;
-    refreshLightEnvironmentUI();
-  }
-}
-
-// Disclosure toggle for screen cards — same event-target gating as
-// the room toggle so clicks on inner controls don't double-fire.
-function toggleLightEnvScreenExpanded(id, event) {
-  if (event) {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-  }
-  if (event && event.target) {
-    const t = event.target;
-    if (t.closest('button, input, select, textarea, a, label')
-        && !t.classList.contains('light-env-screen-card-head')
-        && !t.classList.contains('light-env-screen-card-name')
-        && !t.classList.contains('light-env-screen-card-icon')
-        && !t.classList.contains('light-env-screen-card-summary')
-        && !t.classList.contains('light-env-room-disclosure-chevron')
-        && !t.classList.contains('light-env-room-disclosure-spacer')
-        && !t.classList.contains('light-env-sev-dot')) {
-      return;
-    }
-  }
-  _expandedScreenId = (_expandedScreenId === id) ? null : id;
-  refreshLightEnvironmentUI({ scrollAnchor: lightEnvScreenAnchor(id) });
-}
-
-async function setLightEnvScreenHoursBucket(id, bucketKey) {
-  const b = SCREEN_HOURS_BUCKETS.find(x => x.key === bucketKey);
-  if (!b) return;
-  await updateScreen(id, { hoursPerDay: b.midpoint });
-  refreshLightEnvironmentUI();
-}
-
-async function setLightEnvScreenEveningBucket(id, bucketKey) {
-  const map = { none: 0, lt1: 0.5, mid: 2, gt3: 4 };
-  if (!(bucketKey in map)) return;
-  await updateScreen(id, { eveningUseAfterSunset: map[bucketKey] });
-  refreshLightEnvironmentUI();
-}
-
-async function setLightEnvTodayActive(kind, id, active) {
-  await setTodayActive(kind, id, active);
-  refreshLightEnvironmentUI();
-}
-
 export function getRooms() {
   return (getEnvironment()?.rooms) || [];
 }
@@ -1066,33 +756,15 @@ function openLightEnvTool(tool, roomId) {
 }
 
 export const lightEnvActionHandlers = Object.freeze({
-  addLightEnvRoom,
-  addLightEnvRoomNamed,
-  addLightEnvRoomCustom,
-  toggleLightEnvRoomExpanded,
-  updateLightEnvRoom,
-  setLightEnvRoomSourceArchetype,
-  setLightEnvRoomHoursBucket,
-  setLightEnvRoomEveningBucket,
-  updateLightEnvRoomAndRender,
-  deleteLightEnvRoom,
-  deleteLightEnvRoomConfirm,
-  setActiveLightEnvRoom,
-  addLightEnvScreenWithDevice,
-  addLightEnvScreen,
-  updateLightEnvScreen,
-  updateLightEnvScreenAndRender,
-  deleteLightEnvScreen,
-  deleteLightEnvScreenConfirm,
-  toggleLightEnvScreenExpanded,
-  setLightEnvScreenHoursBucket,
-  setLightEnvScreenEveningBucket,
-  setLightEnvTodayActive,
+  ...lightEnvEditorActionHandlers,
   openLightEnvironmentAssessment,
   closeLightEnvironmentAssessment,
   openLightEnvTool,
 });
 
+configureLightEnvEditor({
+  refreshUI: refreshLightEnvironmentUI,
+});
 configureLightEnvAudits({
   getEnvironment,
   computeRoomSeverity,

@@ -577,8 +577,10 @@ const {
     state.importedData = beforeModalSyncData;
   }
 
-  const envSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
-  const modelSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-model.js', import.meta.url), 'utf8');
+  const fs = await import('node:fs/promises');
+  const envSrc = await fs.readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
+  const editorSrc = await fs.readFile(new URL('../js/light-env-editor.js', import.meta.url), 'utf8');
+  const modelSrc = await fs.readFile(new URL('../js/light-env-model.js', import.meta.url), 'utf8');
   assert('Assessment modal uses user-facing indoor assessment copy',
     envSrc.includes('Indoor Light Assessment') &&
     envSrc.includes('Save audit snapshots before and after changes') &&
@@ -592,7 +594,13 @@ const {
     !modelSrc.includes('saveImportedData') &&
     !modelSrc.includes('renderEnvironmentSection') &&
     !envSrc.includes('function _hasAnyRoomSignal'));
-  const fs = await import('node:fs/promises');
+  assert('Light environment room and screen editor commands have one owner',
+    envSrc.includes("from './light-env-editor.js'") &&
+    envSrc.includes('...lightEnvEditorActionHandlers') &&
+    editorSrc.includes('export const lightEnvEditorActionHandlers = Object.freeze({') &&
+    editorSrc.includes('export function configureLightEnvEditor') &&
+    !envSrc.includes('async function addLightEnvRoom(') &&
+    !envSrc.includes('async function deleteLightEnvScreenConfirm('));
   const auditSrc = await fs.readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
   const auditAiSrc = await fs.readFile(new URL('../js/light-audit-ai-analysis.js', import.meta.url), 'utf8');
   const burdenSrc = await fs.readFile(new URL('../js/light-burden-ai-analysis.js', import.meta.url), 'utf8');

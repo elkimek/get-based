@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 499 |
-| Internal import edges | 2257 |
+| Modules | 500 |
+| Internal import edges | 2262 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,7 +38,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 232 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/utils.js`](js/utils.js) | 233 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 157 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 74 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
@@ -457,7 +457,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 49 modules</summary>
+<details><summary><code>light</code> family — 50 modules</summary>
 
 - [`js/light-ai-save-hooks.js`](js/light-ai-save-hooks.js) → [`js/api.js`](js/api.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js), [`js/light-env-ai-analysis.js`](js/light-env-ai-analysis.js), [`js/light-env-audits.js`](js/light-env-audits.js), [`js/light-env.js`](js/light-env.js), [`js/light-screen-ai-analysis.js`](js/light-screen-ai-analysis.js), [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js), [`js/light-tools.js`](js/light-tools.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-onboarding-ai.js`](js/sun-onboarding-ai.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js)
 - [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -480,12 +480,13 @@ Native browser modules shipped with the static application.
 - [`js/light-env-actions.js`](js/light-env-actions.js) → [`js/utils.js`](js/utils.js)
 - [`js/light-env-ai-analysis.js`](js/light-env-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-env-audits.js`](js/light-env-audits.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-env-actions.js`](js/light-env-actions.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/light-env-editor.js`](js/light-env-editor.js) → [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-screen-ui.js`](js/light-env-screen-ui.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/utils.js`](js/utils.js)
 - [`js/light-env-evening.js`](js/light-env-evening.js) → no in-scope imports
 - [`js/light-env-model.js`](js/light-env-model.js) → [`js/light-env-evening.js`](js/light-env-evening.js)
 - [`js/light-env-screen-ui.js`](js/light-env-screen-ui.js) → [`js/light-env-actions.js`](js/light-env-actions.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/utils.js`](js/utils.js)
 - [`js/light-env-shell-hooks.js`](js/light-env-shell-hooks.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav.js`](js/nav.js), [`js/views.js`](js/views.js)
 - [`js/light-env-store.js`](js/light-env-store.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/state.js`](js/state.js)
-- [`js/light-env.js`](js/light-env.js) → [`js/light-env-actions.js`](js/light-env-actions.js), [`js/light-env-audits.js`](js/light-env-audits.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-screen-ui.js`](js/light-env-screen-ui.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/light-env.js`](js/light-env.js) → [`js/light-env-actions.js`](js/light-env-actions.js), [`js/light-env-audits.js`](js/light-env-audits.js), [`js/light-env-editor.js`](js/light-env-editor.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-screen-ui.js`](js/light-env-screen-ui.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-page-view-hooks.js`](js/light-page-view-hooks.js) → [`js/light-channel-view.js`](js/light-channel-view.js), [`js/light-channels-ai-analysis.js`](js/light-channels-ai-analysis.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/light-devices.js`](js/light-devices.js), [`js/light-env.js`](js/light-env.js), [`js/light-page-view.js`](js/light-page-view.js), [`js/light-today-ai.js`](js/light-today-ai.js), [`js/light-tools.js`](js/light-tools.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun.js`](js/sun.js)
 - [`js/light-page-view-ui-hooks.js`](js/light-page-view-ui-hooks.js) → [`js/light-page-view.js`](js/light-page-view.js), [`js/views.js`](js/views.js)
 - [`js/light-page-view.js`](js/light-page-view.js) → [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/light-channel-view.js`](js/light-channel-view.js), [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/light-sessions-view.js`](js/light-sessions-view.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
