@@ -352,6 +352,8 @@ const {
   state.importedData = null;
   assert('getSunDefaults() returns null when importedData missing',
     getSunDefaults() === null);
+  assert('saveSunDefaults() returns false when importedData missing',
+    await saveSunDefaults({ fitzpatrick: 'III' }) === false);
 
   // Restore
   state.importedData = orig;

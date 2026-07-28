@@ -288,8 +288,10 @@ export function getSunDefaults() {
 
 export async function saveSunDefaults(patch) {
   const d = getSunDefaults();
+  if (!d) return false;
   Object.assign(d, patch);
   await saveImportedData();
+  return true;
 }
 
 export function isOnboardingComplete() {
@@ -871,9 +873,11 @@ async function saveSunSetup() {
     }
     return false;
   }
-  await persistSunSetupValues(collected.values);
+  const values = collected.values;
+  if (!values) return false;
+  await persistSunSetupValues(values);
   closeSunSetupOverlay();
-  showNotification(`Setup saved · light burden ${collected.values.ottScore}/10`);
+  showNotification(`Setup saved · light burden ${values.ottScore}/10`);
   maybeAnalyzeOnboardingAfterSave();
   navigateSunDefaultsRoute('light');
   return true;

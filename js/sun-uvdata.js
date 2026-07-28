@@ -746,7 +746,9 @@ function readStaleCache(rLat, rLon) {
       const k = localStorage.key(i);
       if (!k || !k.startsWith(prefix)) continue;
       try {
-        const obj = JSON.parse(localStorage.getItem(k));
+        const cached = localStorage.getItem(k);
+        if (!cached) continue;
+        const obj = JSON.parse(cached);
         if (obj && obj.fetchedAt && (!best || obj.fetchedAt > best.fetchedAt)) best = obj;
       } catch (e) {
         if (isSunDebugRuntime()) {

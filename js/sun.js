@@ -356,6 +356,11 @@ export async function changeCoverageMidSession(id) {
   const selected = new Set(currentRegions);
   const slot = overlay.querySelector('#sun-coverage-silhouette-slot');
   const hint = overlay.querySelector('#sun-coverage-hint');
+  const confirmButton = overlay.querySelector('#coverage-confirm');
+  if (!hint || !confirmButton) {
+    closeDialog();
+    return;
+  }
   const updateHint = () => {
     const fraction = Array.from(selected).reduce((sum, key) => {
       const r = BODY_REGIONS.find(b => b.key === key);
@@ -375,7 +380,7 @@ export async function changeCoverageMidSession(id) {
   bindBodySilhouette(slot, selected, updateHint);
   updateHint();
 
-  overlay.querySelector('#coverage-confirm').addEventListener('click', async () => {
+  confirmButton.addEventListener('click', async () => {
     const regions = Array.from(selected);
     const updated = await setSessionCoverage(id, regions);
     const fraction = updated?.bodyExposure?.fraction || 0;
