@@ -101,7 +101,8 @@ function isCyclingFemale(profileContext, entryContext) {
  * @param {{lowMuscleMass?: boolean, lowMuscleReason?: string, sex?: string | null, lowSunlightExposure?: boolean, lowSunlightReason?: string, hormoneTherapy?: boolean, cycleStatus?: string | null, menopauseStatus?: string | null, recentHardTraining?: boolean, acuteInflammationContext?: boolean, genetic?: any, body?: any, light?: any, contextFlags?: string[]}} profileContext
  */
 export function getInputProfileModifier(hit, input, profileContext) {
-  const sexScale = input.sexWeightScale?.[profileContext?.sex] ?? 1;
+  const profileSex = profileContext?.sex;
+  const sexScale = profileSex ? input.sexWeightScale?.[profileSex] ?? 1 : 1;
   const dotKey = hit?.dotKey || '';
   const entryContext = getEntryContext(hit);
   if (input.profileContext === 'always-score') return { score: true, flag: '', weightScale: sexScale };
