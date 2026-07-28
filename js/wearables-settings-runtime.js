@@ -4,6 +4,7 @@
 import { showConfirmDialog } from './utils.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
+/** @type {{ navigate: ((route: string) => void) | null, showConfirmDialog: (typeof showConfirmDialog) | null }} */
 const wearableSettingsRuntimeDeps = {
   navigate: null,
   showConfirmDialog,
@@ -13,7 +14,7 @@ export function configureWearableSettingsRuntimeDeps(deps = {}) {
   const previous = { ...wearableSettingsRuntimeDeps };
   if ('navigate' in deps) {
     wearableSettingsRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? deps.navigate
+      ? /** @type {(route: string) => void} */ (deps.navigate)
       : null;
   }
   if ('showConfirmDialog' in deps) {

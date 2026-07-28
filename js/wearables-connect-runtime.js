@@ -1,13 +1,14 @@
 // @ts-check
 // wearables-connect-runtime.js - Browser runtime adapters for wearable connect orchestration.
 
+/** @type {{ navigate: ((route: string) => void) | null }} */
 const wearablesConnectRuntimeDeps = { navigate: null };
 
 export function configureWearablesConnectRuntimeDeps(deps = {}) {
   const previous = { ...wearablesConnectRuntimeDeps };
   if ('navigate' in deps) {
     wearablesConnectRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? deps.navigate
+      ? /** @type {(route: string) => void} */ (deps.navigate)
       : null;
   }
   return previous;

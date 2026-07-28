@@ -97,11 +97,13 @@ export function resetWearablesDB(profileId) {
 // ─────────────────────────────────────────────────────────
 
 function txPromise(tx) {
-  return new Promise((resolve, reject) => {
+  /** @type {Promise<void>} */
+  const complete = new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
   });
+  return complete;
 }
 
 // Field-level AES-GCM envelope around the non-key fields of an L1 row when
@@ -393,10 +395,12 @@ export async function deleteWearablesDB(profileId) {
     try { (await cached)?.close?.(); } catch { /* connection might be in error state */ }
   }
   resetWearablesDB(profileId);
-  return new Promise((resolve, reject) => {
+  /** @type {Promise<void>} */
+  const deleted = new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
     req.onblocked = () => reject(new Error('Wearable data deletion is blocked by another open tab.'));
   });
+  return deleted;
 }
