@@ -112,6 +112,60 @@ test('dashboard AI modal loader stays cold, single-flights, and applies stored c
   });
 });
 
+test('first cold dashboard CTA click loads and runs its delegated action', async ({ page }) => {
+  await page.goto('/dashboard-ai-loader-coverage');
+  const implementationRequests = [];
+  await page.route('**/js/context-card-dashboard-ai-impl.js*', route => {
+    implementationRequests.push(route.request().url());
+    return route.fulfill({
+      contentType: 'text/javascript',
+      body: syntheticDashboardAI,
+    });
+  });
+
+  const loadedBeforeClick = await page.evaluate(async url => {
+    const facade = await import(url);
+    facade.configureDashboardAISyncSetup(() => {
+      window.__dashboardAIFirstClickCallbacks ||= [];
+      window.__dashboardAIFirstClickCallbacks.push('sync');
+    });
+    facade.configureDashboardAIDataProtectionDeps({
+      pickFolderForBackup: () => {
+        window.__dashboardAIFirstClickCallbacks ||= [];
+        window.__dashboardAIFirstClickCallbacks.push('backup');
+      },
+      showEnableEncryptionModal: () => {
+        window.__dashboardAIFirstClickCallbacks ||= [];
+        window.__dashboardAIFirstClickCallbacks.push('encryption');
+      },
+    });
+    const fixture = document.getElementById('fixture');
+    fixture.innerHTML = facade.renderDataProtectionCta({
+      encryption: false,
+      sync: false,
+      backup: false,
+      backupSupported: true,
+    });
+    const loaded = facade.isDashboardAIModuleLoaded();
+    fixture.querySelector('[data-dashboard-ai-action="open-data-protection-picker"]').click();
+    return loaded;
+  }, facadeUrl());
+
+  expect(loadedBeforeClick).toBe(false);
+  await expect.poll(() => page.evaluate(() => ({
+    calls: window.__dashboardAILoaderCalls || [],
+    callbacks: window.__dashboardAIFirstClickCallbacks || [],
+  }))).toEqual({
+    calls: [
+      ['configure-sync'],
+      ['configure-protection', 'pickFolderForBackup,showEnableEncryptionModal'],
+      ['openDataProtectionPicker'],
+    ],
+    callbacks: ['sync', 'backup', 'encryption'],
+  });
+  expect(implementationRequests).toHaveLength(1);
+});
+
 test('dashboard AI modal loader retries with a fixed URL and reports the first failure', async ({ page }) => {
   await page.goto('/dashboard-ai-loader-coverage');
   const implementationRequests = [];

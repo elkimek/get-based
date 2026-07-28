@@ -22,6 +22,10 @@ const syntheticMedicalHistoryEditor = `
     deps.close?.();
     return 'closed';
   }
+  export function addCondition() {
+    record('addCondition');
+    return 'condition-added';
+  }
 `;
 
 test.beforeEach(async ({ page }) => {
@@ -138,6 +142,37 @@ test('outside-click closer keeps the exact context-cards re-export identity', as
     remainsAfterExactRemoval: true,
     implementationStayedCold: true,
   });
+});
+
+test('first cold medical-history control click loads and runs its delegated action', async ({ page }) => {
+  await page.goto('/medical-history-editor-loader-coverage');
+  const implementationRequests = [];
+  await page.route('**/js/context-card-medical-history-editor-impl.js*', route => {
+    implementationRequests.push(route.request().url());
+    return route.fulfill({
+      contentType: 'text/javascript',
+      body: syntheticMedicalHistoryEditor,
+    });
+  });
+
+  const loadedBeforeClick = await page.evaluate(async url => {
+    const facade = await import(url);
+    const modal = document.createElement('div');
+    modal.id = 'detail-modal';
+    modal.innerHTML = '<button type="button" data-medical-history-action="add-condition">Add condition</button>';
+    document.body.appendChild(modal);
+    const loaded = facade.isMedicalHistoryEditorLoaded();
+    modal.querySelector('[data-medical-history-action="add-condition"]').click();
+    return loaded;
+  }, facadeUrl());
+
+  expect(loadedBeforeClick).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__medicalHistoryLoaderCalls || []))
+    .toEqual([
+      ['configure', ''],
+      ['addCondition'],
+    ]);
+  expect(implementationRequests).toHaveLength(1);
 });
 
 test('medical-history action contains a failed load and retries with the fixed URL', async ({ page }) => {
