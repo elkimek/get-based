@@ -67,7 +67,7 @@ export function createProfileShareId() {
 
 export function generateProfileSharePassword() {
   const token = bytesToBase64Url(randomBytes(24));
-  return token.match(/.{1,6}/g).join('-');
+  return (token.match(/.{1,6}/g) || [token]).join('-');
 }
 
 function generateProfileShareManageToken() {
@@ -598,6 +598,7 @@ export function openSharedProfileImportModal(id) {
 
 async function handleCreateSubmit(form) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
+  if (!overlay) return;
   const profileId = form.dataset.profileId || state.currentProfile;
   const passwordInput = /** @type {HTMLInputElement | null} */ (form.querySelector('#profile-share-password'));
   const expiresInput = /** @type {HTMLSelectElement | null} */ (form.querySelector('#profile-share-expires'));
@@ -616,7 +617,9 @@ async function handleCreateSubmit(form) {
       createdAt: new Date().toISOString(),
       expiresAt: result.expiresAt,
     });
-    overlay.querySelector('.profile-share-body').outerHTML = renderShareResultBody(result);
+    const body = overlay.querySelector('.profile-share-body');
+    if (!body) throw new Error('Profile share modal closed before the link was ready.');
+    body.outerHTML = renderShareResultBody(result);
     showNotification('Encrypted profile link created', 'success');
   } catch (err) {
     setStatus(getErrorMessage(err, 'Could not create share link.'), 'error');

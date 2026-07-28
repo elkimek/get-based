@@ -41,6 +41,10 @@ export function resizeImage(file, maxDim = 1024, quality = 0.85) {
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas 2D context is unavailable'));
+        return;
+      }
       ctx.drawImage(img, 0, 0, width, height);
       const isPng = file.type === 'image/png';
       const outputType = isPng ? 'image/png' : 'image/jpeg';

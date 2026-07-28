@@ -67,26 +67,26 @@ export async function getBlob(key) {
 export async function setBlob(key, value) {
   if (!_idbAvailable) throw new Error('IndexedDB not available');
   const db = await _openDB();
-  return new Promise((resolve, reject) => {
+  return /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const req = store.put(value, key);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
-  });
+  }));
 }
 
 export async function deleteBlob(key) {
   if (!_idbAvailable) return;
   try {
     const db = await _openDB();
-    await new Promise((resolve, reject) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const req = store.delete(key);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
-    });
+    }));
   } catch (e) {
     console.warn('[blob-storage] deleteBlob failed:', getErrorMessage(e, e));
   }

@@ -67,3 +67,24 @@ test('image utility content builders format provider-compatible vision messages'
     expect(passed, name).toBe(true);
   }
 });
+
+test('image resizing rejects cleanly when a 2D canvas context is unavailable', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const message = await page.evaluate(async () => {
+    const imageUtils = await import(`/js/image-utils.js?imageUtilsContextGuard=${Date.now()}`);
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = () => null;
+    try {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>';
+      await imageUtils.resizeImage(new File([svg], 'pixel.svg', { type: 'image/svg+xml' }));
+      return 'resolved unexpectedly';
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    } finally {
+      HTMLCanvasElement.prototype.getContext = originalGetContext;
+    }
+  });
+
+  expect(message).toBe('Canvas 2D context is unavailable');
+});

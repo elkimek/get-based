@@ -268,9 +268,9 @@ export function buildBackupSnapshot() {
     settings,
     profileList: profiles,
     profiles: backupProfiles,
-    wearableIDB: null, // populated async by augmentBackupWithWearables
-    cycleIDB: null,
-    cycleImportMeta: null,
+    wearableIDB: /** @type {Record<string, any> | null} */ (null), // populated async by augmentBackupWithWearables
+    cycleIDB: /** @type {Record<string, any> | null} */ (null),
+    cycleImportMeta: /** @type {Record<string, any> | null} */ (null),
   };
 }
 
