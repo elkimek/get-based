@@ -36,6 +36,7 @@ const utilsSrc = await fetchWithRetry('js/utils.js');
 const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
 const settingsSrc = await fetchWithRetry('js/settings.js');
+const settingsDisplaySrc = await fetchWithRetry('js/settings-display-panel.js');
 const swSrc = await fetchWithRetry('service-worker.js');
 const modalLifecycleSrc = await fetchWithRetry('js/modal-lifecycle.js');
 // Original test fetched '/app' (dev-server alias for index.html); read
@@ -224,7 +225,7 @@ assert('app-event-listeners.js focus trap includes changelog', appEventsSrc.incl
 console.log('5. Settings Integration');
 
 assert('Settings references openChangelog', settingsSrc.includes('openChangelog'));
-assert("Settings has What's New button", settingsSrc.includes("What's New"));
+assert("Settings has What's New button", settingsDisplaySrc.includes("What's New"));
 
 // ═══════════════════════════════════════
 // 6. hasCardContent utility
