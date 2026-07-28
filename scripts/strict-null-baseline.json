@@ -1,6 +1,6 @@
 {
   "description": "Maximum strictNullChecks diagnostics per file. New files and per-file growth fail the ratchet.",
-  "totalDiagnostics": 145,
+  "totalDiagnostics": 138,
   "files": {
     "js/ai-verdict-engine-runtime.js": 2,
     "js/app-event-listeners.js": 1,
@@ -38,10 +38,6 @@
     "js/lens-local-worker.js": 1,
     "js/lens-pages.js": 3,
     "js/lens.js": 2,
-    "js/light-device-session-modal.js": 3,
-    "js/light-device-setup-modal.js": 2,
-    "js/light-devices-store.js": 1,
-    "js/light-devices.js": 1,
     "js/light-env-audits.js": 2,
     "js/light-page-view.js": 2,
     "js/light-today-ai.js": 4,
