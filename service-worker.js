@@ -527,6 +527,7 @@ const APP_SHELL = [
   '/js/light-device-setup-modal.js',
   '/js/light-device-session-modal.js',
   '/js/light-env.js',
+  '/js/light-env-editor.js',
   '/js/light-env-actions.js',
   '/js/light-env-shell-hooks.js',
   '/js/light-env-store.js',
