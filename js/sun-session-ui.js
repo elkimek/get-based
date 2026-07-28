@@ -696,7 +696,9 @@ export function openDetailedSessionDialog() {
   endEl?.addEventListener('input', updateDurationHint);
   updateDurationHint();
 
-  overlay.querySelector('#det-save').addEventListener('click', async () => {
+  const saveButton = overlay.querySelector('#det-save');
+  if (!saveButton) return closeDialog();
+  saveButton.addEventListener('click', async () => {
     const eyeModeVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-eye-mode'))?.value || 'direct';
     const lensTintVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-lens-tint'))?.value || 'clear';
     const spf = parseInt(/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-spf'))?.value || '', 10) || null;
