@@ -121,7 +121,7 @@ export async function openAddDeviceDialog() {
     btn.addEventListener('click', closeDialog);
   });
 
-  overlay.querySelector('#add-device-custom').addEventListener('click', () => {
+  _button(overlay, '#add-device-custom')?.addEventListener('click', () => {
     closeDialog();
     openCustomDeviceDialog();
   });
@@ -282,7 +282,7 @@ export async function openCustomDeviceDialog() {
   }
 
   if (hasAI) {
-    overlay.querySelector('#custom-dev-fetch').addEventListener('click', () => _fetchCustomDeviceFromURL(overlay));
+    _button(overlay, '#custom-dev-fetch')?.addEventListener('click', () => _fetchCustomDeviceFromURL(overlay));
     if (hasVision) {
       const imageInput = _input(overlay, '#custom-dev-image');
       _button(overlay, '#custom-dev-scan')?.addEventListener('click', () => imageInput?.click());

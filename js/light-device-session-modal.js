@@ -30,6 +30,15 @@ function _input(root, selector) {
   return /** @type {HTMLInputElement|null} */ (root.querySelector(selector));
 }
 
+/**
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {HTMLButtonElement|null}
+ */
+function _button(root, selector) {
+  return /** @type {HTMLButtonElement|null} */ (root.querySelector(selector));
+}
+
 function _wireDeviceSessionModal(overlay, closeFn) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
   openAppendedModalOverlay(overlay, closeFn);
@@ -68,7 +77,7 @@ function _broadAreaForRegions(bodyAreas) {
 
 function _readDistanceCm(overlay, fallbackCm) {
   const distInput = _input(overlay, '#dev-session-distance');
-  const distVal = parseFloat(distInput?.value);
+  const distVal = parseFloat(distInput?.value || '');
   const distUnit = distInput?.dataset.unit || 'cm';
   return Number.isFinite(distVal)
     ? (distUnit === 'in' ? distVal * 2.54 : distVal)
@@ -282,7 +291,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     });
   }
 
-  overlay.querySelector('#dev-session-save').addEventListener('click', async () => {
+  _button(overlay, '#dev-session-save')?.addEventListener('click', async () => {
     const durationMin = parseInt(_input(overlay, '#dev-session-duration')?.value || '', 10) || 10;
     const distanceCm = _readDistanceCm(overlay, device.recommendedDistanceCm || 15);
     const bodyAreas = Array.from(selectedRegions);
@@ -299,7 +308,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     navigate?.('light');
   });
 
-  overlay.querySelector('#dev-session-start').addEventListener('click', async () => {
+  _button(overlay, '#dev-session-start')?.addEventListener('click', async () => {
     if (getActiveDeviceSession()) {
       showNotification('Another device session is already running. Stop it first.', 'error');
       return;

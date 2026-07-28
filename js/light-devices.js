@@ -204,7 +204,7 @@ export async function editDeviceSessionMode(id) {
   overlay.querySelectorAll('[data-device-mode-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
   });
-  overlay.querySelector('#dev-edit-mode-save').addEventListener('click', async () => {
+  overlay.querySelector('#dev-edit-mode-save')?.addEventListener('click', async () => {
     const next = _select(overlay, '#dev-edit-mode')?.value || '';
     closeDialog();
     if (next === sess.mode) return;
