@@ -124,6 +124,7 @@
     "js/data-merge.js",
     "js/data.js",
     "js/dna.js",
+    "js/dna-ui.js",
     "js/dna-runtime.js",
     "js/dna-runtime-bridge.js",
     "js/emf.js",
