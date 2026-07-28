@@ -154,7 +154,9 @@ function retryHardenedDeferredBrowserModules() {
   const targets = new Set();
   for (const absolutePath of walkJavaScript()) {
     const file = repoRelative(absolutePath);
-    const parsed = parseModuleSpecifiers(source(file), file);
+    const fileSource = source(file);
+    if (!fileSource.includes('lazy-retry=1')) continue;
+    const parsed = parseModuleSpecifiers(fileSource, file);
     for (const dependency of parsed.dependencies) {
       if (
         dependency.kind === 'dynamic'
