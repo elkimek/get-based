@@ -74,6 +74,7 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
   const config = getOllamaConfig();
   const model = getOllamaMainModel();
   const adapter = getLocalAiProviderAdapter('ollama');
+  if (!adapter.infer) throw new Error('Ollama inference adapter is unavailable.');
   await prepareLocalAiRuntimeHandoff({ baseUrl: config.url, model });
   try {
     return await adapter.infer({
@@ -147,6 +148,7 @@ export async function callOpenAICompatibleLocalAPI(opts) {
   }
 
   const compatibleAdapter = getLocalAiProviderAdapter('openai-compatible');
+  if (!compatibleAdapter.infer) throw new Error('OpenAI-compatible inference adapter is unavailable.');
   let result;
   try {
     result = await compatibleAdapter.infer({ config, model, opts, plan, modelDetail });
