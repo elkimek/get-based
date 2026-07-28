@@ -449,6 +449,10 @@ export function isCycleBleedingObservation(row) {
   return !!observationFlow(row);
 }
 
+/**
+ * @param {any} observations
+ * @param {{ source?: string, importId?: string | null, updatedAt?: string }} [options]
+ */
 export function stitchCyclePeriodsFromObservations(observations, {
   source = 'import',
   importId = null,
