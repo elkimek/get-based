@@ -247,7 +247,7 @@ assert('genetics CSS lazy-load anchor preserves the original cascade position',
 assert('SW APP_SHELL includes genetics CSS bundle', swAuditSrc.includes("'/css/genetics.css'"));
 const dataProtectionLifecycleAuditSrc = read('js/modal-lifecycle.js');
 const settingsLoaderAuditSrc = read('js/settings-loader.js');
-const cryptoAuditSrc = read('js/crypto.js');
+const cryptoUiAuditSrc = read('js/crypto-ui.js');
 const piiAuditSrc = read('js/pii.js');
 assert('index defers data protection CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/data-protection.css"') &&
@@ -257,7 +257,7 @@ assert('index defers data protection CSS behind its ordered lazy-load anchor',
 assert('data protection presentation joins every owning first-open boundary',
   importLoaderAuditSrc.includes('loadDataProtectionStylesheet()') &&
   settingsLoaderAuditSrc.includes('loadDataProtectionStylesheet()') &&
-  cryptoAuditSrc.includes('runWithDataProtectionStylesheet') &&
+  cryptoUiAuditSrc.includes('runWithDataProtectionStylesheet') &&
   piiAuditSrc.includes('loadDataProtectionStylesheetForAction'));
 assert('SW APP_SHELL includes data protection CSS bundle', swAuditSrc.includes("'/css/data-protection.css'"));
 assert('index defers settings CSS behind its ordered lazy-load anchor',

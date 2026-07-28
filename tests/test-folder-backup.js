@@ -139,9 +139,11 @@ const exportModule = await import('../js/export.js');
   try {
     const backupSrc2 = read('/js/backup.js');
     const cryptoSrc = read('/js/crypto.js');
+    const cryptoUiSrc = read('/js/crypto-ui.js');
+    const cryptoSurfaceSrc = `${cryptoSrc}\n${cryptoUiSrc}`;
     assert('labcharts-last-manual-backup in backup.js', backupSrc2.includes('labcharts-last-manual-backup'));
-    assert('crypto.js has backup-nudge-snoozed-until', cryptoSrc.includes('backup-nudge-snoozed-until'));
-    assert('crypto.js has maybeShowBackupNudge function', cryptoSrc.includes('function maybeShowBackupNudge'));
+    assert('crypto surface has backup-nudge-snoozed-until', cryptoSurfaceSrc.includes('backup-nudge-snoozed-until'));
+    assert('crypto UI has maybeShowBackupNudge function', cryptoUiSrc.includes('function maybeShowBackupNudge'));
   } catch (e) {
     assert('backup nudge source inspection', false, e.message);
   }

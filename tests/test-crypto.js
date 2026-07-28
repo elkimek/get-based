@@ -58,6 +58,7 @@ await import('../js/utils.js');
 const backupModule = await import('../js/backup.js');
 const backupSrc = read('js/backup.js');
 const cryptoStoreSrc = read('js/crypto.js');
+const cryptoUiSrc = read('js/crypto-ui.js');
 const cycleStoreSrc = read('js/cycle-store.js');
 const profileStorageKeySrc = read('js/profile-storage-key.js');
 
@@ -251,6 +252,7 @@ console.log('8. Service worker');
 try {
   const swText = read('service-worker.js');
   assert('Service worker contains /js/crypto.js', swText.includes('/js/crypto.js'));
+  assert('Service worker contains /js/crypto-ui.js', swText.includes('/js/crypto-ui.js'));
   assert('Service worker contains /js/data-wipe.js', swText.includes('/js/data-wipe.js'));
   assert('SW uses importScripts for version', swText.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swText.includes('`labcharts-v${self.APP_VERSION}`'));
@@ -397,19 +399,21 @@ try {
 console.log('14. crypto.js source inspection');
 try {
   const src = await fetchWithRetry('js/crypto.js');
+  const uiSrc = await fetchWithRetry('js/crypto-ui.js');
+  const surfaceSrc = `${src}\n${uiSrc}`;
   assert('crypto.js uses PBKDF2', src.includes('PBKDF2'));
   assert('crypto.js uses AES-GCM', src.includes('AES-GCM'));
   assert('crypto.js has 600000 iterations', src.includes('600000'));
   assert('crypto.js uses 12-byte IV', src.includes('Uint8Array(12)'));
   assert('crypto.js uses 16-byte salt', src.includes('Uint8Array(16)'));
   assert('crypto.js has BroadcastChannel', src.includes('BroadcastChannel'));
-  assert('crypto.js has backup format', src.includes('labcharts-backup'));
+  assert('crypto surface has backup format', surfaceSrc.includes('labcharts-backup'));
   assert('crypto.js has v1: prefix', src.includes("'v1:'") || src.includes('`v1:'));
-  assert('crypto.js never stores passphrase', !src.includes('localStorage') || (!src.includes('setItem') && !src.includes('passphrase')) || !src.match(/localStorage\.setItem\([^)]*passphrase/));
-  assert('Forgot passphrase does NOT use showConfirmDialog', !src.includes("forgotBtn.addEventListener('click', () => {\n    showConfirmDialog"));
-  assert('Forgot passphrase has inline confirm UI', src.includes('passphrase-forgot-confirm'));
-  assert('Forgot passphrase has Go Back button', src.includes('passphrase-forgot-cancel'));
-  assert('Forgot passphrase wipes IndexedDB-backed app data', src.includes("import('./data-wipe.js'") && src.includes('eraseAllLocalAppData'));
+  assert('crypto surface never stores passphrase', !surfaceSrc.match(/localStorage\.setItem\([^)]*passphrase/));
+  assert('Forgot passphrase does NOT use showConfirmDialog', !uiSrc.includes("forgotButton.addEventListener('click', () => {\n    showConfirmDialog"));
+  assert('Forgot passphrase has inline confirm UI', uiSrc.includes('passphrase-forgot-confirm'));
+  assert('Forgot passphrase has Go Back button', uiSrc.includes('passphrase-forgot-cancel'));
+  assert('Forgot passphrase wipes IndexedDB-backed app data', uiSrc.includes("import('./data-wipe.js'") && uiSrc.includes('eraseAllLocalAppData'));
   const bkSrc0 = await fetchWithRetry('js/backup.js');
   assert('Backup includes encryptionSalt field', bkSrc0.includes('encryptionSalt'));
   assert('Restore sets labcharts-encryption-enabled', bkSrc0.includes("localStorage.setItem('labcharts-encryption-enabled'"));
@@ -631,8 +635,7 @@ try {
   assert('backup.js has restoreAutoBackup function', bkSrc.includes('async function restoreAutoBackup'));
   assert('backup.js has MAX_SNAPSHOTS = 5', bkSrc.includes('MAX_SNAPSHOTS = 5'));
   assert('backup.js has AUTO_BACKUP_COOLDOWN = 300000', bkSrc.includes('AUTO_BACKUP_COOLDOWN = 300000'));
-  const cryptoSrc = await fetchWithRetry('js/crypto.js');
-  assert('crypto.js has labcharts-last-autobackup', cryptoSrc.includes('labcharts-last-autobackup'));
+  assert('crypto UI has labcharts-last-autobackup', cryptoUiSrc.includes('labcharts-last-autobackup'));
 } catch (e) {
   assert('buildBackupSnapshot prefs check', false, e.message);
 }

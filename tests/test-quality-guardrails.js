@@ -240,6 +240,7 @@ assert('checkJs includes high-coupling browser modules',
   missingHighValueCheckJsModules.length ? `missing: ${missingHighValueCheckJsModules.join(', ')}` : '');
 const domainUiCheckJsModules = [
   'js/crypto.js',
+  'js/crypto-ui.js',
   'js/data.js',
   'js/emf.js',
   'js/emf-editor.js',
