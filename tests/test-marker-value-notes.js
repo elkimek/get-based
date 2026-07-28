@@ -92,7 +92,10 @@ const state = (await import('../js/state.js')).state;
   const viewsSrc = read('js/views.js');
   const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   const markerDetailActionsSrc = read('js/marker-detail-actions.js');
-  const markerDetailSrc = read('js/marker-detail-modal-impl.js');
+  const markerDetailSrc = [
+    read('js/marker-detail-modal-impl.js'),
+    read('js/marker-detail-manual-entry.js'),
+  ].join('\n');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js');
   const markerDetailStoreSrc = read('js/marker-detail-store.js');
   const labEntrySrc = read('js/lab-entry.js');

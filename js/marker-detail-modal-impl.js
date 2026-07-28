@@ -2,18 +2,35 @@
 // marker-detail-modal-impl.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
-import { trackUsage, UNIT_CONVERSIONS, SECONDARY_UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
-import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, showNotification, showConfirmDialog, safeMarkerId } from './utils.js';
-import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
+import { UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
+import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, safeMarkerId } from './utils.js';
+import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
-import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
+import { hasAIProvider } from './api.js';
 import { getInsulinMirrorMarkerKey } from './lab-entry.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
+import {
+  BIO_AGE_BORTZ_INPUTS,
+  BIO_AGE_PHENO_INPUTS,
+  bioAgeInputStatusAtIndex,
+  bioAgeReferenceIndex,
+  fetchCustomMarkerDescription,
+} from './marker-detail-content.js';
+import {
+  configureMarkerDetailManualEntry,
+  openManualEntryForm,
+} from './marker-detail-manual-entry.js';
+import {
+  configureMarkerDetailCustomMarkers,
+  deleteCustomMarker,
+  openCreateMarkerModal,
+  pickNewCatIcon,
+  saveCustomMarker,
+} from './marker-detail-custom-markers.js';
 import {
   askAIAboutMarkerRuntime,
   buildMarkerDetailSidebarRuntime,
@@ -29,7 +46,7 @@ import {
   showEmojiPickerRuntime,
   toggleDashboardQuickMarkerPinRuntime,
   uninstallWearableModalFocusTrapRuntime,
-  loadMarkerDetailStylesheet, openWithMarkerDetailStylesheet,
+  loadMarkerDetailStylesheet, openWithMarkerDetailStylesheet, setDetailModalShell,
 } from './marker-detail-runtime.js';
 import {
   configureMarkerDetailEditing,
@@ -49,8 +66,14 @@ import {
 } from './marker-detail-editing.js';
 
 export {
+  deleteCustomMarker,
   editRefRange,
+  fetchCustomMarkerDescription,
+  openCreateMarkerModal,
+  openManualEntryForm,
+  pickNewCatIcon,
   saveRefRange,
+  saveCustomMarker,
   revertRefRange,
   saveManualEntry,
   saveAndAddAnotherManualEntry,
@@ -95,8 +118,17 @@ configureMarkerDetailEditing({
   navigate: (...args) => markerDetailDeps.navigate(...args),
   buildSidebar: () => buildMarkerDetailSidebarRuntime(),
   showDetailModal: (...args) => showDetailModal(...args),
-  openManualEntryForm: (...args) => openManualEntryForm(...args),
+  openManualEntryForm: (id, prefillDate) => id ? openManualEntryForm(id, prefillDate) : false,
   closeModal: () => closeModal(),
+});
+configureMarkerDetailManualEntry({
+  showDetailModal,
+});
+configureMarkerDetailCustomMarkers({
+  closeModal,
+  navigate: (...args) => markerDetailDeps.navigate(...args),
+  openManualEntryForm,
+  showEmojiPicker: (...args) => markerDetailDeps.showEmojiPicker(...args),
 });
 
 if (typeof document !== 'undefined') {
@@ -124,85 +156,6 @@ if (typeof document !== 'undefined') {
     pickNewCatIcon,
     saveCustomMarker,
   });
-}
-
-// Biological-age component inputs. Keep these in sync with the PhenoAge and
-// Bortz Age calculations in data.js so the detail modal can explain exactly
-// which panel inputs are present or still missing.
-const BIO_AGE_PHENO_INPUTS = [
-  ['proteins', 'albumin', 'Albumin'],
-  ['biochemistry', 'creatinine', 'Creatinine'],
-  ['biochemistry', 'glucose', 'Glucose'],
-  ['proteins', 'hsCRP', 'hs-CRP'],
-  ['differential', 'lymphocytesPct', 'Lymphocytes %'],
-  ['hematology', 'mcv', 'MCV'],
-  ['hematology', 'rdwcv', 'RDW-CV'],
-  ['biochemistry', 'alp', 'ALP'],
-  ['hematology', 'wbc', 'WBC'],
-];
-const BIO_AGE_BORTZ_INPUTS = [
-  ['proteins', 'albumin', 'Albumin'],
-  ['biochemistry', 'alp', 'ALP'],
-  ['biochemistry', 'urea', 'Urea'],
-  ['lipids', 'cholesterol', 'Cholesterol'],
-  ['biochemistry', 'creatinine', 'Creatinine'],
-  ['biochemistry', 'cystatinC', 'Cystatin C'],
-  ['diabetes', 'hba1c', 'HbA1c'],
-  ['proteins', 'hsCRP', 'hs-CRP'],
-  ['biochemistry', 'ggt', 'GGT'],
-  ['hematology', 'rbc', 'RBC'],
-  ['hematology', 'mcv', 'MCV'],
-  ['hematology', 'rdwcv', 'RDW-CV'],
-  ['differential', 'monocytes', 'Monocytes'],
-  ['differential', 'neutrophils', 'Neutrophils'],
-  ['differential', 'lymphocytesPct', 'Lymphocytes %'],
-  ['biochemistry', 'alt', 'ALT'],
-  ['hormones', 'shbg', 'SHBG'],
-  ['vitamins', 'vitaminD', 'Vitamin D'],
-  ['biochemistry', 'glucose', 'Glucose'],
-  ['hematology', 'mch', 'MCH'],
-  ['lipids', 'apoAI', 'ApoA-I'],
-];
-
-function bioAgeReferenceIndex(data, marker, latestPoint) {
-  if (latestPoint && Number.isInteger(latestPoint.i)) return latestPoint.i;
-  const values = marker?.values || [];
-  for (let i = values.length - 1; i >= 0; i--) {
-    if (values[i] != null) return i;
-  }
-  return data.dates?.length ? data.dates.length - 1 : -1;
-}
-
-/**
- * @typedef {{
- *   label: string,
- *   present: boolean,
- *   kind: string,
- * }} BioAgeInputStatus
- */
-
-/**
- * @param {any} data
- * @param {number} idx
- * @param {string[][]} inputs
- * @param {BioAgeInputStatus | null} [profileRequirement]
- * @returns {BioAgeInputStatus[]}
- */
-function bioAgeInputStatusAtIndex(data, idx, inputs, profileRequirement = null) {
-  const status = inputs.map(([cat, key, label]) => ({
-    label,
-    present: idx >= 0 && data.categories?.[cat]?.markers?.[key]?.values?.[idx] != null,
-    kind: 'marker',
-  }));
-  if (profileRequirement) status.unshift(profileRequirement);
-  return status;
-}
-
-function setDetailModalShell(...classes) {
-  const modal = document.getElementById('detail-modal');
-  if (!modal) return null;
-  modal.className = ['modal', ...classes.filter(Boolean)].join(' ');
-  return modal;
 }
 
 /**
@@ -237,32 +190,8 @@ function getManualValueForMarker(dotKey, date) {
 }
 
 // ═══════════════════════════════════════════════
-// DETAIL MODAL & MANUAL ENTRY
+// DETAIL MODAL
 // ═══════════════════════════════════════════════
-
-export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
-  const cacheKey = 'labcharts-marker-desc';
-  const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-  if (cache[markerId]) return cache[markerId];
-  if (!hasAIProvider()) return null;
-  try {
-    const descResult = await callClaudeAPI({
-      system: 'You are a concise medical reference. Reply with exactly one sentence (max 30 words) explaining what this blood biomarker measures and why it matters clinically. No preamble.',
-      messages: [{ role: 'user', content: `${markerName} (${unit})` }],
-      maxTokens: 100
-    });
-    if (descResult && descResult.usage) {
-      trackUsage(getAIProvider(), getActiveModelId(), descResult.usage.inputTokens || 0, descResult.usage.outputTokens || 0);
-    }
-    const resp = (descResult && descResult.text) || '';
-    const text = resp.trim();
-    if (text) {
-      cache[markerId] = text;
-      localStorage.setItem(cacheKey, JSON.stringify(cache));
-    }
-    return text || null;
-  } catch { return null; }
-}
 
 export function showDetailModal(id, opts = {}) {
   if (!safeMarkerId(id)) return Promise.resolve(false);
@@ -832,313 +761,6 @@ function renderDetailModal(id, opts = {}) {
   return true;
 }
 
-export function openManualEntryForm(id, prefillDate) {
-  return openWithMarkerDetailStylesheet(() => renderManualEntryForm(id, prefillDate));
-}
-
-function renderManualEntryForm(id, prefillDate) {
-  // Always re-resolve from getActiveData — `state.markerRegistry` carries a
-  // marker frozen at the moment it was rendered, and `marker.unit` reflects
-  // the unit-system mode in effect *then*. After a US↔EU toggle the registry
-  // entry can lie about the current display unit, breaking the unit-picker
-  // comparison in saveManualEntry. Refresh on every open.
-  const idx = id.indexOf('_');
-  if (idx < 0) return;
-  const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
-  const data = getActiveData();
-  const marker = data.categories[catKey]?.markers[mKey];
-  if (marker) state.markerRegistry[id] = marker;
-  if (!marker) return;
-  const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
-  const overlay = document.getElementById("modal-overlay");
-  if (!modal) return;
-  const today = new Date().toISOString().slice(0, 10);
-  // Date fallback chain: explicit prefill (e.g. empty-cell click) → last-used in this session → today.
-  // sessionStorage clears when the tab closes, so we don't outlast a single sitting.
-  let sessionLast = null;
-  try {
-    const raw = sessionStorage.getItem('labcharts-last-manual-date');
-    if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) sessionLast = raw;
-  } catch (_) { /* sessionStorage may be unavailable (private mode) */ }
-  const dateValue = (typeof prefillDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate))
-    ? prefillDate
-    : (sessionLast || today);
-  const refText = marker.refMin != null || marker.refMax != null
-    ? `Reference: ${marker.refMin != null ? marker.refMin : '–'} \u2013 ${marker.refMax != null ? marker.refMax : '–'} ${escapeHTML(marker.unit)}`
-    : '';
-  // Placeholder hint: midpoint of ref range if known, otherwise a neutral example.
-  let placeholderHint = 'e.g. 5.4';
-  if (marker.refMin != null && marker.refMax != null) {
-    placeholderHint = `e.g. ${formatValue((marker.refMin + marker.refMax) / 2)}`;
-  }
-  // Per-field unit picker: surface every unit this marker can be entered in — the
-  // current display unit (default), the alternate US/EU unit, and any secondary
-  // clinical units (e.g. mg/L for Lp(a)) — so users entering a value from a lab
-  // report don't have to mentally convert. Default = current display unit.
-  const dotKeyForUnit = id.replace('_', '.');
-  const _meIsUS = state.unitSystem === 'US';
-  const _meConv = UNIT_CONVERSIONS[dotKeyForUnit];
-  const _meUnits = [marker.unit];
-  if (_meConv) {
-    const probe = marker.refMax ?? marker.refMin ?? 1;
-    const alt = getAlternateUnit(dotKeyForUnit, probe, _meIsUS);
-    if (alt?.unit) _meUnits.push(alt.unit);
-  }
-  for (const sec of (SECONDARY_UNIT_CONVERSIONS[dotKeyForUnit] || [])) {
-    if (sec.unit) _meUnits.push(sec.unit);
-  }
-  // Dedup case-insensitively, keeping the display unit first (selected).
-  const _meSeen = new Set();
-  const _meOptions = _meUnits.filter(u => {
-    const k = String(u).toLowerCase();
-    if (!u || _meSeen.has(k)) return false;
-    _meSeen.add(k);
-    return true;
-  });
-  const unitPickerHtml = _meOptions.length > 1
-    ? `<select id="me-unit" class="me-unit-select" aria-label="Input unit">
-         ${_meOptions.map((u, i) => `<option value="${escapeHTML(u)}"${i === 0 ? ' selected' : ''}>${escapeHTML(u)}</option>`).join('')}
-       </select>`
-    : `<span style="color:var(--text-muted);font-weight:400">(${escapeHTML(marker.unit)})</span>`;
-  modal.innerHTML = `<div class="gb-modal-head">
-      <div>
-        <div class="gb-modal-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
-        <div class="gb-modal-title">Add Value Manually</div>
-      </div>
-      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
-    </div>
-    <div class="gb-form-body">
-    <div class="modal-unit"><strong>${escapeHTML(marker.name)}</strong> \u00b7 ${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>
-    <div class="manual-entry-form">
-      <div class="me-field">
-        <label for="me-date">Date</label>
-        <input type="date" id="me-date" value="${dateValue}" max="${today}">
-      </div>
-      <div class="me-field">
-        <label for="me-value">Value ${unitPickerHtml}</label>
-        <input type="number" id="me-value" step="any" placeholder="${escapeHTML(placeholderHint)}" autofocus>
-      </div>
-      <div class="me-field">
-        <label for="me-note">Note <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
-        <textarea id="me-note" rows="2" placeholder="Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value..."></textarea>
-      </div>
-      <div class="gb-form-actions">
-        <button class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-manual-entry', { id })}>Save</button>
-        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('save-and-add-manual-entry', { id })} title="Save this value, then enter another marker for the same date">Save &amp; Add Another</button>
-        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('show-detail-modal', { id })}>Cancel</button>
-      </div>
-    </div>
-    </div>`;
-  openModalOverlay(overlay, { initialFocus: '#me-value', focusDelay: 50 });
-  setTimeout(() => {
-    const el = document.getElementById('me-value');
-    if (el) {
-      // Enter-to-save / Esc-to-cancel for keyboard users.
-      const onKey = (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); saveManualEntry(id); }
-        else if (e.key === 'Escape') { e.preventDefault(); showDetailModal(id); }
-      };
-      el.addEventListener('keydown', onKey);
-      const dateEl = document.getElementById('me-date');
-      if (dateEl) dateEl.addEventListener('keydown', onKey);
-    }
-  }, 50);
-}
-
-export function openCreateMarkerModal() {
-  return openWithMarkerDetailStylesheet(renderCreateMarkerModal);
-}
-
-function renderCreateMarkerModal() {
-  const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
-  const overlay = document.getElementById("modal-overlay");
-  if (!modal) return;
-  // Build category options from schema + existing custom categories
-  const data = getActiveData();
-  const catOptions = Object.entries(data.categories)
-    .map(([key, c]) => `<option value="${key}">${escapeHTML(c.label)}</option>`)
-    .join('');
-  modal.innerHTML = `<div class="gb-modal-head">
-      <div>
-        <div class="gb-modal-kicker">Custom marker</div>
-        <div class="gb-modal-title">Create New Biomarker</div>
-      </div>
-      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
-    </div>
-    <div class="gb-form-body">
-    <div class="manual-entry-form">
-      <div class="me-field">
-        <label>Category</label>
-        <div class="cm-cat-row">
-          <select id="cm-category" ${markerDetailActionAttrs('toggle-custom-marker-category')}>
-            ${catOptions}
-            <option value="__new__">+ New category...</option>
-          </select>
-          <div id="cm-new-cat-row" style="display:none;margin-top:6px;gap:8px;align-items:center">
-            <span id="cm-new-cat-icon" title="Pick icon" style="cursor:pointer;font-size:20px;min-width:28px;text-align:center" role="button" tabindex="0" data-custom="" ${markerDetailActionAttrs('pick-new-cat-icon')}>\uD83D\uDD16</span>
-            <input type="text" id="cm-new-cat" placeholder="Category name" style="flex:1">
-          </div>
-        </div>
-      </div>
-      <div class="me-field">
-        <label>Marker name</label>
-        <input type="text" id="cm-name" placeholder="e.g. Lipoprotein(a)" autofocus>
-      </div>
-      <div class="me-field">
-        <label>Unit</label>
-        <input type="text" id="cm-unit" placeholder="e.g. mg/dL, nmol/L, %">
-      </div>
-      <div class="me-field">
-        <label>Reference range (optional)</label>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="cm-ref-min" step="any" placeholder="Min">
-          <span style="line-height:36px">\u2013</span>
-          <input type="number" id="cm-ref-max" step="any" placeholder="Max">
-        </div>
-      </div>
-      <div class="me-field">
-        <label>Optimal range (optional)</label>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="cm-opt-min" step="any" placeholder="Min">
-          <span style="line-height:36px">\u2013</span>
-          <input type="number" id="cm-opt-max" step="any" placeholder="Max">
-        </div>
-      </div>
-      <div class="gb-form-actions">
-        <button type="button" class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-custom-marker')}>Create</button>
-        <button type="button" class="import-btn import-btn-secondary" ${markerDetailActionAttrs('close-modal')}>Cancel</button>
-      </div>
-    </div>
-    </div>`;
-  openModalOverlay(overlay, { initialFocus: '#cm-name', focusDelay: 50 });
-}
-
-export function pickNewCatIcon(el) {
-  markerDetailDeps.showEmojiPicker(el, (emoji) => {
-    if (emoji) { el.textContent = emoji; el.dataset.custom = '1'; }
-  });
-}
-
-export function saveCustomMarker() {
-  const catSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('cm-category'));
-  const newCatInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-new-cat'));
-  const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-name'));
-  const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-unit'));
-  const refMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-ref-min'));
-  const refMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-ref-max'));
-  if (!catSelect) return;
-  if (!nameInput?.value.trim()) { showNotification('Please enter a marker name', 'error'); return; }
-  const name = nameInput.value.trim();
-  // Determine category key and label
-  let catKey, catLabel;
-  let newCatIcon = null;
-  if (catSelect.value === '__new__') {
-    catLabel = (newCatInput?.value || '').trim();
-    if (!catLabel) { showNotification('Please enter a category name', 'error'); return; }
-    const iconEl = /** @type {HTMLElement | null} */ (document.getElementById('cm-new-cat-icon'));
-    newCatIcon = iconEl?.dataset.custom === '1' ? iconEl.textContent.trim() : null;
-    catKey = catLabel.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)
-      .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join('');
-    if (!catKey || /^\d/.test(catKey)) catKey = 'custom' + catKey.charAt(0).toUpperCase() + catKey.slice(1);
-  } else {
-    catKey = catSelect.value;
-    catLabel = catSelect.options[catSelect.selectedIndex].text;
-  }
-  // Generate marker key from name (camelCase)
-  const markerKey = name
-    .replace(/[^a-zA-Z0-9\s]/g, '')
-    .split(/\s+/)
-    .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join('');
-  if (!markerKey) { showNotification('Could not generate a valid key from marker name', 'error'); return; }
-  const fullKey = catKey + '.' + markerKey;
-  // Check for conflicts
-  const data = getActiveData();
-  const existingCat = data.categories[catKey];
-  if (existingCat?.markers[markerKey]) {
-    showNotification('A marker with this name already exists in that category', 'error');
-    return;
-  }
-  // Parse optional ref range
-  const refMin = refMinInput?.value ? parseFloat(refMinInput.value) : null;
-  const refMax = refMaxInput?.value ? parseFloat(refMaxInput.value) : null;
-  const validRefMin = refMin != null && !Number.isNaN(refMin) ? refMin : null;
-  const validRefMax = refMax != null && !Number.isNaN(refMax) ? refMax : null;
-  const optMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-min'));
-  const optMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-max'));
-  const optMin = optMinInput?.value ? parseFloat(optMinInput.value) : null;
-  const optMax = optMaxInput?.value ? parseFloat(optMaxInput.value) : null;
-  // Save custom marker definition
-  if (!state.importedData.customMarkers) state.importedData.customMarkers = {};
-  const cmDef = {
-    name,
-    unit: (unitInput?.value || '').trim(),
-    refMin: validRefMin,
-    refMax: validRefMax,
-    categoryLabel: catLabel,
-    ...(newCatIcon ? { icon: newCatIcon } : {})
-  };
-  state.importedData.customMarkers[fullKey] = cmDef;
-  // Save optimal range as refOverride if provided
-  if (optMin != null && !isNaN(optMin) && optMax != null && !isNaN(optMax)) {
-    if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
-    state.importedData.refOverrides[fullKey] = {
-      ...(state.importedData.refOverrides[fullKey] || {}),
-      optimalMin: optMin,
-      optimalMax: optMax
-    };
-  }
-  saveImportedData();
-  buildMarkerDetailSidebarRuntime();
-  closeModal();
-  showNotification(`Created "${name}" in ${catLabel}`, 'success');
-  // Register marker and open manual entry to add first value
-  const id = catKey + '_' + markerKey;
-  state.markerRegistry[id] = {
-    name,
-    unit: (unitInput?.value || '').trim(),
-    refMin: validRefMin,
-    refMax: validRefMax,
-    custom: true
-  };
-  setTimeout(() => openManualEntryForm(id), 100);
-}
-
-export async function deleteCustomMarker(id) {
-  const dotKey = id.replace('_', '.');
-  const catKey = dotKey.split('.')[0];
-  const def = state.importedData?.customMarkers?.[dotKey];
-  if (!def) return;
-  // Find all custom markers in same category
-  const siblingsInCat = Object.keys(state.importedData.customMarkers).filter(k => k.startsWith(catKey + '.'));
-  const isLastInCat = siblingsInCat.length <= 1;
-  const msg = isLastInCat
-    ? `Delete "${def.name}" and the entire "${def.categoryLabel || catKey}" category? This cannot be undone.`
-    : `Delete "${def.name}" and all its values? This cannot be undone.`;
-  if (await showConfirmDialog(msg)) {
-    // Determine which keys to delete — just this marker, or all in category
-    const keysToDelete = isLastInCat ? siblingsInCat : [dotKey];
-    const now = Date.now();
-    for (const key of keysToDelete) {
-      deleteLabEntryMarkerValues(state.importedData, key, { now, deleteEmptyEntries: false });
-      // Remove ref overrides
-      if (state.importedData.refOverrides) delete state.importedData.refOverrides[key];
-      if (state.importedData.markerNotes) delete state.importedData.markerNotes[key];
-      if (state.importedData.markerLabels) delete state.importedData.markerLabels[key];
-      // Remove custom marker definition
-      delete state.importedData.customMarkers[key];
-    }
-    // Clean up empty entries
-    deleteEmptyLabEntries(state.importedData);
-    saveImportedData();
-    closeModal();
-    buildMarkerDetailSidebarRuntime();
-    updateHeaderDates();
-    markerDetailDeps.navigate('dashboard');
-    showNotification(`Deleted "${def.name}"${isLastInCat && siblingsInCat.length > 1 ? ` and ${siblingsInCat.length - 1} other marker(s)` : ''}`, 'info');
-  }
-}
 
 export function closeModal() {
   closeModalOverlay('modal-overlay');

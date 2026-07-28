@@ -7,7 +7,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const modalSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal-impl.js'), 'utf8');
+const modalImplSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal-impl.js'), 'utf8');
+const manualEntrySrc = fs.readFileSync(path.join(root, 'js/marker-detail-manual-entry.js'), 'utf8');
+const customMarkersSrc = fs.readFileSync(path.join(root, 'js/marker-detail-custom-markers.js'), 'utf8');
+const modalSrc = `${modalImplSrc}\n${manualEntrySrc}\n${customMarkersSrc}`;
 const editingSrc = fs.readFileSync(path.join(root, 'js/marker-detail-editing.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/marker-detail-actions.js'), 'utf8');
 const runtimeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-runtime.js'), 'utf8');

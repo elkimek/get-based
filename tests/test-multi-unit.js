@@ -219,9 +219,15 @@ console.log('\n-- new conversions reachable via helpers --');
 console.log('\n-- source-shape pins (UI wiring) --');
 {
   const fs = await import('node:fs');
-  const markerDetail = fs.readFileSync(new URL('../js/marker-detail-modal-impl.js', import.meta.url), 'utf8');
+  const markerDetail = [
+    fs.readFileSync(new URL('../js/marker-detail-modal-impl.js', import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../js/marker-detail-manual-entry.js', import.meta.url), 'utf8'),
+  ].join('\n');
   const markerDetailEditing = fs.readFileSync(new URL('../js/marker-detail-editing.js', import.meta.url), 'utf8');
-  const settings = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const settings = [
+    fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../js/settings-display-panel.js', import.meta.url), 'utf8'),
+  ].join('\n');
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
   const profile = fs.readFileSync(new URL('../js/profile.js', import.meta.url), 'utf8');
@@ -256,7 +262,8 @@ console.log('\n-- source-shape pins (UI wiring) --');
     /data-alt-units="on"[^>]*data-settings-action="toggle-alt-units"/.test(settings)
       && /toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)/.test(settings));
   assert('settings.js updateSettingsUI refreshes alt-units active state',
-    /unit-toggle-btn\[data-alt-units\][^)]*\)\.forEach[\s\S]{0,300}state\.showAltUnits/.test(settings));
+    settings.includes('.unit-toggle-btn[data-alt-units]') &&
+      /altUnitButtons\.forEach[\s\S]{0,300}state\.showAltUnits/.test(settings));
   assert('settings.js unit-toggle scope is narrowed to [data-unit] (so alt-units buttons aren\'t deactivated)',
     /unit-toggle-btn\[data-unit\]/.test(settings));
 
@@ -266,7 +273,7 @@ console.log('\n-- source-shape pins (UI wiring) --');
   assert('data.js toggleAltUnits persists to localStorage',
     /localStorage\.setItem\(profileStorageKey\(state\.currentProfile, 'showAltUnits'\)/.test(data));
   assert('data.js toggleAltUnits refreshes open detail modal via state._activeDetailMarkerId',
-    /state\._activeDetailMarkerId[\s\S]{0,200}window\.showDetailModal/.test(data));
+    /state\._activeDetailMarkerId[\s\S]{0,200}dataRuntimeDeps\.showDetailModal\?\.\(openId\)/.test(data));
   assert('data.js keeps toggleAltUnits module-only',
     /export function toggleAltUnits\(force\)/.test(data) && !data.includes('Object.assign(window'));
 

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 496 |
-| Internal import edges | 2238 |
+| Modules | 499 |
+| Internal import edges | 2257 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,21 +38,21 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 230 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 155 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/data.js`](js/data.js) | 72 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 64 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
-| [`js/api.js`](js/api.js) | 63 | [`js/chat-send.js`](js/chat-send.js) | 22 |
+| [`js/utils.js`](js/utils.js) | 232 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 157 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/data.js`](js/data.js) | 74 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 66 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
+| [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
-| [`js/schema.js`](js/schema.js) | 30 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
+| [`js/schema.js`](js/schema.js) | 32 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/export.js`](js/export.js) | 18 |
 | [`js/constants.js`](js/constants.js) | 19 | [`js/sun.js`](js/sun.js) | 18 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/profile.js`](js/profile.js) | 16 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/cycle-import.js`](js/cycle-import.js) | 15 |
-| [`js/context-cards-runtime.js`](js/context-cards-runtime.js) | 16 | [`js/lab-context.js`](js/lab-context.js) | 15 |
+| [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/profile.js`](js/profile.js) | 16 |
+| [`js/context-cards-runtime.js`](js/context-cards-runtime.js) | 16 | [`js/cycle-import.js`](js/cycle-import.js) | 15 |
 
 ## Existing cyclic components
 
@@ -541,12 +541,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 7 modules</summary>
+<details><summary><code>marker</code> family — 10 modules</summary>
 
 - [`js/marker-analysis.js`](js/marker-analysis.js) → [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-actions.js`](js/marker-detail-actions.js) → [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-content.js`](js/marker-detail-content.js) → [`js/api.js`](js/api.js), [`js/schema.js`](js/schema.js)
+- [`js/marker-detail-custom-markers.js`](js/marker-detail-custom-markers.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-editing.js`](js/marker-detail-editing.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-detail-store.js`](js/marker-detail-store.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) → [`js/api.js`](js/api.js), [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) → [`js/api.js`](js/api.js), [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/data.js`](js/data.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-content.js`](js/marker-detail-content.js), [`js/marker-detail-custom-markers.js`](js/marker-detail-custom-markers.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
