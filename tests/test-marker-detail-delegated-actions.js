@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const modalFacadeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const modalImplSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal-impl.js'), 'utf8');
 const manualEntrySrc = fs.readFileSync(path.join(root, 'js/marker-detail-manual-entry.js'), 'utf8');
 const customMarkersSrc = fs.readFileSync(path.join(root, 'js/marker-detail-custom-markers.js'), 'utf8');
@@ -53,10 +54,14 @@ assert('marker-detail-actions defines one shared action attribute helper',
     actionSrc.includes("replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)") &&
     actionSrc.includes("value !== false"));
 assert('marker-detail-actions installs idempotent click and keyboard delegates',
-  actionSrc.includes('const markerDetailActionDelegateRoots = new WeakSet();') &&
-    actionSrc.includes("root.addEventListener('click', event => handleMarkerDetailClick(event, actions))") &&
-    actionSrc.includes("root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, actions))") &&
-    actionSrc.includes("root.addEventListener('change', event => handleMarkerDetailChange(event, actions))"));
+  actionSrc.includes('const markerDetailActionDelegates = new WeakMap();') &&
+    actionSrc.includes('Object.assign(installedActions, actions)') &&
+    actionSrc.includes("root.addEventListener('click', event => handleMarkerDetailClick(event, delegatedActions))") &&
+    actionSrc.includes("root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, delegatedActions))") &&
+    actionSrc.includes("root.addEventListener('change', event => handleMarkerDetailChange(event, delegatedActions))"));
+assert('marker-detail facade bridges delegated card clicks before the implementation loads',
+  modalFacadeSrc.includes("import { installMarkerDetailActionDelegates } from './marker-detail-actions.js'") &&
+    modalFacadeSrc.includes('installMarkerDetailActionDelegates({ showDetailModal });'));
 assert('marker-detail delegated actions are scoped to the installed root',
   actionSrc.includes("event.currentTarget.contains(actionEl)"));
 assert('marker-detail open manual entry action preserves optional prefill date',

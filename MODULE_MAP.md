@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 518 |
-| Internal import edges | 2320 |
+| Internal import edges | 2321 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -557,7 +557,7 @@ Native browser modules shipped with the static application.
 - [`js/marker-detail-editing.js`](js/marker-detail-editing.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-detail-store.js`](js/marker-detail-store.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) → [`js/api.js`](js/api.js), [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/data.js`](js/data.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-content.js`](js/marker-detail-content.js), [`js/marker-detail-custom-markers.js`](js/marker-detail-custom-markers.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
 

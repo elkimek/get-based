@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { closeSuggestionsOnClickOutside } from './health-data-loader.js';
+import { installMarkerDetailActionDelegates } from './marker-detail-actions.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import {
   closeEMFInterpretationRuntime,
@@ -119,6 +120,14 @@ export function fetchCustomMarkerDescription(...args) {
 export function showDetailModal(id, opts = {}) {
   if (!safeMarkerId(id)) return Promise.resolve(false);
   return runMarkerDetailAction('showDetailModal', [id, opts]);
+}
+
+// Category cards already render the shared delegated action contract while the
+// heavy modal implementation is still cold. Bridge their first click through
+// this facade; the implementation upgrades the same delegate with its complete
+// action set once the lazy import resolves.
+if (typeof document !== 'undefined') {
+  installMarkerDetailActionDelegates({ showDetailModal });
 }
 
 export function editRefRange(...args) {
