@@ -127,6 +127,8 @@
     "js/dna-runtime.js",
     "js/dna-runtime-bridge.js",
     "js/emf.js",
+    "js/emf-editor.js",
+    "js/emf-model.js",
     "js/emf-facade.js",
     "js/export-import.js",
     "js/export.js",
