@@ -96,7 +96,10 @@ assert('wearables manual form UI delegates tag chip actions',
     manualFormUiSrc.includes('installWearablesManualFormDelegates') &&
     !inlineHandlerRe.test(manualFormUiSrc));
 
-const clSrc = await fetch('js/client-list-impl.js').then(r => r.text());
+const clSrc = [
+  await fetch('js/client-list-impl.js').then(r => r.text()),
+  await fetch('js/client-list-form.js').then(r => r.text()),
+].join('\n');
 assert('Edit Client modal no longer renders the cl-bio-weight container',
   !clSrc.includes('id="cl-bio-weight"'));
 assert('Edit Client modal no longer renders the cl-bio-bp container',
