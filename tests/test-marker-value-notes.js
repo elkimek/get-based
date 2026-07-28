@@ -34,8 +34,8 @@ const state = (await import('../js/state.js')).state;
   assert('state.js default importedData includes markerValueNotes: {}',
     /markerValueNotes:\s*\{\}/.test(stateSrc));
 
-  const profSrc = read('js/profile.js');
-  assert('profile.js migrates markerValueNotes default',
+  const profSrc = read('js/profile-data-migrations.js');
+  assert('profile migration owner backfills markerValueNotes',
     profSrc.includes('if (data.markerValueNotes === undefined) data.markerValueNotes = {}'));
 
   // ═══════════════════════════════════════

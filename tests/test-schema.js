@@ -25,6 +25,7 @@ console.log('=== Specialty Marker Refactor Tests ===\n');
 const schemaSrc = read('js/schema.js');
 const adaptersSrc = read('js/adapters.js');
 const profileSrc = read('js/profile.js');
+const profileDataMigrationsSrc = read('js/profile-data-migrations.js');
 const dataSrc = read('js/data.js');
 const pdfImportSrc = read('js/pdf-import.js');
 const pdfImportCommitSrc = read('js/pdf-import-commit.js');
@@ -128,12 +129,13 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   // ═══════════════════════════════════════
   console.log('%c 4. Migration in profile.js ', 'font-weight:bold;color:#f59e0b');
 
-  assert('profile.js imports standard and specialty markers from their owners',
-    profileSrc.includes("import { MARKER_SCHEMA } from './schema.js'")
-      && profileSrc.includes("import { SPECIALTY_MARKER_DEFS } from './adapters.js'"));
-  assert('Migration scans entry markers', profileSrc.includes('SPECIALTY_MARKER_DEFS[key]'));
-  assert('Migration writes to customMarkers', profileSrc.includes('data.customMarkers[key]'));
-  assert('Migration includes icon', profileSrc.includes('icon: def.icon'));
+  assert('profile migration owner imports standard and specialty markers',
+    profileDataMigrationsSrc.includes("import { MARKER_SCHEMA } from './schema.js'")
+      && profileDataMigrationsSrc.includes("import { SPECIALTY_MARKER_DEFS } from './adapters.js'")
+      && profileSrc.includes("from './profile-data-migrations.js'"));
+  assert('Migration scans entry markers', profileDataMigrationsSrc.includes('SPECIALTY_MARKER_DEFS[key]'));
+  assert('Migration writes to customMarkers', profileDataMigrationsSrc.includes('data.customMarkers[key]'));
+  assert('Migration includes icon', profileDataMigrationsSrc.includes('icon: def.icon'));
 
   // Behavioral test: migrateProfileData with specialty entry data
   if (typeof migrateProfileData === 'function') {

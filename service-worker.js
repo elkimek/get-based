@@ -142,6 +142,7 @@ const APP_SHELL = [
   '/js/ai-action-delegates.js',
   '/js/health-goals-utils.js',
   '/js/lab-date-range.js',
+  '/js/profile-data-migrations.js',
   '/js/profile-fatty-acid-migrations.js',
   '/js/profile-marker-migrations.js',
   '/js/profile-storage-key.js',

@@ -232,6 +232,7 @@
     "js/pdfjs-loader.js",
     "js/pii-review.js",
     "js/pii.js",
+    "js/profile-data-migrations.js",
     "js/profile.js",
     "js/profile-runtime.js",
     "js/profile-share.js",

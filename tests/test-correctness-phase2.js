@@ -107,6 +107,7 @@ const pwaAppShellAssets = [
   '/js/startup-maintenance.js',
   '/js/startup-ui.js',
   '/js/ai-verdict-engine.js',
+  '/js/profile-data-migrations.js',
   '/js/settings-provider-bridge.js',
   '/js/import-loader.js',
   '/js/import-file-input.js',

@@ -116,10 +116,10 @@ assert('saveDiagnoses considers familyHistory.length before nulling diagnoses',
   /const fhLen = diagnoses\.familyHistory\.length[\s\S]{0,300}fhLen === 0/.test(ctxMedicalSrc));
 
 // Profile migration backfills familyHistory on legacy diagnoses objects.
-const profSrc = await fetch('js/profile.js').then(r => r.text());
-assert('profile.js migrates string-diagnoses into structured object with familyHistory: []',
+const profSrc = await fetch('js/profile-data-migrations.js').then(r => r.text());
+assert('profile migration owner converts string diagnoses with familyHistory: []',
   /data\.diagnoses\.trim\(\)\s*\?\s*\{ conditions: \[\], note: data\.diagnoses\.trim\(\), familyHistory: \[\] \}/.test(profSrc));
-assert('profile.js backfills familyHistory=[] on existing diagnoses objects without it',
+assert('profile migration owner backfills familyHistory=[] on legacy diagnoses',
   /data\.diagnoses && typeof data\.diagnoses === 'object' && !Array\.isArray\(data\.diagnoses\.familyHistory\)[\s\S]{0,200}data\.diagnoses\.familyHistory = \[\]/.test(profSrc));
 
 // ═══════════════════════════════════════
