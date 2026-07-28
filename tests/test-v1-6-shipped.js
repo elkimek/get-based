@@ -471,18 +471,18 @@ const _origProfileSex = state ? state.profileSex : null;
   // ─── 16. v1.6.7 Sun-context warnings iterate the sparse array ──────
   console.log('%c 16. sun-context warnings iterate sparse array ', 'font-weight:bold;color:#0891b2');
   {
-    const ctxSrc = await fetchSrc('js/sun-context.js');
+    const environmentCtxSrc = await fetchSrc('js/sun-context-environment.js');
     // After the measurement-retention redesign, lightMeasurements is
     // already at-most-one-per-(roomId, tool), so no time-window filter
     // is needed. The 90-day filter from earlier drafts was removed.
-    assert('sun-context.js: no 90-day filter (relies on sparse array)',
-      !/90\s*\*\s*86400/.test(ctxSrc));
-    assert('sun-context.js: iterates lightMeasurements directly',
-      /const recent\s*=\s*state\.importedData\?\.lightMeasurements/.test(ctxSrc));
-    assert('sun-context.js: still emits flicker / darkness / cct warnings',
-      /m\.tool\s*===\s*'flicker'/.test(ctxSrc)
-      && /m\.tool\s*===\s*'darkness'/.test(ctxSrc)
-      && /m\.tool\s*===\s*'cct'/.test(ctxSrc));
+    assert('sun-context environment owner has no 90-day filter (relies on sparse array)',
+      !/90\s*\*\s*86400/.test(environmentCtxSrc));
+    assert('sun-context environment owner iterates lightMeasurements directly',
+      /const recent\s*=\s*state\.importedData\?\.lightMeasurements/.test(environmentCtxSrc));
+    assert('sun-context environment owner still emits flicker / darkness / cct warnings',
+      /measurement\.tool\s*===\s*'flicker'/.test(environmentCtxSrc)
+      && /measurement\.tool\s*===\s*'darkness'/.test(environmentCtxSrc)
+      && /measurement\.tool\s*===\s*'cct'/.test(environmentCtxSrc));
   }
 
   // ─── 17. v1.6.7 Light & Sun copy fixes ──────────────────────────────
