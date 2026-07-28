@@ -275,8 +275,10 @@ export function copyCouponCode(btn) {
     const r = document.createRange();
     r.selectNodeContents(btn);
     const s = getSelection();
-    s.removeAllRanges();
-    s.addRange(r);
+    if (s) {
+      s.removeAllRanges();
+      s.addRange(r);
+    }
     flashCopied('Press Ctrl+C');
   }
 }

@@ -716,8 +716,8 @@ export function clearHealthGoals() {
 // ═══════════════════════════════════════════════
 
 export function openInterpretiveLensEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openInterpretiveLensEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
+  const modal = document.getElementById("detail-modal"), overlay = document.getElementById("modal-overlay");
+  if (!modal || !overlay) return;
   const current = state.importedData.interpretiveLens || '';
   renderContextEditorModal(modal, 'Interpretive Lens', 'List researchers, clinicians, or scientific paradigms whose frameworks you follow. The AI will consider their perspectives when interpreting your results.', `
     <textarea class="note-editor" id="interpretive-lens-textarea" placeholder="e.g. Longevity medicine, quantum biology, functional endocrinology framework...">${escapeHTML(current)}</textarea>
@@ -759,8 +759,8 @@ export function clearInterpretiveLens() {
 export function showDietContaminantsModal() {
   const warnings = scanDietForContaminants(state.importedData.diet);
   if (warnings.length === 0) return;
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('detail-modal'), overlay = document.getElementById('modal-overlay');
+  if (!modal || !overlay) return;
   const pesticide = warnings.filter(w => w.type === 'pesticide');
   const plastic = warnings.filter(w => w.type === 'plastic');
   const clean = warnings.filter(w => w.type === 'clean');

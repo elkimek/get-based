@@ -143,7 +143,7 @@ export function triggerDashboardDnaPicker() {
 
 /** @param {number | null} [index] */
 export function openDashboardNoteEditor(index = null) {
-  if (Number.isInteger(index) && index >= 0) callDashboardNoteAction('openNoteEditor', null, index);
+  if (index != null && Number.isInteger(index) && index >= 0) callDashboardNoteAction('openNoteEditor', null, index);
   else callDashboardNoteAction('openNoteEditor');
 }
 

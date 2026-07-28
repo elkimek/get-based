@@ -365,6 +365,7 @@ export function interpretEMFComparison(deps = {}) {
   if (sorted.length < 2) return;
 
   const emf = state.importedData.emfAssessment;
+  if (!emf) return;
   const title = 'EMF Comparison \u2014 Before vs After';
   const before = serializeAssessment(sorted[1]);
   const after = serializeAssessment(sorted[0]);

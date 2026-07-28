@@ -100,7 +100,7 @@ function _isImportableCalculatedMarkerKey(key) {
   return !!MARKER_SCHEMA[catKey]?.calculated && !!MARKER_SCHEMA[catKey]?.markers?.[markerKey];
 }
 
-function _hasImportReferenceKey(key, refLookup, existingKeys = null) {
+function _hasImportReferenceKey(key, refLookup, existingKeys = /** @type {Set<string> | null} */ (null)) {
   return !!refLookup[key] || !!existingKeys?.has?.(key) || _isImportableCalculatedMarkerKey(key);
 }
 
@@ -572,7 +572,11 @@ function _buildStandardBloodNameLookup() {
   return lookup;
 }
 
-function _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSuggestedKey = undefined) {
+function _resolveStandardBloodImportKey(
+  marker,
+  refLookup,
+  differentialPercentSuggestedKey = /** @type {string | null | undefined} */ (undefined),
+) {
   const rawName = marker.rawName || marker.suggestedName || '';
   const specimen = _getImportSpecimen(rawName);
   const unit = normalizeUnitStr(marker.unit || '');

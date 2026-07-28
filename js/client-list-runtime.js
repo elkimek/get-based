@@ -8,7 +8,7 @@ import { showNotification } from './utils.js';
 const clientListRuntimeDeps = {
   navigate: /** @type {null | ((route: string) => void)} */ (null),
   renderProfileButton: /** @type {null | (() => void)} */ (null),
-  showNotification,
+  showNotification: /** @type {null | typeof showNotification} */ (showNotification),
 };
 
 export function configureClientListRuntimeDeps(deps = {}) {

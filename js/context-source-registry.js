@@ -206,6 +206,10 @@ function getProfileContextSourceValue(idOrSlug) {
   return value === true || value === false ? value : null;
 }
 
+/**
+ * @param {string} idOrSlug
+ * @param {string | null} [legacyKey]
+ */
 function getStoredContextSourceValue(idOrSlug, legacyKey = null) {
   const storage = getStorage();
   if (!storage) return null;

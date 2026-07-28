@@ -6,7 +6,11 @@ import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
 import { importDataJSON } from './export-loader.js';
 
-const importDropZoneRuntimeDeps = { importDataJSON, isImportRunning, showNotification };
+const importDropZoneRuntimeDeps = {
+  importDataJSON,
+  isImportRunning,
+  showNotification: /** @type {null | typeof showNotification} */ (showNotification),
+};
 
 export function configureImportDropZoneRuntimeDeps(deps = {}) {
   const previous = { ...importDropZoneRuntimeDeps };
