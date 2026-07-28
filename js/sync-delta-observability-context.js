@@ -1,7 +1,9 @@
 // @ts-check
 // sync-delta-observability-context.js - Shared Evolu query access for delta observability.
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getItemRowQuery = () => null;
 
 /**

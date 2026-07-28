@@ -136,7 +136,8 @@ export function updateSyncIndicator() {
   const ds = getSyncDisplayState();
   dot.className = `sync-dot sync-dot-${ds}`;
   const titles = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error' };
-  dot.parentElement.title = titles[ds] || '';
+  const button = dot.parentElement;
+  if (button) button.title = titles[ds] || '';
 }
 
 export function toggleSyncDetail() {
@@ -212,8 +213,10 @@ export function toggleSyncDetail() {
         <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Diagnose</button>
       ` : ''}
     </div>`;
-  btn.parentElement.style.position = 'relative';
-  btn.parentElement.appendChild(pop);
+  const parent = btn.parentElement;
+  if (!parent) return;
+  parent.style.position = 'relative';
+  parent.appendChild(pop);
   // Close on outside click.
   const close = (e) => { if (!pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) { pop.remove(); document.removeEventListener('click', close); } };
   setTimeout(() => document.addEventListener('click', close), 0);

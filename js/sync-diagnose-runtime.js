@@ -3,6 +3,7 @@
 
 import { showConfirmDialog } from './utils.js';
 
+/** @type {{ showConfirmDialog: (typeof showConfirmDialog) | null }} */
 const syncDiagnoseRuntimeDeps = { showConfirmDialog };
 
 export function configureSyncDiagnoseRuntimeDeps(deps = {}) {

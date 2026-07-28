@@ -17,7 +17,9 @@ export {
 } from './sync-delta-observability.js';
 export { _mergeItemRowsIntoImported } from './sync-delta-merge.js';
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getItemRowQuery = () => null;
 
 /** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
