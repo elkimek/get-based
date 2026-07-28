@@ -149,6 +149,7 @@ let _rootDir = null;            // OPFS FileSystemDirectoryHandle at /lens-local
 // MessageChannel port gives a real task boundary without setTimeout's 4ms
 // clamp, so the queue gets pumped between every chunk at near-zero cost.
 const _yieldChannel = new MessageChannel();
+/** @returns {Promise<void>} */
 function macroYield() {
   return new Promise((resolve) => {
     _yieldChannel.port1.onmessage = () => resolve();
