@@ -3,7 +3,7 @@
 
 import { escapeAttr } from './utils.js';
 
-const markerDetailActionDelegateRoots = new WeakSet();
+const markerDetailActionDelegates = new WeakMap();
 
 function dataAttrName(name) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
@@ -138,9 +138,15 @@ function handleMarkerDetailChange(event, actions) {
 }
 
 export function installMarkerDetailActionDelegates(actions = {}, root = (typeof document !== 'undefined' ? document : null)) {
-  if (!root || markerDetailActionDelegateRoots.has(root)) return;
-  markerDetailActionDelegateRoots.add(root);
-  root.addEventListener('click', event => handleMarkerDetailClick(event, actions));
-  root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, actions));
-  root.addEventListener('change', event => handleMarkerDetailChange(event, actions));
+  if (!root) return;
+  const installedActions = markerDetailActionDelegates.get(root);
+  if (installedActions) {
+    Object.assign(installedActions, actions);
+    return;
+  }
+  const delegatedActions = { ...actions };
+  markerDetailActionDelegates.set(root, delegatedActions);
+  root.addEventListener('click', event => handleMarkerDetailClick(event, delegatedActions));
+  root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, delegatedActions));
+  root.addEventListener('change', event => handleMarkerDetailChange(event, delegatedActions));
 }

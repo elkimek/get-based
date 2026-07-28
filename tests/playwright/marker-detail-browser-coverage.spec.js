@@ -82,6 +82,83 @@ test('marker detail implementation loads on demand and single-flights', async ({
   expect(implementationRequests).toBe(1);
 });
 
+test('first delegated marker-card click loads and opens marker details', async ({ page }) => {
+  let implementationRequests = 0;
+  await page.route('**/js/marker-detail-modal-impl.js*', route => {
+    implementationRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: markerDetailFacadeStubBody(),
+    });
+  });
+  await openMarkerDetailLoaderPage(page, '/marker-detail-first-card-click-coverage');
+
+  const loadedBeforeClick = await page.evaluate(async ({ modalUrl }) => {
+    const modal = await import(modalUrl);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.dataset.markerDetailAction = 'show-detail-modal';
+    card.dataset.markerDetailId = 'proteins_albumin';
+    document.body.appendChild(card);
+    const loaded = modal.isMarkerDetailModuleLoaded();
+    card.click();
+    return loaded;
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  expect(loadedBeforeClick).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__markerDetailFacadeCalls || []))
+    .toEqual([['showDetailModal', 'proteins_albumin', {}]]);
+  expect(implementationRequests).toBe(1);
+});
+
+test('hard-refreshed category view opens a marker card before any Dashboard marker click', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.reload({ waitUntil: 'load' });
+
+  const initial = await page.evaluate(async () => {
+    const [{ state }, dataModule, viewsModule, modalModule, tourModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/views.js'),
+      import('/js/marker-detail-modal.js'),
+      import('/js/tour.js'),
+    ]);
+    tourModule.endTour({ openEmptyChat: false });
+    localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
+    localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
+    state.importedData = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(response => response.json());
+    state.profileSex = 'male';
+    state.profileDob = '1987-11-22';
+    state.dateRangeFilter = 'all';
+    state.categoryView = 'charts';
+    await dataModule.saveImportedData();
+    viewsModule.showCategory('biochemistry');
+    return {
+      implementationLoaded: modalModule.isMarkerDetailModuleLoaded(),
+      markerCards: document.querySelectorAll(
+        '.chart-card-main[data-marker-detail-action="show-detail-modal"]',
+      ).length,
+    };
+  });
+
+  expect(initial.implementationLoaded).toBe(false);
+  expect(initial.markerCards).toBeGreaterThan(0);
+
+  const firstCard = page.locator(
+    '.chart-card-main[data-marker-detail-action="show-detail-modal"]',
+  ).first();
+  const markerId = await firstCard.getAttribute('data-marker-detail-id');
+  await firstCard.click();
+
+  await expect(page.locator('#modal-overlay')).toHaveClass(/show/);
+  await expect(page.locator('#detail-modal')).toHaveClass(/marker-detail-modal/);
+  await expect(page.locator('#detail-modal')).toHaveAttribute('data-sync-refresh-item-id', markerId);
+});
+
 test('marker detail lazy facade forwards its complete editing contract', async ({ page }) => {
   await page.route('**/js/marker-detail-modal-impl.js*', route => route.fulfill({
     status: 200,
@@ -871,7 +948,7 @@ test('marker detail delegated actions cover click key and data attribute contrac
     try {
       actionsModule.installMarkerDetailActionDelegates(actions, root);
       actionsModule.installMarkerDetailActionDelegates({
-        closeModal: () => calls.push(['duplicate-close']),
+        closeModal: () => calls.push(['upgraded-close']),
       }, root);
 
       clickAction('close-modal');
@@ -940,8 +1017,8 @@ test('marker detail delegated actions cover click key and data attribute contrac
         && escapedAttrs.includes('data-marker-detail-history-limit="0"');
 
       outcomes.clickDelegatesCallEveryRegisteredAction =
-        calls.some(call => call[0] === 'close')
-        && !calls.some(call => call[0] === 'duplicate-close')
+        calls.some(call => call[0] === 'upgraded-close')
+        && !calls.some(call => call[0] === 'close')
         && calls.some(call => call[0] === 'pin' && call[1] === 'proteins_albumin')
         && calls.some(call => call[0] === 'edit-ref' && call[2] === 'ref')
         && calls.some(call => call[0] === 'revert-ref' && call[2] === 'optimal')
