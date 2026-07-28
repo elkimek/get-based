@@ -363,7 +363,7 @@ export function installBiologyScoreContextAIDelegates() {
     const el = event.target instanceof Element ? event.target.closest('[data-biology-score-action]') : null;
     if (!(el instanceof HTMLElement)) return;
     const action = el.dataset.biologyScoreAction;
-    if (!['analyze-context-ai','apply-context-ai','dismiss-context-ai'].includes(action)) return;
+    if (!action || !['analyze-context-ai','apply-context-ai','dismiss-context-ai'].includes(action)) return;
     event.preventDefault();
     try {
       if (action === 'analyze-context-ai') {

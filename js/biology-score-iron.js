@@ -33,7 +33,9 @@ export function computeIronHandling(data, def, options = {}) {
   if (ferritin) {
     const ferritinHighPenalty = scoreHighOnly(ferritin.value, 300, 800);
     const ferritinLowPenalty = scoreLowOnly(ferritin.value, 30, 5);
-    const ferritinPartial = Math.min(ferritinHighPenalty, ferritinLowPenalty);
+    const ferritinPartial = ferritinHighPenalty == null || ferritinLowPenalty == null
+      ? null
+      : Math.min(ferritinHighPenalty, ferritinLowPenalty);
     add(ferritin, 'ferritin', 'Ferritin', 1.15, ferritinPartial, true);
     if (ferritin.value < 30) flags.push('Low ferritin pattern: possible depleted iron stores.');
     if (tsat && tsat.value >= 45 && ferritin.value > 300) flags.push('High TSAT + high ferritin pattern: overload workup context, not a wellness score.');

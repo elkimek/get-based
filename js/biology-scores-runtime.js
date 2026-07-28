@@ -6,11 +6,11 @@ import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
 
 const biologyScoresRuntimeDeps = {
-  getActiveData,
+  getActiveData: /** @type {null | typeof getActiveData} */ (getActiveData),
   navigate: /** @type {null | ((route: string) => unknown)} */ (null),
   openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
   showDetailModal: /** @type {null | ((markerId: string) => unknown)} */ (null),
-  showNotification,
+  showNotification: /** @type {null | typeof showNotification} */ (showNotification),
   useChatPrompt: /** @type {null | ((prompt: string) => unknown)} */ (null),
 };
 
