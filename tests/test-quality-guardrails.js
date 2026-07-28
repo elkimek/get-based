@@ -230,6 +230,7 @@ const highValueCheckJsModules = [
   'js/sun-location.js',
   'js/sun-uvdata-config.js',
   'js/wearables.js',
+  'js/wearables-strip-actions.js',
 ];
 const missingHighValueCheckJsModules = highValueCheckJsModules
   .filter(file => !checkJsConfig.include?.includes(file));

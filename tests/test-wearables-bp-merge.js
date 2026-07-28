@@ -7,7 +7,8 @@
 // Run: node tests/test-wearables-bp-merge.js  (or via npm test)
 //
 // All assertions here are source-inspection regexes against wearables.js /
-// wearable-adapters.js / wearables-manual.js. The section-4 *live* DOM
+// wearables-strip-actions.js / wearable-adapters.js / wearables-manual.js.
+// The section-4 *live* DOM
 // idempotency probe (openManualLogForm called twice -> still one form) lives
 // in tests/playwright/wearables-bp-merge.spec.js.
 
@@ -29,6 +30,7 @@ function assert(name, condition, detail) {
 console.log('=== BP Card Merge Tests ===\n');
 
 const wearablesSrc = read('js/wearables.js');
+const wearablesActionsSrc = read('js/wearables-strip-actions.js');
 
 // ═══════════════════════════════════════
 // 1. Strip-render filter — dia hidden when sys present
@@ -68,7 +70,7 @@ assert("Aria-label uses 'Blood pressure' for the paired card",
 console.log('3. Reorder filter');
 
 assert('moveWearableCard mirrors the same dia-skip when sys present',
-  /const hasSysLocal = !!summary\.metrics\?\.bp_systolic[\s\S]{0,400}if \(id === 'bp_diastolic' && hasSysLocal\) continue/.test(wearablesSrc));
+  /const hasSysLocal = !!summary\.metrics\?\.bp_systolic[\s\S]{0,400}if \(id === 'bp_diastolic' && hasSysLocal\) continue/.test(wearablesActionsSrc));
 
 // ═══════════════════════════════════════
 // 4. BP form idempotency (the dia-click bug fix) — source asserts
@@ -78,9 +80,9 @@ assert('moveWearableCard mirrors the same dia-skip when sys present',
 console.log('4. Form idempotency (source)');
 
 assert('openManualLogForm returns early when the form is already rendered',
-  /openManualLogForm[\s\S]{0,700}if \(card\.querySelector\('\.wearable-log-form'\)\) return/.test(wearablesSrc));
+  /openManualLogForm[\s\S]{0,700}if \(card\.querySelector\('\.wearable-log-form'\)\) return/.test(wearablesActionsSrc));
 assert('Idempotency guard has a comment explaining the dia-click bug',
-  /clicks inside the form \(e\.g\. tapping the dia field on the[\s\S]{0,200}Without this guard we'd rebuild/.test(wearablesSrc));
+  /clicks inside the form \(e\.g\. tapping the dia field on the[\s\S]{0,200}Without this guard we'd rebuild/.test(wearablesActionsSrc));
 
 // ═══════════════════════════════════════
 // 5. Storage untouched — underlying metric storage didn't change

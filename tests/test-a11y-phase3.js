@@ -295,12 +295,15 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');
+  const wearActionsSrc = read('/js/wearables-strip-actions.js');
   const wearRuntimeSrc = read('/js/wearables-runtime.js');
   assert('weight log inputs respect state.unitSystem',
-    wearSrc.includes("state.unitSystem === 'US' ? 'lb' : 'kg'"));
+    wearActionsSrc.includes("state.unitSystem === 'US' ? 'lb' : 'kg'"));
   assert('wearables dashboard browser hooks are isolated in runtime adapter',
     wearSrc.includes("from './wearables-runtime.js'")
       && !/\bwindow\b/.test(wearSrc)
+      && wearActionsSrc.includes("from './wearables-runtime.js'")
+      && !/\bwindow\b/.test(wearActionsSrc)
       && wearRuntimeSrc.includes('configureWearablesModuleBridge')
       && wearRuntimeSrc.includes('getWearablesModuleFunction')
       && wearRuntimeSrc.includes('getWearablesViewportSize'));

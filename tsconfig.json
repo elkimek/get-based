@@ -405,6 +405,7 @@
     "js/wearables-settings-runtime.js",
     "js/wearables-settings-panel.js",
     "js/wearables-store.js",
+    "js/wearables-strip-actions.js",
     "js/wearables-summary.js",
     "js/wearables-ultrahuman-auth.js",
     "js/wearables-ultrahuman.js",

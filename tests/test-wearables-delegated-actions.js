@@ -8,9 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const stripSrc = fs.readFileSync(path.join(root, 'js/wearables.js'), 'utf8');
+const stripActionsSrc = fs.readFileSync(path.join(root, 'js/wearables-strip-actions.js'), 'utf8');
 const detailSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
 const settingsPanelSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-panel.js'), 'utf8');
 const stripImportsSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripSrc);
+const stripActionsImportSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripActionsSrc);
 
 let passed = 0;
 let failed = 0;
@@ -30,17 +32,18 @@ console.log('=== Wearables Delegated Actions ===');
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 
 assert('wearables strip renders no inline event attributes',
-  !inlineHandlerRe.test(stripSrc));
+  !inlineHandlerRe.test(stripSrc) && !inlineHandlerRe.test(stripActionsSrc));
 assert('wearables detail modal renders no inline event attributes',
   !inlineHandlerRe.test(detailSrc));
 assert('wearables settings panel renders no inline event attributes',
   !inlineHandlerRe.test(settingsPanelSrc));
 assert('wearables strip renders delegated action attributes',
   stripImportsSharedActionHelper &&
+    stripActionsImportSharedActionHelper &&
     stripSrc.includes("wearableActionAttrs('open-manual-log'") &&
     stripSrc.includes("wearableActionAttrs('open-detail'") &&
     stripSrc.includes("wearableActionAttrs('move-card'") &&
-    stripSrc.includes("wearableActionAttrs('manual-log-save'"));
+    stripActionsSrc.includes("wearableActionAttrs('manual-log-save'"));
 assert('wearables detail modal renders delegated action and form attributes',
   detailSrc.includes('export function wearableActionAttrs') &&
     detailSrc.includes('function wearableFormAttrs') &&
@@ -54,8 +57,10 @@ assert('wearables detail modal opens through shared overlay lifecycle helper',
     detailSrc.includes('openModalOverlay(overlay)'));
 assert('wearable action attr helper has one shared definition',
   (stripSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 0 &&
+    (stripActionsSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 0 &&
     (detailSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 1 &&
-    stripImportsSharedActionHelper);
+    stripImportsSharedActionHelper &&
+    stripActionsImportSharedActionHelper);
 assert('wearables module installs idempotent click keydown and submit delegates',
   stripSrc.includes('let wearableDelegatesInstalled = false') &&
     stripSrc.includes("document.addEventListener('click', handleWearableActionClick)") &&
@@ -71,8 +76,8 @@ assert('wearables detail opens reset any active manual inline form',
     stripSrc.includes('openWearableDetail,'));
 assert('wearables delegated manual log open bypasses only the legacy inline-card guard',
   stripSrc.includes("openManualLogForm(metricId, event, { delegated: true })") &&
-    stripSrc.includes("!opts.delegated && event?.target?.closest?.('[data-wearable-action]')") &&
-    !stripSrc.includes("if (event?.target?.closest?.('[data-wearable-action]')) return;"));
+    stripActionsSrc.includes("!opts.delegated && event?.target?.closest?.('[data-wearable-action]')") &&
+    !stripActionsSrc.includes("if (event?.target?.closest?.('[data-wearable-action]')) return;"));
 assert('wearables delegated keyboard ignores form controls',
   stripSrc.includes("target.closest('input, textarea, select, button, a')"));
 assert('wearables settings panel installs delegated click change and drop handlers',

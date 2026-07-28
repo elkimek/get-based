@@ -1921,7 +1921,8 @@ assert('Service-worker static cache lists extracted wearable detail modules',
   /\/js\/wearables-detail-runtime\.js/.test(swSrc) &&
   /\/js\/wearables-bp-detail-chart\.js/.test(swSrc) &&
   /\/js\/wearables-formatters\.js/.test(swSrc) &&
-  /\/js\/wearables-manual-form-ui\.js/.test(swSrc));
+  /\/js\/wearables-manual-form-ui\.js/.test(swSrc) &&
+  /\/js\/wearables-strip-actions\.js/.test(swSrc));
 const bpChartSrc = await fetch('/js/wearables-bp-detail-chart.js').then(r => r.text());
 assert('Manual diastolic scatter color is distinct from primary diastolic line',
   /const\s+diaColor\s*=\s*['"]#a78bfa['"]/.test(bpChartSrc) &&
@@ -1943,9 +1944,9 @@ assert('deleteMeta imported from wearables-store',
 
 // Source picker now uses the EFFECTIVE primary (the L2 picker's actual
 // pick) rather than the raw override which can be stale/invalid.
-const wearablesSrc3 = await fetch('/js/wearables.js').then(r => r.text());
+const wearablesActionsSrc3 = await fetch('/js/wearables-strip-actions.js').then(r => r.text());
 assert('Source picker prefers wearableSummary.metrics primarySource (effective) over raw override',
-  /effectivePrimary\s*=\s*state\.importedData\?\.wearableSummary\?\.metrics\?\.\[metricId\]\?\.primarySource/.test(wearablesSrc3));
+  /effectivePrimary\s*=\s*state\.importedData\?\.wearableSummary\?\.metrics\?\.\[metricId\]\?\.primarySource/.test(wearablesActionsSrc3));
 
 // Polar memberId guard: refuses connect when token grant lacks userId.
 assert('Polar postConnect refuses to register when result.tokens.userId missing',
