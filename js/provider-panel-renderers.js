@@ -38,7 +38,7 @@ function normalizedOptionId(modelId) {
 }
 
 function optionSlug(modelId) {
-  return normalizedOptionId(modelId).split('/').pop().replace(/^e2ee-/, '');
+  return (normalizedOptionId(modelId).split('/').pop() || '').replace(/^e2ee-/, '');
 }
 
 function recommendedFamilyKey(modelId) {

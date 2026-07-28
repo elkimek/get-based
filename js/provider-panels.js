@@ -530,11 +530,17 @@ export function showInsufficientBalanceDialog() {
   '</div>';
   openModalOverlay(overlay, { initialFocus: '#or-add-credits', focusDelay: 50 });
   const close = function() { closeModalOverlay(overlay); };
-  document.getElementById('or-add-credits').onclick = function() {
+  const addCredits = document.getElementById('or-add-credits');
+  const cancel = document.getElementById('or-nb-cancel');
+  if (!(addCredits instanceof HTMLButtonElement) || !(cancel instanceof HTMLButtonElement)) {
+    close();
+    return;
+  }
+  addCredits.onclick = function() {
     close();
     providerPanelDeps.openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
   };
-  document.getElementById('or-nb-cancel').onclick = close;
+  cancel.onclick = close;
   overlay.onclick = function(e) { if (e.target === overlay) close(); };
 }
 
