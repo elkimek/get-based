@@ -248,7 +248,7 @@ assert('SW APP_SHELL includes genetics CSS bundle', swAuditSrc.includes("'/css/g
 const dataProtectionLifecycleAuditSrc = read('js/modal-lifecycle.js');
 const settingsLoaderAuditSrc = read('js/settings-loader.js');
 const cryptoUiAuditSrc = read('js/crypto-ui.js');
-const piiAuditSrc = read('js/pii.js');
+const piiReviewAuditSrc = read('js/pii-review.js');
 assert('index defers data protection CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/data-protection.css"') &&
   indexSrc.includes('data-data-protection-stylesheet-anchor') &&
@@ -258,7 +258,7 @@ assert('data protection presentation joins every owning first-open boundary',
   importLoaderAuditSrc.includes('loadDataProtectionStylesheet()') &&
   settingsLoaderAuditSrc.includes('loadDataProtectionStylesheet()') &&
   cryptoUiAuditSrc.includes('runWithDataProtectionStylesheet') &&
-  piiAuditSrc.includes('loadDataProtectionStylesheetForAction'));
+  piiReviewAuditSrc.includes('loadDataProtectionStylesheetForAction'));
 assert('SW APP_SHELL includes data protection CSS bundle', swAuditSrc.includes("'/css/data-protection.css'"));
 assert('index defers settings CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/settings.css"') &&

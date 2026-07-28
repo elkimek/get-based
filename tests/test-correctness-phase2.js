@@ -151,6 +151,7 @@ const pwaAppShellAssets = [
   '/js/focus-card.js',
   '/js/onboarding-view.js',
   '/js/emf-runtime.js',
+  '/js/pii-review.js',
   '/js/light-conditions-interpretation.js',
   '/js/light-conditions-renderer.js',
   '/js/light-conditions-now.js',

@@ -243,6 +243,7 @@
     "js/pdf-import-spreadsheet.js",
     "js/pdf-import.js",
     "js/pdfjs-loader.js",
+    "js/pii-review.js",
     "js/pii.js",
     "js/profile-fatty-acid-migrations.js",
     "js/profile-marker-migrations.js",

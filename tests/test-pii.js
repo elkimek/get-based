@@ -23,6 +23,7 @@ console.log('=== PII Obfuscation Tests ===\n');
 const piiModule = await import('../js/pii.js');
 const { obfuscatePDFText, buildPIIDiffHTML } = piiModule;
 const piiSrc = read('js/pii.js');
+const piiReviewSrc = read('js/pii-review.js');
 
   // Extract the function and test it by running obfuscation with known names
   // Czech format
@@ -182,14 +183,14 @@ const piiSrc = read('js/pii.js');
   assert('Thinking not added to accumulated output',
     piiSrc.includes('onThinking(') && !piiSrc.includes('accumulated += delta.reasoning_content'));
   assert('Thinking section in review modal HTML',
-    piiSrc.includes('pii-thinking-section'));
+    piiReviewSrc.includes('pii-thinking-section'));
   assert('Thinking section collapses on completion',
-    piiSrc.includes("'Thinking (done)'"));
+    piiReviewSrc.includes("'Thinking (done)'"));
   assert('Privacy review backdrop click nudges instead of silently no-oping',
-    piiSrc.includes('function wirePIIOverlayNudge') &&
-    piiSrc.includes('e.target === overlay') &&
-    piiSrc.includes('modal-nudge') &&
-    piiSrc.includes('wirePIIOverlayNudge(overlay)'));
+    piiReviewSrc.includes('function wirePIIOverlayNudge') &&
+    piiReviewSrc.includes('event.target === overlay') &&
+    piiReviewSrc.includes('modal-nudge') &&
+    piiReviewSrc.includes('wirePIIOverlayNudge(overlay)'));
 
   // ═══════════════════════════════════════
   // 8. Ollama unload guard

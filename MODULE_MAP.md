@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 511 |
-| Internal import edges | 2305 |
+| Modules | 512 |
+| Internal import edges | 2307 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,7 +38,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 238 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/utils.js`](js/utils.js) | 239 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 164 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 74 | [`js/settings.js`](js/settings.js) | 25 |
@@ -627,9 +627,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pii</code> family — 1 module</summary>
+<details><summary><code>pii</code> family — 2 modules</summary>
 
-- [`js/pii.js`](js/pii.js) → [`js/api-transport.js`](js/api-transport.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/pii-review.js`](js/pii-review.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/pii.js`](js/pii.js) → [`js/api-transport.js`](js/api-transport.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js), [`js/pii-review.js`](js/pii-review.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

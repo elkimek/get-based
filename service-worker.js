@@ -157,6 +157,7 @@ const APP_SHELL = [
   '/js/import-benchmarks.js',
   '/js/import-reference-benchmark.js',
   '/js/data-merge.js',
+  '/js/pii-review.js',
   '/js/pii.js',
   '/js/charts-runtime.js',
   '/js/charts.js',

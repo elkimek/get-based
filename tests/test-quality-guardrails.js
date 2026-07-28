@@ -290,6 +290,7 @@ const broadSurfaceCheckJsModules = [
   'js/light-tools.js',
   'js/mobile-dashboard.js',
   'js/mobile-dashboard-runtime.js',
+  'js/pii-review.js',
   'js/pii.js',
   'js/profile-share.js',
   'js/views.js',
