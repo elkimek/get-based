@@ -247,6 +247,12 @@ export function renderSavedSummaries() {
     }).join('');
 }
 
+/**
+ * @param {string | null} summaryText
+ * @param {any} thread
+ * @param {boolean} [loading]
+ * @param {{ provider: string, modelId: any, modelDisplay: any, inputTokens: any, outputTokens: any } | null} [usageInfo]
+ */
 function _showSummaryModal(summaryText, thread, loading = false, usageInfo = null) {
   _activeSummary = summaryText ? { content: summaryText, name: thread?.name, date: thread?.summaryDate, model: thread?.summaryModel } : null;
   let overlay = document.getElementById('summary-modal-overlay');

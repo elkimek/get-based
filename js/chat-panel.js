@@ -44,6 +44,10 @@ let chatPresentationStylesheetPromise = null;
 let chatPresentationStylesheetsLoaded = false;
 let useChatPresentationStylesheetRetryUrl = false;
 
+/** @type {{
+ *   restoreDiscussionContinuePrompt: (() => void) | null,
+ *   refreshMobileDashboardActiveTab: (() => void) | null,
+ * }} */
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
   refreshMobileDashboardActiveTab: null,
