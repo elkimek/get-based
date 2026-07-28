@@ -4,20 +4,33 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
-
-const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-function safeMediaType(t) { return SAFE_IMAGE_TYPES.includes(t) ? t : 'image/png'; }
-import { EMF_ROOM_PRESETS, EMF_SOURCES, EMF_MITIGATIONS, EMF_METER_PRESETS } from './constants.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPromptDialog, isPIIReviewEnabled } from './utils.js';
+import { SBM_2015_THRESHOLDS } from './schema.js';
+import {
+  escapeHTML,
+  showNotification,
+  showConfirmDialog,
+  showPromptDialog,
+  isPIIReviewEnabled,
+} from './utils.js';
 import { saveImportedData } from './data.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { callClaudeAPI, hasAIProvider } from './api.js';
-import { toggleCtxTag } from './context-card-editor-ui.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
-import { loadEMFCatalog, renderEMFMeterRecs, isProductRecsEnabled } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
+import {
+  configureEMFEditor,
+  emfEditorState,
+  openEMFAssessmentEditor,
+  renderEMFEditor,
+  showEMFImportPreview,
+} from './emf-editor.js';
+import {
+  MEASUREMENT_TYPES,
+  SLEEPING_ROOMS,
+  ensureEMFAssessments as ensureAssessments,
+  safeEMFMediaType as safeMediaType,
+} from './emf-model.js';
 import {
   closeEMFInterpretation,
   discussEMFInterpretation,
@@ -49,28 +62,7 @@ export function configureEMFRuntimeDeps(deps = {}) {
   return previous;
 }
 
-// ═══════════════════════════════════════════════
-// MEASUREMENT TYPES (display order)
-// ═══════════════════════════════════════════════
-const MEASUREMENT_TYPES = [
-  { key: 'acElectric',       short: 'AC Electric' },
-  { key: 'acMagnetic',       short: 'AC Magnetic' },
-  { key: 'rfMicrowave',      short: 'RF/Microwave' },
-  { key: 'dirtyElectricity', short: 'Dirty Elec.' },
-  { key: 'dcMagnetic',       short: 'DC Magnetic' },
-];
-
-// ═══════════════════════════════════════════════
-// DATA HELPERS
-// ═══════════════════════════════════════════════
-function ensureAssessments() {
-  if (!state.importedData.emfAssessment) {
-    state.importedData.emfAssessment = { assessments: [] };
-  }
-  return state.importedData.emfAssessment.assessments;
-}
-
-const SLEEPING_ROOMS = new Set(['Bedroom', 'Children\'s Room', 'Nursery']);
+export { openEMFAssessmentEditor };
 
 function newRoom(name) {
   return {
@@ -95,440 +87,6 @@ function newAssessment() {
   };
 }
 
-function getRoomWorstSeverity(room) {
-  let worst = null, worstIdx = -1;
-  const sleeping = room.sleeping !== false;
-  const tierOrder = ['green', 'yellow', 'orange', 'red'];
-  for (const [type, m] of Object.entries(room.measurements || {})) {
-    if (m && m.value != null) {
-      const sev = getEMFSeverity(type, m.value, sleeping);
-      if (sev) {
-        const idx = tierOrder.indexOf(sev.color);
-        if (idx > worstIdx) { worst = sev; worstIdx = idx; }
-      }
-    }
-  }
-  return worst;
-}
-
-/** Worst severity across all rooms in an assessment */
-function getWorstSeverity(assessment) {
-  let worst = null;
-  let worstIdx = -1;
-  const tierOrder = ['green', 'yellow', 'orange', 'red'];
-  for (const room of assessment.rooms) {
-    const sev = getRoomWorstSeverity(room);
-    if (sev) {
-      const idx = tierOrder.indexOf(sev.color);
-      if (idx > worstIdx) { worst = sev; worstIdx = idx; }
-    }
-  }
-  return worst;
-}
-
-// ═══════════════════════════════════════════════
-// SEVERITY DOT
-// ═══════════════════════════════════════════════
-function severityDot(type, value, sleeping = true) {
-  const sev = getEMFSeverity(type, value, sleeping);
-  if (!sev) return '';
-  return `<span class="emf-severity-dot" style="background:var(--${sev.color})" title="${sev.label}"></span>`;
-}
-
-function severityBadge(assessment) {
-  const worst = getWorstSeverity(assessment);
-  if (!worst) return '<span class="emf-badge emf-badge-none">No data</span>';
-  return `<span class="emf-badge emf-badge-${worst.color}">${worst.label}</span>`;
-}
-
-// ═══════════════════════════════════════════════
-// EDITOR UI
-// ═══════════════════════════════════════════════
-let _editingAssessmentId = null;
-let _activeRoomIdx = 0;
-let emfEditorDelegatesInstalled = false;
-
-function closeEMFModalRuntime() {
-  emfRuntimeDeps.closeModal?.();
-}
-
-/**
- * @param {string} message
- * @param {{ placeholder?: string, okLabel?: string }} [options]
- * @returns {Promise<string | null | undefined> | string | null | undefined}
- */
-function showEMFPromptRuntime(message, options) {
-  return showPromptDialog(message, options);
-}
-
-function emfAttrString(attrs) {
-  return Object.entries(attrs)
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
-    .join(' ');
-}
-
-function emfActionAttrs(action, attrs = {}) {
-  return emfAttrString({ 'data-emf-action': action, ...attrs });
-}
-
-function emfChangeAttrs(action, attrs = {}) {
-  return emfAttrString({ 'data-emf-change-action': action, ...attrs });
-}
-
-function isEMFEditorTarget(el) {
-  return !!el.closest('#detail-modal');
-}
-
-function removeEMFEditorDelegates() {
-  if (!emfEditorDelegatesInstalled) return;
-  emfEditorDelegatesInstalled = false;
-  document.removeEventListener('click', _handleEMFEditorClick);
-  document.removeEventListener('change', _handleEMFEditorChange);
-  document.removeEventListener('keydown', _handleEMFEditorKeydown);
-}
-
-function closeEMFPreviewModal() {
-  removeEMFEditorDelegates();
-  closeEMFModalRuntime();
-}
-
-function closeEMFEditorModal() {
-  collectActiveAssessmentState();
-  saveImportedData();
-  document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el));
-  removeEMFEditorDelegates();
-  closeEMFModalRuntime();
-}
-
-function _emfNumberAttr(el, name, fallback = 0) {
-  const raw = el.dataset[name];
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function _handleEMFEditorClick(event) {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const actionEl = target.closest('[data-emf-action]');
-  if (!(actionEl instanceof HTMLElement) || !isEMFEditorTarget(actionEl)) return;
-
-  const action = actionEl.dataset.emfAction || '';
-  const assessmentId = actionEl.dataset.emfAssessmentId || '';
-  const roomIdx = _emfNumberAttr(actionEl, 'emfRoomIdx');
-  const photoIdx = _emfNumberAttr(actionEl, 'emfPhotoIdx');
-
-  if (actionEl.matches('button, a')) event.preventDefault();
-
-  if (action === 'close-editor') { closeEMFEditorModal(); return; }
-  if (action === 'close-preview') { closeEMFPreviewModal(); return; }
-  if (action === 'add-assessment') { addEMFAssessment(); return; }
-  if (action === 'trigger-pdf-import') {
-    document.getElementById('emf-pdf-input')?.click();
-    return;
-  }
-  if (action === 'toggle-compare') { toggleEMFCompare(); return; }
-  if (action === 'toggle-assessment') { if (assessmentId) toggleEMFAssessment(assessmentId); return; }
-  if (action === 'select-room') { if (assessmentId) selectEMFRoom(assessmentId, roomIdx); return; }
-  if (action === 'add-room') { if (assessmentId) addEMFRoom(assessmentId); return; }
-  if (action === 'remove-room') { if (assessmentId) removeEMFRoom(assessmentId, roomIdx); return; }
-  if (action === 'save') { saveEMFExplicit(); return; }
-  if (action === 'interpret-assessment') { if (assessmentId) interpretEMFAssessment(assessmentId); return; }
-  if (action === 'delete-assessment') { if (assessmentId) void deleteEMFAssessment(assessmentId); return; }
-  if (action === 'toggle-tag') { toggleCtxTag(actionEl); return; }
-  if (action === 'view-photo') { if (assessmentId) viewEMFPhoto(assessmentId, roomIdx, photoIdx); return; }
-  if (action === 'remove-photo') { if (assessmentId) removeEMFPhoto(assessmentId, roomIdx, photoIdx); return; }
-  if (action === 'interpret-comparison') { interpretEMFComparison(); return; }
-}
-
-function _handleEMFEditorChange(event) {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
-  const actionEl = target.closest('[data-emf-change-action]');
-  if (!(actionEl instanceof HTMLElement) || !isEMFEditorTarget(actionEl)) return;
-
-  const action = actionEl.dataset.emfChangeAction || '';
-  const assessmentId = actionEl.dataset.emfAssessmentId || '';
-  const roomIdx = _emfNumberAttr(actionEl, 'emfRoomIdx');
-
-  if (action === 'pdf-input') {
-    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
-    const file = input?.files?.[0];
-    if (file) void handleEMFPDF(file);
-    return;
-  }
-
-  if (!assessmentId) return;
-
-  if (action === 'field') {
-    const input = actionEl instanceof HTMLInputElement || actionEl instanceof HTMLTextAreaElement ? actionEl : null;
-    const field = actionEl.dataset.emfField || '';
-    if (input && field) updateEMFField(assessmentId, field, input.value);
-    return;
-  }
-
-  if (action === 'room-dropdown') {
-    const select = actionEl instanceof HTMLSelectElement ? actionEl : null;
-    if (select) void handleEMFRoomDropdown(assessmentId, roomIdx, select.value, select);
-    return;
-  }
-
-  if (action === 'room-field') {
-    const field = actionEl.dataset.emfRoomField || '';
-    let value;
-    if (actionEl instanceof HTMLInputElement && actionEl.type === 'checkbox') value = actionEl.checked;
-    else if (actionEl instanceof HTMLInputElement || actionEl instanceof HTMLTextAreaElement) value = actionEl.value;
-    if (field && value !== undefined) updateEMFRoom(assessmentId, roomIdx, field, value);
-    return;
-  }
-
-  if (action === 'measurement') {
-    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
-    const type = actionEl.dataset.emfMeasurementType || '';
-    if (input && type) updateEMFMeasurement(assessmentId, roomIdx, type, input.value);
-    return;
-  }
-
-  if (action === 'meter') {
-    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
-    const type = actionEl.dataset.emfMeterType || '';
-    if (input && type) updateEMFMeter(assessmentId, roomIdx, type, input.value);
-    return;
-  }
-
-  if (action === 'photos') {
-    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
-    if (input?.files?.length) void addEMFPhotos(assessmentId, roomIdx, input.files);
-  }
-}
-
-function _handleEMFEditorKeydown(event) {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const actionEl = target.closest('[data-emf-action]');
-  if (!(actionEl instanceof HTMLElement) || !isEMFEditorTarget(actionEl)) return;
-  if (target.closest('input, textarea, select')) return;
-  if (actionEl.matches('button, a')) return;
-  event.preventDefault();
-  actionEl.click();
-}
-
-function installEMFEditorDelegates() {
-  if (emfEditorDelegatesInstalled) return;
-  emfEditorDelegatesInstalled = true;
-  document.addEventListener('click', _handleEMFEditorClick);
-  document.addEventListener('change', _handleEMFEditorChange);
-  document.addEventListener('keydown', _handleEMFEditorKeydown);
-}
-
-export function openEMFAssessmentEditor() {
-  installEMFEditorDelegates();
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
-  _editingAssessmentId = null;
-  renderEMFEditor(modal);
-  openModalOverlay(overlay);
-}
-
-function renderEMFEditor(modal) {
-  const assessments = ensureAssessments();
-  const sorted = [...assessments].sort((a, b) => b.date.localeCompare(a.date));
-
-  let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-editor')}>&times;</button>
-    <h3>Baubiologie EMF Assessment</h3>
-    <div class="modal-unit">Room-by-room electromagnetic field measurements rated against SBM-2015 sleeping area standards.</div>
-    <div class="emf-editor-actions">
-      <button type="button" class="import-btn import-btn-primary" ${emfActionAttrs('add-assessment')}>+ New Assessment</button>
-      ${emfAIDeps.hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('trigger-pdf-import')}>Import PDF</button>
-      <input type="file" id="emf-pdf-input" accept=".pdf" style="display:none" ${emfChangeAttrs('pdf-input')}>` : ''}
-      <a href="data/emf-assessment-template.html" target="_blank" class="import-btn import-btn-secondary">Printable Template</a>
-      ${sorted.length >= 2 ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('toggle-compare')}>${_compareMode ? 'Exit Compare' : 'Compare'}</button>` : ''}
-    </div>`;
-
-  if (sorted.length === 0) {
-    _compareMode = false;
-    html += `<div class="emf-empty">No assessments yet. Add one manually or import a consultant's PDF report.</div>`;
-  } else if (_compareMode && sorted.length >= 2) {
-    html += renderComparisonView(sorted);
-  } else {
-    for (const a of sorted) {
-      const isExpanded = _editingAssessmentId === a.id;
-      const fmtDate = new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      html += `<div class="emf-assessment-card${isExpanded ? ' expanded' : ''}">
-        <div class="emf-assessment-header" role="button" tabindex="0" ${emfActionAttrs('toggle-assessment', { 'data-emf-assessment-id': a.id })}>
-          <div class="emf-assessment-info">
-            <span class="emf-assessment-date">${fmtDate}</span>
-            ${a.label ? `<span class="emf-assessment-label">${escapeHTML(a.label)}</span>` : ''}
-            ${a.consultant ? `<span class="emf-assessment-consultant">by ${escapeHTML(a.consultant)}</span>` : ''}
-          </div>
-          ${severityBadge(a)}
-        </div>`;
-
-      if (isExpanded) {
-        html += renderAssessmentDetail(a);
-      }
-      html += `</div>`;
-    }
-  }
-
-  // Meter recommendations always visible — empty state, list view, and compare view alike
-  html += `<div id="emf-meter-recs-slot"></div>`;
-
-  modal.innerHTML = html;
-
-  // Populate meter recommendations on the empty state — async, never blocks render
-  const meterSlot = document.getElementById('emf-meter-recs-slot');
-  if (meterSlot && isProductRecsEnabled()) {
-    loadEMFCatalog().then(cat => {
-      if (cat && document.getElementById('emf-meter-recs-slot') === meterSlot) {
-        meterSlot.innerHTML = renderEMFMeterRecs(cat);
-      }
-    });
-  }
-}
-
-function renderAssessmentDetail(a) {
-  if (_activeRoomIdx >= a.rooms.length) _activeRoomIdx = 0;
-  const ri = _activeRoomIdx;
-
-  let html = `<div class="emf-assessment-detail">
-    <div class="emf-meta-row">
-      <label>Date <input type="date" class="emf-input" data-emf-field="date" value="${escapeAttr(a.date)}" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
-      <label>Label <input type="text" class="emf-input" data-emf-field="label" value="${escapeAttr(a.label)}" placeholder="e.g. Pre-mitigation" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
-      <label>Consultant <input type="text" class="emf-input" data-emf-field="consultant" value="${escapeAttr(a.consultant)}" placeholder="Optional" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
-    </div>`;
-
-  // Room tabs
-  html += `<div class="emf-room-tabs">`;
-  for (let i = 0; i < a.rooms.length; i++) {
-    const room = a.rooms[i];
-    const worst = getRoomWorstSeverity(room);
-    const dot = worst ? `<span class="emf-severity-dot" style="background:var(--${worst.color})"></span>` : '';
-    html += `<button type="button" class="emf-room-tab${i === ri ? ' active' : ''}" ${emfActionAttrs('select-room', { 'data-emf-assessment-id': a.id, 'data-emf-room-idx': i })}>${escapeHTML(room.name || 'Room ' + (i + 1))} ${dot}</button>`;
-  }
-  html += `<button type="button" class="emf-room-tab emf-room-tab-add" ${emfActionAttrs('add-room', { 'data-emf-assessment-id': a.id })} title="Add room">+</button>`;
-  html += `</div>`;
-
-  // Active room content
-  html += renderRoomContent(a.id, ri, a.rooms[ri], a.rooms.length);
-
-  html += `<div class="emf-meta-row" style="margin-top:12px">
-      <label style="flex:1">Notes <input type="text" class="emf-input" data-emf-field="note" value="${escapeAttr(a.note)}" placeholder="General assessment notes" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
-    </div>
-    <div class="emf-assessment-footer">
-      <button type="button" class="import-btn import-btn-primary" ${emfActionAttrs('save')}>Save</button>
-      ${emfAIDeps.hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-assessment', { 'data-emf-assessment-id': a.id })}>Interpret</button>` : ''}
-      <span style="flex:1"></span>
-      <button type="button" class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${emfActionAttrs('delete-assessment', { 'data-emf-assessment-id': a.id })}>Delete Assessment</button>
-    </div>
-  </div>`;
-  return html;
-}
-
-function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
-  // Build dropdown: existing rooms as a group, then available presets
-  const a = ensureAssessments().find(x => x.id === assessmentId);
-  const existingNames = new Set(a ? a.rooms.map(r => r.name) : []);
-  const availablePresets = EMF_ROOM_PRESETS.filter(r => !existingNames.has(r));
-
-  let options = '';
-  // Current room's name is always selected
-  if (!EMF_ROOM_PRESETS.includes(room.name) && room.name) {
-    options += `<option value="_current" selected>${escapeHTML(room.name)}</option>`;
-  }
-  // Existing rooms (for switching)
-  for (let i = 0; i < (a ? a.rooms.length : 0); i++) {
-    const r = a.rooms[i];
-    const isCurrent = i === roomIdx;
-    options += `<option value="_room_${i}"${isCurrent ? ' selected' : ''}>${escapeHTML(r.name || 'Room ' + (i + 1))}${isCurrent ? '' : ' ↩'}</option>`;
-  }
-  // Available presets (for creating new rooms)
-  if (availablePresets.length) {
-    options += `<option disabled>──────────</option>`;
-    for (const r of availablePresets) {
-      options += `<option value="_new_${escapeAttr(r)}">+ ${escapeHTML(r)}</option>`;
-    }
-  }
-  options += `<option value="_custom">+ Custom...</option>`;
-
-  let html = `<div class="emf-room-content">
-    <div class="emf-room-header">
-      <select class="emf-input emf-room-select" ${emfChangeAttrs('room-dropdown', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
-        ${options}
-      </select>
-      <input type="text" class="emf-input emf-location" data-emf-room-field="location" value="${escapeAttr(room.location)}" placeholder="Location (e.g. bed pillow area)" ${emfChangeAttrs('room-field', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
-      <label class="emf-sleeping-toggle" title="Sleeping areas use stricter SBM-2015 thresholds">
-        <input type="checkbox" data-emf-room-field="sleeping" ${room.sleeping !== false ? 'checked' : ''} ${emfChangeAttrs('room-field', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
-        Sleeping area
-      </label>
-      ${roomCount > 1 ? `<button type="button" class="emf-remove-room" ${emfActionAttrs('remove-room', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })} title="Remove room">&times;</button>` : ''}
-    </div>
-    <div class="emf-measurements">`;
-
-  const sleeping = room.sleeping !== false;
-  for (const mt of MEASUREMENT_TYPES) {
-    const def = SBM_2015_THRESHOLDS[mt.key];
-    const m = (room.measurements && room.measurements[mt.key]) || {};
-    const val = m.value != null ? m.value : '';
-    html += `<div class="emf-measurement-row">
-      <span class="emf-measurement-label">${mt.short}</span>
-      <input type="number" class="emf-input emf-value-input" value="${escapeAttr(String(val))}" step="any" placeholder="—"
-        data-emf-measurement-type="${mt.key}"
-        ${emfChangeAttrs('measurement', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
-      <span class="emf-measurement-unit">${def.unit}</span>
-      ${val !== '' ? severityDot(mt.key, parseFloat(val), sleeping) : '<span class="emf-severity-dot-placeholder"></span>'}
-      <input type="text" class="emf-input emf-meter-input" value="${escapeAttr(m.meter || '')}" placeholder="Meter"
-        list="emf-meters-${mt.key}"
-        data-emf-meter-type="${mt.key}"
-        ${emfChangeAttrs('meter', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
-    </div>`;
-  }
-
-  html += `</div>`;
-
-  // Meter datalists (one per measurement type, filtered to matching meters)
-  for (const mt of MEASUREMENT_TYPES) {
-    const meters = EMF_METER_PRESETS.filter(p => p.types.includes(mt.key));
-    html += `<datalist id="emf-meters-${mt.key}">${meters.map(p => `<option value="${escapeHTML(p.name)}">`).join('')}</datalist>`;
-  }
-
-  // Sources
-  html += `<div class="emf-tags-section">
-    <label class="emf-tags-label">Sources identified</label>
-    <div class="ctx-tags" id="emf-sources-${assessmentId}-${roomIdx}">
-      ${EMF_SOURCES.map(s => `<button type="button" class="ctx-tag${(room.sources || []).includes(s) ? ' active' : ''}" ${emfActionAttrs('toggle-tag')}>${escapeHTML(s)}</button>`).join('')}
-    </div></div>`;
-
-  // Mitigations
-  html += `<div class="emf-tags-section">
-    <label class="emf-tags-label">Mitigations applied</label>
-    <div class="ctx-tags" id="emf-mits-${assessmentId}-${roomIdx}">
-      ${EMF_MITIGATIONS.map(s => `<button type="button" class="ctx-tag${(room.mitigations || []).includes(s) ? ' active' : ''}" ${emfActionAttrs('toggle-tag')}>${escapeHTML(s)}</button>`).join('')}
-    </div></div>`;
-
-  html += `<input type="text" class="emf-input emf-room-note" data-emf-room-field="note" value="${escapeAttr(room.note)}" placeholder="Room notes" ${emfChangeAttrs('room-field', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>`;
-
-  // Photos
-  const photos = room.photos || [];
-  html += `<div class="emf-photos-section">
-    <label class="emf-tags-label">Photos</label>
-    <div class="emf-photos-grid">
-      ${photos.map((p, pi) => `<div class="emf-photo-thumb">
-        <img src="data:${safeMediaType(p.mediaType)};base64,${p.base64}" alt="${escapeAttr(p.name || 'Photo')}" role="button" tabindex="0" ${emfActionAttrs('view-photo', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx, 'data-emf-photo-idx': pi })}>
-        <button type="button" class="emf-photo-remove" ${emfActionAttrs('remove-photo', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx, 'data-emf-photo-idx': pi })} title="Remove">&times;</button>
-      </div>`).join('')}
-      <label class="emf-photo-add" title="Add photo">
-        <input type="file" accept="image/*" multiple style="display:none" ${emfChangeAttrs('photos', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
-        +
-      </label>
-    </div>
-  </div>`;
-
-  html += `</div>`;
-  return html;
-}
-
 // ═══════════════════════════════════════════════
 // CRUD OPERATIONS
 // ═══════════════════════════════════════════════
@@ -536,22 +94,22 @@ export function addEMFAssessment() {
   const assessments = ensureAssessments();
   const a = newAssessment();
   assessments.push(a);
-  _editingAssessmentId = a.id;
+  emfEditorState.editingAssessmentId = a.id;
   renderEMFEditor(document.getElementById('detail-modal'));
 }
 
 export function toggleEMFAssessment(id) {
   collectActiveAssessmentState();
-  _editingAssessmentId = _editingAssessmentId === id ? null : id;
-  _activeRoomIdx = 0;
+  emfEditorState.editingAssessmentId = emfEditorState.editingAssessmentId === id ? null : id;
+  emfEditorState.activeRoomIdx = 0;
   renderEMFEditor(document.getElementById('detail-modal'));
 }
 
 export function selectEMFRoom(assessmentId, roomIdx) {
   // Ignore a stale delegated click after another assessment has become active.
-  if (_editingAssessmentId !== assessmentId) return;
+  if (emfEditorState.editingAssessmentId !== assessmentId) return;
   collectActiveAssessmentState();
-  _activeRoomIdx = roomIdx;
+  emfEditorState.activeRoomIdx = roomIdx;
   renderEMFEditor(document.getElementById('detail-modal'));
 }
 
@@ -571,14 +129,14 @@ export async function handleEMFRoomDropdown(assessmentId, currentRoomIdx, value,
     const a = assessments.find(x => x.id === assessmentId);
     if (!a) return;
     a.rooms.push(newRoom(name));
-    _activeRoomIdx = a.rooms.length - 1;
+    emfEditorState.activeRoomIdx = a.rooms.length - 1;
     saveImportedData();
     renderEMFEditor(document.getElementById('detail-modal'));
     return;
   }
   // Custom room
   if (value === '_custom') {
-    const name = await showEMFPromptRuntime('Room name:', {
+    const name = await showPromptDialog('Room name:', {
       placeholder: 'e.g. Master Bedroom',
       okLabel: 'Create',
     });
@@ -588,7 +146,7 @@ export async function handleEMFRoomDropdown(assessmentId, currentRoomIdx, value,
       const a = assessments.find(x => x.id === assessmentId);
       if (!a) return;
       a.rooms.push(newRoom(name));
-      _activeRoomIdx = a.rooms.length - 1;
+      emfEditorState.activeRoomIdx = a.rooms.length - 1;
       saveImportedData();
       renderEMFEditor(document.getElementById('detail-modal'));
     } else {
@@ -606,7 +164,7 @@ export function addEMFRoom(assessmentId) {
   const a = assessments.find(x => x.id === assessmentId);
   if (!a) return;
   a.rooms.push(newRoom(''));
-  _activeRoomIdx = a.rooms.length - 1;
+  emfEditorState.activeRoomIdx = a.rooms.length - 1;
   saveImportedData();
   renderEMFEditor(document.getElementById('detail-modal'));
 }
@@ -617,7 +175,9 @@ export function removeEMFRoom(assessmentId, roomIdx) {
   const a = assessments.find(x => x.id === assessmentId);
   if (!a || a.rooms.length <= 1) return;
   a.rooms.splice(roomIdx, 1);
-  if (_activeRoomIdx >= a.rooms.length) _activeRoomIdx = a.rooms.length - 1;
+  if (emfEditorState.activeRoomIdx >= a.rooms.length) {
+    emfEditorState.activeRoomIdx = a.rooms.length - 1;
+  }
   saveImportedData();
   renderEMFEditor(document.getElementById('detail-modal'));
 }
@@ -628,7 +188,7 @@ export async function deleteEMFAssessment(id) {
     const idx = assessments.findIndex(x => x.id === id);
     if (idx === -1) return;
     assessments.splice(idx, 1);
-    _editingAssessmentId = null;
+    emfEditorState.editingAssessmentId = null;
     if (assessments.length === 0) state.importedData.emfAssessment = null;
     saveImportedData();
     renderEMFEditor(document.getElementById('detail-modal'));
@@ -702,9 +262,9 @@ function applyEMFMeasurementValue(room, type, value) {
 }
 
 function collectActiveAssessmentInputs() {
-  if (!_editingAssessmentId) return;
+  if (!emfEditorState.editingAssessmentId) return;
   const assessments = ensureAssessments();
-  const a = assessments.find(x => x.id === _editingAssessmentId);
+  const a = assessments.find(x => x.id === emfEditorState.editingAssessmentId);
   const modal = document.getElementById('detail-modal');
   if (!a || !modal) return;
 
@@ -713,7 +273,7 @@ function collectActiveAssessmentInputs() {
     if (input) applyEMFField(a, field, input.value || '');
   }
 
-  const room = a.rooms?.[_activeRoomIdx];
+  const room = a.rooms?.[emfEditorState.activeRoomIdx];
   if (!room) return;
   const locationInput = /** @type {HTMLInputElement | null} */ (modal.querySelector('[data-emf-room-field="location"]'));
   if (locationInput) room.location = locationInput.value || '';
@@ -738,11 +298,11 @@ function collectActiveAssessmentState() {
 
 /** Collect tags from DOM for the active room */
 function collectTags() {
-  if (!_editingAssessmentId) return;
+  if (!emfEditorState.editingAssessmentId) return;
   const assessments = ensureAssessments();
-  const a = assessments.find(x => x.id === _editingAssessmentId);
+  const a = assessments.find(x => x.id === emfEditorState.editingAssessmentId);
   if (!a) return;
-  const ri = _activeRoomIdx;
+  const ri = emfEditorState.activeRoomIdx;
   const srcEl = document.getElementById(`emf-sources-${a.id}-${ri}`);
   if (srcEl) a.rooms[ri].sources = Array.from(srcEl.querySelectorAll('.ctx-tag.active')).map(b => b.textContent);
   const mitEl = document.getElementById(`emf-mits-${a.id}-${ri}`);
@@ -859,174 +419,11 @@ export async function handleEMFPDF(file) {
   }
 }
 
-function showEMFImportPreview(parsed) {
-  installEMFEditorDelegates();
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
-  if (!modal || !overlay) return;
-  const fmtDate = parsed.date ? new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date';
-
-  let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-preview')}>&times;</button>
-    <h3>EMF Report Preview</h3>
-    <div class="modal-unit">${fmtDate}${parsed.consultant ? ' — by ' + escapeHTML(parsed.consultant) : ''}</div>`;
-
-  for (const room of parsed.rooms) {
-    html += `<div class="emf-room-card">
-      <div class="emf-room-header"><strong>${escapeHTML(room.name)}</strong>
-        ${room.location ? `<span style="color:var(--text-muted);font-size:12px">${escapeHTML(room.location)}</span>` : ''}
-      </div>
-      <div class="emf-measurements">`;
-    for (const mt of MEASUREMENT_TYPES) {
-      const m = (room.measurements || {})[mt.key];
-      if (!m) continue;
-      const def = SBM_2015_THRESHOLDS[mt.key];
-      const sleeping = SLEEPING_ROOMS.has(room.name);
-      const sev = getEMFSeverity(mt.key, m.value, sleeping);
-      html += `<div class="emf-measurement-row">
-        <span class="emf-measurement-label">${mt.short}</span>
-        <span style="font-weight:600">${m.value}</span>
-        <span class="emf-measurement-unit">${def.unit}</span>
-        ${sev ? `<span class="emf-severity-dot" style="background:var(--${sev.color})" title="${sev.label}"></span>
-        <span style="font-size:11px;color:var(--${sev.color})">${sev.label}</span>` : ''}
-      </div>`;
-    }
-    html += `</div>`;
-    if (room.sources && room.sources.length) {
-      html += `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">Sources: ${room.sources.map(s => escapeHTML(s)).join(', ')}</div>`;
-    }
-    if (room.mitigations && room.mitigations.length) {
-      html += `<div style="font-size:12px;color:var(--text-muted)">Mitigations: ${room.mitigations.map(s => escapeHTML(s)).join(', ')}</div>`;
-    }
-    html += `</div>`;
-  }
-
-  html += `<div class="ctx-editor-actions">
-    <button type="button" class="import-btn import-btn-primary" id="emf-confirm-btn">Confirm Import</button>
-    <button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('close-preview')}>Cancel</button>
-  </div>`;
-
-  modal.innerHTML = html;
-  const confirmButton = modal.querySelector('#emf-confirm-btn');
-  if (!confirmButton) return;
-  openModalOverlay(overlay);
-
-  confirmButton.addEventListener('click', () => {
-    const assessments = ensureAssessments();
-    const assessment = {
-      id: 'emf_' + Date.now(),
-      date: parsed.date || new Date().toISOString().slice(0, 10),
-      label: '',
-      consultant: parsed.consultant || '',
-      rooms: parsed.rooms.map(r => ({
-        name: r.name || 'Unknown',
-        location: r.location || '',
-        sleeping: SLEEPING_ROOMS.has(r.name || 'Unknown'),
-        measurements: r.measurements || {},
-        sources: r.sources || [],
-        mitigations: r.mitigations || [],
-        note: ''
-      })),
-      note: parsed.note || ''
-    };
-    // Ensure units are set on measurements
-    for (const room of assessment.rooms) {
-      for (const [type, m] of Object.entries(room.measurements || {})) {
-        const def = SBM_2015_THRESHOLDS[type];
-        if (def && m) m.unit = def.unit;
-      }
-    }
-    assessments.push(assessment);
-    saveImportedData();
-    showNotification('EMF assessment imported', 'success');
-    _editingAssessmentId = assessment.id;
-    renderEMFEditor(modal);
-  });
-}
-
-// ═══════════════════════════════════════════════
-// BEFORE / AFTER COMPARISON
-// ═══════════════════════════════════════════════
-let _compareMode = false;
-
 export function toggleEMFCompare() {
   collectActiveAssessmentState();
-  _compareMode = !_compareMode;
-  _editingAssessmentId = null;
+  emfEditorState.compareMode = !emfEditorState.compareMode;
+  emfEditorState.editingAssessmentId = null;
   renderEMFEditor(document.getElementById('detail-modal'));
-}
-
-function renderComparisonView(sorted) {
-  // Pick two most recent by default
-  const a1 = sorted[sorted.length > 1 ? 1 : 0]; // older (Before)
-  const a2 = sorted[0]; // newer (After)
-  const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-  // Collect all unique room names across both assessments
-  const roomNames = [...new Set([...a1.rooms.map(r => r.name), ...a2.rooms.map(r => r.name)])];
-
-  let html = `<div class="emf-compare-header">
-    <span class="emf-compare-label">Before: ${fmtDate(a1.date)}${a1.label ? ' — ' + escapeHTML(a1.label) : ''}</span>
-    <span class="emf-compare-arrow">→</span>
-    <span class="emf-compare-label">After: ${fmtDate(a2.date)}${a2.label ? ' — ' + escapeHTML(a2.label) : ''}</span>
-  </div>`;
-
-  if (sorted.length > 2) {
-    html += `<div class="emf-compare-note">Comparing the two most recent assessments. ${sorted.length - 2} earlier assessment${sorted.length > 3 ? 's' : ''} not shown.</div>`;
-  }
-
-  html += `<div class="emf-compare-table"><table>
-    <thead><tr><th>Room</th>`;
-  for (const mt of MEASUREMENT_TYPES) {
-    html += `<th>${mt.short}</th>`;
-  }
-  html += `</tr></thead><tbody>`;
-
-  for (const name of roomNames) {
-    const r1 = a1.rooms.find(r => r.name === name);
-    const r2 = a2.rooms.find(r => r.name === name);
-    const sleeping = (r2 || r1)?.sleeping !== false;
-
-    html += `<tr><td class="emf-compare-room">${escapeHTML(name)}</td>`;
-    for (const mt of MEASUREMENT_TYPES) {
-      const m1 = r1?.measurements?.[mt.key];
-      const m2 = r2?.measurements?.[mt.key];
-      const v1 = m1?.value;
-      const v2 = m2?.value;
-
-      if (v1 == null && v2 == null) {
-        html += `<td class="emf-compare-cell">—</td>`;
-        continue;
-      }
-
-      const sev1 = v1 != null ? getEMFSeverity(mt.key, v1, sleeping) : null;
-      const sev2 = v2 != null ? getEMFSeverity(mt.key, v2, sleeping) : null;
-
-      let cellHtml = '';
-      if (v1 != null && v2 != null) {
-        const delta = v2 - v1;
-        const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
-        const arrowColor = delta < 0 ? 'var(--green)' : delta > 0 ? 'var(--red)' : 'var(--text-muted)';
-        cellHtml = `<span style="color:var(--${sev1?.color || 'text-muted'})">${v1}</span>
-          <span style="color:${arrowColor};font-weight:600">${arrow}</span>
-          <span style="color:var(--${sev2?.color || 'text-muted'})">${v2}</span>`;
-      } else if (v2 != null) {
-        cellHtml = `<span style="color:var(--text-muted)">—</span> → <span style="color:var(--${sev2?.color || 'text-muted'})">${v2}</span>`;
-      } else {
-        cellHtml = `<span style="color:var(--${sev1?.color || 'text-muted'})">${v1}</span> → <span style="color:var(--text-muted)">—</span>`;
-      }
-      html += `<td class="emf-compare-cell">${cellHtml}</td>`;
-    }
-    html += `</tr>`;
-  }
-
-  html += `</tbody></table></div>`;
-
-  if (emfAIDeps.hasAIProvider()) {
-    html += `<div style="margin-top:12px">
-      <button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-comparison')}>Interpret Changes</button>
-    </div>`;
-  }
-  return html;
 }
 
 // ═══════════════════════════════════════════════
@@ -1104,3 +501,28 @@ export function saveEMFExplicit() {
   saveImportedData();
   showNotification('EMF assessment saved', 'success');
 }
+
+configureEMFEditor({
+  addEMFAssessment,
+  addEMFPhotos,
+  addEMFRoom,
+  closeModal: () => emfRuntimeDeps.closeModal?.(),
+  collectActiveAssessmentState,
+  deleteEMFAssessment,
+  handleEMFPDF,
+  handleEMFRoomDropdown,
+  hasAIProvider: () => emfAIDeps.hasAIProvider(),
+  interpretEMFAssessment,
+  interpretEMFComparison,
+  removeEMFPhoto,
+  removeEMFRoom,
+  saveEMFExplicit,
+  selectEMFRoom,
+  toggleEMFAssessment,
+  toggleEMFCompare,
+  updateEMFField,
+  updateEMFMeasurement,
+  updateEMFMeter,
+  updateEMFRoom,
+  viewEMFPhoto,
+});

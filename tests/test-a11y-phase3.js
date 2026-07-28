@@ -77,7 +77,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     suppSrc.includes('class="supp-bar-row" role="button" tabindex="0"'));
 
   // ─── 3. Modal close aria-labels ───
-  for (const f of ['/js/views.js', '/js/feedback.js', '/js/changelog-impl.js', '/js/emf.js', '/js/settings.js']) {
+  for (const f of ['/js/views.js', '/js/feedback.js', '/js/changelog-impl.js', '/js/emf-editor.js', '/js/settings.js']) {
     const src = read(f);
     const closeButtons = (src.match(/class="modal-close"/g) || []).length;
     const labelled = (src.match(/class="modal-close" aria-label="Close"/g) || []).length;

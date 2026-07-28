@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
+const emfEditorSrc = fs.readFileSync(path.join(root, 'js/emf-editor.js'), 'utf8');
 const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
 const emfInterpretationSrc = fs.readFileSync(path.join(root, 'js/emf-interpretation.js'), 'utf8');
 
@@ -24,15 +25,15 @@ function assert(name, condition, detail = '') {
   }
 }
 
-function section(start, end) {
-  const startIdx = emfSrc.indexOf(start);
-  const endIdx = emfSrc.indexOf(end, startIdx);
-  return startIdx >= 0 && endIdx > startIdx ? emfSrc.slice(startIdx, endIdx) : '';
+function section(source, start, end) {
+  const startIdx = source.indexOf(start);
+  const endIdx = source.indexOf(end, startIdx);
+  return startIdx >= 0 && endIdx > startIdx ? source.slice(startIdx, endIdx) : '';
 }
 
-const editorSrc = section('let _editingAssessmentId = null;', '// ═══════════════════════════════════════════════\n// CRUD OPERATIONS');
-const importPreviewSrc = section('function showEMFImportPreview(parsed)', '// ═══════════════════════════════════════════════\n// BEFORE / AFTER COMPARISON');
-const compareSrc = section('function renderComparisonView(sorted)', '// ═══════════════════════════════════════════════\n// AI INTERPRETATION');
+const editorSrc = section(emfEditorSrc, 'export const emfEditorState', 'export function showEMFImportPreview(parsed)');
+const importPreviewSrc = section(emfEditorSrc, 'export function showEMFImportPreview(parsed)', 'function renderComparisonView(sorted)');
+const compareSrc = section(emfEditorSrc, 'function renderComparisonView(sorted)', 'return html;\n}');
 function interpretationSection(start, end) {
   const startIdx = emfInterpretationSrc.indexOf(start);
   const endIdx = emfInterpretationSrc.indexOf(end, startIdx);
@@ -40,7 +41,7 @@ function interpretationSection(start, end) {
 }
 
 const interpretationSrc = interpretationSection('function _handleEMFInterpretationMouseDown', 'function _collectMitigationTags');
-const closePreviewSrc = section('function closeEMFPreviewModal()', 'function closeEMFEditorModal()');
+const closePreviewSrc = section(emfEditorSrc, 'function closeEMFPreviewModal()', 'function closeEMFEditorModal()');
 const migratedEditorSurface = `${editorSrc}\n${importPreviewSrc}\n${compareSrc}`;
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 
@@ -51,35 +52,37 @@ assert('EMF editor migrated surface renders no inline event attributes',
 assert('EMF interpretation modal renders no inline event attributes',
   interpretationSrc.length > 0 && !inlineHandlerRe.test(interpretationSrc));
 assert('EMF editor imports shared tag toggle instead of inline global handler',
-  emfSrc.includes("import { toggleCtxTag } from './context-card-editor-ui.js';") &&
-    migratedEditorSurface.includes("if (action === 'toggle-tag') { toggleCtxTag(actionEl); return; }"));
+  emfEditorSrc.includes("import { toggleCtxTag } from './context-card-editor-ui.js';") &&
+    migratedEditorSurface.includes("if (action === 'toggle-tag') { toggleCtxTag(actionElement); return; }"));
 assert('EMF editor uses escaped data-action helpers',
-  emfSrc.includes('function emfActionAttrs') &&
-    emfSrc.includes('function emfChangeAttrs') &&
-    emfSrc.includes('escapeAttr(String(value))'));
+  emfEditorSrc.includes('function emfActionAttrs') &&
+    emfEditorSrc.includes('function emfChangeAttrs') &&
+    emfEditorSrc.includes('escapeAttr(String(value))'));
 assert('EMF editor installs idempotent click change and keydown delegates',
-  emfSrc.includes('let emfEditorDelegatesInstalled = false') &&
-    emfSrc.includes("document.addEventListener('click', _handleEMFEditorClick)") &&
-    emfSrc.includes("document.addEventListener('change', _handleEMFEditorChange)") &&
-    emfSrc.includes("document.addEventListener('keydown', _handleEMFEditorKeydown)") &&
-    emfSrc.includes('installEMFEditorDelegates();'));
+  emfEditorSrc.includes('let emfEditorDelegatesInstalled = false') &&
+    emfEditorSrc.includes("document.addEventListener('click', handleEMFEditorClick)") &&
+    emfEditorSrc.includes("document.addEventListener('change', handleEMFEditorChange)") &&
+    emfEditorSrc.includes("document.addEventListener('keydown', handleEMFEditorKeydown)") &&
+    emfEditorSrc.includes('installEMFEditorDelegates();'));
 assert('EMF editor delegates are scoped to #detail-modal',
-  emfSrc.includes("return !!el.closest('#detail-modal');") &&
-    emfSrc.includes('!isEMFEditorTarget(actionEl)'));
+  emfEditorSrc.includes("return !!element.closest('#detail-modal');") &&
+    emfEditorSrc.includes('!isEMFEditorTarget(actionElement)'));
 assert('EMF editor close path preserves save and lightbox cleanup',
-  emfSrc.includes('function closeEMFEditorModal()') &&
-    emfSrc.includes('collectActiveAssessmentState();') &&
-    emfSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el));") &&
-    emfSrc.includes('removeEMFEditorDelegates();') &&
-    emfSrc.includes('closeEMFModalRuntime();'));
+  emfEditorSrc.includes('function closeEMFEditorModal()') &&
+    emfEditorSrc.includes('emfEditorDeps.collectActiveAssessmentState?.();') &&
+    emfEditorSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element));") &&
+    emfEditorSrc.includes('removeEMFEditorDelegates();') &&
+    emfEditorSrc.includes('emfEditorDeps.closeModal?.();'));
 assert('EMF editor runtime hooks avoid counted direct window globals',
   !emfSrc.includes("from './views-runtime-bridge.js'") &&
+    !emfEditorSrc.includes("from './views-runtime-bridge.js'") &&
     !emfSrc.includes('getViewRuntimeFunction') &&
-    emfSrc.includes('emfRuntimeDeps.closeModal?.()') &&
+    !emfEditorSrc.includes('getViewRuntimeFunction') &&
+    emfSrc.includes('closeModal: () => emfRuntimeDeps.closeModal?.()') &&
     emfRuntimeSrc.includes('mod.configureEMFRuntimeDeps(emfRuntimeDeps);') &&
     !emfRuntimeSrc.includes("import('./emf.js')") &&
-    emfSrc.includes('return showPromptDialog(message, options);') &&
-    !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
+    emfSrc.includes("showPromptDialog('Room name:'") &&
+    !/\bwindow(?:\.|\s*\[)/.test(`${emfSrc}\n${emfEditorSrc}`));
 assert('EMF interpretation runtime hooks avoid counted direct window globals',
   !emfInterpretationSrc.includes("from './views-runtime-bridge.js'") &&
     !emfInterpretationSrc.includes('getViewRuntimeFunction') &&
@@ -92,15 +95,15 @@ assert('EMF import preview close path does not persist editor state',
   closePreviewSrc.length > 0 &&
     !closePreviewSrc.includes('collectActiveAssessmentState') &&
     !closePreviewSrc.includes('saveImportedData') &&
-    emfSrc.includes("if (action === 'close-preview') { closeEMFPreviewModal(); return; }") &&
-    emfSrc.includes("${emfActionAttrs('close-preview')}>Cancel</button>"));
+    emfEditorSrc.includes("if (action === 'close-preview') { closeEMFPreviewModal(); return; }") &&
+    emfEditorSrc.includes("${emfActionAttrs('close-preview')}>Cancel</button>"));
 assert('EMF import preview X button uses non-saving close action',
   importPreviewSrc.includes('class="modal-close" aria-label="Close" ${emfActionAttrs(\'close-preview\')}'));
 assert('EMF editor delegates can be explicitly removed',
-  emfSrc.includes('function removeEMFEditorDelegates()') &&
-    emfSrc.includes("document.removeEventListener('click', _handleEMFEditorClick)") &&
-    emfSrc.includes("document.removeEventListener('change', _handleEMFEditorChange)") &&
-    emfSrc.includes("document.removeEventListener('keydown', _handleEMFEditorKeydown)"));
+  emfEditorSrc.includes('function removeEMFEditorDelegates()') &&
+    emfEditorSrc.includes("document.removeEventListener('click', handleEMFEditorClick)") &&
+    emfEditorSrc.includes("document.removeEventListener('change', handleEMFEditorChange)") &&
+    emfEditorSrc.includes("document.removeEventListener('keydown', handleEMFEditorKeydown)"));
 assert('EMF interpretation modal installs scoped action delegates',
   emfInterpretationSrc.includes('function emfInterpActionAttrs') &&
     interpretationSrc.includes('data-emf-interp-action') &&
@@ -133,7 +136,7 @@ assert('EMF interpretation streamed discuss button uses delegated action',
   'remove-photo',
   'interpret-comparison',
 ].forEach(action => {
-  assert(`EMF click action ${action} is handled`, emfSrc.includes(`action === '${action}'`));
+  assert(`EMF click action ${action} is handled`, emfEditorSrc.includes(`action === '${action}'`));
 });
 
 [
@@ -145,7 +148,7 @@ assert('EMF interpretation streamed discuss button uses delegated action',
   'meter',
   'photos',
 ].forEach(action => {
-  assert(`EMF change action ${action} is handled`, emfSrc.includes(`action === '${action}'`));
+  assert(`EMF change action ${action} is handled`, emfEditorSrc.includes(`action === '${action}'`));
 });
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

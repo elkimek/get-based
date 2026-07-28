@@ -190,7 +190,7 @@ assert('App shell wires remaining Chat open consumers without window globals',
 assert('App shell injects the lazy EMF editor close callback without bridge lookups',
   !emfSrc.includes("from './views-runtime-bridge.js'")
     && !emfSrc.includes('getViewRuntimeFunction')
-    && emfSrc.includes('emfRuntimeDeps.closeModal?.();')
+    && emfSrc.includes('closeModal: () => emfRuntimeDeps.closeModal?.()')
     && emfRuntimeSrc.includes('mod.configureEMFRuntimeDeps(emfRuntimeDeps);')
     && !emfRuntimeSrc.includes("import('./emf.js')")
     && emfRuntimeSrc.includes('emfRuntimeDeps.loadModule()')

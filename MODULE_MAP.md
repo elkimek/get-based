@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 505 |
-| Internal import edges | 2281 |
+| Modules | 507 |
+| Internal import edges | 2289 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,14 +38,14 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 235 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 161 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/data.js`](js/data.js) | 75 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/utils.js`](js/utils.js) | 236 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 162 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 66 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 67 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
-| [`js/schema.js`](js/schema.js) | 32 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
+| [`js/schema.js`](js/schema.js) | 33 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/export.js`](js/export.js) | 18 |
@@ -351,11 +351,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>emf</code> family — 3 modules</summary>
+<details><summary><code>emf</code> family — 5 modules</summary>
 
+- [`js/emf-editor.js`](js/emf-editor.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/data.js`](js/data.js), [`js/emf-model.js`](js/emf-model.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/recommendations.js`](js/recommendations.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
 - [`js/emf-interpretation.js`](js/emf-interpretation.js) → [`js/api.js`](js/api.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/markdown.js`](js/markdown.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/emf-model.js`](js/emf-model.js) → [`js/state.js`](js/state.js)
 - [`js/emf-runtime.js`](js/emf-runtime.js) → [`js/utils.js`](js/utils.js)
-- [`js/emf.js`](js/emf.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/data.js`](js/data.js), [`js/emf-interpretation.js`](js/emf-interpretation.js), [`js/image-utils.js`](js/image-utils.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js), [`js/pii.js`](js/pii.js), [`js/recommendations.js`](js/recommendations.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/emf.js`](js/emf.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/emf-editor.js`](js/emf-editor.js), [`js/emf-interpretation.js`](js/emf-interpretation.js), [`js/emf-model.js`](js/emf-model.js), [`js/image-utils.js`](js/image-utils.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js), [`js/pii.js`](js/pii.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

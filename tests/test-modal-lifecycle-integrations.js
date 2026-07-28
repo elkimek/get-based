@@ -18,6 +18,7 @@ const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboar
 const dashboardWidgetControlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
+const emfEditorSrc = fs.readFileSync(path.join(root, 'js/emf-editor.js'), 'utf8');
 const emfInterpretationSrc = fs.readFileSync(path.join(root, 'js/emf-interpretation.js'), 'utf8');
 const exportReportBuilderSrc = fs.readFileSync(path.join(root, 'js/export-report-builder.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
@@ -270,20 +271,24 @@ assert('light environment assessment uses shared overlay lifecycle before remova
 
 assert('EMF editor, interpretation, and photo overlays use shared lifecycle helpers',
   emfSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
+    emfEditorSrc.includes("import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     emfInterpretationSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
-    ((emfSrc.match(/openModalOverlay\(overlay\)/g) || []).length + (emfInterpretationSrc.match(/openModalOverlay\(overlay\)/g) || []).length) >= 4 &&
-    ((emfSrc.match(/removeModalOverlay\(overlay\)/g) || []).length + (emfInterpretationSrc.match(/removeModalOverlay\(overlay\)/g) || []).length) >= 2 &&
+    ((emfSrc.match(/openModalOverlay\(overlay\)/g) || []).length + (emfEditorSrc.match(/openModalOverlay\(overlay\)/g) || []).length + (emfInterpretationSrc.match(/openModalOverlay\(overlay\)/g) || []).length) >= 4 &&
+    ((emfSrc.match(/removeModalOverlay\(overlay\)/g) || []).length + (emfEditorSrc.match(/removeModalOverlay\(overlay\)/g) || []).length + (emfInterpretationSrc.match(/removeModalOverlay\(overlay\)/g) || []).length) >= 2 &&
     emfInterpretationSrc.includes('const wasConnected = overlay.isConnected;') &&
     emfInterpretationSrc.includes('if (!wasConnected) document.body.appendChild(overlay);') &&
     emfInterpretationSrc.includes("if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}") &&
     emfInterpretationSrc.includes("trapModalFocus(overlay, { closeOnEscape: false })") &&
     emfSrc.includes('trapModalFocus(overlay)') &&
-    emfSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el))") &&
+    emfEditorSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element))") &&
     !emfSrc.includes("overlay.classList.add('show')") &&
+    !emfEditorSrc.includes("overlay.classList.add('show')") &&
     !emfInterpretationSrc.includes("overlay.classList.add('show')") &&
     !emfSrc.includes("overlay.classList.remove('show')") &&
+    !emfEditorSrc.includes("overlay.classList.remove('show')") &&
     !emfInterpretationSrc.includes("overlay.classList.remove('show')") &&
     !emfSrc.includes('overlay.onclick = () => overlay.remove()') &&
+    !emfEditorSrc.includes('overlay.onclick = () => overlay.remove()') &&
     !emfInterpretationSrc.includes('overlay.onclick = () => overlay.remove()'));
 
 assert('light tool modals use shared overlay lifecycle helpers',

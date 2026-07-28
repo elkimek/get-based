@@ -193,6 +193,8 @@ const APP_SHELL = [
   '/js/onboarding-view.js',
   '/js/emf-runtime.js',
   '/js/emf.js',
+  '/js/emf-editor.js',
+  '/js/emf-model.js',
   '/js/emf-interpretation.js',
   '/js/image-utils.js',
   '/js/pdf-import.js',

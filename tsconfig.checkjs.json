@@ -131,6 +131,8 @@
     "js/dna-runtime.js",
     "js/dna-runtime-bridge.js",
     "js/emf.js",
+    "js/emf-editor.js",
+    "js/emf-model.js",
     "js/export-report-builder.js",
     "js/export-report-html.js",
     "js/export-report.js",
