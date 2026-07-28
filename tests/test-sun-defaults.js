@@ -22,7 +22,16 @@ console.log('=== Sun Defaults Tests ===\n');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const sunDefaultsModelSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-model.js'), 'utf8');
 const sunDefaultsRuntimeSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-runtime.js'), 'utf8');
+const sunDefaultsRendererSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-setup-renderer.js'), 'utf8');
+const sunDefaultsUiSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-setup-ui.js'), 'utf8');
+const sunDefaultsOwnerSrc = [
+  sunDefaultsSrc,
+  sunDefaultsModelSrc,
+  sunDefaultsRendererSrc,
+  sunDefaultsUiSrc,
+].join('\n');
 const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const aiSaveHooksSrc = fs.readFileSync(path.join(root, 'js/light-ai-save-hooks.js'), 'utf8');
 const onboardingAiSrc = fs.readFileSync(path.join(root, 'js/sun-onboarding-ai.js'), 'utf8');
@@ -82,29 +91,33 @@ const {
   console.log('%c 0. Light setup delegated events ', 'font-weight:bold;color:#f59e0b');
 
   assert('sun-defaults renders setup controls without inline event attributes',
-    !/\bon(?:click|keydown|submit|change|input)=/.test(sunDefaultsSrc));
+    !/\bon(?:click|keydown|submit|change|input)=/.test(sunDefaultsOwnerSrc));
   assert('sun-defaults installs shared Light setup delegates',
-    sunDefaultsSrc.includes('installLightSetupDelegates();') &&
-    !sunDefaultsSrc.includes('invokeSunDefaultsBinding') &&
-    sunDefaultsSrc.includes("data-light-setup-action=") &&
-    sunDefaultsSrc.includes("data-light-setup-input="));
+    sunDefaultsUiSrc.includes('installLightSetupDelegates();') &&
+    !sunDefaultsOwnerSrc.includes('invokeSunDefaultsBinding') &&
+    sunDefaultsRendererSrc.includes("data-light-setup-action=") &&
+    sunDefaultsRendererSrc.includes("data-light-setup-input=") &&
+    sunDefaultsSrc.includes("from './sun-defaults-setup-ui.js'"));
   assert('sun-defaults browser hooks are isolated in runtime adapter',
-    sunDefaultsSrc.includes("from './sun-defaults-runtime.js'") &&
-    !/\bwindow(\.|\s*\[)/.test(sunDefaultsSrc) &&
+    sunDefaultsUiSrc.includes("from './sun-defaults-runtime.js'") &&
+    sunDefaultsRendererSrc.includes("from './sun-defaults-runtime.js'") &&
+    !/\bwindow(\.|\s*\[)/.test(sunDefaultsOwnerSrc) &&
     sunDefaultsRuntimeSrc.includes('getSunSetupCoords') &&
     !sunDefaultsRuntimeSrc.includes('exposeSunDefaultsBindings') &&
-    swSrc.includes("'/js/sun-defaults-runtime.js'"));
+    swSrc.includes("'/js/sun-defaults-runtime.js'") &&
+    swSrc.includes("'/js/sun-defaults-setup-ui.js'") &&
+    swSrc.includes("'/js/sun-defaults-setup-renderer.js'"));
   assert('sun-defaults AI hooks route through startup wiring',
     typeof configureSunDefaults === 'function' &&
-    sunDefaultsSrc.includes('maybeAnalyzeOnboardingAfterSave: () => {}') &&
+    sunDefaultsUiSrc.includes('maybeAnalyzeOnboardingAfterSave: () => {}') &&
     onboardingAiSrc.includes('registerAIActionHandler') &&
     !onboardingAiSrc.includes('Object.assign(window, {') &&
     !onboardingAiSrc.includes('window.refreshOnboardingAIAnalysis') &&
     !onboardingAiSrc.includes('window.analyzeOnboardingAI') &&
     !onboardingAiSrc.includes('window.maybeAnalyzeOnboardingAfterSave') &&
     !onboardingAiSrc.includes('window.renderOnboardingAIBlock') &&
-    !sunDefaultsSrc.includes('window.maybeAnalyzeOnboardingAfterSave') &&
-    !sunDefaultsSrc.includes('window.renderOnboardingAIBlock') &&
+    !sunDefaultsOwnerSrc.includes('window.maybeAnalyzeOnboardingAfterSave') &&
+    !sunDefaultsOwnerSrc.includes('window.renderOnboardingAIBlock') &&
     !globalsSrc.includes('maybeAnalyzeOnboardingAfterSave') &&
     !globalsSrc.includes('renderOnboardingAIBlock') &&
     aiSaveHooksSrc.includes("import { configureSunDefaults } from './sun-defaults.js';") &&

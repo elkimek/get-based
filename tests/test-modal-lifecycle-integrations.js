@@ -66,6 +66,7 @@ const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'ut
 const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
 const sunActiveSessionSrc = fs.readFileSync(path.join(root, 'js/sun-active-session.js'), 'utf8');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const sunDefaultsSetupUiSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-setup-ui.js'), 'utf8');
 const sunSessionActionsSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
 const sunSessionUiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
 const syncDiagnoseIdentitySrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-identity-actions.js'), 'utf8');
@@ -352,20 +353,20 @@ assert('sun session and setup modals use shared overlay lifecycle helpers',
   sunSrc.includes('openAppendedModalOverlay') &&
     sunSrc.includes('removeModalOverlay') &&
     sunActiveSessionSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
-    sunDefaultsSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    sunDefaultsSetupUiSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     sunSessionActionsSrc.includes("import { removeModalOverlay } from './modal-lifecycle.js';") &&
     sunSessionUiSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     (sunSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
     (sunActiveSessionSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
-    (sunDefaultsSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (sunDefaultsSetupUiSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
     (sunSessionUiSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 2 &&
     sunSessionActionsSrc.includes('removeModalOverlay(overlay)') &&
     !sunSessionActionsSrc.includes("closest('.modal-overlay')?.remove()") &&
-    [sunSrc, sunActiveSessionSrc, sunDefaultsSrc, sunSessionUiSrc].every(src =>
+    [sunSrc, sunActiveSessionSrc, sunDefaultsSetupUiSrc, sunSessionUiSrc].every(src =>
       !src.includes('modal-overlay show') &&
         !src.includes("this.closest('.modal-overlay').remove()") &&
         !src.includes('overlay.remove()')) &&
-    [sunActiveSessionSrc, sunDefaultsSrc, sunSessionUiSrc].every(src =>
+    [sunActiveSessionSrc, sunDefaultsSetupUiSrc, sunSessionUiSrc].every(src =>
       !src.includes('wireBackdropClose') &&
         !src.includes('trapModalFocus')));
 
