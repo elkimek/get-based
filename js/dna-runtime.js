@@ -20,7 +20,7 @@ const dnaRuntimeDeps = {
   isDebugMode,
   isImportRunning,
   navigate: /** @type {null | ((route: string) => void)} */ (null),
-  showConfirmDialog,
+  showConfirmDialog: /** @type {null | typeof showConfirmDialog} */ (showConfirmDialog),
 };
 
 function geneticsStylesheetUrl() {

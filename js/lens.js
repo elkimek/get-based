@@ -545,23 +545,24 @@ function loadLensKnowledgeBaseUiRetryModule() {
 
 /** @returns {Promise<LensKnowledgeBaseUi>} */
 export function loadLensKnowledgeBaseUi() {
-  if (!lensKnowledgeBaseUiPromise) {
-    const load = useLensKnowledgeBaseUiRetryUrl
-      ? loadLensKnowledgeBaseUiRetryModule()
-      : import('./lens-knowledge-base-ui.js');
-    lensKnowledgeBaseUiPromise = load
-      .then(module => {
-        lensKnowledgeBaseUi = module.createLensKnowledgeBaseUi(lensKnowledgeBaseUiDeps);
-        return lensKnowledgeBaseUi;
-      })
-      .catch(err => {
-        lensKnowledgeBaseUiPromise = null;
-        lensKnowledgeBaseUi = null;
-        useLensKnowledgeBaseUiRetryUrl = true;
-        throw err;
-      });
-  }
-  return lensKnowledgeBaseUiPromise;
+  if (lensKnowledgeBaseUiPromise) return lensKnowledgeBaseUiPromise;
+  const load = useLensKnowledgeBaseUiRetryUrl
+    ? loadLensKnowledgeBaseUiRetryModule()
+    : import('./lens-knowledge-base-ui.js');
+  const promise = load
+    .then(module => {
+      const ui = module.createLensKnowledgeBaseUi(lensKnowledgeBaseUiDeps);
+      lensKnowledgeBaseUi = ui;
+      return ui;
+    })
+    .catch(err => {
+      lensKnowledgeBaseUiPromise = null;
+      lensKnowledgeBaseUi = null;
+      useLensKnowledgeBaseUiRetryUrl = true;
+      throw err;
+    });
+  lensKnowledgeBaseUiPromise = promise;
+  return promise;
 }
 
 /**

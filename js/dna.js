@@ -513,7 +513,7 @@ export function renderGeneticsSection() {
       value: genetics.mtdna.haplogroup,
       sub: genetics.mtdna.coupling?.shortLabel || 'Maternal lineage'
     } : null
-  ].filter(Boolean);
+  ].filter(card => card !== null);
 
   html += '<div class="genetics-overview-grid">';
   overviewCards.forEach(card => {

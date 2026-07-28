@@ -59,7 +59,7 @@ function renderGenomeImportDetailsWidget(lensPageActionAttrs) {
       value: genetics.mtdna.haplogroup,
       sub: genetics.mtdna.coupling?.shortLabel || genetics.mtdna.source || 'Maternal lineage',
     } : null,
-  ].filter(Boolean);
+  ].filter(card => card !== null);
 
   const mtdnaDetail = hasMtdna ? `<div class="db-genome-import-note">
     <strong>mtDNA ${escapeHTML(genetics.mtdna.haplogroup)}</strong>
