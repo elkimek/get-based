@@ -182,6 +182,7 @@ const pwaAppShellAssets = [
   '/js/marker-detail-custom-markers.js',
   '/js/marker-detail-manual-entry.js',
   '/js/sun.js',
+  '/js/sun-location.js',
   '/js/sun-active-session.js',
   '/js/sun-session-model.js',
   '/js/sun-sessions-store.js',

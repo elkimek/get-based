@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 500 |
-| Internal import edges | 2262 |
+| Modules | 501 |
+| Internal import edges | 2267 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,9 +38,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 233 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 157 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/data.js`](js/data.js) | 74 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/utils.js`](js/utils.js) | 234 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 158 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/data.js`](js/data.js) | 75 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 66 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
@@ -49,8 +49,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/export.js`](js/export.js) | 18 |
-| [`js/constants.js`](js/constants.js) | 19 | [`js/sun.js`](js/sun.js) | 18 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
+| [`js/constants.js`](js/constants.js) | 19 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
+| [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/sun.js`](js/sun.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/profile.js`](js/profile.js) | 16 |
 | [`js/context-cards-runtime.js`](js/context-cards-runtime.js) | 16 | [`js/cycle-import.js`](js/cycle-import.js) | 15 |
 
@@ -751,7 +751,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sun</code> family — 22 modules</summary>
+<details><summary><code>sun</code> family — 23 modules</summary>
 
 - [`js/sun-active-session.js`](js/sun-active-session.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-ai-analysis.js`](js/sun-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
@@ -763,6 +763,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-correlations.js`](js/sun-correlations.js) → [`js/state.js`](js/state.js), [`js/sun.js`](js/sun.js)
 - [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js) → [`js/profile.js`](js/profile.js)
 - [`js/sun-defaults.js`](js/sun-defaults.js) → [`js/constants.js`](js/constants.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/sun-location.js`](js/sun-location.js) → [`js/constants.js`](js/constants.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-runtime.js`](js/sun-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-onboarding-ai.js`](js/sun-onboarding-ai.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-runtime.js`](js/sun-runtime.js) → [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-session-actions.js`](js/sun-session-actions.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
@@ -774,7 +775,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-spectrum.js`](js/sun-spectrum.js) → no in-scope imports
 - [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js) → [`js/crypto.js`](js/crypto.js)
 - [`js/sun-uvdata.js`](js/sun-uvdata.js) → [`js/caught-error.js`](js/caught-error.js), [`js/sun-runtime.js`](js/sun-runtime.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js), [`js/url-safety.js`](js/url-safety.js)
-- [`js/sun.js`](js/sun.js) → [`js/ai-verdict-engine-runtime.js`](js/ai-verdict-engine-runtime.js), [`js/constants.js`](js/constants.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-context.js`](js/profile-context.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-channel-metrics.js`](js/sun-channel-metrics.js), [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js), [`js/sun-runtime.js`](js/sun-runtime.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/utils.js`](js/utils.js)
+- [`js/sun.js`](js/sun.js) → [`js/ai-verdict-engine-runtime.js`](js/ai-verdict-engine-runtime.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-context.js`](js/profile-context.js), [`js/state.js`](js/state.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-channel-metrics.js`](js/sun-channel-metrics.js), [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js), [`js/sun-location.js`](js/sun-location.js), [`js/sun-runtime.js`](js/sun-runtime.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

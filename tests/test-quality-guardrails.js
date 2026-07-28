@@ -227,6 +227,7 @@ const highValueCheckJsModules = [
   'js/settings-sync-panel.js',
   'js/settings-sync-panel-impl.js',
   'js/sun.js',
+  'js/sun-location.js',
   'js/sun-uvdata-config.js',
   'js/wearables.js',
 ];
@@ -250,6 +251,7 @@ const domainUiCheckJsModules = [
   'js/sun-context.js',
   'js/sun-defaults.js',
   'js/sun-defaults-runtime.js',
+  'js/sun-location.js',
   'js/sun-runtime.js',
   'js/sun-spectrum.js',
   'js/sun-uvdata.js',

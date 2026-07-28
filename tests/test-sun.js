@@ -578,6 +578,7 @@ const {
   const fs = await import('node:fs/promises');
   const sunSrc = await fs.readFile(new URL('../js/sun.js', import.meta.url), 'utf8');
   const metricsSrc = await fs.readFile(new URL('../js/sun-channel-metrics.js', import.meta.url), 'utf8');
+  const locationSrc = await fs.readFile(new URL('../js/sun-location.js', import.meta.url), 'utf8');
   const modelSrc = await fs.readFile(new URL('../js/sun-session-model.js', import.meta.url), 'utf8');
   const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.js', import.meta.url), 'utf8');
   const runtimeSrc = await fs.readFile(new URL('../js/sun-runtime.js', import.meta.url), 'utf8');
@@ -626,6 +627,14 @@ const {
     runtimeSrc.includes('export function renderLightTodayStripRuntime') &&
     runtimeSrc.includes('export function requestSunGeolocationPositionRuntime') &&
     swSrc.includes("'/js/sun-runtime.js'"));
+  assert('Sun coordinate policy and precise-location upgrade have one owner',
+    sunSrc.includes("from './sun-location.js'") &&
+    sunSrc.includes('export { getSunCoords, requestPreciseLocation };') &&
+    locationSrc.includes('export function getSunCoords()') &&
+    locationSrc.includes('export async function requestPreciseLocation()') &&
+    locationSrc.includes('COUNTRY_CENTROIDS') &&
+    !sunSrc.includes('const BAND_CENTROID_LAT') &&
+    swSrc.includes("'/js/sun-location.js'"));
   const formerSunGlobals = [
     'SUN_ENGINE_VERSION', '_refreshSunSurfaces', 'quickLogSunSession', 'startSession', 'stopSession',
     'pauseSession', 'resumeSession', 'pauseSunSession', 'resumeSunSession', 'applySunscreenMidSession',

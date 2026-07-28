@@ -491,6 +491,7 @@ const APP_SHELL = [
   '/js/modal-lifecycle.js',
   // Sun + light modules are statically reachable from the app shell.
   '/js/sun.js',
+  '/js/sun-location.js',
   '/js/sun-active-session.js',
   '/js/sun-channel-metrics.js',
   '/js/sun-session-model.js',
