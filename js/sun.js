@@ -13,8 +13,6 @@
 import { state } from './state.js';
 import { showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
-import { getProfileLocation } from './profile.js';
-import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
 import {
   wireBackdropClose as _wireBackdropClose,
   trapModalFocus,
@@ -98,20 +96,20 @@ import {
   addSunProfileSwitchListener,
   getSunDeviceSessionsRuntime,
   hasSunBrowserRuntime,
-  hasSunGeolocationRuntime,
   navigateSunRuntime,
   openSunChannelOnLightPageRuntime,
   rebuildSunSidebarRuntime,
   renderLightChannelsLiveRuntime,
   renderLightTodayStripRuntime,
-  requestSunGeolocationPositionRuntime,
 } from './sun-runtime.js';
+import { getSunCoords, requestPreciseLocation } from './sun-location.js';
 import { configureAIVerdictRuntimeDeps } from './ai-verdict-engine-runtime.js';
 import { configureProfileContextLightDeps } from './profile-context.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette };
 export { renderSessionsList, renderSunSessionRow, openDetailedSessionDialog, openSunSessionDetail };
 export { quickLogSunSession, openStartSunSessionDialog, _wireBackdropClose, trapModalFocus };
+export { getSunCoords, requestPreciseLocation };
 export {
   TOO_SHORT_FOR_CHANNEL_VERDICT_MIN,
   formatChannelUnit,
@@ -628,76 +626,6 @@ function _refreshSurfaces(scrollAnchor) {
     navigateSunRuntime(view, navOpts);
     setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
   }, 150);
-}
-
-// Country band → centroid lat (0=tropical, 4=subarctic). Used as the lat
-// fallback when a country lacks an explicit COUNTRY_CENTROIDS entry.
-//
-// Bands follow the Holick UV-availability scheme (Holick 2007 NEJM,
-// "Vitamin D Deficiency"): tropical 0-23.5°, subtropical 23.5-35°,
-// temperate 35-50°, cold-temperate 50-60°, subarctic 60°+. Centroid
-// values picked at band-midpoint, capped at 65° because cutaneous
-// vit-D synthesis below 5° solar elevation is negligible (Webb 2018).
-// Drives the lat-only fallback for synthesis math when a country lacks
-// a precise centroid; the AI verdict for "should I be supplementing in
-// winter?" depends on this lat resolving correctly.
-const BAND_CENTROID_LAT = [15, 32, 45, 55, 65];
-
-export function getSunCoords() {
-  // 1. Profile-cached precise coords (set via "Use precise location" upgrade)
-  const profileLoc = state.importedData?.sunDefaults?.coords;
-  if (profileLoc && Number.isFinite(profileLoc.lat) && Number.isFinite(profileLoc.lon)) {
-    return { lat: profileLoc.lat, lon: profileLoc.lon, source: 'profile-precise' };
-  }
-  // 2. Profile country → deterministic centroid (lat + lon both keyed off the
-  // country, never off the device's tz). Earlier versions derived lon from
-  // `new Date().getTimezoneOffset()`, which produced different solar-position
-  // results across devices in different OS timezones (or DST states) for the
-  // same profile — surfaced as cross-device "last UV-A" / UVI mismatches.
-  const country = (getProfileLocation()?.country || '').toLowerCase().trim();
-  if (country && COUNTRY_LATITUDES[country] !== undefined) {
-    const centroid = COUNTRY_CENTROIDS[country];
-    if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lon)) {
-      return { lat: centroid.lat, lon: centroid.lon, source: 'country-band' };
-    }
-    // Country listed in band table but missing centroid — degrade to band
-    // centroid lat + Greenwich. Still device-independent.
-    const bandIdx = COUNTRY_LATITUDES[country];
-    const lat = BAND_CENTROID_LAT[bandIdx] ?? 45;
-    return { lat, lon: 0, source: 'country-band' };
-  }
-  // No country, no precise coords — return null. The previous tz-only
-  // fallback hardcoded lat=45 (NH temperate), which produces physically
-  // wrong UV math for southern-hemisphere users (Sydney/Tokyo via UTC+9-10
-  // mapped to lat 45° N → winter↔summer flipped). Callers (the strip,
-  // session start, etc.) already render "set country" CTAs when this
-  // returns null, so dropping the lying fallback is the honest move.
-  return null;
-}
-
-// Explicit one-time geolocation upgrade. Surfaces in Settings → Light & Sun
-// or via a "use precise location" button on the Light & Sun page.
-export async function requestPreciseLocation() {
-  if (!hasSunGeolocationRuntime()) {
-    showNotification('Browser geolocation not available — country-level estimate will be used.');
-    return null;
-  }
-  try {
-    const pos = await requestSunGeolocationPositionRuntime({ timeout: 8000, maximumAge: 60_000 * 30, enableHighAccuracy: true });
-    if (!state.importedData.sunDefaults) state.importedData.sunDefaults = {};
-    state.importedData.sunDefaults.coords = {
-      lat: pos.coords.latitude,
-      lon: pos.coords.longitude,
-      altitudeM: pos.coords.altitude || 0,
-      capturedAt: Date.now(),
-    };
-    await saveImportedData();
-    showNotification('Precise location saved — sun calculations will be more accurate.');
-    return state.importedData.sunDefaults.coords;
-  } catch (e) {
-    showNotification('Location not shared — your country still gives a reasonable estimate.');
-    return null;
-  }
 }
 
 // Compact body-exposure summary for the session-list row. Detailed
