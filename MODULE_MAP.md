@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 502 |
-| Internal import edges | 2274 |
+| Modules | 505 |
+| Internal import edges | 2281 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -39,7 +39,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 235 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 159 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/state.js`](js/state.js) | 161 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 75 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 66 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
@@ -751,15 +751,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sun</code> family — 23 modules</summary>
+<details><summary><code>sun</code> family — 26 modules</summary>
 
 - [`js/sun-active-session.js`](js/sun-active-session.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-ai-analysis.js`](js/sun-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-body-silhouette-runtime.js`](js/sun-body-silhouette-runtime.js) → [`js/profile.js`](js/profile.js)
 - [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js) → [`js/silhouette-paths.js`](js/silhouette-paths.js), [`js/sun-body-silhouette-runtime.js`](js/sun-body-silhouette-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-channel-metrics.js`](js/sun-channel-metrics.js) → [`js/state.js`](js/state.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/supplement-impact.js`](js/supplement-impact.js)
+- [`js/sun-context-environment.js`](js/sun-context-environment.js) → [`js/light-env-evening.js`](js/light-env-evening.js), [`js/state.js`](js/state.js), [`js/sun-context-runtime.js`](js/sun-context-runtime.js)
 - [`js/sun-context-hooks.js`](js/sun-context-hooks.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/light-env-model.js`](js/light-env-model.js), [`js/light-env-store.js`](js/light-env-store.js), [`js/sun-context.js`](js/sun-context.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
-- [`js/sun-context.js`](js/sun-context.js) → [`js/lab-context.js`](js/lab-context.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/state.js`](js/state.js), [`js/sun-correlations.js`](js/sun-correlations.js)
+- [`js/sun-context-runtime.js`](js/sun-context-runtime.js) → no in-scope imports
+- [`js/sun-context-session-tools.js`](js/sun-context-session-tools.js) → [`js/state.js`](js/state.js), [`js/sun-context-runtime.js`](js/sun-context-runtime.js)
+- [`js/sun-context.js`](js/sun-context.js) → [`js/lab-context.js`](js/lab-context.js), [`js/state.js`](js/state.js), [`js/sun-context-environment.js`](js/sun-context-environment.js), [`js/sun-context-runtime.js`](js/sun-context-runtime.js), [`js/sun-context-session-tools.js`](js/sun-context-session-tools.js), [`js/sun-correlations.js`](js/sun-correlations.js)
 - [`js/sun-correlations.js`](js/sun-correlations.js) → [`js/state.js`](js/state.js), [`js/sun.js`](js/sun.js)
 - [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js) → [`js/profile.js`](js/profile.js)
 - [`js/sun-defaults.js`](js/sun-defaults.js) → [`js/constants.js`](js/constants.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js), [`js/utils.js`](js/utils.js)
