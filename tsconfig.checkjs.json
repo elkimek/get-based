@@ -115,6 +115,7 @@
     "js/context-cards.js",
     "js/crypto-key-cache.js",
     "js/crypto.js",
+    "js/crypto-ui.js",
     "js/dashboard-page-view.js",
     "js/dashboard-lab-widget-renderers.js",
     "js/dashboard-recommendation-widget.js",

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 508 |
-| Internal import edges | 2296 |
+| Modules | 509 |
+| Internal import edges | 2300 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -41,8 +41,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils.js`](js/utils.js) | 237 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 163 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 68 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
+| [`js/caught-error.js`](js/caught-error.js) | 74 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 69 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 33 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
@@ -297,10 +297,11 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>crypto</code> family — 2 modules</summary>
+<details><summary><code>crypto</code> family — 3 modules</summary>
 
 - [`js/crypto-key-cache.js`](js/crypto-key-cache.js) → no in-scope imports
-- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/crypto-ui.js`](js/crypto-ui.js) → [`js/backup.js`](js/backup.js), [`js/caught-error.js`](js/caught-error.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 

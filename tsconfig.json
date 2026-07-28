@@ -112,6 +112,7 @@
     "js/context-card-summaries.js",
     "js/context-cards.js",
     "js/crypto.js",
+    "js/crypto-ui.js",
     "js/cycle.js",
     "js/dashboard-page-view.js",
     "js/dashboard-lab-widget-renderers.js",
