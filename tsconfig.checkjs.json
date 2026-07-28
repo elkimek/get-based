@@ -245,6 +245,7 @@
     "js/pdfjs-loader.js",
     "js/pii-review.js",
     "js/pii.js",
+    "js/profile-data-migrations.js",
     "js/profile-fatty-acid-migrations.js",
     "js/profile-marker-migrations.js",
     "js/profile-storage-key.js",

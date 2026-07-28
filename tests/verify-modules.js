@@ -36,6 +36,7 @@
     '/js/startup-maintenance.js',
     '/js/startup-ui.js',
     '/js/changelog.js',
+    '/js/profile-data-migrations.js',
     '/js/changelog-impl.js',
     '/js/emf-runtime.js',
     '/js/schema-environment.js',

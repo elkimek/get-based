@@ -139,7 +139,7 @@ const contextCards = await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   console.log('10. Migration');
 
-  const profileSrc = read('js/profile.js');
+  const profileSrc = read('js/profile-data-migrations.js');
   assert('Migration guard for changeHistory', profileSrc.includes("data.changeHistory === undefined") && profileSrc.includes("data.changeHistory = []"));
 
   // ═══════════════════════════════════════
