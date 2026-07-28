@@ -34,7 +34,16 @@ const tools = await import('../js/light-tools.js');
     const globalsSrc = fs.readFileSync(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
     const swSrc = fs.readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
     const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
-    const lightToolCameraModalsSrc = fs.readFileSync(new URL('../js/light-tool-camera-modals.js', import.meta.url), 'utf8');
+    const lightToolCameraModalsSrc = [
+      'light-tool-camera-modals.js',
+      'light-tool-camera-modal-runtime.js',
+      'light-tool-lux-meter.js',
+      'light-tool-flicker-detector.js',
+      'light-tool-darkness-meter.js',
+      'light-tool-cct-meter.js',
+      'light-tool-spectrum-classifier.js',
+      'light-tool-glass-transmission.js',
+    ].map(file => fs.readFileSync(new URL(`../js/${file}`, import.meta.url), 'utf8')).join('\n');
     const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
     const lightToolCss = fs.readFileSync(new URL('../css/light-tools.css', import.meta.url), 'utf8');
     const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
@@ -343,7 +352,7 @@ const tools = await import('../js/light-tools.js');
       assert('Flicker assigns close handler before getUserMedia await',
         appearsBefore(lightToolCameraModalsSrc, 'const closeFlickerOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openFlickerDetector')));
       assert('Darkness stops late camera stream if closed after getUserMedia',
-        /export async function openDarknessMeter[\s\S]*const stream = await navigator\.mediaDevices\.getUserMedia[\s\S]*if \(closed\) \{[\s\S]*stream\.getTracks\(\)\.forEach\(t => t\.stop\(\)\)/.test(lightToolCameraModalsSrc));
+        /export async function openDarknessMeter[\s\S]*const stream = await navigator\.mediaDevices\.getUserMedia[\s\S]*if \(closed\) \{[\s\S]*stream\.getTracks\(\)\.forEach\(\w+ => \w+\.stop\(\)\)/.test(lightToolCameraModalsSrc));
       assert('CCT assigns close handler before getUserMedia await',
         appearsBefore(lightToolCameraModalsSrc, 'const closeCCTOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openCCTMeter')));
       assert('Spectrum assigns close handler before getUserMedia await',
@@ -351,7 +360,7 @@ const tools = await import('../js/light-tools.js');
     assert('Glass transmission tracks and stops active streams on close/finally',
       /activeGlassStreams\.add\(stream\)/.test(lightToolCameraModalsSrc) &&
       /activeGlassStreams\.delete\(stream\)/.test(lightToolCameraModalsSrc) &&
-      /for \(const stream of activeGlassStreams\)[\s\S]{0,160}getTracks\(\)\.forEach/.test(lightToolCameraModalsSrc));
+      /for \(const stream of activeGlassStreams\)[\s\S]{0,200}getTracks\(\)\.forEach/.test(lightToolCameraModalsSrc));
     assert('Eye-level audit waits for movement before recording another pause',
       /waitingForMovement[\s\S]{0,700}pauseDetections\.push[\s\S]{0,250}waitingForMovement\s*=\s*true/.test(lightToolsSrc));
 

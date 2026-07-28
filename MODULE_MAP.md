@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 488 |
-| Internal import edges | 2204 |
+| Modules | 495 |
+| Internal import edges | 2232 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,12 +38,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 224 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/utils.js`](js/utils.js) | 229 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 154 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 73 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 72 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/api.js`](js/api.js) | 63 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 59 | [`js/chat-send.js`](js/chat-send.js) | 22 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 64 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
+| [`js/api.js`](js/api.js) | 63 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 44 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 30 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
@@ -456,7 +456,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 42 modules</summary>
+<details><summary><code>light</code> family — 49 modules</summary>
 
 - [`js/light-ai-save-hooks.js`](js/light-ai-save-hooks.js) → [`js/api.js`](js/api.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js), [`js/light-env-ai-analysis.js`](js/light-env-ai-analysis.js), [`js/light-env-audits.js`](js/light-env-audits.js), [`js/light-env.js`](js/light-env.js), [`js/light-screen-ai-analysis.js`](js/light-screen-ai-analysis.js), [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js), [`js/light-tools.js`](js/light-tools.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-onboarding-ai.js`](js/sun-onboarding-ai.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js)
 - [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -495,8 +495,15 @@ Native browser modules shipped with the static application.
 - [`js/light-sun-analysis-runtime.js`](js/light-sun-analysis-runtime.js) → no in-scope imports
 - [`js/light-sun-loader.js`](js/light-sun-loader.js) → [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) *(dynamic)*, [`js/light-device-ai-analysis.js`](js/light-device-ai-analysis.js) *(dynamic)*, [`js/light-sun-analysis-runtime.js`](js/light-sun-analysis-runtime.js), [`js/state.js`](js/state.js), [`js/sun-ai-analysis.js`](js/sun-ai-analysis.js) *(dynamic)*
 - [`js/light-today-ai.js`](js/light-today-ai.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
-- [`js/light-tool-camera-modals.js`](js/light-tool-camera-modals.js) → [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js) → no in-scope imports
+- [`js/light-tool-camera-modals.js`](js/light-tool-camera-modals.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-cct-meter.js`](js/light-tool-cct-meter.js), [`js/light-tool-darkness-meter.js`](js/light-tool-darkness-meter.js), [`js/light-tool-flicker-detector.js`](js/light-tool-flicker-detector.js), [`js/light-tool-glass-transmission.js`](js/light-tool-glass-transmission.js), [`js/light-tool-lux-meter.js`](js/light-tool-lux-meter.js), [`js/light-tool-spectrum-classifier.js`](js/light-tool-spectrum-classifier.js)
 - [`js/light-tool-camera.js`](js/light-tool-camera.js) → [`js/utils.js`](js/utils.js)
+- [`js/light-tool-cct-meter.js`](js/light-tool-cct-meter.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tool-darkness-meter.js`](js/light-tool-darkness-meter.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tool-flicker-detector.js`](js/light-tool-flicker-detector.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tool-glass-transmission.js`](js/light-tool-glass-transmission.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tool-lux-meter.js`](js/light-tool-lux-meter.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/light-tool-spectrum-classifier.js`](js/light-tool-spectrum-classifier.js) → [`js/light-tool-camera-modal-runtime.js`](js/light-tool-camera-modal-runtime.js), [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-tools-ui-hooks.js`](js/light-tools-ui-hooks.js) → [`js/light-tools.js`](js/light-tools.js), [`js/views.js`](js/views.js)
 - [`js/light-tools.js`](js/light-tools.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-tool-camera-modals.js`](js/light-tool-camera-modals.js) *(dynamic)*, [`js/light-tool-camera.js`](js/light-tool-camera.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
