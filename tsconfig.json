@@ -163,6 +163,8 @@
     "js/light-burden-ai-analysis.js",
     "js/light-channel-view.js",
     "js/light-channels-ai-analysis.js",
+    "js/light-conditions-interpretation.js",
+    "js/light-conditions-renderer.js",
     "js/light-conditions-now.js",
     "js/light-device-ai-analysis.js",
     "js/light-device-session-engine.js",

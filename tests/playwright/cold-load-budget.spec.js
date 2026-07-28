@@ -278,7 +278,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   const deferredLightCoreModules = new Set([
     '/js/app-light-sun-modules.js',
     '/js/light-channel-view.js',
+    '/js/light-conditions-interpretation.js',
     '/js/light-conditions-now.js',
+    '/js/light-conditions-renderer.js',
     '/js/light-devices.js',
     '/js/light-page-view.js',
     '/js/light-tools.js',

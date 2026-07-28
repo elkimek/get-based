@@ -96,6 +96,8 @@
     '/js/modal-trigger-memory.js',
     '/js/marker-detail-runtime.js',
     '/js/marker-detail-editing.js',
+    '/js/light-conditions-interpretation.js',
+    '/js/light-conditions-renderer.js',
     '/js/light-conditions-now.js',
     '/js/light-conditions-now-hooks.js',
     '/js/light-page-view.js',
