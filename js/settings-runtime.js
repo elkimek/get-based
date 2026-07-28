@@ -12,8 +12,8 @@ const DEFAULT_METEO_CONFIG = Object.freeze({
 });
 
 const settingsRuntimeDeps = {
-  getMeteoConfig,
-  saveMeteoConfig,
+  getMeteoConfig: /** @type {null | typeof getMeteoConfig} */ (getMeteoConfig),
+  saveMeteoConfig: /** @type {null | typeof saveMeteoConfig} */ (saveMeteoConfig),
 };
 
 /**

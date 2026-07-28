@@ -708,6 +708,7 @@ export function openSettingsModal(tab) {
   setSettingsProviderHadProvider(hasAIProvider());
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
+  if (!overlay || !modal) return;
   const provider = getAIProvider();
   // Legacy v1.27 tab id 'integrations' — same redirect as switchSettingsTab.
   // Older deep-links / tour steps / external links may still pass it.

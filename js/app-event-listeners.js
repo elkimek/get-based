@@ -162,7 +162,7 @@ function handleAppKeydown(e) {
     if (chatPanel && chatPanel.classList.contains("open")) { appEventListenerDeps.closeChatPanel(); return; }
     const importOverlay = document.getElementById("import-modal-overlay");
     if (importOverlay && importOverlay.classList.contains("show")) {
-      if (!document.getElementById("import-modal").innerHTML.trim()) appEventListenerDeps.closeImportModal();
+      if (!document.getElementById("import-modal")?.innerHTML.trim()) appEventListenerDeps.closeImportModal();
       return;
     }
     const changelogOverlay = document.getElementById("changelog-modal-overlay");
