@@ -63,6 +63,14 @@ const SOURCE_LABELS = {
   tempdrop: 'Tempdrop',
   manual: 'Manual',
 };
+/**
+ * @typedef {{
+ *   parsed: Record<string, any>,
+ *   conflictMode: string,
+ *   resolve: (value: any) => void,
+ * }} PendingCycleImport
+ */
+/** @type {PendingCycleImport | null} */
 let pendingCycleImport = null;
 
 function navigateCycleImportView(category) {
@@ -226,6 +234,11 @@ export function parseAppleHealthCycleXml(xmlText, fileName = 'apple-health-expor
   while ((match = RECORD_RE.exec(xmlText)) !== null) processAppleCycleRecord(match[1], byKey);
   return finalizeAppleHealthCycleImport(byKey, fileName);
 }
+/**
+ * @param {Blob} blob
+ * @param {string} [fileName]
+ * @param {((progress: { stage: string, pct: number }) => void) | null} [onProgress]
+ */
 export async function parseAppleHealthCycleBlob(blob, fileName = 'apple-health-export.xml', onProgress = null) {
   const byKey = new Map();
   const reader = blob.stream()
@@ -638,6 +651,7 @@ export async function showCycleImportPreview(parsed) {
   });
 }
 
+/** @param {any} [value] */
 function closeCycleImportPreview(value = null) {
   const pending = pendingCycleImport;
   pendingCycleImport = null;

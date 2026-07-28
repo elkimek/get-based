@@ -82,6 +82,10 @@ export function openCycleDB(profileId) {
       const oldVersion = /** @type {IDBVersionChangeEvent} */ (event).oldVersion;
       if (oldVersion < 2 && db.objectStoreNames.contains(STORE_DAILY)) {
         const upgradeTx = req.transaction;
+        if (!upgradeTx) {
+          reject(new Error('Cycle database upgrade transaction is unavailable'));
+          return;
+        }
         const legacyRows = upgradeTx.objectStore(STORE_DAILY).getAll();
         legacyRows.onsuccess = () => {
           db.deleteObjectStore(STORE_DAILY);
@@ -115,6 +119,10 @@ export function resetCycleDB(profileId) {
   _dbPromises.delete(dbNameFor(profileId));
 }
 
+/**
+ * @param {IDBTransaction} tx
+ * @returns {Promise<void>}
+ */
 function txPromise(tx) {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
@@ -414,6 +422,7 @@ export async function clearCycleDB(profileId) {
   return txPromise(tx);
 }
 
+/** @returns {Promise<void>} */
 export async function deleteCycleDB(profileId) {
   const name = dbNameFor(profileId);
   const cached = _dbPromises.get(name);

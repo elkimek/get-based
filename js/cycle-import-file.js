@@ -7,6 +7,16 @@ const appWindow = /** @type {Window & typeof globalThis & { JSZip?: any }} */ (
   typeof window !== 'undefined' ? window : {}
 );
 
+/**
+ * @typedef {{
+ *   file: File,
+ *   kind: string,
+ *   text: string | null,
+ *   archive: any,
+ *   entries: any[],
+ * }} CycleFileContext
+ */
+
 let jszipLoad = null;
 function loadJSZip() {
   if (appWindow.JSZip) return Promise.resolve(appWindow.JSZip);
@@ -35,18 +45,20 @@ export function cycleFileKind(file) {
 
 export async function buildCycleFileContext(file) {
   const kind = cycleFileKind(file);
+  /** @type {CycleFileContext} */
   const context = { file, kind, text: null, archive: null, entries: [] };
   if (kind === 'zip') {
     const JSZip = await loadJSZip();
     try {
-      context.archive = await JSZip.loadAsync(file);
+      const archive = await JSZip.loadAsync(file);
+      context.archive = archive;
+      context.entries = Object.values(archive.files || {}).filter(entry => !entry.dir);
     } catch (err) {
       if (/encrypt|password/i.test(String(getErrorMessage(err, err)))) {
         throw new Error('This cycle ZIP is password-protected. Extract it first, then import the Clue JSON file inside.');
       }
       throw err;
     }
-    context.entries = Object.values(context.archive.files || {}).filter(entry => !entry.dir);
   } else if (kind !== 'xml') {
     context.text = await file.text();
   }
