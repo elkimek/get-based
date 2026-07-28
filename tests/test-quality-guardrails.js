@@ -263,6 +263,8 @@ const domainUiCheckJsModules = [
   'js/sun-defaults-runtime.js',
   'js/sun-location.js',
   'js/sun-runtime.js',
+  'js/sun-spectrum-actions.js',
+  'js/sun-spectrum-device.js',
   'js/sun-spectrum.js',
   'js/sun-uvdata.js',
 ];

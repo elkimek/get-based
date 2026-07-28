@@ -109,6 +109,8 @@
     '/js/light-channel-view.js',
     '/js/light-channel-view-hooks.js',
     '/js/light-channel-view-ui-hooks.js',
+    '/js/sun-spectrum-actions.js',
+    '/js/sun-spectrum-device.js',
     '/js/sun-runtime.js',
     '/js/sun-defaults-runtime.js',
     '/js/sun-body-silhouette-runtime.js',
