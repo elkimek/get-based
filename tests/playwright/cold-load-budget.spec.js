@@ -296,6 +296,7 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     '/js/sun-spectrum-actions.js',
     '/js/sun-spectrum-device.js',
     '/js/sun-spectrum.js',
+    '/js/sun-uvdata-atmosphere.js',
     '/js/sun.js',
   ]);
   const eagerlyLoadedLightCoreModules = entries

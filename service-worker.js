@@ -528,6 +528,7 @@ const APP_SHELL = [
   '/js/sun-spectrum-actions.js',
   '/js/sun-spectrum-device.js',
   '/js/sun-spectrum.js',
+  '/js/sun-uvdata-atmosphere.js',
   '/js/sun-uvdata-config.js',
   '/js/sun-uvdata.js',
   '/js/light-audit-ai-analysis.js',
