@@ -163,9 +163,10 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('8. PII edit button');
 
-  const piiSrc = read('/js/pii.js');
-  assert('PII edit button in HTML', piiSrc.includes('pii-edit-btn'));
-  assert('PII edit button wired to switchToEditMode', piiSrc.includes("pii-edit-btn").valueOf() && piiSrc.includes('switchToEditMode'));
+  const piiReviewSrc = read('/js/pii-review.js');
+  assert('PII edit button in HTML', piiReviewSrc.includes('pii-edit-btn'));
+  assert('PII edit button wired to switchToEditMode',
+    piiReviewSrc.includes('pii-edit-btn') && piiReviewSrc.includes('switchToEditMode'));
 
   // ═══════════════════════════════════════
   // 9. Chat clear resets header

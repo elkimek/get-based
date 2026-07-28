@@ -223,6 +223,7 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
   const deferredPrivacyModules = new Set([
     '/js/settings-runtime.js',
     '/js/settings-privacy.js',
+    '/js/pii-review.js',
     '/js/pii.js',
   ]);
   expect(entries.some(entry => (

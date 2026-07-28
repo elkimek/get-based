@@ -230,6 +230,7 @@
     "js/pdf-import-review.js",
     "js/pdf-import-review-runtime.js",
     "js/pdfjs-loader.js",
+    "js/pii-review.js",
     "js/pii.js",
     "js/profile.js",
     "js/profile-runtime.js",

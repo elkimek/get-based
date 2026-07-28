@@ -53,7 +53,7 @@ const markerDetailSrc = [
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.js'), 'utf8');
-const piiSrc = fs.readFileSync(path.join(root, 'js/pii.js'), 'utf8');
+const piiReviewSrc = fs.readFileSync(path.join(root, 'js/pii-review.js'), 'utf8');
 const profileShareSrc = fs.readFileSync(path.join(root, 'js/profile-share.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
@@ -398,22 +398,22 @@ assert('PDF import dialogs and review modal use shared overlay lifecycle helpers
     !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
 
 assert('PII diff and review overlays use shared overlay lifecycle helpers',
-  piiSrc.includes("from './modal-lifecycle.js';") &&
-    piiSrc.includes('openModalOverlay,') &&
-    piiSrc.includes('removeModalOverlay,') &&
-    piiSrc.includes('trapModalFocus,') &&
-    piiSrc.includes('function openPIIOverlay(overlay, options = {})') &&
-    piiSrc.includes('requestAnimationFrame(() => {') &&
-    piiSrc.includes('if (!overlay.isConnected) return;') &&
-    piiSrc.includes('openModalOverlay(overlay, options)') &&
-    piiSrc.includes('trapModalFocus(overlay, { closeOnEscape: false })') &&
-    piiSrc.includes('function closePIIOverlay(overlay)') &&
-    (piiSrc.match(/closePIIOverlay\(overlay\)/g) || []).length >= 5 &&
-    !piiSrc.includes("document.body.style.overflow = 'hidden'") &&
-    !piiSrc.includes("document.body.style.overflow = ''") &&
-    !piiSrc.includes("overlay.classList.add('show')") &&
-    !piiSrc.includes('overlay.remove()') &&
-    !piiSrc.includes("this.closest('.pii-warning-overlay').remove()"));
+  piiReviewSrc.includes("from './modal-lifecycle.js';") &&
+    piiReviewSrc.includes('openModalOverlay,') &&
+    piiReviewSrc.includes('removeModalOverlay,') &&
+    piiReviewSrc.includes('trapModalFocus,') &&
+    piiReviewSrc.includes('function openPIIOverlay(overlay, options = {})') &&
+    piiReviewSrc.includes('requestAnimationFrame(() => {') &&
+    piiReviewSrc.includes('if (!overlay.isConnected) return;') &&
+    piiReviewSrc.includes('openModalOverlay(overlay, options)') &&
+    piiReviewSrc.includes('trapModalFocus(overlay, { closeOnEscape: false })') &&
+    piiReviewSrc.includes('function closePIIOverlay(overlay)') &&
+    (piiReviewSrc.match(/closePIIOverlay\(overlay\)/g) || []).length >= 5 &&
+    !piiReviewSrc.includes("document.body.style.overflow = 'hidden'") &&
+    !piiReviewSrc.includes("document.body.style.overflow = ''") &&
+    !piiReviewSrc.includes("overlay.classList.add('show')") &&
+    !piiReviewSrc.includes('overlay.remove()') &&
+    !piiReviewSrc.includes("this.closest('.pii-warning-overlay').remove()"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
