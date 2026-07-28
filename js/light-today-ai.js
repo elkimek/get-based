@@ -93,6 +93,7 @@ export function computeLightTrends(targetDate = new Date()) {
   const sessions = (state.importedData?.sunSessions || []).filter(s => s.endedAt);
   const devSessions = (state.importedData?.deviceSessions || []).filter(s => s.endedAt);
   const targetTs = targetDate.getTime();
+  /** @type {{ signals: string[] }} */
   const out = { signals: [] };
   const sunriseSessions = sessions.filter(s => {
     if (!s.location) return false;
@@ -304,7 +305,9 @@ const engine = createAIVerdict({
     // Trim cache: keep last 30 days only — stops the map growing unbounded.
     const allKeys = Object.keys(verdicts).sort();
     while (allKeys.length > 30) {
-      delete verdicts[allKeys.shift()];
+      const oldestKey = allKeys.shift();
+      if (!oldestKey) break;
+      delete verdicts[oldestKey];
     }
   },
   getFingerprint: getDayFingerprint,

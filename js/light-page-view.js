@@ -414,6 +414,7 @@ export function showLight(_data) {
   try { lightPageDeps.resumeActiveTickerIfNeeded(); } catch (e) {}
   try { lightPageDeps.ensureActiveDeviceTicker(); } catch (e) {}
   const main = document.getElementById("main-content");
+  if (!main) return;
   const sessions = lightPageDeps.getSessions() || [];
   const totals7d = lightPageDeps.rollingChannelTotals(7) || {};
   const totals30d = lightPageDeps.rollingChannelTotals(30) || {};

@@ -250,7 +250,7 @@ function _auditRoomChannels(audit, room) {
     spec?.extra?.melanopic != null
       ? { key: 'melanopic', label: 'Melanopic', text: `${(spec.extra.melanopic * 100).toFixed(0)}%` }
       : null,
-  ].filter(Boolean);
+  ].filter(ch => ch !== null);
 }
 
 function renderLightAuditDetail(a) {
