@@ -110,6 +110,7 @@ export async function readProfileImportedData(profileId, fallback = null) {
   };
   if (fallback && typeof fallback === 'object') return normalize(fallback);
   if (profileId === state.currentProfile && state.importedData) return normalize(state.importedData);
+  if (!profileId) return _createDefaultProfileData();
   try {
     const storageKey = profileStorageKey(profileId, 'imported');
     const raw = getEncryptionEnabled()

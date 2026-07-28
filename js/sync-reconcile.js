@@ -8,7 +8,9 @@ import { parseSyncPayload } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getProfileQuery = () => null;
 let _isSyncEnabled = () => false;
 /** @type {(...args: any[]) => Promise<any>} */

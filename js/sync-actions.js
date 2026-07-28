@@ -19,6 +19,7 @@ let _pushProfile = async () => {};
 let _forcePull = () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
+/** @type {() => any[]} */
 let _getProfiles = () => [];
 let _createDefaultProfileData = () => ({ entries: [] });
 

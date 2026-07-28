@@ -13,7 +13,9 @@ import { getDeltaCutoverReadiness } from './sync-delta.js';
 import { migrateProfileData } from './profile.js';
 import { applyCommittedDeltas, planProfileDeltas } from './sync-push-deltas.js';
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getProfileQuery = () => null;
 let _isSyncEnabled = () => false;
 /** @type {(profileId?: any) => boolean} */

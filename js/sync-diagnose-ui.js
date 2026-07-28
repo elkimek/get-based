@@ -93,6 +93,7 @@ export function configureSyncDiagnoseUI({
 // other's data despite using the same relay URL.
 export async function showSyncDiagnose() {
   const diagnostics = await getEvoluDiagnostics();
+  /** @type {{ verdict: string, at: number, reason: string | null }} */
   let healthVerdict = { verdict: 'unknown', at: 0, reason: null };
   try { healthVerdict = await verifyPushLanded(); } catch {}
 

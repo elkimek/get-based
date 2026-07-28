@@ -44,7 +44,7 @@ export function _syncDiag() {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key?.endsWith('-sync-ts')) {
-      const ts = parseInt(localStorage.getItem(key), 10);
+      const ts = parseInt(localStorage.getItem(key) || '', 10);
       tsList.push({ key, ts, date: new Date(ts).toISOString() });
     }
   }
@@ -71,7 +71,7 @@ export async function getEvoluDiagnostics() {
     relay: getSyncRelay(),
     ownerId: appOwner?.id ? String(appOwner.id).slice(0, 12) + '…' : null,
     mnemonicPrefix: appOwner?.mnemonic ? appOwner.mnemonic.split(' ').slice(0, 2).join(' ') + ' …' : null,
-    rows: [],
+    rows: /** @type {any[]} */ ([]),
     activeProfileId: state.currentProfile,
     activeImported: { sunSessions: 0, lightDevices: 0 },
   };

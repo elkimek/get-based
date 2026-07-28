@@ -1,7 +1,9 @@
 // @ts-check
 // sync-delta-planner-context.js - Shared dependency access for push-side delta planners.
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getItemRowQuery = () => null;
 
 /** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */

@@ -31,7 +31,7 @@ export function maybeScheduleRebroadcast({
   // chat/profile/aiSettings appliers a chance to settle first. Skipped
   // for non-active profiles - pushProfile uses state.importedData,
   // which is only valid for the current profile.
-  if (!needsRebroadcast || profileId !== state.currentProfile) return false;
+  if (!needsRebroadcast || profileId !== state.currentProfile || typeof pushProfile !== 'function') return false;
 
   // Don't pile rebroadcast pushes on top of an in-flight push - Evolu
   // serializes them and the relay can lag, producing the

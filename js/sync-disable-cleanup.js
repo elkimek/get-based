@@ -18,6 +18,6 @@ export function clearSyncDisableStorage() {
 
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const key = localStorage.key(i);
-    if (isSyncDisableCleanupKey(key)) localStorage.removeItem(key);
+    if (key && isSyncDisableCleanupKey(key)) localStorage.removeItem(key);
   }
 }

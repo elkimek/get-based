@@ -7,7 +7,9 @@ import {
   mergeArrayRowsIntoImported, mergeMapRowsIntoImported, mergeScalarRowsIntoImported,
 } from './sync-delta-merge-shapes.js';
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getItemRowQuery = () => null;
 
 /** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
