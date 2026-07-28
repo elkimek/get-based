@@ -331,6 +331,8 @@ const APP_SHELL = [
   '/js/marker-detail-editing.js',
   '/js/marker-detail-store.js',
   '/js/light-conditions-now.js',
+  '/js/light-conditions-interpretation.js',
+  '/js/light-conditions-renderer.js',
   '/js/light-conditions-now-hooks.js',
   '/js/light-page-view.js',
   '/js/light-page-view-hooks.js',

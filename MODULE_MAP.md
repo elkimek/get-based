@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 509 |
-| Internal import edges | 2300 |
+| Modules | 511 |
+| Internal import edges | 2305 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,8 +38,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 237 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 163 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/utils.js`](js/utils.js) | 238 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 164 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 74 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 69 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
@@ -461,7 +461,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 50 modules</summary>
+<details><summary><code>light</code> family — 52 modules</summary>
 
 - [`js/light-ai-save-hooks.js`](js/light-ai-save-hooks.js) → [`js/api.js`](js/api.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js), [`js/light-env-ai-analysis.js`](js/light-env-ai-analysis.js), [`js/light-env-audits.js`](js/light-env-audits.js), [`js/light-env.js`](js/light-env.js), [`js/light-screen-ai-analysis.js`](js/light-screen-ai-analysis.js), [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js), [`js/light-tools.js`](js/light-tools.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-onboarding-ai.js`](js/sun-onboarding-ai.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js)
 - [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -470,8 +470,10 @@ Native browser modules shipped with the static application.
 - [`js/light-channel-view-ui-hooks.js`](js/light-channel-view-ui-hooks.js) → [`js/light-channel-view.js`](js/light-channel-view.js), [`js/views.js`](js/views.js)
 - [`js/light-channel-view.js`](js/light-channel-view.js) → [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-channels-ai-analysis.js`](js/light-channels-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/state.js`](js/state.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
+- [`js/light-conditions-interpretation.js`](js/light-conditions-interpretation.js) → no in-scope imports
 - [`js/light-conditions-now-hooks.js`](js/light-conditions-now-hooks.js) → [`js/data.js`](js/data.js), [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
-- [`js/light-conditions-now.js`](js/light-conditions-now.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/light-conditions-now.js`](js/light-conditions-now.js) → [`js/caught-error.js`](js/caught-error.js), [`js/light-conditions-interpretation.js`](js/light-conditions-interpretation.js), [`js/light-conditions-renderer.js`](js/light-conditions-renderer.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/light-conditions-renderer.js`](js/light-conditions-renderer.js) → [`js/light-conditions-interpretation.js`](js/light-conditions-interpretation.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/light-device-ai-analysis.js`](js/light-device-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/api.js`](js/api.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
 - [`js/light-device-modal-loader.js`](js/light-device-modal-loader.js) → [`js/light-device-session-modal.js`](js/light-device-session-modal.js) *(dynamic)*, [`js/light-device-setup-modal.js`](js/light-device-setup-modal.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 - [`js/light-device-session-engine.js`](js/light-device-session-engine.js) → [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-spectrum.js`](js/sun-spectrum.js)
