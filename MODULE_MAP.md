@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 546 |
-| Internal import edges | 2408 |
+| Internal import edges | 2407 |
 | Dynamic internal edges | 65 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1047,7 +1047,7 @@ Vercel request handlers and hosted API entry points.
 
 <details><summary><code>share</code> family — 1 module</summary>
 
-- [`api/share.js`](api/share.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
+- [`api/share.js`](api/share.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
 
 </details>
 
