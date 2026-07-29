@@ -1,0 +1,12 @@
+{
+  "description": "checkJs coverage for Node and serverless production modules.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true
+  },
+  "include": [
+    "api/**/*.js",
+    "lib/**/*.js",
+    "dev-server.js"
+  ]
+}

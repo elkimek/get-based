@@ -12,7 +12,8 @@ file covers code ownership and dependency rules that must change with the app.
 
 ## Update contract
 
-- Add, remove, rename, or change imports in `js/`, `api/`, or `lib/`: run
+- Add, remove, rename, or change imports in `js/`, `api/`, `lib/`, or
+  `dev-server.js`: run
   `npm run architecture:build` and commit the generated map.
 - Change a module's responsibility, a major data flow, an entry point, or an
   allowed dependency direction: update this file and the architecture rules.
@@ -55,6 +56,7 @@ The architecture checker currently enforces these coarse runtime boundaries:
 | `js/` browser | Native browser application | `js/` browser modules |
 | `api/` serverless | Hosted request entry points | `api/` and `lib/` |
 | `lib/` server-shared | Node-only policy and transport | `lib/` |
+| `dev-server.js` local-server | Local development entry point | `lib/` |
 
 Relative imports of data files and explicitly vendored browser libraries are
 recorded as repository dependencies but are outside the ESM cycle graph.
@@ -110,7 +112,7 @@ dependency.
 | Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, identity, and agent context |
 | Import/export | `pdf-import*`, `import-*`, `export*`, `backup*` | File classification, review/commit, reports, backups, and restoration |
 | Presentation | `dashboard-*`, `context-card-*`, `settings*`, `modal-*` | Views, editing surfaces, settings, accessibility, and interaction lifecycle |
-| Hosted runtime | `api/*`, `lib/*` | Server-side validation, proxy transport, sharing, and repository operations |
+| Hosted and local server runtime | `api/*`, `lib/*`, `dev-server.js` | Server-side validation, proxy transport, sharing, and repository operations |
 
 Names express ownership, not permission to bypass the dependency direction.
 When a module spans two rows, split orchestration from domain logic or inject
