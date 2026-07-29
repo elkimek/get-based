@@ -5,8 +5,9 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData, updateHeaderDates } from './data.js';
-import { getProfiles, profileStorageKey, saveProfiles, migrateProfileData } from './profile.js';
-import { encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
+import { createDefaultProfileData, getProfiles, profileStorageKey, saveProfiles, migrateProfileData } from './profile.js';
+import { encryptedGetItem, encryptedRemoveItem } from './crypto.js';
+import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cleanup.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
@@ -424,54 +425,21 @@ export async function clearAllData() {
     ? `Clear ALL data across ${profiles.length} profiles, including the Cashu wallet balance and seed? This cannot be undone.`
     : 'Clear all imported data, including the Cashu wallet balance and seed? This cannot be undone.';
   if (await showConfirmDialog(msg)) {
-    // Wipe storage for every profile
-    for (const p of profiles) {
-      const id = p.id;
-      // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
-      // hits both backends so the IDB residue is also wiped.
-      await encryptedRemoveItem(profileStorageKey(id, 'imported'));
-      await encryptedRemoveItem(profileStorageKey(id, 'imported-corrupt'));
-      localStorage.removeItem(profileStorageKey(id, 'units'));
-      localStorage.removeItem(profileStorageKey(id, 'suppOverlay'));
-      localStorage.removeItem(profileStorageKey(id, 'noteOverlay'));
-      localStorage.removeItem(profileStorageKey(id, 'rangeMode'));
-      localStorage.removeItem(profileStorageKey(id, 'suppImpact'));
-      localStorage.removeItem(`labcharts-${id}-chat`);
-      let threadIndexRaw;
-      if (getEncryptionEnabled()) {
-        try { threadIndexRaw = await encryptedGetItem(`labcharts-${id}-chat-threads`); } catch { threadIndexRaw = null; }
-      } else {
-        threadIndexRaw = localStorage.getItem(`labcharts-${id}-chat-threads`);
+    try {
+      const profileIds = await listStoredProfileIds(profiles.map(profile => profile.id));
+      for (const id of profileIds) {
+        await clearProfileStorage(id);
       }
-      if (threadIndexRaw) {
-        try { for (const t of JSON.parse(threadIndexRaw)) localStorage.removeItem(`labcharts-${id}-chat-t_${t.id}`); } catch {}
-        localStorage.removeItem(`labcharts-${id}-chat-threads`);
-      }
-      localStorage.removeItem(`labcharts-${id}-chatRailOpen`);
-      localStorage.removeItem(`labcharts-${id}-chatPersonality`);
-      localStorage.removeItem(`labcharts-${id}-chatPersonalityCustom`);
-      localStorage.removeItem(`labcharts-${id}-focusCard`);
-      localStorage.removeItem(`labcharts-${id}-contextHealth`);
-      localStorage.removeItem(`labcharts-${id}-onboarded`);
-      localStorage.removeItem(`labcharts-${id}-emptyTour`);
-      localStorage.removeItem(`labcharts-${id}-tour`);
-      localStorage.removeItem(`labcharts-${id}-cycleTour`);
-      localStorage.removeItem(`labcharts-${id}-phaseOverlay`);
-      localStorage.removeItem(`labcharts-${id}-sync-ts`);
-      try {
-        const { deleteWearablesDB } = await import('./wearables-store.js');
-        await deleteWearablesDB(id);
-      } catch {}
-      try {
-        const { deleteCycleDB } = await import('./cycle-store.js');
-        await deleteCycleDB(id);
-      } catch {}
+    } catch (error) {
+      console.warn('[export] Clear-all profile cleanup failed:', error);
+      showNotification('Could not clear all profile data. Close other Get Based tabs and try again.', 'error', 8000);
+      return;
     }
     // Reset to single default profile
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
-    saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, contextSourceSettings: {}, changeHistory: [], importSnapshots: [] };
+    await saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
+    state.importedData = createDefaultProfileData();
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database

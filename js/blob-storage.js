@@ -76,7 +76,11 @@ export async function setBlob(key, value) {
   }));
 }
 
-export async function deleteBlob(key) {
+/**
+ * @param {string} key
+ * @param {{ throwOnError?: boolean }} [options]
+ */
+export async function deleteBlob(key, options = {}) {
   if (!_idbAvailable) return;
   try {
     const db = await _openDB();
@@ -89,7 +93,20 @@ export async function deleteBlob(key) {
     }));
   } catch (e) {
     console.warn('[blob-storage] deleteBlob failed:', getErrorMessage(e, e));
+    if (options.throwOnError) throw e;
   }
+}
+
+export async function getBlobKeys() {
+  if (!_idbAvailable) return [];
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAllKeys();
+    req.onsuccess = () => resolve((req.result || []).filter(key => typeof key === 'string'));
+    req.onerror = () => reject(req.error);
+  });
 }
 
 // Sum of stored blob sizes — for diagnostics. Walks all keys.
@@ -117,9 +134,11 @@ export async function getBlobStorageSize() {
 }
 
 // Detect which keys should be backed by IDB (vs localStorage).
-// Currently: any `*-imported` profile blob. Also routed: the legacy
-// pre-profile `labcharts-imported` key from very old installs (handled
-// by the same -imported suffix match).
+// Currently: any `*-imported` profile blob and its corrupt-recovery copy.
+// Also routed: the legacy pre-profile `labcharts-imported` key from very old
+// installs (handled by the same suffix match).
 export function shouldUseBlob(key) {
-  return _idbAvailable && typeof key === 'string' && key.endsWith('-imported');
+  return _idbAvailable
+    && typeof key === 'string'
+    && (key.endsWith('-imported') || key.endsWith('-imported-corrupt'));
 }

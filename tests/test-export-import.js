@@ -434,25 +434,16 @@ return (async function() {
 
   assert('clearAllData exists', typeof exportModule.clearAllData === 'function');
 
-  // Verify it clears the expected storage keys. The `-imported` blob lives in
-  // IndexedDB now → encryptedRemoveItem hits both backends.
-  assert('Clears imported data key', exportSrc.includes("encryptedRemoveItem(profileStorageKey(id, 'imported'))"));
-  assert('Clears corrupt imported data key', exportSrc.includes("encryptedRemoveItem(profileStorageKey(id, 'imported-corrupt'))"));
-  assert('Clears wearable profile IDB', /clearAllData[\s\S]*?deleteWearablesDB\(id\)/.test(exportSrc));
-  assert('Clears units key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'units'))"));
-  assert('Clears suppOverlay key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'suppOverlay'))"));
-  assert('Clears noteOverlay key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'noteOverlay'))"));
-  assert('Clears rangeMode key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'rangeMode'))"));
-  assert('Clears suppImpact key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'suppImpact'))"));
-  assert('Clears chat key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-chat`)"));
-  assert('Clears chat threads', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-chat-threads`)"));
-  assert('Clears focus card key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-focusCard`)"));
-  assert('Clears context health key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-contextHealth`)"));
-  assert('Clears onboarded key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-onboarded`)"));
-  assert('Clears empty tour key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-emptyTour`)"));
-  assert('Clears tour key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-tour`)"));
-  assert('Clears sync timestamp', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-sync-ts`)"));
-  assert('Resets state.importedData', exportSrc.includes('state.importedData = { entries: []'));
+  // A shared cleanup boundary owns every profile-scoped storage surface.
+  // clearAllData also discovers orphaned profile blobs that are no longer in
+  // the profile list, then awaits the durable profile-list reset.
+  assert('Discovers listed and orphaned profile data',
+    exportSrc.includes('await listStoredProfileIds(profiles.map(profile => profile.id))'));
+  assert('Awaits centralized profile storage cleanup',
+    /for \(const id of profileIds\)[\s\S]{0,200}await clearProfileStorage\(id\)/.test(exportSrc));
+  assert('Awaits the profile-list reset', exportSrc.includes('await saveProfiles([{ id: defaultId'));
+  assert('Resets state.importedData from the canonical factory',
+    exportSrc.includes('state.importedData = createDefaultProfileData()'));
   assert('Resets to single default profile via saveProfiles', exportSrc.includes('saveProfiles([{'));
   assert('Clears Cashu wallet DB through export runtime',
     exportSrc.includes('destroyWalletRuntimeDB') &&

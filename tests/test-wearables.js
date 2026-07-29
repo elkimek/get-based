@@ -1996,11 +1996,15 @@ assert('changelog.js does not use plural "We never see" voice',
 // ═══════════════════════════════════════
 console.log('17z. P0 Data-Integrity');
 
-// P0-A: deleting a profile must drop its wearable IDB. The delete is
-// dispatched as a fire-and-forget dynamic import — guard the call site.
+// P0-A: deleting a profile must await the centralized cleanup boundary,
+// which in turn awaits the wearable DB deletion before profile metadata is
+// removed.
 const profileSrc = await fetch('/js/profile.js').then(r => r.text());
-assert('deleteProfile dispatches deleteWearablesDB(profileId) for the deleted profile',
-  /export (?:async )?function deleteProfile[\s\S]*?deleteWearablesDB\(profileId\)/.test(profileSrc));
+const profileCleanupSrc = await fetch('/js/profile-storage-cleanup.js').then(r => r.text());
+assert('deleteProfile awaits complete profile storage cleanup',
+  /export async function deleteProfile[\s\S]*?await clearProfileStorage\(profileId\)[\s\S]*?await saveProfiles\(updated\)/.test(profileSrc));
+assert('profile storage cleanup awaits deleteWearablesDB(profileId)',
+  /await Promise\.all\(\[[\s\S]*?cleanupDeps\.deleteWearablesDB\(profileId\)/.test(profileCleanupSrc));
 
 // P0-B: auto-backup carries wearable L1 rows. buildFullBackupSnapshot
 // exists, populates `wearableIDB`, and is called from auto-backup +

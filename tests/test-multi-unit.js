@@ -232,6 +232,10 @@ console.log('\n-- source-shape pins (UI wiring) --');
   const dataViewControls = fs.readFileSync(new URL('../js/data-view-controls.js', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
   const profile = fs.readFileSync(new URL('../js/profile.js', import.meta.url), 'utf8');
+  const profileStorageCleanup = fs.readFileSync(
+    new URL('../js/profile-storage-cleanup.js', import.meta.url),
+    'utf8',
+  );
 
   // Detail modal gates alt rendering on state.showAltUnits
   assert('marker-detail-modal.js gates alt-unit summary on state.showAltUnits',
@@ -285,8 +289,9 @@ console.log('\n-- source-shape pins (UI wiring) --');
   // profile.js: load + cleanup
   assert('profile.js loads showAltUnits from localStorage on profile switch',
     /state\.showAltUnits = localStorage\.getItem\(profileStorageKey\(profileId, 'showAltUnits'\)\) === 'on'/.test(profile));
-  assert('profile.js cleans up showAltUnits key on deleteProfile',
-    /localStorage\.removeItem\(profileStorageKey\(profileId, 'showAltUnits'\)\)/.test(profile));
+  assert('deleteProfile cleanup covers showAltUnits and future profile-scoped keys',
+    profile.includes('await clearProfileStorage(profileId)')
+      && profileStorageCleanup.includes('const standardPrefix = `labcharts-${profileId}-`'));
 }
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);

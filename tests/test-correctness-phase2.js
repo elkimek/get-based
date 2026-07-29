@@ -433,7 +433,9 @@ assert('_getCRP reads only hsCRP',
 console.log('\n10. Profile parse recovery');
 const profSrc = read('js/profile.js');
 assert('loadProfile backs up corrupted JSON',
-  profSrc.includes('imported-corrupt') && profSrc.includes('localStorage.setItem(corruptKey'),
+  profSrc.includes('imported-corrupt')
+    && profSrc.includes('await encryptedSetItem(corruptKey, savedImported)')
+    && !profSrc.includes('localStorage.setItem(corruptKey'),
   'previously discarded corrupted raw — user lost recovery path');
 assert('loadProfile surfaces a recovery toast',
   profSrc.includes('Profile data was corrupted'));

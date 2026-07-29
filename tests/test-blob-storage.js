@@ -18,12 +18,13 @@ function assert(name, condition, detail) {
 console.log('=== Blob Storage Tests ===\n');
 
 const blob = await import('../js/blob-storage.js');
-const { getBlob, setBlob, deleteBlob, getBlobStorageSize, shouldUseBlob } = blob;
+const { getBlob, setBlob, deleteBlob, getBlobKeys, getBlobStorageSize, shouldUseBlob } = blob;
 
 // ─── 1. shouldUseBlob routing ─────────────────────────────────────────
 console.log('1. shouldUseBlob');
 assert('routes labcharts-foo-imported', shouldUseBlob('labcharts-foo-imported'));
 assert('routes labcharts-default-imported', shouldUseBlob('labcharts-default-imported'));
+assert('routes labcharts-default-imported-corrupt', shouldUseBlob('labcharts-default-imported-corrupt'));
 assert('does NOT route -chat', !shouldUseBlob('labcharts-foo-chat'));
 assert('does NOT route -threads', !shouldUseBlob('labcharts-foo-chat-threads'));
 assert('does NOT route api keys', !shouldUseBlob('labcharts-api-key'));
@@ -37,6 +38,7 @@ const testValue = JSON.stringify({ entries: [{ id: 1, v: 'x'.repeat(1000) }] });
 await setBlob(testKey, testValue);
 const got = await getBlob(testKey);
 assert('getBlob returns the stored value', got === testValue);
+assert('getBlobKeys includes the stored value', (await getBlobKeys()).includes(testKey));
 
 // Round-trip a 2 MB string — way past the localStorage 5 MB cap when
 // accumulated across keys, well within IDB.

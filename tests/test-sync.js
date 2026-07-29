@@ -981,7 +981,7 @@ await import('../js/settings.js');
       && syncDiagnoseRenderSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
     /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
-      && /wipeProfileLocal[\s\S]{0,800}encryptedRemoveItem\(profileStorageKey\(profileId,\s*'imported'\)\)/.test(syncTombstonesSrc));
+      && /wipeProfileLocal[\s\S]{0,300}await clearProfileStorage\(profileId\)/.test(syncTombstonesSrc));
   // Quarantine: a remote-driven mass-delete (≥ 2 profiles tombstoned at
   // once) is auth'd only by the BIP-39 mnemonic. If the mnemonic leaks,
   // an attacker could publish tombstones for every profileId. Single-

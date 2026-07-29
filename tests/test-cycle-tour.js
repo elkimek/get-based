@@ -123,10 +123,17 @@ const tour = await import('../js/tour.js');
   // --- 14. Profile delete cleanup ---
   console.log('%c[14] Profile delete cleanup', 'font-weight:bold');
   const profileSrc = read('/js/profile.js');
-  assert('deleteProfile removes emptyTour key', profileSrc.includes("-emptyTour`"));
-  assert('deleteProfile removes tour key', profileSrc.includes("-tour`"));
-  assert('deleteProfile removes cycleTour key', profileSrc.includes("-cycleTour`"));
-  assert('deleteProfile removes phaseOverlay key', profileSrc.includes("-phaseOverlay`"));
+  const profileCleanupSrc = read('/js/profile-storage-cleanup.js');
+  assert('deleteProfile delegates complete profile storage cleanup',
+    profileSrc.includes('await clearProfileStorage(profileId)'));
+  assert('profile cleanup removes emptyTour through the standard profile prefix',
+    profileCleanupSrc.includes('const standardPrefix = `labcharts-${profileId}-`'));
+  assert('profile cleanup removes tour through the standard profile prefix',
+    profileCleanupSrc.includes('key.startsWith(standardPrefix)'));
+  assert('profile cleanup removes cycleTour through the standard profile prefix',
+    profileCleanupSrc.includes('key.startsWith(standardPrefix)'));
+  assert('profile cleanup removes phaseOverlay through the standard profile prefix',
+    profileCleanupSrc.includes('key.startsWith(standardPrefix)'));
 
   // --- 15. Service worker cache version ---
   console.log('%c[15] Service worker cache', 'font-weight:bold');
