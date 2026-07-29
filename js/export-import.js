@@ -103,7 +103,7 @@ export function importDataJSON(file) {
         // v2 client export with profile metadata — create a new profile
         if (json.profile?.name) {
           const p = json.profile;
-          const profileId = createProfile(p.name, {
+          const profileId = await createProfile(p.name, {
             sex: p.sex || null, dob: p.dob || null, location: p.location || null, tags: p.tags || [],
             avatar: p.avatar || null,
             height: p.height || null, heightUnit: p.heightUnit || 'cm',
@@ -536,7 +536,7 @@ async function _importDatabaseBundle(json) {
       if (bp.avatar) meta.avatar = bp.avatar;
       if (bp.pinned) meta.pinned = bp.pinned;
       if (bp.height) { meta.height = bp.height; meta.heightUnit = bp.heightUnit || 'cm'; }
-      if (Object.keys(meta).length) updateProfileMeta(existing.id, meta);
+      if (Object.keys(meta).length) await updateProfileMeta(existing.id, meta);
       const storageKey = profileStorageKey(existing.id, 'imported');
       const raw = await encryptedGetItem(storageKey);
       let current;
@@ -655,7 +655,7 @@ async function _importDatabaseBundle(json) {
       merged++;
     } else {
       // Create new profile
-      const id = createProfile(bp.name || 'Imported', {
+      const id = await createProfile(bp.name || 'Imported', {
         sex: bp.sex || null, dob: bp.dob || null,
         location: bp.location || { country: '', zip: '' },
         tags: bp.tags || [], notes: bp.notes || '',
@@ -663,7 +663,7 @@ async function _importDatabaseBundle(json) {
         height: bp.height || null, heightUnit: bp.heightUnit || 'cm',
       });
       if (!firstImportedId) firstImportedId = id;
-      if (bp.pinned) updateProfileMeta(id, { pinned: true });
+      if (bp.pinned) await updateProfileMeta(id, { pinned: true });
       // Write data
       const storageKey = profileStorageKey(id, 'imported');
       migrateProfileData(importData);

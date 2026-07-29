@@ -29,7 +29,7 @@ import { hasAIProvider, isAIPaused } from './api.js';
  *   renderSupplementsSection: null | (() => string),
  *   sendChatMessage: () => void,
  *   setChatNudge: (mode?: string) => void,
- *   setProfileHeight: null | ((profileId: string, height: number, unit: string) => void),
+ *   setProfileHeight: null | ((profileId: string, height: number, unit: string) => Promise<boolean> | boolean | void),
  *   startOpenRouterOAuth: () => void,
  *   switchAIProvider: (provider: string) => void,
  *   updateChatNudge: () => void,
@@ -195,8 +195,9 @@ function setChatNudge(mode) {
   onboardingCallbacks.setChatNudge?.(mode);
 }
 
-function setProfileHeight(profileId, height, unit) {
-  onboardingCallbacks.setProfileHeight?.(profileId, height, unit);
+async function setProfileHeight(profileId, height, unit) {
+  if (!onboardingCallbacks.setProfileHeight) return false;
+  return await onboardingCallbacks.setProfileHeight(profileId, height, unit) !== false;
 }
 
 function startOpenRouterOAuth() {
@@ -277,14 +278,19 @@ export function _updateOnboardNextBtn() {
   btn.disabled = !(name && sex);
 }
 
-export function setChatProfileSex(sex) {
+export async function setChatProfileSex(sex) {
+  try {
+    if (!await setProfileSex(state.currentProfile, sex)) return false;
+  } catch {
+    return false;
+  }
   document.querySelectorAll('.chat-onboard-form .welcome-sex-btn').forEach(b => b.classList.remove('active'));
   const btns = document.querySelectorAll('.chat-onboard-form .welcome-sex-btn');
   if (sex === 'male' && btns[0]) btns[0].classList.add('active');
   if (sex === 'female' && btns[1]) btns[1].classList.add('active');
-  setProfileSex(state.currentProfile, sex);
   state.profileSex = sex;
   _updateOnboardNextBtn();
+  return true;
 }
 
 let _chatLocTimer = null;
@@ -298,13 +304,17 @@ export function onboardHeightUnitChanged() {
   else { input.value = (val * 2.54).toFixed(1); input.placeholder = 'cm'; }
 }
 
-export function saveChatLocation() {
+export async function saveChatLocation() {
   const country = textControlById('chat-onboard-country')?.value?.trim();
-  if (country == null) return;
-  setProfileLocation(state.currentProfile, country, '');
+  if (country == null) return false;
+  try {
+    if (!await setProfileLocation(state.currentProfile, country, '')) return false;
+  } catch {
+    return false;
+  }
   const el = document.getElementById('chat-onboard-lat');
-  if (!el) return;
-  if (!country) { el.textContent = ''; return; }
+  if (!el) return true;
+  if (!country) { el.textContent = ''; return true; }
 
   // Check AI cache first
   const cacheKey = (country + '|').toLowerCase();
@@ -313,7 +323,7 @@ export function saveChatLocation() {
     const band = latitudeToBand(cached);
     el.style.color = 'var(--green)';
     el.textContent = '\u2713 ' + Math.abs(Math.round(cached)) + '\u00b0' + (cached >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band];
-    return;
+    return true;
   }
   // Hardcoded fallback
   const latStr = getLatitudeFromLocation();
@@ -341,58 +351,65 @@ export function saveChatLocation() {
       }
     }, 1500);
   }
+  return true;
 }
 
-export function saveChatProfile(advance) {
+export async function saveChatProfile(advance) {
   const nameEl = textControlById('chat-onboard-name');
   const dobEl = textControlById('chat-onboard-dob');
   const name = nameEl?.value?.trim();
   const dob = dobEl?.value;
-  if (name) renameProfile(state.currentProfile, name);
-  if (dob) {
-    const dobYear = parseInt(dob.slice(0, 4));
-    if (dobYear >= 1900 && dobYear <= new Date().getFullYear()) {
-      setProfileDob(state.currentProfile, dob); state.profileDob = dob;
+  try {
+    if (name && !await renameProfile(state.currentProfile, name)) return false;
+    if (dob) {
+      const dobYear = parseInt(dob.slice(0, 4));
+      if (dobYear >= 1900 && dobYear <= new Date().getFullYear()) {
+        if (!await setProfileDob(state.currentProfile, dob)) return false;
+        state.profileDob = dob;
+      }
+      // Silently ignore invalid DOB — user can fix before clicking Continue
     }
-    // Silently ignore invalid DOB — user can fix before clicking Continue
+    // Save height
+    const heightRaw = parseFloat(textControlById('chat-onboard-height')?.value || '');
+    const heightUnit = selectById('chat-onboard-height-unit')?.value || 'cm';
+    if (heightRaw) {
+      const heightCm = heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw;
+      if (!await setProfileHeight(state.currentProfile, heightCm, heightUnit)) return false;
+    }
+    // Save weight as first biometric entry
+    const weightRaw = parseFloat(textControlById('chat-onboard-weight')?.value || '');
+    const weightUnit = selectById('chat-onboard-weight-unit')?.value || 'kg';
+    if (weightRaw) {
+      if (!state.importedData.biometrics) state.importedData.biometrics = { weight: [], bp: [], pulse: [] };
+      const today = new Date().toISOString().slice(0, 10);
+      const w = state.importedData.biometrics.weight || [];
+      state.importedData.biometrics.weight = w.filter(e => e.date !== today);
+      state.importedData.biometrics.weight.push({ date: today, value: weightRaw, unit: weightUnit, source: 'manual' });
+      state.importedData.biometrics.weight.sort((a, b) => a.date.localeCompare(b.date));
+      if (!await saveImportedData()) return false;
+    }
+    if (!await saveChatLocation()) return false;
+  } catch {
+    return false;
   }
-  // Save height
-  const heightRaw = parseFloat(textControlById('chat-onboard-height')?.value || '');
-  const heightUnit = selectById('chat-onboard-height-unit')?.value || 'cm';
-  if (heightRaw) {
-    const heightCm = heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw;
-    setProfileHeight(state.currentProfile, heightCm, heightUnit);
-  }
-  // Save weight as first biometric entry
-  const weightRaw = parseFloat(textControlById('chat-onboard-weight')?.value || '');
-  const weightUnit = selectById('chat-onboard-weight-unit')?.value || 'kg';
-  if (weightRaw) {
-    if (!state.importedData.biometrics) state.importedData.biometrics = { weight: [], bp: [], pulse: [] };
-    const today = new Date().toISOString().slice(0, 10);
-    const w = state.importedData.biometrics.weight || [];
-    state.importedData.biometrics.weight = w.filter(e => e.date !== today);
-    state.importedData.biometrics.weight.push({ date: today, value: weightRaw, unit: weightUnit, source: 'manual' });
-    state.importedData.biometrics.weight.sort((a, b) => a.date.localeCompare(b.date));
-    saveImportedData();
-  }
-  saveChatLocation();
   renderProfileButton();
   _updateOnboardNextBtn();
   if (advance && name && state.profileSex) {
     const shouldContinueOnboarding = !state.importedData?.entries?.length && !isAIPaused();
     if (sessionStorage.getItem(forcedStepKey()) === 'profile' && shouldContinueOnboarding) {
       goToOnboardingStep(hasAIProvider() ? 3 : 2);
-      return;
+      return true;
     }
     if (shouldContinueOnboarding) {
       goToOnboardingStep(hasAIProvider() ? 3 : 2);
-      return;
+      return true;
     }
     // Profile complete — advance to next stage
     clearForcedOnboardingStep();
     updateChatNudge();
     renderChatMessages();
   }
+  return true;
 }
 
 export function showCycleNoMensesOptions() {

@@ -5,6 +5,7 @@ import { getAIProvider, getActiveModelId, getOllamaConfig } from './api.js';
 import { saveImportedData } from './data.js';
 import { getCachedLocalAiModelDetail } from './local-ai-discovery.js';
 import { state } from './state.js';
+import { createUniqueId } from './unique-id.js';
 
 const MAX_BENCHMARKS = 50;
 const MAX_DELETED_BENCHMARK_IDS = 100;
@@ -134,7 +135,7 @@ export function startImportBenchmark(meta = {}) {
   const modelId = meta.modelId || getActiveModelId(provider);
   const now = Date.now();
   const record = {
-    id: `bench_${now}_${Math.random().toString(36).slice(2, 7)}`,
+    id: createUniqueId('bench_'),
     benchmarkAt: now,
     updatedAt: now,
     status: 'started',

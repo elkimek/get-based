@@ -328,7 +328,7 @@ function _clGoToHealthMetrics(event) {
 }
 
 /** @param {SubmitEvent | Event} event */
-function _clSaveForm(event) {
+async function _clSaveForm(event) {
   event.preventDefault();
   const name = (_clInput('cl-name')?.value || '').trim();
   if (!name) return;
@@ -354,22 +354,28 @@ function _clSaveForm(event) {
   const avatarUpdate = {};
   if (pendingAvatar !== undefined) avatarUpdate.avatar = pendingAvatar;
 
-  if (editingId) {
-    updateProfileMeta(editingId, { name, sex, dob, location: { country, zip }, tags, notes, status, height, heightUnit, ...avatarUpdate });
-    if (editingId === state.currentProfile) {
-      if (sex !== undefined) state.profileSex = sex;
-      if (dob !== undefined) state.profileDob = dob;
+  try {
+    if (editingId) {
+      const updated = await updateProfileMeta(editingId, { name, sex, dob, location: { country, zip }, tags, notes, status, height, heightUnit, ...avatarUpdate });
+      if (!updated) return;
+      if (editingId === state.currentProfile) {
+        if (sex !== undefined) state.profileSex = sex;
+        if (dob !== undefined) state.profileDob = dob;
+      }
+      await refreshClientProfileButton();
+      showClientListNotification(`"${name}" updated`, 'info');
+    } else {
+      const id = await createProfile(name, { sex, dob, location: { country, zip }, tags, notes, status, height, heightUnit, ...avatarUpdate });
+      await switchProfile(id);
+      await refreshClientProfileButton();
+      showClientListNotification(`"${name}" created`, 'success');
     }
-    refreshClientProfileButton();
-    showClientListNotification(`"${name}" updated`, 'info');
-  } else {
-    const id = createProfile(name, { sex, dob, location: { country, zip }, tags, notes, status, height, heightUnit, ...avatarUpdate });
-    switchProfile(id);
-    refreshClientProfileButton();
-    showClientListNotification(`"${name}" created`, 'success');
+    editingId = null;
+    clientListFormRuntime.renderClientList();
+  } catch {
+    // The profile persistence boundary reports the actionable storage error.
+    // Keep the populated form open so the user can retry without data loss.
   }
-  editingId = null;
-  clientListFormRuntime.renderClientList();
 }
 
 async function _clHaplogroupChanged() {
@@ -634,7 +640,7 @@ export function handleClientFormChange(action, element) {
  */
 export function handleClientFormSubmit(action, event) {
   if (action !== 'save-form') return false;
-  _clSaveForm(event);
+  void _clSaveForm(event);
   return true;
 }
 

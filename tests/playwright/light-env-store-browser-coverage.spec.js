@@ -98,7 +98,7 @@ test('light environment store browser coverage persists room screen and tombston
       const persistedAfterAdd = JSON.parse(await encryptedGetItem(importedKey));
       outcomes.addRoomUsesBrowserIdDefaultsAndPersists =
         typeof roomId === 'string'
-        && /^room_[a-z0-9]+_[a-f0-9]{4}$/.test(roomId)
+        && /^room_[a-z0-9_]+$/i.test(roomId)
         && room?.name === 'Bedroom'
         && room.primarySource === 'halogen'
         && room.hoursOccupiedPerDay === 8
@@ -139,8 +139,8 @@ test('light environment store browser coverage persists room screen and tombston
       const screenTodayUpdate = await store.setTodayActive('screen', roomScreenId, false);
       const missingScreenTodayUpdate = await store.setTodayActive('screen', 'missing-screen', true);
       outcomes.addUpdateFilterScreensAndScreenTodayOverride =
-        /^scr_[a-z0-9]+_[a-f0-9]{4}$/.test(portableId)
-        && /^scr_[a-z0-9]+_[a-f0-9]{4}$/.test(roomScreenId)
+        /^scr_[a-z0-9_]+$/i.test(portableId)
+        && /^scr_[a-z0-9_]+$/i.test(roomScreenId)
         && portableBucket.some(s => s.id === portableId)
         && !portableBucket.some(s => s.id === roomScreenId)
         && roomBucket.some(s => s.id === roomScreenId)

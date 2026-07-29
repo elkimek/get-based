@@ -3239,7 +3239,7 @@ await import('../js/settings.js');
       wearableCardOrder: ['weight', 'sleep', 'steps'],
       wearablePrimaryOverride: { weight: 'fitbit', bp_systolic: 'manual' },
       chatSummaries: [
-        // chat.js sets `id: 's_' + Date.now().toString(36)` at create
+        // Chat summaries receive a stable collision-resistant id at create
         // time. The default DELTA_ARRAYS itemIdFn picks `.id`, so the
         // sample must carry it for the membership/round-trip check.
         { id: 's_xyz123', threadId: 't_1', title: 'Chat 1',

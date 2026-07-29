@@ -390,7 +390,7 @@ const {
   const stashedSunDefaults = state.importedData?.sunDefaults;
   if (state.importedData) state.importedData.sunDefaults = null;
 
-  setProfileLocation(null, 'czech republic', '');
+  await setProfileLocation(null, 'czech republic', '');
   const cz = getSunCoords();
   assert("Czech profile resolves to country-band centroid",
     cz && cz.source === 'country-band', `got ${JSON.stringify(cz)}`);
@@ -407,7 +407,7 @@ const {
     cz2 && cz2.lon === cz.lon && cz2.lat === cz.lat);
 
   // Different country → different centroid.
-  setProfileLocation(null, 'japan', '');
+  await setProfileLocation(null, 'japan', '');
   const jp = getSunCoords();
   assert("Japan resolves to its own centroid (lat ~36, lon ~138)",
     jp && Math.abs(jp.lat - 36.2) < 0.5 && Math.abs(jp.lon - 138.3) < 0.5,
@@ -419,7 +419,7 @@ const {
   // the code path is a guarded fallback.)
 
   // Restore profile location
-  setProfileLocation(null, origLoc.country || '', origLoc.zip || '');
+  await setProfileLocation(null, origLoc.country || '', origLoc.zip || '');
   if (state.importedData) state.importedData.sunDefaults = stashedSunDefaults;
   } // end if (!SKIP_SECTION_8)
 

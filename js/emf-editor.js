@@ -13,6 +13,7 @@ import { saveImportedData } from './data.js';
 import { toggleCtxTag } from './context-card-editor-ui.js';
 import { loadEMFCatalog, renderEMFMeterRecs, isProductRecsEnabled } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { createUniqueId } from './unique-id.js';
 import {
   MEASUREMENT_TYPES,
   SLEEPING_ROOMS,
@@ -556,7 +557,7 @@ export function showEMFImportPreview(parsed) {
   confirmButton.addEventListener('click', () => {
     const assessments = ensureEMFAssessments();
     const assessment = {
-      id: 'emf_' + Date.now(),
+      id: createUniqueId('emf_'),
       date: parsed.date || new Date().toISOString().slice(0, 10),
       label: '',
       consultant: parsed.consultant || '',

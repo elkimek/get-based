@@ -179,17 +179,23 @@ test('client list live menu actions dispatch exports share demos and profile sta
       await openList();
       await openRowMenu('client-alice');
       clickAction('pin-profile', 'client-alice');
+      await waitFor(() => state.profiles.find(p => p.id === 'client-alice')?.pinned === true
+        && !!document.querySelector('[data-id="client-alice"] .cl-badge-pinned'), 'durable pin update');
       outcomes.pinActionRerendersPinnedBadge = state.profiles.find(p => p.id === 'client-alice')?.pinned === true
         && !!document.querySelector('[data-id="client-alice"] .cl-badge-pinned');
 
       await openRowMenu('client-bob');
       clickAction('flag-profile', 'client-bob');
+      await waitFor(() => state.profiles.find(p => p.id === 'client-bob')?.status === 'flagged'
+        && !!document.querySelector('[data-id="client-bob"] .cl-badge-flagged'), 'durable flag update');
       outcomes.flagActionUpdatesProfileAndButton = state.profiles.find(p => p.id === 'client-bob')?.status === 'flagged'
         && calls.some(call => call[0] === 'render-profile-button')
         && !!document.querySelector('[data-id="client-bob"] .cl-badge-flagged');
 
       await openRowMenu('client-bob');
       clickAction('unflag-profile', 'client-bob');
+      await waitFor(() => state.profiles.find(p => p.id === 'client-bob')?.status === 'active'
+        && !document.querySelector('[data-id="client-bob"] .cl-badge-flagged'), 'durable unflag update');
       outcomes.unflagActionReturnsProfileActive = state.profiles.find(p => p.id === 'client-bob')?.status === 'active';
 
       await openRowMenu('client-alice');
@@ -210,6 +216,8 @@ test('client list live menu actions dispatch exports share demos and profile sta
       document.querySelector('.cl-status-filter').dispatchEvent(new Event('change', { bubbles: true }));
       await openRowMenu('client-cara');
       clickAction('unarchive-profile', 'client-cara');
+      await waitFor(() => state.profiles.find(p => p.id === 'client-cara')?.status === 'active',
+        'durable unarchive update');
       outcomes.unarchiveActionRestoresArchivedProfile = state.profiles.find(p => p.id === 'client-cara')?.status === 'active';
 
       document.querySelector('.cl-status-filter').value = 'active';
@@ -394,6 +402,10 @@ test('client list form live actions cover health link avatar haplogroup and loca
         && state.importedData.genetics.mtdna.haplogroup === 'H';
 
       document.querySelector('.cl-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await waitFor(() => state.profiles.find(p => p.id === 'client-active')?.avatar === null
+        && calls.some(call => call[0] === 'notification'
+          && call[1] === '"Active Browser" updated'
+          && call[2] === 'info'), 'durable client form save');
       const updatedProfile = state.profiles.find(p => p.id === 'client-active');
       outcomes.savePersistsRemovedAvatarAndNotifies = updatedProfile?.avatar === null
         && calls.some(call => call[0] === 'render-profile-button')

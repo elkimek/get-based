@@ -15,19 +15,7 @@ import {
   normalizeRoomEveningPatch,
 } from './light-env-evening.js';
 import { defaultHoursForName } from './light-env-model.js';
-
-function randomSuffix(chars = 4) {
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    const bytes = new Uint8Array(Math.ceil(chars * 0.75) + 1);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').slice(0, chars);
-  }
-  return Math.random().toString(36).slice(2, 2 + chars).padEnd(chars, '0');
-}
-
-function makeId(prefix, now = Date.now()) {
-  return `${prefix}_${now.toString(36)}_${randomSuffix()}`;
-}
+import { createUniqueId } from './unique-id.js';
 
 export function getEnvironment() {
   if (!state.importedData) return null;
@@ -45,7 +33,7 @@ export async function addRoom(name) {
 
   const homeLight = state.importedData?.sunDefaults?.homeLight;
   const presetHours = defaultHoursForName(name);
-  const id = makeId('room');
+  const id = createUniqueId('room_');
   env.rooms.push({
     id,
     name: name || 'Room',
@@ -90,7 +78,7 @@ export async function addScreen(device, roomId = null) {
   const env = getEnvironment();
   if (!env) return null;
   if (!Array.isArray(env.screens)) env.screens = [];
-  const id = makeId('scr');
+  const id = createUniqueId('scr_');
   env.screens.push({
     id,
     device: device || 'phone',

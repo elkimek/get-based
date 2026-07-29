@@ -27,6 +27,7 @@ import {
   showImportPreview,
 } from './pdf-import-review.js';
 import { markImportBenchmarkConfirmed } from './import-benchmarks.js';
+import { createUniqueId } from './unique-id.js';
 
 const pdfImportCommitDeps = { maybeShowEncryptionNudge };
 
@@ -77,7 +78,7 @@ export async function confirmImport() {
   }
   const importTs = Date.now();
   const isReReview = !!result._reReviewSnapshotId;
-  const snapshotId = isReReview ? result._reReviewSnapshotId : ('snap_' + importTs + '_' + Math.random().toString(36).slice(2, 6));
+  const snapshotId = isReReview ? result._reReviewSnapshotId : createUniqueId('snap_');
 
   // Re-review: remove old snapshot markers before re-applying
   if (isReReview) {

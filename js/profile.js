@@ -9,6 +9,14 @@ import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, isUnlocked } 
 import { migrateProfileData } from './profile-data-migrations.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { clearProfileStorage } from './profile-storage-cleanup.js';
+import { createUniqueId } from './unique-id.js';
+import {
+  configureProfileListStoreDeps,
+  getProfiles as getStoredProfiles,
+  initProfilesCache as initStoredProfilesCache,
+  mutateProfiles,
+  saveProfiles as saveStoredProfiles,
+} from './profile-list-store.js';
 
 export { migrateProfileData, profileStorageKey };
 
@@ -21,11 +29,12 @@ const profileDeps = {
 
 export function configureProfileDeps(deps = {}) {
   const previous = { ...profileDeps };
+  const previousStoreDeps = configureProfileListStoreDeps(deps);
   if (typeof deps.callClaudeAPI === 'function') profileDeps.callClaudeAPI = deps.callClaudeAPI;
   if (typeof deps.isDebugMode === 'function') profileDeps.isDebugMode = deps.isDebugMode;
   if (typeof deps.showConfirmDialog === 'function') profileDeps.showConfirmDialog = deps.showConfirmDialog;
   if (typeof deps.showNotification === 'function') profileDeps.showNotification = deps.showNotification;
-  return previous;
+  return { ...previous, ...previousStoreDeps };
 }
 
 /**
@@ -148,71 +157,18 @@ function refreshProfileWearables(profileId, biometrics) {
  * @typedef {import('../types/app-state.js').ProfileData} ProfileData
  */
 
-// ═══════════════════════════════════════════════
-// PROFILE MANAGEMENT
-// ═══════════════════════════════════════════════
-/**
- * @returns {ProfileRecord[]}
- */
+/** @returns {ProfileRecord[]} */
 export function getProfiles() {
-  // Read from in-memory cache (populated at init via initProfilesCache)
-  if (Array.isArray(state.profiles)) return state.profiles;
-  try {
-    const raw = localStorage.getItem('labcharts-profiles');
-    const profiles = raw ? JSON.parse(raw) : [];
-    return Array.isArray(profiles) ? profiles : [];
-  }
-  catch(e) { return []; }
+  return /** @type {ProfileRecord[]} */ (getStoredProfiles());
 }
 
-/**
- * @returns {Promise<void>}
- */
 export async function initProfilesCache() {
-  const raw = await encryptedGetItem('labcharts-profiles');
-  /** @type {ProfileRecord[]} */
-  let profiles = [];
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) profiles = parsed;
-  } catch(e) {}
-  state.profiles = profiles;
-  migrateProfiles(profiles);
+  await initStoredProfilesCache();
 }
 
-// Backfill new profile-level fields (tags, notes, status, timestamps, pinned)
-/**
- * @param {ProfileRecord[]} profiles
- */
-function migrateProfiles(profiles) {
-  let changed = false;
-  const now = Date.now();
-  for (const p of profiles) {
-    if (!Array.isArray(p.tags)) { p.tags = []; changed = true; }
-    if (typeof p.notes !== 'string') { p.notes = ''; changed = true; }
-    if (!p.status) { p.status = 'active'; changed = true; }
-    if (!p.createdAt) { p.createdAt = now; changed = true; }
-    if (!p.lastUpdated) { p.lastUpdated = now; changed = true; }
-    if (typeof p.pinned !== 'boolean') { p.pinned = false; changed = true; }
-    if (p.height === undefined) { p.height = null; changed = true; }
-    if (p.heightUnit === undefined) { p.heightUnit = 'cm'; changed = true; }
-  }
-  if (changed) saveProfiles(profiles);
-}
-
-/**
- * @param {ProfileRecord[]} profiles
- * @returns {Promise<void>}
- */
+/** @param {ProfileRecord[]} profiles */
 export async function saveProfiles(profiles) {
-  state.profiles = profiles;
-  try {
-    const value = JSON.stringify(profiles);
-    await encryptedSetItem('labcharts-profiles', value);
-  } catch (e) {
-    profileDeps.showNotification('Storage limit reached — could not save profile changes.', 'error');
-    throw e;
-  }
+  await saveStoredProfiles(profiles);
 }
 
 /**
@@ -368,28 +324,31 @@ export async function loadProfile(profileId) {
 /**
  * @param {string} name
  * @param {CreateProfileOptions} [opts]
- * @returns {string}
+ * @returns {Promise<string>}
  */
-export function createProfile(name, opts = {}) {
-  const profiles = getProfiles();
-  const id = Date.now().toString(36);
-  const now = Date.now();
-  profiles.push({
-    id, name,
-    sex: opts.sex || null,
-    dob: opts.dob || null,
-    location: opts.location || { country: '', zip: '' },
-    tags: opts.tags || [],
-    notes: opts.notes || '',
-    status: opts.status || 'active',
-    avatar: opts.avatar || null,
-    height: opts.height || null,
-    heightUnit: opts.heightUnit || 'cm',
-    createdAt: now,
-    lastUpdated: now,
-    pinned: false
+export async function createProfile(name, opts = {}) {
+  const id = await mutateProfiles(profiles => {
+    let candidate;
+    do candidate = createUniqueId('p_');
+    while (profiles.some(profile => profile.id === candidate));
+    const now = Date.now();
+    profiles.push({
+      id: candidate, name,
+      sex: opts.sex || null,
+      dob: opts.dob || null,
+      location: opts.location || { country: '', zip: '' },
+      tags: opts.tags || [],
+      notes: opts.notes || '',
+      status: opts.status || 'active',
+      avatar: opts.avatar || null,
+      height: opts.height || null,
+      heightUnit: opts.heightUnit || 'cm',
+      createdAt: now,
+      lastUpdated: now,
+      pinned: false
+    });
+    return { changed: true, value: candidate };
   });
-  saveProfiles(profiles);
   if (!opts.skipInitialSync) queueProfileSync(id, createDefaultProfileData());
   return id;
 }
@@ -397,30 +356,38 @@ export function createProfile(name, opts = {}) {
 /**
  * @param {string} profileId
  * @param {string} newName
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
-export function renameProfile(profileId, newName) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === profileId);
-  if (p) { p.name = newName; p.lastUpdated = Date.now(); saveProfiles(profiles); queueProfileSync(profileId); }
+export async function renameProfile(profileId, newName) {
+  const changed = await mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === profileId);
+    if (!profile) return { changed: false, value: false };
+    profile.name = newName;
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
+  if (changed) queueProfileSync(profileId);
+  return changed;
 }
 
 /**
  * @param {string} profileId
  * @param {ProfileMetaUpdates} updates
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
-export function updateProfileMeta(profileId, updates) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === profileId);
-  if (!p) return;
-  for (const [key, val] of Object.entries(updates)) {
-    if (key === 'id' || key === 'createdAt') continue;
-    p[key] = val;
-  }
-  p.lastUpdated = Date.now();
-  saveProfiles(profiles);
-  queueProfileSync(profileId);
+export async function updateProfileMeta(profileId, updates) {
+  const changed = await mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === profileId);
+    if (!profile) return { changed: false, value: false };
+    for (const [key, val] of Object.entries(updates)) {
+      if (key === 'id' || key === 'createdAt') continue;
+      profile[key] = val;
+    }
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
+  if (changed) queueProfileSync(profileId);
+  return changed;
 }
 
 /**
@@ -436,12 +403,15 @@ export function getAllTags() {
 
 /**
  * @param {string} profileId
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
 export function touchProfileTimestamp(profileId) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === profileId);
-  if (p) { p.lastUpdated = Date.now(); saveProfiles(profiles); }
+  return mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === profileId);
+    if (!profile) return { changed: false, value: false };
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
 }
 
 /**
@@ -516,12 +486,18 @@ export function getProfileSex(profileId) {
 /**
  * @param {string} profileId
  * @param {string | null} sex
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
-export function setProfileSex(profileId, sex) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === profileId);
-  if (p) { p.sex = sex; saveProfiles(profiles); queueProfileSync(profileId); }
+export async function setProfileSex(profileId, sex) {
+  const changed = await mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === profileId);
+    if (!profile) return { changed: false, value: false };
+    profile.sex = sex;
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
+  if (changed) queueProfileSync(profileId);
+  return changed;
 }
 
 /**
@@ -537,12 +513,18 @@ export function getProfileDob(profileId) {
 /**
  * @param {string} profileId
  * @param {string | null | undefined} dob
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
-export function setProfileDob(profileId, dob) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === profileId);
-  if (p) { p.dob = dob || null; saveProfiles(profiles); queueProfileSync(profileId); }
+export async function setProfileDob(profileId, dob) {
+  const changed = await mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === profileId);
+    if (!profile) return { changed: false, value: false };
+    profile.dob = dob || null;
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
+  if (changed) queueProfileSync(profileId);
+  return changed;
 }
 
 /**
@@ -559,16 +541,19 @@ export function getProfileLocation(profileId) {
  * @param {string} profileId
  * @param {string} country
  * @param {string} zip
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
-export function setProfileLocation(profileId, country, zip) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === (profileId || state.currentProfile));
-  if (p) {
-    p.location = { country: (country || '').trim(), zip: (zip || '').trim() };
-    saveProfiles(profiles);
-    queueProfileSync(p.id);
-  }
+export async function setProfileLocation(profileId, country, zip) {
+  const resolvedProfileId = profileId || state.currentProfile;
+  const changed = await mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === resolvedProfileId);
+    if (!profile) return { changed: false, value: false };
+    profile.location = { country: (country || '').trim(), zip: (zip || '').trim() };
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
+  if (changed) queueProfileSync(resolvedProfileId);
+  return changed;
 }
 
 /**
@@ -585,18 +570,20 @@ export function getProfileHeight(profileId) {
  * @param {string} profileId
  * @param {number | string | null} height
  * @param {string} [unit]
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
-export function setProfileHeight(profileId, height, unit) {
-  const profiles = getProfiles();
-  const p = profiles.find(p => p.id === (profileId || state.currentProfile));
-  if (p) {
-    p.height = height;
-    p.heightUnit = unit || 'cm';
-    p.lastUpdated = Date.now();
-    saveProfiles(profiles);
-    queueProfileSync(p.id);
-  }
+export async function setProfileHeight(profileId, height, unit) {
+  const resolvedProfileId = profileId || state.currentProfile;
+  const changed = await mutateProfiles(profiles => {
+    const profile = profiles.find(candidate => candidate.id === resolvedProfileId);
+    if (!profile) return { changed: false, value: false };
+    profile.height = height;
+    profile.heightUnit = unit || 'cm';
+    profile.lastUpdated = Date.now();
+    return { changed: true, value: true };
+  });
+  if (changed) queueProfileSync(resolvedProfileId);
+  return changed;
 }
 
 // AI-powered latitude detection with hardcoded fallback

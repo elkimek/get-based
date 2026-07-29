@@ -19,7 +19,7 @@ return (async function() {
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
-  const testProfileId = profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  const testProfileId = await profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
   await profile.switchProfile(testProfileId);
 
   try {
@@ -1170,7 +1170,7 @@ return (async function() {
     try {
       const profiles = profile.getProfiles();
       await profile.switchProfile(origProfileId);
-      profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+      await profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
     } catch (e) {
       console.error('Test cleanup failed:', e);
     }

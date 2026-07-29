@@ -48,7 +48,7 @@ function handleOnboardingActionClick(event) {
     if (sex === 'male' || sex === 'female') completeOnboardingSex(sex);
     else return;
   } else if (action === 'save-profile') {
-    completeOnboardingProfile();
+    void completeOnboardingProfile();
   } else if (action === 'dismiss-profile') {
     dismissOnboarding();
   } else if (action === 'import-file') {
@@ -135,14 +135,20 @@ export function completeOnboardingSex(sex) {
   if (sex === 'female' && btns[1]) btns[1].classList.add('active');
 }
 
-export function completeOnboardingProfile() {
+export async function completeOnboardingProfile() {
   const activeSexBtn = document.querySelector('.onboarding-sex-btn.active');
   const sex = activeSexBtn ? (activeSexBtn.textContent.trim().toLowerCase()) : null;
   const dobInput = /** @type {HTMLInputElement | null} */ (document.getElementById('onboarding-dob'));
   const dob = dobInput ? dobInput.value : null;
+  try {
+    if (sex && !await setProfileSex(state.currentProfile, sex)) return;
+    if (dob && !await setProfileDob(state.currentProfile, dob)) return;
+  } catch {
+    return;
+  }
   localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'profile-set');
-  if (sex) { state.profileSex = sex; setProfileSex(state.currentProfile, sex); }
-  if (dob) { state.profileDob = dob; setProfileDob(state.currentProfile, dob); }
+  if (sex) state.profileSex = sex;
+  if (dob) state.profileDob = dob;
   const data = getActiveData();
   rebuildOnboardingSidebarRuntime(data);
   updateHeaderDates(data);

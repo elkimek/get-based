@@ -28,14 +28,6 @@ function assert(name, condition, detail) {
   else { failed++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }
 
-// generateThreadId() in chat-threads.js is `'t_' + Date.now().toString(36)`
-// — pure millisecond timestamp, no counter. In Node (no DOM-render delay
-// between calls) two createNewThread() calls can land in the same ms and
-// collide on id; Playwright's render latency happened to space them out.
-// A 2ms gap before each createNewThread keeps ids distinct. (The latent
-// collision in generateThreadId itself is noted in the PR description.)
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
 console.log('=== Chat Threads Tests ===\n');
 
 // state.js → state + isSensitiveKey lives in crypto.js, buildBackupSnapshot
@@ -92,7 +84,7 @@ st.chatThreads = [];
 st.currentThreadId = null;
 localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
 
-await sleep(2); chatThreadsModule.createNewThread();
+chatThreadsModule.createNewThread();
 assert('createNewThread creates 1 thread', st.chatThreads.length === 1);
 assert('thread has valid id', st.chatThreads[0].id.startsWith('t_'));
 assert('thread name is "New Conversation"', st.chatThreads[0].name === 'New Conversation');
@@ -114,8 +106,9 @@ assert('auto-name applied', namedThread.name !== 'New Conversation');
 assert('auto-name <= 41 chars (40 + ellipsis)', namedThread.name.length <= 41);
 assert('auto-name has ellipsis for long text', namedThread.name.endsWith('…'));
 
-await sleep(2); chatThreadsModule.createNewThread();
+chatThreadsModule.createNewThread();
 const shortThreadId = st.chatThreads[0].id;
+assert('back-to-back thread creation keeps ids distinct', shortThreadId !== firstThreadId);
 chatThreadsModule.autoNameThread(shortThreadId, 'Thyroid panel');
 const shortThread = st.chatThreads.find(t => t.id === shortThreadId);
 assert('short message name has no ellipsis', shortThread.name === 'Thyroid panel');
@@ -136,7 +129,7 @@ assert('empty rename ignored', shortThread.name === 'My Custom Name');
 // 7. Thread CRUD — Delete
 // ═══════════════════════════════════════════════
 console.log('7. Thread CRUD — Delete');
-await sleep(2); chatThreadsModule.createNewThread();
+chatThreadsModule.createNewThread();
 const deleteTargetId = st.currentThreadId;
 localStorage.setItem(chatThreadsModule.getChatThreadKey(deleteTargetId), JSON.stringify([{ role: 'user', content: 'test' }]));
 const countBefore = st.chatThreads.length;
@@ -177,7 +170,7 @@ console.log('9. Save/Load Round-trip');
 st.chatThreads = [];
 st.currentThreadId = null;
 localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
-await sleep(2); chatThreadsModule.createNewThread();
+chatThreadsModule.createNewThread();
 const rtThreadId = st.currentThreadId;
 st.chatHistory = [
   { role: 'user', content: 'Test message' },
@@ -248,7 +241,7 @@ assert('blocked thread index refuses overwrite', saveWhileBlocked === false);
 assert('blocked thread index stays untouched on disk', localStorage.getItem(guardedIndexKey) === encryptedIndexRaw);
 chatThreadsModule.ensureActiveThread();
 assert('ensureActiveThread does not create while index is blocked', st.chatThreads.length === 0);
-await sleep(2); chatThreadsModule.createNewThread();
+chatThreadsModule.createNewThread();
 assert('createNewThread does not create while index is blocked', st.chatThreads.length === 0);
 
 localStorage.removeItem(guardedIndexKey);
@@ -322,9 +315,8 @@ else localStorage.setItem('labcharts-profiles', _origProfiles);
 // 15. Encryption Patterns
 // ═══════════════════════════════════════════════
 // crypto.js's SENSITIVE_PATTERNS all anchor on `^labcharts-[^-]+-chat…$`.
-// Real profile ids come from createProfile() as `Date.now().toString(36)`
-// — hyphen-free — so `[^-]+` matches them. Use a representative hyphen-free
-// id here.
+// New profile ids use the allowlist-safe `p_<random>` shape. Use a
+// representative hyphen-free id here so `[^-]+` matches it.
 //
 // NOTE: the original Playwright test asserted the thread *index* key was
 // NOT sensitive ("plaintext by design"). That contradicts crypto.js, which
@@ -471,7 +463,7 @@ console.log('20. Thread Personality');
 st.chatThreads = [];
 st.currentThreadId = null;
 st.currentChatPersonality = 'house';
-await sleep(2); chatThreadsModule.createNewThread();
+chatThreadsModule.createNewThread();
 const pThread = st.chatThreads.find(t => t.id === st.currentThreadId);
 assert('new thread inherits current personality', pThread && pThread.personality === 'house');
 

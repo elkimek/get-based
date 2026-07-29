@@ -78,7 +78,7 @@ test('profile browser coverage exercises migration height and latitude helpers',
       }];
       localStorage.setItem('labcharts-active-profile', profileId);
       localStorage.setItem('labcharts-sync-enabled', 'false');
-      profile.setProfileHeight(profileId, 181, 'cm');
+      await profile.setProfileHeight(profileId, 181, 'cm');
       const height = profile.getProfileHeight(profileId);
       outcomes.profileHeightSetterUpdatesActiveProfile =
         height.height === 181

@@ -17,6 +17,7 @@ import {
   _normalizePSMTier,
   photosensitiveMedScale,
 } from './sun-session-model.js';
+import { createUniqueId } from './unique-id.js';
 
 /**
  * @typedef {object} SunSessionsStoreDeps
@@ -99,7 +100,7 @@ export function getActiveSession() {
  * }} [opts]
  */
 export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass', rotatedSides = false } = {}) {
-  const id = `sun_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const id = createUniqueId('sun_');
 
   let preset, fraction, regionsArr;
   // If the caller explicitly supplied a regions array, honor it strictly.
@@ -171,7 +172,7 @@ export async function stopSession(id) {
 
 // Log a completed session in one shot (after-the-fact entry).
 export async function logCompletedSession(payload) {
-  const id = `sun_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const id = createUniqueId('sun_');
   const session = Object.assign({
     id,
     startedAt: payload.startedAt || Date.now(),

@@ -38,7 +38,7 @@ return (async function() {
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
-  const testProfileId = profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  const testProfileId = await profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
   await profile.switchProfile(testProfileId);
 
   try {
@@ -755,23 +755,23 @@ return (async function() {
   const origProfileCount = profile.getProfiles().length;
 
   // Create test profile
-  const testProfileId = profile.createProfile('__UI_TEST_PROFILE__');
+  const testProfileId = await profile.createProfile('__UI_TEST_PROFILE__');
   assert('Profile created', !!testProfileId);
   assert('Profile count increased', profile.getProfiles().length === origProfileCount + 1);
 
   // Switch to new profile
-  profile.switchProfile(testProfileId);
+  await profile.switchProfile(testProfileId);
   await wait(50);
   assert('Switched to new profile', profile.getActiveProfileId() === testProfileId);
   assert('Dashboard re-rendered for new profile', main.innerHTML.length > 100);
 
   // Switch back to original
-  profile.switchProfile(origProfileId);
+  await profile.switchProfile(origProfileId);
   await wait(50);
   assert('Switched back to original profile', profile.getActiveProfileId() === origProfileId);
 
   // Delete test profile (bypass confirm dialog — use saveProfiles to update cache)
-  profile.saveProfiles(profile.getProfiles().filter(p => p.id !== testProfileId));
+  await profile.saveProfiles(profile.getProfiles().filter(p => p.id !== testProfileId));
   localStorage.removeItem(`labcharts-${testProfileId}-imported`);
   assert('Test profile deleted', profile.getProfiles().length === origProfileCount);
   assert('Active profile unchanged', profile.getActiveProfileId() === origProfileId);
@@ -886,7 +886,7 @@ return (async function() {
     try {
       const profiles = profile.getProfiles();
       await profile.switchProfile(origProfileId);
-      profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+      await profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
     } catch (e) {
       console.error('Test cleanup failed:', e);
     }

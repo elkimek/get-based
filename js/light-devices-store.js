@@ -14,6 +14,7 @@ import {
   computeDeviceSessionDoses,
   resolveDeviceMode,
 } from './light-device-session-engine.js';
+import { createUniqueId } from './unique-id.js';
 
 /**
  * @typedef {object} LightDevicesStoreDeps
@@ -28,19 +29,6 @@ const storeDeps = {
 /** @param {Partial<LightDevicesStoreDeps>} [deps] */
 export function configureLightDevicesStore(deps = {}) {
   Object.assign(storeDeps, deps);
-}
-
-function randomSuffix(chars = 4) {
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    const bytes = new Uint8Array(Math.ceil(chars * 0.75) + 1);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').slice(0, chars);
-  }
-  return Math.random().toString(36).slice(2, 2 + chars).padEnd(chars, '0');
-}
-
-function makeId(prefix, now = Date.now()) {
-  return `${prefix}_${now.toString(36)}_${randomSuffix()}`;
 }
 
 function runDeviceSessionAnalysis(session) {
@@ -62,7 +50,7 @@ export function getDeviceSessions() {
 export async function addDeviceFromPresetRecord(preset, overrides = {}, { now = Date.now() } = {}) {
   if (!preset) return null;
   const device = {
-    id: makeId('dev', now),
+    id: createUniqueId('dev_'),
     presetId: preset.id,
     brand: overrides.brand || preset.brand,
     model: overrides.model || preset.model,
@@ -141,7 +129,7 @@ export async function logDeviceSession({ deviceId, durationMin = 0, distanceCm =
   });
 
   const session = {
-    id: makeId('devsess', now),
+    id: createUniqueId('devsess_'),
     deviceId,
     startedAt: now - seconds * 1000,
     endedAt: now,
@@ -181,7 +169,7 @@ export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas 
   if (!device) return null;
   const now = Date.now();
   const resolvedMode = resolveDeviceMode(device, mode);
-  const id = makeId('devsess', now);
+  const id = createUniqueId('devsess_');
   const sess = {
     id,
     deviceId,
@@ -335,7 +323,7 @@ export async function addCustomDevice(spec) {
       )
     : null;
   const device = {
-    id: makeId('dev', now),
+    id: createUniqueId('dev_'),
     presetId: null,
     brand: spec.brand,
     model: spec.model,

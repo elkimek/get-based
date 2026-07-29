@@ -109,13 +109,15 @@ function snapshotCycleState() {
     profileSex: state.profileSex,
   };
 }
-function restoreCycleState(snapshot, profileId, { restoreSex = false } = {}) {
+async function restoreCycleState(snapshot, profileId, { restoreSex = false } = {}) {
   state.importedData.menstrualCycle = snapshot.menstrualCycle;
   restoreImportedArray(state.importedData, 'changeHistory', snapshot.changeHistory);
   state.importedData._deleted = snapshot.deleted;
   if (restoreSex && state.profileSex !== snapshot.profileSex) {
+    if (!await setProfileSex(profileId, snapshot.profileSex || null)) {
+      throw new Error('The profile no longer exists, so its previous sex could not be restored.');
+    }
     state.profileSex = snapshot.profileSex;
-    setProfileSex(profileId, snapshot.profileSex || null);
     renderCycleProfileButton();
   }
 }
@@ -124,7 +126,7 @@ async function persistCycleState() {
 }
 
 async function restorePersistedCycleState(snapshot, profileId, options = {}) {
-  restoreCycleState(snapshot, profileId, options);
+  await restoreCycleState(snapshot, profileId, options);
   if (!await saveImportedData()) throw new Error('The previous cycle state could not be restored. Reload before making more changes.');
 }
 
@@ -439,8 +441,10 @@ export async function commitCycleImport(parsed, { conflictMode = 'keep-existing'
       detectedRange: parsed.detectedRange || null,
     });
     if (state.profileSex !== 'female') {
+      if (!await setProfileSex(profileId, 'female')) {
+        throw new Error('The active profile no longer exists.');
+      }
       state.profileSex = 'female';
-      setProfileSex(profileId, 'female');
       renderCycleProfileButton();
     }
     const plan = buildCycleImportPlan(parsed, state.importedData.menstrualCycle, conflictMode);
@@ -472,7 +476,7 @@ export async function commitCycleImport(parsed, { conflictMode = 'keep-existing'
         { cause: error },
       );
     }
-    restoreCycleState(snapshot, profileId, { restoreSex: true });
+    await restoreCycleState(snapshot, profileId, { restoreSex: true });
     throw error;
   }
 }
@@ -508,7 +512,7 @@ export async function deleteCycleImportFromProfile(importId) {
     await clearCycleImport(profileId, importId);
   } catch (error) {
     if (persisted) await restorePersistedCycleState(snapshot, profileId);
-    else restoreCycleState(snapshot, profileId);
+    else await restoreCycleState(snapshot, profileId);
     throw error;
   }
   return true;
@@ -531,7 +535,7 @@ export async function deleteCycleSourceFromProfile(source) {
     await clearCycleSource(profileId, source);
   } catch (error) {
     if (persisted) await restorePersistedCycleState(snapshot, profileId);
-    else restoreCycleState(snapshot, profileId);
+    else await restoreCycleState(snapshot, profileId);
     throw error;
   }
   return true;
@@ -549,7 +553,7 @@ export async function clearCycleProfileData() {
     await clearCycleDB(profileId);
   } catch (error) {
     if (persisted) await restorePersistedCycleState(snapshot, profileId);
-    else restoreCycleState(snapshot, profileId);
+    else await restoreCycleState(snapshot, profileId);
     throw error;
   }
   return true;
