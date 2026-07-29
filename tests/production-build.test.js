@@ -40,6 +40,10 @@ describe('production startup build', () => {
 
   it('pre-caches every generated lazy chunk for installed offline use', async () => {
     const serviceWorker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
+    const serviceWorkerRuntime = await fs.readFile(
+      path.join(outputRoot, 'service-worker-runtime.js'),
+      'utf8',
+    );
     const generatedFiles = (await fs.readdir(path.join(outputRoot, 'js')))
       .filter(fileName => /^bundle-.*\.js$/.test(fileName));
 
@@ -54,6 +58,8 @@ describe('production startup build', () => {
     expect(serviceWorker).toContain("'/js/lens-local-worker.js',");
     expect(serviceWorker).toContain("'/js/lens-local-utils.js',");
     expect(serviceWorker).toContain("'/js/lens-local-store.js',");
+    expect(serviceWorker).toContain("'/service-worker-runtime.js',");
+    expect(serviceWorkerRuntime).toContain('installServiceWorkerRuntime');
   });
 
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {

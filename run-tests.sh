@@ -18,6 +18,7 @@ if [ "$SKIP_TYPECHECK" != "1" ] && [ "$SKIP_TYPECHECK" != "true" ]; then
   npm run typecheck || exit 1
   npm run typecheck:checkjs || exit 1
   npm run typecheck:server || exit 1
+  npm run typecheck:service-worker || exit 1
   npm run typecheck:strict-null || exit 1
 fi
 npm run architecture:check || exit 1

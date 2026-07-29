@@ -192,10 +192,11 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
   };
   await enforceBuildBudget(summary);
 
-  const [indexSource, legalBootstrapSource, serviceWorkerSource] = await Promise.all([
+  const [indexSource, legalBootstrapSource, serviceWorkerSource, serviceWorkerRuntimeSource] = await Promise.all([
     fs.readFile(path.join(ROOT, 'index.html'), 'utf8'),
     fs.readFile(path.join(ROOT, 'js', 'legal-consent-bootstrap.js'), 'utf8'),
     fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
+    fs.readFile(path.join(ROOT, 'service-worker-runtime.js'), 'utf8'),
   ]);
   const indexWithInlineLegalBootstrap = replaceMarkedSection(
     indexSource,
@@ -231,6 +232,7 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
   await Promise.all([
     fs.writeFile(path.join(outputRoot, 'index.html'), builtIndex),
     fs.writeFile(path.join(outputRoot, 'service-worker.js'), builtServiceWorker),
+    fs.writeFile(path.join(outputRoot, 'service-worker-runtime.js'), serviceWorkerRuntimeSource),
   ]);
 
   return summary;

@@ -98,6 +98,7 @@ async function loadServiceWorker({ hostname = 'preview.getbased.health', fetchIm
   });
 
   vi.resetModules();
+  await import('../service-worker-runtime.js');
   await import('../service-worker.js');
   return { cache, caches, listeners, matches, opened, progressClient, self };
 }
@@ -122,6 +123,7 @@ describe('service worker runtime cache behavior', () => {
     const { cache, caches, listeners, progressClient, self } = await loadServiceWorker();
 
     expect(globalThis.importScripts).toHaveBeenCalledWith('/version.js');
+    expect(globalThis.importScripts).toHaveBeenCalledWith('/service-worker-runtime.js');
     expect(listeners.has('install')).toBe(true);
     expect(listeners.has('activate')).toBe(true);
     expect(listeners.has('fetch')).toBe(true);
