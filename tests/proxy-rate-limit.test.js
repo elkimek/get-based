@@ -104,10 +104,11 @@ describe('proxy distributed rate limit', () => {
       retryAfterSeconds: expect.any(Number),
     });
 
-    expect(blobMock.store.size).toBe(2);
+    const requestMarkers = Array.from(blobMock.store.keys())
+      .filter(path => path.startsWith('proxy-rate/v2/'));
+    expect(requestMarkers).toHaveLength(2);
     expect(blobMock.list.mock.calls[0][0].abortSignal).toBeInstanceOf(AbortSignal);
     expect(blobMock.put.mock.calls[0][2].abortSignal).toBeInstanceOf(AbortSignal);
-    expect(Array.from(blobMock.store.keys()).every(path => path.startsWith('proxy-rate/v1/'))).toBe(true);
     expect(Array.from(blobMock.store.keys()).join('|')).not.toContain('203.0.113.90');
     expect(Array.from(blobMock.store.keys()).join('|')).not.toContain('app.getbased.health');
   });
@@ -138,6 +139,32 @@ describe('proxy distributed rate limit', () => {
       '203.0.113.94',
       '198.51.100.2',
     ))).toMatchObject({ limited: true });
+  });
+
+  it('globally removes stale one-off-subject markers in the next window', async () => {
+    process.env.VERCEL = '1';
+    process.env.PROXY_RATE_LIMIT_BLOB_TOKEN = 'vercel_blob_rw_store_secret';
+    process.env.PROXY_RATE_LIMIT_MAX = '2';
+    process.env.PROXY_RATE_LIMIT_WINDOW_MS = '1000';
+    const now = vi.spyOn(Date, 'now');
+
+    now.mockReturnValue(1_100);
+    expect(await enforceProxyRateLimit(rateRequest('203.0.113.95')))
+      .toMatchObject({ limited: false });
+    expect(Array.from(blobMock.store.keys()).some(path => path.includes('/1000/')))
+      .toBe(true);
+
+    now.mockReturnValue(2_100);
+    expect(await enforceProxyRateLimit(rateRequest('203.0.113.96')))
+      .toMatchObject({ limited: false });
+
+    expect(Array.from(blobMock.store.keys()).some(path => path.includes('/1000/')))
+      .toBe(false);
+    expect(Array.from(blobMock.store.keys()).some(path => path.includes('/2000/')))
+      .toBe(true);
+    expect(Array.from(blobMock.store.keys()).some(path => path.endsWith('/1000.json')))
+      .toBe(false);
+    expect(blobMock.del).toHaveBeenCalled();
   });
 
   it('allows an explicit per-instance fallback for self-hosted Vercel deployments', async () => {

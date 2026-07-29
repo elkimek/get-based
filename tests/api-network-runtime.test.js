@@ -733,6 +733,81 @@ describe('AI proxy runtime behavior', () => {
     });
   });
 
+  it('streams responses to completion and propagates downstream cancellation', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(
+      'data: {"ok":true}\n\n',
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    ));
+    const completed = await proxyHandler(makeProxyRequest({
+      url: 'https://stream.example.com/v1/chat',
+    }, { clientIp: '203.0.113.86' }));
+
+    expect(completed.status).toBe(200);
+    expect(completed.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(await completed.text()).toBe('data: {"ok":true}\n\n');
+
+    let upstreamCancelled = false;
+    globalThis.fetch = vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: first\n\n'));
+      },
+      cancel() {
+        upstreamCancelled = true;
+      },
+    }), {
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+    const cancellable = await proxyHandler(makeProxyRequest({
+      url: 'https://stream.example.com/v1/chat',
+    }, { clientIp: '203.0.113.87' }));
+    const reader = cancellable.body.getReader();
+    expect((await reader.read()).done).toBe(false);
+    await reader.cancel('client stopped reading');
+
+    expect(upstreamCancelled).toBe(true);
+  });
+
+  it('propagates timeout and byte-cap errors through the streaming response path', async () => {
+    process.env.PROXY_UPSTREAM_TIMEOUT_MS = '10';
+    globalThis.fetch = vi.fn(async (_url, init) => new Response(new ReadableStream({
+      start(controller) {
+        init.signal.addEventListener('abort', () => {
+          controller.error(new Error('aborted'));
+        }, { once: true });
+      },
+    }), {
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+    const stalled = await proxyHandler(makeProxyRequest({
+      url: 'https://stream.example.com/v1/chat',
+    }, { clientIp: '203.0.113.88' }));
+
+    await expect(stalled.text()).rejects.toMatchObject({
+      code: 'PROXY_UPSTREAM_TIMEOUT',
+    });
+
+    delete process.env.PROXY_UPSTREAM_TIMEOUT_MS;
+    let upstreamCancelled = false;
+    globalThis.fetch = vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(PROXY_MAX_RESPONSE_BYTES + 1));
+      },
+      cancel() {
+        upstreamCancelled = true;
+      },
+    }), {
+      headers: { 'Content-Type': 'application/x-ndjson' },
+    }));
+    const oversized = await proxyHandler(makeProxyRequest({
+      url: 'https://stream.example.com/v1/chat',
+    }, { clientIp: '203.0.113.89' }));
+
+    await expect(oversized.text()).rejects.toMatchObject({
+      code: 'PROXY_RESPONSE_TOO_LARGE',
+    });
+    expect(upstreamCancelled).toBe(true);
+  });
+
   it('preserves provider-compatible headers for proxied custom API calls', async () => {
     globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
 
