@@ -8,6 +8,8 @@ import {
   isContextSourceEnabled,
   setContextSourceEnabled,
 } from './context-source-registry.js';
+import { getDailyRange } from './wearables-store.js';
+import { getActiveProfileId } from './profile.js';
 
 function _biologyScoreContextSettings() {
   const imported = /** @type {any} */ (state.importedData || {});
@@ -230,11 +232,6 @@ export async function buildWearableSeriesSection(days, options = {}) {
   const summary = state.importedData?.wearableSummary;
   if (!summary?.metrics || Object.keys(summary.metrics).length === 0) return '';
 
-  let getDailyRange, getActiveProfileId;
-  try {
-    ({ getDailyRange } = await import('./wearables-store.js'));
-    ({ getActiveProfileId } = await import('./profile.js'));
-  } catch { return ''; }
   const profileId = getActiveProfileId();
   if (!profileId) return '';
 

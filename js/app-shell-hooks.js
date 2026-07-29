@@ -62,7 +62,14 @@ import {
 } from './crypto.js';
 import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
-import { configureDataRuntimeDeps, getActiveData, saveImportedData, updateHeaderDates } from './data.js';
+import {
+  configureDataRuntimeDeps,
+  destroyAllCharts,
+  getActiveData,
+  saveImportedData,
+  updateHeaderDates,
+  updateHeaderRangeToggle,
+} from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { configureEMFRuntimeDeps } from './emf-runtime.js';
 import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
@@ -79,7 +86,7 @@ import { configureExportImportRuntimeDeps } from './export-runtime.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { loadImportStylesheet } from './import-loader.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
-import { configureLabContext } from './lab-context.js';
+import { configureLabContext, invalidateLabContextCache } from './lab-context.js';
 import { configureLensPageShell } from './lens-page-shell.js';
 import {
   detectWearableTrendSlots,
@@ -127,14 +134,25 @@ import {
 } from './views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share-loader.js';
-import { configureProfileRuntimeDeps, getActiveProfileId, setProfileHeight } from './profile.js';
 import {
+  configureProfileDeps,
+  configureProfileRuntimeDeps,
+  getActiveProfileId,
+  setProfileHeight,
+} from './profile.js';
+import {
+  configureProfileRefreshDeps,
   dispatchProfileSwitched,
   invalidateProfileContextCache,
   refreshProfileButton,
   refreshProfileWearables,
   reloadProfileRuntimeShell,
 } from './profile-runtime.js';
+import {
+  deleteProfileFromRelay,
+  onProfileSaved,
+  pushContextToGateway,
+} from './sync.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
   configureShellChatActionDeps,
@@ -155,7 +173,8 @@ import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtim
 import { configureWearableDetailRuntimeDeps } from './wearables-detail-runtime.js';
 import { configureWearablesRuntime } from './wearables-runtime.js';
 import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
-import { configureWearableSummary } from './wearables-summary.js';
+import { configureWearableSummary, syncWearableSummary } from './wearables-summary.js';
+import { migrateBiometricsToManual } from './wearables-manual.js';
 
 function showInsufficientBalanceDialog() {
   if (typeof document === 'undefined') return false;
@@ -192,12 +211,25 @@ configureChatLoader({
 });
 configureDashboardViewFactory(createDashboardViewComposition);
 configureLabContext({ buildBiologyScoresAIContext });
+configureProfileDeps({ deleteProfileFromRelay, onProfileSaved, pushContextToGateway });
 configureProfileRuntimeDeps({
   dispatchProfileSwitched,
   invalidateProfileContextCache,
   refreshProfileButton,
   refreshProfileWearables,
   reloadProfileRuntimeShell,
+});
+configureProfileRefreshDeps({
+  buildSidebar,
+  destroyAllCharts,
+  getInitialView,
+  invalidateLabContextCache,
+  migrateBiometricsToManual,
+  navigate,
+  renderProfileButton,
+  syncWearableSummary,
+  updateHeaderDates,
+  updateHeaderRangeToggle,
 });
 
 configureClientListRuntime({

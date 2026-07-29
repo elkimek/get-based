@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
+import { syncWearableSummary } from './wearables-summary.js';
 import { loadWearablesConnectModule } from './wearables-connect-loader.js';
 import { preloadMitoCompoundData } from './supplement-warnings.js';
 import {
@@ -89,7 +90,6 @@ function migrateLegacyBiometrics() {
       // after a DEFAULT_METRIC_ORDER change or bug fix. The L2 change-gate
       // (shouldWriteL2) prevents redundant writes when nothing has shifted.
       if (await hasManualData(state.currentProfile)) {
-        const { syncWearableSummary } = await import('./wearables-summary.js');
         await syncWearableSummary(state.currentProfile, listStoredConnectedSources());
       }
     })

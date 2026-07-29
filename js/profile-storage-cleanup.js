@@ -4,6 +4,8 @@
 import { encryptedRemoveItem } from './crypto.js';
 import { getBlobKeys } from './blob-storage.js';
 import { profileStorageKey } from './profile-storage-key.js';
+import { deleteCycleDB } from './cycle-store.js';
+import { deleteWearablesDB } from './wearables-store.js';
 
 const PROFILE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const PROFILE_BLOB_KEY_RE = /^labcharts-([A-Za-z0-9_-]{1,128})-imported(?:-corrupt)?$/;
@@ -28,13 +30,11 @@ const cleanupDeps = {
   },
   deleteWearablesDB: async (profileId) => {
     if (typeof indexedDB === 'undefined') return;
-    const store = await import('./wearables-store.js');
-    await store.deleteWearablesDB(profileId);
+    await deleteWearablesDB(profileId);
   },
   deleteCycleDB: async (profileId) => {
     if (typeof indexedDB === 'undefined') return;
-    const store = await import('./cycle-store.js');
-    await store.deleteCycleDB(profileId);
+    await deleteCycleDB(profileId);
   },
 };
 

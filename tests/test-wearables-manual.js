@@ -83,7 +83,10 @@ assert('manual dashboard actions are module exports',
 
 const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
 const wearablesActionsSrc = await fetch('js/wearables-strip-actions.js').then(r => r.text());
-const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
+const wearablesDetailSrc = [
+  await fetch('js/wearables-detail-modal.js').then(r => r.text()),
+  await fetch('js/wearables-manual-detail.js').then(r => r.text()),
+].join('\n');
 const wearablesDetailRuntimeSrc = await fetch('js/wearables-detail-runtime.js').then(r => r.text());
 const manualFormUiSrc = await fetch('js/wearables-manual-form-ui.js').then(r => r.text());
 const wearablesSettingsSrc = await fetch('js/wearables-settings-panel.js').then(r => r.text());
@@ -304,8 +307,8 @@ try {
     /navigateWearableDetailRuntime\([^)]*dashboard/.test(saveFn));
   assert('deleteManualEntryFromDetail re-renders dashboard strip',
     /navigateWearableDetailRuntime\([^)]*dashboard/.test(delFn));
-  assert('deleteManualEntryFromDetail closes modal when last reading is removed',
-    /closeWearableDetailModalRuntime\(\)/.test(delFn));
+  assert('deleteManualEntryFromDetail closes modal through its configured boundary',
+    /detailDeps\.closeDetail\(\)/.test(delFn));
 
   const handleDisconnectFn = wearablesSettingsSrc.match(/async function handleManualDisconnect[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('deleteManualEntryFromDetail uses promise-style showConfirmDialog',
@@ -422,9 +425,9 @@ try {
   assert('saveManualEntryFromDetail scopes chip collection to the form element',
     /const formEl = document\.querySelector\('\.wearable-manual-add-form'\)[\s\S]{0,200}_collectActiveChips\(formEl\)/.test(saveFromDetailFn));
   assert('saveManualEntryFromDetail passes tags + note to log helpers',
-    /logManualMetric\(profileId, 'weight', \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn) &&
-    /logManualMetric\(profileId, 'rhr', \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn) &&
-    /logManualBP\(profileId, \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn));
+    /logManualMetric\(profileId, 'weight', \{[^}]*tags, note,?\s*\}\)/.test(saveFromDetailFn) &&
+    /logManualMetric\(profileId, 'rhr', \{[^}]*tags, note,?\s*\}\)/.test(saveFromDetailFn) &&
+    /logManualBP\(profileId, \{[^}]*tags,[^}]*note,?\s*\}\)/.test(saveFromDetailFn));
 
   const entriesSectionFn = wearablesDetailSrc.match(/function buildManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('manualEntries map pulls note: r.note from the IDB row',

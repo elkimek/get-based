@@ -4,8 +4,22 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, showConfirmDialog } from './utils.js';
-import { saveImportedData, updateHeaderDates } from './data.js';
-import { createDefaultProfileData, getProfiles, profileStorageKey, saveProfiles, migrateProfileData } from './profile.js';
+import {
+  filterDatesByRange,
+  getActiveData,
+  invalidateActiveDataCache,
+  saveImportedData,
+  updateHeaderDates,
+} from './data.js';
+import {
+  createDefaultProfileData,
+  createProfile,
+  getProfiles,
+  migrateProfileData,
+  profileStorageKey,
+  saveProfiles,
+  switchProfile,
+} from './profile.js';
 import { encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cleanup.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
@@ -426,13 +440,16 @@ export async function clearAllData() {
     : 'Clear all imported data, including the Cashu wallet balance and seed? This cannot be undone.';
   if (await showConfirmDialog(msg)) {
     try {
+      // Delete the wallet first. If it is blocked by another tab, preserve the
+      // profile records and report the failure instead of claiming success.
+      await destroyWalletRuntimeDB();
       const profileIds = await listStoredProfileIds(profiles.map(profile => profile.id));
       for (const id of profileIds) {
         await clearProfileStorage(id);
       }
     } catch (error) {
-      console.warn('[export] Clear-all profile cleanup failed:', error);
-      showNotification('Could not clear all profile data. Close other Get Based tabs and try again.', 'error', 8000);
+      console.warn('[export] Clear-all storage cleanup failed:', error);
+      showNotification('Data clearing was incomplete. Close other Get Based tabs and try again.', 'error', 8000);
       return;
     }
     // Reset to single default profile
@@ -442,8 +459,6 @@ export async function clearAllData() {
     state.importedData = createDefaultProfileData();
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
-    // Clear Cashu wallet database
-    try { await destroyWalletRuntimeDB(); } catch {}
     localStorage.removeItem('labcharts-cashu-wallet-mint');
     localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
     localStorage.removeItem('labcharts-routstr-node');
@@ -461,7 +476,6 @@ export async function loadDemoData(sex = 'male') {
     const resp = await fetch(file);
     if (!resp.ok) throw new Error('Failed to load');
     const blob = await resp.blob();
-    const { createProfile, switchProfile } = await import('./profile.js');
     const name = sex === 'female' ? 'Demo Sarah' : 'Demo Alex';
     const dob = sex === 'female' ? '1991-08-15' : '1987-11-22';
     const location = sex === 'female'
@@ -473,7 +487,6 @@ export async function loadDemoData(sex = 'male') {
     const height = sex === 'female' ? 168 : 182;
     const profileId = await createProfile(name, { sex, dob, location, avatar, tags: ['demo'], height, heightUnit: 'cm', skipInitialSync: true });
     // Remove empty Default profile when loading demo data
-    const { getProfiles, saveProfiles: saveProfileList } = await import('./profile.js');
     const allProfiles = getProfiles();
     const emptyDefault = allProfiles.find(p => p.id === 'default');
     if (emptyDefault) {
@@ -483,7 +496,7 @@ export async function loadDemoData(sex = 'male') {
       const defaultRaw = await encryptedGetItem('labcharts-default-imported');
       const defaultData = defaultRaw ? JSON.parse(defaultRaw) : {};
       if (!defaultData.entries || defaultData.entries.length === 0) {
-        await saveProfileList(allProfiles.filter(p => p.id !== 'default'));
+        await saveProfiles(allProfiles.filter(p => p.id !== 'default'));
         await encryptedRemoveItem('labcharts-default-imported');
       }
     }
@@ -576,7 +589,6 @@ export async function loadDemoData(sex = 'male') {
           const previousImportedData = state.importedData;
           const previousSex = state.profileSex;
           const previousDob = state.profileDob;
-          const { getActiveData, invalidateActiveDataCache } = await import('./data.js');
           const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('./biology-score-context-ai.js');
           try {
             state.importedData = structuredClone(_ctxData);
@@ -614,7 +626,6 @@ export async function loadDemoData(sex = 'male') {
     // basis, recompute locally here instead of letting the demo briefly unlock
     // and then fall back to the normal AI gate.
     try {
-      const { getActiveData, invalidateActiveDataCache, filterDatesByRange } = await import('./data.js');
       const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, hasCurrentBiologyScoreContextReview } = await import('./biology-score-context-ai.js');
       invalidateActiveDataCache?.();
       const activeData = getActiveData();

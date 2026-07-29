@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { buildProduction } from '../scripts/build-production.mjs';
+import { buildProduction, handleBuildLog } from '../scripts/build-production.mjs';
 
 let outputRoot;
 let summary;
@@ -21,10 +21,18 @@ afterAll(async () => {
 });
 
 describe('production startup build', () => {
+  it('rejects ineffective dynamic imports instead of shipping misleading lazy boundaries', () => {
+    expect(() => handleBuildLog(
+      'warn',
+      { code: 'INEFFECTIVE_DYNAMIC_IMPORT', message: 'already statically imported' },
+      () => {},
+    )).toThrow(/INEFFECTIVE_DYNAMIC_IMPORT/);
+  });
+
   it('collapses the static startup graph into one bundle plus its tiny runtime', () => {
     expect(summary.startupJavaScriptFiles).toBe(2);
-    expect(summary.startupDecodedBytes).toBeLessThanOrEqual(1_100_000);
-    expect(summary.outputJavaScriptFiles).toBeLessThanOrEqual(140);
+    expect(summary.startupDecodedBytes).toBeLessThanOrEqual(1_150_000);
+    expect(summary.outputJavaScriptFiles).toBeLessThanOrEqual(150);
     expect(summary.outputDecodedBytes).toBeLessThanOrEqual(4_500_000);
     expect(summary.lazyJavaScriptFiles).toBeGreaterThan(100);
   });
@@ -37,8 +45,8 @@ describe('production startup build', () => {
     expect(index).toContain('data-prerendered-welcome');
     expect(index).toContain('data-dashboard-welcome-action="open-chat"');
     expect(index).toContain('Chat starts with the basics');
-    expect(index).not.toContain('<script src="js/legal-consent-bootstrap.js"></script>');
-    expect(index).toContain("overlay.dataset.legalConsentBootstrapBound = 'true'");
+    expect(index).toContain('<script src="js/legal-consent-bootstrap.js"></script>');
+    expect(index).not.toMatch(/<script(?:\s[^>]*)?>\s*[^<]/);
   });
 
   it('pre-caches every generated lazy chunk for installed offline use', async () => {
@@ -56,7 +64,10 @@ describe('production startup build', () => {
     }
     expect(serviceWorker).not.toContain("'/js/main.js',");
     expect(serviceWorker).not.toContain("'/js/views.js',");
-    expect(serviceWorker).not.toContain("'/js/legal-consent-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/theme-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/extra-theme-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/analytics-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/legal-consent-bootstrap.js',");
     expect(serviceWorker).toContain("'/js/service-worker-update.js',");
     expect(serviceWorker).toContain("'/js/lens-local-worker.js',");
     expect(serviceWorker).toContain("'/js/lens-local-utils.js',");

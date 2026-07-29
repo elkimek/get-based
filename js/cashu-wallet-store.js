@@ -617,6 +617,9 @@ export async function _destroyWalletDBStorage() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(DB_NAME);
     req.onsuccess = () => resolve(undefined);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error || new Error('Cashu wallet database deletion failed'));
+    req.onblocked = () => reject(
+      new Error('Cashu wallet deletion is blocked by another open Get Based tab.'),
+    );
   });
 }

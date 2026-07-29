@@ -50,7 +50,7 @@ return (async () => {
     // against this string below — a mismatched bump (e.g. 4.11) would
     // surface a rule rename as a false regression. If you bump axe, also
     // bump _axeVersion in tests/.a11y-baseline.json.
-    const PINNED_AXE_VERSION = '4.10.0';
+    const PINNED_AXE_VERSION = '4.12.1';
     if (typeof window.axe?.run !== 'function') {
       throw new Error('local axe-core failed to expose axe.run');
     }

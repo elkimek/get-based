@@ -20,9 +20,13 @@ import {
 
 export { migrateProfileData, profileStorageKey };
 
+/** @type {Record<string, (...args: any[]) => any>} */
 const profileDeps = {
   callClaudeAPI,
+  deleteProfileFromRelay: async () => {},
   isDebugMode,
+  onProfileSaved: async () => {},
+  pushContextToGateway: async () => {},
   showConfirmDialog,
   showNotification,
 };
@@ -31,7 +35,10 @@ export function configureProfileDeps(deps = {}) {
   const previous = { ...profileDeps };
   const previousStoreDeps = configureProfileListStoreDeps(deps);
   if (typeof deps.callClaudeAPI === 'function') profileDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (typeof deps.deleteProfileFromRelay === 'function') profileDeps.deleteProfileFromRelay = deps.deleteProfileFromRelay;
   if (typeof deps.isDebugMode === 'function') profileDeps.isDebugMode = deps.isDebugMode;
+  if (typeof deps.onProfileSaved === 'function') profileDeps.onProfileSaved = deps.onProfileSaved;
+  if (typeof deps.pushContextToGateway === 'function') profileDeps.pushContextToGateway = deps.pushContextToGateway;
   if (typeof deps.showConfirmDialog === 'function') profileDeps.showConfirmDialog = deps.showConfirmDialog;
   if (typeof deps.showNotification === 'function') profileDeps.showNotification = deps.showNotification;
   return { ...previous, ...previousStoreDeps };
@@ -248,7 +255,7 @@ function queueProfileSync(profileId, importedData = null) {
   } catch {
     return;
   }
-  import('./sync.js').then(m => m.onProfileSaved?.(profileId, importedData)).catch(() => {});
+  Promise.resolve(profileDeps.onProfileSaved(profileId, importedData)).catch(() => {});
 }
 
 
@@ -437,7 +444,7 @@ export async function deleteProfile(profileId, onComplete) {
     // the profile (the Evolu row's dataJson outlives our local wipe).
     // Soft-delete via Evolu's isDeleted column — the query filter drops
     // tombstoned rows; CRDT LWW handles cross-device conflict resolution.
-    import('./sync.js').then(m => m.deleteProfileFromRelay(profileId)).catch(() => {});
+    Promise.resolve(profileDeps.deleteProfileFromRelay(profileId)).catch(() => {});
     if (state.currentProfile === profileId) {
       await loadProfile(updated[0].id);
     } else {
@@ -470,7 +477,7 @@ export async function switchProfile(profileId) {
   // event so their caches don't bleed across profiles after a switch.
   dispatchProfileSwitched(profileId);
   // Push updated context to messenger gateway so bots see the new profile
-  import('./sync.js').then(m => m.pushContextToGateway()).catch(() => {});
+  Promise.resolve(profileDeps.pushContextToGateway()).catch(() => {});
 }
 
 /**

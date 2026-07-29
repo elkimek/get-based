@@ -32,6 +32,32 @@
       "mayImport": ["service-worker"]
     }
   ],
+  "restrictedImports": [
+    {
+      "target": "js/client-list-impl.js",
+      "allowedImporters": ["js/client-list.js"]
+    },
+    {
+      "target": "js/settings-sync-panel-impl.js",
+      "allowedImporters": ["js/settings-sync-panel.js"]
+    },
+    {
+      "target": "js/marker-detail-modal-impl.js",
+      "allowedImporters": ["js/marker-detail-modal.js"]
+    },
+    {
+      "target": "js/context-card-dashboard-ai-impl.js",
+      "allowedImporters": ["js/context-card-dashboard-ai.js"]
+    },
+    {
+      "target": "js/context-card-medical-history-editor-impl.js",
+      "allowedImporters": ["js/context-card-medical-history-editor.js"]
+    },
+    {
+      "target": "js/context-card-lifestyle-editors-impl.js",
+      "allowedImporters": ["js/context-card-lifestyle-editors.js"]
+    }
+  ],
   "entryPoints": [
     "js/main.js",
     "api/commit.js",

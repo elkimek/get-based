@@ -58,7 +58,9 @@ const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprint
   assert('Sets DOB 1991-08-15 for female', exportSrc.includes('1991-08-15'));
   assert('Sets DOB 1987-11-22 for male', exportSrc.includes('1987-11-22'));
   assert('Sets onboarded to profile-set', exportSrc.includes("'profile-set'"));
-  assert('Dynamic import of profile.js', exportSrc.includes("import('./profile.js')"));
+  assert('Demo loading uses the eager profile module boundary without an ineffective dynamic import',
+    /import\s*\{[^}]*\bcreateProfile\b[^}]*\bswitchProfile\b[^}]*}\s*from '\.\/profile\.js';/s.test(exportSrc)
+    && !exportSrc.includes("import('./profile.js')"));
 
   // ── 3. Source: CSS bundle ──
   console.log('\n3. CSS bundle — Demo card styles');

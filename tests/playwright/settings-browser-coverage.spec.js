@@ -73,7 +73,9 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       window.fetch = async url => {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href.includes('/v1/models')) return jsonResponse({ data: [{ id: 'pii-coverage-model' }] });
-        if (href.endsWith('/api/commit')) return jsonResponse({ sha: 'abcdef1234567890', ref: 'main' });
+        if (href.endsWith('/api/commit')) {
+          return jsonResponse({ sha: 'abcdef1234567890abcdef1234567890abcdef12', ref: 'main' });
+        }
         return jsonResponse({});
       };
       localStorage.removeItem('labcharts-accent');

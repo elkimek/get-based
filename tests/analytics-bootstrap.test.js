@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 
-const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const analyticsBootstrap = indexSource.match(
-  /<script>\s*(\/\/ Cookieless Umami analytics[\s\S]*?)<\/script>/,
-)?.[1];
+const analyticsBootstrap = fs.readFileSync(
+  new URL('../js/analytics-bootstrap.js', import.meta.url),
+  'utf8',
+);
 
 function runBootstrap({
   hostname = 'app.getbased.health',
@@ -31,13 +31,11 @@ function runBootstrap({
     },
     location: { hostname, protocol },
     navigator: { onLine: online },
-    window: {
-      addEventListener: (type, listener, options) => {
-        if (type === 'online') {
-          onlineListener = listener;
-          onlineListenerOptions = options;
-        }
-      },
+    addEventListener: (type, listener, options) => {
+      if (type === 'online') {
+        onlineListener = listener;
+        onlineListenerOptions = options;
+      }
     },
   };
   vm.runInNewContext(analyticsBootstrap, context);

@@ -20,6 +20,8 @@ import { CANONICAL_METRICS, adapterById } from './wearable-adapters.js';
 import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
+import { saveImportedData } from './data.js';
+import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import {
   getAppleHealthJSZip,
@@ -66,8 +68,6 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
   onProgress?.({ stage: 'summarising', pct: 95 });
   // Fake a connection record so listConnectedSources picks up apple_health —
   // file-import adapters have no token / expiry, just a connectedAt stamp.
-  const { state } = await import('./state.js');
-  const { saveImportedData } = await import('./data.js');
   if (!state.importedData.wearableConnections) state.importedData.wearableConnections = {};
   state.importedData.wearableConnections.apple_health = {
     source: 'file-import',

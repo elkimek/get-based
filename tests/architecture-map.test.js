@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   findBoundaryViolations,
+  findRestrictedImportViolations,
   parseModuleSpecifiers,
   stronglyConnectedComponents,
   validateArchitecture,
@@ -72,6 +73,25 @@ describe('architecture map tooling', () => {
       fromGroup: 'browser',
       to: 'lib/server.js',
       toGroup: 'server-shared',
+    }]);
+  });
+
+  it('prevents feature modules from bypassing configured public facades', () => {
+    const architecture = {
+      importedBy: new Map([
+        ['js/private-impl.js', new Set(['js/public.js', 'js/bypass.js'])],
+      ]),
+    };
+    const rules = {
+      restrictedImports: [{
+        target: 'js/private-impl.js',
+        allowedImporters: ['js/public.js'],
+      }],
+    };
+
+    expect(findRestrictedImportViolations(architecture, rules)).toEqual([{
+      from: 'js/bypass.js',
+      to: 'js/private-impl.js',
     }]);
   });
 

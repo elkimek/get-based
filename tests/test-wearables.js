@@ -1711,8 +1711,8 @@ const profileRuntimeSrcP2 = await fetch('/js/profile-runtime.js').then(r => r.te
 assert('loadProfile dispatches migrateBiometricsToManual + syncWearableSummary on every load',
   profileSrcP2.includes('refreshProfileWearables(profileId, state.importedData?.biometrics)') &&
   !profileSrcP2.includes("import('./wearables-manual.js')") &&
-  profileRuntimeSrcP2.includes('manual.migrateBiometricsToManual(profileId, biometrics)') &&
-  profileRuntimeSrcP2.includes('summary.syncWearableSummary(profileId, connect.listConnectedSources())') &&
+  profileRuntimeSrcP2.includes('profileRefreshDeps.migrateBiometricsToManual(profileId, biometrics)') &&
+  profileRuntimeSrcP2.includes('profileRefreshDeps.syncWearableSummary(profileId, connect.listConnectedSources())') &&
   profileRuntimeSrcP2.includes('connect.syncStaleWearablesNow?.().catch'));
 
 // P2: deleteWearablesDB closes the cached connection before deleting
@@ -1759,12 +1759,15 @@ assert('Wearable scheduler routes stale sync through a shared in-flight guard',
 
 // P2: per-metric monotonic op token for manual save/delete.
 const wearablesSrcP2 = await fetch('/js/wearables.js').then(r => r.text());
-const wearablesDetailSrcP2 = await fetch('/js/wearables-detail-modal.js').then(r => r.text());
+const wearablesDetailSrcP2 = [
+  await fetch('/js/wearables-detail-modal.js').then(r => r.text()),
+  await fetch('/js/wearables-manual-detail.js').then(r => r.text()),
+].join('\n');
 assert('Manual save/delete uses per-metric op counter (Map keyed on metricId)',
-  /_manualEntryOps\s*=\s*new Map\(\)/.test(wearablesDetailSrcP2) &&
-  /_bumpManualEntryOp\(metricId\)/.test(wearablesDetailSrcP2));
+  /manualEntryOps\s*=\s*new Map\(\)/.test(wearablesDetailSrcP2) &&
+  /bumpManualEntryOp\(metricId\)/.test(wearablesDetailSrcP2));
 assert('Bail-out check compares against current op for the SAME metric',
-  /op\s*!==\s*_currentManualEntryOp\(metricId\)/.test(wearablesDetailSrcP2));
+  /operation\s*!==\s*manualEntryOps\.get\(metricId\)/.test(wearablesDetailSrcP2));
 
 // P2 security: minimal arg shape passed to disp.fetchAccountInfo.
 assert('disp.fetchAccountInfo receives only { userId } not the whole connection',
@@ -2159,7 +2162,10 @@ assert('Apple Health declares hrv_day with window:day flag',
 // AI context. Regression guard so a future refactor doesn't accidentally
 // surface them as their own cards (visual clutter).
 const wearablesSrc = await fetch('/js/wearables.js').then(r => r.text());
-const wearablesDetailSrc = await fetch('/js/wearables-detail-modal.js').then(r => r.text());
+const wearablesDetailSrc = [
+  await fetch('/js/wearables-detail-modal.js').then(r => r.text()),
+  await fetch('/js/wearables-manual-detail.js').then(r => r.text()),
+].join('\n');
 assert('Strip rendering hides hrv_day from card list',
   /STRIP_HIDDEN_METRICS\s*=\s*new Set\(\[[^\]]*'hrv_day'/.test(wearablesSrc));
 assert('Strip rendering hides hr_day from card list',

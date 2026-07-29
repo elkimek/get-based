@@ -3,38 +3,38 @@
   "runtimes": [
     {
       "package": "@cashu/cashu-ts",
-      "version": "4.7.0",
-      "integrity": "sha512-u/R9nHCBFugQeTKf1NCZscKp6Zblo3ubX8mFA0Ar8+lpGaHSndWmsQUsSQ7vrNGmdGtqOTMiR7hErEqVCVOY+A==",
+      "version": "4.7.2",
+      "integrity": "sha512-rNfArnXhaoUCi7crcLFwayHFQ9ek9VUI0EemBbleC9dNEhrJDGBdyqkFH7b6ubmA2Pej0DskUfiLRx0fCp0ebQ==",
       "entry": "scripts/vendor-entries/cashu.js",
       "output": "vendor/cashu-ts.js",
       "format": "iife",
       "minified": true,
-      "sha256": "868680ab602d796e724ff3f2b482715c0ec2ea7cf3bf97ee770736a60a111e63"
+      "sha256": "1ba8de2ba77ea4b50d88a14885464b22c1e8e276f5ec1ada5546a462319a48d4"
     },
     {
       "package": "tinfoil",
-      "version": "1.1.7",
-      "integrity": "sha512-vzxv96ELF2TCxD1lRoquHExZMdHTQqBA8q6DDZOkDhf2grl2XoKzXK+pUDOo02inQBa+mya+wOzYdT1JHqbumg==",
+      "version": "1.1.12",
+      "integrity": "sha512-fBNAKvGS9zTbzOicCm5Bv1UfICB4vWHza0S4FavvhtIU7I8KhUa1407CqFDTKTYdJUjHH8fAPMbdvkaW1bFecA==",
       "entry": "scripts/vendor-entries/tinfoil.js",
       "output": "vendor/tinfoil-browser.js",
       "format": "es",
       "minified": true,
-      "sha256": "341cf3c4baeef05be9414d8408c10d253e381c614587ae28e621f4b95c027973"
+      "sha256": "141f78829d4356d39a0ee4122b921c5ee5b410e4b913bdacf7a9311602d95de1"
     },
     {
       "package": "ehbp",
-      "version": "0.2.3",
-      "integrity": "sha512-f7iLlhGpeE5xNOYASR3d529PzmBD7Pq5Yb/z0R7vQcxalwNuVTHhX6i4wDJRIVai18MznwoOQ3OWyT/EWaDJ3w==",
+      "version": "0.3.1",
+      "integrity": "sha512-Y0g5OWSBWis5rJgw3mEftnvJtW5vD+5LSuzYwAy39HlmMWHm6KFBtw+Wr50IrCKWyRVW2VdxkMMwA8yAnBmkag==",
       "entry": "scripts/vendor-entries/ehbp.js",
       "output": "vendor/ehbp-browser.js",
       "format": "es",
       "minified": true,
-      "sha256": "c804562508342d94532e61c1a2c69ff407bdbdeccaa67cef564cbbf5193cef9c"
+      "sha256": "79d08b9f0a18e7564f31be074a99abfc9992c5b31cd4432a55eb48a47c2c9c48"
     }
   ],
   "bundler": {
     "package": "rolldown",
-    "version": "1.0.3",
-    "integrity": "sha512-i00lAJ2ks1BYr7rjNjKC7BcqAS7nVfiT3QX1SI5aY+AFHblCmaUf9OE9dbdzDvW6dJxbi2ZCZiy9v3CcwOiX3g=="
+    "version": "1.2.1",
+    "integrity": "sha512-4FKJhg8d3OiyQOA6Q1Q0hoFFpW9/OoX+VsHzpECsdsIZoOArrAK90gl59YK/Z+gnDel45bgJZK03ozH/9bCqEw=="
   }
 }

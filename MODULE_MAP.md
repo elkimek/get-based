@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 541 |
-| Internal import edges | 2403 |
-| Dynamic internal edges | 88 |
+| Modules | 546 |
+| Internal import edges | 2407 |
+| Dynamic internal edges | 65 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -26,6 +26,19 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | server-shared | `lib/` | server-shared |
 | local-server | `dev-server.js` | server-shared |
 | service-worker | `service-worker.js`, `service-worker-runtime.js` | service-worker |
+
+### Facade-only implementation modules
+
+These implementation modules may only be imported by their public facade.
+
+| Implementation | Allowed importer(s) |
+| --- | --- |
+| [`js/client-list-impl.js`](js/client-list-impl.js) | [`js/client-list.js`](js/client-list.js) |
+| [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) | [`js/settings-sync-panel.js`](js/settings-sync-panel.js) |
+| [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | [`js/marker-detail-modal.js`](js/marker-detail-modal.js) |
+| [`js/context-card-dashboard-ai-impl.js`](js/context-card-dashboard-ai-impl.js) | [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) |
+| [`js/context-card-medical-history-editor-impl.js`](js/context-card-medical-history-editor-impl.js) | [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js) |
+| [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) | [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js) |
 
 ## Runtime entry points
 
@@ -42,13 +55,13 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 245 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 170 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/caught-error.js`](js/caught-error.js) | 76 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
+| [`js/utils.js`](js/utils.js) | 246 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
+| [`js/state.js`](js/state.js) | 171 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/caught-error.js`](js/caught-error.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/data.js`](js/data.js) | 76 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/api.js`](js/api.js) | 65 | [`js/chat-send.js`](js/chat-send.js) | 22 |
-| [`js/profile.js`](js/profile.js) | 47 | [`js/views.js`](js/views.js) | 22 |
+| [`js/profile.js`](js/profile.js) | 48 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 34 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 31 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
@@ -89,6 +102,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>analytics</code> family — 1 module</summary>
+
+- [`js/analytics-bootstrap.js`](js/analytics-bootstrap.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>api</code> family — 14 modules</summary>
 
 - [`js/api-custom.js`](js/api-custom.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/caught-error.js`](js/caught-error.js)
@@ -117,16 +136,16 @@ Native browser modules shipped with the static application.
 - [`js/app-foundation-modules.js`](js/app-foundation-modules.js) → [`js/constants.js`](js/constants.js), [`js/legal-consent.js`](js/legal-consent.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
 - [`js/app-health-data-modules.js`](js/app-health-data-modules.js) → [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/cycle.js`](js/cycle.js), [`js/dna.js`](js/dna.js), [`js/notes.js`](js/notes.js), [`js/recommendations.js`](js/recommendations.js), [`js/supplements.js`](js/supplements.js)
 - [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) → [`js/light-ai-save-hooks.js`](js/light-ai-save-hooks.js), [`js/light-audit-ai-analysis.js`](js/light-audit-ai-analysis.js), [`js/light-burden-ai-analysis.js`](js/light-burden-ai-analysis.js), [`js/light-channel-view-hooks.js`](js/light-channel-view-hooks.js), [`js/light-channel-view.js`](js/light-channel-view.js), [`js/light-channels-ai-analysis.js`](js/light-channels-ai-analysis.js), [`js/light-conditions-now-hooks.js`](js/light-conditions-now-hooks.js), [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/light-device-ai-analysis.js`](js/light-device-ai-analysis.js), [`js/light-devices-runtime.js`](js/light-devices-runtime.js), [`js/light-devices.js`](js/light-devices.js), [`js/light-env-ai-analysis.js`](js/light-env-ai-analysis.js), [`js/light-env.js`](js/light-env.js), [`js/light-page-view-hooks.js`](js/light-page-view-hooks.js), [`js/light-page-view.js`](js/light-page-view.js), [`js/light-screen-ai-analysis.js`](js/light-screen-ai-analysis.js), [`js/light-sessions-view-hooks.js`](js/light-sessions-view-hooks.js), [`js/light-sessions-view.js`](js/light-sessions-view.js), [`js/light-sun-ai-hooks.js`](js/light-sun-ai-hooks.js), [`js/light-today-ai.js`](js/light-today-ai.js), [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js), [`js/light-tools.js`](js/light-tools.js), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-ai-analysis.js`](js/sun-ai-analysis.js), [`js/sun-context-hooks.js`](js/sun-context-hooks.js), [`js/sun-context.js`](js/sun-context.js), [`js/sun-correlations.js`](js/sun-correlations.js), [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-onboarding-ai.js`](js/sun-onboarding-ai.js), [`js/sun-runtime.js`](js/sun-runtime.js), [`js/sun-session-ai-render-hooks.js`](js/sun-session-ai-render-hooks.js), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js)
-- [`js/app-shell-hooks.js`](js/app-shell-hooks.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/api.js`](js/api.js), [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/biology-score-ai-context.js`](js/biology-score-ai-context.js), [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores-runtime.js`](js/biology-scores-runtime.js), [`js/category-customization-runtime.js`](js/category-customization-runtime.js), [`js/category-page-view.js`](js/category-page-view.js), [`js/changelog.js`](js/changelog.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/client-list.js`](js/client-list.js), [`js/compare-correlations.js`](js/compare-correlations.js), [`js/context-card-dashboard-ai-runtime.js`](js/context-card-dashboard-ai-runtime.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import-loader.js`](js/cycle-import-loader.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/dashboard-page-view.js`](js/dashboard-page-view.js), [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js), [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/data.js`](js/data.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/emf-interpretation.js`](js/emf-interpretation.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/emf.js`](js/emf.js) *(dynamic)*, [`js/export-loader.js`](js/export-loader.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/feedback.js`](js/feedback.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-loader.js`](js/import-loader.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/nav-runtime.js`](js/nav-runtime.js), [`js/nav.js`](js/nav.js), [`js/notes-runtime.js`](js/notes-runtime.js), [`js/onboarding-view-runtime.js`](js/onboarding-view-runtime.js), [`js/pdf-import-commit.js`](js/pdf-import-commit.js) *(dynamic)*, [`js/pdf-import-review-runtime.js`](js/pdf-import-review-runtime.js), [`js/pdf-import-review.js`](js/pdf-import-review.js) *(dynamic)*, [`js/profile-runtime.js`](js/profile-runtime.js), [`js/profile-share-loader.js`](js/profile-share-loader.js), [`js/profile.js`](js/profile.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*, [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/settings-loader.js`](js/settings-loader.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/shell-actions.js`](js/shell-actions.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/supplements-runtime.js`](js/supplements-runtime.js), [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/tour-runtime.js`](js/tour-runtime.js), [`js/views-router-runtime.js`](js/views-router-runtime.js), [`js/views.js`](js/views.js), [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables.js`](js/wearables.js) *(dynamic)*
+- [`js/app-shell-hooks.js`](js/app-shell-hooks.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/api.js`](js/api.js), [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/biology-score-ai-context.js`](js/biology-score-ai-context.js), [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores-runtime.js`](js/biology-scores-runtime.js), [`js/category-customization-runtime.js`](js/category-customization-runtime.js), [`js/category-page-view.js`](js/category-page-view.js), [`js/changelog.js`](js/changelog.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/client-list.js`](js/client-list.js), [`js/compare-correlations.js`](js/compare-correlations.js), [`js/context-card-dashboard-ai-runtime.js`](js/context-card-dashboard-ai-runtime.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import-loader.js`](js/cycle-import-loader.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/dashboard-page-view.js`](js/dashboard-page-view.js), [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js), [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/data.js`](js/data.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/emf-interpretation.js`](js/emf-interpretation.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/emf.js`](js/emf.js) *(dynamic)*, [`js/export-loader.js`](js/export-loader.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/feedback.js`](js/feedback.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-loader.js`](js/import-loader.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/nav-runtime.js`](js/nav-runtime.js), [`js/nav.js`](js/nav.js), [`js/notes-runtime.js`](js/notes-runtime.js), [`js/onboarding-view-runtime.js`](js/onboarding-view-runtime.js), [`js/pdf-import-commit.js`](js/pdf-import-commit.js) *(dynamic)*, [`js/pdf-import-review-runtime.js`](js/pdf-import-review-runtime.js), [`js/pdf-import-review.js`](js/pdf-import-review.js) *(dynamic)*, [`js/profile-runtime.js`](js/profile-runtime.js), [`js/profile-share-loader.js`](js/profile-share-loader.js), [`js/profile.js`](js/profile.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*, [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/settings-loader.js`](js/settings-loader.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/shell-actions.js`](js/shell-actions.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/supplements-runtime.js`](js/supplements-runtime.js), [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync.js`](js/sync.js), [`js/tour-runtime.js`](js/tour-runtime.js), [`js/views-router-runtime.js`](js/views-router-runtime.js), [`js/views.js`](js/views.js), [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables.js`](js/wearables.js) *(dynamic)*
 - [`js/app-ui-shell-modules.js`](js/app-ui-shell-modules.js) → [`js/app-shell-hooks.js`](js/app-shell-hooks.js), [`js/feedback.js`](js/feedback.js), [`js/light-env-shell-hooks.js`](js/light-env-shell-hooks.js), [`js/touch-tooltip.js`](js/touch-tooltip.js), [`js/tour.js`](js/tour.js), [`js/views.js`](js/views.js)
 
 </details>
 
 <details><summary><code>backup</code> family — 3 modules</summary>
 
-- [`js/backup-cycle.js`](js/backup-cycle.js) → [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*
+- [`js/backup-cycle.js`](js/backup-cycle.js) → [`js/cycle-store.js`](js/cycle-store.js)
 - [`js/backup-serialization.js`](js/backup-serialization.js) → no in-scope imports
-- [`js/backup.js`](js/backup.js) → [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
+- [`js/backup.js`](js/backup.js) → [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 
@@ -383,6 +402,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>extra</code> family — 1 module</summary>
+
+- [`js/extra-theme-bootstrap.js`](js/extra-theme-bootstrap.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>feedback</code> family — 1 module</summary>
 
 - [`js/feedback.js`](js/feedback.js) → [`js/api.js`](js/api.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/theme.js`](js/theme.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
@@ -438,7 +463,7 @@ Native browser modules shipped with the static application.
 
 - [`js/lab-context-output.js`](js/lab-context-output.js) → [`js/data.js`](js/data.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
 - [`js/lab-context-settings.js`](js/lab-context-settings.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/lab-context-wearables.js`](js/lab-context-wearables.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/profile.js`](js/profile.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
+- [`js/lab-context-wearables.js`](js/lab-context-wearables.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/lab-context.js`](js/lab-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-output.js`](js/lab-context-output.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-date-range.js`](js/lab-date-range.js) → no in-scope imports
 - [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js) → [`js/data-merge.js`](js/data-merge.js), [`js/lab-entry.js`](js/lab-entry.js)
@@ -660,12 +685,12 @@ Native browser modules shipped with the static application.
 - [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js) → [`js/adapters.js`](js/adapters.js)
 - [`js/profile-list-store.js`](js/profile-list-store.js) → [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js), [`js/schema.js`](js/schema.js)
-- [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-loader.js`](js/chat-loader.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/lab-context.js`](js/lab-context.js) *(dynamic)*, [`js/nav.js`](js/nav.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/views.js`](js/views.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
+- [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-loader.js`](js/chat-loader.js), [`js/state.js`](js/state.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*
 - [`js/profile-share-loader.js`](js/profile-share-loader.js) → [`js/profile-share.js`](js/profile-share.js) *(dynamic)*, [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-share.js`](js/profile-share.js) → [`js/caught-error.js`](js/caught-error.js), [`js/export.js`](js/export.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
-- [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js) *(dynamic)*, [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
+- [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/profile-storage-key.js`](js/profile-storage-key.js) → no in-scope imports
-- [`js/profile.js`](js/profile.js) → [`js/api.js`](js/api.js), [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+- [`js/profile.js`](js/profile.js) → [`js/api.js`](js/api.js), [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -766,7 +791,7 @@ Native browser modules shipped with the static application.
 
 - [`js/startup-foundation.js`](js/startup-foundation.js) → [`js/crypto.js`](js/crypto.js), [`js/sun-uvdata.js`](js/sun-uvdata.js)
 - [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js) → [`js/sun-sessions-store.js`](js/sun-sessions-store.js) *(dynamic)*
-- [`js/startup-maintenance.js`](js/startup-maintenance.js) → [`js/light-devices.js`](js/light-devices.js) *(dynamic)*, [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
+- [`js/startup-maintenance.js`](js/startup-maintenance.js) → [`js/light-devices.js`](js/light-devices.js) *(dynamic)*, [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js)
 - [`js/startup-orchestrator.js`](js/startup-orchestrator.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/import-loader.js`](js/import-loader.js), [`js/startup-foundation.js`](js/startup-foundation.js), [`js/startup-maintenance.js`](js/startup-maintenance.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/startup-profile.js`](js/startup-profile.js) → [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
@@ -906,8 +931,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>theme</code> family — 2 modules</summary>
+<details><summary><code>theme</code> family — 3 modules</summary>
 
+- [`js/theme-bootstrap.js`](js/theme-bootstrap.js) → no in-scope imports
 - [`js/theme-runtime.js`](js/theme-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js)
 - [`js/theme.js`](js/theme.js) → [`js/theme-runtime.js`](js/theme-runtime.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
@@ -966,37 +992,38 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>wearables</code> family — 31 modules</summary>
+<details><summary><code>wearables</code> family — 32 modules</summary>
 
 - [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js) → no in-scope imports
-- [`js/wearables-apple-health.js`](js/wearables-apple-health.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js) *(dynamic)*, [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+- [`js/wearables-apple-health.js`](js/wearables-apple-health.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js) → no in-scope imports
 - [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/charts.js`](js/charts.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js) → [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*
 - [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js) → no in-scope imports
 - [`js/wearables-connect.js`](js/wearables-connect.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js), [`js/wearables-fitbit.js`](js/wearables-fitbit.js), [`js/wearables-oura-auth.js`](js/wearables-oura-auth.js), [`js/wearables-oura.js`](js/wearables-oura.js), [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js), [`js/wearables-polar.js`](js/wearables-polar.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables-ultrahuman-auth.js`](js/wearables-ultrahuman-auth.js), [`js/wearables-ultrahuman.js`](js/wearables-ultrahuman.js), [`js/wearables-whoop-auth.js`](js/wearables-whoop-auth.js), [`js/wearables-whoop.js`](js/wearables-whoop.js), [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js), [`js/wearables-withings.js`](js/wearables-withings.js)
-- [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js) → [`js/caught-error.js`](js/caught-error.js), [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js) → [`js/caught-error.js`](js/caught-error.js), [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-manual-detail.js`](js/wearables-manual-detail.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-fitbit.js`](js/wearables-fitbit.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-formatters.js`](js/wearables-formatters.js) → [`js/wearable-adapters.js`](js/wearable-adapters.js)
+- [`js/wearables-manual-detail.js`](js/wearables-manual-detail.js) → [`js/caught-error.js`](js/caught-error.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-manual.js`](js/wearables-manual.js)
 - [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js) → [`js/utils.js`](js/utils.js)
-- [`js/wearables-manual.js`](js/wearables-manual.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js) *(dynamic)*
+- [`js/wearables-manual.js`](js/wearables-manual.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-oura-auth.js`](js/wearables-oura-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-oura.js`](js/wearables-oura.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js)
 - [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-polar.js`](js/wearables-polar.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-runtime.js`](js/wearables-runtime.js) → [`js/emf-runtime.js`](js/emf-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
-- [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*, [`js/wearables-summary.js`](js/wearables-summary.js)
+- [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-store.js`](js/wearables-store.js) → no in-scope imports
-- [`js/wearables-strip-actions.js`](js/wearables-strip-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-manual.js`](js/wearables-manual.js) *(dynamic)*, [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+- [`js/wearables-strip-actions.js`](js/wearables-strip-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-summary.js`](js/wearables-summary.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-ultrahuman-auth.js`](js/wearables-ultrahuman-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-ultrahuman.js`](js/wearables-ultrahuman.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-whoop-auth.js`](js/wearables-whoop-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-whoop.js`](js/wearables-whoop.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
-- [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js), [`js/wearables-withings.js`](js/wearables-withings.js) *(dynamic)*
+- [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js), [`js/wearables-withings.js`](js/wearables-withings.js)
 - [`js/wearables-withings.js`](js/wearables-withings.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js), [`js/wearables-oura.js`](js/wearables-oura.js)
 - [`js/wearables.js`](js/wearables.js) → [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js), [`js/wearables-strip-actions.js`](js/wearables-strip-actions.js)
 
@@ -1020,7 +1047,7 @@ Vercel request handlers and hosted API entry points.
 
 <details><summary><code>share</code> family — 1 module</summary>
 
-- [`api/share.js`](api/share.js) → [`lib/error-utils.js`](lib/error-utils.js)
+- [`api/share.js`](api/share.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
 
 </details>
 
@@ -1046,8 +1073,14 @@ Node-only policy and transport code shared by hosted runtimes.
 
 - [`lib/proxy-network.js`](lib/proxy-network.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
 - [`lib/proxy-policy.js`](lib/proxy-policy.js) → no in-scope imports
-- [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) → no in-scope imports
+- [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
 - [`lib/proxy-upstream.js`](lib/proxy-upstream.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-network.js`](lib/proxy-network.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+
+</details>
+
+<details><summary><code>vercel</code> family — 1 module</summary>
+
+- [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js) → no in-scope imports
 
 </details>
 

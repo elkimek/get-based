@@ -16,6 +16,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -78,6 +81,13 @@ jobs:
 
       - name: Run test suite with coverage ratchet
         run: COVERAGE=1 SKIP_TYPECHECK=1 ./run-tests.sh
+
+      - name: Smoke the deployed production APIs
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_COMMIT_SHA: ${{ github.sha }}
+          PRODUCTION_BASE_URL: https://app.getbased.health
+        run: node scripts/production-smoke.mjs
 
       - name: Upload test logs on failure
         if: failure()

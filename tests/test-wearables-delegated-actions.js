@@ -9,7 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const stripSrc = fs.readFileSync(path.join(root, 'js/wearables.js'), 'utf8');
 const stripActionsSrc = fs.readFileSync(path.join(root, 'js/wearables-strip-actions.js'), 'utf8');
-const detailSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
+const detailModalSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
+const manualDetailSrc = fs.readFileSync(path.join(root, 'js/wearables-manual-detail.js'), 'utf8');
+const detailSrc = `${detailModalSrc}\n${manualDetailSrc}`;
 const settingsPanelSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-panel.js'), 'utf8');
 const stripImportsSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripSrc);
 const stripActionsImportSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripActionsSrc);
@@ -45,20 +47,20 @@ assert('wearables strip renders delegated action attributes',
     stripSrc.includes("wearableActionAttrs('move-card'") &&
     stripActionsSrc.includes("wearableActionAttrs('manual-log-save'"));
 assert('wearables detail modal renders delegated action and form attributes',
-  detailSrc.includes('export function wearableActionAttrs') &&
-    detailSrc.includes('function wearableFormAttrs') &&
-    detailSrc.includes('data-wearable-action=') &&
-    detailSrc.includes('data-wearable-form=') &&
-    detailSrc.includes("wearableActionAttrs('set-detail-range'") &&
-    detailSrc.includes("wearableActionAttrs('delete-detail-manual-entry'") &&
-    detailSrc.includes("wearableFormAttrs('detail-manual-add'"));
+  detailModalSrc.includes('export function wearableActionAttrs') &&
+    manualDetailSrc.includes('function formAttrs') &&
+    manualDetailSrc.includes('data-wearable-action=') &&
+    manualDetailSrc.includes('data-wearable-form="detail-manual-add"') &&
+    detailModalSrc.includes("wearableActionAttrs('set-detail-range'") &&
+    detailModalSrc.includes("wearableActionAttrs('delete-detail-manual-entry'") &&
+    manualDetailSrc.includes('formAttrs(metricId, kind)'));
 assert('wearables detail modal opens through shared overlay lifecycle helper',
   detailSrc.includes("from './modal-lifecycle.js'") &&
     detailSrc.includes('openModalOverlay(overlay)'));
 assert('wearable action attr helper has one shared definition',
   (stripSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 0 &&
     (stripActionsSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 0 &&
-    (detailSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 1 &&
+    (detailModalSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 1 &&
     stripImportsSharedActionHelper &&
     stripActionsImportSharedActionHelper);
 assert('wearables module installs idempotent click keydown and submit delegates',

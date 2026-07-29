@@ -17,37 +17,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="getbased">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <script>
-    (() => {
-      const themeColors = {
-        dark: '#0a0a12',
-        light: '#ffffff',
-        cyberterm: '#0b0d0b',
-        glass: '#0a0817',
-        'synth-sunrise': '#0d0524',
-        neuromancer: '#050608',
-      };
-      const valid = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
-      let theme = 'dark';
-      let sunsetMode = false;
-      try {
-        theme = localStorage.getItem('labcharts-theme') || 'dark';
-        if (!valid.includes(theme)) theme = 'dark';
-        if (valid.includes(theme)) document.documentElement.dataset.theme = theme;
-        if (localStorage.getItem('labcharts-sunset-mode') === 'true') {
-          sunsetMode = true;
-          document.documentElement.dataset.sunsetMode = 'on';
-        }
-        if (localStorage.getItem('labcharts-crt-effects') === 'true') {
-          document.documentElement.dataset.crtEffects = 'on';
-        }
-      } catch {}
-      if (theme === 'dark') delete document.documentElement.dataset.theme;
-      document.documentElement.style.colorScheme = !sunsetMode && theme === 'light' ? 'light' : 'dark';
-      const themeColor = sunsetMode ? '#120504' : (themeColors[theme] || themeColors.dark);
-      document.querySelectorAll('meta[name="theme-color"]').forEach(meta => { meta.content = themeColor; });
-    })();
-  </script>
+  <script src="js/theme-bootstrap.js"></script>
   <style>#main-content{min-height:calc(100vh - 64px + 180px)}</style>
   <link rel="stylesheet" href="vendor/fonts/fonts.css">
   <link rel="stylesheet" href="styles.css">
@@ -78,24 +48,7 @@
   <link rel="stylesheet" href="css/chat-redesign.css">
   <meta data-chat-redesign-open-stylesheet-anchor>
   <meta data-extra-themes-stylesheet-anchor>
-  <script>
-    (() => {
-      const selectedTheme = document.documentElement.dataset.theme;
-      if (!selectedTheme || selectedTheme === 'light') return;
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'themes-extra.css';
-      link.dataset.extraThemesStylesheet = '';
-      link.addEventListener('error', () => {
-        link.remove();
-        delete document.documentElement.dataset.theme;
-        document.documentElement.style.colorScheme = 'dark';
-        try { localStorage.setItem('labcharts-theme', 'dark'); } catch {}
-      }, { once: true });
-      const anchor = document.querySelector('[data-extra-themes-stylesheet-anchor]');
-      anchor?.parentNode?.insertBefore(link, anchor);
-    })();
-  </script>
+  <script src="js/extra-theme-bootstrap.js"></script>
   <style data-shared-theme-modes>
     /* Keep shell geometry stable when any named theme is active. These rules
        stay eager because light mode uses data-theme and sunset is cross-theme. */
@@ -491,37 +444,6 @@
   <!-- PRODUCTION_MAIN_SCRIPT_START -->
   <script type="module" src="js/main.js"></script>
   <!-- PRODUCTION_MAIN_SCRIPT_END -->
-  <script>
-    // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on
-    // file:// (offline export), .onion (Tor), local dev hosts (so the
-    // maintainer's own iteration doesn't inflate prod numbers), and when
-    // explicitly disabled. An offline PWA waits for its first reconnect.
-    var _isDevHostUmami = location.hostname === 'localhost'
-                       || location.hostname === '127.0.0.1'
-                       || location.hostname.endsWith('.local')
-                       || location.hostname.endsWith('.localhost');
-    var _canUseUmami = location.protocol !== 'file:'
-                    && !location.hostname.endsWith('.onion')
-                    && !_isDevHostUmami;
-    var _umamiScriptAdded = false;
-    function _loadUmami() {
-      if (!_canUseUmami
-          || _umamiScriptAdded
-          || localStorage.getItem('labcharts-analytics-disabled') === 'true') return;
-      var s = document.createElement('script');
-      s.defer = true;
-      s.src = 'https://umami-iota-olive.vercel.app/script.js';
-      s.dataset.websiteId = '6272072c-97a9-47b0-99e7-c52e7a4ca481';
-      document.head.appendChild(s);
-      _umamiScriptAdded = true;
-    }
-    if (_canUseUmami) {
-      if (navigator.onLine === false) {
-        window.addEventListener('online', _loadUmami, { once: true });
-      } else {
-        _loadUmami();
-      }
-    }
-  </script>
+  <script src="js/analytics-bootstrap.js"></script>
 </body>
 </html>

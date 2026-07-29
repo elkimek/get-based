@@ -558,7 +558,7 @@ const _origProfileSex = state ? state.profileSex : null;
       && !/window\.showDashboard\(\);/.test(startupUiSrc));
     assert('profile.js: profile switch restores that profile route',
       profileSrc.includes('await reloadProfileRuntimeShell(profileId)')
-      && /views\.navigate\(views\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileRuntimeSrc));
+      && /profileRefreshDeps\.navigate\(profileRefreshDeps\.getInitialView\(\) \|\| 'dashboard'\)/.test(profileRuntimeSrc));
     assert('nav.js: sidebar rebuild preserves current route selection',
       /export function syncSidebarActive/.test(navSrc)
       && /nav\.innerHTML\s*=\s*html;\s*syncSidebarActive\(state\.currentView \|\| 'dashboard'\)/.test(navSrc));

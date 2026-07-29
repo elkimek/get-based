@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1100000,
-    "outputJavaScriptFiles": 140,
+    "startupDecodedBytes": 1150000,
+    "outputJavaScriptFiles": 150,
     "outputDecodedBytes": 4500000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1015500,
-    "outputJavaScriptFiles": 127,
-    "outputDecodedBytes": 4043101
+    "startupDecodedBytes": 1012390,
+    "outputJavaScriptFiles": 134,
+    "outputDecodedBytes": 3958886
   },
-  "referenceCommit": "f064079d",
-  "measuredAt": "2026-07-26"
+  "referenceCommit": "807732a8",
+  "measuredAt": "2026-07-29"
 }

@@ -19,6 +19,9 @@ import {
 } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
+import { saveImportedData } from './data.js';
+import { clearSource, getDailyRange } from './wearables-store.js';
+import { refreshManualSummary } from './wearables-manual.js';
 import {
   closeWearableSettingsModal,
   confirmWearableSettingsAction,
@@ -426,15 +429,12 @@ async function handleManualDisconnect() {
     'Delete all manual entries? This removes every weight / BP / pulse entry you\'ve logged manually. Data from connected wearables (Oura, Withings, etc.) is untouched. Can\'t be undone.'
   )) {
     try {
-      const { clearSource } = await import('./wearables-store.js');
-      const { refreshManualSummary } = await import('./wearables-manual.js');
       const profileId = getActiveProfileId();
       await clearSource(profileId, 'manual');
       // Drop the connection record too — the row disappears from the strip
       // source header and the Settings integrations list.
       if (state.importedData.wearableConnections) {
         delete state.importedData.wearableConnections.manual;
-        const { saveImportedData } = await import('./data.js');
         await saveImportedData();
       }
       await refreshManualSummary(profileId);
@@ -454,7 +454,6 @@ async function _updateManualCounts() {
   const el = document.querySelector('[data-role="manual-counts"]');
   if (!el) return;
   try {
-    const { getDailyRange } = await import('./wearables-store.js');
     const profileId = getActiveProfileId();
     const rows = await getDailyRange(profileId, 'manual', '2000-01-01', '2099-12-31');
     let weightN = 0, bpN = 0, rhrN = 0;

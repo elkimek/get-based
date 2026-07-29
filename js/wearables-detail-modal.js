@@ -16,17 +16,28 @@ import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs, formatChartTickValue, isChartDateAdapterReady } from './charts.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
-import { _collectActiveChips, _renderNoteField, _renderTagChips, inputValueById, inputValueFromElement } from './wearables-manual-form-ui.js';
 import { renderBloodPressureChart } from './wearables-bp-detail-chart.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
   closeWearableDetailModalRuntime,
-  confirmWearableDetailActionRuntime,
   createWearableDetailChartRuntime,
   hasWearableDetailChartRuntime,
-  navigateWearableDetailRuntime,
   rememberWearableDetailModalTriggerRuntime,
 } from './wearables-detail-runtime.js';
+import {
+  closeManualAddFromDetail,
+  configureWearableManualDetailDeps,
+  deleteManualEntryFromDetail,
+  openManualAddFromDetail,
+  saveManualEntryFromDetail,
+} from './wearables-manual-detail.js';
+
+export {
+  closeManualAddFromDetail,
+  deleteManualEntryFromDetail,
+  openManualAddFromDetail,
+  saveManualEntryFromDetail,
+};
 const WEARABLE_DETAIL_RANGES = [
   { key: '90d', days: 90, label: '90d', coverageSuffix: 'of last 90 days', emptyWindow: 'the last 90 days' },
   { key: '6m', days: 180, label: '6m', coverageSuffix: 'of last 6 months', emptyWindow: 'the last 6 months' },
@@ -39,15 +50,6 @@ const WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
 export function wearableActionAttrs(action, attrs = {}) {
   return [
     `data-wearable-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-wearable-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
-}
-
-function wearableFormAttrs(form, attrs = {}) {
-  return [
-    `data-wearable-form="${escapeAttr(form)}"`,
     ...Object.entries(attrs)
       .filter(([, value]) => value !== undefined && value !== null && value !== '')
       .map(([name, value]) => `data-wearable-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
@@ -641,158 +643,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
   if (chart) state.chartInstances['modal'] = chart;
 }
 
-export function openManualAddFromDetail(metricId, event) {
-  if (event) event.stopPropagation();
-  const slot = document.getElementById('wearable-manual-add-slot');
-  if (!slot) return;
-  const today = isoDay();
-  const isBP = metricId === 'bp_systolic' || metricId === 'bp_diastolic';
-  const isRhr = metricId === 'rhr';
-  const kind = isBP ? 'bp' : metricId === 'weight' ? 'weight' : isRhr ? 'rhr' : null;
-  if (!kind) return;
-  if (kind === 'weight') {
-    const weightUnit = state.unitSystem === 'US' ? 'lb' : 'kg';
-    slot.innerHTML = `<form class="wearable-manual-add-form" ${wearableFormAttrs('detail-manual-add', { metric: metricId, kind: 'weight' })}>
-      <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wlad-val" placeholder="${weightUnit}" aria-label="Weight in ${weightUnit === 'lb' ? 'pounds' : 'kilograms'}" autofocus>
-      ${_renderNoteField('wlad-note')}
-      <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
-      <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
-    </form>`;
-  } else if (kind === 'rhr') {
-    slot.innerHTML = `<form class="wearable-manual-add-form" ${wearableFormAttrs('detail-manual-add', { metric: metricId, kind: 'rhr' })}>
-      <input type="number" inputmode="numeric" class="wearable-log-input" id="wlad-val" placeholder="bpm" autofocus>
-      ${_renderTagChips('rhr')}
-      ${_renderNoteField('wlad-note')}
-      <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
-      <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
-    </form>`;
-  } else if (kind === 'bp') {
-    slot.innerHTML = `<form class="wearable-manual-add-form wearable-manual-add-form-bp" ${wearableFormAttrs('detail-manual-add', { metric: metricId, kind: 'bp' })}>
-      <span class="wearable-log-bp-row">
-        <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wlad-sys" placeholder="sys" autofocus>
-        <span class="wearable-log-sep">/</span>
-        <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wlad-dia" placeholder="dia">
-      </span>
-      <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-pulse-optional" id="wlad-pulse" placeholder="pulse (optional)">
-      ${_renderTagChips('bp_systolic')}
-      ${_renderNoteField('wlad-note')}
-      <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
-      <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
-    </form>`;
-  }
-  const firstNumberInput = slot.querySelector('input[type="number"]');
-  if (firstNumberInput instanceof HTMLElement) firstNumberInput.focus();
-}
-
-export function closeManualAddFromDetail() {
-  const slot = document.getElementById('wearable-manual-add-slot');
-  if (slot) slot.innerHTML = '';
-}
-
-const _manualEntryOps = new Map();
-
-function _bumpManualEntryOp(metricId) {
-  const next = (_manualEntryOps.get(metricId) || 0) + 1;
-  _manualEntryOps.set(metricId, next);
-  return next;
-}
-
-function _currentManualEntryOp(metricId) {
-  return _manualEntryOps.get(metricId) || 0;
-}
-
-export async function saveManualEntryFromDetail(metricId, kind) {
-  const op = _bumpManualEntryOp(metricId);
-  const { logManualMetric, logManualBP, refreshManualSummary } = await import('./wearables-manual.js');
-  const profileId = getActiveProfileId();
-  const date = inputValueById('wlad-date');
-  if (!date) {
-    showNotification?.('Pick a date', 'error');
-    return;
-  }
-  const formEl = document.querySelector('.wearable-manual-add-form');
-  const tags = formEl ? _collectActiveChips(formEl) : [];
-  const note = inputValueFromElement(document.getElementById('wlad-note'));
-  try {
-    if (kind === 'weight') {
-      const val = parseFloat(inputValueById('wlad-val'));
-      if (!val || val <= 0) {
-        showNotification?.('Enter a weight', 'error');
-        return;
-      }
-      if (val > 500) {
-        showNotification?.('Weight over 500 kg seems unlikely', 'error');
-        return;
-      }
-      await logManualMetric(profileId, 'weight', { date, value: val, tags, note });
-    } else if (kind === 'rhr') {
-      const val = parseInt(inputValueById('wlad-val'), 10);
-      if (!val || val <= 0) {
-        showNotification?.('Enter a pulse', 'error');
-        return;
-      }
-      if (val > 250) {
-        showNotification?.('Pulse over 250 bpm seems unlikely', 'error');
-        return;
-      }
-      await logManualMetric(profileId, 'rhr', { date, value: val, tags, note });
-    } else if (kind === 'bp') {
-      const sys = parseInt(inputValueById('wlad-sys'), 10);
-      const dia = parseInt(inputValueById('wlad-dia'), 10);
-      const pulse = parseInt(inputValueById('wlad-pulse'), 10);
-      if (!sys || !dia || sys <= 0 || dia <= 0) {
-        showNotification?.('Enter systolic and diastolic', 'error');
-        return;
-      }
-      if (sys > 300 || dia > 200) {
-        showNotification?.('BP values seem too high', 'error');
-        return;
-      }
-      if (dia >= sys) {
-        showNotification?.('Diastolic should be lower than systolic', 'error');
-        return;
-      }
-      await logManualBP(profileId, { date, systolic: sys, diastolic: dia, pulse: isFinite(pulse) && pulse > 0 ? pulse : undefined, tags, note });
-    }
-    await refreshManualSummary(profileId);
-    if (op !== _currentManualEntryOp(metricId)) return;
-    showNotification?.('Saved', 'success');
-    navigateWearableDetailRuntime('dashboard');
-    openWearableDetail(metricId);
-  } catch (e) {
-    showNotification?.(`Couldn't save: ${getErrorMessage(e)}`, 'error', 4000);
-  }
-}
-
-export async function deleteManualEntryFromDetail(metricId, date) {
-  const op = _bumpManualEntryOp(metricId);
-  const canon = canonicalMetric(metricId);
-  const label = canon?.label || metricId;
-  if (await confirmWearableDetailActionRuntime(`Delete this ${label.toLowerCase()} reading from ${date}?`)) {
-    try {
-      const { deleteManualMetric, refreshManualSummary } = await import('./wearables-manual.js');
-      const profileId = getActiveProfileId();
-      if (metricId === 'bp_systolic' || metricId === 'bp_diastolic') {
-        await deleteManualMetric(profileId, 'bp_systolic', date);
-        await deleteManualMetric(profileId, 'bp_diastolic', date);
-      } else {
-        await deleteManualMetric(profileId, metricId, date);
-      }
-      await refreshManualSummary(profileId);
-      if (op !== _currentManualEntryOp(metricId)) return;
-      showNotification?.('Deleted', 'success');
-      navigateWearableDetailRuntime('dashboard');
-      const stillHasMetric = !!state.importedData?.wearableSummary?.metrics?.[metricId];
-      if (stillHasMetric) {
-        openWearableDetail(metricId);
-      } else {
-        closeWearableDetailModalRuntime();
-      }
-    } catch (e) {
-      showNotification?.(`Couldn't delete: ${getErrorMessage(e)}`, 'error', 4000);
-    }
-  }
-}
+configureWearableManualDetailDeps({
+  closeDetail: closeWearableDetailModalRuntime,
+  openDetail: openWearableDetail,
+});
