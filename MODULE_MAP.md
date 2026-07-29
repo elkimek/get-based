@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 522 |
-| Internal import edges | 2328 |
+| Modules | 524 |
+| Internal import edges | 2339 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,21 +38,21 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 240 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 165 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/utils.js`](js/utils.js) | 241 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 167 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 75 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 69 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
-| [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
+| [`js/profile.js`](js/profile.js) | 46 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 33 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/constants.js`](js/constants.js) | 21 | [`js/export.js`](js/export.js) | 18 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 18 | [`js/sun.js`](js/sun.js) | 17 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/cycle-import.js`](js/cycle-import.js) | 15 |
-| [`js/context-cards-runtime.js`](js/context-cards-runtime.js) | 16 | [`js/lab-context.js`](js/lab-context.js) | 15 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/lab-context.js`](js/lab-context.js) | 17 |
+| [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/sun.js`](js/sun.js) | 17 |
+| [`js/context-cards-runtime.js`](js/context-cards-runtime.js) | 16 | [`js/cycle-import.js`](js/cycle-import.js) | 15 |
 
 ## Existing cyclic components
 
@@ -427,10 +427,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lab</code> family — 5 modules</summary>
+<details><summary><code>lab</code> family — 7 modules</summary>
 
+- [`js/lab-context-output.js`](js/lab-context-output.js) → [`js/data.js`](js/data.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
+- [`js/lab-context-settings.js`](js/lab-context-settings.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-context-wearables.js`](js/lab-context-wearables.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/profile.js`](js/profile.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
-- [`js/lab-context.js`](js/lab-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/lab-context.js`](js/lab-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-output.js`](js/lab-context-output.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-date-range.js`](js/lab-date-range.js) → no in-scope imports
 - [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js) → [`js/data-merge.js`](js/data-merge.js), [`js/lab-entry.js`](js/lab-entry.js)
 - [`js/lab-entry.js`](js/lab-entry.js) → no in-scope imports

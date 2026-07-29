@@ -151,6 +151,8 @@
     "js/import-review-draft.js",
     "js/import-review-row-actions.js",
     "js/lab-context.js",
+    "js/lab-context-output.js",
+    "js/lab-context-settings.js",
     "js/lab-context-wearables.js",
     "js/lab-date-range.js",
     "js/lens-actions.js",

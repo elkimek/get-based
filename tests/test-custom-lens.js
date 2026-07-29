@@ -303,11 +303,15 @@ assert('focus card calls hasLens', /if \(hasLens\(\)\) \{[\s\S]{0,800}await quer
 // ─── 11. Wiring: lab-context.js helper ───
 console.log('\n11. lab-context.js helper');
 const lcSrc = read('js/lab-context.js');
-assert('exports injectLensChunks', lcSrc.includes('export function injectLensChunks('));
-assert('injectLensChunks handles close tag', lcSrc.includes('[/section:interpretiveLens]'));
-assert('injectLensChunks caps prompt chunk length', lcSrc.includes('LENS_PROMPT_CHUNK_CHAR_LIMIT'));
-assert('injectLensChunks caps total prompt text', lcSrc.includes('LENS_PROMPT_CHUNK_TOTAL_LIMIT'));
-assert('lab-context keeps injectLensChunks module-only', !lcSrc.includes('Object.assign(window, { injectLensChunks'));
+const lcOutputSrc = read('js/lab-context-output.js');
+assert('exports injectLensChunks',
+  lcSrc.includes('injectLensChunks') && lcOutputSrc.includes('export function injectLensChunks('));
+assert('injectLensChunks handles close tag', lcOutputSrc.includes('[/section:interpretiveLens]'));
+assert('injectLensChunks caps prompt chunk length', lcOutputSrc.includes('LENS_PROMPT_CHUNK_CHAR_LIMIT'));
+assert('injectLensChunks caps total prompt text', lcOutputSrc.includes('LENS_PROMPT_CHUNK_TOTAL_LIMIT'));
+assert('lab-context keeps injectLensChunks module-only',
+  !lcSrc.includes('Object.assign(window, { injectLensChunks')
+    && !lcOutputSrc.includes('Object.assign(window, { injectLensChunks'));
 
 // ─── 12. Wiring: sync.js registration ───
 console.log('\n12. sync.js registration');

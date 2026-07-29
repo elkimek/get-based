@@ -248,6 +248,8 @@ const domainUiCheckJsModules = [
   'js/emf-editor.js',
   'js/emf-model.js',
   'js/lab-context.js',
+  'js/lab-context-output.js',
+  'js/lab-context-settings.js',
   'js/light-conditions-interpretation.js',
   'js/light-conditions-renderer.js',
   'js/light-conditions-now.js',

@@ -359,6 +359,8 @@ const APP_SHELL = [
   '/js/backup-serialization.js',
   '/js/backup.js',
   '/js/lab-context.js',
+  '/js/lab-context-output.js',
+  '/js/lab-context-settings.js',
   '/js/lab-context-wearables.js',
   '/js/markdown.js',
   '/js/provider-qr.js',

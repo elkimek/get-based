@@ -92,6 +92,8 @@
     '/js/nav-runtime.js',
     '/js/views-router-runtime.js',
     '/js/focus-card.js',
+    '/js/lab-context-output.js',
+    '/js/lab-context-settings.js',
     '/js/onboarding-view-runtime.js',
     '/js/onboarding-view.js',
     '/js/data-merge-lab-entries.js',

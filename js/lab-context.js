@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
-import { getStatus, hasCardContent, hashString, isDebugMode } from './utils.js';
+import { getStatus, hasCardContent, isDebugMode } from './utils.js';
 import { formatTime } from './theme.js';
 import { getActiveData } from './data.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
@@ -19,23 +19,25 @@ import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfi
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
-import {
-  CONTEXT_SOURCE_IDS,
-  INSIGHT_CONTEXT_CHANGE_FIELDS,
-  getLabGroupContextSourceSlug,
-  isContextSourceEnabled,
-  setContextSourceEnabled,
-} from './context-source-registry.js';
+import { INSIGHT_CONTEXT_CHANGE_FIELDS } from './context-source-registry.js';
 import {
   buildWearableContext,
-  buildWearableSeriesSection,
-  getAgentWearableSeriesDays,
-  isAgentWearableSeriesEnabled,
   isWearableContextEnabled,
-  setAgentWearableSeriesDays,
-  setAgentWearableSeriesEnabled,
-  setWearableContextEnabledState,
 } from './lab-context-wearables.js';
+import {
+  getCachedLabContext,
+  getLabContextFingerprint,
+  isGeneticsInventoryInAIContext,
+  isGeneticsPriorityInAIContext,
+  isGeneticsSummaryInAIContext,
+  isGroupInAIContext,
+  isInsightContextCardsEnabled,
+  isLabMarkersContextEnabled,
+  isLightSunContextEnabled,
+  isSupplementsMedsContextEnabled,
+  setCachedLabContext,
+} from './lab-context-settings.js';
+import { summarizeChange } from './lab-context-output.js';
 
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean }} LabContextOptions
@@ -65,233 +67,21 @@ export function configureLabContext(deps = {}) {
   return previous;
 }
 
-// ═══════════════════════════════════════════════
-// LAB CONTEXT MEMOIZATION
-// ═══════════════════════════════════════════════
-/** @type {{ fingerprint: string | null, context: string | null }} */
-let _labContextCache = { fingerprint: null, context: null };
-
-function _getActiveContextProfileId() {
-  try { return localStorage.getItem('labcharts-active-profile') || state.currentProfile || 'default'; }
-  catch { return state.currentProfile || 'default'; }
-}
-
-function _getStoredContextPreferencePart(profileId) {
-  const stored = [];
-  try {
-    const scopedPrefix = `labcharts-${profileId}-ai-ctx-`;
-    const legacyPrefix = 'labcharts-ai-ctx-';
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key || (!key.startsWith(scopedPrefix) && !key.startsWith(legacyPrefix))) continue;
-      stored.push(`${key}=${localStorage.getItem(key) || ''}`);
-    }
-  } catch {}
-  return stored.sort().join(',');
-}
-
-function _getContextPreferencePart() {
-  const profileId = _getActiveContextProfileId();
-  return [
-    `activeProfile:${profileId}`,
-    `stateProfile:${state.currentProfile || ''}`,
-    `sources:${[
-      `${CONTEXT_SOURCE_IDS.INSIGHT_CARDS}:${isInsightContextCardsEnabled() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS}:${isSupplementsMedsContextEnabled() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.LAB_MARKERS}:${isLabMarkersContextEnabled() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.GENOME_SUMMARY}:${isGeneticsSummaryInAIContext() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.GENOME_PRIORITY}:${isGeneticsPriorityInAIContext() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.GENOME_INVENTORY}:${isGeneticsInventoryInAIContext() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.LIGHT_SUN}:${isLightSunContextEnabled() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.WEARABLES}:${isWearableContextEnabled() ? 'on' : 'off'}`,
-    ].join(',')}`,
-    `stored:${_getStoredContextPreferencePart(profileId)}`,
-  ].join('|');
-}
-
-function _getLabContextFingerprint() {
-  const d = state.importedData;
-  // Lightweight fingerprint: entry dates + marker counts, profile fields, card JSON
-  const entryPart = (d.entries || []).map(e => e.date + ':' + Object.keys(e.markers || {}).length).join(',');
-  const cardPart = ['healthGoals', 'diagnoses', 'supplements', 'biometrics', 'genetics',
-    'menstrualCycle', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress',
-    'loveLife', 'environment', 'emfAssessment', 'changeHistory', 'wearableSummary'
-  ].map(k => hashString(JSON.stringify(d[k] || ''))).join(',');
-  return hashString([
-    entryPart, cardPart,
-    state.profileSex || '', state.profileDob || '',
-    state.unitSystem || '', state.rangeMode || '',
-    d.interpretiveLens || '', d.contextNotes || '',
-    JSON.stringify(d.notes || []), JSON.stringify(d.markerNotes || {}),
-    JSON.stringify(d.contextSourceSettings || {}),
-    JSON.stringify(d.biologyScoreContextSettings || {}),
-    JSON.stringify(d.refOverrides || {}), JSON.stringify(d.categoryLabels || {}),
-    JSON.stringify(d.markerLabels || {}),
-    _getContextPreferencePart()
-  ].join('|'));
-}
-
-export function invalidateLabContextCache() { _labContextCache = { fingerprint: null, context: null }; }
-
-// ═══════════════════════════════════════════════
-// SPECIALTY LABS IN AI CONTEXT (per-group)
-// ═══════════════════════════════════════════════
-function _groupContextSlug(groupName) {
-  return getLabGroupContextSourceSlug(groupName);
-}
-
-function _groupContextLegacyKey(groupName) {
-  const group = String(groupName || '').replace(/[\u0000-\u001F\u007F]/g, ' ').trim();
-  return group ? `labcharts-ai-ctx-${group}` : null;
-}
-
-export function isGroupInAIContext(groupName) {
-  const slug = _groupContextSlug(groupName);
-  if (!slug) return true;
-  return isContextSourceEnabled(slug, { defaultValue: true, legacyKey: _groupContextLegacyKey(groupName) });
-}
-
-export function setGroupInAIContext(groupName, val) {
-  const slug = _groupContextSlug(groupName);
-  if (!slug) return;
-  setContextSourceEnabled(slug, !!val, { legacyKey: _groupContextLegacyKey(groupName) });
-  invalidateLabContextCache();
-}
-
-export function isGeneticsInventoryInAIContext() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY);
-}
-
-export function setGeneticsInventoryInAIContext(on) {
-  setContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY, on);
-  invalidateLabContextCache();
-}
-
-function _biologyScoreContextSettings() {
-  const imported = /** @type {any} */ (state.importedData || {});
-  if (!imported.biologyScoreContextSettings || typeof imported.biologyScoreContextSettings !== 'object') {
-    imported.biologyScoreContextSettings = {};
-  }
-  return imported.biologyScoreContextSettings;
-}
-
-function _setProfileContextEnabled(slug, on, legacyKey = null) {
-  setContextSourceEnabled(slug, on, { legacyKey });
-  invalidateLabContextCache();
-}
-
-export function isInsightContextCardsEnabled() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS);
-}
-
-export function setInsightContextCardsEnabled(on) {
-  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, on);
-}
-
-export function isSupplementsMedsContextEnabled() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS);
-}
-
-export function setSupplementsMedsContextEnabled(on) {
-  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, on);
-}
-
-export function isLabMarkersContextEnabled() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS);
-}
-
-export function setLabMarkersContextEnabled(on) {
-  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS, on);
-}
-
-export function isGeneticsSummaryInAIContext() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_SUMMARY);
-}
-
-export function setGeneticsSummaryInAIContext(on) {
-  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.GENOME_SUMMARY, on);
-}
-
-export function isGeneticsPriorityInAIContext() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_PRIORITY);
-}
-
-export function setGeneticsPriorityInAIContext(on) {
-  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.GENOME_PRIORITY, on);
-}
-
-export function isLightSunContextEnabled() {
-  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LIGHT_SUN, {
-    defaultValue: state.importedData?.biologyScoreContextSettings?.includeLightContext !== false,
-  });
-}
-
-export function setLightSunContextEnabled(on) {
-  setContextSourceEnabled(CONTEXT_SOURCE_IDS.LIGHT_SUN, on);
-  _biologyScoreContextSettings().includeLightContext = !!on;
-  invalidateLabContextCache();
-}
-
-export function setWearableContextEnabled(on) {
-  setWearableContextEnabledState(on);
-  invalidateLabContextCache();
-}
-
 export {
-  buildWearableContext,
-  buildWearableSeriesSection,
-  getAgentWearableSeriesDays,
-  isAgentWearableSeriesEnabled,
-  isWearableContextEnabled,
-  setAgentWearableSeriesDays,
+  buildWearableContext, buildWearableSeriesSection, getAgentWearableSeriesDays,
+  isAgentWearableSeriesEnabled, isWearableContextEnabled, setAgentWearableSeriesDays,
   setAgentWearableSeriesEnabled,
-};
-
-// ═══════════════════════════════════════════════
-// CHANGE SUMMARY HELPER
-// ═══════════════════════════════════════════════
-function summarizeChange(prev, curr) {
-  if (prev == null && curr == null) return null;
-  if (prev == null) return 'added';
-  if (curr == null) return 'cleared';
-  // String fields (interpretiveLens, contextNotes)
-  if (typeof curr === 'string' || typeof prev === 'string') {
-    const p = (prev || '').toString().slice(0, 60);
-    const c = (curr || '').toString().slice(0, 60);
-    if (p === c) return null;
-    return `changed${p ? ' (was: "' + p + (prev.length > 60 ? '…' : '') + '")' : ''}`;
-  }
-  // Arrays (healthGoals)
-  if (Array.isArray(curr)) {
-    const pLen = Array.isArray(prev) ? prev.length : 0;
-    if (curr.length > pLen) {
-      const added = curr.slice(pLen).map(g => g.text || JSON.stringify(g)).join(', ');
-      return `added: ${added}`;
-    }
-    if (curr.length < pLen) return `removed ${pLen - curr.length} item${pLen - curr.length > 1 ? 's' : ''}`;
-    return 'updated';
-  }
-  // Objects (context cards, diagnoses, menstrualCycle)
-  const changes = [];
-  const allKeys = new Set([...Object.keys(prev || {}), ...Object.keys(curr || {})]);
-  for (const k of allKeys) {
-    if (k === 'note') continue; // skip free-text notes for brevity
-    const pv = prev?.[k], cv = curr?.[k];
-    const pvStr = JSON.stringify(pv), cvStr = JSON.stringify(cv);
-    if (pvStr === cvStr) continue;
-    if (pv == null || (Array.isArray(pv) && pv.length === 0)) {
-      const val = Array.isArray(cv) ? cv.join(', ') : cv;
-      changes.push(`${k}: ${val}`);
-    } else if (cv == null || (Array.isArray(cv) && cv.length === 0)) {
-      changes.push(`${k}: removed`);
-    } else {
-      const val = Array.isArray(cv) ? cv.join(', ') : cv;
-      const old = Array.isArray(pv) ? pv.join(', ') : pv;
-      changes.push(`${k}: ${old} → ${val}`);
-    }
-  }
-  return changes.length > 0 ? changes.slice(0, 5).join('; ') + (changes.length > 5 ? '; …' : '') : null;
-}
+} from './lab-context-wearables.js';
+export {
+  invalidateLabContextCache, isGeneticsInventoryInAIContext, isGeneticsPriorityInAIContext,
+  isGeneticsSummaryInAIContext, isGroupInAIContext, isInsightContextCardsEnabled,
+  isLabMarkersContextEnabled, isLightSunContextEnabled, isSupplementsMedsContextEnabled,
+  setGeneticsInventoryInAIContext, setGeneticsPriorityInAIContext,
+  setGeneticsSummaryInAIContext, setGroupInAIContext, setInsightContextCardsEnabled,
+  setLabMarkersContextEnabled, setLightSunContextEnabled, setSupplementsMedsContextEnabled,
+  setWearableContextEnabled,
+} from './lab-context-settings.js';
+export { getContextSummary, injectLensChunks } from './lab-context-output.js';
 
 // ═══════════════════════════════════════════════
 // LAB CONTEXT
@@ -315,14 +105,15 @@ function summarizeChange(prev, curr) {
 export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
   // ignoreContextToggles: true → Agent Access permission already granted; assemble full context
-  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '');
-  if (_labContextCache.fingerprint === fp && _labContextCache.context) {
+  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '');
+  const cached = getCachedLabContext(fp);
+  if (cached) {
     if (isDebugMode()) console.log('[AI] Lab context cache hit');
-    return _labContextCache.context;
+    return cached;
   }
   if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
   const ctx = _buildLabContextInner({ skipGroupFilter, ignoreContextToggles });
-  _labContextCache = { fingerprint: fp, context: ctx };
+  setCachedLabContext(fp, ctx);
   return ctx;
 }
 
@@ -1000,103 +791,4 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   }
 
   return ctx;
-}
-
-// ═══════════════════════════════════════════════
-// CONTEXT SUMMARY (snapshot what data areas were sent)
-// ═══════════════════════════════════════════════
-export function getContextSummary() {
-  const areas = [];
-  const data = getActiveData();
-  const includeInsightCards = isInsightContextCardsEnabled();
-  const includeSupplementsMeds = isSupplementsMedsContextEnabled();
-  // Lab values
-  const markerCount = Object.values(data.categories).reduce((sum, cat) =>
-    sum + Object.values(cat.markers).filter(m => m.values.some(v => v !== null)).length, 0);
-  if (isLabMarkersContextEnabled() && markerCount > 0) areas.push({ label: 'Lab values', detail: `${markerCount} markers` });
-  // Context cards
-  const diag = state.importedData.diagnoses;
-  if (includeInsightCards && diag && ((diag.conditions && diag.conditions.length) || diag.note || (Array.isArray(diag.familyHistory) && diag.familyHistory.length))) {
-    const cN = (diag.conditions && diag.conditions.length) || 0;
-    const fN = (Array.isArray(diag.familyHistory) && diag.familyHistory.length) || 0;
-    const detail = cN && fN ? `${cN} condition${cN !== 1 ? 's' : ''}, ${fN} family entr${fN !== 1 ? 'ies' : 'y'}` : cN ? `${cN} condition${cN !== 1 ? 's' : ''}` : fN ? `${fN} family entr${fN !== 1 ? 'ies' : 'y'}` : 'notes';
-    areas.push({ label: 'Medical History', detail });
-  }
-  if (includeInsightCards && state.importedData.diet) areas.push({ label: 'Diet & Digestion', detail: state.importedData.diet.type || 'filled' });
-  if (includeInsightCards && state.importedData.exercise) areas.push({ label: 'Exercise', detail: state.importedData.exercise.frequency || 'filled' });
-  if (includeInsightCards && state.importedData.sleepRest) areas.push({ label: 'Sleep & Rest', detail: state.importedData.sleepRest.duration || 'filled' });
-  const lc = state.importedData.lightCircadian;
-  const autoLat = getLatitudeFromLocation();
-  if (isLightSunContextEnabled() && (lc || autoLat)) areas.push({ label: 'Light & Circadian', detail: autoLat ? `lat ${autoLat}` : 'filled' });
-  if (includeInsightCards && state.importedData.stress) areas.push({ label: 'Stress', detail: state.importedData.stress.level || 'filled' });
-  if (includeInsightCards && state.importedData.loveLife) areas.push({ label: 'Love Life', detail: 'filled' });
-  if (includeInsightCards && state.importedData.environment) areas.push({ label: 'Environment', detail: state.importedData.environment.setting || 'filled' });
-  const emfData = state.importedData.emfAssessment;
-  if (includeInsightCards && emfData && emfData.assessments && emfData.assessments.length > 0) areas.push({ label: 'EMF Assessment', detail: `${emfData.assessments.length} assessment${emfData.assessments.length !== 1 ? 's' : ''}` });
-  // Goals, lens, notes
-  const goals = state.importedData.healthGoals || [];
-  if (includeInsightCards && goals.length > 0) areas.push({ label: 'Health Goals', detail: `${goals.length} goal${goals.length !== 1 ? 's' : ''}` });
-  const lens = state.importedData.interpretiveLens || '';
-  if (lens.trim()) areas.push({ label: 'Interpretive Lens', detail: 'set' });
-  const ctxNotes = state.importedData.contextNotes || '';
-  if (includeInsightCards && ctxNotes.trim()) areas.push({ label: 'Context Notes', detail: 'set' });
-  // Cycle
-  const mc = state.importedData.menstrualCycle;
-  if (includeInsightCards && mc && state.profileSex === 'female') areas.push({ label: 'Menstrual Cycle', detail: `${mc.cycleLength || 28}-day` });
-  // Supplements
-  const supps = state.importedData.supplements || [];
-  if (includeSupplementsMeds && supps.length > 0) areas.push({ label: 'Supplements', detail: `${supps.length} item${supps.length !== 1 ? 's' : ''}` });
-  // Notes
-  const notes = state.importedData.notes || [];
-  if (includeInsightCards && notes.length > 0) areas.push({ label: 'User Notes', detail: `${notes.length} note${notes.length !== 1 ? 's' : ''}` });
-  // Flagged
-  const flags = getAllFlaggedMarkers(data);
-  if (isLabMarkersContextEnabled() && flags.length > 0) areas.push({ label: 'Flagged Results', detail: `${flags.length} flagged` });
-  return areas;
-}
-
-// ═══════════════════════════════════════════════
-// LENS INJECTION — fold retrieved chunks into the Interpretive Lens block
-// ═══════════════════════════════════════════════
-const LENS_PROMPT_CHUNK_CHAR_LIMIT = 1800;
-const LENS_PROMPT_CHUNK_TOTAL_LIMIT = 8000;
-
-function _trimLensTextForPrompt(text, remainingBudget) {
-  const raw = String(text || '').replace(/\s+/g, ' ').trim();
-  if (!raw) return '';
-  const limit = Math.max(0, Math.min(LENS_PROMPT_CHUNK_CHAR_LIMIT, remainingBudget));
-  if (limit === 0) return '';
-  if (raw.length <= limit) return raw;
-  const suffix = '... [trimmed]';
-  if (limit <= suffix.length) return raw.slice(0, limit);
-  return raw.slice(0, limit - suffix.length).trimEnd() + suffix;
-}
-
-export function injectLensChunks(ctx, lensResult) {
-  if (!lensResult || !Array.isArray(lensResult.chunks) || !lensResult.chunks.length) return ctx;
-  const snippet = _formatLensChunks(lensResult);
-  const openTag = '[section:interpretiveLens]';
-  const closeTag = '[/section:interpretiveLens]';
-  const closeIdx = ctx.indexOf(closeTag);
-  if (closeIdx !== -1) {
-    return ctx.slice(0, closeIdx) + '\n\n' + snippet + '\n' + ctx.slice(closeIdx);
-  }
-  const block = `${openTag}\n## Interpretive Lens\n${snippet}\n${closeTag}\n\n`;
-  return block + ctx;
-}
-
-function _formatLensChunks(result) {
-  const lines = [`### Retrieved from your knowledge source (${result.sourceName || 'Lens'}):`];
-  let remainingBudget = LENS_PROMPT_CHUNK_TOTAL_LIMIT;
-  let n = 1;
-  result.chunks.forEach(c => {
-    if (remainingBudget <= 0) return;
-    const text = _trimLensTextForPrompt(c.text, remainingBudget);
-    if (!text) return;
-    remainingBudget -= text.length;
-    const cite = c.source ? ` - ${c.source}` : '';
-    lines.push(`${n++}. ${text}${cite}`);
-  });
-  lines.push('When your interpretation draws on these excerpts, cite the source. When it does not, say so.');
-  return lines.join('\n');
 }
