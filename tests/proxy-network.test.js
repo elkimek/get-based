@@ -8,14 +8,25 @@ import {
 } from '../lib/proxy-network.js';
 
 describe('proxy DNS pinning transport', () => {
-  it('keeps the production transport on the Undici line aligned with Node 24', () => {
+  it('pins the proven Node 24 transport and keeps it out of proxy initialization', () => {
     const packageJson = JSON.parse(readFileSync(
       new URL('../package.json', import.meta.url),
       'utf8',
     ));
+    const packageLock = JSON.parse(readFileSync(
+      new URL('../package-lock.json', import.meta.url),
+      'utf8',
+    ));
+    const source = readFileSync(
+      new URL('../lib/proxy-network.js', import.meta.url),
+      'utf8',
+    );
 
     expect(packageJson.engines.node).toBe('24.x');
-    expect(packageJson.dependencies.undici).toMatch(/^7\./);
+    expect(packageJson.dependencies.undici).toBe('7.28.0');
+    expect(packageLock.packages['node_modules/undici'].version).toBe('7.28.0');
+    expect(source).toContain("import('undici')");
+    expect(source).not.toMatch(/from\s+['"]undici['"]/);
   });
 
   it('deduplicates public DNS answers and pins the validated address set', async () => {
