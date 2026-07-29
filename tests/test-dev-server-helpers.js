@@ -46,6 +46,7 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from '../lib/proxy-policy.js';
+import { handleDevApiProxy } from '../lib/dev-api-proxy.js';
 
 let passed = 0, failed = 0;
 const DEV_SERVER_PORT = parseInt(process.argv[2], 10) || 8000;
@@ -323,6 +324,51 @@ assert('proxy header policy rejects hop-by-hop headers',
   && sanitizeProxyHeaders({ 'X-Forwarded-Host': 'metadata.google.internal' }).ok === false);
 assert('proxy header policy rejects CRLF header injection',
   sanitizeProxyHeaders({ Authorization: 'Bearer ok\r\nX-Bad: yes' }).ok === false);
+{
+  const req = new EventEmitter();
+  req.method = 'OPTIONS';
+  req.headers = {};
+  const res = makeMockResponse();
+  const handled = handleDevApiProxy(req, res, {
+    corsHeaders: () => ({ 'Access-Control-Allow-Origin': LOOPBACK_ORIGIN }),
+    env: {},
+  });
+  assert('extracted dev proxy handles CORS preflight',
+    handled === true
+      && res.status === 204
+      && res.headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN
+      && res.ended);
+}
+{
+  const req = new EventEmitter();
+  req.method = 'POST';
+  req.headers = {};
+  req.destroy = () => {};
+  const res = makeMockResponse();
+  handleDevApiProxy(req, res, {
+    corsHeaders: () => ({ 'Access-Control-Allow-Origin': LOOPBACK_ORIGIN }),
+    env: { OURA_CLIENT_ID: '  self-hosted-client  ' },
+  });
+  req.emit('data', Buffer.from('{"wearable_runtime_config":true}'));
+  req.emit('end');
+  assert('extracted dev proxy serves wearable runtime overrides',
+    res.status === 200
+      && res.headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN
+      && res.text() === '{"overrides":{"oura":"self-hosted-client"}}',
+    `${res.status} ${JSON.stringify(res.headers)} ${res.text()}`);
+}
+{
+  const req = new EventEmitter();
+  req.method = 'POST';
+  req.headers = {};
+  req.destroy = () => {};
+  const res = makeMockResponse();
+  handleDevApiProxy(req, res, { corsHeaders: () => ({}), env: {} });
+  req.emit('data', Buffer.from('{invalid'));
+  req.emit('end');
+  assert('extracted dev proxy rejects malformed JSON',
+    res.status === 400 && res.text().includes('Invalid JSON'));
+}
 {
   const upstream = new EventEmitter();
   upstream.headers = { 'content-type': 'text/plain' };

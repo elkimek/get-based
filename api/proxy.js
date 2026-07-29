@@ -17,6 +17,7 @@ import {
   readRequestTextWithCap,
   readResponseTextWithCap,
 } from '../lib/proxy-upstream.js';
+import { errorCode } from '../lib/error-utils.js';
 
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 
@@ -95,7 +96,7 @@ export default async function handler(req) {
     const rawBody = await readRequestTextWithCap(req, PROXY_MAX_REQUEST_BYTES);
     payload = JSON.parse(rawBody);
   } catch (error) {
-    if (error?.code === 'PROXY_REQUEST_TOO_LARGE') {
+    if (errorCode(error) === 'PROXY_REQUEST_TOO_LARGE') {
       return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
         status: 413,
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
@@ -573,7 +574,7 @@ async function handleCamsRelay(payload, req) {
       },
     });
   } catch (error) {
-    const fallback = error?.code === 'PROXY_RESPONSE_TOO_LARGE'
+    const fallback = errorCode(error) === 'PROXY_RESPONSE_TOO_LARGE'
       ? 'CAMS response exceeds size cap'
       : 'CAMS upstream unavailable';
     return proxyUpstreamErrorResponse(req, error, fallback);

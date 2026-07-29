@@ -99,6 +99,7 @@ for (const id of adapters) {
 console.log('\n5. dev-server CORS reflection');
 if (exists('dev-server.js')) {
   const devSrc = read('dev-server.js');
+  const devProxySrc = read('lib/dev-api-proxy.js');
   assert('dev-server.js defines corsHeaders helper',
     devSrc.includes('function corsHeaders(req)') && devSrc.includes("'Vary': 'Origin'"));
   assert('dev-server.js no longer emits wildcard ACAO',
@@ -111,11 +112,12 @@ if (exists('dev-server.js')) {
     devSrc.match(/_isAllowedProxyUrl\(loc\)|_isAllowedProxyUrl\(redirect\)/g)?.length >= 3,
     '/api/check-url + /api/fetch-page + /proxy redirect-follow paths each need their own guard');
   assert('dev-server.js uses shared proxy policy for generic proxy envelope',
-    devSrc.includes("from './lib/proxy-policy.js'")
-      && devSrc.includes('normalizeProxyMethod(upMethod)')
-      && devSrc.includes('sanitizeProxyHeaders(fwdHeaders)')
-      && devSrc.includes('PROXY_MAX_REQUEST_BYTES')
-      && devSrc.includes('PROXY_MAX_RESPONSE_BYTES'));
+    devSrc.includes("from './lib/dev-api-proxy.js'")
+      && devProxySrc.includes("from './proxy-policy.js'")
+      && devProxySrc.includes('normalizeProxyMethod(upstreamMethod)')
+      && devProxySrc.includes('sanitizeProxyHeaders(forwardHeaders)')
+      && devProxySrc.includes('PROXY_MAX_REQUEST_BYTES')
+      && devProxySrc.includes('PROXY_MAX_RESPONSE_BYTES'));
   const edgeProxySrc = read('api/proxy.js');
   assert('api/proxy.js uses shared proxy policy for URL and envelope guards',
     edgeProxySrc.includes("from '../lib/proxy-policy.js'")

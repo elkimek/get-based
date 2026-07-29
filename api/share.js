@@ -2,6 +2,8 @@
 // The browser encrypts before upload; this route stores and returns only
 // ciphertext envelopes using a private Vercel Blob store.
 
+import { errorMessage } from '../lib/error-utils.js';
+
 export const config = { runtime: 'edge' };
 
 const VERCEL_BLOB_API_URL = 'https://vercel.com/api/blob';
@@ -309,7 +311,7 @@ async function handlePost(req) {
   try {
     rateLimit = await enforcePostRateLimit(req, options);
   } catch (err) {
-    return jsonResponse(req, 503, { error: err?.message || 'Could not verify profile sharing rate limit.' });
+    return jsonResponse(req, 503, { error: errorMessage(err, 'Could not verify profile sharing rate limit.') });
   }
   if (rateLimit?.limited) {
     return jsonResponse(
@@ -338,7 +340,7 @@ async function handlePost(req) {
   try {
     normalized = normalizeEnvelope(body.envelope);
   } catch (err) {
-    return jsonResponse(req, 400, { error: err.message });
+    return jsonResponse(req, 400, { error: errorMessage(err, 'Invalid encrypted profile payload.') });
   }
   const record = {
     id,
@@ -357,7 +359,7 @@ async function handlePost(req) {
       cacheControlMaxAge: 60,
     });
   } catch (err) {
-    return jsonResponse(req, 409, { error: err?.message || 'Could not store shared profile.' });
+    return jsonResponse(req, 409, { error: errorMessage(err, 'Could not store shared profile.') });
   }
   return jsonResponse(req, 201, {
     id,
@@ -376,7 +378,7 @@ async function handleGet(req) {
   try {
     record = await parseRecord(path, options);
   } catch (err) {
-    return jsonResponse(req, 500, { error: err?.message || 'Could not load shared profile.' });
+    return jsonResponse(req, 500, { error: errorMessage(err, 'Could not load shared profile.') });
   }
   if (!record) return jsonResponse(req, 404, { error: 'Shared profile not found.' });
   if (Date.parse(record.expiresAt || '') <= Date.now()) {
@@ -400,7 +402,7 @@ async function handleDelete(req) {
   try {
     record = await parseRecord(path, options);
   } catch (err) {
-    return jsonResponse(req, 500, { error: err?.message || 'Could not stop sharing link.' });
+    return jsonResponse(req, 500, { error: errorMessage(err, 'Could not stop sharing link.') });
   }
   if (!record) return jsonResponse(req, 200, { ok: true, missing: true });
   if (record.manageTokenHash) {
@@ -415,7 +417,7 @@ async function handleDelete(req) {
   try {
     await del(path, options);
   } catch (err) {
-    return jsonResponse(req, 500, { error: err?.message || 'Could not stop sharing link.' });
+    return jsonResponse(req, 500, { error: errorMessage(err, 'Could not stop sharing link.') });
   }
   return jsonResponse(req, 200, { ok: true });
 }

@@ -18,13 +18,20 @@
       "description": "Node-only policy and transport code shared by hosted runtimes.",
       "roots": ["lib"],
       "mayImport": ["server-shared"]
+    },
+    {
+      "name": "local-server",
+      "description": "Local development server entry point.",
+      "roots": ["dev-server.js"],
+      "mayImport": ["server-shared"]
     }
   ],
   "entryPoints": [
     "js/main.js",
     "api/commit.js",
     "api/proxy.js",
-    "api/share.js"
+    "api/share.js",
+    "dev-server.js"
   ],
   "forbiddenRepositoryImportRoots": ["tests", "scripts"]
 }

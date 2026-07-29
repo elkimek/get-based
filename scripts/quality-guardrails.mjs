@@ -8,8 +8,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
 // tests/ is intentionally omitted; this check covers app JS only, not test helpers.
-const SYNTAX_DIRS = ['js', 'api', 'scripts'];
+const SYNTAX_DIRS = ['js', 'api', 'lib', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
+const SERVER_JS_DIRS = [path.join(ROOT, 'api'), path.join(ROOT, 'lib')];
+const SERVER_JS_ENTRY_FILES = [path.join(ROOT, 'dev-server.js')];
 const TEST_JS_DIR = path.join(ROOT, 'tests');
 const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
 const WINDOW_REF_RE = /\bwindow(?:\.|\s*\[)/g;
@@ -115,6 +117,17 @@ function collectTestMetrics() {
   return { labStateTestFiles };
 }
 
+function collectOversizedServerFiles() {
+  const files = [
+    ...SERVER_JS_DIRS.flatMap(dir => walkFiles(dir, new Set(['.js']))),
+    ...SERVER_JS_ENTRY_FILES.filter(file => fs.existsSync(file)),
+  ];
+  return files
+    .map(file => ({ file: repoRel(file), lines: fs.readFileSync(file, 'utf8').split('\n').length }))
+    .filter(entry => entry.lines >= LARGE_FILE_LINE_LIMIT)
+    .sort((a, b) => b.lines - a.lines);
+}
+
 function collectSyntaxFiles() {
   const files = [];
   const exts = new Set(['.js', '.mjs']);
@@ -153,6 +166,7 @@ function main() {
   const baseline = readBaseline();
   const metrics = collectAppMetrics();
   const testMetrics = collectTestMetrics();
+  const oversizedServerFiles = collectOversizedServerFiles();
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
@@ -163,6 +177,12 @@ function main() {
   compareBudget('_labState files in js/', metrics.labStateAppFiles, baseline.labStateAppFiles);
   compareBudget('_labState files in tests/', testMetrics.labStateTestFiles, baseline.labStateTestFiles);
   compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
+  if (oversizedServerFiles.length === 0) {
+    pass('server production JS files stay below 800 lines');
+  } else {
+    fail('server production JS files stay below 800 lines',
+      oversizedServerFiles.map(entry => `${entry.file}: ${entry.lines}`).join(', '));
+  }
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
     pass(`largest JS file stays below hard cap (${metrics.largestFile.lines}/${baseline.maxJsFileLines}: ${metrics.largestFile.file})`);
