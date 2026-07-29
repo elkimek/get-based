@@ -369,6 +369,8 @@ const uiWorkflowCheckJsModules = [
   'js/lens-actions.js',
   'js/lens-cache.js',
   'js/lens-library.js',
+  'js/lens-local-embedder-config.js',
+  'js/lens-local-library-registry.js',
   'js/lens-local-store.js',
   'js/lens-local-worker.js',
   'js/lens-local.js',

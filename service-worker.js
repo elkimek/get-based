@@ -583,6 +583,8 @@ const APP_SHELL = [
   '/js/lens-url.js',
   '/js/lens.js',
   '/js/lens-local.js',
+  '/js/lens-local-embedder-config.js',
+  '/js/lens-local-library-registry.js',
   '/js/lens-local-store.js',
   '/js/lens-local-worker.js',
   '/js/lens-local-utils.js',

@@ -100,12 +100,14 @@ assert('Dialog includes locked-at-creation warning',
 
 // Worker-side invariants (things mock-mode round-trips can't exercise).
 const workerSrcForPicker = read('js/lens-local-worker.js');
+const embedderConfigSrc = read('js/lens-local-embedder-config.js');
+const libraryRegistrySrc = read('js/lens-local-library-registry.js');
 
 assert('DEFAULT_MODEL_KEY referenced in MODELS catalog',
-  /DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/.test(workerSrcForPicker)
+  /DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/.test(embedderConfigSrc)
     && (() => {
-      const key = workerSrcForPicker.match(/DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/)[1];
-      return new RegExp(`['"]${key}['"]\\s*:\\s*\\{[\\s\\S]*?id:`).test(workerSrcForPicker);
+      const key = embedderConfigSrc.match(/DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/)[1];
+      return new RegExp(`['"]${key}['"]\\s*:\\s*\\{[\\s\\S]*?id:`).test(embedderConfigSrc);
     })(),
   'DEFAULT_MODEL_KEY must name an actual catalog entry');
 
@@ -114,8 +116,8 @@ assert('Tier 3 threshold at < 50 ms/embed',
 assert('Tier 2 threshold at < 150 ms/embed',
   /msPerEmbed\s*<\s*150\b/.test(workerSrcForPicker));
 
-assert('loadOrMigrateLibraries auto-fills missing lib.model',
-  /loadOrMigrateLibraries[\s\S]*?lib\.model\s*=\s*DEFAULT_MODEL_KEY/.test(workerSrcForPicker),
+assert('library registry migration auto-fills missing lib.model',
+  /async loadOrMigrate\(\)[\s\S]*?lib\.model\s*=\s*this\.defaultModelKey/.test(libraryRegistrySrc),
   'back-compat migration for libraries that predate the model field');
 
 assert('handleActivateLibrary reloads embedder on model change',
