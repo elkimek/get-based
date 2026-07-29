@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 import {
   createPinnedProxyLookup,
@@ -7,6 +8,16 @@ import {
 } from '../lib/proxy-network.js';
 
 describe('proxy DNS pinning transport', () => {
+  it('keeps the production transport on the Undici line aligned with Node 24', () => {
+    const packageJson = JSON.parse(readFileSync(
+      new URL('../package.json', import.meta.url),
+      'utf8',
+    ));
+
+    expect(packageJson.engines.node).toBe('24.x');
+    expect(packageJson.dependencies.undici).toMatch(/^7\./);
+  });
+
   it('deduplicates public DNS answers and pins the validated address set', async () => {
     const lookup = vi.fn(async () => [
       { address: '93.184.216.34', family: 4 },
