@@ -87,6 +87,7 @@ export function configureCryptoProfileDeps(deps = {}) {
 // ═══════════════════════════════════════════════
 const SENSITIVE_PATTERNS = [
   /^labcharts-.+-imported$/,
+  /^labcharts-.+-imported-corrupt$/,
   /^labcharts-.+-chat$/,
   /^labcharts-.+-chat-threads$/,
   /^labcharts-.+-chat-t_.+$/,
@@ -359,9 +360,17 @@ export async function encryptedGetItem(key) {
 // keys are removed from BOTH backends. Use this for any cleanup path
 // that wipes profile data, otherwise IDB residue accumulates after
 // profile deletion / reset.
-export async function encryptedRemoveItem(key) {
+/**
+ * @param {string} key
+ * @param {{ throwOnBlobError?: boolean }} [options]
+ */
+export async function encryptedRemoveItem(key, options = {}) {
   if (shouldUseBlob(key)) {
-    try { await deleteBlob(key); } catch {}
+    try {
+      await deleteBlob(key);
+    } catch (error) {
+      if (options.throwOnBlobError) throw error;
+    }
   }
   try { localStorage.removeItem(key); } catch {}
 }
@@ -406,7 +415,10 @@ async function migrationProfileIds() {
 
 async function sensitiveBlobKeys() {
   const keys = new Set(['labcharts-imported']);
-  for (const profileId of await migrationProfileIds()) keys.add(profileStorageKey(profileId, 'imported'));
+  for (const profileId of await migrationProfileIds()) {
+    keys.add(profileStorageKey(profileId, 'imported'));
+    keys.add(profileStorageKey(profileId, 'imported-corrupt'));
+  }
   return [...keys];
 }
 

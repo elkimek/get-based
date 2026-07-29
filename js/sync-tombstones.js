@@ -4,8 +4,9 @@
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
-import { getEncryptionEnabled, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
+import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
+import { clearProfileStorage } from './profile-storage-cleanup.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -94,34 +95,7 @@ const TOMBSTONE_BATCH_THRESHOLD = 2; // two or more tombstones at once require c
 
 /** @param {string} profileId */
 async function wipeProfileLocal(profileId) {
-  await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
-  for (const key of ['units', 'suppOverlay', 'noteOverlay', 'rangeMode', 'showAltUnits', 'suppImpact']) {
-    localStorage.removeItem(profileStorageKey(profileId, key));
-  }
-  const threadIndexRaw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
-  if (threadIndexRaw) {
-    try {
-      const threads = JSON.parse(threadIndexRaw);
-      for (const t of threads || []) {
-        if (t?.id) localStorage.removeItem(`labcharts-${profileId}-chat-t_${t.id}`);
-      }
-    } catch {}
-  }
-  for (const key of [
-    'chat', 'chat-threads', 'chatRailOpen', 'chatPersonality',
-    'chatPersonalityCustom', 'focusCard', 'contextHealth', 'onboarded',
-    'emptyTour', 'tour', 'cycleTour', 'phaseOverlay', 'sync-ts',
-  ]) {
-    localStorage.removeItem(`labcharts-${profileId}-${key}`);
-  }
-  try {
-    const wsMod = await import('./wearables-store.js');
-    await wsMod.deleteWearablesDB(profileId).catch(() => {});
-  } catch {}
-  try {
-    const cycleMod = await import('./cycle-store.js');
-    await cycleMod.deleteCycleDB(profileId).catch(() => {});
-  } catch {}
+  await clearProfileStorage(profileId);
 }
 
 // Soft-delete a profile's row on the relay so other devices stop seeing it.

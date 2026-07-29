@@ -27,6 +27,7 @@
     "js/app-chat-hooks.js",
     "js/app-ai-interaction-modules.js",
     "js/profile-share-loader.js",
+    "js/profile-storage-cleanup.js",
     "js/app-event-listeners.js",
     "js/app-feature-modules.js",
     "js/app-foundation-modules.js",

@@ -109,6 +109,7 @@ assert('window.initProfilesCache stays module-only', !('initProfilesCache' in wi
 console.log('2. Sensitive key detection');
 assert('labcharts-default-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-default-imported'));
 assert('labcharts-abc123-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-abc123-imported'));
+assert('labcharts-default-imported-corrupt is sensitive', cryptoModule.isSensitiveKey('labcharts-default-imported-corrupt'));
 assert('labcharts-default-chat is sensitive', cryptoModule.isSensitiveKey('labcharts-default-chat'));
 assert('labcharts-profiles is sensitive', cryptoModule.isSensitiveKey('labcharts-profiles'));
 assert('labcharts-api-key IS sensitive', cryptoModule.isSensitiveKey('labcharts-api-key'));

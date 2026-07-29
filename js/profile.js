@@ -5,9 +5,10 @@ import { state } from './state.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { callClaudeAPI } from './api.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
-import { encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
+import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, isUnlocked } from './crypto.js';
 import { migrateProfileData } from './profile-data-migrations.js';
 import { profileStorageKey } from './profile-storage-key.js';
+import { clearProfileStorage } from './profile-storage-cleanup.js';
 
 export { migrateProfileData, profileStorageKey };
 
@@ -305,39 +306,43 @@ export async function loadProfile(profileId) {
   await invalidateProfileContextCache();
   const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   const defaultData = createDefaultProfileData();
-  state.importedData = savedImported ? (function() {
+  state.importedData = defaultData;
+  if (savedImported) {
     try {
       const d = JSON.parse(savedImported);
       if (!d.notes) d.notes = [];
       if (!d.supplements) d.supplements = [];
-      return migrateProfileData(d);
+      state.importedData = migrateProfileData(d);
     } catch (e) {
       // Don't silently substitute defaults — preserve the corrupted bytes so
       // the user can recover (or we can debug). Same key suffix every time
       // so a second corruption doesn't shadow the first recoverable copy.
-      // Route through IDB when the blob is large (the very condition that
-      // commonly triggers the corruption); fall back to localStorage otherwise.
-      // Fire-and-forget — the IIFE this catch lives in is sync, so we kick
-      // the IDB write off via Promise chain rather than awaiting it here.
+      // The recovery key is sensitive and blob-backed, so encryptedSetItem
+      // preserves the at-rest guarantee and removes any legacy localStorage
+      // duplicate only after IndexedDB has the canonical copy.
+      let recoverySaved = false;
       try {
         const corruptKey = profileStorageKey(profileId, 'imported-corrupt');
-        if (!localStorage.getItem(corruptKey)) {
-          if (savedImported.length < 4_000_000) {
-            try { localStorage.setItem(corruptKey, savedImported); }
-            catch { /* fall through to IDB */ }
+        const existingRecovery = await encryptedGetItem(corruptKey);
+        if (existingRecovery === null) {
+          if (getEncryptionEnabled() && !isUnlocked()) {
+            throw new Error('Encryption key is locked; refusing a plaintext recovery write.');
           }
-          import('./blob-storage.js').then(async ({ setBlob, getBlob }) => {
-            const existing = await getBlob(corruptKey).catch(() => null);
-            if (!existing) await setBlob(corruptKey, savedImported);
-          }).catch(() => {});
+          await encryptedSetItem(corruptKey, savedImported);
         }
-      } catch {}
-      // Surface to the user via the global notification system if available;
-      // fall back to console so headless paths still log it.
-      profileDeps.showNotification('Profile data was corrupted and could not be loaded. The original bytes were saved as a backup — open Settings → Data to export them or contact support.', 'error', 12000);
-      return defaultData;
+        recoverySaved = true;
+      } catch (recoveryError) {
+        console.warn('[profile] Could not preserve corrupt profile bytes:', recoveryError);
+      }
+      profileDeps.showNotification(
+        recoverySaved
+          ? 'Profile data was corrupted and could not be loaded. The original bytes were saved as a recovery copy. Contact support before making more changes.'
+          : 'Profile data was corrupted and could not be loaded, and the recovery copy could not be saved. Contact support before making more changes.',
+        'error',
+        12000,
+      );
     }
-  })() : defaultData;
+  }
   const savedUnits = localStorage.getItem(profileStorageKey(profileId, 'units'));
   state.unitSystem = savedUnits === 'US' ? 'US' : 'EU';
   const savedRange = localStorage.getItem(profileStorageKey(profileId, 'rangeMode'));
@@ -449,43 +454,14 @@ export async function deleteProfile(profileId, onComplete) {
   if (profiles.length <= 1) { profileDeps.showNotification("Cannot delete the last profile", "error"); return; }
   if (await profileDeps.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {
     const updated = profiles.filter(p => p.id !== profileId);
-    await saveProfiles(updated);
-    // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
-    // hits both backends so the IDB residue is also wiped.
-    await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
-    localStorage.removeItem(profileStorageKey(profileId, 'units'));
-    localStorage.removeItem(profileStorageKey(profileId, 'suppOverlay'));
-    localStorage.removeItem(profileStorageKey(profileId, 'noteOverlay'));
-    localStorage.removeItem(profileStorageKey(profileId, 'rangeMode'));
-    localStorage.removeItem(profileStorageKey(profileId, 'showAltUnits'));
-    localStorage.removeItem(profileStorageKey(profileId, 'suppImpact'));
-    localStorage.removeItem(`labcharts-${profileId}-chat`);
-    // Remove thread index + all per-thread message keys
-    const threadIndexRaw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
-    if (threadIndexRaw) {
-      try {
-        const threads = JSON.parse(threadIndexRaw);
-        for (const t of threads) {
-          localStorage.removeItem(`labcharts-${profileId}-chat-t_${t.id}`);
-        }
-      } catch {}
-      localStorage.removeItem(`labcharts-${profileId}-chat-threads`);
+    try {
+      await clearProfileStorage(profileId);
+    } catch (error) {
+      console.warn('[profile] Profile cleanup failed:', error);
+      profileDeps.showNotification('Could not delete all profile data. Close other Get Based tabs and try again.', 'error', 8000);
+      return;
     }
-    localStorage.removeItem(`labcharts-${profileId}-chatRailOpen`);
-    localStorage.removeItem(`labcharts-${profileId}-chatPersonality`);
-    localStorage.removeItem(`labcharts-${profileId}-chatPersonalityCustom`);
-    localStorage.removeItem(`labcharts-${profileId}-focusCard`);
-    localStorage.removeItem(`labcharts-${profileId}-contextHealth`);
-    localStorage.removeItem(`labcharts-${profileId}-onboarded`);
-    localStorage.removeItem(`labcharts-${profileId}-emptyTour`);
-    localStorage.removeItem(`labcharts-${profileId}-tour`);
-    localStorage.removeItem(`labcharts-${profileId}-cycleTour`);
-    localStorage.removeItem(`labcharts-${profileId}-phaseOverlay`);
-    // Wearable per-profile IDB (`labcharts-wearables-${profileId}`) lives
-    // outside localStorage. Drop it too so deleted profiles don't leak 90d
-    // of HRV/sleep/RHR + manual entries onto disk indefinitely.
-    import('./wearables-store.js').then(m => m.deleteWearablesDB(profileId)).catch(() => {});
-    import('./cycle-store.js').then(m => m.deleteCycleDB(profileId)).catch(() => {});
+    await saveProfiles(updated);
     // Propagate the delete to the relay so other devices stop seeing this
     // profile. Without this, a paired device pulling later would resurrect
     // the profile (the Evolu row's dataJson outlives our local wipe).
