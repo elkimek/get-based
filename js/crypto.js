@@ -367,7 +367,7 @@ export async function encryptedGetItem(key) {
 export async function encryptedRemoveItem(key, options = {}) {
   if (shouldUseBlob(key)) {
     try {
-      await deleteBlob(key);
+      await deleteBlob(key, { throwOnError: options.throwOnBlobError });
     } catch (error) {
       if (options.throwOnBlobError) throw error;
     }

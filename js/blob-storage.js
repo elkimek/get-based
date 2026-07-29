@@ -76,7 +76,11 @@ export async function setBlob(key, value) {
   }));
 }
 
-export async function deleteBlob(key) {
+/**
+ * @param {string} key
+ * @param {{ throwOnError?: boolean }} [options]
+ */
+export async function deleteBlob(key, options = {}) {
   if (!_idbAvailable) return;
   try {
     const db = await _openDB();
@@ -89,7 +93,7 @@ export async function deleteBlob(key) {
     }));
   } catch (e) {
     console.warn('[blob-storage] deleteBlob failed:', getErrorMessage(e, e));
-    throw e;
+    if (options.throwOnError) throw e;
   }
 }
 

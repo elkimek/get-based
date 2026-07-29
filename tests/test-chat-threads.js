@@ -345,9 +345,14 @@ assert('isSensitiveKey matches thread index (crypto.js SENSITIVE_PATTERNS)',
 console.log('16. Profile Delete Cleanup (source inspection)');
 const profileSrc = read('js/profile.js');
 const profileRuntimeSrc = read('js/profile-runtime.js');
-assert('deleteProfile removes chat-threads key', profileSrc.includes('chat-threads'));
-assert('deleteProfile removes chat-t_ keys', profileSrc.includes('chat-t_'));
-assert('deleteProfile removes chatRailOpen', profileSrc.includes('chatRailOpen'));
+const profileCleanupSrc = read('js/profile-storage-cleanup.js');
+assert('deleteProfile removes chat-threads key through centralized prefix cleanup',
+  profileSrc.includes('await clearProfileStorage(profileId)')
+    && profileCleanupSrc.includes('key.startsWith(standardPrefix)'));
+assert('deleteProfile removes chat-t_ keys without relying on a decryptable thread index',
+  profileCleanupSrc.includes('Prefix cleanup covers chat messages'));
+assert('deleteProfile removes chatRailOpen through centralized prefix cleanup',
+  profileCleanupSrc.includes('const standardPrefix = `labcharts-${profileId}-`'));
 assert('loadProfile resets chatThreads', profileSrc.includes('state.chatThreads = []'));
 assert('loadProfile resets currentThreadId', profileSrc.includes('state.currentThreadId = null'));
 assert('loadProfile delegates runtime refresh after profile switch',
