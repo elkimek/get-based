@@ -150,7 +150,7 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
 
       const nameInput = document.getElementById('chat-onboard-name');
       const nextButton = document.getElementById('chat-onboard-next');
-      onboarding.setChatProfileSex('female');
+      await onboarding.setChatProfileSex('female');
       outcomes.sexButtonStateAndNextGate = state.profileSex === 'female'
         && host.querySelectorAll('.welcome-sex-btn')[1].classList.contains('active')
         && nextButton.disabled === true;
@@ -181,11 +181,9 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       localStorage.setItem('labcharts-ai-paused', 'true');
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-openrouter-key');
-      onboarding.saveChatProfile(true);
+      await onboarding.saveChatProfile(true);
       countryInput.value = 'Germany';
-      onboarding.saveChatLocation();
-      await Promise.resolve();
-      await Promise.resolve();
+      await onboarding.saveChatLocation();
       const loc = profile.getProfileLocation(profileId);
       outcomes.saveProfilePersistsProfileFieldsAndBiometrics = state.profiles[0].name === 'Ada Lovelace'
         && state.profileDob === '1990-01-02'
@@ -301,7 +299,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
       state.chatHistory = [];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
 
-      onboarding.saveChatProfile(true);
+      await onboarding.saveChatProfile(true);
       outcomes.defaultUpdateNudgeCallbackAllowsProfileAdvance =
         state.profiles[0].name === 'Callback Safe'
         && state.profileDob === '1985-04-12'
@@ -312,7 +310,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
       sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'profile');
       localStorage.setItem(`labcharts-onboard-extras-done-${profileId}`, '1');
       localStorage.setItem(`labcharts-onboard-context-cards-skipped-${profileId}`, '1');
-      onboarding.saveChatProfile(true);
+      await onboarding.saveChatProfile(true);
       outcomes.forcedProfileContinueSkipsConnectedProviderToExtras =
         sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'extras'
         && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === null
@@ -322,7 +320,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
       localStorage.removeItem('labcharts-custom-url');
       localStorage.removeItem('labcharts-custom-key');
       sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'profile');
-      onboarding.saveChatProfile(true);
+      await onboarding.saveChatProfile(true);
       outcomes.forcedProfileContinueUsesProviderStepWhenDisconnected =
         sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'provider'
         && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === '1'

@@ -460,6 +460,7 @@ try {
 console.log('17. profile.js async');
 try {
   const src = await fetchWithRetry('js/profile.js');
+  const listStoreSrc = await fetchWithRetry('js/profile-list-store.js');
   const runtimeSrc = await fetchWithRetry('js/profile-runtime.js');
   const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
   const exportSrc = await fetchWithRetry('js/export.js');
@@ -484,7 +485,7 @@ try {
     src.includes('await saveProfiles(updated)') &&
     (src.includes('await loadProfile(updated[0].id)') || src.includes('await refreshProfileButton()')));
   assert('saveProfiles rejects failed profile-list writes',
-    /catch \(e\) \{[\s\S]{0,200}throw e;/.test(src));
+    /catch \(error\) \{[\s\S]{0,300}throw error;/.test(listStoreSrc));
   assert('profile.js no longer calls profile-load UI globals through window',
     !/window\.(loadChatPersonality|loadChatThreads|loadChatHistory|renderThreadList|destroyAllCharts|buildSidebar|navigate|renderProfileButton)/.test(src));
   assert('profile-runtime keeps profile UI refresh module-owned',
@@ -496,6 +497,8 @@ try {
     !runtimeSrc.includes('Object.assign(window'));
   assert('Service worker precaches profile runtime module',
     swSrc.includes("'/js/profile-runtime.js'"));
+  assert('Service worker precaches durable profile list store',
+    swSrc.includes("'/js/profile-list-store.js'"));
   assert('export.js delegates browser runtime wiring to export-runtime',
     exportSrc.includes("from './export-runtime.js'") &&
     exportSrc.includes('refreshImportRuntimeShell') &&

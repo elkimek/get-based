@@ -449,12 +449,21 @@ function _clToggleMenu(e, id, buttonEl = null) {
 }
 
 function _clEdit(id) { _closeMenus(); openClientForm(id); }
-function _clPin(id) { updateProfileMeta(id, { pinned: true }); renderClientList(); }
-function _clUnpin(id) { updateProfileMeta(id, { pinned: false }); renderClientList(); }
-function _clFlag(id) { updateProfileMeta(id, { status: 'flagged' }); renderClientList(); refreshClientProfileButton(); }
-function _clUnflag(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); refreshClientProfileButton(); }
-function _clArchive(id) { updateProfileMeta(id, { status: 'archived' }); renderClientList(); refreshClientProfileButton(); }
-function _clUnarchive(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); refreshClientProfileButton(); }
+function _clUpdateProfile(id, updates, refreshProfileButton = false) {
+  void updateProfileMeta(id, updates).then(changed => {
+    if (!changed) return;
+    renderClientList();
+    if (refreshProfileButton) refreshClientProfileButton();
+  }).catch(() => {
+    // saveProfiles already surfaced the storage failure; retain current UI.
+  });
+}
+function _clPin(id) { _clUpdateProfile(id, { pinned: true }); }
+function _clUnpin(id) { _clUpdateProfile(id, { pinned: false }); }
+function _clFlag(id) { _clUpdateProfile(id, { status: 'flagged' }, true); }
+function _clUnflag(id) { _clUpdateProfile(id, { status: 'active' }, true); }
+function _clArchive(id) { _clUpdateProfile(id, { status: 'archived' }, true); }
+function _clUnarchive(id) { _clUpdateProfile(id, { status: 'active' }, true); }
 function _closeMenus() {
   const m = document.getElementById('cl-active-menu');
   const tools = document.getElementById('cl-tools-menu');

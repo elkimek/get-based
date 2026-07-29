@@ -4,8 +4,7 @@
 // and never leave the user's device. Camera tools cover lux, flicker, CCT,
 // spectrum, glass transmission, and sleep darkness; the remaining tools log
 // sunrise/sunset sessions and run a room-by-room eye-level walkthrough.
-// Measurements persist via importedData.lightMeasurements[]. Each entry
-// stores tool, timestamp, value, confidence, optional location label.
+// Measurements persist in importedData.lightMeasurements[] with tool, timestamp, value, confidence, and location.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils.js';
@@ -13,6 +12,7 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement, loadLuxCalibration } from './light-tool-camera.js';
+import { createUniqueId } from './unique-id.js';
 /** @typedef {typeof import('./light-tool-camera-modals.js')} LightToolCameraModals */
 /** @type {Promise<LightToolCameraModals> | null} */ let lightToolCameraModalsPromise = null;
 /** @type {LightToolCameraModals | null} */ let lightToolCameraModals = null;
@@ -210,7 +210,7 @@ function _supersedePriorMeasurement(list, roomId, tool) {
 }
 
 export async function saveMeasurement(tool, value, opts = {}) {
-  const id = `lm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const id = createUniqueId('lm_');
   const entry = {
     id,
     tool,

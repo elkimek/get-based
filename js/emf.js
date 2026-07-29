@@ -18,6 +18,7 @@ import { callClaudeAPI, hasAIProvider } from './api.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
+import { createUniqueId } from './unique-id.js';
 import {
   configureEMFEditor,
   emfEditorState,
@@ -78,7 +79,7 @@ function newRoom(name) {
 
 function newAssessment() {
   return {
-    id: 'emf_' + Date.now(),
+    id: createUniqueId('emf_'),
     date: new Date().toISOString().slice(0, 10),
     label: '',
     consultant: '',

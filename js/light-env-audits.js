@@ -11,6 +11,7 @@ import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirm
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { lightEnvActionAttrs } from './light-env-actions.js';
+import { createUniqueId } from './unique-id.js';
 
 // Mirrors the EMF Assessment pattern: each audit is a dated, labeled,
 // immutable snapshot of the rooms + screens + recent measurements at
@@ -134,7 +135,7 @@ export async function saveLightAudit(label = '') {
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const audit = {
-    id: `la_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    id: createUniqueId('la_'),
     date,
     label: label || `Audit ${audits.length + 1}`,
     notes: '',

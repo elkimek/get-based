@@ -40,6 +40,13 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     const previousChatEmptyStateDeps = chatEmptyState.configureChatEmptyStateDeps({
       closeChatPanel: () => calls.push('close-chat'),
     });
+    const waitUntil = async (predicate, label) => {
+      for (let i = 0; i < 80; i += 1) {
+        if (predicate()) return;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
     const inputClicks = [];
     const container = document.createElement('div');
     const panel = document.createElement('div');
@@ -95,6 +102,11 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       nameInput.dispatchEvent(new Event('change', { bubbles: true }));
 
       container.querySelector('[data-chat-empty-action="set-profile-sex"][data-sex="female"]')?.click();
+      await waitUntil(
+        () => state.profileSex === 'female'
+          && container.querySelector('[data-sex="female"]')?.classList.contains('active') === true,
+        'durable chat profile sex',
+      );
       const sexSavedAndActive = state.profileSex === 'female'
         && container.querySelector('[data-sex="female"]')?.classList.contains('active') === true;
 
@@ -107,6 +119,10 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       const countryInput = container.querySelector('#chat-onboard-country');
       countryInput.value = 'Germany';
       countryInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitUntil(
+        () => getProfileLocation('chat-empty-test').country === 'Germany',
+        'durable chat profile location',
+      );
 
       chatEmptyState.renderEmptyChatState(container, panel);
       const bubbledBeforeOptionalActions = bubbledClicks;
@@ -270,11 +286,27 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       return true;
     };
-    const finishStep1 = () => {
+    const waitUntil = async (predicate, label) => {
+      for (let i = 0; i < 80; i += 1) {
+        if (predicate()) return;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+    const finishStep1 = async () => {
       const nameInput = container.querySelector('#chat-onboard-name');
       if (nameInput) nameInput.value = 'Ada';
       click('[data-chat-empty-action="set-profile-sex"][data-sex="female"]');
+      await waitUntil(
+        () => state.profileSex === 'female'
+          && container.querySelector('#chat-onboard-next')?.disabled === false,
+        'durable profile sex before advancing',
+      );
       click('[data-chat-empty-action="save-profile-advance"]');
+      await waitUntil(
+        () => !text().includes('Basics'),
+        'durable profile save and onboarding advance',
+      );
     };
     const clickBack = () => click('.chat-onboard-back-btn[data-chat-onboarding-action="go-onboarding-step"]');
     const continueStep3 = () => click('[data-chat-empty-action="skip-extras"]');
@@ -294,14 +326,14 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       setupProfile('walk-connected', true);
       outcomes.connectedStartsAtProfile = text().includes('Step 1 of 3')
         && text().includes('Basics');
-      finishStep1();
+      await finishStep1();
       outcomes.connectedSkipsProviderToStep3 = text().includes('Step 2 of 3')
         && text().includes('Add-ons')
         && !text().includes('pick how you want to power the AI');
       clickBack();
       outcomes.connectedBackFromStep3ReturnsToProfile = text().includes('Step 1 of 3')
         && text().includes('Basics');
-      finishStep1();
+      await finishStep1();
       outcomes.connectedProfileContinueReturnsToStep3 = text().includes('Step 2 of 3')
         && text().includes('Add-ons');
       continueStep3();
@@ -324,7 +356,7 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
         && !!container.querySelector('.chat-context-cards');
 
       setupProfile('walk-disconnected', false);
-      finishStep1();
+      await finishStep1();
       outcomes.disconnectedProfileContinuesToProvider = text().includes('Step 2 of 4')
         && text().includes('AI setup')
         && text().includes('Next, pick how you want to power the AI')

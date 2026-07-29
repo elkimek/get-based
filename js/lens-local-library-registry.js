@@ -2,6 +2,7 @@
 // Lens Local library-registry lifecycle and OPFS recovery.
 
 import { getErrorMessage } from './caught-error.js';
+import { createUniqueId } from './unique-id.js';
 import {
   DEFAULT_LIBRARY_NAME,
   FILE_CHUNKS,
@@ -127,7 +128,7 @@ export class LensLocalLibraryRegistry {
 
   async create(name, modelKey) {
     const label = String(name || '').trim() || 'Untitled library';
-    const id = `lib-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = createUniqueId('lib-');
     const model = (modelKey && this.models[modelKey]) ? modelKey : this.defaultModelKey;
     const library = { id, name: label, createdAt: Date.now(), model };
     const nextLibraries = this.libraries.concat(library);

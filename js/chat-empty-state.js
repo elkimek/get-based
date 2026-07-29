@@ -81,9 +81,9 @@ function handleChatEmptyClick(event) {
   if (CHAT_EMPTY_STOP_PROPAGATION_ACTIONS.has(action)) event.stopPropagation();
 
   if (action === 'set-profile-sex') {
-    setChatProfileSex(actionEl.dataset.sex || '');
+    void setChatProfileSex(actionEl.dataset.sex || '');
   } else if (action === 'save-profile-advance') {
-    saveChatProfile(true);
+    void saveChatProfile(true);
   } else if (action === 'resume-ai') {
     resumeChatAIRuntime();
   } else if (action === 'skip-extras') {
@@ -133,7 +133,7 @@ function handleChatEmptyChange(event) {
   if (!action) return;
 
   if (action === 'save-profile') {
-    saveChatProfile();
+    void saveChatProfile();
   } else if (action === 'height-unit-changed') {
     onboardHeightUnitChanged();
   } else if (action === 'import-mtdna-file' && actionEl instanceof HTMLInputElement) {
@@ -148,7 +148,7 @@ function handleChatEmptyChange(event) {
 function handleChatEmptyInput(event) {
   const actionEl = closestChatEmptyAction(event);
   if (!actionEl) return;
-  if (actionEl.dataset.chatEmptyAction === 'save-location') saveChatLocation();
+  if (actionEl.dataset.chatEmptyAction === 'save-location') void saveChatLocation();
 }
 
 /** @param {HTMLElement | null} container */
@@ -305,7 +305,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
       </div>
     </div>`;
   _updateOnboardNextBtn();
-  if (pLoc.country) saveChatLocation(); // show latitude for pre-filled country
+  if (pLoc.country) void saveChatLocation(); // show latitude for pre-filled country
   return true;
 }
 

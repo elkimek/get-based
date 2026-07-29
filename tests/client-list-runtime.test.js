@@ -139,8 +139,10 @@ describe('client list runtime behavior', () => {
     document.querySelector('[data-cl-action="toggle-menu"][data-cl-profile-id="alice"]').click();
     expect(document.getElementById('cl-active-menu').classList.contains('show')).toBe(true);
     document.querySelector('#cl-active-menu [data-cl-action="pin-profile"]').click();
-    expect(state.profiles.find(p => p.id === 'alice').pinned).toBe(true);
-    expect(document.querySelector('[data-id="alice"] .cl-badge-pinned')).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(state.profiles.find(p => p.id === 'alice').pinned).toBe(true);
+      expect(document.querySelector('[data-id="alice"] .cl-badge-pinned')).not.toBeNull();
+    });
 
     document.querySelector('[data-cl-action="edit-profile"][data-cl-profile-id="alice"]').click();
     expect(document.querySelector('.cl-form')).not.toBeNull();
@@ -164,6 +166,9 @@ describe('client list runtime behavior', () => {
     expect(document.getElementById('cl-bmi-display').textContent).toMatch(/24\.[0-9]/);
 
     document.querySelector('.cl-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(showNotificationSpy).toHaveBeenCalledWith('"Alice Smith" updated', 'info');
+    });
     const alice = state.profiles.find(p => p.id === 'alice');
     expect(alice).toMatchObject({
       name: 'Alice Smith',

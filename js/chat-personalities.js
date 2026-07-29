@@ -16,6 +16,7 @@ import {
   openChatContextModalRuntime,
   renderChatMessagesRuntime,
 } from './chat-runtime.js';
+import { createUniqueId } from './unique-id.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 
@@ -471,7 +472,7 @@ export function saveCustomPersonality() {
     const idx = customs.findIndex(p => p.id === id);
     if (idx >= 0) customs[idx] = { ...customs[idx], name, icon, promptText };
   } else {
-    id = 'custom_' + Date.now().toString(36);
+    id = createUniqueId('custom_');
     customs.push({ id, name, icon, promptText, evidenceBased: false });
   }
   saveCustomPersonalities(customs);

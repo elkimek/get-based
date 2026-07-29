@@ -17,6 +17,7 @@ import {
   invalidateThreadContentCache, jumpToSearchResult,
 } from './chat-thread-search.js';
 import { normalizeChatThreads } from './chat-storage-safety.js';
+import { createUniqueId } from './unique-id.js';
 
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 
@@ -79,7 +80,7 @@ function recordDeletedChatThread(threadId, deletedAt = Date.now()) {
 }
 
 function generateThreadId() {
-  return 't_' + Date.now().toString(36);
+  return createUniqueId('t_');
 }
 
 function clearThreadIndexWriteBlock(key) {

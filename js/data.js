@@ -193,7 +193,7 @@ export async function saveImportedData(options = {}) {
   try {
     broadcastDataChanged(state.currentProfile);
     scheduleAutoBackup();
-    touchProfileTimestamp(state.currentProfile);
+    await touchProfileTimestamp(state.currentProfile);
     dataContextDeps.invalidateLabContextCache?.();
     onDataSaved(options);
   } catch (e) {

@@ -915,7 +915,7 @@ await import('../js/settings.js');
   assert('profile metadata changes queue profile sync',
     /renameProfile[\s\S]{0,500}queueProfileSync\(profileId\)/.test(profileSrc)
       && /updateProfileMeta[\s\S]{0,800}queueProfileSync\(profileId\)/.test(profileSrc)
-      && /setProfileLocation[\s\S]{0,500}queueProfileSync\(p\.id\)/.test(profileSrc));
+      && /setProfileLocation[\s\S]{0,800}queueProfileSync\(resolvedProfileId\)/.test(profileSrc));
   assert('sync-save-hooks exports profile metadata sync hook',
     syncSaveHooksSrc.includes('export function onProfileSaved')
       && syncSaveHooksSrc.includes('const _profileSyncTimers = new Map()')
@@ -3239,7 +3239,7 @@ await import('../js/settings.js');
       wearableCardOrder: ['weight', 'sleep', 'steps'],
       wearablePrimaryOverride: { weight: 'fitbit', bp_systolic: 'manual' },
       chatSummaries: [
-        // chat.js sets `id: 's_' + Date.now().toString(36)` at create
+        // Chat summaries receive a stable collision-resistant id at create
         // time. The default DELTA_ARRAYS itemIdFn picks `.id`, so the
         // sample must carry it for the membership/round-trip check.
         { id: 's_xyz123', threadId: 't_1', title: 'Chat 1',

@@ -18,6 +18,7 @@ import {
   ensureImportedArray,
   replaceImportedArrayItem,
 } from './data-merge.js';
+import { createUniqueId } from './unique-id.js';
 
 const SUMMARY_PROMPT = `You are a concise medical note-taker. Summarize this health consultation into a structured note.
 
@@ -138,7 +139,7 @@ async function _generateSummary() {
     await saveChatThreadIndex();
 
     await _saveSummaryToProfile({
-      id: 's_' + Date.now().toString(36),
+      id: createUniqueId('s_'),
       threadId: thread.id,
       threadName: thread.name,
       content: text,
