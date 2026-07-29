@@ -84,4 +84,19 @@ describe('production API smoke canary', () => {
       'OPTIONS /api/proxy failed: The operation was aborted due to timeout',
     );
   });
+
+  it('preserves the original fetch diagnostic when the base URL is malformed', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('original fetch failure');
+    });
+
+    await expect(waitForExpectedDeployment({
+      baseUrl: 'not-an-absolute-url',
+      expectedSha: SHA,
+      fetchImpl,
+      attempts: 1,
+    })).rejects.toThrow(
+      'GET not-an-absolute-url/api/commit failed: original fetch failure',
+    );
+  });
 });

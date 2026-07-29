@@ -19,10 +19,13 @@ async function request(fetchImpl, url, init, timeoutMs) {
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
-    const target = new URL(url);
+    let target = url;
+    try {
+      target = new URL(url).pathname;
+    } catch {}
     const method = init?.method || 'GET';
     const detail = error?.message || String(error);
-    throw new Error(`${method} ${target.pathname} failed: ${detail}`, { cause: error });
+    throw new Error(`${method} ${target} failed: ${detail}`, { cause: error });
   }
 }
 
