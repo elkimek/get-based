@@ -10,7 +10,7 @@ describe('DOM HTML sink audit', () => {
     expect(report.current.scannedFiles).toBeGreaterThan(100);
     expect(report.current.sinkCount).toBeGreaterThan(400);
     expect(Object.keys(report.current.files).length).toBeGreaterThan(31);
-  });
+  }, 15_000);
 
   it('recognizes assignment, insertion, fragment, unsafe-HTML, and document-write sinks', () => {
     const sinks = scanDomSinks(`

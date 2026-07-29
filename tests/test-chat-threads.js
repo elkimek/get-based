@@ -356,7 +356,7 @@ assert('profile-runtime reloads active profile chat history after first use',
 assert('profile-runtime rerenders chat rail after profile switch when loaded',
   profileRuntimeSrc.includes('chat?.renderThreadList?.()'));
 assert('profile-runtime preserves the lazy Chat boundary until first use',
-  profileRuntimeSrc.includes('isChatModuleLoaded() ? loadChatModule() : Promise.resolve(null)'));
+  profileRuntimeSrc.includes('isChatModuleLoaded() ? await loadChatModule() : null'));
 
 // ═══════════════════════════════════════════════
 // 17. Thread Search Extraction (source inspection)

@@ -104,6 +104,7 @@ const IMPLEMENTATION_OWNED_ACTION_FAMILIES = [
     allowedFiles: [
       'js/dashboard-widget-controls.js',
       'js/wearables-detail-modal.js',
+      'js/wearables-manual-detail.js',
       'js/wearables-strip-actions.js',
       'js/wearables.js',
     ],

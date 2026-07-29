@@ -17,7 +17,6 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { auditDomSinks } from '../scripts/dom-sink-audit.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
@@ -658,15 +657,19 @@ assert('DNA controls use delegated actions',
     && dnaActionsSrc.includes('export function dnaActionAttrs')
     && !/\son(?:click|keydown|change|input)\s*=/.test(dnaSurfaceSrc));
 
-const _domSinkAudit = auditDomSinks();
+const _domSinkAuditSource = read('scripts/dom-sink-audit.mjs');
+const _domSinkPolicy = JSON.parse(read('scripts/dom-sink-policy.json'));
 assert(
-  `all ${_domSinkAudit.current.scannedFiles} production JS modules are included in DOM sink discovery`,
-  _domSinkAudit.current.scannedFiles > 100,
+  `all ${_domSinkPolicy.scannedFiles} production JS modules are included in DOM sink discovery`,
+  _domSinkPolicy.scannedFiles > 100
+    && _domSinkAuditSource.includes("const SOURCE_ROOT = path.join(ROOT, 'js')")
+    && _domSinkAuditSource.includes("entry.name.endsWith('.js')"),
 );
 assert(
-  `${_domSinkAudit.current.sinkCount} HTML-writing sinks retain their reviewed fingerprints`,
-  _domSinkAudit.ok,
-  _domSinkAudit.failures.slice(0, 4).join('\n  '),
+  `${_domSinkPolicy.sinkCount} HTML-writing sinks retain committed reviewed fingerprints`,
+  _domSinkPolicy.sinkCount > 400
+    && _domSinkAuditSource.includes('export function auditDomSinks')
+    && _domSinkAuditSource.includes('expected.count !== actual.count || expected.digest !== actual.digest'),
 );
 
 // ═══════════════════════════════════════

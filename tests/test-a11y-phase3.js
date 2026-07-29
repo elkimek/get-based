@@ -175,10 +175,12 @@ console.log('=== Phase 3 A11y Tests ===\n');
     !indexSrc.includes('id="import-status-fab"'));
   assert('theme-color has light-mode variant',
     indexSrc.includes('media="(prefers-color-scheme: light)"'));
+  const themeBootstrapSrc = read('/js/theme-bootstrap.js');
   assert('saved theme applies browser chrome color before app boot',
-    indexSrc.includes("'synth-sunrise': '#0d0524'") &&
-    indexSrc.includes("document.documentElement.style.colorScheme") &&
-    indexSrc.includes("document.querySelectorAll('meta[name=\"theme-color\"]')"),
+    indexSrc.includes('<script src="js/theme-bootstrap.js"></script>') &&
+    themeBootstrapSrc.includes("'synth-sunrise': '#0d0524'") &&
+    themeBootstrapSrc.includes('document.documentElement.style.colorScheme') &&
+    themeBootstrapSrc.includes("document.querySelectorAll('meta[name=\"theme-color\"]')"),
     'mobile system bars should not wait for main.js to pick up the stored app theme');
   const themeSrc = read('/js/theme.js');
   const themeRuntimeSrc = read('/js/theme-runtime.js');
