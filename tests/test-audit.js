@@ -496,6 +496,8 @@ assert('marker detail presentation no longer depends on deferred Chat composer C
   !chatComposerCssSrc.includes('.ask-ai-btn'));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
 assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
+assert('Umami waits for offline PWA relaunches to reconnect',
+  indexSrc.includes("window.addEventListener('online', _loadUmami, { once: true })"));
 
 // ═══════════════════════════════════════
 // 3. XSS: escapeHTML in views/dashboard renderer surfaces

@@ -88,6 +88,7 @@ describe('proxy distributed rate limit', () => {
     process.env.PROXY_RATE_LIMIT_BLOB_TOKEN = 'vercel_blob_rw_store_secret';
     process.env.PROXY_RATE_LIMIT_MAX = '2';
     process.env.PROXY_RATE_LIMIT_WINDOW_MS = '1000';
+    vi.spyOn(Date, 'now').mockReturnValue(10_500);
     const request = rateRequest();
 
     expect(await enforceProxyRateLimit(request)).toMatchObject({
