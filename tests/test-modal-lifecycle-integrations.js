@@ -51,6 +51,7 @@ const markerDetailSrc = [
   'marker-detail-custom-markers.js',
 ].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
+const pdfImportFileHandlersSrc = fs.readFileSync(path.join(root, 'js/pdf-import-file-handlers.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.js'), 'utf8');
 const piiReviewSrc = fs.readFileSync(path.join(root, 'js/pii-review.js'), 'utf8');
@@ -386,13 +387,14 @@ assert('report builder, profile share, and dashboard widget picker use shared ov
 
 assert('PDF import dialogs and review modal use shared overlay lifecycle helpers',
   pdfImportSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
+    pdfImportFileHandlersSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
     pdfImportReviewSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
     pdfImportSrc.includes("openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 })") &&
-    pdfImportSrc.includes("openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 })") &&
-    (pdfImportSrc.match(/closeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    pdfImportFileHandlersSrc.includes("openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 })") &&
+    (`${pdfImportSrc}\n${pdfImportFileHandlersSrc}`.match(/closeModalOverlay\(overlay\)/g) || []).length >= 2 &&
     pdfImportReviewSrc.includes("closeModalOverlay('import-modal-overlay')") &&
     pdfImportReviewSrc.includes('openModalOverlay(overlay)') &&
-    [pdfImportSrc, pdfImportReviewSrc].every(src =>
+    [pdfImportSrc, pdfImportFileHandlersSrc, pdfImportReviewSrc].every(src =>
       !src.includes("overlay.classList.add('show')") &&
         !src.includes("overlay.classList.remove('show')") &&
         !src.includes("document.getElementById('import-modal-overlay')?.classList.remove('show')")) &&

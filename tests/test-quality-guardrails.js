@@ -218,6 +218,7 @@ const highValueCheckJsModules = [
   'js/marker-detail-custom-markers.js',
   'js/marker-detail-manual-entry.js',
   'js/pdf-import-commit.js',
+  'js/pdf-import-file-handlers.js',
   'js/pdf-import.js',
   'js/profile-data-migrations.js',
   'js/profile.js',
