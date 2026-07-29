@@ -242,6 +242,7 @@ assert('checkJs includes high-coupling browser modules',
 const domainUiCheckJsModules = [
   'js/crypto.js',
   'js/crypto-ui.js',
+  'js/data-merge-lab-entries.js',
   'js/data.js',
   'js/emf.js',
   'js/emf-editor.js',

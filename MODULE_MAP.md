@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 519 |
-| Internal import edges | 2322 |
+| Modules | 520 |
+| Internal import edges | 2324 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -331,9 +331,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>data</code> family — 3 modules</summary>
+<details><summary><code>data</code> family — 4 modules</summary>
 
-- [`js/data-merge.js`](js/data-merge.js) → [`js/lab-entry.js`](js/lab-entry.js), [`js/sync-delta-id.js`](js/sync-delta-id.js), [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js)
+- [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js) → [`js/lab-entry.js`](js/lab-entry.js)
+- [`js/data-merge.js`](js/data-merge.js) → [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/sync-delta-id.js`](js/sync-delta-id.js), [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js)
 - [`js/data-wipe.js`](js/data-wipe.js) → no in-scope imports
 - [`js/data.js`](js/data.js) → [`js/crypto.js`](js/crypto.js), [`js/lab-date-range.js`](js/lab-date-range.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile-context.js`](js/profile-context.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 

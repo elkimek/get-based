@@ -157,6 +157,7 @@ const APP_SHELL = [
   '/js/local-ai-discovery.js',
   '/js/import-benchmarks.js',
   '/js/import-reference-benchmark.js',
+  '/js/data-merge-lab-entries.js',
   '/js/data-merge.js',
   '/js/pii-review.js',
   '/js/pii.js',

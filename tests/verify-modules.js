@@ -92,6 +92,7 @@
     '/js/focus-card.js',
     '/js/onboarding-view-runtime.js',
     '/js/onboarding-view.js',
+    '/js/data-merge-lab-entries.js',
     '/js/pii-review.js',
     '/js/marker-detail-modal.js',
     '/js/marker-detail-modal-impl.js',
