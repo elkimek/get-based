@@ -1,5 +1,9 @@
 # Code quality audit snapshot — 2026-07-21
 
+> Superseded for the current repository state by the
+> [2026-07-29 comprehensive audit](code-quality-audit-2026-07-29.md).
+> This document remains as the historical 7/10 baseline.
+
 This document records the end-to-end audit of commit `2b2db033` (`Clarify
 marker card units`) on `main`. It is a point-in-time engineering assessment,
 not a claim that every scientific recommendation or external dependency was
