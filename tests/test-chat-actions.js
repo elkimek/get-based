@@ -381,7 +381,10 @@ const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
-assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
+const labCtxOutputSrc = read('js/lab-context-output.js');
+assert('lab-context.js exposes getContextSummary from its output owner',
+  labCtxSrc.includes('getContextSummary') && labCtxOutputSrc.includes('function getContextSummary'),
+  'found');
 assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-window-bindings.js'"), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
 assert('chat-actions.js exports buildActionBar', chatActionsSrc.includes('export function buildActionBar'), 'found');

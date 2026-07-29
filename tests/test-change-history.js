@@ -173,9 +173,10 @@ const contextCards = await import('../js/context-cards.js');
   console.log('14. AI Context');
 
   const labCtxSrc = read('js/lab-context.js');
+  const labCtxOutputSrc = read('js/lab-context-output.js');
   assert('buildLabContext reads changeHistory', labCtxSrc.includes('changeHistory'));
   assert('Context Change Timeline section', labCtxSrc.includes('Context Change Timeline'));
-  assert('summarizeChange helper exists', labCtxSrc.includes('function summarizeChange'));
+  assert('summarizeChange helper exists', labCtxOutputSrc.includes('function summarizeChange'));
 
   // ═══════════════════════════════════════
   // 15. saveAndRefresh accepts field param

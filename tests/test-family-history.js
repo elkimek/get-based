@@ -155,6 +155,7 @@ assert('Summary joins your-conditions + family with " — "',
 console.log('6. AI context family history');
 
 const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
+const labCtxOutputSrc = await fetch('js/lab-context-output.js').then(r => r.text());
 assert('Family history block emitted within [section:diagnoses]',
   /\[section:diagnoses\][\s\S]{0,1500}### Family history \(heritable\/environmental risk signal\)/.test(labCtxSrc));
 assert('Family history block iterates diag.familyHistory',
@@ -168,8 +169,8 @@ assert('Family history line format includes relative, condition, optional onset 
 console.log('7. Active areas list');
 
 assert('Active-areas list counts both conditions and family entries',
-  /label: 'Medical History', detail \}\)/.test(labCtxSrc) &&
-  /family entr/.test(labCtxSrc));
+  /label: 'Medical History', detail \}\)/.test(labCtxOutputSrc) &&
+  /family entr/.test(labCtxOutputSrc));
 
 // ═══════════════════════════════════════
 // 8. "Medical History" rename — verifying user-facing strings

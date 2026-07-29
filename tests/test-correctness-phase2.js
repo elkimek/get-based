@@ -45,8 +45,9 @@ assert('sync-lifecycle.js clears save and pull timers on disable',
 // ─── 2. Lab-context fingerprint includes wearableSummary ───
 console.log('\n2. Lab-context cache fingerprint');
 const lcSrc = read('js/lab-context.js');
+const lcSettingsSrc = read('js/lab-context-settings.js');
 assert('lab-context fingerprint covers wearableSummary',
-  lcSrc.includes("'wearableSummary'") && lcSrc.match(/cardPart\s*=.*wearableSummary/s),
+  lcSettingsSrc.includes("'wearableSummary'") && lcSettingsSrc.match(/cardPart\s*=.*wearableSummary/s),
   'AI context replayed stale wearable data after sync without this');
 
 // ─── 3. Lens LRU cache bumps on hit ───
@@ -151,6 +152,8 @@ const pwaAppShellAssets = [
   '/js/supplement-impact.js',
   '/js/commit-hash.js',
   '/js/focus-card.js',
+  '/js/lab-context-output.js',
+  '/js/lab-context-settings.js',
   '/js/onboarding-view.js',
   '/js/emf-runtime.js',
   '/js/pii-review.js',
