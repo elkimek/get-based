@@ -503,6 +503,7 @@
     if (location.protocol !== 'file:'
         && !location.hostname.endsWith('.onion')
         && !_isDevHostUmami
+        && navigator.onLine !== false
         && localStorage.getItem('labcharts-analytics-disabled') !== 'true') {
       var s = document.createElement('script');
       s.defer = true;
