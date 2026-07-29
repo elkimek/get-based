@@ -3,12 +3,20 @@
 // ciphertext envelopes using a private Vercel Blob store.
 
 import { errorMessage } from '../lib/error-utils.js';
+import {
+  BlobNotFoundError,
+  blobStoreOptions,
+  deleteBlobs,
+  getBlob,
+  isBlobPreconditionFailure,
+  listBlobs,
+  putBlob,
+} from '../lib/vercel-blob-rest.js';
 
 export const config = { runtime: 'edge' };
 
-const VERCEL_BLOB_API_URL = 'https://vercel.com/api/blob';
-const VERCEL_BLOB_API_VERSION = '12';
-const SHARE_PREFIX = 'profile-shares/v1/';
+const LEGACY_SHARE_PREFIX = 'profile-shares/v1/';
+const SHARE_PREFIX = 'profile-shares/v2/';
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const SHARE_SCHEMA = 'getbased-profile-share';
 const SHARE_VERSION = 1;
@@ -16,13 +24,12 @@ const MAX_SHARE_BYTES = 3_750_000;
 const MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_KDF_ITERATIONS = 100_000;
 const MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
-const RATE_LIMIT_PREFIX = 'profile-share-rate/v1/';
+const LEGACY_RATE_LIMIT_PREFIX = 'profile-share-rate/v1/';
+const RATE_LIMIT_PREFIX = 'profile-share-rate/v2/';
+const MAINTENANCE_PREFIX = 'profile-share-maintenance/v1/';
 const POST_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const POST_RATE_LIMIT_MAX = 20;
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
-
-class BlobNotFoundError extends Error {}
-class BlobPreconditionFailedError extends Error {}
 
 function jsonResponse(req, status, body, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -59,104 +66,20 @@ function isAllowedOrigin(req, origin) {
   }
 }
 
-function sharePath(id) {
-  return `${SHARE_PREFIX}${id}.json`;
+function legacySharePath(id) {
+  return `${LEGACY_SHARE_PREFIX}${id}.json`;
+}
+
+function shareSubjectPrefix(id) {
+  return `${SHARE_PREFIX}${id}/`;
+}
+
+function sharePath(id, expiresAt) {
+  return `${shareSubjectPrefix(id)}${expiresAt}.json`;
 }
 
 function validateId(id) {
   return SHARE_ID_RE.test(id || '') ? id : '';
-}
-
-function parseStoreIdFromReadWriteToken(token) {
-  return String(token || '').split('_')[3] || '';
-}
-
-function blobUrl(path, options, access = 'private') {
-  return `https://${options.storeId}.${access}.blob.vercel-storage.com/${path}`;
-}
-
-async function parseBlobError(response) {
-  let code = '';
-  let message = '';
-  try {
-    const body = await response.json();
-    code = body?.error?.code || '';
-    message = body?.error?.message || '';
-  } catch {}
-  if (response.status === 404 || code === 'not_found') {
-    return new BlobNotFoundError(message || 'Blob not found.');
-  }
-  if (response.status === 412 || code === 'precondition_failed') {
-    return new BlobPreconditionFailedError(message || 'Blob precondition failed.');
-  }
-  return new Error(message || `Vercel Blob request failed (${response.status}).`);
-}
-
-async function blobApi(path, init, options) {
-  const response = await fetch(`${VERCEL_BLOB_API_URL}${path}`, {
-    ...init,
-    headers: {
-      'x-api-version': VERCEL_BLOB_API_VERSION,
-      'x-vercel-blob-store-id': options.storeId,
-      'authorization': `Bearer ${options.token}`,
-      ...(init.headers || {}),
-    },
-  });
-  if (!response.ok) throw await parseBlobError(response);
-  return response.status === 204 ? null : response.json();
-}
-
-async function get(path, options) {
-  const url = new URL(blobUrl(path, options));
-  url.searchParams.set('cache', '0');
-  const response = await fetch(url.toString(), {
-    method: 'GET',
-    headers: { 'authorization': `Bearer ${options.token}` },
-  });
-  if (response.status === 404) return null;
-  if (!response.ok) throw await parseBlobError(response);
-  return { stream: response.body };
-}
-
-async function put(path, body, options) {
-  const params = new URLSearchParams({ pathname: path });
-  return blobApi(`/?${params.toString()}`, {
-    method: 'PUT',
-    headers: {
-      'x-vercel-blob-access': options.access || 'private',
-      'x-add-random-suffix': options.addRandomSuffix ? '1' : '0',
-      'x-allow-overwrite': options.allowOverwrite ? '1' : '0',
-      ...(options.contentType ? { 'x-content-type': options.contentType } : {}),
-      ...(options.cacheControlMaxAge != null ? { 'x-cache-control-max-age': String(options.cacheControlMaxAge) } : {}),
-    },
-    body,
-  }, options);
-}
-
-async function list(options) {
-  const params = new URLSearchParams();
-  if (options.limit) params.set('limit', String(options.limit));
-  if (options.prefix) params.set('prefix', options.prefix);
-  if (options.cursor) params.set('cursor', options.cursor);
-  const body = await blobApi(`?${params.toString()}`, { method: 'GET' }, options);
-  return {
-    blobs: (body?.blobs || []).map(blob => ({ ...blob, uploadedAt: new Date(blob.uploadedAt) })),
-    cursor: body?.cursor,
-    hasMore: !!body?.hasMore,
-  };
-}
-
-async function del(pathOrPaths, options) {
-  const urls = Array.isArray(pathOrPaths) ? pathOrPaths : [pathOrPaths];
-  await blobApi('/delete', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ urls }),
-  }, options);
-}
-
-function rateLimitSubjectPrefix(hash) {
-  return `${RATE_LIMIT_PREFIX}${hash}/`;
 }
 
 function rateLimitWindowStart(now) {
@@ -164,7 +87,7 @@ function rateLimitWindowStart(now) {
 }
 
 function rateLimitMarkerPath(hash, windowStart, slot) {
-  return `${rateLimitSubjectPrefix(hash)}${windowStart}/${slot}.json`;
+  return `${RATE_LIMIT_PREFIX}${windowStart}/${hash}/${slot}.json`;
 }
 
 function randomRateLimitSlotOffset() {
@@ -174,7 +97,9 @@ function randomRateLimitSlotOffset() {
 }
 
 function getClientRateSubject(req) {
-  const forwarded = req.headers.get('x-forwarded-for') || '';
+  const forwarded = req.headers.get('x-vercel-forwarded-for')
+    || req.headers.get('x-forwarded-for')
+    || '';
   const ip = forwarded.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')
     || req.headers.get('cf-connecting-ip')
@@ -189,10 +114,7 @@ async function sha256Hex(value) {
 
 function blobOptions(extra = {}) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return null;
-  const storeId = parseStoreIdFromReadWriteToken(token);
-  if (!storeId) return null;
-  return { token, storeId, ...extra };
+  return blobStoreOptions(token, extra);
 }
 
 function normalizeEnvelope(envelope) {
@@ -234,7 +156,7 @@ function normalizeEnvelope(envelope) {
 async function parseRecord(path, options) {
   let result;
   try {
-    result = await get(path, { ...options, access: 'private', useCache: false });
+    result = await getBlob(path, { ...options, access: 'private', useCache: false });
   } catch (err) {
     if (err instanceof BlobNotFoundError) return null;
     throw err;
@@ -245,32 +167,122 @@ async function parseRecord(path, options) {
 }
 
 function isRateLimitSlotTaken(err) {
-  return err instanceof BlobPreconditionFailedError
-    || /precondition|already exists|overwrite/i.test(String(err?.message || ''));
+  return isBlobPreconditionFailure(err);
 }
 
-async function cleanupExpiredRateLimitMarkers(subjectHash, currentWindowStart, options) {
-  const prefix = rateLimitSubjectPrefix(subjectHash);
+function maintenancePath(windowStart) {
+  return `${MAINTENANCE_PREFIX}${windowStart}.json`;
+}
+
+function v2ShareExpiry(pathname) {
+  const relative = String(pathname || '').slice(SHARE_PREFIX.length);
+  return Number(relative.split('/')[1]?.replace(/\.json$/, ''));
+}
+
+function v2RateWindow(pathname) {
+  const relative = String(pathname || '').slice(RATE_LIMIT_PREFIX.length);
+  return Number(relative.split('/')[0]);
+}
+
+function legacyRateWindow(pathname) {
+  const relative = String(pathname || '').slice(LEGACY_RATE_LIMIT_PREFIX.length);
+  return Number(relative.split('/')[1]);
+}
+
+function maintenanceWindow(pathname) {
+  const relative = String(pathname || '').slice(MAINTENANCE_PREFIX.length);
+  return Number(relative.replace(/\.json$/, ''));
+}
+
+async function collectStaleBlobPaths(prefix, options, isStale) {
   let cursor;
   const stale = [];
   do {
-    const page = await list({ ...options, prefix, cursor, limit: 1000 });
+    const page = await listBlobs({ ...options, prefix, cursor, limit: 1000 });
     for (const blob of page.blobs || []) {
-      const relative = String(blob.pathname || '').slice(prefix.length);
-      const windowStart = Number(relative.split('/')[0]);
-      if (Number.isFinite(windowStart) && windowStart < currentWindowStart) {
-        stale.push(blob.pathname);
-      }
+      if (isStale(blob)) stale.push(blob.pathname);
     }
     cursor = page.hasMore ? page.cursor : null;
-  } while (cursor && stale.length < 1000);
-  if (stale.length) await del(stale, options);
+  } while (cursor);
+  return stale;
+}
+
+async function cleanupExpiredBlobState(now, currentWindowStart, options) {
+  const completionPath = maintenancePath(currentWindowStart);
+  const completion = await listBlobs({
+    ...options,
+    prefix: completionPath,
+    limit: 1,
+  });
+  if ((completion.blobs || []).some(blob => blob.pathname === completionPath)) return;
+
+  const staleGroups = await Promise.all([
+    collectStaleBlobPaths(
+      SHARE_PREFIX,
+      options,
+      blob => v2ShareExpiry(blob.pathname) <= now,
+    ),
+    collectStaleBlobPaths(
+      LEGACY_SHARE_PREFIX,
+      options,
+      blob => blob.uploadedAt?.getTime?.() + MAX_TTL_MS <= now,
+    ),
+    collectStaleBlobPaths(
+      RATE_LIMIT_PREFIX,
+      options,
+      blob => v2RateWindow(blob.pathname) < currentWindowStart,
+    ),
+    collectStaleBlobPaths(
+      LEGACY_RATE_LIMIT_PREFIX,
+      options,
+      blob => legacyRateWindow(blob.pathname) < currentWindowStart,
+    ),
+    collectStaleBlobPaths(
+      MAINTENANCE_PREFIX,
+      options,
+      blob => maintenanceWindow(blob.pathname) < currentWindowStart,
+    ),
+  ]);
+  const stale = staleGroups.flat();
+  if (stale.length) await deleteBlobs(stale, options);
+
+  try {
+    await putBlob(completionPath, '{}', {
+      ...options,
+      access: 'private',
+      addRandomSuffix: false,
+      allowOverwrite: false,
+      contentType: 'application/json',
+      cacheControlMaxAge: 60,
+    });
+  } catch (error) {
+    if (!isBlobPreconditionFailure(error)) throw error;
+  }
+}
+
+async function resolveSharePath(id, options) {
+  const prefix = shareSubjectPrefix(id);
+  const page = await listBlobs({ ...options, prefix, limit: 2 });
+  const current = (page.blobs || []).find(blob => (
+    String(blob.pathname || '').startsWith(prefix)
+  ));
+  return current?.pathname || legacySharePath(id);
+}
+
+async function shareIdExists(id, options) {
+  const [current, legacy] = await Promise.all([
+    listBlobs({ ...options, prefix: shareSubjectPrefix(id), limit: 1 }),
+    listBlobs({ ...options, prefix: legacySharePath(id), limit: 1 }),
+  ]);
+  return (current.blobs || []).length > 0
+    || (legacy.blobs || []).some(blob => blob.pathname === legacySharePath(id));
 }
 
 async function enforcePostRateLimit(req, options) {
   const now = Date.now();
   const subjectHash = await sha256Hex(getClientRateSubject(req));
   const windowStart = rateLimitWindowStart(now);
+  await cleanupExpiredBlobState(now, windowStart, options);
   const resetAtMs = windowStart + POST_RATE_LIMIT_WINDOW_MS;
   const resetAt = new Date(resetAtMs).toISOString();
   const marker = {
@@ -283,7 +295,7 @@ async function enforcePostRateLimit(req, options) {
   for (let attempt = 0; attempt < POST_RATE_LIMIT_MAX; attempt++) {
     const slot = (offset + attempt) % POST_RATE_LIMIT_MAX;
     try {
-      await put(rateLimitMarkerPath(subjectHash, windowStart, slot), JSON.stringify(marker), {
+      await putBlob(rateLimitMarkerPath(subjectHash, windowStart, slot), JSON.stringify(marker), {
         ...options,
         access: 'private',
         addRandomSuffix: false,
@@ -291,7 +303,6 @@ async function enforcePostRateLimit(req, options) {
         contentType: 'application/json',
         cacheControlMaxAge: 60,
       });
-      cleanupExpiredRateLimitMarkers(subjectHash, windowStart, options).catch(() => {});
       return { limited: false };
     } catch (err) {
       if (isRateLimitSlotTaken(err)) continue;
@@ -342,6 +353,13 @@ async function handlePost(req) {
   } catch (err) {
     return jsonResponse(req, 400, { error: errorMessage(err, 'Invalid encrypted profile payload.') });
   }
+  try {
+    if (await shareIdExists(id, options)) {
+      return jsonResponse(req, 409, { error: 'A shared profile with this id already exists.' });
+    }
+  } catch (err) {
+    return jsonResponse(req, 503, { error: errorMessage(err, 'Could not verify the share id.') });
+  }
   const record = {
     id,
     createdAt: new Date().toISOString(),
@@ -350,7 +368,7 @@ async function handlePost(req) {
     envelope: normalized.envelope,
   };
   try {
-    await put(sharePath(id), JSON.stringify(record), {
+    await putBlob(sharePath(id, normalized.expiresAt), JSON.stringify(record), {
       ...options,
       access: 'private',
       addRandomSuffix: false,
@@ -359,7 +377,8 @@ async function handlePost(req) {
       cacheControlMaxAge: 60,
     });
   } catch (err) {
-    return jsonResponse(req, 409, { error: errorMessage(err, 'Could not store shared profile.') });
+    const status = isBlobPreconditionFailure(err) ? 409 : 503;
+    return jsonResponse(req, status, { error: errorMessage(err, 'Could not store shared profile.') });
   }
   return jsonResponse(req, 201, {
     id,
@@ -373,16 +392,23 @@ async function handleGet(req) {
   if (!options) return jsonResponse(req, 503, { error: 'Profile sharing storage is not configured.' });
   const id = validateId(new URL(req.url).searchParams.get('id'));
   if (!id) return jsonResponse(req, 400, { error: 'Invalid share id.' });
-  const path = sharePath(id);
+  let path;
   let record;
   try {
+    path = await resolveSharePath(id, options);
     record = await parseRecord(path, options);
   } catch (err) {
     return jsonResponse(req, 500, { error: errorMessage(err, 'Could not load shared profile.') });
   }
   if (!record) return jsonResponse(req, 404, { error: 'Shared profile not found.' });
   if (Date.parse(record.expiresAt || '') <= Date.now()) {
-    del(path, options).catch(() => {});
+    try {
+      await deleteBlobs(path, options);
+    } catch (err) {
+      return jsonResponse(req, 503, {
+        error: errorMessage(err, 'The shared profile expired but could not be removed yet.'),
+      });
+    }
     return jsonResponse(req, 410, { error: 'Shared profile link has expired.' });
   }
   return jsonResponse(req, 200, {
@@ -397,9 +423,10 @@ async function handleDelete(req) {
   if (!options) return jsonResponse(req, 503, { error: 'Profile sharing storage is not configured.' });
   const id = validateId(new URL(req.url).searchParams.get('id'));
   if (!id) return jsonResponse(req, 400, { error: 'Invalid share id.' });
-  const path = sharePath(id);
+  let path;
   let record;
   try {
+    path = await resolveSharePath(id, options);
     record = await parseRecord(path, options);
   } catch (err) {
     return jsonResponse(req, 500, { error: errorMessage(err, 'Could not stop sharing link.') });
@@ -415,7 +442,7 @@ async function handleDelete(req) {
     }
   }
   try {
-    await del(path, options);
+    await deleteBlobs(path, options);
   } catch (err) {
     return jsonResponse(req, 500, { error: errorMessage(err, 'Could not stop sharing link.') });
   }

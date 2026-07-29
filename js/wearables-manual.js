@@ -14,6 +14,7 @@ import { upsertDaily, upsertDailyBatch, countSource, getDaily, deleteDaily, getM
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { isoDay } from './wearable-adapters.js';
+import { syncWearableSummary } from './wearables-summary.js';
 
 // Merge helper — read the existing manual row for `date` (if any), shallow-merge
 // the new patch on top, write back. Needed because IDB `put` replaces the whole
@@ -231,7 +232,6 @@ export async function deleteManualMetric(profileId, metric, date) {
  */
 export async function refreshManualSummary(profileId) {
   try {
-    const { syncWearableSummary } = await import('./wearables-summary.js');
     const { listConnectedSources } = await import('./wearables-connect.js');
     await syncWearableSummary(profileId, listConnectedSources());
   } catch { /* non-fatal */ }

@@ -216,16 +216,28 @@ function renderPassphraseForm(overlay, onSuccess) {
       renderPassphraseForm(overlay, onSuccess);
     });
     document.getElementById('passphrase-forgot-confirm')?.addEventListener('click', async () => {
+      const confirmButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById('passphrase-forgot-confirm')
+      );
+      if (confirmButton) {
+        confirmButton.disabled = true;
+        confirmButton.textContent = 'Erasing…';
+      }
       try {
         const { eraseAllLocalAppData } = await import('./data-wipe.js');
         await eraseAllLocalAppData();
-      } catch {
-        const keysToRemove = [];
-        for (let index = 0; index < localStorage.length; index++) {
-          const key = localStorage.key(index);
-          if (key && key.startsWith('labcharts')) keysToRemove.push(key);
+      } catch (error) {
+        console.error('[crypto] Local data erasure was incomplete:', error);
+        const message = document.createElement('div');
+        message.className = 'passphrase-error';
+        message.setAttribute('role', 'alert');
+        message.textContent = `${getErrorMessage(error, 'Could not erase all local data.')} Close other Get Based tabs and try again.`;
+        dialog.appendChild(message);
+        if (confirmButton) {
+          confirmButton.disabled = false;
+          confirmButton.textContent = 'Retry Erase';
         }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
+        return;
       }
       cryptoUiDeps.clearEncryptionSession?.();
       overlay.style.display = 'none';

@@ -511,7 +511,7 @@ export function getLensSummary() {
   return summary;
 }
 
-/** @typedef {ReturnType<import('./lens-knowledge-base-ui.js')['createLensKnowledgeBaseUi']>} LensKnowledgeBaseUi */
+/** @typedef {ReturnType<typeof import('./lens-knowledge-base-ui.js').createLensKnowledgeBaseUi>} LensKnowledgeBaseUi */
 /** @type {Promise<LensKnowledgeBaseUi> | null} */
 let lensKnowledgeBaseUiPromise = null;
 /** @type {LensKnowledgeBaseUi | null} */

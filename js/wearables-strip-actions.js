@@ -14,6 +14,12 @@ import {
 import { syncNow, listConnectedSources } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
+import { saveImportedData } from './data.js';
+import {
+  logManualBP,
+  logManualMetric,
+  refreshManualSummary,
+} from './wearables-manual.js';
 import {
   _collectActiveChips,
   _renderNoteField,
@@ -158,7 +164,6 @@ export async function chooseWearableSource(metricId, event) {
       if (!state.importedData.wearablePrimaryOverride) state.importedData.wearablePrimaryOverride = {};
       if (!sid) delete state.importedData.wearablePrimaryOverride[metricId];
       else state.importedData.wearablePrimaryOverride[metricId] = sid;
-      const { saveImportedData } = await import('./data.js');
       await saveImportedData();
       await syncWearableSummary(getActiveProfileId(), listConnectedSources());
       picker.remove();
@@ -265,7 +270,6 @@ export async function moveWearableCard(metricId, delta) {
   ordered[idx] = ordered[target];
   ordered[target] = tmp;
   state.importedData.wearableCardOrder = ordered;
-  const { saveImportedData } = await import('./data.js');
   await saveImportedData();
   navigateWearables('dashboard');
 }
@@ -347,7 +351,6 @@ export function openManualLogForm(metricId, event, opts = {}) {
 
 export async function saveManualLog(kind, event) {
   if (event) event.stopPropagation();
-  const { logManualMetric, logManualBP, refreshManualSummary } = await import('./wearables-manual.js');
   const profileId = state.currentProfile;
   // Pull any active context chips before the DOM is swapped out by re-render.
   const cardForTags =

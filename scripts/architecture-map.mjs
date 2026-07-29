@@ -238,6 +238,21 @@ export function findBoundaryViolations(architecture, rules) {
   return violations;
 }
 
+export function findRestrictedImportViolations(architecture, rules) {
+  const violations = [];
+  for (const restriction of rules.restrictedImports || []) {
+    const allowed = new Set(restriction.allowedImporters || []);
+    for (const importer of architecture.importedBy.get(restriction.target) || []) {
+      if (!allowed.has(importer)) {
+        violations.push({ from: importer, to: restriction.target });
+      }
+    }
+  }
+  return violations.sort((a, b) => (
+    a.to.localeCompare(b.to) || a.from.localeCompare(b.from)
+  ));
+}
+
 function moduleLink(file) {
   return `[\`${file}\`](${file})`;
 }
@@ -312,6 +327,16 @@ function renderMap(architecture, rules) {
     '| --- | --- | --- |',
     ...rules.groups.map(group => `| ${group.name} | ${group.roots.map(root => `\`${root}${path.extname(root) ? '' : '/'}\``).join(', ')} | ${group.mayImport.join(', ')} |`),
     '',
+    '### Facade-only implementation modules',
+    '',
+    'These implementation modules may only be imported by their public facade.',
+    '',
+    '| Implementation | Allowed importer(s) |',
+    '| --- | --- |',
+    ...(rules.restrictedImports || []).map(restriction => (
+      `| ${moduleLink(restriction.target)} | ${restriction.allowedImporters.map(moduleLink).join(', ')} |`
+    )),
+    '',
     '## Runtime entry points',
     '',
     ...rules.entryPoints.map(file => `- ${moduleLink(file)}`),
@@ -370,6 +395,9 @@ export function validateArchitecture(architecture, rules, baseline) {
   const boundaryViolations = findBoundaryViolations(architecture, rules);
   for (const violation of boundaryViolations) {
     failures.push(`${violation.from} (${violation.fromGroup}) may not import ${violation.to} (${violation.toGroup})`);
+  }
+  for (const violation of findRestrictedImportViolations(architecture, rules)) {
+    failures.push(`${violation.from} may not bypass the facade for ${violation.to}`);
   }
   for (const unresolved of architecture.unresolvedImports) {
     failures.push(`${unresolved.from} has unresolved relative import ${unresolved.specifier}`);

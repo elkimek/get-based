@@ -101,6 +101,33 @@ const VALID_DOTS = ['green', 'yellow', 'red', 'gray'];
 const DEFAULT_TIMEOUT_MS = 60000;
 const PURGE_DELAY_MS = 1500;
 
+/**
+ * Persisted verdict fields shared by every AI-verdict consumer. Feature
+ * engines may attach additional properties through parseExtraFields.
+ *
+ * @typedef {object} AIVerdictAnalysis
+ * @property {'analyzing'|'ok'|'error'} [status]
+ * @property {string} [dot]
+ * @property {string} [tip]
+ * @property {string} [detail]
+ * @property {string} [fingerprint]
+ * @property {number} [generatedAt]
+ * @property {number} [errorAt]
+ * @property {string} [errorMessage]
+ * @property {number} [lastErrorAt]
+ * @property {string} [lastErrorMessage]
+ */
+
+/**
+ * @typedef {object} AIVerdictEngine
+ * @property {(target: any, opts?: {force?: boolean}) => Promise<AIVerdictAnalysis|null>} analyze
+ * @property {(id: string) => Promise<AIVerdictAnalysis|null>} refresh
+ * @property {(target: any) => void} maybeAfterFinish
+ * @property {(id: string) => boolean} isAnalyzing
+ * @property {(target: any) => 'analyzing'|'ok'|'error'|'idle'} getStatus
+ * @property {() => Promise<void>} purgeOrphaned
+ */
+
 // ─── Global AI concurrency limiter ───────────────────────────────────
 // Saving a session triggers three engines (Light Today, Channel mix,
 // Session analysis) which all auto-fire concurrently. Most providers
@@ -147,8 +174,8 @@ export function getAIVerdictSlotsDebug() {
  * @param {object} cfg
  * @param {(id: string) => any} cfg.getTarget - resolve target by id
  * @param {(t: any) => string} cfg.getId - extract id from a target
- * @param {(t: any) => object|null} cfg.getAIAnalysis - read aiAnalysis off the target
- * @param {(t: any, value: object) => void} cfg.setAIAnalysis - write aiAnalysis on the target
+ * @param {(t: any) => AIVerdictAnalysis|null|undefined} cfg.getAIAnalysis - read aiAnalysis off the target
+ * @param {(t: any, value: AIVerdictAnalysis|null) => void} cfg.setAIAnalysis - write aiAnalysis on the target
  * @param {(t: any) => string} cfg.getFingerprint - deterministic hash of the
  *   target fields that, when changed, should invalidate any cached verdict
  * @param {(t: any) => string} cfg.buildContext - markdown-style prompt context
@@ -158,7 +185,7 @@ export function getAIVerdictSlotsDebug() {
  * @param {(t: any) => boolean} [cfg.shouldAutoFire] - gate for maybeAfterFinish
  * @param {() => any[]} [cfg.getAllTargets] - used by the orphan purge to find
  *   any persisted `status: 'analyzing'` from pre-fix runs and clear them
- * @param {(parsed: object, target: any) => object} [cfg.parseExtraFields] -
+ * @param {(parsed: Record<string, any>, target: any) => Record<string, any>} [cfg.parseExtraFields] -
  *   pull out feature-specific fields beyond {dot,tip,detail} (e.g. onboarding's
  *   actions[] array). Returned object is merged into the saved analysis.
  * @param {boolean} [cfg.syncOnSave=true] - fire pushCurrentProfile after save.
@@ -168,7 +195,7 @@ export function getAIVerdictSlotsDebug() {
  * @param {(anchor: string|null) => void} [cfg.onStateChange]
  * @param {(target: any) => string|null} [cfg.getScrollAnchor]
  *
- * @returns {object} engine — { analyze, refresh, maybeAfterFinish,
+ * @returns {AIVerdictEngine} engine — { analyze, refresh, maybeAfterFinish,
  *   isAnalyzing, getStatus, purgeOrphaned }
  */
 export function createAIVerdict(cfg) {
@@ -280,6 +307,11 @@ export function createAIVerdict(cfg) {
     return 'idle';
   }
 
+  /**
+   * @param {any} target
+   * @param {{force?: boolean}} [opts]
+   * @returns {Promise<AIVerdictAnalysis|null>}
+   */
   async function analyze(target, opts = {}) {
     if (!target) return null;
     if (_engineDisabled()) return null;
@@ -366,10 +398,11 @@ export function createAIVerdict(cfg) {
       // fingerprint would mark it stable when it actually no longer
       // matches the data the model saw. Use the original fingerprint so
       // a render after the edit correctly flags this verdict as stale.
+      /** @type {AIVerdictAnalysis} */
       const value = Object.assign({
         dot, tip, detail, fingerprint,
         generatedAt: Date.now(),
-        status: 'ok',
+        status: /** @type {'ok'} */ ('ok'),
       }, extra);
       setAIAnalysis(target, value);
       await saveImportedData();

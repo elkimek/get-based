@@ -145,7 +145,7 @@ if (exists('dev-server.js')) {
   assert('proxy runtime bounds upstream lifetimes and applies a distributed abuse brake',
     proxyUpstreamSrc.includes('PROXY_UPSTREAM_TIMEOUT_MS')
       && edgeProxySrc.includes('await enforceProxyRateLimit(req)')
-      && proxyRateLimitSrc.includes("from '@vercel/blob'")
+      && proxyRateLimitSrc.includes("from './vercel-blob-rest.js'")
       && proxyRateLimitSrc.includes('allowOverwrite: false')
       && edgeProxySrc.includes("'Retry-After'"));
   assert('proxy upstream runtime resolves and pins public DNS answers before connecting',

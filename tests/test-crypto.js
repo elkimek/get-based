@@ -415,6 +415,9 @@ try {
   assert('Forgot passphrase has inline confirm UI', uiSrc.includes('passphrase-forgot-confirm'));
   assert('Forgot passphrase has Go Back button', uiSrc.includes('passphrase-forgot-cancel'));
   assert('Forgot passphrase wipes IndexedDB-backed app data', uiSrc.includes("import('./data-wipe.js'") && uiSrc.includes('eraseAllLocalAppData'));
+  assert('Forgot passphrase does not reload after an incomplete wipe',
+    /catch \(error\)[\s\S]{0,700}return;\s*\}\s*cryptoUiDeps\.clearEncryptionSession/.test(uiSrc)
+    && !/catch \(error\)[\s\S]{0,700}localStorage\.removeItem/.test(uiSrc));
   const bkSrc0 = await fetchWithRetry('js/backup.js');
   assert('Backup includes encryptionSalt field', bkSrc0.includes('encryptionSalt'));
   assert('Restore sets labcharts-encryption-enabled', bkSrc0.includes("localStorage.setItem('labcharts-encryption-enabled'"));
@@ -477,7 +480,7 @@ try {
     appShellHooksSrc.includes('configureProfileRuntimeDeps({') &&
     src.includes('await invalidateProfileContextCache()') &&
     src.includes('await reloadProfileRuntimeShell(profileId)') &&
-    runtimeSrc.includes('export async function invalidateProfileContextCache') &&
+    runtimeSrc.includes('export function invalidateProfileContextCache') &&
     runtimeSrc.includes('export async function reloadProfileRuntimeShell') &&
     runtimeSrc.includes('export async function refreshProfileWearables') &&
     appShellHooksSrc.includes('refreshProfileWearables,'));
@@ -490,10 +493,12 @@ try {
     !/window\.(loadChatPersonality|loadChatThreads|loadChatHistory|renderThreadList|destroyAllCharts|buildSidebar|navigate|renderProfileButton)/.test(src));
   assert('profile-runtime keeps profile UI refresh module-owned',
     runtimeSrc.includes("from './chat-loader.js'") &&
-    runtimeSrc.includes('isChatModuleLoaded() ? loadChatModule() : Promise.resolve(null)') &&
+    runtimeSrc.includes('isChatModuleLoaded() ? await loadChatModule() : null') &&
     !runtimeSrc.includes("import('./chat-personalities.js')") &&
     !runtimeSrc.includes("import('./chat-threads.js')") &&
-    runtimeSrc.includes("import('./data.js')") &&
+    !runtimeSrc.includes("import('./data.js')") &&
+    runtimeSrc.includes('export function configureProfileRefreshDeps') &&
+    appShellHooksSrc.includes('configureProfileRefreshDeps({') &&
     !runtimeSrc.includes('Object.assign(window'));
   assert('Service worker precaches profile runtime module',
     swSrc.includes("'/js/profile-runtime.js'"));

@@ -74,6 +74,10 @@ assert('architecture source groups preserve browser/server separation',
     architectureRules.entryPoints?.includes('service-worker.js') &&
     architectureRules.forbiddenRepositoryImportRoots?.includes('tests') &&
     architectureRules.forbiddenRepositoryImportRoots?.includes('scripts'));
+assert('architecture rules enforce feature facade boundaries',
+  architectureRules.restrictedImports?.length >= 6 &&
+    architectureSrc.includes('findRestrictedImportViolations') &&
+    architectureSrc.includes('may not bypass the facade'));
 assert('architecture cycle baseline records existing debt without admitting new modules',
   architectureBaseline.maxCyclicModules >= 0 &&
     Array.isArray(architectureBaseline.allowedCyclicModules) &&
@@ -132,10 +136,12 @@ assert('app-event-listeners uses configured deps instead of delegated shell wind
   appEventWindowGlobalHits.length ? `found: ${appEventWindowGlobalHits.join(', ')}` : '');
 assert('quality guardrail tracks large-module budget',
   guardrailSrc.includes('LARGE_FILE_LINE_LIMIT') &&
+    guardrailSrc.includes('NEAR_CAP_FILE_LINE_LIMIT') &&
     guardrailSrc.includes('SERVER_JS_DIRS') &&
     guardrailSrc.includes('ROOT_PRODUCTION_JS_FILES') &&
     guardrailSrc.includes('all first-party production JS files stay below 800 lines') &&
     Object.hasOwn(baseline, 'largeJsFilesOver800Lines') &&
+    Object.hasOwn(baseline, 'nearCapJsFilesAtLeast790Lines') &&
     Object.hasOwn(baseline, 'maxJsFileLines'));
 assert('quality guardrail does not count a trailing newline as an extra source line',
   guardrailSrc.includes('function countSourceLines(source)') &&

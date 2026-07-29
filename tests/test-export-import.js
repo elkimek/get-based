@@ -450,6 +450,9 @@ return (async function() {
     exportRuntimeSrc.includes("import('./cashu-wallet.js')") &&
     exportRuntimeSrc.includes("import('./cashu-wallet.js?lazy-retry=1')") &&
     exportRuntimeSrc.includes('await wallet.destroyWalletDB()'));
+  assert('Clear-all fails closed when wallet deletion fails',
+    /try \{\s*\/\/ Delete the wallet first[\s\S]{0,260}await destroyWalletRuntimeDB\(\)[\s\S]{0,500}catch \(error\)[\s\S]{0,300}return;/.test(exportSrc)
+    && !/try \{\s*await destroyWalletRuntimeDB\(\);\s*\} catch \{\}/.test(exportSrc));
   assert('Clears Cashu wallet mint', exportSrc.includes("localStorage.removeItem('labcharts-cashu-wallet-mint')"));
   assert('Calls navigate(dashboard) after clear through export runtime',
     exportSrc.includes('refreshImportRuntimeShell({ chat: true, profileButton: true })') &&

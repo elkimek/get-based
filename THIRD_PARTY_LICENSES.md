@@ -10,14 +10,14 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 | `pdf.min.mjs`, `pdf.worker.min.mjs` | [pdf.js](https://github.com/mozilla/pdf.js) (Mozilla) | 4.10.38 | Apache-2.0 | https://github.com/mozilla/pdf.js/blob/master/LICENSE |
 | `mammoth.browser.min.js` | [mammoth.js](https://github.com/mwilliamson/mammoth.js) | 1.8.0 | BSD-2-Clause | https://github.com/mwilliamson/mammoth.js/blob/master/LICENSE |
 | `jszip.min.js` | [JSZip](https://github.com/Stuk/jszip) (uses [pako](https://github.com/nodeca/pako) MIT) | 3.10.1 | MIT (dual-licensed MIT or GPLv3 — we elect MIT) | https://github.com/Stuk/jszip/blob/main/LICENSE.markdown |
-| `cashu-ts.js` | [cashu-ts](https://github.com/cashubtc/cashu-ts) | 4.7.0 | MIT | https://github.com/cashubtc/cashu-ts/blob/main/LICENSE |
+| `cashu-ts.js` | [cashu-ts](https://github.com/cashubtc/cashu-ts) | 4.7.2 | MIT | https://github.com/cashubtc/cashu-ts/blob/main/LICENSE |
 | `qrcode-generator.js` | [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (Kazuhiko Arase) | 1.4.4 | MIT | https://opensource.org/licenses/mit-license.php |
 | `bip39-minimal.js` | Custom (BIP-39 wordlist is public domain) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `chartjs-adapter-native.js` | Custom (in-house Chart.js date adapter) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `venice-e2ee.js` | [venice-e2ee](https://github.com/elkimek/venice-e2ee) (bundles `@noble/secp256k1` and `@noble/hashes`) | 0.2.0 | GPL-3.0-only; bundled noble libraries MIT | https://github.com/elkimek/venice-e2ee/blob/main/LICENSE |
 | `ppq-private-tee.js` | Custom (in-house PPQ adapter for Tinfoil's SecureClient) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
-| `tinfoil-browser.js` | [Tinfoil JS](https://github.com/tinfoilsh/tinfoil-js) browser SecureClient bundle for PPQ and Routstr Private TEE modes | 1.1.7 | AGPL-3.0-or-later | https://github.com/tinfoilsh/tinfoil-js/blob/main/LICENSE |
-| `ehbp-browser.js` | [EHBP](https://github.com/tinfoilsh/encrypted-http-body-protocol) encrypted HTTP transport used by Tinfoil | 0.2.3 | MIT | https://github.com/tinfoilsh/encrypted-http-body-protocol/blob/main/LICENSE |
+| `tinfoil-browser.js` | [Tinfoil JS](https://github.com/tinfoilsh/tinfoil-js) browser SecureClient bundle for PPQ and Routstr Private TEE modes | 1.1.12 | AGPL-3.0-or-later | https://github.com/tinfoilsh/tinfoil-js/blob/main/LICENSE |
+| `ehbp-browser.js` | [EHBP](https://github.com/tinfoilsh/encrypted-http-body-protocol) encrypted HTTP transport used by Tinfoil | 0.3.1 | MIT | https://github.com/tinfoilsh/encrypted-http-body-protocol/blob/main/LICENSE |
 | `evolu/evolu-bundle.js`, `evolu/Db.worker.js` | [Evolu](https://github.com/evoluhq/evolu) (`@evolu/common`) | 7.4.1 | MIT | https://github.com/evoluhq/evolu/blob/main/LICENSE |
 | `evolu/sqlite3.wasm`, `evolu/sqlite3-*` | [SQLite](https://www.sqlite.org/copyright.html) | 3.50.4 | Public Domain | https://www.sqlite.org/copyright.html |
 | `fonts/inter-*.woff2` | [Inter](https://github.com/rsms/inter) (Rasmus Andersson) | — | SIL OFL 1.1 | [vendor/fonts/OFL.txt](vendor/fonts/OFL.txt) |

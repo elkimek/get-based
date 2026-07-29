@@ -17,6 +17,7 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { auditDomSinks } from '../scripts/dom-sink-audit.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
@@ -278,6 +279,7 @@ const wearablesRuntimeAuditSrc = read('js/wearables-runtime.js');
 const cycleRuntimeAuditSrc = read('js/cycle-runtime.js');
 const cycleViewsAuditSrc = read('js/views.js');
 const themeAuditSrc = read('js/theme.js');
+const extraThemeBootstrapSrc = read('js/extra-theme-bootstrap.js');
 const extraThemesAuditSrc = read('themes-extra.css');
 assert('index defers client list CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/client-list.css"') &&
@@ -333,7 +335,9 @@ assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycl
 assert('index conditionally loads optional theme presentation',
   !indexSrc.includes('<link rel="stylesheet" href="themes-extra.css">') &&
   indexSrc.includes('data-extra-themes-stylesheet-anchor') &&
-  indexSrc.includes("selectedTheme === 'light'") &&
+  indexSrc.includes('src="js/extra-theme-bootstrap.js"') &&
+  extraThemeBootstrapSrc.includes("selectedTheme === 'light'") &&
+  extraThemeBootstrapSrc.includes('data-extra-themes-stylesheet-anchor') &&
   themeAuditSrc.includes("new URL('../themes-extra.css', import.meta.url)") &&
   themeAuditSrc.includes('data-extra-themes-stylesheet-anchor'));
 assert('optional theme CSS anchor preserves the final cascade position',
@@ -471,6 +475,7 @@ const chatMobileCssSrc = read('css/chat-mobile.css');
 const chatRedesignCssSrc = read('css/chat-redesign.css');
 const chatRedesignOpenCssSrc = read('css/chat-redesign-open.css');
 const markerDetailCssSrc = read('css/marker-detail-modal.css');
+const analyticsBootstrapSrc = read('js/analytics-bootstrap.js');
 assert('cold-visible mobile Chat launcher sizing remains in the eager panel bundle',
   chatPanelCssSrc.includes('@media (max-width: 480px)') &&
   chatPanelCssSrc.includes('.chat-fab { width: 48px; height: 48px;') &&
@@ -494,10 +499,13 @@ assert('marker detail presentation no longer depends on deferred Chat composer C
   markerDetailCssSrc.includes('.ask-ai-btn') &&
   !chatComposerCssSrc.includes('.calc-missing-inputs') &&
   !chatComposerCssSrc.includes('.ask-ai-btn'));
-assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
-assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
+assert('Umami analytics bootstrap is external and self-hosted',
+  indexSrc.includes('src="js/analytics-bootstrap.js"')
+  && analyticsBootstrapSrc.includes('umami-iota-olive.vercel.app/script.js'));
+assert('Umami blocked on file:// protocol',
+  /location\.protocol\s*!==\s*['"]file:['"]/.test(analyticsBootstrapSrc));
 assert('Umami waits for offline PWA relaunches to reconnect',
-  indexSrc.includes("window.addEventListener('online', _loadUmami, { once: true })"));
+  analyticsBootstrapSrc.includes("globalThis.addEventListener('online', loadUmami, { once: true })"));
 
 // ═══════════════════════════════════════
 // 3. XSS: escapeHTML in views/dashboard renderer surfaces
@@ -605,14 +613,13 @@ assert('marker rename refreshes the backing view before reopening modal',
   /export async function renameMarker[^{]*\{[\s\S]{0,900}await saveImportedData\(\);\s*_refreshActiveView\(catKey\);\s*showDetailModal\(id\)/.test(categoryCustomizationSrc));
 
 // ═══════════════════════════════════════
-// 3c. Sweep guard — every innerHTML site in production JS is sanitized
+// 3c. Exhaustive HTML sink review ratchet
 // ═══════════════════════════════════════
-// CodeQL's js/xss-through-dom is excluded repo-wide (.github/workflows/
-// codeql.yml) because it doesn't model escapeHTML() / safeMarkerId().
-// This sweep replaces that signal locally across every production JS
-// file with innerHTML usage — a future PR adding an unsanitized site
-// fires immediately, before review.
-console.log('3c. innerHTML sanitizer sweep');
+// CodeQL's js/xss-through-dom runs in CI. This complementary local gate uses
+// the TypeScript AST to discover every production module and every supported
+// HTML-writing API. Fingerprints make additions and modifications fail until
+// the changed sink is reviewed and the policy is intentionally refreshed.
+console.log('3c. exhaustive HTML sink review ratchet');
 
 const contextCardEditorSrc = read('js/context-card-editor-ui.js');
 const contextCardLifestyleSrc = read('js/context-card-lifestyle-editors-impl.js');
@@ -651,69 +658,15 @@ assert('DNA controls use delegated actions',
     && dnaActionsSrc.includes('export function dnaActionAttrs')
     && !/\son(?:click|keydown|change|input)\s*=/.test(dnaSurfaceSrc));
 
-const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
-const _SAFE_HELPERS = new Set([
-  // views.js + category-page-view.js + category-view-renderers.js
-  'renderChartCard', 'renderTableView', 'renderHeatmapView',
-  'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
-  'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
-  // chat.js (escapeHTML returns sanitized text directly; renderMarkdown
-  // is the markdown.js sanitized full renderer)
-  'escapeHTML', 'renderMarkdown',
-]);
-const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-modal-impl.js', 'marker-detail-editing.js', 'marker-detail-manual-entry.js', 'marker-detail-custom-markers.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'context-card-medical-history-editor-impl.js', 'chat.js', 'chat-render.js', 'chat-threads.js', 'chat-personalities.js', 'chat-empty-state.js', 'chat-discussion-picker.js', 'charts.js'];
-
-function _sweepInnerHTML(filename, src) {
-  const lines = src.split('\n');
-  const sites = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (/\.innerHTML\s*\+?=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
-  }
-  const unguarded = [];
-  for (const { lineNo, line } of sites) {
-    const _bare = line.replace(/\s*\/\/.*$/, '');
-    // (a) Empty/clear
-    if (/\.innerHTML\s*\+?=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
-    // (b) Single-line static literal (no `${` interpolation)
-    if (/\.innerHTML\s*\+?=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
-    // (c) Direct helper-function-call result, helper in the audited whitelist
-    const _fnCallMatch = _bare.match(/\.innerHTML\s*\+?=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
-    if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
-    // (d) Otherwise — sanitizer within ±100 lines (covers "build html
-    //     across many lines, assign at end" + "h is callback param" patterns).
-    //     Heuristic limitation: the proximity window can theoretically
-    //     associate a sanitizer with a different interpolation in the same
-    //     scope — a function that escapes one variable then writes a
-    //     different, unescaped one to innerHTML would pass if both lines
-    //     fall within the window. A full per-`${...}` interpolation analysis
-    //     would close that path but adds significant complexity; the
-    //     tradeoff is documented in PR #188 review threads. This sweep is a
-    //     regression detector, not a complete proof — Greptile + manual
-    //     review remain the primary defense for the
-    //     unsafe-`${...}`-in-otherwise-safe-file class.
-    const start = Math.max(0, (lineNo - 1) - 100);
-    const end = Math.min(lines.length, lineNo + 100);
-    const win = lines.slice(start, end).join('\n');
-    if (_SANITIZER_RE.test(win)) continue;
-    unguarded.push(`${filename}:L${lineNo} — ${line.trim().slice(0, 100)}`);
-  }
-  return { siteCount: sites.length, unguarded };
-}
-
-const _allUnguarded = [];
-let _totalSites = 0;
-for (const filename of _SWEEP_FILES) {
-  const src = read(`js/${filename}`);
-  const { siteCount, unguarded } = _sweepInnerHTML(filename, src);
-  _totalSites += siteCount;
-  _allUnguarded.push(...unguarded);
-}
-assert(`production JS innerHTML sites tracked across ${_SWEEP_FILES.length} files (${_totalSites} found)`,
-  _totalSites > 0);
+const _domSinkAudit = auditDomSinks();
 assert(
-  'every production JS innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown/renderMarkdown) or a static-literal/helper-call',
-  _allUnguarded.length === 0,
-  _allUnguarded.length ? `${_allUnguarded.length} unguarded:\n  ${_allUnguarded.slice(0, 8).join('\n  ')}` : ''
+  `all ${_domSinkAudit.current.scannedFiles} production JS modules are included in DOM sink discovery`,
+  _domSinkAudit.current.scannedFiles > 100,
+);
+assert(
+  `${_domSinkAudit.current.sinkCount} HTML-writing sinks retain their reviewed fingerprints`,
+  _domSinkAudit.ok,
+  _domSinkAudit.failures.slice(0, 4).join('\n  '),
 );
 
 // ═══════════════════════════════════════
@@ -1082,6 +1035,10 @@ assert('CSP allows cdn.jsdelivr.net in script-src (transformers.js)',
   vercelSrc.includes('https://cdn.jsdelivr.net'));
 assert('CSP script-src includes blob: (required by ORT proxy worker)',
   /script-src[^;]*\bblob:/.test(vercelSrc));
+assert('CSP script-src rejects inline JavaScript',
+  !/script-src[^;]*'unsafe-inline'/.test(vercelSrc));
+assert('index contains no executable inline scripts',
+  !/<script(?:\s[^>]*)?>\s*[^<\s]/.test(indexSrc));
 assert('Vercel sends Cross-Origin-Opener-Policy: same-origin',
   /"Cross-Origin-Opener-Policy"\s*:\s*"same-origin"/.test(vercelSrc));
 assert('Vercel sends Cross-Origin-Embedder-Policy: credentialless',

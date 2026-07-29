@@ -101,6 +101,7 @@ function validEnvelope(overrides = {}) {
 
 function installBlobStoreMock({ conflictRateLimit = false, failDelete = false } = {}) {
   const store = new Map();
+  const uploadedAtByPath = new Map();
   const apiCalls = [];
   const directCalls = [];
 
@@ -127,13 +128,16 @@ function installBlobStoreMock({ conflictRateLimit = false, failDelete = false } 
         const prefix = parsed.searchParams.get('prefix') || '';
         const blobs = Array.from(store.keys())
           .filter(path => path.startsWith(prefix))
-          .map(path => ({ pathname: path, uploadedAt: new Date().toISOString() }));
+          .map(path => ({
+            pathname: path,
+            uploadedAt: uploadedAtByPath.get(path) || new Date().toISOString(),
+          }));
         return jsonResponse({ blobs, hasMore: false });
       }
 
       if (method === 'PUT') {
         const pathname = parsed.searchParams.get('pathname');
-        if (conflictRateLimit && pathname?.startsWith('profile-share-rate/v1/')) {
+        if (conflictRateLimit && pathname?.startsWith('profile-share-rate/v2/')) {
           return jsonResponse({ error: { code: 'precondition_failed', message: 'slot exists' } }, { status: 412 });
         }
         if (init.headers?.['x-allow-overwrite'] === '0' && store.has(pathname)) {
@@ -160,7 +164,7 @@ function installBlobStoreMock({ conflictRateLimit = false, failDelete = false } 
     throw new Error(`Unexpected fetch in blob store mock: ${href}`);
   });
 
-  return { apiCalls, directCalls, store };
+  return { apiCalls, directCalls, store, uploadedAtByPath };
 }
 
 beforeEach(() => {
@@ -230,13 +234,34 @@ describe('profile share API runtime behavior', () => {
     expect(created.status).toBe(201);
     expect(created.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5173');
     expect(await responseJson(created)).toMatchObject({ id, sizeBytes: expect.any(Number) });
-    expect(store.has(`profile-shares/v1/${id}.json`)).toBe(true);
-    expect(apiCalls.some(call => call.href.includes('profile-share-rate%2Fv1%2F'))).toBe(true);
+    const sharePath = Array.from(store.keys()).find(path => (
+      path.startsWith(`profile-shares/v2/${id}/`)
+    ));
+    expect(sharePath).toBeTruthy();
+    expect(apiCalls.some(call => call.href.includes('profile-share-rate%2Fv2%2F'))).toBe(true);
+    expect(apiCalls.every(call => (
+      call.init.headers?.['x-api-version'] === '12'
+      && call.init.headers?.['x-vercel-blob-store-id'] === 'store123'
+      && call.init.headers?.authorization === 'Bearer vercel_blob_rw_store123_secret'
+    ))).toBe(true);
+    const sharePut = apiCalls.find(call => (
+      call.method === 'PUT'
+      && call.href.includes(`profile-shares%2Fv2%2F${id}%2F`)
+    ));
+    expect(sharePut?.init.headers).toMatchObject({
+      'x-vercel-blob-access': 'private',
+      'x-add-random-suffix': '0',
+      'x-allow-overwrite': '0',
+      'x-content-type': 'application/json',
+    });
 
     const loaded = await shareHandler(makeShareRequest('GET', undefined, { id }));
     expect(loaded.status).toBe(200);
     expect(await responseJson(loaded)).toMatchObject({ id, envelope });
-    expect(directCalls.at(-1)).toMatchObject({ pathname: `profile-shares/v1/${id}.json` });
+    expect(directCalls.at(-1)).toMatchObject({ pathname: sharePath });
+    expect(directCalls.at(-1)?.init.headers).toEqual({
+      authorization: 'Bearer vercel_blob_rw_store123_secret',
+    });
 
     const deniedDelete = await shareHandler(new Request(`https://getbased.health/api/share?id=${id}`, {
       method: 'DELETE',
@@ -251,7 +276,7 @@ describe('profile share API runtime behavior', () => {
     }));
     expect(deleted.status).toBe(200);
     expect(await responseJson(deleted)).toEqual({ ok: true });
-    expect(store.has(`profile-shares/v1/${id}.json`)).toBe(false);
+    expect(store.has(sharePath)).toBe(false);
   });
 
   it('rejects invalid share payloads and reports a full rate-limit window', async () => {
@@ -284,9 +309,9 @@ describe('profile share API runtime behavior', () => {
       error: 'PBKDF2 iterations must be at least 100000.',
     });
     const storedPaths = Array.from(store.keys());
-    const rateLimitMarkersFromMalformedPosts = storedPaths.filter(path => path.startsWith('profile-share-rate/v1/'));
+    const rateLimitMarkersFromMalformedPosts = storedPaths.filter(path => path.startsWith('profile-share-rate/v2/'));
     expect(rateLimitMarkersFromMalformedPosts).toHaveLength(3);
-    expect(storedPaths.filter(path => path.startsWith('profile-shares/v1/'))).toEqual([]);
+    expect(storedPaths.filter(path => path.startsWith('profile-shares/v2/'))).toEqual([]);
 
     installBlobStoreMock({ conflictRateLimit: true });
     const limited = await shareHandler(makeShareRequest('POST', {
@@ -303,7 +328,11 @@ describe('profile share API runtime behavior', () => {
       error: 'Too many profile share links created. Try again later.',
       retryAfterSeconds: expect.any(Number),
     });
-    expect(globalThis.fetch).toHaveBeenCalledTimes(20);
+    const rateLimitPuts = globalThis.fetch.mock.calls.filter(([url, init]) => (
+      String(url).includes('profile-share-rate%2Fv2%2F')
+      && String(init?.method || '').toUpperCase() === 'PUT'
+    ));
+    expect(rateLimitPuts).toHaveLength(20);
   });
 
   it('dynamically enforces every encrypted-envelope boundary before storing a share', async () => {
@@ -386,7 +415,7 @@ describe('profile share API runtime behavior', () => {
       expect(response.status, testCase.label).toBe(400);
       expect(await responseJson(response), testCase.label).toEqual({ error: testCase.error });
     }
-    expect(Array.from(store.keys()).filter(path => path.startsWith('profile-shares/v1/'))).toEqual([]);
+    expect(Array.from(store.keys()).filter(path => path.startsWith('profile-shares/v2/'))).toEqual([]);
   });
 
   it('handles missing, expired, corrupt, duplicate, and unsupported-method records', async () => {
@@ -422,12 +451,59 @@ describe('profile share API runtime behavior', () => {
     const createBody = { id, manageTokenHash, envelope: validEnvelope() };
     const created = await shareHandler(makeShareRequest('POST', createBody));
     expect(created.status).toBe(201);
-    const duplicate = await shareHandler(makeShareRequest('POST', createBody));
+    const duplicate = await shareHandler(makeShareRequest('POST', {
+      ...createBody,
+      envelope: validEnvelope({ expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() }),
+    }));
     expect(duplicate.status).toBe(409);
 
     const unsupported = await shareHandler(makeShareRequest('PATCH', undefined, { id }));
     expect(unsupported.status).toBe(405);
     expect(await responseJson(unsupported)).toEqual({ error: 'Method not allowed.' });
+  });
+
+  it('globally removes expired shares and stale rate markers before recording cleanup completion', async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
+    const { store, uploadedAtByPath } = installBlobStoreMock();
+    const now = Date.now();
+    const windowMs = 60 * 60 * 1000;
+    const currentWindow = Math.floor(now / windowMs) * windowMs;
+    const staleV2Share = `profile-shares/v2/staleShareId01234567890/${now - 1}.json`;
+    const liveV2Share = `profile-shares/v2/liveShareId012345678901/${now + windowMs}.json`;
+    const staleLegacyShare = 'profile-shares/v1/legacyShareId0123456789.json';
+    const staleV2Rate = `profile-share-rate/v2/${currentWindow - windowMs}/other-client/0.json`;
+    const currentV2Rate = `profile-share-rate/v2/${currentWindow}/other-client/0.json`;
+    const staleLegacyRate = `profile-share-rate/v1/legacy-client/${currentWindow - windowMs}/0.json`;
+
+    for (const path of [
+      staleV2Share,
+      liveV2Share,
+      staleLegacyShare,
+      staleV2Rate,
+      currentV2Rate,
+      staleLegacyRate,
+    ]) {
+      store.set(path, '{}');
+    }
+    uploadedAtByPath.set(
+      staleLegacyShare,
+      new Date(now - 31 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+
+    const response = await shareHandler(makeShareRequest('POST', {
+      id: 'cleanupTriggerId012345678',
+      manageTokenHash: 'c'.repeat(64),
+      envelope: validEnvelope(),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(store.has(staleV2Share)).toBe(false);
+    expect(store.has(staleLegacyShare)).toBe(false);
+    expect(store.has(staleV2Rate)).toBe(false);
+    expect(store.has(staleLegacyRate)).toBe(false);
+    expect(store.has(liveV2Share)).toBe(true);
+    expect(store.has(currentV2Rate)).toBe(true);
+    expect(store.has(`profile-share-maintenance/v1/${currentWindow}.json`)).toBe(true);
   });
 
   it('returns a JSON error and keeps the share record when Blob deletion fails', async () => {

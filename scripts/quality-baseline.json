@@ -8,5 +8,6 @@
   "labStateAppFiles": 0,
   "labStateTestFiles": 0,
   "largeJsFilesOver800Lines": 0,
+  "nearCapJsFilesAtLeast790Lines": 13,
   "maxJsFileLines": 798
 }

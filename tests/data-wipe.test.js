@@ -6,6 +6,7 @@ import { eraseAllLocalAppData } from '../js/data-wipe.js';
 const originalIndexedDB = globalThis.indexedDB;
 const originalCaches = globalThis.caches;
 const originalLocalStorage = globalThis.localStorage;
+const originalSessionStorage = globalThis.sessionStorage;
 
 function openDatabase(name) {
   return new Promise((resolve, reject) => {
@@ -32,6 +33,7 @@ function asyncDeleteRequest(eventName) {
 describe('eraseAllLocalAppData', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     globalThis.indexedDB = new IDBFactory();
     delete globalThis.caches;
   });
@@ -39,11 +41,15 @@ describe('eraseAllLocalAppData', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     globalThis.indexedDB = originalIndexedDB;
     if (originalCaches === undefined) delete globalThis.caches;
     else globalThis.caches = originalCaches;
     if (globalThis.localStorage !== originalLocalStorage) {
       globalThis.localStorage = originalLocalStorage;
+    }
+    if (globalThis.sessionStorage !== originalSessionStorage) {
+      globalThis.sessionStorage = originalSessionStorage;
     }
   });
 
@@ -57,6 +63,9 @@ describe('eraseAllLocalAppData', () => {
     localStorage.setItem('labcharts-active-profile-imported', 'sensitive');
     localStorage.setItem('labcharts-api-key', 'secret');
     localStorage.setItem('unrelated-setting', 'keep');
+    sessionStorage.setItem('labcharts-import-review-draft-v1', 'sensitive');
+    sessionStorage.setItem('oura-oauth-pending', 'sensitive');
+    sessionStorage.setItem('unrelated-session', 'keep');
 
     const appDatabases = [
       'labcharts-wearables-default',
@@ -68,6 +77,8 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-wearables-orphaned-profile',
       'labcharts-cycle-orphaned-profile',
       'labcharts-blobs',
+      'labcharts-backups',
+      'labcharts-future-store',
       'getbased-cashu',
     ];
     await Promise.all([...appDatabases, 'third-party-database'].map(openDatabase));
@@ -85,6 +96,9 @@ describe('eraseAllLocalAppData', () => {
     expect(localStorage.getItem('labcharts-active-profile-imported')).toBeNull();
     expect(localStorage.getItem('labcharts-api-key')).toBeNull();
     expect(localStorage.getItem('unrelated-setting')).toBe('keep');
+    expect(sessionStorage.getItem('labcharts-import-review-draft-v1')).toBeNull();
+    expect(sessionStorage.getItem('oura-oauth-pending')).toBeNull();
+    expect(sessionStorage.getItem('unrelated-session')).toBe('keep');
     expect(await databaseNames()).toEqual(['third-party-database']);
     expect(deleteCache.mock.calls.map(([key]) => key).sort()).toEqual([
       'labcharts-app-v1',
@@ -106,6 +120,7 @@ describe('eraseAllLocalAppData', () => {
     const deletedNames = deleteDatabase.mock.calls.map(([name]) => name).sort();
     expect(deletedNames).toEqual([
       'getbased-cashu',
+      'labcharts-backups',
       'labcharts-blobs',
       'labcharts-cycle-active-profile',
       'labcharts-cycle-default',
@@ -115,7 +130,7 @@ describe('eraseAllLocalAppData', () => {
     expect(localStorage.getItem('labcharts-private')).toBeNull();
   });
 
-  it('settles blocked and failed deletions so the destructive flow can continue', async () => {
+  it('attempts every surface but rejects blocked and failed deletions', async () => {
     const storageEntries = ['labcharts-first', 'labcharts-second', 'unrelated'];
     const removedKeys = [];
     globalThis.localStorage = {
@@ -145,7 +160,7 @@ describe('eraseAllLocalAppData', () => {
       delete: vi.fn(),
     };
 
-    await expect(eraseAllLocalAppData()).resolves.toBeUndefined();
+    await expect(eraseAllLocalAppData()).rejects.toThrow(/erasure was incomplete/);
 
     expect(removedKeys).toEqual(['labcharts-first', 'labcharts-second']);
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-wearables-default');
@@ -155,7 +170,7 @@ describe('eraseAllLocalAppData', () => {
     expect(globalThis.caches.delete).not.toHaveBeenCalled();
   });
 
-  it('is safe when browser storage APIs are absent or malformed', async () => {
+  it('fails closed when an available browser storage API is malformed', async () => {
     globalThis.localStorage = {
       getItem: vi.fn(() => '{not-json'),
       setItem: vi.fn(),
@@ -167,7 +182,7 @@ describe('eraseAllLocalAppData', () => {
     delete globalThis.indexedDB;
     globalThis.caches = {};
 
-    await expect(eraseAllLocalAppData()).resolves.toBeUndefined();
+    await expect(eraseAllLocalAppData()).rejects.toThrow(/erasure was incomplete/);
 
     expect(globalThis.localStorage.removeItem).not.toHaveBeenCalled();
   });

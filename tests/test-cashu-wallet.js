@@ -320,6 +320,9 @@ assert('clearAllData destroys wallet DB through export runtime',
   exportRuntimeSrc.includes("import('./cashu-wallet.js')") &&
   exportRuntimeSrc.includes("import('./cashu-wallet.js?lazy-retry=1')") &&
   exportRuntimeSrc.includes('await wallet.destroyWalletDB()'));
+assert('Wallet DB deletion rejects blocked requests',
+  walletStoreSrc.includes('req.onblocked')
+  && walletStoreSrc.includes('Cashu wallet deletion is blocked'));
 assert('clearAllData removes wallet localStorage keys', exportSrc.includes("'labcharts-cashu-wallet-mint'") && exportSrc.includes("'labcharts-cashu-wallet-mnemonic'") && exportSrc.includes("'labcharts-routstr-node'"));
 
 // ═══════════════════════════════════════
@@ -454,8 +457,8 @@ assert('Routstr private requests bound temporary reservations and refresh their 
     && apiRoutstrSrc.includes('notifyRoutstrRequestSettled({ failed, modelId })'));
 assert('Browser security vendor manifest records locked Tinfoil and EHBP runtimes',
   vendorManifest.schemaVersion === 2
-    && vendorManifest.runtimes.some(runtime => runtime.package === 'tinfoil' && runtime.version === '1.1.7')
-    && vendorManifest.runtimes.some(runtime => runtime.package === 'ehbp' && runtime.version === '0.2.3'));
+    && vendorManifest.runtimes.some(runtime => runtime.package === 'tinfoil' && runtime.version === '1.1.12')
+    && vendorManifest.runtimes.some(runtime => runtime.package === 'ehbp' && runtime.version === '0.3.1'));
 
 // ═══════════════════════════════════════
 // 17. BIP-39 SEED GENERATION

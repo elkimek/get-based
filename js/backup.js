@@ -6,6 +6,10 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
+import {
+  getDailyRangeRaw,
+  upsertDailyBatchRaw,
+} from './wearables-store.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
 /** @type {Promise<typeof import('./backup-cycle.js')> | null} */
@@ -143,8 +147,6 @@ const PER_PROFILE_PREF_SUFFIXES = [
 // RHR + manual entries. Returns { profileId: { source: rows[] } }.
 async function collectWearableIDB(profileIds) {
   const out = {};
-  let store;
-  try { store = await import('./wearables-store.js'); } catch { return out; }
   for (const pid of profileIds) {
     try {
       // CRITICAL: read RAW (no decrypt). When encryption-at-rest is on, the
@@ -155,7 +157,7 @@ async function collectWearableIDB(profileIds) {
       const perProfile = {};
       for (const src of KNOWN_SOURCES) {
         try {
-          const srcRows = await store.getDailyRangeRaw(pid, src, '2000-01-01', '2099-12-31');
+          const srcRows = await getDailyRangeRaw(pid, src, '2000-01-01', '2099-12-31');
           if (Array.isArray(srcRows) && srcRows.length > 0) perProfile[src] = srcRows;
         } catch { /* db-not-yet-created → skip */ }
       }
@@ -167,8 +169,6 @@ async function collectWearableIDB(profileIds) {
 
 async function restoreWearableIDB(payload) {
   if (!payload || typeof payload !== 'object') return;
-  let store;
-  try { store = await import('./wearables-store.js'); } catch { return; }
   for (const [pid, sources] of Object.entries(payload)) {
     for (const [, rows] of Object.entries(sources)) {
       if (!Array.isArray(rows) || rows.length === 0) continue;
@@ -178,7 +178,7 @@ async function restoreWearableIDB(payload) {
       // they get rewritten in plaintext on next mutation (write-on-touch
       // via the normal upsertDaily path). NOT decrypting at restore time
       // keeps the encryption guarantee end-to-end.
-      try { await store.upsertDailyBatchRaw(pid, rows); } catch { /* per-source failure shouldn't break the whole restore */ }
+      try { await upsertDailyBatchRaw(pid, rows); } catch { /* per-source failure shouldn't break the whole restore */ }
     }
   }
 }

@@ -18,6 +18,7 @@ import {
   getWearableAuthLocation,
   redirectWearableAuth,
 } from './wearables-auth-runtime.js';
+import { withingsErrorMessage } from './wearables-withings.js';
 
 const AUTHORIZE_URL = 'https://account.withings.com/oauth2_user/authorize2';
 const PROXY_URL     = '/api/proxy';
@@ -135,7 +136,6 @@ export async function refreshTokens({ clientId, refreshToken }) {
     err.status = res.status; throw err;
   }
   if (body?.status !== undefined && body.status !== 0) {
-    const { withingsErrorMessage } = await import('./wearables-withings.js');
     const mapped = withingsErrorMessage(body.status);
     /** @type {Error & { status?: number, withingsCode?: number }} */
     const err = new Error(mapped

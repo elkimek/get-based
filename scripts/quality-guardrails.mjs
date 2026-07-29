@@ -45,6 +45,9 @@ const WORKFLOW_USES_RE = /^\s*(?:-\s*)?uses:\s*["']?([^"'#\s]+)["']?/;
 const IMMUTABLE_ACTION_SHA_RE = /^[0-9a-f]{40}$/;
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
+// Track files that crowd the hard cap so splitting one cannot be offset by
+// quietly growing another module to the same boundary.
+const NEAR_CAP_FILE_LINE_LIMIT = 790;
 
 let passed = 0;
 let failed = 0;
@@ -99,6 +102,7 @@ function collectAppMetrics() {
   let viewRuntimeBridgeLookups = 0;
   let labStateAppFiles = 0;
   const largeFiles = [];
+  const nearCapFiles = [];
   let largestFile = { file: '', lines: 0 };
 
   for (const file of files) {
@@ -117,10 +121,12 @@ function collectAppMetrics() {
     if (viewRuntimeLookupCount > 0) viewRuntimeBridgeConsumers++;
     if (labStateCount > 0) labStateAppFiles++;
     if (lines >= LARGE_FILE_LINE_LIMIT) largeFiles.push({ file: repoRel(file), lines });
+    if (lines >= NEAR_CAP_FILE_LINE_LIMIT) nearCapFiles.push({ file: repoRel(file), lines });
     if (lines > largestFile.lines) largestFile = { file: repoRel(file), lines };
   }
 
   largeFiles.sort((a, b) => b.lines - a.lines);
+  nearCapFiles.sort((a, b) => b.lines - a.lines);
   return {
     inlineEventAttributes,
     windowReferences,
@@ -130,8 +136,10 @@ function collectAppMetrics() {
     viewRuntimeBridgeLookups,
     labStateAppFiles,
     largeJsFilesOver800Lines: largeFiles.length,
+    nearCapJsFilesAtLeast790Lines: nearCapFiles.length,
     largestFile,
     largeFiles,
+    nearCapFiles,
   };
 }
 
@@ -265,6 +273,11 @@ function main() {
   compareBudget('_labState files in js/', metrics.labStateAppFiles, baseline.labStateAppFiles);
   compareBudget('_labState files in tests/', testMetrics.labStateTestFiles, baseline.labStateTestFiles);
   compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
+  compareBudget(
+    'near-cap JS files (>=790 lines)',
+    metrics.nearCapJsFilesAtLeast790Lines,
+    baseline.nearCapJsFilesAtLeast790Lines,
+  );
   if (oversizedProductionFiles.length === 0) {
     pass('all first-party production JS files stay below 800 lines');
   } else {

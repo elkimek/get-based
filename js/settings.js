@@ -531,12 +531,30 @@ function loadSettingsCommitHash() {
   const el = document.getElementById('settings-commit-hash');
   if (!el) return;
   const render = (sha, ref) => {
-    const short = sha.slice(0, 7);
     const e = document.getElementById('settings-commit-hash');
     if (!e) return;
+    const fullSha = String(sha || '').trim();
+    if (!/^[a-f0-9]{40}$/i.test(fullSha)) {
+      e.textContent = '';
+      return;
+    }
+    const short = fullSha.slice(0, 7);
+    const link = document.createElement('a');
+    link.href = `https://github.com/elkimek/get-based/commit/${fullSha}`;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.style.color = 'var(--text-muted)';
+    link.style.textDecoration = 'none';
+    link.textContent = short;
+    e.replaceChildren(link);
     // Show branch suffix on previews so BETA testers can tell main from a feature branch.
-    const suffix = ref && ref !== 'main' ? ` <span style="color:var(--text-muted);opacity:0.7">(${ref})</span>` : '';
-    e.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${short}" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none">${short}</a>${suffix}`;
+    if (ref && ref !== 'main') {
+      const suffix = document.createElement('span');
+      suffix.style.color = 'var(--text-muted)';
+      suffix.style.opacity = '0.7';
+      suffix.textContent = ` (${String(ref)})`;
+      e.appendChild(suffix);
+    }
   };
   // Prefer the deployed SHA from Vercel (truthful on previews). Fall back to
   // main HEAD via GitHub when /api/commit isn't available (local dev, etc).

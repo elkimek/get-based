@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "scenario": "Production service-worker app-shell precache during PWA installation",
   "maximums": {
-    "resources": 300,
-    "decodedBytes": 15000000
+    "resources": 315,
+    "decodedBytes": 15500000
   },
   "reference": {
-    "resources": 270,
-    "decodedBytes": 13563714
+    "resources": 277,
+    "decodedBytes": 13558332
   },
-  "referenceCommit": "4500c0c9",
+  "referenceCommit": "807732a8",
   "measuredAt": "2026-07-29"
 }

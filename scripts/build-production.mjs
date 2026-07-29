@@ -16,18 +16,28 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_ENTRY = path.join(ROOT, 'js', 'main.js');
 const RETRY_QUERY = '?lazy-retry=1';
 const GENERATED_BUNDLE_RE = /^bundle-[A-Za-z0-9_-]+\.js$/;
-const INDEX_LEGAL_BOOTSTRAP_START = '  <!-- PRODUCTION_LEGAL_BOOTSTRAP_START -->';
-const INDEX_LEGAL_BOOTSTRAP_END = '  <!-- PRODUCTION_LEGAL_BOOTSTRAP_END -->';
 const INDEX_SCRIPT_START = '  <!-- PRODUCTION_MAIN_SCRIPT_START -->';
 const INDEX_SCRIPT_END = '  <!-- PRODUCTION_MAIN_SCRIPT_END -->';
 const SW_BUNDLES_START = '  // PRODUCTION_BUNDLE_ASSETS_START';
 const SW_BUNDLES_END = '  // PRODUCTION_BUNDLE_ASSETS_END';
 const PRODUCTION_RAW_JS_ASSETS = new Set([
+  '/js/theme-bootstrap.js',
+  '/js/extra-theme-bootstrap.js',
+  '/js/analytics-bootstrap.js',
+  '/js/legal-consent-bootstrap.js',
   '/js/service-worker-update.js',
   '/js/lens-local-worker.js',
   '/js/lens-local-utils.js',
   '/js/lens-local-store.js',
 ]);
+const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
+
+export function handleBuildLog(level, log, defaultHandler) {
+  if (FATAL_BUILD_WARNINGS.has(log?.code)) {
+    throw new Error(`Production build rejected ${log.code}: ${log.message}`);
+  }
+  defaultHandler(level, log);
+}
 
 function stripRetryQuery(id) {
   return id.endsWith(RETRY_QUERY) ? id.slice(0, -RETRY_QUERY.length) : id;
@@ -101,8 +111,8 @@ function pruneSourceModuleAppShell(source) {
 async function validateBundlerLock() {
   const lock = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
   const bundler = lock.packages?.['node_modules/rolldown'];
-  if (bundler?.version !== '1.0.3' || !bundler?.integrity) {
-    throw new Error('rolldown must be directly locked to 1.0.3 with integrity metadata');
+  if (bundler?.version !== '1.2.1' || !bundler?.integrity) {
+    throw new Error('rolldown must be directly locked to 1.2.1 with integrity metadata');
   }
 }
 
@@ -149,6 +159,7 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
   const result = await build({
     input: MAIN_ENTRY,
     platform: 'browser',
+    onLog: handleBuildLog,
     plugins: [
       retryImportPlugin(),
       initialGraphPlugin(initialModules),
@@ -197,24 +208,13 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
     lazyJavaScriptFiles: chunks.length - startupFiles.size,
   };
 
-  const [indexSource, legalBootstrapSource, serviceWorkerSource, serviceWorkerRuntimeSource] = await Promise.all([
+  const [indexSource, serviceWorkerSource, serviceWorkerRuntimeSource] = await Promise.all([
     fs.readFile(path.join(ROOT, 'index.html'), 'utf8'),
-    fs.readFile(path.join(ROOT, 'js', 'legal-consent-bootstrap.js'), 'utf8'),
     fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
     fs.readFile(path.join(ROOT, 'service-worker-runtime.js'), 'utf8'),
   ]);
-  const indexWithInlineLegalBootstrap = replaceMarkedSection(
-    indexSource,
-    INDEX_LEGAL_BOOTSTRAP_START,
-    INDEX_LEGAL_BOOTSTRAP_END,
-    [
-      '  <script>',
-      ...legalBootstrapSource.trim().split('\n').map(line => `    ${line}`),
-      '  </script>',
-    ],
-  );
   const builtIndex = replaceMarkedSection(
-    indexWithInlineLegalBootstrap,
+    indexSource,
     INDEX_SCRIPT_START,
     INDEX_SCRIPT_END,
     [

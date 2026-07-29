@@ -7,8 +7,18 @@ import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, updateKeyCache } from './crypto-key-cache.js';
-import { configureCycleStoreCrypto } from './cycle-store.js';
-import { configureWearablesStoreCrypto } from './wearables-store.js';
+import {
+  configureCycleStoreCrypto,
+  getAllCycleImportMetaRaw,
+  getAllCycleObservationsRaw,
+  upsertCycleImportMetaBatchRaw,
+  upsertCycleObservationBatchRaw,
+} from './cycle-store.js';
+import {
+  configureWearablesStoreCrypto,
+  getAllDailyRaw,
+  upsertDailyBatchRaw,
+} from './wearables-store.js';
 import { isDataProtectionStylesheetLoaded, loadDataProtectionStylesheetForAction } from './modal-lifecycle.js';
 import {
   changePassphrase,
@@ -490,20 +500,16 @@ async function transformPayloadRows(rows, keyFields, mode) {
 
 async function migrateLocalIDB(mode) {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
-  const [wearableStore, cycleStore, cashuStore] = await Promise.all([
-    import('./wearables-store.js'),
-    import('./cycle-store.js'),
-    import('./cashu-wallet-store.js'),
-  ]);
+  const cashuStore = await import('./cashu-wallet-store.js');
   cashuStore.configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps());
   let migrated = await cashuStore.migrateCashuWalletStorage(mode);
   for (const profileId of await migrationProfileIds()) {
-    const wearableRows = await transformPayloadRows(await wearableStore.getAllDailyRaw(profileId), ['source', 'date'], mode);
-    const cycleRows = await transformPayloadRows(await cycleStore.getAllCycleObservationsRaw(profileId), ['source', 'date', 'importId'], mode);
-    const importRows = await transformPayloadRows(await cycleStore.getAllCycleImportMetaRaw(profileId), ['importId', 'source'], mode);
-    await wearableStore.upsertDailyBatchRaw(profileId, wearableRows);
-    await cycleStore.upsertCycleObservationBatchRaw(profileId, cycleRows);
-    await cycleStore.upsertCycleImportMetaBatchRaw(profileId, importRows);
+    const wearableRows = await transformPayloadRows(await getAllDailyRaw(profileId), ['source', 'date'], mode);
+    const cycleRows = await transformPayloadRows(await getAllCycleObservationsRaw(profileId), ['source', 'date', 'importId'], mode);
+    const importRows = await transformPayloadRows(await getAllCycleImportMetaRaw(profileId), ['importId', 'source'], mode);
+    await upsertDailyBatchRaw(profileId, wearableRows);
+    await upsertCycleObservationBatchRaw(profileId, cycleRows);
+    await upsertCycleImportMetaBatchRaw(profileId, importRows);
     migrated += wearableRows.length + cycleRows.length + importRows.length;
   }
   return migrated;

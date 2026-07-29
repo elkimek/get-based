@@ -168,12 +168,10 @@ assert('Shared profile import uses existing importDataJSON path',
   profileShareSrc.includes("await importDataJSON(new File([json], 'getbased-shared-profile.json'"));
 
 console.log('5. Vercel Blob API safeguards');
-assert('Package includes @vercel/blob runtime dependency',
-  packageJson.dependencies?.['@vercel/blob']);
-assert('API uses private Vercel Blob storage through Edge-safe REST calls',
-  !apiShareSrc.includes("from '@vercel/blob'") &&
-  apiShareSrc.includes('VERCEL_BLOB_API_URL') &&
-  apiShareSrc.includes('parseStoreIdFromReadWriteToken') &&
+assert('Package avoids the @vercel/blob runtime dependency',
+  !packageJson.dependencies?.['@vercel/blob']);
+assert('API uses the shared private Vercel Blob REST boundary',
+  apiShareSrc.includes("from '../lib/vercel-blob-rest.js'") &&
   apiShareSrc.includes("access: 'private'") &&
   apiShareSrc.includes('BLOB_READ_WRITE_TOKEN'));
 assert('API validates share ids, size, expiry, and crypto envelope',
@@ -186,9 +184,10 @@ assert('API validates share ids, size, expiry, and crypto envelope',
 assert('API rate limits unauthenticated share creation',
   apiShareSrc.includes('RATE_LIMIT_PREFIX') &&
   apiShareSrc.includes('POST_RATE_LIMIT_MAX') &&
-  apiShareSrc.includes('BlobPreconditionFailedError') &&
+  apiShareSrc.includes('isBlobPreconditionFailure') &&
   apiShareSrc.includes('rateLimitMarkerPath') &&
   apiShareSrc.includes('enforcePostRateLimit') &&
+  apiShareSrc.includes('cleanupExpiredBlobState') &&
   apiShareSrc.includes('allowOverwrite: false') &&
   apiShareSrc.includes('status') &&
   apiShareSrc.includes('429'));
