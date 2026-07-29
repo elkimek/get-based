@@ -82,6 +82,11 @@ test('Genome route contains a stylesheet failure and retries with a fresh URL', 
   expect(stylesheetRequests).toHaveLength(1);
 
   await page.unroute('**/css/genetics.css*');
+  await page.route('**/css/genetics.css*', route => route.fulfill({
+    status: 200,
+    contentType: 'text/css',
+    body: '.genetics-overview-grid { display: grid; }',
+  }));
   const retryOpen = await page.evaluate(async () => {
     const views = await import('/js/views.js');
     const opened = await views.navigate('genome');
