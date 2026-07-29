@@ -71,4 +71,32 @@ describe('production API smoke canary', () => {
     })).rejects.toThrow(/full Git SHA/);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  it('identifies the exact production probe that times out', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+
+    await expect(smokeProductionApis({
+      baseUrl: 'https://app.getbased.health',
+      fetchImpl,
+    })).rejects.toThrow(
+      'OPTIONS /api/proxy failed: The operation was aborted due to timeout',
+    );
+  });
+
+  it('preserves the original fetch diagnostic when the base URL is malformed', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('original fetch failure');
+    });
+
+    await expect(waitForExpectedDeployment({
+      baseUrl: 'not-an-absolute-url',
+      expectedSha: SHA,
+      fetchImpl,
+      attempts: 1,
+    })).rejects.toThrow(
+      'GET not-an-absolute-url/api/commit failed: original fetch failure',
+    );
+  });
 });

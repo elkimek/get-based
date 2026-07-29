@@ -12,11 +12,21 @@ function assertResponse(condition, message) {
 }
 
 async function request(fetchImpl, url, init, timeoutMs) {
-  return fetchImpl(url, {
-    ...init,
-    cache: 'no-store',
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  try {
+    return await fetchImpl(url, {
+      ...init,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    let target = url;
+    try {
+      target = new URL(url).pathname;
+    } catch {}
+    const method = init?.method || 'GET';
+    const detail = error?.message || String(error);
+    throw new Error(`${method} ${target} failed: ${detail}`, { cause: error });
+  }
 }
 
 export async function waitForExpectedDeployment({

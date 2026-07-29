@@ -282,7 +282,7 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
       logs.push(args.map(arg => String(arg)).join(' '));
     };
     const waitUntil = async predicate => {
-      for (let attempt = 0; attempt < 50; attempt += 1) {
+      for (let attempt = 0; attempt < 500; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => originalSetTimeout(resolve, 10));
       }
@@ -292,9 +292,11 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     try {
       const maintenance = await import(maintenanceUrl);
       maintenance.runPostProfileStartupMaintenance();
-      const summarySynced = await waitUntil(() => window.__startupMaintenanceCalls
+      const maintenanceSettled = await waitUntil(() => window.__startupMaintenanceCalls
         .some(call => Array.isArray(call) && call[0] === 'syncWearableSummary')
-        && window.__startupMaintenanceCalls.includes('initWearableScheduler'));
+        && window.__startupMaintenanceCalls.includes('initWearableScheduler')
+        && window.__startupMaintenanceCalls.includes('hydrateDevicesFromPresets')
+        && logs.some(line => line.includes('[light] hydrated user devices from preset library')));
       const trackedDeviceHydrationCount = window.__startupMaintenanceCalls
         .filter(call => call === 'hydrateDevicesFromPresets').length;
       window.__startupMaintenanceState.importedData.lightDevices = [];
@@ -320,7 +322,7 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         trackedSupplementsPreloadWarningData:
           window.__startupMaintenanceCalls.includes('preloadMitoCompoundData'),
         legacyBiometricsMigrationRefreshesManualSummary:
-          summarySynced
+          maintenanceSettled
           && window.__startupMaintenanceCalls.some(call => Array.isArray(call)
             && call[0] === 'migrateBiometricsToManual'
             && call[1] === 'startup-maintenance-profile'
