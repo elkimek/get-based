@@ -1,9 +1,7 @@
 // @ts-check
 // sync-diagnostics-snapshot.js - Evolu row diagnostics snapshots.
 
-import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { isDebugMode } from './utils.js';
 import { getDeltaCutoverReadiness, getDeltaTelemetry } from './sync-delta.js';
 import { getSyncRelay } from './sync-environment.js';
 import { parseSyncPayload } from './sync-payload-codec.js';
@@ -49,10 +47,6 @@ export function _syncDiag() {
     }
   }
   info.localTimestamps = tsList;
-  if (isDebugMode()) {
-    console.table?.(info.evoluRows);
-    console.log('[sync] Diagnostics:', JSON.stringify(info, null, 2));
-  }
   return info;
 }
 
@@ -70,8 +64,10 @@ export async function getEvoluDiagnostics() {
     syncEnabled: currentDiagnosticSyncEnabled(),
     relay: getSyncRelay(),
     ownerId: appOwner?.id ? String(appOwner.id).slice(0, 12) + '…' : null,
-    mnemonicPrefix: appOwner?.mnemonic ? appOwner.mnemonic.split(' ').slice(0, 2).join(' ') + ' …' : null,
+    mnemonicConfigured: !!appOwner?.mnemonic,
     rows: /** @type {any[]} */ ([]),
+    rowParseFailureCount: 0,
+    rowsReadFailed: false,
     activeProfileId: state.currentProfile,
     activeImported: { sunSessions: 0, lightDevices: 0 },
   };
@@ -97,12 +93,14 @@ export async function getEvoluDiagnostics() {
         // wild on cross-device replication of older inserts) - read it
         // from the payload's nested profile object.
         payloadProfileId = parsed?.profile?.id || null;
-      } catch (e) {
+      } catch {
         // v1.7.15 audit fix: previously silent. The diagnose modal would
         // render the row as 0/0 - indistinguishable from a real empty row.
-        // Log so triage can see which rows the parse path is rejecting
-        // (gzip-bomb defence trips, malformed envelope, etc).
-        logSyncEvent('skip', `Diagnose row ${String(row.id || '?').slice(0, 8)} parse failed: ${String(getErrorMessage(e, e)).slice(0, 80)}`);
+        // Record only a fixed status and bounded count: parser messages can
+        // quote malformed payload content and must not enter support output.
+        format = 'invalid';
+        out.rowParseFailureCount++;
+        logSyncEvent('skip', 'Diagnose row parse failed');
       }
       out.rows.push({
         profileId: row.profileId || payloadProfileId,
@@ -114,7 +112,10 @@ export async function getEvoluDiagnostics() {
         bytes: (row.dataJson || '').length,
       });
     }
-  } catch (e) { out.rowsError = String(getErrorMessage(e, e)); }
+  } catch {
+    out.rowsReadFailed = true;
+    logSyncEvent('skip', 'Diagnose row query failed');
+  }
   // What's actually in this device's active state right now.
   out.activeImported.sunSessions = Array.isArray(state.importedData?.sunSessions) ? state.importedData.sunSessions.length : 0;
   out.activeImported.lightDevices = Array.isArray(state.importedData?.lightDevices) ? state.importedData.lightDevices.length : 0;

@@ -1,7 +1,7 @@
 // @ts-check
 // pdf-import-file-handlers.js — single-file PDF and image import workflows
 
-import { getErrorMessage } from './caught-error.js';
+import { getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
@@ -29,6 +29,7 @@ import {
   startImportBenchmark,
   updateImportBenchmark,
 } from './import-benchmarks.js';
+import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
 
 const fileHandlerDeps = {
   parseLabPDFWithAI: /** @type {((text: string, fileName: string, onProgress?: (pct: number) => void) => Promise<any>) | null} */ (null),
@@ -128,7 +129,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
       if (choice === 'cancel') { hideImportProgress(); return; }
       useImageMode = choice === 'image';
       updateImportBenchmark(benchmarkId, { importMode: useImageMode ? 'image' : 'text' }, { persist: false });
-      if (isDebugMode()) console.log(`[Import] User chose ${choice} for ${textQuality} text quality`);
+      logPrivacyDiagnostic('import-mode-selected', { mode: choice, quality: textQuality });
     }
 
     if (useImageMode) {
@@ -146,7 +147,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
       const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
       const analysisMs = Math.round(performance.now() - analysisStart);
       const analysisTime = Math.round(analysisMs / 1000);
-      if (isDebugMode()) console.log(`[Analysis] Image mode parsed in ${analysisTime}s`);
+      logPrivacyDiagnostic('image-analysis-complete', { analysisMs });
       result.privacyMethod = 'none (image mode)';
       result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
       const prov = result.provider || getAIProvider();
@@ -214,9 +215,11 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
         piiTime = Math.round(piiMs / 1000);
         privacyMethod = 'ollama';
         privacyOriginal = pdfText;
-        if (isDebugMode()) console.log(`[PII] Obfuscated via Local AI (${piiTime}s)`);
+        logPrivacyDiagnostic('local-sanitizer-complete', { durationMs: piiMs });
       } catch (e) {
-        if (isDebugMode()) console.warn('[PII] Local AI failed, falling back to regex:', getErrorMessage(e));
+        logPrivacyDiagnostic('local-sanitizer-fallback', {
+          errorName: getErrorName(e) || 'Error',
+        });
         try {
           const result = obfuscatePDFText(pdfText);
           textForAI = result.obfuscated;
@@ -247,7 +250,13 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
         textForAI = reviewResult;
       }
     }
-    if (isDebugMode()) { console.log('[PII] Original:', pdfText); console.log('[PII] Obfuscated:', textForAI); }
+    logPrivacyDiagnostic('transform-complete', {
+      method: privacyMethod || 'unknown',
+      durationMs: piiMs,
+      replacements: privacyReplacements,
+      inputChars: pdfText.length,
+      outputChars: textForAI.length,
+    });
 
     await showImportProgress(3, file.name);
     setBenchmarkStage('analysis');
@@ -255,7 +264,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
     const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
     const analysisMs = Math.round(performance.now() - analysisStart);
     const analysisTime = Math.round(analysisMs / 1000);
-    if (isDebugMode()) console.log(`[Analysis] Parsed in ${analysisTime}s`);
+    logPrivacyDiagnostic('analysis-complete', { analysisMs });
     result.privacyMethod = privacyMethod;
     result.privacyReplacements = privacyReplacements;
     result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
@@ -283,7 +292,10 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
   } catch (err) {
     finishBenchmark('failed', { error: formatImportError(err), totalMs: Math.round(performance.now() - benchmarkStarted) });
     hideImportProgress('error');
-    if (isDebugMode()) console.error("PDF parse error:", err);
+    logPrivacyDiagnostic('parse-failed', {
+      stage: benchmarkStage,
+      errorName: getErrorName(err) || 'Error',
+    });
     showNotification("Error parsing PDF: " + formatImportError(err), "error", 10000);
   } finally {
     if (!benchmarkFinished) finishBenchmark('stopped', { reason: benchmarkStage, totalMs: Math.round(performance.now() - benchmarkStarted) });
@@ -320,7 +332,7 @@ export async function handleImageFileWorkflow(file) {
     const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
     const analysisMs = Math.round(performance.now() - analysisStart);
     const analysisTime = Math.round(analysisMs / 1000);
-    if (isDebugMode()) console.log(`[Analysis] Image file parsed in ${analysisTime}s`);
+    logPrivacyDiagnostic('image-analysis-complete', { analysisMs });
     result.privacyMethod = 'none (image mode)';
     result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
     const prov = result.provider || getAIProvider();
@@ -354,7 +366,9 @@ export async function handleImageFileWorkflow(file) {
       error: formatImportError(err),
       totalMs: Math.round(performance.now() - benchmarkStarted),
     });
-    if (isDebugMode()) console.error('Image import error:', err);
+    logPrivacyDiagnostic('image-import-failed', {
+      errorName: getErrorName(err) || 'Error',
+    });
     hideImportProgress('error');
     showNotification(`Import failed: ${formatImportError(err)}`, 'error');
   }

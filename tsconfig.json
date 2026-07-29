@@ -239,6 +239,7 @@
     "js/pdf-import-review-runtime.js",
     "js/pdfjs-loader.js",
     "js/pii-review.js",
+    "js/privacy-safe-diagnostics.js",
     "js/pii.js",
     "js/profile-data-migrations.js",
     "js/profile-list-store.js",

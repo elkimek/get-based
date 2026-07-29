@@ -417,9 +417,12 @@ test('discussion round and sync diagnose render helpers cover active and empty s
           syncEnabled: true,
           relay: 'https://relay.example.test',
           ownerId: 'owner-1',
-          mnemonicPrefix: 'alpha beta gamma',
+          mnemonicConfigured: true,
           activeProfileId: 'profile-1',
           activeImported: { sunSessions: 2, lightDevices: 1 },
+          rowParseFailureCount: 1,
+          rowsReadFailed: true,
+          rowsError: 'Patient Jane Example payload was malformed',
           rows: [{
             profileId: 'profile-1',
             profileIdSource: 'payload',
@@ -455,6 +458,9 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         && fullHtml.includes('Relay storage')
         && fullHtml.includes('Push efficiency')
         && fullHtml.includes('Lean sync mode')
+        && fullHtml.includes('1 row payload could not be decoded.')
+        && fullHtml.includes('Row query failed.')
+        && !fullHtml.includes('Patient Jane Example')
         && fullHtml.includes('profileId column empty')
         && fullHtml.includes('notes(1/1/0)');
       outcomes.syncDiagnoseRendererUsesDelegatedActions =
@@ -473,9 +479,11 @@ test('discussion round and sync diagnose render helpers cover active and empty s
           syncEnabled: false,
           relay: '',
           ownerId: '',
-          mnemonicPrefix: '',
+          mnemonicConfigured: false,
           activeProfileId: '',
           activeImported: { sunSessions: 0, lightDevices: 0 },
+          rowParseFailureCount: 0,
+          rowsReadFailed: false,
           rows: [],
         },
         healthVerdict: { verdict: 'healthy', at: Date.now() },
@@ -644,9 +652,12 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         syncEnabled: true,
         relay: 'https://relay.example.test',
         ownerId: 'owner-1',
-        mnemonicPrefix: 'alpha beta',
+        mnemonicConfigured: true,
         activeProfileId: 'profile-1',
         activeImported: { sunSessions: 1, lightDevices: 2 },
+        rowParseFailureCount: 1,
+        rowsReadFailed: true,
+        rowsError: 'Patient Jane Example payload was malformed',
         rows: [{
           profileId: 'profile-1',
           isDeleted: true,
@@ -657,7 +668,6 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
           format: 'gz',
           profileIdSource: 'payload',
         }],
-        rowsError: 'row read failed',
         deltaTelemetry: {
           summary: { count: 1, ratio: 0.04, totalBlobBytes: 1000, totalDeltaBytes: 40, totalOps: 1 },
           pushes: [{
@@ -682,14 +692,17 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
       const renderedText = diagnosticsText._evoluDiagnosticsText(textPayload);
       outcomes.diagnosticsTextIncludesRowsAndDelta = renderedText.includes('Sync enabled: yes')
         && renderedText.includes('profile-1')
-        && renderedText.includes('Rows read error: row read failed')
+        && renderedText.includes('Unreadable row payloads: 1')
+        && renderedText.includes('Row query status: failed')
+        && !renderedText.includes('Patient Jane Example')
         && renderedText.includes('Phase 1 dual-write health')
         && renderedText.includes('notes(1/0/0)')
         && renderedText.includes('entries');
       outcomes.diagnosticsTextHandlesEmptyRows = diagnosticsText._evoluDiagnosticsText({
         ...textPayload,
         rows: [],
-        rowsError: '',
+        rowParseFailureCount: 0,
+        rowsReadFailed: false,
         deltaTelemetry: null,
         cutoverReadiness: null,
       }).includes('  (none)');
@@ -763,11 +776,15 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         && syncInfo.localTimestamps.some(item => item.key === 'coverage-sync-ts');
       outcomes.snapshotParsesRowsFallbacksAndDeletes = evoluDiagnostics.syncEnabled === true
         && String(evoluDiagnostics.ownerId).startsWith('ownerabcdef')
-        && String(evoluDiagnostics.mnemonicPrefix).startsWith('alpha beta')
+        && evoluDiagnostics.mnemonicConfigured === true
+        && !Object.hasOwn(evoluDiagnostics, 'mnemonicPrefix')
+        && evoluDiagnostics.rowParseFailureCount === 1
+        && evoluDiagnostics.rowsReadFailed === false
+        && !Object.hasOwn(evoluDiagnostics, 'rowsError')
         && evoluDiagnostics.rows.length === 4
         && evoluDiagnostics.rows.some(row => row.profileId === 'profile-from-payload' && row.profileIdSource === 'payload' && row.dev === 2)
         && evoluDiagnostics.rows.some(row => row.profileId === 'deleted-profile' && row.isDeleted === true)
-        && evoluDiagnostics.rows.some(row => row.profileId === 'bad-profile' && row.sun === 0);
+        && evoluDiagnostics.rows.some(row => row.profileId === 'bad-profile' && row.sun === 0 && row.format === 'invalid');
       outcomes.snapshotCountsActiveImported = evoluDiagnostics.activeImported.sunSessions === 1
         && evoluDiagnostics.activeImported.lightDevices === 2
         && evoluDiagnostics.cutoverReadiness !== null;

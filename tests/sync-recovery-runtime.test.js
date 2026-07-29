@@ -124,9 +124,12 @@ describe('sync recovery runtime', () => {
       syncEnabled: true,
       relay: 'wss://relay.example',
       ownerId: 'owner-1',
-      mnemonicPrefix: 'alpha beta',
+      mnemonicConfigured: true,
       activeProfileId: 'profile-1',
       activeImported: { sunSessions: 2, lightDevices: 1 },
+      rowParseFailureCount: 1,
+      rowsReadFailed: true,
+      rowsError: 'Patient Jane Example payload was malformed',
       rows: [{
         profileId: 'profile-1',
         isDeleted: false,
@@ -192,6 +195,11 @@ describe('sync recovery runtime', () => {
     });
 
     expect(text).toContain('Sync enabled: yes');
+    expect(text).toContain('Recovery phrase configured: yes');
+    expect(text).not.toContain('alpha beta');
+    expect(text).toContain('Unreadable row payloads: 1');
+    expect(text).toContain('Row query status: failed');
+    expect(text).not.toContain('Patient Jane Example');
     expect(text).toContain('profile-1');
     expect(text).toContain('sunSessions(1/1/0)');
     expect(text).not.toContain('empty(0/0/0)');

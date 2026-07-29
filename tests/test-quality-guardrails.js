@@ -127,6 +127,24 @@ assert('quality guardrail tracks large-module budget',
     guardrailSrc.includes('all first-party production JS files stay below 800 lines') &&
     Object.hasOwn(baseline, 'largeJsFilesOver800Lines') &&
     Object.hasOwn(baseline, 'maxJsFileLines'));
+assert('quality guardrail blocks direct console logging in privacy-critical workflows',
+  guardrailSrc.includes('PRIVACY_CRITICAL_LOG_FILES') &&
+    guardrailSrc.includes('CONSOLE_REFERENCE_RE') &&
+    guardrailSrc.includes('privacy-critical workflows avoid direct console logging') &&
+    guardrailSrc.includes("'js/pdf-import.js'") &&
+    guardrailSrc.includes("'js/pdf-import-file-handlers.js'") &&
+    guardrailSrc.includes("'js/pii.js'") &&
+    guardrailSrc.includes("'js/pii-review.js'") &&
+    guardrailSrc.includes("'js/sync-diagnostics-snapshot.js'"));
+assert('quality guardrail blocks recovery-phrase fragments in support diagnostics',
+  guardrailSrc.includes('SYNC_DIAGNOSTIC_FILES') &&
+    guardrailSrc.includes('RECOVERY_PHRASE_FRAGMENT_RE') &&
+    guardrailSrc.includes('support diagnostics never expose recovery-phrase fragments') &&
+    guardrailSrc.includes("'js/sync-diagnostics-text.js'") &&
+    guardrailSrc.includes("'js/sync-diagnose-render.js'"));
+assert('quality guardrail blocks free-form sync errors in support diagnostics',
+  guardrailSrc.includes('UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE') &&
+    guardrailSrc.includes('support diagnostics use bounded sync-error status'));
 assert('quality guardrail exits non-zero on failures',
   guardrailSrc.includes('process.exit(failed > 0 ? 1 : 0)'));
 assert('full local test suite runs typecheck',

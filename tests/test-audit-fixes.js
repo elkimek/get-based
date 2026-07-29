@@ -343,15 +343,19 @@ return (async function () {
       /scheduleProfilePush\(profileId,\s*data\)/.test(onChat));
   }
 
-  // ─── 7. _syncDiag — console output gated by isDebugMode() ──────────
-  console.log('%c 7. _syncDiag debug-mode gate ', 'font-weight:bold;color:#0891b2');
+  // ─── 7. _syncDiag — no implicit console disclosure ─────────────────
+  console.log('%c 7. _syncDiag privacy boundary ', 'font-weight:bold;color:#0891b2');
   {
     const src = await fetchSrc('js/sync-diagnostics-snapshot.js');
     const fn = src.slice(src.indexOf('function _syncDiag'),
                           src.indexOf('function _syncDiag') + 2000);
     assert('_syncDiag function found', fn.indexOf('function _syncDiag') === 0);
-    assert('_syncDiag wraps console.log + console.table in isDebugMode()',
-      /if\s*\(isDebugMode\(\)\)\s*\{[\s\S]*console\.table\?\.\([\s\S]*console\.log\([\s\S]*\}/.test(fn));
+    assert('_syncDiag returns diagnostics without logging them',
+      !/\bconsole\.(?:debug|error|info|log|table|warn)\s*\(/.test(fn));
+    assert('sync diagnostics never derive or expose a mnemonic prefix',
+      !src.includes('mnemonicPrefix')
+        && !/mnemonic\s*\.\s*split\s*\(/.test(src)
+        && src.includes('mnemonicConfigured: !!appOwner?.mnemonic'));
   }
 
   // ─── 8. sun-active-session.js openStartSunSessionDialog — uviPromise.then.catch ──

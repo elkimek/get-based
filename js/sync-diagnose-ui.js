@@ -87,10 +87,10 @@ export function configureSyncDiagnoseUI({
   });
 }
 
-// Read-only modal that dumps Evolu's local state - both devices should
-// show the same `ownerId` / `mnemonicPrefix`. If they differ, the two
-// devices are talking to different Evolu owners and will never see each
-// other's data despite using the same relay URL.
+// Read-only modal that dumps Evolu's local state. Both devices should show
+// the same `ownerId`; recovery-phrase words are intentionally never exposed
+// in diagnostics. Different owner IDs cannot see each other's data despite
+// using the same relay URL.
 export async function showSyncDiagnose() {
   const diagnostics = await getEvoluDiagnostics();
   /** @type {{ verdict: string, at: number, reason: string | null }} */

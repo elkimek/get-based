@@ -14,7 +14,11 @@ function renderRowsHtml(rows) {
   return rows.map(r => {
     const pidCell = escapeHTML(r.profileId || '?');
     const pidNote = r.profileIdSource === 'payload' ? ' <span style="color:var(--orange);font-size:10px" title="profileId column empty; recovered from payload">*</span>' : '';
-    const fmtCell = r.format === 'gz' ? '<span title="gzip envelope (v1.6.4)" style="color:var(--green)">gz</span>' : 'plain';
+    const fmtCell = r.format === 'gz'
+      ? '<span title="gzip envelope (v1.6.4)" style="color:var(--green)">gz</span>'
+      : r.format === 'invalid'
+        ? '<span title="payload could not be decoded" style="color:var(--orange)">invalid</span>'
+        : 'plain';
     const delCell = r.isDeleted ? '<span style="color:var(--orange);font-weight:600">yes</span>' : 'no';
     return `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${pidCell}${pidNote}</td><td style="padding:4px 8px;text-align:right;font-size:11px">${delCell}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td><td style="padding:4px 8px;text-align:right;font-size:11px">${fmtCell}</td></tr>`;
   }).join('');
@@ -29,7 +33,7 @@ function renderRelayHealthPanel(healthVerdict) {
   const detail = isHealthy
     ? 'Last verified ' + new Date(healthVerdict.at).toISOString().slice(11, 19) + 'Z. Storage state has advanced since the previous check.'
     : (healthVerdict.reason || 'No relay-side advance observed since the previous check.');
-  const scope = '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This verdict is local/outbound: another device can show healthy or unknown until it pushes and probes its own relay baseline. Compare Owner ID / Mnemonic prefix across devices first.</div>';
+  const scope = '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This verdict is local/outbound: another device can show healthy or unknown until it pushes and probes its own relay baseline. Compare Owner ID across devices first.</div>';
   const recovery = isHealthy ? scope : scope + '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This matches the Evolu silent-reject pattern. The fix is identity rotation — generate a fresh 24-word mnemonic and restore every syncing device to it. See <a href="https://docs.getbased.health/guides/cross-device-sync" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
   return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -157,6 +161,16 @@ export function renderSyncDiagnoseModal({
 }) {
   const d = diagnostics;
   const rowsHtml = renderRowsHtml(d.rows);
+  const rowParseFailureCount = Number.isSafeInteger(d.rowParseFailureCount) && d.rowParseFailureCount > 0
+    ? d.rowParseFailureCount
+    : 0;
+  const rowWarnings = [
+    ...(rowParseFailureCount > 0 ? [`${rowParseFailureCount} row payload${rowParseFailureCount === 1 ? '' : 's'} could not be decoded.`] : []),
+    ...(d.rowsReadFailed ? ['Row query failed.'] : []),
+  ];
+  const rowWarningHtml = rowWarnings.length > 0
+    ? `<div style="color:var(--orange);font-size:11px;margin-top:6px">${rowWarnings.join(' ')}</div>`
+    : '';
   return `<div class="modal" role="dialog" aria-label="Sync diagnose" style="max-width:640px">
     <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" data-sync-diagnose-close aria-label="Close">×</button></div>
     <div class="modal-body" style="font-size:13px">
@@ -164,8 +178,8 @@ export function renderSyncDiagnoseModal({
         <div><b>Sync enabled:</b> ${d.syncEnabled ? 'yes' : 'no'}</div>
         <div><b>Relay:</b> <span style="font-family:monospace;font-size:11px;word-break:break-all">${escapeHTML(d.relay || '—')}</span></div>
         <div><b>Owner ID:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.ownerId || '— (not initialized)')}</span></div>
-        <div><b>Mnemonic prefix:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.mnemonicPrefix || '—')}</span></div>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">If two devices show different Owner ID or Mnemonic prefix, they are using different identities and will never see each other's data even on the same relay.</div>
+        <div><b>Recovery phrase configured:</b> ${d.mnemonicConfigured ? 'yes' : 'no'}</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">If two devices show different Owner IDs, they are using different identities and will never see each other's data even on the same relay. Recovery-phrase words are intentionally never included in diagnostics.</div>
       </div>
       <div style="margin-bottom:12px">
         <div><b>Active profile (this device):</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.activeProfileId || '?')}</span></div>
@@ -177,11 +191,12 @@ export function renderSyncDiagnoseModal({
       ${renderCutoverPanel(d.cutoverReadiness, isDebug, cutoverEnabled)}
       <div>
         <b>Rows in this device's local Evolu DB:</b>
+        ${rowWarningHtml}
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
           <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px;text-align:right">deleted</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th><th style="padding:4px 8px;text-align:right">fmt</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4, <span style="color:var(--orange)">invalid</span> = payload could not be decoded. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
         <button class="ctx-btn-option" ${syncDiagnoseActionAttrs('copy-snapshot')} title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>

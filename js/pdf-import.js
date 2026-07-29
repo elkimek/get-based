@@ -1,7 +1,7 @@
 // @ts-check
 // pdf-import.js — PDF parsing pipeline, import preview, drop zone, batch import
 
-import { getErrorMessage } from './caught-error.js';
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
@@ -61,6 +61,7 @@ import {
   handleImageFileWorkflow,
   handlePDFFileWorkflow,
 } from './pdf-import-file-handlers.js';
+import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
 
 const pdfImportDeps = {
   importDataJSON,
@@ -585,7 +586,11 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
       privacyMethod = 'ollama';
       privacyOriginal = pdfText;
     } catch (e) {
-      if (isDebugMode()) console.warn(`[PII] Local AI failed for ${file.name}, regex fallback:`, getErrorMessage(e));
+      logPrivacyDiagnostic('batch-local-sanitizer-fallback', {
+        fileIndex: fileNum,
+        totalFiles,
+        errorName: getErrorName(e) || 'Error',
+      });
       try {
         const r = obfuscatePDFText(pdfText);
         textForAI = r.obfuscated; privacyReplacements = r.replacements; privacyOriginal = r.original;
@@ -610,14 +615,26 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
       textForAI = reviewResult;
     }
   }
-  if (isDebugMode()) console.log(`[PII] ${file.name} \u2014 method: ${privacyMethod}, ${piiTime}s`);
+  logPrivacyDiagnostic('batch-transform-complete', {
+    fileIndex: fileNum,
+    totalFiles,
+    method: privacyMethod || 'unknown',
+    durationMs: piiMs,
+    replacements: privacyReplacements,
+    inputChars: pdfText.length,
+    outputChars: textForAI.length,
+  });
 
   await showBatchImportProgress(3, file.name, fileNum, totalFiles);
   const analysisStart = performance.now();
   const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
   const analysisMs = Math.round(performance.now() - analysisStart);
   const analysisTime = Math.round(analysisMs / 1000);
-  if (isDebugMode()) console.log(`[Analysis] ${file.name} parsed in ${analysisTime}s`);
+  logPrivacyDiagnostic('batch-analysis-complete', {
+    fileIndex: fileNum,
+    totalFiles,
+    analysisMs,
+  });
   result.privacyMethod = privacyMethod;
   result.privacyReplacements = privacyReplacements;
   result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
@@ -663,7 +680,11 @@ export async function handleBatchPDFs(pdfFiles) {
       else if (result === 'skipped') skipped++;
       else if (result === 'empty' || result === 'pii-fail' || result === 'no-markers') failed++;
     } catch (err) {
-      if (isDebugMode()) console.error(`Batch import error (${file.name}):`, err);
+      logPrivacyDiagnostic('batch-import-failed', {
+        fileIndex: i + 1,
+        totalFiles: pdfFiles.length,
+        errorName: getErrorName(err) || 'Error',
+      });
       showNotification(`Error: ${file.name} — ${getErrorMessage(err)}`, 'error');
       failedFiles.push({ file, error: getErrorMessage(err) });
     }
@@ -681,7 +702,11 @@ export async function handleBatchPDFs(pdfFiles) {
         else if (result === 'skipped') skipped++;
         else failed++;
       } catch (err) {
-        if (isDebugMode()) console.error(`Retry failed (${file.name}):`, err);
+        logPrivacyDiagnostic('batch-retry-failed', {
+          fileIndex: i + 1,
+          totalFiles: failedFiles.length,
+          errorName: getErrorName(err) || 'Error',
+        });
         retryFailed++;
         failed++;
       }

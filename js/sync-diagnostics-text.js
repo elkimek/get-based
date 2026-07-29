@@ -5,12 +5,15 @@
 // in showSyncDiagnose, so a user can paste the device's state into chat /
 // support without retyping. Mirrors the modal's structure exactly.
 export function _evoluDiagnosticsText(d) {
+  const rowParseFailureCount = Number.isSafeInteger(d.rowParseFailureCount) && d.rowParseFailureCount > 0
+    ? d.rowParseFailureCount
+    : 0;
   const lines = [
     `Sync diagnose @ ${new Date().toISOString()}`,
     `Sync enabled: ${d.syncEnabled ? 'yes' : 'no'}`,
     `Relay: ${d.relay || '-'}`,
     `Owner ID: ${d.ownerId || '- (not initialized)'}`,
-    `Mnemonic prefix: ${d.mnemonicPrefix || '-'}`,
+    `Recovery phrase configured: ${d.mnemonicConfigured ? 'yes' : 'no'}`,
     `Active profile: ${d.activeProfileId || '?'}`,
     `In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}`,
     `Rows in this device's local Evolu DB:`,
@@ -31,7 +34,8 @@ export function _evoluDiagnosticsText(d) {
       lines.push(`  ${pid} ${del}  ${ts} ${sun}  ${dev}  ${size}  ${fmt} ${src}`);
     }
   }
-  if (d.rowsError) lines.push(`Rows read error: ${d.rowsError}`);
+  if (rowParseFailureCount > 0) lines.push(`Unreadable row payloads: ${rowParseFailureCount}`);
+  if (d.rowsReadFailed) lines.push('Row query status: failed');
   const t = d.deltaTelemetry;
   if (t) {
     const s = t.summary;

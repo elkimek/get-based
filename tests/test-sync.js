@@ -2739,9 +2739,11 @@ await import('../js/settings.js');
   console.log('14i. v1.7.15 deferred-audit fixes');
 
   // Telemetry on diagnose pre-pass parse failure
-  assert('Diagnose pre-pass logs parse failures via logSyncEvent',
-    /Diagnose row[\s\S]{0,200}parse failed[\s\S]{0,200}logSyncEvent\('skip'/.test(deltaSearchSrc) ||
-    /logSyncEvent\('skip',\s*`Diagnose row/.test(deltaSearchSrc));
+  assert('Diagnose pre-pass logs bounded parse failure status via logSyncEvent',
+    /logSyncEvent\('skip',\s*'Diagnose row parse failed'\)/.test(deltaSearchSrc)
+      && /rowParseFailureCount\+\+/.test(deltaSearchSrc)
+      && !/Diagnose row[^'"]*\$\{/.test(deltaSearchSrc)
+      && !/\browsError\b/.test(syncDiagnosticsSearchSrc));
   // Telemetry on onSyncReceived malformed-row drop
   assert('onSyncReceived logs malformed-importedData skip via logSyncEvent',
     /malformed importedData shape, skipping row/.test(deltaSearchSrc));
