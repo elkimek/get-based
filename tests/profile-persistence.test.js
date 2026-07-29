@@ -112,6 +112,68 @@ describe('durable profile persistence', () => {
     expect(finalWrite[0]).toMatchObject({ name: 'Renamed', sex: 'female' });
   });
 
+  it('rebases a queued whole-list save over an earlier mutation', async () => {
+    const writeResolvers = [];
+    const encryptedSetItem = vi.fn(() => new Promise(resolve => {
+      writeResolvers.push(resolve);
+    }));
+    previousDeps = configureProfileDeps({ encryptedSetItem });
+
+    const rename = renameProfile('original', 'Renamed');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const staleProfiles = getProfiles();
+    staleProfiles[0].notes = 'Added from stale snapshot';
+    const wholeListSave = saveProfiles(staleProfiles);
+
+    expect(encryptedSetItem).toHaveBeenCalledOnce();
+    writeResolvers.shift()();
+    await rename;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(encryptedSetItem).toHaveBeenCalledTimes(2);
+    writeResolvers.shift()();
+    await wholeListSave;
+
+    expect(getProfiles()[0]).toMatchObject({
+      name: 'Renamed',
+      notes: 'Added from stale snapshot',
+    });
+    const finalWrite = JSON.parse(encryptedSetItem.mock.calls[1][1]);
+    expect(finalWrite[0]).toMatchObject({
+      name: 'Renamed',
+      notes: 'Added from stale snapshot',
+    });
+  });
+
+  it('preserves a profile added by an earlier queued write', async () => {
+    const writeResolvers = [];
+    const encryptedSetItem = vi.fn(() => new Promise(resolve => {
+      writeResolvers.push(resolve);
+    }));
+    previousDeps = configureProfileDeps({ encryptedSetItem });
+
+    const creation = createProfile('Concurrent', { skipInitialSync: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const staleSave = saveProfiles(getProfiles());
+    writeResolvers.shift()();
+    const createdId = await creation;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(encryptedSetItem).toHaveBeenCalledTimes(2);
+    writeResolvers.shift()();
+    await staleSave;
+
+    expect(getProfiles().map(item => item.id)).toEqual(['original', createdId]);
+    const finalWrite = JSON.parse(encryptedSetItem.mock.calls[1][1]);
+    expect(finalWrite.map(item => item.id)).toEqual(['original', createdId]);
+  });
+
   it('creates distinct profile ids for back-to-back writes', async () => {
     previousDeps = configureProfileDeps({
       encryptedSetItem: vi.fn().mockResolvedValue(undefined),

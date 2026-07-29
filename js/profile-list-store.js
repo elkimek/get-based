@@ -51,6 +51,69 @@ function cloneProfiles(profiles) {
   return profiles.map(cloneProfileRecord);
 }
 
+/** @param {unknown} left @param {unknown} right */
+function profileValuesEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * Apply only the fields changed by the caller to the latest durable record.
+ *
+ * @param {StoredProfileRecord} base
+ * @param {StoredProfileRecord} desired
+ * @param {StoredProfileRecord} current
+ */
+function rebaseProfileRecord(base, desired, current) {
+  const rebased = cloneProfileRecord(current);
+  const keys = new Set([...Object.keys(base), ...Object.keys(desired)]);
+  for (const key of keys) {
+    if (profileValuesEqual(base[key], desired[key])) continue;
+    if (Object.hasOwn(desired, key)) {
+      rebased[key] = desired[key];
+    } else {
+      delete rebased[key];
+    }
+  }
+  return cloneProfileRecord(rebased);
+}
+
+/**
+ * Rebase a whole-list save over writes that completed after the caller read
+ * the cache. Caller removals and additions win, while unrelated concurrent
+ * profile and field changes remain intact.
+ *
+ * @param {StoredProfileRecord[]} base
+ * @param {StoredProfileRecord[]} desired
+ * @param {StoredProfileRecord[]} current
+ */
+function rebaseProfiles(base, desired, current) {
+  const baseById = new Map(base.map(profile => [profile.id, profile]));
+  const currentById = new Map(current.map(profile => [profile.id, profile]));
+  const desiredIds = new Set(desired.map(profile => profile.id));
+  const rebased = [];
+
+  for (const desiredProfile of desired) {
+    const baseProfile = baseById.get(desiredProfile.id);
+    const currentProfile = currentById.get(desiredProfile.id);
+    if (!baseProfile || !currentProfile) {
+      const unchangedSinceRead = baseProfile
+        && profileValuesEqual(baseProfile, desiredProfile);
+      if (!unchangedSinceRead) rebased.push(cloneProfileRecord(desiredProfile));
+      continue;
+    }
+    rebased.push(rebaseProfileRecord(baseProfile, desiredProfile, currentProfile));
+  }
+
+  for (const currentProfile of current) {
+    const addedByEarlierWrite = !baseById.has(currentProfile.id);
+    if (addedByEarlierWrite && !desiredIds.has(currentProfile.id)) {
+      rebased.push(cloneProfileRecord(currentProfile));
+    }
+  }
+
+  return rebased;
+}
+
 /**
  * Return a snapshot so callers cannot make the cache claim a change was
  * saved merely by mutating an object reference.
@@ -128,8 +191,12 @@ async function persistProfiles(profiles) {
 
 /** @param {StoredProfileRecord[]} profiles */
 export async function saveProfiles(profiles) {
-  const snapshot = cloneProfiles(profiles);
-  await enqueueProfileWrite(() => persistProfiles(snapshot));
+  const base = getProfiles();
+  const desired = cloneProfiles(profiles);
+  await enqueueProfileWrite(async () => {
+    const rebased = rebaseProfiles(base, desired, getProfiles());
+    await persistProfiles(rebased);
+  });
 }
 
 /**
