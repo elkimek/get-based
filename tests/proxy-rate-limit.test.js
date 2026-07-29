@@ -167,6 +167,24 @@ describe('proxy distributed rate limit', () => {
     expect(blobMock.del).toHaveBeenCalled();
   });
 
+  it('does not publish cleanup completion when the global sweep fails', async () => {
+    process.env.VERCEL = '1';
+    process.env.PROXY_RATE_LIMIT_BLOB_TOKEN = 'vercel_blob_rw_store_secret';
+    process.env.PROXY_RATE_LIMIT_MAX = '2';
+    process.env.PROXY_RATE_LIMIT_WINDOW_MS = '1000';
+    vi.spyOn(Date, 'now').mockReturnValue(3_100);
+    blobMock.list
+      .mockResolvedValueOnce({ blobs: [], hasMore: false })
+      .mockResolvedValueOnce({ blobs: [], hasMore: false })
+      .mockRejectedValueOnce(new Error('cleanup unavailable'));
+
+    await expect(enforceProxyRateLimit(rateRequest('203.0.113.97')))
+      .rejects.toThrow('cleanup unavailable');
+    expect(Array.from(blobMock.store.keys()).some(path => (
+      path === 'proxy-rate-cleanup/v2/3000.json'
+    ))).toBe(false);
+  });
+
   it('allows an explicit per-instance fallback for self-hosted Vercel deployments', async () => {
     process.env.VERCEL = '1';
     process.env.PROXY_ALLOW_INSTANCE_RATE_LIMIT = '1';
