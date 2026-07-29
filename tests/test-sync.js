@@ -915,7 +915,7 @@ await import('../js/settings.js');
   assert('profile metadata changes queue profile sync',
     /renameProfile[\s\S]{0,500}queueProfileSync\(profileId\)/.test(profileSrc)
       && /updateProfileMeta[\s\S]{0,800}queueProfileSync\(profileId\)/.test(profileSrc)
-      && /setProfileLocation[\s\S]{0,500}queueProfileSync\(p\.id\)/.test(profileSrc));
+      && /setProfileLocation[\s\S]{0,800}queueProfileSync\(resolvedProfileId\)/.test(profileSrc));
   assert('sync-save-hooks exports profile metadata sync hook',
     syncSaveHooksSrc.includes('export function onProfileSaved')
       && syncSaveHooksSrc.includes('const _profileSyncTimers = new Map()')

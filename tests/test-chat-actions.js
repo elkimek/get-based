@@ -630,7 +630,7 @@ assert('chat-discussion.js typewriter callback degrades safely',
 assert('chat.js imports onboarding helpers', chatSrc.includes("from './chat-onboarding.js'"), 'found');
 assert('chat-onboarding.js owns onboarding handlers',
   chatOnboardingSrc.includes('export function startOnboardingLabImport') &&
-    chatOnboardingSrc.includes('export function saveChatProfile') &&
+    chatOnboardingSrc.includes('export async function saveChatProfile') &&
     chatOnboardingSrc.includes('export function _renderProviderQuiz'),
   'found');
 assert('chat window bindings configure onboarding callbacks',

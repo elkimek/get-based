@@ -503,6 +503,7 @@
     "js/marker-detail-editing.js",
     "js/notes-runtime.js",
     "js/notes.js",
+    "js/profile-list-store.js",
     "js/profile-context.js",
     "js/provider-local-ai-runtime.js",
     "js/provider-local-ai-controls.js",
@@ -529,6 +530,7 @@
     "js/supplements.js",
     "js/supplements-runtime.js",
     "js/touch-tooltip-runtime.js",
-    "js/touch-tooltip.js"
+    "js/touch-tooltip.js",
+    "js/unique-id.js"
   ]
 }
