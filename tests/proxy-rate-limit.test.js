@@ -175,11 +175,13 @@ describe('proxy distributed rate limit', () => {
     vi.spyOn(Date, 'now').mockReturnValue(3_100);
     blobMock.list
       .mockResolvedValueOnce({ blobs: [], hasMore: false })
-      .mockResolvedValueOnce({ blobs: [], hasMore: false })
       .mockRejectedValueOnce(new Error('cleanup unavailable'));
 
     await expect(enforceProxyRateLimit(rateRequest('203.0.113.97')))
       .rejects.toThrow('cleanup unavailable');
+    expect(Array.from(blobMock.store.keys()).some(path => (
+      path.startsWith('proxy-rate/v2/3000/')
+    ))).toBe(false);
     expect(Array.from(blobMock.store.keys()).some(path => (
       path === 'proxy-rate-cleanup/v2/3000.json'
     ))).toBe(false);
