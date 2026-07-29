@@ -40,7 +40,7 @@ asymmetry, and concentrated ownership.
 | Modules in dependency cycles | 206 | 0 |
 | Largest cyclic component | 204 | 0 |
 | Production JavaScript files at least 800 lines | 23 | 0 |
-| Largest production JavaScript file | 1,168 lines | 799 lines |
+| Largest production JavaScript file | 1,168 lines | 798 lines |
 | Cold-load requests | 470 | 276 |
 | Cold-load transferred bytes | about 2.0 MB | 1,015,691 bytes |
 | Cold-load decoded bytes | 6.22 MB | 2,734,242 bytes |
@@ -66,7 +66,7 @@ feature code and presentation were moved behind real first-use boundaries.
 - The architecture check reports 541 modules, zero cyclic modules, and a
   largest cycle of zero.
 - All first-party production JavaScript remains below 800 lines. The current
-  maximum is 799 lines in `js/context-card-lifestyle-editors-impl.js`.
+  maximum is 798 lines in `js/context-card-lifestyle-editors-impl.js`.
 - Type checking passes for the browser app, server, and service worker.
   Strict-null diagnostics and their committed debt baseline are both zero.
 - All 565 JavaScript/MJS files parse successfully.

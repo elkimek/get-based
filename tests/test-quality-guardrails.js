@@ -137,6 +137,11 @@ assert('quality guardrail tracks large-module budget',
     guardrailSrc.includes('all first-party production JS files stay below 800 lines') &&
     Object.hasOwn(baseline, 'largeJsFilesOver800Lines') &&
     Object.hasOwn(baseline, 'maxJsFileLines'));
+assert('quality guardrail does not count a trailing newline as an extra source line',
+  guardrailSrc.includes('function countSourceLines(source)') &&
+    guardrailSrc.includes("return source.endsWith('\\n') ? lines - 1 : lines") &&
+    !guardrailSrc.includes("fs.readFileSync(file, 'utf8').split('\\n').length") &&
+    baseline.maxJsFileLines === 798);
 assert('quality guardrail blocks direct console logging in privacy-critical workflows',
   guardrailSrc.includes('PRIVACY_CRITICAL_LOG_FILES') &&
     guardrailSrc.includes('CONSOLE_REFERENCE_RE') &&
