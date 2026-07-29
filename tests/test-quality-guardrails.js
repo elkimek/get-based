@@ -37,6 +37,9 @@ const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.
 const tsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.json'), 'utf8'));
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
 const serverCheckJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.server.json'), 'utf8'));
+const serviceWorkerCheckJsConfig = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'tsconfig.service-worker.json'), 'utf8'),
+);
 const strictNullRatchetSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-ratchet.mjs'), 'utf8');
 const strictNullBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-baseline.json'), 'utf8'));
 const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
@@ -56,7 +59,9 @@ assert('architecture source groups preserve browser/server separation',
     architectureRules.groups?.find(group => group.name === 'serverless')?.mayImport?.includes('server-shared') &&
     architectureRules.groups?.find(group => group.name === 'server-shared')?.mayImport?.join(',') === 'server-shared' &&
     architectureRules.groups?.find(group => group.name === 'local-server')?.mayImport?.join(',') === 'server-shared' &&
+    architectureRules.groups?.find(group => group.name === 'service-worker')?.mayImport?.join(',') === 'service-worker' &&
     architectureRules.entryPoints?.includes('dev-server.js') &&
+    architectureRules.entryPoints?.includes('service-worker.js') &&
     architectureRules.forbiddenRepositoryImportRoots?.includes('tests') &&
     architectureRules.forbiddenRepositoryImportRoots?.includes('scripts'));
 assert('architecture cycle baseline records existing debt without admitting new modules',
@@ -118,8 +123,8 @@ assert('app-event-listeners uses configured deps instead of delegated shell wind
 assert('quality guardrail tracks large-module budget',
   guardrailSrc.includes('LARGE_FILE_LINE_LIMIT') &&
     guardrailSrc.includes('SERVER_JS_DIRS') &&
-    guardrailSrc.includes('SERVER_JS_ENTRY_FILES') &&
-    guardrailSrc.includes('server production JS files stay below 800 lines') &&
+    guardrailSrc.includes('ROOT_PRODUCTION_JS_FILES') &&
+    guardrailSrc.includes('all first-party production JS files stay below 800 lines') &&
     Object.hasOwn(baseline, 'largeJsFilesOver800Lines') &&
     Object.hasOwn(baseline, 'maxJsFileLines'));
 assert('quality guardrail exits non-zero on failures',
@@ -128,6 +133,7 @@ assert('full local test suite runs typecheck',
   runTestsSrc.includes('npm run typecheck || exit 1') &&
     runTestsSrc.includes('npm run typecheck:checkjs || exit 1') &&
     runTestsSrc.includes('npm run typecheck:server || exit 1') &&
+    runTestsSrc.includes('npm run typecheck:service-worker || exit 1') &&
     runTestsSrc.includes('npm run typecheck:strict-null || exit 1') &&
     runTestsSrc.includes('SKIP_TYPECHECK'));
 assert('server checkJs covers every production API, shared server module, and the dev entry point',
@@ -136,6 +142,12 @@ assert('server checkJs covers every production API, shared server module, and th
     serverCheckJsConfig.include?.includes('api/**/*.js') &&
     serverCheckJsConfig.include?.includes('lib/**/*.js') &&
     serverCheckJsConfig.include?.includes('dev-server.js'));
+assert('service-worker checkJs uses WebWorker types and covers both classic scripts',
+  pkg.scripts?.['typecheck:service-worker'] === 'tsc -p tsconfig.service-worker.json' &&
+    serviceWorkerCheckJsConfig.compilerOptions?.checkJs === true &&
+    serviceWorkerCheckJsConfig.compilerOptions?.lib?.includes('WebWorker') &&
+    serviceWorkerCheckJsConfig.include?.includes('service-worker.js') &&
+    serviceWorkerCheckJsConfig.include?.includes('service-worker-runtime.js'));
 assert('strict-null debt is ratcheted globally and per file',
   pkg.scripts?.['typecheck:strict-null'] === 'node scripts/strict-null-ratchet.mjs' &&
     strictNullRatchetSrc.includes('strictNullChecks: true') &&
@@ -183,6 +195,8 @@ assert('CI keeps dedicated typecheck steps and skips duplicate script typecheck'
     testWorkflowSrc.includes('run: npm run typecheck') &&
     testWorkflowSrc.includes('name: Run server checkJs') &&
     testWorkflowSrc.includes('run: npm run typecheck:server') &&
+    testWorkflowSrc.includes('name: Run service-worker checkJs') &&
+    testWorkflowSrc.includes('run: npm run typecheck:service-worker') &&
     testWorkflowSrc.includes('name: Enforce strict-null debt ratchet') &&
     testWorkflowSrc.includes('run: npm run typecheck:strict-null') &&
     testWorkflowSrc.includes('SKIP_TYPECHECK=1 ./run-tests.sh'));

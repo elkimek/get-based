@@ -57,9 +57,11 @@ The architecture checker currently enforces these coarse runtime boundaries:
 | `api/` serverless | Hosted request entry points | `api/` and `lib/` |
 | `lib/` server-shared | Node-only policy and transport | `lib/` |
 | `dev-server.js` local-server | Local development entry point | `lib/` |
+| `service-worker*.js` | Offline manifest and cache-routing runtime | service-worker scripts |
 
-Relative imports of data files and explicitly vendored browser libraries are
-recorded as repository dependencies but are outside the ESM cycle graph.
+Relative ESM imports and classic-worker `importScripts()` dependencies are
+tracked. Data files and explicitly vendored browser libraries are recorded as
+repository dependencies but remain outside the executable cycle graph.
 Tests and tooling may import production modules; production modules must not
 import tests or tooling.
 

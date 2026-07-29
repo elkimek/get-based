@@ -41,6 +41,9 @@ jobs:
       - name: Run server checkJs
         run: npm run typecheck:server
 
+      - name: Run service-worker checkJs
+        run: npm run typecheck:service-worker
+
       - name: Enforce strict-null debt ratchet
         run: npm run typecheck:strict-null
 

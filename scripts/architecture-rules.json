@@ -24,6 +24,12 @@
       "description": "Local development server entry point.",
       "roots": ["dev-server.js"],
       "mayImport": ["server-shared"]
+    },
+    {
+      "name": "service-worker",
+      "description": "Classic service worker entry point and cache-routing runtime.",
+      "roots": ["service-worker.js", "service-worker-runtime.js"],
+      "mayImport": ["service-worker"]
     }
   ],
   "entryPoints": [
@@ -31,7 +37,8 @@
     "api/commit.js",
     "api/proxy.js",
     "api/share.js",
-    "dev-server.js"
+    "dev-server.js",
+    "service-worker.js"
   ],
   "forbiddenRepositoryImportRoots": ["tests", "scripts"]
 }

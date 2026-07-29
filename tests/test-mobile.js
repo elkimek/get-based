@@ -209,7 +209,9 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
   // ═══ Section 13: Service worker cache version ═══
   console.log('%c[13] Service Worker', 'font-weight:bold');
-  const swMobileSrc = await fetchWithRetry('service-worker.js');
+  const swMobileEntrySrc = await fetchWithRetry('service-worker.js');
+  const swMobileRuntimeSrc = await fetchWithRetry('service-worker-runtime.js');
+  const swMobileSrc = `${swMobileEntrySrc}\n${swMobileRuntimeSrc}`;
   assert('SW uses importScripts for version', swMobileSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swMobileSrc.includes('`labcharts-v${self.APP_VERSION}`'));
   assert('SW precaches installed app start_url',

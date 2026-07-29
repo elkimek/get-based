@@ -8,13 +8,15 @@ import {
 } from '../scripts/architecture-map.mjs';
 
 describe('architecture map tooling', () => {
-  it('parses static, re-exported, and literal dynamic ESM dependencies', () => {
+  it('parses ESM and classic-worker dependencies without accepting computed targets', () => {
     const parsed = parseModuleSpecifiers(`
       // import './ignored-comment.js';
       import value from './static.js';
       export { helper } from './re-export.js';
       const lazy = import('./lazy.js');
       const computed = import(runtimeUrl);
+      importScripts('/classic-worker.js');
+      importScripts(workerUrl);
       const text = "import './ignored-string.js'";
     `);
 
@@ -22,8 +24,12 @@ describe('architecture map tooling', () => {
       { specifier: './static.js', kind: 'static' },
       { specifier: './re-export.js', kind: 'static' },
       { specifier: './lazy.js', kind: 'dynamic' },
+      { specifier: '/classic-worker.js', kind: 'static' },
     ]);
-    expect(parsed.nonLiteralDynamicImports).toEqual(['import(runtimeUrl)']);
+    expect(parsed.nonLiteralDynamicImports).toEqual([
+      'import(runtimeUrl)',
+      'importScripts(workerUrl)',
+    ]);
   });
 
   it('finds strongly connected components without treating one-way edges as cycles', () => {

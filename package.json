@@ -24,6 +24,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
     "typecheck:server": "tsc -p tsconfig.server.json",
+    "typecheck:service-worker": "tsc -p tsconfig.service-worker.json",
     "typecheck:strict-null": "node scripts/strict-null-ratchet.mjs",
     "vendor:build": "node scripts/build-browser-vendors.mjs",
     "vendor:check": "node scripts/build-browser-vendors.mjs --check",

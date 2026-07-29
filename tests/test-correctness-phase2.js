@@ -60,7 +60,7 @@ assert('cacheGet re-inserts on hit',
 
 // ─── 4. Service worker precaches dynamic modules ───
 console.log('\n4. SW precache');
-const swSrc = read('service-worker.js');
+const swSrc = `${read('service-worker.js')}\n${read('service-worker-runtime.js')}`;
 const indexSrc = read('index.html');
 const startupUiSrc = read('js/startup-ui.js');
 const legalConsentBootstrapSrc = read('js/legal-consent-bootstrap.js');
@@ -270,12 +270,12 @@ assert('SW has offline navigation fallback for /app',
   swSrc.includes("matchCurrentCache('/index.html')"),
   'installed PWA start_url=/app needs a cached document while offline');
 assert('SW does not cache HTTP error responses',
-  /if \(!response \|\| response\.status === 206 \|\| !response\.ok\) return Promise\.resolve\(\);/.test(swSrc),
+  /if \(response\.status === 206 \|\| !response\.ok\) return Promise\.resolve\(\);/.test(swSrc),
   'transient 4xx/5xx responses must not overwrite a valid cached app shell');
 assert('SW handles same-origin localhost app shell while bypassing cross-origin Local AI',
-  /const sameOrigin\s*=\s*url\.origin === self\.location\.origin/.test(swSrc) &&
+  /const sameOrigin\s*=\s*url\.origin === scope\.location\.origin/.test(swSrc) &&
   /NETWORK_ONLY_HOSTS\.has\(h\)\s*\|\|\s*\(!sameOrigin && isLocalOrPrivateHost\(h\)\)/.test(swSrc) &&
-  /if \(!sameOrigin\) return;/.test(swSrc),
+  /event\.request\.method !== 'GET' \|\| !sameOrigin/.test(swSrc),
   'local offline testing should not bypass the SW just because the app origin is localhost');
 assert('PDF import lazy loader is shared by file input and import-drop-zone.js',
   startupUiSrc.includes("from './import-file-input.js'") &&

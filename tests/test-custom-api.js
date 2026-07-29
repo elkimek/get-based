@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // test-custom-api.js — Custom API as 6th AI provider. Source inspection of
-// api.js / settings.js / provider-panels.js / pdf-import.js / service-worker.js
+// api.js / settings.js / provider-panels.js / pdf-import.js / service-worker
 // / api/proxy.js / crypto.js, plus behavioral tests (URL/key/model management,
 // hasAIProvider gating, callCustomAPI error paths, needsMaxCompletionTokens
 // detection).
@@ -267,10 +267,12 @@ assert('pdf-import preflight handles custom in tryAutoSwitchModel', pdfPreflight
 
 // ─── 16. Service worker bypass ───
 console.log('\n16. Service worker');
-const swSrc = read('service-worker.js');
-assert('SW bypasses cross-origin GETs by origin', swSrc.includes('url.origin === self.location.origin') && swSrc.includes('if (!sameOrigin) return;'));
+const swSrc = `${read('service-worker.js')}\n${read('service-worker-runtime.js')}`;
+assert('SW bypasses cross-origin GETs by origin',
+  swSrc.includes('url.origin === scope.location.origin') &&
+  swSrc.includes("event.request.method !== 'GET' || !sameOrigin"));
 assert('SW keeps same-origin localhost eligible for offline app-shell handling',
-  swSrc.includes('Same-origin localhost app files still need SW handling for local offline testing') &&
+  swSrc.includes('cross-origin private/LAN hosts must stream directly') &&
   /NETWORK_ONLY_HOSTS\.has\(h\)\s*\|\|\s*\(!sameOrigin && isLocalOrPrivateHost\(h\)\)/.test(swSrc));
 
 // ─── 17. Proxy supports GET passthrough ───

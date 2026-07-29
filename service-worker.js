@@ -1,4 +1,5 @@
 importScripts('/version.js');
+importScripts('/service-worker-runtime.js');
 
 // Cache key strategy:
 //   Production (app.getbased.health) → labcharts-v${APP_VERSION}
@@ -24,6 +25,7 @@ async function resolveCacheName() {
 // Local app shell — pre-cached on install
 const APP_SHELL = [
   '/version.js',
+  '/service-worker-runtime.js',
   '/index.html',
   '/app',
   '/styles.css',
@@ -691,104 +693,6 @@ const APP_SHELL = [
   '/data/emf-assessment-template.html',
 ];
 
-// Store successful responses one-by-one instead of using Cache.addAll(). If a
-// large install is interrupted, the next install attempt can resume from the
-// entries already written. The install still rejects when any required entry
-// cannot be fetched, so an incomplete app shell is never allowed to activate.
-const PRECACHE_CONCURRENCY = 48;
-const PRECACHE_ATTEMPTS = 3;
-const PRECACHE_PROGRESS_MESSAGE = 'PRECACHE_PROGRESS';
-let lastPrecacheProgressPercent = -1;
-
-async function reportPrecacheProgress(completed, total, { force = false } = {}) {
-  const percent = total > 0 ? Math.floor((completed / total) * 100) : 0;
-  if (!force && percent <= lastPrecacheProgressPercent) return;
-  lastPrecacheProgressPercent = percent;
-  if (typeof self.clients?.matchAll !== 'function') return;
-
-  try {
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const message = { type: PRECACHE_PROGRESS_MESSAGE, completed, total };
-    clients.forEach((client) => client.postMessage(message));
-  } catch {
-    // Progress is optional; caching must continue even if no client is reachable.
-  }
-}
-
-async function cacheAppShellEntry(cache, url) {
-  if (await cache.match(url)) return;
-
-  let lastError = null;
-  for (let attempt = 1; attempt <= PRECACHE_ATTEMPTS; attempt += 1) {
-    try {
-      const response = await fetch(url, { cache: 'reload' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      await cache.put(url, response);
-      return;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw new Error(`Failed to precache ${url}: ${lastError?.message || 'network error'}`);
-}
-
-async function precacheAppShell(cache) {
-  let nextIndex = 0;
-  let cachedCount = 0;
-  const failures = [];
-  lastPrecacheProgressPercent = -1;
-  await reportPrecacheProgress(0, APP_SHELL.length, { force: true });
-
-  async function cacheNextEntries() {
-    while (nextIndex < APP_SHELL.length) {
-      const url = APP_SHELL[nextIndex];
-      nextIndex += 1;
-      try {
-        await cacheAppShellEntry(cache, url);
-        cachedCount += 1;
-        await reportPrecacheProgress(cachedCount, APP_SHELL.length);
-      } catch (error) {
-        failures.push(error);
-      }
-    }
-  }
-
-  const workerCount = Math.min(PRECACHE_CONCURRENCY, APP_SHELL.length);
-  await Promise.all(Array.from({ length: workerCount }, () => cacheNextEntries()));
-  await reportPrecacheProgress(cachedCount, APP_SHELL.length, { force: true });
-  if (failures.length) {
-    const detail = failures.slice(0, 3).map((error) => error.message).join('; ');
-    throw new Error(`App shell precache failed for ${failures.length} resource(s): ${detail}`);
-  }
-}
-
-function cacheResponse(request, response) {
-  if (!response || response.status === 206 || !response.ok) return Promise.resolve();
-  const clone = response.clone();
-  return resolveCacheName()
-    .then((name) => caches.open(name))
-    .then((cache) => cache.put(request, clone))
-    .catch(() => {});
-}
-
-function matchCurrentCache(request) {
-  return resolveCacheName()
-    .then((name) => caches.open(name))
-    .then((cache) => cache.match(request));
-}
-
-function fetchAndCache(request) {
-  return fetch(request).then((response) => {
-    cacheResponse(request, response);
-    return response;
-  });
-}
-
-function cachedAppShell() {
-  return matchCurrentCache('/app').then((cachedApp) => cachedApp || matchCurrentCache('/index.html'));
-}
-
 const NETWORK_ONLY_HOSTS = new Set([
   'openrouter.ai',
   'api.venice.ai',
@@ -810,115 +714,22 @@ function isLocalOrPrivateHost(hostname) {
     /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 }
 
-// Install: pre-cache app shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    resolveCacheName().then((name) =>
-      caches.open(name).then((cache) => precacheAppShell(cache))
-    )
-  );
-});
-
-function isSameOriginMessage(event) {
-  try {
-    const origin = event.origin || (event.source?.url ? new URL(event.source.url).origin : '');
-    return origin === self.location.origin;
-  } catch {
-    return false;
-  }
+function shouldUseNetworkOnly(url, sameOrigin) {
+  const h = url.hostname;
+  return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));
 }
 
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) {
-    self.skipWaiting();
-  }
-});
+/** @type {ServiceWorkerGlobalScope & typeof globalThis & {
+ *   GetBasedServiceWorkerRuntime: {
+ *     install: (config: ServiceWorkerRuntimeConfig) => void
+ *   }
+ * }} */
+const serviceWorkerScope = /** @type {any} */ (self);
 
-// Activate: delete old caches (any key that isn't this build's)
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    resolveCacheName().then((name) =>
-      caches.keys().then((keys) =>
-        Promise.all(keys
-          .filter((k) => k.startsWith('labcharts-v') && k !== name)
-          .map((k) => caches.delete(k)))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
-
-// Fetch: route-based caching strategies
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  const sameOrigin = url.origin === self.location.origin;
-
-  // Skip non-http(s) schemes (chrome-extension://, etc.) — Cache API only supports http/https
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
-
-  // Network-only: API calls (OpenRouter, Venice, Routstr, PPQ, Ollama) — do NOT
-  // intercept so streaming ReadableStream goes directly to the page without SW IPC buffering
-  // Also skip cross-origin private/LAN IPs (Local AI on another machine).
-  // Same-origin localhost app files still need SW handling for local offline testing.
-  const h = url.hostname;
-  if (NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h))) {
-    return;
-  }
-
-  // Live same-origin endpoints must never be stored in the versioned app cache.
-  // This covers AI/wearable proxy calls, encrypted profile shares, and commit
-  // metadata while keeping the cache-first production path static-only.
-  if (sameOrigin && url.pathname.startsWith('/api/')) return;
-
-  // The lightweight update probe is always fresh. The normal production
-  // version.js stays atomic with the active versioned cache so the page never
-  // compares a new version global against older cached modules.
-  if (url.pathname === '/version.js' && url.searchParams.get('update-check') === '1') {
-    event.respondWith(
-      fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
-    );
-    return;
-  }
-
-  // Preview/local builds still need a fresh version script on every load.
-  if (url.pathname === '/version.js' && !IS_PROD) {
-    event.respondWith(
-      fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
-    );
-    return;
-  }
-
-  // Skip non-GET requests — Cache API only supports GET
-  if (event.request.method !== 'GET') return;
-
-  // Skip cross-origin GETs (e.g. Custom API /models) — only cache same-origin app shell
-  if (!sameOrigin) return;
-
-  // Navigation fallback: installed PWAs launch at /app. When offline, serve the
-  // cached app document for /app and any refreshed same-origin navigation.
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      matchCurrentCache(event.request).then((cached) => {
-        const fetched = fetchAndCache(event.request).catch(() => cached || cachedAppShell());
-        return cached || fetched;
-      })
-    );
-    return;
-  }
-
-  // Non-production builds change without version bumps while branches are dirty.
-  // Prefer network-first there so local/dev browsers don't keep showing stale
-  // JS/CSS from the previous commit-shaped cache.
-  if (!IS_PROD) {
-    event.respondWith(
-      fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
-    );
-    return;
-  }
-
-  // Cache-first: a completed install already contains the atomic, versioned
-  // production app shell. Avoid revalidating hundreds of unchanged modules on
-  // every load; a miss is fetched once and stored in the current version cache.
-  event.respondWith(
-    matchCurrentCache(event.request).then((cached) => cached || fetchAndCache(event.request))
-  );
+serviceWorkerScope.GetBasedServiceWorkerRuntime.install({
+  scope: serviceWorkerScope,
+  appShell: APP_SHELL,
+  isProduction: IS_PROD,
+  resolveCacheName,
+  shouldUseNetworkOnly,
 });
