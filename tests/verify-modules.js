@@ -158,6 +158,7 @@
     '/js/charts-runtime.js',
     '/js/notes-runtime.js',
     '/js/pdf-import-review-runtime.js',
+    '/js/pdf-import-file-handlers.js',
     '/js/theme-runtime.js',
     '/js/tour-runtime.js',
     '/js/touch-tooltip-runtime.js',

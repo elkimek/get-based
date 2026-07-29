@@ -444,6 +444,7 @@ const _origProfileSex = state ? state.profileSex : null;
   console.log('%c 15. PDF import inherits stream + request timeouts ', 'font-weight:bold;color:#0891b2');
   {
     const pdfSrc = await fetchSrc('js/pdf-import.js');
+    const pdfFileHandlersSrc = await fetchSrc('js/pdf-import-file-handlers.js');
     const pdfAiUtilsSrc = await fetchSrc('js/pdf-import-ai-utils.js');
     // PDF import calls callClaudeAPI through its AI helper, which routes
     // through _fetchWithRetry and the streaming helpers. We don't
@@ -465,7 +466,7 @@ const _origProfileSex = state ? state.profileSex : null;
       && /requestTimeoutMs:\s*AI_IMPORT_REQUEST_TIMEOUT_MS/.test(pdfAiUtilsSrc)
       && /parseLabPDFWithAI[\s\S]+?callImportAIWithStreamFallback/.test(pdfSrc));
     assert('pdf-import.js: catch path closes the import modal on error',
-      /catch\s*\([^)]+\)\s*\{[\s\S]{0,500}hideImportProgress\('error'\)/.test(pdfSrc));
+      /catch\s*\([^)]+\)\s*\{[\s\S]{0,500}hideImportProgress\('error'\)/.test(pdfFileHandlersSrc));
   }
 
   // ─── 16. v1.6.7 Sun-context warnings iterate the sparse array ──────

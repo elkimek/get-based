@@ -4,7 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
-import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
+import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
 import { hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS, startOpenRouterOAuth } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
@@ -14,12 +14,11 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   callImportAIWithStreamFallback,
   compactMarkerReference,
-  formatImportError,
   getUsageTokens,
   IMPORT_JSON_SCHEMA,
   tryParseJSON,
 } from './pdf-import-ai-utils.js';
-import { extractXLSXText, isCsvTextFile, isTextImportFile, isXlsxFile } from './pdf-import-spreadsheet.js';
+import { extractXLSXText, isCsvTextFile, isXlsxFile } from './pdf-import-spreadsheet.js';
 import { handleCycleImportFile, isCycleImportFile, maybeHandleCycleTextImport } from './cycle-import.js';
 import {
   assessTextQuality as assessImportedTextQuality,
@@ -37,14 +36,12 @@ import {
   hideImportProgress,
   isImportRunning,
   showBatchImportProgress,
-  showImportProgress,
   updateImportProgressPct,
 } from './pdf-import-progress.js';
 import {
   buildMarkerReference, getExistingImportMarkerKeys,
 } from './pdf-import-marker-mapping.js';
 import {
-  showImportPreview,
   showImportPreviewAsync,
 } from './pdf-import-review.js';
 import {
@@ -59,6 +56,11 @@ import {
   startImportBenchmark,
   updateImportBenchmark,
 } from './import-benchmarks.js';
+import {
+  configurePdfImportFileHandlers,
+  handleImageFileWorkflow,
+  handlePDFFileWorkflow,
+} from './pdf-import-file-handlers.js';
 
 const pdfImportDeps = {
   importDataJSON,
@@ -66,6 +68,12 @@ const pdfImportDeps = {
   maybeShowEncryptionNudge,
   startOpenRouterOAuth,
 };
+
+configurePdfImportFileHandlers({
+  parseLabPDFWithAI,
+  parseLabPDFWithAIImages,
+  showAINeededDialog,
+});
 
 export function configurePdfImportDeps(deps = {}) {
   const previous = { ...pdfImportDeps };
@@ -521,249 +529,8 @@ Return ONLY valid JSON in this exact format:
   };
 }
 
-async function _showImageModeDialog() {
-  return new Promise(resolve => {
-    const overlay = document.getElementById('confirm-dialog-overlay');
-    const dialog = document.getElementById('confirm-dialog');
-    if (!overlay || !dialog) { resolve('cancel'); return; }
-    dialog.innerHTML = `
-      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Limited text extracted</div>
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
-        This PDF appears to be scanned or image-heavy. Text extraction found very little content.<br><br>
-        <strong>Image mode</strong> sends page screenshots to the AI instead. This skips PII obfuscation — the AI will see the full page images including any personal information.
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer">Cancel</button>
-        <button class="btn" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer">Try text anyway</button>
-        <button class="btn" style="padding:7px 16px;border-radius:6px;border:none;background:var(--accent-gradient);color:white;cursor:pointer;font-weight:500">Use image mode</button>
-      </div>`;
-    let settled = false;
-    const closeWithChoice = (choice) => {
-      if (settled) return;
-      settled = true;
-      document.removeEventListener('keydown', onKey);
-      closeModalOverlay(overlay);
-      resolve(choice);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') closeWithChoice('cancel'); };
-    document.addEventListener('keydown', onKey, { once: true });
-    dialog.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.textContent.trim();
-        if (action === 'Cancel') closeWithChoice('cancel');
-        else if (action === 'Try text anyway') closeWithChoice('text');
-        else closeWithChoice('image');
-      }, { once: true });
-    });
-    openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 });
-  });
-}
-
 export async function handlePDFFile(file, forceImageMode = false, preExtractedText = /** @type {string | null} */ (null)) {
-  const _startProfileId = state.currentProfile;
-  const benchmarkStarted = performance.now();
-  const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: forceImageMode ? 'image' : 'text' });
-  let benchmarkFinished = false;
-  let benchmarkStage = 'extract';
-  const setBenchmarkStage = (stage, patch = {}) => {
-    benchmarkStage = stage;
-    updateImportBenchmark(benchmarkId, { stage, ...patch }, { persist: false });
-  };
-  const finishBenchmark = (status, patch = {}) => {
-    if (benchmarkFinished) return;
-    benchmarkFinished = true;
-    finishImportBenchmark(benchmarkId, status, { stage: benchmarkStage, ...patch });
-  };
-  const hasPreExtractedText = preExtractedText !== null;
-  const isCsvImport = isCsvTextFile(file);
-  const isXlsxImport = isXlsxFile(file);
-  const isTextFileImport = isTextImportFile(file);
-  const textImportKind = isXlsxImport ? 'Excel workbook' : isCsvImport ? 'CSV' : isTextFileImport ? 'text file' : 'PDF';
-  const textAction = isXlsxImport ? 'xlsx' : isCsvImport ? 'csv' : isTextFileImport ? 'text' : 'import';
-  try {
-    await showImportProgress(0, file.name);
-    const pdfText = hasPreExtractedText ? preExtractedText : await extractPDFText(file);
-    const textQuality = hasPreExtractedText ? 'good' : assessTextQuality(pdfText);
-    setBenchmarkStage('mode-selection', {
-      inputChars: pdfText.length,
-      pageCount: (pdfText.match(/^=== Page \d+ ===$/gm) || []).length,
-      textQuality,
-    });
-
-    // Determine import mode — ask user for scanned/empty PDFs
-    let useImageMode = forceImageMode;
-    if (!forceImageMode && (textQuality === 'empty' || textQuality === 'poor')) {
-      const choice = await _showImageModeDialog();
-      if (choice === 'cancel') { hideImportProgress(); return; }
-      useImageMode = choice === 'image';
-      updateImportBenchmark(benchmarkId, { importMode: useImageMode ? 'image' : 'text' }, { persist: false });
-      if (isDebugMode()) console.log(`[Import] User chose ${choice} for ${textQuality} text quality`);
-    }
-
-    if (useImageMode) {
-      // Image mode path — skip PII, render pages as images
-      if (!hasAIProvider()) {
-        hideImportProgress('error');
-        showAINeededDialog('image');
-        return;
-      }
-      await showImportProgress(3, file.name);
-      const images = await extractPDFImages(file);
-      if (images.length === 0) { hideImportProgress('error'); showNotification("Could not render PDF pages", "error"); return; }
-      await showImportProgress(3, file.name);
-      const analysisStart = performance.now();
-      setBenchmarkStage('analysis', { importMode: 'image', pageCount: images.length });
-      const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
-      const analysisMs = Math.round(performance.now() - analysisStart);
-      const analysisTime = Math.round(analysisMs / 1000);
-      if (isDebugMode()) console.log(`[Analysis] Image mode parsed in ${analysisTime}s`);
-      result.privacyMethod = 'none (image mode)';
-      result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
-      const prov = result.provider || getAIProvider();
-      const mid = getActiveModelId();
-      const tokens = getUsageTokens(result.usage);
-      result.costInfo = {
-        provider: prov, modelId: mid,
-        inputTokens: tokens.inputTokens,
-        outputTokens: tokens.outputTokens,
-        cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
-      };
-      trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
-      result.importHash = hashString(images.map(image => image.base64).join('|'));
-      result.benchmarkId = benchmarkId;
-      captureImportBenchmarkReviewBaseline(result);
-      result._importProfileId = _startProfileId;
-      if (!result.date) showNotification("Could not find collection date in PDF", "error");
-      if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification("No biomarkers found in PDF images", "error"); return; }
-      finishBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
-      await showImportProgress(4, file.name);
-      showImportPreview(result);
-      hideImportProgress();
-      return;
-    }
-
-    // Text mode path (original flow)
-    if (!pdfText.trim()) { hideImportProgress('error'); showNotification(`${textImportKind} appears empty — no text extracted`, "error"); return; }
-
-    if (!hasAIProvider()) {
-      hideImportProgress('error');
-      showAINeededDialog(textAction);
-      return;
-    }
-
-    // Pre-flight checks — before spending tokens
-    await showImportProgress(1, file.name);
-    setBenchmarkStage('preflight');
-    const preflight = await runPreflightChecks(pdfText, file.name);
-    if (!preflight) { hideImportProgress('cancel'); return; }
-
-    // PII obfuscation step
-    await showImportProgress(2, file.name);
-    setBenchmarkStage('privacy');
-    let textForAI = pdfText;
-    let privacyMethod = null;
-    let privacyReplacements = 0;
-    let privacyOriginal = null;
-    let piiTime = 0;
-    let piiMs = 0;
-    const ollama = await checkOllamaPII();
-
-    if (ollama.available && isPIIReviewEnabled()) {
-      // Streaming mode — modal opens immediately, AI streams into it
-      const piiStart = performance.now();
-      const reviewResult = await reviewPIIBeforeSend(pdfText, {
-        streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)
-      });
-      piiMs = Math.round(performance.now() - piiStart);
-      piiTime = Math.round(piiMs / 1000);
-      if (reviewResult === 'cancel') { hideImportProgress('cancel'); showNotification('Import cancelled.', 'info'); return; }
-      textForAI = reviewResult;
-      privacyMethod = 'ollama+review';
-      privacyOriginal = pdfText;
-    } else if (ollama.available) {
-      // Non-streaming background path (review disabled)
-      try {
-        const piiStart = performance.now();
-        textForAI = await sanitizeWithOllama(pdfText);
-        piiMs = Math.round(performance.now() - piiStart);
-        piiTime = Math.round(piiMs / 1000);
-        privacyMethod = 'ollama';
-        privacyOriginal = pdfText;
-        if (isDebugMode()) console.log(`[PII] Obfuscated via Local AI (${piiTime}s)`);
-      } catch (e) {
-        if (isDebugMode()) console.warn('[PII] Local AI failed, falling back to regex:', getErrorMessage(e));
-        try {
-          const result = obfuscatePDFText(pdfText);
-          textForAI = result.obfuscated;
-          privacyReplacements = result.replacements;
-          privacyOriginal = result.original;
-          privacyMethod = 'regex';
-        } catch (e2) {
-          hideImportProgress('error');
-          showNotification('Privacy protection failed \u2014 PDF not sent to AI. Try again or check Settings.', 'error');
-          return;
-        }
-      }
-    } else {
-      // Regex-only path
-      try {
-        const result = obfuscatePDFText(pdfText);
-        textForAI = result.obfuscated;
-        privacyReplacements = result.replacements;
-        privacyOriginal = result.original;
-        privacyMethod = 'regex';
-      } catch (e) {
-        hideImportProgress('error');
-        showNotification('Privacy protection failed \u2014 PDF not sent to AI. Try again or check Settings.', 'error');
-        return;
-      }
-      if (isPIIReviewEnabled()) {
-        const reviewResult = await reviewPIIBeforeSend(pdfText, { obfuscatedText: textForAI });
-        if (reviewResult === 'cancel') { hideImportProgress('cancel'); showNotification('Import cancelled.', 'info'); return; }
-        textForAI = reviewResult;
-      }
-    }
-    if (isDebugMode()) { console.log('[PII] Original:', pdfText); console.log('[PII] Obfuscated:', textForAI); }
-
-    await showImportProgress(3, file.name);
-    setBenchmarkStage('analysis');
-    const analysisStart = performance.now();
-    const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
-    const analysisMs = Math.round(performance.now() - analysisStart);
-    const analysisTime = Math.round(analysisMs / 1000);
-    if (isDebugMode()) console.log(`[Analysis] Parsed in ${analysisTime}s`);
-    result.privacyMethod = privacyMethod;
-    result.privacyReplacements = privacyReplacements;
-    result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
-    const prov = result.provider || getAIProvider();
-    const mid = getActiveModelId();
-    const tokens = getUsageTokens(result.usage);
-    result.costInfo = {
-      provider: prov, modelId: mid,
-      inputTokens: tokens.inputTokens,
-      outputTokens: tokens.outputTokens,
-      cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
-    };
-    trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
-    result.importHash = hashString(pdfText);
-    result.benchmarkId = benchmarkId;
-    captureImportBenchmarkReviewBaseline(result);
-    result._importProfileId = _startProfileId;
-    if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
-    if (!result.date) { showNotification(`Could not find collection date in ${textImportKind}`, "error"); }
-    if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification(`No biomarkers found in ${textImportKind}`, "error"); return; }
-    finishBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
-    await showImportProgress(4, file.name);
-    showImportPreview(result);
-    hideImportProgress();
-  } catch (err) {
-    finishBenchmark('failed', { error: formatImportError(err), totalMs: Math.round(performance.now() - benchmarkStarted) });
-    hideImportProgress('error');
-    if (isDebugMode()) console.error("PDF parse error:", err);
-    showNotification("Error parsing PDF: " + formatImportError(err), "error", 10000);
-  } finally {
-    if (!benchmarkFinished) finishBenchmark('stopped', { reason: benchmarkStage, totalMs: Math.round(performance.now() - benchmarkStarted) });
-  }
+  return handlePDFFileWorkflow(file, forceImageMode, preExtractedText);
 }
 
 // ═══════════════════════════════════════════════
@@ -938,70 +705,7 @@ export async function handleBatchPDFs(pdfFiles) {
 // IMAGE FILE IMPORT (JPG/PNG lab reports)
 // ═══════════════════════════════════════════════
 export async function handleImageFile(file) {
-  if (!hasAIProvider()) {
-    showAINeededDialog('image');
-    return;
-  }
-  // PII warning — images cannot be scrubbed
-  if (!await showConfirmDialog(
-    'This image will be sent directly to the configured AI server or provider. Personal details visible in the image cannot be scrubbed before upload. Continue?'
-  )) return;
-  const _startProfileId = state.currentProfile;
-  const benchmarkStarted = performance.now();
-  const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: 'image', pageCount: 1 });
-  try {
-    await showImportProgress(3, file.name);
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    const mediaType = file.type || (file.name.match(/\.png$/i) ? 'image/png' : file.name.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg');
-    const images = [{ base64, mediaType, page: 1 }];
-    const analysisStart = performance.now();
-    updateImportBenchmark(benchmarkId, { stage: 'analysis', pageCount: 1 }, { persist: false });
-    const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
-    const analysisMs = Math.round(performance.now() - analysisStart);
-    const analysisTime = Math.round(analysisMs / 1000);
-    if (isDebugMode()) console.log(`[Analysis] Image file parsed in ${analysisTime}s`);
-    result.privacyMethod = 'none (image mode)';
-    result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
-    const prov = result.provider || getAIProvider();
-    const mid = getActiveModelId();
-    const tokens = getUsageTokens(result.usage);
-    result.costInfo = {
-      provider: prov, modelId: mid,
-      inputTokens: tokens.inputTokens,
-      outputTokens: tokens.outputTokens,
-      cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
-    };
-    trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
-    result.importHash = hashString(base64);
-    result.benchmarkId = benchmarkId;
-    captureImportBenchmarkReviewBaseline(result);
-    result._importProfileId = _startProfileId;
-    if (!result.date) showNotification("Could not find collection date in image", "error");
-    if (result.markers.length === 0) {
-      finishImportBenchmark(benchmarkId, 'no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
-      hideImportProgress('error');
-      showNotification("No biomarkers found in image", "error");
-      return;
-    }
-    finishImportBenchmark(benchmarkId, 'preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
-    await showImportProgress(4, file.name);
-    showImportPreview(result);
-    hideImportProgress();
-  } catch (err) {
-    finishImportBenchmark(benchmarkId, 'failed', {
-      stage: 'analysis',
-      error: formatImportError(err),
-      totalMs: Math.round(performance.now() - benchmarkStarted),
-    });
-    if (isDebugMode()) console.error('Image import error:', err);
-    hideImportProgress('error');
-    showNotification(`Import failed: ${formatImportError(err)}`, 'error');
-  }
+  return handleImageFileWorkflow(file);
 }
 
 // ═══════════════════════════════════════════════
