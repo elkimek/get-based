@@ -3,7 +3,6 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { isDebugMode } from './utils.js';
 import { getDeltaCutoverReadiness, getDeltaTelemetry } from './sync-delta.js';
 import { getSyncRelay } from './sync-environment.js';
 import { parseSyncPayload } from './sync-payload-codec.js';
@@ -49,10 +48,6 @@ export function _syncDiag() {
     }
   }
   info.localTimestamps = tsList;
-  if (isDebugMode()) {
-    console.table?.(info.evoluRows);
-    console.log('[sync] Diagnostics:', JSON.stringify(info, null, 2));
-  }
   return info;
 }
 
@@ -70,7 +65,7 @@ export async function getEvoluDiagnostics() {
     syncEnabled: currentDiagnosticSyncEnabled(),
     relay: getSyncRelay(),
     ownerId: appOwner?.id ? String(appOwner.id).slice(0, 12) + '…' : null,
-    mnemonicPrefix: appOwner?.mnemonic ? appOwner.mnemonic.split(' ').slice(0, 2).join(' ') + ' …' : null,
+    mnemonicConfigured: !!appOwner?.mnemonic,
     rows: /** @type {any[]} */ ([]),
     activeProfileId: state.currentProfile,
     activeImported: { sunSessions: 0, lightDevices: 0 },

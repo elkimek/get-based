@@ -25,6 +25,20 @@ const VIEW_RUNTIME_LOOKUP_RE = /\bgetViewRuntimeFunction\s*\(/g;
 const LAB_STATE_RE = /\b_labState\b/g;
 const VIEW_RUNTIME_BRIDGE_FILE = 'js/views-runtime-bridge.js';
 const LAB_STATE_GUARDRAIL_TEST_FILE = 'tests/test-quality-guardrails.js';
+const PRIVACY_CRITICAL_LOG_FILES = [
+  'js/pdf-import.js',
+  'js/pdf-import-file-handlers.js',
+  'js/pii.js',
+  'js/pii-review.js',
+  'js/sync-diagnostics-snapshot.js',
+];
+const CONSOLE_REFERENCE_RE = /\bconsole\b/g;
+const SYNC_DIAGNOSTIC_FILES = [
+  'js/sync-diagnostics-snapshot.js',
+  'js/sync-diagnostics-text.js',
+  'js/sync-diagnose-render.js',
+];
+const RECOVERY_PHRASE_FRAGMENT_RE = /\bmnemonicPrefix\b|\bmnemonic\s*(?:\?\.|\.)\s*split\s*\(/g;
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -134,6 +148,30 @@ function collectOversizedProductionFiles() {
     .sort((a, b) => b.lines - a.lines);
 }
 
+function collectPrivacyConsoleViolations() {
+  const violations = [];
+  for (const relativeFile of PRIVACY_CRITICAL_LOG_FILES) {
+    const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+    const matches = [...source.matchAll(CONSOLE_REFERENCE_RE)];
+    if (matches.length > 0) {
+      violations.push({ file: relativeFile, count: matches.length });
+    }
+  }
+  return violations;
+}
+
+function collectRecoveryPhraseDiagnosticViolations() {
+  const violations = [];
+  for (const relativeFile of SYNC_DIAGNOSTIC_FILES) {
+    const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+    const matches = [...source.matchAll(RECOVERY_PHRASE_FRAGMENT_RE)];
+    if (matches.length > 0) {
+      violations.push({ file: relativeFile, count: matches.length });
+    }
+  }
+  return violations;
+}
+
 function collectSyntaxFiles() {
   const files = [];
   const exts = new Set(['.js', '.mjs']);
@@ -173,6 +211,8 @@ function main() {
   const metrics = collectAppMetrics();
   const testMetrics = collectTestMetrics();
   const oversizedProductionFiles = collectOversizedProductionFiles();
+  const privacyConsoleViolations = collectPrivacyConsoleViolations();
+  const recoveryPhraseDiagnosticViolations = collectRecoveryPhraseDiagnosticViolations();
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
@@ -188,6 +228,18 @@ function main() {
   } else {
     fail('all first-party production JS files stay below 800 lines',
       oversizedProductionFiles.map(entry => `${entry.file}: ${entry.lines}`).join(', '));
+  }
+  if (privacyConsoleViolations.length === 0) {
+    pass('privacy-critical workflows avoid direct console logging');
+  } else {
+    fail('privacy-critical workflows avoid direct console logging',
+      privacyConsoleViolations.map(entry => `${entry.file}: ${entry.count}`).join(', '));
+  }
+  if (recoveryPhraseDiagnosticViolations.length === 0) {
+    pass('support diagnostics never expose recovery-phrase fragments');
+  } else {
+    fail('support diagnostics never expose recovery-phrase fragments',
+      recoveryPhraseDiagnosticViolations.map(entry => `${entry.file}: ${entry.count}`).join(', '));
   }
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {

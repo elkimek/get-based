@@ -417,7 +417,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
           syncEnabled: true,
           relay: 'https://relay.example.test',
           ownerId: 'owner-1',
-          mnemonicPrefix: 'alpha beta gamma',
+          mnemonicConfigured: true,
           activeProfileId: 'profile-1',
           activeImported: { sunSessions: 2, lightDevices: 1 },
           rows: [{
@@ -473,7 +473,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
           syncEnabled: false,
           relay: '',
           ownerId: '',
-          mnemonicPrefix: '',
+          mnemonicConfigured: false,
           activeProfileId: '',
           activeImported: { sunSessions: 0, lightDevices: 0 },
           rows: [],
@@ -644,7 +644,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         syncEnabled: true,
         relay: 'https://relay.example.test',
         ownerId: 'owner-1',
-        mnemonicPrefix: 'alpha beta',
+        mnemonicConfigured: true,
         activeProfileId: 'profile-1',
         activeImported: { sunSessions: 1, lightDevices: 2 },
         rows: [{
@@ -763,7 +763,8 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         && syncInfo.localTimestamps.some(item => item.key === 'coverage-sync-ts');
       outcomes.snapshotParsesRowsFallbacksAndDeletes = evoluDiagnostics.syncEnabled === true
         && String(evoluDiagnostics.ownerId).startsWith('ownerabcdef')
-        && String(evoluDiagnostics.mnemonicPrefix).startsWith('alpha beta')
+        && evoluDiagnostics.mnemonicConfigured === true
+        && !Object.hasOwn(evoluDiagnostics, 'mnemonicPrefix')
         && evoluDiagnostics.rows.length === 4
         && evoluDiagnostics.rows.some(row => row.profileId === 'profile-from-payload' && row.profileIdSource === 'payload' && row.dev === 2)
         && evoluDiagnostics.rows.some(row => row.profileId === 'deleted-profile' && row.isDeleted === true)

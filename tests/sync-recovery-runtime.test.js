@@ -124,7 +124,7 @@ describe('sync recovery runtime', () => {
       syncEnabled: true,
       relay: 'wss://relay.example',
       ownerId: 'owner-1',
-      mnemonicPrefix: 'alpha beta',
+      mnemonicConfigured: true,
       activeProfileId: 'profile-1',
       activeImported: { sunSessions: 2, lightDevices: 1 },
       rows: [{
@@ -192,6 +192,8 @@ describe('sync recovery runtime', () => {
     });
 
     expect(text).toContain('Sync enabled: yes');
+    expect(text).toContain('Recovery phrase configured: yes');
+    expect(text).not.toContain('alpha beta');
     expect(text).toContain('profile-1');
     expect(text).toContain('sunSessions(1/1/0)');
     expect(text).not.toContain('empty(0/0/0)');

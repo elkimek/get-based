@@ -10,7 +10,7 @@ export function _evoluDiagnosticsText(d) {
     `Sync enabled: ${d.syncEnabled ? 'yes' : 'no'}`,
     `Relay: ${d.relay || '-'}`,
     `Owner ID: ${d.ownerId || '- (not initialized)'}`,
-    `Mnemonic prefix: ${d.mnemonicPrefix || '-'}`,
+    `Recovery phrase configured: ${d.mnemonicConfigured ? 'yes' : 'no'}`,
     `Active profile: ${d.activeProfileId || '?'}`,
     `In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}`,
     `Rows in this device's local Evolu DB:`,

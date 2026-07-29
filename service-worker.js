@@ -166,6 +166,7 @@ const APP_SHELL = [
   '/js/data-merge-lab-entries.js',
   '/js/data-merge.js',
   '/js/pii-review.js',
+  '/js/privacy-safe-diagnostics.js',
   '/js/pii.js',
   '/js/charts-runtime.js',
   '/js/charts.js',

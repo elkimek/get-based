@@ -29,7 +29,7 @@ function renderRelayHealthPanel(healthVerdict) {
   const detail = isHealthy
     ? 'Last verified ' + new Date(healthVerdict.at).toISOString().slice(11, 19) + 'Z. Storage state has advanced since the previous check.'
     : (healthVerdict.reason || 'No relay-side advance observed since the previous check.');
-  const scope = '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This verdict is local/outbound: another device can show healthy or unknown until it pushes and probes its own relay baseline. Compare Owner ID / Mnemonic prefix across devices first.</div>';
+  const scope = '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This verdict is local/outbound: another device can show healthy or unknown until it pushes and probes its own relay baseline. Compare Owner ID across devices first.</div>';
   const recovery = isHealthy ? scope : scope + '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This matches the Evolu silent-reject pattern. The fix is identity rotation — generate a fresh 24-word mnemonic and restore every syncing device to it. See <a href="https://docs.getbased.health/guides/cross-device-sync" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
   return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -164,8 +164,8 @@ export function renderSyncDiagnoseModal({
         <div><b>Sync enabled:</b> ${d.syncEnabled ? 'yes' : 'no'}</div>
         <div><b>Relay:</b> <span style="font-family:monospace;font-size:11px;word-break:break-all">${escapeHTML(d.relay || '—')}</span></div>
         <div><b>Owner ID:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.ownerId || '— (not initialized)')}</span></div>
-        <div><b>Mnemonic prefix:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.mnemonicPrefix || '—')}</span></div>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">If two devices show different Owner ID or Mnemonic prefix, they are using different identities and will never see each other's data even on the same relay.</div>
+        <div><b>Recovery phrase configured:</b> ${d.mnemonicConfigured ? 'yes' : 'no'}</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">If two devices show different Owner IDs, they are using different identities and will never see each other's data even on the same relay. Recovery-phrase words are intentionally never included in diagnostics.</div>
       </div>
       <div style="margin-bottom:12px">
         <div><b>Active profile (this device):</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.activeProfileId || '?')}</span></div>
