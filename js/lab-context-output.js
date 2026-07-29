@@ -109,10 +109,11 @@ export function getContextSummary() {
     areas.push({ label: 'Environment', detail: state.importedData.environment.setting || 'filled' });
   }
   const emfData = state.importedData.emfAssessment;
-  if (includeInsightCards && emfData?.assessments?.length > 0) {
+  const emfAssessments = emfData?.assessments;
+  if (includeInsightCards && emfAssessments && emfAssessments.length > 0) {
     areas.push({
       label: 'EMF Assessment',
-      detail: `${emfData.assessments.length} assessment${emfData.assessments.length !== 1 ? 's' : ''}`,
+      detail: `${emfAssessments.length} assessment${emfAssessments.length !== 1 ? 's' : ''}`,
     });
   }
   const goals = state.importedData.healthGoals || [];
