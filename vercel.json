@@ -7,6 +7,12 @@
   },
   "buildCommand": "node scripts/fetch-catalog.mjs && node scripts/build-production.mjs",
   "outputDirectory": ".",
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 190,
+      "supportsCancellation": true
+    }
+  },
   "routes": [
     {
       "src": "^/js/bundle-.*\\.js$",

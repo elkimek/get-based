@@ -30,7 +30,10 @@ const ENV_KEYS = [
   'UVDATA_BEARER',
   'PROXY_RATE_LIMIT_MAX',
   'PROXY_RATE_LIMIT_WINDOW_MS',
+  'PROXY_RATE_LIMIT_BLOB_TOKEN',
+  'PROXY_ALLOW_INSTANCE_RATE_LIMIT',
   'PROXY_UPSTREAM_TIMEOUT_MS',
+  'VERCEL',
   'VERCEL_GIT_COMMIT_SHA',
   'VERCEL_GIT_COMMIT_REF',
 ];
@@ -496,6 +499,7 @@ describe('AI proxy runtime behavior', () => {
     process.env.WITHINGS_CLIENT_ID = '   ';
     const runtime = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }));
     expect(runtime.status).toBe(200);
+    expect(runtime.headers.get('Cache-Control')).toBe('no-store');
     expect(await responseJson(runtime)).toEqual({
       overrides: {
         oura: 'oura-selfhost',
@@ -508,6 +512,20 @@ describe('AI proxy runtime behavior', () => {
       requestUrl: 'https://health.example.net/api/proxy',
     }));
     expect(selfHosted.status).toBe(200);
+  });
+
+  it('fails closed when a hosted deployment has no distributed proxy limiter', async () => {
+    process.env.VERCEL = '1';
+
+    const response = await proxyHandler(makeProxyRequest({
+      wearable_runtime_config: true,
+    }, { clientIp: '203.0.113.79' }));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('Retry-After')).toBe('60');
+    expect(await responseJson(response)).toEqual({
+      error: 'Proxy rate limit is not configured for this hosted deployment.',
+    });
   });
 
   it('blocks SSRF targets and forwards allowed custom HTTPS endpoints', async () => {
@@ -563,7 +581,7 @@ describe('AI proxy runtime behavior', () => {
       body: { prompt: 'hello' },
     }));
     expect(failed.status).toBe(502);
-    expect(await responseJson(failed)).toEqual({ error: 'Upstream error: offline' });
+    expect(await responseJson(failed)).toEqual({ error: 'Upstream request failed' });
   });
 
   it('revalidates redirect targets and never forwards credentials across origins', async () => {
@@ -578,7 +596,7 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(privateRedirect.status).toBe(502);
     expect(await responseJson(privateRedirect)).toEqual({
-      error: 'Upstream error: Proxy redirect target not allowed',
+      error: 'Proxy redirect target not allowed',
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
@@ -593,7 +611,7 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(crossOriginRedirect.status).toBe(502);
     expect(await responseJson(crossOriginRedirect)).toEqual({
-      error: 'Upstream error: Cross-origin proxy redirects with a request body are not allowed',
+      error: 'Cross-origin proxy redirects with a request body are not allowed',
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
@@ -656,7 +674,7 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(redirectLoop.status).toBe(502);
     expect(await responseJson(redirectLoop)).toEqual({
-      error: 'Upstream error: Proxy redirect limit exceeded',
+      error: 'Proxy redirect limit exceeded',
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(6);
   });
@@ -671,7 +689,7 @@ describe('AI proxy runtime behavior', () => {
     }, { clientIp: '203.0.113.80' }));
     expect(timedOut.status).toBe(504);
     expect(await responseJson(timedOut)).toEqual({
-      error: 'Upstream error: Proxy upstream timed out',
+      error: 'Proxy upstream timed out',
     });
 
     delete process.env.PROXY_UPSTREAM_TIMEOUT_MS;
@@ -691,6 +709,28 @@ describe('AI proxy runtime behavior', () => {
       retryAfterSeconds: expect.any(Number),
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the timeout active while an upstream response body is stalled', async () => {
+    process.env.PROXY_UPSTREAM_TIMEOUT_MS = '10';
+    globalThis.fetch = vi.fn(async (_url, init) => new Response(new ReadableStream({
+      start(controller) {
+        init.signal.addEventListener('abort', () => {
+          controller.error(new Error('aborted'));
+        }, { once: true });
+      },
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const timedOut = await proxyHandler(makeProxyRequest({
+      url: 'https://slow-body.example.com/v1/chat',
+    }, { clientIp: '203.0.113.82' }));
+
+    expect(timedOut.status).toBe(504);
+    expect(await responseJson(timedOut)).toEqual({
+      error: 'Proxy upstream timed out',
+    });
   });
 
   it('preserves provider-compatible headers for proxied custom API calls', async () => {
@@ -790,7 +830,7 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(oversizedResponse.status).toBe(502);
     expect(await responseJson(oversizedResponse)).toEqual({
-      error: 'Upstream error: Proxy response exceeds size cap',
+      error: 'Proxy response exceeds size cap',
     });
 
     globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
@@ -872,6 +912,46 @@ describe('AI proxy runtime behavior', () => {
     });
   });
 
+  it('applies redirect, timeout, and response-size guardrails to secret-bearing OAuth relays', async () => {
+    process.env.OURA_CLIENT_SECRET = 'oura-secret';
+    globalThis.fetch = vi.fn(async () => new Response(null, {
+      status: 307,
+      headers: { Location: 'https://collector.example.com/capture' },
+    }));
+
+    const redirected = await proxyHandler(makeProxyRequest({
+      oura_token_exchange: {
+        code: 'oura-code',
+        redirect_uri: 'https://app.example.com/cb',
+        client_id: 'oura-client',
+      },
+    }, { clientIp: '203.0.113.83' }));
+
+    expect(redirected.status).toBe(502);
+    expect(await responseJson(redirected)).toEqual({
+      error: 'Cross-origin proxy redirects with a request body are not allowed',
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    globalThis.fetch = vi.fn(async () => new Response('{}', {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': String(300 * 1024),
+      },
+    }));
+    const oversized = await proxyHandler(makeProxyRequest({
+      oura_token_refresh: {
+        refresh_token: 'oura-refresh',
+        client_id: 'oura-client',
+      },
+    }, { clientIp: '203.0.113.84' }));
+
+    expect(oversized.status).toBe(502);
+    expect(await responseJson(oversized)).toEqual({
+      error: 'Proxy response exceeds size cap',
+    });
+  });
+
   it('validates and relays CAMS atmosphere requests without exposing the bearer token to callers', async () => {
     const hostedWithoutBearer = await proxyHandler(makeProxyRequest({
       meteo: 'cams',
@@ -883,7 +963,7 @@ describe('AI proxy runtime behavior', () => {
       error: expect.stringContaining('CAMS hosted relay requires UVDATA_BEARER'),
     });
 
-    process.env.UVDATA_UPSTREAM = 'https://uv.example.test/base/';
+    process.env.UVDATA_UPSTREAM = 'https://uv.example.com/base/';
     const badCoords = await proxyHandler(makeProxyRequest({
       meteo: 'cams',
       latitude: 91,
@@ -906,7 +986,7 @@ describe('AI proxy runtime behavior', () => {
     expect(relayed.status).toBe(200);
     expect(await responseJson(relayed)).toEqual({ uv: 4.2 });
     const [url, init] = globalThis.fetch.mock.calls.at(-1);
-    expect(url).toBe('https://uv.example.test/base/uv?latitude=50.1&longitude=14.4&time=2026-06-06T12%3A00%3A00Z');
+    expect(url).toBe('https://uv.example.com/base/uv?latitude=50.1&longitude=14.4&time=2026-06-06T12%3A00%3A00Z');
     expect(init.headers.Authorization).toBe('Bearer uv-secret');
 
     globalThis.fetch = vi.fn(async () => new Response('{}', {
@@ -919,7 +999,34 @@ describe('AI proxy runtime behavior', () => {
       longitude: 14.4,
     }));
     expect(oversized.status).toBe(502);
-    expect(await responseJson(oversized)).toEqual({ error: 'CAMS response exceeds size cap' });
+    expect(await responseJson(oversized)).toEqual({ error: 'Proxy response exceeds size cap' });
+  });
+
+  it('strips the CAMS bearer before following an allowed cross-origin redirect', async () => {
+    process.env.UVDATA_UPSTREAM = 'https://uv.example.com';
+    process.env.UVDATA_BEARER = 'uv-secret';
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.startsWith('https://uv.example.com/uv?')) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: 'https://uv-cdn.example.com/result' },
+        });
+      }
+      return jsonResponse({ uv: 3.1 });
+    });
+
+    const relayed = await proxyHandler(makeProxyRequest({
+      meteo: 'cams',
+      latitude: 50.1,
+      longitude: 14.4,
+    }, { clientIp: '203.0.113.85' }));
+
+    expect(relayed.status).toBe(200);
+    expect(await responseJson(relayed)).toEqual({ uv: 3.1 });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    const [redirectUrl, redirectInit] = globalThis.fetch.mock.calls[1];
+    expect(redirectUrl).toBe('https://uv-cdn.example.com/result');
+    expect(redirectInit.headers).not.toHaveProperty('Authorization');
   });
 });
 

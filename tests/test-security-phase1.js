@@ -124,21 +124,25 @@ if (exists('dev-server.js')) {
       && edgeProxySrc.includes('sanitizeProxyHeaders(headers)')
       && edgeProxySrc.includes('PROXY_MAX_REQUEST_BYTES')
       && edgeProxySrc.includes('PROXY_MAX_RESPONSE_BYTES'));
+  const proxyUpstreamSrc = read('lib/proxy-upstream.js');
+  const proxyRateLimitSrc = read('lib/proxy-rate-limit.js');
   assert('api/proxy.js rejects disallowed callers server-side',
     edgeProxySrc.includes('if (!isAllowedCallerOrigin(req))')
       && edgeProxySrc.includes("error: 'Origin not allowed.'"));
-  assert('api/proxy.js manually validates every redirect destination',
-    edgeProxySrc.includes("redirect: 'manual'")
-      && edgeProxySrc.includes('isAllowedProxyUrl(nextUrl)')
-      && edgeProxySrc.includes('stripProxyCredentialHeaders(nextOptions)')
-      && edgeProxySrc.includes('Cross-origin proxy redirects with a request body are not allowed'));
-  assert('api/proxy.js bounds upstream waits and applies an abuse brake',
-    edgeProxySrc.includes('PROXY_UPSTREAM_TIMEOUT_MS')
-      && edgeProxySrc.includes('enforceProxyRateLimit(req)')
+  assert('proxy upstream runtime manually validates every redirect destination',
+    proxyUpstreamSrc.includes("redirect: 'manual'")
+      && proxyUpstreamSrc.includes('isAllowedProxyUrl(nextUrl)')
+      && proxyUpstreamSrc.includes('stripProxyCredentialHeaders(nextOptions)')
+      && proxyUpstreamSrc.includes('Cross-origin proxy redirects with a request body are not allowed'));
+  assert('proxy runtime bounds upstream lifetimes and applies a distributed abuse brake',
+    proxyUpstreamSrc.includes('PROXY_UPSTREAM_TIMEOUT_MS')
+      && edgeProxySrc.includes('await enforceProxyRateLimit(req)')
+      && proxyRateLimitSrc.includes("from '@vercel/blob'")
+      && proxyRateLimitSrc.includes('allowOverwrite: false')
       && edgeProxySrc.includes("'Retry-After'"));
-  assert('api/proxy.js resolves and pins public DNS answers before connecting',
-    edgeProxySrc.includes("from '../lib/proxy-network.js'")
-      && edgeProxySrc.includes('fetchWithPinnedProxyDns(url')
+  assert('proxy upstream runtime resolves and pins public DNS answers before connecting',
+    proxyUpstreamSrc.includes("from './proxy-network.js'")
+      && proxyUpstreamSrc.includes('fetchWithPinnedProxyDns(url')
       && !edgeProxySrc.includes("runtime: 'edge'"));
 } else {
   console.log('  (dev-server.js not present — production build, skipping CORS source asserts)');
