@@ -124,6 +124,7 @@
     "js/dashboard-widget-controls.js",
     "js/dashboard-widget-renderers.js",
     "js/dashboard-widgets.js",
+    "js/data-merge-lab-entries.js",
     "js/data-merge.js",
     "js/data.js",
     "js/dna.js",
