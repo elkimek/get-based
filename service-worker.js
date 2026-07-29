@@ -249,6 +249,7 @@ const APP_SHELL = [
   '/js/chat-runtime.js',
   '/js/chat-render-runtime.js',
   '/js/chat-render.js',
+  '/js/chat-storage-safety.js',
   '/js/chat-send.js',
   '/js/chat-send-runtime.js',
   '/js/chat-message-action-attrs.js',

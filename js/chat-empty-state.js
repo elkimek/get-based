@@ -250,7 +250,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
   const _pH = getChatProfileHeight(state.currentProfile);
   const pHeight = _pH.height ? (_pH.unit === 'in' ? (Number(_pH.height) / 2.54).toFixed(1) : _pH.height) : '';
   const pHeightUnit = _pH.unit || 'cm';
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(1)}
       <p>Hey! 👋 I'll be your AI health analyst — I help you understand blood work, track trends, and spot what matters. First, tell me a bit about yourself:</p>
@@ -311,7 +311,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
 
 function renderAIPausedState(container, panel, { personality, name }) {
   setOnboardingActive(panel);
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       <p>${escapeHTML(name)}, AI features are currently paused. Turn them back on to chat, get insights, and import PDFs with AI.</p>
       <div style="margin-top:12px">
@@ -325,7 +325,7 @@ function renderProviderSetupState(container, panel, { personality, name }) {
   setOnboardingActive(panel);
   if (hasAIProvider()) return renderProviderConnectedState(container, { personality, name });
   const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(2)}
       ${_renderProviderQuiz(branch, name)}
@@ -334,7 +334,7 @@ function renderProviderSetupState(container, panel, { personality, name }) {
 }
 
 function renderProviderConnectedState(container, { personality, name }) {
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('AI connected')}
       <p>${escapeHTML(name)}, AI is connected. You can continue the setup or change providers from AI settings.</p>
@@ -358,7 +358,7 @@ function renderOptionalContextState(container, panel, { personality }) {
   const cards = buildOptionalContextTaskCards();
   const genetics = state.importedData.genetics || {};
   const hasSnps = Object.keys(genetics.snps || {}).length > 0;
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(3)}
       <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when recommendations or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
@@ -462,7 +462,7 @@ function renderWearableTask() {
 function renderFullContextNoDataState(container, panel, { personality, name }) {
   panel?.classList.remove('chat-onboarding-active');
   const providerConnected = hasAIProvider();
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('Context complete')}
       <p>${escapeHTML(name)}, your context cards are complete. ${providerConnected ? 'Next, import labs or ask what to test when you are ready.' : 'Next, connect AI when you are ready to import labs or get recommendations.'}</p>
@@ -482,7 +482,7 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
   setOnboardingActive(panel);
   const progressPct = Math.round((filled / 9) * 100);
   const providerConnected = hasAIProvider();
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}
       <p>${filled >= 6 ? `Almost there, ${escapeHTML(name)}!` : filled >= 3 ? `Nice progress, ${escapeHTML(name)}!` : `Good start, ${escapeHTML(name)}!`} You've filled ${filled} of 9 context areas.</p>
@@ -513,7 +513,7 @@ function renderContextImportHandoffState(container, panel, { personality, name }
   const nextCopy = providerConnected
     ? 'Next, import labs or ask what to test when you are ready.'
     : 'Next, connect AI when you are ready to import labs or get recommendations.';
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('Setup ready')}
       <p>${contextCopy} ${nextCopy}</p>
@@ -531,7 +531,7 @@ function renderContextImportHandoffState(container, panel, { personality, name }
 function renderInitialNoDataState(container, panel, { personality }) {
   setOnboardingActive(panel);
   const providerConnected = hasAIProvider();
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}
       <p><strong>Add optional context.</strong> These cards improve lab interpretation. Fill any that matter now; everything is optional.</p>
@@ -549,7 +549,7 @@ function renderInitialNoDataState(container, panel, { personality }) {
 }
 
 function renderDataContextNudgeState(container, { personality }) {
-  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       <p>I can see your lab results — nice! 👋 I can already analyze these, but if you fill in a few lifestyle cards I'll give you much more personalized insights.</p>
       <div class="chat-onboard-actions">
@@ -570,7 +570,7 @@ function renderGeneralPromptState(container, { personality }) {
     'What should I test next?'
   ];
   container.innerHTML = `<div class="chat-empty">
-    <div class="chat-empty-icon">${personality.icon}</div>
+    <div class="chat-empty-icon">${escapeHTML(personality.icon)}</div>
     <div>${escapeHTML(personality.greeting)}</div>
     <div class="chat-prompts">
       ${prompts.map(p => `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="${escapeAttr(p)}">${escapeHTML(p)}</button>`).join('\n      ')}

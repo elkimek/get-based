@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
+import { normalizeCustomPersonalities } from './chat-storage-safety.js';
 import { escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isVeniceE2EEActive, isPpqPrivateModeActive, isRoutstrPrivateModeActive } from './api.js';
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
@@ -140,10 +141,10 @@ export function getCustomPersonalities() {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) return normalizeCustomPersonalities(parsed);
     // Single object with promptText -> wrap as array
     if (parsed && typeof parsed === 'object' && 'promptText' in parsed) {
-      return [{ ...parsed, id: parsed.id || 'custom_migrated' }];
+      return normalizeCustomPersonalities([{ ...parsed, id: parsed.id || 'custom_migrated' }]);
     }
   } catch {}
   // Legacy plain string
@@ -374,7 +375,7 @@ export function updatePersonalityBar() {
     const isActive = cp.id === state.currentChatPersonality;
     html += `<div class="chat-personality-opt-wrapper">
       <button class="chat-personality-opt${isActive ? ' active' : ''}" type="button" data-personality="${escapeAttr(cp.id)}" data-chat-action="set-personality">
-        <span class="chat-personality-opt-icon">${cp.icon}</span>
+        <span class="chat-personality-opt-icon">${escapeHTML(cp.icon)}</span>
         <div class="chat-personality-opt-info">
           <span class="chat-personality-opt-name">${escapeHTML(cp.name)}</span>
           <span class="chat-personality-opt-desc">Custom personality</span>
@@ -471,7 +472,7 @@ export function saveCustomPersonality() {
     if (idx >= 0) customs[idx] = { ...customs[idx], name, icon, promptText };
   } else {
     id = 'custom_' + Date.now().toString(36);
-    customs.push({ id, name, icon, promptText });
+    customs.push({ id, name, icon, promptText, evidenceBased: false });
   }
   saveCustomPersonalities(customs);
   _editingPersonalityId = id;

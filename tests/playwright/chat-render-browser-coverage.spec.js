@@ -71,7 +71,11 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         },
       });
       state.chatHistory = [
-        { joined: true, joinIcon: '*', joinName: 'Dr <Ada>' },
+        {
+          joined: true,
+          joinIcon: '<img src=x onerror=\"window.__chatImportXss=1\">',
+          joinName: 'Dr <Ada>',
+        },
         { role: 'user', hidden: true, content: 'Hidden setup should not render' },
         {
           role: 'user',
@@ -82,13 +86,17 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         {
           role: 'assistant',
           personalityName: 'Lab <Guide>',
-          personalityIcon: '#',
+          personalityIcon: '<svg onload=\"window.__chatImportXss=1\">',
           content: 'Here is **analysis**',
           auto: true,
           stopped: true,
           truncated: true,
           hasImages: true,
-          thumbnails: [tinyPng],
+          thumbnails: [
+            tinyPng,
+            'data:image/svg+xml,<svg onload=\"window.__chatImportXss=1\">',
+            'x\" onerror=\"window.__chatImportXss=1',
+          ],
           usage: { inputTokens: 120, outputTokens: 180 },
           provider: 'openrouter',
           modelId: 'openai/gpt-4o-mini',
@@ -132,7 +140,13 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         && rendered.querySelector('.chat-msg.chat-ai.chat-msg-auto strong')?.textContent === 'analysis';
       outcomes.imagesRenderAsBadgeAndThumbnail = rendered.querySelector('.chat-image-badge')?.textContent.includes('2 images attached') === true
         && rendered.querySelector('.chat-image-thumbs img.chat-image-thumb')?.getAttribute('src') === tinyPng
+        && rendered.querySelectorAll('.chat-image-thumbs img.chat-image-thumb').length === 1
         && rendered.querySelectorAll('.chat-image-badge').length === 2;
+      outcomes.importedMarkupCannotCreateExecutableElements =
+        rendered.querySelectorAll('[onerror], [onload]').length === 0
+        && rendered.textContent.includes('<img src=x onerror=\"window.__chatImportXss=1\">')
+        && rendered.textContent.includes('<svg onload=\"window.__chatImportXss=1\">')
+        && !window.__chatImportXss;
       outcomes.usageFootnoteIncludesProviderContext = costFootnote.includes('Coverage Model')
         && costFootnote.includes('300 tokens')
         && costFootnote.includes('web')

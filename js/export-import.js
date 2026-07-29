@@ -23,9 +23,14 @@ import {
   refreshImportRuntimeShell,
 } from './export-runtime.js';
 import { setSelectedNodeUrl } from './nostr-discovery.js';
+import {
+  normalizeChatBackup,
+  normalizeChatThreads,
+} from './chat-storage-safety.js';
 
 async function _importChatData(profileId, chat) {
-  if (!chat || !Array.isArray(chat.threads)) return;
+  const importedChat = normalizeChatBackup(chat);
+  if (importedChat.threads.length === 0) return;
   // Read existing threads to merge
   let existingRaw;
   if (getEncryptionEnabled()) {
@@ -35,12 +40,15 @@ async function _importChatData(profileId, chat) {
   }
   let existing;
   try { existing = existingRaw ? JSON.parse(existingRaw) : []; } catch { existing = []; }
+  existing = normalizeChatThreads(existing);
   const existingIds = new Set(existing.map(t => t.id));
-  for (const t of chat.threads) {
+  for (const t of importedChat.threads) {
     if (existingIds.has(t.id)) continue;
+    if (existing.length >= 50) break;
     existing.push(t);
+    existingIds.add(t.id);
     // Write thread messages
-    const msgs = (chat.messages && chat.messages[t.id]) || [];
+    const msgs = importedChat.messages[t.id] || [];
     const value = JSON.stringify(msgs);
     if (getEncryptionEnabled()) { await encryptedSetItem(`labcharts-${profileId}-chat-t_${t.id}`, value); }
     else { localStorage.setItem(`labcharts-${profileId}-chat-t_${t.id}`, value); }
@@ -49,11 +57,11 @@ async function _importChatData(profileId, chat) {
   if (getEncryptionEnabled()) { await encryptedSetItem(`labcharts-${profileId}-chat-threads`, threadsJson); }
   else { localStorage.setItem(`labcharts-${profileId}-chat-threads`, threadsJson); }
   // Restore personality + custom personas (only if not already set)
-  if (chat.personality && !localStorage.getItem(`labcharts-${profileId}-chatPersonality`)) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonality`, chat.personality);
+  if (importedChat.personality && !localStorage.getItem(`labcharts-${profileId}-chatPersonality`)) {
+    localStorage.setItem(`labcharts-${profileId}-chatPersonality`, importedChat.personality);
   }
-  if (chat.customPersonalities && !localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`)) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify(chat.customPersonalities));
+  if (importedChat.customPersonalities.length > 0 && !localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`)) {
+    localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify(importedChat.customPersonalities));
   }
 }
 

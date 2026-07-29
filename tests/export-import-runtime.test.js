@@ -240,13 +240,30 @@ describe('JSON restore runtime', () => {
       chat: {
         threads: [
           { id: 'thread-existing', title: 'Existing' },
-          { id: 'thread-new', title: 'New' },
+          {
+            id: 'thread-new',
+            title: 'New',
+            personalityIcon: '<img src=x onerror=\"window.__chatXss=1\">',
+            messageCount: '<svg onload=alert(1)>',
+          },
+          { id: '__proto__', title: 'Rejected' },
         ],
         messages: {
-          'thread-new': [{ role: 'user', content: 'Hello' }],
+          'thread-new': [{
+            role: 'user',
+            content: 'Hello',
+            joinIcon: '<img src=x onerror=\"window.__chatXss=1\">',
+            thumbnails: ['data:image/svg+xml,<svg onload=alert(1)>'],
+            hasImages: true,
+          }],
         },
         personality: 'coach',
-        customPersonalities: [{ id: 'custom-coach' }],
+        customPersonalities: [{
+          id: 'custom_coach',
+          name: 'Coach',
+          icon: '<img src=x onerror=\"window.__chatXss=1\">',
+          promptText: 'Help',
+        }],
       },
     };
 
@@ -291,6 +308,14 @@ describe('JSON restore runtime', () => {
       'snap-new',
     ]);
     expect(JSON.parse(localStorage.getItem('labcharts-profile-1-chat-threads'))).toHaveLength(2);
+    const restoredMessages = JSON.parse(localStorage.getItem('labcharts-profile-1-chat-t_thread-new'));
+    expect(restoredMessages[0].thumbnails).toEqual([]);
+    expect(restoredMessages[0].imageCount).toBe(0);
+    expect(JSON.parse(localStorage.getItem('labcharts-profile-1-chatPersonalityCustom'))[0])
+      .toMatchObject({
+        id: 'custom_coach',
+        icon: 'img src=x onerror=window.__chatXss=1',
+      });
     expect(runtime.saveImportedData).toHaveBeenCalledOnce();
     expect(runtime.refreshImportRuntimeShell).toHaveBeenCalledWith({ chat: true });
     expect(runtime.showNotification).toHaveBeenLastCalledWith(

@@ -13,6 +13,7 @@ import {
 import { renderSavedSummaries } from './chat-summaries.js';
 import { getActivePersonality, updateChatHeaderTitle } from './chat-personalities.js';
 import { renderChatMessagesRuntime, updateDiscussButtonRuntime } from './chat-runtime.js';
+import { normalizeChatMessages } from './chat-storage-safety.js';
 
 export function getChatStorageKey() {
   return `labcharts-${state.currentProfile}-chat`;
@@ -27,7 +28,7 @@ export async function loadChatHistory() {
   try {
     const key = getChatThreadKey(state.currentThreadId);
     const stored = await encryptedGetItem(key);
-    state.chatHistory = stored ? JSON.parse(stored) : [];
+    state.chatHistory = stored ? normalizeChatMessages(JSON.parse(stored)) : [];
   } catch { state.chatHistory = []; }
   renderChatMessagesRuntime();
 }
