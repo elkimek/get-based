@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 537 |
-| Internal import edges | 2398 |
+| Modules | 538 |
+| Internal import edges | 2401 |
 | Dynamic internal edges | 88 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1020,10 +1020,11 @@ Vercel request handlers and hosted API entry points.
 
 Node-only policy and transport code shared by hosted runtimes.
 
-<details><summary><code>dev</code> family — 2 modules</summary>
+<details><summary><code>dev</code> family — 3 modules</summary>
 
 - [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js) → [`lib/proxy-policy.js`](lib/proxy-policy.js)
 - [`lib/dev-catalog.js`](lib/dev-catalog.js) → no in-scope imports
+- [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
 
 </details>
 
@@ -1048,6 +1049,6 @@ Local development server entry point.
 
 <details><summary><code>dev</code> family — 1 module</summary>
 
-- [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+- [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
 
 </details>

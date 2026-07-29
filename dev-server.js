@@ -31,7 +31,7 @@ import {
   _runPostDeployHooks,
   handleCatalogDeployRequest,
 } from './lib/dev-catalog.js';
-import { errorMessage } from './lib/error-utils.js';
+import { handleDevFetchPage } from './lib/dev-url-fetch.js';
 
 export {
   DEFAULT_UVDATA_UPSTREAM,
@@ -391,7 +391,7 @@ export function _handleProfileShareDev(req, res, url) {
     if (!PROFILE_SHARE_MANAGE_TOKEN_HASH_RE.test(manageTokenHash)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share management token.' }); return; }
     if (PROFILE_SHARE_DEV_STORE.has(id)) { _sendProfileShareJSON(req, res, 409, { error: 'Share id already exists.' }); return; }
     let normalized;
-    try { normalized = _validateProfileShareEnvelope(parsed.envelope); } catch (err) { _sendProfileShareJSON(req, res, 400, { error: errorMessage(err, 'Invalid encrypted profile payload.') }); return; }
+    try { normalized = _validateProfileShareEnvelope(parsed.envelope); } catch { _sendProfileShareJSON(req, res, 400, { error: 'Invalid encrypted profile payload.' }); return; }
     const record = {
       id,
       createdAt: new Date().toISOString(),
@@ -518,70 +518,15 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/fetch-page') {
     const target = url.searchParams.get('url');
     if (!target) { res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) }); res.end('{"error":"missing url param"}'); return; }
-    if (!_isAllowedProxyUrl(target)) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-      res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
-      return;
-    }
-    const fetchPage = (fetchUrl, depth) => {
-      const fetchMod = fetchUrl.startsWith('https') ? https : http;
-      const pageReq = fetchMod.get(fetchUrl, {
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'cs,sk,en;q=0.5',
-        },
-      }, (pageRes) => {
-        // Follow one redirect — re-check destination through SSRF guard so an
-        // allowlisted host can't 30x into a private IP.
-        if (depth === 0 && [301, 302, 307, 308].includes(pageRes.statusCode) && pageRes.headers.location) {
-          const loc = new URL(pageRes.headers.location, fetchUrl).href;
-          if (!_isAllowedProxyUrl(loc)) {
-            res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-            res.end(JSON.stringify({ status: 0, error: 'Redirect destination blocked by SSRF guard' }));
-            return;
-          }
-          return fetchPage(loc, 1);
-        }
-        let body = '';
-        let bytes = 0;
-        const MAX = 256 * 1024;
-        pageRes.setEncoding('utf8');
-        pageRes.on('data', (chunk) => {
-          if (bytes < MAX) { body += chunk; bytes += Buffer.byteLength(chunk); }
-        });
-        pageRes.on('end', () => {
-          if (bytes > MAX) body = body.slice(0, MAX);
-          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-          res.end(JSON.stringify({ status: pageRes.statusCode, html: body }));
-        });
-      });
-      pageReq.on('error', (e) => {
-        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-        res.end(JSON.stringify({ status: 0, error: e.message }));
-      });
-      pageReq.on('timeout', () => { pageReq.destroy(); });
-    };
-    fetchPage(target, 0);
+    handleDevFetchPage(req, res, target, { corsHeaders });
     return;
   }
 
-  // API: fetch page with headless Chrome (for SPA shops)
+  // The legacy rendered-fetch route referenced a tool that is not shipped.
+  // Keep an explicit response instead of accepting an unpinned browser fetch.
   if (pathname === '/api/fetch-page-rendered') {
-    const target = url.searchParams.get('url');
-    if (!target) { res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) }); res.end('{"error":"missing url param"}'); return; }
-    if (!_isAllowedProxyUrl(target)) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-      res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
-      return;
-    }
-    const scriptPath = path.join(ROOT, 'tools', 'fetch-rendered.mjs');
-    execFile('node', [scriptPath, target], { timeout: 30000, maxBuffer: 1024 * 1024 }, (err, stdout) => {
-      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-      if (err) { res.end(JSON.stringify({ status: 0, error: err.message })); return; }
-      try { JSON.parse(stdout); res.end(stdout); } catch { res.end(JSON.stringify({ status: 0, error: 'Invalid response from renderer' })); }
-    });
+    res.writeHead(410, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
+    res.end(JSON.stringify({ status: 0, error: 'Rendered page fetching is unavailable.' }));
     return;
   }
 

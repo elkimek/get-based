@@ -46,7 +46,10 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from '../lib/proxy-policy.js';
-import { handleDevApiProxy } from '../lib/dev-api-proxy.js';
+import {
+  classifyDevProxyOperation,
+  handleDevApiProxy,
+} from '../lib/dev-api-proxy.js';
 
 let passed = 0, failed = 0;
 const DEV_SERVER_PORT = parseInt(process.argv[2], 10) || 8000;
@@ -324,6 +327,18 @@ assert('proxy header policy rejects hop-by-hop headers',
   && sanitizeProxyHeaders({ 'X-Forwarded-Host': 'metadata.google.internal' }).ok === false);
 assert('proxy header policy rejects CRLF header injection',
   sanitizeProxyHeaders({ Authorization: 'Bearer ok\r\nX-Bad: yes' }).ok === false);
+assert('dev proxy operation classifier accepts one fixed operation',
+  classifyDevProxyOperation({ oura_token_exchange: { code: 'code' } }).operation === 'oura-exchange'
+    && classifyDevProxyOperation({ url: 'https://example.com' }).operation === 'generic');
+assert('dev proxy operation classifier rejects ambiguous envelopes',
+  classifyDevProxyOperation({
+    wearable_runtime_config: true,
+    oura_token_refresh: { refresh_token: 'token' },
+  }).ok === false
+    && classifyDevProxyOperation({
+      withings_token_exchange: { code: 'code' },
+      url: 'https://example.com',
+    }).ok === false);
 {
   const req = new EventEmitter();
   req.method = 'OPTIONS';

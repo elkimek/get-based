@@ -100,17 +100,23 @@ console.log('\n5. dev-server CORS reflection');
 if (exists('dev-server.js')) {
   const devSrc = read('dev-server.js');
   const devProxySrc = read('lib/dev-api-proxy.js');
+  const devUrlFetchSrc = read('lib/dev-url-fetch.js');
   assert('dev-server.js defines corsHeaders helper',
     devSrc.includes('function corsHeaders(req)') && devSrc.includes("'Vary': 'Origin'"));
   assert('dev-server.js no longer emits wildcard ACAO',
     !devSrc.includes("'Access-Control-Allow-Origin': '*'"),
     'must reflect allowlisted origin, not wildcard');
   assert('dev-server.js gates SSRF-prone /api endpoints',
-    devSrc.match(/_isAllowedProxyUrl\(target\)/g)?.length >= 3,
-    '/api/check-url, /api/fetch-page, /api/fetch-page-rendered all gated');
+    devSrc.includes('_isAllowedProxyUrl(target)')
+      && devUrlFetchSrc.includes('isAllowedProxyUrl(target)')
+      && devSrc.includes("if (pathname === '/api/fetch-page-rendered')")
+      && devSrc.includes('Rendered page fetching is unavailable.'),
+    '/api/check-url and /api/fetch-page are guarded; unavailable rendered fetch cannot issue requests');
   assert('dev-server.js re-checks redirect destinations',
-    devSrc.match(/_isAllowedProxyUrl\(loc\)|_isAllowedProxyUrl\(redirect\)/g)?.length >= 3,
-    '/api/check-url + /api/fetch-page + /proxy redirect-follow paths each need their own guard');
+    devSrc.includes('_isAllowedProxyUrl(loc)')
+      && devSrc.includes('_isAllowedProxyUrl(redirect)')
+      && devUrlFetchSrc.includes('fetchWithValidatedRedirects'),
+    '/api/check-url + /proxy validate redirects locally; /api/fetch-page uses the shared redirect/DNS guard');
   assert('dev-server.js uses shared proxy policy for generic proxy envelope',
     devSrc.includes("from './lib/dev-api-proxy.js'")
       && devProxySrc.includes("from './proxy-policy.js'")
