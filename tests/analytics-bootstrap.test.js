@@ -14,10 +14,12 @@ function runBootstrap({
   disabled = false,
 } = {}) {
   const appended = [];
+  let onlineListener = null;
+  let onlineListenerOptions = null;
   const storage = new Map(
     disabled ? [['labcharts-analytics-disabled', 'true']] : [],
   );
-  vm.runInNewContext(analyticsBootstrap, {
+  const context = {
     document: {
       createElement: () => ({ dataset: {} }),
       head: {
@@ -29,13 +31,30 @@ function runBootstrap({
     },
     location: { hostname, protocol },
     navigator: { onLine: online },
-  });
-  return appended;
+    window: {
+      addEventListener: (type, listener, options) => {
+        if (type === 'online') {
+          onlineListener = listener;
+          onlineListenerOptions = options;
+        }
+      },
+    },
+  };
+  vm.runInNewContext(analyticsBootstrap, context);
+  return {
+    appended,
+    reconnect() {
+      context.navigator.onLine = true;
+      const listener = onlineListener;
+      if (onlineListenerOptions?.once) onlineListener = null;
+      listener?.();
+    },
+  };
 }
 
 describe('analytics bootstrap', () => {
   it('loads the self-hosted script on an online production page', () => {
-    const [script] = runBootstrap();
+    const { appended: [script] } = runBootstrap();
 
     expect(script).toMatchObject({
       defer: true,
@@ -53,6 +72,18 @@ describe('analytics bootstrap', () => {
     ['local development', { hostname: 'localhost' }],
     ['explicit opt-out', { disabled: true }],
   ])('skips analytics for %s', (_label, options) => {
-    expect(runBootstrap(options)).toEqual([]);
+    expect(runBootstrap(options).appended).toEqual([]);
+  });
+
+  it('loads analytics once when an offline PWA reconnects', () => {
+    const bootstrap = runBootstrap({ online: false });
+
+    expect(bootstrap.appended).toEqual([]);
+    bootstrap.reconnect();
+    bootstrap.reconnect();
+
+    expect(bootstrap.appended).toHaveLength(1);
+    expect(bootstrap.appended[0].src)
+      .toBe('https://umami-iota-olive.vercel.app/script.js');
   });
 });

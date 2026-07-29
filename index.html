@@ -495,21 +495,32 @@
     // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on
     // file:// (offline export), .onion (Tor), local dev hosts (so the
     // maintainer's own iteration doesn't inflate prod numbers), and when
-    // explicitly disabled.
+    // explicitly disabled. An offline PWA waits for its first reconnect.
     var _isDevHostUmami = location.hostname === 'localhost'
                        || location.hostname === '127.0.0.1'
                        || location.hostname.endsWith('.local')
                        || location.hostname.endsWith('.localhost');
-    if (location.protocol !== 'file:'
-        && !location.hostname.endsWith('.onion')
-        && !_isDevHostUmami
-        && navigator.onLine !== false
-        && localStorage.getItem('labcharts-analytics-disabled') !== 'true') {
+    var _canUseUmami = location.protocol !== 'file:'
+                    && !location.hostname.endsWith('.onion')
+                    && !_isDevHostUmami;
+    var _umamiScriptAdded = false;
+    function _loadUmami() {
+      if (!_canUseUmami
+          || _umamiScriptAdded
+          || localStorage.getItem('labcharts-analytics-disabled') === 'true') return;
       var s = document.createElement('script');
       s.defer = true;
       s.src = 'https://umami-iota-olive.vercel.app/script.js';
       s.dataset.websiteId = '6272072c-97a9-47b0-99e7-c52e7a4ca481';
       document.head.appendChild(s);
+      _umamiScriptAdded = true;
+    }
+    if (_canUseUmami) {
+      if (navigator.onLine === false) {
+        window.addEventListener('online', _loadUmami, { once: true });
+      } else {
+        _loadUmami();
+      }
     }
   </script>
 </body>
