@@ -6,6 +6,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, RUNTIME_MODULE_ID } from 'rolldown';
 
+import {
+  enforceAppShellBudget,
+  formatAppShellSummary,
+  summarizeAppShell,
+} from './app-shell-budget.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_ENTRY = path.join(ROOT, 'js', 'main.js');
 const RETRY_QUERY = '?lazy-retry=1';
@@ -190,7 +196,6 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
     outputDecodedBytes,
     lazyJavaScriptFiles: chunks.length - startupFiles.size,
   };
-  await enforceBuildBudget(summary);
 
   const [indexSource, legalBootstrapSource, serviceWorkerSource, serviceWorkerRuntimeSource] = await Promise.all([
     fs.readFile(path.join(ROOT, 'index.html'), 'utf8'),
@@ -235,6 +240,19 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
     fs.writeFile(path.join(outputRoot, 'service-worker-runtime.js'), serviceWorkerRuntimeSource),
   ]);
 
+  await enforceBuildBudget(summary);
+  const appShellMetrics = await summarizeAppShell({
+    serviceWorkerSource: builtServiceWorker,
+    artifactRoot: outputRoot,
+    sourceRoot: ROOT,
+  });
+  const appShellBudget = JSON.parse(
+    await fs.readFile(path.join(ROOT, 'scripts', 'app-shell-budget.json'), 'utf8'),
+  );
+  enforceAppShellBudget(appShellMetrics, appShellBudget);
+  summary.appShellResources = appShellMetrics.resources;
+  summary.appShellDecodedBytes = appShellMetrics.decodedBytes;
+
   return summary;
 }
 
@@ -257,6 +275,10 @@ async function runCli() {
       `Lazy output: ${summary.lazyJavaScriptFiles} JS files; `
       + `${formatBytes(summary.outputDecodedBytes)} total decoded`,
     );
+    console.log(`PWA precache: ${formatAppShellSummary({
+      resources: summary.appShellResources,
+      decodedBytes: summary.appShellDecodedBytes,
+    })}`);
     console.log(`Entry: js/${summary.entryFile}`);
   } finally {
     if (checkOnly) await fs.rm(outputRoot, { recursive: true, force: true });

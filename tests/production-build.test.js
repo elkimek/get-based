@@ -7,6 +7,9 @@ import { buildProduction } from '../scripts/build-production.mjs';
 
 let outputRoot;
 let summary;
+const appShellBudget = JSON.parse(
+  await fs.readFile('scripts/app-shell-budget.json', 'utf8'),
+);
 
 beforeAll(async () => {
   outputRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-production-build-test-'));
@@ -60,6 +63,12 @@ describe('production startup build', () => {
     expect(serviceWorker).toContain("'/js/lens-local-store.js',");
     expect(serviceWorker).toContain("'/service-worker-runtime.js',");
     expect(serviceWorkerRuntime).toContain('installServiceWorkerRuntime');
+    expect(summary.appShellResources).toBeLessThanOrEqual(
+      appShellBudget.maximums.resources,
+    );
+    expect(summary.appShellDecodedBytes).toBeLessThanOrEqual(
+      appShellBudget.maximums.decodedBytes,
+    );
   });
 
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {
