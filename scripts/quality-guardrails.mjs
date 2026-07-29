@@ -83,6 +83,12 @@ function countMatches(source, re) {
   return (source.match(re) || []).length;
 }
 
+function countSourceLines(source) {
+  if (!source) return 0;
+  const lines = source.split('\n').length;
+  return source.endsWith('\n') ? lines - 1 : lines;
+}
+
 function collectAppMetrics() {
   const files = walkFiles(APP_JS_DIR, new Set(['.js']));
   let inlineEventAttributes = 0;
@@ -97,7 +103,7 @@ function collectAppMetrics() {
 
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
-    const lines = source.split('\n').length;
+    const lines = countSourceLines(source);
     const windowAssignmentCount = countMatches(source, WINDOW_GLOBAL_ASSIGN_RE);
     const viewRuntimeLookupCount = repoRel(file) === VIEW_RUNTIME_BRIDGE_FILE
       ? 0
@@ -147,7 +153,7 @@ function collectOversizedProductionFiles() {
     ...ROOT_PRODUCTION_JS_FILES.filter(file => fs.existsSync(file)),
   ];
   return files
-    .map(file => ({ file: repoRel(file), lines: fs.readFileSync(file, 'utf8').split('\n').length }))
+    .map(file => ({ file: repoRel(file), lines: countSourceLines(fs.readFileSync(file, 'utf8')) }))
     .filter(entry => entry.lines >= LARGE_FILE_LINE_LIMIT)
     .sort((a, b) => b.lines - a.lines);
 }
