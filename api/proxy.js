@@ -9,16 +9,16 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from '../lib/proxy-policy.js';
-import { fetchWithPinnedProxyDns } from '../lib/proxy-network.js';
+import { enforceProxyRateLimit } from '../lib/proxy-rate-limit.js';
+import {
+  PROXY_MAX_CREDENTIAL_RESPONSE_BYTES,
+  capReadableStream,
+  fetchWithValidatedRedirects,
+  readRequestTextWithCap,
+  readResponseTextWithCap,
+} from '../lib/proxy-upstream.js';
 
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
-const PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const PROXY_MAX_REDIRECTS = 5;
-const DEFAULT_PROXY_UPSTREAM_TIMEOUT_MS = 180_000;
-const DEFAULT_PROXY_RATE_LIMIT_WINDOW_MS = 60_000;
-const DEFAULT_PROXY_RATE_LIMIT_MAX = 300;
-const MAX_PROXY_RATE_LIMIT_BUCKETS = 4_096;
-const proxyRateLimitBuckets = new Map();
 
 export default async function handler(req) {
   // Treat Origin as a server-side browser boundary, not merely a response
@@ -49,7 +49,33 @@ export default async function handler(req) {
     });
   }
 
-  const rateLimit = enforceProxyRateLimit(req);
+  let rateLimit;
+  try {
+    rateLimit = await enforceProxyRateLimit(req);
+  } catch {
+    return new Response(JSON.stringify({
+      error: 'Proxy rate limit is temporarily unavailable.',
+    }), {
+      status: 503,
+      headers: {
+        ...corsHeaders(req),
+        'Content-Type': 'application/json',
+        'Retry-After': '60',
+      },
+    });
+  }
+  if (rateLimit.unavailable) {
+    return new Response(JSON.stringify({
+      error: 'Proxy rate limit is not configured for this hosted deployment.',
+    }), {
+      status: 503,
+      headers: {
+        ...corsHeaders(req),
+        'Content-Type': 'application/json',
+        'Retry-After': String(rateLimit.retryAfterSeconds),
+      },
+    });
+  }
   if (rateLimit.limited) {
     return new Response(JSON.stringify({
       error: 'Too many proxy requests. Try again later.',
@@ -66,22 +92,15 @@ export default async function handler(req) {
 
   let payload;
   try {
-    const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
-    if (contentLength > PROXY_MAX_REQUEST_BYTES) {
-      return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
-        status: 413,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    const rawBody = await req.text();
-    if (new TextEncoder().encode(rawBody).length > PROXY_MAX_REQUEST_BYTES) {
-      return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
-        status: 413,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
+    const rawBody = await readRequestTextWithCap(req, PROXY_MAX_REQUEST_BYTES);
     payload = JSON.parse(rawBody);
-  } catch {
+  } catch (error) {
+    if (error?.code === 'PROXY_REQUEST_TOO_LARGE') {
+      return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
+        status: 413,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
@@ -192,14 +211,14 @@ export default async function handler(req) {
     if (fetchMethod !== 'GET' && body) {
       fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
     }
-    const upstreamRes = await fetchWithValidatedRedirects(url, fetchOpts);
+    const upstreamRes = await fetchWithValidatedRedirects(url, fetchOpts, { signal: req.signal });
 
     // For non-streaming responses or errors, forward as-is
     const contentType = upstreamRes.headers.get('content-type') || '';
     const isStream = contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson');
 
     if (!isStream) {
-      const responseBody = await readResponseTextWithCap(upstreamRes);
+      const responseBody = await readResponseTextWithCap(upstreamRes, PROXY_MAX_RESPONSE_BYTES);
       return new Response(responseBody, {
         status: upstreamRes.status,
         headers: {
@@ -220,230 +239,8 @@ export default async function handler(req) {
       },
     });
   } catch (e) {
-    const dnsBlocked = e?.code === 'PROXY_DNS_BLOCKED';
-    const timedOut = e?.code === 'PROXY_UPSTREAM_TIMEOUT';
-    const error = dnsBlocked ? 'URL not allowed' : `Upstream error: ${e.message}`;
-    return new Response(JSON.stringify({ error }), {
-      status: dnsBlocked ? 403 : (timedOut ? 504 : 502),
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyUpstreamErrorResponse(req, e);
   }
-}
-
-function readBoundedEnvInteger(name, fallback, min, max) {
-  const raw = typeof process !== 'undefined' ? process.env?.[name] : undefined;
-  if (!raw) return fallback;
-  const value = Number.parseInt(raw, 10);
-  return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
-}
-
-function proxyRuntimeError(code, message) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
-}
-
-function redirectRequestOptions(status, options) {
-  const method = String(options.method || 'GET').toUpperCase();
-  if (status !== 303 && !((status === 301 || status === 302) && method === 'POST')) {
-    return options;
-  }
-  const headers = { ...(options.headers || {}) };
-  for (const name of Object.keys(headers)) {
-    if (['content-length', 'content-type'].includes(name.toLowerCase())) delete headers[name];
-  }
-  return { ...options, method: 'GET', headers, body: undefined };
-}
-
-function stripProxyCredentialHeaders(options) {
-  const headers = { ...(options.headers || {}) };
-  for (const name of Object.keys(headers)) {
-    if (['api-key', 'authorization', 'x-api-key'].includes(name.toLowerCase())) delete headers[name];
-  }
-  return { ...options, headers };
-}
-
-async function discardResponseBody(response) {
-  try { await response.body?.cancel?.(); } catch {}
-}
-
-// Fetch redirects manually so every destination passes the same SSRF policy.
-// Credentialed/body-bearing cross-origin redirects are constrained so API
-// secrets and request payloads never migrate to a new host. Safe GET redirects
-// remain supported for ordinary product pages that canonicalize to `www`.
-async function fetchWithValidatedRedirects(initialUrl, initialOptions) {
-  const timeoutMs = readBoundedEnvInteger(
-    'PROXY_UPSTREAM_TIMEOUT_MS',
-    DEFAULT_PROXY_UPSTREAM_TIMEOUT_MS,
-    10,
-    300_000,
-  );
-  const controller = new AbortController();
-  let timedOut = false;
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
-  let url = new URL(initialUrl).toString();
-  let options = { ...initialOptions };
-  let redirects = 0;
-
-  try {
-    while (true) {
-      if (!isAllowedProxyUrl(url)) {
-        throw proxyRuntimeError('PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed');
-      }
-      let response;
-      try {
-        response = await fetchWithPinnedProxyDns(url, {
-          ...options,
-          redirect: 'manual',
-          signal: controller.signal,
-        });
-      } catch (error) {
-        if (timedOut || controller.signal.aborted) {
-          throw proxyRuntimeError('PROXY_UPSTREAM_TIMEOUT', 'Proxy upstream timed out');
-        }
-        throw error;
-      }
-
-      if (!PROXY_REDIRECT_STATUSES.has(response.status)) return response;
-      const location = response.headers.get('location');
-      if (!location) return response;
-      if (redirects >= PROXY_MAX_REDIRECTS) {
-        await discardResponseBody(response);
-        throw proxyRuntimeError('PROXY_REDIRECT_LIMIT', 'Proxy redirect limit exceeded');
-      }
-
-      let nextUrl;
-      try {
-        nextUrl = new URL(location, url).toString();
-      } catch {
-        await discardResponseBody(response);
-        throw proxyRuntimeError('PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed');
-      }
-      if (!isAllowedProxyUrl(nextUrl)) {
-        await discardResponseBody(response);
-        throw proxyRuntimeError('PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed');
-      }
-      let nextOptions = redirectRequestOptions(response.status, options);
-      if (new URL(nextUrl).origin !== new URL(url).origin && nextOptions.body != null) {
-        await discardResponseBody(response);
-        throw proxyRuntimeError(
-          'PROXY_CROSS_ORIGIN_BODY_REDIRECT',
-          'Cross-origin proxy redirects with a request body are not allowed',
-        );
-      }
-      if (new URL(nextUrl).origin !== new URL(url).origin) {
-        nextOptions = stripProxyCredentialHeaders(nextOptions);
-      }
-
-      await discardResponseBody(response);
-      options = nextOptions;
-      url = nextUrl;
-      redirects++;
-    }
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function getProxyRateLimitSubject(req) {
-  const forwarded = req.headers.get('x-forwarded-for') || '';
-  const ip = forwarded.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')
-    || req.headers.get('cf-connecting-ip')
-    || 'unknown-client';
-  return `${req.headers.get('origin') || 'no-origin'}|${String(ip).slice(0, 128)}`;
-}
-
-// Function instances do not share memory, so this is a per-instance abuse brake,
-// not a replacement for a deployment-level distributed rate limit.
-function enforceProxyRateLimit(req) {
-  const now = Date.now();
-  const windowMs = readBoundedEnvInteger(
-    'PROXY_RATE_LIMIT_WINDOW_MS',
-    DEFAULT_PROXY_RATE_LIMIT_WINDOW_MS,
-    1_000,
-    60 * 60 * 1000,
-  );
-  const maxRequests = readBoundedEnvInteger(
-    'PROXY_RATE_LIMIT_MAX',
-    DEFAULT_PROXY_RATE_LIMIT_MAX,
-    1,
-    10_000,
-  );
-  const subject = getProxyRateLimitSubject(req);
-  let bucket = proxyRateLimitBuckets.get(subject);
-  if (!bucket || bucket.resetAt <= now) {
-    bucket = { count: 0, resetAt: now + windowMs };
-  }
-  bucket.count++;
-  proxyRateLimitBuckets.set(subject, bucket);
-
-  if (proxyRateLimitBuckets.size > MAX_PROXY_RATE_LIMIT_BUCKETS) {
-    for (const [key, candidate] of proxyRateLimitBuckets) {
-      if (candidate.resetAt <= now || proxyRateLimitBuckets.size > MAX_PROXY_RATE_LIMIT_BUCKETS) {
-        proxyRateLimitBuckets.delete(key);
-      }
-    }
-  }
-
-  return {
-    limited: bucket.count > maxRequests,
-    retryAfterSeconds: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
-  };
-}
-
-async function readResponseTextWithCap(response) {
-  const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-  if (contentLength > PROXY_MAX_RESPONSE_BYTES) throw new Error('Proxy response exceeds size cap');
-  const reader = response.body?.getReader?.();
-  if (!reader) return response.text();
-  const chunks = [];
-  let bytes = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    bytes += value?.byteLength || 0;
-    if (bytes > PROXY_MAX_RESPONSE_BYTES) {
-      try { await reader.cancel(); } catch {}
-      throw new Error('Proxy response exceeds size cap');
-    }
-    chunks.push(value);
-  }
-  const out = new Uint8Array(bytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(out);
-}
-
-function capReadableStream(body, maxBytes) {
-  if (!body?.getReader || typeof ReadableStream !== 'function') return body;
-  const reader = body.getReader();
-  let bytes = 0;
-  return new ReadableStream({
-    async pull(controller) {
-      const { done, value } = await reader.read();
-      if (done) {
-        controller.close();
-        return;
-      }
-      bytes += value?.byteLength || 0;
-      if (bytes > maxBytes) {
-        try { await reader.cancel(); } catch {}
-        controller.error(new Error('Proxy response exceeds size cap'));
-        return;
-      }
-      controller.enqueue(value);
-    },
-    cancel(reason) {
-      return reader.cancel(reason);
-    },
-  });
 }
 
 // Origins permitted to call /api/proxy. Same-origin requests support self-hosted
@@ -476,10 +273,51 @@ function corsHeaders(req) {
   const h = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Cache-Control': 'no-store',
     'Vary': 'Origin',
   };
   if (allow) h['Access-Control-Allow-Origin'] = allow;
   return h;
+}
+
+function proxyUpstreamErrorResponse(req, error, fallback = 'Upstream request failed') {
+  const code = error?.code;
+  const dnsBlocked = code === 'PROXY_DNS_BLOCKED';
+  const timedOut = code === 'PROXY_UPSTREAM_TIMEOUT';
+  const knownMessages = new Map([
+    ['PROXY_REDIRECT_BLOCKED', 'Proxy redirect target not allowed'],
+    ['PROXY_REDIRECT_LIMIT', 'Proxy redirect limit exceeded'],
+    ['PROXY_CROSS_ORIGIN_BODY_REDIRECT', 'Cross-origin proxy redirects with a request body are not allowed'],
+    ['PROXY_RESPONSE_TOO_LARGE', 'Proxy response exceeds size cap'],
+  ]);
+  const message = dnsBlocked
+    ? 'URL not allowed'
+    : timedOut
+      ? 'Proxy upstream timed out'
+      : knownMessages.get(code) || fallback;
+  return new Response(JSON.stringify({ error: message }), {
+    status: dnsBlocked ? 403 : (timedOut ? 504 : 502),
+    headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+  });
+}
+
+async function relayGuardedText(url, options, req, fallback) {
+  try {
+    const response = await fetchWithValidatedRedirects(url, options, { signal: req.signal });
+    const body = await readResponseTextWithCap(
+      response,
+      PROXY_MAX_CREDENTIAL_RESPONSE_BYTES,
+    );
+    return new Response(body, {
+      status: response.status,
+      headers: {
+        ...corsHeaders(req),
+        'Content-Type': response.headers.get('content-type') || 'application/json',
+      },
+    });
+  } catch (error) {
+    return proxyUpstreamErrorResponse(req, error, fallback);
+  }
 }
 
 // ─── Oura token handler ────────────────────────────────────────────
@@ -521,22 +359,11 @@ async function handleOuraTokenRequest(payload, req) {
     });
   }
 
-  try {
-    const res = await fetchWithPinnedProxyDns('https://api.ouraring.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
-    });
-    const body = await res.text();
-    return new Response(body, {
-      status: res.status,
-      headers: { ...corsHeaders(req), 'Content-Type': res.headers.get('content-type') || 'application/json' },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Token endpoint unreachable: ' + e.message }), {
-      status: 502, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
+  return relayGuardedText('https://api.ouraring.com/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  }, req, 'Oura token endpoint unavailable');
 }
 
 // ─── Withings token handler ────────────────────────────────────────
@@ -584,22 +411,11 @@ async function handleWithingsTokenRequest(payload, req) {
     });
   }
 
-  try {
-    const res = await fetchWithPinnedProxyDns('https://wbsapi.withings.net/v2/oauth2', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
-    });
-    const body = await res.text();
-    return new Response(body, {
-      status: res.status,
-      headers: { ...corsHeaders(req), 'Content-Type': res.headers.get('content-type') || 'application/json' },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Withings token endpoint unreachable: ' + e.message }), {
-      status: 502, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
+  return relayGuardedText('https://wbsapi.withings.net/v2/oauth2', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  }, req, 'Withings token endpoint unavailable');
 }
 
 // ─── Ultrahuman token handler ──────────────────────────────────────
@@ -636,22 +452,11 @@ async function handleUltrahumanTokenRequest(payload, req) {
     });
   }
 
-  try {
-    const res = await fetchWithPinnedProxyDns('https://partner.ultrahuman.com/api/partners/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
-    });
-    const body = await res.text();
-    return new Response(body, {
-      status: res.status,
-      headers: { ...corsHeaders(req), 'Content-Type': res.headers.get('content-type') || 'application/json' },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Ultrahuman token endpoint unreachable: ' + e.message }), {
-      status: 502, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
+  return relayGuardedText('https://partner.ultrahuman.com/api/partners/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  }, req, 'Ultrahuman token endpoint unavailable');
 }
 
 // ─── Polar token handler ───────────────────────────────────────────
@@ -693,26 +498,15 @@ async function handlePolarTokenRequest(payload, req) {
   }
 
   const basicAuth = 'Basic ' + btoa(`${clientId}:${secret}`);
-  try {
-    const res = await fetchWithPinnedProxyDns('https://polarremote.com/v2/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json;charset=UTF-8',
-        'Authorization': basicAuth,
-      },
-      body: form.toString(),
-    });
-    const body = await res.text();
-    return new Response(body, {
-      status: res.status,
-      headers: { ...corsHeaders(req), 'Content-Type': res.headers.get('content-type') || 'application/json' },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Polar token endpoint unreachable: ' + e.message }), {
-      status: 502, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
+  return relayGuardedText('https://polarremote.com/v2/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json;charset=UTF-8',
+      'Authorization': basicAuth,
+    },
+    body: form.toString(),
+  }, req, 'Polar token endpoint unavailable');
 }
 
 // CAMS atmosphere relay → getbased-uvdata. Defaults to the maintainer-run
@@ -762,50 +556,14 @@ async function handleCamsRelay(payload, req) {
   const headers = { 'Accept': 'application/json' };
   if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   try {
-    const res = await fetchWithPinnedProxyDns(url, { headers });
+    const res = await fetchWithValidatedRedirects(url, { headers }, { signal: req.signal });
     // Cap upstream response so a misbehaving / compromised CAMS relay
     // can't blow up the function's memory. Real CAMS UV payloads sit
     // around 5-10 KB; 256 KB leaves generous headroom while bounding
     // the worst case. Greptile PR #175 review caught this.
-    const MAX_UPSTREAM_BYTES = 256 * 1024;
-    const cl = parseInt(res.headers.get('content-length') || '0', 10);
-    if (Number.isFinite(cl) && cl > MAX_UPSTREAM_BYTES) {
-      return new Response(JSON.stringify({ error: 'CAMS response exceeds size cap' }), {
-        status: 502,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    // Even when Content-Length is absent or lying, read with a running
-    // byte counter and bail past the cap.
-    const reader = res.body?.getReader();
-    if (!reader) {
-      return new Response(JSON.stringify({ error: 'CAMS response had no body' }), {
-        status: 502,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    const chunks = [];
-    let total = 0;
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_UPSTREAM_BYTES) {
-        try { await reader.cancel(); } catch (_) {}
-        return new Response(JSON.stringify({ error: 'CAMS response exceeds size cap' }), {
-          status: 502,
-          headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-        });
-      }
-      chunks.push(value);
-    }
-    const body = new TextDecoder().decode(
-      chunks.length === 1 ? chunks[0] : (() => {
-        const out = new Uint8Array(total);
-        let off = 0;
-        for (const c of chunks) { out.set(c, off); off += c.byteLength; }
-        return out;
-      })()
+    const body = await readResponseTextWithCap(
+      res,
+      PROXY_MAX_CREDENTIAL_RESPONSE_BYTES,
     );
     return new Response(body, {
       status: res.status,
@@ -814,10 +572,10 @@ async function handleCamsRelay(payload, req) {
         'Content-Type': res.headers.get('content-type') || 'application/json',
       },
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'CAMS upstream unreachable: ' + e.message }), {
-      status: 502,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+  } catch (error) {
+    const fallback = error?.code === 'PROXY_RESPONSE_TOO_LARGE'
+      ? 'CAMS response exceeds size cap'
+      : 'CAMS upstream unavailable';
+    return proxyUpstreamErrorResponse(req, error, fallback);
   }
 }
