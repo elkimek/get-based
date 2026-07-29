@@ -217,7 +217,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
   // ═══════════════════════════════════════
   console.log('%c 10. activeNav sweep ', 'font-weight:bold;color:#f59e0b');
 
-  const dataSrc = read('js/data.js');
+  const dataSrc = read('js/data-view-controls.js');
   assert('switchUnitSystem uses state.currentView (no .nav-item.active query)',
     /switchUnitSystem[\s\S]{0,800}navigateDataView\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
     !/switchUnitSystem[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
