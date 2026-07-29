@@ -34,6 +34,16 @@ const moduleMap = fs.readFileSync(path.join(ROOT, 'MODULE_MAP.md'), 'utf8');
 const runTestsSrc = fs.readFileSync(path.join(ROOT, 'run-tests.sh'), 'utf8');
 const playwrightConfigSrc = fs.readFileSync(path.join(ROOT, 'playwright.config.js'), 'utf8');
 const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
+function collectYamlFiles(dir) {
+  const files = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...collectYamlFiles(full));
+    else if (entry.isFile() && /\.ya?ml$/.test(entry.name)) files.push(full);
+  }
+  return files;
+}
+const workflowFiles = collectYamlFiles(path.join(ROOT, '.github'));
 const tsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.json'), 'utf8'));
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
 const serverCheckJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.server.json'), 'utf8'));
@@ -145,6 +155,23 @@ assert('quality guardrail blocks recovery-phrase fragments in support diagnostic
 assert('quality guardrail blocks free-form sync errors in support diagnostics',
   guardrailSrc.includes('UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE') &&
     guardrailSrc.includes('support diagnostics use bounded sync-error status'));
+const mutableWorkflowActions = [];
+for (const file of workflowFiles) {
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  lines.forEach((line, index) => {
+    const uses = line.match(/^\s*(?:-\s*)?uses:\s*["']?([^"'#\s]+)["']?/)?.[1] || '';
+    if (!uses || uses.startsWith('./')) return;
+    const ref = uses.slice(uses.lastIndexOf('@') + 1);
+    if (!/^[0-9a-f]{40}$/.test(ref)) {
+      mutableWorkflowActions.push(`${path.basename(file)}:${index + 1} ${uses}`);
+    }
+  });
+}
+assert('all third-party GitHub Actions are pinned to immutable commit SHAs',
+  guardrailSrc.includes('collectMutableWorkflowActionRefs') &&
+    guardrailSrc.includes('third-party GitHub Actions use immutable commit SHAs') &&
+    mutableWorkflowActions.length === 0,
+  mutableWorkflowActions.join(', '));
 assert('quality guardrail exits non-zero on failures',
   guardrailSrc.includes('process.exit(failed > 0 ? 1 : 0)'));
 assert('full local test suite runs typecheck',

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
+const GITHUB_AUTOMATION_DIR = path.join(ROOT, '.github');
 // tests/ is intentionally omitted; this check covers app JS only, not test helpers.
 const SYNTAX_DIRS = ['js', 'api', 'lib', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
@@ -40,6 +41,8 @@ const SYNC_DIAGNOSTIC_FILES = [
 ];
 const RECOVERY_PHRASE_FRAGMENT_RE = /\bmnemonicPrefix\b|\bmnemonic\s*(?:\?\.|\.)\s*split\s*\(/g;
 const UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE = /\b(?:getErrorMessage|rowsError)\b/g;
+const WORKFLOW_USES_RE = /^\s*(?:-\s*)?uses:\s*["']?([^"'#\s]+)["']?/;
+const IMMUTABLE_ACTION_SHA_RE = /^[0-9a-f]{40}$/;
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -185,6 +188,24 @@ function collectUnboundedSyncDiagnosticErrors() {
   return violations;
 }
 
+function collectMutableWorkflowActionRefs() {
+  const violations = [];
+  const workflowFiles = walkFiles(GITHUB_AUTOMATION_DIR, new Set(['.yml', '.yaml']));
+  for (const file of workflowFiles) {
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, index) => {
+      const uses = line.match(WORKFLOW_USES_RE)?.[1] || '';
+      if (!uses || uses.startsWith('./')) return;
+      const separator = uses.lastIndexOf('@');
+      const ref = separator >= 0 ? uses.slice(separator + 1) : '';
+      if (!IMMUTABLE_ACTION_SHA_RE.test(ref)) {
+        violations.push({ file: repoRel(file), line: index + 1, uses });
+      }
+    });
+  }
+  return violations;
+}
+
 function collectSyntaxFiles() {
   const files = [];
   const exts = new Set(['.js', '.mjs']);
@@ -227,6 +248,7 @@ function main() {
   const privacyConsoleViolations = collectPrivacyConsoleViolations();
   const recoveryPhraseDiagnosticViolations = collectRecoveryPhraseDiagnosticViolations();
   const unboundedSyncDiagnosticErrors = collectUnboundedSyncDiagnosticErrors();
+  const mutableWorkflowActionRefs = collectMutableWorkflowActionRefs();
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
@@ -260,6 +282,12 @@ function main() {
   } else {
     fail('support diagnostics use bounded sync-error status',
       unboundedSyncDiagnosticErrors.map(entry => `${entry.file}: ${entry.count}`).join(', '));
+  }
+  if (mutableWorkflowActionRefs.length === 0) {
+    pass('third-party GitHub Actions use immutable commit SHAs');
+  } else {
+    fail('third-party GitHub Actions use immutable commit SHAs',
+      mutableWorkflowActionRefs.map(entry => `${entry.file}:${entry.line} ${entry.uses}`).join(', '));
   }
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
