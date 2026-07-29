@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 541 |
-| Internal import edges | 2404 |
+| Internal import edges | 2403 |
 | Dynamic internal edges | 88 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -44,8 +44,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 245 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 170 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/caught-error.js`](js/caught-error.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/data.js`](js/data.js) | 77 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
+| [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/caught-error.js`](js/caught-error.js) | 76 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/api.js`](js/api.js) | 65 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 47 | [`js/views.js`](js/views.js) | 22 |
@@ -870,7 +870,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-diagnose-runtime.js`](js/sync-diagnose-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/sync-diagnose-actions.js`](js/sync-diagnose-actions.js), [`js/sync-diagnose-render.js`](js/sync-diagnose-render.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-diagnostics-context.js`](js/sync-diagnostics-context.js) → no in-scope imports
-- [`js/sync-diagnostics-snapshot.js`](js/sync-diagnostics-snapshot.js) → [`js/caught-error.js`](js/caught-error.js), [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnostics-context.js`](js/sync-diagnostics-context.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js), [`js/sync-state.js`](js/sync-state.js)
+- [`js/sync-diagnostics-snapshot.js`](js/sync-diagnostics-snapshot.js) → [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnostics-context.js`](js/sync-diagnostics-context.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js), [`js/sync-state.js`](js/sync-state.js)
 - [`js/sync-diagnostics-text.js`](js/sync-diagnostics-text.js) → no in-scope imports
 - [`js/sync-diagnostics.js`](js/sync-diagnostics.js) → [`js/sync-diagnostics-context.js`](js/sync-diagnostics-context.js), [`js/sync-diagnostics-snapshot.js`](js/sync-diagnostics-snapshot.js), [`js/sync-diagnostics-text.js`](js/sync-diagnostics-text.js)
 - [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js) → no in-scope imports

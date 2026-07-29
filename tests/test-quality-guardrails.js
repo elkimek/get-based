@@ -142,6 +142,9 @@ assert('quality guardrail blocks recovery-phrase fragments in support diagnostic
     guardrailSrc.includes('support diagnostics never expose recovery-phrase fragments') &&
     guardrailSrc.includes("'js/sync-diagnostics-text.js'") &&
     guardrailSrc.includes("'js/sync-diagnose-render.js'"));
+assert('quality guardrail blocks free-form sync errors in support diagnostics',
+  guardrailSrc.includes('UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE') &&
+    guardrailSrc.includes('support diagnostics use bounded sync-error status'));
 assert('quality guardrail exits non-zero on failures',
   guardrailSrc.includes('process.exit(failed > 0 ? 1 : 0)'));
 assert('full local test suite runs typecheck',

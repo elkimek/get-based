@@ -14,7 +14,11 @@ function renderRowsHtml(rows) {
   return rows.map(r => {
     const pidCell = escapeHTML(r.profileId || '?');
     const pidNote = r.profileIdSource === 'payload' ? ' <span style="color:var(--orange);font-size:10px" title="profileId column empty; recovered from payload">*</span>' : '';
-    const fmtCell = r.format === 'gz' ? '<span title="gzip envelope (v1.6.4)" style="color:var(--green)">gz</span>' : 'plain';
+    const fmtCell = r.format === 'gz'
+      ? '<span title="gzip envelope (v1.6.4)" style="color:var(--green)">gz</span>'
+      : r.format === 'invalid'
+        ? '<span title="payload could not be decoded" style="color:var(--orange)">invalid</span>'
+        : 'plain';
     const delCell = r.isDeleted ? '<span style="color:var(--orange);font-weight:600">yes</span>' : 'no';
     return `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${pidCell}${pidNote}</td><td style="padding:4px 8px;text-align:right;font-size:11px">${delCell}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td><td style="padding:4px 8px;text-align:right;font-size:11px">${fmtCell}</td></tr>`;
   }).join('');
@@ -157,6 +161,16 @@ export function renderSyncDiagnoseModal({
 }) {
   const d = diagnostics;
   const rowsHtml = renderRowsHtml(d.rows);
+  const rowParseFailureCount = Number.isSafeInteger(d.rowParseFailureCount) && d.rowParseFailureCount > 0
+    ? d.rowParseFailureCount
+    : 0;
+  const rowWarnings = [
+    ...(rowParseFailureCount > 0 ? [`${rowParseFailureCount} row payload${rowParseFailureCount === 1 ? '' : 's'} could not be decoded.`] : []),
+    ...(d.rowsReadFailed ? ['Row query failed.'] : []),
+  ];
+  const rowWarningHtml = rowWarnings.length > 0
+    ? `<div style="color:var(--orange);font-size:11px;margin-top:6px">${rowWarnings.join(' ')}</div>`
+    : '';
   return `<div class="modal" role="dialog" aria-label="Sync diagnose" style="max-width:640px">
     <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" data-sync-diagnose-close aria-label="Close">×</button></div>
     <div class="modal-body" style="font-size:13px">
@@ -177,11 +191,12 @@ export function renderSyncDiagnoseModal({
       ${renderCutoverPanel(d.cutoverReadiness, isDebug, cutoverEnabled)}
       <div>
         <b>Rows in this device's local Evolu DB:</b>
+        ${rowWarningHtml}
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
           <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px;text-align:right">deleted</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th><th style="padding:4px 8px;text-align:right">fmt</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4, <span style="color:var(--orange)">invalid</span> = payload could not be decoded. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
         <button class="ctx-btn-option" ${syncDiagnoseActionAttrs('copy-snapshot')} title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>

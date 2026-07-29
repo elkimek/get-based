@@ -39,6 +39,7 @@ const SYNC_DIAGNOSTIC_FILES = [
   'js/sync-diagnose-render.js',
 ];
 const RECOVERY_PHRASE_FRAGMENT_RE = /\bmnemonicPrefix\b|\bmnemonic\s*(?:\?\.|\.)\s*split\s*\(/g;
+const UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE = /\b(?:getErrorMessage|rowsError)\b/g;
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -172,6 +173,18 @@ function collectRecoveryPhraseDiagnosticViolations() {
   return violations;
 }
 
+function collectUnboundedSyncDiagnosticErrors() {
+  const violations = [];
+  for (const relativeFile of SYNC_DIAGNOSTIC_FILES) {
+    const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+    const matches = [...source.matchAll(UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE)];
+    if (matches.length > 0) {
+      violations.push({ file: relativeFile, count: matches.length });
+    }
+  }
+  return violations;
+}
+
 function collectSyntaxFiles() {
   const files = [];
   const exts = new Set(['.js', '.mjs']);
@@ -213,6 +226,7 @@ function main() {
   const oversizedProductionFiles = collectOversizedProductionFiles();
   const privacyConsoleViolations = collectPrivacyConsoleViolations();
   const recoveryPhraseDiagnosticViolations = collectRecoveryPhraseDiagnosticViolations();
+  const unboundedSyncDiagnosticErrors = collectUnboundedSyncDiagnosticErrors();
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
@@ -240,6 +254,12 @@ function main() {
   } else {
     fail('support diagnostics never expose recovery-phrase fragments',
       recoveryPhraseDiagnosticViolations.map(entry => `${entry.file}: ${entry.count}`).join(', '));
+  }
+  if (unboundedSyncDiagnosticErrors.length === 0) {
+    pass('support diagnostics use bounded sync-error status');
+  } else {
+    fail('support diagnostics use bounded sync-error status',
+      unboundedSyncDiagnosticErrors.map(entry => `${entry.file}: ${entry.count}`).join(', '));
   }
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
