@@ -88,6 +88,7 @@
     "js/chat-runtime.js",
     "js/chat-send.js",
     "js/chat-send-runtime.js",
+    "js/chat-storage-safety.js",
     "js/chat-summaries.js",
     "js/chat-thread-search.js",
     "js/chat-threads.js",
