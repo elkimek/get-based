@@ -2752,13 +2752,13 @@ await import('../js/settings.js');
   // of isoTime caused retro-logged + pre-dawn sessions to pin to the
   // wrong day in past_days windows (engine bump 5 → 6).
   assert('sun-uvdata derives todayPrefix from utc_offset_seconds + isoTime',
-    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+    await fetchWithRetry('js/sun-uvdata-atmosphere.js').then(s =>
       /utc_offset_seconds[\s\S]{0,400}isoTime[\s\S]{0,300}getUTCFullYear/.test(s)));
   assert('sun-uvdata locates today via daily.time scan, not blind [0] index',
-    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+    await fetchWithRetry('js/sun-uvdata-atmosphere.js').then(s =>
       /todayDailyIdx[\s\S]{0,400}daily\.time\[i\][\s\S]{0,200}startsWith\(todayPrefix\)/.test(s)));
   assert('sun-uvdata reads sunrise/sunset/uvIndexMax via todayDailyIdx (not [0])',
-    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+    await fetchWithRetry('js/sun-uvdata-atmosphere.js').then(s =>
       /sunrise\s*=\s*Array\.isArray\(daily\.sunrise\)\s*&&\s*todayDailyIdx\s*>=\s*0\s*\?\s*daily\.sunrise\[todayDailyIdx\]/.test(s)));
 
   // RUNTIME PARSE-EQUIVALENCE: build a payload via buildSyncPayload

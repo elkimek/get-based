@@ -270,6 +270,7 @@ const domainUiCheckJsModules = [
   'js/sun-spectrum-actions.js',
   'js/sun-spectrum-device.js',
   'js/sun-spectrum.js',
+  'js/sun-uvdata-atmosphere.js',
   'js/sun-uvdata.js',
 ];
 const missingDomainUiCheckJsModules = domainUiCheckJsModules

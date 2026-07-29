@@ -112,6 +112,7 @@
     '/js/light-channel-view-ui-hooks.js',
     '/js/sun-spectrum-actions.js',
     '/js/sun-spectrum-device.js',
+    '/js/sun-uvdata-atmosphere.js',
     '/js/sun-runtime.js',
     '/js/sun-defaults-model.js',
     '/js/sun-defaults-runtime.js',
