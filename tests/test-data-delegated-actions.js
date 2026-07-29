@@ -21,17 +21,18 @@ function assert(name, condition) {
   }
 }
 
-const dataSrc = read('js/data.js');
+const dataFacadeSrc = read('js/data.js');
+const dataSrc = read('js/data-view-controls.js');
 const appShellHooksSrc = read('js/app-shell-hooks.js');
 const eventNames = ['click', 'keydown', 'change', 'input', 'submit', 'blur', 'toggle'];
 const inlineEventPattern = new RegExp(`\\bon(?:${eventNames.join('|')})=["']`);
 
 console.log('=== Data Delegated Actions Tests ===');
 
-assert('data.js renderer emits no inline event attributes',
+assert('data view controls renderer emits no inline event attributes',
   !inlineEventPattern.test(dataSrc));
 
-assert('data.js imports escapeAttr for delegated data attributes',
+assert('data view controls import escapeAttr for delegated data attributes',
   /import\s*\{[^}]*\bescapeAttr\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(dataSrc));
 
 assert('data view callbacks use shell injection instead of bridge or window lookups',
@@ -41,6 +42,7 @@ assert('data view callbacks use shell injection instead of bridge or window look
   && dataSrc.includes('dataRuntimeDeps.navigate?.(route, data);')
   && dataSrc.includes('dataRuntimeDeps.buildSidebar?.(data);')
   && dataSrc.includes('dataRuntimeDeps.showDetailModal?.(openId);')
+  && dataFacadeSrc.includes("from './data-view-controls.js'")
   && /import\s*\{[^}]*\bconfigureDataRuntimeDeps\b[^}]*\}\s*from\s*['"]\.\/data\.js['"]/.test(appShellHooksSrc)
   && appShellHooksSrc.includes('configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });'));
 

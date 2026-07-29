@@ -189,10 +189,10 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   assert('buildSidebar imports filterDatesByRange', navSrc.includes('filterDatesByRange'));
   assert('buildSidebar calls filterDatesByRange', navSrc.includes('filterDatesByRange(data)'));
 
-  const dataSrc = read('/js/data.js');
+  const dataSrc = read('/js/data-view-controls.js');
   const setDateIdx = dataSrc.indexOf('function setDateRange');
   const setDateBlock = dataSrc.substring(setDateIdx, dataSrc.indexOf('\n}', setDateIdx));
-  assert('setDateRange rebuilds sidebar', setDateBlock.includes('buildSidebar'));
+  assert('setDateRange rebuilds sidebar', setDateBlock.includes('buildDataSidebar'));
 
   // ═══════════════════════════════════════
   // 11. Context card state preservation

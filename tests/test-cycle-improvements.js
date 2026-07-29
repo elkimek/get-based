@@ -99,7 +99,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   {
     assert('setPhaseOverlay is a module API', typeof dataModule.setPhaseOverlay === 'function');
     assert('setPhaseOverlay stays off window', !('setPhaseOverlay' in window));
-    const src = read('js/data.js');
+    const src = read('js/data-view-controls.js');
     assert('setPhaseOverlay sets phaseOverlayMode', src.includes("state.phaseOverlayMode = mode === 'off' ? 'off' : 'on'"));
     assert('setPhaseOverlay persists to localStorage', src.includes("'phaseOverlay'") && src.includes('setPhaseOverlay'));
   }
@@ -131,7 +131,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 9: renderChartLayersDropdown includes cycle phases ──
   console.log('Section 9: renderChartLayersDropdown');
   {
-    const src = read('js/data.js');
+    const src = read('js/data-view-controls.js');
     assert('Layers dropdown checks for cycle data', src.includes('hasCycle'));
     assert('Layers dropdown delegates setPhaseOverlay changes',
       src.includes("dataChangeAttrs('set-phase-overlay')") && src.includes('setPhaseOverlay(mode)'));

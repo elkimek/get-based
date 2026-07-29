@@ -576,6 +576,7 @@ const _origProfileSex = state ? state.profileSex : null;
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal-impl.js');
     const dataSrc = fetchSrc('js/data.js');
+    const dataViewControlsSrc = fetchSrc('js/data-view-controls.js');
     const cssSrc = fetchCssSrc();
     assert('category-view-renderers.js: marker cards render latest-value summary before chart',
       /chart-card-snapshot/.test(categoryViewRenderersSrc)
@@ -599,21 +600,21 @@ const _origProfileSex = state ? state.profileSex : null;
       /const modalOpen\s*=\s*!!document\.querySelector\('\.modal-overlay\.show'\)/.test(chartCardRecsSrc)
       && /recLinks\.length > 0 && !modalOpen/.test(chartCardRecsSrc));
     assert('data.js: range mode switch paints the active pill before view refresh',
-      /function _afterNextPaint\(fn\)/.test(dataSrc)
-      && dataSrc.includes("import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';")
-      && /scheduleUtilsAfterNextPaint\(fn\)/.test(dataSrc)
-      && /const token\s*=\s*\+\+_rangeModeRefreshToken/.test(dataSrc)
-      && /_afterNextPaint\(\(\) => \{[\s\S]{0,500}navigateDataView\(state\.currentView \|\| 'dashboard',\s*data\)/.test(dataSrc));
+      /function _afterNextPaint\(fn\)/.test(dataViewControlsSrc)
+      && dataViewControlsSrc.includes("import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';")
+      && /scheduleUtilsAfterNextPaint\(fn\)/.test(dataViewControlsSrc)
+      && /const token\s*=\s*\+\+_rangeModeRefreshToken/.test(dataViewControlsSrc)
+      && /_afterNextPaint\(\(\) => \{[\s\S]{0,500}navigateDataView\(state\.currentView \|\| 'dashboard',\s*data\)/.test(dataViewControlsSrc));
     assert('range mode refresh preserves current category card order',
-      /function _captureCategoryCardOrderForRangeRefresh\(route\)/.test(dataSrc)
-      && /state\._preserveCategoryCardOrder\s*=\s*preservedOrder/.test(dataSrc)
+      /function _captureCategoryCardOrderForRangeRefresh\(route\)/.test(dataViewControlsSrc)
+      && /state\._preserveCategoryCardOrder\s*=\s*preservedOrder/.test(dataViewControlsSrc)
       && /function sortCategoryChartEntries\(entries,\s*categoryKey\)/.test(categoryPageViewSrc)
       && /preserved\?\.categoryKey === categoryKey/.test(categoryPageViewSrc)
       && /delete state\._preserveCategoryCardOrder/.test(categoryPageViewSrc));
     assert('data.js: header range toggle patches existing buttons',
-      /const canPatch\s*=/.test(dataSrc)
-      && /btn\.classList\.toggle\('active',\s*active\)/.test(dataSrc)
-      && /data-range="\$\{m\}"/.test(dataSrc));
+      /const canPatch\s*=/.test(dataViewControlsSrc)
+      && /btn\.classList\.toggle\('active',\s*active\)/.test(dataViewControlsSrc)
+      && /data-range="\$\{m\}"/.test(dataViewControlsSrc));
     assert('data.js: active data cache avoids rebuilding marker data during modal browsing',
       /let _activeDataCache\s*=\s*null/.test(dataSrc)
       && /export function invalidateActiveDataCache\(\)/.test(dataSrc)
@@ -623,7 +624,7 @@ const _origProfileSex = state ? state.profileSex : null;
       && /legacyWeightStamp/.test(dataSrc)
       && /saveImportedData\([^)]*\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
       && !/_makeActiveDataCacheMeta\(\)[\s\S]{0,900}rangeMode:\s*state\.rangeMode/.test(dataSrc)
-      && !/switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataSrc));
+      && !/switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataViewControlsSrc));
     assert('category-glyphs.js: marker category surfaces use coded glyphs instead of emoji icons',
       /export function renderCategoryGlyph\(categoryKey,\s*label/.test(categoryGlyphsSrc)
       && /getCategoryGlyphCode\(categoryKey,\s*label\)/.test(categoryGlyphsSrc)

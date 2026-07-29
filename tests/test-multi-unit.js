@@ -229,6 +229,7 @@ console.log('\n-- source-shape pins (UI wiring) --');
     fs.readFileSync(new URL('../js/settings-display-panel.js', import.meta.url), 'utf8'),
   ].join('\n');
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
+  const dataViewControls = fs.readFileSync(new URL('../js/data-view-controls.js', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
   const profile = fs.readFileSync(new URL('../js/profile.js', import.meta.url), 'utf8');
 
@@ -267,15 +268,16 @@ console.log('\n-- source-shape pins (UI wiring) --');
   assert('settings.js unit-toggle scope is narrowed to [data-unit] (so alt-units buttons aren\'t deactivated)',
     /unit-toggle-btn\[data-unit\]/.test(settings));
 
-  // data.js: toggleAltUnits accepts force arg, persists, refreshes detail modal
-  assert('data.js toggleAltUnits accepts force arg',
-    /export function toggleAltUnits\(force\)/.test(data));
-  assert('data.js toggleAltUnits persists to localStorage',
-    /localStorage\.setItem\(profileStorageKey\(state\.currentProfile, 'showAltUnits'\)/.test(data));
-  assert('data.js toggleAltUnits refreshes open detail modal via state._activeDetailMarkerId',
-    /state\._activeDetailMarkerId[\s\S]{0,200}dataRuntimeDeps\.showDetailModal\?\.\(openId\)/.test(data));
+  // Data view controls: toggleAltUnits accepts force arg, persists, refreshes detail modal
+  assert('data view controls toggleAltUnits accepts force arg',
+    /export function toggleAltUnits\(force\)/.test(dataViewControls));
+  assert('data view controls toggleAltUnits persists to localStorage',
+    /localStorage\.setItem\(profileStorageKey\(state\.currentProfile, 'showAltUnits'\)/.test(dataViewControls));
+  assert('data view controls toggleAltUnits refreshes open detail modal via state._activeDetailMarkerId',
+    /state\._activeDetailMarkerId[\s\S]{0,200}dataRuntimeDeps\.showDetailModal\?\.\(openId\)/.test(dataViewControls));
   assert('data.js keeps toggleAltUnits module-only',
-    /export function toggleAltUnits\(force\)/.test(data) && !data.includes('Object.assign(window'));
+    /export\s*\{[\s\S]*\btoggleAltUnits\b[\s\S]*\}\s*from\s*['"]\.\/data-view-controls\.js['"]/.test(data)
+      && !dataViewControls.includes('Object.assign(window'));
 
   // state.js: showAltUnits default off
   assert('state.js declares showAltUnits: false',

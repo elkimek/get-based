@@ -150,6 +150,7 @@ const APP_SHELL = [
   '/js/profile-runtime.js',
   '/js/profile-share.js',
   '/js/data.js',
+  '/js/data-view-controls.js',
   '/js/lab-entry.js',
   '/js/lab-entry-mutations.js',
   '/js/marker-analysis.js',

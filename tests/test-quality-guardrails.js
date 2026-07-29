@@ -244,6 +244,7 @@ const domainUiCheckJsModules = [
   'js/crypto-ui.js',
   'js/data-merge-lab-entries.js',
   'js/data.js',
+  'js/data-view-controls.js',
   'js/emf.js',
   'js/emf-editor.js',
   'js/emf-model.js',

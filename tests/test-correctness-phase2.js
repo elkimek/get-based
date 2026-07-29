@@ -126,6 +126,7 @@ const pwaAppShellAssets = [
   '/js/blob-storage.js',
   '/js/data-merge-lab-entries.js',
   '/js/data-merge.js',
+  '/js/data-view-controls.js',
   '/js/views-router.js',
   '/js/dashboard-view-composition.js',
   '/js/dashboard-page-view.js',

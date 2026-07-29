@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 524 |
-| Internal import edges | 2339 |
+| Modules | 525 |
+| Internal import edges | 2343 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,13 +38,13 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 241 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
-| [`js/state.js`](js/state.js) | 167 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/utils.js`](js/utils.js) | 242 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/state.js`](js/state.js) | 168 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/caught-error.js`](js/caught-error.js) | 75 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 69 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
-| [`js/profile.js`](js/profile.js) | 46 | [`js/views.js`](js/views.js) | 22 |
+| [`js/profile.js`](js/profile.js) | 47 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 33 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 29 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 29 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
@@ -331,12 +331,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>data</code> family — 4 modules</summary>
+<details><summary><code>data</code> family — 5 modules</summary>
 
 - [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js) → [`js/lab-entry.js`](js/lab-entry.js)
 - [`js/data-merge.js`](js/data-merge.js) → [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/sync-delta-id.js`](js/sync-delta-id.js), [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js)
+- [`js/data-view-controls.js`](js/data-view-controls.js) → [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/data-wipe.js`](js/data-wipe.js) → no in-scope imports
-- [`js/data.js`](js/data.js) → [`js/crypto.js`](js/crypto.js), [`js/lab-date-range.js`](js/lab-date-range.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile-context.js`](js/profile-context.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/data.js`](js/data.js) → [`js/crypto.js`](js/crypto.js), [`js/data-view-controls.js`](js/data-view-controls.js), [`js/lab-date-range.js`](js/lab-date-range.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile-context.js`](js/profile-context.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

@@ -124,7 +124,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     categoryPageViewSrc.includes('class="view-toggle" role="tablist"'));
 
   // ─── 6. Chart layers dropdown ARIA ───
-  const dataSrc = read('/js/data.js');
+  const dataSrc = read('/js/data-view-controls.js');
   assert('chart-layers-trigger has aria-haspopup + aria-controls',
     /<button class="view-btn chart-layers-trigger"[\s\S]{0,220}aria-haspopup="true"[\s\S]{0,220}aria-expanded="false"[\s\S]{0,220}aria-controls="chart-layers-dropdown"/.test(dataSrc));
   assert('chart-layers-dropdown has role=menu',
