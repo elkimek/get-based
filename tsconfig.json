@@ -43,6 +43,7 @@
     "js/biology-scores-runtime.js",
     "js/brand-assets.js",
     "js/cashu-wallet.js",
+    "js/cashu-wallet-transfers.js",
     "js/cashu-wallet-store.js",
     "js/caught-error.js",
     "js/category-customization-runtime.js",

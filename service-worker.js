@@ -462,6 +462,7 @@ const APP_SHELL = [
   '/js/supplement-warnings.js',
   '/js/food-contaminants.js',
   '/js/cashu-wallet.js',
+  '/js/cashu-wallet-transfers.js',
   '/js/cashu-wallet-store.js',
   '/js/nostr-discovery.js',
   '/js/touch-tooltip-runtime.js',

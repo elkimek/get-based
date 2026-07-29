@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 525 |
-| Internal import edges | 2343 |
+| Modules | 526 |
+| Internal import edges | 2347 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -38,10 +38,10 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 242 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
+| [`js/utils.js`](js/utils.js) | 243 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 168 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/caught-error.js`](js/caught-error.js) | 75 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/caught-error.js`](js/caught-error.js) | 76 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 69 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 47 | [`js/views.js`](js/views.js) | 22 |
@@ -161,10 +161,11 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cashu</code> family — 2 modules</summary>
+<details><summary><code>cashu</code> family — 3 modules</summary>
 
 - [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
-- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
+- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

@@ -127,6 +127,7 @@ const pwaAppShellAssets = [
   '/js/data-merge-lab-entries.js',
   '/js/data-merge.js',
   '/js/data-view-controls.js',
+  '/js/cashu-wallet-transfers.js',
   '/js/views-router.js',
   '/js/dashboard-view-composition.js',
   '/js/dashboard-page-view.js',

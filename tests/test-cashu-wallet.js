@@ -50,7 +50,9 @@ await import('../vendor/bip39-minimal.js');
 const wallet = await import('../js/cashu-wallet.js');
 const discoveryModule = await import('../js/nostr-discovery.js');
 
-const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
+const walletFacadeSrc = await fetchWithRetry('js/cashu-wallet.js');
+const walletTransfersSrc = await fetchWithRetry('js/cashu-wallet-transfers.js');
+const walletSrc = [walletFacadeSrc, walletTransfersSrc].join('\n');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
 const appAIInteractionSrc = await fetchWithRetry('js/app-ai-interaction-modules.js');
 const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
@@ -104,6 +106,8 @@ const walletExports = [
 for (const fn of walletExports) {
   assert(`cashu-wallet.js exports ${fn}`, walletSrc.includes(`export function ${fn}`) || walletSrc.includes(`export async function ${fn}`));
 }
+assert('cashu-wallet.js re-exports the transfer owner APIs',
+  walletFacadeSrc.includes("from './cashu-wallet-transfers.js'"));
 
 // ═══════════════════════════════════════
 // 2. CASHU WALLET — MODULE-ONLY EXPORTS
@@ -324,6 +328,7 @@ assert('clearAllData removes wallet localStorage keys', exportSrc.includes("'lab
 console.log('13. Service Worker Cache');
 
 assert('SW caches cashu-wallet.js', swSrc.includes('/js/cashu-wallet.js'));
+assert('SW caches cashu-wallet-transfers.js', swSrc.includes('/js/cashu-wallet-transfers.js'));
 assert('SW caches cashu-wallet-store.js', swSrc.includes('/js/cashu-wallet-store.js'));
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
 assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));

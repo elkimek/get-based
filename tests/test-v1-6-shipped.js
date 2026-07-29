@@ -374,7 +374,7 @@ const _origProfileSex = state ? state.profileSex : null;
   // ─── 12. v1.6.7 Cashu auto-melt persistent-failure surface ──────────
   console.log('%c 12. Cashu auto-melt failure counter ', 'font-weight:bold;color:#0891b2');
   {
-    const cashuSrc = await fetchSrc('js/cashu-wallet.js');
+    const cashuSrc = await fetchSrc('js/cashu-wallet-transfers.js');
     assert('cashu-wallet.js: _autoMeltConsecutiveFailures module counter',
       /_autoMeltConsecutiveFailures/.test(cashuSrc));
     assert('cashu-wallet.js: surfaces notification at 3rd consecutive failure',
