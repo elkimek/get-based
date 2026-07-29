@@ -16,6 +16,7 @@ import {
   configureChatThreadSearch, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult,
 } from './chat-thread-search.js';
+import { normalizeChatThreads } from './chat-storage-safety.js';
 
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 
@@ -104,7 +105,7 @@ function notifyThreadIndexBlocked() {
 
 function parseThreadIndex(raw) {
   const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed : null;
+  return Array.isArray(parsed) ? normalizeChatThreads(parsed) : null;
 }
 
 // ═══════════════════════════════════════════════
@@ -431,12 +432,15 @@ export function renderThreadList(filter) {
     const dateStr = formatThreadDate(date);
     const icon = t.personalityIcon || personalityMap[t.personality] || personalityMap.default || '';
     const iconTitle = t.personalityName ? ` title="${escapeHTML(t.personalityName)}"` : '';
+    const messageCount = Number.isFinite(Number(t.messageCount))
+      ? Math.max(0, Math.trunc(Number(t.messageCount)))
+      : 0;
     return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-chat-thread-action="switch" data-thread-id="${escapeHTML(t.id)}">
       <div class="chat-thread-item-name">${escapeHTML(t.name)}</div>
       <div class="chat-thread-item-meta">
-        <span${iconTitle}>${icon}</span>
+        <span${iconTitle}>${escapeHTML(icon)}</span>
         <span>${dateStr}</span>
-        <span>${t.messageCount} msg${t.messageCount !== 1 ? 's' : ''}</span>
+        <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
       </div>
       <div class="chat-thread-item-actions">
         <button class="chat-thread-item-action" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}" title="Rename" aria-label="Rename thread">${THREAD_ICON_EDIT}</button>

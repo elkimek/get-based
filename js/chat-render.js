@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
 import {
   getAIProvider, getActiveModelDisplay, getActiveModelId,
 } from './api.js';
@@ -16,6 +16,7 @@ import { updateChatInputState } from './chat-panel.js';
 import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
 import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
+import { sanitizeChatThumbnailUrl } from './chat-storage-safety.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -73,26 +74,32 @@ export function renderChatMessages() {
     const cls = msg.role === 'user' ? 'chat-user' : 'chat-ai';
     // "Joined" system messages
     if (msg.joined) {
-      html += `<div class="chat-persona-joined">${msg.joinIcon || ''} ${escapeHTML(msg.joinName || '')} joined the discussion</div>`;
+      html += `<div class="chat-persona-joined">${escapeHTML(msg.joinIcon || '')} ${escapeHTML(msg.joinName || '')} joined the discussion</div>`;
       continue;
     }
     // Hidden auto messages (instruction sent to API but not shown)
     if (msg.hidden) continue;
     // Show persona label when personality changes between AI messages
     if (msg.role === 'assistant' && msg.personalityName && msg.personalityName !== lastPersonaName) {
-      html += `<div class="chat-persona-label">${msg.personalityIcon || ''} ${escapeHTML(msg.personalityName)}</div>`;
+      html += `<div class="chat-persona-label">${escapeHTML(msg.personalityIcon || '')} ${escapeHTML(msg.personalityName)}</div>`;
     }
     if (msg.role === 'assistant') lastPersonaName = msg.personalityName || null;
     const autoClass = msg.auto ? ' chat-msg-auto' : '';
     const stoppedNote = msg.stopped ? '<div class="chat-stopped-note">[stopped]</div>' : '';
     let imageBadge = '';
     if (msg.hasImages) {
-      if (msg.thumbnails && msg.thumbnails.length > 0) {
-        imageBadge = '<div class="chat-image-thumbs">' + msg.thumbnails.map(t =>
-          `<img src="${t}" class="chat-image-thumb" alt="attached image" ${chatMessageActionAttrs('open-image-lightbox')}>`
+      const thumbnails = Array.isArray(msg.thumbnails)
+        ? msg.thumbnails.map(sanitizeChatThumbnailUrl).filter(Boolean)
+        : [];
+      if (thumbnails.length > 0) {
+        imageBadge = '<div class="chat-image-thumbs">' + thumbnails.map(t =>
+          `<img src="${escapeAttr(t)}" class="chat-image-thumb" alt="attached image" ${chatMessageActionAttrs('open-image-lightbox')}>`
         ).join('') + '</div>';
       } else {
-        imageBadge = `<div class="chat-image-badge">\uD83D\uDDBC ${msg.imageCount} image${msg.imageCount !== 1 ? 's' : ''} attached</div>`;
+        const imageCount = Number.isFinite(Number(msg.imageCount))
+          ? Math.max(0, Math.trunc(Number(msg.imageCount)))
+          : 0;
+        imageBadge = `<div class="chat-image-badge">\uD83D\uDDBC ${imageCount} image${imageCount !== 1 ? 's' : ''} attached</div>`;
       }
     }
     const messageBody = msg.error
@@ -105,7 +112,8 @@ export function renderChatMessages() {
         const mId = msg.modelId || getActiveModelId();
         const mProvider = msg.provider || (msg.modelId ? (msg.modelId.includes('/') ? 'openrouter' : getAIProvider()) : getAIProvider());
         const cost = calculateCost(mProvider, mId, msg.usage.inputTokens, msg.usage.outputTokens);
-        const totalTokens = (msg.usage.inputTokens || 0) + (msg.usage.outputTokens || 0);
+        const totalTokens = Math.max(0, Number(msg.usage.inputTokens) || 0)
+          + Math.max(0, Number(msg.usage.outputTokens) || 0);
         const mName = msg.modelDisplay || getActiveModelDisplay();
         const webTag = msg.webSearch ? ' \u00b7 \ud83c\udf10 web' : '';
         const e2eeTag = msg.e2ee ? e2eeLockFootnote(msg.attestation) : '';

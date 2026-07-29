@@ -72,7 +72,7 @@ export function showDiscussPersonaPicker() {
         const locked = isActive && addingToExisting;
         return `<label class="discuss-picker-item${locked ? ' locked' : ''}">
         <input type="checkbox" value="${escapeHTML(p.id)}" data-name="${escapeHTML(p.name)}" data-icon="${escapeHTML(p.icon)}"${checked}${locked ? ' disabled' : ''} data-locked="${locked ? '1' : ''}">
-        <span>${p.icon} ${escapeHTML(p.name)}</span>
+        <span>${escapeHTML(p.icon)} ${escapeHTML(p.name)}</span>
       </label>`;
       }).join('')}
     </div>
