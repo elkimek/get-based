@@ -263,6 +263,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
+      profiles: clone(state.profiles),
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       scrollIntoView: Element.prototype.scrollIntoView,
@@ -285,6 +286,19 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
     try {
       document.body.appendChild(host);
       state.currentProfile = 'onboarding-coverage';
+      state.profiles = [{
+        id: state.currentProfile,
+        name: 'Onboarding coverage',
+        sex: null,
+        dob: null,
+        location: { country: '', zip: '' },
+        tags: [],
+        notes: '',
+        status: 'active',
+        createdAt: 1,
+        lastUpdated: 1,
+        pinned: false,
+      }];
       state.profileSex = null;
       state.profileDob = null;
       state.importedData = profile.createDefaultProfileData();
@@ -308,6 +322,11 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       host.querySelector('.onboarding-sex-btn[data-onboarding-sex="female"]')?.click();
       host.querySelector('#onboarding-dob').value = '1990-04-05';
       host.querySelector('.onboarding-save-btn')?.click();
+      await waitUntil(
+        () => localStorage.getItem(onboardedKey) === 'profile-set'
+          && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'),
+        'durable onboarding profile save',
+      );
       outcomes.profileSavePersistsAndNavigates =
         localStorage.getItem(onboardedKey) === 'profile-set'
         && state.profileSex === 'female'
@@ -418,6 +437,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       document.body.classList.remove('cards-focus', 'import-focus', 'chat-fullscreen');
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
+      state.profiles = saved.profiles;
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       data.invalidateActiveDataCache();
