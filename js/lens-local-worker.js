@@ -36,80 +36,18 @@
 // pure WASM. Browser caches it after first load.
 
 import { getErrorMessage } from './caught-error.js';
+import { BENCHMARK_TEXTS, DEFAULT_MODEL_KEY, MODELS, createMockEmbedding } from './lens-local-embedder-config.js';
+import { LensLocalLibraryRegistry } from './lens-local-library-registry.js';
 import { chunkText, mmrSelect } from './lens-local-utils.js';
 import {
-  DEFAULT_LIBRARY_NAME,
   FILE_CHUNKS,
-  FILE_LIBRARIES,
-  FILE_LIBRARIES_BACKUP,
   FILE_MANIFEST,
   FILE_VECTORS,
   OPFS_SUBDIR,
-  fallbackLibraryName,
-  isSafeLibraryId,
-  modelKeyFromManifest,
-  normaliseLibraryRegistry,
   readBinaryFrom,
   readOpfsFileFrom,
-  sameLibraryRegistry,
   writeBinaryTo,
 } from './lens-local-store.js';
-
-// Catalog of embedding models available for per-library selection.
-// Each entry names the transformers.js model ID, its output dimension,
-// a tier hint for the UI's "recommended for your device" logic, and a
-// download-size hint. Adding an entry here makes it pickable without
-// additional worker changes — the library-creation UI (step 3) reads
-// this catalog.
-//
-// `downloadMB` is approximate (the quantized q8/q4 variants that
-// transformers.js actually fetches, not the full fp32 weights). Tier
-// matches the msPerEmbed bands used in `_benchmarkEmbedder()`.
-const MODELS = {
-  'all-minilm': {
-    id: 'Xenova/all-MiniLM-L6-v2',
-    label: 'MiniLM (fast, small)',
-    dim: 384,
-    tier: 1,
-    downloadMB: 22,
-    language: 'en',
-    notes: 'Current default. Universally works, including WASM-only.',
-  },
-  'bge-small-en': {
-    id: 'Xenova/bge-small-en-v1.5',
-    label: 'BGE-small (balanced English)',
-    dim: 384,
-    tier: 2,
-    downloadMB: 33,
-    language: 'en',
-    notes: 'Better English retrieval than MiniLM. Same 384-dim.',
-  },
-  'multilingual-e5-small': {
-    id: 'Xenova/multilingual-e5-small',
-    label: 'Multilingual-E5 (100+ languages)',
-    dim: 384,
-    tier: 2,
-    downloadMB: 40,
-    language: 'multi',
-    notes: 'Covers 100+ languages. Strong default if your corpus isn\'t English-only.',
-  },
-  'bge-base-en': {
-    id: 'Xenova/bge-base-en-v1.5',
-    label: 'BGE-base (best English)',
-    dim: 768,
-    tier: 3,
-    downloadMB: 110,
-    language: 'en',
-    notes: 'Highest quality for English. Needs WebGPU or a fast CPU.',
-  },
-};
-
-/// Default model key for back-compat. Existing libraries without a
-/// model field are migrated to this; new libraries without an explicit
-/// choice inherit it. Keep as MiniLM — it's what users already have
-/// indexed and switching the default would force a re-embed.
-const DEFAULT_MODEL_KEY = 'all-minilm';
-
 /// Current model driving the embedder. These are mutable because the
 /// active library dictates which model gets loaded — switching library
 /// can trigger a model swap. See _applyModelSpec().
@@ -141,6 +79,7 @@ let _benchmarkVerdict = null;   // Latest benchmark result for the currently-loa
 let _transformersModule = null; // Lazy-cached transformers.js module so library swaps don't re-import
 let _abortRequested = false;    // set by 'abort' message, checked between embeds in handleIngest
 let _rootDir = null;            // OPFS FileSystemDirectoryHandle at /lens-local/
+let _libraryRegistry = null;    // Active library metadata + revisioned registry persistence
 
 // MessageChannel-based macrotask yield. Between embed calls the worker
 // would otherwise only yield to the microtask queue (a chain of awaits
@@ -156,19 +95,15 @@ function macroYield() {
     _yieldChannel.port2.postMessage(null);
   });
 }
-let _libraries = [];            // [{id, name, createdAt}]
-let _activeId = null;           // Currently active library id
 let _manifest = null;           // Active library's manifest (loaded on activate)
 let _vectors = null;            // Active library's packed Float32Array
 let _chunks = null;             // Active library's [{source, text}]
-let _registryRevision = 0;      // Monotonic registry version shared by primary + backup
-let _testFailNextRegistryPersist = false; // mock-mode test hook
 
 // ── Message dispatch ───────────────────────────────────────────────
 //
 // Every handler (ingest, query, stats, delete, clear) scopes to the ACTIVE
 // library. Library-management handlers (activate, create, rename, delete,
-// list) manage _libraries metadata + OPFS subdirectories.
+// list) delegate registry metadata + OPFS subdirectories to their owner.
 
 self.addEventListener('message', async (e) => {
   // Same-origin guard. Browsers only deliver messages to a Worker from
@@ -193,7 +128,7 @@ self.addEventListener('message', async (e) => {
       case 'delete_library':    return await handleDeleteLibrary(msg.libraryId);
       case 'test_fail_next_registry_persist':
         if (isMockMode()) {
-          _testFailNextRegistryPersist = true;
+          _libraryRegistry.failNextPersist();
           self.postMessage({ type: 'test_ack' });
           return;
         }
@@ -224,7 +159,7 @@ async function handleInit() {
   // path is unchanged.
   const params = new URLSearchParams(self.location.search || '');
   if (params.has('mock')) {
-    _embedder = mockEmbedder;
+    _embedder = (text) => createMockEmbedding(text, DIM);
     console.log('[lens-local] mock embedder active (test mode)');
     if (params.has('benchmark')) {
       try {
@@ -247,7 +182,7 @@ async function handleInit() {
   // step 2 (per-library models) the active library picks the model.
   await openOpfs();
 
-  const modelKey = _libraryModelKey(_activeId);
+  const modelKey = _libraryModelKey(_libraryRegistry.activeId);
   await _loadEmbedder(modelKey);
 
   // Manifest + corpus load AFTER embedder so MODEL_ID + DIM reflect the
@@ -391,21 +326,13 @@ async function _loadEmbedder(modelKey) {
 // lens-local-utils.js; target_size defaults to 512 tokens ≈ 2-2.5 KB
 // of prose but real ingested chunks land around this character range).
 // Mixing topics keeps any per-text caching honest.
-const _BENCHMARK_TEXTS = [
-  'Vitamin D3 supplementation timing matters for circadian alignment — morning dosing coincides with natural UV-B exposure and supports endogenous synthesis pathways. Sublingual or oil-suspended forms outperform dry tablets for absorption. Co-administration with magnesium and vitamin K2 is standard practice for bone calcium targeting.',
-  'Mitochondrial biogenesis responds to cold thermogenesis via PGC-1α upregulation. Brown adipose tissue activation increases with repeated 10-15 minute exposures below 15°C. The adaptive response compounds over 4-6 weeks. Population studies show metabolic flexibility improvements independent of caloric restriction.',
-  'Serum ferritin above 200 ng/mL in the absence of iron-deficient anemia often reflects inflammatory state rather than iron overload. hs-CRP co-elevation and transferrin saturation below 45% distinguish acute-phase response from hemochromatosis. HFE genotyping is warranted only when TSAT exceeds 45% persistently.',
-  'APOE ε4 carriers show differential lipid response to saturated fat intake compared to ε3 homozygotes. Cardiovascular risk stratification should factor in genotype. Mediterranean-pattern diets appear to mitigate the ε4 penalty in most intervention trials but not all, and the heterogeneity likely reflects background polygenic risk.',
-  'GABA-A receptor agonism underlies much of the sedative effect of chamomile-derived apigenin and the flavonoids in valerian root. These act at the benzodiazepine site but with substantially lower efficacy — useful clinically for not producing tolerance in short courses. Drug interactions with licensed GABA-ergic agents are clinically relevant.',
-];
-
 /// Measure ms/embed on the currently-loaded embedder. Runs 5 embeds on
 /// varied realistic text, returns the median. Thresholds pick a tier
 /// target for per-library model selection (step 1 spike — values are
 /// initial guesses to be calibrated against real user hardware).
 async function _benchmarkEmbedder() {
   const timings = [];
-  for (const text of _BENCHMARK_TEXTS) {
+  for (const text of BENCHMARK_TEXTS) {
     const t0 = performance.now();
     await _embedder(text, { pooling: 'mean', normalize: true });
     timings.push(performance.now() - t0);
@@ -442,18 +369,20 @@ async function _benchmarkEmbedder() {
 /// (activate, ingest, delete, clear) re-emits this so the renderer always
 /// has the current picture without re-polling.
 function readyPayload() {
+  const libraries = _libraryRegistry.libraries;
+  const activeId = _libraryRegistry.activeId;
   return {
     type: 'ready',
-    libraries: _libraries.slice(),
-    activeId: _activeId,
-    activeName: _libraries.find((l) => l.id === _activeId)?.name || '',
+    libraries: libraries.slice(),
+    activeId,
+    activeName: libraries.find((l) => l.id === activeId)?.name || '',
     // activeModel = the LIBRARY's configured model, not the loaded
     // embedder's. In normal operation these are the same (handleInit
     // and handleActivateLibrary sync them via _loadEmbedder), but on
     // any code path that activates without reloading (mock-mode tests,
     // future "lazy swap" optimizations) the library's registry field
     // is the source of truth for the UI.
-    activeModel: _libraryModelKey(_activeId),
+    activeModel: _libraryModelKey(activeId),
     numChunks: _manifest?.numChunks || 0,
     numDocs: _manifest?.docs?.length || 0,
     // Embedder metadata so the main thread can surface "recommended for
@@ -479,16 +408,13 @@ function readyPayload() {
 /// Look up a library's configured model key with a back-compat fallback
 /// to DEFAULT_MODEL_KEY. Accepts an id or a library object.
 function _libraryModelKey(libOrId) {
-  const lib = typeof libOrId === 'string'
-    ? _libraries.find((l) => l.id === libOrId)
-    : libOrId;
-  const key = lib?.model;
-  return (key && MODELS[key]) ? key : DEFAULT_MODEL_KEY;
+  return _libraryRegistry.modelKey(libOrId);
 }
 
 async function openOpfs() {
   const root = await navigator.storage.getDirectory();
   _rootDir = await root.getDirectoryHandle(OPFS_SUBDIR, { create: true });
+  _libraryRegistry = new LensLocalLibraryRegistry(_rootDir, MODELS, DEFAULT_MODEL_KEY);
 
   // Request persistent storage so the browser doesn't evict our data under
   // disk pressure. Silent if already granted; origins on localhost usually
@@ -499,210 +425,13 @@ async function openOpfs() {
   // /lens-local/_libraries.json and is the source of truth for which
   // libraries exist + which is active. Each library's data lives under
   // /lens-local/<libraryId>/ (manifest.json, vectors.bin, chunks.json).
-  await loadOrMigrateLibraries();
-  console.log('[lens-local] Libraries:', _libraries.map((l) => `${l.id}=${l.name}`).join(', '),
-              'active:', _activeId);
+  await _libraryRegistry.loadOrMigrate();
+  console.log('[lens-local] Libraries:', _libraryRegistry.libraries.map((l) => `${l.id}=${l.name}`).join(', '),
+              'active:', _libraryRegistry.activeId);
 
   // Load the active library's manifest. Missing = fresh store for this
   // library, which is legitimate right after create_library.
   await loadActiveManifest();
-}
-
-/// First-run migration: if a legacy flat-layout store exists
-/// (/lens-local/manifest.json at top level), move it into
-/// /lens-local/default/ and create a "My Library" entry.
-async function loadOrMigrateLibraries() {
-  const registry = await readLibraryRegistry();
-
-  if (registry?.payload) {
-    _registryRevision = registry.payload.revision || 0;
-    _libraries = registry.payload.libraries;
-    _activeId = registry.payload.activeId;
-
-    // Per-library embedding-model migration. Pre-step-2 libraries had no
-    // `model` field; they were all MiniLM by definition. Fill it in so
-    // downstream code can read `lib.model` uniformly, and persist once
-    // so the file format matches on next load.
-    let migrated = false;
-    for (const lib of _libraries) {
-      if (!lib.model || !MODELS[lib.model]) {
-        lib.model = DEFAULT_MODEL_KEY;
-        migrated = true;
-      }
-    }
-
-    // A valid registry is authoritative. Do not append disk-only directories
-    // here: with backup-first writes, a newer backup may intentionally omit a
-    // library that was deleted right before the worker stopped. Full directory
-    // reconstruction still happens below when both registry files are absent
-    // or unreadable.
-    const recovered = await reconcileLibrariesWithDisk({
-      recoverOrphans: false,
-    });
-    if (registry.source !== 'primary' || registry.needsPersist || migrated || recovered.changed) {
-      if (registry.source !== 'primary') {
-        console.warn(`[lens-local] Restored library registry from ${registry.source}.`);
-      }
-      await persistLibraries();
-    }
-    return;
-  }
-
-  // Check for legacy flat-layout store (pre-multi-library).
-  let hasLegacy = false;
-  try {
-    await _rootDir.getFileHandle(FILE_MANIFEST);
-    hasLegacy = true;
-  } catch {}
-
-  if (hasLegacy) {
-    console.log('[lens-local] Migrating legacy single-library store to /default/');
-    const defaultDir = await _rootDir.getDirectoryHandle('default', { create: true });
-    for (const fn of [FILE_MANIFEST, FILE_VECTORS, FILE_CHUNKS]) {
-      try {
-        const srcBytes = await readBinaryFrom(_rootDir, fn);
-        await writeBinaryTo(defaultDir, fn, new Uint8Array(srcBytes));
-        await _rootDir.removeEntry(fn);
-      } catch (e) {
-        console.warn(`[lens-local] Migration: ${fn} skip — ${getErrorMessage(e)}`);
-      }
-    }
-    _libraries = [{ id: 'default', name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
-    _activeId = 'default';
-    await persistLibraries();
-    return;
-  }
-
-  // Registry absent/corrupt, but multi-library directories may still be
-  // present. Rebuild a conservative registry from those directories instead
-  // of replacing it with a fresh default and hiding the user's corpus.
-  const recoveredLibraries = await discoverLibraryDirectories();
-  if (recoveredLibraries.length > 0) {
-    _libraries = recoveredLibraries.map((lib) => ({
-      id: lib.id,
-      name: lib.name,
-      createdAt: lib.createdAt,
-      model: lib.model,
-    }));
-    _activeId = _libraries.find((lib) => lib.id === 'default')?.id || _libraries[0].id;
-    console.warn(`[lens-local] Recovered ${_libraries.length} library registry entries from OPFS directories.`);
-    await persistLibraries();
-    return;
-  }
-
-  // Fresh install — create a single default library so the UI always has
-  // something to show. User can rename it later.
-  _libraries = [{ id: 'default', name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
-  _activeId = 'default';
-  await _rootDir.getDirectoryHandle('default', { create: true });
-  await persistLibraries();
-}
-
-async function readLibraryRegistry() {
-  const primary = await readLibraryRegistryFile(FILE_LIBRARIES);
-  const backup = await readLibraryRegistryFile(FILE_LIBRARIES_BACKUP);
-  if (primary && backup) {
-    if (backup.revision > primary.revision) {
-      return { source: 'backup', payload: backup, needsPersist: true };
-    }
-    return {
-      source: 'primary',
-      payload: primary,
-      needsPersist: !sameLibraryRegistry(primary, backup),
-    };
-  }
-  if (primary) return { source: 'primary', payload: primary, needsPersist: true };
-  if (backup) return { source: 'backup', payload: backup, needsPersist: true };
-
-  return null;
-}
-
-async function readLibraryRegistryFile(name) {
-  try {
-    const text = await readOpfsFileFrom(_rootDir, name);
-    return normaliseLibraryRegistry(JSON.parse(text));
-  } catch {
-    return null;
-  }
-}
-
-async function discoverLibraryDirectories() {
-  if (!_rootDir || typeof _rootDir.entries !== 'function') return [];
-
-  const libraries = [];
-  for await (const [id, handle] of _rootDir.entries()) {
-    if (handle?.kind !== 'directory' || !isSafeLibraryId(id)) continue;
-
-    let manifest = null;
-    try {
-      manifest = JSON.parse(await readOpfsFileFrom(handle, FILE_MANIFEST));
-    } catch {}
-
-    const model = modelKeyFromManifest(manifest, MODELS) || DEFAULT_MODEL_KEY;
-    const indexedAt = Number(manifest?.indexedAt);
-    libraries.push({
-      id,
-      name: fallbackLibraryName(id),
-      createdAt: Number.isFinite(indexedAt) && indexedAt > 0 ? indexedAt : Date.now(),
-      model,
-      manifest,
-    });
-  }
-
-  libraries.sort((a, b) => {
-    if (a.id === 'default') return -1;
-    if (b.id === 'default') return 1;
-    return a.createdAt - b.createdAt || a.id.localeCompare(b.id);
-  });
-  return libraries;
-}
-
-async function reconcileLibrariesWithDisk({ recoverOrphans = false } = {}) {
-  const discovered = await discoverLibraryDirectories();
-  if (discovered.length === 0) return { changed: false };
-
-  const byId = new Map(discovered.map((lib) => [lib.id, lib]));
-  const next = [];
-  let changed = false;
-
-  for (const lib of _libraries) {
-    const disk = byId.get(lib.id);
-    if (!disk) {
-      next.push(lib);
-      continue;
-    }
-    byId.delete(lib.id);
-
-    const diskModel = modelKeyFromManifest(disk.manifest, MODELS);
-    if ((!lib.model || !MODELS[lib.model]) && diskModel) {
-      lib.model = diskModel;
-      changed = true;
-    }
-
-    next.push(lib);
-  }
-
-  if (recoverOrphans) {
-    for (const disk of byId.values()) {
-      next.push({
-        id: disk.id,
-        name: disk.name,
-        createdAt: disk.createdAt,
-        model: disk.model,
-      });
-      changed = true;
-    }
-  }
-
-  if (next.length > 0) {
-    _libraries = next;
-    if (!_libraries.some((lib) => lib.id === _activeId)) {
-      _activeId = _libraries[0].id;
-      changed = true;
-    }
-  }
-
-  return { changed };
 }
 
 async function loadActiveManifest() {
@@ -762,27 +491,8 @@ async function loadCorpusIntoMemory() {
 /// (shouldn't happen after init, but defensive against orphaned registry
 /// entries from a partial delete).
 async function activeLibraryDir() {
-  if (!_activeId) throw new Error('No active library');
-  return _rootDir.getDirectoryHandle(_activeId, { create: true });
-}
-
-async function persistLibraries() {
-  return persistLibraryRegistry(_libraries, _activeId);
-}
-
-async function persistLibraryRegistry(libraries, activeId) {
-  if (_testFailNextRegistryPersist) {
-    _testFailNextRegistryPersist = false;
-    throw new Error('Test registry persist failure');
-  }
-  const nextRevision = _registryRevision + 1;
-  const payload = { activeId, libraries, revision: nextRevision, updatedAt: Date.now() };
-  const bytes = new TextEncoder().encode(JSON.stringify(payload));
-  // Write backup first. If the worker dies before the primary write, startup
-  // chooses the newer valid registry by revision and repairs the stale copy.
-  await writeSync(FILE_LIBRARIES_BACKUP, bytes);
-  await writeSync(FILE_LIBRARIES, bytes);
-  _registryRevision = nextRevision;
+  if (!_libraryRegistry.activeId) throw new Error('No active library');
+  return _rootDir.getDirectoryHandle(_libraryRegistry.activeId, { create: true });
 }
 
 // ── Ingest ────────────────────────────────────────────────────────
@@ -986,8 +696,8 @@ async function handleClear() {
 function handleListLibraries() {
   self.postMessage({
     type: 'libraries_list',
-    libraries: _libraries.slice(),
-    activeId: _activeId,
+    libraries: _libraryRegistry.libraries.slice(),
+    activeId: _libraryRegistry.activeId,
   });
 }
 
@@ -997,15 +707,11 @@ function handleListLibraries() {
 /// currently-loaded one, reload the embedder first — 1-2s on a
 /// browser-cached model, longer if it needs to be downloaded.
 async function handleActivateLibrary(libraryId) {
-  if (!_libraries.some((l) => l.id === libraryId)) {
-    throw new Error(`No library with id "${libraryId}"`);
-  }
-  if (libraryId === _activeId) {
+  const changed = await _libraryRegistry.activate(libraryId);
+  if (!changed) {
     self.postMessage(readyPayload());
     return;
   }
-  await persistLibraryRegistry(_libraries, libraryId);
-  _activeId = libraryId;
 
   await ensureActiveLibraryEmbedderLoaded();
 
@@ -1018,7 +724,7 @@ async function ensureActiveLibraryEmbedderLoaded() {
   // Reload embedder if the active library uses a different model.
   // Skip for mock mode (tests pin _embedder to mockEmbedder and don't
   // want it replaced by a jsdelivr import).
-  const targetModelKey = _libraryModelKey(_activeId);
+  const targetModelKey = _libraryModelKey(_libraryRegistry.activeId);
   if (targetModelKey !== _modelKey && !isMockMode()) {
     console.log(`[lens-local] Library model change: ${_modelKey} → ${targetModelKey}, reloading embedder`);
     await _loadEmbedder(targetModelKey);
@@ -1033,33 +739,24 @@ async function ensureActiveLibraryEmbedderLoaded() {
 /// would require re-embedding every document. The UI (step 3) offers
 /// the choice at this gate.
 async function handleCreateLibrary(name, modelKey) {
-  const label = String(name || '').trim() || 'Untitled library';
-  const id = `lib-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  const model = (modelKey && MODELS[modelKey]) ? modelKey : DEFAULT_MODEL_KEY;
-  const nextLibraries = _libraries.concat({ id, name: label, createdAt: Date.now(), model });
-  await persistLibraryRegistry(nextLibraries, _activeId);
-  _libraries = nextLibraries;
+  const library = await _libraryRegistry.create(name, modelKey);
   self.postMessage({
     type: 'library_created',
-    id, name: label, model,
-    libraries: _libraries.slice(),
-    activeId: _activeId,
+    id: library.id,
+    name: library.name,
+    model: library.model,
+    libraries: _libraryRegistry.libraries.slice(),
+    activeId: _libraryRegistry.activeId,
   });
 }
 
 async function handleRenameLibrary(libraryId, name) {
-  const lib = _libraries.find((l) => l.id === libraryId);
-  if (!lib) throw new Error(`No library with id "${libraryId}"`);
-  const nextName = String(name || '').trim() || lib.name;
-  const nextLibraries = _libraries.map((l) =>
-    l.id === libraryId ? { ...l, name: nextName } : l);
-  await persistLibraryRegistry(nextLibraries, _activeId);
-  _libraries = nextLibraries;
+  const nextName = await _libraryRegistry.rename(libraryId, name);
   self.postMessage({
     type: 'library_renamed',
     id: libraryId, name: nextName,
-    libraries: _libraries.slice(),
-    activeId: _activeId,
+    libraries: _libraryRegistry.libraries.slice(),
+    activeId: _libraryRegistry.activeId,
   });
 }
 
@@ -1068,30 +765,8 @@ async function handleRenameLibrary(libraryId, name) {
 /// would leave zero libraries, auto-create a default so the UI always
 /// has something to show.
 async function handleDeleteLibrary(libraryId) {
-  const idx = _libraries.findIndex((l) => l.id === libraryId);
-  if (idx === -1) throw new Error(`No library with id "${libraryId}"`);
-  const wasActive = libraryId === _activeId;
-
-  let nextLibraries = _libraries.filter((l) => l.id !== libraryId);
-  let nextActiveId = _activeId;
-  if (nextLibraries.length === 0) {
-    // Auto-create a default so the UI never has to handle an empty list.
-    const id = 'default';
-    nextLibraries = [{ id, name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
-    nextActiveId = id;
-  } else if (wasActive) {
-    nextActiveId = nextLibraries[0].id;
-  }
-
-  await persistLibraryRegistry(nextLibraries, nextActiveId);
-  _libraries = nextLibraries;
-  _activeId = nextActiveId;
-
-  try { await _rootDir.removeEntry(libraryId, { recursive: true }); } catch {}
-  if (_libraries.length === 1 && _activeId === 'default') {
-    await _rootDir.getDirectoryHandle('default', { create: true });
-  }
-  if (wasActive || _libraries.length === 1) {
+  const { wasActive } = await _libraryRegistry.delete(libraryId);
+  if (wasActive || _libraryRegistry.libraries.length === 1) {
     await ensureActiveLibraryEmbedderLoaded();
     await loadActiveManifest();
     await loadCorpusIntoMemory();
@@ -1099,15 +774,14 @@ async function handleDeleteLibrary(libraryId) {
   self.postMessage({
     type: 'library_deleted',
     id: libraryId,
-    libraries: _libraries.slice(),
-    activeId: _activeId,
+    libraries: _libraryRegistry.libraries.slice(),
+    activeId: _libraryRegistry.activeId,
     numChunks: _manifest?.numChunks || 0,
     numDocs: _manifest?.docs?.length || 0,
   });
 }
 
 // ── OPFS I/O ──────────────────────────────────────────────────────
-//
 // Uses FileSystemSyncAccessHandle — worker-only API, synchronous reads
 // and writes, explicit flush(). More reliable than createWritable() for
 // binary data and gives us a deterministic persistence boundary. Per MDN,
@@ -1120,35 +794,4 @@ async function persistAll() {
   await writeBinaryTo(dir, FILE_MANIFEST, new TextEncoder().encode(JSON.stringify(_manifest)));
   await writeBinaryTo(dir, FILE_VECTORS, new Uint8Array(_vectors.buffer, _vectors.byteOffset, _vectors.byteLength));
   await writeBinaryTo(dir, FILE_CHUNKS, new TextEncoder().encode(JSON.stringify(_chunks)));
-}
-
-/// Backward-compat shim: writeSync against the root lens-local/ dir. Used
-/// for _libraries.json (which lives at top level, not inside any library).
-async function writeSync(name, bytes) {
-  return writeBinaryTo(_rootDir, name, bytes);
-}
-
-// ── Test-only: deterministic stub embedder ────────────────────────
-//
-// Text-hash → unit-normalized 384-float vector. Same text always maps to
-// the same vector, different texts to different vectors, so cosine and
-// MMR behave predictably in tests. Returns the shape transformers.js
-// pipelines return: an object with a `.data` Float32Array.
-async function mockEmbedder(text, _opts) {
-  const out = new Float32Array(DIM);
-  let h = 2166136261;
-  const s = String(text);
-  for (let i = 0; i < s.length; i++) {
-    h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  }
-  for (let i = 0; i < DIM; i++) {
-    h = Math.imul(h ^ (h >>> 13), 0x5bd1e995);
-    out[i] = ((h | 0) / 2147483647);
-  }
-  // Unit-normalize so cosine == dot product (matches the real model's output).
-  let norm = 0;
-  for (let i = 0; i < DIM; i++) norm += out[i] * out[i];
-  norm = Math.sqrt(norm) || 1;
-  for (let i = 0; i < DIM; i++) out[i] /= norm;
-  return { data: out };
 }

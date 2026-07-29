@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 520 |
-| Internal import edges | 2324 |
+| Modules | 522 |
+| Internal import edges | 2328 |
 | Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -41,7 +41,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils.js`](js/utils.js) | 240 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 72 |
 | [`js/state.js`](js/state.js) | 165 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/caught-error.js`](js/caught-error.js) | 74 | [`js/settings.js`](js/settings.js) | 25 |
+| [`js/caught-error.js`](js/caught-error.js) | 75 | [`js/settings.js`](js/settings.js) | 25 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 69 | [`js/pdf-import.js`](js/pdf-import.js) | 24 |
 | [`js/api.js`](js/api.js) | 64 | [`js/chat-send.js`](js/chat-send.js) | 22 |
 | [`js/profile.js`](js/profile.js) | 45 | [`js/views.js`](js/views.js) | 22 |
@@ -444,16 +444,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lens</code> family — 13 modules</summary>
+<details><summary><code>lens</code> family — 15 modules</summary>
 
 - [`js/lens-actions.js`](js/lens-actions.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-cache.js`](js/lens-cache.js) → [`js/utils.js`](js/utils.js)
 - [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-actions.js`](js/lens-actions.js), [`js/lens-library.js`](js/lens-library.js), [`js/lens-local-parsers.js`](js/lens-local-parsers.js) *(dynamic)*, [`js/lens-local.js`](js/lens-local.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-library.js`](js/lens-library.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
+- [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js) → no in-scope imports
+- [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-local-store.js`](js/lens-local-store.js)
 - [`js/lens-local-parsers.js`](js/lens-local-parsers.js) → [`js/pdfjs-loader.js`](js/pdfjs-loader.js), [`js/utils-runtime.js`](js/utils-runtime.js)
 - [`js/lens-local-store.js`](js/lens-local-store.js) → no in-scope imports
 - [`js/lens-local-utils.js`](js/lens-local-utils.js) → no in-scope imports
-- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/lens-local-utils.js`](js/lens-local-utils.js)
+- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js), [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/lens-local-utils.js`](js/lens-local-utils.js)
 - [`js/lens-local.js`](js/lens-local.js) → no in-scope imports
 - [`js/lens-page-shell.js`](js/lens-page-shell.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-pages.js`](js/lens-pages.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile-context.js`](js/profile-context.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)

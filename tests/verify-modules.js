@@ -78,6 +78,8 @@
     '/js/dashboard-page-view.js',
     '/js/mobile-dashboard-runtime.js',
     '/js/lens-page-shell.js',
+    '/js/lens-local-embedder-config.js',
+    '/js/lens-local-library-registry.js',
     '/js/biology-scores-runtime.js',
     '/js/chart-card-recs.js',
     '/js/category-customization-runtime.js',
