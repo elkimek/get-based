@@ -26,6 +26,9 @@ const profileListStoreDeps = {
   showNotification,
 };
 
+/** @type {WeakMap<object, StoredProfileRecord[]>} */
+const profileSnapshotOrigins = new WeakMap();
+
 export function configureProfileListStoreDeps(deps = {}) {
   const previous = { ...profileListStoreDeps };
   if (typeof deps.encryptedSetItem === 'function') {
@@ -49,6 +52,32 @@ function cloneProfileRecord(profile) {
 /** @param {StoredProfileRecord[]} profiles */
 function cloneProfiles(profiles) {
   return profiles.map(cloneProfileRecord);
+}
+
+/**
+ * Retain the durable base behind a caller-visible snapshot. Tracking both the
+ * array and its records preserves provenance through common transforms such
+ * as filter and spread.
+ *
+ * @param {StoredProfileRecord[]} snapshot
+ */
+function rememberProfileSnapshot(snapshot) {
+  const base = cloneProfiles(snapshot);
+  profileSnapshotOrigins.set(snapshot, base);
+  for (const profile of snapshot) profileSnapshotOrigins.set(profile, base);
+  return snapshot;
+}
+
+/** @param {StoredProfileRecord[]} profiles */
+function getProfileSnapshotOrigin(profiles) {
+  let origin = profileSnapshotOrigins.get(profiles);
+  for (const profile of profiles) {
+    const profileOrigin = profileSnapshotOrigins.get(profile);
+    if (!profileOrigin) continue;
+    if (origin && origin !== profileOrigin) return null;
+    origin = profileOrigin;
+  }
+  return origin ? cloneProfiles(origin) : null;
 }
 
 /** @param {unknown} left @param {unknown} right */
@@ -121,13 +150,16 @@ function rebaseProfiles(base, desired, current) {
  * @returns {StoredProfileRecord[]}
  */
 export function getProfiles() {
-  if (Array.isArray(state.profiles)) return cloneProfiles(state.profiles);
+  if (Array.isArray(state.profiles)) {
+    return rememberProfileSnapshot(cloneProfiles(state.profiles));
+  }
   try {
     const raw = localStorage.getItem('labcharts-profiles');
     const profiles = raw ? JSON.parse(raw) : [];
-    return Array.isArray(profiles) ? cloneProfiles(profiles) : [];
+    const snapshot = Array.isArray(profiles) ? cloneProfiles(profiles) : [];
+    return rememberProfileSnapshot(snapshot);
   } catch {
-    return [];
+    return rememberProfileSnapshot([]);
   }
 }
 
@@ -191,7 +223,7 @@ async function persistProfiles(profiles) {
 
 /** @param {StoredProfileRecord[]} profiles */
 export async function saveProfiles(profiles) {
-  const base = getProfiles();
+  const base = getProfileSnapshotOrigin(profiles) || getProfiles();
   const desired = cloneProfiles(profiles);
   await enqueueProfileWrite(async () => {
     const rebased = rebaseProfiles(base, desired, getProfiles());

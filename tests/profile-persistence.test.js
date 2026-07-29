@@ -174,6 +174,26 @@ describe('durable profile persistence', () => {
     expect(finalWrite.map(item => item.id)).toEqual(['original', createdId]);
   });
 
+  it('rebases a retained snapshot from before an intervening write', async () => {
+    const encryptedSetItem = vi.fn().mockResolvedValue(undefined);
+    previousDeps = configureProfileDeps({ encryptedSetItem });
+
+    const retainedProfiles = getProfiles();
+    await renameProfile('original', 'Renamed');
+    retainedProfiles[0].notes = 'Added after rename completed';
+    await saveProfiles(retainedProfiles.filter(() => true));
+
+    expect(getProfiles()[0]).toMatchObject({
+      name: 'Renamed',
+      notes: 'Added after rename completed',
+    });
+    const finalWrite = JSON.parse(encryptedSetItem.mock.calls[1][1]);
+    expect(finalWrite[0]).toMatchObject({
+      name: 'Renamed',
+      notes: 'Added after rename completed',
+    });
+  });
+
   it('creates distinct profile ids for back-to-back writes', async () => {
     previousDeps = configureProfileDeps({
       encryptedSetItem: vi.fn().mockResolvedValue(undefined),
