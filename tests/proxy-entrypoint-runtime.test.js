@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import proxyHandler from '../api/proxy.js';
+import proxyEntrypoint, { handler as proxyHandler } from '../api/proxy.js';
 
 const ENV_KEYS = [
   'BLOB_READ_WRITE_TOKEN',
@@ -38,6 +38,10 @@ afterEach(() => {
 });
 
 describe('proxy production entrypoint', () => {
+  it('uses Vercel Node.js Web-standard fetch handler contract', () => {
+    expect(proxyEntrypoint).toEqual({ fetch: proxyHandler });
+  });
+
   it('pins the Blob runtime artifacts from the last healthy deployment', () => {
     const packageJson = JSON.parse(readFileSync(
       new URL('../package.json', import.meta.url),

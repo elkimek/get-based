@@ -31,7 +31,7 @@ function loadProxyRateLimit() {
   return proxyRateLimitModulePromise;
 }
 
-export default async function handler(req) {
+export async function handler(req) {
   // Treat Origin as a server-side browser boundary, not merely a response
   // decoration. It prevents another website from driving this credentialed
   // relay. Non-browser clients can forge Origin, so the rate limit below and
@@ -254,6 +254,12 @@ export default async function handler(req) {
     return proxyUpstreamErrorResponse(req, e);
   }
 }
+
+// Use Vercel's explicit Web-standard Node.js function contract. A bare
+// default function is also the legacy (request, response) handler shape; when
+// it returns a Web Response instead of ending the legacy response, the
+// platform can leave the invocation open until timeout.
+export default { fetch: handler };
 
 // Origins permitted to call /api/proxy. Same-origin requests support self-hosted
 // deployments; explicit production surfaces cover app.getbased.health calling
