@@ -8,7 +8,7 @@ import {
 } from '../lib/proxy-network.js';
 
 describe('proxy DNS pinning transport', () => {
-  it('pins the proven Node 24 transport and keeps it out of proxy initialization', () => {
+  it('pins the exact static transport used by the last healthy Node 24 deployment', () => {
     const packageJson = JSON.parse(readFileSync(
       new URL('../package.json', import.meta.url),
       'utf8',
@@ -25,8 +25,8 @@ describe('proxy DNS pinning transport', () => {
     expect(packageJson.engines.node).toBe('24.x');
     expect(packageJson.dependencies.undici).toBe('7.28.0');
     expect(packageLock.packages['node_modules/undici'].version).toBe('7.28.0');
-    expect(source).toContain("import('undici')");
-    expect(source).not.toMatch(/from\s+['"]undici['"]/);
+    expect(source).toContain("import { Agent, fetch as undiciFetch } from 'undici'");
+    expect(source).not.toContain("import('undici')");
   });
 
   it('deduplicates public DNS answers and pins the validated address set', async () => {
