@@ -5,7 +5,7 @@ vi.mock('../lib/proxy-network.js', () => ({
 }));
 
 import commitHandler from '../api/commit.js';
-import proxyHandler from '../api/proxy.js';
+import { handler as proxyHandler } from '../api/proxy.js';
 import {
   PROXY_MAX_REQUEST_BYTES,
   PROXY_MAX_RESPONSE_BYTES,
