@@ -175,7 +175,57 @@ const {
   assert('Auto mode did not need Open-Meteo fallback when CAMS succeeded',
     !openMeteoAfterAuto);
 
-  // ── 6. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
+  // ── 6. Local dev CAMS retries through the hosted credential boundary ──
+  // Local checkouts intentionally do not contain Vercel's CAMS bearer. The
+  // documented localhost origin may use the deployed relay, which injects
+  // the credential server-side without exposing it to the browser or repo.
+  purgeMeteoCache();
+  const savedLocation = globalThis.location;
+  globalThis.location = { origin: 'http://localhost:8000' };
+  const localFallbackCalls = [];
+  window.fetch = async (u) => {
+    const url = String(u);
+    localFallbackCalls.push(url);
+    if (url === '/api/proxy') {
+      return new Response('{"error":"CAMS hosted relay requires UVDATA_BEARER"}', {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (url === 'https://app.getbased.health/api/proxy') {
+      return responseJson({
+        ...omForecast,
+        hourly: {
+          ...omForecast.hourly,
+          ozone_du: [314],
+          aod: [0.06],
+        },
+        airQuality: omAirQuality,
+        _camsMeta: { ageSec: 120 },
+      });
+    }
+    throw new Error(`Unexpected local CAMS fallback URL: ${url}`);
+  };
+  saveMeteoConfig({ ...origCfg, mode: 'cams' });
+  const localCams = await fetchAtmosphere({
+    lat: 49.98,
+    lon: 14.51,
+    isoTime: cacheIso,
+    noCache: true,
+  });
+  assert('Local CAMS first tries the same-origin dev proxy',
+    localFallbackCalls[0] === '/api/proxy',
+    JSON.stringify(localFallbackCalls));
+  assert('Local CAMS retries through the deployed credential boundary after 503',
+    localFallbackCalls[1] === 'https://app.getbased.health/api/proxy',
+    JSON.stringify(localFallbackCalls));
+  assert('Local CAMS hosted retry returns CAMS data',
+    localCams?.source === 'cams' && localCams.ozoneDU === 314,
+    JSON.stringify(localCams));
+  if (savedLocation === undefined) delete globalThis.location;
+  else globalThis.location = savedLocation;
+
+  // ── 7. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
   // The selfhost provider validates that the upstream response matches
   // Open-Meteo's structural shape before trusting the payload. Stub fetch
   // to return a valid OM-shaped JSON; selfhost.fetch invokes
@@ -193,7 +243,7 @@ const {
   await withTimeout(() => fetchAtmosphere({ lat: 50, lon: 14, isoTime: '2026-05-12T01:30:00Z', noCache: true }));
   assert('fetchAtmosphere selfhost mode validated OM-shaped payload (_looksLikeOpenMeteoResponse fired)', true);
 
-  // ── 7. NOAA mode → exercises shapeNoaaResponse ────────────────────────
+  // ── 8. NOAA mode → exercises shapeNoaaResponse ────────────────────────
   // NOAA endpoint returns its own shape — shapeNoaaResponse is the per-
   // provider adapter. Stub fetch to return a NOAA-shaped payload with a
   // numeric uv_index; the shaper extracts uvIndex / ozone.
@@ -204,7 +254,7 @@ const {
   await withTimeout(() => fetchAtmosphere({ lat: 40, lon: -100, isoTime: '2026-05-12T18:00:00Z', noCache: true }));
   assert('fetchAtmosphere noaa mode shaped the NOAA response (shapeNoaaResponse fired)', true);
 
-  // ── 8. readStaleCache fallback ────────────────────────────────────────
+  // ── 9. readStaleCache fallback ────────────────────────────────────────
   // When all providers fail, fetchAtmosphere falls back to a stale-cache
   // lookup. Seed localStorage with a matching cache entry, then drive
   // fetchAtmosphere with all providers blocked → readStaleCache fires.
