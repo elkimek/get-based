@@ -88,6 +88,53 @@ export async function smokeProductionApis({
   }, timeoutMs);
   assertResponse(methodProbe.status === 405, `/api/proxy method probe returned ${methodProbe.status}`);
 
+  // The 2026-07-26 Withings incident left OPTIONS and GET looking healthy
+  // while every POST invocation hung until Vercel's function timeout. Exercise
+  // a secret-free runtime-config POST and the Withings-specific validation
+  // branch so future entrypoint/adapter regressions fail the deployment smoke.
+  const runtimeConfig = await request(fetchImpl, `${baseUrl}/api/proxy`, {
+    method: 'POST',
+    headers: {
+      origin: allowedOrigin,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ wearable_runtime_config: true }),
+  }, timeoutMs);
+  const runtimeConfigBody = await runtimeConfig.json().catch(() => null);
+  assertResponse(runtimeConfig.status === 200, `/api/proxy runtime-config probe returned ${runtimeConfig.status}`);
+  assertResponse(
+    runtimeConfig.headers.get('access-control-allow-origin') === allowedOrigin,
+    '/api/proxy runtime-config probe omitted its allowed-origin CORS header',
+  );
+  assertResponse(
+    runtimeConfigBody?.overrides
+      && typeof runtimeConfigBody.overrides === 'object'
+      && !Array.isArray(runtimeConfigBody.overrides),
+    '/api/proxy runtime-config probe returned an invalid payload',
+  );
+
+  const withingsValidation = await request(fetchImpl, `${baseUrl}/api/proxy`, {
+    method: 'POST',
+    headers: {
+      origin: allowedOrigin,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ withings_token_exchange: {} }),
+  }, timeoutMs);
+  const withingsValidationBody = await withingsValidation.json().catch(() => null);
+  assertResponse(
+    withingsValidation.status === 400,
+    `/api/proxy Withings validation probe returned ${withingsValidation.status}`,
+  );
+  assertResponse(
+    withingsValidation.headers.get('access-control-allow-origin') === allowedOrigin,
+    '/api/proxy Withings validation probe omitted its allowed-origin CORS header',
+  );
+  assertResponse(
+    withingsValidationBody?.error === 'withings_token_exchange requires code, redirect_uri, client_id',
+    '/api/proxy Withings validation probe returned an unexpected payload',
+  );
+
   const allowedShare = await request(fetchImpl, `${baseUrl}/api/share`, {
     method: 'OPTIONS',
     headers: { origin: allowedOrigin },
