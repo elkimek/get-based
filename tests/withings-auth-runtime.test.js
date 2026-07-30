@@ -79,4 +79,24 @@ describe('Withings OAuth proxy failures', () => {
       status: 503,
     });
   });
+
+  it('keeps the callback deadline active while the response body is pending', async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: () => new Promise(() => {}),
+    }));
+    storePendingCallback();
+
+    const resultPromise = completeOAuthCallback(
+      new URLSearchParams('code=withings-code&state=withings-state'),
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    await expect(resultPromise).resolves.toEqual({
+      ok: false,
+      error: 'Withings token exchange timed out — please connect Withings again',
+    });
+  });
 });

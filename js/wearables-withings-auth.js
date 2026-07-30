@@ -76,17 +76,36 @@ async function withingsTokenRequest(payload) {
   // AbortController predates AbortSignal.timeout across supported browsers.
   // Build the deadline explicitly so older engines cannot silently fall back
   // to the unbounded request that originally blocked the startup sequence.
+  // Keep the deadline around response parsing too: fetch() resolves when
+  // headers arrive, while a stalled JSON body can otherwise block forever.
   const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort(new DOMException('Withings token request timed out', 'TimeoutError'));
-  }, TOKEN_REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(PROXY_URL, {
+  let timeout;
+  /** @type {Promise<never>} */
+  const deadline = new Promise((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      const error = new DOMException('Withings token request timed out', 'TimeoutError');
+      controller.abort(error);
+      reject(error);
+    }, TOKEN_REQUEST_TIMEOUT_MS);
+  });
+  const request = (async () => {
+    const response = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
+    let body;
+    try {
+      body = await response.json();
+    } catch (error) {
+      if (controller.signal.aborted) throw controller.signal.reason || error;
+      body = {};
+    }
+    return { response, body };
+  })();
+  try {
+    return await Promise.race([request, deadline]);
   } finally {
     clearTimeout(timeout);
   }
@@ -124,9 +143,9 @@ export async function completeOAuthCallback(urlParams) {
     return { ok: false, error: 'OAuth flow expired — please try connecting again' };
   }
 
-  let res;
+  let tokenResult;
   try {
-    res = await withingsTokenRequest({
+    tokenResult = await withingsTokenRequest({
       withings_token_exchange: {
         code,
         redirect_uri: pending.redirectUri,
@@ -136,7 +155,7 @@ export async function completeOAuthCallback(urlParams) {
   } catch (error) {
     return { ok: false, error: withingsTokenRequestError(error, 'token exchange').message };
   }
-  const body = await res.json().catch(() => ({}));
+  const { response: res, body } = tokenResult;
   if (!res.ok) return { ok: false, error: body?.error || body?.error_description || `Token exchange failed (${res.status})` };
   // Withings wraps successful responses in `{status: 0, body: {...}}` —
   // the proxy unwraps so we receive the plain token object.
@@ -160,15 +179,15 @@ export function isWithingsCallback(urlParams) {
 }
 
 export async function refreshTokens({ clientId, refreshToken }) {
-  let res;
+  let tokenResult;
   try {
-    res = await withingsTokenRequest({
+    tokenResult = await withingsTokenRequest({
       withings_token_refresh: { refresh_token: refreshToken, client_id: clientId },
     });
   } catch (error) {
     throw withingsTokenRequestError(error, 'token refresh');
   }
-  const body = await res.json().catch(() => ({}));
+  const { response: res, body } = tokenResult;
   if (!res.ok) {
     /** @type {Error & { status?: number }} */
     const err = new Error(body?.error || body?.error_description || `Refresh failed (${res.status})`);
