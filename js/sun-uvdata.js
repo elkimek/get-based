@@ -1,6 +1,6 @@
 // @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
-import { getErrorName } from './caught-error.js';
+import { getErrorMessage, getErrorName } from './caught-error.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { isSunDebugRuntime } from './sun-runtime.js';
 import { initMeteoConfigCache, getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
@@ -48,6 +48,11 @@ let _warnedAboutRejectedSelfhostUrl = false;
 const CACHE_PREFIX = 'meteo:v2:';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const NETWORK_TIMEOUT_MS = 8000;
+const HOSTED_CAMS_PROXY_URL = 'https://app.getbased.health/api/proxy';
+const HOSTED_CAMS_LOCAL_ORIGINS = new Set([
+  'http://localhost:8000',
+  'http://127.0.0.1:8000',
+]);
 
 // ─── Public API ────────────────────────────────────────────────────────
 
@@ -248,11 +253,23 @@ const PROVIDERS = {
       // bearer for getbased-uvdata is injected server-side so the
       // token never reaches the browser. Self-hosters bypass this and
       // use the `selfhost` provider directly.
-      const json = await fetchJson('/api/proxy', {
+      const options = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meteo: 'cams', latitude: lat, longitude: lon, time: isoTime }),
-      });
+      };
+      let json;
+      try {
+        json = await fetchJson('/api/proxy', options);
+      } catch (error) {
+        // The checked-in local environment cannot contain Vercel's
+        // UVDATA_BEARER. The production relay explicitly allows the
+        // documented localhost origins, so local development can retry there
+        // without copying the server credential into the browser or repo.
+        const origin = typeof location !== 'undefined' ? location.origin : '';
+        if (getErrorMessage(error) !== 'HTTP 503' || !HOSTED_CAMS_LOCAL_ORIGINS.has(origin)) throw error;
+        json = await fetchJson(HOSTED_CAMS_PROXY_URL, options);
+      }
       return shapeCamsResponse(json, isoTime, 'cams');
     },
   },
