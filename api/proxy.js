@@ -9,7 +9,6 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from '../lib/proxy-policy.js';
-import { enforceProxyRateLimit } from '../lib/proxy-rate-limit.js';
 import {
   PROXY_MAX_CREDENTIAL_RESPONSE_BYTES,
   capReadableStream,
@@ -20,6 +19,17 @@ import {
 import { errorCode } from '../lib/error-utils.js';
 
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
+/** @type {Promise<typeof import('../lib/proxy-rate-limit.js')> | null} */
+let proxyRateLimitModulePromise = null;
+
+// The distributed limiter pulls in Vercel's Node-only Blob client. Keep that
+// dependency outside the entrypoint's initialization path so preflight,
+// rejected-origin, and method-probe responses remain available even if a
+// deployment packages the optional storage transport incorrectly.
+function loadProxyRateLimit() {
+  proxyRateLimitModulePromise ||= import('../lib/proxy-rate-limit.js');
+  return proxyRateLimitModulePromise;
+}
 
 export default async function handler(req) {
   // Treat Origin as a server-side browser boundary, not merely a response
@@ -52,6 +62,7 @@ export default async function handler(req) {
 
   let rateLimit;
   try {
+    const { enforceProxyRateLimit } = await loadProxyRateLimit();
     rateLimit = await enforceProxyRateLimit(req);
   } catch {
     return new Response(JSON.stringify({
