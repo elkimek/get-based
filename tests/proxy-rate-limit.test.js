@@ -24,13 +24,13 @@ const blobMock = vi.hoisted(() => {
   };
 });
 
-vi.mock('../lib/vercel-blob-rest.js', async importOriginal => {
+vi.mock('@vercel/blob', async importOriginal => {
   const actual = await importOriginal();
   return {
     ...actual,
-    listBlobs: blobMock.list,
-    putBlob: blobMock.put,
-    deleteBlobs: blobMock.del,
+    list: blobMock.list,
+    put: blobMock.put,
+    del: blobMock.del,
   };
 });
 
