@@ -72,17 +72,24 @@ export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WITHINGS
   redirectWearableAuth(url);
 }
 
-function withingsTokenRequest(payload) {
-  const timeoutSignal = typeof AbortSignal !== 'undefined'
-    && typeof AbortSignal.timeout === 'function'
-    ? AbortSignal.timeout(TOKEN_REQUEST_TIMEOUT_MS)
-    : undefined;
-  return fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    ...(timeoutSignal ? { signal: timeoutSignal } : {}),
-  });
+async function withingsTokenRequest(payload) {
+  // AbortController predates AbortSignal.timeout across supported browsers.
+  // Build the deadline explicitly so older engines cannot silently fall back
+  // to the unbounded request that originally blocked the startup sequence.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort(new DOMException('Withings token request timed out', 'TimeoutError'));
+  }, TOKEN_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function withingsTokenRequestError(error, operation) {
