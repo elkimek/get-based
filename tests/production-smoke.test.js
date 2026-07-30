@@ -43,7 +43,7 @@ describe('production API smoke canary', () => {
     })).rejects.toThrow(/did not converge/);
   });
 
-  it('checks proxy liveness, proxy origin rejection, method handling, and share liveness', async () => {
+  it('checks proxy POST liveness, Withings validation, origin rejection, method handling, and share liveness', async () => {
     const fetchImpl = vi.fn(async (url, init) => {
       const pathname = new URL(url).pathname;
       const origin = init.headers.origin;
@@ -53,6 +53,21 @@ describe('production API smoke canary', () => {
       if (pathname === '/api/proxy' && init.method === 'GET') {
         return response(405, {}, { 'access-control-allow-origin': origin });
       }
+      if (pathname === '/api/proxy' && init.method === 'POST') {
+        const body = JSON.parse(init.body);
+        if (body.wearable_runtime_config) {
+          return response(200, { overrides: { fitbit: 'public-client-id' } }, {
+            'access-control-allow-origin': origin,
+          });
+        }
+        if (body.withings_token_exchange) {
+          return response(400, {
+            error: 'withings_token_exchange requires code, redirect_uri, client_id',
+          }, {
+            'access-control-allow-origin': origin,
+          });
+        }
+      }
       return response(204, null, { 'access-control-allow-origin': origin });
     });
 
@@ -60,7 +75,29 @@ describe('production API smoke canary', () => {
       baseUrl: 'https://app.getbased.health',
       fetchImpl,
     })).resolves.toBeUndefined();
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
+  });
+
+  it('rejects a deployment whose proxy POST adapter is still hanging', async () => {
+    const fetchImpl = vi.fn(async (url, init) => {
+      const pathname = new URL(url).pathname;
+      const origin = init.headers.origin;
+      if (pathname === '/api/proxy' && init.method === 'OPTIONS' && origin.endsWith('.invalid')) {
+        return response(403);
+      }
+      if (pathname === '/api/proxy' && init.method === 'GET') return response(405);
+      if (pathname === '/api/proxy' && init.method === 'POST') {
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      }
+      return response(204, null, { 'access-control-allow-origin': origin });
+    });
+
+    await expect(smokeProductionApis({
+      baseUrl: 'https://app.getbased.health',
+      fetchImpl,
+    })).rejects.toThrow(
+      'POST /api/proxy failed: The operation was aborted due to timeout',
+    );
   });
 
   it('validates the expected SHA before touching production', async () => {

@@ -25,6 +25,11 @@ const PROXY_URL     = '/api/proxy';
 const STATE_KEY     = 'withings-oauth-pending';
 const REFRESH_LEAD_MS  = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'withings-oauth-refresh';
+// Withings authorization codes must be exchanged promptly. Never let a
+// stalled proxy hold the startup sequence open until the hosting platform's
+// multi-minute function timeout; fail back to the rendered app with a useful
+// reconnect message instead.
+const TOKEN_REQUEST_TIMEOUT_MS = 20_000;
 
 export const DEFAULT_WITHINGS_SCOPES = ['user.info', 'user.metrics', 'user.activity', 'user.sleepevents'];
 
@@ -67,6 +72,31 @@ export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WITHINGS
   redirectWearableAuth(url);
 }
 
+function withingsTokenRequest(payload) {
+  const timeoutSignal = typeof AbortSignal !== 'undefined'
+    && typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(TOKEN_REQUEST_TIMEOUT_MS)
+    : undefined;
+  return fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    ...(timeoutSignal ? { signal: timeoutSignal } : {}),
+  });
+}
+
+function withingsTokenRequestError(error, operation) {
+  const name = error instanceof Error ? error.name : '';
+  const timedOut = name === 'TimeoutError' || name === 'AbortError';
+  /** @type {Error & { code?: string, status?: number }} */
+  const wrapped = new Error(timedOut
+    ? `Withings ${operation} timed out — please connect Withings again`
+    : `Withings ${operation} failed — check your connection and try again`);
+  wrapped.code = timedOut ? 'timeout' : 'network';
+  wrapped.status = 503;
+  return wrapped;
+}
+
 export async function completeOAuthCallback(urlParams) {
   const code = urlParams.get('code');
   const returnedState = urlParams.get('state');
@@ -87,17 +117,18 @@ export async function completeOAuthCallback(urlParams) {
     return { ok: false, error: 'OAuth flow expired — please try connecting again' };
   }
 
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  let res;
+  try {
+    res = await withingsTokenRequest({
       withings_token_exchange: {
         code,
         redirect_uri: pending.redirectUri,
         client_id: pending.clientId,
       },
-    }),
-  });
+    });
+  } catch (error) {
+    return { ok: false, error: withingsTokenRequestError(error, 'token exchange').message };
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) return { ok: false, error: body?.error || body?.error_description || `Token exchange failed (${res.status})` };
   // Withings wraps successful responses in `{status: 0, body: {...}}` —
@@ -122,13 +153,14 @@ export function isWithingsCallback(urlParams) {
 }
 
 export async function refreshTokens({ clientId, refreshToken }) {
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  let res;
+  try {
+    res = await withingsTokenRequest({
       withings_token_refresh: { refresh_token: refreshToken, client_id: clientId },
-    }),
-  });
+    });
+  } catch (error) {
+    throw withingsTokenRequestError(error, 'token refresh');
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     /** @type {Error & { status?: number }} */
