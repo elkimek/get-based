@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 546 |
-| Internal import edges | 2407 |
-| Dynamic internal edges | 65 |
+| Internal import edges | 2406 |
+| Dynamic internal edges | 66 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -1041,7 +1041,7 @@ Vercel request handlers and hosted API entry points.
 
 <details><summary><code>proxy</code> family — 1 module</summary>
 
-- [`api/proxy.js`](api/proxy.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`api/proxy.js`](api/proxy.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) *(dynamic)*, [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
 
 </details>
 
@@ -1073,7 +1073,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 - [`lib/proxy-network.js`](lib/proxy-network.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
 - [`lib/proxy-policy.js`](lib/proxy-policy.js) → no in-scope imports
-- [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
+- [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) → no in-scope imports
 - [`lib/proxy-upstream.js`](lib/proxy-upstream.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-network.js`](lib/proxy-network.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
 
 </details>

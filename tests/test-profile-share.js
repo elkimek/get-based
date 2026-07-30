@@ -168,9 +168,10 @@ assert('Shared profile import uses existing importDataJSON path',
   profileShareSrc.includes("await importDataJSON(new File([json], 'getbased-shared-profile.json'"));
 
 console.log('5. Vercel Blob API safeguards');
-assert('Package avoids the @vercel/blob runtime dependency',
-  !packageJson.dependencies?.['@vercel/blob']);
-assert('API uses the shared private Vercel Blob REST boundary',
+assert('Edge API avoids importing the Node-only @vercel/blob client',
+  !apiShareSrc.includes("from '@vercel/blob'"));
+assert('Edge API uses the shared private Vercel Blob REST boundary',
+  packageJson.dependencies?.['@vercel/blob'] === '2.4.0' &&
   apiShareSrc.includes("from '../lib/vercel-blob-rest.js'") &&
   apiShareSrc.includes("access: 'private'") &&
   apiShareSrc.includes('BLOB_READ_WRITE_TOKEN'));
