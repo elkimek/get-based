@@ -125,7 +125,7 @@ async function hasCachedModelAssets(model) {
   const needles = [
     String(model),
     encodeURIComponent(String(model)),
-    String(model).replace('/', '%2F'),
+    String(model).replaceAll('/', '%2F'),
   ];
   try {
     for (const cacheName of await caches.keys()) {
@@ -420,7 +420,7 @@ export async function removeLocalVoiceModel(kind, model) {
   const needles = [
     String(model),
     encodeURIComponent(String(model)),
-    String(model).replace('/', '%2F'),
+    String(model).replaceAll('/', '%2F'),
   ];
   let removed = 0;
   for (const cacheName of await caches.keys()) {

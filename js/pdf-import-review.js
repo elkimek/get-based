@@ -571,7 +571,7 @@ export function showImportPreview(parseResult) {
       const piiLabel = parseResult.privacyMethod?.startsWith('ollama') ? `PII: ${t.pii}s (${getOllamaPIIModel()})` : 'PII: regex';
       const provider = getAIProvider();
       const modelLabel = provider === 'ollama' ? getOllamaMainModel() : provider === 'venice' ? getVeniceModelDisplay() : provider === 'openrouter' ? getOpenRouterModelDisplay() : getActiveModelDisplay();
-      html += `<div class="import-debug-note">&#9202; ${piiLabel} &nbsp;|&nbsp; Analysis: ${t.analysis}s (${modelLabel})</div>`;
+      html += `<div class="import-debug-note">&#9202; ${escapeHTML(piiLabel)} &nbsp;|&nbsp; Analysis: ${escapeHTML(t.analysis)}s (${escapeHTML(modelLabel)})</div>`;
     }
     if (parseResult.privacyOriginal && parseResult.privacyObfuscated) {
       html += `<button type="button" class="import-btn import-btn-secondary import-privacy-details-btn" ${importReviewActionAttrs('privacy-details')}>&#128269; View privacy details</button>`;

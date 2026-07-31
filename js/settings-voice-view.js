@@ -72,7 +72,11 @@ function localVoiceOptions(value) {
 }
 
 export function voiceOptionLabel(voice) {
-  return [voice.name || voice.id, voice.language, voice.gender].filter(Boolean).join(' · ');
+  return [
+    voice.name || voice.id,
+    voice.language,
+    voice.descriptor || voice.gender,
+  ].filter(Boolean).join(' · ');
 }
 
 function cloudVoiceOptions(provider, selectedId) {

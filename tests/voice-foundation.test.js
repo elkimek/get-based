@@ -21,6 +21,7 @@ import { encodeWav, resampleAudio } from '../js/voice-audio.js';
 import { resolveLocalSttLanguage } from '../js/voice-model-catalog.js';
 import {
   isLocalVoiceModelReady,
+  removeLocalVoiceModel,
   resolveLocalBackend,
   verifyLocalVoiceModelReady,
 } from '../js/voice-local-engine.js';
@@ -289,6 +290,22 @@ describe('local transcription language', () => {
 
     await expect(verifyLocalVoiceModelReady('stt', model, 'wasm')).resolves.toBe(false);
     expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('matches every encoded slash when removing nested model cache paths', async () => {
+    const deleteEntry = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal('caches', {
+      keys: vi.fn().mockResolvedValue(['transformers-cache']),
+      open: vi.fn().mockResolvedValue({
+        keys: vi.fn().mockResolvedValue([
+          new Request('https://models.test/org%2Ffamily%2Fmodel/config.json'),
+        ]),
+        delete: deleteEntry,
+      }),
+    });
+
+    await expect(removeLocalVoiceModel('stt', 'org/family/model')).resolves.toBe(1);
+    expect(deleteEntry).toHaveBeenCalledOnce();
   });
 });
 

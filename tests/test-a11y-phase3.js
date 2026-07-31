@@ -117,9 +117,9 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // ─── 5. Settings tablist wiring ───
   assert('settings-tabs-bar has role=tablist',
     settingsSrc.includes('class="settings-tabs-bar" role="tablist"'));
-  // 6 tabs each with runtime aria-selected expression
+  // 7 tabs each with runtime aria-selected expression
   const ariaSelMatches = (settingsSrc.match(/aria-selected="\$\{_activeSettingsTab/g) || []).length;
-  assert('all 6 settings tabs have runtime aria-selected', ariaSelMatches === 6, `found ${ariaSelMatches}`);
+  assert('all 7 settings tabs have runtime aria-selected', ariaSelMatches === 7, `found ${ariaSelMatches}`);
   assert('view-toggle (Charts/Table/Heatmap) is a tablist',
     categoryPageViewSrc.includes('class="view-toggle" role="tablist"'));
 

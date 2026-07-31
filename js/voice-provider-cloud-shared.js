@@ -86,13 +86,21 @@ export async function relayVoices(provider, { apiKey, signal } = {}) {
   const rows = provider === 'elevenlabs'
     ? payload?.voices
     : payload?.voices || payload?.data;
-  return (Array.isArray(rows) ? rows : []).map(voice => ({
-    id: String(voice?.voice_id || voice?.id || ''),
-    name: String(voice?.name || voice?.voice_id || voice?.id || ''),
-    language: String(voice?.language || voice?.labels?.language || ''),
-    gender: String(voice?.gender || voice?.labels?.gender || ''),
-    previewUrl: String(voice?.preview_url || ''),
-  })).filter(voice => voice.id);
+  return (Array.isArray(rows) ? rows : []).map(voice => {
+    const rawDescriptor = String(voice?.gender || voice?.labels?.gender || '').toLowerCase();
+    const descriptor = rawDescriptor === 'female'
+      ? 'female'
+      : rawDescriptor === 'male'
+        ? 'male'
+        : '';
+    return {
+      id: String(voice?.voice_id || voice?.id || ''),
+      name: String(voice?.name || voice?.voice_id || voice?.id || ''),
+      language: String(voice?.language || voice?.labels?.language || ''),
+      descriptor,
+      previewUrl: String(voice?.preview_url || ''),
+    };
+  }).filter(voice => voice.id);
 }
 
 export async function testRelayProvider(provider, options = {}) {

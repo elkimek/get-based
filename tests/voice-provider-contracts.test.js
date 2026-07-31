@@ -135,7 +135,11 @@ describe('hosted voice relay client', () => {
         headers: { 'Content-Type': 'audio/mpeg' },
       }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        voices: [{ voice_id: 'voice-1', name: 'Calm', labels: { language: 'en' } }],
+        voices: [{
+          voice_id: 'voice-1',
+          name: 'Calm',
+          labels: { language: 'en', gender: 'female' },
+        }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
     const speech = await relaySynthesis('elevenlabs', {
@@ -154,6 +158,7 @@ describe('hosted voice relay client', () => {
       id: 'voice-1',
       name: 'Calm',
       language: 'en',
+      descriptor: 'female',
     })]);
   });
 

@@ -9,7 +9,7 @@ function normalizeVoice(voice) {
     id: String(voice?.id || ''),
     name: String(voice?.name || ''),
     language: String(voice?.language || ''),
-    gender: String(voice?.gender || ''),
+    descriptor: String(voice?.descriptor || ''),
   };
 }
 
