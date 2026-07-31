@@ -227,10 +227,7 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
     );
   });
 
-  await page.evaluate(async () => {
-    const settings = await import('/js/settings.js');
-    settings.openSettingsModal('voice');
-  });
+  await openVoiceSettingsFromUi(page);
   await expect(page.locator('[data-tab-panel="voice"]')).toHaveClass(/\bactive\b/);
   await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Where voice is processed');
   await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Quality and speed');
@@ -466,10 +463,7 @@ test('cloud connection controls preserve masked keys, labels, and provider error
     });
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.evaluate(async () => {
-    const settings = await import('/js/settings.js');
-    settings.openSettingsModal('voice');
-  });
+  await openVoiceSettingsFromUi(page);
 
   const xaiCard = page.locator('[data-voice-connection="xai"]');
   await xaiCard.locator('summary').click();
