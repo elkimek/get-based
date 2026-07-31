@@ -11,6 +11,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.11.0', date: '2026-07-31', title: 'Talk and listen in Chat',
+    items: [
+      '<b>Chat now supports voice.</b> Tap the microphone to dictate a message, or choose Listen under an assistant reply to hear it read aloud. You can also have new replies read automatically.',
+      '<b>You choose where speech is processed.</b> Keep dictation and spoken replies on this device after a one-time model download, connect a compatible voice server you control, or use xAI or ElevenLabs with your own API key.',
+      '<b>Voice is private by default.</b> On-device voice keeps recordings and reply text in your browser. Other services receive only the audio or text you ask them to process.',
+      '<b>Make it sound right for you.</b> Choose separate services for dictation and listening, then adjust the language, voice, speaking speed, and quality in Settings → Voice.',
+    ]
+  },
+  {
     version: '1.10.397', date: '2026-07-27', title: 'Smoother mobile chat and clearer Biology Scores',
     items: [
       '<b>Chat is smoother on mobile.</b> The header and message box stay visible while typing, and choosing or starting a conversation takes you straight back to the chat.',

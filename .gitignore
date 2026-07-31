@@ -17,7 +17,7 @@ tests/.vitest-coverage/
 tests/.playwright-coverage/
 labcharts-*.json
 test-*.json
-node_modules/
+/node_modules
 dist-docs/
 docs/.vitepress/cache/
 BingSiteAuth.xml

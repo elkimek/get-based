@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = process.env.PORT || '8000';
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === '1';
+const webGpuArgs = process.env.PLAYWRIGHT_WEBGPU === '1'
+  ? ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=vulkan']
+  : [];
 
 export default defineConfig({
   testDir: './tests/playwright',
@@ -20,7 +23,7 @@ export default defineConfig({
     serviceWorkers: 'block',
     launchOptions: {
       ...(chromiumExecutable ? { executablePath: chromiumExecutable } : {}),
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', ...webGpuArgs],
     },
   },
   webServer: {

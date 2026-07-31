@@ -37,6 +37,7 @@ import {
   toggleHDMode,
   togglePersonalityBar,
   toggleThreadRail,
+  toggleVoiceRecording,
   updateChatContextStatusIfLoaded,
   updateChatHeaderModelIfLoaded,
   useChatPrompt,
@@ -334,6 +335,7 @@ configureShellChatActionDeps({
   toggleChatPanel,
   toggleChatFullscreen,
   togglePersonalityBar,
+  toggleVoiceRecording,
 });
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });

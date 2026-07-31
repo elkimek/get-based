@@ -226,7 +226,11 @@ if (hasState) {
   const bar1 = buildActionBar(1);
   assert('buildActionBar for AI msg has action bar', bar1.includes('chat-action-bar'), 'contains .chat-action-bar');
   assert('Non-last AI msg has NO Regenerate', !bar1.includes('Regenerate'), 'no Regenerate for non-last');
-  assert('AI msg has NO Read button (removed)', !bar1.includes('Read'), 'no Read button');
+  assert('AI msg has Listen button', bar1.includes('Listen'), 'Listen button');
+  assert('AI msg Listen button uses delegated action',
+    bar1.includes('data-chat-message-action="toggle-message-speech"')
+      && bar1.includes('data-chat-message-index="1"'),
+    'delegated Listen');
   assert('AI msg has Copy button', bar1.includes('Copy'), 'contains Copy');
   assert('AI msg copy button uses delegated action',
     bar1.includes('data-chat-message-action="copy-message"')
@@ -237,7 +241,7 @@ if (hasState) {
   const bar3 = buildActionBar(3);
   assert('Last AI msg has Regenerate', bar3.includes('Regenerate'), 'contains Regenerate');
   assert('Last AI msg has Copy', bar3.includes('Copy'), 'contains Copy');
-  assert('Last AI msg has NO Read', !bar3.includes('Read'), 'no Read');
+  assert('Last AI msg has Listen', bar3.includes('Listen'), 'Listen button');
   assert('Last AI msg regenerate button uses delegated action',
     bar3.includes('data-chat-message-action="regenerate-last-message"'),
     'delegated regenerate');

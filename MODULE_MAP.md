@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 546 |
-| Internal import edges | 2406 |
-| Dynamic internal edges | 66 |
+| Modules | 576 |
+| Internal import edges | 2488 |
+| Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -45,6 +45,7 @@ These implementation modules may only be imported by their public facade.
 - [`js/main.js`](js/main.js)
 - [`api/commit.js`](api/commit.js)
 - [`api/proxy.js`](api/proxy.js)
+- [`api/voice.js`](api/voice.js)
 - [`api/share.js`](api/share.js)
 - [`dev-server.js`](dev-server.js)
 - [`service-worker.js`](service-worker.js)
@@ -55,12 +56,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 246 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
-| [`js/state.js`](js/state.js) | 171 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/caught-error.js`](js/caught-error.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/utils.js`](js/utils.js) | 250 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
+| [`js/state.js`](js/state.js) | 173 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/caught-error.js`](js/caught-error.js) | 82 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 76 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 25 |
-| [`js/api.js`](js/api.js) | 65 | [`js/chat-send.js`](js/chat-send.js) | 22 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 26 |
+| [`js/api.js`](js/api.js) | 65 | [`js/chat-send.js`](js/chat-send.js) | 23 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/views.js`](js/views.js) | 22 |
 | [`js/schema.js`](js/schema.js) | 34 | [`js/wearables-connect.js`](js/wearables-connect.js) | 21 |
 | [`js/crypto.js`](js/crypto.js) | 31 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
@@ -69,7 +70,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/lab-context.js`](js/lab-context.js) | 17 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/sun.js`](js/sun.js) | 17 |
-| [`js/context-cards-runtime.js`](js/context-cards-runtime.js) | 16 | [`js/cycle-import.js`](js/cycle-import.js) | 15 |
+| [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 17 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 15 |
 
 ## Existing cyclic components
 
@@ -129,8 +130,8 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>app</code> family — 9 modules</summary>
 
-- [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) → [`js/app-chat-hooks.js`](js/app-chat-hooks.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/chat.js`](js/chat.js)
-- [`js/app-chat-hooks.js`](js/app-chat-hooks.js) → [`js/api.js`](js/api.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-empty-state.js`](js/chat-empty-state.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding-host-bindings.js`](js/chat-onboarding-host-bindings.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-thread-search.js`](js/chat-thread-search.js)
+- [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) → [`js/app-chat-hooks.js`](js/app-chat-hooks.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/chat.js`](js/chat.js), [`js/voice-loader.js`](js/voice-loader.js)
+- [`js/app-chat-hooks.js`](js/app-chat-hooks.js) → [`js/api.js`](js/api.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-empty-state.js`](js/chat-empty-state.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding-host-bindings.js`](js/chat-onboarding-host-bindings.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-thread-search.js`](js/chat-thread-search.js), [`js/voice-loader.js`](js/voice-loader.js)
 - [`js/app-event-listeners.js`](js/app-event-listeners.js) → [`js/data.js`](js/data.js), [`js/nav.js`](js/nav.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js)
 - [`js/app-feature-modules.js`](js/app-feature-modules.js) → [`js/app-foundation-modules.js`](js/app-foundation-modules.js), [`js/app-ui-shell-modules.js`](js/app-ui-shell-modules.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/light-sun-loader.js`](js/light-sun-loader.js)
 - [`js/app-foundation-modules.js`](js/app-foundation-modules.js) → [`js/constants.js`](js/constants.js), [`js/legal-consent.js`](js/legal-consent.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
@@ -145,7 +146,7 @@ Native browser modules shipped with the static application.
 
 - [`js/backup-cycle.js`](js/backup-cycle.js) → [`js/cycle-store.js`](js/cycle-store.js)
 - [`js/backup-serialization.js`](js/backup-serialization.js) → no in-scope imports
-- [`js/backup.js`](js/backup.js) → [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/utils.js`](js/utils.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/backup.js`](js/backup.js) → [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/utils.js`](js/utils.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js), [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 
@@ -265,12 +266,12 @@ Native browser modules shipped with the static application.
 - [`js/chat-render.js`](js/chat-render.js) → [`js/api.js`](js/api.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-empty-state.js`](js/chat-empty-state.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render-runtime.js`](js/chat-render-runtime.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-runtime.js`](js/chat-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js)
 - [`js/chat-send-runtime.js`](js/chat-send-runtime.js) → [`js/recommendations-runtime.js`](js/recommendations-runtime.js)
-- [`js/chat-send.js`](js/chat-send.js) → [`js/api.js`](js/api.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-prompt-context.js`](js/chat-prompt-context.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send-runtime.js`](js/chat-send-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/constants.js`](js/constants.js), [`js/image-utils.js`](js/image-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-send.js`](js/chat-send.js) → [`js/api.js`](js/api.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-prompt-context.js`](js/chat-prompt-context.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send-runtime.js`](js/chat-send-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/constants.js`](js/constants.js), [`js/image-utils.js`](js/image-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-loader.js`](js/voice-loader.js)
 - [`js/chat-storage-safety.js`](js/chat-storage-safety.js) → no in-scope imports
 - [`js/chat-summaries.js`](js/chat-summaries.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/markdown.js`](js/markdown.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-thread-search.js`](js/chat-thread-search.js) → [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-threads.js`](js/chat-threads.js) → [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/chat-thread-search.js`](js/chat-thread-search.js), [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync.js`](js/sync.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
-- [`js/chat-window-bindings.js`](js/chat-window-bindings.js) → [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js)
+- [`js/chat-window-bindings.js`](js/chat-window-bindings.js) → [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/voice-loader.js`](js/voice-loader.js)
 - [`js/chat.js`](js/chat.js) → [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-marker-prompts.js`](js/chat-marker-prompts.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-window-bindings.js`](js/chat-window-bindings.js)
 
 </details>
@@ -756,7 +757,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 14 modules</summary>
+<details><summary><code>settings</code> family — 18 modules</summary>
 
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -771,7 +772,11 @@ Native browser modules shipped with the static application.
 - [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) *(dynamic)*, [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-tweaks.js`](js/settings-tweaks.js) → [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
-- [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-display-panel.js`](js/settings-display-panel.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings-tweaks.js`](js/settings-tweaks.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
+- [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js) → [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
+- [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/utils.js`](js/utils.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/settings-voice-panel.js`](js/settings-voice-panel.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/settings-voice-view.js`](js/settings-voice-view.js), [`js/utils.js`](js/utils.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/settings-voice-view.js`](js/settings-voice-view.js) → [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/utils.js`](js/utils.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-display-panel.js`](js/settings-display-panel.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings-tweaks.js`](js/settings-tweaks.js), [`js/settings-voice-panel.js`](js/settings-voice-panel.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
 
 </details>
 
@@ -860,7 +865,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>sync</code> family — 69 modules</summary>
 
 - [`js/sync-actions.js`](js/sync-actions.js) → [`js/state.js`](js/state.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/utils.js`](js/utils.js)
-- [`js/sync-apply.js`](js/sync-apply.js) → [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js)
+- [`js/sync-apply.js`](js/sync-apply.js) → [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
 - [`js/sync-chat-apply.js`](js/sync-chat-apply.js) → [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-configure.js`](js/sync-configure.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-cutover.js`](js/sync-cutover.js) → [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-payload.js`](js/sync-payload.js)
@@ -905,7 +910,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-lifecycle.js`](js/sync-lifecycle.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-messenger.js`](js/sync-messenger.js) → [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-payload-codec.js`](js/sync-payload-codec.js) → no in-scope imports
-- [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js) → [`js/crypto.js`](js/crypto.js)
+- [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js) → [`js/crypto.js`](js/crypto.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
 - [`js/sync-payload.js`](js/sync-payload.js) → [`js/sync-payload-codec.js`](js/sync-payload-codec.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js)
 - [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js) → no in-scope imports
 - [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js) → [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js), [`js/utils.js`](js/utils.js)
@@ -986,6 +991,33 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>voice</code> family — 22 modules</summary>
+
+- [`js/voice-audio.js`](js/voice-audio.js) → no in-scope imports
+- [`js/voice-capture.js`](js/voice-capture.js) → no in-scope imports
+- [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js) → no in-scope imports
+- [`js/voice-controller.js`](js/voice-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-capture.js`](js/voice-capture.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-service.js`](js/voice-service.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js), [`js/voice-text.js`](js/voice-text.js)
+- [`js/voice-loader.js`](js/voice-loader.js) → [`js/state.js`](js/state.js), [`js/voice-controller.js`](js/voice-controller.js) *(dynamic)*
+- [`js/voice-local-engine.js`](js/voice-local-engine.js) → [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
+- [`js/voice-local-stt-worker.js`](js/voice-local-stt-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
+- [`js/voice-local-tts-worker.js`](js/voice-local-tts-worker.js) → [`js/caught-error.js`](js/caught-error.js)
+- [`js/voice-model-catalog.js`](js/voice-model-catalog.js) → no in-scope imports
+- [`js/voice-player.js`](js/voice-player.js) → no in-scope imports
+- [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) → [`js/voice-audio.js`](js/voice-audio.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
+- [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js) → no in-scope imports
+- [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
+- [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
+- [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
+- [`js/voice-provider-registry.js`](js/voice-provider-registry.js) → [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) *(dynamic)*, [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) *(dynamic)*, [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) *(dynamic)*, [`js/voice-provider-xai.js`](js/voice-provider-xai.js) *(dynamic)*
+- [`js/voice-provider-xai.js`](js/voice-provider-xai.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
+- [`js/voice-response-utils.js`](js/voice-response-utils.js) → no in-scope imports
+- [`js/voice-service.js`](js/voice-service.js) → [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/voice-settings-schema.js`](js/voice-settings-schema.js) → no in-scope imports
+- [`js/voice-settings-storage.js`](js/voice-settings-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
+- [`js/voice-text.js`](js/voice-text.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>wearable</code> family — 1 module</summary>
 
 - [`js/wearable-adapters.js`](js/wearable-adapters.js) → no in-scope imports
@@ -1051,15 +1083,22 @@ Vercel request handlers and hosted API entry points.
 
 </details>
 
+<details><summary><code>voice</code> family — 1 module</summary>
+
+- [`api/voice.js`](api/voice.js) → [`lib/voice-relay-handler.js`](lib/voice-relay-handler.js)
+
+</details>
+
 ## server-shared modules
 
 Node-only policy and transport code shared by hosted runtimes.
 
-<details><summary><code>dev</code> family — 3 modules</summary>
+<details><summary><code>dev</code> family — 4 modules</summary>
 
 - [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js) → [`lib/proxy-policy.js`](lib/proxy-policy.js)
 - [`lib/dev-catalog.js`](lib/dev-catalog.js) → no in-scope imports
 - [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`lib/dev-voice-relay.js`](lib/dev-voice-relay.js) → [`lib/voice-relay-handler.js`](lib/voice-relay-handler.js)
 
 </details>
 
@@ -1084,13 +1123,20 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
+<details><summary><code>voice</code> family — 2 modules</summary>
+
+- [`lib/voice-relay-handler.js`](lib/voice-relay-handler.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) *(dynamic)*, [`lib/proxy-upstream.js`](lib/proxy-upstream.js), [`lib/voice-relay-policy.js`](lib/voice-relay-policy.js)
+- [`lib/voice-relay-policy.js`](lib/voice-relay-policy.js) → [`lib/error-utils.js`](lib/error-utils.js)
+
+</details>
+
 ## local-server modules
 
 Local development server entry point.
 
 <details><summary><code>dev</code> family — 1 module</summary>
 
-- [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+- [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/dev-voice-relay.js`](lib/dev-voice-relay.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
 
 </details>
 

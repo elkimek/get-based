@@ -21,6 +21,7 @@ import {
   cleanupDiscussionState, configureChatDiscussion, restoreDiscussionContinuePrompt,
 } from './chat-discussion.js';
 import { configureChatOnboarding } from './chat-onboarding.js';
+import { stopVoiceActivity } from './voice-loader.js';
 
 configureChatDiscussion({
   createTypewriter,
@@ -45,6 +46,7 @@ configureChatThreadDeps({
   renderSavedSummaries,
   restoreDiscussionContinuePrompt,
   saveChatHistory,
+  stopVoiceActivity,
   updateChatHeaderTitle,
   updatePersonalityBar,
 });

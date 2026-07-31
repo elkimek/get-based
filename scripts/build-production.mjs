@@ -27,6 +27,8 @@ const PRODUCTION_RAW_JS_ASSETS = new Set([
   '/js/legal-consent-bootstrap.js',
   '/js/service-worker-update.js',
   '/js/lens-local-worker.js',
+  '/js/voice-local-stt-worker.js',
+  '/js/voice-local-tts-worker.js',
   '/js/lens-local-utils.js',
   '/js/lens-local-store.js',
 ]);

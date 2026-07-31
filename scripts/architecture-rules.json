@@ -62,6 +62,7 @@
     "js/main.js",
     "api/commit.js",
     "api/proxy.js",
+    "api/voice.js",
     "api/share.js",
     "dev-server.js",
     "service-worker.js"

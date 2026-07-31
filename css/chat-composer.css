@@ -75,15 +75,48 @@
 }
 .chat-discuss-done-btn:hover { border-color: var(--text-muted); color: var(--text-primary); }
 /* ─── Chat Image Attachments ─── */
-.chat-attach-btn, .chat-hd-btn {
+.chat-attach-btn, .chat-hd-btn, .chat-voice-btn {
   width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
   background: var(--bg-card); color: var(--text-muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: all 0.2s; padding: 0;
 }
-.chat-attach-btn:hover, .chat-hd-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
+.chat-attach-btn:hover, .chat-hd-btn:hover, .chat-voice-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
 .chat-hd-btn { font-size: 11px; font-weight: 700; font-family: var(--font-display); letter-spacing: 0.5px; }
 .chat-hd-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chat-voice-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chat-voice-btn.recording {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 14%, var(--bg-card));
+  color: var(--red);
+  animation: chatVoicePulse 1.4s ease-in-out infinite;
+}
+.chat-voice-btn.busy {
+  cursor: wait;
+  opacity: .7;
+}
+.chat-voice-status {
+  min-height: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+.chat-voice-status.error {
+  color: var(--red);
+}
+@keyframes chatVoicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 26%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
 .chat-attach-preview {
   display: none; gap: 8px; padding: 8px 0 4px; align-items: center; flex-wrap: wrap;
 }
@@ -130,6 +163,6 @@
   background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 @media (pointer: coarse) {
-  .chat-attach-btn, .chat-hd-btn { width: 44px; height: 44px; }
+  .chat-attach-btn, .chat-hd-btn, .chat-voice-btn { width: 44px; height: 44px; }
   .chat-attach-remove { opacity: 1; width: 24px; height: 24px; }
 }

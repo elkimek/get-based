@@ -42,6 +42,7 @@ const chatThreadDeps = {
   restoreDiscussionContinuePrompt: noop,
   saveChatHistory: asyncNoop,
   showPromptDialog,
+  stopVoiceActivity: noop,
   updateChatHeaderTitle: noop,
   updatePersonalityBar: noop,
 };
@@ -218,6 +219,7 @@ export function createNewThread({ sync = true } = {}) {
     notifyThreadIndexBlocked();
     return null;
   }
+  chatThreadDeps.stopVoiceActivity();
   const id = generateThreadId();
   const now = new Date().toISOString();
   const p = chatThreadDeps.getActivePersonality() || defaultPersonality();
@@ -254,6 +256,7 @@ export function createNewThread({ sync = true } = {}) {
 export async function switchToThread(threadId) {
   closeThreadRailAfterMobileSelection();
   if (threadId === state.currentThreadId) return;
+  chatThreadDeps.stopVoiceActivity();
   // Save current thread messages
   await chatThreadDeps.saveChatHistory();
   chatThreadDeps.cleanupDiscussionState();

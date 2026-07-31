@@ -6,6 +6,7 @@ import { getExcludedImportIndices, showImportPreview } from '../js/pdf-import-re
 
 afterEach(() => {
   document.body.replaceChildren();
+  localStorage.clear();
 });
 
 describe('PDF import review boundaries', () => {
@@ -26,5 +27,26 @@ describe('PDF import review boundaries', () => {
     const unusableResult = { markers: null };
 
     expect(() => showImportPreview(unusableResult)).not.toThrow();
+  });
+
+  it('renders configurable debug model labels as text instead of markup', () => {
+    localStorage.setItem('labcharts-debug', 'true');
+    localStorage.setItem('labcharts-ollama-model', '<img src=x onerror=alert(1)>');
+    document.body.innerHTML = `
+      <div id="import-modal-overlay">
+        <div id="import-modal"></div>
+      </div>`;
+
+    showImportPreview({
+      date: '2026-07-31',
+      fileName: 'safe.pdf',
+      markers: [],
+      privacyMethod: 'ollama',
+      timings: { pii: 1, analysis: 2 },
+    });
+
+    const debugNote = document.querySelector('.import-debug-note');
+    expect(debugNote?.querySelector('img')).toBeNull();
+    expect(debugNote?.textContent).toContain('<img src=x onerror=alert(1)>');
   });
 });

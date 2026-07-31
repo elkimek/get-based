@@ -27,12 +27,16 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 
 ## Runtime-loaded (not vendored)
 
-The browser-local Knowledge Base lens loads these from jsdelivr at runtime; they are not bundled with this repository.
+The browser-local Knowledge Base and Voice features load these from jsdelivr or
+Hugging Face at runtime; they are not bundled with this repository.
 
-| Module | License |
-|---|---|
-| [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) | Apache-2.0 |
-| `onnxruntime-web` (transitive) | MIT |
+| Module / model | Pinned version / repository | License |
+|---|---|---|
+| [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) | 4.1.0 | Apache-2.0 |
+| `onnxruntime-web` (transitive) | via Transformers.js / Kokoro.js | MIT |
+| [`kokoro-js`](https://github.com/hexgrad/kokoro) | 1.2.1 | Apache-2.0 |
+| [Whisper Large v3 Turbo ONNX](https://huggingface.co/onnx-community/whisper-large-v3-turbo) and [Small ONNX](https://huggingface.co/onnx-community/whisper-small) | `onnx-community` model repositories | Apache-2.0 |
+| [Kokoro 82M v1.0 ONNX](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) | `onnx-community/Kokoro-82M-v1.0-ONNX` | Apache-2.0 |
 
 ## Notes
 

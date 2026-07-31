@@ -75,6 +75,11 @@ import {
   isWearablesStylesheetLoaded,
   loadWearablesStylesheetForAction,
 } from './wearables-runtime.js';
+import {
+  hydrateVoiceSettingsPanel,
+  installVoiceSettingsPanel,
+  renderVoiceSettingsPanel,
+} from './settings-voice-panel.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
@@ -342,6 +347,7 @@ function installSettingsDelegates(modal) {
   modal.dataset.delegatedActions = '1';
   modal.addEventListener('click', handleSettingsClick);
   modal.addEventListener('change', handleSettingsChange);
+  modal.addEventListener('submit', event => event.preventDefault());
 }
 
 installSunDataSourceDelegates();
@@ -380,6 +386,10 @@ export function openSettingsModal(tab) {
       <button role="tab" aria-selected="${_activeSettingsTab === 'ai'}" aria-controls="settings-tab-ai" tabindex="${_activeSettingsTab === 'ai' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab="ai" data-settings-tab="ai">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
         AI
+      </button>
+      <button role="tab" aria-selected="${_activeSettingsTab === 'voice'}" aria-controls="settings-tab-voice" tabindex="${_activeSettingsTab === 'voice' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'voice' ? ' active' : ''}" data-tab="voice" data-settings-tab="voice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
+        Voice
       </button>
       <button role="tab" aria-selected="${_activeSettingsTab === 'privacy'}" aria-controls="settings-tab-privacy" tabindex="${_activeSettingsTab === 'privacy' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" data-settings-tab="privacy">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -441,6 +451,8 @@ export function openSettingsModal(tab) {
       </div>
     </div>
 
+    ${renderVoiceSettingsPanel(_activeSettingsTab === 'voice')}
+
     <!-- Privacy Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy">
       <div class="settings-group-title">AI Privacy Protection</div>
@@ -499,6 +511,7 @@ export function openSettingsModal(tab) {
     </div>
     </div>`;
   installSettingsDelegates(modal);
+  installVoiceSettingsPanel(modal);
   openModalOverlay(overlay);
   void initSettingsProviderPanels();
   loadBackupSnapshots();
@@ -594,6 +607,9 @@ export function switchSettingsTab(tabId) {
   // Re-run init for tabs that need async setup
   if (tabId === 'ai') {
     void initSettingsProviderPanels();
+  }
+  if (tabId === 'voice') {
+    hydrateVoiceSettingsPanel();
   }
   if (tabId === 'data') {
     refreshDataEntriesSection();

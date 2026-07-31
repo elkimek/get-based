@@ -37,6 +37,7 @@ const DEFERRED_UI_BOUNDARIES = [
   ['js/profile-share.js', 'js/profile-share-loader.js', 'eager-action', 'tests/playwright/profile-share-loader-browser-coverage.spec.js'],
   ['js/settings.js', 'js/settings-loader.js', 'eager-action', 'tests/playwright/settings-loader-browser-coverage.spec.js'],
   ['js/settings-sync-panel-impl.js', 'js/settings-sync-panel.js', 'load-gated-render', 'tests/playwright/settings-sync-panel-loader-browser-coverage.spec.js'],
+  ['js/voice-controller.js', 'js/voice-loader.js', 'eager-action', 'tests/playwright/voice-browser.spec.js'],
   ['js/wearables-connect.js', 'js/wearables-connect-loader.js', 'eager-action', 'tests/playwright/wearables-connect-loader-browser-coverage.spec.js'],
 ].map(([implementation, loader, ownership, coverage]) => ({
   implementation,

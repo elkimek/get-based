@@ -1,0 +1,541 @@
+// @vitest-environment jsdom
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { state } from '../js/state.js';
+import {
+  buildActionBar,
+  configureChatMessageActionDeps,
+} from '../js/chat-actions.js';
+import {
+  installVoiceSettingsPanel,
+  renderVoiceSettingsPanel,
+} from '../js/settings-voice-panel.js';
+import { voiceProviderKeyStatus } from '../js/settings-voice-view.js';
+import { VoiceCaptureSession, preferredMimeType } from '../js/voice-capture.js';
+import {
+  configureVoiceLocalEngine,
+  terminateLocalVoiceWorker,
+} from '../js/voice-local-engine.js';
+import { VoicePlayer, trimPcmEdgeSilence } from '../js/voice-player.js';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+class FakeMediaRecorder extends EventTarget {
+  static isTypeSupported(type) {
+    return type === 'audio/webm;codecs=opus';
+  }
+
+  constructor(_stream, options = {}) {
+    super();
+    this.mimeType = options.mimeType || 'audio/webm';
+    this.state = 'inactive';
+  }
+
+  start() {
+    this.state = 'recording';
+  }
+
+  stop() {
+    const dataEvent = new Event('dataavailable');
+    Object.defineProperty(dataEvent, 'data', {
+      value: new Blob(['voice'], { type: this.mimeType }),
+    });
+    this.dispatchEvent(dataEvent);
+    this.state = 'inactive';
+    this.dispatchEvent(new Event('stop'));
+  }
+}
+
+class FakeAudio extends EventTarget {
+  constructor() {
+    super();
+    this.paused = true;
+    this.src = '';
+    this.playbackRate = 1;
+  }
+
+  play() {
+    this.paused = false;
+    return Promise.resolve();
+  }
+
+  pause() {
+    this.paused = true;
+  }
+
+  removeAttribute() {}
+  load() {}
+}
+
+class FakeSourceBuffer extends EventTarget {
+  constructor() {
+    super();
+    this.updating = false;
+    this.appended = [];
+  }
+
+  appendBuffer(bytes) {
+    this.updating = true;
+    this.appended.push(new Uint8Array(bytes));
+    queueMicrotask(() => {
+      this.updating = false;
+      this.dispatchEvent(new Event('updateend'));
+    });
+  }
+
+  abort() {
+    this.updating = false;
+  }
+}
+
+class FakeMediaSource extends EventTarget {
+  constructor() {
+    super();
+    this.readyState = 'closed';
+    this.sourceBuffer = new FakeSourceBuffer();
+  }
+
+  open() {
+    this.readyState = 'open';
+    this.dispatchEvent(new Event('sourceopen'));
+  }
+
+  addSourceBuffer() {
+    return this.sourceBuffer;
+  }
+
+  endOfStream() {
+    this.readyState = 'ended';
+  }
+}
+
+class FakeBufferSource {
+  constructor() {
+    this.buffer = null;
+    this.playbackRate = { value: 1 };
+    this.onended = null;
+    this.connected = false;
+  }
+
+  connect() { this.connected = true; }
+  disconnect() { this.connected = false; }
+  stop() {}
+  start() { queueMicrotask(() => this.onended?.()); }
+}
+
+class FakeAudioContext {
+  constructor() {
+    this.state = 'suspended';
+    this.destination = {};
+    this.source = null;
+    this.currentTime = 0;
+    this.createdBuffers = [];
+  }
+
+  async resume() { this.state = 'running'; }
+  async decodeAudioData() { return {}; }
+  createBuffer(_channels, length, sampleRate) {
+    const channel = new Float32Array(length);
+    const buffer = {
+      duration: length / sampleRate,
+      getChannelData: () => channel,
+    };
+    this.createdBuffers.push(buffer);
+    return buffer;
+  }
+  createBufferSource() {
+    this.source = new FakeBufferSource();
+    return this.source;
+  }
+}
+
+class ControlledVoiceWorker extends EventTarget {
+  constructor() {
+    super();
+    this.request = null;
+  }
+
+  postMessage(request) {
+    this.request = request;
+  }
+
+  respond(data) {
+    const event = new Event('message');
+    Object.defineProperty(event, 'data', { value: data });
+    this.dispatchEvent(event);
+  }
+
+  terminate() {}
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  document.body.innerHTML = '<div id="notification-container"></div>';
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('voice capture and playback primitives', () => {
+  it('chooses an available compressed microphone format', () => {
+    expect(preferredMimeType(FakeMediaRecorder)).toBe('audio/webm;codecs=opus');
+  });
+
+  it('returns an audio blob and always stops microphone tracks', async () => {
+    const stopTrack = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop: stopTrack }],
+    };
+    const session = new VoiceCaptureSession({
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+      MediaRecorderClass: FakeMediaRecorder,
+      maxDurationMs: 30_000,
+    });
+
+    await session.start();
+    const blob = await session.stop();
+
+    expect(blob.type).toBe('audio/webm;codecs=opus');
+    expect(blob.size).toBeGreaterThan(0);
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
+  it('revokes each object URL after playback and rejects stopped playback', async () => {
+    const audio = new FakeAudio();
+    const revoke = vi.fn();
+    const player = new VoicePlayer({
+      audioFactory: () => audio,
+      createObjectURL: () => 'blob:voice',
+      revokeObjectURL: revoke,
+    });
+    const first = player.play(new Blob(['first']));
+    audio.dispatchEvent(new Event('ended'));
+    await expect(first).resolves.toBe(true);
+    expect(revoke).toHaveBeenCalledWith('blob:voice');
+
+    const secondAudio = new FakeAudio();
+    const secondPlayer = new VoicePlayer({
+      audioFactory: () => secondAudio,
+      createObjectURL: () => 'blob:second',
+      revokeObjectURL: revoke,
+    });
+    const second = secondPlayer.play(new Blob(['second']));
+    secondPlayer.stop();
+    await expect(second).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('unlocks Web Audio during the user action and plays after delayed synthesis', async () => {
+    const context = new FakeAudioContext();
+    const player = new VoicePlayer({
+      audioContextFactory: () => context,
+    });
+
+    expect(player.unlock()).toBe(true);
+    expect(player.hasPlaybackActivation).toBe(true);
+    await Promise.resolve();
+    expect(context.state).toBe('running');
+    await expect(player.play(new Blob(['speech']), { rate: 1.2 })).resolves.toBe(true);
+    expect(context.source.playbackRate.value).toBe(1.2);
+    expect(context.source.connected).toBe(false);
+    expect(player.isPlaying).toBe(false);
+  });
+
+  it('buffers a provider stream only when MediaSource playback is unavailable', async () => {
+    const audio = new FakeAudio();
+    const player = new VoicePlayer({
+      audioFactory: () => audio,
+      isMediaSourceTypeSupported: () => false,
+      createObjectURL: blob => `blob:stream-${blob.size}`,
+      revokeObjectURL: vi.fn(),
+    });
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        controller.enqueue(new Uint8Array([3, 4]));
+        controller.close();
+      },
+    });
+
+    const playback = player.playStream(stream, { contentType: 'audio/mpeg' });
+    await vi.waitFor(() => expect(audio.src).toBe('blob:stream-4'));
+    audio.dispatchEvent(new Event('ended'));
+
+    await expect(playback).resolves.toBe(true);
+  });
+
+  it('buffers automatic provider playback through the user-unlocked audio context', async () => {
+    const context = new FakeAudioContext();
+    const player = new VoicePlayer({
+      audioContextFactory: () => context,
+      mediaSourceFactory: () => new FakeMediaSource(),
+      isMediaSourceTypeSupported: () => true,
+    });
+    expect(player.unlock()).toBe(true);
+    await Promise.resolve();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3, 4]));
+        controller.close();
+      },
+    });
+
+    await expect(player.playStream(stream, {
+      contentType: 'audio/mpeg',
+      progressive: false,
+    })).resolves.toBe(true);
+    expect(context.source).not.toBeNull();
+  });
+
+  it('primes media playback and appends provider bytes progressively', async () => {
+    const audio = new FakeAudio();
+    const mediaSource = new FakeMediaSource();
+    const player = new VoicePlayer({
+      audioFactory: () => audio,
+      mediaSourceFactory: () => mediaSource,
+      isMediaSourceTypeSupported: type => type === 'audio/mpeg',
+      createObjectURL: () => 'blob:media-source',
+      revokeObjectURL: vi.fn(),
+    });
+    let releaseSecondChunk;
+    const secondChunkReady = new Promise(resolve => { releaseSecondChunk = resolve; });
+    const stream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        await secondChunkReady;
+        controller.enqueue(new Uint8Array([3, 4]));
+        controller.close();
+      },
+    });
+
+    expect(player.primeStreamPlayback('audio/mpeg')).toBe(true);
+    expect(audio.paused).toBe(false);
+    const playback = player.playStream(stream, { contentType: 'audio/mpeg' });
+    mediaSource.open();
+    await vi.waitFor(() => expect(mediaSource.sourceBuffer.appended).toHaveLength(1));
+    expect(mediaSource.sourceBuffer.appended[0]).toEqual(new Uint8Array([1, 2]));
+    releaseSecondChunk();
+    await vi.waitFor(() => expect(mediaSource.sourceBuffer.appended).toHaveLength(2));
+    audio.dispatchEvent(new Event('ended'));
+
+    await expect(playback).resolves.toBe(true);
+    expect(mediaSource.readyState).toBe('ended');
+  });
+
+  it('cancels and releases a failed provider stream before clearing session state', async () => {
+    const audio = new FakeAudio();
+    const mediaSource = new FakeMediaSource();
+    mediaSource.sourceBuffer.appendBuffer = () => {
+      throw new Error('decoder rejected bytes');
+    };
+    const cancel = vi.fn();
+    const revoke = vi.fn();
+    const pause = vi.spyOn(audio, 'pause');
+    const player = new VoicePlayer({
+      audioFactory: () => audio,
+      mediaSourceFactory: () => mediaSource,
+      isMediaSourceTypeSupported: () => true,
+      createObjectURL: () => 'blob:failed-stream',
+      revokeObjectURL: revoke,
+    });
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+      },
+      cancel,
+    });
+
+    expect(player.primeStreamPlayback('audio/mpeg')).toBe(true);
+    const playback = player.playStream(stream, { contentType: 'audio/mpeg' });
+    mediaSource.open();
+
+    await expect(playback).rejects.toThrow('decoder rejected bytes');
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce());
+    expect(pause).toHaveBeenCalled();
+    expect(revoke).toHaveBeenCalledWith('blob:failed-stream');
+    expect(player.audio).toBeNull();
+    expect(player.streamReader).toBeNull();
+    expect(player.sourceBuffer).toBeNull();
+  });
+
+  it('schedules local PCM chunks as Kokoro emits them', async () => {
+    const context = new FakeAudioContext();
+    const player = new VoicePlayer({
+      audioContextFactory: () => context,
+    });
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          samples: new Float32Array([0, 0.25, -0.25]),
+          sampleRate: 24_000,
+        });
+        controller.enqueue({
+          samples: new Float32Array([0.1, -0.1]),
+          sampleRate: 24_000,
+        });
+        controller.close();
+      },
+    });
+
+    await expect(player.playPcmStream(stream)).resolves.toBe(true);
+    expect(context.createdBuffers).toHaveLength(2);
+    expect(context.createdBuffers[0].getChannelData()).toEqual(
+      new Float32Array([0, 0.25, -0.25]),
+    );
+    expect(player.scheduledAudioSources.size).toBe(0);
+  });
+
+  it('keeps a short natural pause while trimming excessive PCM edge silence', () => {
+    const samples = new Float32Array(24_000);
+    samples.fill(0.2, 8_000, 16_000);
+    const trimmed = trimPcmEdgeSilence(samples, 24_000);
+    expect(trimmed.length).toBe(8_000 + (2 * 2_880));
+    expect(trimmed[2_880]).toBeCloseTo(0.2);
+  });
+});
+
+describe('voice settings and chat controls', () => {
+  it('discloses encrypted sync for cloud keys without claiming local-server sync', () => {
+    expect(voiceProviderKeyStatus('xai', true)).toContain('included in encrypted sync');
+    expect(voiceProviderKeyStatus('elevenlabs', true)).toContain('encrypted in this browser');
+    expect(voiceProviderKeyStatus('local-server', true)).toBe('Saved securely on this device');
+    expect(voiceProviderKeyStatus('xai', false)).toBe('Not configured');
+  });
+
+  it('links providers by default and reveals independent choices on request', () => {
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    expect(installVoiceSettingsPanel(document)).toBe(true);
+    const panel = document.querySelector('[data-tab-panel="voice"]');
+    const inputProvider = panel.querySelector('[data-voice-setting="inputProvider"]');
+    const outputProvider = panel.querySelector('[data-voice-setting="outputProvider"]');
+    const sharedProvider = panel.querySelector('[data-voice-shared-provider]');
+    const separateProviders = panel.querySelector('[data-voice-setting="providersLinked"]');
+
+    sharedProvider.value = 'xai';
+    sharedProvider.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(localStorage.getItem('labcharts-voice-input-provider')).toBe('xai');
+    expect(localStorage.getItem('labcharts-voice-output-provider')).toBe('xai');
+    separateProviders.checked = true;
+    separateProviders.dispatchEvent(new Event('change', { bubbles: true }));
+    inputProvider.value = 'xai';
+    inputProvider.dispatchEvent(new Event('change', { bubbles: true }));
+    outputProvider.value = 'elevenlabs';
+    outputProvider.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(localStorage.getItem('labcharts-voice-input-provider')).toBe('xai');
+    expect(localStorage.getItem('labcharts-voice-output-provider')).toBe('elevenlabs');
+    expect(localStorage.getItem('labcharts-voice-providers-linked')).toBe('false');
+    expect(panel.querySelector('[data-voice-visible="output:elevenlabs"]').hidden).toBe(false);
+    expect(panel.textContent).toContain('Use different services for dictation and listening');
+    expect(panel.querySelector(
+      '[data-voice-action="install-model"][data-kind="stt"]',
+    ).disabled).toBe(false);
+    expect(panel.querySelector(
+      '[data-voice-action="remove-model"][data-kind="stt"]',
+    ).disabled).toBe(true);
+    expect(panel.querySelector('.voice-model-footnote').textContent.replace(/\s+/g, ' '))
+      .toContain('never start a model download automatically');
+  });
+
+  it('requires the explicit Kokoro GPU weight download when processing changes', () => {
+    localStorage.setItem('labcharts-voice-local-tts-backend', 'wasm');
+    localStorage.setItem(
+      'labcharts-voice-model-installed-tts-onnx-community%2FKokoro-82M-v1.0-ONNX',
+      JSON.stringify({
+        version: '2',
+        model: 'onnx-community/Kokoro-82M-v1.0-ONNX',
+        backend: 'wasm',
+        availableBackends: ['wasm'],
+      }),
+    );
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    const select = document.querySelector('[data-voice-setting="localTtsBackend"]');
+    select.value = 'webgpu';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const row = document.querySelector('[data-voice-model-kind="tts"]');
+    expect(row.textContent).toContain('about 330 MB');
+    expect(row.textContent).toContain('Download needed for the selected processing mode');
+    expect(row.querySelector('[data-voice-action="install-model"]').disabled).toBe(false);
+  });
+
+  it('keeps model progress and completion attached to the selection that started them', async () => {
+    const worker = new ControlledVoiceWorker();
+    const previous = configureVoiceLocalEngine({ workerFactory: () => worker });
+    try {
+      document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+      installVoiceSettingsPanel(document);
+      const panel = document.querySelector('[data-tab-panel="voice"]');
+      const modelSelect = panel.querySelector('[data-voice-setting="localSttModel"]');
+      const backendSelect = panel.querySelector('[data-voice-setting="localSttBackend"]');
+      const button = panel.querySelector(
+        '[data-voice-action="install-model"][data-kind="stt"]',
+      );
+      button.click();
+      await vi.waitFor(() => expect(worker.request).not.toBeNull());
+      expect(modelSelect.disabled).toBe(true);
+      expect(backendSelect.disabled).toBe(true);
+
+      modelSelect.value = 'onnx-community/whisper-large-v3-turbo';
+      modelSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      const progress = panel.querySelector('[data-voice-model-progress="stt"]');
+      expect(progress.hidden).toBe(true);
+      worker.respond({
+        type: 'progress',
+        id: worker.request.id,
+        progress: { file: 'old-model.onnx' },
+      });
+      expect(progress.hidden).toBe(true);
+
+      worker.respond({
+        type: 'ready',
+        id: worker.request.id,
+        backend: 'wasm',
+      });
+      await vi.waitFor(() => expect(modelSelect.disabled).toBe(false));
+      const row = panel.querySelector('[data-voice-model-kind="stt"]');
+      expect(row.querySelector('.settings-copy-title').textContent).toContain('Large v3 Turbo');
+      expect(row.querySelector('[data-voice-model-status="stt"]').textContent)
+        .toBe('Not downloaded yet');
+    } finally {
+      terminateLocalVoiceWorker('stt');
+      configureVoiceLocalEngine(previous);
+    }
+  });
+
+  it('renders Listen only on assistant messages and delegates its exact index', () => {
+    const original = state.chatHistory;
+    const called = [];
+    const previousDeps = configureChatMessageActionDeps({
+      toggleMessageSpeech: index => called.push(index),
+    });
+    try {
+      state.chatHistory = [
+        { role: 'user', content: 'Question' },
+        { role: 'assistant', content: 'Answer' },
+      ];
+      expect(buildActionBar(0)).toBe('');
+      document.body.innerHTML = buildActionBar(1);
+      const button = document.getElementById('chat-listen-btn-1');
+      expect(button?.textContent).toContain('Listen');
+      button.click();
+      expect(called).toEqual([1]);
+    } finally {
+      configureChatMessageActionDeps(previousDeps);
+      state.chatHistory = original;
+    }
+  });
+
+  it('keeps the heavy controller behind the first-use loader boundary', () => {
+    const loader = fs.readFileSync(path.join(root, 'js/voice-loader.js'), 'utf8');
+    const chatLoader = fs.readFileSync(path.join(root, 'js/chat-loader.js'), 'utf8');
+    const shell = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
+    expect(loader).toContain("import('./voice-controller.js')");
+    expect(chatLoader).not.toContain("from './voice-controller.js'");
+    expect(shell).not.toContain("from './voice-controller.js'");
+  });
+});

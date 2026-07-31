@@ -36,6 +36,14 @@
   color: var(--text-primary);
   background: var(--bg-hover);
 }
+.chat-action-btn.speaking {
+  color: var(--accent);
+  background: var(--accent-fill);
+}
+.chat-action-btn.busy {
+  cursor: wait;
+  opacity: .72;
+}
 /* Context used toggle + details */
 .chat-context-toggle {
   font-size: 11px;
@@ -65,4 +73,3 @@
   color: var(--text-secondary);
   white-space: nowrap;
 }
-

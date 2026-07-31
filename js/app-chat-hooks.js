@@ -39,6 +39,7 @@ import { updateChatNudge } from './chat-nudge.js';
 import {
   updateChatHeaderModel,
 } from './chat-personalities.js';
+import { stopVoiceActivity, toggleMessageSpeech } from './voice-loader.js';
 let initialized = false;
 
 function resumeAI() {
@@ -55,7 +56,10 @@ export function configureAppChatHooks(deps = {}) {
     openChatProviderQuiz: deps.openChatProviderQuiz,
     setOnboardingFocus: deps.setOnboardingFocus,
   });
-  configureChatPanel({ refreshMobileDashboardActiveTab: deps.refreshMobileDashboardActiveTab });
+  configureChatPanel({
+    refreshMobileDashboardActiveTab: deps.refreshMobileDashboardActiveTab,
+    stopVoiceActivity,
+  });
   configureChatRuntimeCallbacks({
     closeModal: deps.closeModal,
     isChatStreaming,
@@ -79,6 +83,7 @@ export function configureAppChatHooks(deps = {}) {
     printSummary,
     removeImageAttachment,
     startDiscussionFromPicker,
+    toggleMessageSpeech,
     viewSavedSummary,
   });
 

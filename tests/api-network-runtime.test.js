@@ -10,6 +10,7 @@ import {
   PROXY_MAX_REQUEST_BYTES,
   PROXY_MAX_RESPONSE_BYTES,
 } from '../lib/proxy-policy.js';
+import { fetchWithValidatedRedirects } from '../lib/proxy-upstream.js';
 import shareHandler from '../api/share.js';
 
 const realFetch = globalThis.fetch;
@@ -906,6 +907,24 @@ describe('AI proxy runtime behavior', () => {
     const [pageRedirectUrl, pageRedirectInit] = globalThis.fetch.mock.calls[1];
     expect(pageRedirectUrl).toBe('https://www.example.com/product');
     expect(pageRedirectInit.headers).not.toHaveProperty('x-api-key');
+
+    globalThis.fetch = vi.fn(async url => {
+      if (url === 'https://api.elevenlabs.io/v2/voices') {
+        return new Response(null, {
+          status: 301,
+          headers: { Location: 'https://voices.elevenlabs.io/v2/voices' },
+        });
+      }
+      return jsonResponse({ voices: [] });
+    });
+    const voiceRedirect = await fetchWithValidatedRedirects(
+      'https://api.elevenlabs.io/v2/voices',
+      { headers: { 'xi-api-key': 'must-not-cross-origins' } },
+    );
+    expect(await responseJson(voiceRedirect)).toEqual({ voices: [] });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    const [, voiceRedirectInit] = globalThis.fetch.mock.calls[1];
+    expect(voiceRedirectInit.headers).not.toHaveProperty('xi-api-key');
 
     globalThis.fetch = vi.fn(async (url) => {
       if (url === 'https://custom.example.com/v1/chat') {
