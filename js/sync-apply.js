@@ -4,6 +4,7 @@
 import { encryptedSetItem, encryptedGetItem, updateKeyCache } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
 import { refreshSyncedAIProviderUiRuntime, refreshSyncedRoutstrBalanceRuntime } from './sync-runtime.js';
+import { VOICE_ENCRYPTED_SYNC_KEYS } from './voice-settings-schema.js';
 
 export {
   applyChatData, getChatDataLocalLockRemainingMs, markChatDataLocal,
@@ -42,7 +43,17 @@ function shouldKeepLocalAISetting(key, preferRemote = false) {
     || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
 }
 
-const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-ollama-pii-key', 'labcharts-lens-key', 'labcharts-custom-key'];
+const ENCRYPTED_AI_KEYS = [
+  'labcharts-openrouter-key',
+  'labcharts-venice-key',
+  'labcharts-routstr-key',
+  'labcharts-ppq-key',
+  'labcharts-ollama',
+  'labcharts-ollama-pii-key',
+  'labcharts-lens-key',
+  'labcharts-custom-key',
+  ...VOICE_ENCRYPTED_SYNC_KEYS,
+];
 
 /** @param {Record<string, any> | null | undefined} settings
  * @param {{ preferRemote?: boolean }} [options]

@@ -5,6 +5,7 @@ export const CHAT_ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect
 export const CHAT_ICON_REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.6 6.1"/><path d="M3 12A9 9 0 0 1 18.6 5.9"/><path d="M18 2v4h4"/><path d="M6 22v-4H2"/></svg>';
 export const CHAT_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 export const CHAT_ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+export const CHAT_ICON_VOLUME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>';
 
 function createChatIcon(kind) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -37,6 +38,10 @@ function createChatIcon(kind) {
     path('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1');
   } else if (kind === 'check') {
     path('M20 6 9 17l-5-5');
+  } else if (kind === 'volume') {
+    path('M11 5 6 9H2v6h4l5 4Z');
+    path('M15.5 8.5a5 5 0 0 1 0 7');
+    path('M18 6a9 9 0 0 1 0 12');
   } else {
     path('M18 6 6 18');
     path('m6 6 12 12');

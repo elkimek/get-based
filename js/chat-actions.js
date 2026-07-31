@@ -3,7 +3,12 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
-import { CHAT_ICON_COPY, CHAT_ICON_REFRESH, setIconButtonContent } from './chat-icons.js';
+import {
+  CHAT_ICON_COPY,
+  CHAT_ICON_REFRESH,
+  CHAT_ICON_VOLUME,
+  setIconButtonContent,
+} from './chat-icons.js';
 import { saveChatHistory } from './chat-history.js';
 import {
   CHAT_MESSAGE_ACTION_ATTR,
@@ -27,6 +32,7 @@ const chatMessageActionDeps = {
   printSummary: /** @type {() => void} */ (() => {}),
   removeImageAttachment: /** @type {(index: number) => void} */ (() => {}),
   startDiscussionFromPicker: /** @type {() => void | Promise<void>} */ (() => {}),
+  toggleMessageSpeech: /** @type {(index: number) => void | Promise<void>} */ (() => {}),
   viewSavedSummary: /** @type {(id: string) => void} */ (() => {}),
 };
 
@@ -81,6 +87,10 @@ function runChatMessageAction(actionEl, event) {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
     toggleContextDetails(index);
+  } else if (action === 'toggle-message-speech') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return false;
+    void chatMessageActionDeps.toggleMessageSpeech(index);
   } else if (action === 'remove-image-attachment') {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
@@ -166,6 +176,7 @@ export function buildActionBar(msgIndex) {
     html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('regenerate-last-message')} title="Regenerate response">${CHAT_ICON_REFRESH}<span>Regenerate</span></button>`;
   }
   html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('copy-message', { index: msgIndex })} id="chat-copy-btn-${msgIndex}" title="Copy to clipboard">${CHAT_ICON_COPY}<span>Copy</span></button>`;
+  html += `<button class="chat-action-btn chat-listen-btn" type="button" ${chatMessageActionAttrs('toggle-message-speech', { index: msgIndex })} id="chat-listen-btn-${msgIndex}" title="Read message aloud" aria-pressed="false">${CHAT_ICON_VOLUME}<span>Listen</span></button>`;
   html += '</div>';
 
   if (msg.context && msg.context.length > 0) {

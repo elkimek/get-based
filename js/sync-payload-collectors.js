@@ -2,6 +2,7 @@
 // sync-payload-collectors.js - local settings/chat/display collection for sync payloads.
 
 import { encryptedGetItem } from './crypto.js';
+import { VOICE_SYNC_KEYS } from './voice-settings-schema.js';
 
 // AI settings keys to sync (global, not per-profile)
 export const AI_SETTINGS_KEYS = [
@@ -29,6 +30,7 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-routstr-session-updated-at', // LWW clock for shared node session/balance refresh
   'labcharts-lens-config',            // Custom Knowledge Source config (name, url, enabled, topK)
   'labcharts-lens-key',               // Custom Knowledge Source API key (encrypted)
+  ...VOICE_SYNC_KEYS,
 ];
 
 export const DISPLAY_PREF_SUFFIXES = ['units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay'];

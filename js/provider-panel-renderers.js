@@ -124,13 +124,14 @@ function renderOpenRouterProviderPanel() {
   } else {
     orModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="openrouter-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getOpenRouterModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
   }
-  return `<div class="ai-provider-panel">
+  return `<form class="ai-provider-panel">
+    <input type="text" name="ai-provider" value="openrouter" autocomplete="username" hidden>
     <div class="ai-provider-desc">API marketplace routing to 200+ models (Claude, GPT, Llama, Gemini, and more). Pay-per-use with a single key.</div>
     ${currentKey ? '' : '<button class="or-oauth-btn" data-provider-panel-action="start-openrouter-oauth">Connect with OpenRouter</button><div class="or-oauth-divider"><span>or enter key manually</span></div>'}
     <div class="api-key-status" id="openrouter-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
     </div>
-    <input type="password" class="api-key-input" id="openrouter-key-input" placeholder="sk-or-..." value="${escapeAttr(currentKey)}">
+    <input type="password" class="api-key-input" id="openrouter-key-input" placeholder="sk-or-..." value="${escapeAttr(currentKey)}" autocomplete="new-password">
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="import-btn import-btn-primary" id="save-openrouter-key-btn" data-provider-panel-action="save-openrouter-key">Save & Validate</button>
       ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-openrouter-key">Remove Key</button>' : ''}
@@ -138,7 +139,7 @@ function renderOpenRouterProviderPanel() {
     ${currentKey ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="or-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-openrouter-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>` : ''}
     ${orModelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to OpenRouter. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a> &middot; <a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener" style="color:var(--accent)">Add credits</a></div>
-  </div>`;
+  </form>`;
 }
 
 function renderRoutstrProviderPanel() {
@@ -225,13 +226,14 @@ function renderRoutstrProviderPanel() {
     <div id="routstr-node-picker" style="display:none"></div>
   </div>`;
 
-  return `<div class="ai-provider-panel">
+  return `<form class="ai-provider-panel">
+    <input type="text" name="ai-provider" value="routstr" autocomplete="username" hidden>
     <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node, start chatting.</div>
     ${walletHtml}
     ${nodeHtml}
     ${rsModelHtml}
     ${privateControls}
-  </div>`;
+  </form>`;
 }
 
 function renderVeniceProviderPanel() {
@@ -259,12 +261,13 @@ function renderVeniceProviderPanel() {
   } else {
     veniceModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="venice-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getVeniceModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
   }
-  return `<div class="ai-provider-panel">
+  return `<form class="ai-provider-panel">
+    <input type="text" name="ai-provider" value="venice" autocomplete="username" hidden>
     <div class="ai-provider-desc">Hosted Venice models with an optional encrypted-message mode. Requires an API key.</div>
     <div class="api-key-status" id="venice-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
     </div>
-    <input type="password" class="api-key-input" id="venice-key-input" placeholder="venice-..." value="${escapeAttr(currentKey)}">
+    <input type="password" class="api-key-input" id="venice-key-input" placeholder="venice-..." value="${escapeAttr(currentKey)}" autocomplete="new-password">
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="import-btn import-btn-primary" id="save-venice-key-btn" data-provider-panel-action="save-venice-key">Save & Validate</button>
       ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-venice-key">Remove Key</button>' : ''}
@@ -272,7 +275,7 @@ function renderVeniceProviderPanel() {
     ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-venice-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
     ${veniceModelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. Requests are handled under Venice's privacy and retention policies; getbased does not independently verify provider-side logging. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
-  </div>`;
+  </form>`;
 }
 
 function renderPpqProviderPanel() {
@@ -298,13 +301,14 @@ function renderPpqProviderPanel() {
       <button class="import-btn import-btn-secondary" id="ppq-topup-toggle" style="font-size:11px;padding:2px 10px" data-provider-panel-action="show-ppq-topup">Top Up</button>
     </div>
     <div id="ppq-topup-area" style="display:none"></div>` : '';
-  return `<div class="ai-provider-panel">
+  return `<form class="ai-provider-panel">
+    <input type="text" name="ai-provider" value="ppq" autocomplete="username" hidden>
     <div class="ai-provider-desc">Pay-per-query AI aggregator. 300+ models, no subscription, no KYC. Top up with crypto or <a href="https://www.bitrefill.com/gift-cards/ppq-us/" target="_blank" rel="noopener" style="color:var(--accent)">gift cards</a>.</div>
     ${currentKey ? '' : '<button class="import-btn import-btn-primary" style="width:100%;margin-bottom:8px" data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button><div class="or-oauth-divider"><span>or enter existing key</span></div>'}
     <div class="api-key-status" id="ppq-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
     </div>
-    <input type="password" class="api-key-input" id="ppq-key-input" placeholder="sk-..." value="${escapeAttr(currentKey)}">
+    <input type="password" class="api-key-input" id="ppq-key-input" placeholder="sk-..." value="${escapeAttr(currentKey)}" autocomplete="new-password">
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="import-btn import-btn-primary" id="save-ppq-key-btn" data-provider-panel-action="save-ppq-key">Save & Validate</button>
       ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-ppq-key">Remove Key</button>' : ''}
@@ -317,7 +321,7 @@ function renderPpqProviderPanel() {
     </div>
     <div id="ppq-private-indicator" style="margin-top:6px;font-size:12px;${isPpqPrivateModeActive() ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts are encrypted in your browser and decrypted only inside a verified PPQ/Tinfoil TEE. Web search is disabled.</div>` : ''}
     <div class="api-key-notice">Your key is stored locally. No account data is shared with getbased. <a href="https://ppq.ai/invite/8f3017cd" target="_blank" rel="noopener" style="color:var(--accent)">ppq.ai</a></div>
-  </div>`;
+  </form>`;
 }
 
 // Custom API panel — any OpenAI-compatible endpoint
@@ -346,7 +350,8 @@ function renderCustomProviderPanel() {
     </div>`;
   }
 
-  return `<div class="ai-provider-panel">
+  return `<form class="ai-provider-panel">
+    <input type="text" name="ai-provider" value="custom" autocomplete="username" hidden>
     <div class="ai-provider-desc">Connect to any OpenAI-compatible API endpoint. Works with OpenAI, Mistral, Groq, Together, xAI, OpenCode, self-hosted, and more.</div>
     <div class="api-key-status" id="custom-key-status">
       ${connected ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">Not connected</span>'}
@@ -357,7 +362,7 @@ function renderCustomProviderPanel() {
     </div>
     <div style="margin-top:8px">
       <label style="font-size:12px;color:var(--text-muted)">API Key</label>
-      <input type="password" class="api-key-input" id="custom-key-input" value="${escapeAttr(currentKey)}" placeholder="sk-..." style="margin-top:4px">
+      <input type="password" class="api-key-input" id="custom-key-input" value="${escapeAttr(currentKey)}" placeholder="sk-..." style="margin-top:4px" autocomplete="new-password">
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="import-btn import-btn-primary" data-provider-panel-action="save-custom-api">Save & Validate</button>
@@ -365,7 +370,7 @@ function renderCustomProviderPanel() {
     </div>
     ${modelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to the endpoint you configure.</div>
-  </div>`;
+  </form>`;
 }
 
 // Local AI panel — works with any OpenAI-compatible server (Ollama, LM Studio, Jan, etc.)
@@ -380,7 +385,8 @@ function renderLocalAIProviderPanel() {
         ? 'The configured server is on your local network; requests leave this browser device.'
         : 'The configured endpoint is remote; its operator and transport determine privacy.';
   const insecureRemote = executionLocation !== 'local' && executionLocation !== 'cloud' && /^http:\/\//i.test(config.url);
-  return `<div class="ai-provider-panel">
+  return `<form class="ai-provider-panel">
+    <input type="text" name="ai-provider" value="local-ai" autocomplete="username" hidden>
     <div class="ai-provider-desc">Connects directly to an OpenAI-compatible server. ${escapeHTML(locationCopy)} Cloud-tagged models are not considered private/local. Works with <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent)">Ollama</a>, <a href="https://lmstudio.ai" target="_blank" rel="noopener" style="color:var(--accent)">LM Studio</a>, <a href="https://jan.ai" target="_blank" rel="noopener" style="color:var(--accent)">Jan</a>, llama.cpp, LocalAI, and others.</div>
     ${insecureRemote ? '<div class="api-key-notice" style="color:var(--warning);margin-bottom:10px">This remote connection uses plain HTTP. Health data and API credentials are not protected by HTTPS unless your underlying VPN/tunnel encrypts the connection.</div>' : ''}
     <div class="local-ai-status" id="local-ai-status">
@@ -396,7 +402,7 @@ function renderLocalAIProviderPanel() {
     </div>
     <div style="margin-top:8px">
       <label style="font-size:12px;color:var(--text-muted)">API Key <span style="font-size:11px">(optional — most local servers don't need one)</span></label>
-      <input type="password" class="api-key-input" id="local-ai-apikey-input" value="${escapeAttr(config.apiKey)}" placeholder="Leave empty if not required" style="margin-top:4px">
+      <input type="password" class="api-key-input" id="local-ai-apikey-input" value="${escapeAttr(config.apiKey)}" placeholder="Leave empty if not required" style="margin-top:4px" autocomplete="new-password">
     </div>
     <div id="local-ai-model-section" style="margin-top:8px;display:none">
       <label style="font-size:12px;color:var(--text-muted)">AI Model</label>
@@ -407,7 +413,7 @@ function renderLocalAIProviderPanel() {
     <div class="api-key-notice" style="margin-top:12px">
       Connects via the OpenAI-compatible API (<code style="font-size:11px;padding:2px 4px;background:var(--bg-primary);border-radius:3px">/v1/chat/completions</code>). All major local servers support this, including Ollama.
     </div>
-  </div>`;
+  </form>`;
 }
 
 export function renderAIProviderPanel(provider) {

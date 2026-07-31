@@ -28,6 +28,7 @@ const shellChatActionDeps = {
   toggleChatPanel: () => {},
   toggleChatFullscreen: () => {},
   togglePersonalityBar: () => {},
+  toggleVoiceRecording: () => {},
 };
 const shellChatThreadDeps = {
   createNewThread: () => {},
@@ -184,6 +185,9 @@ function runChatAction(action, actionEl) {
     return true;
   } else if (action === 'send-message') {
     shellChatActionDeps.sendChatMessage();
+    return true;
+  } else if (action === 'toggle-voice-recording') {
+    shellChatActionDeps.toggleVoiceRecording();
     return true;
   }
   return false;

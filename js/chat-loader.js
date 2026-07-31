@@ -94,6 +94,7 @@ export function summarizeThread(...args) { return callChatModule('summarizeThrea
 export function toggleChatFullscreen(...args) { return callChatModule('toggleChatFullscreen', args); }
 export function toggleHDMode(...args) { return callChatModule('toggleHDMode', args); }
 export function togglePersonalityBar(...args) { return callChatModule('togglePersonalityBar', args); }
+export function toggleVoiceRecording(...args) { return callChatModule('toggleVoiceRecording', args); }
 export function toggleThreadRail(...args) { return callChatModule('toggleThreadRail', args); }
 export function useChatPrompt(...args) { return callChatModule('useChatPrompt', args); }
 export function askAIAboutCorrelations(...args) { return callChatModule('askAIAboutCorrelations', args); }

@@ -32,27 +32,28 @@ export function renderPrivacySection() {
       Configure Local AI
     </div>
     <div class="privacy-configure-body" id="privacy-configure-body" style="display:none">
-      <div id="pii-model-section">
+      <form id="pii-model-section">
+        <input type="text" name="privacy-provider" value="local-ai" autocomplete="username" hidden>
         <div class="local-ai-status" id="pii-local-status">
           <span class="local-ai-status-dot" id="pii-local-dot"></span>
           <span id="pii-local-status-text">Click Test to check</span>
         </div>
         <div style="margin-top:8px">
           <label style="font-size:12px;color:var(--text-muted)">Privacy server API key <span style="font-size:11px">(optional, stored separately)</span></label>
-          <input type="password" class="api-key-input" id="pii-local-apikey-input" value="${escapeAttr(piiApiKey)}" placeholder="Leave empty if not required" style="margin-top:4px">
+          <input type="password" class="api-key-input" id="pii-local-apikey-input" value="${escapeAttr(piiApiKey)}" placeholder="Leave empty if not required" style="margin-top:4px" autocomplete="new-password">
         </div>
         <div style="margin-top:8px">
           <label style="font-size:12px;color:var(--text-muted)">Server address</label>
           <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
             <input type="text" class="api-key-input" id="pii-local-url-input" value="${escapeAttr(piiUrl)}" placeholder="http://localhost:11434" style="flex:1">
-            <button class="import-btn import-btn-secondary" data-settings-action="test-pii-ollama" style="white-space:nowrap">Test</button>
+            <button type="button" class="import-btn import-btn-secondary" data-settings-action="test-pii-ollama" style="white-space:nowrap">Test</button>
           </div>
         </div>
         <div id="pii-model-dropdown" style="margin-top:8px;display:none">
           <label style="font-size:12px;color:var(--text-muted)">Privacy model <span style="font-size:11px">(can be a smaller, faster model)</span></label>
           <select class="api-key-input" id="pii-model-select" style="margin-top:4px" data-settings-action="set-pii-model"></select>
         </div>
-      </div>
+      </form>
     </div>
     <div class="settings-action-row privacy-setting-row">
       <div class="settings-copy">
@@ -123,7 +124,7 @@ export function renderSunDataSourceSettings() {
       <label style="font-size:12px;color:var(--text-muted)">Server URL</label>
       <input type="text" class="api-key-input" id="meteo-selfhost-url" value="${escapeAttr(cfg.selfhostUrl || '')}" placeholder="https://meteo.example.com" style="width:100%;margin-top:4px" data-sun-source-action="save-meteo-selfhost">
       <label style="font-size:12px;color:var(--text-muted);margin-top:8px;display:block">Bearer token (optional)</label>
-      <input type="password" class="api-key-input" id="meteo-selfhost-bearer" value="${escapeAttr(cfg.selfhostBearer || '')}" placeholder="••••••••" style="width:100%;margin-top:4px" data-sun-source-action="save-meteo-selfhost">
+      <input type="password" class="api-key-input" id="meteo-selfhost-bearer" value="${escapeAttr(cfg.selfhostBearer || '')}" placeholder="••••••••" style="width:100%;margin-top:4px" data-sun-source-action="save-meteo-selfhost" autocomplete="new-password">
     </div>
     <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px">
       <span style="font-size:13px">Round location to ~11 km grid before sending<br><span style="font-size:11px;color:var(--text-muted)">Default ON. Stops the data source from seeing your exact address. Disable for slightly sharper UV math.</span></span>

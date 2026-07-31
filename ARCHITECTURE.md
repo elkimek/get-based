@@ -110,7 +110,7 @@ dependency.
 | Labs and genome | `schema*`, `adapters.js`, `marker-*`, `dna*`, `biology-score*` | Marker normalization, reference data, genetics, and deterministic scoring |
 | Body | `wearables-*`, `wearable-*`, `cycle*`, `supplements*` | Device adapters, local raw rows, synced summaries, cycle and body context |
 | Light and environment | `light-*`, `sun-*`, `emf*` | Light measurements, spectral/session models, environment and EMF context |
-| AI and knowledge | `api-*`, `provider-*`, `chat-*`, `lens-*`, `pii.js` | Provider routing, prompt/context workflows, RAG, transport, and PII controls |
+| AI, voice, and knowledge | `api-*`, `provider-*`, `chat-*`, `voice-*`, `lens-*`, `pii.js` | Provider routing, prompt/context workflows, STT/TTS, RAG, transport, and PII controls |
 | Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, identity, and agent context |
 | Import/export | `pdf-import*`, `import-*`, `export*`, `backup*` | File classification, review/commit, reports, backups, and restoration |
 | Presentation | `dashboard-*`, `context-card-*`, `settings*`, `modal-*` | Views, editing surfaces, settings, accessibility, and interaction lifecycle |
@@ -230,6 +230,32 @@ presentation sheets before opening the panel. Failed links are removed and
 cache-busted for group retry, a shared HTML anchor preserves their original
 order before redesign overrides, and the service worker keeps the deferred
 modules and stylesheets precached for offline first use.
+
+Voice preserves this Chat boundary. `voice-loader.js` is a small first-use
+facade; microphone capture, playback, settings resolution, and provider
+selection load only when dictation, Listen, or enabled auto-read is used.
+Input and output retain independent provider values internally, while Settings
+links them behind one Voice service choice by default and reveals the separate
+values only in advanced mode. Provider metadata and capabilities live in the
+provider catalog; the provider-neutral Voice service resolves settings into
+adapter operations without exposing provider branches to Chat. Browser-local
+Whisper and Kokoro run in dedicated module workers and download model assets
+only after explicit installation. The local-server adapter calls an
+OpenAI-compatible endpoint directly, while xAI and ElevenLabs use the bounded
+same-origin `/api/voice` relay because browser CORS cannot safely carry those
+BYOK credentials to every provider.
+
+The relay accepts only fixed provider/action combinations, caps request and
+response bodies, uses the shared DNS-pinned proxy transport and abuse control,
+and never persists or logs provider keys. Microphone blobs remain ephemeral;
+dictation only edits the composer, and chat panel/thread lifecycle callbacks
+stop tracks, synthesis, and playback. Portable Voice preferences and cloud keys
+follow the existing encrypted settings/sync path. Provider selection, local
+model/hardware choices, a local voice server URL, and its optional key remain
+device-local, while full backups include them. One Voice settings schema owns
+these scopes so backup and sync allowlists cannot drift independently.
+The service worker precaches worker source but deliberately does not precache
+large remote model assets.
 
 `api.js` keeps synchronous provider selection, key state, and model metadata in
 the startup graph because dashboards and feature availability checks use them.

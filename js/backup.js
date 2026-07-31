@@ -10,6 +10,7 @@ import {
   getDailyRangeRaw,
   upsertDailyBatchRaw,
 } from './wearables-store.js';
+import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
 /** @type {Promise<typeof import('./backup-cycle.js')> | null} */
@@ -130,6 +131,7 @@ const GLOBAL_SETTINGS_KEYS = [
   'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
   'labcharts-ollama', 'labcharts-ollama-model',
   'labcharts-ollama-pii-url', 'labcharts-ollama-pii-key', 'labcharts-ollama-pii-model',
+  ...VOICE_BACKUP_KEYS,
   'labcharts-routstr-node',
   'labcharts-time-format', 'labcharts-theme', 'labcharts-sunset-mode', 'labcharts-crt-effects', 'labcharts-debug',
   'labcharts-pii-review', 'labcharts-ollama-pii-enabled', 'labcharts-chat-sources',

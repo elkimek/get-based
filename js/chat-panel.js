@@ -47,14 +47,16 @@ let useChatPresentationStylesheetRetryUrl = false;
 /** @type {{
  *   restoreDiscussionContinuePrompt: (() => void) | null,
  *   refreshMobileDashboardActiveTab: (() => void) | null,
+ *   stopVoiceActivity: (() => void) | null,
  * }} */
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
   refreshMobileDashboardActiveTab: null,
+  stopVoiceActivity: null,
 };
 let chatThreadInputBlocked = false;
 
-/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, refreshMobileDashboardActiveTab?: (() => void) | null }} [callbacks] */
+/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, refreshMobileDashboardActiveTab?: (() => void) | null, stopVoiceActivity?: (() => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
   const previous = { ...panelCallbacks };
   Object.assign(panelCallbacks, callbacks);
@@ -273,6 +275,7 @@ export async function openChatPanel(prefillMessage) {
 export function updateChatInputState() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
+  const voiceBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-voice-btn'));
   const noAI = !hasAIProvider();
   const blocked = chatThreadInputBlocked;
   if (input) {
@@ -284,10 +287,12 @@ export function updateChatInputState() {
         : 'Ask about your lab results...';
   }
   if (sendBtn) sendBtn.disabled = noAI || blocked;
+  if (voiceBtn) voiceBtn.disabled = noAI || blocked;
   updateWebSearchToggleVisibility();
 }
 
 export function closeChatPanel() {
+  panelCallbacks.stopVoiceActivity?.();
   stopMobileChatViewportSync();
   document.getElementById('chat-panel')?.classList.remove('open');
   document.getElementById('chat-backdrop')?.classList.remove('open');

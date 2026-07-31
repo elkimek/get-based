@@ -17,10 +17,12 @@ const displaySrc = fs.readFileSync(path.join(root, 'js/settings-display-panel.js
 const eventTargetSrc = fs.readFileSync(path.join(root, 'js/settings-event-target.js'), 'utf8');
 const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
 const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
+const voiceSrc = fs.readFileSync(path.join(root, 'js/settings-voice-panel.js'), 'utf8');
+const voiceViewSrc = fs.readFileSync(path.join(root, 'js/settings-voice-view.js'), 'utf8');
 const tweaksSrc = fs.readFileSync(path.join(root, 'js/settings-tweaks.js'), 'utf8');
 const appShellCss = fs.readFileSync(path.join(root, 'css/app-shell.css'), 'utf8');
 const settingsCss = fs.readFileSync(path.join(root, 'css/settings.css'), 'utf8');
-const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${settingsDataSrc}\n${tweaksSrc}`;
+const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${settingsDataSrc}\n${voiceSrc}\n${tweaksSrc}`;
 
 let passed = 0;
 let failed = 0;
@@ -88,6 +90,12 @@ const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*in
 
 assert('settings.js has no inline event attributes',
   !inlineHandlerRe.test(settingsSurfaceSrc));
+assert('Voice settings use delegated actions with linked and advanced providers',
+  src.includes('data-settings-tab="voice"')
+    && voiceViewSrc.includes('data-voice-shared-provider')
+    && voiceViewSrc.includes('data-voice-setting="inputProvider"')
+    && voiceViewSrc.includes('data-voice-setting="outputProvider"')
+    && voiceSrc.includes("panel.addEventListener('click'"));
 assert('Display tab has no inline event attributes',
   displayBlock && !inlineHandlerRe.test(displayBlock));
 assert('Tweaks panel has no inline event attributes',

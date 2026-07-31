@@ -74,6 +74,7 @@ body.chat-open .analytics-consent-banner {
 .chat-thread-item-action,
 .chat-attach-btn,
 .chat-hd-btn,
+.chat-voice-btn,
 .chat-discuss-btn {
   border-radius: var(--radius-sm);
 }

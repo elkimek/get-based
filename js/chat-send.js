@@ -43,6 +43,7 @@ import {
   getChatSendRecommendationRuntime,
   isChatSendEMFRelevant,
 } from './chat-send-runtime.js';
+import { maybeAutoReadAssistantMessage } from './voice-loader.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -422,6 +423,7 @@ export async function sendChatMessage() {
     }
 
     container.scrollTop = container.scrollHeight;
+    void maybeAutoReadAssistantMessage(msgIndex);
   } catch (err) {
     const error = /** @type {any} */ (err);
     if (typingEl.parentNode) typingEl.remove();

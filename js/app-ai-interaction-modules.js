@@ -30,3 +30,8 @@ export {
   toggleThreadRail,
 } from './chat-threads.js';
 export { updateChatContextStatus } from './chat-personalities.js';
+export {
+  stopVoiceActivity,
+  toggleMessageSpeech,
+  toggleVoiceRecording,
+} from './voice-loader.js';
