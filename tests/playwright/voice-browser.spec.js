@@ -162,6 +162,67 @@ test('browser-local voice routes first use to an explicit model download', async
   );
 });
 
+test('pending first-use auto-read stays bound to its open panel and thread', async ({ page }) => {
+  let releaseController;
+  let markControllerRequested;
+  const controllerGate = new Promise(resolve => { releaseController = resolve; });
+  const controllerRequested = new Promise(resolve => { markControllerRequested = resolve; });
+  await page.route('**/js/voice-controller.js', async route => {
+    markControllerRequested();
+    await controllerGate;
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/javascript',
+      body: `
+        export function readAssistantMessage(messageIndex, options) {
+          globalThis.__pendingVoiceReadCalls.push({ messageIndex, automatic: options?.automatic });
+          return Promise.resolve(true);
+        }
+        export function stopVoiceActivity() { return true; }
+        export function toggleMessageSpeech() { return Promise.resolve(true); }
+        export function toggleVoiceRecording() { return Promise.resolve(true); }
+      `,
+    });
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const loader = await import('/js/voice-loader.js?pending-auto-read-context=1');
+    const panel = document.getElementById('chat-panel');
+    panel.classList.add('open');
+    state.currentThreadId = 'thread-origin';
+    state.chatHistory = [{ role: 'assistant', content: 'Origin reply' }];
+    localStorage.setItem('labcharts-voice-auto-read', 'true');
+    globalThis.__pendingVoiceReadCalls = [];
+    globalThis.__pendingVoiceLoader = loader;
+    globalThis.__pendingVoiceRead = loader.maybeAutoReadAssistantMessage(0);
+  });
+  await controllerRequested;
+
+  await page.evaluate(() => {
+    document.getElementById('chat-panel')?.classList.remove('open');
+    globalThis.__pendingVoiceLoader.stopVoiceActivity();
+  });
+  releaseController();
+  expect(await page.evaluate(() => globalThis.__pendingVoiceRead)).toBe(false);
+  expect(await page.evaluate(() => globalThis.__pendingVoiceReadCalls)).toEqual([]);
+
+  const switchedThreadResult = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const panel = document.getElementById('chat-panel');
+    panel.classList.add('open');
+    state.currentThreadId = 'thread-origin';
+    state.chatHistory = [{ role: 'assistant', content: 'Origin reply' }];
+    const pending = globalThis.__pendingVoiceLoader.maybeAutoReadAssistantMessage(0);
+    state.currentThreadId = 'thread-other';
+    state.chatHistory = [{ role: 'assistant', content: 'Unrelated reply' }];
+    return pending;
+  });
+  expect(switchedThreadResult).toBe(false);
+  expect(await page.evaluate(() => globalThis.__pendingVoiceReadCalls)).toEqual([]);
+});
+
 test('Voice settings and chat STT/TTS controls work with a local compatible server', async ({ page }) => {
   await installVoiceBrowserFakes(page);
   await page.route('http://127.0.0.1:8765/**', async route => {

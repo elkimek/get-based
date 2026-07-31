@@ -34,6 +34,7 @@ let speechAbortController = null;
 let autoReadActivationNoticeShown = false;
 /** @type {number | null} */
 let speakingMessageIndex = null;
+let voiceActivityEpoch = 0;
 
 function chatVoiceButton() {
   return /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-voice-btn'));
@@ -172,17 +173,25 @@ async function finishVoiceRecording() {
 }
 
 async function startVoiceRecording() {
+  voiceActivityEpoch += 1;
+  const activityEpoch = voiceActivityEpoch;
   stopSpeechPlayback();
   const settings = getVoiceSettings();
-  if (
-    settings.inputProvider === 'browser-local'
-    && !await verifyLocalVoiceModelReady(
+  if (settings.inputProvider === 'browser-local') {
+    let modelReady = isLocalVoiceModelReady(
       'stt',
       settings.localSttModel,
       settings.localSttBackend,
-    )
-  ) {
-    return guideToLocalModelDownload('stt', settings.localSttModel);
+    );
+    if (modelReady) {
+      modelReady = await verifyLocalVoiceModelReady(
+        'stt',
+        settings.localSttModel,
+        settings.localSttBackend,
+      );
+    }
+    if (activityEpoch !== voiceActivityEpoch) return false;
+    if (!modelReady) return guideToLocalModelDownload('stt', settings.localSttModel);
   }
   setCaptureUi('requesting', 'Requesting microphone access…');
   const session = new VoiceCaptureSession({
@@ -258,9 +267,18 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
   const message = state.chatHistory[messageIndex];
   if (!message || message.role !== 'assistant' || message.error) return false;
   if (speakingMessageIndex === messageIndex) {
+    voiceActivityEpoch += 1;
     stopSpeechPlayback();
     return false;
   }
+  voiceActivityEpoch += 1;
+  const activityEpoch = voiceActivityEpoch;
+  const threadId = state.currentThreadId;
+  const isCurrentRequest = () => (
+    voiceActivityEpoch === activityEpoch
+    && state.currentThreadId === threadId
+    && state.chatHistory[messageIndex] === message
+  );
   stopSpeechPlayback();
   if (captureState === 'recording') {
     captureSession?.cancel();
@@ -269,22 +287,27 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
     setCaptureUi('idle', '');
   }
   const settings = getVoiceSettings();
-  if (
-    settings.outputProvider === 'browser-local'
-    && (
-      !isLocalVoiceModelReady('tts', settings.localTtsModel, settings.localTtsBackend)
-      || !await verifyLocalVoiceModelReady(
+  if (settings.outputProvider === 'browser-local') {
+    let modelReady = isLocalVoiceModelReady(
+      'tts',
+      settings.localTtsModel,
+      settings.localTtsBackend,
+    );
+    if (modelReady) {
+      modelReady = await verifyLocalVoiceModelReady(
         'tts',
         settings.localTtsModel,
         settings.localTtsBackend,
-      )
-    )
-  ) {
-    return guideToLocalModelDownload(
-      'tts',
-      settings.localTtsModel,
-      { automatic },
-    );
+      );
+    }
+    if (!isCurrentRequest()) return false;
+    if (!modelReady) {
+      return guideToLocalModelDownload(
+        'tts',
+        settings.localTtsModel,
+        { automatic },
+      );
+    }
   }
   const text = normalizeSpeechText(message.content);
   const chunks = splitSpeechText(
@@ -323,12 +346,19 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
       settings,
       signal: controller.signal,
     });
+    if (!isCurrentRequest()) {
+      controller.abort();
+      return false;
+    }
     /** @param {string} chunk */
     const synthesize = chunk => voice.synthesize(chunk);
     let pendingSynthesis = synthesize(chunks[0]);
     for (let index = 0; index < chunks.length; index += 1) {
       const result = await pendingSynthesis;
-      if (controller.signal.aborted) throw controller.signal.reason;
+      if (!isCurrentRequest()) controller.abort();
+      if (controller.signal.aborted) {
+        throw controller.signal.reason || new DOMException('Voice operation aborted', 'AbortError');
+      }
       const hasStream = result?.stream instanceof ReadableStream;
       const hasPcmStream = result?.pcmStream instanceof ReadableStream;
       const emptyWav = result?.audio instanceof Blob
@@ -383,12 +413,14 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
     }
     return false;
   } finally {
-    if (speechAbortController === controller) speechAbortController = null;
-    if (speakingMessageIndex === messageIndex) {
-      voicePlayer.stop();
-      speakingMessageIndex = null;
+    if (speechAbortController === controller) {
+      speechAbortController = null;
+      if (speakingMessageIndex === messageIndex) {
+        voicePlayer.stop();
+        speakingMessageIndex = null;
+      }
+      setSpeechButton(messageIndex, 'idle');
     }
-    setSpeechButton(messageIndex, 'idle');
   }
 }
 
@@ -398,6 +430,7 @@ export function toggleMessageSpeech(messageIndex) {
 
 export function stopVoiceActivity() {
   const hadActivity = captureState !== 'idle' || speakingMessageIndex !== null;
+  voiceActivityEpoch += 1;
   captureSession?.cancel();
   captureSession = null;
   clearCaptureTicker();

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 576 |
-| Internal import edges | 2487 |
+| Internal import edges | 2488 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -57,7 +57,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 250 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
-| [`js/state.js`](js/state.js) | 172 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/state.js`](js/state.js) | 173 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 82 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 76 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 26 |
@@ -997,7 +997,7 @@ Native browser modules shipped with the static application.
 - [`js/voice-capture.js`](js/voice-capture.js) → no in-scope imports
 - [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js) → no in-scope imports
 - [`js/voice-controller.js`](js/voice-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-capture.js`](js/voice-capture.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-service.js`](js/voice-service.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js), [`js/voice-text.js`](js/voice-text.js)
-- [`js/voice-loader.js`](js/voice-loader.js) → [`js/voice-controller.js`](js/voice-controller.js) *(dynamic)*
+- [`js/voice-loader.js`](js/voice-loader.js) → [`js/state.js`](js/state.js), [`js/voice-controller.js`](js/voice-controller.js) *(dynamic)*
 - [`js/voice-local-engine.js`](js/voice-local-engine.js) → [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/voice-local-stt-worker.js`](js/voice-local-stt-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/voice-local-tts-worker.js`](js/voice-local-tts-worker.js) → [`js/caught-error.js`](js/caught-error.js)
