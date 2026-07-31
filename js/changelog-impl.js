@@ -11,8 +11,7 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.478', date: '2026-07-31', title: 'Talk and listen in Chat',
-    forceShow: true,
+    version: '1.11.0', date: '2026-07-31', title: 'Talk and listen in Chat',
     items: [
       '<b>Chat now supports voice.</b> Tap the microphone to dictate a message, or choose Listen under an assistant reply to hear it read aloud. You can also have new replies read automatically.',
       '<b>You choose where speech is processed.</b> Keep dictation and spoken replies on this device after a one-time model download, connect a compatible voice server you control, or use xAI or ElevenLabs with your own API key.',

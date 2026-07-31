@@ -129,12 +129,11 @@ assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMat
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
 assert('latest changelog launches Voice in high-level user-readable terms',
-  /version:\s*'1\.10\.478'[\s\S]{0,500}Talk and listen in Chat/.test(changelogSrc)
-    && /version:\s*'1\.10\.478'[\s\S]{0,1600}Chat now supports voice/.test(changelogSrc)
-    && /version:\s*'1\.10\.478'[\s\S]{0,1600}You choose where speech is processed/.test(changelogSrc)
-    && /version:\s*'1\.10\.478'[\s\S]{0,1600}Voice is private by default/.test(changelogSrc)
-    && /version:\s*'1\.10\.478'[\s\S]{0,1600}Make it sound right for you/.test(changelogSrc)
-    && /version:\s*'1\.10\.478'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
+  /version:\s*'1\.11\.0'[\s\S]{0,500}Talk and listen in Chat/.test(changelogSrc)
+    && /version:\s*'1\.11\.0'[\s\S]{0,1600}Chat now supports voice/.test(changelogSrc)
+    && /version:\s*'1\.11\.0'[\s\S]{0,1600}You choose where speech is processed/.test(changelogSrc)
+    && /version:\s*'1\.11\.0'[\s\S]{0,1600}Voice is private by default/.test(changelogSrc)
+    && /version:\s*'1\.11\.0'[\s\S]{0,1600}Make it sound right for you/.test(changelogSrc));
 assert('mobile changelog gives a simple overview of chat, Biology Coherence contrast, and general improvements',
   /version:\s*'1\.10\.397'[\s\S]{0,500}Smoother mobile chat and clearer Biology Scores/.test(changelogSrc)
     && /version:\s*'1\.10\.397'[\s\S]{0,1200}Chat is smoother on mobile/.test(changelogSrc)
