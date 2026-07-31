@@ -238,6 +238,7 @@ describe('chat presentation stylesheet runtime behavior', () => {
       expect(chatPanel.configureChatPanel({})).toEqual({
         restoreDiscussionContinuePrompt: null,
         refreshMobileDashboardActiveTab: null,
+        stopVoiceActivity: null,
       });
       expect(chatPanel.isChatThreadInputBlocked()).toBe(false);
       await expect(chatPanel.loadChatPresentationStylesheets()).rejects.toThrow(

@@ -5,6 +5,30 @@ import { getErrorMessage } from './caught-error.js';
 
 const DEFAULT_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 
+/**
+ * @typedef {{
+ *   model: string,
+ *   backend: string,
+ *   fallbackReason?: string,
+ *   streamed: true,
+ *   sampleRate: number,
+ *   inferenceMs: number,
+ *   audioSeconds: number,
+ * }} StreamedSpeechResult
+ */
+/**
+ * @typedef {{
+ *   model: string,
+ *   backend: string,
+ *   fallbackReason?: string,
+ *   streamed?: false,
+ *   samples: Float32Array,
+ *   sampleRate: number,
+ *   inferenceMs: number,
+ *   audioSeconds: number,
+ * }} BufferedSpeechResult
+ */
+
 let synthesizer = null;
 let activeModel = '';
 let activeBackend = '';
@@ -163,6 +187,7 @@ function concatenateAudio(parts) {
   return output;
 }
 
+/** @returns {Promise<StreamedSpeechResult | BufferedSpeechResult>} */
 async function synthesize(message) {
   const ready = await loadSynthesizer(
     message.model,
@@ -177,7 +202,7 @@ async function synthesize(message) {
       samples[index] = Math.sin(2 * Math.PI * 440 * index / sampleRate) * 0.08;
     }
     if (message.streaming) {
-      self.postMessage({
+      /** @type {any} */ (self).postMessage({
         type: 'audio-chunk',
         id: message.id,
         kind: 'tts',
@@ -210,7 +235,7 @@ async function synthesize(message) {
     emittedSamples += part.length;
     if (message.streaming) {
       const transferable = part.slice();
-      self.postMessage({
+      /** @type {any} */ (self).postMessage({
         type: 'audio-chunk',
         id: message.id,
         kind: 'tts',
@@ -259,7 +284,7 @@ self.addEventListener('message', async event => {
     }
     if (message.type === 'synthesize') {
       const result = await synthesize(message);
-      if (result.streamed) {
+      if (!('samples' in result)) {
         self.postMessage({
           type: 'audio-done',
           id,
@@ -273,7 +298,7 @@ self.addEventListener('message', async event => {
         });
         return;
       }
-      self.postMessage(
+      /** @type {any} */ (self).postMessage(
         { type: 'audio', id, kind: 'tts', ...result, samples: result.samples.buffer },
         [result.samples.buffer],
       );
