@@ -10,10 +10,14 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       import('/js/wearables-settings-panel.js'),
     ]);
     const originalFetch = window.fetch;
+    const originalSetTimeout = window.setTimeout;
     let runtimeConfigCalls = 0;
+    let hangingRequestAborted = false;
     adapters._resetOAuthOverrides();
     state.importedData = { wearableConnections: {} };
     document.getElementById('wearables-section')?.remove();
+    window.setTimeout = (handler, delay = 0, ...args) => originalSetTimeout(
+      handler, delay === 10000 ? 0 : delay, ...args);
 
     window.fetch = async (url, options = {}) => {
       if (String(url) === '/api/proxy') {
@@ -21,6 +25,12 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         if (payload.wearable_runtime_config) {
           runtimeConfigCalls += 1;
           if (runtimeConfigCalls === 1) return new Response(null, { status: 503 });
+          if (runtimeConfigCalls === 2) return new Promise((_resolve, reject) => {
+            options.signal?.addEventListener('abort', () => {
+              hangingRequestAborted = true;
+              reject(new DOMException('Aborted', 'AbortError'));
+            }, { once: true });
+          });
           await new Promise(resolve => setTimeout(resolve, 25));
           return new Response(JSON.stringify({
             overrides: { google_health: 'hosted-google-health-client' },
@@ -45,6 +55,9 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       const afterFailureStillWaiting = document.querySelector('[data-adapter="google_health"]')
         ?.textContent.includes('waiting on partner credentials');
       document.dispatchEvent(new Event('settings:wearables-rendered'));
+      while (!hangingRequestAborted) await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      document.dispatchEvent(new Event('settings:wearables-rendered'));
       for (let attempt = 0; attempt < 80; attempt += 1) {
         const row = document.querySelector('[data-adapter="google_health"]');
         if (row?.textContent.includes('optional health hub')) break;
@@ -57,21 +70,24 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         initiallyWaiting,
         initiallyHasConnect,
         afterFailureStillWaiting,
+        hangingRequestAborted,
         configuredText: configuredRow?.textContent || '',
         configuredHasConnect: Boolean(configuredRow
           ?.querySelector('[data-wearable-settings-action="connect"]')),
       };
     } finally {
       window.fetch = originalFetch;
+      window.setTimeout = originalSetTimeout;
       document.getElementById('wearables-section')?.remove();
     }
   });
 
   expect(result).toMatchObject({
-    runtimeConfigCalls: 2,
+    runtimeConfigCalls: 3,
     initiallyWaiting: true,
     initiallyHasConnect: false,
     afterFailureStillWaiting: true,
+    hangingRequestAborted: true,
     configuredHasConnect: true,
   });
   expect(result.configuredText).toContain('optional health hub');
