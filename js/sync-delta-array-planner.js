@@ -12,7 +12,13 @@ import { getPlannerItemRows } from './sync-delta-planner-context.js';
 // Push the diff between the current array state and the last-pushed
 // snapshot. Returns the candidate-new snapshot (caller commits it from
 // onComplete after the blob push lands successfully).
-export async function _planArrayDelta(profileId, arrayName, items) {
+/**
+ * @param {string} profileId
+ * @param {string} arrayName
+ * @param {any[]} items
+ * @param {{ explicitTombstoneIds?: string[] }} [options]
+ */
+export async function _planArrayDelta(profileId, arrayName, items, { explicitTombstoneIds = [] } = {}) {
   const plannedAt = Date.now();
   const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
   const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
@@ -24,11 +30,20 @@ export async function _planArrayDelta(profileId, arrayName, items) {
   // reuse their `id` on update instead of creating phantom duplicates.
   const matching = getPlannerItemRows(profileId, arrayName);
   const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
+  // Some capped surfaces suppress snapshot-inferred tombstones because a
+  // local window eviction is maintenance rather than user intent. Explicit
+  // `_deleted[path]` ids are different: they represent a durable privacy
+  // deletion and must reach per-row sync even after the v4 blob cutover.
+  const explicitTombstones = new Set(
+    (Array.isArray(explicitTombstoneIds) ? explicitTombstoneIds : [])
+      .filter(id => _isAllowlistSafeId(id)),
+  );
 
   // Build [item, itemId] tuples, dropping anything whose derived itemId
   // fails _isAllowlistSafeId (covers regex + proto-pollution rejection).
   const tuples = Array.isArray(items)
-    ? items.map(it => [it, itemIdFn(it)]).filter(([, id]) => _isAllowlistSafeId(id))
+    ? items.map(it => [it, itemIdFn(it)])
+      .filter(([, id]) => _isAllowlistSafeId(id) && !explicitTombstones.has(id))
     : [];
   for (const [item, itemId] of tuples) {
     const json = JSON.stringify(item);
@@ -75,6 +90,20 @@ export async function _planArrayDelta(profileId, arrayName, items) {
   // use. Logged at warn so debug mode surfaces when it fires; the user
   // can still genuinely empty an array (do it in two steps or via
   // explicit clear-data flows that bypass the planner).
+  const queuedTombstones = new Set();
+  const queueTombstone = (itemId) => {
+    if (queuedTombstones.has(itemId)) return;
+    const row = rowByItemId.get(itemId);
+    if (!row || row.isDeleted) return;
+    ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+    queuedTombstones.add(itemId);
+  };
+
+  // Explicit deletions bypass noTombstones and the storm guard. They were
+  // recorded by an intentional delete path, not inferred from an array-size
+  // change, and therefore remain authoritative under Phase 2 cutover.
+  for (const itemId of explicitTombstones) queueTombstone(itemId);
+
   if (!cfg.noTombstones) {
     const prevCount = Object.keys(prev).length;
     const nextCount = Object.keys(next).length;
@@ -88,9 +117,7 @@ export async function _planArrayDelta(profileId, arrayName, items) {
     } else {
       for (const prevId of Object.keys(prev)) {
         if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
-        const row = rowByItemId.get(prevId);
-        if (!row || row.isDeleted) continue;
-        ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+        queueTombstone(prevId);
       }
     }
   }

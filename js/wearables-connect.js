@@ -8,7 +8,7 @@
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { state } from './state.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
 import { upsertDailyBatch, clearSource, setMeta, setMetaVersioned, getMeta, deleteMeta, countSource } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
@@ -88,21 +88,23 @@ function metadataOnlyConnection(adapterId, connection) {
   };
 }
 
-function getConnections() {
-  if (!state.importedData) return {};
-  if (!state.importedData.wearableConnections) state.importedData.wearableConnections = {};
-  return state.importedData.wearableConnections;
+function getConnections(importedData = state.importedData) {
+  if (!importedData) return {};
+  if (!importedData.wearableConnections) importedData.wearableConnections = {};
+  return importedData.wearableConnections;
 }
 
 export function getConnection(adapterId) {
   return getConnections()[adapterId] || null;
 }
 
-export function listConnectedSources() {
-  const map = getConnections();
+export function listConnectedSources() { return listConnectedSourcesFor(state.importedData, getActiveProfileId()); }
+
+function listConnectedSourcesFor(importedData, profileId) {
+  const map = getConnections(importedData);
   const out = {};
   for (const [sid, conn] of Object.entries(map)) {
-    if (conn?.connectedAt && (!usesCredentialVault(sid) || connectionHasCredentials(sid, conn))) {
+    if (conn?.connectedAt && (!usesCredentialVault(sid) || connectionHasCredentials(sid, conn, profileId))) {
       out[sid] = {
         connectedSince: conn.connectedAt,
         lastSyncAt: conn.lastSyncAt || 0,
@@ -578,6 +580,9 @@ export async function disconnectWearable(adapterId, options = {}) {
 
 async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
   const profileId = getActiveProfileId();
+  // Keep post-await mutations bound to the initiating profile; loadProfile()
+  // replaces the global and could otherwise redirect the purge.
+  const profileData = state.importedData;
   // A failed requested purge leaves the connection intact so the user can
   // retry instead of receiving false success with inaccessible rows present.
   if (deleteData && !usesCredentialVault(adapterId)) {
@@ -596,7 +601,9 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
     credentialCache.delete(credentialCacheKey(profileId, adapterId));
     clearLocalWearableCredential(profileId, adapterId, generation);
   }
-  removeConnection(adapterId);
+  const connections = getConnections(profileData);
+  delete connections[adapterId];
+  let remainingSources = null;
   if (deleteData) {
     // Drop the `last-sync:{adapterId}` meta entry too — otherwise a future
     // reconnect's incrementalSyncWearable picks up the stale endDate as
@@ -605,45 +612,37 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
     if (!usesCredentialVault(adapterId)) {
       try { await deleteMeta(profileId, `last-sync:${adapterId}`); } catch { /* meta wipe failure is recoverable */ }
     }
-    const googleDerivedHistoryPurged = adapterId === 'google_health'
-      && deleteImportedArrayItems(
-        state.importedData,
-        'changeHistory',
+    if (adapterId === 'google_health') {
+      deleteImportedArrayItems(
+        profileData, 'changeHistory',
         event => event?.type === 'wearable' && event?.source === 'google_health', { forceTombstones: true },
-      ).length > 0;
-    let googleDerivedSummaryPurged = false;
-    if (adapterId === 'google_health' && state.importedData?.wearableSummary) {
-      const summary = state.importedData.wearableSummary;
-      if (summary.sources?.google_health) {
-        delete summary.sources.google_health;
-        googleDerivedSummaryPurged = true;
+      );
+    }
+    if (profileData?.wearableSummary) {
+      const summary = profileData.wearableSummary;
+      if (summary.sources?.[adapterId]) {
+        delete summary.sources[adapterId];
       }
       for (const [metricId, metric] of Object.entries(summary.metrics || {})) {
-        if (metric?.primarySource === 'google_health') {
+        if (metric?.primarySource === adapterId) {
           delete summary.metrics[metricId];
-          googleDerivedSummaryPurged = true;
         }
       }
     }
-    // Persist the privacy deletion before doing any best-effort rebuild from
-    // remaining direct sources. A locked/corrupt unrelated source must never
-    // leave Google-derived values behind after Disconnect succeeds.
-    if (adapterId === 'google_health' && (googleDerivedHistoryPurged || googleDerivedSummaryPurged)) {
-      await saveImportedData();
-    }
-    const remainingSources = listConnectedSources();
-    if (Object.keys(remainingSources).length > 0) {
-      // Recompute from remaining sources so Google-derived metric values do
-      // not survive merely because another wearable is still connected.
-      await syncWearableSummary(profileId, remainingSources, { force: true });
-    } else {
-      let shouldSave = googleDerivedHistoryPurged || googleDerivedSummaryPurged;
-      if (state.importedData?.wearableSummary) {
-        delete state.importedData.wearableSummary;
-        shouldSave = true;
-      }
-      if (shouldSave) await saveImportedData();
-    }
+    remainingSources = listConnectedSourcesFor(profileData, profileId);
+    if (Object.keys(remainingSources).length === 0 && profileData?.wearableSummary) delete profileData.wearableSummary;
+  }
+
+  // Persist to the captured profile before any best-effort summary rebuild.
+  const persisted = await saveImportedDataForProfile(profileId, profileData);
+  if (persisted === false) {
+    throw new Error('Wearable disconnect could not be persisted for this profile.');
+  }
+
+  if (deleteData && remainingSources && Object.keys(remainingSources).length > 0
+    && getActiveProfileId() === profileId && state.importedData === profileData) {
+    // A switched-away profile recomputes safely when it is next loaded.
+    await syncWearableSummary(profileId, remainingSources, { force: true });
   }
 }
 

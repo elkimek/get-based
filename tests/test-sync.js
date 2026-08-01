@@ -1186,7 +1186,7 @@ await import('../js/settings.js');
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncDeltaPlannerSearchSrc));
+    /_planArrayDelta[\s\S]{0,1800}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1800}prev\[itemId\]\s*===\s*hash/.test(syncDeltaPlannerSearchSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
     /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaIdSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
@@ -1201,7 +1201,7 @@ await import('../js/settings.js');
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
     /const \{ deltaPlans,\s*deltaOpCount \}\s*=\s*await planProfileDeltas\(profileId,\s*outboundData\)[\s\S]{0,5000}evolu\.update\("profileData"/.test(syncPushSrc)
-      && /planProfileDeltas[\s\S]{0,1200}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,500}_planArrayDelta/.test(syncPushDeltasSrc));
+      && /planProfileDeltas[\s\S]{0,1200}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,800}_planArrayDelta/.test(syncPushDeltasSrc));
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.
   assert('pushProfile applies deltas only after onComplete (blob commit)',
@@ -1394,7 +1394,8 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('6. Data Integration');
 
-  assert('data.js imports onDataSaved from sync.js', dataSrc.includes("import { onDataSaved } from './sync.js'"));
+  assert('data.js imports onDataSaved from sync.js',
+    /import \{[^}]*onDataSaved[^}]*\} from '\.\/sync\.js'/.test(dataSrc));
   assert('saveImportedData calls onDataSaved()', /onDataSaved\([^)]*\)/.test(dataSrc));
 
   // ═══════════════════════════════════════
@@ -1844,8 +1845,11 @@ await import('../js/settings.js');
     /changeHistory:[\s\S]{0,1200}noTombstones:\s*true/.test(deltaSearchSrc));
   assert('_planArrayDelta consults DELTA_ARRAY_CONFIG[arrayName]',
     /_planArrayDelta[\s\S]{0,400}DELTA_ARRAY_CONFIG\[arrayName\]/.test(deltaSearchSrc));
-  assert('_planArrayDelta skips tombstones when cfg.noTombstones is set',
-    /if \(!cfg\.noTombstones\) \{[\s\S]{0,800}kind:\s*'tombstone'/.test(deltaSearchSrc));
+  assert('_planArrayDelta suppresses inferred tombstones but carries explicit privacy deletions',
+    /for \(const itemId of explicitTombstones\) queueTombstone\(itemId\);[\s\S]{0,200}if \(!cfg\.noTombstones\)/.test(deltaSearchSrc)
+      && /if \(!cfg\.noTombstones\)[\s\S]{0,1400}queueTombstone\(prevId\)/.test(deltaSearchSrc));
+  assert('planProfileDeltas passes explicit blob tombstones into the array planner',
+    /importedData\._deleted\?\.\[arrayName\][\s\S]{0,300}_planArrayDelta\([^)]*explicitTombstoneIds/.test(syncPushDeltasSrc));
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
     /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',

@@ -65,7 +65,10 @@ describe('wearable disconnect deletion failures', () => {
 
     vi.doMock('../js/state.js', () => ({ state: { importedData } }));
     vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
-    vi.doMock('../js/data.js', () => ({ saveImportedData: vi.fn() }));
+    vi.doMock('../js/data.js', () => ({
+      saveImportedData: vi.fn(),
+      saveImportedDataForProfile: vi.fn(async () => true),
+    }));
     vi.doMock('../js/wearables-store.js', () => ({
       clearSource: vi.fn(),
       countSource: vi.fn(),
@@ -133,7 +136,10 @@ describe('wearable disconnect deletion failures', () => {
 
     vi.doMock('../js/state.js', () => ({ state: { importedData } }));
     vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
-    vi.doMock('../js/data.js', () => ({ saveImportedData: vi.fn() }));
+    vi.doMock('../js/data.js', () => ({
+      saveImportedData: vi.fn(),
+      saveImportedDataForProfile: vi.fn(async () => true),
+    }));
     vi.doMock('../js/wearables-store.js', () => ({
       clearSource: vi.fn(),
       countSource: vi.fn(),
@@ -183,6 +189,89 @@ describe('wearable disconnect deletion failures', () => {
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBeNull();
   });
 
+  it('finishes a Google Health purge against the initiating profile after a profile switch', async () => {
+    const profileA = 'google-health-profile-a';
+    const profileB = 'google-health-profile-b';
+    let activeProfileId = profileA;
+    let releaseDelete = () => {};
+    const deleteGate = new Promise(resolve => { releaseDelete = resolve; });
+    const deleteWearableCredentials = vi.fn(async () => {
+      await deleteGate;
+      return 1;
+    });
+    const saveImportedDataForProfile = vi.fn(async () => true);
+    const importedA = {
+      wearableConnections: {
+        google_health: {
+          connectedAt: '2026-08-01T00:00:00.000Z',
+          hasStoredCredentials: true,
+        },
+      },
+      wearableSummary: {
+        sources: { google_health: { coverageDays: 1 } },
+        metrics: { hrv_rmssd: { primarySource: 'google_health', latest: 44 } },
+      },
+      changeHistory: [{
+        ts: Date.parse('2026-08-01T00:00:00.000Z'),
+        type: 'wearable',
+        kind: 'trend-flip',
+        source: 'google_health',
+        metricId: 'hrv_rmssd',
+      }],
+    };
+    const importedB = {
+      wearableConnections: {
+        oura: { connectedAt: '2026-08-01T00:00:00.000Z', accessToken: 'profile-b-token' },
+      },
+      wearableSummary: { sources: { oura: { coverageDays: 1 } }, metrics: {} },
+      changeHistory: [{ field: 'exercise', date: '2026-08-01' }],
+    };
+    const state = { currentProfile: profileA, importedData: importedA };
+
+    vi.doMock('../js/state.js', () => ({ state }));
+    vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => activeProfileId }));
+    vi.doMock('../js/data.js', () => ({
+      saveImportedData: vi.fn(),
+      saveImportedDataForProfile,
+    }));
+    vi.doMock('../js/wearables-store.js', () => ({
+      clearSource: vi.fn(),
+      countSource: vi.fn(),
+      deleteMeta: vi.fn(),
+      getDailyRange: vi.fn(),
+      getMeta: vi.fn(),
+      setMeta: vi.fn(),
+      upsertDailyBatch: vi.fn(),
+    }));
+    vi.doMock('../js/wearables-credential-vault.js', () => credentialVaultModule({
+      deleteWearableCredentials,
+    }));
+
+    localStorage.setItem(`labcharts-wearable-credential-local:${profileA}:google_health`, '1');
+    const { disconnectWearable } = await import('../js/wearables-connect.js');
+    const disconnect = disconnectWearable('google_health', { deleteData: true });
+    await vi.waitFor(() => expect(deleteWearableCredentials).toHaveBeenCalledOnce());
+
+    activeProfileId = profileB;
+    state.currentProfile = profileB;
+    state.importedData = importedB;
+    releaseDelete();
+    await disconnect;
+
+    expect(importedA.wearableConnections.google_health).toBeUndefined();
+    expect(importedA.changeHistory).toEqual([]);
+    expect(importedA._deleted.changeHistory).toHaveLength(1);
+    expect(importedA.wearableSummary).toBeUndefined();
+    expect(importedB).toEqual({
+      wearableConnections: {
+        oura: { connectedAt: '2026-08-01T00:00:00.000Z', accessToken: 'profile-b-token' },
+      },
+      wearableSummary: { sources: { oura: { coverageDays: 1 } }, metrics: {} },
+      changeHistory: [{ field: 'exercise', date: '2026-08-01' }],
+    });
+    expect(saveImportedDataForProfile).toHaveBeenCalledWith(profileA, importedA);
+  });
+
   it('keeps Google Health credentials and connection metadata available when row deletion fails', async () => {
     const profileId = 'google-health-disconnect-failure';
     const deletionError = new Error('IndexedDB deletion failed');
@@ -202,7 +291,8 @@ describe('wearable disconnect deletion failures', () => {
 
     vi.doMock('../js/state.js', () => ({ state: { importedData } }));
     vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
-    vi.doMock('../js/data.js', () => ({ saveImportedData }));
+    const saveImportedDataForProfile = vi.fn();
+    vi.doMock('../js/data.js', () => ({ saveImportedData, saveImportedDataForProfile }));
     vi.doMock('../js/wearables-store.js', () => ({
       clearSource,
       countSource: vi.fn(),
@@ -237,6 +327,7 @@ describe('wearable disconnect deletion failures', () => {
     expect(getConnection('google_health')).toEqual(importedData.wearableConnections.google_health);
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBe('1');
     expect(saveImportedData).not.toHaveBeenCalled();
+    expect(saveImportedDataForProfile).not.toHaveBeenCalled();
   });
 
   it('shows a deletion error instead of a false disconnect success', async () => {
