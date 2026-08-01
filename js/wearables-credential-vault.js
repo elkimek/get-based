@@ -62,5 +62,5 @@ export async function loadWearableCredentials(profileId, adapterId) {
 
 export async function deleteWearableCredentials(profileId, adapterId) {
   if (!profileId || !adapterId) return;
-  await deleteMeta(profileId, recordKey(adapterId));
+  await withVaultLock(profileId, () => deleteMeta(profileId, recordKey(adapterId)));
 }

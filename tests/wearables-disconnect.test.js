@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const realFetch = globalThis.fetch;
+
 const MOCKED_MODULES = [
   '../js/data.js',
   '../js/profile.js',
@@ -7,6 +9,7 @@ const MOCKED_MODULES = [
   '../js/utils.js',
   '../js/wearables-connect.js',
   '../js/wearables-credential-vault.js',
+  '../js/wearables-google-health-auth.js',
   '../js/wearables-store.js',
 ];
 
@@ -17,16 +20,84 @@ beforeEach(async () => {
 
 afterEach(() => {
   for (const modulePath of MOCKED_MODULES) vi.doUnmock(modulePath);
+  globalThis.fetch = realFetch;
   vi.restoreAllMocks();
 });
 
 describe('wearable disconnect deletion failures', () => {
+  it('lets disconnect win over a refresh already queued for the same Google Health connection', async () => {
+    const profileId = 'google-health-refresh-race';
+    const deleteWearableCredentials = vi.fn();
+    const loadWearableCredentials = vi.fn(async () => ({
+      accessToken: 'expired-access',
+      refreshToken: 'refresh-secret',
+    }));
+    const saveWearableCredentials = vi.fn();
+    const importedData = {
+      wearableConnections: {
+        google_health: {
+          connectedAt: '2026-08-01T00:00:00.000Z',
+          expiresAt: Date.now() - 1,
+          hasStoredCredentials: true,
+        },
+      },
+      changeHistory: [],
+    };
+
+    vi.doMock('../js/state.js', () => ({ state: { importedData } }));
+    vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
+    vi.doMock('../js/data.js', () => ({ saveImportedData: vi.fn() }));
+    vi.doMock('../js/wearables-store.js', () => ({
+      clearSource: vi.fn(),
+      countSource: vi.fn(),
+      deleteMeta: vi.fn(),
+      getDailyRange: vi.fn(),
+      getMeta: vi.fn(),
+      setMeta: vi.fn(),
+      upsertDailyBatch: vi.fn(),
+    }));
+    vi.doMock('../js/wearables-credential-vault.js', () => ({
+      deleteWearableCredentials,
+      loadWearableCredentials,
+      saveWearableCredentials,
+    }));
+
+    localStorage.setItem(`labcharts-wearable-credential-local:${profileId}:google_health`, '1');
+    globalThis.fetch = vi.fn();
+    const { withGoogleHealthRefreshLock } = await import('../js/wearables-google-health-auth.js');
+    const { backfillWearable, disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
+
+    let releaseBlocker = () => {};
+    const blockerGate = new Promise(resolve => { releaseBlocker = resolve; });
+    let blockerStarted = false;
+    const blocker = withGoogleHealthRefreshLock(async () => {
+      blockerStarted = true;
+      await blockerGate;
+    });
+    await vi.waitFor(() => expect(blockerStarted).toBe(true));
+
+    const disconnect = disconnectWearable('google_health', { deleteData: false });
+    const refreshResult = backfillWearable('google_health').catch(error => error);
+    releaseBlocker();
+
+    await blocker;
+    await disconnect;
+    const refreshError = await refreshResult;
+    expect(refreshError).toMatchObject({ code: 'disconnected' });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(saveWearableCredentials).not.toHaveBeenCalled();
+    expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health');
+    expect(getConnection('google_health')).toBeNull();
+    expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBeNull();
+  });
+
   it('keeps Google Health credentials and connection metadata available when row deletion fails', async () => {
     const profileId = 'google-health-disconnect-failure';
     const deletionError = new Error('IndexedDB deletion failed');
     const clearSource = vi.fn().mockRejectedValue(deletionError);
     const deleteWearableCredentials = vi.fn();
     const saveImportedData = vi.fn();
+    const withGoogleHealthRefreshLock = vi.fn(async callback => callback());
     const importedData = {
       wearableConnections: {
         google_health: {
@@ -54,6 +125,10 @@ describe('wearable disconnect deletion failures', () => {
       loadWearableCredentials: vi.fn(),
       saveWearableCredentials: vi.fn(),
     }));
+    vi.doMock('../js/wearables-google-health-auth.js', async importOriginal => ({
+      ...(await importOriginal()),
+      withGoogleHealthRefreshLock,
+    }));
 
     localStorage.setItem(`labcharts-wearable-credential-local:${profileId}:google_health`, '1');
     const { disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
@@ -62,6 +137,7 @@ describe('wearable disconnect deletion failures', () => {
       .rejects.toBe(deletionError);
 
     expect(clearSource).toHaveBeenCalledWith(profileId, 'google_health');
+    expect(withGoogleHealthRefreshLock).toHaveBeenCalledOnce();
     expect(deleteWearableCredentials).not.toHaveBeenCalled();
     expect(getConnection('google_health')).toEqual(importedData.wearableConnections.google_health);
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBe('1');

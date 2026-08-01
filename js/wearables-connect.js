@@ -25,7 +25,7 @@ import { beginOAuth as beginWithingsOAuth, completeOAuthCallback as completeWith
 import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commitPolarTransactions } from './wearables-polar.js';
 import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCallback, isPolarCallback, withFreshToken as polarWithFreshToken, DEFAULT_POLAR_SCOPES } from './wearables-polar-auth.js';
 import { fetchGoogleHealthDailyRange, fetchGoogleHealthPersonalInfo } from './wearables-google-health.js';
-import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
+import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthRefreshLock, googleHealthDisconnectedError, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
 import { deleteWearableCredentials, loadWearableCredentials, saveWearableCredentials } from './wearables-credential-vault.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
@@ -179,6 +179,7 @@ async function hydratedConnection(adapterId) {
 function latestHydratedConnection(adapterId, fallback, profileId = getActiveProfileId()) {
   if (profileId !== getActiveProfileId()) return fallback;
   const metadata = getConnection(adapterId);
+  if (usesCredentialVault(adapterId) && (!metadata || !connectionHasCredentials(adapterId, metadata, profileId))) throw googleHealthDisconnectedError();
   if (!metadata || !usesCredentialVault(adapterId)) return metadata || fallback;
   const credentials = credentialCache.get(credentialCacheKey(profileId, adapterId));
   return credentials ? { ...metadata, ...credentials } : fallback;
@@ -574,7 +575,13 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
 // Disconnect
 // ─────────────────────────────────────────────────────────
 
-export async function disconnectWearable(adapterId, { deleteData = true } = {}) {
+export async function disconnectWearable(adapterId, options = {}) {
+  return adapterId === 'google_health'
+    ? withGoogleHealthRefreshLock(() => disconnectWearableLocked(adapterId, options))
+    : disconnectWearableLocked(adapterId, options);
+}
+
+async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
   const profileId = getActiveProfileId();
   // Delete requested health rows before removing the credentials or
   // connection metadata. If IndexedDB refuses the purge, propagate that

@@ -11,6 +11,8 @@ import {
   buildAuthorizeUrl,
   completeOAuthCallback,
   refreshTokens,
+  withFreshToken,
+  withGoogleHealthRefreshLock,
 } from '../js/wearables-google-health-auth.js';
 import {
   deleteWearableCredentials,
@@ -132,6 +134,45 @@ afterEach(() => {
 });
 
 describe('Google Health adapter and OAuth', () => {
+  it('serializes refresh and disconnect credential work', async () => {
+    /** @type {() => void} */
+    let releaseRefresh;
+    const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
+    const order = [];
+
+    const refresh = withGoogleHealthRefreshLock(async () => {
+      order.push('refresh-start');
+      await refreshGate;
+      order.push('refresh-end');
+    });
+    await vi.waitFor(() => expect(order).toEqual(['refresh-start']));
+
+    const disconnect = withGoogleHealthRefreshLock(() => {
+      order.push('disconnect');
+    });
+    await Promise.resolve();
+    expect(order).toEqual(['refresh-start']);
+
+    releaseRefresh();
+    await Promise.all([refresh, disconnect]);
+    expect(order).toEqual(['refresh-start', 'refresh-end', 'disconnect']);
+  });
+
+  it('does not refresh or persist after the connection is removed', async () => {
+    const disconnected = Object.assign(new Error('Connection removed'), { code: 'disconnected' });
+    const write = vi.fn();
+    globalThis.fetch = vi.fn();
+
+    await expect(withFreshToken({
+      accessToken: 'expired-access',
+      refreshToken: 'refresh-secret',
+      expiresAt: Date.now() - 1,
+    }, 'google-client', write, () => { throw disconnected; })).rejects.toBe(disconnected);
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it('registers an optional read-only aggregator without replacing direct providers', () => {
     const adapter = adapterById('google_health');
     expect(adapter).toMatchObject({

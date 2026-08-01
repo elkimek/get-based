@@ -18,12 +18,43 @@ const PROXY_URL = '/api/proxy';
 const STATE_KEY = 'google_health-oauth-pending';
 const REFRESH_LEAD_MS = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'google-health-oauth-refresh';
+let refreshLockTail = Promise.resolve();
+
+/**
+ * Serialize Google Health credential mutations in this module and, where the
+ * Web Locks API is available, across tabs. Disconnect uses the same lock as
+ * refresh so it cannot finish while a refresh callback is still able to
+ * persist replacement credentials.
+ *
+ * @template T
+ * @param {() => Promise<T> | T} callback
+ * @returns {Promise<T>}
+ */
+export function withGoogleHealthRefreshLock(callback) {
+  const runInModuleQueue = () => {
+    const result = refreshLockTail.then(callback, callback);
+    refreshLockTail = result.then(() => undefined, () => undefined);
+    return result;
+  };
+  const locks = globalThis.navigator?.locks;
+  if (locks && typeof locks.request === 'function') {
+    return locks.request(REFRESH_LOCK_KEY, { mode: 'exclusive' }, runInModuleQueue);
+  }
+  return runInModuleQueue();
+}
 
 export const DEFAULT_GOOGLE_HEALTH_SCOPES = [
   'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly',
   'https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly',
   'https://www.googleapis.com/auth/googlehealth.sleep.readonly',
 ];
+
+export function googleHealthDisconnectedError() {
+  /** @type {Error & { code?: string }} */
+  const error = new Error('Connection was removed while credentials were being refreshed.');
+  error.code = 'disconnected';
+  return error;
+}
 
 function randomState() {
   const bytes = new Uint8Array(24);
@@ -180,10 +211,7 @@ export async function withFreshToken(connection, clientId, refreshedWrite, readL
     return updated;
   };
 
-  if (navigator.locks && typeof navigator.locks.request === 'function') {
-    return navigator.locks.request(REFRESH_LOCK_KEY, { mode: 'exclusive' }, run);
-  }
-  return run();
+  return withGoogleHealthRefreshLock(run);
 }
 
 exposeWearableAuthDebug('_googleHealthAuth', {
@@ -191,5 +219,6 @@ exposeWearableAuthDebug('_googleHealthAuth', {
   completeOAuthCallback,
   isGoogleHealthCallback,
   refreshTokens,
+  withGoogleHealthRefreshLock,
   withFreshToken,
 }, Boolean(isDebugMode?.()));
