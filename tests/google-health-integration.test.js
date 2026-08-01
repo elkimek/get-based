@@ -339,15 +339,25 @@ describe('Google Health privacy and source precedence', () => {
       steps: 1234,
     }]);
     await setMeta(profileId, 'last-sync:google_health', { endDate: '2026-07-31' });
+    const pendingDisconnect = {
+      adapterId: 'google_health',
+      deleteData: true,
+      createdAt: Date.now(),
+    };
     const disconnectedGeneration = await deleteWearableCredentials(profileId, 'google_health', {
       source: 'google_health',
       metaKeys: ['last-sync:google_health'],
+      metaWrites: {
+        'pending-profile-disconnect:v1:google_health': pendingDisconnect,
+      },
     });
     expect(disconnectedGeneration).toBe(1);
     await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toBeNull();
     await expect(getDailyRangeRaw(profileId, 'google_health', '2026-07-31', '2026-07-31'))
       .resolves.toEqual([]);
     await expect(getMeta(profileId, 'last-sync:google_health')).resolves.toBeNull();
+    await expect(getMeta(profileId, 'pending-profile-disconnect:v1:google_health'))
+      .resolves.toEqual(pendingDisconnect);
 
     await expect(saveWearableCredentials(profileId, 'google_health', {
       accessToken: 'stale-access',

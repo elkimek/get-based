@@ -9,6 +9,7 @@ const MOCKED_MODULES = [
   '../js/utils.js',
   '../js/wearables-connect.js',
   '../js/wearables-credential-vault.js',
+  '../js/wearables-disconnect-recovery.js',
   '../js/wearables-google-health-auth.js',
   '../js/wearables-google-health.js',
   '../js/wearables-store.js',
@@ -108,7 +109,15 @@ describe('wearable disconnect deletion failures', () => {
     expect(refreshError).toMatchObject({ code: 'disconnected' });
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(saveWearableCredentials).not.toHaveBeenCalled();
-    expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health');
+    expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health', {
+      metaWrites: {
+        'pending-profile-disconnect:v1:google_health': {
+          adapterId: 'google_health',
+          deleteData: false,
+          createdAt: expect.any(Number),
+        },
+      },
+    });
     expect(getConnection('google_health')).toBeNull();
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBeNull();
   });
@@ -272,6 +281,94 @@ describe('wearable disconnect deletion failures', () => {
     expect(saveImportedDataForProfile).toHaveBeenCalledWith(profileA, importedA);
   });
 
+  it('recovers Google Health profile cleanup after the first profile save fails', async () => {
+    const profileId = 'google-health-disconnect-recovery';
+    const pendingKey = 'pending-profile-disconnect:v1:google_health';
+    const persistedBeforeDisconnect = {
+      wearableConnections: {
+        google_health: {
+          connectedAt: '2026-08-01T00:00:00.000Z',
+          hasStoredCredentials: true,
+        },
+      },
+      wearableSummary: {
+        sources: { google_health: { coverageDays: 1 } },
+        metrics: { hrv_rmssd: { primarySource: 'google_health', latest: 44 } },
+      },
+      changeHistory: [{
+        ts: Date.parse('2026-08-01T00:00:00.000Z'),
+        type: 'wearable',
+        kind: 'trend-flip',
+        source: 'google_health',
+        metricId: 'hrv_rmssd',
+      }],
+    };
+    const state = {
+      currentProfile: profileId,
+      importedData: structuredClone(persistedBeforeDisconnect),
+    };
+    let saveSucceeds = false;
+    const saveImportedDataForProfile = vi.fn(async () => saveSucceeds);
+    const deleteWearableCredentials = vi.fn(async () => 1);
+    const deleteMeta = vi.fn(async () => undefined);
+    const getMeta = vi.fn(async (_profileId, key) => key === pendingKey ? {
+      adapterId: 'google_health',
+      deleteData: true,
+      createdAt: Date.now(),
+    } : null);
+
+    vi.doMock('../js/state.js', () => ({ state }));
+    vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
+    vi.doMock('../js/data.js', () => ({
+      saveImportedData: vi.fn(),
+      saveImportedDataForProfile,
+    }));
+    vi.doMock('../js/wearables-store.js', () => ({
+      clearSource: vi.fn(),
+      countSource: vi.fn(),
+      deleteMeta,
+      getDailyRange: vi.fn(),
+      getMeta,
+      setMeta: vi.fn(),
+      upsertDailyBatch: vi.fn(),
+    }));
+    vi.doMock('../js/wearables-credential-vault.js', () => credentialVaultModule({
+      deleteWearableCredentials,
+    }));
+
+    localStorage.setItem(`labcharts-wearable-credential-local:${profileId}:google_health`, '1');
+    const { disconnectWearable, recoverPendingWearableDisconnect } = await import('../js/wearables-connect.js');
+
+    await expect(disconnectWearable('google_health', { deleteData: true }))
+      .rejects.toThrow('could not be persisted');
+    expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health', {
+      source: 'google_health',
+      metaKeys: ['last-sync:google_health'],
+      metaWrites: {
+        [pendingKey]: {
+          adapterId: 'google_health',
+          deleteData: true,
+          createdAt: expect.any(Number),
+        },
+      },
+    });
+    expect(deleteMeta).not.toHaveBeenCalled();
+
+    // A reload restores the old profile snapshot, while the transactionally
+    // written IndexedDB journal survives to finish the profile-side purge.
+    state.importedData = structuredClone(persistedBeforeDisconnect);
+    saveSucceeds = true;
+    await expect(recoverPendingWearableDisconnect(profileId, state.importedData))
+      .resolves.toBe(true);
+
+    expect(state.importedData.wearableConnections.google_health).toBeUndefined();
+    expect(state.importedData.changeHistory).toEqual([]);
+    expect(state.importedData._deleted.changeHistory).toHaveLength(1);
+    expect(state.importedData.wearableSummary).toBeUndefined();
+    expect(saveImportedDataForProfile).toHaveBeenLastCalledWith(profileId, state.importedData);
+    expect(deleteMeta).toHaveBeenCalledWith(profileId, pendingKey);
+  });
+
   it('keeps Google Health credentials and connection metadata available when row deletion fails', async () => {
     const profileId = 'google-health-disconnect-failure';
     const deletionError = new Error('IndexedDB deletion failed');
@@ -323,6 +420,13 @@ describe('wearable disconnect deletion failures', () => {
     expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health', {
       source: 'google_health',
       metaKeys: ['last-sync:google_health'],
+      metaWrites: {
+        'pending-profile-disconnect:v1:google_health': {
+          adapterId: 'google_health',
+          deleteData: true,
+          createdAt: expect.any(Number),
+        },
+      },
     });
     expect(getConnection('google_health')).toEqual(importedData.wearableConnections.google_health);
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBe('1');

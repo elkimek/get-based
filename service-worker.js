@@ -522,6 +522,7 @@ const APP_SHELL = [
   '/js/wearables-connect-runtime.js',
   '/js/wearables-connect-loader.js',
   '/js/wearables-connect.js',
+  '/js/wearables-disconnect-recovery.js',
   '/js/wearables-oura.js',
   '/js/wearables-oura-auth.js',
   '/js/wearables-withings.js',

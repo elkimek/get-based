@@ -205,7 +205,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
     const { getConfiguredArrayItemId } = await import('/js/data-merge.js');
     const { renderWearablesSettingsSection } = await import('/js/wearables-settings-panel.js');
     const { loadWearableCredentials } = await import('/js/wearables-credential-vault.js');
-    const { getDailyRange, upsertDailyBatch } = await import('/js/wearables-store.js');
+    const { getDailyRange, getMeta, upsertDailyBatch } = await import('/js/wearables-store.js');
     const handled = await connect.handleOAuthCallbackOnLoad();
     const connection = connect.getConnection('google_health');
     const connectedOnThisDevice = Boolean(connect.listConnectedSources().google_health);
@@ -237,8 +237,10 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
     const connectedWithoutDeviceCredential = Boolean(connect.listConnectedSources().google_health);
     await connect.disconnectWearable('google_health', { deleteData: true });
     const rowsAfterDisconnect = await getDailyRange(profileId, 'google_health', '2026-07-31', '2026-07-31');
+    const pendingDisconnect = await getMeta(profileId, 'pending-profile-disconnect:v1:google_health');
     const googleDerivedPurgeState = {
       rowCount: rowsAfterDisconnect.length,
+      pendingDisconnect,
       hasWearableSummary: Boolean(state.importedData.wearableSummary),
       changeHistoryCount: state.importedData.changeHistory.length,
       deletedHistoryId,
@@ -280,6 +282,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
   expect(result.profileContainsRefreshToken).toBe(false);
   expect(result.googleDerivedPurgeState).toMatchObject({
     rowCount: 0,
+    pendingDisconnect: null,
     hasWearableSummary: false,
     changeHistoryCount: 0,
   });

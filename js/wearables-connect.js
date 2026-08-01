@@ -6,7 +6,6 @@
 // the L2 summary gate. Keeps UI-side code clean of OAuth plumbing.
 
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
-import { deleteImportedArrayItems } from './data-merge.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
@@ -27,6 +26,7 @@ import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCa
 import { fetchGoogleHealthDailyRange, fetchGoogleHealthPersonalInfo } from './wearables-google-health.js';
 import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthLifecycleLock, withGoogleHealthRefreshLock, googleHealthDisconnectedError, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
 import { clearLocalWearableCredential, deleteWearableCredentials, hasLocalWearableCredential, loadWearableCredentials, markLocalWearableCredential, saveWearableCredentials, wearableCredentialGenerationKey } from './wearables-credential-vault.js';
+import { applyWearableDisconnectToProfile, clearPendingWearableDisconnect, pendingWearableDisconnectMetaKey } from './wearables-disconnect-recovery.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
 import {
@@ -35,6 +35,8 @@ import {
   getWearableOAuthSearchParamsRuntime,
   navigateWearablesDashboardAfterConnectRuntime,
 } from './wearables-connect-runtime.js';
+
+export { recoverPendingWearableDisconnect } from './wearables-disconnect-recovery.js';
 
 const BACKFILL_DAYS = 90;
 
@@ -592,17 +594,26 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
     // For Google Health, credential revocation, the generation fence, daily
     // row deletion, and cursor deletion share one IndexedDB transaction. A
     // stale cross-tab write cannot land between clearing data and revoking credentials.
-    const generation = deleteData
-      ? await deleteWearableCredentials(profileId, adapterId, {
+    const recoveryJournal = adapterId === 'google_health' ? {
+      metaWrites: {
+        [pendingWearableDisconnectMetaKey(adapterId)]: {
+          adapterId, deleteData, createdAt: Date.now(),
+        },
+      },
+    } : {};
+    const generation = await deleteWearableCredentials(
+      profileId,
+      adapterId,
+      deleteData ? {
         source: adapterId,
         metaKeys: [`last-sync:${adapterId}`],
-      })
-      : await deleteWearableCredentials(profileId, adapterId);
+        ...recoveryJournal,
+      } : recoveryJournal,
+    );
     credentialCache.delete(credentialCacheKey(profileId, adapterId));
     clearLocalWearableCredential(profileId, adapterId, generation);
   }
-  const connections = getConnections(profileData);
-  delete connections[adapterId];
+  applyWearableDisconnectToProfile(profileData, adapterId, { deleteData });
   let remainingSources = null;
   if (deleteData) {
     // Drop the `last-sync:{adapterId}` meta entry too — otherwise a future
@@ -612,25 +623,7 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
     if (!usesCredentialVault(adapterId)) {
       try { await deleteMeta(profileId, `last-sync:${adapterId}`); } catch { /* meta wipe failure is recoverable */ }
     }
-    if (adapterId === 'google_health') {
-      deleteImportedArrayItems(
-        profileData, 'changeHistory',
-        event => event?.type === 'wearable' && event?.source === 'google_health', { forceTombstones: true },
-      );
-    }
-    if (profileData?.wearableSummary) {
-      const summary = profileData.wearableSummary;
-      if (summary.sources?.[adapterId]) {
-        delete summary.sources[adapterId];
-      }
-      for (const [metricId, metric] of Object.entries(summary.metrics || {})) {
-        if (metric?.primarySource === adapterId) {
-          delete summary.metrics[metricId];
-        }
-      }
-    }
     remainingSources = listConnectedSourcesFor(profileData, profileId);
-    if (Object.keys(remainingSources).length === 0 && profileData?.wearableSummary) delete profileData.wearableSummary;
   }
 
   // Persist to the captured profile before any best-effort summary rebuild.
@@ -638,6 +631,7 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
   if (persisted === false) {
     throw new Error('Wearable disconnect could not be persisted for this profile.');
   }
+  if (adapterId === 'google_health') await clearPendingWearableDisconnect(profileId, adapterId);
 
   if (deleteData && remainingSources && Object.keys(remainingSources).length > 0
     && getActiveProfileId() === profileId && state.importedData === profileData) {

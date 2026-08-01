@@ -546,7 +546,7 @@ export async function setMetaVersioned(profileId, key, value, versionKey, expect
  * @param {string} profileId
  * @param {string} key
  * @param {string} versionKey
- * @param {{ source?: string | null, metaKeys?: string[] }} [options]
+ * @param {{ source?: string | null, metaKeys?: string[], metaWrites?: Record<string, any> }} [options]
  */
 export async function bumpMetaVersionAndDelete(profileId, key, versionKey, options = {}) {
   const db = await openWearablesDB(profileId);
@@ -562,6 +562,9 @@ export async function bumpMetaVersionAndDelete(profileId, key, versionKey, optio
     store.put({ k: versionKey, v: version, updatedAt: Date.now() });
     store.delete(key);
     for (const metaKey of options.metaKeys || []) store.delete(metaKey);
+    for (const [metaKey, value] of Object.entries(options.metaWrites || {})) {
+      store.put({ k: metaKey, v: value, updatedAt: Date.now() });
+    }
     if (source) {
       const cursorRequest = tx.objectStore(STORE_DAILY)
         .index('by_source')

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 579 |
-| Internal import edges | 2498 |
+| Modules | 580 |
+| Internal import edges | 2501 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -59,7 +59,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils.js`](js/utils.js) | 252 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
 | [`js/state.js`](js/state.js) | 173 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
-| [`js/data.js`](js/data.js) | 76 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
+| [`js/data.js`](js/data.js) | 77 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 26 |
 | [`js/api.js`](js/api.js) | 65 | [`js/wearables-connect.js`](js/wearables-connect.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/chat-send.js`](js/chat-send.js) | 23 |
@@ -1024,7 +1024,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>wearables</code> family — 35 modules</summary>
+<details><summary><code>wearables</code> family — 36 modules</summary>
 
 - [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js) → no in-scope imports
 - [`js/wearables-apple-health.js`](js/wearables-apple-health.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health-runtime.js`](js/wearables-apple-health-runtime.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
@@ -1032,10 +1032,11 @@ Native browser modules shipped with the static application.
 - [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/charts.js`](js/charts.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js) → [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*
 - [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js) → no in-scope imports
-- [`js/wearables-connect.js`](js/wearables-connect.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js), [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js), [`js/wearables-fitbit.js`](js/wearables-fitbit.js), [`js/wearables-google-health-auth.js`](js/wearables-google-health-auth.js), [`js/wearables-google-health.js`](js/wearables-google-health.js), [`js/wearables-oura-auth.js`](js/wearables-oura-auth.js), [`js/wearables-oura.js`](js/wearables-oura.js), [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js), [`js/wearables-polar.js`](js/wearables-polar.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables-ultrahuman-auth.js`](js/wearables-ultrahuman-auth.js), [`js/wearables-ultrahuman.js`](js/wearables-ultrahuman.js), [`js/wearables-whoop-auth.js`](js/wearables-whoop-auth.js), [`js/wearables-whoop.js`](js/wearables-whoop.js), [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js), [`js/wearables-withings.js`](js/wearables-withings.js)
+- [`js/wearables-connect.js`](js/wearables-connect.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js), [`js/wearables-disconnect-recovery.js`](js/wearables-disconnect-recovery.js), [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js), [`js/wearables-fitbit.js`](js/wearables-fitbit.js), [`js/wearables-google-health-auth.js`](js/wearables-google-health-auth.js), [`js/wearables-google-health.js`](js/wearables-google-health.js), [`js/wearables-oura-auth.js`](js/wearables-oura-auth.js), [`js/wearables-oura.js`](js/wearables-oura.js), [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js), [`js/wearables-polar.js`](js/wearables-polar.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables-ultrahuman-auth.js`](js/wearables-ultrahuman-auth.js), [`js/wearables-ultrahuman.js`](js/wearables-ultrahuman.js), [`js/wearables-whoop-auth.js`](js/wearables-whoop-auth.js), [`js/wearables-whoop.js`](js/wearables-whoop.js), [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js), [`js/wearables-withings.js`](js/wearables-withings.js)
 - [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js) → [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js) → [`js/caught-error.js`](js/caught-error.js), [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-manual-detail.js`](js/wearables-manual-detail.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js) → [`js/utils.js`](js/utils.js)
+- [`js/wearables-disconnect-recovery.js`](js/wearables-disconnect-recovery.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js) → [`js/utils.js`](js/utils.js), [`js/wearables-auth-runtime.js`](js/wearables-auth-runtime.js)
 - [`js/wearables-fitbit.js`](js/wearables-fitbit.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-formatters.js`](js/wearables-formatters.js) → [`js/wearable-adapters.js`](js/wearable-adapters.js)
