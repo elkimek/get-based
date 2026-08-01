@@ -20,6 +20,7 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         const payload = JSON.parse(String(options.body || '{}'));
         if (payload.wearable_runtime_config) {
           runtimeConfigCalls += 1;
+          if (runtimeConfigCalls === 1) return new Response(null, { status: 503 });
           await new Promise(resolve => setTimeout(resolve, 25));
           return new Response(JSON.stringify({
             overrides: { google_health: 'hosted-google-health-client' },
@@ -39,6 +40,11 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         ?.querySelector('[data-wearable-settings-action="connect"]'));
 
       document.dispatchEvent(new Event('settings:wearables-rendered'));
+      while (runtimeConfigCalls < 1) await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const afterFailureStillWaiting = document.querySelector('[data-adapter="google_health"]')
+        ?.textContent.includes('waiting on partner credentials');
+      document.dispatchEvent(new Event('settings:wearables-rendered'));
       for (let attempt = 0; attempt < 80; attempt += 1) {
         const row = document.querySelector('[data-adapter="google_health"]');
         if (row?.textContent.includes('optional health hub')) break;
@@ -50,6 +56,7 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         runtimeConfigCalls,
         initiallyWaiting,
         initiallyHasConnect,
+        afterFailureStillWaiting,
         configuredText: configuredRow?.textContent || '',
         configuredHasConnect: Boolean(configuredRow
           ?.querySelector('[data-wearable-settings-action="connect"]')),
@@ -61,9 +68,10 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
   });
 
   expect(result).toMatchObject({
-    runtimeConfigCalls: 1,
+    runtimeConfigCalls: 2,
     initiallyWaiting: true,
     initiallyHasConnect: false,
+    afterFailureStillWaiting: true,
     configuredHasConnect: true,
   });
   expect(result.configuredText).toContain('optional health hub');

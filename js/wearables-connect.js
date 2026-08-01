@@ -750,10 +750,10 @@ export function initWearableScheduler() {
 const RUNTIME_CONFIG_TIMEOUT_MS = 1500;
 /** @type {Promise<void> | null} */ let _runtimeConfigFetchPromise = null;
 /** @type {Promise<void> | null} */ let _runtimeConfigPromise = null;
-
 /** @param {{ waitForFetch?: boolean }} [options] @returns {Promise<void>} */
 export function loadWearableRuntimeConfig(options = {}) {
   if (!_runtimeConfigFetchPromise) {
+    let loaded = false;
     _runtimeConfigFetchPromise = (async () => {
       try {
         const res = await fetch('/api/proxy', {
@@ -764,19 +764,20 @@ export function loadWearableRuntimeConfig(options = {}) {
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.overrides) applyOAuthOverrides(data.overrides);
+        loaded = true;
       } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
-    })();
+    })().finally(() => {
+      if (!loaded) _runtimeConfigFetchPromise = _runtimeConfigPromise = null;
+    });
     // Race the fetch against a soft timeout so the scheduler never blocks
     // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
     // resolves. The fetch itself continues in the background — Settings can
     // explicitly await it so a slow response still enables configured rows.
-    const timeoutPromise = /** @type {Promise<void>} */ (
-      new Promise(resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS))
-    );
+    const timeoutPromise = /** @type {Promise<void>} */ (new Promise(
+      resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS)));
     _runtimeConfigPromise = Promise.race([_runtimeConfigFetchPromise, timeoutPromise]);
   }
-  return options.waitForFetch
-    ? _runtimeConfigFetchPromise
+  return options.waitForFetch ? _runtimeConfigFetchPromise
     : /** @type {Promise<void>} */ (_runtimeConfigPromise);
 }
 
