@@ -22,6 +22,7 @@ const {
   deleteImportedArrayItem,
   deleteImportedArrayItems,
   ensureImportedArray,
+  getConfiguredArrayItemId,
   mergeImportedData,
   preserveFreshLocalLabEntries,
   replaceImportedArrayItem,
@@ -1113,6 +1114,57 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   );
   assert('updatedAt-stamped entry wins over unstamped on tie',
     m14d.changeHistory[0].snapshot.v === 'new');
+
+  // Explicit Google Health deletion is privacy intent, unlike ordinary
+  // changeHistory cap eviction. It must create a stable tombstone that wins
+  // over both a stale profile blob and the per-row overlay.
+  const googleHistory = {
+    ts: Date.parse('2026-08-01T10:00:00.000Z'),
+    type: 'wearable',
+    kind: 'trend-flip',
+    metricId: 'hrv_rmssd',
+    source: 'google_health',
+    from: 'flat',
+    to: 'declining',
+    message: 'HRV trend changed',
+  };
+  const googleHistoryId = getConfiguredArrayItemId('changeHistory', googleHistory);
+  const afterGoogleDisconnect = { changeHistory: [googleHistory] };
+  const removedGoogleHistory = deleteImportedArrayItems(
+    afterGoogleDisconnect,
+    'changeHistory',
+    event => event.source === 'google_health',
+    { forceTombstones: true },
+  );
+  assert('Google wearable history has a stable sync identity',
+    typeof googleHistoryId === 'string' && googleHistoryId.startsWith('wh_'));
+  assert('explicit Google Health history deletion records a tombstone',
+    removedGoogleHistory.length === 1
+      && afterGoogleDisconnect._deleted.changeHistory.includes(googleHistoryId));
+  const mergedGoogleDisconnect = mergeImportedData(afterGoogleDisconnect, {
+    changeHistory: [googleHistory],
+  });
+  assert('stale cross-device blob cannot restore deleted Google Health history',
+    mergedGoogleDisconnect.changeHistory.length === 0
+      && mergedGoogleDisconnect._deleted.changeHistory.includes(googleHistoryId));
+  await mergeArrayRowsIntoImported(mergedGoogleDisconnect, 'changeHistory', [{
+    itemId: googleHistoryId,
+    syncedAt: '2026-08-01T10:01:00.000Z',
+    isDeleted: null,
+    payload: JSON.stringify(googleHistory),
+  }]);
+  assert('stale per-row overlay cannot restore deleted Google Health history',
+    mergedGoogleDisconnect.changeHistory.length === 0);
+  assert('Google Health history tombstone is rebroadcast to stale peers',
+    localHasRowsRemoteLacks(afterGoogleDisconnect, { changeHistory: [googleHistory] }) === true);
+
+  const cappedHistory = { changeHistory: [
+    { field: 'diet', date: '2026-07-30', snapshot: 'older' },
+    { field: 'diet', date: '2026-07-31', snapshot: 'newer' },
+  ] };
+  trimImportedArray(cappedHistory, 'changeHistory', 1);
+  assert('ordinary changeHistory cap eviction still avoids tombstones',
+    !cappedHistory._deleted?.changeHistory);
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

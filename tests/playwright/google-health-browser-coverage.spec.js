@@ -222,7 +222,9 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
       metrics: { hrv_rmssd: { primarySource: 'google_health', latest: 44 } },
     };
     state.importedData.changeHistory = [{
+      ts: Date.parse('2026-07-31T12:00:00.000Z'),
       type: 'wearable',
+      kind: 'trend-flip',
       source: 'google_health',
       metricId: 'hrv_rmssd',
     }];
@@ -232,7 +234,8 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
     const rowsAfterDisconnect = await getDailyRange(profileId, 'google_health', '2026-07-31', '2026-07-31');
     const googleDerivedPurged = rowsAfterDisconnect.length === 0
       && !state.importedData.wearableSummary
-      && state.importedData.changeHistory.length === 0;
+      && state.importedData.changeHistory.length === 0
+      && state.importedData._deleted?.changeHistory?.length === 1;
     window.fetch = realFetch;
 
     return {

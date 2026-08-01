@@ -76,6 +76,7 @@ export const TOMBSTONE_ARRAY_PATHS = [
   ...ID_KEYED_ARRAYS,
   ...NATURAL_KEYED_ARRAYS,
   'entries',
+  'changeHistory',
 ];
 
 // Arrays whose entries don't carry an `id` but have a stable composite
@@ -83,15 +84,15 @@ export const TOMBSTONE_ARRAY_PATHS = [
 // During merge we union local + remote, dedup by composite key (later
 // entry wins on tie via timestamp), then optionally cap the array.
 //
-// changeHistory: keyed by `field|date` (recordChange overwrites
-// same-day same-field by design). Cap matches the per-site cap of 200
-// in context-cards.js + export.js + wearables-summary.js so a multi-
-// device merge can never sneak past it.
+// changeHistory: keyed by the same configured identity used by delta sync.
+// Context edits use field+date; wearable anomalies use their stable event
+// signature. Cap matches the per-site cap of 200 so a multi-device merge
+// can never sneak past it.
 // Exported so sync.js's per-row overlay can re-apply the cap after a
 // v4 cutover pull (which bypasses mergeImportedData's natural cap step).
 // Keep entries here in sync with consumer-side caps.
 export const COMPOSITE_KEYED_ARRAYS = [
-  { path: 'changeHistory', key: (e) => e?.field && e?.date ? `${e.field}|${e.date}` : null, cap: 200 },
+  { path: 'changeHistory', key: (e) => getConfiguredArrayItemId('changeHistory', e), cap: 200 },
 ];
 
 const LOCAL_WINS_MAP_FIELDS = [
@@ -215,8 +216,8 @@ export function getConfiguredArrayItemId(path, item) {
     : null;
 }
 
-export function recordArrayItemTombstone(importedData, arrayPath, item) {
-  if (DELTA_ARRAY_CONFIG[arrayPath]?.noTombstones) return null;
+export function recordArrayItemTombstone(importedData, arrayPath, item, { force = false } = {}) {
+  if (DELTA_ARRAY_CONFIG[arrayPath]?.noTombstones && !force) return null;
   const id = getConfiguredArrayItemId(arrayPath, item);
   if (id) recordTombstone(importedData, arrayPath, id);
   return id;
@@ -269,14 +270,14 @@ export function deleteImportedArrayItem(importedData, arrayPath, index) {
   return { removedItem, tombstonedId };
 }
 
-export function deleteImportedArrayItems(importedData, arrayPath, predicate) {
+export function deleteImportedArrayItems(importedData, arrayPath, predicate, { forceTombstones = false } = {}) {
   const arr = getAt(importedData, arrayPath);
   if (!Array.isArray(arr) || typeof predicate !== 'function') return [];
   const kept = [];
   const removed = [];
   arr.forEach((item, index) => {
     if (predicate(item, index, arr)) {
-      recordArrayItemTombstone(importedData, arrayPath, item);
+      recordArrayItemTombstone(importedData, arrayPath, item, { force: forceTombstones });
       removed.push(item);
     } else {
       kept.push(item);
@@ -544,10 +545,13 @@ export function mergeImportedData(local, remote) {
     if (!Array.isArray(localArr) && !Array.isArray(remoteArr)) continue;
     const seen = new Map(); // composite-key → entry
     const noKey = []; // entries that can't produce a key — kept as-is
+    const tomb = new Set(mergedDel[path] || []);
     function consume(arr) {
       if (!Array.isArray(arr)) return;
       for (const e of arr) {
         if (!e || typeof e !== 'object') continue;
+        const itemId = getConfiguredArrayItemId(path, e);
+        if (itemId && tomb.has(itemId)) continue;
         const k = key(e);
         if (!k) { noKey.push(e); continue; }
         const existing = seen.get(k);

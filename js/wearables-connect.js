@@ -609,7 +609,7 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
       && deleteImportedArrayItems(
         state.importedData,
         'changeHistory',
-        event => event?.type === 'wearable' && event?.source === 'google_health',
+        event => event?.type === 'wearable' && event?.source === 'google_health', { forceTombstones: true },
       ).length > 0;
     let googleDerivedSummaryPurged = false;
     if (adapterId === 'google_health' && state.importedData?.wearableSummary) {

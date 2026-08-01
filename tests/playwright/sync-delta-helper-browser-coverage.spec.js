@@ -43,6 +43,13 @@ test('sync delta helper browser coverage exercises registry ids config and row c
     outcomes.arrayConfigItemIdFunctionsCoverNaturalKeysAndInvalidInputs =
       arrayConfig.changeHistory.itemIdFn({ field: 'LDL Cholesterol', date: '2026-06-09T00:00:00.000Z' }) === 'LDL_Cholesterol.1780963200000'
       && arrayConfig.changeHistory.itemIdFn({ field: 'LDL', date: 'not-a-date' }) === null
+      && arrayConfig.changeHistory.itemIdFn({
+        type: 'wearable',
+        source: 'google_health',
+        metricId: 'hrv_rmssd',
+        kind: 'trend-flip',
+        ts: 1785578400000,
+      }).startsWith('wh_')
       && arrayConfig.changeHistory.itemIdFn(null) === null
       && arrayConfig.changeHistory.noTombstones === true
       && arrayConfig.entries.itemIdFn({ date: '2026-06-09' }) === '2026-06-09'
