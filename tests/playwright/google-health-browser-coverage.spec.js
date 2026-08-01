@@ -30,7 +30,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
     } = await import('/js/wearables-store.js');
     const { computeWearableSummary } = await import('/js/wearables-summary.js');
 
-    const profileId = `google-health-browser-${Date.now()}`;
+    const profileId = `google-health-browser-${Date.now()}-${crypto.randomUUID()}`;
     localStorage.setItem('labcharts-active-profile', profileId);
     state.currentProfile = profileId;
     state.importedData = {
@@ -157,7 +157,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
   await page.goto('/google-health-callback-coverage', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {
-    const profileId = `google-health-callback-${Date.now()}`;
+    const profileId = `google-health-callback-${Date.now()}-${crypto.randomUUID()}`;
     const accessToken = 'google-access-secret-must-not-sync';
     const refreshToken = 'google-refresh-secret-must-not-sync';
     localStorage.setItem('labcharts-active-profile', profileId);
@@ -202,6 +202,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
     };
 
     const connect = await import('/js/wearables-connect.js');
+    const { getConfiguredArrayItemId } = await import('/js/data-merge.js');
     const { renderWearablesSettingsSection } = await import('/js/wearables-settings-panel.js');
     const { loadWearableCredentials } = await import('/js/wearables-credential-vault.js');
     const { getDailyRange, upsertDailyBatch } = await import('/js/wearables-store.js');
@@ -228,14 +229,21 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
       source: 'google_health',
       metricId: 'hrv_rmssd',
     }];
+    const deletedHistoryId = getConfiguredArrayItemId(
+      'changeHistory',
+      state.importedData.changeHistory[0],
+    );
     localStorage.removeItem(`labcharts-wearable-credential-local:${profileId}:google_health`);
     const connectedWithoutDeviceCredential = Boolean(connect.listConnectedSources().google_health);
     await connect.disconnectWearable('google_health', { deleteData: true });
     const rowsAfterDisconnect = await getDailyRange(profileId, 'google_health', '2026-07-31', '2026-07-31');
-    const googleDerivedPurged = rowsAfterDisconnect.length === 0
-      && !state.importedData.wearableSummary
-      && state.importedData.changeHistory.length === 0
-      && state.importedData._deleted?.changeHistory?.length === 1;
+    const googleDerivedPurgeState = {
+      rowCount: rowsAfterDisconnect.length,
+      hasWearableSummary: Boolean(state.importedData.wearableSummary),
+      changeHistoryCount: state.importedData.changeHistory.length,
+      deletedHistoryId,
+      changeHistoryTombstones: state.importedData._deleted?.changeHistory || [],
+    };
     window.fetch = realFetch;
 
     return {
@@ -251,7 +259,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
       profileContainsAccessToken: profileJson.includes(accessToken),
       profileContainsRefreshToken: profileJson.includes(refreshToken),
       vaulted,
-      googleDerivedPurged,
+      googleDerivedPurgeState,
     };
   });
 
@@ -270,7 +278,13 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
   expect(result.connection).not.toHaveProperty('refreshToken');
   expect(result.profileContainsAccessToken).toBe(false);
   expect(result.profileContainsRefreshToken).toBe(false);
-  expect(result.googleDerivedPurged).toBe(true);
+  expect(result.googleDerivedPurgeState).toMatchObject({
+    rowCount: 0,
+    hasWearableSummary: false,
+    changeHistoryCount: 0,
+  });
+  expect(result.googleDerivedPurgeState.changeHistoryTombstones)
+    .toContain(result.googleDerivedPurgeState.deletedHistoryId);
   expect(result.vaulted).toEqual({
     accessToken: 'google-access-secret-must-not-sync',
     credentialGeneration: 0,

@@ -477,12 +477,15 @@ export async function clearSource(profileId, source) {
 
 export async function getMeta(profileId, key) {
   const db = await openWearablesDB(profileId);
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readonly');
+  const tx = db.transaction(STORE_META, 'readonly');
+  const done = txPromise(tx);
+  const value = await new Promise((resolve, reject) => {
     const req = tx.objectStore(STORE_META).get(key);
     req.onsuccess = () => resolve(req.result ? req.result.v : null);
     req.onerror = () => reject(req.error);
   });
+  await done;
+  return value;
 }
 
 export async function setMeta(profileId, key, value) {
@@ -504,12 +507,14 @@ export async function deleteMeta(profileId, key) {
 export async function getMetaVersioned(profileId, key, versionKey) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_META, 'readonly');
+  const done = txPromise(tx);
   const store = tx.objectStore(STORE_META);
   const read = request => new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result?.v ?? null);
     request.onerror = () => reject(request.error);
   });
   const [value, rawVersion] = await Promise.all([read(store.get(key)), read(store.get(versionKey))]);
+  await done;
   return { value, version: Number.isSafeInteger(rawVersion) ? rawVersion : 0 };
 }
 
