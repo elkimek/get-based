@@ -56,6 +56,11 @@ function pointData(point, camel, snake) {
   return point?.[camel] || point?.[snake] || null;
 }
 
+/**
+ * @param {string} path
+ * @param {string} accessToken
+ * @param {{ method?: string, body?: unknown }} [options]
+ */
 async function googleHealthRequest(path, accessToken, { method = 'GET', body = null } = {}) {
   const headers = {
     Authorization: `Bearer ${accessToken}`,

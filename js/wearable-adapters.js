@@ -342,7 +342,6 @@ export const ADAPTERS = [
     authType: 'oauth2',
     integrationKind: 'aggregator',
     authDocsUrl: 'https://developers.google.com/health/setup',
-    manageAccessUrl: 'https://myaccount.google.com/connections',
     beta: true,
     oauth: {
       // Google Health requires a confidential Web Server OAuth client. The
@@ -365,7 +364,6 @@ export const ADAPTERS = [
     },
     apiHost: 'health.googleapis.com',
     dataMode: 'reconciled',
-    privacyNotice: 'Google Health is the supported Fitbit and Pixel Watch connection, and an optional hub for other sources in your Google account. Independent direct integrations remain available and win same-day automatic source selection. OAuth tokens and imported daily rows are always encrypted on this device; token refreshes and Google API requests transit this deployment’s Vercel proxy. Each browser must be connected separately. Revoke access everywhere from your Google Account.',
     metrics: {
       hrv_rmssd:          { endpoint: 'v4/users/me/dataTypes/daily-heart-rate-variability/dataPoints:reconcile', field: 'deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds' },
       rhr:                { endpoint: 'v4/users/me/dataTypes/daily-resting-heart-rate/dataPoints:reconcile', field: 'beatsPerMinute' },

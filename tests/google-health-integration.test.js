@@ -140,7 +140,8 @@ describe('Google Health adapter and OAuth', () => {
       integrationKind: 'aggregator',
       dataMode: 'reconciled',
     });
-    expect(adapter.privacyNotice).toContain('Independent direct integrations remain available');
+    expect(adapter.privacyNotice).toBeUndefined();
+    expect(adapter.manageAccessUrl).toBeUndefined();
     expect(adapter.oauth.scopes).toEqual(DEFAULT_GOOGLE_HEALTH_SCOPES);
     expect(adapter.oauth.scopes.every(scope => scope.endsWith('.readonly'))).toBe(true);
     const visibleIds = visibleAdapters([]).map(item => item.id);

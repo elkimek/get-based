@@ -328,9 +328,6 @@ function renderRowAction(adapter, conn, { isPendingClient, isFileImport }) {
 }
 
 function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
-  const privacyNotice = adapter.privacyNotice
-    ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.privacyNotice)}</p>`
-    : '';
   const migrationNotice = adapter.legacyMigrationOnly
     ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.deprecationNotice || 'This connection must be migrated.')}</p>`
     : '';
@@ -361,15 +358,11 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
       || (acct['polar-user-id'] ? `User ${acct['polar-user-id']}` : '')
       || '(account verified)'
     );
-    const manageAccess = adapter.manageAccessUrl
-      ? `<a class="wearable-action" href="${escapeAttr(adapter.manageAccessUrl)}" target="_blank" rel="noopener">Revoke access everywhere&nbsp;↗</a>`
-      : '';
     const migrateAction = adapter.replacementAdapterId
       ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: adapter.replacementAdapterId })}>Connect Google Health</button>`
       : '';
     return `<div class="wearable-adapter-identity">${identity}</div>
       <div class="wearable-adapter-meta">Last sync: ${escapeHTML(when)}</div>
-      ${privacyNotice}
       ${migrationNotice}
       <div class="wearable-adapter-actions">
         ${migrateAction}
@@ -378,7 +371,6 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
           <span>Sync now <span class="wearable-action-hint">(catches today)</span></span>
         </button>
         <button class="wearable-action wearable-action-secondary" title="Refetches 90 days of history — useful after a long absence or to recover missing days. May take 30s+." ${wearableSettingsActionAttrs('backfill', { adapter: adapter.id })}>Backfill 90 days <span class="wearable-action-hint">(slower, fills gaps)</span></button>
-        ${manageAccess}
         <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect</button>
       </div>`;
   }
@@ -431,7 +423,7 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
     const explanation = adapter.id === 'google_health'
       ? 'Google Health requires this deployment to configure an approved OAuth client before Connect can be enabled.'
       : `${adapter.displayName} support is in progress — still waiting on partner credentials. Check back soon or watch the changelog.`;
-    return `${privacyNotice}<p class="wearable-adapter-hint">${escapeHTML(explanation)}${docs}</p>`;
+    return `<p class="wearable-adapter-hint">${escapeHTML(explanation)}${docs}</p>`;
   }
   // Manual source — entry counts + entry points + disconnect. Unlike OAuth,
   // manual has no credential to reconnect; "disconnect" means wipe all rows.
@@ -449,9 +441,6 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
         <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('manual-disconnect')}>Delete all manual entries</button>
       </div>`;
   }
-  // Aggregating providers need an explicit disclosure even before connect.
-  // Direct integrations remain available and are never silently routed here.
-  if (adapter.authType === 'oauth2' && privacyNotice) return privacyNotice;
   // Disconnected OAuth (default) — no detail to expand. The Connect button
   // in the row action is enough; row stays flat.
   return null;

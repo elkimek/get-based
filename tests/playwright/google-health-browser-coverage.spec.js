@@ -9,7 +9,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
 
   const result = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    const { visibleAdapters } = await import('/js/wearable-adapters.js');
+    const { applyOAuthOverrides, visibleAdapters } = await import('/js/wearable-adapters.js');
     const {
       GOOGLE_HEALTH_CONNECT_DISCLOSURE,
       renderWearablesSettingsSection,
@@ -52,6 +52,8 @@ test('Google Health stays optional/direct-first and uses the browser credential 
 
     const visible = visibleAdapters([]).map(adapter => adapter.id);
     const legacyVisible = visibleAdapters(['fitbit']).map(adapter => adapter.id);
+    const pendingClientHtml = renderWearablesSettingsSection();
+    applyOAuthOverrides({ google_health: 'google-browser-client' });
     const html = renderWearablesSettingsSection();
     state.importedData.wearableConnections.fitbit = {
       accessToken: 'legacy-fitbit-token',
@@ -96,9 +98,11 @@ test('Google Health stays optional/direct-first and uses the browser credential 
       visible,
       legacyVisible,
       hasGoogleRow: html.includes('data-adapter="google_health"'),
-      hasOptionalCopy: html.includes('supported Fitbit and Pixel Watch connection')
-        && html.includes('Independent direct integrations remain available'),
-      hasCredentialWarning: html.includes('approved OAuth client'),
+      keepsDisconnectedRowCompact: html.includes('optional health hub')
+        && html.includes('Connect')
+        && !html.includes('supported Fitbit and Pixel Watch connection')
+        && !html.includes('Vercel proxy'),
+      hasCredentialWarning: pendingClientHtml.includes('approved OAuth client'),
       consentDisclosureIsComplete: consentMessages.length === 1
         && consentMessages[0] === GOOGLE_HEALTH_CONNECT_DISCLOSURE
         && consentMessages[0].includes('No write access is requested')
@@ -123,7 +127,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
   });
 
   expect(result.hasGoogleRow).toBe(true);
-  expect(result.hasOptionalCopy).toBe(true);
+  expect(result.keepsDisconnectedRowCompact).toBe(true);
   expect(result.hasCredentialWarning).toBe(true);
   expect(result.consentDisclosureIsComplete).toBe(true);
   expect(result.cancelledBeforeOAuth).toBe(true);
@@ -234,8 +238,11 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
       handled,
       connection,
       connectedOnThisDevice,
-      hasGlobalRevokeLink: connectedHtml.includes('Revoke access everywhere')
-        && connectedHtml.includes('https://myaccount.google.com/connections'),
+      usesStandardConnectedActions: connectedHtml.includes('Sync now')
+        && connectedHtml.includes('Backfill 90 days')
+        && connectedHtml.includes('Disconnect')
+        && !connectedHtml.includes('Revoke access everywhere')
+        && !connectedHtml.includes('https://myaccount.google.com/connections'),
       connectedWithoutDeviceCredential,
       profileContainsAccessToken: profileJson.includes(accessToken),
       profileContainsRefreshToken: profileJson.includes(refreshToken),
@@ -246,7 +253,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
 
   expect(result.handled).toBe(true);
   expect(result.connectedOnThisDevice).toBe(true);
-  expect(result.hasGlobalRevokeLink).toBe(true);
+  expect(result.usesStandardConnectedActions).toBe(true);
   expect(result.connectedWithoutDeviceCredential).toBe(false);
   expect(result.connection).toMatchObject({
     hasStoredCredentials: true,
