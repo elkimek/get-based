@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 557,
+  "scannedFiles": 560,
   "sinkCount": 483,
   "files": {
     "js/backup.js": {
@@ -793,7 +793,7 @@
     },
     "js/utils.js": {
       "count": 3,
-      "digest": "7aad9fb3a98b03548a1e3b9bb88ae8c533837e272d5cf4bc1a785f1b17d6aa4c",
+      "digest": "e6a387d50f8f95c106ee819c97c4c48bdafda3010b78e7996396de9f714dee55",
       "kinds": {
         "innerHTML": 3
       }

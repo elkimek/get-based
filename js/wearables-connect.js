@@ -6,6 +6,7 @@
 // the L2 summary gate. Keeps UI-side code clean of OAuth plumbing.
 
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
+import { deleteImportedArrayItems } from './data-merge.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
@@ -575,27 +576,31 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
 
 export async function disconnectWearable(adapterId, { deleteData = true } = {}) {
   const profileId = getActiveProfileId();
+  // Delete requested health rows before removing the credentials or
+  // connection metadata. If IndexedDB refuses the purge, propagate that
+  // failure and leave the connection intact so the user can retry instead of
+  // receiving a false-success message with inaccessible rows still present.
+  if (deleteData) {
+    await clearSource(profileId, adapterId);
+  }
   if (usesCredentialVault(adapterId)) {
-    credentialCache.delete(credentialCacheKey(profileId, adapterId));
     await deleteWearableCredentials(profileId, adapterId);
+    credentialCache.delete(credentialCacheKey(profileId, adapterId));
     setLocalCredentialMarker(profileId, adapterId, false);
   }
   removeConnection(adapterId);
   if (deleteData) {
-    try { await clearSource(profileId, adapterId); } catch (e) { if (isDebugMode?.()) console.warn('[wearables] clearSource failed:', getErrorMessage(e)); }
     // Drop the `last-sync:{adapterId}` meta entry too — otherwise a future
     // reconnect's incrementalSyncWearable picks up the stale endDate as
     // start, missing the freshly-cleared backfill range until the
     // recoverIfL1Empty scheduler eventually full-resyncs.
     try { await deleteMeta(profileId, `last-sync:${adapterId}`); } catch { /* meta wipe failure is recoverable */ }
-    let googleDerivedHistoryPurged = false;
-    if (adapterId === 'google_health' && Array.isArray(state.importedData?.changeHistory)) {
-      const previousLength = state.importedData.changeHistory.length;
-      state.importedData.changeHistory = state.importedData.changeHistory.filter(
-        event => !(event?.type === 'wearable' && event?.source === 'google_health'),
-      );
-      googleDerivedHistoryPurged = state.importedData.changeHistory.length !== previousLength;
-    }
+    const googleDerivedHistoryPurged = adapterId === 'google_health'
+      && deleteImportedArrayItems(
+        state.importedData,
+        'changeHistory',
+        event => event?.type === 'wearable' && event?.source === 'google_health',
+      ).length > 0;
     let googleDerivedSummaryPurged = false;
     if (adapterId === 'google_health' && state.importedData?.wearableSummary) {
       const summary = state.importedData.wearableSummary;

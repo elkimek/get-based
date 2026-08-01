@@ -614,10 +614,15 @@ async function handleWearableBackfill(adapterId) {
 async function handleWearableDisconnect(adapterId) {
   const name = adapterById(adapterId)?.displayName || adapterId;
   if (await showConfirmDialog(`Disconnect ${name} and delete its local data?`)) {
-    await disconnectWearable(adapterId, { deleteData: true });
-    showNotification?.(`${name} disconnected`, 'success');
-    refreshSettingsWearables();
-    navigateWearablesDashboard();
+    try {
+      await disconnectWearable(adapterId, { deleteData: true });
+      showNotification?.(`${name} disconnected`, 'success');
+      refreshSettingsWearables();
+      navigateWearablesDashboard();
+    } catch (e) {
+      showNotification?.(`Disconnect failed: ${getErrorMessage(e)}`, 'error', 5000);
+      refreshSettingsWearables();
+    }
   }
 }
 
