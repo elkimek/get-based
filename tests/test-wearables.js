@@ -1660,7 +1660,10 @@ assert('upsertDailyBatch reads existing rows in a phase-1 tx before merging',
 assert('upsertDailyBatch merges incoming over existing via _mergeRow',
   /_mergeRow\(existingPlain/.test(storeSrcV29));
 assert('upsertDailyBatch writes the merged batch in a phase-2 tx',
-  /Phase 2[\s\S]{0,200}readwrite/.test(storeSrcV29));
+  /Phase 2[\s\S]{0,500}readwrite/.test(storeSrcV29));
+assert('Google Health phase-2 writes verify credential generation in the same transaction',
+  /versionGuard \? \[STORE_DAILY, STORE_META\]/.test(storeSrcV29)
+    && /version !== versionGuard\.expectedVersion/.test(storeSrcV29));
 assert('_mergeRow preserves existing values when incoming field is null',
   /v === null \|\| v === undefined[\s\S]{0,80}continue/.test(storeSrcV29));
 assert('getDaily decrypts via _decryptRowIfWrapped on read',

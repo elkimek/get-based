@@ -138,6 +138,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
   expect(result.legacyVisible).toContain('fitbit');
   expect(result.credentials).toEqual({
     accessToken: 'browser-access-secret',
+    credentialGeneration: 0,
     refreshToken: 'browser-refresh-secret',
   });
   expect(result.encryptedRecordHasPlaintext).toBe(false);
@@ -269,6 +270,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
   expect(result.googleDerivedPurged).toBe(true);
   expect(result.vaulted).toEqual({
     accessToken: 'google-access-secret-must-not-sync',
+    credentialGeneration: 0,
     refreshToken: 'google-refresh-secret-must-not-sync',
   });
 });

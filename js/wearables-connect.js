@@ -10,7 +10,7 @@ import { deleteImportedArrayItems } from './data-merge.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
-import { upsertDailyBatch, clearSource, setMeta, getMeta, deleteMeta, countSource } from './wearables-store.js';
+import { upsertDailyBatch, clearSource, setMeta, setMetaVersioned, getMeta, deleteMeta, countSource } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { fetchOuraDailyRange, fetchOuraPersonalInfo, daysAgoIso, isoDay } from './wearables-oura.js';
 import { beginOAuth as beginOuraOAuth, completeOAuthCallback as completeOuraCallback, isOuraCallback, withFreshToken as ouraWithFreshToken, DEFAULT_OURA_SCOPES } from './wearables-oura-auth.js';
@@ -26,7 +26,7 @@ import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commit
 import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCallback, isPolarCallback, withFreshToken as polarWithFreshToken, DEFAULT_POLAR_SCOPES } from './wearables-polar-auth.js';
 import { fetchGoogleHealthDailyRange, fetchGoogleHealthPersonalInfo } from './wearables-google-health.js';
 import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthLifecycleLock, withGoogleHealthRefreshLock, googleHealthDisconnectedError, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
-import { deleteWearableCredentials, loadWearableCredentials, saveWearableCredentials } from './wearables-credential-vault.js';
+import { clearLocalWearableCredential, deleteWearableCredentials, hasLocalWearableCredential, loadWearableCredentials, markLocalWearableCredential, saveWearableCredentials, wearableCredentialGenerationKey } from './wearables-credential-vault.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
 import {
@@ -68,24 +68,14 @@ function usesCredentialVault(adapterId) {
   return VAULTED_CREDENTIAL_ADAPTERS.has(adapterId);
 }
 
-function localCredentialMarkerKey(profileId, adapterId) {
-  return `labcharts-wearable-credential-local:${profileId}:${adapterId}`;
-}
-
-function hasLocalCredentialMarker(profileId, adapterId) {
-  try { return localStorage.getItem(localCredentialMarkerKey(profileId, adapterId)) === '1'; }
-  catch { return credentialCache.has(credentialCacheKey(profileId, adapterId)); }
-}
-
-function setLocalCredentialMarker(profileId, adapterId, present) {
-  const key = localCredentialMarkerKey(profileId, adapterId);
-  if (present) localStorage.setItem(key, '1');
-  else localStorage.removeItem(key);
-}
-
 function connectionHasCredentials(adapterId, connection, profileId = getActiveProfileId()) {
   return usesCredentialVault(adapterId)
-    ? Boolean(connection?.hasStoredCredentials && hasLocalCredentialMarker(profileId, adapterId))
+    ? Boolean(connection?.hasStoredCredentials && hasLocalWearableCredential(
+      profileId,
+      adapterId,
+      connection?.credentialGeneration,
+      credentialCache.has(credentialCacheKey(profileId, adapterId)),
+    ))
     : Boolean(connection?.accessToken);
 }
 
@@ -139,11 +129,16 @@ async function saveConnectionWithCredentials(adapterId, connection, profileId = 
   const credentials = {
     accessToken: connection.accessToken || null,
     refreshToken: connection.refreshToken || null,
+    credentialGeneration: Number.isSafeInteger(connection.credentialGeneration)
+      ? connection.credentialGeneration
+      : null,
   };
   if (credentials.accessToken || credentials.refreshToken) {
-    await saveWearableCredentials(profileId, adapterId, credentials);
+    const generation = await saveWearableCredentials(profileId, adapterId, credentials);
+    connection = { ...connection, credentialGeneration: generation };
+    credentials.credentialGeneration = generation;
     try {
-      setLocalCredentialMarker(profileId, adapterId, true);
+      if (!markLocalWearableCredential(profileId, adapterId, generation)) throw googleHealthDisconnectedError();
     } catch (error) {
       await deleteWearableCredentials(profileId, adapterId).catch(() => {});
       throw error;
@@ -161,13 +156,11 @@ async function hydratedConnection(adapterId) {
   if (!connection || !usesCredentialVault(adapterId)) return connection;
   const profileId = getActiveProfileId();
   const key = credentialCacheKey(profileId, adapterId);
-  let credentials = credentialCache.get(key);
-  if (!credentials) {
-    credentials = await loadWearableCredentials(profileId, adapterId);
-    if (credentials) credentialCache.set(key, credentials);
-  }
+  const credentials = await loadWearableCredentials(profileId, adapterId);
+  if (credentials) credentialCache.set(key, credentials);
+  else credentialCache.delete(key);
   if (!credentials && connection?.hasStoredCredentials) {
-    try { setLocalCredentialMarker(profileId, adapterId, false); } catch {}
+    try { clearLocalWearableCredential(profileId, adapterId, connection.credentialGeneration); } catch {}
     /** @type {Error & { code?: string }} */
     const error = new Error('Google Health must be connected separately on this device.');
     error.code = 'needs-device-connect';
@@ -491,10 +484,22 @@ export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
 async function persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate) {
   const persist = async () => {
     const live = getConnection(adapterId);
-    if (adapterId === 'google_health' && (getActiveProfileId() !== profileId || !connectionHasCredentials(adapterId, live, profileId))) return false;
-    if (rows.length > 0) await upsertDailyBatch(profileId, rows);
+    const isGoogleHealth = adapterId === 'google_health';
+    if (isGoogleHealth && (getActiveProfileId() !== profileId || !connectionHasCredentials(adapterId, live, profileId))) return false;
+    const expectedVersion = Number.isSafeInteger(conn?.credentialGeneration) ? conn.credentialGeneration : 0;
+    const versionKey = wearableCredentialGenerationKey(adapterId);
+    if (rows.length > 0) {
+      const written = await upsertDailyBatch(profileId, rows, isGoogleHealth ? { versionKey, expectedVersion } : null);
+      if (isGoogleHealth && !written) return false;
+    }
     await commitAfterWriteIfAny(adapterId, rows, conn);
-    await setMeta(profileId, `last-sync:${adapterId}`, { at: Date.now(), rows: rows.length, startDate, endDate });
+    const lastSync = { at: Date.now(), rows: rows.length, startDate, endDate };
+    if (isGoogleHealth) {
+      const result = await setMetaVersioned(profileId, `last-sync:${adapterId}`, lastSync, versionKey, expectedVersion);
+      if (!result.saved) return false;
+    } else {
+      await setMeta(profileId, `last-sync:${adapterId}`, lastSync);
+    }
     const current = getConnection(adapterId);
     if (getActiveProfileId() === profileId && connectionHasCredentials(adapterId, current)) saveConnection(adapterId, { ...current, lastSyncAt: Date.now(), needsReauth: false });
     return true;
@@ -573,17 +578,23 @@ export async function disconnectWearable(adapterId, options = {}) {
 
 async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
   const profileId = getActiveProfileId();
-  // Delete requested health rows before removing the credentials or
-  // connection metadata. If IndexedDB refuses the purge, propagate that
-  // failure and leave the connection intact so the user can retry instead of
-  // receiving a false-success message with inaccessible rows still present.
-  if (deleteData) {
+  // A failed requested purge leaves the connection intact so the user can
+  // retry instead of receiving false success with inaccessible rows present.
+  if (deleteData && !usesCredentialVault(adapterId)) {
     await clearSource(profileId, adapterId);
   }
   if (usesCredentialVault(adapterId)) {
-    await deleteWearableCredentials(profileId, adapterId);
+    // For Google Health, credential revocation, the generation fence, daily
+    // row deletion, and cursor deletion share one IndexedDB transaction. A
+    // stale cross-tab write cannot land between clearing data and revoking credentials.
+    const generation = deleteData
+      ? await deleteWearableCredentials(profileId, adapterId, {
+        source: adapterId,
+        metaKeys: [`last-sync:${adapterId}`],
+      })
+      : await deleteWearableCredentials(profileId, adapterId);
     credentialCache.delete(credentialCacheKey(profileId, adapterId));
-    setLocalCredentialMarker(profileId, adapterId, false);
+    clearLocalWearableCredential(profileId, adapterId, generation);
   }
   removeConnection(adapterId);
   if (deleteData) {
@@ -591,7 +602,9 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
     // reconnect's incrementalSyncWearable picks up the stale endDate as
     // start, missing the freshly-cleared backfill range until the
     // recoverIfL1Empty scheduler eventually full-resyncs.
-    try { await deleteMeta(profileId, `last-sync:${adapterId}`); } catch { /* meta wipe failure is recoverable */ }
+    if (!usesCredentialVault(adapterId)) {
+      try { await deleteMeta(profileId, `last-sync:${adapterId}`); } catch { /* meta wipe failure is recoverable */ }
+    }
     const googleDerivedHistoryPurged = adapterId === 'google_health'
       && deleteImportedArrayItems(
         state.importedData,

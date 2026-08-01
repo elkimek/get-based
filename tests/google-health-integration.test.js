@@ -15,15 +15,20 @@ import {
   withGoogleHealthRefreshLock,
 } from '../js/wearables-google-health-auth.js';
 import {
+  clearLocalWearableCredential,
   deleteWearableCredentials,
+  hasLocalWearableCredential,
   loadWearableCredentials,
+  markLocalWearableCredential,
   saveWearableCredentials,
+  wearableCredentialGenerationKey,
 } from '../js/wearables-credential-vault.js';
 import {
   clearSource,
   getDailyRange,
   getDailyRangeRaw,
   getMeta,
+  setMeta,
   upsertDailyBatch,
 } from '../js/wearables-store.js';
 import { computeWearableSummary } from '../js/wearables-summary.js';
@@ -311,10 +316,11 @@ describe('Google Health adapter and OAuth', () => {
 describe('Google Health privacy and source precedence', () => {
   it('encrypts credentials in a device-local vault and deletes them on request', async () => {
     const profileId = `google-vault-${crypto.randomUUID()}`;
-    await saveWearableCredentials(profileId, 'google_health', {
+    const initialGeneration = await saveWearableCredentials(profileId, 'google_health', {
       accessToken: 'access-plaintext-must-not-leak',
       refreshToken: 'refresh-plaintext-must-not-leak',
     });
+    expect(initialGeneration).toBe(0);
 
     const stored = await getMeta(profileId, 'credential-vault-record:v1:google_health');
     expect(stored).toMatchObject({ version: 1 });
@@ -324,10 +330,48 @@ describe('Google Health privacy and source precedence', () => {
     await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toEqual({
       accessToken: 'access-plaintext-must-not-leak',
       refreshToken: 'refresh-plaintext-must-not-leak',
+      credentialGeneration: 0,
     });
 
-    await deleteWearableCredentials(profileId, 'google_health');
+    await upsertDailyBatch(profileId, [{
+      source: 'google_health',
+      date: '2026-07-31',
+      steps: 1234,
+    }]);
+    await setMeta(profileId, 'last-sync:google_health', { endDate: '2026-07-31' });
+    const disconnectedGeneration = await deleteWearableCredentials(profileId, 'google_health', {
+      source: 'google_health',
+      metaKeys: ['last-sync:google_health'],
+    });
+    expect(disconnectedGeneration).toBe(1);
     await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toBeNull();
+    await expect(getDailyRangeRaw(profileId, 'google_health', '2026-07-31', '2026-07-31'))
+      .resolves.toEqual([]);
+    await expect(getMeta(profileId, 'last-sync:google_health')).resolves.toBeNull();
+
+    await expect(saveWearableCredentials(profileId, 'google_health', {
+      accessToken: 'stale-access',
+      refreshToken: 'stale-refresh',
+      credentialGeneration: 0,
+    })).rejects.toMatchObject({ code: 'disconnected' });
+    await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toBeNull();
+
+    const staleRowsWritten = await upsertDailyBatch(profileId, [{
+      source: 'google_health',
+      date: '2026-08-01',
+      steps: 4567,
+    }], {
+      versionKey: wearableCredentialGenerationKey('google_health'),
+      expectedVersion: 0,
+    });
+    expect(staleRowsWritten).toBe(false);
+    await expect(getDailyRangeRaw(profileId, 'google_health', '2026-08-01', '2026-08-01'))
+      .resolves.toEqual([]);
+
+    expect(markLocalWearableCredential(profileId, 'google_health', 0)).toBe(true);
+    clearLocalWearableCredential(profileId, 'google_health', disconnectedGeneration);
+    expect(markLocalWearableCredential(profileId, 'google_health', 0)).toBe(false);
+    expect(hasLocalWearableCredential(profileId, 'google_health', 0)).toBe(false);
   });
 
   it('always encrypts Google Health daily rows even when app passphrase encryption is off', async () => {

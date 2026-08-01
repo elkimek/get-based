@@ -14,6 +14,24 @@ const MOCKED_MODULES = [
   '../js/wearables-store.js',
 ];
 
+function credentialVaultModule(overrides = {}) {
+  return {
+    clearLocalWearableCredential: vi.fn((profileId, adapterId, generation = 0) => {
+      localStorage.setItem(`labcharts-wearable-credential-generation:${profileId}:${adapterId}`, String(generation || 0));
+      localStorage.removeItem(`labcharts-wearable-credential-local:${profileId}:${adapterId}`);
+    }),
+    deleteWearableCredentials: vi.fn(),
+    hasLocalWearableCredential: vi.fn((profileId, adapterId, generation = 0) => {
+      const marker = localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:${adapterId}`);
+      return marker === String(generation) || (generation === 0 && marker === '1');
+    }),
+    loadWearableCredentials: vi.fn(),
+    markLocalWearableCredential: vi.fn(() => true),
+    saveWearableCredentials: vi.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(async () => {
   await vi.resetModules();
   localStorage.clear();
@@ -57,7 +75,7 @@ describe('wearable disconnect deletion failures', () => {
       setMeta: vi.fn(),
       upsertDailyBatch: vi.fn(),
     }));
-    vi.doMock('../js/wearables-credential-vault.js', () => ({
+    vi.doMock('../js/wearables-credential-vault.js', () => credentialVaultModule({
       deleteWearableCredentials,
       loadWearableCredentials,
       saveWearableCredentials,
@@ -125,7 +143,7 @@ describe('wearable disconnect deletion failures', () => {
       setMeta,
       upsertDailyBatch,
     }));
-    vi.doMock('../js/wearables-credential-vault.js', () => ({
+    vi.doMock('../js/wearables-credential-vault.js', () => credentialVaultModule({
       deleteWearableCredentials,
       loadWearableCredentials: vi.fn(async () => ({
         accessToken: 'valid-access',
@@ -168,8 +186,8 @@ describe('wearable disconnect deletion failures', () => {
   it('keeps Google Health credentials and connection metadata available when row deletion fails', async () => {
     const profileId = 'google-health-disconnect-failure';
     const deletionError = new Error('IndexedDB deletion failed');
-    const clearSource = vi.fn().mockRejectedValue(deletionError);
-    const deleteWearableCredentials = vi.fn();
+    const clearSource = vi.fn();
+    const deleteWearableCredentials = vi.fn().mockRejectedValue(deletionError);
     const saveImportedData = vi.fn();
     const withGoogleHealthRefreshLock = vi.fn(async callback => callback());
     const importedData = {
@@ -194,7 +212,7 @@ describe('wearable disconnect deletion failures', () => {
       setMeta: vi.fn(),
       upsertDailyBatch: vi.fn(),
     }));
-    vi.doMock('../js/wearables-credential-vault.js', () => ({
+    vi.doMock('../js/wearables-credential-vault.js', () => credentialVaultModule({
       deleteWearableCredentials,
       loadWearableCredentials: vi.fn(),
       saveWearableCredentials: vi.fn(),
@@ -210,9 +228,12 @@ describe('wearable disconnect deletion failures', () => {
     await expect(disconnectWearable('google_health', { deleteData: true }))
       .rejects.toBe(deletionError);
 
-    expect(clearSource).toHaveBeenCalledWith(profileId, 'google_health');
+    expect(clearSource).not.toHaveBeenCalled();
     expect(withGoogleHealthRefreshLock).toHaveBeenCalledOnce();
-    expect(deleteWearableCredentials).not.toHaveBeenCalled();
+    expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health', {
+      source: 'google_health',
+      metaKeys: ['last-sync:google_health'],
+    });
     expect(getConnection('google_health')).toEqual(importedData.wearableConnections.google_health);
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBe('1');
     expect(saveImportedData).not.toHaveBeenCalled();

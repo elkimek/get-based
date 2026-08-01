@@ -12,17 +12,69 @@
 // which is preferable to copying a reusable health-data credential.
 
 import {
+  bumpMetaVersionAndDelete,
   decryptWearableDeviceLocalValue,
-  deleteMeta,
   encryptWearableDeviceLocalValue,
-  getMeta,
-  setMeta,
+  getMetaVersioned,
+  setMetaVersioned,
 } from './wearables-store.js';
 
 const RECORD_PREFIX = 'credential-vault-record:v1:';
+const GENERATION_PREFIX = 'credential-vault-generation:v1:';
+const LOCAL_MARKER_PREFIX = 'labcharts-wearable-credential-local:';
+const LOCAL_GENERATION_PREFIX = 'labcharts-wearable-credential-generation:';
 
 function recordKey(adapterId) {
   return `${RECORD_PREFIX}${adapterId}`;
+}
+
+function generationKey(adapterId) {
+  return `${GENERATION_PREFIX}${adapterId}`;
+}
+
+export function wearableCredentialGenerationKey(adapterId) {
+  return generationKey(adapterId);
+}
+
+function normalizedGeneration(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
+export function hasLocalWearableCredential(profileId, adapterId, generation, fallback = false) {
+  try {
+    const expected = normalizedGeneration(generation);
+    const marker = localStorage.getItem(`${LOCAL_MARKER_PREFIX}${profileId}:${adapterId}`);
+    const rawCurrent = Number(localStorage.getItem(`${LOCAL_GENERATION_PREFIX}${profileId}:${adapterId}`));
+    const current = Number.isSafeInteger(rawCurrent) && rawCurrent >= 0 ? rawCurrent : 0;
+    return current === expected && (marker === String(expected) || (expected === 0 && marker === '1'));
+  } catch { return fallback; }
+}
+
+export function markLocalWearableCredential(profileId, adapterId, generation) {
+  const next = normalizedGeneration(generation);
+  const generationKeyName = `${LOCAL_GENERATION_PREFIX}${profileId}:${adapterId}`;
+  const rawCurrent = Number(localStorage.getItem(generationKeyName));
+  const current = Number.isSafeInteger(rawCurrent) && rawCurrent >= 0 ? rawCurrent : 0;
+  if (current > next) return false;
+  localStorage.setItem(generationKeyName, String(next));
+  localStorage.setItem(`${LOCAL_MARKER_PREFIX}${profileId}:${adapterId}`, String(next));
+  return true;
+}
+
+export function clearLocalWearableCredential(profileId, adapterId, generation) {
+  const next = normalizedGeneration(generation);
+  const generationKeyName = `${LOCAL_GENERATION_PREFIX}${profileId}:${adapterId}`;
+  const rawCurrent = Number(localStorage.getItem(generationKeyName));
+  const current = Number.isSafeInteger(rawCurrent) && rawCurrent >= 0 ? rawCurrent : 0;
+  localStorage.setItem(generationKeyName, String(Math.max(current, next)));
+  localStorage.removeItem(`${LOCAL_MARKER_PREFIX}${profileId}:${adapterId}`);
+}
+
+function staleCredentialWriteError() {
+  /** @type {Error & { code?: string }} */
+  const error = new Error('Connection was removed while credentials were being refreshed.');
+  error.code = 'disconnected';
+  return error;
 }
 
 async function withVaultLock(profileId, callback) {
@@ -43,24 +95,35 @@ export async function saveWearableCredentials(profileId, adapterId, credentials)
       accessToken: credentials.accessToken || null,
       refreshToken: credentials.refreshToken || null,
     });
-    await setMeta(profileId, recordKey(adapterId), {
+    const expectedGeneration = Number.isSafeInteger(credentials.credentialGeneration)
+      ? credentials.credentialGeneration
+      : null;
+    const result = await setMetaVersioned(profileId, recordKey(adapterId), {
       ...encrypted,
-    });
+    }, generationKey(adapterId), expectedGeneration);
+    if (!result.saved) throw staleCredentialWriteError();
+    return result.version;
   });
 }
 
 export async function loadWearableCredentials(profileId, adapterId) {
   if (!profileId || !adapterId) return null;
-  const record = await getMeta(profileId, recordKey(adapterId));
-  const parsed = await decryptWearableDeviceLocalValue(profileId, record);
+  const snapshot = await getMetaVersioned(profileId, recordKey(adapterId), generationKey(adapterId));
+  const parsed = await decryptWearableDeviceLocalValue(profileId, snapshot.value);
   if (!parsed) return null;
   return {
     accessToken: typeof parsed.accessToken === 'string' ? parsed.accessToken : null,
     refreshToken: typeof parsed.refreshToken === 'string' ? parsed.refreshToken : null,
+    credentialGeneration: snapshot.version,
   };
 }
 
-export async function deleteWearableCredentials(profileId, adapterId) {
+export async function deleteWearableCredentials(profileId, adapterId, options = {}) {
   if (!profileId || !adapterId) return;
-  await withVaultLock(profileId, () => deleteMeta(profileId, recordKey(adapterId)));
+  return withVaultLock(profileId, () => bumpMetaVersionAndDelete(
+    profileId,
+    recordKey(adapterId),
+    generationKey(adapterId),
+    options,
+  ));
 }

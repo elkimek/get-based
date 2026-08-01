@@ -286,11 +286,16 @@ function _mergeRow(existing, incoming) {
   return out;
 }
 
-export async function upsertDailyBatch(profileId, rows) {
-  if (!rows || rows.length === 0) return;
+/**
+ * @param {string} profileId
+ * @param {any[]} rows
+ * @param {{ versionKey: string, expectedVersion: number } | null} [versionGuard]
+ */
+export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
+  if (!rows || rows.length === 0) return false;
   const stamp = Date.now();
   const cleaned = rows.filter(r => r && r.source && r.date);
-  if (cleaned.length === 0) return;
+  if (cleaned.length === 0) return false;
   const db = await openWearablesDB(profileId);
 
   // Phase 1 — read existing rows in a read tx. We can't await between
@@ -327,11 +332,29 @@ export async function upsertDailyBatch(profileId, rows) {
     towrite.push(await _prepareRowForStorage(profileId, merged));
   }
 
-  // Phase 2 — write all merged rows in a single fresh tx, no awaits.
-  const tx = db.transaction(STORE_DAILY, 'readwrite');
-  const store = tx.objectStore(STORE_DAILY);
-  for (const row of towrite) store.put(row);
-  return txPromise(tx);
+  // Phase 2 — write all merged rows in a single fresh tx, no awaits. Google
+  // Health supplies a generation guard so disconnect and stale cross-tab
+  // writes are ordered atomically even without Web Locks.
+  const stores = versionGuard ? [STORE_DAILY, STORE_META] : STORE_DAILY;
+  const tx = db.transaction(stores, 'readwrite');
+  const done = txPromise(tx);
+  const dailyStore = tx.objectStore(STORE_DAILY);
+  let written = !versionGuard;
+  const putRows = () => { for (const row of towrite) dailyStore.put(row); };
+  if (versionGuard) {
+    const request = tx.objectStore(STORE_META).get(versionGuard.versionKey);
+    request.onsuccess = () => {
+      const rawVersion = request.result?.v;
+      const version = Number.isSafeInteger(rawVersion) ? rawVersion : 0;
+      if (version !== versionGuard.expectedVersion) return;
+      putRows();
+      written = true;
+    };
+  } else {
+    putRows();
+  }
+  await done;
+  return written;
 }
 
 export async function getDaily(profileId, source, date) {
@@ -474,6 +497,78 @@ export async function deleteMeta(profileId, key) {
   const tx = db.transaction(STORE_META, 'readwrite');
   tx.objectStore(STORE_META).delete(key);
   return txPromise(tx);
+}
+
+// Version-guarded meta operations use one IndexedDB transaction so separate
+// tabs remain ordered even when the Web Locks API is unavailable.
+export async function getMetaVersioned(profileId, key, versionKey) {
+  const db = await openWearablesDB(profileId);
+  const tx = db.transaction(STORE_META, 'readonly');
+  const store = tx.objectStore(STORE_META);
+  const read = request => new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result?.v ?? null);
+    request.onerror = () => reject(request.error);
+  });
+  const [value, rawVersion] = await Promise.all([read(store.get(key)), read(store.get(versionKey))]);
+  return { value, version: Number.isSafeInteger(rawVersion) ? rawVersion : 0 };
+}
+
+export async function setMetaVersioned(profileId, key, value, versionKey, expectedVersion = null) {
+  const db = await openWearablesDB(profileId);
+  const tx = db.transaction(STORE_META, 'readwrite');
+  const done = txPromise(tx);
+  const store = tx.objectStore(STORE_META);
+  let saved = false;
+  let version = 0;
+  const request = store.get(versionKey);
+  request.onsuccess = () => {
+    const rawVersion = request.result?.v;
+    version = Number.isSafeInteger(rawVersion) ? rawVersion : 0;
+    if (expectedVersion !== null && version !== expectedVersion) return;
+    store.put({ k: key, v: value, updatedAt: Date.now() });
+    saved = true;
+  };
+  await done;
+  return { saved, version };
+}
+
+/**
+ * Atomically revoke a versioned record and, when requested, purge all daily
+ * rows and extra metadata owned by the same source. Sharing one transaction
+ * with guarded Google Health writes means either the stale write lands first
+ * and is then deleted, or the version bump lands first and rejects it.
+ *
+ * @param {string} profileId
+ * @param {string} key
+ * @param {string} versionKey
+ * @param {{ source?: string | null, metaKeys?: string[] }} [options]
+ */
+export async function bumpMetaVersionAndDelete(profileId, key, versionKey, options = {}) {
+  const db = await openWearablesDB(profileId);
+  const source = options.source || null;
+  const tx = db.transaction(source ? [STORE_META, STORE_DAILY] : STORE_META, 'readwrite');
+  const done = txPromise(tx);
+  const store = tx.objectStore(STORE_META);
+  let version = 1;
+  const request = store.get(versionKey);
+  request.onsuccess = () => {
+    const rawVersion = request.result?.v;
+    version = (Number.isSafeInteger(rawVersion) ? rawVersion : 0) + 1;
+    store.put({ k: versionKey, v: version, updatedAt: Date.now() });
+    store.delete(key);
+    for (const metaKey of options.metaKeys || []) store.delete(metaKey);
+    if (source) {
+      const cursorRequest = tx.objectStore(STORE_DAILY)
+        .index('by_source')
+        .openCursor(IDBKeyRange.only(source));
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (cursor) { cursor.delete(); cursor.continue(); }
+      };
+    }
+  };
+  await done;
+  return version;
 }
 
 // Delete the entire wearable database for this profile — used by the nuke
