@@ -25,7 +25,7 @@ import { beginOAuth as beginWithingsOAuth, completeOAuthCallback as completeWith
 import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commitPolarTransactions } from './wearables-polar.js';
 import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCallback, isPolarCallback, withFreshToken as polarWithFreshToken, DEFAULT_POLAR_SCOPES } from './wearables-polar-auth.js';
 import { fetchGoogleHealthDailyRange, fetchGoogleHealthPersonalInfo } from './wearables-google-health.js';
-import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthRefreshLock, googleHealthDisconnectedError, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
+import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthLifecycleLock, withGoogleHealthRefreshLock, googleHealthDisconnectedError, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
 import { deleteWearableCredentials, loadWearableCredentials, saveWearableCredentials } from './wearables-credential-vault.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
@@ -484,21 +484,22 @@ export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
   const endDate = isoDay();
   const rows = await fetchRange(adapter, startDate, endDate);
   if (isDebugMode?.()) console.log(`[wearables] ${adapterId} backfill ${startDate}..${endDate}: ${rows.length} rows`);
+  const persisted = await persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate);
+  return { rows: persisted ? rows.length : 0, startDate, endDate };
+}
 
-  if (rows.length > 0) await upsertDailyBatch(profileId, rows);
-  // Pass the pre-await connection snapshot so a profile swap mid-flight
-  // can't make the commit run against the new profile's token.
-  await commitAfterWriteIfAny(adapterId, rows, conn);
-  await setMeta(profileId, `last-sync:${adapterId}`, { at: Date.now(), rows: rows.length, startDate, endDate });
-
-  // Re-read the live connection — if it disappeared mid-flight (profile swap,
-  // state reload, etc.), DO NOT write a partial stub that wipes tokens. This
-  // was the root of the "Settings says not connected after backfill" bug.
-  const current = getConnection(adapterId);
-  if (getActiveProfileId() === profileId && connectionHasCredentials(adapterId, current)) {
-    saveConnection(adapterId, { ...current, lastSyncAt: Date.now(), needsReauth: false });
-  }
-  return { rows: rows.length, startDate, endDate };
+async function persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate) {
+  const persist = async () => {
+    const live = getConnection(adapterId);
+    if (adapterId === 'google_health' && (getActiveProfileId() !== profileId || !connectionHasCredentials(adapterId, live, profileId))) return false;
+    if (rows.length > 0) await upsertDailyBatch(profileId, rows);
+    await commitAfterWriteIfAny(adapterId, rows, conn);
+    await setMeta(profileId, `last-sync:${adapterId}`, { at: Date.now(), rows: rows.length, startDate, endDate });
+    const current = getConnection(adapterId);
+    if (getActiveProfileId() === profileId && connectionHasCredentials(adapterId, current)) saveConnection(adapterId, { ...current, lastSyncAt: Date.now(), needsReauth: false });
+    return true;
+  };
+  return adapterId === 'google_health' ? withGoogleHealthLifecycleLock(persist) : persist();
 }
 
 // Adapter-specific post-write hook. Polar uses this to commit open AccessLink
@@ -556,19 +557,8 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
   // can ask the API for "anything modified since" instead of a fixed window —
   // catches retroactive manual entries (BP backfilled a week later, etc.).
   const rows = await fetchRange(adapter, startDate, endDate, { lastSyncUnix: lastSync?.at || conn.lastSyncAt || null });
-  if (rows.length > 0) await upsertDailyBatch(profileId, rows);
-  // Snapshot connection (see backfillWearable) — profile-swap mid-flight
-  // safety.
-  await commitAfterWriteIfAny(adapterId, rows, conn);
-  await setMeta(profileId, `last-sync:${adapterId}`, { at: Date.now(), rows: rows.length, startDate, endDate });
-
-  // Same guard as backfillWearable — never overwrite a full connection with
-  // a tokenless stub if state was swapped while we were fetching.
-  const current = getConnection(adapterId);
-  if (getActiveProfileId() === profileId && connectionHasCredentials(adapterId, current)) {
-    saveConnection(adapterId, { ...current, lastSyncAt: Date.now(), needsReauth: false });
-  }
-  return { rows: rows.length, startDate, endDate };
+  const persisted = await persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate);
+  return { rows: persisted ? rows.length : 0, startDate, endDate };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -577,7 +567,7 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
 
 export async function disconnectWearable(adapterId, options = {}) {
   return adapterId === 'google_health'
-    ? withGoogleHealthRefreshLock(() => disconnectWearableLocked(adapterId, options))
+    ? withGoogleHealthLifecycleLock(() => withGoogleHealthRefreshLock(() => disconnectWearableLocked(adapterId, options)))
     : disconnectWearableLocked(adapterId, options);
 }
 

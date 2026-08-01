@@ -10,6 +10,7 @@ const MOCKED_MODULES = [
   '../js/wearables-connect.js',
   '../js/wearables-credential-vault.js',
   '../js/wearables-google-health-auth.js',
+  '../js/wearables-google-health.js',
   '../js/wearables-store.js',
 ];
 
@@ -87,6 +88,79 @@ describe('wearable disconnect deletion failures', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(saveWearableCredentials).not.toHaveBeenCalled();
     expect(deleteWearableCredentials).toHaveBeenCalledWith(profileId, 'google_health');
+    expect(getConnection('google_health')).toBeNull();
+    expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBeNull();
+  });
+
+  it('does not persist fetched Google Health rows or metadata after disconnect completes', async () => {
+    const profileId = 'google-health-backfill-race';
+    const deleteWearableCredentials = vi.fn();
+    const upsertDailyBatch = vi.fn();
+    const setMeta = vi.fn();
+    const fetchGoogleHealthDailyRange = vi.fn(async () => [{
+      source: 'google_health',
+      date: '2026-08-01',
+      steps: 1234,
+    }]);
+    const importedData = {
+      wearableConnections: {
+        google_health: {
+          connectedAt: '2026-08-01T00:00:00.000Z',
+          expiresAt: Date.now() + (60 * 60_000),
+          hasStoredCredentials: true,
+        },
+      },
+      changeHistory: [],
+    };
+
+    vi.doMock('../js/state.js', () => ({ state: { importedData } }));
+    vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
+    vi.doMock('../js/data.js', () => ({ saveImportedData: vi.fn() }));
+    vi.doMock('../js/wearables-store.js', () => ({
+      clearSource: vi.fn(),
+      countSource: vi.fn(),
+      deleteMeta: vi.fn(),
+      getDailyRange: vi.fn(),
+      getMeta: vi.fn(),
+      setMeta,
+      upsertDailyBatch,
+    }));
+    vi.doMock('../js/wearables-credential-vault.js', () => ({
+      deleteWearableCredentials,
+      loadWearableCredentials: vi.fn(async () => ({
+        accessToken: 'valid-access',
+        refreshToken: 'refresh-secret',
+      })),
+      saveWearableCredentials: vi.fn(),
+    }));
+    vi.doMock('../js/wearables-google-health.js', () => ({
+      fetchGoogleHealthDailyRange,
+      fetchGoogleHealthPersonalInfo: vi.fn(),
+    }));
+
+    localStorage.setItem(`labcharts-wearable-credential-local:${profileId}:google_health`, '1');
+    const { withGoogleHealthLifecycleLock } = await import('../js/wearables-google-health-auth.js');
+    const { backfillWearable, disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
+
+    let releaseBlocker = () => {};
+    const blockerGate = new Promise(resolve => { releaseBlocker = resolve; });
+    let blockerStarted = false;
+    const blocker = withGoogleHealthLifecycleLock(async () => {
+      blockerStarted = true;
+      await blockerGate;
+    });
+    await vi.waitFor(() => expect(blockerStarted).toBe(true));
+
+    const disconnect = disconnectWearable('google_health', { deleteData: true });
+    const backfill = backfillWearable('google_health');
+    releaseBlocker();
+
+    await blocker;
+    await disconnect;
+    await expect(backfill).resolves.toMatchObject({ rows: 0 });
+    expect(fetchGoogleHealthDailyRange).toHaveBeenCalledOnce();
+    expect(upsertDailyBatch).not.toHaveBeenCalled();
+    expect(setMeta).not.toHaveBeenCalled();
     expect(getConnection('google_health')).toBeNull();
     expect(localStorage.getItem(`labcharts-wearable-credential-local:${profileId}:google_health`)).toBeNull();
   });

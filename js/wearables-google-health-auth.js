@@ -18,29 +18,41 @@ const PROXY_URL = '/api/proxy';
 const STATE_KEY = 'google_health-oauth-pending';
 const REFRESH_LEAD_MS = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'google-health-oauth-refresh';
-let refreshLockTail = Promise.resolve();
+const LIFECYCLE_LOCK_KEY = 'google-health-connection-lifecycle';
+/** @type {Map<string, Promise<void>>} */
+const lockTails = new Map();
 
 /**
- * Serialize Google Health credential mutations in this module and, where the
- * Web Locks API is available, across tabs. Disconnect uses the same lock as
- * refresh so it cannot finish while a refresh callback is still able to
- * persist replacement credentials.
+ * Serialize Google Health mutations in this module and, where the Web Locks
+ * API is available, across tabs.
  *
  * @template T
+ * @param {string} lockKey
  * @param {() => Promise<T> | T} callback
  * @returns {Promise<T>}
  */
-export function withGoogleHealthRefreshLock(callback) {
+function withGoogleHealthLock(lockKey, callback) {
   const runInModuleQueue = () => {
-    const result = refreshLockTail.then(callback, callback);
-    refreshLockTail = result.then(() => undefined, () => undefined);
+    const tail = lockTails.get(lockKey) || Promise.resolve();
+    const result = tail.then(callback, callback);
+    lockTails.set(lockKey, result.then(() => undefined, () => undefined));
     return result;
   };
   const locks = globalThis.navigator?.locks;
   if (locks && typeof locks.request === 'function') {
-    return locks.request(REFRESH_LOCK_KEY, { mode: 'exclusive' }, runInModuleQueue);
+    return locks.request(lockKey, { mode: 'exclusive' }, runInModuleQueue);
   }
   return runInModuleQueue();
+}
+
+/** @template T @param {() => Promise<T> | T} callback @returns {Promise<T>} */
+export function withGoogleHealthRefreshLock(callback) {
+  return withGoogleHealthLock(REFRESH_LOCK_KEY, callback);
+}
+
+/** @template T @param {() => Promise<T> | T} callback @returns {Promise<T>} */
+export function withGoogleHealthLifecycleLock(callback) {
+  return withGoogleHealthLock(LIFECYCLE_LOCK_KEY, callback);
 }
 
 export const DEFAULT_GOOGLE_HEALTH_SCOPES = [
@@ -219,6 +231,7 @@ exposeWearableAuthDebug('_googleHealthAuth', {
   completeOAuthCallback,
   isGoogleHealthCallback,
   refreshTokens,
+  withGoogleHealthLifecycleLock,
   withGoogleHealthRefreshLock,
   withFreshToken,
 }, Boolean(isDebugMode?.()));
