@@ -506,6 +506,19 @@ async function _updateManualCounts() {
   } catch { /* non-fatal */ }
 }
 
+function _oauthClientConfigFingerprint() {
+  return visibleAdapters(Object.keys(listConnectedSources()))
+    .filter(adapter => adapter.authType === 'oauth2')
+    .map(adapter => `${adapter.id}:${getOAuthClientId(adapter) || ''}`)
+    .join('|');
+}
+
+async function _refreshAfterWearableRuntimeConfig() {
+  const before = _oauthClientConfigFingerprint();
+  await loadWearableRuntimeConfig({ waitForFetch: true });
+  if (before !== _oauthClientConfigFingerprint()) refreshSettingsWearables();
+}
+
 // Fire when the details element opens (delegated — the Settings section is
 // re-rendered on demand so we can't bind once at module load).
 document.addEventListener('toggle', (e) => {
@@ -522,6 +535,10 @@ document.addEventListener('toggle', (e) => {
 document.addEventListener('settings:wearables-rendered', () => {
   // Slightly defer so the [data-role="manual-counts"] element is in the DOM.
   queueMicrotask(_updateManualCounts);
+  // A fresh profile has no connected OAuth source, so startup maintenance
+  // does not load the public client-id map. Start it when Settings opens and
+  // re-render only if the returned configuration changed an adapter row.
+  void _refreshAfterWearableRuntimeConfig();
 });
 
 async function handleWearableConnect(adapterId) {

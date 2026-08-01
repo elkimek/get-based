@@ -1,5 +1,75 @@
 import { expect, test } from './coverage-fixture.js';
 
+test('wearables settings loads runtime credentials for a fresh unconnected profile', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const [{ state }, adapters, settings] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/wearable-adapters.js'),
+      import('/js/wearables-settings-panel.js'),
+    ]);
+    const originalFetch = window.fetch;
+    let runtimeConfigCalls = 0;
+    adapters._resetOAuthOverrides();
+    state.importedData = { wearableConnections: {} };
+    document.getElementById('wearables-section')?.remove();
+
+    window.fetch = async (url, options = {}) => {
+      if (String(url) === '/api/proxy') {
+        const payload = JSON.parse(String(options.body || '{}'));
+        if (payload.wearable_runtime_config) {
+          runtimeConfigCalls += 1;
+          await new Promise(resolve => setTimeout(resolve, 25));
+          return new Response(JSON.stringify({
+            overrides: { google_health: 'hosted-google-health-client' },
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+      return originalFetch(url, options);
+    };
+
+    try {
+      document.body.insertAdjacentHTML('beforeend', `
+        <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
+      `);
+      const initialRow = document.querySelector('[data-adapter="google_health"]');
+      const initiallyWaiting = initialRow?.textContent.includes('waiting on partner credentials');
+      const initiallyHasConnect = Boolean(initialRow
+        ?.querySelector('[data-wearable-settings-action="connect"]'));
+
+      document.dispatchEvent(new Event('settings:wearables-rendered'));
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const row = document.querySelector('[data-adapter="google_health"]');
+        if (row?.textContent.includes('optional health hub')) break;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+
+      const configuredRow = document.querySelector('[data-adapter="google_health"]');
+      return {
+        runtimeConfigCalls,
+        initiallyWaiting,
+        initiallyHasConnect,
+        configuredText: configuredRow?.textContent || '',
+        configuredHasConnect: Boolean(configuredRow
+          ?.querySelector('[data-wearable-settings-action="connect"]')),
+      };
+    } finally {
+      window.fetch = originalFetch;
+      document.getElementById('wearables-section')?.remove();
+    }
+  });
+
+  expect(result).toMatchObject({
+    runtimeConfigCalls: 1,
+    initiallyWaiting: true,
+    initiallyHasConnect: false,
+    configuredHasConnect: true,
+  });
+  expect(result.configuredText).toContain('optional health hub');
+  expect(result.configuredText).not.toContain('waiting on partner credentials');
+});
+
 test('wearables settings panel browser coverage renders rows, counts, and navigation toggles', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });

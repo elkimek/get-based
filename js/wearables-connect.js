@@ -748,30 +748,36 @@ export function initWearableScheduler() {
 // the adapter registry has hardcoded (i.e. the hosted-user behavior).
 
 const RUNTIME_CONFIG_TIMEOUT_MS = 1500;
-let _runtimeConfigPromise = null;
+/** @type {Promise<void> | null} */ let _runtimeConfigFetchPromise = null;
+/** @type {Promise<void> | null} */ let _runtimeConfigPromise = null;
 
-export function loadWearableRuntimeConfig() {
-  if (_runtimeConfigPromise) return _runtimeConfigPromise;
-  const fetchPromise = (async () => {
-    try {
-      const res = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wearable_runtime_config: true }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data && data.overrides) applyOAuthOverrides(data.overrides);
-    } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
-  })();
-  // Race the fetch against a soft timeout so the scheduler never blocks
-  // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
-  // resolves. The fetch itself continues in the background — if it lands
-  // after the timeout, applyOAuthOverrides still runs and the *next*
-  // visibilitychange / poll-interval sync picks up the override.
-  const timeoutPromise = new Promise(resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS));
-  _runtimeConfigPromise = Promise.race([fetchPromise, timeoutPromise]);
-  return _runtimeConfigPromise;
+/** @param {{ waitForFetch?: boolean }} [options] @returns {Promise<void>} */
+export function loadWearableRuntimeConfig(options = {}) {
+  if (!_runtimeConfigFetchPromise) {
+    _runtimeConfigFetchPromise = (async () => {
+      try {
+        const res = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wearable_runtime_config: true }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.overrides) applyOAuthOverrides(data.overrides);
+      } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
+    })();
+    // Race the fetch against a soft timeout so the scheduler never blocks
+    // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
+    // resolves. The fetch itself continues in the background — Settings can
+    // explicitly await it so a slow response still enables configured rows.
+    const timeoutPromise = /** @type {Promise<void>} */ (
+      new Promise(resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS))
+    );
+    _runtimeConfigPromise = Promise.race([_runtimeConfigFetchPromise, timeoutPromise]);
+  }
+  return options.waitForFetch
+    ? _runtimeConfigFetchPromise
+    : /** @type {Promise<void>} */ (_runtimeConfigPromise);
 }
 
 // Used by the scheduler to gate its first sync. If main.js skipped the
