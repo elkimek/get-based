@@ -7,7 +7,8 @@ import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from '.
 import { hashString, isDebugMode, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
-import { onDataSaved, onProfileSaved } from './sync.js';
+import { onDataSaved } from './sync.js';
+import { onProfileSaved } from './sync-save-hooks.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
 import {
