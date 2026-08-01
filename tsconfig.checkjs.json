@@ -336,6 +336,7 @@
     "js/wearables-connect-loader.js",
     "js/wearables-connect.js",
     "js/wearables-credential-vault.js",
+    "js/wearables-disconnect-recovery.js",
     "js/wearables-bp-detail-chart.js",
     "js/wearables-detail-runtime.js",
     "js/wearables-detail-modal.js",
