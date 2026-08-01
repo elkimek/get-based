@@ -117,6 +117,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         withings: 'withings-oauth-pending',
         ultrahuman: 'ultrahuman-oauth-pending',
         fitbit: 'fitbit-oauth-pending',
+        google_health: 'google_health-oauth-pending',
         polar: 'polar-oauth-pending',
       };
       const outcomes = {};

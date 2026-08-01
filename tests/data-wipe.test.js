@@ -65,6 +65,7 @@ describe('eraseAllLocalAppData', () => {
     localStorage.setItem('unrelated-setting', 'keep');
     sessionStorage.setItem('labcharts-import-review-draft-v1', 'sensitive');
     sessionStorage.setItem('oura-oauth-pending', 'sensitive');
+    sessionStorage.setItem('google_health-oauth-pending', 'sensitive');
     sessionStorage.setItem('unrelated-session', 'keep');
 
     const appDatabases = [
@@ -98,6 +99,7 @@ describe('eraseAllLocalAppData', () => {
     expect(localStorage.getItem('unrelated-setting')).toBe('keep');
     expect(sessionStorage.getItem('labcharts-import-review-draft-v1')).toBeNull();
     expect(sessionStorage.getItem('oura-oauth-pending')).toBeNull();
+    expect(sessionStorage.getItem('google_health-oauth-pending')).toBeNull();
     expect(sessionStorage.getItem('unrelated-session')).toBe('keep');
     expect(await databaseNames()).toEqual(['third-party-database']);
     expect(deleteCache.mock.calls.map(([key]) => key).sort()).toEqual([

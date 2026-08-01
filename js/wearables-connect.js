@@ -23,6 +23,9 @@ import { fetchWithingsDailyRange, fetchWithingsPersonalInfo } from './wearables-
 import { beginOAuth as beginWithingsOAuth, completeOAuthCallback as completeWithingsCallback, isWithingsCallback, withFreshToken as withingsWithFreshToken, DEFAULT_WITHINGS_SCOPES } from './wearables-withings-auth.js';
 import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commitPolarTransactions } from './wearables-polar.js';
 import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCallback, isPolarCallback, withFreshToken as polarWithFreshToken, DEFAULT_POLAR_SCOPES } from './wearables-polar-auth.js';
+import { fetchGoogleHealthDailyRange, fetchGoogleHealthPersonalInfo } from './wearables-google-health.js';
+import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
+import { deleteWearableCredentials, loadWearableCredentials, saveWearableCredentials } from './wearables-credential-vault.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
 import {
@@ -49,8 +52,50 @@ function _scrubError(msg) {
 // ─────────────────────────────────────────────────────────
 // importedData.wearableConnections read/write
 // ─────────────────────────────────────────────────────────
-// Stored in the same blob as other credentials. Rides Evolu sync so the
-// connection is available on the user's other devices.
+// Most existing providers still store credentials in importedData. Google
+// Health is deliberately different: only non-secret connection metadata is
+// kept here, while tokens live in the encrypted, device-local credential vault.
+
+const VAULTED_CREDENTIAL_ADAPTERS = new Set(['google_health']);
+const credentialCache = new Map();
+
+function credentialCacheKey(profileId, adapterId) {
+  return `${profileId}:${adapterId}`;
+}
+
+function usesCredentialVault(adapterId) {
+  return VAULTED_CREDENTIAL_ADAPTERS.has(adapterId);
+}
+
+function localCredentialMarkerKey(profileId, adapterId) {
+  return `labcharts-wearable-credential-local:${profileId}:${adapterId}`;
+}
+
+function hasLocalCredentialMarker(profileId, adapterId) {
+  try { return localStorage.getItem(localCredentialMarkerKey(profileId, adapterId)) === '1'; }
+  catch { return credentialCache.has(credentialCacheKey(profileId, adapterId)); }
+}
+
+function setLocalCredentialMarker(profileId, adapterId, present) {
+  const key = localCredentialMarkerKey(profileId, adapterId);
+  if (present) localStorage.setItem(key, '1');
+  else localStorage.removeItem(key);
+}
+
+function connectionHasCredentials(adapterId, connection, profileId = getActiveProfileId()) {
+  return usesCredentialVault(adapterId)
+    ? Boolean(connection?.hasStoredCredentials && hasLocalCredentialMarker(profileId, adapterId))
+    : Boolean(connection?.accessToken);
+}
+
+function metadataOnlyConnection(adapterId, connection) {
+  if (!usesCredentialVault(adapterId)) return connection;
+  const { accessToken, refreshToken, ...metadata } = connection;
+  return {
+    ...metadata,
+    hasStoredCredentials: Boolean(metadata.hasStoredCredentials || accessToken || refreshToken),
+  };
+}
 
 function getConnections() {
   if (!state.importedData) return {};
@@ -66,7 +111,7 @@ export function listConnectedSources() {
   const map = getConnections();
   const out = {};
   for (const [sid, conn] of Object.entries(map)) {
-    if (conn?.connectedAt) {
+    if (conn?.connectedAt && (!usesCredentialVault(sid) || connectionHasCredentials(sid, conn))) {
       out[sid] = {
         connectedSince: conn.connectedAt,
         lastSyncAt: conn.lastSyncAt || 0,
@@ -78,8 +123,64 @@ export function listConnectedSources() {
 
 function saveConnection(adapterId, conn) {
   const map = getConnections();
-  map[adapterId] = conn;
+  map[adapterId] = metadataOnlyConnection(adapterId, conn);
   saveImportedData();
+}
+
+async function saveConnectionWithCredentials(adapterId, connection, profileId = getActiveProfileId()) {
+  if (!usesCredentialVault(adapterId)) {
+    saveConnection(adapterId, connection);
+    return;
+  }
+  if (profileId !== getActiveProfileId()) {
+    throw new Error('Profile changed while credentials were being refreshed.');
+  }
+  const credentials = {
+    accessToken: connection.accessToken || null,
+    refreshToken: connection.refreshToken || null,
+  };
+  if (credentials.accessToken || credentials.refreshToken) {
+    await saveWearableCredentials(profileId, adapterId, credentials);
+    try {
+      setLocalCredentialMarker(profileId, adapterId, true);
+    } catch (error) {
+      await deleteWearableCredentials(profileId, adapterId).catch(() => {});
+      throw error;
+    }
+    credentialCache.set(credentialCacheKey(profileId, adapterId), credentials);
+  }
+  if (profileId !== getActiveProfileId()) {
+    throw new Error('Profile changed while credentials were being refreshed.');
+  }
+  saveConnection(adapterId, connection);
+}
+
+async function hydratedConnection(adapterId) {
+  const connection = getConnection(adapterId);
+  if (!connection || !usesCredentialVault(adapterId)) return connection;
+  const profileId = getActiveProfileId();
+  const key = credentialCacheKey(profileId, adapterId);
+  let credentials = credentialCache.get(key);
+  if (!credentials) {
+    credentials = await loadWearableCredentials(profileId, adapterId);
+    if (credentials) credentialCache.set(key, credentials);
+  }
+  if (!credentials && connection?.hasStoredCredentials) {
+    try { setLocalCredentialMarker(profileId, adapterId, false); } catch {}
+    /** @type {Error & { code?: string }} */
+    const error = new Error('Google Health must be connected separately on this device.');
+    error.code = 'needs-device-connect';
+    throw error;
+  }
+  return credentials ? { ...connection, ...credentials } : connection;
+}
+
+function latestHydratedConnection(adapterId, fallback, profileId = getActiveProfileId()) {
+  if (profileId !== getActiveProfileId()) return fallback;
+  const metadata = getConnection(adapterId);
+  if (!metadata || !usesCredentialVault(adapterId)) return metadata || fallback;
+  const credentials = credentialCache.get(credentialCacheKey(profileId, adapterId));
+  return credentials ? { ...metadata, ...credentials } : fallback;
 }
 
 function removeConnection(adapterId) {
@@ -158,6 +259,15 @@ export const OAUTH_DISPATCH = {
     fetchRange: fetchFitbitDailyRange,
     displayName: 'Fitbit',
   },
+  google_health: {
+    begin: (args) => beginGoogleHealthOAuth({ ...args, scopes: args.scopes || DEFAULT_GOOGLE_HEALTH_SCOPES }),
+    isCallback: isGoogleHealthCallback,
+    complete: completeGoogleHealthCallback,
+    withFreshToken: googleHealthWithFreshToken,
+    fetchAccountInfo: fetchGoogleHealthPersonalInfo,
+    fetchRange: fetchGoogleHealthDailyRange,
+    displayName: 'Google Health',
+  },
   polar: {
     begin: (args) => beginPolarOAuth({ ...args, scopes: args.scopes || DEFAULT_POLAR_SCOPES }),
     isCallback: isPolarCallback,
@@ -204,16 +314,22 @@ export async function handleOAuthCallbackOnLoad() {
 
   // Persist the connection FIRST so fetchAccountInfo (which may need userId)
   // and any postConnect hook can read the userId the token grant returned.
-  saveConnection(adapterId, {
-    accessToken: result.tokens.accessToken,
-    refreshToken: result.tokens.refreshToken,
-    expiresAt: result.tokens.expiresAt,
-    scope: result.tokens.scope,
-    userId: result.tokens.userId || null,
-    connectedAt: new Date().toISOString(),
-    account: null,
-    lastSyncAt: 0,
-  });
+  try {
+    await saveConnectionWithCredentials(adapterId, {
+      accessToken: result.tokens.accessToken,
+      refreshToken: result.tokens.refreshToken,
+      expiresAt: result.tokens.expiresAt,
+      scope: result.tokens.scope,
+      userId: result.tokens.userId || null,
+      connectedAt: new Date().toISOString(),
+      account: null,
+      lastSyncAt: 0,
+      ...(adapterId === 'google_health' ? { dataSourceFamily: 'all-sources' } : {}),
+    });
+  } catch (error) {
+    showNotification?.(`${disp.displayName} credentials could not be stored securely: ${_scrubError(getErrorMessage(error))}`, 'error', 6000);
+    return true;
+  }
   const conn0 = getConnection(adapterId);
   // Pass a MINIMAL arg shape — fetchAccountInfo only needs userId for vendors
   // that scope by user (Polar). Don't hand the whole connection object
@@ -291,7 +407,8 @@ export async function handleOAuthCallbackOnLoad() {
 // forced refresh — guards against the case where the access token expired
 // between our clock check and the actual API call.
 async function callWithRefresh(adapter, fetcher) {
-  let conn = getConnection(adapter.id);
+  const profileId = getActiveProfileId();
+  let conn = await hydratedConnection(adapter.id);
   if (!conn) throw new Error(`Not connected: ${adapter.id}`);
 
   const disp = OAUTH_DISPATCH[adapter.id];
@@ -299,10 +416,12 @@ async function callWithRefresh(adapter, fetcher) {
   const wft = disp.withFreshToken;
 
   conn = await wft(conn, getOAuthClientId(adapter), async (updated) => {
-    saveConnection(adapter.id, updated);
-  }, () => getConnection(adapter.id)).catch(async e => {
+    await saveConnectionWithCredentials(adapter.id, updated, profileId);
+  }, () => latestHydratedConnection(adapter.id, conn, profileId)).catch(async e => {
     if (e?.code === 'needs-reauth' || e?.status === 400 || e?.status === 401) {
-      saveConnection(adapter.id, { ...conn, needsReauth: true });
+      if (getActiveProfileId() === profileId) {
+        saveConnection(adapter.id, { ...conn, needsReauth: true });
+      }
       /** @type {Error & { code?: string }} */
       const wrap = new Error('Reconnect required'); wrap.code = 'needs-reauth'; throw wrap;
     }
@@ -314,7 +433,9 @@ async function callWithRefresh(adapter, fetcher) {
   } catch (e) {
     if (getErrorStatus(e) !== 401) throw e;
     const forced = { ...conn, expiresAt: 0 };
-    const refreshed = await wft(forced, getOAuthClientId(adapter), async (u) => saveConnection(adapter.id, u), () => getConnection(adapter.id));
+    const refreshed = await wft(forced, getOAuthClientId(adapter), async (updated) => {
+      await saveConnectionWithCredentials(adapter.id, updated, profileId);
+    }, () => latestHydratedConnection(adapter.id, forced, profileId));
     return fetcher(refreshed.accessToken);
   }
 }
@@ -335,6 +456,10 @@ async function fetchRange(adapter, startDate, endDate, opts = {}) {
   if (adapter.id === 'fitbit') {
     return callWithRefresh(adapter, (token) => fetchFitbitDailyRange(token, startDate, endDate));
   }
+  if (adapter.id === 'google_health') {
+    const sourceFamily = getConnection('google_health')?.dataSourceFamily || 'all-sources';
+    return callWithRefresh(adapter, (token) => fetchGoogleHealthDailyRange(token, startDate, endDate, { dataSourceFamily: sourceFamily }));
+  }
   if (adapter.id === 'polar') {
     // Polar needs the live connection (userId + transaction state).
     return callWithRefresh(adapter, (token) => fetchPolarDailyRange(token, startDate, endDate, getConnection('polar')));
@@ -350,7 +475,7 @@ export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   const conn = getConnection(adapterId);
-  if (!conn?.accessToken) throw new Error(`Not connected: ${adapterId}`);
+  if (!connectionHasCredentials(adapterId, conn)) throw new Error(`Not connected: ${adapterId}`);
   const profileId = getActiveProfileId();
 
   const startDate = daysAgoIso(daysBack);
@@ -368,7 +493,7 @@ export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
   // state reload, etc.), DO NOT write a partial stub that wipes tokens. This
   // was the root of the "Settings says not connected after backfill" bug.
   const current = getConnection(adapterId);
-  if (current?.accessToken) {
+  if (getActiveProfileId() === profileId && connectionHasCredentials(adapterId, current)) {
     saveConnection(adapterId, { ...current, lastSyncAt: Date.now(), needsReauth: false });
   }
   return { rows: rows.length, startDate, endDate };
@@ -396,7 +521,7 @@ async function commitAfterWriteIfAny(adapterId, rows, connSnapshot) {
 // whichever is earlier, so a missed day gets backfilled).
 export async function incrementalSyncWearable(adapterId, { force = false } = {}) {
   const conn = getConnection(adapterId);
-  if (!conn?.accessToken) return { skipped: true, reason: 'not-connected' };
+  if (!connectionHasCredentials(adapterId, conn)) return { skipped: true, reason: 'not-connected' };
   const profileId = getActiveProfileId();
 
   const lastSync = await getMeta(profileId, `last-sync:${adapterId}`);
@@ -438,7 +563,7 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
   // Same guard as backfillWearable — never overwrite a full connection with
   // a tokenless stub if state was swapped while we were fetching.
   const current = getConnection(adapterId);
-  if (current?.accessToken) {
+  if (getActiveProfileId() === profileId && connectionHasCredentials(adapterId, current)) {
     saveConnection(adapterId, { ...current, lastSyncAt: Date.now(), needsReauth: false });
   }
   return { rows: rows.length, startDate, endDate };
@@ -450,6 +575,11 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
 
 export async function disconnectWearable(adapterId, { deleteData = true } = {}) {
   const profileId = getActiveProfileId();
+  if (usesCredentialVault(adapterId)) {
+    credentialCache.delete(credentialCacheKey(profileId, adapterId));
+    await deleteWearableCredentials(profileId, adapterId);
+    setLocalCredentialMarker(profileId, adapterId, false);
+  }
   removeConnection(adapterId);
   if (deleteData) {
     try { await clearSource(profileId, adapterId); } catch (e) { if (isDebugMode?.()) console.warn('[wearables] clearSource failed:', getErrorMessage(e)); }
@@ -458,12 +588,46 @@ export async function disconnectWearable(adapterId, { deleteData = true } = {}) 
     // start, missing the freshly-cleared backfill range until the
     // recoverIfL1Empty scheduler eventually full-resyncs.
     try { await deleteMeta(profileId, `last-sync:${adapterId}`); } catch { /* meta wipe failure is recoverable */ }
-    if (state.importedData?.wearableSummary?.sources?.[adapterId]) {
-      delete state.importedData.wearableSummary.sources[adapterId];
-      if (Object.keys(state.importedData.wearableSummary.sources).length === 0) {
-        delete state.importedData.wearableSummary;
+    let googleDerivedHistoryPurged = false;
+    if (adapterId === 'google_health' && Array.isArray(state.importedData?.changeHistory)) {
+      const previousLength = state.importedData.changeHistory.length;
+      state.importedData.changeHistory = state.importedData.changeHistory.filter(
+        event => !(event?.type === 'wearable' && event?.source === 'google_health'),
+      );
+      googleDerivedHistoryPurged = state.importedData.changeHistory.length !== previousLength;
+    }
+    let googleDerivedSummaryPurged = false;
+    if (adapterId === 'google_health' && state.importedData?.wearableSummary) {
+      const summary = state.importedData.wearableSummary;
+      if (summary.sources?.google_health) {
+        delete summary.sources.google_health;
+        googleDerivedSummaryPurged = true;
       }
-      saveImportedData();
+      for (const [metricId, metric] of Object.entries(summary.metrics || {})) {
+        if (metric?.primarySource === 'google_health') {
+          delete summary.metrics[metricId];
+          googleDerivedSummaryPurged = true;
+        }
+      }
+    }
+    // Persist the privacy deletion before doing any best-effort rebuild from
+    // remaining direct sources. A locked/corrupt unrelated source must never
+    // leave Google-derived values behind after Disconnect succeeds.
+    if (adapterId === 'google_health' && (googleDerivedHistoryPurged || googleDerivedSummaryPurged)) {
+      await saveImportedData();
+    }
+    const remainingSources = listConnectedSources();
+    if (Object.keys(remainingSources).length > 0) {
+      // Recompute from remaining sources so Google-derived metric values do
+      // not survive merely because another wearable is still connected.
+      await syncWearableSummary(profileId, remainingSources, { force: true });
+    } else {
+      let shouldSave = googleDerivedHistoryPurged || googleDerivedSummaryPurged;
+      if (state.importedData?.wearableSummary) {
+        delete state.importedData.wearableSummary;
+        shouldSave = true;
+      }
+      if (shouldSave) await saveImportedData();
     }
   }
 }
@@ -501,7 +665,7 @@ export async function syncNow(adapterId, { force = false } = {}) {
 
 export async function recoverIfL1Empty(adapterId) {
   const conn = getConnection(adapterId);
-  if (!conn?.accessToken) return { skipped: true };
+  if (!connectionHasCredentials(adapterId, conn)) return { skipped: true };
   // Skip if the connection is already flagged as needing reauth — backfill
   // would 401 → flip the same flag again and the user gets noisy errors
   // every scheduler tick. Wait for them to reconnect before retrying.
@@ -533,7 +697,7 @@ async function maybeSyncStaleSources() {
   const sources = getConnections();
   const now = Date.now();
   for (const [sid, conn] of Object.entries(sources)) {
-    if (!conn?.accessToken) continue;
+    if (!connectionHasCredentials(sid, conn)) continue;
     if (conn.needsReauth) continue;
     const last = conn.lastSyncAt || 0;
     if (now - last < STALE_MS) continue;

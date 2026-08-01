@@ -252,7 +252,7 @@ assert('blocks single-octet-overflow', _proxyHostBlocked('256.0.0.1'));
 // Empty host blocked
 assert('blocks empty host', _proxyHostBlocked(''));
 
-// All 6 live vendor hosts MUST be allowed (regression guard: never block prod)
+// All live vendor hosts MUST be allowed (regression guard: never block prod)
 const VENDOR_HOSTS = [
   'api.ouraring.com',
   'api.prod.whoop.com',
@@ -261,6 +261,8 @@ const VENDOR_HOSTS = [
   'api.fitbit.com',
   'www.polaraccesslink.com',
   'polarremote.com',
+  'health.googleapis.com',
+  'oauth2.googleapis.com',
   // apple_health is file-import, no host
   'openrouter.ai',
   'api.venice.ai',
@@ -281,6 +283,8 @@ assert('allows whoop allowlist',       _isAllowedProxyUrl('https://api.prod.whoo
 assert('allows ultrahuman allowlist',  _isAllowedProxyUrl('https://partner.ultrahuman.com/api/partners/v1/user_data/metrics'));
 assert('allows polar accesslink',      _isAllowedProxyUrl('https://www.polaraccesslink.com/v3/users/123/activity-transactions'));
 assert('allows polar token endpoint',  _isAllowedProxyUrl('https://polarremote.com/v2/oauth2/token'));
+assert('allows Google Health API',      _isAllowedProxyUrl('https://health.googleapis.com/v4/users/me/identity'));
+assert('allows Google token endpoint',  _isAllowedProxyUrl('https://oauth2.googleapis.com/token'));
 
 assert('allows custom HTTPS public host', _isAllowedProxyUrl('https://api.example.com/v1/chat'));
 assert('blocks HTTP (no TLS)',         !_isAllowedProxyUrl('http://api.example.com/v1/chat'));
@@ -329,6 +333,7 @@ assert('proxy header policy rejects CRLF header injection',
   sanitizeProxyHeaders({ Authorization: 'Bearer ok\r\nX-Bad: yes' }).ok === false);
 assert('dev proxy operation classifier accepts one fixed operation',
   classifyDevProxyOperation({ oura_token_exchange: { code: 'code' } }).operation === 'oura-exchange'
+    && classifyDevProxyOperation({ google_health_token_refresh: { refresh_token: 'token' } }).operation === 'google-health-refresh'
     && classifyDevProxyOperation({ url: 'https://example.com' }).operation === 'generic');
 assert('dev proxy operation classifier rejects ambiguous envelopes',
   classifyDevProxyOperation({
@@ -1042,23 +1047,24 @@ console.log('\n── collectWearableOverrides (issue #145) ──');
   assert('non-string env value is dropped', !('fitbit' in out) && !('whoop' in out));
 }
 
-// All six adapters covered — guards against typo regressions
+// All confidential/PKCE adapters covered — guards against typo regressions
 {
   const env = {
     OURA_CLIENT_ID: 'a', WITHINGS_CLIENT_ID: 'b', ULTRAHUMAN_CLIENT_ID: 'c',
     POLAR_CLIENT_ID: 'd', WHOOP_CLIENT_ID: 'e', FITBIT_CLIENT_ID: 'f',
+    GOOGLE_HEALTH_CLIENT_ID: 'g',
   };
   const out = collectWearableOverrides(env);
   const ids = Object.keys(out).sort();
-  assert('all six adapters mapped', ids.join(',') === 'fitbit,oura,polar,ultrahuman,whoop,withings');
+  assert('all seven adapters mapped', ids.join(',') === 'fitbit,google_health,oura,polar,ultrahuman,whoop,withings');
 }
 
 // Var/adapter pairing matches what api/proxy.js mirrors
 {
   const expected = ['OURA_CLIENT_ID', 'WITHINGS_CLIENT_ID', 'ULTRAHUMAN_CLIENT_ID',
-    'POLAR_CLIENT_ID', 'WHOOP_CLIENT_ID', 'FITBIT_CLIENT_ID'].sort();
+    'POLAR_CLIENT_ID', 'WHOOP_CLIENT_ID', 'FITBIT_CLIENT_ID', 'GOOGLE_HEALTH_CLIENT_ID'].sort();
   const got = WEARABLE_CLIENT_ID_VARS.map(([k]) => k).sort();
-  assert('WEARABLE_CLIENT_ID_VARS exposes the same six env vars', JSON.stringify(got) === JSON.stringify(expected));
+  assert('WEARABLE_CLIENT_ID_VARS exposes the same seven env vars', JSON.stringify(got) === JSON.stringify(expected));
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

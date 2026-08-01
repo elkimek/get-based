@@ -131,8 +131,11 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       check('strip visible toggle starts checked', toggle?.checked === true);
       check('connected OAuth row renders status and identity',
         ouraRow?.textContent.includes('connected') && ouraRow?.textContent.includes('oura@example.test'));
-      check('needs reauth row renders reconnect action',
-        fitbitRow?.textContent.includes('needs reconnection') && fitbitRow?.textContent.includes('Reconnect'));
+      check('legacy Fitbit reauth state routes to Google Health migration',
+        fitbitRow?.textContent.includes('migration required')
+        && fitbitRow?.textContent.includes('Connect Google Health')
+        && fitbitRow?.textContent.includes('Disconnect legacy Fitbit')
+        && !fitbitRow?.textContent.includes('Reconnect'));
       const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
       check('pending client row renders native docs link in detail drawer',
         ultrahumanRow?.textContent.includes('waiting on partner credentials')

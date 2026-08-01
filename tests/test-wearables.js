@@ -874,6 +874,7 @@ assert('No bare "JSZip not loaded" throw left in extractExportXml',
 const authRuntimeSrc = await fetch('/js/wearables-auth-runtime.js').then(r => r.text());
 const authModuleFiles = [
   '/js/wearables-fitbit-auth.js',
+  '/js/wearables-google-health-auth.js',
   '/js/wearables-oura-auth.js',
   '/js/wearables-polar-auth.js',
   '/js/wearables-ultrahuman-auth.js',
@@ -1647,8 +1648,8 @@ assert('encryptObject returns null when encryption is disabled',
   offEnv === null);
 // wearables-store.js source: rows are encrypted-on-write, decrypted-on-read.
 const storeSrcV29 = await fetch('/js/wearables-store.js').then(r => r.text());
-assert('upsertDaily encrypts via _encryptRowIfEnabled before put',
-  /_encryptRowIfEnabled\(stamped\)/.test(storeSrcV29) || /_encryptRowIfEnabled\(\{ importedAt[\s\S]{0,40}\)/.test(storeSrcV29));
+assert('upsertDaily routes rows through the storage encryption preparation before put',
+  /_prepareRowForStorage\(profileId,\s*stamped\)/.test(storeSrcV29));
 // Two-phase upsert: read existing → merge in JS → write merged. Earlier
 // implementations encrypted-then-put in one tx, which destroyed null
 // fields on partial-fetch syncs (e.g. Withings `lastupdate` returning
@@ -1663,7 +1664,7 @@ assert('upsertDailyBatch writes the merged batch in a phase-2 tx',
 assert('_mergeRow preserves existing values when incoming field is null',
   /v === null \|\| v === undefined[\s\S]{0,80}continue/.test(storeSrcV29));
 assert('getDaily decrypts via _decryptRowIfWrapped on read',
-  /_decryptRowIfWrapped\(raw\)/.test(storeSrcV29));
+  /_decryptRowIfWrapped\(profileId,\s*raw\)/.test(storeSrcV29));
 assert('getDailyRange filters null decrypts (drops unreadable rows from range)',
   /decrypted\.filter\(r => r !== null\)/.test(storeSrcV29));
 // Compound key fields stay plaintext (range queries depend on this).
@@ -1672,6 +1673,13 @@ assert('Encryption envelope leaves source + date plaintext',
   /\{\s*source,\s*date,\s*_payload:\s*env\s*\}/.test(storeSrcV29));
 assert('Read-side returns null on decrypt failure (no nested-envelope re-write hazard)',
   /if \(!decrypted\) return null/.test(storeSrcV29));
+assert('Google Health rows use an always-on device-local encryption envelope',
+  /ALWAYS_DEVICE_ENCRYPTED_SOURCES\s*=\s*new Set\(\['google_health'\]\)/.test(storeSrcV29)
+  && /_devicePayload:\s*await encryptWearableDeviceLocalValue/.test(storeSrcV29)
+  && /decryptWearableDeviceLocalValue\(profileId,\s*unwrapped\._devicePayload\)/.test(storeSrcV29));
+assert('Google Health raw rows are excluded from profile backups with their device key',
+  /Google Health raw rows use an always-on device key/.test(backupSrc31)
+  && !/const KNOWN_SOURCES = \[[^\]]*google_health/.test(backupSrc31));
 
 // ═══════════════════════════════════════
 // 17v. Test isolation regression guard (v1.28.1)
@@ -2302,17 +2310,21 @@ assert('pushContextToGateway remains a module export for immediate re-push',
 // ═══════════════════════════════════════
 // 18. Beta-hidden vendors at v1.30.0 launch
 // ═══════════════════════════════════════
-// WHOOP + Ultrahuman ship code-complete but hidden from the connect list
-// pending partner-credential validation. The strip and connection layer
-// still work normally for anyone who's already connected (or maintainers
-// with the escape-hatch flag).
+// WHOOP + Ultrahuman ship code-complete but hidden pending partner validation.
+// Legacy Fitbit is also hidden for new connections while remaining manageable
+// for existing users who must migrate to Google Health.
 console.log('18b. Beta-Hidden Vendors');
 const adaptersMod = await import('../js/wearable-adapters.js');
 const ouraEntry = adaptersMod.ADAPTERS.find(a => a.id === 'oura');
 const whoopEntry = adaptersMod.ADAPTERS.find(a => a.id === 'whoop');
 const uhEntry    = adaptersMod.ADAPTERS.find(a => a.id === 'ultrahuman');
+const fitbitEntry = adaptersMod.ADAPTERS.find(a => a.id === 'fitbit');
 assert('WHOOP entry carries betaHidden:true', whoopEntry?.betaHidden === true);
 assert('Ultrahuman entry carries betaHidden:true', uhEntry?.betaHidden === true);
+assert('Legacy Fitbit entry is migration-only and betaHidden',
+  fitbitEntry?.betaHidden === true
+  && fitbitEntry?.legacyMigrationOnly === true
+  && fitbitEntry?.replacementAdapterId === 'google_health');
 assert('Oura entry is NOT betaHidden (sanity check)', !ouraEntry?.betaHidden);
 
 const escapeKey = 'labcharts-show-beta-wearables';
@@ -2324,11 +2336,13 @@ try {
   assert('visibleAdapters() hides whoop without override or connection', !ids.includes('whoop'));
   assert('visibleAdapters() hides ultrahuman without override or connection', !ids.includes('ultrahuman'));
   assert('visibleAdapters() still shows oura', ids.includes('oura'));
-  assert('visibleAdapters() still shows fitbit', ids.includes('fitbit'));
+  assert('visibleAdapters() hides legacy Fitbit for new connections', !ids.includes('fitbit'));
 
   const visibleWithConn = adaptersMod.visibleAdapters(['whoop']);
   assert('visibleAdapters() keeps whoop visible if already connected',
     visibleWithConn.some(a => a.id === 'whoop'));
+  assert('visibleAdapters() keeps legacy Fitbit visible if already connected',
+    adaptersMod.visibleAdapters(['fitbit']).some(a => a.id === 'fitbit'));
 
   localStorage.setItem(escapeKey, 'true');
   const visibleEscape = adaptersMod.visibleAdapters([]);

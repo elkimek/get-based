@@ -140,6 +140,7 @@ export async function handler(req) {
       ['POLAR_CLIENT_ID', 'polar'],
       ['WHOOP_CLIENT_ID', 'whoop'],
       ['FITBIT_CLIENT_ID', 'fitbit'],
+      ['GOOGLE_HEALTH_CLIENT_ID', 'google_health'],
     ]) {
       const v = env[key];
       if (typeof v === 'string' && v.trim()) overrides[id] = v.trim();
@@ -177,6 +178,14 @@ export async function handler(req) {
   // authentication via Basic auth (base64 clientId:clientSecret).
   if (payload.polar_token_exchange || payload.polar_token_refresh) {
     return handlePolarTokenRequest(payload, req);
+  }
+
+  // ─── Google Health OAuth2 server-side flow ─────────────────────
+  // Google Health uses Google's confidential Web Server OAuth client. The
+  // deployment's client secret is injected here and is never returned to the
+  // browser or stored in profile data.
+  if (payload.google_health_token_exchange || payload.google_health_token_refresh) {
+    return handleGoogleHealthTokenRequest(payload, req);
   }
 
   // ─── CAMS atmosphere relay (getbased-uvdata) ────────────────────
@@ -525,6 +534,50 @@ async function handlePolarTokenRequest(payload, req) {
     },
     body: form.toString(),
   }, req, 'Polar token endpoint unavailable');
+}
+
+// ─── Google Health token handler ─────────────────────────────────
+// Payloads:
+//   { google_health_token_exchange: { code, redirect_uri, client_id } }
+//   { google_health_token_refresh:  { refresh_token, client_id } }
+async function handleGoogleHealthTokenRequest(payload, req) {
+  const secret = typeof process !== 'undefined' ? process.env?.GOOGLE_HEALTH_CLIENT_SECRET : undefined;
+  if (!secret) {
+    return new Response(JSON.stringify({ error: 'GOOGLE_HEALTH_CLIENT_SECRET not configured on this deployment' }), {
+      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+
+  let form;
+  if (payload.google_health_token_exchange) {
+    const { code, redirect_uri, client_id } = payload.google_health_token_exchange;
+    if (!code || !redirect_uri || !client_id) {
+      return new Response(JSON.stringify({ error: 'google_health_token_exchange requires code, redirect_uri, client_id' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    form = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code, redirect_uri, client_id, client_secret: secret,
+    });
+  } else {
+    const { refresh_token, client_id } = payload.google_health_token_refresh;
+    if (!refresh_token || !client_id) {
+      return new Response(JSON.stringify({ error: 'google_health_token_refresh requires refresh_token, client_id' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    form = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token, client_id, client_secret: secret,
+    });
+  }
+
+  return relayGuardedText('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  }, req, 'Google OAuth token endpoint unavailable');
 }
 
 // CAMS atmosphere relay → getbased-uvdata. Defaults to the maintainer-run

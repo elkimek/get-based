@@ -11,6 +11,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.11.1', date: '2026-08-01', title: 'Google Health migration with explicit privacy controls',
+    forceShow: true,
+    items: [
+      '<b>Google Health is now the supported Fitbit and Pixel Watch connection.</b> Existing direct integrations remain separate, first-class choices, while legacy Fitbit users get a migration path before the old API closes.',
+      '<b>Google Health access is read-only and disclosed before connection.</b> The consent step explains the requested data categories, local encryption, hosted proxy transit, optional sync/AI context, deletion, and account-wide revocation.',
+      '<b>Terms and Privacy have been updated.</b> The public policy now documents Google Health access, use, storage, sharing, retention, deletion, and Limited Use commitments; existing browsers are asked to review the new versions.',
+    ]
+  },
+  {
     version: '1.11.0', date: '2026-07-31', title: 'Talk and listen in Chat',
     items: [
       '<b>Chat now supports voice.</b> Tap the microphone to dictate a message, or choose Listen under an assistant reply to hear it read aloud. You can also have new replies read automatically.',

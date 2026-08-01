@@ -23,10 +23,12 @@ const ENV_KEYS = [
   'POLAR_CLIENT_ID',
   'WHOOP_CLIENT_ID',
   'FITBIT_CLIENT_ID',
+  'GOOGLE_HEALTH_CLIENT_ID',
   'OURA_CLIENT_SECRET',
   'WITHINGS_CLIENT_SECRET',
   'ULTRAHUMAN_CLIENT_SECRET',
   'POLAR_CLIENT_SECRET',
+  'GOOGLE_HEALTH_CLIENT_SECRET',
   'UVDATA_UPSTREAM',
   'UVDATA_BEARER',
   'PROXY_RATE_LIMIT_MAX',
@@ -766,6 +768,7 @@ describe('AI proxy runtime behavior', () => {
 
     process.env.OURA_CLIENT_ID = 'oura-selfhost';
     process.env.FITBIT_CLIENT_ID = 'fitbit-selfhost';
+    process.env.GOOGLE_HEALTH_CLIENT_ID = 'google-health-selfhost';
     process.env.WITHINGS_CLIENT_ID = '   ';
     const runtime = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }));
     expect(runtime.status).toBe(200);
@@ -774,6 +777,7 @@ describe('AI proxy runtime behavior', () => {
       overrides: {
         oura: 'oura-selfhost',
         fitbit: 'fitbit-selfhost',
+        google_health: 'google-health-selfhost',
       },
     });
 
@@ -1222,6 +1226,7 @@ describe('AI proxy runtime behavior', () => {
     process.env.WITHINGS_CLIENT_SECRET = 'withings-secret';
     process.env.ULTRAHUMAN_CLIENT_SECRET = 'ultrahuman-secret';
     process.env.POLAR_CLIENT_SECRET = 'polar-secret';
+    process.env.GOOGLE_HEALTH_CLIENT_SECRET = 'google-secret';
     globalThis.fetch = vi.fn(async (url) => jsonResponse({ url }, {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
@@ -1272,6 +1277,23 @@ describe('AI proxy runtime behavior', () => {
     expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
       grant_type: 'refresh_token',
       refresh_token: 'polar-refresh',
+    });
+
+    const googleHealth = await proxyHandler(makeProxyRequest({
+      google_health_token_exchange: {
+        code: 'google-code',
+        redirect_uri: 'https://app/cb',
+        client_id: 'google-client',
+      },
+    }));
+    expect(googleHealth.status).toBe(201);
+    [url, init] = globalThis.fetch.mock.calls.at(-1);
+    expect(url).toBe('https://oauth2.googleapis.com/token');
+    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+      grant_type: 'authorization_code',
+      code: 'google-code',
+      client_id: 'google-client',
+      client_secret: 'google-secret',
     });
   });
 

@@ -213,8 +213,9 @@ export function computeWearableSummary(rowsBySource, connectedSources, primaryOv
   //      metric (if override source has zero samples for the metric, fall
   //      through to the auto-picker so a broken override doesn't blank the
   //      card)
-  //   2. otherwise pick source with the most recent non-null value; ties
-  //      resolved deterministically by insertion order of rowsBySource
+  //   2. otherwise pick source with the most recent non-null value. Independent
+  //      direct sources beat Google Health on ties, while Google Health beats
+  //      its deprecated Fitbit predecessor. Other ties remain deterministic.
   const metrics = {};
   for (const metricId of METRICS_FOR_SUMMARY) {
     let bestSrc = null, bestDate = '';
@@ -231,7 +232,17 @@ export function computeWearableSummary(rowsBySource, connectedSources, primaryOv
         for (let i = rows.length - 1; i >= 0; i--) {
           if (isSummaryEligibleRow(rows[i], metricId, todayISO)) {
             const rowDate = rows[i]?.date || '';
-            if (rowDate > bestDate) { bestDate = rowDate; bestSrc = sid; }
+            const directWinsGoogleTie = rowDate === bestDate
+              && bestSrc === 'google_health'
+              && sid !== 'google_health'
+              && sid !== 'fitbit';
+            const googleWinsLegacyFitbitTie = rowDate === bestDate
+              && bestSrc === 'fitbit'
+              && sid === 'google_health';
+            if (rowDate > bestDate || directWinsGoogleTie || googleWinsLegacyFitbitTie) {
+              bestDate = rowDate;
+              bestSrc = sid;
+            }
             break;
           }
         }
@@ -327,6 +338,7 @@ export function shouldWriteL2(newSummary, oldSummary) {
         ts: now,
         kind: 'trend-flip',
         metricId,
+        source: neu.primarySource || null,
         from: old.trend30d,
         to: neu.trend30d,
         message: `${metricId} trend flipped from ${old.trend30d} to ${neu.trend30d}`,
@@ -371,6 +383,7 @@ function appendAnomalyToChangeHistory(events) {
       type: 'wearable',
       kind: e.kind,
       metricId: e.metricId,
+      source: e.source || null,
       from: e.from, to: e.to,
       message: e.message,
     });
