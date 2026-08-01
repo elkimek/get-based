@@ -57,6 +57,10 @@ export async function reloadProfileRuntimeShell(profileId) {
 // summary recomputes from this profile's connected sources.
 export async function refreshProfileWearables(profileId, biometrics) {
   const connect = await import('./wearables-connect.js');
+  // Finish any profile-side disconnect cleanup journaled atomically with a
+  // prior credential/row purge whose profile save failed.
+  try { await connect.recoverPendingWearableDisconnect(profileId, state.importedData); } catch {}
+  if (state.currentProfile !== profileId) return;
   try { await profileRefreshDeps.migrateBiometricsToManual(profileId, biometrics); } catch {}
   // The user can swap profile A→B during an IDB read. Abort before and after
   // summary persistence so A's metrics can never be saved into B's profile.

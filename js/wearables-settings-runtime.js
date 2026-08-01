@@ -33,8 +33,11 @@ export function navigateWearablesDashboard() {
   wearableSettingsRuntimeDeps.navigate?.('dashboard');
 }
 
-/** @param {string} message */
-export async function confirmWearableSettingsAction(message) {
+/**
+ * @param {string} message
+ * @param {{ confirmLabel?: string, cancelLabel?: string, tone?: 'danger' | 'primary', ariaLabel?: string }} [options]
+ */
+export async function confirmWearableSettingsAction(message, options = {}) {
   const confirm = wearableSettingsRuntimeDeps.showConfirmDialog;
-  return confirm ? !!await confirm(message) : false;
+  return confirm ? !!await confirm(message, options) : false;
 }

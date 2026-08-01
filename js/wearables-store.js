@@ -18,6 +18,10 @@ const DB_PREFIX = 'labcharts-wearables-';
 const DB_VERSION = 1;
 const STORE_DAILY = 'daily-metrics';
 const STORE_META = 'meta';
+const DEVICE_LOCAL_KEY_META = 'credential-vault-key:v1';
+const ALWAYS_DEVICE_ENCRYPTED_SOURCES = new Set(['google_health']);
+const deviceLocalEncoder = new TextEncoder();
+const deviceLocalDecoder = new TextDecoder();
 
 const _dbPromises = new Map();
 
@@ -48,6 +52,64 @@ export function configureWearablesStoreCrypto(deps = {}) {
   if (typeof deps.isEncryptedObject === 'function') wearablesStoreCryptoDeps.isEncryptedObject = deps.isEncryptedObject;
   if (typeof deps.decryptObject === 'function') wearablesStoreCryptoDeps.decryptObject = deps.decryptObject;
   return previous;
+}
+
+function isDeviceLocalAesKey(value) {
+  return !!(value
+    && typeof value === 'object'
+    && value.type === 'secret'
+    && value.algorithm?.name === 'AES-GCM');
+}
+
+async function withDeviceLocalKeyLock(profileId, callback) {
+  const locks = globalThis.navigator?.locks;
+  if (locks && typeof locks.request === 'function') {
+    return locks.request(`getbased-wearable-device-key:${profileId}`, { mode: 'exclusive' }, callback);
+  }
+  return callback();
+}
+
+async function getOrCreateDeviceLocalKey(profileId) {
+  return withDeviceLocalKeyLock(profileId, async () => {
+    const existing = await getMeta(profileId, DEVICE_LOCAL_KEY_META);
+    if (isDeviceLocalAesKey(existing)) return existing;
+    if (!globalThis.crypto?.subtle) throw new Error('Secure browser storage is unavailable.');
+    const key = await crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+    await setMeta(profileId, DEVICE_LOCAL_KEY_META, key);
+    return key;
+  });
+}
+
+// Always-on, device-local encryption used for restricted Google Health data
+// and credentials. The non-extractable key remains in this profile's
+// wearable IndexedDB and is deliberately excluded from backup/sync paths.
+export async function encryptWearableDeviceLocalValue(profileId, value) {
+  const key = await getOrCreateDeviceLocalKey(profileId);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = deviceLocalEncoder.encode(JSON.stringify(value));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+  return { version: 1, iv, ciphertext };
+}
+
+export async function decryptWearableDeviceLocalValue(profileId, envelope) {
+  if (envelope?.version !== 1 || !envelope.iv || !envelope.ciphertext) return null;
+  const key = await getMeta(profileId, DEVICE_LOCAL_KEY_META);
+  if (!isDeviceLocalAesKey(key)) return null;
+  try {
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: envelope.iv },
+      key,
+      envelope.ciphertext,
+    );
+    const parsed = JSON.parse(deviceLocalDecoder.decode(plaintext));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function dbNameFor(profileId) {
@@ -139,10 +201,39 @@ async function _encryptRowIfEnabled(row) {
   return { source, date, _payload: env };
 }
 
-async function _decryptRowIfWrapped(row) {
-  if (!row || !row._payload) return row;
-  if (!wearablesStoreCryptoDeps.isEncryptedObject(row._payload)) return row;
-  const decrypted = await wearablesStoreCryptoDeps.decryptObject(row._payload).catch(() => null);
+async function _prepareRowForStorage(profileId, row) {
+  let prepared = row;
+  if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row?.source) && !row?._devicePayload) {
+    const { source, date, _payload, ...rest } = row;
+    if (_payload) return row;
+    prepared = {
+      source,
+      date,
+      _devicePayload: await encryptWearableDeviceLocalValue(profileId, rest),
+    };
+  }
+  // When the user also enables passphrase encryption, it becomes an outer
+  // envelope around the always-on device envelope. Disabling the passphrase
+  // therefore never downgrades Google Health rows to plaintext.
+  return _encryptRowIfEnabled(prepared);
+}
+
+async function _decryptRowIfWrapped(profileId, row) {
+  if (!row) return row;
+  let unwrapped = row;
+  if (row._payload) {
+    if (!wearablesStoreCryptoDeps.isEncryptedObject(row._payload)) return null;
+    const decrypted = await wearablesStoreCryptoDeps.decryptObject(row._payload).catch(() => null);
+    if (!decrypted) return null;
+    unwrapped = { source: row.source, date: row.date, ...decrypted };
+  }
+
+  if (unwrapped._devicePayload) {
+    const decrypted = await decryptWearableDeviceLocalValue(profileId, unwrapped._devicePayload);
+    if (!decrypted) return null;
+    return { source: unwrapped.source, date: unwrapped.date, ...decrypted };
+  }
+
   // Session locked / corrupt → return null. Earlier we returned the
   // wrapped row, but downstream consumers (`_mergeManualRow`,
   // `upsertDailyBatch`'s read-modify-write) would spread `_payload` into
@@ -150,15 +241,13 @@ async function _decryptRowIfWrapped(row) {
   // producing nested envelopes that `isEncryptedObject` couldn't detect
   // on the next read. Returning null forces callers to treat the row as
   // unreadable, which is the honest semantic when the session is locked.
-  if (!decrypted) return null;
-  // Return the merged shape so callers can read fields directly.
-  return { source: row.source, date: row.date, ...decrypted };
+  return unwrapped;
 }
 
 export async function upsertDaily(profileId, row) {
   if (!row || !row.source || !row.date) throw new Error('upsertDaily requires {source, date}');
   const stamped = { importedAt: Date.now(), ...row };
-  const towrite = await _encryptRowIfEnabled(stamped);
+  const towrite = await _prepareRowForStorage(profileId, stamped);
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_DAILY, 'readwrite');
   tx.objectStore(STORE_DAILY).put(towrite);
@@ -197,11 +286,16 @@ function _mergeRow(existing, incoming) {
   return out;
 }
 
-export async function upsertDailyBatch(profileId, rows) {
-  if (!rows || rows.length === 0) return;
+/**
+ * @param {string} profileId
+ * @param {any[]} rows
+ * @param {{ versionKey: string, expectedVersion: number } | null} [versionGuard]
+ */
+export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
+  if (!rows || rows.length === 0) return false;
   const stamp = Date.now();
   const cleaned = rows.filter(r => r && r.source && r.date);
-  if (cleaned.length === 0) return;
+  if (cleaned.length === 0) return false;
   const db = await openWearablesDB(profileId);
 
   // Phase 1 — read existing rows in a read tx. We can't await between
@@ -233,16 +327,34 @@ export async function upsertDailyBatch(profileId, rows) {
   for (const incoming of cleaned) {
     const key = `${incoming.source}|${incoming.date}`;
     const existing = existingRows.get(key);
-    const existingPlain = existing ? await _decryptRowIfWrapped(existing) : null;
+    const existingPlain = existing ? await _decryptRowIfWrapped(profileId, existing) : null;
     const merged = _mergeRow(existingPlain, { importedAt: stamp, ...incoming });
-    towrite.push(await _encryptRowIfEnabled(merged));
+    towrite.push(await _prepareRowForStorage(profileId, merged));
   }
 
-  // Phase 2 — write all merged rows in a single fresh tx, no awaits.
-  const tx = db.transaction(STORE_DAILY, 'readwrite');
-  const store = tx.objectStore(STORE_DAILY);
-  for (const row of towrite) store.put(row);
-  return txPromise(tx);
+  // Phase 2 — write all merged rows in a single fresh tx, no awaits. Google
+  // Health supplies a generation guard so disconnect and stale cross-tab
+  // writes are ordered atomically even without Web Locks.
+  const stores = versionGuard ? [STORE_DAILY, STORE_META] : STORE_DAILY;
+  const tx = db.transaction(stores, 'readwrite');
+  const done = txPromise(tx);
+  const dailyStore = tx.objectStore(STORE_DAILY);
+  let written = !versionGuard;
+  const putRows = () => { for (const row of towrite) dailyStore.put(row); };
+  if (versionGuard) {
+    const request = tx.objectStore(STORE_META).get(versionGuard.versionKey);
+    request.onsuccess = () => {
+      const rawVersion = request.result?.v;
+      const version = Number.isSafeInteger(rawVersion) ? rawVersion : 0;
+      if (version !== versionGuard.expectedVersion) return;
+      putRows();
+      written = true;
+    };
+  } else {
+    putRows();
+  }
+  await done;
+  return written;
 }
 
 export async function getDaily(profileId, source, date) {
@@ -253,7 +365,7 @@ export async function getDaily(profileId, source, date) {
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => reject(req.error);
   });
-  return raw ? _decryptRowIfWrapped(raw) : null;
+  return raw ? _decryptRowIfWrapped(profileId, raw) : null;
 }
 
 // Raw range read — returns rows AS STORED in IDB without decrypt. Used by
@@ -299,6 +411,10 @@ export async function upsertDailyBatchRaw(profileId, rows) {
   const store = tx.objectStore(STORE_DAILY);
   for (const row of rows) {
     if (!row || !row.source || !row.date) continue;
+    // Google Health rows cannot be restored as plaintext. Device-encrypted
+    // rows are not exported by our backup path because their non-extractable
+    // key intentionally stays on the originating device.
+    if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row.source) && !row._devicePayload && !row._payload) continue;
     store.put(row);
   }
   return txPromise(tx);
@@ -326,7 +442,7 @@ export async function getDailyRange(profileId, source, startDate, endDate) {
   // returns null from _decryptRowIfWrapped — drop those rows from the
   // range rather than passing them through, since downstream consumers
   // can't render a wrapped row safely.
-  const decrypted = await Promise.all(raws.map(r => _decryptRowIfWrapped(r)));
+  const decrypted = await Promise.all(raws.map(r => _decryptRowIfWrapped(profileId, r)));
   return decrypted.filter(r => r !== null);
 }
 
@@ -361,12 +477,15 @@ export async function clearSource(profileId, source) {
 
 export async function getMeta(profileId, key) {
   const db = await openWearablesDB(profileId);
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readonly');
+  const tx = db.transaction(STORE_META, 'readonly');
+  const done = txPromise(tx);
+  const value = await new Promise((resolve, reject) => {
     const req = tx.objectStore(STORE_META).get(key);
     req.onsuccess = () => resolve(req.result ? req.result.v : null);
     req.onerror = () => reject(req.error);
   });
+  await done;
+  return value;
 }
 
 export async function setMeta(profileId, key, value) {
@@ -381,6 +500,83 @@ export async function deleteMeta(profileId, key) {
   const tx = db.transaction(STORE_META, 'readwrite');
   tx.objectStore(STORE_META).delete(key);
   return txPromise(tx);
+}
+
+// Version-guarded meta operations use one IndexedDB transaction so separate
+// tabs remain ordered even when the Web Locks API is unavailable.
+export async function getMetaVersioned(profileId, key, versionKey) {
+  const db = await openWearablesDB(profileId);
+  const tx = db.transaction(STORE_META, 'readonly');
+  const done = txPromise(tx);
+  const store = tx.objectStore(STORE_META);
+  const read = request => new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result?.v ?? null);
+    request.onerror = () => reject(request.error);
+  });
+  const [value, rawVersion] = await Promise.all([read(store.get(key)), read(store.get(versionKey))]);
+  await done;
+  return { value, version: Number.isSafeInteger(rawVersion) ? rawVersion : 0 };
+}
+
+export async function setMetaVersioned(profileId, key, value, versionKey, expectedVersion = null) {
+  const db = await openWearablesDB(profileId);
+  const tx = db.transaction(STORE_META, 'readwrite');
+  const done = txPromise(tx);
+  const store = tx.objectStore(STORE_META);
+  let saved = false;
+  let version = 0;
+  const request = store.get(versionKey);
+  request.onsuccess = () => {
+    const rawVersion = request.result?.v;
+    version = Number.isSafeInteger(rawVersion) ? rawVersion : 0;
+    if (expectedVersion !== null && version !== expectedVersion) return;
+    store.put({ k: key, v: value, updatedAt: Date.now() });
+    saved = true;
+  };
+  await done;
+  return { saved, version };
+}
+
+/**
+ * Atomically revoke a versioned record and, when requested, purge all daily
+ * rows and extra metadata owned by the same source. Sharing one transaction
+ * with guarded Google Health writes means either the stale write lands first
+ * and is then deleted, or the version bump lands first and rejects it.
+ *
+ * @param {string} profileId
+ * @param {string} key
+ * @param {string} versionKey
+ * @param {{ source?: string | null, metaKeys?: string[], metaWrites?: Record<string, any> }} [options]
+ */
+export async function bumpMetaVersionAndDelete(profileId, key, versionKey, options = {}) {
+  const db = await openWearablesDB(profileId);
+  const source = options.source || null;
+  const tx = db.transaction(source ? [STORE_META, STORE_DAILY] : STORE_META, 'readwrite');
+  const done = txPromise(tx);
+  const store = tx.objectStore(STORE_META);
+  let version = 1;
+  const request = store.get(versionKey);
+  request.onsuccess = () => {
+    const rawVersion = request.result?.v;
+    version = (Number.isSafeInteger(rawVersion) ? rawVersion : 0) + 1;
+    store.put({ k: versionKey, v: version, updatedAt: Date.now() });
+    store.delete(key);
+    for (const metaKey of options.metaKeys || []) store.delete(metaKey);
+    for (const [metaKey, value] of Object.entries(options.metaWrites || {})) {
+      store.put({ k: metaKey, v: value, updatedAt: Date.now() });
+    }
+    if (source) {
+      const cursorRequest = tx.objectStore(STORE_DAILY)
+        .index('by_source')
+        .openCursor(IDBKeyRange.only(source));
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (cursor) { cursor.delete(); cursor.continue(); }
+      };
+    }
+  };
+  await done;
+  return version;
 }
 
 // Delete the entire wearable database for this profile — used by the nuke

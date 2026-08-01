@@ -296,10 +296,14 @@ export const ADAPTERS = [
 
   {
     id: 'fitbit',
-    displayName: 'Fitbit',
+    displayName: 'Fitbit (legacy)',
     authType: 'oauth2',
     authDocsUrl: 'https://dev.fitbit.com/build/reference/web-api/',
     beta: true,
+    betaHidden: true,
+    legacyMigrationOnly: true,
+    replacementAdapterId: 'google_health',
+    deprecationNotice: 'The legacy Fitbit Web API stops syncing in September 2026. Connect Google Health now, confirm its backfill, then disconnect this legacy connection.',
     oauth: {
       // Fitbit Web API Client ID (public value — PKCE flow, no client_secret).
       // Registered at dev.fitbit.com as OAuth 2.0 Application Type = Client
@@ -327,6 +331,57 @@ export const ADAPTERS = [
       weight:          { endpoint: '1/user/-/body/log/weight/date/',             field: 'weight[-1].weight' },
     },
     accountInfo: { endpoint: '1/user/-/profile.json', identityField: 'email' },
+  },
+
+  {
+    // The supported Fitbit/Pixel path and an optional aggregation connector
+    // for other sources. It does not replace independent direct integrations
+    // such as Oura, Withings, WHOOP, Ultrahuman, or Polar.
+    id: 'google_health',
+    displayName: 'Google Health',
+    authType: 'oauth2',
+    integrationKind: 'aggregator',
+    authDocsUrl: 'https://developers.google.com/health/setup',
+    beta: true,
+    oauth: {
+      // Google Health requires a confidential Web Server OAuth client. The
+      // client secret stays in GOOGLE_HEALTH_CLIENT_SECRET on /api/proxy;
+      // self-hosters expose only this public client id via runtime config.
+      clientId: 'REPLACE_WITH_GOOGLE_HEALTH_CLIENT_ID',
+      redirectUris: [
+        'https://app.getbased.health/',
+        'https://getbased.health/app',
+        'https://beta.getbased.health/',
+        'https://beta.getbased.health/app',
+        'http://localhost:8000/app',
+      ],
+      scopes: [
+        'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly',
+        'https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly',
+        'https://www.googleapis.com/auth/googlehealth.sleep.readonly',
+      ],
+      pkce: false,
+    },
+    apiHost: 'health.googleapis.com',
+    dataMode: 'reconciled',
+    metrics: {
+      hrv_rmssd:          { endpoint: 'v4/users/me/dataTypes/daily-heart-rate-variability/dataPoints:reconcile', field: 'deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds' },
+      rhr:                { endpoint: 'v4/users/me/dataTypes/daily-resting-heart-rate/dataPoints:reconcile', field: 'beatsPerMinute' },
+      hr_day:             { endpoint: 'v4/users/me/dataTypes/heart-rate/dataPoints:dailyRollUp', field: 'beatsPerMinuteAvg' },
+      steps:              { endpoint: 'v4/users/me/dataTypes/steps/dataPoints:dailyRollUp', field: 'countSum' },
+      weight:             { endpoint: 'v4/users/me/dataTypes/weight/dataPoints:dailyRollUp', field: 'weightGramsAvg' },
+      body_fat_pct:       { endpoint: 'v4/users/me/dataTypes/body-fat/dataPoints:dailyRollUp', field: 'bodyFatPercentageAvg' },
+      spo2_avg:           { endpoint: 'v4/users/me/dataTypes/daily-oxygen-saturation/dataPoints:reconcile', field: 'averagePercentage' },
+      body_temp_delta:    { endpoint: 'v4/users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints:reconcile', field: 'nightlyTemperatureCelsius-baselineTemperatureCelsius' },
+      vo2max:             { endpoint: 'v4/users/me/dataTypes/daily-vo2-max/dataPoints:reconcile', field: 'vo2Max' },
+      sleep_total_min:    { endpoint: 'v4/users/me/dataTypes/sleep/dataPoints:reconcile', field: 'summary.minutesAsleep' },
+      sleep_deep_min:     { endpoint: 'v4/users/me/dataTypes/sleep/dataPoints:reconcile', field: 'summary.stagesSummary.DEEP.minutes' },
+      sleep_light_min:    { endpoint: 'v4/users/me/dataTypes/sleep/dataPoints:reconcile', field: 'summary.stagesSummary.LIGHT.minutes' },
+      sleep_rem_min:      { endpoint: 'v4/users/me/dataTypes/sleep/dataPoints:reconcile', field: 'summary.stagesSummary.REM.minutes' },
+      sleep_awake_min:    { endpoint: 'v4/users/me/dataTypes/sleep/dataPoints:reconcile', field: 'summary.minutesAwake' },
+      sleep_breathing_rate: { endpoint: 'v4/users/me/dataTypes/daily-respiratory-rate/dataPoints:reconcile', field: 'breathsPerMinute' },
+    },
+    accountInfo: { endpoint: 'v4/users/me/identity', identityField: 'healthUserId' },
   },
 
   {
@@ -537,9 +592,17 @@ export function visibleAdapters(connectedIds = []) {
     try { return localStorage.getItem('labcharts-show-beta-wearables') === 'true'; }
     catch { return false; }
   })();
-  if (escape) return ADAPTERS.slice();
   const connected = new Set(connectedIds);
-  return ADAPTERS.filter(a => !a.betaHidden || connected.has(a.id));
+  const visible = escape
+    ? ADAPTERS.slice()
+    : ADAPTERS.filter(a => !a.betaHidden || connected.has(a.id));
+  // Preserve independent direct integrations as the first-class/default
+  // path. Google Health (the Fitbit/Pixel successor and optional hub) follows
+  // those providers, ahead of manual and file-import tools.
+  const rank = adapter => adapter.integrationKind === 'aggregator'
+    ? 1
+    : (adapter.authType === 'manual' || adapter.authType === 'file-import' ? 2 : 0);
+  return visible.sort((a, b) => rank(a) - rank(b));
 }
 
 export function adapterSupportsMetric(adapterId, metricId) {

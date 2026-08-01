@@ -489,6 +489,46 @@ describe('sync delta planner runtime behavior', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('refused tombstone storm'));
   });
 
+  it('propagates explicit change-history privacy tombstones without tombstoning cap eviction', async () => {
+    const event = {
+      ts: Date.parse('2026-08-01T00:00:00.000Z'),
+      type: 'wearable',
+      kind: 'trend-flip',
+      source: 'google_health',
+      metricId: 'hrv_rmssd',
+    };
+    const eventId = `wh_${_djb2([
+      event.source,
+      event.metricId,
+      event.kind,
+      event.ts,
+    ].join('|'))}`;
+    configureRuntimeDeps(makeEvolu({
+      itemRows: [{
+        id: 'google-history-row',
+        profileId: PROFILE_ID,
+        arrayName: 'changeHistory',
+        itemId: eventId,
+      }],
+    }));
+    writeSnapshot(PROFILE_ID, 'changeHistory', { [eventId]: _djb2(JSON.stringify(event)) });
+
+    const capEviction = await _planArrayDelta(PROFILE_ID, 'changeHistory', []);
+    expect(capEviction.ops).toEqual([]);
+
+    const explicitDeletion = await planProfileDeltas(PROFILE_ID, {
+      changeHistory: [],
+      _deleted: { changeHistory: [eventId] },
+    });
+    const historyPlan = explicitDeletion.deltaPlans
+      .find(({ arrayName }) => arrayName === 'changeHistory')?.plan;
+    expect(historyPlan?.ops).toEqual([expect.objectContaining({
+      kind: 'tombstone',
+      args: expect.objectContaining({ id: 'google-history-row', isDeleted: 1 }),
+    })]);
+    expect(historyPlan?.next).not.toHaveProperty(eventId);
+  });
+
   it('plans keyed-map sanitized keys, explicit null clears, row-derived SNPs, and scalar transitions', async () => {
     const fake = makeEvolu({
       itemRows: [

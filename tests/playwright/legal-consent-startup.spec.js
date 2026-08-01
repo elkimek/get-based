@@ -2,8 +2,8 @@ import { expect, test } from './coverage-fixture.js';
 
 const CURRENT_ACCEPTANCE = {
   accepted: true,
-  termsVersion: '2026-06-22',
-  privacyVersion: '2026-06-22',
+  termsVersion: '2026-08-01',
+  privacyVersion: '2026-08-01',
   acceptedAt: '2026-07-26T00:00:00.000Z',
   appVersion: 'playwright',
   location: 'playwright',

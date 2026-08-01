@@ -58,6 +58,9 @@ test('Genetics stylesheet loader single-flights and preserves cascade order', as
 });
 
 test('Genome route contains a stylesheet failure and retries with a fresh URL', async ({ page }) => {
+  // This intentionally performs two lazy route preparations under full-suite
+  // coverage instrumentation; allow Playwright's slow-test budget on loaded CI.
+  test.slow();
   const stylesheetRequests = [];
   await page.route('**/css/genetics.css*', route => {
     stylesheetRequests.push(route.request().url());
@@ -65,6 +68,14 @@ test('Genome route contains a stylesheet failure and retries with a fresh URL', 
   });
   await page.goto('/app', { waitUntil: 'load' });
   await expect(page.locator('#main-content')).not.toBeEmpty();
+
+  // The test targets stylesheet failure/retry. Preload the independent DNA
+  // module so a rejected Promise.all cannot leave its import competing with
+  // the retry while hundreds of coverage workers are active.
+  await page.evaluate(async () => {
+    const healthData = await import('/js/health-data-loader.js');
+    await healthData.loadDnaModule();
+  });
 
   const firstOpen = await page.evaluate(async () => {
     const views = await import('/js/views.js');

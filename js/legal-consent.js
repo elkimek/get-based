@@ -5,8 +5,8 @@ import { dispatchUtilsRuntimeEvent, getAppVersionRuntime } from './utils-runtime
 import { showNotification } from './utils.js';
 
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
-export const TERMS_VERSION = '2026-06-22';
-export const PRIVACY_VERSION = '2026-06-22';
+export const TERMS_VERSION = '2026-08-01';
+export const PRIVACY_VERSION = '2026-08-01';
 
 const LEGAL_ACTION_ATTR = 'data-legal-consent-action';
 let bootstrapNotificationBound = false;

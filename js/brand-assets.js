@@ -95,6 +95,13 @@ export const BRAND_ASSETS = {
     signInDark:  `${BASE}/fitbit/sign-in-dark.png`,
     selfBackground: true,
   },
+  google_health: {
+    // Neutral pulse/cross glyph created for Get Based. It intentionally does
+    // not reproduce Google's trademark so the optional aggregation transport
+    // is identifiable without implying endorsement.
+    mode: 'fallback',
+    mono: `${BASE}/google-health/mark-mono.svg`,
+  },
   polar: {
     // GATED to fallback until we file the written-consent ticket Polar's
     // AccessLink agreement requires for third-party logo use. Render uses

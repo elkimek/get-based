@@ -30,6 +30,14 @@ import {
 
 let wearableSettingsDelegatesInstalled = false;
 
+export const GOOGLE_HEALTH_CONNECT_DISCLOSURE = `Google Health will let getbased read three categories from your Google account: activity and fitness; health metrics and measurements; and sleep. No write access is requested.
+
+getbased uses this data to show daily Body metrics, personal baselines, trends, and comparisons. OAuth tokens and imported daily rows are AES-GCM encrypted on this device. Token refreshes and Google API requests transit this deployment's Vercel proxy without intentional storage.
+
+If you enable cross-device sync, a compact derived summary is sent through the end-to-end-encrypted relay. If you use a cloud AI or agent while Wearables context is enabled, that summary may be sent to the provider you selected. You can disable Wearables context before using those features.
+
+Disconnecting deletes this device's Google Health credentials, imported rows, and derived source data. Revoke getbased in your Google Account to stop access on every device.`;
+
 function wearableSettingsActionAttrs(action, data = {}, opts = {}) {
   const attrs = [`data-wearable-settings-action="${escapeAttr(action)}"`];
   for (const [key, value] of Object.entries(data)) {
@@ -204,7 +212,7 @@ export function renderWearablesSettingsSection() {
   </div>
   <div class="settings-section-header" style="display:block">
     <div class="settings-section-title" style="display:block;margin-bottom:4px">Connected devices</div>
-    <div class="settings-section-hint" style="display:block">Data stays on this device; a compact summary + anomaly events sync to your other devices. All integrations are <em>beta</em> — please report issues.</div>
+    <div class="settings-section-hint" style="display:block">Imported history is stored on this device; a compact summary + anomaly events sync to your other devices. Connecting a cloud provider contacts that provider's API. All integrations are <em>beta</em> — please report issues.</div>
   </div>
   <div class="wearables-adapter-list">${rows}</div>`;
 }
@@ -221,13 +229,17 @@ function renderAdapterRow(adapter, isConnected) {
 
   // Status text — only when there's something meaningful to say.
   let status = '';
-  if (isConnected && conn?.needsReauth) {
+  if (isConnected && adapter.legacyMigrationOnly) {
+    status = `<span class="wearable-row-status wearable-row-status-bad">migration required</span>`;
+  } else if (isConnected && conn?.needsReauth) {
     status = `<span class="wearable-row-status wearable-row-status-bad">needs reconnection</span>`;
   } else if (isConnected) {
     const ago = conn?.lastSyncAt ? formatAgo(conn.lastSyncAt) : 'never synced';
     status = `<span class="wearable-row-status wearable-row-status-ok">connected · ${escapeHTML(ago)}</span>`;
   } else if (isPendingClient) {
     status = `<span class="wearable-row-status wearable-row-status-pending">waiting on partner credentials</span>`;
+  } else if (adapter.integrationKind === 'aggregator') {
+    status = `<span class="wearable-row-status wearable-row-status-muted">optional health hub</span>`;
   } else if (isFileImport && !conn) {
     status = `<span class="wearable-row-status wearable-row-status-muted">file import only</span>`;
   } else if (isFileImport && conn) {
@@ -294,6 +306,9 @@ function brandIconIsWordmark(adapterId) {
 // mark using each vendor's actual logo silhouette). The right side is
 // uniform action language: Connect / Reconnect / Import / docs link / chevron.
 function renderRowAction(adapter, conn, { isPendingClient, isFileImport }) {
+  if (conn && adapter.legacyMigrationOnly) {
+    return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
+  }
   if (conn && !conn.needsReauth) {
     return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
   }
@@ -313,6 +328,19 @@ function renderRowAction(adapter, conn, { isPendingClient, isFileImport }) {
 }
 
 function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
+  const migrationNotice = adapter.legacyMigrationOnly
+    ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.deprecationNotice || 'This connection must be migrated.')}</p>`
+    : '';
+  if (conn && adapter.legacyMigrationOnly) {
+    const acct = conn.account || {};
+    const identity = escapeHTML(acct.email || acct.identity || 'Legacy Fitbit account');
+    return `<div class="wearable-adapter-identity">${identity}</div>
+      ${migrationNotice}
+      <div class="wearable-adapter-actions">
+        <button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: adapter.replacementAdapterId || 'google_health' })}>Connect Google Health</button>
+        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect legacy Fitbit</button>
+      </div>`;
+  }
   // Connected OAuth — identity + manage actions
   if (conn && !conn.needsReauth && adapter.authType === 'oauth2') {
     const acct = conn.account || {};
@@ -330,9 +358,14 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
       || (acct['polar-user-id'] ? `User ${acct['polar-user-id']}` : '')
       || '(account verified)'
     );
+    const migrateAction = adapter.replacementAdapterId
+      ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: adapter.replacementAdapterId })}>Connect Google Health</button>`
+      : '';
     return `<div class="wearable-adapter-identity">${identity}</div>
       <div class="wearable-adapter-meta">Last sync: ${escapeHTML(when)}</div>
+      ${migrationNotice}
       <div class="wearable-adapter-actions">
+        ${migrateAction}
         <button class="wearable-action wearable-action-primary" title="Refetches the last 7 days — catches today's reading even if you synced earlier." ${wearableSettingsActionAttrs('sync-now', { adapter: adapter.id })} aria-label="Sync ${escapeHTML(adapter.displayName)} now">
           <svg class="wearable-action-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 12 13 12"/></svg>
           <span>Sync now <span class="wearable-action-hint">(catches today)</span></span>
@@ -387,7 +420,10 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
     const docs = adapter.authDocsUrl
       ? ` <a class="wearable-row-link" href="${escapeAttr(adapter.authDocsUrl)}" target="_blank" rel="noopener">docs&nbsp;↗</a>`
       : '';
-    return `<p class="wearable-adapter-hint">${escapeHTML(adapter.displayName)} support is in progress — still waiting on partner credentials. Check back soon or watch the changelog.${docs}</p>`;
+    const explanation = adapter.id === 'google_health'
+      ? 'Google Health requires this deployment to configure an approved OAuth client before Connect can be enabled.'
+      : `${adapter.displayName} support is in progress — still waiting on partner credentials. Check back soon or watch the changelog.`;
+    return `<p class="wearable-adapter-hint">${escapeHTML(explanation)}${docs}</p>`;
   }
   // Manual source — entry counts + entry points + disconnect. Unlike OAuth,
   // manual has no credential to reconnect; "disconnect" means wipe all rows.
@@ -490,6 +526,14 @@ document.addEventListener('settings:wearables-rendered', () => {
 
 async function handleWearableConnect(adapterId) {
   try {
+    if (adapterId === 'google_health') {
+      const consented = await confirmWearableSettingsAction(GOOGLE_HEALTH_CONNECT_DISCLOSURE, {
+        confirmLabel: 'Continue to Google',
+        tone: 'primary',
+        ariaLabel: 'Google Health data access consent',
+      });
+      if (!consented) return;
+    }
     await loadWearableRuntimeConfig();
     beginConnectOAuth(adapterId);
     // beginOAuth navigates away — nothing else to do here.
@@ -570,10 +614,15 @@ async function handleWearableBackfill(adapterId) {
 async function handleWearableDisconnect(adapterId) {
   const name = adapterById(adapterId)?.displayName || adapterId;
   if (await showConfirmDialog(`Disconnect ${name} and delete its local data?`)) {
-    await disconnectWearable(adapterId, { deleteData: true });
-    showNotification?.(`${name} disconnected`, 'success');
-    refreshSettingsWearables();
-    navigateWearablesDashboard();
+    try {
+      await disconnectWearable(adapterId, { deleteData: true });
+      showNotification?.(`${name} disconnected`, 'success');
+      refreshSettingsWearables();
+      navigateWearablesDashboard();
+    } catch (e) {
+      showNotification?.(`Disconnect failed: ${getErrorMessage(e)}`, 'error', 5000);
+      refreshSettingsWearables();
+    }
   }
 }
 

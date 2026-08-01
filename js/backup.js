@@ -155,6 +155,10 @@ async function collectWearableIDB(profileIds) {
       // rows on disk are AES-GCM-wrapped envelopes. getDailyRange would
       // decrypt them into plaintext for the snapshot — silently downgrading
       // the at-rest guarantee. getDailyRangeRaw returns rows as-stored.
+      // Google Health raw rows use an always-on device key that is
+      // intentionally never exported. Exclude those rows rather than create
+      // an undecryptable (or downgraded plaintext) backup; reconnecting can
+      // safely fetch them again from Google.
       const KNOWN_SOURCES = ['oura', 'whoop', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
       const perProfile = {};
       for (const src of KNOWN_SOURCES) {

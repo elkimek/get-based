@@ -515,8 +515,16 @@ export function showNotification(message, type, duration) {
   }, duration || 3000);
 }
 
-export function showConfirmDialog(message) {
+/**
+ * @param {string} message
+ * @param {{ confirmLabel?: string, cancelLabel?: string, tone?: 'danger' | 'primary', ariaLabel?: string }} [options]
+ */
+export function showConfirmDialog(message, options = {}) {
   return new Promise((resolve) => {
+    const confirmLabel = options.confirmLabel || 'Confirm';
+    const cancelLabel = options.cancelLabel || 'Cancel';
+    const confirmTone = options.tone === 'primary' ? 'primary' : 'danger';
+    const ariaLabel = options.ariaLabel || 'Confirmation';
     let overlay = document.getElementById("confirm-dialog-overlay");
     if (!overlay) {
       overlay = document.createElement("div");
@@ -524,11 +532,11 @@ export function showConfirmDialog(message) {
       overlay.className = "confirm-overlay";
       document.body.appendChild(overlay);
     }
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="Confirmation">
+    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="${escapeHTML(ariaLabel)}">
     <p class="confirm-message">${escapeHTML(message)}</p>
     <div class="confirm-actions">
-      <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-      <button class="confirm-btn confirm-btn-danger" id="confirm-ok">Confirm</button>
+      <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">${escapeHTML(cancelLabel)}</button>
+      <button class="confirm-btn confirm-btn-${confirmTone}" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
     </div></div>`;
     const ok = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#confirm-ok'));
     const cancel = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#confirm-cancel'));

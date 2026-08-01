@@ -8,6 +8,7 @@ import { hashString, isDebugMode, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
+import { onProfileSaved } from './sync-save-hooks.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
 import {
@@ -198,6 +199,34 @@ export async function saveImportedData(options = {}) {
     onDataSaved(options);
   } catch (e) {
     if (isDebugMode()) console.warn('Post-save hook failed after data was persisted:', e);
+  }
+  return true;
+}
+
+// Persist a specific profile snapshot without consulting or replacing the
+// active global profile. Long-running privacy operations (for example,
+// wearable disconnect) can finish after the user switches profiles; routing
+// through saveImportedData() at that point would write profile A's deletion
+// into profile B. Active-profile calls retain the usual save hooks.
+export async function saveImportedDataForProfile(profileId, importedData, options = {}) {
+  if (!profileId || !importedData || typeof importedData !== 'object') return false;
+  if (profileId === state.currentProfile && importedData === state.importedData) {
+    return saveImportedData(options);
+  }
+  try {
+    migrateProfileData(importedData);
+    await encryptedSetItem(profileStorageKey(profileId, 'imported'), JSON.stringify(importedData));
+  } catch (e) {
+    showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
+    return false;
+  }
+  try {
+    broadcastDataChanged(profileId);
+    scheduleAutoBackup();
+    await touchProfileTimestamp(profileId);
+    if (!options?.skipSync) onProfileSaved(profileId, importedData);
+  } catch (e) {
+    if (isDebugMode()) console.warn('Post-save hook failed after profile data was persisted:', e);
   }
   return true;
 }

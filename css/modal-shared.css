@@ -869,6 +869,7 @@
 }
 .confirm-message {
   font-size: 15px; line-height: 1.6; color: var(--text-primary); margin-bottom: 24px;
+  white-space: pre-line;
 }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .confirm-btn {
@@ -882,6 +883,8 @@
 .confirm-btn-cancel:hover { background: var(--bg-hover); color: var(--text-primary); }
 .confirm-btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
 .confirm-btn-danger:hover { opacity: 0.9; transform: translateY(-1px); }
+.confirm-btn-primary { background: var(--accent-gradient); color: #fff; border-color: transparent; }
+.confirm-btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
 
 /* Changelog */
 .changelog-entry { margin-bottom: 20px; }

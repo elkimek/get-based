@@ -85,7 +85,7 @@ assert('startup-oauth-callbacks.js forwards state to exchangeOpenRouterCode',
 
 // ─── 4. Wearable OAuth pending-state expiry ───
 console.log('\n4. Wearable OAuth expiry');
-const adapters = ['oura', 'polar', 'ultrahuman', 'whoop', 'withings', 'fitbit'];
+const adapters = ['oura', 'polar', 'ultrahuman', 'whoop', 'withings', 'fitbit', 'google-health'];
 for (const id of adapters) {
   const src = read(`js/wearables-${id}-auth.js`);
   assert(`${id}-auth: expiry check present`,

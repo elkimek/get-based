@@ -14,16 +14,28 @@ function unsafeMapKeyToHexId(rawKey, prefix) {
 // Per-array overrides for arrays that do not fit the default
 // `it.id` / tombstone-on-removal contract.
 export const DELTA_ARRAY_CONFIG = {
-  // changeHistory entries are { field, date, snapshot, ... } with no `id`.
-  // Synthesize a stable itemId from the same composite key data-merge.js
-  // uses (`field|date`), but encoded in the allowlist alphabet.
+  // changeHistory uses either the context `{ field, date }` shape or a
+  // wearable anomaly `{ type, source, metricId, kind, ts }` shape. Both need
+  // stable ids so explicit privacy deletions can survive cross-device sync.
   changeHistory: {
     itemIdFn: (it) => {
-      if (!it || typeof it !== 'object' || !it.field || !it.date) return null;
-      const ts = Date.parse(it.date);
-      if (!Number.isFinite(ts)) return null;
-      return `${it.field}.${ts}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      if (!it || typeof it !== 'object') return null;
+      if (it.field && it.date) {
+        const ts = Date.parse(it.date);
+        return Number.isFinite(ts)
+          ? `${it.field}.${ts}`.replace(/[^a-zA-Z0-9_.-]/g, '_')
+          : null;
+      }
+      if (it.type !== 'wearable' || !it.source || !it.metricId) return null;
+      const rawTs = typeof it.ts === 'number' ? it.ts : Date.parse(it.ts || '');
+      const eventKey = Number.isFinite(rawTs)
+        ? rawTs
+        : _djb2([it.from || '', it.to || '', it.message || ''].join('|'));
+      const sig = [it.source, it.metricId, it.kind || '', eventKey].join('|');
+      return `wh_${_djb2(sig)}`;
     },
+    // Array-cap eviction is maintenance, not user intent. Explicit deletion
+    // records blob tombstones directly; snapshot diffs must not infer them.
     noTombstones: true,
   },
   // No lightMeasurements override on purpose: automatic per-row tombstones

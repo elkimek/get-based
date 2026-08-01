@@ -29,8 +29,10 @@ export async function planProfileDeltas(profileId, importedData) {
       ? getAt(importedData, arrayName)
       : importedData[arrayName];
     const items = Array.isArray(raw) ? raw : [];
+    const deletedAtPath = importedData._deleted?.[arrayName];
+    const explicitTombstoneIds = Array.isArray(deletedAtPath) ? deletedAtPath : [];
     try {
-      const plan = await _planArrayDelta(profileId, arrayName, items);
+      const plan = await _planArrayDelta(profileId, arrayName, items, { explicitTombstoneIds });
       if (plan.ops.length > 0) {
         deltaPlans.push({ arrayName, plan });
         deltaOpCount += plan.ops.length;

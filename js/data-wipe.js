@@ -1,7 +1,7 @@
 // @ts-check
 // data-wipe.js — destructive local storage cleanup helpers
 
-const APP_SESSION_KEY_RE = /^(?:labcharts|chat-onboard-|or_|welcome-details-open$|(?:oura|withings|ultrahuman|polar|whoop|fitbit)-oauth-pending$)/;
+const APP_SESSION_KEY_RE = /^(?:labcharts|chat-onboard-|or_|welcome-details-open$|(?:oura|withings|ultrahuman|polar|whoop|fitbit|google_health)-oauth-pending$)/;
 
 function failure(label, error) {
   const message = error instanceof Error ? error.message : String(error || 'unknown error');
