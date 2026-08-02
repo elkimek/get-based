@@ -34,6 +34,10 @@ const reg = await import('../js/wearable-adapters.js');
     reg.getOAuthClientId(reg.adapterById('oura')) === reg.getOAuthClientId('oura'));
   assert('Google Health is disabled without deployment capability',
     reg.isOAuthAdapterConfigured('google_health') === false);
+  assert('Ultrahuman is disabled without deployment capability',
+    reg.isOAuthAdapterConfigured('ultrahuman') === false);
+  assert('WHOOP is disabled without deployment capability',
+    reg.isOAuthAdapterConfigured('whoop') === false);
 
   // 2. applyOAuthOverrides — single override, single adapter affected.
   reg.applyOAuthOverrides({ oura: 'self-host-oura-id-123' });
@@ -78,17 +82,20 @@ const reg = await import('../js/wearable-adapters.js');
   assert('Unknown adapter id returns null',
     reg.getOAuthClientId('not-a-real-vendor') === null);
 
-  // 8. The REPLACE_WITH_ pendingClient gate must respect overrides too —
-  //    if a self-hoster sets WHOOP_CLIENT_ID, the "waiting on partner
-  //    credentials" copy should NOT show. We re-check via the same
-  //    helper used by wearables.js:renderAdapterRow.
+  // 8. A public client ID alone must not enable a confidential, self-hosted
+  //    provider. The server capability proves the explicit flag and secret.
   const whoopBaseline = reg.adapterById('whoop')?.oauth?.clientId || '';
   assert('WHOOP baseline is REPLACE_WITH_ (preserved gate behavior)',
     whoopBaseline.startsWith('REPLACE_WITH_'));
   reg.applyOAuthOverrides({ whoop: 'real-whoop-self-id' });
   const effectiveWhoop = reg.getOAuthClientId('whoop') || '';
-  assert('Self-host override lifts the REPLACE_WITH_ gate',
+  assert('Self-host override replaces the placeholder client ID',
     !effectiveWhoop.startsWith('REPLACE_WITH_') && effectiveWhoop === 'real-whoop-self-id');
+  assert('WHOOP client ID alone does not enable Connect',
+    reg.isOAuthAdapterConfigured('whoop') === false);
+  reg.applyOAuthConfigured({ whoop: true });
+  assert('WHOOP capability plus client ID enables Connect',
+    reg.isOAuthAdapterConfigured('whoop') === true);
 
   // 9. Google Health requires both a public client ID override and the
   //    server-computed capability proving its matching secret is present.
@@ -105,6 +112,28 @@ const reg = await import('../js/wearable-adapters.js');
   reg.applyOAuthConfigured({ google_health: 'yes' });
   assert('Invalid capability values are ignored',
     reg.isOAuthAdapterConfigured('google_health') === false);
+
+  reg.applyOAuthOverrides({ ultrahuman: 'self-host-ultrahuman-id' });
+  reg.applyOAuthConfigured({ ultrahuman: true });
+  assert('Ultrahuman capability plus client ID enables Connect',
+    reg.isOAuthAdapterConfigured('ultrahuman') === true);
+
+  const hostedLocation = { hostname: 'app.getbased.health' };
+  const localLocation = { hostname: 'localhost' };
+  assert('developer-host helper recognizes localhost and loopback',
+    reg.isWearableDeveloperHost(localLocation)
+      && reg.isWearableDeveloperHost({ hostname: '127.0.0.1' })
+      && !reg.isWearableDeveloperHost(hostedLocation));
+  reg.applyOAuthConfigured({ whoop: false, ultrahuman: false });
+  assert('unconfigured experimental providers are hidden on hosted deployments',
+    !reg.visibleAdapters([], hostedLocation).some(adapter => adapter.id === 'whoop')
+      && !reg.visibleAdapters([], hostedLocation).some(adapter => adapter.id === 'ultrahuman'));
+  assert('localhost exposes experimental provider setup rows',
+    reg.visibleAdapters([], localLocation).some(adapter => adapter.id === 'whoop')
+      && reg.visibleAdapters([], localLocation).some(adapter => adapter.id === 'ultrahuman'));
+  reg.applyOAuthConfigured({ whoop: true });
+  assert('configured experimental providers are visible on a self-hosted domain',
+    reg.visibleAdapters([], hostedLocation).some(adapter => adapter.id === 'whoop'));
 
   reg._resetOAuthOverrides();
   assert('Runtime reset clears Google Health capability and overrides',

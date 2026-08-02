@@ -1,13 +1,9 @@
 // @ts-check
-// wearables-whoop-auth.js — WHOOP OAuth2 PKCE flow (browser side)
+// wearables-whoop-auth.js — WHOOP OAuth2 confidential-client flow
 //
-// WHOOP supports native PKCE — the client is public, no secret needed. This
-// is cleaner than Oura's server-side flow: the entire token exchange stays
-// in the browser via /api/proxy (proxy just forwards; no secret injection).
-//
-// Flow: generate code_verifier → derive code_challenge (SHA-256 + base64url)
-// → authorize redirect → code in URL on return → token exchange with verifier.
-// Refresh uses the refresh_token (granted via the `offline` scope).
+// WHOOP requires the application's client secret for authorization-code token
+// exchange and refresh. The browser handles consent state; /api/proxy injects
+// the deployment's WHOOP_CLIENT_SECRET so it never reaches browser storage.
 
 import { isDebugMode } from './utils.js';
 import {
@@ -17,7 +13,6 @@ import {
 } from './wearables-auth-runtime.js';
 
 const AUTHORIZE_URL = 'https://api.prod.whoop.com/oauth/oauth2/auth';
-const TOKEN_URL     = 'https://api.prod.whoop.com/oauth/oauth2/token';
 const PROXY_URL     = '/api/proxy';
 const STATE_KEY     = 'whoop-oauth-pending';       // sessionStorage
 const REFRESH_LEAD_MS = 5 * 60 * 1000;
@@ -28,29 +23,14 @@ export const DEFAULT_WHOOP_SCOPES = [
 ];
 
 // ─────────────────────────────────────────────────────────
-// PKCE helpers
+// OAuth state helper
 // ─────────────────────────────────────────────────────────
 
-function randomUrlSafe(nBytes) {
+function randomState(nBytes = 16) {
   const bytes = new Uint8Array(nBytes);
   crypto.getRandomValues(bytes);
-  return base64UrlEncode(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
-
-function base64UrlEncode(bytes) {
-  // btoa expects a binary string; build one from the byte array.
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-async function sha256Base64Url(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return base64UrlEncode(new Uint8Array(buf));
-}
-
-// Exposed for test pinning against RFC 7636 Appendix B vector.
-export const deriveCodeChallenge = sha256Base64Url;
 
 // ─────────────────────────────────────────────────────────
 // Authorize
@@ -67,29 +47,25 @@ export function pickRedirectUri(registeredUris, locationLike = getWearableAuthLo
   throw new Error(`No registered WHOOP redirect URI matches current origin ${origin}`);
 }
 
-export async function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_WHOOP_SCOPES, state, codeVerifier }) {
-  const challenge = await sha256Base64Url(codeVerifier);
+export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_WHOOP_SCOPES, state }) {
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: scopes.join(' '),
     state,
-    code_challenge: challenge,
-    code_challenge_method: 'S256',
   });
   return `${AUTHORIZE_URL}?${params.toString()}`;
 }
 
 export async function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WHOOP_SCOPES, profileId = null }) {
-  const state = randomUrlSafe(16);
-  const codeVerifier = randomUrlSafe(32); // 43-128 chars after base64url — 32 bytes → 43 chars
+  const state = randomState();
   const redirectUri = pickRedirectUri(registeredUris);
   sessionStorage.setItem(STATE_KEY, JSON.stringify({
-    state, redirectUri, startedAt: Date.now(), clientId, codeVerifier,
+    state, redirectUri, startedAt: Date.now(), clientId,
     profileId, // pin profile so a mid-OAuth switch lands in the initiating profile
   }));
-  const url = await buildAuthorizeUrl({ clientId, redirectUri, scopes, state, codeVerifier });
+  const url = buildAuthorizeUrl({ clientId, redirectUri, scopes, state });
   redirectWearableAuth(url);
 }
 
@@ -117,22 +93,15 @@ export async function completeOAuthCallback(urlParams) {
     return { ok: false, error: 'OAuth flow expired — please try connecting again' };
   }
 
-  // Token exchange via proxy — plain body post with the verifier. No secret.
-  const form = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: pending.redirectUri,
-    client_id: pending.clientId,
-    code_verifier: pending.codeVerifier,
-  });
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      url: TOKEN_URL,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
+      whoop_token_exchange: {
+        code,
+        redirect_uri: pending.redirectUri,
+        client_id: pending.clientId,
+      },
     }),
   });
   const body = await res.json().catch(() => ({}));
@@ -153,20 +122,11 @@ export function isWhoopCallback(urlParams) {
 // ─────────────────────────────────────────────────────────
 
 export async function refreshTokens({ clientId, refreshToken }) {
-  const form = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-    client_id: clientId,
-    scope: DEFAULT_WHOOP_SCOPES.join(' '),
-  });
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      url: TOKEN_URL,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
+      whoop_token_refresh: { refresh_token: refreshToken, client_id: clientId },
     }),
   });
   const body = await res.json().catch(() => ({}));

@@ -33,8 +33,12 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
           });
           await new Promise(resolve => setTimeout(resolve, 25));
           return new Response(JSON.stringify({
-            overrides: { google_health: 'hosted-google-health-client' },
-            configured: { google_health: true },
+            overrides: {
+              google_health: 'hosted-google-health-client',
+              ultrahuman: 'self-host-ultrahuman-client',
+              whoop: 'self-host-whoop-client',
+            },
+            configured: { google_health: true, ultrahuman: true, whoop: true },
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
@@ -75,6 +79,12 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         configuredText: configuredRow?.textContent || '',
         configuredHasConnect: Boolean(configuredRow
           ?.querySelector('[data-wearable-settings-action="connect"]')),
+        ultrahumanConfigured: document.querySelector('[data-adapter="ultrahuman"]')
+          ?.textContent.includes('experimental · self-hosted')
+          && Boolean(document.querySelector('[data-adapter="ultrahuman"] [data-wearable-settings-action="connect"]')),
+        whoopConfigured: document.querySelector('[data-adapter="whoop"]')
+          ?.textContent.includes('experimental · self-hosted')
+          && Boolean(document.querySelector('[data-adapter="whoop"] [data-wearable-settings-action="connect"]')),
       };
     } finally {
       window.fetch = originalFetch;
@@ -90,6 +100,8 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
     afterFailureStillSelfHostOnly: true,
     hangingRequestAborted: true,
     configuredHasConnect: true,
+    ultrahumanConfigured: true,
+    whoopConfigured: true,
   });
   expect(result.configuredText).toContain('optional health hub');
   expect(result.configuredText).not.toContain('waiting on partner credentials');
@@ -233,9 +245,10 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         && !fitbitRow?.textContent.includes('Connect Google Health')
         && !fitbitRow?.textContent.includes('Reconnect'));
       const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
-      check('pending client row renders native docs link in detail drawer',
-        ultrahumanRow?.textContent.includes('waiting on partner credentials')
-        && ultrahumanDocsLink?.getAttribute('href') === 'https://vision.ultrahuman.com/developer-docs?type=oauth'
+      check('experimental self-host setup row renders native docs link without Connect',
+        ultrahumanRow?.textContent.includes('experimental · setup required')
+        && ultrahumanDocsLink?.getAttribute('href') === 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps'
+        && !ultrahumanRow?.querySelector('[data-wearable-settings-action="connect"]')
         && !ultrahumanRow?.querySelector('summary a[href]'));
       check('manual row renders browser-populated counts',
         manualRow?.textContent.includes('Manual')

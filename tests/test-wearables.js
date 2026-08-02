@@ -684,8 +684,10 @@ for (const vid of ['whoop', 'ultrahuman', 'apple_health', 'withings', 'fitbit'])
   assert(`Adapter ${vid} registered`, !!v);
   assert(`Adapter ${vid} carries beta flag`, v?.beta === true);
 }
-assert('WHOOP uses OAuth2 with PKCE',
-  reg.adapterById('whoop')?.authType === 'oauth2' && reg.adapterById('whoop')?.oauth?.pkce === true);
+assert('WHOOP uses confidential OAuth2 with server-side secret',
+  reg.adapterById('whoop')?.authType === 'oauth2'
+    && reg.adapterById('whoop')?.oauth?.pkce === false
+    && reg.adapterById('whoop')?.hostConfiguredOnly === true);
 assert('Ultrahuman uses OAuth2 (moved off legacy PAT in v1.23.3)',
   reg.adapterById('ultrahuman')?.authType === 'oauth2');
 assert('Ultrahuman is confidential client (client_secret held by proxy, no PKCE)',
@@ -710,9 +712,9 @@ for (const mid of ['hrv_sdnn', 'strain', 'weight', 'bp_systolic', 'bp_diastolic'
 }
 
 // ═══════════════════════════════════════
-// 12. WHOOP PKCE auth module
+// 12. WHOOP confidential OAuth auth module
 // ═══════════════════════════════════════
-console.log('12. WHOOP PKCE');
+console.log('12. WHOOP confidential OAuth');
 const whoopAuth = await import('../js/wearables-whoop-auth.js');
 assert('WHOOP DEFAULT_WHOOP_SCOPES includes read:recovery',
   whoopAuth.DEFAULT_WHOOP_SCOPES.includes('read:recovery'));
@@ -721,16 +723,11 @@ assert('WHOOP scopes include offline (for refresh_token)',
 const whoopAuthUrl = await whoopAuth.buildAuthorizeUrl({
   clientId: 'test-client', redirectUri: 'http://localhost:8000/app',
   scopes: whoopAuth.DEFAULT_WHOOP_SCOPES, state: 'test-state',
-  codeVerifier: 'Dm4l9H2NqE8yP5Rb7w3a6Z1K0VxYcOjG4FiU_n-tBXs',
 });
 assert('WHOOP authorize URL hits api.prod.whoop.com',
   whoopAuthUrl.includes('api.prod.whoop.com/oauth/oauth2/auth'));
-assert('WHOOP authorize URL carries code_challenge',
-  /code_challenge=[A-Za-z0-9_-]+/.test(whoopAuthUrl));
-assert('WHOOP authorize URL declares S256 method',
-  whoopAuthUrl.includes('code_challenge_method=S256'));
-assert('WHOOP authorize URL does NOT leak code_verifier',
-  !whoopAuthUrl.includes('code_verifier='));
+assert('WHOOP authorize URL carries state and no PKCE challenge',
+  whoopAuthUrl.includes('state=test-state') && !whoopAuthUrl.includes('code_challenge'));
 
 // ═══════════════════════════════════════
 // 13. Ultrahuman OAuth2 + fetcher shape
@@ -1256,14 +1253,13 @@ assert('numeric string works', /token/i.test(withings.withingsErrorMessage('100'
 // 15. PKCE: code_verifier → code_challenge SHA256 spec compliance
 // ═══════════════════════════════════════
 // RFC 7636 §4.2: code_challenge = BASE64URL-ENCODE(SHA256(ASCII(code_verifier))).
-// WHOOP and Fitbit both use the S256 method; a bug in the derivation silently
-// breaks the final token exchange with a cryptic 'invalid_grant'. Pin the
-// exact byte sequence end-to-end against the RFC test vector.
+// Fitbit uses the S256 method; a bug in the derivation silently breaks the
+// final token exchange with a cryptic 'invalid_grant'. Pin the exact byte
+// sequence end-to-end against the RFC test vector.
 console.log('15b. PKCE SHA256 pair');
 // Auth modules already imported above (sections 6 + 11); reuse to avoid
 // top-level identifier collisions in this IIFE's single scope.
 const fitbitAuthPkce = await import('../js/wearables-fitbit-auth.js');
-const whoopAuthPkce = await import('../js/wearables-whoop-auth.js');
 
 // RFC 7636 Appendix B test vector:
 //   verifier  = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -1271,15 +1267,9 @@ const whoopAuthPkce = await import('../js/wearables-whoop-auth.js');
 const RFC_VERIFIER  = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const RFC_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 
-// Both auth modules should expose a derivation helper; if not, recreate inline
-// and make sure the helper names match what's used inside begin*OAuth.
 {
   const got = await fitbitAuthPkce.deriveCodeChallenge(RFC_VERIFIER);
   assert('Fitbit PKCE derives RFC test vector', got === RFC_CHALLENGE, `got ${got}`);
-}
-{
-  const got = await whoopAuthPkce.deriveCodeChallenge(RFC_VERIFIER);
-  assert('WHOOP PKCE derives RFC test vector', got === RFC_CHALLENGE, `got ${got}`);
 }
 
 // ═══════════════════════════════════════
@@ -2313,7 +2303,7 @@ assert('pushContextToGateway remains a module export for immediate re-push',
 // ═══════════════════════════════════════
 // 18. Beta-hidden vendors at v1.30.0 launch
 // ═══════════════════════════════════════
-// WHOOP + Ultrahuman ship code-complete but hidden pending partner validation.
+// WHOOP + Ultrahuman are experimental, capability-driven self-host options.
 // Legacy Fitbit is also hidden for new connections while remaining manageable
 // for existing users who must migrate to Google Health.
 console.log('18b. Beta-Hidden Vendors');
@@ -2324,6 +2314,8 @@ const uhEntry    = adaptersMod.ADAPTERS.find(a => a.id === 'ultrahuman');
 const fitbitEntry = adaptersMod.ADAPTERS.find(a => a.id === 'fitbit');
 assert('WHOOP entry carries betaHidden:true', whoopEntry?.betaHidden === true);
 assert('Ultrahuman entry carries betaHidden:true', uhEntry?.betaHidden === true);
+assert('WHOOP + Ultrahuman require host configuration',
+  whoopEntry?.hostConfiguredOnly === true && uhEntry?.hostConfiguredOnly === true);
 assert('Legacy Fitbit entry is migration-only and betaHidden',
   fitbitEntry?.betaHidden === true
   && fitbitEntry?.legacyMigrationOnly === true
@@ -2334,21 +2326,27 @@ const escapeKey = 'labcharts-show-beta-wearables';
 const escapeSv = localStorage.getItem(escapeKey);
 try {
   localStorage.removeItem(escapeKey);
-  const visibleNoConn = adaptersMod.visibleAdapters([]);
+  const hostedLocation = { hostname: 'app.getbased.health' };
+  const localLocation = { hostname: 'localhost' };
+  const visibleNoConn = adaptersMod.visibleAdapters([], hostedLocation);
   const ids = visibleNoConn.map(a => a.id);
   assert('visibleAdapters() hides whoop without override or connection', !ids.includes('whoop'));
   assert('visibleAdapters() hides ultrahuman without override or connection', !ids.includes('ultrahuman'));
   assert('visibleAdapters() still shows oura', ids.includes('oura'));
   assert('visibleAdapters() hides legacy Fitbit for new connections', !ids.includes('fitbit'));
 
-  const visibleWithConn = adaptersMod.visibleAdapters(['whoop']);
+  const visibleLocal = adaptersMod.visibleAdapters([], localLocation);
+  assert('visibleAdapters() shows experimental setup rows on localhost',
+    visibleLocal.some(a => a.id === 'whoop') && visibleLocal.some(a => a.id === 'ultrahuman'));
+
+  const visibleWithConn = adaptersMod.visibleAdapters(['whoop'], hostedLocation);
   assert('visibleAdapters() keeps whoop visible if already connected',
     visibleWithConn.some(a => a.id === 'whoop'));
   assert('visibleAdapters() keeps legacy Fitbit visible if already connected',
-    adaptersMod.visibleAdapters(['fitbit']).some(a => a.id === 'fitbit'));
+    adaptersMod.visibleAdapters(['fitbit'], hostedLocation).some(a => a.id === 'fitbit'));
 
   localStorage.setItem(escapeKey, 'true');
-  const visibleEscape = adaptersMod.visibleAdapters([]);
+  const visibleEscape = adaptersMod.visibleAdapters([], hostedLocation);
   assert('Maintainer escape hatch un-hides hidden adapters',
     visibleEscape.some(a => a.id === 'whoop') &&
     visibleEscape.some(a => a.id === 'ultrahuman'));
@@ -2357,13 +2355,19 @@ try {
   else localStorage.setItem(escapeKey, escapeSv);
 }
 
-// Settings → Wearables row markup must omit hidden adapters.
-localStorage.removeItem(escapeKey);
+// Settings → Wearables exposes disabled setup rows without a Connect action.
+// The Node shim has no hostname, so use the equivalent maintainer preview
+// escape; localhost visibility itself is covered above with an explicit host.
+localStorage.setItem(escapeKey, 'true');
 const settingsHtml = wearableSettings.renderWearablesSettingsSection();
-assert('Settings render omits WHOOP row when hidden + not connected',
-  !/data-adapter-id="whoop"/.test(settingsHtml) && !/connectAdapter\('whoop'\)/.test(settingsHtml));
-assert('Settings render omits Ultrahuman row when hidden + not connected',
-  !/data-adapter-id="ultrahuman"/.test(settingsHtml) && !/connectAdapter\('ultrahuman'\)/.test(settingsHtml));
+assert('Settings render shows disabled WHOOP setup row on localhost',
+  /data-adapter="whoop"/.test(settingsHtml)
+    && !/aria-label="Connect WHOOP"/.test(settingsHtml));
+assert('Settings render shows disabled Ultrahuman setup row on localhost',
+  /data-adapter="ultrahuman"/.test(settingsHtml)
+    && !/aria-label="Connect Ultrahuman"/.test(settingsHtml));
+assert('Settings marks experimental self-host setup as required',
+  /experimental · setup required/.test(settingsHtml));
 assert('Settings render still shows Oura row',
   /data-adapter-id="oura"|connectAdapter\('oura'\)|adapter\.id === 'oura'/i.test(settingsHtml) ||
   /Oura/.test(settingsHtml));

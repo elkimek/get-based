@@ -218,12 +218,14 @@ export const ADAPTERS = [
     displayName: 'Ultrahuman',
     authType: 'oauth2',
     authDocsUrl: 'https://vision.ultrahuman.com/developer-docs?type=oauth',
+    selfHostDocsUrl: 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps',
     beta: true,
-    // Hidden from the Settings → Wearables list at v1.30.0 launch — partner
-    // credentials are still pending. Maintainer escape hatch:
-    // localStorage.setItem('labcharts-show-beta-wearables', 'true').
-    // Already-connected installs stay visible (visibleAdapters keeps them).
+    // Experimental self-host integration. It is advertised only when this
+    // deployment explicitly enables it, while localhost keeps the disabled
+    // setup row visible for development and discovery.
     betaHidden: true,
+    hostConfiguredOnly: true,
+    experimentalSelfHost: true,
     oauth: {
       // Ultrahuman OAuth2 confidential client (has client_secret). Paste the
       // Client ID from the partner credentials email reply here; the matching
@@ -259,18 +261,16 @@ export const ADAPTERS = [
     displayName: 'WHOOP',
     authType: 'oauth2',
     authDocsUrl: 'https://developer.whoop.com/docs/developing/oauth',
+    selfHostDocsUrl: 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps',
     beta: true,
-    // Hidden from the Settings → Wearables list at v1.30.0 launch — WHOOP
-    // dev portal needs a paid consumer membership we haven't validated.
-    // Maintainer escape hatch: localStorage labcharts-show-beta-wearables=true.
+    // Experimental self-host integration. WHOOP issues a confidential OAuth
+    // client, so both the client ID and server-side secret are required.
     betaHidden: true,
+    hostConfiguredOnly: true,
+    experimentalSelfHost: true,
     oauth: {
-      // PKCE flow — no client secret needed in browser. WHOOP dev portal
-      // requires an active paid consumer membership (sign up via the free
-      // trial at join.whoop.com first, then request dev access at
-      // developer.whoop.com). Until that lands, the REPLACE_WITH_ prefix
-      // gates the UI to "waiting on partner credentials" so users don't
-      // hit invalid_client at WHOOP's authorize endpoint.
+      // WHOOP uses a confidential authorization-code flow. The matching
+      // WHOOP_CLIENT_SECRET is injected only by /api/proxy.
       clientId: 'REPLACE_WITH_WHOOP_CLIENT_ID',
       redirectUris: [
         'https://app.getbased.health/',
@@ -280,7 +280,7 @@ export const ADAPTERS = [
         'http://localhost:8000/app',
       ],
       scopes: ['read:recovery', 'read:sleep', 'read:workout', 'read:cycles', 'read:profile', 'offline'],
-      pkce: true,
+      pkce: false,
     },
     apiHost: 'api.prod.whoop.com',
     metrics: {
@@ -343,8 +343,10 @@ export const ADAPTERS = [
     authType: 'oauth2',
     integrationKind: 'aggregator',
     authDocsUrl: 'https://developers.google.com/health/setup',
+    selfHostDocsUrl: 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps',
     manageAccessUrl: 'https://myaccount.google.com/connections',
     beta: true,
+    hostConfiguredOnly: true,
     oauth: {
       // Google Health requires a confidential Web Server OAuth client. The
       // client secret stays in GOOGLE_HEALTH_CLIENT_SECRET on /api/proxy;
@@ -595,10 +597,10 @@ export function isOAuthAdapterConfigured(adapterOrId) {
   if (!adapter || adapter.authType !== 'oauth2') return false;
   const clientId = getOAuthClientId(adapter);
   if (!clientId || clientId.startsWith('REPLACE_WITH_')) return false;
-  // Google Health uses restricted scopes and a confidential web client. It is
-  // intentionally unavailable unless this deployment explicitly opts in and
-  // proves that both halves of its OAuth client exist; the secret stays server-side.
-  if (adapter.id === 'google_health') return _oauthConfigured.google_health === true;
+  // Host-configured integrations are intentionally unavailable until the
+  // server confirms an explicit opt-in and a complete confidential OAuth
+  // client. Secrets remain server-side; only this boolean reaches the browser.
+  if (adapter.hostConfiguredOnly) return _oauthConfigured[adapter.id] === true;
   return true;
 }
 
@@ -608,19 +610,31 @@ export function _resetOAuthOverrides() {
   for (const k of Object.keys(_oauthConfigured)) delete _oauthConfigured[k];
 }
 
-// Filter the registry for the Settings → Wearables list. Hides any adapter
-// flagged `betaHidden` unless either: (a) the maintainer escape hatch is set,
-// or (b) the adapter is already in `connectedIds` (so existing connections
-// stay manageable across version bumps). Always returns a new array.
-export function visibleAdapters(connectedIds = []) {
+export function isWearableDeveloperHost(locationLike = globalThis.location) {
+  const hostname = String(locationLike?.hostname || '').toLowerCase();
+  return hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '::1'
+    || hostname === '[::1]'
+    || hostname.endsWith('.localhost');
+}
+
+// Filter the registry for the Settings → Wearables list. Experimental
+// self-host integrations are visible on configured deployments and localhost,
+// but remain hidden on an unconfigured hosted deployment. Connected sources
+// always stay manageable. The localStorage escape hatch remains for maintainers.
+export function visibleAdapters(connectedIds = [], locationLike = globalThis.location) {
   const escape = (() => {
     try { return localStorage.getItem('labcharts-show-beta-wearables') === 'true'; }
     catch { return false; }
   })();
   const connected = new Set(connectedIds);
-  const visible = escape
-    ? ADAPTERS.slice()
-    : ADAPTERS.filter(a => !a.betaHidden || connected.has(a.id));
+  const developerHost = isWearableDeveloperHost(locationLike);
+  const visible = ADAPTERS.filter(adapter => {
+    if (!adapter.betaHidden || connected.has(adapter.id) || escape) return true;
+    if (!adapter.experimentalSelfHost) return false;
+    return developerHost || isOAuthAdapterConfigured(adapter);
+  });
   // Preserve independent direct integrations as the first-class/default
   // path. Google Health (the Fitbit/Pixel successor and optional hub) follows
   // those providers, ahead of manual and file-import tools.
