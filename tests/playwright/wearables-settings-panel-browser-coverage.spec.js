@@ -70,6 +70,9 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       }
 
       const configuredRow = document.querySelector('[data-adapter="google_health"]');
+      const adapterIdsInGroup = groupId => Array.from(document.querySelectorAll(
+        `[data-wearable-group="${groupId}"] [data-adapter]`,
+      )).map(row => row.getAttribute('data-adapter'));
       return {
         runtimeConfigCalls,
         initiallySelfHostOnly,
@@ -85,6 +88,11 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         whoopConfigured: document.querySelector('[data-adapter="whoop"]')
           ?.textContent.includes('experimental · self-hosted')
           && Boolean(document.querySelector('[data-adapter="whoop"] [data-wearable-settings-action="connect"]')),
+        groupIds: Array.from(document.querySelectorAll('[data-wearable-group]'))
+          .map(group => group.getAttribute('data-wearable-group')),
+        availableOrder: adapterIdsInGroup('available'),
+        selfHostOrder: adapterIdsInGroup('self_host'),
+        localOrder: adapterIdsInGroup('local'),
       };
     } finally {
       window.fetch = originalFetch;
@@ -105,6 +113,10 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
   });
   expect(result.configuredText).toContain('optional health hub');
   expect(result.configuredText).not.toContain('waiting on partner credentials');
+  expect(result.groupIds).toEqual(['available', 'self_host', 'local']);
+  expect(result.availableOrder).toEqual(['oura', 'withings', 'polar']);
+  expect(result.selfHostOrder).toEqual(['google_health', 'whoop', 'ultrahuman']);
+  expect(result.localOrder).toEqual(['apple_health', 'manual']);
 });
 
 test('wearables settings panel browser coverage renders rows, counts, and navigation toggles', async ({ page }) => {
@@ -234,8 +246,17 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       const manualRow = section.querySelector('[data-adapter="manual"]');
       const appleRow = section.querySelector('[data-adapter="apple_health"]');
       const manualCounts = section.querySelector('[data-role="manual-counts"]')?.textContent || '';
+      const connectedOrder = Array.from(section.querySelectorAll(
+        '[data-wearable-group="connected"] [data-adapter]',
+      )).map(row => row.getAttribute('data-adapter'));
 
       check('strip visible toggle starts checked', toggle?.checked === true);
+      check('connected group puts the migration warning before healthy connections',
+        connectedOrder.join(',') === 'fitbit,oura,manual,apple_health', connectedOrder.join(','));
+      check('connected sources are removed from the setup groups',
+        !section.querySelector('[data-wearable-group="available"] [data-adapter="oura"]')
+        && !section.querySelector('[data-wearable-group="local"] [data-adapter="manual"]')
+        && !section.querySelector('[data-wearable-group="local"] [data-adapter="apple_health"]'));
       check('connected OAuth row renders status and identity',
         ouraRow?.textContent.includes('connected') && ouraRow?.textContent.includes('oura@example.test'));
       check('legacy Fitbit reauth state explains self-host Google Health migration',
