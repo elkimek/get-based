@@ -276,7 +276,11 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       requests.push(proxy);
       if (proxy.wearable_runtime_config) {
         runtimeConfigCalls += 1;
-        return jsonResponse({ overrides: { oura: 'runtime-oura-client', polar: 'runtime-polar-client' } });
+        if (runtimeConfigCalls === 1) return jsonResponse({ error: 'temporary runtime-config failure' }, 503);
+        return jsonResponse({
+          overrides: { oura: 'runtime-oura-client', polar: 'runtime-polar-client', google_health: 'runtime-google-health-client' },
+          configured: { google_health: true },
+        });
       }
       if (proxy.polar_token_exchange) {
         return jsonResponse({ access_token: 'polar-access', refresh_token: 'polar-refresh', expires_in: 3600, x_user_id: 'polar-user-7', scope: 'accesslink.read_all' });
@@ -319,13 +323,18 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       check('adapterSupportsMetric returns false for an unknown adapter',
         adapters.adapterSupportsMetric('not-a-real-adapter', 'steps') === false);
 
-      await connect.loadWearableRuntimeConfig();
-      check('runtime config applies OAuth client overrides',
-        runtimeConfigCalls === 1 &&
+      await connect.loadWearableRuntimeConfig({ waitForFetch: true });
+      check('failed runtime config remains retryable and fails Google Health closed',
+        runtimeConfigCalls === 1 && adapters.isOAuthAdapterConfigured('google_health') === false);
+      await connect.syncStaleWearablesNow();
+      check('scheduler retries runtime config and applies Google Health capability',
+        runtimeConfigCalls === 2 &&
         adapters.getOAuthClientId('oura') === 'runtime-oura-client' &&
-        adapters.getOAuthClientId('polar') === 'runtime-polar-client');
+        adapters.getOAuthClientId('polar') === 'runtime-polar-client' &&
+        adapters.getOAuthClientId('google_health') === 'runtime-google-health-client' &&
+        adapters.isOAuthAdapterConfigured('google_health') === true);
       await connect.loadWearableRuntimeConfig();
-      check('runtime config promise is reused', runtimeConfigCalls === 1);
+      check('successful runtime config promise is reused', runtimeConfigCalls === 2);
 
       const withingsBaselineClient = adapters.adapterById('withings')?.oauth?.clientId || null;
       adapters.applyOAuthOverrides({ withings: 'browser-withings-client' });

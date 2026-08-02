@@ -703,7 +703,7 @@ async function maybeSyncStaleSources() {
   // first scheduled refresh doesn't race the override and call the token
   // endpoint with a stale (hardcoded maintainer) clientId. Hosted users see
   // a no-op since the promise resolves immediately to {} overrides.
-  await runtimeConfigReady();
+  await loadWearableRuntimeConfig();
   const sources = getConnections();
   const now = Date.now();
   for (const [sid, conn] of Object.entries(sources)) {
@@ -777,11 +777,4 @@ export function loadWearableRuntimeConfig(options = {}) {
   }
   return options.waitForFetch ? _runtimeConfigFetchPromise
     : /** @type {Promise<void>} */ (_runtimeConfigPromise);
-}
-
-// Used by the scheduler to gate its first sync. If main.js skipped the
-// bootstrap call (test contexts, embedded usage), this resolves promptly
-// so the scheduler isn't blocked forever.
-function runtimeConfigReady() {
-  return _runtimeConfigPromise || Promise.resolve();
 }
