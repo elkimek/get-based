@@ -143,7 +143,9 @@ export async function handleStartupOAuthCallbacks() {
     const wearables = await loadWearablesConnectModule();
     // The old eager startup path had already installed the scheduler by the
     // time a callback completed. Preserve that behavior on callback loads.
-    wearables.loadWearableRuntimeConfig();
+    // Confidential self-host integrations need the server capability before
+    // their callback can save credentials and start the initial backfill.
+    await wearables.loadWearableRuntimeConfig({ waitForFetch: true });
     wearables.initWearableScheduler();
     wearableHandled = await wearables.handleOAuthCallbackOnLoad();
   }

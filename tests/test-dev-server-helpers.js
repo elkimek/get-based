@@ -334,6 +334,7 @@ assert('proxy header policy rejects CRLF header injection',
   sanitizeProxyHeaders({ Authorization: 'Bearer ok\r\nX-Bad: yes' }).ok === false);
 assert('dev proxy operation classifier accepts one fixed operation',
   classifyDevProxyOperation({ oura_token_exchange: { code: 'code' } }).operation === 'oura-exchange'
+    && classifyDevProxyOperation({ whoop_token_exchange: { code: 'code' } }).operation === 'whoop-exchange'
     && classifyDevProxyOperation({ google_health_token_refresh: { refresh_token: 'token' } }).operation === 'google-health-refresh'
     && classifyDevProxyOperation({ url: 'https://example.com' }).operation === 'generic');
 assert('dev proxy operation classifier rejects ambiguous envelopes',
@@ -375,7 +376,7 @@ assert('dev proxy operation classifier rejects ambiguous envelopes',
   assert('extracted dev proxy serves wearable runtime overrides',
     res.status === 200
       && res.headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN
-      && res.text() === '{"overrides":{"oura":"self-hosted-client"},"configured":{"google_health":false}}',
+      && res.text() === '{"overrides":{"oura":"self-hosted-client"},"configured":{"google_health":false,"ultrahuman":false,"whoop":false}}',
     `${res.status} ${JSON.stringify(res.headers)} ${res.text()}`);
 }
 {
@@ -1049,18 +1050,39 @@ console.log('\n── collectWearableOverrides (issue #145) ──');
 }
 
 {
-  assert('Google Health capability requires both deployment credentials',
-    collectWearableConfigured({
+  const fullyConfigured = collectWearableConfigured({
       GOOGLE_HEALTH_ENABLED: 'true',
       GOOGLE_HEALTH_CLIENT_ID: 'google-id',
       GOOGLE_HEALTH_CLIENT_SECRET: 'google-secret',
-    }).google_health === true
+      ULTRAHUMAN_ENABLED: 'true',
+      ULTRAHUMAN_CLIENT_ID: 'ultrahuman-id',
+      ULTRAHUMAN_CLIENT_SECRET: 'ultrahuman-secret',
+      WHOOP_ENABLED: 'true',
+      WHOOP_CLIENT_ID: 'whoop-id',
+      WHOOP_CLIENT_SECRET: 'whoop-secret',
+    });
+  assert('Google Health capability requires explicit opt-in and both credentials',
+    fullyConfigured.google_health === true
     && collectWearableConfigured({ GOOGLE_HEALTH_CLIENT_ID: 'google-id' }).google_health === false
     && collectWearableConfigured({ GOOGLE_HEALTH_CLIENT_SECRET: 'google-secret' }).google_health === false
     && collectWearableConfigured({
       GOOGLE_HEALTH_CLIENT_ID: 'google-id',
       GOOGLE_HEALTH_CLIENT_SECRET: 'google-secret',
     }).google_health === false);
+  assert('Ultrahuman capability requires explicit opt-in and both credentials',
+    fullyConfigured.ultrahuman === true
+      && collectWearableConfigured({
+        ULTRAHUMAN_CLIENT_ID: 'ultrahuman-id',
+        ULTRAHUMAN_CLIENT_SECRET: 'ultrahuman-secret',
+      }).ultrahuman === false
+      && collectWearableConfigured({ ULTRAHUMAN_ENABLED: 'true' }).ultrahuman === false);
+  assert('WHOOP capability requires explicit opt-in and both credentials',
+    fullyConfigured.whoop === true
+      && collectWearableConfigured({
+        WHOOP_CLIENT_ID: 'whoop-id',
+        WHOOP_CLIENT_SECRET: 'whoop-secret',
+      }).whoop === false
+      && collectWearableConfigured({ WHOOP_ENABLED: 'true' }).whoop === false);
 }
 
 // All confidential/PKCE adapters covered — guards against typo regressions

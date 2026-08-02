@@ -150,6 +150,10 @@ export async function handler(req) {
     const configured = {
       google_health: env.GOOGLE_HEALTH_ENABLED === 'true'
         && Boolean(hasEnv('GOOGLE_HEALTH_CLIENT_ID') && hasEnv('GOOGLE_HEALTH_CLIENT_SECRET')),
+      ultrahuman: env.ULTRAHUMAN_ENABLED === 'true'
+        && Boolean(hasEnv('ULTRAHUMAN_CLIENT_ID') && hasEnv('ULTRAHUMAN_CLIENT_SECRET')),
+      whoop: env.WHOOP_ENABLED === 'true'
+        && Boolean(hasEnv('WHOOP_CLIENT_ID') && hasEnv('WHOOP_CLIENT_SECRET')),
     };
     return new Response(JSON.stringify({ overrides, configured }), {
       status: 200,
@@ -177,6 +181,13 @@ export async function handler(req) {
   // partner.ultrahuman.com/api/partners/oauth/token.
   if (payload.ultrahuman_token_exchange || payload.ultrahuman_token_refresh) {
     return handleUltrahumanTokenRequest(payload, req);
+  }
+
+  // ─── WHOOP OAuth2 server-side flow ─────────────────────────────
+  // WHOOP is a confidential client: the deployment secret is injected here
+  // for authorization-code exchange and refresh.
+  if (payload.whoop_token_exchange || payload.whoop_token_refresh) {
+    return handleWhoopTokenRequest(payload, req);
   }
 
   // ─── Polar AccessLink OAuth2 server-side flow ───────────────────
@@ -453,35 +464,47 @@ async function handleWithingsTokenRequest(payload, req) {
 
 // ─── Ultrahuman token handler ──────────────────────────────────────
 async function handleUltrahumanTokenRequest(payload, req) {
-  const secret = typeof process !== 'undefined' ? process.env?.ULTRAHUMAN_CLIENT_SECRET : undefined;
-  if (!secret) {
-    return new Response(JSON.stringify({ error: 'ULTRAHUMAN_CLIENT_SECRET not configured on this deployment' }), {
-      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+  const env = typeof process !== 'undefined' ? process.env || {} : {};
+  const clientId = typeof env.ULTRAHUMAN_CLIENT_ID === 'string' ? env.ULTRAHUMAN_CLIENT_ID.trim() : '';
+  const secret = env.ULTRAHUMAN_CLIENT_SECRET;
+  if (env.ULTRAHUMAN_ENABLED !== 'true' || !clientId || typeof secret !== 'string' || !secret.trim()) {
+    return new Response(JSON.stringify({ error: 'Ultrahuman is disabled on this deployment' }), {
+      status: 503, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 
   let form;
   if (payload.ultrahuman_token_exchange) {
-    const { code, redirect_uri, client_id } = payload.ultrahuman_token_exchange;
-    if (!code || !redirect_uri || !client_id) {
+    const { code, redirect_uri, client_id: requestedClientId } = payload.ultrahuman_token_exchange;
+    if (!code || !redirect_uri || !requestedClientId) {
       return new Response(JSON.stringify({ error: 'ultrahuman_token_exchange requires code, redirect_uri, client_id' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    if (requestedClientId !== clientId) {
+      return new Response(JSON.stringify({ error: 'Ultrahuman client_id does not match this deployment' }), {
         status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
     form = new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id, client_secret: secret, code, redirect_uri,
+      client_id: clientId, client_secret: secret, code, redirect_uri,
     });
   } else {
-    const { refresh_token, client_id } = payload.ultrahuman_token_refresh;
-    if (!refresh_token || !client_id) {
+    const { refresh_token, client_id: requestedClientId } = payload.ultrahuman_token_refresh;
+    if (!refresh_token || !requestedClientId) {
       return new Response(JSON.stringify({ error: 'ultrahuman_token_refresh requires refresh_token, client_id' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    if (requestedClientId !== clientId) {
+      return new Response(JSON.stringify({ error: 'Ultrahuman client_id does not match this deployment' }), {
         status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
     form = new URLSearchParams({
       grant_type: 'refresh_token',
-      client_id, client_secret: secret, refresh_token,
+      client_id: clientId, client_secret: secret, refresh_token,
     });
   }
 
@@ -490,6 +513,59 @@ async function handleUltrahumanTokenRequest(payload, req) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: form.toString(),
   }, req, 'Ultrahuman token endpoint unavailable');
+}
+
+// ─── WHOOP token handler ──────────────────────────────────────────
+async function handleWhoopTokenRequest(payload, req) {
+  const env = typeof process !== 'undefined' ? process.env || {} : {};
+  const clientId = typeof env.WHOOP_CLIENT_ID === 'string' ? env.WHOOP_CLIENT_ID.trim() : '';
+  const secret = env.WHOOP_CLIENT_SECRET;
+  if (env.WHOOP_ENABLED !== 'true' || !clientId || typeof secret !== 'string' || !secret.trim()) {
+    return new Response(JSON.stringify({ error: 'WHOOP is disabled on this deployment' }), {
+      status: 503, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+
+  let form;
+  if (payload.whoop_token_exchange) {
+    const { code, redirect_uri, client_id: requestedClientId } = payload.whoop_token_exchange;
+    if (!code || !redirect_uri || !requestedClientId) {
+      return new Response(JSON.stringify({ error: 'whoop_token_exchange requires code, redirect_uri, client_id' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    if (requestedClientId !== clientId) {
+      return new Response(JSON.stringify({ error: 'WHOOP client_id does not match this deployment' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    form = new URLSearchParams({
+      grant_type: 'authorization_code', code, redirect_uri,
+      client_id: clientId, client_secret: secret,
+    });
+  } else {
+    const { refresh_token, client_id: requestedClientId } = payload.whoop_token_refresh;
+    if (!refresh_token || !requestedClientId) {
+      return new Response(JSON.stringify({ error: 'whoop_token_refresh requires refresh_token, client_id' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    if (requestedClientId !== clientId) {
+      return new Response(JSON.stringify({ error: 'WHOOP client_id does not match this deployment' }), {
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    form = new URLSearchParams({
+      grant_type: 'refresh_token', refresh_token,
+      client_id: clientId, client_secret: secret, scope: 'offline',
+    });
+  }
+
+  return relayGuardedText('https://api.prod.whoop.com/oauth/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  }, req, 'WHOOP token endpoint unavailable');
 }
 
 // ─── Polar token handler ───────────────────────────────────────────

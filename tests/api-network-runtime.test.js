@@ -24,10 +24,13 @@ const ENV_KEYS = [
   'WHOOP_CLIENT_ID',
   'FITBIT_CLIENT_ID',
   'GOOGLE_HEALTH_CLIENT_ID',
+  'ULTRAHUMAN_ENABLED',
+  'WHOOP_ENABLED',
   'GOOGLE_HEALTH_ENABLED',
   'OURA_CLIENT_SECRET',
   'WITHINGS_CLIENT_SECRET',
   'ULTRAHUMAN_CLIENT_SECRET',
+  'WHOOP_CLIENT_SECRET',
   'POLAR_CLIENT_SECRET',
   'GOOGLE_HEALTH_CLIENT_SECRET',
   'UVDATA_UPSTREAM',
@@ -780,7 +783,7 @@ describe('AI proxy runtime behavior', () => {
         fitbit: 'fitbit-selfhost',
         google_health: 'google-health-selfhost',
       },
-      configured: { google_health: false },
+      configured: { google_health: false, ultrahuman: false, whoop: false },
     });
 
     process.env.GOOGLE_HEALTH_CLIENT_SECRET = 'google-health-secret';
@@ -796,7 +799,7 @@ describe('AI proxy runtime behavior', () => {
         fitbit: 'fitbit-selfhost',
         google_health: 'google-health-selfhost',
       },
-      configured: { google_health: true },
+      configured: { google_health: true, ultrahuman: false, whoop: false },
     });
   });
 
@@ -1237,6 +1240,11 @@ describe('AI proxy runtime behavior', () => {
     process.env.OURA_CLIENT_SECRET = 'oura-secret';
     process.env.WITHINGS_CLIENT_SECRET = 'withings-secret';
     process.env.ULTRAHUMAN_CLIENT_SECRET = 'ultrahuman-secret';
+    process.env.ULTRAHUMAN_CLIENT_ID = 'ultra-client';
+    process.env.ULTRAHUMAN_ENABLED = 'true';
+    process.env.WHOOP_CLIENT_SECRET = 'whoop-secret';
+    process.env.WHOOP_CLIENT_ID = 'whoop-client';
+    process.env.WHOOP_ENABLED = 'true';
     process.env.POLAR_CLIENT_SECRET = 'polar-secret';
     process.env.GOOGLE_HEALTH_CLIENT_SECRET = 'google-secret';
     globalThis.fetch = vi.fn(async (url) => jsonResponse({ url }, {
@@ -1276,7 +1284,30 @@ describe('AI proxy runtime behavior', () => {
     expect(url).toBe('https://partner.ultrahuman.com/api/partners/oauth/token');
     expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
       grant_type: 'authorization_code',
+      client_id: 'ultra-client',
       client_secret: 'ultrahuman-secret',
+    });
+
+    const whoop = await proxyHandler(makeProxyRequest({
+      whoop_token_refresh: { refresh_token: 'whoop-refresh', client_id: 'whoop-client' },
+    }));
+    expect(whoop.status).toBe(201);
+    [url, init] = globalThis.fetch.mock.calls.at(-1);
+    expect(url).toBe('https://api.prod.whoop.com/oauth/oauth2/token');
+    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+      grant_type: 'refresh_token',
+      refresh_token: 'whoop-refresh',
+      client_id: 'whoop-client',
+      client_secret: 'whoop-secret',
+      scope: 'offline',
+    });
+
+    const mismatchedWhoop = await proxyHandler(makeProxyRequest({
+      whoop_token_exchange: { code: 'whoop-code', redirect_uri: 'https://app/cb', client_id: 'other-client' },
+    }));
+    expect(mismatchedWhoop.status).toBe(400);
+    expect(await responseJson(mismatchedWhoop)).toEqual({
+      error: 'WHOOP client_id does not match this deployment',
     });
 
     const polar = await proxyHandler(makeProxyRequest({

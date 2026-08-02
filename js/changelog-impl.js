@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.11.2', date: '2026-08-02', title: 'More options for self-hosted wearables',
+    forceShow: true,
+    items: [
+      '<b>Self-hosters can experimentally enable WHOOP and Ultrahuman.</b> Add your own developer app credentials and explicitly turn on the integration for your deployment.',
+      '<b>The official hosted app stays focused on integrations it can support.</b> WHOOP and Ultrahuman are hidden there unless the deployment is fully configured; localhost shows disabled setup rows so developers can discover and prepare them.',
+      '<b>WHOOP sign-in now keeps its client secret on the server.</b> Token exchange and refresh follow WHOOP\'s confidential OAuth flow instead of treating the browser as a public client.',
+      '<b>Existing connections stay manageable.</b> If an operator later disables one of these integrations, syncing pauses while the user can still remove the local connection.',
+    ]
+  },
+  {
     version: '1.11.1', date: '2026-08-01', title: 'Google Health support for self-hosted setups',
     forceShow: true,
     items: [
