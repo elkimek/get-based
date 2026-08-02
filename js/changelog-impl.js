@@ -12,7 +12,6 @@ const changelogDelegateRoots = new WeakSet();
 const CHANGELOG = [
   {
     version: '1.11.2', date: '2026-08-02', title: 'More options for self-hosted wearables',
-    forceShow: true,
     items: [
       '<b>Self-hosters can experimentally enable WHOOP and Ultrahuman.</b> Add your own developer app credentials and explicitly turn on the integration for your deployment.',
       '<b>The official hosted app stays focused on integrations it can support.</b> WHOOP and Ultrahuman are hidden there unless the deployment is fully configured; localhost shows disabled setup rows so developers can discover and prepare them.',
