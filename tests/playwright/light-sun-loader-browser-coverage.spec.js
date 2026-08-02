@@ -366,8 +366,8 @@ test('returning-user startup defers Light UI resources until the Light route ope
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-24T00:00:00.000Z',
       appVersion: 'light-ui-loader-coverage',
       location: 'light-ui-loader-coverage',

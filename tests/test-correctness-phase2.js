@@ -318,10 +318,10 @@ assert('legal gate is prerendered and interactive before the main module',
   && legalConsentBootstrapSrc.includes("overlay.dataset.legalConsentBootstrapBound = 'true'")
   && legalConsentBootstrapSrc.includes("globalThis.dispatchEvent(new Event('legal-consent-accepted'))"));
 assert('prerendered and module legal versions remain synchronized',
-  indexSrc.includes('data-terms-version="2026-08-01"')
-  && indexSrc.includes('data-privacy-version="2026-08-01"')
-  && /const TERMS_VERSION = '2026-08-01';/.test(legalConsentSrc)
-  && /const PRIVACY_VERSION = '2026-08-01';/.test(legalConsentSrc));
+  indexSrc.includes('data-terms-version="2026-06-22"')
+  && indexSrc.includes('data-privacy-version="2026-06-22"')
+  && /const TERMS_VERSION = '2026-06-22';/.test(legalConsentSrc)
+  && /const PRIVACY_VERSION = '2026-06-22';/.test(legalConsentSrc));
 assert('legal consent notifications use the module dependency instead of a global callback',
   legalConsentSrc.includes("import { showNotification } from './utils.js';")
   && legalConsentSrc.includes("showNotification('Terms and Privacy accepted.'")
@@ -346,9 +346,9 @@ assert('legal gate z-index selector beats generic modal overlay',
   /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,80}z-index:\s*4200;/.test(appShellCss)
   && /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,180}-webkit-backdrop-filter:\s*blur\(8px\);[\s\S]{0,60}backdrop-filter:\s*blur\(8px\);/.test(appShellCss));
 assert('Playwright feature tests seed the current legal acceptance version',
-  /TEST_LEGAL_ACCEPTANCE\s*=\s*\{[\s\S]{0,120}termsVersion:\s*'2026-08-01',[\s\S]{0,80}privacyVersion:\s*'2026-08-01'/.test(playwrightFixtureSrc)
-  && /const TERMS_VERSION = '2026-08-01';/.test(legalConsentSrc)
-  && /const PRIVACY_VERSION = '2026-08-01';/.test(legalConsentSrc)
+  /TEST_LEGAL_ACCEPTANCE\s*=\s*\{[\s\S]{0,120}termsVersion:\s*'2026-06-22',[\s\S]{0,80}privacyVersion:\s*'2026-06-22'/.test(playwrightFixtureSrc)
+  && /const TERMS_VERSION = '2026-06-22';/.test(legalConsentSrc)
+  && /const PRIVACY_VERSION = '2026-06-22';/.test(legalConsentSrc)
   && /await seedCurrentLegalAcceptance\(page\);/.test(playwrightFixtureSrc));
 assert('footer commit hash loader lives in its own module and remains wired',
   /export function loadCommitHash\(\)/.test(commitHashSrc)

@@ -33,6 +33,12 @@ function credentialVaultModule(overrides = {}) {
   };
 }
 
+async function enableGoogleHealthForTest() {
+  const adapters = await import('../js/wearable-adapters.js');
+  adapters.applyOAuthOverrides({ google_health: 'google-health-test-client' });
+  adapters.applyOAuthConfigured({ google_health: true });
+}
+
 beforeEach(async () => {
   await vi.resetModules();
   localStorage.clear();
@@ -87,6 +93,7 @@ describe('wearable disconnect deletion failures', () => {
 
     localStorage.setItem(`labcharts-wearable-credential-local:${profileId}:google_health`, '1');
     globalThis.fetch = vi.fn();
+    await enableGoogleHealthForTest();
     const { withGoogleHealthRefreshLock } = await import('../js/wearables-google-health-auth.js');
     const { backfillWearable, disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
 
@@ -172,6 +179,7 @@ describe('wearable disconnect deletion failures', () => {
     }));
 
     localStorage.setItem(`labcharts-wearable-credential-local:${profileId}:google_health`, '1');
+    await enableGoogleHealthForTest();
     const { withGoogleHealthLifecycleLock } = await import('../js/wearables-google-health-auth.js');
     const { backfillWearable, disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
 

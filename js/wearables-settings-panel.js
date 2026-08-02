@@ -6,7 +6,12 @@
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
-import { adapterById, visibleAdapters, getOAuthClientId } from './wearable-adapters.js';
+import {
+  adapterById,
+  visibleAdapters,
+  getOAuthClientId,
+  isOAuthAdapterConfigured,
+} from './wearable-adapters.js';
 import { brandMarkMono } from './brand-assets.js';
 import {
   beginConnectOAuth,
@@ -224,13 +229,20 @@ export function renderWearablesSettingsSection() {
 function renderAdapterRow(adapter, isConnected) {
   const conn = isConnected ? getConnection(adapter.id) : null;
   const isOAuth = adapter.authType === 'oauth2';
-  const isPendingClient = isOAuth && (getOAuthClientId(adapter) || '').startsWith('REPLACE_WITH_');
+  const isSelfHostOnly = adapter.id === 'google_health' && !isOAuthAdapterConfigured(adapter);
+  const isPendingClient = isOAuth
+    && !isSelfHostOnly
+    && (getOAuthClientId(adapter) || '').startsWith('REPLACE_WITH_');
   const isFileImport = adapter.authType === 'file-import' && adapter.id === 'apple_health';
 
   // Status text — only when there's something meaningful to say.
   let status = '';
   if (isConnected && adapter.legacyMigrationOnly) {
     status = `<span class="wearable-row-status wearable-row-status-bad">migration required</span>`;
+  } else if (isConnected && isSelfHostOnly) {
+    status = `<span class="wearable-row-status wearable-row-status-bad">host access unavailable</span>`;
+  } else if (isSelfHostOnly) {
+    status = `<span class="wearable-row-status wearable-row-status-muted">self-host only</span>`;
   } else if (isConnected && conn?.needsReauth) {
     status = `<span class="wearable-row-status wearable-row-status-bad">needs reconnection</span>`;
   } else if (isConnected) {
@@ -247,10 +259,10 @@ function renderAdapterRow(adapter, isConnected) {
   }
 
   // Right-aligned action — Connect button, expand chevron, or Import.
-  const action = renderRowAction(adapter, conn, { isPendingClient, isFileImport });
+  const action = renderRowAction(adapter, conn, { isPendingClient, isFileImport, isSelfHostOnly });
 
   // Expandable body (only for connected adapters + Apple Health when wanting help).
-  const detail = renderRowDetail(adapter, conn, { isPendingClient, isFileImport });
+  const detail = renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isSelfHostOnly });
 
   // Use <details>/<summary> for free keyboard-accessible disclosure when
   // there's something to expand. Otherwise render a flat row.
@@ -305,8 +317,11 @@ function brandIconIsWordmark(adapterId) {
 // identity sits on the LEFT side of the row (via vendorIcon's monochrome
 // mark using each vendor's actual logo silhouette). The right side is
 // uniform action language: Connect / Reconnect / Import / docs link / chevron.
-function renderRowAction(adapter, conn, { isPendingClient, isFileImport }) {
+function renderRowAction(adapter, conn, { isPendingClient, isFileImport, isSelfHostOnly }) {
   if (conn && adapter.legacyMigrationOnly) {
+    return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
+  }
+  if (isSelfHostOnly) {
     return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
   }
   if (conn && !conn.needsReauth) {
@@ -327,18 +342,44 @@ function renderRowAction(adapter, conn, { isPendingClient, isFileImport }) {
   return '';
 }
 
-function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
+function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isSelfHostOnly }) {
+  const privacyNotice = adapter.privacyNotice
+    ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.privacyNotice)}</p>`
+    : '';
   const migrationNotice = adapter.legacyMigrationOnly
     ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.deprecationNotice || 'This connection must be migrated.')}</p>`
     : '';
   if (conn && adapter.legacyMigrationOnly) {
     const acct = conn.account || {};
     const identity = escapeHTML(acct.email || acct.identity || 'Legacy Fitbit account');
+    const replacementId = adapter.replacementAdapterId || 'google_health';
+    const replacement = adapterById(replacementId);
+    const replacementAvailable = isOAuthAdapterConfigured(replacement);
+    const migrationAction = replacementAvailable
+      ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: replacementId })}>Connect Google Health</button>`
+      : `<p class="wearable-adapter-hint">Google Health connection is self-host only on this deployment. Configure your own Google Cloud OAuth project to migrate.${replacement?.authDocsUrl ? ` <a class="wearable-row-link" href="${escapeAttr(replacement.authDocsUrl)}" target="_blank" rel="noopener">Setup docs&nbsp;↗</a>` : ''}</p>`;
     return `<div class="wearable-adapter-identity">${identity}</div>
       ${migrationNotice}
+      ${replacementAvailable ? '' : migrationAction}
       <div class="wearable-adapter-actions">
-        <button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: adapter.replacementAdapterId || 'google_health' })}>Connect Google Health</button>
+        ${replacementAvailable ? migrationAction : ''}
         <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect legacy Fitbit</button>
+      </div>`;
+  }
+  // A connection created before the host disabled Google Health remains
+  // removable/revocable, but it must not offer sync, backfill, or reconnect.
+  if (conn && isSelfHostOnly) {
+    const acct = conn.account || {};
+    const identity = escapeHTML(acct.identity || acct.email || 'Google Health account');
+    const manageAccess = adapter.manageAccessUrl
+      ? `<a class="wearable-action" href="${escapeAttr(adapter.manageAccessUrl)}" target="_blank" rel="noopener">Revoke access everywhere&nbsp;↗</a>`
+      : '';
+    return `<div class="wearable-adapter-identity">${identity}</div>
+      ${privacyNotice}
+      <p class="wearable-adapter-hint">This deployment no longer provides Google Health access. Automatic and manual sync are paused. You can revoke Google access and remove this device's stored connection below.</p>
+      <div class="wearable-adapter-actions">
+        ${manageAccess}
+        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect</button>
       </div>`;
   }
   // Connected OAuth — identity + manage actions
@@ -358,8 +399,9 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
       || (acct['polar-user-id'] ? `User ${acct['polar-user-id']}` : '')
       || '(account verified)'
     );
-    const migrateAction = adapter.replacementAdapterId
-      ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: adapter.replacementAdapterId })}>Connect Google Health</button>`
+    const replacement = adapter.replacementAdapterId ? adapterById(adapter.replacementAdapterId) : null;
+    const migrateAction = replacement && isOAuthAdapterConfigured(replacement)
+      ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: replacement.id })}>Connect Google Health</button>`
       : '';
     return `<div class="wearable-adapter-identity">${identity}</div>
       <div class="wearable-adapter-meta">Last sync: ${escapeHTML(when)}</div>
@@ -414,6 +456,12 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
         <div class="apple-health-progress-text"></div>
       </div>
       <input type="file" id="apple-health-file-input" accept=".zip,.xml,application/zip,application/xml" style="display:none" ${wearableSettingsInputAttrs('apple-health-file')}>`;
+  }
+  if (isSelfHostOnly) {
+    const docs = adapter.authDocsUrl
+      ? ` <a class="wearable-row-link" href="${escapeAttr(adapter.authDocsUrl)}" target="_blank" rel="noopener">Setup docs&nbsp;↗</a>`
+      : '';
+    return `<p class="wearable-adapter-hint">Google Health is not offered by this hosted deployment. Self-host getbased and configure your own Google Cloud OAuth client ID and secret to enable it.${docs}</p>`;
   }
   // Pending OAuth client — explanation
   if (isPendingClient) {
@@ -509,7 +557,7 @@ async function _updateManualCounts() {
 function _oauthClientConfigFingerprint() {
   return visibleAdapters(Object.keys(listConnectedSources()))
     .filter(adapter => adapter.authType === 'oauth2')
-    .map(adapter => `${adapter.id}:${getOAuthClientId(adapter) || ''}`)
+    .map(adapter => `${adapter.id}:${getOAuthClientId(adapter) || ''}:${isOAuthAdapterConfigured(adapter)}`)
     .join('|');
 }
 
@@ -543,7 +591,12 @@ document.addEventListener('settings:wearables-rendered', () => {
 
 async function handleWearableConnect(adapterId) {
   try {
+    await loadWearableRuntimeConfig({ waitForFetch: true });
     if (adapterId === 'google_health') {
+      if (!isOAuthAdapterConfigured(adapterId)) {
+        showNotification?.('Google Health is self-host only on this deployment. Configure your own Google Cloud OAuth project to enable it.', 'info', 6000);
+        return;
+      }
       const consented = await confirmWearableSettingsAction(GOOGLE_HEALTH_CONNECT_DISCLOSURE, {
         confirmLabel: 'Continue to Google',
         tone: 'primary',
@@ -551,7 +604,6 @@ async function handleWearableConnect(adapterId) {
       });
       if (!consented) return;
     }
-    await loadWearableRuntimeConfig();
     beginConnectOAuth(adapterId);
     // beginOAuth navigates away — nothing else to do here.
   } catch (e) {

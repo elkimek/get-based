@@ -25,6 +25,7 @@ import {
   _isAllowedProxyUrl,
   _resolveCatalogRepo,
   _runPostDeployHooks,
+  collectWearableConfigured,
   collectWearableOverrides,
   WEARABLE_CLIENT_ID_VARS,
   DEFAULT_UVDATA_UPSTREAM,
@@ -374,7 +375,7 @@ assert('dev proxy operation classifier rejects ambiguous envelopes',
   assert('extracted dev proxy serves wearable runtime overrides',
     res.status === 200
       && res.headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN
-      && res.text() === '{"overrides":{"oura":"self-hosted-client"}}',
+      && res.text() === '{"overrides":{"oura":"self-hosted-client"},"configured":{"google_health":false}}',
     `${res.status} ${JSON.stringify(res.headers)} ${res.text()}`);
 }
 {
@@ -1045,6 +1046,21 @@ console.log('\n── collectWearableOverrides (issue #145) ──');
 {
   const out = collectWearableOverrides({ FITBIT_CLIENT_ID: 12345, WHOOP_CLIENT_ID: { foo: 'bar' } });
   assert('non-string env value is dropped', !('fitbit' in out) && !('whoop' in out));
+}
+
+{
+  assert('Google Health capability requires both deployment credentials',
+    collectWearableConfigured({
+      GOOGLE_HEALTH_ENABLED: 'true',
+      GOOGLE_HEALTH_CLIENT_ID: 'google-id',
+      GOOGLE_HEALTH_CLIENT_SECRET: 'google-secret',
+    }).google_health === true
+    && collectWearableConfigured({ GOOGLE_HEALTH_CLIENT_ID: 'google-id' }).google_health === false
+    && collectWearableConfigured({ GOOGLE_HEALTH_CLIENT_SECRET: 'google-secret' }).google_health === false
+    && collectWearableConfigured({
+      GOOGLE_HEALTH_CLIENT_ID: 'google-id',
+      GOOGLE_HEALTH_CLIENT_SECRET: 'google-secret',
+    }).google_health === false);
 }
 
 // All confidential/PKCE adapters covered — guards against typo regressions

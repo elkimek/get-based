@@ -8,7 +8,7 @@
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
-import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
+import { adapterById, applyOAuthConfigured, applyOAuthOverrides, getOAuthClientId, isOAuthAdapterConfigured } from './wearable-adapters.js';
 import { upsertDailyBatch, clearSource, setMeta, setMetaVersioned, getMeta, deleteMeta, countSource } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { fetchOuraDailyRange, fetchOuraPersonalInfo, daysAgoIso, isoDay } from './wearables-oura.js';
@@ -200,6 +200,7 @@ export function beginConnectOAuth(adapterId) {
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
   const oauth = adapter.oauth;
   if (!oauth) throw new Error(`Adapter ${adapterId} is missing OAuth configuration`);
+  if (adapter.id === 'google_health' && !isOAuthAdapterConfigured(adapter)) throw new Error('Google Health requires this deployment to use its own Google Cloud OAuth client.');
   const kick = OAUTH_DISPATCH[adapter.id]?.begin;
   if (!kick) throw new Error(`Unsupported OAuth adapter: ${adapter.id}`);
   kick({
@@ -406,6 +407,7 @@ export async function handleOAuthCallbackOnLoad() {
 // forced refresh — guards against the case where the access token expired
 // between our clock check and the actual API call.
 async function callWithRefresh(adapter, fetcher) {
+  if (adapter.id === 'google_health' && !isOAuthAdapterConfigured(adapter)) throw Object.assign(new Error('Google Health is unavailable on this deployment.'), { code: 'deployment-unavailable' });
   const profileId = getActiveProfileId();
   let conn = await hydratedConnection(adapter.id);
   if (!conn) throw new Error(`Not connected: ${adapter.id}`);
@@ -701,11 +703,12 @@ async function maybeSyncStaleSources() {
   // first scheduled refresh doesn't race the override and call the token
   // endpoint with a stale (hardcoded maintainer) clientId. Hosted users see
   // a no-op since the promise resolves immediately to {} overrides.
-  await runtimeConfigReady();
+  await loadWearableRuntimeConfig();
   const sources = getConnections();
   const now = Date.now();
   for (const [sid, conn] of Object.entries(sources)) {
     if (!connectionHasCredentials(sid, conn)) continue;
+    if (sid === 'google_health' && !isOAuthAdapterConfigured(sid)) continue;
     if (conn.needsReauth) continue;
     const last = conn.lastSyncAt || 0;
     if (now - last < STALE_MS) continue;
@@ -737,13 +740,10 @@ export function initWearableScheduler() {
 // ─────────────────────────────────────────────────────────
 // Runtime config (self-host OAuth client_id overrides)
 // ─────────────────────────────────────────────────────────
-//
-// The scheduler waits briefly for OAuth overrides; Settings may await the
-// full request so slow config still enables rows. A longer fetch timeout
-// releases a hung attempt so reopening Settings can retry.
+// The scheduler briefly waits for overrides; Settings can await the bounded
+// fetch so slow responses enable rows and failed/hung attempts stay retryable.
 
-const RUNTIME_CONFIG_TIMEOUT_MS = 1500;
-const RUNTIME_CONFIG_FETCH_TIMEOUT_MS = 10000;
+const RUNTIME_CONFIG_TIMEOUT_MS = 1500, RUNTIME_CONFIG_FETCH_TIMEOUT_MS = 10000;
 /** @type {Promise<void> | null} */ let _runtimeConfigFetchPromise = null;
 /** @type {Promise<void> | null} */ let _runtimeConfigPromise = null;
 /** @param {{ waitForFetch?: boolean }} [options] @returns {Promise<void>} */
@@ -763,27 +763,18 @@ export function loadWearableRuntimeConfig(options = {}) {
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.overrides) applyOAuthOverrides(data.overrides);
+        if (data && data.configured) applyOAuthConfigured(data.configured);
         loaded = true;
       } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
     })().finally(() => {
       clearTimeout(timeoutId);
       if (!loaded) _runtimeConfigFetchPromise = _runtimeConfigPromise = null;
     });
-    // Race the fetch against a soft timeout so the scheduler never blocks
-    // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
-    // resolves. The fetch itself continues in the background — Settings can
-    // explicitly await it so a slow response still enables configured rows.
+    // The scheduler uses a soft timeout; Settings can await the full fetch.
     const timeoutPromise = /** @type {Promise<void>} */ (new Promise(
       resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS)));
     _runtimeConfigPromise = Promise.race([_runtimeConfigFetchPromise, timeoutPromise]);
   }
   return options.waitForFetch ? _runtimeConfigFetchPromise
     : /** @type {Promise<void>} */ (_runtimeConfigPromise);
-}
-
-// Used by the scheduler to gate its first sync. If main.js skipped the
-// bootstrap call (test contexts, embedded usage), this resolves promptly
-// so the scheduler isn't blocked forever.
-function runtimeConfigReady() {
-  return _runtimeConfigPromise || Promise.resolve();
 }

@@ -34,6 +34,7 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
           await new Promise(resolve => setTimeout(resolve, 25));
           return new Response(JSON.stringify({
             overrides: { google_health: 'hosted-google-health-client' },
+            configured: { google_health: true },
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
@@ -45,15 +46,15 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
       const initialRow = document.querySelector('[data-adapter="google_health"]');
-      const initiallyWaiting = initialRow?.textContent.includes('waiting on partner credentials');
+      const initiallySelfHostOnly = initialRow?.textContent.includes('self-host only');
       const initiallyHasConnect = Boolean(initialRow
         ?.querySelector('[data-wearable-settings-action="connect"]'));
 
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       while (runtimeConfigCalls < 1) await new Promise(resolve => setTimeout(resolve, 10));
       await new Promise(resolve => setTimeout(resolve, 0));
-      const afterFailureStillWaiting = document.querySelector('[data-adapter="google_health"]')
-        ?.textContent.includes('waiting on partner credentials');
+      const afterFailureStillSelfHostOnly = document.querySelector('[data-adapter="google_health"]')
+        ?.textContent.includes('self-host only');
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       while (!hangingRequestAborted) await new Promise(resolve => setTimeout(resolve, 10));
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -67,9 +68,9 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       const configuredRow = document.querySelector('[data-adapter="google_health"]');
       return {
         runtimeConfigCalls,
-        initiallyWaiting,
+        initiallySelfHostOnly,
         initiallyHasConnect,
-        afterFailureStillWaiting,
+        afterFailureStillSelfHostOnly,
         hangingRequestAborted,
         configuredText: configuredRow?.textContent || '',
         configuredHasConnect: Boolean(configuredRow
@@ -84,9 +85,9 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
 
   expect(result).toMatchObject({
     runtimeConfigCalls: 3,
-    initiallyWaiting: true,
+    initiallySelfHostOnly: true,
     initiallyHasConnect: false,
-    afterFailureStillWaiting: true,
+    afterFailureStillSelfHostOnly: true,
     hangingRequestAborted: true,
     configuredHasConnect: true,
   });
@@ -225,10 +226,11 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       check('strip visible toggle starts checked', toggle?.checked === true);
       check('connected OAuth row renders status and identity',
         ouraRow?.textContent.includes('connected') && ouraRow?.textContent.includes('oura@example.test'));
-      check('legacy Fitbit reauth state routes to Google Health migration',
+      check('legacy Fitbit reauth state explains self-host Google Health migration',
         fitbitRow?.textContent.includes('migration required')
-        && fitbitRow?.textContent.includes('Connect Google Health')
+        && fitbitRow?.textContent.includes('self-host only')
         && fitbitRow?.textContent.includes('Disconnect legacy Fitbit')
+        && !fitbitRow?.textContent.includes('Connect Google Health')
         && !fitbitRow?.textContent.includes('Reconnect'));
       const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
       check('pending client row renders native docs link in detail drawer',

@@ -44,8 +44,8 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     performance.setResourceTimingBufferSize(2000);
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-23T00:00:00.000Z',
       appVersion: 'cold-load-budget',
       location: 'cold-load-budget',
@@ -343,8 +343,8 @@ test('first data-backed Dashboard loads Health and Data once without duplicate m
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-23T00:00:00.000Z',
       appVersion: 'health-data-lazy-load',
       location: 'health-data-lazy-load',
@@ -424,8 +424,8 @@ test('first Chat action loads the composition once and opens the panel', async (
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-23T00:00:00.000Z',
       appVersion: 'chat-lazy-load',
       location: 'chat-lazy-load',
@@ -480,8 +480,8 @@ test('first Light route loads the feature once and renders end to end', async ({
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-23T00:00:00.000Z',
       appVersion: 'light-lazy-load',
       location: 'light-lazy-load',
@@ -525,8 +525,8 @@ test('startup loads Light presets only when persisted devices need hydration', a
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-23T00:00:00.000Z',
       appVersion: 'light-device-hydration',
       location: 'light-device-hydration',

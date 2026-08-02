@@ -24,6 +24,7 @@ const ENV_KEYS = [
   'WHOOP_CLIENT_ID',
   'FITBIT_CLIENT_ID',
   'GOOGLE_HEALTH_CLIENT_ID',
+  'GOOGLE_HEALTH_ENABLED',
   'OURA_CLIENT_SECRET',
   'WITHINGS_CLIENT_SECRET',
   'ULTRAHUMAN_CLIENT_SECRET',
@@ -779,13 +780,24 @@ describe('AI proxy runtime behavior', () => {
         fitbit: 'fitbit-selfhost',
         google_health: 'google-health-selfhost',
       },
+      configured: { google_health: false },
     });
 
+    process.env.GOOGLE_HEALTH_CLIENT_SECRET = 'google-health-secret';
+    process.env.GOOGLE_HEALTH_ENABLED = 'true';
     const selfHosted = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }, {
       origin: 'https://health.example.net',
       requestUrl: 'https://health.example.net/api/proxy',
     }));
     expect(selfHosted.status).toBe(200);
+    expect(await responseJson(selfHosted)).toEqual({
+      overrides: {
+        oura: 'oura-selfhost',
+        fitbit: 'fitbit-selfhost',
+        google_health: 'google-health-selfhost',
+      },
+      configured: { google_health: true },
+    });
   });
 
   it('fails closed when a hosted deployment has no distributed proxy limiter', async () => {
@@ -1279,6 +1291,18 @@ describe('AI proxy runtime behavior', () => {
       refresh_token: 'polar-refresh',
     });
 
+    const googleDisabled = await proxyHandler(makeProxyRequest({
+      google_health_token_exchange: {
+        code: 'google-code',
+        redirect_uri: 'https://app/cb',
+        client_id: 'google-client',
+      },
+    }));
+    expect(googleDisabled.status).toBe(503);
+    expect(await responseJson(googleDisabled)).toEqual({ error: 'Google Health is disabled on this deployment' });
+
+    process.env.GOOGLE_HEALTH_CLIENT_ID = 'google-client';
+    process.env.GOOGLE_HEALTH_ENABLED = 'true';
     const googleHealth = await proxyHandler(makeProxyRequest({
       google_health_token_exchange: {
         code: 'google-code',
