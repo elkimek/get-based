@@ -128,6 +128,12 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('Google Health changelog explains the self-host limit and Fitbit transition in user-readable terms',
+  /version:\s*'1\.11\.1'[\s\S]{0,500}Google Health support for self-hosted setups/.test(changelogSrc)
+    && /version:\s*'1\.11\.1'[\s\S]{0,1800}not available in the official hosted app/.test(changelogSrc)
+    && /version:\s*'1\.11\.1'[\s\S]{0,1800}Fitbit is moving to Google Health/.test(changelogSrc)
+    && /version:\s*'1\.11\.1'[\s\S]{0,1800}September 2026/.test(changelogSrc)
+    && /version:\s*'1\.11\.1'[\s\S]{0,2200}Fitbit devices will continue to work through Google Health/.test(changelogSrc));
 assert('latest changelog launches Voice in high-level user-readable terms',
   /version:\s*'1\.11\.0'[\s\S]{0,500}Talk and listen in Chat/.test(changelogSrc)
     && /version:\s*'1\.11\.0'[\s\S]{0,1600}Chat now supports voice/.test(changelogSrc)
