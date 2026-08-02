@@ -5,11 +5,19 @@ test('Google Health stays optional/direct-first and uses the browser credential 
     contentType: 'text/html',
     body: '<!doctype html><html><body></body></html>',
   }));
+  await page.route('**/api/proxy', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ overrides: {}, configured: { google_health: false } }),
+  }));
   await page.goto('/google-health-browser-coverage', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    const { applyOAuthOverrides, visibleAdapters } = await import('/js/wearable-adapters.js');
+    const {
+      applyOAuthConfigured,
+      applyOAuthOverrides,
+      visibleAdapters,
+    } = await import('/js/wearable-adapters.js');
     const {
       GOOGLE_HEALTH_CONNECT_DISCLOSURE,
       renderWearablesSettingsSection,
@@ -47,13 +55,10 @@ test('Google Health stays optional/direct-first and uses the browser credential 
       },
     });
     await wearableSettingsActionHandlers.handleWearableConnect('google_health');
-    settingsRuntime.configureWearableSettingsRuntimeDeps(previousSettingsRuntime);
-    const cancelledBeforeOAuth = !sessionStorage.getItem('google_health-oauth-pending');
+    const unconfiguredSkippedDisclosure = consentMessages.length === 0;
 
     const visible = visibleAdapters([]).map(adapter => adapter.id);
     const legacyVisible = visibleAdapters(['fitbit']).map(adapter => adapter.id);
-    const pendingClientHtml = renderWearablesSettingsSection();
-    applyOAuthOverrides({ google_health: 'google-browser-client' });
     const html = renderWearablesSettingsSection();
     state.importedData.wearableConnections.fitbit = {
       accessToken: 'legacy-fitbit-token',
@@ -63,6 +68,13 @@ test('Google Health stays optional/direct-first and uses the browser credential 
     };
     const migrationHtml = renderWearablesSettingsSection();
     delete state.importedData.wearableConnections.fitbit;
+
+    applyOAuthOverrides({ google_health: 'self-host-google-client' });
+    applyOAuthConfigured({ google_health: true });
+    const configuredHtml = renderWearablesSettingsSection();
+    await wearableSettingsActionHandlers.handleWearableConnect('google_health');
+    settingsRuntime.configureWearableSettingsRuntimeDeps(previousSettingsRuntime);
+    const cancelledBeforeOAuth = !sessionStorage.getItem('google_health-oauth-pending');
 
     await saveWearableCredentials(profileId, 'google_health', {
       accessToken: 'browser-access-secret',
@@ -98,11 +110,13 @@ test('Google Health stays optional/direct-first and uses the browser credential 
       visible,
       legacyVisible,
       hasGoogleRow: html.includes('data-adapter="google_health"'),
-      keepsDisconnectedRowCompact: html.includes('optional health hub')
-        && html.includes('Connect')
-        && !html.includes('supported Fitbit and Pixel Watch connection')
-        && !html.includes('Vercel proxy'),
-      hasCredentialWarning: pendingClientHtml.includes('approved OAuth client'),
+      hasOptionalCopy: html.includes('When enabled by a self-hosted deployment')
+        && html.includes('Fitbit and Pixel Watch')
+        && html.includes('Independent direct integrations remain available'),
+      hasSelfHostCopy: html.includes('self-host only')
+        && html.includes('not offered by this hosted deployment')
+        && !html.includes('aria-label="Connect Google Health"'),
+      unconfiguredSkippedDisclosure,
       consentDisclosureIsComplete: consentMessages.length === 1
         && consentMessages[0] === GOOGLE_HEALTH_CONNECT_DISCLOSURE
         && consentMessages[0].includes('No write access is requested')
@@ -110,8 +124,10 @@ test('Google Health stays optional/direct-first and uses the browser credential 
         && consentMessages[0].includes('Disconnecting deletes'),
       cancelledBeforeOAuth,
       hasLegacyMigrationAction: migrationHtml.includes('migration required')
-        && migrationHtml.includes('Connect Google Health')
+        && migrationHtml.includes('self-host only')
+        && !migrationHtml.includes('Connect Google Health</button>')
         && migrationHtml.includes('September 2026'),
+      configuredHasConnect: configuredHtml.includes('aria-label="Connect Google Health"'),
       credentials,
       encryptedRecordHasPlaintext: JSON.stringify(record).includes('browser-access-secret'),
       keyIsNonExtractable: key instanceof CryptoKey && key.extractable === false,
@@ -127,11 +143,13 @@ test('Google Health stays optional/direct-first and uses the browser credential 
   });
 
   expect(result.hasGoogleRow).toBe(true);
-  expect(result.keepsDisconnectedRowCompact).toBe(true);
-  expect(result.hasCredentialWarning).toBe(true);
+  expect(result.hasOptionalCopy).toBe(true);
+  expect(result.hasSelfHostCopy).toBe(true);
+  expect(result.unconfiguredSkippedDisclosure).toBe(true);
   expect(result.consentDisclosureIsComplete).toBe(true);
   expect(result.cancelledBeforeOAuth).toBe(true);
   expect(result.hasLegacyMigrationAction).toBe(true);
+  expect(result.configuredHasConnect).toBe(true);
   expect(result.visible.indexOf('google_health')).toBeGreaterThan(result.visible.indexOf('polar'));
   expect(result.visible.indexOf('google_health')).toBeLessThan(result.visible.indexOf('manual'));
   expect(result.visible).not.toContain('fitbit');
@@ -202,6 +220,7 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
     };
 
     const connect = await import('/js/wearables-connect.js');
+    const adapters = await import('/js/wearable-adapters.js');
     const { getConfiguredArrayItemId } = await import('/js/data-merge.js');
     const { renderWearablesSettingsSection } = await import('/js/wearables-settings-panel.js');
     const { loadWearableCredentials } = await import('/js/wearables-credential-vault.js');
@@ -209,6 +228,8 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
     const handled = await connect.handleOAuthCallbackOnLoad();
     const connection = connect.getConnection('google_health');
     const connectedOnThisDevice = Boolean(connect.listConnectedSources().google_health);
+    adapters.applyOAuthOverrides({ google_health: 'google-browser-client' });
+    adapters.applyOAuthConfigured({ google_health: true });
     const connectedHtml = renderWearablesSettingsSection();
     const profileJson = JSON.stringify(state.importedData);
     const vaulted = await loadWearableCredentials(profileId, 'google_health');

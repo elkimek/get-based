@@ -11,12 +11,13 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.11.1', date: '2026-08-01', title: 'Google Health migration with explicit privacy controls',
+    version: '1.11.1', date: '2026-08-01', title: 'Google Health support for self-hosted setups',
     forceShow: true,
     items: [
-      '<b>Google Health is now the supported Fitbit and Pixel Watch connection.</b> Existing direct integrations remain separate, first-class choices, while legacy Fitbit users get a migration path before the old API closes.',
-      '<b>Google Health access is read-only and disclosed before connection.</b> The consent step explains the requested data categories, local encryption, hosted proxy transit, optional sync/AI context, deletion, and account-wide revocation.',
-      '<b>Terms and Privacy have been updated.</b> The public policy now documents Google Health access, use, storage, sharing, retention, deletion, and Limited Use commitments; existing browsers are asked to review the new versions.',
+      '<b>Google Health can be enabled when you self-host getbased.</b> Use your own Google Cloud project to connect Fitbit, Pixel Watch, and other supported data in your Google account.',
+      '<b>Google Health is not available in the official hosted app.</b> It remains visible in Wearable Settings so the option is discoverable, but it is clearly marked “self-host only” and cannot be connected there.',
+      '<b>Existing wearable choices remain independent.</b> Direct integrations continue to work as before and take priority over the same data received through Google Health. Legacy Fitbit connections can still be managed, but migration to Google Health requires a configured self-hosted setup.',
+      '<b>Google Health access remains read-only and transparent.</b> When enabled, getbased explains what is requested, how the data is protected, where requests travel, and how to disconnect or revoke access. Terms and Privacy document these protections in full.',
     ]
   },
   {

@@ -127,9 +127,10 @@ export async function handler(req) {
 
   // ─── Self-host OAuth client_id overrides ───────────────────────
   // Surfaces *_CLIENT_ID env vars to the browser so self-hosters can run
-  // their own OAuth apps without patching js/wearable-adapters.js. Hosted
-  // production deploys leave these unset → empty map → hardcoded values
-  // win. See issue #145.
+  // their own OAuth apps without patching js/wearable-adapters.js. Google
+  // Health is enabled only when this deployment explicitly opts in and
+  // provides both credentials; only the boolean capability and public client
+  // ID reach the browser.
   if (payload.wearable_runtime_config) {
     const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
     const overrides = {};
@@ -145,7 +146,12 @@ export async function handler(req) {
       const v = env[key];
       if (typeof v === 'string' && v.trim()) overrides[id] = v.trim();
     }
-    return new Response(JSON.stringify({ overrides }), {
+    const hasEnv = key => typeof env[key] === 'string' && env[key].trim();
+    const configured = {
+      google_health: env.GOOGLE_HEALTH_ENABLED === 'true'
+        && Boolean(hasEnv('GOOGLE_HEALTH_CLIENT_ID') && hasEnv('GOOGLE_HEALTH_CLIENT_SECRET')),
+    };
+    return new Response(JSON.stringify({ overrides, configured }), {
       status: 200,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
@@ -541,10 +547,12 @@ async function handlePolarTokenRequest(payload, req) {
 //   { google_health_token_exchange: { code, redirect_uri, client_id } }
 //   { google_health_token_refresh:  { refresh_token, client_id } }
 async function handleGoogleHealthTokenRequest(payload, req) {
-  const secret = typeof process !== 'undefined' ? process.env?.GOOGLE_HEALTH_CLIENT_SECRET : undefined;
-  if (!secret) {
-    return new Response(JSON.stringify({ error: 'GOOGLE_HEALTH_CLIENT_SECRET not configured on this deployment' }), {
-      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+  const env = typeof process !== 'undefined' ? process.env : {};
+  const secret = env?.GOOGLE_HEALTH_CLIENT_SECRET;
+  const clientId = env?.GOOGLE_HEALTH_CLIENT_ID;
+  if (env?.GOOGLE_HEALTH_ENABLED !== 'true' || !secret || !clientId) {
+    return new Response(JSON.stringify({ error: 'Google Health is disabled on this deployment' }), {
+      status: 503, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 

@@ -303,7 +303,7 @@ export const ADAPTERS = [
     betaHidden: true,
     legacyMigrationOnly: true,
     replacementAdapterId: 'google_health',
-    deprecationNotice: 'The legacy Fitbit Web API stops syncing in September 2026. Connect Google Health now, confirm its backfill, then disconnect this legacy connection.',
+    deprecationNotice: 'The legacy Fitbit Web API stops syncing in September 2026. Google Health is the replacement on deployments configured with their own Google Cloud OAuth project.',
     oauth: {
       // Fitbit Web API Client ID (public value — PKCE flow, no client_secret).
       // Registered at dev.fitbit.com as OAuth 2.0 Application Type = Client
@@ -334,14 +334,16 @@ export const ADAPTERS = [
   },
 
   {
-    // The supported Fitbit/Pixel path and an optional aggregation connector
-    // for other sources. It does not replace independent direct integrations
-    // such as Oura, Withings, WHOOP, Ultrahuman, or Polar.
+    // Self-host-capable Fitbit/Pixel path and optional aggregation connector
+    // for other sources. The official hosted deployment leaves it disabled.
+    // It does not replace independent direct integrations such as Oura,
+    // Withings, WHOOP, Ultrahuman, or Polar.
     id: 'google_health',
     displayName: 'Google Health',
     authType: 'oauth2',
     integrationKind: 'aggregator',
     authDocsUrl: 'https://developers.google.com/health/setup',
+    manageAccessUrl: 'https://myaccount.google.com/connections',
     beta: true,
     oauth: {
       // Google Health requires a confidential Web Server OAuth client. The
@@ -364,6 +366,7 @@ export const ADAPTERS = [
     },
     apiHost: 'health.googleapis.com',
     dataMode: 'reconciled',
+    privacyNotice: 'When enabled by a self-hosted deployment, Google Health connects Fitbit and Pixel Watch and can act as an optional hub for other sources in your Google account. Independent direct integrations remain available and win same-day automatic source selection. OAuth tokens and imported daily rows are always encrypted on this device; token refreshes and Google API requests transit that deployment’s proxy. Each browser must be connected separately. Revoke access everywhere from your Google Account.',
     metrics: {
       hrv_rmssd:          { endpoint: 'v4/users/me/dataTypes/daily-heart-rate-variability/dataPoints:reconcile', field: 'deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds' },
       rhr:                { endpoint: 'v4/users/me/dataTypes/daily-resting-heart-rate/dataPoints:reconcile', field: 'beatsPerMinute' },
@@ -548,7 +551,7 @@ export function adapterById(id) {
 }
 
 // ─────────────────────────────────────────────────────────
-// OAuth client_id runtime overrides (self-host support)
+// OAuth runtime configuration (self-host support)
 // ─────────────────────────────────────────────────────────
 //
 // The clientId baked into each adapter above is the maintainer's OAuth app
@@ -556,12 +559,14 @@ export function adapterById(id) {
 // Withings / Polar / etc. apps need their own client_id to match their own
 // client_secret — otherwise the provider returns invalid_client.
 //
-// The browser asks /api/proxy for a `wearable_runtime_config` map at startup;
+// The browser asks /api/proxy for `wearable_runtime_config` at startup;
 // dev-server.js + api/proxy.js read OURA_CLIENT_ID / WITHINGS_CLIENT_ID / …
-// from env and surface them here. Missing entries fall back to the hardcoded
-// maintainer values, so hosted users see no change.
+// from env and surface public client IDs here. Google Health additionally
+// requires an explicit server-computed `configured` flag: Connect is enabled
+// only when that deployment opts in and has both its own client ID and secret.
 
 const _oauthOverrides = Object.create(null);
+const _oauthConfigured = Object.create(null);
 
 export function applyOAuthOverrides(overrides) {
   if (!overrides || typeof overrides !== 'object') return;
@@ -572,15 +577,35 @@ export function applyOAuthOverrides(overrides) {
   }
 }
 
+export function applyOAuthConfigured(configured) {
+  if (!configured || typeof configured !== 'object') return;
+  for (const [id, value] of Object.entries(configured)) {
+    if (typeof value === 'boolean') _oauthConfigured[id] = value;
+  }
+}
+
 export function getOAuthClientId(adapterOrId) {
   const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
   if (!adapter) return null;
   return _oauthOverrides[adapter.id] || adapter.oauth?.clientId || null;
 }
 
+export function isOAuthAdapterConfigured(adapterOrId) {
+  const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
+  if (!adapter || adapter.authType !== 'oauth2') return false;
+  const clientId = getOAuthClientId(adapter);
+  if (!clientId || clientId.startsWith('REPLACE_WITH_')) return false;
+  // Google Health uses restricted scopes and a confidential web client. It is
+  // intentionally unavailable unless this deployment explicitly opts in and
+  // proves that both halves of its OAuth client exist; the secret stays server-side.
+  if (adapter.id === 'google_health') return _oauthConfigured.google_health === true;
+  return true;
+}
+
 // Test/debug surface — never relied on by production code paths.
 export function _resetOAuthOverrides() {
   for (const k of Object.keys(_oauthOverrides)) delete _oauthOverrides[k];
+  for (const k of Object.keys(_oauthConfigured)) delete _oauthConfigured[k];
 }
 
 // Filter the registry for the Settings → Wearables list. Hides any adapter

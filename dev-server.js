@@ -21,6 +21,7 @@ import {
 import {
   DEFAULT_UVDATA_UPSTREAM,
   WEARABLE_CLIENT_ID_VARS,
+  collectWearableConfigured,
   collectWearableOverrides,
   _sendCappedProxyResponse as sendCappedProxyResponse,
   handleDevApiProxy,
@@ -37,6 +38,7 @@ import { handleDevVoiceRelay } from './lib/dev-voice-relay.js';
 export {
   DEFAULT_UVDATA_UPSTREAM,
   WEARABLE_CLIENT_ID_VARS,
+  collectWearableConfigured,
   collectWearableOverrides,
   _isValidCatalogShape,
   _resolveCatalogRepo,

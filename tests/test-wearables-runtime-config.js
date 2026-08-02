@@ -32,6 +32,8 @@ const reg = await import('../js/wearable-adapters.js');
     reg.getOAuthClientId('withings') === baseline.withings);
   assert('getOAuthClientId by adapter object equals by id',
     reg.getOAuthClientId(reg.adapterById('oura')) === reg.getOAuthClientId('oura'));
+  assert('Google Health is disabled without deployment capability',
+    reg.isOAuthAdapterConfigured('google_health') === false);
 
   // 2. applyOAuthOverrides — single override, single adapter affected.
   reg.applyOAuthOverrides({ oura: 'self-host-oura-id-123' });
@@ -88,7 +90,26 @@ const reg = await import('../js/wearable-adapters.js');
   assert('Self-host override lifts the REPLACE_WITH_ gate',
     !effectiveWhoop.startsWith('REPLACE_WITH_') && effectiveWhoop === 'real-whoop-self-id');
 
+  // 9. Google Health requires both a public client ID override and the
+  //    server-computed capability proving its matching secret is present.
+  reg.applyOAuthOverrides({ google_health: 'self-host-google-id' });
+  assert('Google Health client ID alone does not enable Connect',
+    reg.isOAuthAdapterConfigured('google_health') === false);
+  reg.applyOAuthConfigured({ google_health: true });
+  assert('Google Health capability plus client ID enables Connect',
+    reg.isOAuthAdapterConfigured('google_health') === true);
+  reg.applyOAuthConfigured({ google_health: false });
+  assert('Google Health false capability disables Connect again',
+    reg.isOAuthAdapterConfigured('google_health') === false);
+  reg.applyOAuthConfigured(null);
+  reg.applyOAuthConfigured({ google_health: 'yes' });
+  assert('Invalid capability values are ignored',
+    reg.isOAuthAdapterConfigured('google_health') === false);
+
   reg._resetOAuthOverrides();
+  assert('Runtime reset clears Google Health capability and overrides',
+    reg.isOAuthAdapterConfigured('google_health') === false
+      && reg.getOAuthClientId('google_health') === baseline.google_health);
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

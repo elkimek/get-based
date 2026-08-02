@@ -8,7 +8,13 @@
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
-import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
+import {
+  adapterById,
+  applyOAuthConfigured,
+  applyOAuthOverrides,
+  getOAuthClientId,
+  isOAuthAdapterConfigured,
+} from './wearable-adapters.js';
 import { upsertDailyBatch, clearSource, setMeta, setMetaVersioned, getMeta, deleteMeta, countSource } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { fetchOuraDailyRange, fetchOuraPersonalInfo, daysAgoIso, isoDay } from './wearables-oura.js';
@@ -200,6 +206,9 @@ export function beginConnectOAuth(adapterId) {
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
   const oauth = adapter.oauth;
   if (!oauth) throw new Error(`Adapter ${adapterId} is missing OAuth configuration`);
+  if (adapter.id === 'google_health' && !isOAuthAdapterConfigured(adapter)) {
+    throw new Error('Google Health requires this deployment to use its own Google Cloud OAuth client.');
+  }
   const kick = OAUTH_DISPATCH[adapter.id]?.begin;
   if (!kick) throw new Error(`Unsupported OAuth adapter: ${adapter.id}`);
   kick({
@@ -406,6 +415,12 @@ export async function handleOAuthCallbackOnLoad() {
 // forced refresh — guards against the case where the access token expired
 // between our clock check and the actual API call.
 async function callWithRefresh(adapter, fetcher) {
+  if (adapter.id === 'google_health' && !isOAuthAdapterConfigured(adapter)) {
+    /** @type {Error & { code?: string }} */
+    const error = new Error('Google Health is unavailable on this deployment.');
+    error.code = 'deployment-unavailable';
+    throw error;
+  }
   const profileId = getActiveProfileId();
   let conn = await hydratedConnection(adapter.id);
   if (!conn) throw new Error(`Not connected: ${adapter.id}`);
@@ -706,6 +721,7 @@ async function maybeSyncStaleSources() {
   const now = Date.now();
   for (const [sid, conn] of Object.entries(sources)) {
     if (!connectionHasCredentials(sid, conn)) continue;
+    if (sid === 'google_health' && !isOAuthAdapterConfigured(sid)) continue;
     if (conn.needsReauth) continue;
     const last = conn.lastSyncAt || 0;
     if (now - last < STALE_MS) continue;
@@ -763,6 +779,7 @@ export function loadWearableRuntimeConfig(options = {}) {
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.overrides) applyOAuthOverrides(data.overrides);
+        if (data && data.configured) applyOAuthConfigured(data.configured);
         loaded = true;
       } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
     })().finally(() => {
