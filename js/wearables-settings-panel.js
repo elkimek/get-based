@@ -352,10 +352,11 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isSelfH
   if (conn && adapter.legacyMigrationOnly) {
     const acct = conn.account || {};
     const identity = escapeHTML(acct.email || acct.identity || 'Legacy Fitbit account');
-    const replacement = adapterById(adapter.replacementAdapterId || 'google_health');
+    const replacementId = adapter.replacementAdapterId || 'google_health';
+    const replacement = adapterById(replacementId);
     const replacementAvailable = isOAuthAdapterConfigured(replacement);
     const migrationAction = replacementAvailable
-      ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: replacement.id })}>Connect Google Health</button>`
+      ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: replacementId })}>Connect Google Health</button>`
       : `<p class="wearable-adapter-hint">Google Health connection is self-host only on this deployment. Configure your own Google Cloud OAuth project to migrate.${replacement?.authDocsUrl ? ` <a class="wearable-row-link" href="${escapeAttr(replacement.authDocsUrl)}" target="_blank" rel="noopener">Setup docs&nbsp;↗</a>` : ''}</p>`;
     return `<div class="wearable-adapter-identity">${identity}</div>
       ${migrationNotice}
