@@ -17,6 +17,7 @@ const CHANGELOG = [
       '<b>The official hosted app stays focused on integrations it can support.</b> WHOOP and Ultrahuman are hidden there unless the deployment is fully configured; localhost shows disabled setup rows so developers can discover and prepare them.',
       '<b>WHOOP sign-in now keeps its client secret on the server.</b> Token exchange and refresh follow WHOOP\'s confidential OAuth flow instead of treating the browser as a public client.',
       '<b>Existing connections stay manageable.</b> If an operator later disables one of these integrations, syncing pauses while the user can still remove the local connection.',
+      '<b>Wearable Settings is easier to scan.</b> Connected sources and migration warnings appear first, followed by available providers, self-host integrations, and import or manual-entry options.',
     ]
   },
   {

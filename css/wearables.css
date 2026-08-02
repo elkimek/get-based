@@ -519,14 +519,50 @@
 
 /* Settings — wearable adapter list (Slack/Notion-style integrations row).
    Each vendor gets one row; connected vendors expand a details drawer. */
+.wearables-adapter-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 16px;
+}
+.wearables-adapter-group-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px;
+}
+.wearables-adapter-group-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.wearables-adapter-group-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
 .wearables-adapter-list {
   display: flex;
   flex-direction: column;
-  margin-top: 10px;
+  margin-top: 8px;
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
   background: var(--bg-primary);
+}
+@media (max-width: 600px) {
+  .wearables-adapter-group-heading {
+    display: block;
+  }
+  .wearables-adapter-group-hint {
+    margin-top: 2px;
+    text-align: left;
+  }
 }
 .wearable-row {
   border-bottom: 1px solid var(--border);

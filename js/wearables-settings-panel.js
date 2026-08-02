@@ -13,6 +13,7 @@ import {
   isOAuthAdapterConfigured,
 } from './wearable-adapters.js';
 import { brandMarkMono } from './brand-assets.js';
+import { groupWearableAdapters } from './wearables-settings-groups.js';
 import {
   beginConnectOAuth,
   backfillWearable,
@@ -200,8 +201,12 @@ function vendorIcon(adapterId, opts = {}) {
 
 export function renderWearablesSettingsSection() {
   const connected = listConnectedSources();
-  const rows = visibleAdapters(Object.keys(connected))
-    .map(a => renderAdapterRow(a, !!connected[a.id])).join('');
+  const groups = groupWearableAdapters(
+    visibleAdapters(Object.keys(connected)),
+    connected,
+    connectedAdapterNeedsAttention,
+  );
+  const groupMarkup = groups.map(group => renderAdapterGroup(group, connected)).join('');
   const hidden = isWearableStripHidden();
   // BETA badge moves out of every row to a single section-level note. Every
   // wearable adapter is currently beta — the per-row chip was redundant.
@@ -216,10 +221,29 @@ export function renderWearablesSettingsSection() {
     </label>
   </div>
   <div class="settings-section-header" style="display:block">
-    <div class="settings-section-title" style="display:block;margin-bottom:4px">Connected devices</div>
-    <div class="settings-section-hint" style="display:block">Imported history is stored on this device; a compact summary + anomaly events sync to your other devices. Connecting a cloud provider contacts that provider's API. All integrations are <em>beta</em> — please report issues.</div>
+    <div class="settings-section-title" style="display:block;margin-bottom:4px">Health data sources</div>
+    <div class="settings-section-hint" style="display:block">Connected sources appear first; other providers are grouped by setup path. Imported history is stored on this device, while connecting a cloud provider contacts that provider's API. All integrations are <em>beta</em> — please report issues.</div>
   </div>
-  <div class="wearables-adapter-list">${rows}</div>`;
+  <div class="wearables-adapter-groups">${groupMarkup}</div>`;
+}
+
+function connectedAdapterNeedsAttention(adapter) {
+  const connection = getConnection(adapter.id);
+  return adapter.legacyMigrationOnly
+    || connection?.needsReauth
+    || (adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter));
+}
+
+function renderAdapterGroup(group, connected) {
+  const headingId = `wearables-group-${group.id}`;
+  const rows = group.items.map(adapter => renderAdapterRow(adapter, !!connected[adapter.id])).join('');
+  return `<section class="wearables-adapter-group" data-wearable-group="${escapeAttr(group.id)}" aria-labelledby="${headingId}">
+    <div class="wearables-adapter-group-heading">
+      <h3 class="wearables-adapter-group-title" id="${headingId}">${escapeHTML(group.title)}</h3>
+      <p class="wearables-adapter-group-hint">${escapeHTML(group.hint)}</p>
+    </div>
+    <div class="wearables-adapter-list">${rows}</div>
+  </section>`;
 }
 
 // Each adapter renders as a single horizontal row:
