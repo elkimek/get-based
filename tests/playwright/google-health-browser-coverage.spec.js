@@ -110,9 +110,8 @@ test('Google Health stays optional/direct-first and uses the browser credential 
       visible,
       legacyVisible,
       hasGoogleRow: html.includes('data-adapter="google_health"'),
-      hasOptionalCopy: html.includes('When enabled by a self-hosted deployment')
-        && html.includes('Fitbit and Pixel Watch')
-        && html.includes('Independent direct integrations remain available'),
+      hostedOmitsSelfHostDataHandlingCopy: !html.includes('When enabled by a self-hosted deployment')
+        && !html.includes('Independent direct integrations remain available'),
       hasSelfHostCopy: html.includes('self-host only')
         && html.includes('not offered by this hosted deployment')
         && !html.includes('aria-label="Connect Google Health"'),
@@ -143,7 +142,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
   });
 
   expect(result.hasGoogleRow).toBe(true);
-  expect(result.hasOptionalCopy).toBe(true);
+  expect(result.hostedOmitsSelfHostDataHandlingCopy).toBe(true);
   expect(result.hasSelfHostCopy).toBe(true);
   expect(result.unconfiguredSkippedDisclosure).toBe(true);
   expect(result.consentDisclosureIsComplete).toBe(true);

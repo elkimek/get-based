@@ -18,7 +18,7 @@ const CHANGELOG = [
       '<b>Google Health is not available in the official hosted app.</b> It remains visible in Wearable Settings so the option is discoverable, but it is clearly marked “self-host only” and cannot be connected there.',
       '<b>Fitbit is moving to Google Health.</b> Google will turn off the legacy Fitbit connection in September 2026, so it is no longer offered to new users. Existing connections remain visible temporarily for migration or disconnection; Fitbit devices will continue to work through Google Health on configured self-hosted setups.',
       '<b>Other wearable connections remain independent.</b> Direct integrations continue to work as before and take priority over the same data received through Google Health.',
-      '<b>Google Health access remains read-only and transparent.</b> When enabled, getbased explains what is requested, how the data is protected, where requests travel, and how to disconnect or revoke access. Terms and Privacy document these protections in full.',
+      '<b>Self-hosted Google Health connections remain read-only and transparent.</b> Before connecting, getbased explains what is requested, how the data is protected, where requests travel, and how to disconnect or revoke access.',
     ]
   },
   {

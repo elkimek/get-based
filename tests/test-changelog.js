@@ -133,7 +133,9 @@ assert('Google Health changelog explains the self-host limit and Fitbit transiti
     && /version:\s*'1\.11\.1'[\s\S]{0,1800}not available in the official hosted app/.test(changelogSrc)
     && /version:\s*'1\.11\.1'[\s\S]{0,1800}Fitbit is moving to Google Health/.test(changelogSrc)
     && /version:\s*'1\.11\.1'[\s\S]{0,1800}September 2026/.test(changelogSrc)
-    && /version:\s*'1\.11\.1'[\s\S]{0,2200}Fitbit devices will continue to work through Google Health/.test(changelogSrc));
+    && /version:\s*'1\.11\.1'[\s\S]{0,2200}Fitbit devices will continue to work through Google Health/.test(changelogSrc)
+    && /version:\s*'1\.11\.1'[\s\S]{0,2600}Self-hosted Google Health connections remain read-only and transparent/.test(changelogSrc)
+    && !/version:\s*'1\.11\.1'[\s\S]{0,2600}Terms and Privacy document these protections/.test(changelogSrc));
 assert('latest changelog launches Voice in high-level user-readable terms',
   /version:\s*'1\.11\.0'[\s\S]{0,500}Talk and listen in Chat/.test(changelogSrc)
     && /version:\s*'1\.11\.0'[\s\S]{0,1600}Chat now supports voice/.test(changelogSrc)

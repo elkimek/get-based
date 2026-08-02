@@ -6,8 +6,8 @@ test('mobile chat keeps its header and composer inside the keyboard viewport', a
     localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-01',
-      privacyVersion: '2026-08-01',
+      termsVersion: '2026-06-22',
+      privacyVersion: '2026-06-22',
       acceptedAt: '2026-07-27T00:00:00.000Z',
       appVersion: 'mobile-chat-test',
       location: 'mobile-chat-test',

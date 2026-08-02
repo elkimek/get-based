@@ -461,7 +461,7 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isSelfH
     const docs = adapter.authDocsUrl
       ? ` <a class="wearable-row-link" href="${escapeAttr(adapter.authDocsUrl)}" target="_blank" rel="noopener">Setup docs&nbsp;↗</a>`
       : '';
-    return `${privacyNotice}<p class="wearable-adapter-hint">Google Health is not offered by this hosted deployment. Self-host getbased and configure your own Google Cloud OAuth client ID and secret to enable it.${docs}</p>`;
+    return `<p class="wearable-adapter-hint">Google Health is not offered by this hosted deployment. Self-host getbased and configure your own Google Cloud OAuth client ID and secret to enable it.${docs}</p>`;
   }
   // Pending OAuth client — explanation
   if (isPendingClient) {
