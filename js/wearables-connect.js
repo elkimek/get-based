@@ -738,40 +738,47 @@ export function initWearableScheduler() {
 // Runtime config (self-host OAuth client_id overrides)
 // ─────────────────────────────────────────────────────────
 //
-// Fired once from main.js, then awaited by the scheduler so its first
-// refresh attempt sees the override map (rather than racing against an
-// unresolved fetch and hitting `invalid_client` with the maintainer's
-// clientId paired with the self-hoster's secret).
-//
-// Bounded by RUNTIME_CONFIG_TIMEOUT_MS so a slow / down /api/proxy can't
-// stall the scheduler indefinitely — on timeout we fall back to whatever
-// the adapter registry has hardcoded (i.e. the hosted-user behavior).
+// The scheduler waits briefly for OAuth overrides; Settings may await the
+// full request so slow config still enables rows. A longer fetch timeout
+// releases a hung attempt so reopening Settings can retry.
 
 const RUNTIME_CONFIG_TIMEOUT_MS = 1500;
-let _runtimeConfigPromise = null;
-
-export function loadWearableRuntimeConfig() {
-  if (_runtimeConfigPromise) return _runtimeConfigPromise;
-  const fetchPromise = (async () => {
-    try {
-      const res = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wearable_runtime_config: true }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data && data.overrides) applyOAuthOverrides(data.overrides);
-    } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
-  })();
-  // Race the fetch against a soft timeout so the scheduler never blocks
-  // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
-  // resolves. The fetch itself continues in the background — if it lands
-  // after the timeout, applyOAuthOverrides still runs and the *next*
-  // visibilitychange / poll-interval sync picks up the override.
-  const timeoutPromise = new Promise(resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS));
-  _runtimeConfigPromise = Promise.race([fetchPromise, timeoutPromise]);
-  return _runtimeConfigPromise;
+const RUNTIME_CONFIG_FETCH_TIMEOUT_MS = 10000;
+/** @type {Promise<void> | null} */ let _runtimeConfigFetchPromise = null;
+/** @type {Promise<void> | null} */ let _runtimeConfigPromise = null;
+/** @param {{ waitForFetch?: boolean }} [options] @returns {Promise<void>} */
+export function loadWearableRuntimeConfig(options = {}) {
+  if (!_runtimeConfigFetchPromise) {
+    let loaded = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), RUNTIME_CONFIG_FETCH_TIMEOUT_MS);
+    _runtimeConfigFetchPromise = (async () => {
+      try {
+        const res = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wearable_runtime_config: true }),
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.overrides) applyOAuthOverrides(data.overrides);
+        loaded = true;
+      } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
+    })().finally(() => {
+      clearTimeout(timeoutId);
+      if (!loaded) _runtimeConfigFetchPromise = _runtimeConfigPromise = null;
+    });
+    // Race the fetch against a soft timeout so the scheduler never blocks
+    // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
+    // resolves. The fetch itself continues in the background — Settings can
+    // explicitly await it so a slow response still enables configured rows.
+    const timeoutPromise = /** @type {Promise<void>} */ (new Promise(
+      resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS)));
+    _runtimeConfigPromise = Promise.race([_runtimeConfigFetchPromise, timeoutPromise]);
+  }
+  return options.waitForFetch ? _runtimeConfigFetchPromise
+    : /** @type {Promise<void>} */ (_runtimeConfigPromise);
 }
 
 // Used by the scheduler to gate its first sync. If main.js skipped the
