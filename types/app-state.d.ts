@@ -1,4 +1,5 @@
 export interface ProfileData {
+  schemaVersion?: number;
   entries: Array<Record<string, any>>;
   notes: any[];
   supplements: any[];
