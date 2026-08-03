@@ -441,6 +441,9 @@ return (async function() {
     exportSrc.includes('await listStoredProfileIds(profiles.map(profile => profile.id))'));
   assert('Awaits centralized profile storage cleanup',
     /for \(const id of profileIds\)[\s\S]{0,200}await clearProfileStorage\(id\)/.test(exportSrc));
+  assert('Erases cross-profile migration recovery storage',
+    exportSrc.includes("import { eraseMigrationRecoveryStorage } from './migration-recovery-store.js'")
+    && exportSrc.includes('await eraseMigrationRecoveryStorage()'));
   assert('Awaits the profile-list reset', exportSrc.includes('await saveProfiles([{ id: defaultId'));
   assert('Resets state.importedData from the canonical factory',
     exportSrc.includes('state.importedData = createDefaultProfileData()'));

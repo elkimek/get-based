@@ -22,6 +22,7 @@ import {
 } from './profile.js';
 import { encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cleanup.js';
+import { eraseMigrationRecoveryStorage } from './migration-recovery-store.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
@@ -443,6 +444,7 @@ export async function clearAllData() {
       // Delete the wallet first. If it is blocked by another tab, preserve the
       // profile records and report the failure instead of claiming success.
       await destroyWalletRuntimeDB();
+      await eraseMigrationRecoveryStorage();
       const profileIds = await listStoredProfileIds(profiles.map(profile => profile.id));
       for (const id of profileIds) {
         await clearProfileStorage(id);

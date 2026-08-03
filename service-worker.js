@@ -391,6 +391,7 @@ const APP_SHELL = [
   '/js/crypto.js',
   '/js/crypto-ui.js',
   '/js/data-wipe.js',
+  '/js/migration-recovery-store.js',
   '/js/backup-cycle.js',
   '/js/backup-serialization.js',
   '/js/backup.js',

@@ -79,6 +79,7 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-cycle-orphaned-profile',
       'labcharts-blobs',
       'labcharts-backups',
+      'labcharts-migration-recovery',
       'labcharts-future-store',
       'getbased-cashu',
     ];
@@ -126,6 +127,7 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-blobs',
       'labcharts-cycle-active-profile',
       'labcharts-cycle-default',
+      'labcharts-migration-recovery',
       'labcharts-wearables-active-profile',
       'labcharts-wearables-default',
     ]);
