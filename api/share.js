@@ -387,6 +387,24 @@ async function enforcePostRateLimit(req, options) {
 async function handlePost(req) {
   const options = blobOptions();
   if (!options) return jsonResponse(req, 503, { error: 'Profile sharing storage is not configured.' });
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse(req, 400, { error: 'Invalid JSON body.' });
+  }
+  const id = validateId(body?.id);
+  if (!id) return jsonResponse(req, 400, { error: 'Invalid share id.' });
+  const manageTokenHash = String(body?.manageTokenHash || '');
+  if (!MANAGE_TOKEN_HASH_RE.test(manageTokenHash)) {
+    return jsonResponse(req, 400, { error: 'Invalid share management token.' });
+  }
+  const normalization = normalizeEnvelope(body.envelope);
+  if (normalization.error) return jsonResponse(req, 400, { error: normalization.error });
+  const normalized = normalization.value;
+  // Reject malformed or oversized input before touching Blob-backed abuse
+  // controls. Only a request that could create a share should consume an
+  // advanced Blob operation.
   let rateLimit;
   try {
     rateLimit = await enforcePostRateLimit(req, options);
@@ -404,21 +422,6 @@ async function handlePost(req) {
       { 'Retry-After': String(rateLimit.retryAfterSeconds) },
     );
   }
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse(req, 400, { error: 'Invalid JSON body.' });
-  }
-  const id = validateId(body?.id);
-  if (!id) return jsonResponse(req, 400, { error: 'Invalid share id.' });
-  const manageTokenHash = String(body?.manageTokenHash || '');
-  if (!MANAGE_TOKEN_HASH_RE.test(manageTokenHash)) {
-    return jsonResponse(req, 400, { error: 'Invalid share management token.' });
-  }
-  const normalization = normalizeEnvelope(body.envelope);
-  if (normalization.error) return jsonResponse(req, 400, { error: normalization.error });
-  const normalized = normalization.value;
   try {
     if (await legacyShareIdExists(id, options)) {
       return jsonResponse(req, 409, { error: 'A shared profile with this id already exists.' });

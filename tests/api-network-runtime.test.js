@@ -306,7 +306,7 @@ describe('profile share API runtime behavior', () => {
 
   it('rejects invalid share payloads and reports a full rate-limit window', async () => {
     process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
-    const { store } = installBlobStoreMock();
+    const { apiCalls, store } = installBlobStoreMock();
 
     const badId = await shareHandler(makeShareRequest('POST', {
       id: 'short',
@@ -335,8 +335,9 @@ describe('profile share API runtime behavior', () => {
     });
     const storedPaths = Array.from(store.keys());
     const rateLimitMarkersFromMalformedPosts = storedPaths.filter(path => path.startsWith('profile-share-rate/v2/'));
-    expect(rateLimitMarkersFromMalformedPosts).toHaveLength(3);
+    expect(rateLimitMarkersFromMalformedPosts).toEqual([]);
     expect(storedPaths.filter(path => path.startsWith('profile-shares/v2/'))).toEqual([]);
+    expect(apiCalls).toEqual([]);
 
     installBlobStoreMock({ conflictRateLimit: true });
     const limited = await shareHandler(makeShareRequest('POST', {
@@ -366,7 +367,7 @@ describe('profile share API runtime behavior', () => {
 
   it('dynamically enforces every encrypted-envelope boundary before storing a share', async () => {
     process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
-    const { store } = installBlobStoreMock();
+    const { apiCalls, store } = installBlobStoreMock();
     const id = 'shareBoundaryId012345678';
     const manageTokenHash = 'a'.repeat(64);
     const cases = [
@@ -445,6 +446,7 @@ describe('profile share API runtime behavior', () => {
       expect(await responseJson(response), testCase.label).toEqual({ error: testCase.error });
     }
     expect(Array.from(store.keys()).filter(path => path.startsWith('profile-shares/v2/'))).toEqual([]);
+    expect(apiCalls).toEqual([]);
   });
 
   it('handles missing, expired, corrupt, duplicate, and unsupported-method records', async () => {
