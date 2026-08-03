@@ -203,12 +203,26 @@ describe('proxy distributed rate limit', () => {
     });
   });
 
-  it('propagates distributed storage failures so the route can return 503', async () => {
+  it('does not reuse the profile-sharing Blob token for proxy traffic', async () => {
     process.env.VERCEL = '1';
     process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store_secret';
+
+    expect(await enforceProxyRateLimit(rateRequest('203.0.113.93'))).toEqual({
+      limited: false,
+      unavailable: true,
+      retryAfterSeconds: 60,
+      scope: 'unavailable',
+    });
+    expect(blobMock.list).not.toHaveBeenCalled();
+    expect(blobMock.put).not.toHaveBeenCalled();
+  });
+
+  it('propagates dedicated distributed storage failures so the route can return 503', async () => {
+    process.env.VERCEL = '1';
+    process.env.PROXY_RATE_LIMIT_BLOB_TOKEN = 'vercel_blob_rw_store_secret';
     blobMock.list.mockRejectedValueOnce(new Error('blob unavailable'));
 
-    await expect(enforceProxyRateLimit(rateRequest('203.0.113.93')))
+    await expect(enforceProxyRateLimit(rateRequest('203.0.113.98')))
       .rejects.toThrow('blob unavailable');
   });
 });
