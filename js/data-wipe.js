@@ -1,8 +1,6 @@
 // @ts-check
 // data-wipe.js — destructive local storage cleanup helpers
 
-import { eraseMigrationRecoveryStorage } from './migration-recovery-store.js';
-
 const APP_SESSION_KEY_RE = /^(?:labcharts|chat-onboard-|or_|welcome-details-open$|(?:oura|withings|ultrahuman|polar|whoop|fitbit|google_health)-oauth-pending$)/;
 
 function failure(label, error) {
@@ -77,16 +75,15 @@ function removeStorageKeys(storage, keys, label, errors) {
   }
 }
 
-async function deleteIndexedDBDatabasesByPrefix(prefixes, fallbackNames, errors, excludedNames = []) {
+async function deleteIndexedDBDatabasesByPrefix(prefixes, fallbackNames, errors) {
   if (typeof indexedDB === 'undefined') return;
   const names = new Set(fallbackNames);
-  const excluded = new Set(excludedNames);
   if (typeof indexedDB.databases === 'function') {
     try {
       const databases = await indexedDB.databases();
       for (const database of databases || []) {
         const name = database?.name || '';
-        if (!excluded.has(name) && prefixes.some(prefix => name.startsWith(prefix))) names.add(name);
+        if (prefixes.some(prefix => name.startsWith(prefix))) names.add(name);
       }
     } catch (error) {
       errors.push(failure('Could not enumerate IndexedDB databases', error));
@@ -139,11 +136,6 @@ export async function eraseAllLocalAppData() {
 
   removeStorageKeys(globalThis.localStorage, localKeys, 'local storage', errors);
   removeStorageKeys(globalThis.sessionStorage, sessionKeys, 'session storage', errors);
-  try {
-    await eraseMigrationRecoveryStorage();
-  } catch (error) {
-    errors.push(failure('Could not delete migration recovery storage', error));
-  }
   await deleteIndexedDBDatabasesByPrefix(
     ['labcharts-'],
     [
@@ -152,7 +144,6 @@ export async function eraseAllLocalAppData() {
       'labcharts-blobs',
     ],
     errors,
-    ['labcharts-migration-recovery'],
   );
   for (const name of ['getbased-cashu']) {
     try {

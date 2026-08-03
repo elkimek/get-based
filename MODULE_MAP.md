@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 584 |
-| Internal import edges | 2506 |
+| Modules | 581 |
+| Internal import edges | 2502 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -66,7 +66,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/schema.js`](js/schema.js) | 34 | [`js/views.js`](js/views.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 31 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
-| [`js/constants.js`](js/constants.js) | 21 | [`js/export.js`](js/export.js) | 18 |
+| [`js/constants.js`](js/constants.js) | 21 | [`js/export.js`](js/export.js) | 17 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/lab-context.js`](js/lab-context.js) | 17 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/sun.js`](js/sun.js) | 17 |
@@ -362,7 +362,7 @@ Native browser modules shipped with the static application.
 - [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js) → [`js/lab-entry.js`](js/lab-entry.js)
 - [`js/data-merge.js`](js/data-merge.js) → [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/sync-delta-id.js`](js/sync-delta-id.js), [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js)
 - [`js/data-view-controls.js`](js/data-view-controls.js) → [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
-- [`js/data-wipe.js`](js/data-wipe.js) → [`js/migration-recovery-store.js`](js/migration-recovery-store.js)
+- [`js/data-wipe.js`](js/data-wipe.js) → no in-scope imports
 - [`js/data.js`](js/data.js) → [`js/crypto.js`](js/crypto.js), [`js/data-view-controls.js`](js/data-view-controls.js), [`js/lab-date-range.js`](js/lab-date-range.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile-context.js`](js/profile-context.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 
 </details>
@@ -399,7 +399,7 @@ Native browser modules shipped with the static application.
 - [`js/export-report-html.js`](js/export-report-html.js) → [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/utils.js`](js/utils.js)
 - [`js/export-report.js`](js/export-report.js) → [`js/api.js`](js/api.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
-- [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/migration-recovery-store.js`](js/migration-recovery-store.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -601,12 +601,6 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>migration</code> family — 1 module</summary>
-
-- [`js/migration-recovery-store.js`](js/migration-recovery-store.js) → [`js/blob-storage.js`](js/blob-storage.js)
-
-</details>
-
 <details><summary><code>mobile</code> family — 2 modules</summary>
 
 - [`js/mobile-dashboard-runtime.js`](js/mobile-dashboard-runtime.js) → no in-scope imports
@@ -685,7 +679,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>profile</code> family — 12 modules</summary>
+<details><summary><code>profile</code> family — 11 modules</summary>
 
 - [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/state.js`](js/state.js)
 - [`js/profile-data-migrations.js`](js/profile-data-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/schema.js`](js/schema.js)
@@ -693,7 +687,6 @@ Native browser modules shipped with the static application.
 - [`js/profile-list-store.js`](js/profile-list-store.js) → [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js), [`js/schema.js`](js/schema.js)
 - [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-loader.js`](js/chat-loader.js), [`js/state.js`](js/state.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*
-- [`js/profile-schema-migrations.js`](js/profile-schema-migrations.js) → [`js/profile-data-migrations.js`](js/profile-data-migrations.js)
 - [`js/profile-share-loader.js`](js/profile-share-loader.js) → [`js/profile-share.js`](js/profile-share.js) *(dynamic)*, [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-share.js`](js/profile-share.js) → [`js/caught-error.js`](js/caught-error.js), [`js/export.js`](js/export.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js)
@@ -814,12 +807,6 @@ Native browser modules shipped with the static application.
 <details><summary><code>state</code> family — 1 module</summary>
 
 - [`js/state.js`](js/state.js) → no in-scope imports
-
-</details>
-
-<details><summary><code>storage</code> family — 1 module</summary>
-
-- [`js/storage-integrity-manifest.js`](js/storage-integrity-manifest.js) → no in-scope imports
 
 </details>
 
