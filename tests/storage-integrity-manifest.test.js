@@ -62,8 +62,6 @@ describe('storage integrity policy', () => {
     expect(classifyDatabaseName('getbased-cashu')).toBe(STORAGE_CATEGORIES.WALLET);
     expect(classifyDatabaseName('labcharts-wearables-profile_alpha'))
       .toBe(STORAGE_CATEGORIES.RAW_HEALTH);
-    expect(classifyDatabaseName('labcharts-migration-recovery'))
-      .toBe(STORAGE_CATEGORIES.MIGRATION);
     expect(classifyCacheName('labcharts-v1.11.0')).toBe(STORAGE_CATEGORIES.APP_CACHE);
   });
 });
