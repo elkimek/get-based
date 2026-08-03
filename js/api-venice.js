@@ -43,6 +43,11 @@ function veniceRetryAbortError(signal) {
     : new DOMException('Venice E2EE request cancelled.', 'AbortError');
 }
 
+/**
+ * @param {number} delayMs
+ * @param {AbortSignal | undefined} signal
+ * @returns {Promise<void>}
+ */
 function waitForVeniceAttestationRetry(delayMs, signal) {
   if (!signal) return new Promise(resolve => setTimeout(resolve, delayMs));
   if (signal.aborted) return Promise.reject(veniceRetryAbortError(signal));
