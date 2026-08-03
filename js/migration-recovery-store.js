@@ -38,6 +38,40 @@ let dbPromise = null;
 /** @type {Map<string, Promise<void>>} */
 const inMemoryLocks = new Map();
 
+/**
+ * Close this module's cached connection before deleting the recovery database.
+ * A generic deleteDatabase call can otherwise be blocked by the same page that
+ * requested the wipe after migration recovery has been used.
+ */
+export async function eraseMigrationRecoveryStorage() {
+  const openConnection = dbPromise;
+  dbPromise = null;
+  if (openConnection) {
+    try {
+      const db = await openConnection;
+      db.close();
+    } catch {
+      // A failed open has no live connection to close; deletion can still run.
+    }
+  }
+  if (typeof indexedDB === 'undefined') return;
+  if (typeof indexedDB.deleteDatabase !== 'function') {
+    throw new Error('IndexedDB deletion is unavailable.');
+  }
+  await new Promise((resolve, reject) => {
+    try {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => resolve(undefined);
+      request.onerror = () => reject(request.error || new Error('Migration recovery deletion failed.'));
+      request.onblocked = () => reject(
+        new Error('Migration recovery deletion is blocked by another open Get Based tab.'),
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 function openRecoveryDB() {
   if (dbPromise) return dbPromise;
   if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB is unavailable.'));

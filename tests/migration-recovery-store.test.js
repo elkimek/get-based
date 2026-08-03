@@ -7,6 +7,7 @@ import {
 } from '../js/blob-storage.js';
 import {
   commitProfileMigrationWithRecovery,
+  eraseMigrationRecoveryStorage,
   estimateMigrationRecoveryBytes,
   listMigrationRecoverySnapshots,
   preflightMigrationRecoveryStorage,
@@ -220,6 +221,26 @@ describe('encrypted migration recovery lifecycle', () => {
       error: { code: 'RECOVERY_CURRENT_VALUE_CHANGED' },
     });
     expect(await getBlob(key)).toBe(laterValue);
+  });
+
+  it('closes its cached connection before complete erasure and can reopen cleanly', async () => {
+    const key = profileKey('erase');
+    const previousValue = JSON.stringify({ state: 'private-before' });
+    const nextValue = JSON.stringify({ state: 'private-after', schemaVersion: 1 });
+    await setBlob(key, previousValue);
+    const committed = await commitProfileMigrationWithRecovery({
+      profileKey: key,
+      previousValue,
+      nextValue,
+      fromVersion: 0,
+      toVersion: 1,
+      estimate: ampleEstimate,
+    });
+    expect(committed.ok).toBe(true);
+
+    await eraseMigrationRecoveryStorage();
+
+    expect(await listMigrationRecoverySnapshots(key)).toEqual([]);
   });
 });
 
