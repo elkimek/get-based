@@ -81,13 +81,18 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-input');
 
-  const results = await page.evaluate(async ({ promptContextUrl, attestationUrl, promptsUrl }) => {
-    const [promptContext, attestation, prompts] = await Promise.all([
+  const results = await page.evaluate(async ({ promptContextUrl, attestationUrl, promptsUrl, dcapUrl }) => {
+    const [promptContext, attestation, prompts, dcap] = await Promise.all([
       import(promptContextUrl),
       import(attestationUrl),
       import(promptsUrl),
+      import(dcapUrl),
     ]);
     const outcomes = {};
+
+    outcomes.dcapVerifierBundleLoadsInBrowser =
+      dcap.PHALA_PCCS_URL === 'https://pccs.phala.network'
+      && typeof dcap.createDcapVerifier() === 'function';
 
     outcomes.personalityPromptsCoverCustomAndBuiltIn =
       promptContext.buildPersonalityPrompt(
@@ -150,7 +155,8 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
       signingKeyBound: true,
       debugMode: false,
       serverTdxValid: true,
-      dcap: { status: 'valid <quoted>' },
+      dcapVerified: true,
+      dcap: { status: 'UpToDate <quoted>' },
     };
     const failedAttestation = {
       nonceVerified: false,
@@ -160,10 +166,10 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
     };
     outcomes.attestationMarkupReflectsState =
       attestation.attestationTooltip(null).includes('no data')
-      && attestation.attestationTooltip(okAttestation).includes('limited verification')
+      && attestation.attestationTooltip(okAttestation).includes('Intel DCAP verified')
       && attestation.attestationTooltip(failedAttestation).includes('FAILED')
-      && attestation.e2eeLockHTML(okAttestation).includes('#f59e0b')
-      && attestation.e2eeLockHTML(okAttestation).includes('~')
+      && attestation.e2eeLockHTML(okAttestation).includes('#38bdf8')
+      && attestation.e2eeLockHTML(okAttestation).includes('D')
       && attestation.e2eeLockHTML(okAttestation).includes('&lt;quoted&gt;')
       && attestation.e2eeLockHTML(failedAttestation).includes('#ef4444')
       && attestation.e2eeLockFootnote(okAttestation).includes('e2ee');
@@ -181,11 +187,48 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
     promptContextUrl: moduleUrl('/js/chat-prompt-context.js'),
     attestationUrl: moduleUrl('/js/chat-attestation.js'),
     promptsUrl: moduleUrl('/js/chat-discussion-round-prompts.js'),
+    dcapUrl: moduleUrl('/vendor/venice-dcap.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('E2EE attestation badge reveals verification details on hover and focus', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-input');
+
+  await page.evaluate(async ({ attestationUrl }) => {
+    const attestation = await import(attestationUrl);
+    const host = document.createElement('div');
+    host.id = 'attestation-tooltip-coverage';
+    host.style.cssText = 'position:fixed;left:160px;top:120px;z-index:1300';
+    host.innerHTML = attestation.e2eeLockFootnote({
+      verificationLevel: 'dcap',
+      nonceVerified: true,
+      signingKeyBound: true,
+      debugMode: false,
+      dcapVerified: true,
+      dcap: { status: 'UpToDate' },
+      measurementsVerified: null,
+      errors: [],
+    });
+    document.body.appendChild(host);
+  }, { attestationUrl: moduleUrl('/js/chat-attestation.js') });
+
+  const badge = page.locator('#attestation-tooltip-coverage .e2ee-attestation-badge');
+  const tooltip = page.locator('#e2ee-attestation-tooltip');
+  await badge.hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('Intel DCAP verified');
+  await expect(tooltip).toContainText('Client DCAP: UpToDate');
+  await expect(badge).toHaveAttribute('aria-expanded', 'true');
+
+  await page.mouse.move(700, 400);
+  await expect(tooltip).toBeHidden();
+  await badge.focus();
+  await expect(tooltip).toBeVisible();
 });
 
 test('discussion round state persists active and inactive thread histories', async ({ page }) => {

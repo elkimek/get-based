@@ -84,6 +84,7 @@ const pwaAppShellAssets = [
   '/vendor/jszip.min.js',
   '/vendor/mammoth.browser.min.js',
   '/vendor/venice-e2ee.js',
+  '/vendor/venice-dcap.js',
   '/vendor/evolu/evolu-bundle.js',
   '/vendor/evolu/Db.worker.js',
   '/vendor/evolu/sqlite3-bundler-friendly.mjs',

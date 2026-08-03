@@ -34,6 +34,8 @@
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.7.2",
+    "@noble/curves": "2.2.0",
+    "@phala/dcap-qvl": "0.3.9",
     "@playwright/test": "^1.62.0",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "4.12.1",
@@ -41,7 +43,8 @@
     "jsdom": "^30.0.1",
     "rolldown": "1.2.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "elliptic": "file:scripts/vendor-packages/elliptic-verify-only"
   },
   "dependencies": {
     "@vercel/blob": "2.4.0",
@@ -50,6 +53,9 @@
     "undici": "7.28.0"
   },
   "overrides": {
+    "@phala/dcap-qvl": {
+      "elliptic": "$elliptic"
+    },
     "@vercel/blob": {
       "undici": "6.27.0"
     }

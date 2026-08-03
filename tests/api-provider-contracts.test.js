@@ -1,6 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createTinfoilSecureFetchMock = vi.hoisted(() => vi.fn());
+const veniceE2EEMocks = vi.hoisted(() => ({
+  session: {
+    aesKey: 'mock-aes-key',
+    publicKey: 'mock-public-key',
+    privateKey: 'mock-private-key',
+    pubKeyHex: 'mock-client-pub-key',
+    modelPubKeyHex: 'mock-model-pub-key',
+    attestation: {
+      verificationLevel: 'dcap',
+      nonceVerified: true,
+      signingKeyBound: true,
+      debugMode: false,
+      dcap: { status: 'UpToDate', advisoryIds: [] },
+      dcapVerified: true,
+      errors: [],
+    },
+  },
+  createClient: vi.fn(),
+  createSession: vi.fn(),
+  clearSession: vi.fn(),
+}));
+const veniceDcapMocks = vi.hoisted(() => ({
+  createVerifier: vi.fn(),
+  verifier: vi.fn(),
+}));
 
 vi.mock('../js/tinfoil-secure-fetch.js', () => ({
   createTinfoilSecureFetch: createTinfoilSecureFetchMock,
@@ -8,19 +33,13 @@ vi.mock('../js/tinfoil-secure-fetch.js', () => ({
 }));
 
 vi.mock('../vendor/venice-e2ee.js', () => ({
-  createVeniceE2EE: vi.fn(() => ({
-    createSession: vi.fn(async () => ({
-      aesKey: 'mock-aes-key',
-      publicKey: 'mock-public-key',
-      privateKey: 'mock-private-key',
-      pubKeyHex: 'mock-client-pub-key',
-      modelPubKeyHex: 'mock-model-pub-key',
-      attestation: { verified: true },
-    })),
-    clearSession: vi.fn(),
-  })),
+  createVeniceE2EE: veniceE2EEMocks.createClient,
   encryptMessage: vi.fn(async (_aesKey, _publicKey, text) => `encrypted:${text}`),
   decryptChunk: vi.fn(async (_privateKey, text) => `decrypted:${text}`),
+}));
+
+vi.mock('../vendor/venice-dcap.js', () => ({
+  createDcapVerifier: veniceDcapMocks.createVerifier,
 }));
 
 import { updateKeyCache } from '../js/crypto.js';
@@ -157,7 +176,22 @@ beforeEach(() => {
     apiKey: 'local-api-key',
   }));
   globalThis.showInsufficientBalanceDialog = undefined;
+  delete globalThis._veniceE2EE;
+  delete globalThis._veniceE2EEKey;
+  delete globalThis._veniceE2EEDcapRequired;
+  delete globalThis._veniceAttestation;
   delete globalThis._routstrAttestation;
+  veniceE2EEMocks.createSession.mockReset();
+  veniceE2EEMocks.createSession.mockResolvedValue(veniceE2EEMocks.session);
+  veniceE2EEMocks.clearSession.mockReset();
+  veniceE2EEMocks.createClient.mockReset();
+  veniceE2EEMocks.createClient.mockReturnValue({
+    createSession: veniceE2EEMocks.createSession,
+    clearSession: veniceE2EEMocks.clearSession,
+  });
+  veniceDcapMocks.verifier.mockReset();
+  veniceDcapMocks.createVerifier.mockReset();
+  veniceDcapMocks.createVerifier.mockReturnValue(veniceDcapMocks.verifier);
   createTinfoilSecureFetchMock.mockReset();
   createTinfoilSecureFetchMock.mockResolvedValue({
     verification: { securityVerified: true, codeFingerprint: 'verified-routstr-code' },
@@ -1043,6 +1077,83 @@ describe('AI provider request contracts', () => {
     expect(onStream).toHaveBeenNthCalledWith(2, 'Hello');
   });
 
+  it('retries transient Venice E2EE attestation gateway failures before sending the completion', async () => {
+    vi.useFakeTimers();
+    try {
+      setAIProvider('venice');
+      updateKeyCache('labcharts-venice-key', 'sk-venice-attestation-retry');
+      setVeniceE2EE(true);
+      setVeniceModel('e2ee-retry-contract');
+      localStorage.setItem('labcharts-venice-models', '[]');
+      localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-retry-contract' }]));
+      localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+      veniceE2EEMocks.createSession
+        .mockRejectedValueOnce(new Error('TEE attestation failed (502)'))
+        .mockRejectedValueOnce(new Error('TEE attestation failed (503)'))
+        .mockResolvedValueOnce(veniceE2EEMocks.session);
+
+      const expectation = expect(callClaudeAPI(baseChatOptions())).resolves.toMatchObject({ text: 'decrypted:contract ok' });
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      expect(veniceE2EEMocks.createSession).toHaveBeenCalledTimes(3);
+      expect(veniceDcapMocks.createVerifier).toHaveBeenCalledTimes(1);
+      expect(veniceE2EEMocks.createClient).toHaveBeenCalledWith({
+        apiKey: 'sk-venice-attestation-retry',
+        dcapVerifier: veniceDcapMocks.verifier,
+        requireDcap: true,
+      });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails closed when client-side Venice DCAP verification is rejected', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-dcap-rejected');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-dcap-rejected');
+    localStorage.setItem('labcharts-venice-models', '[]');
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-dcap-rejected' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    veniceE2EEMocks.createSession.mockRejectedValueOnce(
+      new Error('Attestation verification failed: Full DCAP verification did not complete successfully')
+    );
+
+    await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(
+      'Venice E2EE setup failed: Attestation verification failed: Full DCAP verification did not complete successfully'
+    );
+
+    expect(veniceE2EEMocks.createSession).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('reports a persistent Venice E2EE attestation outage after bounded retries', async () => {
+    vi.useFakeTimers();
+    try {
+      setAIProvider('venice');
+      updateKeyCache('labcharts-venice-key', 'sk-venice-attestation-down');
+      setVeniceE2EE(true);
+      setVeniceModel('e2ee-down-contract');
+      localStorage.setItem('labcharts-venice-models', '[]');
+      localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-down-contract' }]));
+      localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+      veniceE2EEMocks.createSession.mockRejectedValue(new Error('TEE attestation failed (502)'));
+
+      const expectation = expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(
+        'Venice E2EE attestation stayed unavailable (502) after 3 attempts. Retry shortly or choose another E2EE model.'
+      );
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      expect(veniceE2EEMocks.createSession).toHaveBeenCalledTimes(3);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('surfaces redacted Venice E2EE SSE provider errors', async () => {
     const secret = 'sk-venice-stream-secret';
     setAIProvider('venice');
@@ -1104,9 +1215,9 @@ describe('AI provider request contracts', () => {
     setAIProvider('venice');
     updateKeyCache('labcharts-venice-key', 'sk-venice-reasoning');
     setVeniceE2EE(true);
-    setVeniceModel('e2ee-glm-contract');
+    setVeniceModel('e2ee-glm-5-2-p');
     localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-contract' }]));
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-5-2-p' }]));
     localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
     globalThis.fetch = vi.fn(async () => streamResponse([
       'data: {"choices":[{"delta":{"reasoning_content":"encrypted-reasoning"}}]}\n\n',
@@ -1129,13 +1240,11 @@ describe('AI provider request contracts', () => {
     expect(onStream).toHaveBeenCalledWith('decrypted:encrypted-reasoning');
     const request = providerRequestFromFetchCall();
     expect(request.body).toMatchObject({
-      venice_parameters: {
-        enable_e2ee: true,
-        disable_thinking: true,
-        strip_thinking_response: true,
-      },
-      reasoning: { enabled: false },
+      venice_parameters: { enable_e2ee: true },
     });
+    expect(request.body).not.toHaveProperty('reasoning');
+    expect(request.body).not.toHaveProperty('venice_parameters.disable_thinking');
+    expect(request.body).not.toHaveProperty('venice_parameters.strip_thinking_response');
   });
 
   it('reports an empty Venice E2EE stream instead of silently rendering a blank answer', async () => {
@@ -1159,7 +1268,7 @@ describe('AI provider request contracts', () => {
     })).rejects.toThrow('stream ended without encrypted response content');
   });
 
-  it('cancels a runaway Venice reasoning-only stream', async () => {
+  it('allows long Venice reasoning streams to reach their final answer', async () => {
     setAIProvider('venice');
     updateKeyCache('labcharts-venice-key', 'sk-venice-runaway');
     setVeniceE2EE(true);
@@ -1167,8 +1276,13 @@ describe('AI provider request contracts', () => {
     localStorage.setItem('labcharts-venice-models', '[]');
     localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-runaway' }]));
     localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
-    const reasoningEvents = Array.from({ length: 129 }, (_, index) =>
+    const reasoningEvents = Array.from({ length: 160 }, (_, index) =>
       `data: {"choices":[{"delta":{"reasoning_content":"encrypted-r${index}"}}]}\n\n`
+    );
+    reasoningEvents.push(
+      'data: {"choices":[{"delta":{"content":"encrypted-final-answer"}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":120,"completion_tokens":240}}\n\n',
+      'data: [DONE]\n\n'
     );
     globalThis.fetch = vi.fn(async () => streamResponse(reasoningEvents));
 
@@ -1177,11 +1291,15 @@ describe('AI provider request contracts', () => {
       maxTokens: 16384,
       onStream: vi.fn(),
       requestTimeoutMs: 1000,
-    })).rejects.toThrow('cancelled to limit further charges');
+    })).resolves.toMatchObject({
+      text: 'decrypted:encrypted-final-answer',
+      usage: { inputTokens: 120, outputTokens: 240 },
+      finishReason: 'stop',
+    });
     expect(globalThis._veniceLastStreamDiagnostics).toMatchObject({
-      contentChunks: 0,
-      reasoningChunks: 129,
-      status: 'cancelled-reasoning-only',
+      contentChunks: 1,
+      reasoningChunks: 160,
+      status: 'complete',
     });
   });
 

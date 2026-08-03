@@ -30,6 +30,16 @@
       "format": "es",
       "minified": true,
       "sha256": "79d08b9f0a18e7564f31be074a99abfc9992c5b31cd4432a55eb48a47c2c9c48"
+    },
+    {
+      "package": "@phala/dcap-qvl",
+      "version": "0.3.9",
+      "integrity": "sha512-s/4gAFVq1DRhYkuerDR9WAlX8tkCpFTHTVpWnWlrigj5la2X5OtQl9Y7PzwcqY4h0fc25yqZrcRH3AZpzB1qOw==",
+      "entry": "scripts/vendor-entries/venice-dcap.js",
+      "output": "vendor/venice-dcap.js",
+      "format": "es",
+      "minified": true,
+      "sha256": "b6794c3fa08d82bcd6728ba15c4c3c3a348c8c17761c0fdf3146cd50185fd802"
     }
   ],
   "bundler": {

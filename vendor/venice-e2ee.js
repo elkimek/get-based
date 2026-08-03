@@ -535,6 +535,528 @@ async function* decryptSSEStream(body, privateKey, allowPlaintextResponses = fal
   }
 }
 
+// src/tools.ts
+function flattenMessageContent(content) {
+  if (typeof content === "string") return content;
+  if (content === null || content === void 0) return "";
+  if (!Array.isArray(content)) return String(content);
+  return content.map((part) => {
+    if (typeof part === "string") return part;
+    if (part?.type === "text" || part?.type === "input_text" || part?.type === "output_text") {
+      return part.text ?? "";
+    }
+    if (part?.type === "refusal") return "";
+    throw new Error(
+      `Unsupported message content part "${part?.type}": Venice E2EE models accept text only.`
+    );
+  }).join("");
+}
+var TOOL_CALL_OPEN = "<tool_call>";
+var TOOL_CALL_CLOSE = "</tool_call>";
+var TOOL_RESPONSE_OPEN = "<tool_response>";
+var TOOL_RESPONSE_CLOSE = "</tool_response>";
+var TOOL_CALL_TAGS = [
+  { open: TOOL_CALL_OPEN, close: TOOL_CALL_CLOSE },
+  { open: "<function_call>", close: "</function_call>" },
+  { open: "<|tool_call|>", close: "<|/tool_call|>" }
+];
+var UNTAGGED_HOLD_LIMIT = 64 * 1024;
+function generateToolCallId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return `call_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+function buildToolSystemPrompt(tools, toolChoice = "auto") {
+  if (!tools || tools.length === 0) return null;
+  if (toolChoice === "none") return null;
+  const schemas = tools.filter((t) => t && t.function).map((t) => JSON.stringify(t.function)).join("\n");
+  if (!schemas) return null;
+  let instruction;
+  if (typeof toolChoice === "object" && toolChoice?.function?.name) {
+    instruction = `You MUST call the function \`${toolChoice.function.name}\` now. Emit only the tool call block.`;
+  } else if (toolChoice === "required") {
+    instruction = "You MUST call at least one of the functions above. Emit only tool call blocks.";
+  } else {
+    instruction = "Call a function only when it helps answer the request. Otherwise reply normally without a tool call block.";
+  }
+  return `# Tools
+
+You have access to the following functions, described as JSON schemas:
+
+<tools>
+${schemas}
+</tools>
+
+To call a function, emit a block in exactly this format:
+
+${TOOL_CALL_OPEN}
+{"name": "<function-name>", "arguments": {<json-arguments>}}
+${TOOL_CALL_CLOSE}
+
+Rules:
+- \`arguments\` must be a JSON object matching the function's parameter schema,
+  even when the function takes a single parameter.
+- Emit the block on its own, with no surrounding prose or markdown fences.
+- To call several functions, emit several blocks in a row.
+- Never emit the JSON payload on its own \u2014 without the surrounding tags it is
+  read as an ordinary answer and the function is not called.
+
+Results come back as:
+
+${TOOL_RESPONSE_OPEN}
+{"id": "<id-of-the-call>", "name": "<function-name>", "result": <result>}
+${TOOL_RESPONSE_CLOSE}
+
+Match \`id\` against the call it answers when several calls are outstanding.
+
+${instruction}`;
+}
+function parseArgumentsToJsonString(raw, fn) {
+  let value = raw;
+  if (typeof raw === "string") {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      value = raw;
+    }
+  }
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+  if (value === void 0 || value === null || value === "") return "{}";
+  const properties = fn?.parameters?.properties;
+  const keys = properties && typeof properties === "object" ? Object.keys(properties) : [];
+  if (keys.length === 1) return JSON.stringify({ [keys[0]]: value });
+  return JSON.stringify(value);
+}
+function renderToolCall(tc) {
+  let args = {};
+  try {
+    args = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {};
+  } catch {
+    args = tc.function?.arguments ?? {};
+  }
+  const payload = JSON.stringify({
+    ...tc.id ? { id: tc.id } : {},
+    name: tc.function?.name,
+    arguments: args
+  });
+  return `${TOOL_CALL_OPEN}
+${payload}
+${TOOL_CALL_CLOSE}`;
+}
+function renderToolMessages(messages) {
+  const callNames = /* @__PURE__ */ new Map();
+  for (const msg of messages) {
+    if (Array.isArray(msg.tool_calls)) {
+      for (const tc of msg.tool_calls) {
+        if (tc?.id && tc.function?.name) callNames.set(tc.id, tc.function.name);
+      }
+    }
+  }
+  return messages.map((msg) => {
+    const text = flattenMessageContent(msg.content);
+    if (msg.role === "assistant" && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      const blocks = msg.tool_calls.map(renderToolCall).join("\n");
+      return { role: "assistant", content: text ? `${text}
+${blocks}` : blocks };
+    }
+    if (msg.role === "tool") {
+      const name = msg.tool_call_id && callNames.get(msg.tool_call_id) || msg.name;
+      const payload = name || msg.tool_call_id ? JSON.stringify({
+        ...msg.tool_call_id ? { id: msg.tool_call_id } : {},
+        ...name ? { name } : {},
+        result: text
+      }) : text;
+      return {
+        role: "tool",
+        content: `${TOOL_RESPONSE_OPEN}
+${payload}
+${TOOL_RESPONSE_CLOSE}`,
+        ...msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}
+      };
+    }
+    return { role: msg.role, content: text };
+  });
+}
+function partialTagSuffixLength(text, tag) {
+  const max = Math.min(text.length, tag.length - 1);
+  for (let n = max; n > 0; n--) {
+    if (text.endsWith(tag.slice(0, n))) return n;
+  }
+  return 0;
+}
+function stripFences(block) {
+  const trimmed = block.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(trimmed);
+  return fenced ? fenced[1].trim() : trimmed;
+}
+function findTagOutsideJsonString(text, tag) {
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i <= text.length - tag.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (text.startsWith(tag, i)) return i;
+  }
+  return -1;
+}
+function firstJsonValue(text) {
+  const objectAt = text.indexOf("{");
+  const arrayAt = text.indexOf("[");
+  const start = objectAt === -1 ? arrayAt : arrayAt === -1 ? objectAt : Math.min(objectAt, arrayAt);
+  if (start === -1) return null;
+  const openCh = text[start];
+  const closeCh = openCh === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === openCh) depth++;
+    else if (ch === closeCh && --depth === 0) return text.slice(start, i + 1);
+  }
+  return null;
+}
+function parseJsonLoose(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const candidate = firstJsonValue(text);
+    if (candidate === null) return void 0;
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      return void 0;
+    }
+  }
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value) return value;
+  }
+  return void 0;
+}
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== void 0) return value;
+  }
+  return void 0;
+}
+function toToolCalls(value, lookup) {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => toToolCalls(entry, lookup));
+  }
+  if (!value || typeof value !== "object") return [];
+  const obj = value;
+  for (const key of ["tool_calls", "calls", "invocations"]) {
+    if (Array.isArray(obj[key])) {
+      return obj[key].flatMap((entry) => toToolCalls(entry, lookup));
+    }
+  }
+  const fn = obj.function;
+  const fnObj = fn && typeof fn === "object" ? fn : void 0;
+  const name = firstString(
+    obj.name,
+    obj.tool_name,
+    obj.tool,
+    typeof fn === "string" ? fn : void 0,
+    fnObj?.name
+  );
+  if (!name) return [];
+  const rawArgs = firstDefined(
+    obj.arguments,
+    obj.parameters,
+    obj.args,
+    obj.input,
+    fnObj?.arguments,
+    fnObj?.parameters
+  );
+  return [
+    {
+      id: generateToolCallId(),
+      type: "function",
+      function: { name, arguments: parseArgumentsToJsonString(rawArgs, lookup?.get(name)) }
+    }
+  ];
+}
+function parseArgValue(raw) {
+  const trimmed = raw.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed.length > 1 && trimmed.startsWith('"') && !trimmed.endsWith('"') ? trimmed.slice(1) : trimmed;
+  }
+}
+var ARG_TAG = /<\/?arg_(?:key|value)>/g;
+var FUNCTION_NAME = /^[A-Za-z_][\w.-]*$/;
+function parseArgKeyValueBody(text, lookup) {
+  ARG_TAG.lastIndex = 0;
+  const firstTag = ARG_TAG.exec(text);
+  if (!firstTag) return [];
+  const name = text.slice(0, firstTag.index).trim();
+  if (!FUNCTION_NAME.test(name)) return [];
+  const args = {};
+  let pendingKey = null;
+  const cleanKey = (key) => key.trim().replace(/^"|"$/g, "");
+  const takeKey = (segment) => {
+    const trimmed = segment.trim();
+    if (!trimmed) return;
+    const gap = trimmed.search(/\s/);
+    if (gap !== -1) {
+      args[cleanKey(trimmed.slice(0, gap))] = parseArgValue(trimmed.slice(gap + 1));
+      pendingKey = null;
+      return;
+    }
+    const colon = trimmed.indexOf(":");
+    if (colon !== -1) {
+      const key = cleanKey(trimmed.slice(0, colon));
+      if (key) {
+        args[key] = parseArgValue(trimmed.slice(colon + 1));
+        pendingKey = null;
+        return;
+      }
+    }
+    pendingKey = cleanKey(trimmed);
+  };
+  ARG_TAG.lastIndex = firstTag.index;
+  for (let tag = ARG_TAG.exec(text); tag !== null; ) {
+    const start = ARG_TAG.lastIndex;
+    const next = ARG_TAG.exec(text);
+    const segment = text.slice(start, next ? next.index : text.length);
+    if (tag[0] === "<arg_value>") {
+      if (pendingKey !== null) {
+        args[pendingKey] = parseArgValue(segment);
+        pendingKey = null;
+      }
+    } else if (tag[0] === "<arg_key>" || pendingKey === null) {
+      takeKey(segment);
+    }
+    tag = next;
+  }
+  if (Object.keys(args).length === 0) return [];
+  return [
+    {
+      id: generateToolCallId(),
+      type: "function",
+      function: { name, arguments: parseArgumentsToJsonString(args, lookup?.get(name)) }
+    }
+  ];
+}
+function parseLineDelimitedBody(text, lookup) {
+  if (!lookup || lookup.size === 0) return [];
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 3) return [];
+  const name = lines[0];
+  const fn = lookup.get(name);
+  if (!fn) return [];
+  const rest = lines.slice(1);
+  if (rest.length % 2 !== 0) return [];
+  const properties = fn.parameters?.properties;
+  if (!properties || typeof properties !== "object") return [];
+  const declared = new Set(Object.keys(properties));
+  const args = {};
+  for (let i = 0; i < rest.length; i += 2) {
+    const key = rest[i];
+    if (!declared.has(key)) return [];
+    args[key] = parseArgValue(rest[i + 1]);
+  }
+  return [
+    {
+      id: generateToolCallId(),
+      type: "function",
+      function: { name, arguments: parseArgumentsToJsonString(args, fn) }
+    }
+  ];
+}
+function looksLikeJsonStart(text) {
+  const trimmed = text.trimStart();
+  if (!trimmed) return true;
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return true;
+  return "```json".startsWith(trimmed.slice(0, 7)) && trimmed.startsWith("`");
+}
+var ToolCallStreamParser = class {
+  buffer = "";
+  /** The tag pair that opened the block being accumulated, if any. */
+  openTag = null;
+  calls = [];
+  lookup = /* @__PURE__ */ new Map();
+  /** Content withheld while it might still turn out to be an untagged call. */
+  held = "";
+  /** Once open, content streams straight through with no further inspection. */
+  gateOpen;
+  constructor(options = {}) {
+    for (const tool of options.tools ?? []) {
+      if (tool?.function?.name) this.lookup.set(tool.function.name, tool.function);
+    }
+    this.gateOpen = this.lookup.size === 0;
+  }
+  /** Feed the next decrypted text chunk. */
+  push(chunk) {
+    this.buffer += chunk;
+    let raw = "";
+    const toolCalls = [];
+    for (; ; ) {
+      if (!this.openTag) {
+        const opened = findFirst(this.buffer, (tag) => this.buffer.indexOf(tag.open));
+        if (!opened) {
+          const hold = maxPartialTagSuffix(this.buffer);
+          raw += this.buffer.slice(0, this.buffer.length - hold);
+          this.buffer = hold ? this.buffer.slice(this.buffer.length - hold) : "";
+          break;
+        }
+        raw += this.buffer.slice(0, opened.index);
+        this.buffer = this.buffer.slice(opened.index + opened.tag.open.length);
+        this.openTag = opened.tag;
+      } else {
+        const close = findTagOutsideJsonString(this.buffer, this.openTag.close);
+        const chainedOpen = findFirst(
+          this.buffer,
+          (tag) => findTagOutsideJsonString(this.buffer, tag.open)
+        );
+        const nextOpen = chainedOpen ? chainedOpen.index : -1;
+        const closesFirst = close !== -1 && (nextOpen === -1 || close <= nextOpen);
+        if (!closesFirst && nextOpen === -1) break;
+        const end = closesFirst ? close : nextOpen;
+        const skip = closesFirst ? this.openTag.close.length : chainedOpen.tag.open.length;
+        const block = this.buffer.slice(0, end);
+        const consumed = this.openTag;
+        this.buffer = this.buffer.slice(end + skip);
+        this.openTag = closesFirst ? null : chainedOpen.tag;
+        const calls = this.parseBlocks(block);
+        if (calls.length > 0) {
+          toolCalls.push(...calls);
+          this.calls.push(...calls);
+        } else {
+          raw += consumed.open + block + (closesFirst ? consumed.close : "");
+        }
+      }
+    }
+    const gated = this.gate(raw, toolCalls.length > 0, false);
+    return { content: gated.content, toolCalls: [...toolCalls, ...gated.toolCalls] };
+  }
+  /**
+   * Finish the stream. Returns any trailing content still held back, plus tool
+   * calls recovered from an unterminated block if the model omitted the closing
+   * tag (some models stop right after the JSON).
+   */
+  flush() {
+    const toolCalls = [];
+    let raw = "";
+    if (this.openTag) {
+      let block = this.buffer;
+      const plainClose = this.buffer.indexOf(this.openTag.close);
+      if (plainClose !== -1) block = this.buffer.slice(0, plainClose);
+      const calls = this.parseBlocks(block);
+      if (calls.length > 0) {
+        toolCalls.push(...calls);
+        this.calls.push(...calls);
+      } else {
+        raw = this.openTag.open + this.buffer;
+      }
+    } else {
+      raw = this.buffer;
+    }
+    this.buffer = "";
+    this.openTag = null;
+    const gated = this.gate(raw, toolCalls.length > 0, true);
+    return { content: gated.content, toolCalls: [...toolCalls, ...gated.toolCalls] };
+  }
+  /** Every tool call parsed so far. */
+  get toolCalls() {
+    return this.calls;
+  }
+  /** True once any tool call has been parsed (drives `finish_reason`). */
+  get sawToolCall() {
+    return this.calls.length > 0;
+  }
+  /**
+   * Decide how much plain content may be released.
+   *
+   * A model that ignores the tag format and answers with the raw JSON payload is
+   * the most common way prompt-driven tool calling fails, so content that starts
+   * like JSON is withheld until it either completes into a call to a declared
+   * tool or proves to be something else. Everything else opens the gate on the
+   * first chunk and streams normally from then on.
+   */
+  gate(text, sawTaggedCall, atEnd) {
+    if (this.gateOpen) return { content: text, toolCalls: [] };
+    if (sawTaggedCall) {
+      this.gateOpen = true;
+      const content = this.held + text;
+      this.held = "";
+      return { content, toolCalls: [] };
+    }
+    this.held += text;
+    const release = () => {
+      this.gateOpen = true;
+      const content = this.held;
+      this.held = "";
+      return { content, toolCalls: [] };
+    };
+    if (!looksLikeJsonStart(this.held)) return release();
+    if (this.held.length > UNTAGGED_HOLD_LIMIT) return release();
+    const candidate = firstJsonValue(stripFences(this.held));
+    if (candidate === null) return atEnd ? release() : { content: "", toolCalls: [] };
+    const calls = this.parseBlocks(this.held).filter(
+      (call) => this.lookup.has(call.function.name)
+    );
+    if (calls.length === 0) return release();
+    this.gateOpen = true;
+    this.held = "";
+    this.calls.push(...calls);
+    return { content: "", toolCalls: calls };
+  }
+  parseBlocks(block) {
+    const text = stripFences(block);
+    if (!text) return [];
+    const value = parseJsonLoose(text);
+    if (value !== void 0) {
+      const calls = toToolCalls(value, this.lookup);
+      if (calls.length > 0) return calls;
+    }
+    const tagged = parseArgKeyValueBody(text, this.lookup);
+    if (tagged.length > 0) return tagged;
+    return parseLineDelimitedBody(text, this.lookup);
+  }
+};
+function findFirst(text, locate) {
+  let best = null;
+  for (const tag of TOOL_CALL_TAGS) {
+    const index = locate(tag);
+    if (index !== -1 && (best === null || index < best.index)) best = { index, tag };
+  }
+  return best;
+}
+function maxPartialTagSuffix(text) {
+  let longest = 0;
+  for (const tag of TOOL_CALL_TAGS) {
+    longest = Math.max(longest, partialTagSuffixLength(text, tag.open));
+  }
+  return longest;
+}
+function parseToolCalls(text, options = {}) {
+  const parser = new ToolCallStreamParser(options);
+  const a = parser.push(text);
+  const b = parser.flush();
+  return {
+    content: a.content + b.content,
+    toolCalls: [...a.toolCalls, ...b.toolCalls]
+  };
+}
+
 // node_modules/@noble/hashes/_u64.js
 var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
 var _32n = /* @__PURE__ */ BigInt(32);
@@ -601,6 +1123,12 @@ function clean(...arrays) {
     arrays[i].fill(0);
   }
 }
+function createView(arr) {
+  return new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+}
+function rotr(word, shift) {
+  return word << 32 - shift | word >>> shift;
+}
 var isLE = /* @__PURE__ */ (() => new Uint8Array(new Uint32Array([287454020]).buffer)[0] === 68)();
 function byteSwap(word) {
   return word << 24 & 4278190080 | word << 8 & 16711680 | word >>> 8 & 65280 | word >>> 24 & 255;
@@ -621,6 +1149,9 @@ function createHasher(hashCons, info = {}) {
   Object.assign(hashC, info);
   return Object.freeze(hashC);
 }
+var oidNist = (suffix) => ({
+  oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, suffix])
+});
 
 // node_modules/@noble/hashes/sha3.js
 var _0n = BigInt(0);
@@ -1065,6 +1596,496 @@ async function verifyAttestation(response, clientNonce, verifierOrOptions) {
   return result();
 }
 
+// node_modules/@noble/hashes/_md.js
+function Chi(a, b, c) {
+  return a & b ^ ~a & c;
+}
+function Maj(a, b, c) {
+  return a & b ^ a & c ^ b & c;
+}
+var HashMD = class {
+  blockLen;
+  outputLen;
+  padOffset;
+  isLE;
+  // For partial updates less than block size
+  buffer;
+  view;
+  finished = false;
+  length = 0;
+  pos = 0;
+  destroyed = false;
+  constructor(blockLen, outputLen, padOffset, isLE2) {
+    this.blockLen = blockLen;
+    this.outputLen = outputLen;
+    this.padOffset = padOffset;
+    this.isLE = isLE2;
+    this.buffer = new Uint8Array(blockLen);
+    this.view = createView(this.buffer);
+  }
+  update(data) {
+    aexists(this);
+    abytes2(data);
+    const { view, buffer, blockLen } = this;
+    const len = data.length;
+    for (let pos = 0; pos < len; ) {
+      const take = Math.min(blockLen - this.pos, len - pos);
+      if (take === blockLen) {
+        const dataView = createView(data);
+        for (; blockLen <= len - pos; pos += blockLen)
+          this.process(dataView, pos);
+        continue;
+      }
+      buffer.set(data.subarray(pos, pos + take), this.pos);
+      this.pos += take;
+      pos += take;
+      if (this.pos === blockLen) {
+        this.process(view, 0);
+        this.pos = 0;
+      }
+    }
+    this.length += data.length;
+    this.roundClean();
+    return this;
+  }
+  digestInto(out) {
+    aexists(this);
+    aoutput(out, this);
+    this.finished = true;
+    const { buffer, view, blockLen, isLE: isLE2 } = this;
+    let { pos } = this;
+    buffer[pos++] = 128;
+    clean(this.buffer.subarray(pos));
+    if (this.padOffset > blockLen - pos) {
+      this.process(view, 0);
+      pos = 0;
+    }
+    for (let i = pos; i < blockLen; i++)
+      buffer[i] = 0;
+    view.setBigUint64(blockLen - 8, BigInt(this.length * 8), isLE2);
+    this.process(view, 0);
+    const oview = createView(out);
+    const len = this.outputLen;
+    if (len % 4)
+      throw new Error("_sha2: outputLen must be aligned to 32bit");
+    const outLen = len / 4;
+    const state = this.get();
+    if (outLen > state.length)
+      throw new Error("_sha2: outputLen bigger than state");
+    for (let i = 0; i < outLen; i++)
+      oview.setUint32(4 * i, state[i], isLE2);
+  }
+  digest() {
+    const { buffer, outputLen } = this;
+    this.digestInto(buffer);
+    const res = buffer.slice(0, outputLen);
+    this.destroy();
+    return res;
+  }
+  _cloneInto(to) {
+    to ||= new this.constructor();
+    to.set(...this.get());
+    const { blockLen, buffer, length, finished, destroyed, pos } = this;
+    to.destroyed = destroyed;
+    to.finished = finished;
+    to.length = length;
+    to.pos = pos;
+    if (length % blockLen)
+      to.buffer.set(buffer);
+    return to;
+  }
+  clone() {
+    return this._cloneInto();
+  }
+};
+var SHA256_IV = /* @__PURE__ */ Uint32Array.from([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+
+// node_modules/@noble/hashes/sha2.js
+var SHA256_K = /* @__PURE__ */ Uint32Array.from([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var SHA256_W = /* @__PURE__ */ new Uint32Array(64);
+var SHA2_32B = class extends HashMD {
+  constructor(outputLen) {
+    super(64, outputLen, 8, false);
+  }
+  get() {
+    const { A, B, C: C2, D, E, F, G: G2, H } = this;
+    return [A, B, C2, D, E, F, G2, H];
+  }
+  // prettier-ignore
+  set(A, B, C2, D, E, F, G2, H) {
+    this.A = A | 0;
+    this.B = B | 0;
+    this.C = C2 | 0;
+    this.D = D | 0;
+    this.E = E | 0;
+    this.F = F | 0;
+    this.G = G2 | 0;
+    this.H = H | 0;
+  }
+  process(view, offset) {
+    for (let i = 0; i < 16; i++, offset += 4)
+      SHA256_W[i] = view.getUint32(offset, false);
+    for (let i = 16; i < 64; i++) {
+      const W15 = SHA256_W[i - 15];
+      const W2 = SHA256_W[i - 2];
+      const s0 = rotr(W15, 7) ^ rotr(W15, 18) ^ W15 >>> 3;
+      const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ W2 >>> 10;
+      SHA256_W[i] = s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16] | 0;
+    }
+    let { A, B, C: C2, D, E, F, G: G2, H } = this;
+    for (let i = 0; i < 64; i++) {
+      const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
+      const T1 = H + sigma1 + Chi(E, F, G2) + SHA256_K[i] + SHA256_W[i] | 0;
+      const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
+      const T2 = sigma0 + Maj(A, B, C2) | 0;
+      H = G2;
+      G2 = F;
+      F = E;
+      E = D + T1 | 0;
+      D = C2;
+      C2 = B;
+      B = A;
+      A = T1 + T2 | 0;
+    }
+    A = A + this.A | 0;
+    B = B + this.B | 0;
+    C2 = C2 + this.C | 0;
+    D = D + this.D | 0;
+    E = E + this.E | 0;
+    F = F + this.F | 0;
+    G2 = G2 + this.G | 0;
+    H = H + this.H | 0;
+    this.set(A, B, C2, D, E, F, G2, H);
+  }
+  roundClean() {
+    clean(SHA256_W);
+  }
+  destroy() {
+    this.set(0, 0, 0, 0, 0, 0, 0, 0);
+    clean(this.buffer);
+  }
+};
+var _SHA256 = class extends SHA2_32B {
+  // We cannot use array here since array allows indexing by variable
+  // which means optimizer/compiler cannot use registers.
+  A = SHA256_IV[0] | 0;
+  B = SHA256_IV[1] | 0;
+  C = SHA256_IV[2] | 0;
+  D = SHA256_IV[3] | 0;
+  E = SHA256_IV[4] | 0;
+  F = SHA256_IV[5] | 0;
+  G = SHA256_IV[6] | 0;
+  H = SHA256_IV[7] | 0;
+  constructor() {
+    super(32);
+  }
+};
+var sha256 = /* @__PURE__ */ createHasher(
+  () => new _SHA256(),
+  /* @__PURE__ */ oidNist(1)
+);
+
+// src/receipt.ts
+function jcsStringify(value) {
+  if (value === null) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isInteger(value)) {
+      throw new TypeError(`JCS: ACI restricts numbers to integers, got ${value}`);
+    }
+    return Object.is(value, -0) ? "0" : String(value);
+  }
+  if (typeof value !== "object") {
+    throw new TypeError(`JCS: unsupported type ${typeof value}`);
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => jcsStringify(item)).join(",")}]`;
+  const entries = Object.keys(value).filter((key) => value[key] !== void 0).sort().map((key) => `${JSON.stringify(key)}:${jcsStringify(value[key])}`);
+  return `{${entries.join(",")}}`;
+}
+function sha256Prefixed(text) {
+  return hashReceiptBody(text);
+}
+function hashReceiptBody(body) {
+  if (typeof body !== "string" && !(body instanceof Uint8Array)) {
+    throw new TypeError("Receipt body must be a string or Uint8Array");
+  }
+  const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
+  return `sha256:${toHex(sha256(bytes))}`;
+}
+function computeWorkloadId(publicKey) {
+  return sha256Prefixed(
+    jcsStringify({ algo: publicKey.algo, public_key: publicKey.public_key })
+  );
+}
+function computeWorkloadKeysetDigest(keyset) {
+  return sha256Prefixed(jcsStringify(keyset));
+}
+function receiptSigningBytes(receipt) {
+  const { value: _omitted, ...signatureWithoutValue } = receipt.signature;
+  const forSigning = {
+    ...receipt,
+    signature: signatureWithoutValue
+  };
+  return new TextEncoder().encode(jcsStringify(forSigning));
+}
+function fromHexBytes(hex) {
+  const clean2 = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (clean2.length === 0 || clean2.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(clean2)) {
+    throw new TypeError("Expected non-empty, even-length hexadecimal bytes");
+  }
+  const out = new Uint8Array(clean2.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Number.parseInt(clean2.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
+}
+async function verifyEd25519(publicKey, signature, message) {
+  const key = await crypto.subtle.importKey("raw", publicKey, "Ed25519", false, [
+    "verify"
+  ]);
+  return crypto.subtle.verify(
+    "Ed25519",
+    key,
+    signature,
+    message
+  );
+}
+function exactlyOneEvent(receipt, type) {
+  const matches = receipt.event_log.filter(
+    (event) => event && typeof event === "object" && event.type === type
+  );
+  return matches.length === 1 ? matches[0] : void 0;
+}
+function isReceiptBody(value) {
+  return typeof value === "string" || value instanceof Uint8Array;
+}
+async function verifyReceipt(signatureResponse, attestation, options) {
+  const checks = [];
+  const add = (name, ok, detail) => {
+    checks.push(detail === void 0 ? { name, ok } : { name, ok, detail });
+  };
+  const receipt = signatureResponse?.receipt;
+  if (!receipt || !receipt.signature || !Array.isArray(receipt.event_log)) {
+    add("receipt_present", false, "signature response carried no complete receipt");
+    return { verified: false, checks };
+  }
+  if (!options || typeof options !== "object") {
+    add("verification_context_present", false, "trust anchor and request/response context required");
+    return { verified: false, checks };
+  }
+  const { trustAnchor, requestId, requestBody, responseBody, responseHashField } = options;
+  const contextComplete = Boolean(
+    trustAnchor?.workloadId && trustAnchor?.workloadKeysetDigest && requestId && isReceiptBody(requestBody) && isReceiptBody(responseBody) && (responseHashField === "wire_hash" || responseHashField === "cleartext_hash")
+  );
+  add(
+    "verification_context_present",
+    contextComplete,
+    contextComplete ? void 0 : "trustAnchor, requestId, requestBody, responseBody, and responseHashField are required"
+  );
+  if (!contextComplete) return { verified: false, checks };
+  const unsupportedVersions = [
+    receipt.api_version === "aci/1" ? void 0 : `receipt "${receipt.api_version}"`,
+    signatureResponse.api_version === void 0 || signatureResponse.api_version === "aci/1" ? void 0 : `signature response "${signatureResponse.api_version}"`,
+    attestation?.api_version === void 0 || attestation.api_version === "aci/1" ? void 0 : `attestation "${attestation.api_version}"`
+  ].filter((value) => value !== void 0);
+  add(
+    "api_version_supported",
+    unsupportedVersions.length === 0,
+    unsupportedVersions.length === 0 ? void 0 : `unsupported api_version: ${unsupportedVersions.join(", ")}`
+  );
+  const keyset = attestation?.attestation?.workload_keyset;
+  if (!keyset) {
+    add("keyset_present", false, "attestation carried no workload_keyset");
+    return { verified: false, checks };
+  }
+  const identityKey = keyset.workload_identity?.public_key;
+  const signingKeys = keyset.receipt_signing_keys;
+  const keysetShapeValid = Boolean(
+    identityKey && typeof identityKey.algo === "string" && typeof identityKey.public_key === "string" && Array.isArray(signingKeys) && signingKeys.every(
+      (key) => key && typeof key === "object" && typeof key.key_id === "string" && typeof key.algo === "string" && typeof key.public_key === "string"
+    )
+  );
+  if (!keysetShapeValid) {
+    add("keyset_well_formed", false, "workload identity or receipt signing keys are malformed");
+    return { verified: false, checks };
+  }
+  let keysetDigest;
+  let workloadId;
+  try {
+    keysetDigest = computeWorkloadKeysetDigest(keyset);
+    workloadId = computeWorkloadId(identityKey);
+  } catch (error) {
+    add(
+      "keyset_well_formed",
+      false,
+      `invalid workload keyset: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return { verified: false, checks };
+  }
+  add("keyset_well_formed", true);
+  add(
+    "keyset_digest_matches_trust_anchor",
+    keysetDigest === trustAnchor.workloadKeysetDigest,
+    keysetDigest === trustAnchor.workloadKeysetDigest ? void 0 : `computed ${keysetDigest}, trusted ${trustAnchor.workloadKeysetDigest}`
+  );
+  add(
+    "attestation_keyset_digest_matches_trust_anchor",
+    attestation.workload_keyset_digest === trustAnchor.workloadKeysetDigest,
+    attestation.workload_keyset_digest === trustAnchor.workloadKeysetDigest ? void 0 : `attestation says ${attestation.workload_keyset_digest ?? "missing"}`
+  );
+  add(
+    "receipt_keyset_digest_matches_trust_anchor",
+    receipt.workload_keyset_digest === trustAnchor.workloadKeysetDigest,
+    receipt.workload_keyset_digest === trustAnchor.workloadKeysetDigest ? void 0 : `receipt says ${receipt.workload_keyset_digest}`
+  );
+  add(
+    "workload_id_matches_trust_anchor",
+    workloadId === trustAnchor.workloadId && attestation.workload_id === trustAnchor.workloadId && receipt.workload_id === trustAnchor.workloadId,
+    workloadId === trustAnchor.workloadId && attestation.workload_id === trustAnchor.workloadId && receipt.workload_id === trustAnchor.workloadId ? void 0 : `computed ${workloadId}, attestation ${attestation.workload_id ?? "missing"}, receipt ${receipt.workload_id ?? "missing"}, trusted ${trustAnchor.workloadId}`
+  );
+  const entry = signingKeys.find(
+    (key) => key.key_id === receipt.signature.key_id
+  );
+  add(
+    "key_in_trusted_keyset",
+    Boolean(entry),
+    entry ? void 0 : `key_id "${receipt.signature.key_id}" is not in receipt_signing_keys`
+  );
+  if (entry) {
+    const algoMatches = entry.algo === receipt.signature.algo;
+    add(
+      "key_algo_matches",
+      algoMatches,
+      algoMatches ? void 0 : `receipt says ${receipt.signature.algo}, keyset says ${entry.algo}`
+    );
+    if (algoMatches && entry.algo === "ed25519") {
+      try {
+        const ok = await verifyEd25519(
+          fromHexBytes(entry.public_key),
+          fromHexBytes(receipt.signature.value),
+          receiptSigningBytes(receipt)
+        );
+        add("receipt_signature", ok, ok ? void 0 : "Ed25519 verification failed");
+      } catch (error) {
+        add(
+          "receipt_signature",
+          false,
+          `Ed25519 unavailable or input rejected: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    } else if (algoMatches) {
+      add("receipt_signature", false, `unsupported receipt signing algorithm "${entry.algo}"`);
+    }
+  }
+  add(
+    "chat_id_matches_request",
+    receipt.chat_id === requestId,
+    receipt.chat_id === requestId ? void 0 : `receipt is for ${receipt.chat_id}, expected ${requestId}`
+  );
+  const requestEvent = exactlyOneEvent(receipt, "request.received");
+  const requestHash = hashReceiptBody(requestBody);
+  add(
+    "request_body_hash_matches",
+    requestEvent?.body_hash === requestHash,
+    requestEvent?.body_hash === requestHash ? void 0 : `computed ${requestHash}, receipt says ${requestEvent?.body_hash ?? "missing or ambiguous event"}`
+  );
+  const responseEvent = exactlyOneEvent(receipt, "response.returned");
+  const responseHash = hashReceiptBody(responseBody);
+  const receiptResponseHash = responseEvent?.[responseHashField];
+  add(
+    "response_body_hash_matches",
+    receiptResponseHash === responseHash,
+    receiptResponseHash === responseHash ? void 0 : `computed ${responseHash}, receipt ${responseHashField} says ${typeof receiptResponseHash === "string" ? receiptResponseHash : "missing or ambiguous event"}`
+  );
+  const rawAttestationAddress = attestation.signing_address;
+  const rawSignatureAddress = signatureResponse.signing_address;
+  const attestationAddress = typeof rawAttestationAddress === "string" ? rawAttestationAddress.toLowerCase() : void 0;
+  const signatureAddress = typeof rawSignatureAddress === "string" ? rawSignatureAddress.toLowerCase() : void 0;
+  if (rawAttestationAddress !== void 0 || rawSignatureAddress !== void 0) {
+    add(
+      "signing_address_cross_check",
+      Boolean(attestationAddress && signatureAddress && attestationAddress === signatureAddress),
+      attestationAddress && signatureAddress && attestationAddress === signatureAddress ? void 0 : `${signatureAddress ?? "missing"} vs attestation ${attestationAddress ?? "missing"}`
+    );
+  }
+  return { verified: checks.length > 0 && checks.every((check) => check.ok), checks };
+}
+
 // src/index.ts
 var DEFAULT_BASE_URL = "https://api.venice.ai";
 var DEFAULT_SESSION_TTL = 30 * 60 * 1e3;
@@ -1143,14 +2164,20 @@ function createVeniceE2EE(options) {
   }
   async function encrypt(messages, session) {
     const encryptedMessages = await Promise.all(
-      messages.map(async (msg) => ({
-        role: msg.role,
-        content: await encryptMessage(
-          session.aesKey,
-          session.publicKey,
-          msg.content
-        )
-      }))
+      messages.map(async ({ role, content, tool_call_id }) => {
+        const encrypted = {
+          role,
+          content: await encryptMessage(
+            session.aesKey,
+            session.publicKey,
+            flattenMessageContent(content)
+          )
+        };
+        if (role === "tool" && tool_call_id !== void 0) {
+          encrypted.tool_call_id = tool_call_id;
+        }
+        return encrypted;
+      })
     );
     return {
       encryptedMessages,
@@ -1168,6 +2195,18 @@ function createVeniceE2EE(options) {
   async function* decryptStream(body, session) {
     yield* decryptSSEStream(body, session.privateKey, allowPlaintextResponses);
   }
+  async function fetchResponseSignature(modelId, requestId) {
+    const url = `${baseUrl}/api/v1/tee/signature?model=${encodeURIComponent(modelId)}&request_id=${encodeURIComponent(requestId)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+    if (!res.ok) {
+      throw new Error(`TEE signature fetch failed (${res.status}): ${await res.text()}`);
+    }
+    return res.json();
+  }
+  async function attest(modelId) {
+    const { response } = await fetchAttestation(modelId);
+    return response;
+  }
   function clearSession() {
     if (_session) {
       _session.privateKey.fill(0);
@@ -1176,9 +2215,11 @@ function createVeniceE2EE(options) {
   }
   return {
     createSession,
+    attest,
     encrypt,
     decryptChunk: decrypt,
     decryptStream,
+    fetchResponseSignature,
     clearSession
   };
 }
@@ -1186,17 +2227,34 @@ function isE2EEModel(modelId) {
   return modelId.startsWith("e2ee-");
 }
 export {
+  TOOL_CALL_CLOSE,
+  TOOL_CALL_OPEN,
+  TOOL_RESPONSE_CLOSE,
+  TOOL_RESPONSE_OPEN,
+  ToolCallStreamParser,
+  buildToolSystemPrompt,
+  computeWorkloadId,
+  computeWorkloadKeysetDigest,
   createVeniceE2EE,
   decryptChunk,
   decryptSSEStream,
   deriveAESKey,
   deriveEthAddress,
   encryptMessage,
+  flattenMessageContent,
   fromHex,
   generateKeypair,
+  generateToolCallId,
+  hashReceiptBody,
   isE2EEModel,
+  jcsStringify,
+  parseToolCalls,
+  receiptSigningBytes,
+  renderToolMessages,
+  sha256Prefixed,
   toHex,
-  verifyAttestation
+  verifyAttestation,
+  verifyReceipt
 };
 /*! Bundled license information:
 

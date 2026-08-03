@@ -34,6 +34,10 @@ const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('isE2EEModel exported through api.js', apiSrc.includes('isE2EEModel,'));
 assert('e2ee prefix detection', apiProviderStorageSrc.includes("modelId.startsWith('e2ee-')"));
 assert('callVeniceAPI has E2EE import', apiVeniceSrc.includes("import('../vendor/venice-e2ee.js')"));
+assert('callVeniceAPI requires browser-side DCAP verification',
+  apiVeniceSrc.includes("import('../vendor/venice-dcap.js')")
+    && apiVeniceSrc.includes('dcapVerifier: dcapModule.createDcapVerifier()')
+    && apiVeniceSrc.includes('requireDcap: true'));
 assert('supportsWebSearch excludes E2EE', apiModelsSrc.includes('isVeniceE2EEActive()'));
 assert('supportsVision excludes E2EE', apiModelsSrc.includes('isVeniceE2EEActive()') && apiModelsSrc.includes('return false'));
 assert('fetchVeniceModels excludes unsupported e2ee-prefixed regular models', apiModelsSrc.includes("!m.id.startsWith('e2ee-')"));
@@ -43,10 +47,12 @@ assert('Venice E2EE supports forced non-stream retry path',
   && /stream:\s*useStream/.test(apiVeniceSrc)
   && /if\s*\(!useStream\)/.test(apiVeniceSrc)
   && /decryptChunk\(session\.privateKey,\s*encryptedContent\)/.test(apiVeniceSrc));
-assert('Venice GLM E2EE disables hidden reasoning and caps reasoning-only streams',
+assert('Venice GLM E2EE handles hidden reasoning without a transport-chunk cutoff',
   apiVeniceSrc.includes('disable_thinking: true')
-    && apiVeniceSrc.includes('reasoning: { enabled: false }')
-    && apiVeniceSrc.includes('MAX_HIDDEN_REASONING_CHUNKS'));
+    && apiVeniceSrc.includes('isGlm52E2EE')
+    && apiVeniceSrc.includes('isGlmE2EE && !isGlm52E2EE')
+    && !apiVeniceSrc.includes('reasoning: { enabled: false }')
+    && !apiVeniceSrc.includes('MAX_HIDDEN_REASONING_CHUNKS'));
 
 // 2. api.js module exports
 assert('api.isE2EEModel is function', typeof api.isE2EEModel === 'function');
@@ -62,6 +68,7 @@ assert('undefined is not E2EE', !api.isE2EEModel(undefined));
 
 // 3. venice-e2ee.js module loads and exports
 const e2eeMod = await import('../vendor/venice-e2ee.js');
+const dcapMod = await import('../vendor/venice-dcap.js');
 const chatAttestationMod = await import('../js/chat-attestation.js');
 assert('createVeniceE2EE exported', typeof e2eeMod.createVeniceE2EE === 'function');
 assert('generateKeypair exported', typeof e2eeMod.generateKeypair === 'function');
@@ -70,9 +77,21 @@ assert('encryptMessage exported', typeof e2eeMod.encryptMessage === 'function');
 assert('decryptChunk exported', typeof e2eeMod.decryptChunk === 'function');
 assert('decryptSSEStream exported', typeof e2eeMod.decryptSSEStream === 'function');
 assert('verifyAttestation exported', typeof e2eeMod.verifyAttestation === 'function');
+assert('v0.3 encrypted tool helpers exported',
+  typeof e2eeMod.buildToolSystemPrompt === 'function'
+    && typeof e2eeMod.ToolCallStreamParser === 'function'
+    && typeof e2eeMod.parseToolCalls === 'function');
+assert('v0.3 response receipt verifier exported', typeof e2eeMod.verifyReceipt === 'function');
 assert('isE2EEModel exported', typeof e2eeMod.isE2EEModel === 'function');
+assert('pinned browser DCAP verifier exported',
+  typeof dcapMod.createDcapVerifier === 'function'
+    && typeof dcapMod.createDcapVerifier() === 'function'
+    && dcapMod.PHALA_PCCS_URL === 'https://pccs.phala.network');
 assert('toHex exported', typeof e2eeMod.toHex === 'function');
 assert('fromHex exported', typeof e2eeMod.fromHex === 'function');
+const v03Client = e2eeMod.createVeniceE2EE({ apiKey: 'test-v0.3-client' });
+assert('v0.3 client exposes attestation and response-signature fetches',
+  typeof v03Client.attest === 'function' && typeof v03Client.fetchResponseSignature === 'function');
 assert('attestationTooltip exported', typeof chatAttestationMod.attestationTooltip === 'function');
 assert('e2eeLockHTML exported', typeof chatAttestationMod.e2eeLockHTML === 'function');
 assert('e2eeLockFootnote exported', typeof chatAttestationMod.e2eeLockFootnote === 'function');
@@ -406,10 +425,37 @@ assert('Venice tooltip distinguishes binding checks from full verification',
 assert('Venice binding-only lock is amber and not verified',
   limitedLock.includes('#f59e0b') && limitedLock.includes('~') && !limitedLock.includes('#22c55e'),
   limitedLock);
-assert('Venice provider copy names limited checks and visible metadata',
-  providerRenderSrc.includes('does not currently validate the full DCAP chain')
+const dcapVenice = {
+  verificationLevel: 'dcap',
+  nonceVerified: true,
+  signingKeyBound: true,
+  debugMode: false,
+  dcapVerified: true,
+  dcap: { status: 'UpToDate', advisoryIds: [] },
+  measurementsVerified: null,
+  errors: []
+};
+const dcapTooltip = chatAttestationMod.attestationTooltip(dcapVenice);
+const dcapLock = chatAttestationMod.e2eeLockHTML(dcapVenice);
+assert('Venice DCAP lock has a distinct non-green tier',
+  dcapLock.includes('#38bdf8')
+    && dcapLock.includes('D')
+    && dcapLock.includes('class="e2ee-attestation-badge"')
+    && dcapLock.includes('data-attestation-tooltip=')
+    && !dcapLock.includes('#22c55e'),
+  dcapLock);
+assert('Venice DCAP tooltip does not claim full workload verification',
+  dcapTooltip.includes('Intel DCAP verified (limited workload assurance)')
+    && dcapTooltip.includes('DCAP collateral: pccs.phala.network')
+    && dcapTooltip.includes('Approved measurements: not validated')
+    && dcapTooltip.includes('Response origin binding: not verified'),
+  dcapTooltip);
+assert('Venice provider copy names verified and remaining checks plus visible metadata',
+  providerRenderSrc.includes('Intel DCAP quote signature, PCK certificate chain, revocation state, and TCB status')
+    && providerRenderSrc.includes("collateral directly from Phala's PCCS")
+    && providerRenderSrc.includes('DCAP verified, not fully workload verified')
     && providerRenderSrc.includes('Venice still sees your API key')
-    && providerRenderSrc.includes('does not independently verify provider-side logging'));
+    && providerRenderSrc.includes('NVIDIA GPU evidence, approved code measurements, and response signatures are not yet independently verified'));
 assert('chat exports refreshWebSearchToggle', chatSrc.includes('refreshWebSearchToggle'));
 
 console.log(results.join('\n'));

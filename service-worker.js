@@ -651,6 +651,7 @@ const APP_SHELL = [
   '/vendor/bip39-minimal.js',
   '/vendor/cashu-ts.js',
   '/vendor/venice-e2ee.js',
+  '/vendor/venice-dcap.js',
   '/vendor/ppq-private-tee.js',
   '/vendor/tinfoil-browser.js',
   '/vendor/ehbp-browser.js',

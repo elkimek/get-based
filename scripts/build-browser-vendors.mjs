@@ -28,6 +28,12 @@ const TARGETS = [
     output: 'vendor/ehbp-browser.js',
     format: 'es',
   },
+  {
+    package: '@phala/dcap-qvl',
+    entry: 'scripts/vendor-entries/venice-dcap.js',
+    output: 'vendor/venice-dcap.js',
+    format: 'es',
+  },
 ];
 
 const lock = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
@@ -53,6 +59,7 @@ for (const target of TARGETS) {
     write: false,
     resolve: {
       alias: {
+        elliptic: path.join(ROOT, 'scripts/vendor-packages/elliptic-verify-only/index.js'),
         zlib: path.join(ROOT, 'scripts/vendor-entries/zlib-browser-shim.js'),
       },
     },
