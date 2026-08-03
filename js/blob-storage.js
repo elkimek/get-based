@@ -77,6 +77,53 @@ export async function setBlob(key, value) {
 }
 
 /**
+ * Replace a profile blob only if it still matches the value the caller read.
+ * IndexedDB serializes read-write transactions, so this remains safe when
+ * Navigator Locks is unavailable or another tab writes between shadow
+ * validation and commit.
+ *
+ * @param {string} key
+ * @param {string} expectedValue
+ * @param {string} nextValue
+ * @returns {Promise<void>}
+ */
+export async function compareAndSetBlob(key, expectedValue, nextValue) {
+  if (!shouldUseBlob(key)) throw new Error('Compare-and-set requires an IndexedDB profile blob key.');
+  if (typeof expectedValue !== 'string' || typeof nextValue !== 'string') {
+    throw new TypeError('Compare-and-set profile values must be strings.');
+  }
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    let conflict = false;
+    const read = store.get(key);
+    read.onsuccess = () => {
+      if (read.result !== expectedValue) {
+        conflict = true;
+        tx.abort();
+        return;
+      }
+      store.put(nextValue, key);
+    };
+    read.onerror = () => reject(read.error);
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => {
+      if (conflict) {
+        const error = /** @type {Error & { code?: string }} */ (
+          new Error('Profile data changed before migration commit.')
+        );
+        error.code = 'blob_conflict';
+        reject(error);
+      } else {
+        reject(tx.error || new Error('Profile blob transaction was aborted.'));
+      }
+    };
+    tx.onerror = () => {};
+  });
+}
+
+/**
  * @param {string} key
  * @param {{ throwOnError?: boolean }} [options]
  */

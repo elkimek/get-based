@@ -142,6 +142,7 @@ export async function eraseAllLocalAppData() {
       ...profileIds.flatMap(id => [`labcharts-wearables-${id}`, `labcharts-cycle-${id}`]),
       'labcharts-backups',
       'labcharts-blobs',
+      'labcharts-migration-recovery',
     ],
     errors,
   );

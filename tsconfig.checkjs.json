@@ -511,6 +511,7 @@
     "js/marker-analysis.js",
     "js/marker-detail-actions.js",
     "js/marker-detail-editing.js",
+    "js/migration-recovery-store.js",
     "js/notes-runtime.js",
     "js/notes.js",
     "js/profile-list-store.js",
