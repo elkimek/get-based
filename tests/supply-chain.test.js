@@ -20,6 +20,7 @@ describe('supply-chain inventory', () => {
       'jszip',
       '@cashu/cashu-ts',
       'qrcode-generator',
+      '@phala/dcap-qvl',
       'tinfoil',
       'ehbp',
       '@evolu/common',
@@ -86,7 +87,12 @@ describe('supply-chain inventory', () => {
     });
     const resolved = snapshot.manifests['vendor/components.json'].resolved;
 
-    expect(Object.keys(resolved)).toHaveLength(9);
+    expect(Object.keys(resolved)).toHaveLength(10);
+    expect(resolved['@phala/dcap-qvl']).toEqual({
+      package_url: 'pkg:npm/%40phala/dcap-qvl@0.3.9',
+      relationship: 'direct',
+      scope: 'runtime',
+    });
     expect(resolved['qrcode-generator']).toEqual({
       package_url: 'pkg:npm/qrcode-generator@1.4.4',
       relationship: 'direct',
