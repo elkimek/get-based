@@ -70,13 +70,24 @@
     },
     {
       "name": "venice-e2ee",
-      "version": "0.2.0",
-      "purl": "pkg:github/elkimek/venice-e2ee@0.2.0",
+      "version": "0.3.0",
+      "purl": "pkg:github/elkimek/venice-e2ee@0.3.0",
       "license": "GPL-3.0-only",
       "source": "https://github.com/elkimek/venice-e2ee",
       "monitoring": "sbom-only",
       "files": [
         "vendor/venice-e2ee.js"
+      ]
+    },
+    {
+      "name": "@phala/dcap-qvl",
+      "version": "0.3.9",
+      "purl": "pkg:npm/%40phala/dcap-qvl@0.3.9",
+      "license": "Apache-2.0",
+      "source": "https://github.com/Phala-Network/dcap-qvl",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/venice-dcap.js"
       ]
     },
     {

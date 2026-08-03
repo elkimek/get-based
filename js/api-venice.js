@@ -23,11 +23,57 @@ import {
 /** @typedef {Window & typeof globalThis & {
  *   _veniceE2EE?: any,
  *   _veniceE2EEKey?: string,
+ *   _veniceE2EEDcapRequired?: boolean,
  *   _veniceAttestation?: any,
  *   _veniceLastStreamDiagnostics?: any
  * }} VeniceApiWindow */
 
 const apiWindow = /** @type {VeniceApiWindow} */ (typeof window !== 'undefined' ? window : {});
+
+const VENICE_ATTESTATION_RETRY_DELAYS_MS = [250, 750];
+
+function veniceAttestationStatus(error) {
+  const match = getErrorMessage(error).match(/TEE attestation failed \((502|503|504)\)/i);
+  return match?.[1] || '';
+}
+
+function veniceRetryAbortError(signal) {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new DOMException('Venice E2EE request cancelled.', 'AbortError');
+}
+
+function waitForVeniceAttestationRetry(delayMs, signal) {
+  if (!signal) return new Promise(resolve => setTimeout(resolve, delayMs));
+  if (signal.aborted) return Promise.reject(veniceRetryAbortError(signal));
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(veniceRetryAbortError(signal));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function createVeniceE2EESessionWithRetry(client, modelId, signal) {
+  for (let attempt = 0; attempt <= VENICE_ATTESTATION_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await client.createSession(modelId);
+    } catch (error) {
+      const status = veniceAttestationStatus(error);
+      if (!status) throw error;
+      if (attempt === VENICE_ATTESTATION_RETRY_DELAYS_MS.length) {
+        throw new Error(`Venice E2EE attestation stayed unavailable (${status}) after ${attempt + 1} attempts. Retry shortly or choose another E2EE model.`);
+      }
+      await waitForVeniceAttestationRetry(VENICE_ATTESTATION_RETRY_DELAYS_MS[attempt], signal);
+    }
+  }
+  throw new Error('Venice E2EE attestation retry ended unexpectedly.');
+}
 
 export function clearVeniceE2EESession() {
   const e2ee = apiWindow._veniceE2EE;
@@ -78,14 +124,23 @@ export async function callVeniceAPI(opts) {
   }
 
   if (!crypto?.subtle) throw new Error('E2EE requires a secure context (HTTPS). Cannot encrypt on this page.');
-  const { createVeniceE2EE, encryptMessage, decryptChunk } = await import('../vendor/venice-e2ee.js');
-  if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key) {
-    apiWindow._veniceE2EE = createVeniceE2EE({ apiKey: key });
+  const [e2eeModule, dcapModule] = await Promise.all([
+    import('../vendor/venice-e2ee.js'),
+    import('../vendor/venice-dcap.js'),
+  ]);
+  const { createVeniceE2EE, encryptMessage, decryptChunk } = e2eeModule;
+  if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key || !apiWindow._veniceE2EEDcapRequired) {
+    apiWindow._veniceE2EE = createVeniceE2EE({
+      apiKey: key,
+      dcapVerifier: dcapModule.createDcapVerifier(),
+      requireDcap: true,
+    });
     apiWindow._veniceE2EEKey = key;
+    apiWindow._veniceE2EEDcapRequired = true;
   }
   let session;
   try {
-    session = await apiWindow._veniceE2EE.createSession(modelId);
+    session = await createVeniceE2EESessionWithRetry(apiWindow._veniceE2EE, modelId, opts.signal);
   } catch (e) {
     throw new Error(`Venice E2EE setup failed: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }
@@ -106,6 +161,11 @@ export async function callVeniceAPI(opts) {
 
   const useStream = !forceNonStream;
   const isGlmE2EE = /(?:^|-)glm(?:-|$)/i.test(modelId);
+  const isGlm52E2EE = /(?:^|-)glm-5-2(?:-|$)/i.test(modelId);
+  // Venice's live GLM 5.2 E2EE gateway currently converts its thinking-disable
+  // controls into an invalid zero-token reasoning budget. Let that model use its
+  // native reasoning path; the stream reader below handles reasoning_content.
+  const disableGlmThinking = isGlmE2EE && !isGlm52E2EE;
   const body = /** @type {any} */ ({
     model: modelId,
     messages: apiMessages,
@@ -113,9 +173,8 @@ export async function callVeniceAPI(opts) {
     stream: useStream,
     venice_parameters: {
       enable_e2ee: true,
-      ...(isGlmE2EE ? { disable_thinking: true, strip_thinking_response: true } : {}),
+      ...(disableGlmThinking ? { disable_thinking: true, strip_thinking_response: true } : {}),
     },
-    ...(isGlmE2EE ? { reasoning: { enabled: false } } : {}),
   });
   if (useStream) body.stream_options = { include_usage: true };
   let res;
@@ -184,7 +243,6 @@ export async function callVeniceAPI(opts) {
     doneSeen: false,
     status: 'reading',
   };
-  const MAX_HIDDEN_REASONING_CHUNKS = 128;
   apiWindow._veniceLastStreamDiagnostics = streamDiagnostics;
   const handleVeniceLine = async (line, boundary) => {
     if (!line.startsWith('data: ')) return;
@@ -215,11 +273,9 @@ export async function callVeniceAPI(opts) {
         if (onStream) onStream(fullText);
       } else if (delta?.reasoning_content && !hasContent) {
         streamDiagnostics.reasoningChunks += 1;
-        if (streamDiagnostics.reasoningChunks > MAX_HIDDEN_REASONING_CHUNKS) {
-          streamDiagnostics.status = 'cancelled-reasoning-only';
-          try { await reader.cancel(); } catch {}
-          throw new Error(`Venice E2EE produced more than ${MAX_HIDDEN_REASONING_CHUNKS} hidden reasoning chunks without an answer. The stream was cancelled to limit further charges; choose another E2EE model or retry after Venice resolves the GLM response.`);
-        }
+        // SSE chunk boundaries are transport details, not token counts. Long but
+        // valid GLM reasoning can span hundreds of small chunks; max_tokens
+        // bounds generation while readWithStallTimeout bounds a stalled stream.
         const reasoningChunk = await decryptChunk(session.privateKey, delta.reasoning_content);
         reasoningBuf += reasoningChunk;
       }

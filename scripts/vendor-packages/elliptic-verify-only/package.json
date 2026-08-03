@@ -1,0 +1,12 @@
+{
+  "name": "elliptic",
+  "version": "7.0.0-getbased.1",
+  "private": true,
+  "description": "Verification-only compatibility adapter for @phala/dcap-qvl",
+  "type": "module",
+  "exports": "./index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@noble/curves": "2.2.0"
+  }
+}
