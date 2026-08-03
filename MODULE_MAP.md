@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 582 |
+| Modules | 581 |
 | Internal import edges | 2502 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
@@ -807,12 +807,6 @@ Native browser modules shipped with the static application.
 <details><summary><code>state</code> family — 1 module</summary>
 
 - [`js/state.js`](js/state.js) → no in-scope imports
-
-</details>
-
-<details><summary><code>storage</code> family — 1 module</summary>
-
-- [`js/storage-integrity-manifest.js`](js/storage-integrity-manifest.js) → no in-scope imports
 
 </details>
 

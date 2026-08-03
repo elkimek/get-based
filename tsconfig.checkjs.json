@@ -515,7 +515,6 @@
     "js/notes.js",
     "js/profile-list-store.js",
     "js/profile-context.js",
-    "js/storage-integrity-manifest.js",
     "js/provider-local-ai-runtime.js",
     "js/provider-local-ai-controls.js",
     "js/provider-panel-delegates.js",
