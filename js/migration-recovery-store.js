@@ -243,7 +243,11 @@ export async function preflightMigrationRecoveryStorage(previousValue, nextValue
   }
 }
 
-/** @param {RecoveryRecord} record @param {string} previousValue @param {string} nextValue */
+/**
+ * @param {Pick<RecoveryRecord, 'id' | 'profileKey' | 'fromVersion' | 'toVersion' | 'createdAt'>} record
+ * @param {string} previousValue
+ * @param {string} nextValue
+ */
 async function encryptRecoveryRecord(record, previousValue, nextValue) {
   const key = await getOrCreateDeviceKey();
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
@@ -400,7 +404,7 @@ export async function prepareMigrationRecoverySnapshot(input) {
     };
   }
 
-  const record = /** @type {RecoveryRecord} */ ({
+  const metadata = /** @type {Omit<RecoveryRecord, 'envelope'>} */ ({
     id: createSnapshotId(),
     formatVersion: MIGRATION_RECOVERY_FORMAT_VERSION,
     profileKey: input.profileKey,
@@ -410,10 +414,12 @@ export async function prepareMigrationRecoverySnapshot(input) {
     status: 'prepared',
     previousBytes: preflight.previousBytes,
     nextBytes: preflight.nextBytes,
-    envelope: null,
   });
   try {
-    record.envelope = await encryptRecoveryRecord(record, input.previousValue, input.nextValue);
+    const record = /** @type {RecoveryRecord} */ ({
+      ...metadata,
+      envelope: await encryptRecoveryRecord(metadata, input.previousValue, input.nextValue),
+    });
     await addRecoveryRecord(record);
     return { ok: true, snapshotId: record.id, preflight };
   } catch {
@@ -468,11 +474,12 @@ export async function commitProfileMigrationWithRecovery(input) {
   }
   return withProfileMigrationLock(input.profileKey, async () => {
     const prepared = await prepareMigrationRecoverySnapshot(input);
-    if (!prepared.ok) return prepared;
+    if (prepared.ok !== true || typeof prepared.snapshotId !== 'string') return prepared;
+    const snapshotId = prepared.snapshotId;
     try {
       await compareAndSetBlob(input.profileKey, input.previousValue, input.nextValue);
     } catch (error) {
-      try { await deleteRecoveryRecord(prepared.snapshotId); } catch {}
+      try { await deleteRecoveryRecord(snapshotId); } catch {}
       const code = caughtErrorCode(error);
       return {
         ok: false,
@@ -488,7 +495,7 @@ export async function commitProfileMigrationWithRecovery(input) {
 
     let journalStatus = 'prepared';
     try {
-      await setRecoveryStatus(prepared.snapshotId, 'committed');
+      await setRecoveryStatus(snapshotId, 'committed');
       journalStatus = 'committed';
     } catch {
       // The active write is valid and its prepared journal is recoverable.
@@ -498,7 +505,7 @@ export async function commitProfileMigrationWithRecovery(input) {
     }
     return {
       ok: true,
-      snapshotId: prepared.snapshotId,
+      snapshotId,
       journalStatus,
       preflight: prepared.preflight,
     };
