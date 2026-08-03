@@ -1,0 +1,92 @@
+{
+  "fixtureSchema": 1,
+  "releaseRange": "pre-v1.6",
+  "description": "Synthetic legacy profile covering the oldest context and laboratory migrations still supported by GetBased.",
+  "profile": {
+    "entries": [
+      {
+        "date": "2024-01-15",
+        "markers": {
+          "hematology.hematocrit": 0.42
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2024-01-16",
+        "text": "Synthetic historical note"
+      }
+    ],
+    "supplements": [
+      {
+        "name": "Synthetic mineral",
+        "startDate": "2024-01-01"
+      }
+    ],
+    "healthGoals": [
+      {
+        "text": "Improve sleep",
+        "severity": "medium"
+      }
+    ],
+    "sleepCircadian": "Usually seven hours with an inconsistent bedtime.",
+    "circadian": "Morning outdoor light when possible.",
+    "sleep": "Legacy sleep note.",
+    "fieldExperts": "Synthetic expert context.",
+    "fieldLens": "Synthetic interpretive context.",
+    "diagnoses": "Synthetic migraine history.",
+    "diet": "Synthetic mixed diet.",
+    "exercise": "Synthetic daily walking.",
+    "customMarkers": {},
+    "markerNotes": {
+      "hematology.hematocrit": "Historical marker note"
+    },
+    "markerValueNotes": {},
+    "refOverrides": {
+      "hematology.hematocrit": {
+        "refMin": 0.36,
+        "refMax": 0.46,
+        "optimalMin": 0.39,
+        "optimalMax": 0.44
+      }
+    },
+    "legacyUnknownSurface": {
+      "preserve": true,
+      "label": "unknown fields must survive"
+    }
+  },
+  "expect": {
+    "removedPaths": [
+      "sleepCircadian",
+      "circadian",
+      "sleep",
+      "fieldExperts",
+      "fieldLens"
+    ],
+    "preservedPaths": [
+      "notes",
+      "supplements",
+      "healthGoals",
+      "markerNotes",
+      "legacyUnknownSurface"
+    ],
+    "arrayCounts": {
+      "entries": 1,
+      "notes": 1,
+      "supplements": 1,
+      "healthGoals": 1
+    },
+    "expectedPaths": {
+      "/entries/0/markers/hematology.hematocrit": 42,
+      "diagnoses.note": "Synthetic migraine history.",
+      "diet.note": "Synthetic mixed diet.",
+      "exercise.note": "Synthetic daily walking.",
+      "sleepRest.note": "Usually seven hours with an inconsistent bedtime.",
+      "interpretiveLens": "Synthetic expert context.\n\nSynthetic interpretive context.",
+      "/refOverrides/hematology.hematocrit/refMin": 36,
+      "/refOverrides/hematology.hematocrit/refMax": 46,
+      "/refOverrides/hematology.hematocrit/optimalMin": 39,
+      "/refOverrides/hematology.hematocrit/optimalMax": 44
+    }
+  }
+}
