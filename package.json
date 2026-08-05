@@ -42,7 +42,7 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "rolldown": "1.2.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/fd7a0e29d50c8a0b931855e528dbe90bf059e40a.tar.gz",
     "vitest": "^4.1.10",
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only"
