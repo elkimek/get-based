@@ -55,7 +55,7 @@ describe('proxy production entrypoint', () => {
     expect(packageJson.dependencies['@vercel/blob']).toBe('2.4.0');
     expect(packageLock.packages['node_modules/@vercel/blob'].version).toBe('2.4.0');
     expect(packageLock.packages['node_modules/@vercel/blob/node_modules/undici'].version)
-      .toBe('6.27.0');
+      .toBe('6.28.0');
   });
 
   it('answers preflight and method probes without initializing Blob storage', async () => {
