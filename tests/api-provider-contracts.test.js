@@ -15,6 +15,8 @@ const veniceE2EEMocks = vi.hoisted(() => ({
       debugMode: false,
       dcap: { status: 'UpToDate', advisoryIds: [] },
       dcapVerified: true,
+      gpu: { overallResult: true, arch: 'HOPPER', gpus: { 'GPU-0': {} }, tokensVerified: true },
+      gpuVerified: true,
       errors: [],
     },
   },
@@ -25,6 +27,12 @@ const veniceE2EEMocks = vi.hoisted(() => ({
 const veniceDcapMocks = vi.hoisted(() => ({
   createVerifier: vi.fn(),
   verifier: vi.fn(),
+}));
+const veniceNvidiaMocks = vi.hoisted(() => ({
+  createGpuVerifier: vi.fn(),
+  createTokenVerifier: vi.fn(),
+  gpuVerifier: vi.fn(),
+  tokenVerifier: vi.fn(),
 }));
 
 vi.mock('../js/tinfoil-secure-fetch.js', () => ({
@@ -40,6 +48,11 @@ vi.mock('../vendor/venice-e2ee.js', () => ({
 
 vi.mock('../vendor/venice-dcap.js', () => ({
   createDcapVerifier: veniceDcapMocks.createVerifier,
+}));
+
+vi.mock('../vendor/venice-nvidia.js', () => ({
+  createNvidiaVerifier: veniceNvidiaMocks.createGpuVerifier,
+  createNrasTokenVerifier: veniceNvidiaMocks.createTokenVerifier,
 }));
 
 import { updateKeyCache } from '../js/crypto.js';
@@ -179,6 +192,7 @@ beforeEach(() => {
   delete globalThis._veniceE2EE;
   delete globalThis._veniceE2EEKey;
   delete globalThis._veniceE2EEDcapRequired;
+  delete globalThis._veniceE2EEGpuRequired;
   delete globalThis._veniceAttestation;
   delete globalThis._routstrAttestation;
   veniceE2EEMocks.createSession.mockReset();
@@ -192,6 +206,12 @@ beforeEach(() => {
   veniceDcapMocks.verifier.mockReset();
   veniceDcapMocks.createVerifier.mockReset();
   veniceDcapMocks.createVerifier.mockReturnValue(veniceDcapMocks.verifier);
+  veniceNvidiaMocks.gpuVerifier.mockReset();
+  veniceNvidiaMocks.tokenVerifier.mockReset();
+  veniceNvidiaMocks.createGpuVerifier.mockReset();
+  veniceNvidiaMocks.createGpuVerifier.mockReturnValue(veniceNvidiaMocks.gpuVerifier);
+  veniceNvidiaMocks.createTokenVerifier.mockReset();
+  veniceNvidiaMocks.createTokenVerifier.mockReturnValue(veniceNvidiaMocks.tokenVerifier);
   createTinfoilSecureFetchMock.mockReset();
   createTinfoilSecureFetchMock.mockResolvedValue({
     verification: { securityVerified: true, codeFingerprint: 'verified-routstr-code' },
@@ -1089,7 +1109,7 @@ describe('AI provider request contracts', () => {
       localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
       veniceE2EEMocks.createSession
         .mockRejectedValueOnce(new Error('TEE attestation failed (502)'))
-        .mockRejectedValueOnce(new Error('TEE attestation failed (503)'))
+        .mockRejectedValueOnce(new Error('GPU attestation failed: NRAS rejected the GPU evidence (503)'))
         .mockResolvedValueOnce(veniceE2EEMocks.session);
 
       const expectation = expect(callClaudeAPI(baseChatOptions())).resolves.toMatchObject({ text: 'decrypted:contract ok' });
@@ -1098,12 +1118,41 @@ describe('AI provider request contracts', () => {
 
       expect(veniceE2EEMocks.createSession).toHaveBeenCalledTimes(3);
       expect(veniceDcapMocks.createVerifier).toHaveBeenCalledTimes(1);
+      expect(veniceNvidiaMocks.createTokenVerifier).toHaveBeenCalledTimes(1);
+      expect(veniceNvidiaMocks.createGpuVerifier).toHaveBeenCalledWith({
+        tokenVerifier: veniceNvidiaMocks.tokenVerifier,
+        fetchImpl: expect.any(Function),
+      });
       expect(veniceE2EEMocks.createClient).toHaveBeenCalledWith({
         apiKey: 'sk-venice-attestation-retry',
         dcapVerifier: veniceDcapMocks.verifier,
         requireDcap: true,
+        gpuVerifier: veniceNvidiaMocks.gpuVerifier,
+        requireGpu: true,
       });
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      const nrasFetch = veniceNvidiaMocks.createGpuVerifier.mock.calls[0][0].fetchImpl;
+      globalThis.fetch.mockClear();
+      await nrasFetch('https://nras.attestation.nvidia.com/v3/attest/gpu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{"evidence":"fixture"}',
+      });
+      expect(requestFromLastFetch()).toMatchObject({
+        url: '/api/proxy',
+        init: { method: 'POST' },
+        body: {
+          url: 'https://nras.attestation.nvidia.com/v3/attest/gpu',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: '{"evidence":"fixture"}',
+        },
+      });
+      await expect(nrasFetch('https://example.com/not-nras', {
+        method: 'POST',
+        body: '{"evidence":"fixture"}',
+      })).rejects.toThrow('Blocked unexpected NVIDIA NRAS proxy request');
     } finally {
       vi.useRealTimers();
     }
@@ -1123,6 +1172,26 @@ describe('AI provider request contracts', () => {
 
     await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(
       'Venice E2EE setup failed: Attestation verification failed: Full DCAP verification did not complete successfully'
+    );
+
+    expect(veniceE2EEMocks.createSession).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when NVIDIA NRAS verification is rejected', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-nras-rejected');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-nras-rejected');
+    localStorage.setItem('labcharts-venice-models', '[]');
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-nras-rejected' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    veniceE2EEMocks.createSession.mockRejectedValueOnce(
+      new Error('Attestation verification failed: GPU attestation did not complete successfully')
+    );
+
+    await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(
+      'Venice E2EE setup failed: Attestation verification failed: GPU attestation did not complete successfully'
     );
 
     expect(veniceE2EEMocks.createSession).toHaveBeenCalledTimes(1);

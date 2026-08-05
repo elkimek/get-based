@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.11.6', date: '2026-08-05', title: 'Clearer, stronger encrypted Venice chats',
+    items: [
+      '<b>Encrypted Venice chats now check both the secure environment and its GPU.</b> Before sending a message, getbased verifies the protected Intel environment (called a TEE) and signed NVIDIA GPU evidence. If either required check fails, the encrypted session does not start.',
+      '<b>The lock is easier to understand.</b> The old letter shorthand is replaced by “🔒 TEE + GPU.” Hover, focus, or tap it to see what passed, including the underlying DCAP and NRAS checks.',
+      '<b>Your message content is encrypted between your browser and Venice\'s confidential-computing session.</b> Venice can still see your API key and connection details such as the selected model, request settings, timing, and message sizes.',
+      '<b>The remaining limits are shown alongside the checks.</b> The TEE and GPU can each be genuine without proving that they are running together. getbased also does not yet independently confirm the exact approved code or the source of every response.',
+      '<b>One GPU-check step uses the deployment proxy.</b> NVIDIA does not accept this request directly from a browser, so the proxy relays the GPU evidence. The signed NVIDIA result is still verified in your browser.',
+    ]
+  },
+  {
     version: '1.11.2', date: '2026-08-02', title: 'More options for self-hosted wearables',
     items: [
       '<b>Self-hosters can experimentally enable WHOOP and Ultrahuman.</b> Add your own developer app credentials and explicitly turn on the integration for your deployment.',

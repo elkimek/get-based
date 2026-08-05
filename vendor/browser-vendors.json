@@ -40,6 +40,16 @@
       "format": "es",
       "minified": true,
       "sha256": "b6794c3fa08d82bcd6728ba15c4c3c3a348c8c17761c0fdf3146cd50185fd802"
+    },
+    {
+      "package": "venice-e2ee",
+      "version": "0.4.1",
+      "integrity": "sha512-4NIEwT+vLWteVKCPpItmk9hPziDS8tjNzY1RG7qWzfAVjJOYcQz2JP1RGxm4t/hZ7Vnz7VEiatIh+e+h4opUPQ==",
+      "entry": "scripts/vendor-entries/venice-nvidia.js",
+      "output": "vendor/venice-nvidia.js",
+      "format": "es",
+      "minified": true,
+      "sha256": "1396f69e0a1a5ae4163eba928e31bb0864b89a2d289217ce85e2d2f4c8ad9341"
     }
   ],
   "bundler": {

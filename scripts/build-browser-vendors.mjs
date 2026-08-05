@@ -34,6 +34,12 @@ const TARGETS = [
     output: 'vendor/venice-dcap.js',
     format: 'es',
   },
+  {
+    package: 'venice-e2ee',
+    entry: 'scripts/vendor-entries/venice-nvidia.js',
+    output: 'vendor/venice-nvidia.js',
+    format: 'es',
+  },
 ];
 
 const lock = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));

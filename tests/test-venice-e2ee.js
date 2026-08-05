@@ -31,6 +31,7 @@ const apiSrc = read('js/api.js');
 const apiVeniceSrc = read('js/api-venice.js');
 const apiModelsSrc = read('js/api-models.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
+const serviceWorkerSrc = read('service-worker.js');
 assert('isE2EEModel exported through api.js', apiSrc.includes('isE2EEModel,'));
 assert('e2ee prefix detection', apiProviderStorageSrc.includes("modelId.startsWith('e2ee-')"));
 assert('callVeniceAPI has E2EE import', apiVeniceSrc.includes("import('../vendor/venice-e2ee.js')"));
@@ -38,6 +39,15 @@ assert('callVeniceAPI requires browser-side DCAP verification',
   apiVeniceSrc.includes("import('../vendor/venice-dcap.js')")
     && apiVeniceSrc.includes('dcapVerifier: dcapModule.createDcapVerifier()')
     && apiVeniceSrc.includes('requireDcap: true'));
+assert('callVeniceAPI requires signed NVIDIA NRAS verification',
+  apiVeniceSrc.includes("import('../vendor/venice-nvidia.js')")
+    && apiVeniceSrc.includes('nvidiaModule.createNrasTokenVerifier()')
+    && apiVeniceSrc.includes('nvidiaModule.createNvidiaVerifier({')
+    && apiVeniceSrc.includes('fetchImpl: fetchVeniceNrasAttestation')
+    && apiVeniceSrc.includes('requireGpu: true'));
+assert('service worker keeps NVIDIA attestation requests network-only',
+  serviceWorkerSrc.includes("'nras.attestation.nvidia.com'")
+    && serviceWorkerSrc.includes("'/vendor/venice-nvidia.js'"));
 assert('supportsWebSearch excludes E2EE', apiModelsSrc.includes('isVeniceE2EEActive()'));
 assert('supportsVision excludes E2EE', apiModelsSrc.includes('isVeniceE2EEActive()') && apiModelsSrc.includes('return false'));
 assert('fetchVeniceModels excludes unsupported e2ee-prefixed regular models', apiModelsSrc.includes("!m.id.startsWith('e2ee-')"));
@@ -69,6 +79,7 @@ assert('undefined is not E2EE', !api.isE2EEModel(undefined));
 // 3. venice-e2ee.js module loads and exports
 const e2eeMod = await import('../vendor/venice-e2ee.js');
 const dcapMod = await import('../vendor/venice-dcap.js');
+const nvidiaMod = await import('../vendor/venice-nvidia.js');
 const chatAttestationMod = await import('../js/chat-attestation.js');
 assert('createVeniceE2EE exported', typeof e2eeMod.createVeniceE2EE === 'function');
 assert('generateKeypair exported', typeof e2eeMod.generateKeypair === 'function');
@@ -77,21 +88,39 @@ assert('encryptMessage exported', typeof e2eeMod.encryptMessage === 'function');
 assert('decryptChunk exported', typeof e2eeMod.decryptChunk === 'function');
 assert('decryptSSEStream exported', typeof e2eeMod.decryptSSEStream === 'function');
 assert('verifyAttestation exported', typeof e2eeMod.verifyAttestation === 'function');
-assert('v0.3 encrypted tool helpers exported',
+assert('encrypted tool helpers exported',
   typeof e2eeMod.buildToolSystemPrompt === 'function'
     && typeof e2eeMod.ToolCallStreamParser === 'function'
     && typeof e2eeMod.parseToolCalls === 'function');
-assert('v0.3 response receipt verifier exported', typeof e2eeMod.verifyReceipt === 'function');
+assert('response receipt verifier exported', typeof e2eeMod.verifyReceipt === 'function');
+assert('v0.4.1 receipt body-binding diagnostics exported',
+  Array.isArray(e2eeMod.BODY_BINDING_CHECKS)
+    && e2eeMod.BODY_BINDING_CHECKS.length === 2
+    && e2eeMod.BODY_BINDING_CHECKS.includes('request_body_hash_matches')
+    && e2eeMod.BODY_BINDING_CHECKS.includes('response_body_hash_matches'));
 assert('isE2EEModel exported', typeof e2eeMod.isE2EEModel === 'function');
 assert('pinned browser DCAP verifier exported',
   typeof dcapMod.createDcapVerifier === 'function'
     && typeof dcapMod.createDcapVerifier() === 'function'
     && dcapMod.PHALA_PCCS_URL === 'https://pccs.phala.network');
+assert('pinned browser NVIDIA verifier exports NRAS and signed-token checks',
+  typeof nvidiaMod.createNvidiaVerifier === 'function'
+    && typeof nvidiaMod.createNrasTokenVerifier === 'function'
+    && nvidiaMod.NRAS_GPU_URL === 'https://nras.attestation.nvidia.com/v3/attest/gpu'
+    && nvidiaMod.NRAS_JWKS_URL === 'https://nras.attestation.nvidia.com/.well-known/jwks.json');
 assert('toHex exported', typeof e2eeMod.toHex === 'function');
 assert('fromHex exported', typeof e2eeMod.fromHex === 'function');
-const v03Client = e2eeMod.createVeniceE2EE({ apiKey: 'test-v0.3-client' });
-assert('v0.3 client exposes attestation and response-signature fetches',
-  typeof v03Client.attest === 'function' && typeof v03Client.fetchResponseSignature === 'function');
+const veniceClient = e2eeMod.createVeniceE2EE({ apiKey: 'test-client' });
+assert('client exposes attestation and response-signature fetches',
+  typeof veniceClient.attest === 'function' && typeof veniceClient.fetchResponseSignature === 'function');
+let requiredGpuWithoutAttestationError = '';
+try {
+  e2eeMod.createVeniceE2EE({ apiKey: 'test-v0.4-gpu-policy', verifyAttestation: false, requireGpu: true });
+} catch (error) {
+  requiredGpuWithoutAttestationError = error.message;
+}
+assert('v0.4 rejects required GPU verification when attestation is disabled',
+  requiredGpuWithoutAttestationError.includes('Attestation policy cannot be required'));
 assert('attestationTooltip exported', typeof chatAttestationMod.attestationTooltip === 'function');
 assert('e2eeLockHTML exported', typeof chatAttestationMod.e2eeLockHTML === 'function');
 assert('e2eeLockFootnote exported', typeof chatAttestationMod.e2eeLockFootnote === 'function');
@@ -100,6 +129,7 @@ const maliciousAttestation = {
   nonceVerified: true,
   signingKeyBound: true,
   debugMode: false,
+  dcapVerified: true,
   dcap: { status: '"><img src=x onerror=alert(1)>' }
 };
 const maliciousLock = chatAttestationMod.e2eeLockHTML(maliciousAttestation);
@@ -418,12 +448,12 @@ const limitedVenice = {
 const limitedTooltip = chatAttestationMod.attestationTooltip(limitedVenice);
 const limitedLock = chatAttestationMod.e2eeLockHTML(limitedVenice);
 assert('Venice tooltip distinguishes binding checks from full verification',
-  limitedTooltip.includes('limited verification')
-    && limitedTooltip.includes('Client DCAP: not run')
-    && limitedTooltip.includes('Response origin binding: not verified'),
+  limitedTooltip.includes('basic checks only')
+    && limitedTooltip.includes('Intel TDX environment not verified')
+    && limitedTooltip.includes('source of each response is not independently verified'),
   limitedTooltip);
 assert('Venice binding-only lock is amber and not verified',
-  limitedLock.includes('#f59e0b') && limitedLock.includes('~') && !limitedLock.includes('#22c55e'),
+  limitedLock.includes('#f59e0b') && limitedLock.includes('basic') && !limitedLock.includes('#22c55e'),
   limitedLock);
 const dcapVenice = {
   verificationLevel: 'dcap',
@@ -439,23 +469,50 @@ const dcapTooltip = chatAttestationMod.attestationTooltip(dcapVenice);
 const dcapLock = chatAttestationMod.e2eeLockHTML(dcapVenice);
 assert('Venice DCAP lock has a distinct non-green tier',
   dcapLock.includes('#38bdf8')
-    && dcapLock.includes('D')
+    && dcapLock.includes('TEE')
     && dcapLock.includes('class="e2ee-attestation-badge"')
     && dcapLock.includes('data-attestation-tooltip=')
     && !dcapLock.includes('#22c55e'),
   dcapLock);
 assert('Venice DCAP tooltip does not claim full workload verification',
-  dcapTooltip.includes('Intel DCAP verified (limited workload assurance)')
-    && dcapTooltip.includes('DCAP collateral: pccs.phala.network')
-    && dcapTooltip.includes('Approved measurements: not validated')
-    && dcapTooltip.includes('Response origin binding: not verified'),
+  dcapTooltip.includes('TEE check passed')
+    && dcapTooltip.includes('Intel TDX environment (DCAP: UpToDate)')
+    && dcapTooltip.includes('Approved code measurements are not independently checked')
+    && dcapTooltip.includes('source of each response is not independently verified'),
   dcapTooltip);
-assert('Venice provider copy names verified and remaining checks plus visible metadata',
-  providerRenderSrc.includes('Intel DCAP quote signature, PCK certificate chain, revocation state, and TCB status')
-    && providerRenderSrc.includes("collateral directly from Phala's PCCS")
-    && providerRenderSrc.includes('DCAP verified, not fully workload verified')
+const gpuVenice = {
+  ...dcapVenice,
+  gpuVerified: true,
+  gpu: {
+    overallResult: true,
+    eatNonce: 'verified-session-nonce',
+    arch: 'HOPPER',
+    gpus: { 'GPU-0': {} },
+    tokensVerified: true,
+    rawTokens: { overall: 'signed-token', perGpu: { 'GPU-0': 'signed-gpu-token' } },
+  },
+};
+const gpuTooltip = chatAttestationMod.attestationTooltip(gpuVenice);
+const gpuLock = chatAttestationMod.e2eeLockHTML(gpuVenice);
+assert('Venice NRAS lock distinguishes signed GPU and DCAP verification',
+  gpuLock.includes('#a78bfa') && gpuLock.includes('TEE + GPU') && !gpuLock.includes('DG') && !gpuLock.includes('#22c55e'),
+  gpuLock);
+assert('Venice NRAS tooltip reports signed tokens and the co-location limit',
+  gpuTooltip.includes('TEE + GPU checks passed')
+    && gpuTooltip.includes('NVIDIA GPU evidence (NRAS, ES384 signed, HOPPER)')
+    && gpuTooltip.includes('TDX and GPU are each verified, but not proven to run together'),
+  gpuTooltip);
+assert('Venice provider copy leads with a readable summary and keeps technical detail available',
+  providerRenderSrc.includes('TEE + GPU checked')
+    && providerRenderSrc.includes('Encrypted Mode')
+    && providerRenderSrc.includes('What is checked &mdash; and what is not')
+    && providerRenderSrc.includes('Checked in your browser')
+    && providerRenderSrc.includes('Intel TDX confidential-computing environment (TEE, verified with DCAP)')
+    && providerRenderSrc.includes("NVIDIA's signed GPU result (NRAS)")
+    && providerRenderSrc.includes('they do not prove that both are running together')
     && providerRenderSrc.includes('Venice still sees your API key')
-    && providerRenderSrc.includes('NVIDIA GPU evidence, approved code measurements, and response signatures are not yet independently verified'));
+    && providerRenderSrc.includes('deployment proxy relays GPU evidence to NRAS')
+    && providerRenderSrc.includes('verifies the signed result in your browser'));
 assert('chat exports refreshWebSearchToggle', chatSrc.includes('refreshWebSearchToggle'));
 
 console.log(results.join('\n'));

@@ -122,26 +122,36 @@ export function attestationTooltip(attestation) {
   }
   const bindingChecks = attestation.nonceVerified && attestation.signingKeyBound && !attestation.debugMode;
   const failed = !bindingChecks || (Array.isArray(attestation.errors) && attestation.errors.length > 0);
-  const level = attestation.verificationLevel || (attestation.dcapVerified ? 'dcap' : 'binding');
+  const gpuVerified = attestation.gpuVerified === true;
+  const gpuTokensVerified = attestation.gpu?.tokensVerified === true;
+  const dcapStatus = attestation.dcap?.status || 'unknown status';
+  const gpuCheckPassed = gpuVerified && gpuTokensVerified;
   const lines = [
-    `Client verification level: ${level}`,
-    `Nonce: ${attestation.nonceVerified ? '\u2713' : '\u2717'}`,
-    `Key binding: ${attestation.signingKeyBound ? '\u2713' : '\u2717'}`,
-    `Debug mode: ${attestation.debugMode ? 'YES \u2717' : 'no \u2713'}`,
-    attestation.serverVerified != null ? `Venice-reported verification: ${attestation.serverVerified ? '\u2713' : '\u2717'}` : null,
-    attestation.serverTdxValid != null ? `Venice-reported TDX: ${attestation.serverTdxValid ? '\u2713' : '\u2717'}` : null,
-    attestation.dcap
-      ? `Client DCAP: ${attestation.dcap.status || 'unknown'}${attestation.dcapVerified ? '' : ' (not accepted)'}`
-      : 'Client DCAP: not run',
-    attestation.dcap ? 'DCAP collateral: pccs.phala.network' : null,
-    attestation.measurementsVerified === true ? 'Approved measurements: matched' : 'Approved measurements: not validated',
-    'Response origin binding: not verified',
-  ].filter(Boolean);
+    failed ? 'Checks that must pass:' : 'Verified in your browser:',
+    `${attestation.nonceVerified ? '\u2713' : '\u2717'} Fresh session`,
+    `${attestation.signingKeyBound ? '\u2713' : '\u2717'} Encryption key bound to this session`,
+    `${!attestation.debugMode ? '\u2713' : '\u2717'} Debug mode disabled`,
+    attestation.dcapVerified
+      ? `\u2713 Intel TDX environment (DCAP: ${dcapStatus})`
+      : '\u2717 Intel TDX environment not verified',
+    gpuCheckPassed
+      ? `\u2713 NVIDIA GPU evidence (NRAS, ES384 signed${attestation.gpu?.arch ? `, ${attestation.gpu.arch}` : ''})`
+      : '\u2717 NVIDIA GPU evidence not verified',
+    '',
+    'Current limits:',
+    gpuCheckPassed ? '\u2022 TDX and GPU are each verified, but not proven to run together' : null,
+    attestation.measurementsVerified === true
+      ? '\u2713 Approved code measurements matched'
+      : '\u2022 Approved code measurements are not independently checked',
+    '\u2022 The source of each response is not independently verified',
+  ].filter((line) => line !== null);
   const summary = failed
-    ? 'Venice E2EE checks FAILED'
-    : attestation.dcapVerified
-      ? 'Venice E2EE: Intel DCAP verified (limited workload assurance)'
-      : 'Venice E2EE: limited verification';
+    ? 'Encrypted Venice session \u00b7 verification FAILED'
+    : attestation.dcapVerified && gpuCheckPassed
+      ? 'Encrypted Venice session \u00b7 TEE + GPU checks passed'
+      : attestation.dcapVerified
+        ? 'Encrypted Venice session \u00b7 TEE check passed'
+        : 'Encrypted Venice session \u00b7 basic checks only';
   return summary + '\n' + lines.join('\n');
 }
 
@@ -163,9 +173,10 @@ export function e2eeLockHTML(attestation) {
       || (Array.isArray(attestation.errors) && attestation.errors.length > 0);
   const verified = tinfoil && !!attestation.securityVerified;
   const dcapVerified = !tinfoil && !!attestation.dcapVerified;
-  const color = failed ? '#ef4444' : verified ? '#22c55e' : dcapVerified ? '#38bdf8' : '#f59e0b';
-  const mark = failed ? '\u2717' : verified ? '\u2713' : dcapVerified ? 'D' : '~';
-  return ` <span ${attestationBadgeAttributes(attestation)}>\uD83D\uDD12<span style="color:${color};font-weight:bold">${mark}</span></span>`;
+  const gpuVerified = dcapVerified && !!attestation.gpuVerified && attestation.gpu?.tokensVerified === true;
+  const color = failed ? '#ef4444' : verified ? '#22c55e' : gpuVerified ? '#a78bfa' : dcapVerified ? '#38bdf8' : '#f59e0b';
+  const mark = failed ? 'failed' : verified ? 'verified' : gpuVerified ? 'TEE + GPU' : dcapVerified ? 'TEE' : 'basic';
+  return ` <span ${attestationBadgeAttributes(attestation)}>\uD83D\uDD12\u00a0<span style="color:${color};font-weight:bold">${mark}</span></span>`;
 }
 
 export function e2eeLockFootnote(attestation) {
@@ -177,9 +188,10 @@ export function e2eeLockFootnote(attestation) {
       || (Array.isArray(attestation.errors) && attestation.errors.length > 0);
   const verified = tinfoil && !!attestation.securityVerified;
   const dcapVerified = !tinfoil && !!attestation.dcapVerified;
-  const color = failed ? '#ef4444' : verified ? '#22c55e' : dcapVerified ? '#38bdf8' : '#f59e0b';
-  const mark = failed ? '\u2717' : verified ? '\u2713' : dcapVerified ? 'D' : '~';
-  return ` \u00b7 <span ${attestationBadgeAttributes(attestation)}>\uD83D\uDD12<span style="color:${color};font-weight:bold">${mark}</span> e2ee</span>`;
+  const gpuVerified = dcapVerified && !!attestation.gpuVerified && attestation.gpu?.tokensVerified === true;
+  const color = failed ? '#ef4444' : verified ? '#22c55e' : gpuVerified ? '#a78bfa' : dcapVerified ? '#38bdf8' : '#f59e0b';
+  const mark = failed ? 'failed' : verified ? 'verified' : gpuVerified ? 'TEE + GPU' : dcapVerified ? 'TEE' : 'basic';
+  return ` \u00b7 <span ${attestationBadgeAttributes(attestation)}>\uD83D\uDD12\u00a0<span style="color:${color};font-weight:bold">${mark}</span> encrypted</span>`;
 }
 
 installAttestationTooltips();

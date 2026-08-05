@@ -61,11 +61,18 @@ All normal tracking works without AI. AI features can use:
 | **PPQ** | Private TEE mode and regular hosted models, with in-app balance/top-up support. |
 | **Routstr** | Decentralized Bitcoin AI through Nostr-discovered nodes and the built-in Cashu wallet. |
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
-| **Venice AI** | Hosted models with optional browser-side message encryption and limited client attestation checks. |
+| **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Provider keys are stored locally in the browser.
+
+Venice encrypted mode fails closed unless both the Intel TDX quote and NVIDIA
+GPU evidence verify. NVIDIA does not allow browser POSTs to NRAS, so the GPU
+evidence transits the deployment's same-origin proxy; signed NRAS tokens are
+then verified in the browser against NVIDIA's published keys. Message content
+is not included in that evidence. The shared nonce does not prove that the GPU
+and TDX workload are co-located.
 
 ## Voice
 

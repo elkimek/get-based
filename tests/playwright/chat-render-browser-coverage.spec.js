@@ -150,7 +150,7 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       outcomes.usageFootnoteIncludesProviderContext = costFootnote.includes('Coverage Model')
         && costFootnote.includes('300 tokens')
         && costFootnote.includes('web')
-        && costFootnote.includes('e2ee');
+        && costFootnote.includes('encrypted');
       outcomes.assistantExtrasRender = rendered.textContent.includes('[stopped]')
         && rendered.textContent.includes('[output limit reached - ask "continue" to finish]')
         && rendered.querySelector('.chat-action-bar') !== null

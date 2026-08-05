@@ -224,6 +224,7 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
     swMobileSrc.includes("'/vendor/qrcode-generator.js'") &&
     swMobileSrc.includes("'/vendor/venice-e2ee.js'") &&
     swMobileSrc.includes("'/vendor/venice-dcap.js'") &&
+    swMobileSrc.includes("'/vendor/venice-nvidia.js'") &&
     swMobileSrc.includes("'/vendor/evolu/evolu-bundle.js'"));
   const manifestSrc = await fetchWithRetry('manifest.json');
   assert('manifest exposes maskable install icons',
