@@ -157,6 +157,8 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
       serverTdxValid: true,
       dcapVerified: true,
       dcap: { status: 'UpToDate <quoted>' },
+      gpuVerified: true,
+      gpu: { overallResult: true, arch: 'HOPPER', gpus: { 'GPU-0': {} }, tokensVerified: true },
     };
     const failedAttestation = {
       nonceVerified: false,
@@ -166,13 +168,13 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
     };
     outcomes.attestationMarkupReflectsState =
       attestation.attestationTooltip(null).includes('no data')
-      && attestation.attestationTooltip(okAttestation).includes('Intel DCAP verified')
+      && attestation.attestationTooltip(okAttestation).includes('TEE + GPU checks passed')
       && attestation.attestationTooltip(failedAttestation).includes('FAILED')
-      && attestation.e2eeLockHTML(okAttestation).includes('#38bdf8')
-      && attestation.e2eeLockHTML(okAttestation).includes('D')
+      && attestation.e2eeLockHTML(okAttestation).includes('#a78bfa')
+      && attestation.e2eeLockHTML(okAttestation).includes('TEE + GPU')
       && attestation.e2eeLockHTML(okAttestation).includes('&lt;quoted&gt;')
       && attestation.e2eeLockHTML(failedAttestation).includes('#ef4444')
-      && attestation.e2eeLockFootnote(okAttestation).includes('e2ee');
+      && attestation.e2eeLockFootnote(okAttestation).includes('encrypted');
 
     outcomes.discussionPromptHelpersCoverInitialSteerAndJoin =
       prompts.hasExistingDiscussionResponses(roundHistory) === true
@@ -211,6 +213,8 @@ test('E2EE attestation badge reveals verification details on hover and focus', a
       debugMode: false,
       dcapVerified: true,
       dcap: { status: 'UpToDate' },
+      gpuVerified: true,
+      gpu: { overallResult: true, arch: 'HOPPER', gpus: { 'GPU-0': {} }, tokensVerified: true },
       measurementsVerified: null,
       errors: [],
     });
@@ -221,8 +225,11 @@ test('E2EE attestation badge reveals verification details on hover and focus', a
   const tooltip = page.locator('#e2ee-attestation-tooltip');
   await badge.hover();
   await expect(tooltip).toBeVisible();
-  await expect(tooltip).toContainText('Intel DCAP verified');
-  await expect(tooltip).toContainText('Client DCAP: UpToDate');
+  await expect(badge).toContainText('TEE + GPU encrypted');
+  await expect(tooltip).toContainText('Encrypted Venice session · TEE + GPU checks passed');
+  await expect(tooltip).toContainText('Intel TDX environment (DCAP: UpToDate)');
+  await expect(tooltip).toContainText('NVIDIA GPU evidence (NRAS, ES384 signed, HOPPER)');
+  await expect(tooltip).toContainText('TDX and GPU are each verified, but not proven to run together');
   await expect(badge).toHaveAttribute('aria-expanded', 'true');
 
   await page.mouse.move(700, 400);

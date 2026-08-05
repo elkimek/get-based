@@ -267,6 +267,7 @@ const VENDOR_HOSTS = [
   // apple_health is file-import, no host
   'openrouter.ai',
   'api.venice.ai',
+  'nras.attestation.nvidia.com',
   'api.routstr.com',
   'api.ppq.ai',
 ];
@@ -277,6 +278,7 @@ for (const host of VENDOR_HOSTS) {
 console.log('\n── _isAllowedProxyUrl ──');
 
 assert('allows openrouter allowlist',  _isAllowedProxyUrl('https://openrouter.ai/api/v1/chat/completions'));
+assert('allows NVIDIA NRAS GPU endpoint', _isAllowedProxyUrl('https://nras.attestation.nvidia.com/v3/attest/gpu'));
 assert('allows oura allowlist',        _isAllowedProxyUrl('https://api.ouraring.com/v2/usercollection/sleep'));
 assert('allows withings allowlist',    _isAllowedProxyUrl('https://wbsapi.withings.net/measure'));
 assert('allows fitbit allowlist',      _isAllowedProxyUrl('https://api.fitbit.com/1/user/-/profile.json'));

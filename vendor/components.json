@@ -70,13 +70,14 @@
     },
     {
       "name": "venice-e2ee",
-      "version": "0.3.0",
-      "purl": "pkg:github/elkimek/venice-e2ee@0.3.0",
+      "version": "0.4.1",
+      "purl": "pkg:github/elkimek/venice-e2ee@0.4.1",
       "license": "GPL-3.0-only",
       "source": "https://github.com/elkimek/venice-e2ee",
       "monitoring": "sbom-only",
       "files": [
-        "vendor/venice-e2ee.js"
+        "vendor/venice-e2ee.js",
+        "vendor/venice-nvidia.js"
       ]
     },
     {

@@ -255,9 +255,19 @@ function renderVeniceProviderPanel() {
     </div>
     ${hasE2EEModels ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
       <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="venice-e2ee-toggle" ${getVeniceE2EE() ? 'checked' : ''} data-provider-panel-change="venice-e2ee"><span class="toggle-slider"></span></label>
-      <span style="font-size:13px">Encrypted TEE Mode</span>
+      <span style="font-size:13px">Encrypted Mode</span>
     </div>
-    <div id="venice-e2ee-indicator" style="margin-top:6px;font-size:12px;${isVeniceE2EEActive() ? '' : 'display:none'}"><span style="color:#38bdf8">&#128274;D</span> Message content is encrypted in your browser. Before a session starts, getbased verifies quote freshness, key binding, debug mode, and the Intel DCAP quote signature, PCK certificate chain, revocation state, and TCB status in this browser, fetching attestation collateral directly from Phala's PCCS. <strong>&#128274;D means DCAP verified, not fully workload verified:</strong> NVIDIA GPU evidence, approved code measurements, and response signatures are not yet independently verified. Venice still sees your API key, model, roles, request settings, timing, sizes, and network metadata. Web search and images are disabled.</div>` : ''}`;
+    <div id="venice-e2ee-indicator" style="margin-top:6px;font-size:12px;line-height:1.5;${isVeniceE2EEActive() ? '' : 'display:none'}">
+      <div><strong style="color:#a78bfa">&#128274;&nbsp;TEE + GPU checked</strong> &mdash; Messages are encrypted in your browser and decrypted inside Venice's confidential-computing session. Before connecting, getbased checks both the Intel TDX environment and NVIDIA GPU evidence.</div>
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;color:var(--accent)">What is checked &mdash; and what is not</summary>
+        <div style="margin-top:6px;padding-left:10px;border-left:2px solid var(--border);color:var(--text-muted)">
+          <div><strong style="color:var(--text-primary)">Checked in your browser</strong><br>Session freshness, encryption-key binding, debug mode, the Intel TDX confidential-computing environment (TEE, verified with DCAP), and NVIDIA's signed GPU result (NRAS).</div>
+          <div style="margin-top:6px"><strong style="color:var(--text-primary)">Important limit</strong><br>The TDX and GPU checks are valid independently, but they do not prove that both are running together. Approved code measurements and the source of each response are not yet independently verified.</div>
+          <div style="margin-top:6px"><strong style="color:var(--text-primary)">Who sees what</strong><br>Venice still sees your API key, model, roles, request settings, timing, sizes, and network metadata. Because NVIDIA does not accept browser POSTs, the deployment proxy relays GPU evidence to NRAS; getbased verifies the signed result in your browser. NVIDIA learns that an attestation was checked. Web search and images are disabled.</div>
+        </div>
+      </details>
+    </div>` : ''}`;
   } else {
     veniceModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="venice-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getVeniceModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
   }

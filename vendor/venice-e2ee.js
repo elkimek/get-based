@@ -730,18 +730,60 @@ function firstJsonValue(text) {
   }
   return null;
 }
+function escapeJsonControlChars(text) {
+  const named = {
+    "\n": "\\n",
+    "\r": "\\r",
+    "	": "\\t",
+    "\b": "\\b",
+    "\f": "\\f"
+  };
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        out += ch;
+      } else if (ch === "\\") {
+        escaped = true;
+        out += ch;
+      } else if (ch === '"') {
+        inString = false;
+        out += ch;
+      } else if (named[ch]) {
+        out += named[ch];
+      } else if (ch < " ") {
+        out += `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
+      } else {
+        out += ch;
+      }
+      continue;
+    }
+    if (ch === '"') inString = true;
+    out += ch;
+  }
+  return out;
+}
 function parseJsonLoose(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const candidate = firstJsonValue(text);
-    if (candidate === null) return void 0;
+  const variants = [text];
+  const repaired = escapeJsonControlChars(text);
+  if (repaired !== text) variants.push(repaired);
+  for (const variant of variants) {
     try {
-      return JSON.parse(candidate);
+      return JSON.parse(variant);
     } catch {
-      return void 0;
+      const candidate = firstJsonValue(variant);
+      if (candidate !== null) {
+        try {
+          return JSON.parse(candidate);
+        } catch {
+        }
+      }
     }
   }
+  return void 0;
 }
 function firstString(...values) {
   for (const value of values) {
@@ -801,33 +843,41 @@ function parseArgValue(raw) {
   }
 }
 var ARG_TAG = /<\/?arg_(?:key|value)>/g;
+var ARG_VALUE_CLOSE = "</arg_value>";
+var ARG_VALUE_OPEN = "<arg_value>";
+var ARG_KEY_OPEN = "<arg_key>";
+var ANY_ARG_TAG = /<\/?arg_(?:key|value)>/;
 var FUNCTION_NAME = /^[A-Za-z_][\w.-]*$/;
+var KEY_ASSIGNMENT = /^["'\s]*([A-Za-z_][\w.-]*)["'\]\s]*[:=]\s*/;
+function declaredProperties(fn) {
+  const properties = fn?.parameters?.properties;
+  if (!properties || typeof properties !== "object") return null;
+  return new Set(Object.keys(properties));
+}
 function parseArgKeyValueBody(text, lookup) {
   ARG_TAG.lastIndex = 0;
   const firstTag = ARG_TAG.exec(text);
   if (!firstTag) return [];
   const name = text.slice(0, firstTag.index).trim();
   if (!FUNCTION_NAME.test(name)) return [];
+  const declared = declaredProperties(lookup?.get(name));
   const args = {};
   let pendingKey = null;
   const cleanKey = (key) => key.trim().replace(/^"|"$/g, "");
   const takeKey = (segment) => {
     const trimmed = segment.trim();
     if (!trimmed) return;
+    const assigned = KEY_ASSIGNMENT.exec(trimmed);
+    if (assigned) {
+      args[assigned[1]] = parseArgValue(trimmed.slice(assigned[0].length));
+      pendingKey = null;
+      return;
+    }
     const gap = trimmed.search(/\s/);
     if (gap !== -1) {
       args[cleanKey(trimmed.slice(0, gap))] = parseArgValue(trimmed.slice(gap + 1));
       pendingKey = null;
       return;
-    }
-    const colon = trimmed.indexOf(":");
-    if (colon !== -1) {
-      const key = cleanKey(trimmed.slice(0, colon));
-      if (key) {
-        args[key] = parseArgValue(trimmed.slice(colon + 1));
-        pendingKey = null;
-        return;
-      }
     }
     pendingKey = cleanKey(trimmed);
   };
@@ -838,8 +888,26 @@ function parseArgKeyValueBody(text, lookup) {
     const segment = text.slice(start, next ? next.index : text.length);
     if (tag[0] === "<arg_value>") {
       if (pendingKey !== null) {
-        args[pendingKey] = parseArgValue(segment);
+        const rest = text.slice(start);
+        const nextKeyAt = rest.indexOf(ARG_KEY_OPEN);
+        const window = nextKeyAt === -1 ? rest : rest.slice(0, nextKeyAt);
+        const closes = window.split(ARG_VALUE_CLOSE).length - 1;
+        const reopens = window.split(ARG_VALUE_OPEN).length - 1;
+        if (reopens > 0 || closes > 1 || closes === 0 && nextKeyAt !== -1) return [];
+        const close = window.indexOf(ARG_VALUE_CLOSE);
+        args[pendingKey] = parseArgValue(close === -1 ? window : window.slice(0, close));
         pendingKey = null;
+        ARG_TAG.lastIndex = start + (close === -1 ? window.length : close);
+        tag = ARG_TAG.exec(text);
+        continue;
+      } else {
+        const assigned = KEY_ASSIGNMENT.exec(segment.trim());
+        if (!assigned || !declared?.has(assigned[1])) {
+        } else if (ANY_ARG_TAG.test(segment.slice(assigned[0].length))) {
+          return [];
+        } else {
+          takeKey(segment);
+        }
       }
     } else if (tag[0] === "<arg_key>" || pendingKey === null) {
       takeKey(segment);
@@ -855,9 +923,65 @@ function parseArgKeyValueBody(text, lookup) {
     }
   ];
 }
+var ONLY_ARG_TAGS = /^(?:<\/?arg_(?:key|value)>)+$/;
+var LEADING_ARG_TAGS = /^(?:<\/?arg_(?:key|value)>)+/;
+function quoteBareKeys(text) {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inString) {
+      out += ch;
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      i++;
+      continue;
+    }
+    const key = /^([A-Za-z_][\w.-]*)(\s*:)/.exec(text.slice(i));
+    if (key && /[{,[]\s*$/.test(out)) {
+      out += `"${key[1]}"${key[2]}`;
+      i += key[0].length;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}
+function parseNameThenJsonBody(text, lookup) {
+  if (!lookup || lookup.size === 0) return [];
+  const body = text.trim();
+  const name = [...lookup.keys()].sort((a, b) => b.length - a.length).find((candidate) => body.startsWith(candidate));
+  if (!name) return [];
+  const rest = body.slice(name.length).trim();
+  const inner = rest.startsWith("(") ? rest.replace(/^\(/, "").replace(/\)\s*$/, "") : rest.startsWith("{") ? rest.replace(/^\{/, "").replace(/\}\s*$/, "") : null;
+  if (inner === null) return [];
+  const parsed = parseJsonLoose(quoteBareKeys(`{${inner}}`));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+  return [
+    {
+      id: generateToolCallId(),
+      type: "function",
+      function: {
+        name,
+        arguments: parseArgumentsToJsonString(parsed, lookup.get(name))
+      }
+    }
+  ];
+}
 function parseLineDelimitedBody(text, lookup) {
   if (!lookup || lookup.size === 0) return [];
   const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  while (lines.length > 0 && ONLY_ARG_TAGS.test(lines[lines.length - 1])) lines.pop();
   if (lines.length < 3) return [];
   const name = lines[0];
   const fn = lookup.get(name);
@@ -869,7 +993,7 @@ function parseLineDelimitedBody(text, lookup) {
   const declared = new Set(Object.keys(properties));
   const args = {};
   for (let i = 0; i < rest.length; i += 2) {
-    const key = rest[i];
+    const key = rest[i].replace(LEADING_ARG_TAGS, "");
     if (!declared.has(key)) return [];
     args[key] = parseArgValue(rest[i + 1]);
   }
@@ -1029,6 +1153,8 @@ var ToolCallStreamParser = class {
     }
     const tagged = parseArgKeyValueBody(text, this.lookup);
     if (tagged.length > 0) return tagged;
+    const jsonBody = parseNameThenJsonBody(text, this.lookup);
+    if (jsonBody.length > 0) return jsonBody;
     return parseLineDelimitedBody(text, this.lookup);
   }
 };
@@ -1437,7 +1563,14 @@ function verifyMeasurements(actual, expected, errors) {
 }
 async function verifyAttestation(response, clientNonce, verifierOrOptions) {
   const options = typeof verifierOrOptions === "function" ? { dcapVerifier: verifierOrOptions } : verifierOrOptions ?? {};
-  const { dcapVerifier, requireDcap = false, expectedMeasurements, expectedModelId } = options;
+  const {
+    dcapVerifier,
+    requireDcap = false,
+    gpuVerifier,
+    requireGpu = false,
+    expectedMeasurements,
+    expectedModelId
+  } = options;
   const errors = [];
   let nonceVerified = false;
   let signingKeyBound = false;
@@ -1448,6 +1581,8 @@ async function verifyAttestation(response, clientNonce, verifierOrOptions) {
   let dcapVerified = false;
   let measurements;
   let measurementsVerified = null;
+  let gpu;
+  let gpuVerified = false;
   const result = () => ({
     nonceVerified,
     signingKeyBound,
@@ -1456,6 +1591,8 @@ async function verifyAttestation(response, clientNonce, verifierOrOptions) {
     serverVerified,
     dcap,
     dcapVerified,
+    gpu,
+    gpuVerified,
     measurements,
     measurementsVerified,
     verificationLevel: dcapVerified ? measurementsVerified === true ? "measured" : "dcap" : nonceVerified && signingKeyBound && !debugMode ? "binding" : "none",
@@ -1585,6 +1722,64 @@ async function verifyAttestation(response, clientNonce, verifierOrOptions) {
       }
     } catch (e) {
       errors.push(`DCAP verification failed: ${e.message}`);
+    }
+  }
+  if (gpuVerifier && response.nvidia_payload) {
+    const errorsBeforeGpu = errors.length;
+    try {
+      gpu = await gpuVerifier(response.nvidia_payload);
+      if (!gpu.overallResult) {
+        errors.push("NVIDIA did not vouch for the GPU evidence (overall attestation result false)");
+      }
+      if (gpu.eatNonce === null) {
+        errors.push("NVIDIA attestation token carries no eat_nonce to bind it to this request");
+      } else if (normalizeMeasurement(gpu.eatNonce) !== clientNonceHex) {
+        errors.push(
+          "NVIDIA attestation token eat_nonce does not match the nonce sent \u2014 the GPU evidence describes some other request"
+        );
+      }
+      for (const [name, claims] of Object.entries(gpu.gpus)) {
+        if (claims.debugStatus !== "disabled") {
+          errors.push(
+            `GPU ${name} did not assert debug mode disabled (dbgstat=${claims.debugStatus ?? "missing"})`
+          );
+        }
+        if (claims.secureBoot !== true) {
+          errors.push(
+            `GPU ${name} did not assert secure boot enabled (secboot=${claims.secureBoot ?? "missing"})`
+          );
+        }
+        if (claims.measurementResult !== "success") {
+          errors.push(
+            `GPU ${name} did not assert measurements matched NVIDIA's reference values (measres=${claims.measurementResult ?? "missing"})`
+          );
+        }
+        if (claims.reportNonceMatch !== true) {
+          errors.push(
+            `GPU ${name} did not assert that its attestation report echoed the submitted nonce (nonce-match=${claims.reportNonceMatch ?? "missing"})`
+          );
+        }
+        if (claims.eatNonce === null) {
+          errors.push(`GPU ${name} token carries no eat_nonce to bind it to this request`);
+        } else if (normalizeMeasurement(claims.eatNonce) !== clientNonceHex) {
+          errors.push(`GPU ${name} token eat_nonce does not match the nonce sent`);
+        }
+      }
+      if (Object.keys(gpu.gpus).length === 0) {
+        errors.push("NVIDIA returned no per-GPU claims to check");
+      }
+      gpuVerified = errors.length === errorsBeforeGpu;
+    } catch (e) {
+      errors.push(`GPU attestation failed: ${e.message}`);
+    }
+  }
+  if (requireGpu && !gpuVerified) {
+    if (!gpuVerifier) {
+      errors.push("GPU attestation is required but no gpuVerifier was provided");
+    } else if (!response.nvidia_payload) {
+      errors.push("GPU attestation is required but the response carried no GPU evidence");
+    } else {
+      errors.push("GPU attestation did not complete successfully");
     }
   }
   if (requireDcap && !dcapVerified) {
@@ -1860,6 +2055,10 @@ var sha256 = /* @__PURE__ */ createHasher(
 );
 
 // src/receipt.ts
+var BODY_BINDING_CHECKS = [
+  "request_body_hash_matches",
+  "response_body_hash_matches"
+];
 function jcsStringify(value) {
   if (value === null) return "null";
   if (typeof value === "boolean") return value ? "true" : "false";
@@ -2097,10 +2296,12 @@ function createVeniceE2EE(options) {
     verifyAttestation: shouldVerify = true,
     dcapVerifier,
     requireDcap = false,
+    gpuVerifier,
+    requireGpu = false,
     expectedMeasurements,
     allowPlaintextResponses = false
   } = options;
-  if (!shouldVerify && (requireDcap || expectedMeasurements)) {
+  if (!shouldVerify && (requireDcap || requireGpu || expectedMeasurements)) {
     throw new Error("Attestation policy cannot be required when verifyAttestation is false");
   }
   let _session = null;
@@ -2140,6 +2341,8 @@ function createVeniceE2EE(options) {
       attestation = await verifyAttestation(response, nonceBytes, {
         dcapVerifier,
         requireDcap,
+        gpuVerifier,
+        requireGpu,
         expectedMeasurements,
         expectedModelId: modelId
       });
@@ -2227,6 +2430,7 @@ function isE2EEModel(modelId) {
   return modelId.startsWith("e2ee-");
 }
 export {
+  BODY_BINDING_CHECKS,
   TOOL_CALL_CLOSE,
   TOOL_CALL_OPEN,
   TOOL_RESPONSE_CLOSE,

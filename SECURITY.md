@@ -37,7 +37,7 @@ metadata required for its monitoring mode.
 
 `npm run sbom` combines that inventory with `package-lock.json` into
 `artifacts/getbased.cdx.json` in CycloneDX 1.5 format. The Supply chain GitHub
-Actions workflow uploads the SBOM and submits the nine versioned npm vendor
+Actions workflow uploads the SBOM and submits the ten versioned npm vendor
 components to GitHub's dependency graph, where supported packages receive
 Dependabot vulnerability alerts. Non-npm components such as SQLite and
 venice-e2ee remain visible in the SBOM; unversioned font assets are inventory

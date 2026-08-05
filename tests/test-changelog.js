@@ -128,6 +128,15 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog explains encrypted Venice checks and limits in newcomer-readable terms',
+  /version:\s*'1\.11\.6'[\s\S]{0,500}Clearer, stronger encrypted Venice chats/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,2200}protected Intel environment \(called a TEE\)/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,2200}If either required check fails, the encrypted session does not start/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,2200}The lock is easier to understand/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,2200}TEE \+ GPU/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,2600}Venice can still see your API key and connection details/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,3000}without proving that they are running together/.test(changelogSrc)
+    && /version:\s*'1\.11\.6'[\s\S]{0,3400}signed NVIDIA result is still verified in your browser/.test(changelogSrc));
 assert('Google Health changelog explains the self-host limit and Fitbit transition in user-readable terms',
   /version:\s*'1\.11\.1'[\s\S]{0,500}Google Health support for self-hosted setups/.test(changelogSrc)
     && /version:\s*'1\.11\.1'[\s\S]{0,1800}not available in the official hosted app/.test(changelogSrc)

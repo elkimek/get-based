@@ -24,6 +24,7 @@ import {
  *   _veniceE2EE?: any,
  *   _veniceE2EEKey?: string,
  *   _veniceE2EEDcapRequired?: boolean,
+ *   _veniceE2EEGpuRequired?: boolean,
  *   _veniceAttestation?: any,
  *   _veniceLastStreamDiagnostics?: any
  * }} VeniceApiWindow */
@@ -31,9 +32,37 @@ import {
 const apiWindow = /** @type {VeniceApiWindow} */ (typeof window !== 'undefined' ? window : {});
 
 const VENICE_ATTESTATION_RETRY_DELAYS_MS = [250, 750];
+const NVIDIA_NRAS_GPU_URL = 'https://nras.attestation.nvidia.com/v3/attest/gpu';
+
+/**
+ * NVIDIA's GPU endpoint rejects browser CORS preflights. Relay only the fixed
+ * NRAS request through the same-origin proxy; signed-token/JWKS verification
+ * still runs in this browser after the response returns.
+ * @param {string | URL} url
+ * @param {RequestInit} [options]
+ */
+function fetchVeniceNrasAttestation(url, options = {}) {
+  if (String(url) !== NVIDIA_NRAS_GPU_URL || String(options.method || '').toUpperCase() !== 'POST'
+      || typeof options.body !== 'string') {
+    return Promise.reject(new Error('Blocked unexpected NVIDIA NRAS proxy request'));
+  }
+  return fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: NVIDIA_NRAS_GPU_URL,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: options.body,
+    }),
+    signal: options.signal,
+  });
+}
 
 function veniceAttestationStatus(error) {
-  const match = getErrorMessage(error).match(/TEE attestation failed \((502|503|504)\)/i);
+  const match = getErrorMessage(error).match(
+    /(?:TEE attestation failed|NRAS rejected the GPU evidence) \((502|503|504)\)/i
+  );
   return match?.[1] || '';
 }
 
@@ -129,19 +158,28 @@ export async function callVeniceAPI(opts) {
   }
 
   if (!crypto?.subtle) throw new Error('E2EE requires a secure context (HTTPS). Cannot encrypt on this page.');
-  const [e2eeModule, dcapModule] = await Promise.all([
+  const [e2eeModule, dcapModule, nvidiaModule] = await Promise.all([
     import('../vendor/venice-e2ee.js'),
     import('../vendor/venice-dcap.js'),
+    import('../vendor/venice-nvidia.js'),
   ]);
   const { createVeniceE2EE, encryptMessage, decryptChunk } = e2eeModule;
-  if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key || !apiWindow._veniceE2EEDcapRequired) {
+  if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key
+      || !apiWindow._veniceE2EEDcapRequired || !apiWindow._veniceE2EEGpuRequired) {
+    const tokenVerifier = nvidiaModule.createNrasTokenVerifier();
     apiWindow._veniceE2EE = createVeniceE2EE({
       apiKey: key,
       dcapVerifier: dcapModule.createDcapVerifier(),
       requireDcap: true,
+      gpuVerifier: nvidiaModule.createNvidiaVerifier({
+        tokenVerifier,
+        fetchImpl: fetchVeniceNrasAttestation,
+      }),
+      requireGpu: true,
     });
     apiWindow._veniceE2EEKey = key;
     apiWindow._veniceE2EEDcapRequired = true;
+    apiWindow._veniceE2EEGpuRequired = true;
   }
   let session;
   try {

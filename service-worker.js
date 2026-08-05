@@ -652,6 +652,7 @@ const APP_SHELL = [
   '/vendor/cashu-ts.js',
   '/vendor/venice-e2ee.js',
   '/vendor/venice-dcap.js',
+  '/vendor/venice-nvidia.js',
   '/vendor/ppq-private-tee.js',
   '/vendor/tinfoil-browser.js',
   '/vendor/ehbp-browser.js',
@@ -733,6 +734,7 @@ const APP_SHELL = [
 const NETWORK_ONLY_HOSTS = new Set([
   'openrouter.ai',
   'api.venice.ai',
+  'nras.attestation.nvidia.com',
   'api.routstr.com',
   'api.ppq.ai',
   'api.github.com',
