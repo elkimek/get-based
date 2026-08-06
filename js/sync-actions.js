@@ -148,11 +148,43 @@ export async function pushAllProfiles(options = {}) {
   return summary;
 }
 
+/** @param {any[]} profiles */
+async function flushDirtyProfilesForRelayCompaction(profiles) {
+  for (const profile of profiles) {
+    const profileId = profile?.id;
+    if (!profileId) continue;
+    // Token-safe clearing in pushProfile leaves a newer generation dirty if
+    // another tab saves while this push commits. Retry a bounded number of
+    // generations and fail closed rather than compacting over live edits.
+    for (let attempt = 0; attempt < 5 && getSyncDirtyToken(profileId); attempt++) {
+      const deadline = Date.now() + 30_000;
+      while (_isSyncing() && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      if (_isSyncing()) throw new Error('Sync is still busy; wait for it to finish and retry compaction');
+
+      const importedData = await readProfileImportedData(profileId);
+      const result = await _pushProfile(profileId, importedData);
+      if (!result?.ok) {
+        throw new Error(`Could not commit pending changes for profile ${profileId.slice(0, 8)}`);
+      }
+    }
+    if (getSyncDirtyToken(profileId)) {
+      throw new Error(`New changes kept arriving for profile ${profileId.slice(0, 8)}; pause editing and retry compaction`);
+    }
+  }
+}
+
 export async function prepareRelayCompaction() {
   if (!_isEvoluReady() || !_isSyncEnabled()) {
     throw new Error('Sync is not ready on this device');
   }
-  if (_getProfiles().length === 0) throw new Error('No local profiles are available to rebuild the relay');
+  const profiles = _getProfiles();
+  if (profiles.length === 0) throw new Error('No local profiles are available to rebuild the relay');
+  // forcePull merges every profile returned by the relay. Commit all durable
+  // local edits first, including inactive profiles whose debounce survived a
+  // profile switch, so stale relay scalars cannot overwrite the rebuild source.
+  await flushDirtyProfilesForRelayCompaction(profiles);
   await _forcePull();
 }
 

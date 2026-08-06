@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  configureSyncActions, pushAllProfiles, rebuildOwnerRelayState, syncNow,
+  configureSyncActions, prepareRelayCompaction, pushAllProfiles, rebuildOwnerRelayState, syncNow,
 } from '../js/sync-actions.js';
 import { state } from '../js/state.js';
-import { markSyncProfileDirty } from '../js/sync-dirty-state.js';
+import {
+  clearSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty,
+} from '../js/sync-dirty-state.js';
+import { profileStorageKey } from '../js/profile-storage-key.js';
 
 describe('sync action profile dependencies', () => {
   it('uses configured profile metadata and default data when seeding sync', async () => {
@@ -124,6 +127,84 @@ describe('sync action profile dependencies', () => {
         forcePull: async () => {},
         pushProfile: async () => {},
         isSyncing: () => false,
+      });
+    }
+  });
+
+  it('flushes active and inactive dirty profiles before compaction pulls all rows', async () => {
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const activeId = 'compact-dirty-active';
+    const inactiveId = 'compact-dirty-inactive';
+    const inactiveKey = profileStorageKey(inactiveId, 'imported');
+    const order = [];
+    state.currentProfile = activeId;
+    state.importedData = { entries: [], contextNotes: 'fresh active edit' };
+    localStorage.setItem(inactiveKey, JSON.stringify({ entries: [], contextNotes: 'fresh inactive edit' }));
+    markSyncProfileDirty(activeId);
+    markSyncProfileDirty(inactiveId);
+    configureSyncActions({
+      forcePull: async () => { order.push('pull'); },
+      pushProfile: async (profileId, importedData) => {
+        order.push(`push:${profileId}:${importedData.contextNotes}`);
+        clearSyncProfileDirty(profileId, getSyncDirtyToken(profileId));
+        return { ok: true };
+      },
+      isSyncEnabled: () => true,
+      isEvoluReady: () => true,
+      isSyncing: () => false,
+      getProfiles: () => [{ id: activeId }, { id: inactiveId }],
+    });
+
+    try {
+      await expect(prepareRelayCompaction()).resolves.toBeUndefined();
+      expect(order).toEqual([
+        `push:${activeId}:fresh active edit`,
+        `push:${inactiveId}:fresh inactive edit`,
+        'pull',
+      ]);
+    } finally {
+      localStorage.removeItem(inactiveKey);
+      localStorage.removeItem(`labcharts-${activeId}-sync-dirty`);
+      localStorage.removeItem(`labcharts-${inactiveId}-sync-dirty`);
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+      configureSyncActions({
+        forcePull: async () => {},
+        pushProfile: async () => {},
+        isSyncEnabled: () => false,
+        isEvoluReady: () => false,
+        isSyncing: () => false,
+        getProfiles: () => [],
+      });
+    }
+  });
+
+  it('fails compaction before pulling when an inactive dirty profile cannot commit', async () => {
+    const inactiveId = 'compact-dirty-failed';
+    const forcePull = vi.fn();
+    markSyncProfileDirty(inactiveId);
+    configureSyncActions({
+      forcePull,
+      pushProfile: async () => ({ ok: false, reason: 'timeout' }),
+      isSyncEnabled: () => true,
+      isEvoluReady: () => true,
+      isSyncing: () => false,
+      getProfiles: () => [{ id: inactiveId }],
+    });
+
+    try {
+      await expect(prepareRelayCompaction()).rejects.toThrow('Could not commit pending changes');
+      expect(forcePull).not.toHaveBeenCalled();
+    } finally {
+      localStorage.removeItem(`labcharts-${inactiveId}-sync-dirty`);
+      configureSyncActions({
+        forcePull: async () => {},
+        pushProfile: async () => {},
+        isSyncEnabled: () => false,
+        isEvoluReady: () => false,
+        isSyncing: () => false,
+        getProfiles: () => [],
       });
     }
   });
