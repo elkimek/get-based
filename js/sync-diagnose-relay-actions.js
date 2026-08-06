@@ -17,7 +17,7 @@ async function waitForRelayRebuild() {
   for (const delay of delays) {
     if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
     latest = await fetchOwnerStorageFromRelay();
-    if (latest?.storedBytes > 0 && (latest.messageCount === null || latest.messageCount > 0)) {
+    if (latest && latest.storedBytes > 0 && (latest.messageCount === null || latest.messageCount > 0)) {
       return latest;
     }
   }
