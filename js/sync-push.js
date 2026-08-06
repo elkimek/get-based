@@ -4,7 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { buildSyncPayload } from './sync-payload.js';
 import {
-  notePushCommitted, trackPushBytes,
+  notePushCommitted, scheduleOwnerStorageRefresh, trackPushBytes,
 } from './sync-relay-health.js';
 import {
   logSyncEvent, updateSyncStatus,
@@ -12,6 +12,8 @@ import {
 import { getDeltaCutoverReadiness } from './sync-delta.js';
 import { migrateProfileData } from './profile.js';
 import { applyCommittedDeltas, planProfileDeltas } from './sync-push-deltas.js';
+import { clearSyncProfileDirty, getSyncDirtyToken } from './sync-dirty-state.js';
+import { noteLocalSyncCommit } from './sync-origin-state.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -95,8 +97,8 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   if (opts.force && _syncing) console.warn('[sync] pushProfile force-overriding in-flight flag');
   _syncing = true;
   _syncingSince = Date.now();
+  const dirtyToken = getSyncDirtyToken(profileId);
   const outboundData = normalizedImportedDataForPush(importedData);
-  updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
   // Post-enable schema-drift detection. enablePhase2Cutover gates ON
   // readiness AT FLIP TIME, but if a future commit adds a new write site
   // OUTSIDE DELTA_ARRAYS/MAPS/SCALARS (the exact failure mode of the
@@ -125,16 +127,36 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   }
   try {
     const dataJson = await buildSyncPayload(profileId, outboundData);
-    const syncedAt = new Date().toISOString();
+    const rows = evolu.getQueryRows(profileQuery);
+    const existing = rows?.find(r => r.profileId === profileId);
 
     const sunCount = Array.isArray(outboundData?.sunSessions) ? outboundData.sunSessions.length : 0;
     const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;
+    const { deltaPlans, deltaOpCount } = await planProfileDeltas(profileId, outboundData);
+
+    // Evolu's relay quota measures append-only message history, not the size
+    // of the current profile. Updating an identical row therefore consumes
+    // storage even though the user added nothing. Compare the complete wire
+    // payload and delta plan before assigning a new syncedAt clock. Explicit
+    // force pushes bypass this guard for relay rebuild/recovery workflows.
+    if (!opts.force && existing?.dataJson === dataJson && deltaOpCount === 0) {
+      const skipMsg = `No changes to push ${profileId.slice(0,8)}`;
+      _debug(skipMsg);
+      logSyncEvent('skip', skipMsg);
+      updateSyncStatus({
+        push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
+      });
+      clearSyncProfileDirty(profileId, dirtyToken);
+      _syncing = false;
+      return { ok: true, skipped: true, reason: 'unchanged' };
+    }
+
+    const syncedAt = new Date().toISOString();
     const queueMsg = `Queued ${profileId.slice(0,8)} — sun=${sunCount} dev=${devCount}`;
     const queuedAt = Date.now();
     _debug(`${queueMsg} @ ${queuedAt}`);
     logSyncEvent('queue', queueMsg);
-
-    const { deltaPlans, deltaOpCount } = await planProfileDeltas(profileId, outboundData);
+    updateSyncStatus({ push: 'pending', pushStartedAt: queuedAt });
 
     return await new Promise((resolve) => {
       let completed = false;
@@ -147,7 +169,9 @@ export async function pushProfile(profileId, importedData, opts = {}) {
       const onComplete = () => {
         completed = true;
         const elapsed = Date.now() - queuedAt;
-        updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now() });
+        updateSyncStatus({
+          push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
+        });
         const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
         _debug(okMsg);
         logSyncEvent('push', okMsg);
@@ -164,13 +188,16 @@ export async function pushProfile(profileId, importedData, opts = {}) {
         // watermark only moves on real success.
         // Use syncedAt (same value stored in Evolu) so pulls see exact
         // equality and don't skip the row from 1ms clock drift.
-        localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
-        // Track bytes for the local relay-storage estimate (see
-        // getRelayQuotaEstimate). Each successful push adds dataJson.length
-        // to the cumulative — close enough to relay's storedBytes to warn
-        // the user before the 50 MB wall.
+        const syncedAtMs = new Date(syncedAt).getTime();
+        localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(syncedAtMs));
+        noteLocalSyncCommit(profileId, syncedAtMs);
+        // Track bytes immediately for the relay-storage estimate, then replace
+        // it with authoritative storedBytes + configured quota via the
+        // debounced self-service probe below.
         trackPushBytes((dataJson || '').length);
+        scheduleOwnerStorageRefresh();
         applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);
+        clearSyncProfileDirty(profileId, dirtyToken);
         finish({ ok: true });
       };
       // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -189,10 +216,6 @@ export async function pushProfile(profileId, importedData, opts = {}) {
       }, 30_000);
 
       try {
-        // Check if row exists for this profile
-        const rows = evolu.getQueryRows(profileQuery);
-        const existing = rows?.find(r => r.profileId === profileId);
-
         if (existing) {
           // profileId is repeated on every update so post-compaction replicas
           // see it on every CRDT message — without this, a relay that drops

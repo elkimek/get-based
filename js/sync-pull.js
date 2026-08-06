@@ -18,6 +18,9 @@ import { clearRestoreJoinPending, isRestoreJoinPending } from './sync-identity.j
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
+import { state } from './state.js';
+import { getSyncDirtyToken } from './sync-dirty-state.js';
+import { isLocalSyncCommitEcho } from './sync-origin-state.js';
 
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
@@ -182,9 +185,24 @@ export async function onSyncReceived() {
     // returns, and the user sees ghost entries that resync never explains.
     await applyRemoteTombstones();
 
-    const rawRows = evolu.getQueryRows(profileQuery);
+    let rawRows = evolu.getQueryRows(profileQuery);
     dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
     if (!rawRows || rawRows.length === 0) return;
+
+    // Startup/query subscriptions can fire before the normal save debounce.
+    // If this active profile has durable local edits, commit them into Evolu
+    // before reading the query row; otherwise the stale row can erase scalar
+    // edits that the structural array merge cannot infer as locally newer.
+    const dirtyProfileId = state.currentProfile;
+    if (dirtyProfileId && getSyncDirtyToken(dirtyProfileId)) {
+      dbg(`Pull preflight: flushing dirty local profile ${dirtyProfileId.slice(0, 8)}`);
+      const flushed = await _pushProfile(dirtyProfileId, state.importedData);
+      if (!flushed?.ok) {
+        logSyncEvent('skip', `Pull deferred — local changes for ${dirtyProfileId.slice(0, 8)} are not committed yet`);
+        return;
+      }
+      rawRows = evolu.getQueryRows(profileQuery);
+    }
 
     const rows = await prepareSyncPullRows(rawRows);
     // A restored device is joining an existing owner, so the relay's provider
@@ -207,6 +225,7 @@ export async function onSyncReceived() {
         const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
+        const localCommitEcho = isLocalSyncCommitEcho(profileId, remoteUpdated);
 
         // No skip-decision before the merge runs. Both the timestamp-skip
         // and the hash-skip have caused users to miss cross-device data:
@@ -270,6 +289,7 @@ export async function onSyncReceived() {
           chatApplied,
           remoteBroughtNewRows,
           localDataChanged,
+          localCommitEcho,
           debug: dbg,
         })) {
           dbg('Pulled profile:', profileId);

@@ -194,7 +194,7 @@ test('sync configure browser coverage wires module actions, UI, and relay quota 
       outcomes.configureAmberQuotaNotification =
         localStorage.getItem(ownerWarnKey) === 'amber'
         && notificationText().includes('Relay storage 81%')
-        && notificationText().includes('Sync diagnose');
+        && notificationText().includes('Cross-device sync');
 
       relayHealth.trackPushBytes(Math.ceil(relayHealth.RELAY_OWNER_QUOTA_BYTES * 0.15));
       const events = syncState.getRecentSyncEvents();
@@ -229,6 +229,7 @@ test('sync configure browser coverage wires module actions, UI, and relay quota 
       localStorage.removeItem(settings.SYNC_STORAGE_KEY);
       localStorage.removeItem(ownerWarnKey);
       localStorage.removeItem(`labcharts-relay-bytes-${ownerId}`);
+      localStorage.removeItem(`labcharts-relay-cap-${ownerId}`);
     }
     if (thrownError) throw thrownError;
 

@@ -41,6 +41,7 @@ function hasOpenModalOverlay() {
  *   chatApplied?: boolean,
  *   remoteBroughtNewRows?: boolean,
  *   localDataChanged?: boolean,
+ *   localCommitEcho?: boolean,
  *   debug?: (...args: any[]) => any,
  * }} [options]
  */
@@ -50,6 +51,7 @@ export function refreshActiveProfileAfterPull({
   chatApplied,
   remoteBroughtNewRows,
   localDataChanged,
+  localCommitEcho,
   debug,
 } = {}) {
   if (profileId !== state.currentProfile) return false;
@@ -95,9 +97,10 @@ export function refreshActiveProfileAfterPull({
     dbg(debug, `Pulled active profile ${profileId.slice(0,8)} — no visible data change, skipping re-render of '${cat}'`);
   } else {
     navigatePulledActiveViewRuntime(cat, hasOpenModalOverlay() ? { preserveScroll: true } : undefined);
-    if (cat !== 'dashboard' && shouldShowUpdateToast(profileId)) {
+    if (cat !== 'dashboard' && !localCommitEcho && shouldShowUpdateToast(profileId)) {
       showNotification('Data updated from another device', 'success');
     }
+    if (localCommitEcho) dbg(debug, `Suppressed local commit echo toast for ${profileId.slice(0,8)}`);
     dbg(debug, `Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
   }
 

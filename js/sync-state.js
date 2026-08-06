@@ -107,6 +107,7 @@ export function getSyncDisplayState(syncEnabled) {
   if (_syncStatus.lastError && _syncStatus.push === 'error') return 'error';
   if (_syncStatus.push === 'pending' && _syncStatus.pushStartedAt && Date.now() - _syncStatus.pushStartedAt > 8000) return 'error';
   if (_syncStatus.relay === 'unreachable') return 'offline';
+  if (_syncStatus.relay === 'unknown') return 'syncing';
   if (_syncStatus.push === 'pending' || _syncStatus.pull === 'pulling') return 'syncing';
   return 'synced';
 }

@@ -10,11 +10,9 @@ import { parseSyncPayload } from './sync-payload.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
+import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
-
-// Allowed fields when merging a synced profile into the local profiles list.
-const PROFILE_MERGE_FIELDS = ['name', 'sex', 'dob', 'location', 'tags', 'archived', 'pinned', 'flagged', 'avatar', 'color'];
 
 export function isSafeProfileId(profileId) {
   return typeof profileId === 'string' && PROFILE_ID_RE.test(profileId);
@@ -272,13 +270,21 @@ export async function mergePulledProfile(profileId, profile) {
   const idx = profiles.findIndex(p => p.id === profileId);
   if (idx >= 0) {
     const local = profiles[idx];
-    for (const field of PROFILE_MERGE_FIELDS) {
-      if (field in profile) local[field] = profile[field];
+    let changed = false;
+    for (const field of SYNC_PROFILE_FIELDS) {
+      if (!(field in profile)) continue;
+      if (JSON.stringify(local[field]) === JSON.stringify(profile[field])) continue;
+      local[field] = profile[field];
+      changed = true;
     }
+    // Pulling an identical profile must be a true no-op. Advancing this clock
+    // on every pull changed the next sync payload and appended relay history
+    // even when the user had not changed any data.
+    if (!changed) return false;
     local.lastUpdated = Date.now();
   } else {
     const newProfile = /** @type {any} */ ({ id: profileId, lastUpdated: Date.now() });
-    for (const field of PROFILE_MERGE_FIELDS) {
+    for (const field of SYNC_PROFILE_FIELDS) {
       if (field in profile) newProfile[field] = profile[field];
     }
     profiles.push(newProfile);

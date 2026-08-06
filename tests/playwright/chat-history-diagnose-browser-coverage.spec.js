@@ -309,10 +309,11 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       await diagnoseUi.showSyncDiagnose();
       const overlay = document.querySelector('.modal-overlay');
       const copyButton = overlay?.querySelector('button[title^="Copy"]');
-      outcomes.modalRendersDiagnostics = overlay?.textContent.includes('Sync diagnose') === true
+      outcomes.modalRendersDiagnostics = overlay?.textContent.includes('Sync status') === true
+        && overlay.textContent.includes('Technical details')
         && overlay.textContent.includes('coverage-sync-profile')
         && overlay.textContent.includes('wss://relay.coverage.example')
-        && overlay.textContent.includes('relay-replication') === true;
+        && overlay.querySelector('.sync-diagnose-technical')?.open === false;
       outcomes.modalStoresMatchingCopySnapshot = overlay?.dataset.copyText.includes('Sync diagnose @') === true
         && overlay.dataset.copyText.includes('coverage-sync-profile')
         && overlay.dataset.copyText.includes('sunSessions=1 lightDevices=1');
@@ -323,7 +324,7 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
         !overlay.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
         && !!overlay.querySelector('[data-sync-diagnose-action="refresh-relay-storage"]')
         && !!overlay.querySelector('[data-sync-diagnose-action="compact-relay"]')
-        && !!overlay.querySelector('[data-sync-diagnose-action="rotate-identity"]')
+        && !overlay.querySelector('[data-sync-diagnose-action="rotate-identity"]')
         && !!overlay.querySelector('[data-sync-diagnose-action="disable-phase2"]')
         && !!overlay.querySelector('[data-sync-diagnose-action="copy-snapshot"]')
         && !overlay.querySelector('[data-sync-diagnose-action="enable-phase2"]')

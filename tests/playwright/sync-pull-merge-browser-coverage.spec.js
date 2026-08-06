@@ -185,6 +185,19 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         color: '#123456',
         height: 190,
       });
+      const profileAfterFirstMerge = profileStore.getProfiles()
+        .find(profile => profile.id === profileId);
+      const firstMergeLastUpdated = profileAfterFirstMerge.lastUpdated;
+      const identicalMerge = await pullMerge.mergePulledProfile(profileId, {
+        id: 'ignored-id',
+        name: 'Remote name',
+        notes: 'remote notes ignored',
+        status: 'archived',
+        tags: ['remote'],
+        pinned: true,
+        color: '#123456',
+        height: 190,
+      });
       const mergedNewProfile = await pullMerge.mergePulledProfile(`${profileId}_new`, {
         name: 'New remote profile',
         notes: 'not allowlisted',
@@ -205,6 +218,8 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         && updatedProfile.color === '#123456'
         && updatedProfile.height === 180
         && updatedProfile.lastUpdated > 1
+        && firstMergeLastUpdated === updatedProfile.lastUpdated
+        && identicalMerge === false
         && addedProfile.name === 'New remote profile'
         && addedProfile.pinned === true
         && addedProfile.color === '#abcdef'

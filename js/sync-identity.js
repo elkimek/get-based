@@ -8,7 +8,7 @@ import {
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 
 /** @typedef {{ id?: unknown, mnemonic?: string }} SyncAppOwner */
-/** @typedef {{ restoreAppOwner: (mnemonic: string) => unknown }} SyncEvolu */
+/** @typedef {{ restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }} SyncEvolu */
 
 let _bip39Load = null;
 let _qrCodeLoad = null;
@@ -131,6 +131,23 @@ export function isRestoreJoinPending() {
 
 export function clearRestoreJoinPending() {
   setRestoreJoinPending(false);
+}
+
+/**
+ * Reset Evolu's append-only local history while retaining the current owner.
+ *
+ * Relay compaction deliberately rejects every message timestamp that existed
+ * before the compaction. Reopening the same local Evolu database would replay
+ * that old history, so rebuild from an empty database and emit one fresh
+ * canonical application snapshot instead.
+ */
+export async function resetLocalSyncHistoryForRelayRebuild() {
+  const evolu = currentEvolu();
+  const mnemonic = getMnemonic();
+  if (!evolu || !mnemonic) throw new Error('Sync identity is not ready on this device');
+  await evolu.restoreAppOwner(mnemonic, { reload: false });
+  clearSyncDisableStorage();
+  return true;
 }
 
 /** @param {string} mnemonic

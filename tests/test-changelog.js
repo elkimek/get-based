@@ -128,7 +128,12 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('latest changelog explains encrypted Venice checks and limits in newcomer-readable terms',
+assert('latest changelog gives a simple cross-device sync overview',
+  /version:\s*'1\.11\.7'[\s\S]{0,500}More reliable cross-device sync/.test(changelogSrc)
+    && /version:\s*'1\.11\.7'[\s\S]{0,1200}Sync uses less storage/.test(changelogSrc)
+    && /version:\s*'1\.11\.7'[\s\S]{0,1200}Sync is easier to manage/.test(changelogSrc)
+    && /version:\s*'1\.11\.7'[\s\S]{0,1600}Update notices appear on the right device/.test(changelogSrc));
+assert('Venice changelog explains encrypted checks and limits in newcomer-readable terms',
   /version:\s*'1\.11\.6'[\s\S]{0,500}Clearer, stronger encrypted Venice chats/.test(changelogSrc)
     && /version:\s*'1\.11\.6'[\s\S]{0,2200}protected Intel environment \(called a TEE\)/.test(changelogSrc)
     && /version:\s*'1\.11\.6'[\s\S]{0,2200}If either required check fails, the encrypted session does not start/.test(changelogSrc)

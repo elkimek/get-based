@@ -50,7 +50,9 @@ import {
   scheduleSyncRuntimeReload,
   setSyncAppOwner,
 } from '../js/sync-runtime.js';
-import { getRecentSyncEvents, resetSyncStatus, updateSyncStatus } from '../js/sync-state.js';
+import {
+  getRecentSyncEvents, getSyncDisplayState, resetSyncStatus, updateSyncStatus,
+} from '../js/sync-state.js';
 import { cleanStorage, configureSyncStorageCleanup } from '../js/sync-storage-cleanup.js';
 import { state } from '../js/state.js';
 import {
@@ -191,12 +193,18 @@ afterEach(() => {
 
 describe('sync payload composition', () => {
   it('uses the configured profile provider for outbound metadata', async () => {
-    const profile = { id: PROFILE_ID, name: 'Configured profile' };
+    const profile = {
+      id: PROFILE_ID,
+      name: 'Configured profile',
+      lastUpdated: 123456,
+      notes: 'local-only profile notes',
+      height: 181,
+    };
     const previous = configureSyncPayload({ getProfiles: () => [profile] });
 
     try {
       const payload = JSON.parse(await buildSyncPayload(PROFILE_ID, { entries: [] }));
-      expect(payload.profile).toEqual(profile);
+      expect(payload.profile).toEqual({ id: PROFILE_ID, name: 'Configured profile' });
     } finally {
       configureSyncPayload(previous);
     }
@@ -670,6 +678,17 @@ describe('sync push delta runtime behavior', () => {
 });
 
 describe('sync push runtime behavior', () => {
+  it('shows a checking state until the relay probe has completed', () => {
+    try {
+      resetSyncStatus();
+      expect(getSyncDisplayState(true)).toBe('syncing');
+      updateSyncStatus({ relay: 'connected' });
+      expect(getSyncDisplayState(true)).toBe('synced');
+    } finally {
+      resetSyncStatus();
+    }
+  });
+
   it('inserts and updates profile rows only after a committed push and records local commit state', async () => {
     const fake = makeEvolu();
     const debug = vi.fn();
@@ -722,6 +741,28 @@ describe('sync push runtime behavior', () => {
     expect(parsed.importedData.customMarkers['hormones.cPeptide']).toBeUndefined();
   });
 
+  it('does not append another Evolu message when the complete outbound state is unchanged', async () => {
+    const fake = makeEvolu();
+    configureRuntimeDeps(fake);
+    const data = {
+      entries: [],
+      sunSessions: [{ id: 'sun-stable', date: '2026-06-03' }],
+    };
+
+    await expect(pushProfile(PROFILE_ID, data)).resolves.toEqual({ ok: true });
+    const writesAfterFirstPush = fake.calls.insert.length + fake.calls.update.length;
+
+    await expect(pushProfile(PROFILE_ID, data)).resolves.toEqual({
+      ok: true,
+      skipped: true,
+      reason: 'unchanged',
+    });
+    expect(fake.calls.insert.length + fake.calls.update.length).toBe(writesAfterFirstPush);
+
+    await expect(pushProfile(PROFILE_ID, data, { force: true })).resolves.toEqual({ ok: true });
+    expect(fake.calls.insert.length + fake.calls.update.length).toBeGreaterThan(writesAfterFirstPush);
+  });
+
   it('skips concurrent pushes and releases the in-flight flag through the watchdog', async () => {
     vi.useFakeTimers();
     const fake = makeEvolu({ completeProfileWrites: false });
@@ -770,6 +811,7 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
     expect(isSyncDisableCleanupKey(`labcharts-${PROFILE_ID}-delta-sunSessions`)).toBe(true);
     expect(isSyncDisableCleanupKey(`labcharts-${PROFILE_ID}-sync-cutover-v2`)).toBe(true);
     expect(isSyncDisableCleanupKey(`labcharts-${PROFILE_ID}-relay-bytes-total`)).toBe(true);
+    expect(isSyncDisableCleanupKey(`labcharts-relay-cap-owner-runtime`)).toBe(true);
     expect(isSyncDisableCleanupKey('labcharts-sync-restore-join-pending')).toBe(true);
     expect(isSyncDisableCleanupKey('labcharts-relay-quota-warned')).toBe(true);
     expect(isSyncDisableCleanupKey(`labcharts-${PROFILE_ID}-imported`)).toBe(false);
@@ -779,6 +821,7 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
     localStorage.setItem(`labcharts-${PROFILE_ID}-delta-sunSessions-meta`, '{}');
     localStorage.setItem(`labcharts-${PROFILE_ID}-sync-cutover-v2`, '1');
     localStorage.setItem(`labcharts-${PROFILE_ID}-relay-bytes-total`, '99');
+    localStorage.setItem('labcharts-relay-cap-owner-runtime', String(200 * 1024 * 1024));
     localStorage.setItem('labcharts-relay-quota-warned', '1');
     localStorage.setItem(`labcharts-${PROFILE_ID}-imported`, '{"keep":true}');
 
@@ -789,6 +832,7 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-delta-sunSessions-meta`)).toBeNull();
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-sync-cutover-v2`)).toBeNull();
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-relay-bytes-total`)).toBeNull();
+    expect(localStorage.getItem('labcharts-relay-cap-owner-runtime')).toBeNull();
     expect(localStorage.getItem('labcharts-relay-quota-warned')).toBeNull();
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-imported`)).toBe('{"keep":true}');
 

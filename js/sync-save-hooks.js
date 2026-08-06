@@ -8,6 +8,7 @@ import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { markChatDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
+import { markSyncProfileDirty } from './sync-dirty-state.js';
 
 /** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
@@ -66,6 +67,7 @@ export function bindSyncSaveHookEvents() {
   if (_eventsBound) return;
   const bound = addUtilsRuntimeListener('labcharts-ai-settings-local-changed', () => {
     if (!_isSyncEnabled() || !state.currentProfile || !state.importedData) return;
+    markSyncProfileDirty(state.currentProfile);
     scheduleAISettingsPush(state.currentProfile, state.importedData);
   });
   if (bound) _eventsBound = true;
@@ -156,6 +158,7 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
 export function onProfileSaved(profileId, importedData = null) {
   if (!profileId) return;
   if (!_isSyncEnabled()) return;
+  markSyncProfileDirty(profileId);
   const prev = _profileSyncTimers.get(profileId);
   if (prev) clearTimeout(prev);
   const timer = setTimeout(async () => {
@@ -169,10 +172,15 @@ export function onProfileSaved(profileId, importedData = null) {
 
 /** @param {{ immediate?: boolean, skipSync?: boolean }} [options] */
 export function onDataSaved(options = {}) {
-  if (!options?.skipSync && _isSyncEnabled() && _isEvoluReady()) {
+  if (!options?.skipSync && _isSyncEnabled()) {
     const profileId = state.currentProfile;
     const data = state.importedData;
     if (profileId) {
+      markSyncProfileDirty(profileId);
+      if (!_isEvoluReady()) {
+        pushContextToGateway();
+        return;
+      }
       const prev = _debounceTimers.get(profileId);
       if (prev) clearTimeout(prev);
       if (options?.immediate) {
@@ -192,10 +200,12 @@ export function onDataSaved(options = {}) {
 
 export function onChatSaved() {
   markChatDataLocal();
-  if (!_isSyncEnabled() || !_isEvoluReady()) return;
+  if (!_isSyncEnabled()) return;
   const profileId = state.currentProfile;
   const data = state.importedData;
   if (!profileId) return;
+  markSyncProfileDirty(profileId);
+  if (!_isEvoluReady()) return;
   const prev = _chatSyncTimers.get(profileId);
   if (prev) clearTimeout(prev);
   const timer = setTimeout(() => {

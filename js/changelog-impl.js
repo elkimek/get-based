@@ -11,6 +11,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.11.7', date: '2026-08-06', title: 'More reliable cross-device sync',
+    items: [
+      '<b>Sync uses less storage.</b> getbased avoids saving and sending the same data repeatedly, helping prevent sync space from filling up when nothing has changed.',
+      '<b>Sync is easier to manage.</b> Settings once again lets you enable, disable, restore, and refresh sync, with clearer status and recovery guidance.',
+      '<b>Update notices appear on the right device.</b> The browser where you made a change no longer says it came from another device, while your other open devices still receive the update.',
+    ]
+  },
+  {
     version: '1.11.6', date: '2026-08-05', title: 'Clearer, stronger encrypted Venice chats',
     items: [
       '<b>Encrypted Venice chats now check both the secure environment and its GPU.</b> Before sending a message, getbased verifies the protected Intel environment (called a TEE) and signed NVIDIA GPU evidence. If either required check fails, the encrypted session does not start.',

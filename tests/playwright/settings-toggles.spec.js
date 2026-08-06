@@ -51,7 +51,7 @@ test('Settings display toggles persist through delegated slider actions', async 
   await expect(page.locator('body')).toHaveAttribute('data-settings-navigate', 'dashboard');
 });
 
-test('Settings data sync toggle opens and cancels setup modal', async ({ page }) => {
+test('Settings data sync exposes visible setup controls and a working toggle', async ({ page }) => {
   await preparePage(page);
 
   await page.evaluate(async () => {
@@ -60,6 +60,22 @@ test('Settings data sync toggle opens and cancels setup modal', async ({ page })
     syncState.setSyncEnabled(false);
     await settingsLoader.openSettingsModal('data');
   });
+
+  const newSetup = page.locator('#sync-section [data-sync-action="setup-new-direct"]');
+  const joinExisting = page.locator('#sync-section [data-sync-action="setup-restore-direct"]');
+  const syncSlider = page.locator('#sync-section [data-sync-action="toggle-sync"] + .chat-toggle-slider');
+  await expect(newSetup).toBeVisible();
+  await expect(joinExisting).toBeVisible();
+  await expect(syncSlider).toBeVisible();
+  await expect(newSetup).toHaveText('Set up new sync');
+  await expect(joinExisting).toHaveText('Join existing device');
+
+  await joinExisting.click();
+  const directRestoreOverlay = page.locator('#sync-setup-overlay');
+  await expect(directRestoreOverlay).toHaveClass(SHOW_CLASS_TOKEN);
+  await expect(directRestoreOverlay.locator('#sync-setup-restore')).toBeVisible();
+  await directRestoreOverlay.locator('[data-sync-setup-action="setup-cancel"]').click();
+  await expect(directRestoreOverlay).not.toHaveClass(SHOW_CLASS_TOKEN);
 
   await page.locator('#sync-section [data-sync-action="toggle-sync"] + .chat-toggle-slider').click();
 

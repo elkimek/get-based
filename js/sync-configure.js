@@ -14,7 +14,9 @@ import { configureSyncTombstones } from './sync-tombstones.js';
 import { configureSyncMessenger } from './sync-messenger.js';
 import { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } from './lab-context.js';
 import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
-import { configureSyncIdentity, restoreFromMnemonic } from './sync-identity.js';
+import {
+  configureSyncIdentity, resetLocalSyncHistoryForRelayRebuild, restoreFromMnemonic,
+} from './sync-identity.js';
 import { configureSyncDiagnostics } from './sync-diagnostics.js';
 import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
 import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
@@ -58,9 +60,9 @@ export function configureSyncModules({ enableSync } = {}) {
     onQuotaThreshold(q) {
       if (q.level === 'red') {
         logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
-        try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes will start failing silently. See Settings → Sync → Diagnose.`, 'error'); } catch {}
+        try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes can fail. See Settings → Data → Cross-device sync → Advanced.`, 'error'); } catch {}
       } else {
-        try { showNotification(`Relay storage ${q.pct}% — plan a compaction in the next few days. See Sync diagnose.`, 'warning'); } catch {}
+        try { showNotification(`Relay storage ${q.pct}% — plan a compaction soon. See Cross-device sync → Advanced.`, 'warning'); } catch {}
       }
     },
   });
@@ -162,6 +164,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isSyncEnabled,
     isEvoluReady: isSyncEvoluReady,
     isSyncing: isSyncPushInFlight,
+    resetLocalSyncHistoryForRelayRebuild,
     getProfiles,
     createDefaultProfileData,
   });
