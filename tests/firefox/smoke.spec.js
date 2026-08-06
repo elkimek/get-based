@@ -66,7 +66,9 @@ test('loads demo data and supports core navigation and settings', async ({ brows
   await expect(chatPanel).toHaveClass(/\bopen\b/);
   await page.evaluate(async () => (await import('/js/chat-panel.js')).closeChatPanel());
   await expect(chatPanel).not.toHaveClass(/\bopen\b/);
-  await page.locator('.settings-btn').click();
+  // Firefox can race a delayed chat auto-open between the close assertion and
+  // pointer hit testing. Dispatch the real delegated click without hit testing.
+  await page.locator('[data-shell-action="open-settings"]').evaluate(button => button.click());
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
   await page.locator('[data-settings-tab="privacy"]').click();
   await expect(page.locator('[data-tab-panel="privacy"]')).toHaveClass(/\bactive\b/);
