@@ -184,11 +184,8 @@ export async function saveImportedData(options = {}) {
     if (state.importedData && typeof state.importedData === 'object') migrateProfileData(state.importedData);
     const key = profileStorageKey(state.currentProfile, 'imported');
     const value = JSON.stringify(state.importedData);
-    // A surprising number of maintenance/render paths call the saver after
-    // computing an equivalent object. Treat those as no-ops. Besides avoiding
-    // needless IndexedDB writes, this is important for sync: the post-save
-    // hook advances profile.lastUpdated, so an equivalent save used to create
-    // a distinct full-profile CRDT message on every refresh.
+    // Equivalent maintenance/render saves are no-ops, avoiding storage writes
+    // and preventing their timestamps from creating full CRDT messages.
     const changed = (await encryptedGetItem(key)) !== value;
     if (!changed) return true;
     // Always route through encryptedSetItem — it skips encryption when

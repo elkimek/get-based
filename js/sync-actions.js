@@ -88,7 +88,7 @@ export async function forceResendCurrentProfile() {
 }
 
 export async function syncNow() {
-  // A local save can be waiting in the normal 10-second debounce window.
+  // A local save can be waiting in the normal 10-second debounce period.
   // Pulling first in that state lets an older remote scalar overwrite the
   // durable local edit before it ever reaches Evolu. Flush dirty local state
   // first; clean devices still pull first so they cannot publish stale data.
