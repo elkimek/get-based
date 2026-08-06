@@ -7,6 +7,7 @@ import { getSyncBlocker, getSyncRelay } from './sync-environment.js';
 import { primeSyncState, setSyncEnabled } from './sync-settings-state.js';
 import { bindSyncRecoveryEvents } from './sync-recovery.js';
 import { bindSyncSubscriptions, startRelayProbe } from './sync-subscriptions.js';
+import { scheduleOwnerStorageRefresh } from './sync-relay-health.js';
 import {
   getSyncAppOwner, getSyncEvolu, getSyncReloadUrlRuntime,
   setSyncAppOwner, setSyncAppOwnerError, setSyncEvolu,
@@ -86,6 +87,7 @@ export async function initSync() {
     const readyPromise = evolu.appOwner.then(owner => {
       setSyncAppOwner(owner);
       setSyncAppOwnerError(null);
+      scheduleOwnerStorageRefresh(0);
       dbg('Owner resolved');
     }).catch(e => {
       // Don't silently swallow - Settings > Data shows "Resolving..." while

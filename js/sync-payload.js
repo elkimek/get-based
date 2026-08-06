@@ -7,6 +7,7 @@ import {
 import {
   _bytesToBase64, _gzipString,
 } from './sync-payload-codec.js';
+import { selectSyncedProfile } from './sync-profile-fields.js';
 
 export {
   AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, chatDeletedThreadsKey,
@@ -66,7 +67,7 @@ export function disablePhase2CutoverFlag(profileId) {
  */
 export async function buildSyncPayload(profileId, importedData) {
   const profiles = syncPayloadDeps.getProfiles();
-  const profile = profiles.find(p => p.id === profileId);
+  const profile = selectSyncedProfile(profiles.find(p => p.id === profileId));
   const aiSettings = await collectAISettings();
   const chatData = await collectChatData(profileId);
   const displayPrefs = collectDisplayPrefs(profileId);

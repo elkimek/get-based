@@ -59,6 +59,9 @@ async function openIsolatedSyncSetupPage(page) {
       export function updateSyncIndicator() {
         stub.calls.push({ fn: 'updateSyncIndicator' });
       }
+      export function showSyncDiagnose() {
+        stub.calls.push({ fn: 'showSyncDiagnose' });
+      }
       export function onDataSaved(options = {}) {
         stub.calls.push({ fn: 'onDataSaved', immediate: options.immediate === true, skipSync: options.skipSync === true });
       }
@@ -195,6 +198,10 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
 
       window.__settingsSyncSetupStub.enabled = true;
       syncSection.innerHTML = syncPanel.renderSyncSection();
+      outcomes.enabledStateExposesRestoreAndDisableControls =
+        syncSection.querySelector('[data-sync-action="open-restore-dialog"]')?.textContent.includes('Restore / switch identity') === true
+        && syncSection.querySelector('[data-sync-action="disable-sync"]')?.textContent.includes('Disable on this device') === true
+        && syncSection.textContent.includes('relay data is not deleted');
       syncPanel.hydrateSettingsSyncPanel();
       await waitFor(() => document.getElementById('sync-mnemonic')?.dataset.masked === 'true', 'masked mnemonic');
       await waitFor(() => document.getElementById('sync-identity-code')?.textContent === 'A94F-2C71-B803', 'sync identity code');
@@ -216,6 +223,10 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       outcomes.copyMnemonicWritesClipboardAndNotifies =
         clipboardWrites.includes(mnemonic)
         && toasts().some(text => text.includes('Mnemonic copied'));
+      document.querySelector('[data-sync-action="show-sync-diagnose"]')?.click();
+      await waitFor(() => window.__settingsSyncSetupStub.calls.some(call => call.fn === 'showSyncDiagnose'), 'sync diagnostics action');
+      outcomes.advancedSettingsExposeSyncDiagnostics =
+        window.__settingsSyncSetupStub.calls.some(call => call.fn === 'showSyncDiagnose');
 
       syncPanel.showSyncSetupModal();
       document.querySelector('[data-sync-setup-action="setup-restore"]')?.click();

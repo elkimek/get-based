@@ -5,6 +5,8 @@ import {
   disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
 } from './sync-payload.js';
 import { getDeltaCutoverReadiness } from './sync-delta.js';
+import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
+import { clearDeltaSnapshot } from './sync-delta-snapshot.js';
 
 export { isPhase2CutoverEnabled };
 
@@ -25,4 +27,18 @@ export function enablePhase2Cutover(profileId) {
 /** @param {string | null | undefined} profileId */
 export function disablePhase2Cutover(profileId) {
   return disablePhase2CutoverFlag(profileId);
+}
+
+// Relay compaction removes the owner's complete append-only message log.
+// Rebuilding must therefore bypass both optimizations that normally suppress
+// old data: v4's omitted profile blob and the local "already pushed" delta
+// snapshots. The next forced push then emits a complete v3 snapshot plus all
+// current per-row surfaces.
+/** @param {string | null | undefined} profileId */
+export function prepareProfileForRelayRebuild(profileId) {
+  if (!profileId) return false;
+  disablePhase2CutoverFlag(profileId);
+  const surfaces = new Set([...DELTA_ARRAYS, ...DELTA_MAPS, ...DELTA_SCALARS]);
+  for (const surface of surfaces) clearDeltaSnapshot(profileId, surface);
+  return true;
 }

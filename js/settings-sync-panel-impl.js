@@ -20,6 +20,7 @@ import {
   pushContextToGateway,
   rejectPendingTombstone,
   setAgentAccessWearableSeriesDays,
+  showSyncDiagnose,
   updateSyncIndicator,
 } from './sync.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -141,6 +142,16 @@ async function handleSettingsSyncClick(event) {
     openRestoreMnemonicDialog();
   } else if (action === 'save-relay') {
     saveSyncRelay();
+  } else if (action === 'show-sync-diagnose') {
+    void showSyncDiagnose();
+  } else if (action === 'setup-new-direct') {
+    showSyncSetupModal();
+    void syncSetupNew();
+  } else if (action === 'setup-restore-direct') {
+    showSyncSetupModal();
+    syncSetupRestore();
+  } else if (action === 'disable-sync') {
+    void toggleSync(false);
   } else if (action === 'setup-new') {
     void syncSetupNew();
   } else if (action === 'setup-restore') {
@@ -241,6 +252,7 @@ export function renderSyncSection() {
   const enabled = isSyncEnabled();
   const relay = getSyncRelay();
   const blocker = getSyncBlocker();
+  const enableDisabled = blocker && !enabled ? 'disabled' : '';
   // Banner appears in place of the toggle when the browser is missing a
   // primitive Evolu needs (Web Locks, StorageManager, OPFS, or WebCrypto).
   // Lets the user see "this is broken and here's why" instead of clicking
@@ -253,15 +265,18 @@ export function renderSyncSection() {
   return `
     ${blockerBanner}
     ${renderPendingTombstones()}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${enabled ? '16' : '8'}px;${blocker ? 'opacity:0.5;pointer-events:none' : ''}">
+    <div class="sync-settings-head">
       <div>
         <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Cross-device sync</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">E2E encrypted via Evolu CRDT</div>
       </div>
-      <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle cross-device sync">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" style="display:none" ${blocker ? 'disabled' : ''}>
-        <span class="chat-toggle-slider"></span>
-      </label>
+      <div class="sync-settings-state">
+        <span class="sync-settings-badge ${enabled ? 'is-enabled' : ''}">${enabled ? 'Enabled' : 'Off'}</span>
+        <label class="chat-websearch-toggle-label sync-settings-toggle" aria-label="Toggle cross-device sync">
+          <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" ${enableDisabled}>
+          <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
+        </label>
+      </div>
     </div>
     ${enabled ? `
       <div id="sync-relay-status" style="display:flex;align-items:center;gap:6px;margin-bottom:16px">
@@ -293,10 +308,11 @@ export function renderSyncSection() {
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px">These words are your encryption key. Store them offline. Never share them.</div>
       </div>
 
-      <div style="margin-bottom:16px">
-        <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%" data-sync-action="open-restore-dialog">Restore from a different mnemonic…</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4">Replace this device's identity with a 24-word seed from another device. Your current data is overwritten.</div>
+      <div class="sync-management-actions">
+        <button class="import-btn import-btn-secondary" data-sync-action="open-restore-dialog">Restore / switch identity…</button>
+        <button class="import-btn import-btn-secondary sync-disable-btn" data-sync-action="disable-sync">Disable on this device</button>
       </div>
+      <div class="sync-management-help">Restoring switches this device to another 24-word identity and replaces local synced data. Disabling stops sync here and reloads the app; relay data is not deleted.</div>
 
       <details style="margin-bottom:8px">
         <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">Advanced</summary>
@@ -306,12 +322,18 @@ export function renderSyncSection() {
             <input type="text" id="sync-relay-input" value="${escapeAttr(relay)}" style="flex:1;font-size:12px;border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;font-family:var(--font-mono, monospace)" placeholder="wss://...">
             <button class="import-btn import-btn-secondary" style="font-size:12px;padding:4px 12px" data-sync-action="save-relay">Save</button>
           </div>
+          <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%;margin-top:10px" data-sync-action="show-sync-diagnose">Sync status &amp; storage</button>
         </div>
       </details>
     ` : `
       <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
         Sync profiles, lab data, and AI settings across your devices. Data is encrypted with a key derived from a 24-word mnemonic — the relay server only sees ciphertext.
       </div>
+      <div class="sync-setup-actions">
+        <button class="import-btn import-btn-primary" data-sync-action="setup-new-direct" ${enableDisabled}>Set up new sync</button>
+        <button class="import-btn import-btn-secondary" data-sync-action="setup-restore-direct" ${enableDisabled}>Join existing device</button>
+      </div>
+      <div class="sync-management-help">Choose <b>Join existing device</b> if another device already has sync enabled. You will need its 24-word mnemonic.</div>
     `}
   `;
 }

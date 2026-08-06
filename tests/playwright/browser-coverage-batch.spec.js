@@ -453,9 +453,20 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         isDebug: true,
         cutoverEnabled: false,
       });
-      outcomes.syncDiagnoseRendersPanels = fullHtml.includes('Relay sync health')
-        && fullHtml.includes('Wedged')
+      const friendlyStyleProbe = document.createElement('div');
+      friendlyStyleProbe.className = 'sync-diagnose-summary';
+      document.body.appendChild(friendlyStyleProbe);
+      outcomes.syncDiagnoseFriendlyStylesAreAlwaysLoaded =
+        getComputedStyle(friendlyStyleProbe).display === 'flex';
+      friendlyStyleProbe.remove();
+      outcomes.syncDiagnoseRendersPanels = fullHtml.includes('data-sync-diagnose-summary="danger"')
+        && fullHtml.includes('Sync needs attention')
+        && fullHtml.includes('Compare the Sync identity code first')
+        && fullHtml.includes('Relay connection')
+        && fullHtml.includes('Needs attention')
         && fullHtml.includes('Relay storage')
+        && fullHtml.includes('Technical details')
+        && fullHtml.includes('developer metrics included')
         && fullHtml.includes('Push efficiency')
         && fullHtml.includes('Lean sync mode')
         && fullHtml.includes('1 row payload could not be decoded.')
@@ -492,7 +503,8 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         cutoverEnabled: true,
       });
       outcomes.syncDiagnoseRendersEmptyRows = emptyRowsHtml.includes('No rows in local Evolu DB')
-        && emptyRowsHtml.includes('Healthy');
+        && emptyRowsHtml.includes('Sync is off on this device')
+        && emptyRowsHtml.includes('<details class="sync-diagnose-technical">');
     } finally {
       state.currentThreadId = originalThreadId;
     }
@@ -1002,6 +1014,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
     const identityActions = await import(identityUrl);
     const cutoverActions = await import(cutoverUrl);
     const relayActions = await import(relayUrl);
+    const syncActions = await import('/js/sync-actions.js');
     const actionContext = await import('/js/sync-diagnose-actions-context.js');
     const confirmRuntime = await import('/js/sync-diagnose-runtime.js');
     const relayHealth = await import('/js/sync-relay-health.js');
@@ -1130,6 +1143,19 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         && !document.body.contains(disableModal.overlay);
 
       const fetchCalls = [];
+      const rebuildPushes = [];
+      let compactionPulls = 0;
+      syncActions.configureSyncActions({
+        forcePull: async () => { compactionPulls++; },
+        isSyncEnabled: () => true,
+        isEvoluReady: () => true,
+        resetLocalSyncHistoryForRelayRebuild: async () => true,
+        getProfiles: () => [{ id: 'diag-actions-profile' }],
+        pushProfile: async (profileId, _data, options) => {
+          rebuildPushes.push({ profileId, options });
+          return { ok: true };
+        },
+      });
       relayHealth.configureRelayHealth({
         getAppOwner: () => ({ id: 'owner-1', writeKey: new TextEncoder().encode('owner-secret') }),
         getSyncRelay: () => 'wss://relay.example.test',
@@ -1164,6 +1190,8 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       await relayActions.confirmCompactRelay(compactModal.btn);
       outcomes.compactRelayPostsAndCloses = fetchCalls.some(call => call.method === 'POST'
         && call.url.endsWith('/self/compact-owner'))
+        && compactionPulls === 1
+        && rebuildPushes.some(call => call.profileId === 'diag-actions-profile' && call.options?.force === true)
         && !document.body.contains(compactModal.overlay);
 
       const refreshModal = makeModalButton('Refresh');
@@ -1180,6 +1208,14 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       else delete window.qrcode;
       state.currentProfile = originalProfile;
       state.importedData = originalImported;
+      syncActions.configureSyncActions({
+        forcePull: async () => {},
+        isSyncEnabled: () => false,
+        isEvoluReady: () => false,
+        resetLocalSyncHistoryForRelayRebuild: async () => {},
+        getProfiles: () => [],
+        pushProfile: async () => {},
+      });
       if (originalSelfUrl == null) localStorage.removeItem('labcharts-self-url');
       else localStorage.setItem('labcharts-self-url', originalSelfUrl);
       if (originalRelayQuota == null) localStorage.removeItem(relayQuotaKey);

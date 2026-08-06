@@ -26,15 +26,22 @@ function _appOwner() {
   try { return _getAppOwner?.() || null; } catch { return null; }
 }
 
-// The relay caps each owner at 50 MB of evolu_message rows; once that
-// fills, writes are silently rejected and clients see "push committed"
-// with no actual durable write.
+// Compatibility fallback for relays that predate /self/owner-storage.
+// Current relays return their configured per-owner quota and that value is
+// cached below, so the UI does not claim a stale 50 MB limit when an operator
+// has configured (for example) 200 MB.
 export const RELAY_OWNER_QUOTA_BYTES = 50 * 1024 * 1024;
 
 function _ownerStorageKey() {
   const ownerObj = _appOwner();
   const owner = ownerObj?.id ? String(ownerObj.id) : 'unknown';
   return `labcharts-relay-bytes-${owner}`;
+}
+
+function _ownerQuotaKey() {
+  const ownerObj = _appOwner();
+  const owner = ownerObj?.id ? String(ownerObj.id) : 'unknown';
+  return `labcharts-relay-cap-${owner}`;
 }
 
 /** @param {number | string | null | undefined} bytes */
@@ -53,8 +60,12 @@ export function trackPushBytes(bytes) {
 export function getRelayQuotaEstimate() {
   if (!_appOwner()?.id) return null;
   let bytes = 0;
+  let cap = RELAY_OWNER_QUOTA_BYTES;
   try { bytes = parseInt(localStorage.getItem(_ownerStorageKey()) || '0', 10) || 0; } catch {}
-  const cap = RELAY_OWNER_QUOTA_BYTES;
+  try {
+    const cachedCap = parseInt(localStorage.getItem(_ownerQuotaKey()) || '0', 10) || 0;
+    if (cachedCap > 0) cap = cachedCap;
+  } catch {}
   const pct = Math.min(100, Math.round((bytes / cap) * 100));
   let level = 'green';
   if (pct >= 95) level = 'red';
@@ -64,14 +75,25 @@ export function getRelayQuotaEstimate() {
 
 export function resetRelayQuotaEstimate() {
   if (!_appOwner()?.id) return false;
-  try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
+  try {
+    localStorage.removeItem(_ownerStorageKey());
+    localStorage.removeItem(_ownerQuotaKey());
+    return true;
+  } catch { return false; }
 }
 
-/** @param {number | string | null | undefined} bytes */
-function _setRelayQuotaBytes(bytes) {
+/** @param {number | string | null | undefined} bytes
+ * @param {number | string | null | undefined} [quotaBytes]
+ */
+function _setRelayQuotaBytes(bytes, quotaBytes) {
   const safeBytes = _coerceRelayBytes(bytes);
   if (!_appOwner()?.id || safeBytes < 0) return;
-  try { localStorage.setItem(_ownerStorageKey(), String(safeBytes)); } catch {}
+  const safeQuota = _coerceRelayBytes(quotaBytes);
+  try {
+    localStorage.setItem(_ownerStorageKey(), String(safeBytes));
+    if (safeQuota > 0) localStorage.setItem(_ownerQuotaKey(), String(safeQuota));
+  } catch {}
+  _maybeWarnQuotaThreshold();
 }
 
 /** @param {number | string | null | undefined} bytes */
@@ -143,12 +165,16 @@ export async function fetchOwnerStorageFromRelay() {
     const url = `${base}/self/owner-storage?ownerId=${encodeURIComponent(ownerId)}&timestamp=${timestamp}&signature=${signature}`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 5000);
-    const r = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
+    let r;
+    try {
+      r = await fetch(url, { signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!r.ok) return null;
     const body = await r.json();
     if (!body || typeof body.storedBytes !== 'number') return null;
-    _setRelayQuotaBytes(body.storedBytes);
+    _setRelayQuotaBytes(body.storedBytes, body.quotaBytes);
     return {
       storedBytes: body.storedBytes,
       quotaBytes: body.quotaBytes ?? null,
@@ -156,6 +182,21 @@ export async function fetchOwnerStorageFromRelay() {
       lastWriteToken: typeof body.lastWriteToken === 'string' ? body.lastWriteToken : null,
     };
   } catch { return null; }
+}
+
+let _ownerStorageRefreshTimer = null;
+
+// Debounce authoritative probes across a burst of profile/itemRow commits.
+// Push accounting remains immediate; the probe replaces that estimate with
+// the relay's actual storedBytes and configured quota shortly afterward.
+/** @param {number} [delayMs] */
+export function scheduleOwnerStorageRefresh(delayMs = 1500) {
+  if (!_appOwner()?.id) return;
+  if (_ownerStorageRefreshTimer !== null) return;
+  _ownerStorageRefreshTimer = setTimeout(() => {
+    _ownerStorageRefreshTimer = null;
+    void fetchOwnerStorageFromRelay();
+  }, Math.max(0, delayMs));
 }
 
 /** @type {RelaySnapshot | null} */
@@ -266,10 +307,16 @@ export async function compactOwnerSelfServe() {
 function _maybeWarnQuotaThreshold() {
   try {
     const q = getRelayQuotaEstimate();
-    if (!q || q.level === 'green') return;
+    if (!q) return;
     const ownerObj = _appOwner();
     const owner = ownerObj?.id ? String(ownerObj.id) : 'unknown';
     const key = `labcharts-${owner}-relay-quota-warned`;
+    if (q.level === 'green') {
+      // A fresh authoritative quota can legitimately downgrade an old
+      // hardcoded-limit warning. Clear it so future real thresholds notify.
+      localStorage.removeItem(key);
+      return;
+    }
     const prev = localStorage.getItem(key) || '';
     const want = q.level;
     const order = { '': 0, green: 0, amber: 1, red: 2 };

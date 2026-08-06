@@ -84,6 +84,21 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       document.body.appendChild(overlay);
       calls.length = 0;
       const firstToastCount = document.querySelectorAll('.notification-toast').length;
+      const localEchoResult = refreshModule.refreshActiveProfileAfterPull({
+        profileId: activeProfileId,
+        merged: { entries: [{ date: '2026-06-01T12:00:00.000Z' }], lightCircadian: null },
+        localDataChanged: true,
+        localCommitEcho: true,
+        debug: (...args) => { debugCalls.push(args.join(' ')); },
+      });
+      outcomes.localCommitEchoRefreshesWithoutMisleadingRemoteToast =
+        localEchoResult === true
+        && calls.some(call => call?.type === 'navigate')
+        && document.querySelectorAll('.notification-toast').length === firstToastCount
+        && syncAppliedEvents === 1
+        && debugCalls.some(message => message.includes('Suppressed local commit echo toast'));
+
+      calls.length = 0;
       const changedResult = refreshModule.refreshActiveProfileAfterPull({
         profileId: activeProfileId,
         merged: { entries: [{ date: '2026-06-02' }], lightCircadian: null },
@@ -97,7 +112,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         && navigateCall?.category === 'light'
         && navigateCall?.options?.preserveScroll === true
         && toastAfterFirstChange === firstToastCount + 1
-        && syncAppliedEvents === 1;
+        && syncAppliedEvents === 2;
 
       calls.length = 0;
       refreshModule.refreshActiveProfileAfterPull({
@@ -109,7 +124,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       outcomes.repeatVisibleChangeSuppressesDuplicateToastButStillDispatches =
         document.querySelectorAll('.notification-toast').length === toastAfterFirstChange
         && calls.some(call => call?.type === 'navigate')
-        && syncAppliedEvents === 2;
+        && syncAppliedEvents === 3;
       overlay.remove();
 
       localStorage.removeItem('labcharts-sync-hash-v2-migrated');

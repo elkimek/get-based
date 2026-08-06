@@ -333,12 +333,22 @@ try {
 
   refreshActiveProfileAfterPull({
     profileId: 'sync-refresh-profile',
+    merged: { entries: [{ date: '2026-04-30', markers: { 'biochemistry.glucose': 4 } }] },
+    remoteBroughtNewRows: false,
+    localDataChanged: true,
+    localCommitEcho: true,
+  });
+  assert('active refresh suppresses the remote-update toast for this browser own commit echo',
+    navigateCount === 1 && toastCount === 0 && syncAppliedCount === 1);
+
+  refreshActiveProfileAfterPull({
+    profileId: 'sync-refresh-profile',
     merged: { entries: [{ date: '2026-05-01', markers: { 'biochemistry.glucose': 5 } }] },
     remoteBroughtNewRows: false,
     localDataChanged: true,
   });
   assert('active refresh still re-renders, notifies, and broadcasts real data changes',
-    navigateCount === 1 && toastCount === 1 && syncAppliedCount === 1);
+    navigateCount === 2 && toastCount === 1 && syncAppliedCount === 2);
 
   refreshActiveProfileAfterPull({
     profileId: 'sync-refresh-profile',
@@ -347,7 +357,7 @@ try {
     localDataChanged: true,
   });
   assert('active refresh coalesces duplicate update toasts during bursty pull triggers',
-    navigateCount === 2 && toastCount === 1 && syncAppliedCount === 2);
+    navigateCount === 3 && toastCount === 1 && syncAppliedCount === 3);
 
   document.querySelector = selector => selector === '.modal-overlay.show, #modal-overlay.show' ? {} : null;
   refreshActiveProfileAfterPull({

@@ -26,24 +26,25 @@ function renderRowsHtml(rows) {
 
 function renderRelayHealthPanel(healthVerdict) {
   const v = healthVerdict?.verdict || 'unknown';
-  if (v === 'unknown') return '';
   const isHealthy = v === 'healthy';
-  const color = isHealthy ? 'var(--green)' : 'var(--red)';
-  const label = isHealthy ? 'Healthy — this device\'s pushes are landing.' : 'Wedged — this device pushed, but the relay state did not advance.';
+  const needsAttention = v === 'wedged';
+  const tone = isHealthy ? 'success' : needsAttention ? 'danger' : 'neutral';
+  const label = isHealthy ? 'Verified' : needsAttention ? 'Needs attention' : 'Waiting for verification';
   const detail = isHealthy
-    ? 'Last verified ' + new Date(healthVerdict.at).toISOString().slice(11, 19) + 'Z. Storage state has advanced since the previous check.'
-    : (healthVerdict.reason || 'No relay-side advance observed since the previous check.');
-  const scope = '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This verdict is local/outbound: another device can show healthy or unknown until it pushes and probes its own relay baseline. Compare Owner ID across devices first.</div>';
-  const recovery = isHealthy ? scope : scope + '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This matches the Evolu silent-reject pattern. The fix is identity rotation — generate a fresh 24-word mnemonic and restore every syncing device to it. See <a href="https://docs.getbased.health/guides/cross-device-sync" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
-  return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span>
-      <b>Relay sync health:</b>
-      <span style="color:${color};font-weight:600">${escapeHTML(label)}</span>
+    ? `The relay confirmed a recent update from this device${healthVerdict?.at ? ` at ${new Date(healthVerdict.at).toISOString().slice(11, 19)} UTC` : ''}.`
+    : needsAttention
+      ? 'A recent update was not reflected by the relay. Try Sync now once; use recovery tools only if the warning remains.'
+      : 'No failed update was detected. This becomes verified after this device sends a change.';
+  return `<section class="sync-diagnose-card sync-diagnose-health-card">
+    <div class="sync-diagnose-card-head">
+      <div>
+        <div class="sync-diagnose-card-label">Relay connection</div>
+        <div class="sync-diagnose-card-title">${escapeHTML(label)}</div>
+      </div>
+      <span class="sync-diagnose-badge sync-diagnose-badge-${tone}">${isHealthy ? 'Connected' : needsAttention ? 'Check now' : 'Not yet tested'}</span>
     </div>
-    <div style="color:var(--text-muted);font-size:11px">${escapeHTML(detail)}</div>
-    ${recovery}
-  </div>`;
+    <p class="sync-diagnose-card-copy">${escapeHTML(detail)}</p>
+  </section>`;
 }
 
 function renderRelayStoragePanel(q) {
@@ -52,23 +53,82 @@ function renderRelayStoragePanel(q) {
   const capMb = (q.cap / (1024 * 1024)).toFixed(0);
   const color = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
   const note = q.level === 'red'
-    ? 'Storage almost full — pushes will start silently rejecting at the cap. Use Compact storage to drop the older Evolu message log; clients re-establish their state on the next push.'
+    ? 'Storage is almost full. Reduce it soon so new updates are not rejected.'
     : q.level === 'amber'
-    ? 'Approaching the per-account storage cap. No action needed yet — keeps trimming on its own as data ages.'
-    : 'Healthy.';
-  const buttons = `
-    <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('refresh-relay-storage')} title="Probe the relay for the actual storedBytes for this owner — replaces the local estimate.">Refresh</button>
-    <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('compact-relay')} title="Drops every Evolu message row for this owner on the relay and resets storedBytes to 0. Devices re-establish their state on the next push.">Compact storage</button>
-    <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('rotate-identity')} title="Generate a fresh 24-word mnemonic for this owner. Use when this device's relay-health verdict shows 'wedged' (silent-reject pattern). You'll need to enter the new mnemonic on every other device.">Rotate identity</button>`;
-  return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
-      <b>Relay storage:</b>
-      <div style="display:flex;gap:6px">${buttons}</div>
+      ? 'Storage is filling up, but sync can continue. Reduce it when all devices are up to date.'
+      : 'Plenty of relay storage is available.';
+  const compactButton = q.level === 'red' || q.level === 'amber'
+    ? `<button class="ctx-btn-option sync-diagnose-storage-action" ${syncDiagnoseActionAttrs('compact-relay')} title="Rebuilds the encrypted relay history from this device after confirmation.">Reduce storage…</button>`
+    : '';
+  return `<section class="sync-diagnose-card sync-diagnose-storage-card">
+    <div class="sync-diagnose-card-head">
+      <div>
+        <div class="sync-diagnose-card-label">Relay storage</div>
+        <div class="sync-diagnose-card-title"><span style="color:${color}">${mb} of ${capMb} MB used</span></div>
+      </div>
+      <button class="ctx-btn-option sync-diagnose-refresh" ${syncDiagnoseActionAttrs('refresh-relay-storage')} title="Get the current usage directly from the relay.">Refresh usage</button>
     </div>
-    <div style="margin-bottom:4px"><span style="color:${color};font-weight:600">${mb} / ${capMb} MB · ${q.pct}%</span></div>
-    <div style="height:8px;border-radius:4px;background:var(--surface);overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${q.pct}%;background:${color}"></div></div>
-    <div style="color:var(--text-muted);font-size:11px">${note}</div>
-  </div>`;
+    <div class="sync-diagnose-storage-track" role="progressbar" aria-label="Relay storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${q.pct}"><span style="width:${Math.min(100, Math.max(0, q.pct))}%;background:${color}"></span></div>
+    <div class="sync-diagnose-card-footer"><p class="sync-diagnose-card-copy">${note}</p>${compactButton}</div>
+  </section>`;
+}
+
+function getSyncStatusSummary(d, healthVerdict, quota) {
+  const verdict = healthVerdict?.verdict || 'unknown';
+  if (!d.syncEnabled) {
+    return { tone: 'neutral', eyebrow: 'Not active', title: 'Sync is off on this device', detail: 'Your data remains on this device. Turn sync on in Settings when you want to connect it to your other devices.' };
+  }
+  if (!d.ownerId || !d.mnemonicConfigured) {
+    return { tone: 'warning', eyebrow: 'Setup incomplete', title: 'Finish setting up sync', detail: 'This device does not have a complete sync identity yet. Return to Cross-device sync settings to set up or join an identity.' };
+  }
+  if (verdict === 'wedged') {
+    return { tone: 'danger', eyebrow: 'Action recommended', title: 'Sync needs attention', detail: 'This device saved an update locally, but the relay did not confirm that its state advanced. Try Sync now, then reopen this screen.' };
+  }
+  if (d.rowsReadFailed || d.rowParseFailureCount > 0) {
+    return { tone: 'warning', eyebrow: 'Local check incomplete', title: 'Some sync records could not be checked', detail: 'Your data is still available, but the local sync database reported a reading problem. Copy the diagnostic report below if this persists.' };
+  }
+  if (quota?.level === 'red') {
+    return { tone: 'danger', eyebrow: 'Storage nearly full', title: 'Sync works, but storage needs attention', detail: 'Reduce relay storage soon so there is room for future changes.' };
+  }
+  if (quota?.level === 'amber') {
+    return { tone: 'warning', eyebrow: 'Storage filling up', title: 'Sync is working', detail: 'Updates are reaching the relay. Storage is getting high, so plan a cleanup after every device is fully synced.' };
+  }
+  if (verdict === 'healthy') {
+    return { tone: 'success', eyebrow: 'All checks passed', title: 'Sync looks healthy', detail: 'This device is configured, its recent update reached the relay, and relay storage has room available.' };
+  }
+  return { tone: 'neutral', eyebrow: 'Ready', title: 'No problem detected', detail: 'Sync is configured. Make a small change and press Sync now if you want this device to perform a fresh relay verification.' };
+}
+
+function renderStatusSummary(d, healthVerdict, quota) {
+  const summary = getSyncStatusSummary(d, healthVerdict, quota);
+  const relayLabel = healthVerdict?.verdict === 'healthy'
+    ? 'Relay verified'
+    : healthVerdict?.verdict === 'wedged' ? 'Relay needs attention' : 'Relay waiting';
+  const storageLabel = quota ? `Storage ${quota.pct}%` : 'Storage unavailable';
+  return `<section class="sync-diagnose-summary sync-diagnose-summary-${summary.tone}" data-sync-diagnose-summary="${summary.tone}">
+    <div class="sync-diagnose-summary-icon" aria-hidden="true">${summary.tone === 'success' ? '✓' : summary.tone === 'danger' ? '!' : summary.tone === 'warning' ? '!' : 'i'}</div>
+    <div class="sync-diagnose-summary-content">
+      <div class="sync-diagnose-summary-eyebrow">${summary.eyebrow}</div>
+      <h4>${summary.title}</h4>
+      <p>${summary.detail}</p>
+      <div class="sync-diagnose-summary-badges">
+        <span>${d.syncEnabled ? 'Sync on' : 'Sync off'}</span>
+        <span>${relayLabel}</span>
+        <span>${storageLabel}</span>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderDeviceCheck(d) {
+  return `<section class="sync-diagnose-device-check">
+    <div>
+      <div class="sync-diagnose-card-label">Checking another device?</div>
+      <div class="sync-diagnose-device-title">Compare the Sync identity code first</div>
+      <p>Open Settings → Data → Cross-device sync on both devices. The safe identity codes must match. Then press <b>Sync now</b> on each device.</p>
+    </div>
+    <div class="sync-diagnose-device-code"><span>This device</span><strong>${d.ownerId && d.mnemonicConfigured ? 'Identity ready' : 'Setup incomplete'}</strong></div>
+  </section>`;
 }
 
 function renderDeltaTelemetryPanel(t, isDebug) {
@@ -169,37 +229,61 @@ export function renderSyncDiagnoseModal({
     ...(d.rowsReadFailed ? ['Row query failed.'] : []),
   ];
   const rowWarningHtml = rowWarnings.length > 0
-    ? `<div style="color:var(--orange);font-size:11px;margin-top:6px">${rowWarnings.join(' ')}</div>`
+    ? `<div class="sync-diagnose-row-warning">${rowWarnings.join(' ')}</div>`
     : '';
-  return `<div class="modal" role="dialog" aria-label="Sync diagnose" style="max-width:640px">
-    <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" data-sync-diagnose-close aria-label="Close">×</button></div>
-    <div class="modal-body" style="font-size:13px">
-      <div style="margin-bottom:12px">
-        <div><b>Sync enabled:</b> ${d.syncEnabled ? 'yes' : 'no'}</div>
-        <div><b>Relay:</b> <span style="font-family:monospace;font-size:11px;word-break:break-all">${escapeHTML(d.relay || '—')}</span></div>
-        <div><b>Owner ID:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.ownerId || '— (not initialized)')}</span></div>
-        <div><b>Recovery phrase configured:</b> ${d.mnemonicConfigured ? 'yes' : 'no'}</div>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">If two devices show different Owner IDs, they are using different identities and will never see each other's data even on the same relay. Recovery-phrase words are intentionally never included in diagnostics.</div>
-      </div>
-      <div style="margin-bottom:12px">
-        <div><b>Active profile (this device):</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.activeProfileId || '?')}</span></div>
-        <div>In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}</div>
-      </div>
+  const rowCount = Array.isArray(d.rows) ? d.rows.length : 0;
+  const compactInStorageCard = quota?.level === 'amber' || quota?.level === 'red';
+  const maintenanceButtons = `
+    ${compactInStorageCard ? '' : `<button class="ctx-btn-option" ${syncDiagnoseActionAttrs('compact-relay')} title="Rebuilds the encrypted relay history from this device after confirmation.">Reduce relay storage…</button>`}
+    ${healthVerdict?.verdict === 'wedged' ? `<button class="ctx-btn-option sync-diagnose-danger-action" ${syncDiagnoseActionAttrs('rotate-identity')} title="Creates a new recovery phrase and requires reconnecting every device.">Rotate sync identity…</button>` : ''}
+    <button class="ctx-btn-option" ${syncDiagnoseActionAttrs('copy-snapshot')} title="Copy a privacy-safe technical report for troubleshooting.">Copy diagnostic report</button>`;
+  const technicalReason = healthVerdict?.verdict === 'wedged' && healthVerdict?.reason
+    ? `<div class="sync-diagnose-technical-reason"><b>Relay check detail:</b> ${escapeHTML(healthVerdict.reason)}</div>`
+    : '';
+  return `<div class="modal sync-diagnose-modal" role="dialog" aria-label="Cross-device sync status">
+    <div class="modal-header"><div><div class="sync-diagnose-modal-kicker">Cross-device sync</div><h3>Sync status</h3></div><button class="modal-close" data-sync-diagnose-close aria-label="Close">×</button></div>
+    <div class="modal-body sync-diagnose-body">
+      ${renderStatusSummary(d, healthVerdict, quota)}
+      ${renderDeviceCheck(d)}
       ${renderRelayHealthPanel(healthVerdict)}
       ${renderRelayStoragePanel(quota)}
-      ${renderDeltaTelemetryPanel(d.deltaTelemetry, isDebug)}
-      ${renderCutoverPanel(d.cutoverReadiness, isDebug, cutoverEnabled)}
-      <div>
-        <b>Rows in this device's local Evolu DB:</b>
-        ${rowWarningHtml}
-        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
-          <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px;text-align:right">deleted</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th><th style="padding:4px 8px;text-align:right">fmt</th></tr></thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4, <span style="color:var(--orange)">invalid</span> = payload could not be decoded. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
-      </div>
-      <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
-        <button class="ctx-btn-option" ${syncDiagnoseActionAttrs('copy-snapshot')} title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>
+      <details class="sync-diagnose-technical">
+        <summary>
+          <span><b>Technical details</b><small>For troubleshooting and support${isDebug ? ' · developer metrics included' : ''}</small></span>
+          <span class="sync-diagnose-disclosure" aria-hidden="true">›</span>
+        </summary>
+        <div class="sync-diagnose-technical-content">
+          <div class="sync-diagnose-facts">
+            <div><span>Sync enabled</span><b>${d.syncEnabled ? 'Yes' : 'No'}</b></div>
+            <div><span>Recovery phrase</span><b>${d.mnemonicConfigured ? 'Configured' : 'Missing'}</b></div>
+            <div><span>Owner ID</span><code>${escapeHTML(d.ownerId || 'Not initialized')}</code></div>
+            <div><span>Active profile</span><code>${escapeHTML(d.activeProfileId || 'None')}</code></div>
+            <div class="sync-diagnose-fact-wide"><span>Relay</span><code>${escapeHTML(d.relay || 'Not configured')}</code></div>
+            <div class="sync-diagnose-fact-wide"><span>Local summary</span><b>${d.activeImported.sunSessions} sun sessions · ${d.activeImported.lightDevices} light devices</b></div>
+          </div>
+          ${technicalReason}
+          ${isDebug ? `<div class="sync-diagnose-developer-block"><div class="sync-diagnose-section-heading">Developer metrics</div>${renderDeltaTelemetryPanel(d.deltaTelemetry, isDebug)}${renderCutoverPanel(d.cutoverReadiness, isDebug, cutoverEnabled)}</div>` : ''}
+          <details class="sync-diagnose-row-details" ${rowWarnings.length > 0 ? 'open' : ''}>
+            <summary><span>Local sync database</span><span>${rowCount} row${rowCount === 1 ? '' : 's'}${rowWarnings.length ? ' · check warning' : ''}</span></summary>
+            <div class="sync-diagnose-row-content">
+              ${rowWarningHtml}
+              <div class="sync-diagnose-table-wrap">
+                <table>
+                  <thead><tr><th>profileId</th><th>deleted</th><th>syncedAt (ms)</th><th>sun</th><th>dev</th><th>size</th><th>format</th></tr></thead>
+                  <tbody>${rowsHtml}</tbody>
+                </table>
+              </div>
+              <p>Support may ask you to compare these rows across devices. <b>gz</b> and <b>plain</b> are valid formats; <b>invalid</b> means a row could not be decoded. An asterisk marks an ID recovered safely from its payload.</p>
+            </div>
+          </details>
+          <div class="sync-diagnose-maintenance">
+            <div class="sync-diagnose-section-heading">Recovery and maintenance</div>
+            <p>These actions are rarely needed. Use them only when the status above recommends it or support asks you to.</p>
+            <div class="sync-diagnose-maintenance-actions">${maintenanceButtons}</div>
+          </div>
+        </div>
+      </details>
+      <div class="sync-diagnose-footer">
         <button class="ctx-btn-option" data-sync-diagnose-close>Close</button>
       </div>
     </div>

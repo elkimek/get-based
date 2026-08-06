@@ -9,6 +9,8 @@ import {
   bindSyncSaveHookEvents, clearSyncSaveTimers, configureSyncSaveHooks,
   readProfileImportedData,
 } from './sync-save-hooks.js';
+import { prepareProfileForRelayRebuild } from './sync-cutover.js';
+import { getSyncDirtyToken } from './sync-dirty-state.js';
 
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
@@ -19,6 +21,8 @@ let _pushProfile = async () => {};
 let _forcePull = () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
+let _isSyncing = () => false;
+let _resetLocalSyncHistoryForRelayRebuild = async () => {};
 /** @type {() => any[]} */
 let _getProfiles = () => [];
 let _createDefaultProfileData = () => ({ entries: [] });
@@ -29,6 +33,7 @@ let _createDefaultProfileData = () => ({ entries: [] });
  *   isSyncEnabled?: () => boolean,
  *   isEvoluReady?: () => boolean,
  *   isSyncing?: () => boolean,
+ *   resetLocalSyncHistoryForRelayRebuild?: () => Promise<any>,
  *   getProfiles?: () => any[],
  *   createDefaultProfileData?: () => any,
  * }} [deps]
@@ -39,6 +44,7 @@ export function configureSyncActions({
   isSyncEnabled,
   isEvoluReady,
   isSyncing,
+  resetLocalSyncHistoryForRelayRebuild,
   getProfiles,
   createDefaultProfileData,
 } = {}) {
@@ -46,6 +52,10 @@ export function configureSyncActions({
   if (typeof forcePull === 'function') _forcePull = forcePull;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
+  if (typeof isSyncing === 'function') _isSyncing = isSyncing;
+  if (typeof resetLocalSyncHistoryForRelayRebuild === 'function') {
+    _resetLocalSyncHistoryForRelayRebuild = resetLocalSyncHistoryForRelayRebuild;
+  }
   if (typeof getProfiles === 'function') _getProfiles = getProfiles;
   if (typeof createDefaultProfileData === 'function') _createDefaultProfileData = createDefaultProfileData;
   configureSyncSaveHooks({ pushProfile, isSyncEnabled, isEvoluReady, isSyncing });
@@ -60,8 +70,9 @@ export function clearSyncActionTimers() {
 }
 
 export async function pushCurrentProfile() {
-  await _pushProfile(state.currentProfile, state.importedData);
+  const result = await _pushProfile(state.currentProfile, state.importedData);
   pushContextToGateway();
+  return result;
 }
 
 // "Force resend" - bypasses the _syncing guard so a wedged in-flight flag
@@ -77,14 +88,43 @@ export async function forceResendCurrentProfile() {
 }
 
 export async function syncNow() {
-  await pushCurrentProfile();
-  _forcePull();
+  // A local save can be waiting in the normal 10-second debounce window.
+  // Pulling first in that state lets an older remote scalar overwrite the
+  // durable local edit before it ever reaches Evolu. Flush dirty local state
+  // first; clean devices still pull first so they cannot publish stale data.
+  if (getSyncDirtyToken(state.currentProfile)) {
+    const deadline = Date.now() + 30_000;
+    while (_isSyncing() && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const localResult = await pushCurrentProfile();
+    if (!localResult?.ok) return localResult;
+    try {
+      await _forcePull();
+    } catch (error) {
+      console.warn('[sync] Manual pull failed after flushing local changes:', error);
+      logSyncEvent('skip', 'Manual pull failed — local changes were still committed');
+      return localResult;
+    }
+    return pushCurrentProfile();
+  }
+  // Apply any already-received remote state before publishing the local
+  // snapshot. Pull-then-push matches first-enable behavior and avoids sending
+  // a stale local row only to replace it milliseconds later.
+  try {
+    await _forcePull();
+  } catch (error) {
+    console.warn('[sync] Manual pull failed; continuing with local push:', error);
+    logSyncEvent('skip', 'Manual pull failed — local push still attempted');
+  }
+  return pushCurrentProfile();
 }
 
 // Push all profiles on first enable.
 /** @param {any} [options] */
 export async function pushAllProfiles(options = {}) {
   const profiles = _getProfiles();
+  const summary = { total: profiles.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const p of profiles) {
     try {
       let dataJson;
@@ -93,9 +133,36 @@ export async function pushAllProfiles(options = {}) {
       } else {
         dataJson = await readProfileImportedData(p.id);
       }
-      if (dataJson) await _pushProfile(p.id, dataJson, options);
+      if (!dataJson) {
+        summary.skipped++;
+        continue;
+      }
+      const result = await _pushProfile(p.id, dataJson, options);
+      if (result?.ok === true) summary.succeeded++;
+      else summary.failed++;
     } catch (e) {
+      summary.failed++;
       console.error('[sync] Push failed for profile:', p.id, e);
     }
   }
+  return summary;
+}
+
+export async function prepareRelayCompaction() {
+  if (!_isEvoluReady() || !_isSyncEnabled()) {
+    throw new Error('Sync is not ready on this device');
+  }
+  if (_getProfiles().length === 0) throw new Error('No local profiles are available to rebuild the relay');
+  await _forcePull();
+}
+
+export async function rebuildOwnerRelayState() {
+  await _resetLocalSyncHistoryForRelayRebuild();
+  const profiles = _getProfiles();
+  for (const profile of profiles) prepareProfileForRelayRebuild(profile?.id);
+  const summary = await pushAllProfiles({ force: true });
+  if (summary.failed > 0 || summary.succeeded === 0) {
+    throw new Error(`Relay rebuild incomplete (${summary.succeeded}/${summary.total} profiles sent)`);
+  }
+  return summary;
 }

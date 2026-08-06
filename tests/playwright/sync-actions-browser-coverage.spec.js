@@ -453,7 +453,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
       outcomes.popoverShowsDebugEventsAndActions = popover?.textContent.includes('Recent activity') === true
         && popover?.textContent.includes('Force resend') === true
         && popover?.textContent.includes('Reload') === true
-        && popover?.textContent.includes('Diagnose') === true;
+        && popover?.textContent.includes('Sync status') === true;
       outcomes.popoverUsesDelegatedActions =
         !popover.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
         && !!popover.querySelector('[data-sync-ui-action="copy-events"]')

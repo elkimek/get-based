@@ -181,8 +181,9 @@ export function toggleSyncDetail() {
       </div>
       ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
     </div>` : '';
-  // Relay storage estimate. Local cumulative bytes-pushed counter; close
-  // enough to relay's actual storedBytes to warn before the 50 MB wall.
+  // Relay storage usage. Successful pushes update a local estimate
+  // immediately; the debounced /self/owner-storage probe replaces it with
+  // authoritative bytes and the relay's configured owner quota.
   const q = getRelayQuotaEstimate();
   let quotaLine = '';
   if (q && q.bytes > 0) {
@@ -210,7 +211,7 @@ export function toggleSyncDetail() {
         <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" ${syncUiActionAttrs('force-resend')} title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
         <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('clean-storage')} title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
         <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('test-relay')}>Test relay</button>
-        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Diagnose</button>
+        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Sync status</button>
       ` : ''}
     </div>`;
   const parent = btn.parentElement;

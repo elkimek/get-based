@@ -1627,6 +1627,93 @@
 .sync-tombstone-apply { background: var(--red); color: #fff; border-color: var(--red); }
 .sync-tombstone-reject { background: var(--green); color: #fff; border-color: var(--green); }
 
+/* Cross-device Sync owns its controls here. Do not rely on the chat panel's
+   lazy stylesheet: Settings can open before Chat, which previously left the
+   hidden checkbox with an invisible, zero-size slider. */
+.sync-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.sync-settings-state {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+.sync-settings-badge {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.sync-settings-badge.is-enabled {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+  color: var(--green);
+}
+.sync-settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-width: 32px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.sync-settings-toggle input { display: none; }
+.sync-settings-toggle-slider {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background .2s ease;
+}
+.sync-settings-toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  transition: transform .2s ease;
+}
+.sync-settings-toggle input:checked + .sync-settings-toggle-slider { background: var(--accent); }
+.sync-settings-toggle input:checked + .sync-settings-toggle-slider::before { transform: translateX(14px); }
+.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opacity: .45; cursor: not-allowed; }
+.sync-setup-actions,
+.sync-management-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.sync-setup-actions .import-btn,
+.sync-management-actions .import-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.sync-disable-btn {
+  border-color: color-mix(in srgb, var(--red) 55%, var(--border));
+  color: var(--red);
+}
+.sync-management-help {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 /* Sync identity comparison card — intentionally more prominent than the
    recovery phrase so device mismatches can be spotted without exposing it. */
 .sync-identity-card {
@@ -1679,8 +1766,11 @@
   font-size: 10.5px;
   font-weight: 600;
 }
+
 @media (max-width: 375px) {
   .sync-identity-code { font-size: 15px; letter-spacing: .05em; }
+  .sync-setup-actions,
+  .sync-management-actions { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {

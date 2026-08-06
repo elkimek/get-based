@@ -839,6 +839,279 @@
   border-color: color-mix(in srgb, var(--red) 45%, var(--border));
   color: var(--red);
 }
+/* Cross-device sync status: keep the primary answer calm and scannable;
+   raw CRDT/debug information lives behind the technical disclosure. */
+.sync-diagnose-modal {
+  width: min(720px, calc(100vw - 28px));
+  max-width: 720px;
+  max-height: min(860px, calc(100dvh - 28px));
+}
+
+.sync-diagnose-modal .modal-header {
+  align-items: center;
+}
+
+.sync-diagnose-modal .modal-header h3 {
+  margin: 1px 0 0;
+}
+
+.sync-diagnose-modal-kicker,
+.sync-diagnose-card-label,
+.sync-diagnose-summary-eyebrow {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.sync-diagnose-body {
+  font-size: 13px;
+  overflow-y: auto;
+}
+
+.sync-diagnose-summary {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+.sync-diagnose-summary-success { border-left-color: var(--green); }
+.sync-diagnose-summary-warning { border-left-color: var(--orange); }
+.sync-diagnose-summary-danger { border-left-color: var(--red); }
+.sync-diagnose-summary-neutral { border-left-color: var(--accent); }
+
+.sync-diagnose-summary-icon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sync-diagnose-summary-success .sync-diagnose-summary-icon { color: var(--green); }
+.sync-diagnose-summary-warning .sync-diagnose-summary-icon { color: var(--orange); }
+.sync-diagnose-summary-danger .sync-diagnose-summary-icon { color: var(--red); }
+.sync-diagnose-summary-neutral .sync-diagnose-summary-icon { color: var(--accent); }
+
+.sync-diagnose-summary-content { min-width: 0; }
+.sync-diagnose-summary-content h4 { margin: 2px 0 5px; font-size: 17px; }
+.sync-diagnose-summary-content p,
+.sync-diagnose-card-copy,
+.sync-diagnose-device-check p,
+.sync-diagnose-maintenance p,
+.sync-diagnose-row-content p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.sync-diagnose-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sync-diagnose-summary-badges span,
+.sync-diagnose-badge {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sync-diagnose-badge-success { color: var(--green); border-color: var(--green); }
+.sync-diagnose-badge-danger { color: var(--red); border-color: var(--red); }
+
+.sync-diagnose-device-check {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.sync-diagnose-device-title {
+  margin: 2px 0 3px;
+  font-weight: 650;
+}
+
+.sync-diagnose-device-code {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 128px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: var(--bg-secondary);
+}
+
+.sync-diagnose-device-code span { color: var(--text-muted); font-size: 10px; }
+.sync-diagnose-device-code strong { font-size: 11px; }
+
+.sync-diagnose-card {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.sync-diagnose-card-head,
+.sync-diagnose-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sync-diagnose-card-title { margin-top: 2px; font-size: 14px; font-weight: 650; }
+.sync-diagnose-card-copy { margin-top: 7px; font-size: 12px; }
+.sync-diagnose-card-footer .sync-diagnose-card-copy { flex: 1; }
+.sync-diagnose-refresh,
+.sync-diagnose-storage-action { flex: 0 0 auto; font-size: 11px; }
+
+.sync-diagnose-storage-track {
+  height: 7px;
+  margin: 10px 0 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.sync-diagnose-storage-track span { display: block; height: 100%; border-radius: inherit; }
+
+.sync-diagnose-technical {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-secondary);
+}
+
+.sync-diagnose-technical > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.sync-diagnose-technical > summary::-webkit-details-marker { display: none; }
+.sync-diagnose-technical > summary span:first-child { display: flex; flex-direction: column; gap: 2px; }
+.sync-diagnose-technical > summary small { color: var(--text-muted); font-size: 10px; font-weight: 400; }
+.sync-diagnose-disclosure { color: var(--text-muted); font-size: 22px; transition: transform .15s ease; }
+.sync-diagnose-technical[open] .sync-diagnose-disclosure { transform: rotate(90deg); }
+
+.sync-diagnose-technical-content {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.sync-diagnose-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--border);
+}
+
+.sync-diagnose-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  background: var(--surface);
+}
+
+.sync-diagnose-facts span { color: var(--text-muted); font-size: 10px; }
+.sync-diagnose-facts b,
+.sync-diagnose-facts code { overflow-wrap: anywhere; font-size: 11px; }
+.sync-diagnose-fact-wide { grid-column: 1 / -1; }
+
+.sync-diagnose-technical-reason,
+.sync-diagnose-row-warning {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--orange);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.sync-diagnose-developer-block { margin-top: 12px; }
+.sync-diagnose-section-heading { margin: 12px 0 7px; font-size: 12px; font-weight: 700; }
+
+.sync-diagnose-row-details {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.sync-diagnose-row-details > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.sync-diagnose-row-content { padding: 0 10px 10px; }
+.sync-diagnose-table-wrap { overflow-x: auto; }
+.sync-diagnose-table-wrap table { width: 100%; min-width: 590px; border-collapse: collapse; font-size: 11px; }
+.sync-diagnose-table-wrap th { padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: left; }
+.sync-diagnose-table-wrap td { padding: 4px 7px !important; }
+.sync-diagnose-row-content p { margin-top: 7px; font-size: 10px; }
+
+.sync-diagnose-maintenance { margin-top: 12px; }
+.sync-diagnose-maintenance p { font-size: 11px; }
+.sync-diagnose-maintenance-actions,
+.sync-diagnose-footer { display: flex; flex-wrap: wrap; gap: 8px; }
+.sync-diagnose-maintenance-actions { margin-top: 8px; }
+.sync-diagnose-maintenance-actions .ctx-btn-option { font-size: 11px; }
+.sync-diagnose-danger-action { color: var(--red); border-color: var(--red); }
+.sync-diagnose-footer { justify-content: flex-end; margin-top: 14px; }
+
+@media (max-width: 560px) {
+  .sync-diagnose-modal { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .sync-diagnose-summary { padding: 13px; }
+  .sync-diagnose-device-check { grid-template-columns: 1fr; }
+  .sync-diagnose-device-code { min-width: 0; }
+  .sync-diagnose-card-head,
+  .sync-diagnose-card-footer { align-items: flex-start; flex-direction: column; }
+  .sync-diagnose-refresh,
+  .sync-diagnose-storage-action { width: 100%; }
+  .sync-diagnose-facts { grid-template-columns: 1fr; }
+  .sync-diagnose-fact-wide { grid-column: auto; }
+  .sync-diagnose-maintenance-actions .ctx-btn-option { width: 100%; }
+}
+
 @media (max-width: 640px) {
   .profile-share-input-row {
     grid-template-columns: minmax(0, 1fr) 38px;

@@ -104,6 +104,7 @@ await import('../js/settings.js');
   const syncSaveHooksSrc = await fetchWithRetry('js/sync-save-hooks.js');
   const syncStorageCleanupSrc = await fetchWithRetry('js/sync-storage-cleanup.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncOriginStateSrc = await fetchWithRetry('js/sync-origin-state.js');
   const syncPushDeltasSrc = await fetchWithRetry('js/sync-push-deltas.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
@@ -134,6 +135,8 @@ await import('../js/settings.js');
   const startupOrchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
   const appShellCssSrc = await fetchWithRetry('css/app-shell.css');
+  const modalSharedCssSrc = await fetchWithRetry('css/modal-shared.css');
+  const settingsCssSrc = await fetchWithRetry('css/settings.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
   const utilsSrc = await fetchWithRetry('js/utils.js');
@@ -826,6 +829,18 @@ await import('../js/settings.js');
       && syncPullActiveRefreshSrc.includes('UPDATE_TOAST_COOLDOWN_MS')
       && syncPullActiveRefreshSrc.includes('shouldShowUpdateToast(profileId)')
       && /if\s*\(shouldRefreshVisibleData\)\s*dispatchSyncAppliedRuntime\(\)/.test(syncPullActiveRefreshSrc));
+  assert('active-profile sync suppresses this browser own committed-row echo toast',
+    syncOriginStateSrc.includes('export function noteLocalSyncCommit')
+      && syncOriginStateSrc.includes('export function isLocalSyncCommitEcho')
+      && syncPushSrc.includes("from './sync-origin-state.js'")
+      && syncPushSrc.includes('noteLocalSyncCommit(profileId, syncedAtMs)')
+      && syncPullSrc.includes("from './sync-origin-state.js'")
+      && syncPullSrc.includes('const localCommitEcho = isLocalSyncCommitEcho(profileId, remoteUpdated)')
+      && syncPullSrc.includes('localCommitEcho,')
+      && syncPullActiveRefreshSrc.includes("!localCommitEcho && shouldShowUpdateToast(profileId)")
+      && syncPullActiveRefreshSrc.includes('Suppressed local commit echo toast'));
+  assert('service worker precaches sync-origin-state.js',
+    serviceWorkerSrc.includes("'/js/sync-origin-state.js'"));
   assert('sync-pull-rebroadcast.js owns pull-side rebroadcast scheduling',
     syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
       && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')
@@ -978,7 +993,7 @@ await import('../js/settings.js');
   }
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSnapshotSrc)
-      && syncDiagnoseRenderSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
+      && syncDiagnoseRenderSrc.includes('<th>deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
     /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
       && /wipeProfileLocal[\s\S]{0,300}await clearProfileStorage\(profileId\)/.test(syncTombstonesSrc));
@@ -1104,7 +1119,7 @@ await import('../js/settings.js');
   assert('Push success path increments tracker via trackPushBytes',
     /Push committed[\s\S]{0,1500}trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncPushSrc));
   assert('Quota threshold warning fires on transition (amber → red)',
-    /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
+    /_maybeWarnQuotaThreshold[\s\S]{0,900}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
     /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncUiSrc));
   assert('Sync popover uses dedicated opaque background token',
@@ -1126,10 +1141,16 @@ await import('../js/settings.js');
     syncDiagnoseRenderSrc.includes("syncDiagnoseActionAttrs('refresh-relay-storage')")
       && syncDiagnoseUiSrc.includes("action === 'refresh-relay-storage'")
       && syncDiagnoseUiSrc.includes('refreshRelayStorage(actionEl)'));
-  assert('Sync diagnose relay health is described as local outbound health',
-    syncDiagnoseRenderSrc.includes('device pushed')
-      && syncDiagnoseRenderSrc.includes('This verdict is local/outbound')
-      && syncDiagnoseRenderSrc.includes('another device can show healthy or unknown'));
+  assert('Sync status leads with plain-language health and hides raw diagnostics by default',
+    syncDiagnoseRenderSrc.includes('Sync looks healthy')
+      && syncDiagnoseRenderSrc.includes('Compare the Sync identity code first')
+      && syncDiagnoseRenderSrc.includes('<details class="sync-diagnose-technical">')
+      && syncDiagnoseRenderSrc.indexOf('renderStatusSummary(d, healthVerdict, quota)')
+        < syncDiagnoseRenderSrc.indexOf('<details class="sync-diagnose-technical">'));
+  assert('Sync status presentation is available without opening lazy-loaded Settings',
+    modalSharedCssSrc.includes('.sync-diagnose-modal')
+      && modalSharedCssSrc.includes('.sync-diagnose-summary')
+      && !settingsCssSrc.includes('.sync-diagnose-modal'));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
     /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
   assert('compactOwnerSelfServe catches fetch rejection before checking response status',
@@ -1435,7 +1456,7 @@ await import('../js/settings.js');
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
   assert('pushProfile await resolves only from onComplete/watchdog paths',
-    /return await new Promise\(\(resolve\)[\s\S]{0,1200}const onComplete[\s\S]{0,1800}finish\(\{ ok: true \}\)/.test(syncPushSrc)
+    /return await new Promise\(\(resolve\)[\s\S]{0,1200}const onComplete[\s\S]{0,2400}finish\(\{ ok: true \}\)/.test(syncPushSrc)
       && /Push NOT committed after 30s[\s\S]{0,800}finish\(\{ ok: false, reason: 'timeout' \}\)/.test(syncPushSrc));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
@@ -1458,7 +1479,7 @@ await import('../js/settings.js');
     'skip-decisions before merge regress to clock-skew/stale-hash bugs');
   assert('onSyncReceived guards on _pulling', syncPullSrc.includes('_pulling') && syncPullSrc.includes('_pulling = true'));
   assert('Pull handles encryption', syncPullMergeSrc.includes('getEncryptionEnabled()') && syncPullMergeSrc.includes('encryptedSetItem(localKey'));
-  assert('Pull merges profiles with allowlist', syncPullMergeSrc.includes('PROFILE_MERGE_FIELDS') && syncPullMergeSrc.includes('saveProfiles(profiles)'));
+  assert('Pull merges profiles with allowlist', syncPullMergeSrc.includes('SYNC_PROFILE_FIELDS') && syncPullMergeSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
@@ -1734,7 +1755,7 @@ await import('../js/settings.js');
   const onChatSavedSrc = syncSaveHooksSrc.slice(syncSaveHooksSrc.indexOf('export function onChatSaved'), syncSaveHooksSrc.indexOf('export function onChatSaved') + 600);
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')
-      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled() || !_isEvoluReady()) return;'));
+      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled()) return;'));
   assert('Display prefs synced', syncPayloadCollectorsSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadCollectorsSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', exportBlockIncludes(syncSrc, ['onChatSaved']));
   assert('onChatSaved has debounce', syncSaveHooksSrc.includes('_chatSyncTimers') && syncSaveHooksSrc.includes('10000'));

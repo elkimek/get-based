@@ -6,7 +6,9 @@ import { getBiologyProfileContext } from './profile-context.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
 import { hashString, isDebugMode, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
-import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
+import {
+  encryptedGetItem, encryptedSetItem, broadcastDataChanged, scheduleAutoBackup,
+} from './crypto.js';
 import { onDataSaved } from './sync.js';
 import { onProfileSaved } from './sync-save-hooks.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
@@ -182,6 +184,13 @@ export async function saveImportedData(options = {}) {
     if (state.importedData && typeof state.importedData === 'object') migrateProfileData(state.importedData);
     const key = profileStorageKey(state.currentProfile, 'imported');
     const value = JSON.stringify(state.importedData);
+    // A surprising number of maintenance/render paths call the saver after
+    // computing an equivalent object. Treat those as no-ops. Besides avoiding
+    // needless IndexedDB writes, this is important for sync: the post-save
+    // hook advances profile.lastUpdated, so an equivalent save used to create
+    // a distinct full-profile CRDT message on every refresh.
+    const changed = (await encryptedGetItem(key)) !== value;
+    if (!changed) return true;
     // Always route through encryptedSetItem — it skips encryption when
     // disabled (just a localStorage.setItem) but also routes big-blob
     // keys to IndexedDB. Going through localStorage.setItem directly
@@ -215,7 +224,10 @@ export async function saveImportedDataForProfile(profileId, importedData, option
   }
   try {
     migrateProfileData(importedData);
-    await encryptedSetItem(profileStorageKey(profileId, 'imported'), JSON.stringify(importedData));
+    const key = profileStorageKey(profileId, 'imported');
+    const value = JSON.stringify(importedData);
+    if ((await encryptedGetItem(key)) === value) return true;
+    await encryptedSetItem(key, value);
   } catch (e) {
     showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
     return false;
