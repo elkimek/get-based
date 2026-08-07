@@ -10,6 +10,9 @@ let summary;
 const appShellBudget = JSON.parse(
   await fs.readFile('scripts/app-shell-budget.json', 'utf8'),
 );
+const productionBuildBudget = JSON.parse(
+  await fs.readFile('scripts/production-build-budget.json', 'utf8'),
+);
 
 beforeAll(async () => {
   outputRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-production-build-test-'));
@@ -31,9 +34,15 @@ describe('production startup build', () => {
 
   it('collapses the static startup graph into one bundle plus its tiny runtime', () => {
     expect(summary.startupJavaScriptFiles).toBe(2);
-    expect(summary.startupDecodedBytes).toBeLessThanOrEqual(1_150_000);
-    expect(summary.outputJavaScriptFiles).toBeLessThanOrEqual(150);
-    expect(summary.outputDecodedBytes).toBeLessThanOrEqual(4_500_000);
+    expect(summary.startupDecodedBytes).toBeLessThanOrEqual(
+      productionBuildBudget.maximums.startupDecodedBytes,
+    );
+    expect(summary.outputJavaScriptFiles).toBeLessThanOrEqual(
+      productionBuildBudget.maximums.outputJavaScriptFiles,
+    );
+    expect(summary.outputDecodedBytes).toBeLessThanOrEqual(
+      productionBuildBudget.maximums.outputDecodedBytes,
+    );
     expect(summary.lazyJavaScriptFiles).toBeGreaterThan(100);
   });
 
