@@ -1707,6 +1707,18 @@
   border-color: color-mix(in srgb, var(--red) 55%, var(--border));
   color: var(--red);
 }
+.sync-setup-restore-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  gap: 8px;
+}
+.sync-setup-restore-actions .import-btn,
+.sync-setup-restore-actions .confirm-btn {
+  min-height: 38px;
+  white-space: nowrap;
+}
+.sync-setup-restore-cancel { min-width: 76px; }
 .sync-management-help {
   margin-top: 6px;
   color: var(--text-muted);
@@ -1771,6 +1783,17 @@
   .sync-identity-code { font-size: 15px; letter-spacing: .05em; }
   .sync-setup-actions,
   .sync-management-actions { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .sync-setup-restore-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sync-setup-restore-actions #sync-setup-restore-go { grid-column: 1 / -1; }
+  .sync-setup-restore-actions .import-btn,
+  .sync-setup-restore-actions .confirm-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+  }
 }
 
 @media (max-width: 720px) {

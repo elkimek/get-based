@@ -131,6 +131,7 @@ await import('../js/settings.js');
     await fetchWithRetry('js/settings-sync-panel.js'),
     await fetchWithRetry('js/settings-sync-panel-impl.js'),
   ].join('\n');
+  const settingsSyncRestoreUiSrc = await fetchWithRetry('js/settings-sync-restore-ui.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupOrchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
@@ -444,6 +445,8 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/settings-sync-panel.js'"));
   assert('service worker precaches settings-sync-panel-impl.js',
     serviceWorkerSrc.includes("'/js/settings-sync-panel-impl.js'"));
+  assert('service worker precaches settings-sync-restore-ui.js',
+    serviceWorkerSrc.includes("'/js/settings-sync-restore-ui.js'"));
   assert('pushContextToGateway treats gateway HTTP errors as failures with relay error detail',
     /const\s+res\s*=\s*await\s+fetch\(`\$\{relay\}\/api\/context`/.test(syncMessengerSrc)
       && syncMessengerSrc.includes('await res.text()')
@@ -1391,9 +1394,11 @@ await import('../js/settings.js');
     syncIdentitySrc.includes('clearSyncDisableStorage();')
       && syncDisableCleanupSrc.includes("key.endsWith('-sync-ts')")
       && syncDisableCleanupSrc.includes('localStorage.removeItem(key)'));
-  assert('restoreFromMnemonic calls evolu.restoreAppOwner', syncIdentitySrc.includes('evolu.restoreAppOwner(mnemonic)'));
+  assert('restoreFromMnemonic normalizes the seed before calling evolu.restoreAppOwner',
+    syncIdentitySrc.includes("normalize('NFKD')")
+      && syncIdentitySrc.includes('evolu.restoreAppOwner(normalizedMnemonic)'));
   // Verify timestamps are cleared AFTER restoreAppOwner within restoreFromMnemonic (not before)
-  const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(mnemonic)');
+  const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(normalizedMnemonic)');
   const clearTsInRestore = syncIdentitySrc.indexOf('clearSyncDisableStorage();', restoreIdx);
   assert('Sync-ts cleared after restoreAppOwner (not before)', restoreIdx > 0 && clearTsInRestore > restoreIdx,
     `restoreAppOwner at ${restoreIdx}, sync-ts clear at ${clearTsInRestore}`);
@@ -1570,7 +1575,9 @@ await import('../js/settings.js');
       && settingsSyncPanelSrc.includes('same 24-word Data Sync identity')
       && settingsSyncPanelSrc.includes('this code doesn’t grant access to your data')
       && syncIdentitySrc.includes('getSyncIdentityFingerprint'));
-  assert('Restore from mnemonic button', settingsSyncPanelSrc.includes('Restore from mnemonic'));
+  assert('Restore from mnemonic button',
+    settingsSyncPanelSrc.includes('Restore / switch identity')
+      && settingsSyncRestoreUiSrc.includes('Restore from mnemonic'));
   assert('Relay input under Advanced', settingsSyncPanelSrc.includes('sync-relay-input') && settingsSyncPanelSrc.includes('Advanced'));
   assert('Relay validation rejects non-wss and non-ws', settingsSyncPanelSrc.includes("!url.startsWith('wss://')") && settingsSyncPanelSrc.includes("!url.startsWith('ws://')"));
   assert('toggleSync function', settingsSyncPanelSrc.includes('async function toggleSync'));
@@ -1590,9 +1597,18 @@ await import('../js/settings.js');
   assert('Done button has disabled styling', settingsSyncPanelSrc.includes("opacity:0.45") || settingsSyncPanelSrc.includes("opacity: 0.45"));
   assert('syncSetupRestore shows textarea', settingsSyncPanelSrc.includes('function syncSetupRestore'));
   assert('syncSetupDoRestore validates 24 words', settingsSyncPanelSrc.includes("words.length !== 24"));
-  assert('syncSetupDoRestore cleans up on failure', settingsSyncPanelSrc.includes('await disableSync()') && settingsSyncPanelSrc.includes('Restore failed'));
-  assert('syncSetupDoRestore restore failure releases watchdog timer',
-    /if \(!result\)[\s\S]{0,300}_releaseSyncToggle\(\)/.test(settingsSyncPanelSrc));
+  const syncSetupRestoreFlowSrc = settingsSyncPanelSrc.slice(
+    settingsSyncPanelSrc.indexOf('async function syncSetupDoRestore'),
+    settingsSyncPanelSrc.indexOf('async function updateRelayStatus'),
+  );
+  assert('syncSetupDoRestore keeps a failed join visible and retryable',
+    syncSetupRestoreFlowSrc.includes('Could not join. Verify all 24 words and try again.')
+      && syncSetupRestoreFlowSrc.includes('setSyncSetupRestoreBusy(false)')
+      && !syncSetupRestoreFlowSrc.includes('await disableSync()'));
+  assert('syncSetupRestore protects mnemonic entry from mobile text mutation',
+    settingsSyncPanelSrc.includes('autocapitalize="none"')
+      && settingsSyncPanelSrc.includes('autocorrect="off"')
+      && settingsSyncPanelSrc.includes('spellcheck="false"'));
   assert('syncSetupBack returns to choices', settingsSyncPanelSrc.includes('function syncSetupBack'));
   assert('closeSyncSetup disables sync if started', settingsSyncPanelSrc.includes('async function closeSyncSetup') && settingsSyncPanelSrc.includes('disableSync'));
   assert('closeSyncSetup releases _syncToggling', settingsSyncPanelSrc.includes('_syncToggling = false'));

@@ -47,9 +47,10 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
         configurable: true,
         value: undefined,
       });
-      await lifecycle.enableSync();
+      const blockedEnableResult = await lifecycle.enableSync();
       outcomes.enableGuardShowsUnsupportedNotification =
-        notificationText().includes('Sync unavailable in this browser: navigator.locks not available');
+        blockedEnableResult === false
+        && notificationText().includes('Sync unavailable in this browser: navigator.locks not available');
       outcomes.enableGuardDoesNotPersistEnabled = localStorage.getItem(settings.SYNC_STORAGE_KEY) === null;
 
       if (hadOwnLocks && ownLocksDescriptor) {
@@ -67,9 +68,10 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
       runtime.setSyncReadyPromise(Promise.resolve());
       runtime.setSyncQueryLoadedPromise(Promise.resolve().then(() => { queryLoaded = true; }));
       syncUi.configureSyncUI({ isSyncEnabled: settings.isSyncEnabled });
-      await lifecycle.enableSync({ skipPush: true });
+      const successfulEnableResult = await lifecycle.enableSync({ skipPush: true });
 
-      outcomes.enableSuccessPersistsFlag = localStorage.getItem(settings.SYNC_STORAGE_KEY) === 'true';
+      outcomes.enableSuccessPersistsFlag = successfulEnableResult === true
+        && localStorage.getItem(settings.SYNC_STORAGE_KEY) === 'true';
       outcomes.enableSuccessClearsOwnerError = runtime.getSyncAppOwnerError() === null;
       outcomes.enableSuccessWaitsForQueryLoaded = queryLoaded;
       outcomes.enableSuccessShowsToast = notificationText().includes('Sync enabled');

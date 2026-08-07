@@ -11,6 +11,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.12.2', date: '2026-08-07', title: 'Easier, more reliable sync setup',
+    items: [
+      '<b>Joining an existing sync identity now keeps you informed.</b> You can see when sync is starting, when the 24 words are being checked, and whether the device is reloading or needs you to try again.',
+      '<b>Entering a sync identity works better on mobile.</b> Seed phrases are protected from autocorrect and normalized for capitalization, spacing, and pasted line breaks.',
+      '<b>A clear confirmation appears after the reload.</b> You can immediately tell that this device joined the existing identity and is syncing its data.',
+    ]
+  },
+  {
     version: '1.12.0', date: '2026-08-07', title: 'A completely redesigned health context',
     items: [
       '<b>Health context has been redesigned from the ground up.</b> The cards are cleaner, easier to scan and edit, work better on mobile, and explain why each area matters.',

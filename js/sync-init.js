@@ -1,13 +1,14 @@
 // @ts-check
 // sync-init.js - Evolu initialization and startup reconciliation.
 
-import { isDebugMode } from './utils.js';
+import { isDebugMode, showNotification } from './utils.js';
 import { createSyncQueries, createSyncSchema } from './sync-schema.js';
 import { getSyncBlocker, getSyncRelay } from './sync-environment.js';
 import { primeSyncState, setSyncEnabled } from './sync-settings-state.js';
 import { bindSyncRecoveryEvents } from './sync-recovery.js';
 import { bindSyncSubscriptions, startRelayProbe } from './sync-subscriptions.js';
 import { scheduleOwnerStorageRefresh } from './sync-relay-health.js';
+import { consumeSyncRestoreNotice } from './sync-identity.js';
 import {
   getSyncAppOwner, getSyncEvolu, getSyncReloadUrlRuntime,
   setSyncAppOwner, setSyncAppOwnerError, setSyncEvolu,
@@ -87,6 +88,8 @@ export async function initSync() {
     const readyPromise = evolu.appOwner.then(owner => {
       setSyncAppOwner(owner);
       setSyncAppOwnerError(null);
+      const restoreNotice = consumeSyncRestoreNotice();
+      if (restoreNotice) showNotification(restoreNotice, 'success', 6000);
       scheduleOwnerStorageRefresh(0);
       dbg('Owner resolved');
     }).catch(e => {

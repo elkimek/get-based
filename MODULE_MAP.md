@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 586 |
-| Internal import edges | 2533 |
+| Modules | 587 |
+| Internal import edges | 2536 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -60,7 +60,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/state.js`](js/state.js) | 175 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 77 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 71 | [`js/settings.js`](js/settings.js) | 26 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 72 | [`js/settings.js`](js/settings.js) | 26 |
 | [`js/api.js`](js/api.js) | 65 | [`js/wearables-connect.js`](js/wearables-connect.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/chat-send.js`](js/chat-send.js) | 23 |
 | [`js/schema.js`](js/schema.js) | 34 | [`js/views.js`](js/views.js) | 22 |
@@ -759,7 +759,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 18 modules</summary>
+<details><summary><code>settings</code> family — 19 modules</summary>
 
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -771,8 +771,9 @@ Native browser modules shipped with the static application.
 - [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js) → [`js/api.js`](js/api.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*
 - [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) → no in-scope imports
 - [`js/settings-runtime.js`](js/settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js)
-- [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-sync-restore-ui.js`](js/settings-sync-restore-ui.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) *(dynamic)*, [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-sync-restore-ui.js`](js/settings-sync-restore-ui.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js)
 - [`js/settings-tweaks.js`](js/settings-tweaks.js) → [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js) → [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/utils.js`](js/utils.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
@@ -909,7 +910,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js) → no in-scope imports
 - [`js/sync-environment.js`](js/sync-environment.js) → [`js/utils-runtime.js`](js/utils-runtime.js)
 - [`js/sync-identity.js`](js/sync-identity.js) → [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/utils.js`](js/utils.js)
-- [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
+- [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-lifecycle.js`](js/sync-lifecycle.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-messenger.js`](js/sync-messenger.js) → [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-origin-state.js`](js/sync-origin-state.js) → no in-scope imports

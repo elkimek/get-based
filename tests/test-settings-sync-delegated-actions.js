@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
+const restoreUiSrc = fs.readFileSync(path.join(root, 'js/settings-sync-restore-ui.js'), 'utf8');
+const syncUiSrc = `${src}\n${restoreUiSrc}`;
 const agentSrc = fs.readFileSync(path.join(root, 'js/settings-agent-access-panel.js'), 'utf8');
 
 let passed = 0;
@@ -29,7 +31,7 @@ const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
 const directAssignmentRe = /\.(?:onclick|onchange|oninput)\s*=/;
 
 assert('settings-sync-panel implementation has no inline event attributes',
-  !inlineHandlerRe.test(src));
+  !inlineHandlerRe.test(syncUiSrc));
 assert('settings-sync-panel implementation avoids direct event property assignment',
   !directAssignmentRe.test(src));
 assert('Settings sync delegates click events',
@@ -76,7 +78,7 @@ assert('Click delegate lets state controls reach change/input events',
   'regenerate-messenger-context-key',
   'set-agent-wearable-series-days',
 ].forEach(action => {
-  assert(`Sync action ${action} is rendered`, src.includes(`data-sync-action="${action}"`));
+  assert(`Sync action ${action} is rendered`, syncUiSrc.includes(`data-sync-action="${action}"`));
 });
 
 [

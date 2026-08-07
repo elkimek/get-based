@@ -285,6 +285,7 @@ const APP_SHELL = [
   '/js/settings-runtime-bridge.js',
   '/js/settings-sync-panel.js',
   '/js/settings-sync-panel-impl.js',
+  '/js/settings-sync-restore-ui.js',
   '/js/settings-tweaks.js',
   '/js/voice-audio.js',
   '/js/voice-catalog-storage.js',

@@ -25,7 +25,7 @@ export async function enableSync({ skipPush = false } = {}) {
   const blocker = getSyncBlocker();
   if (blocker) {
     showNotification(`Sync unavailable in this browser: ${blocker}`, 'error');
-    return;
+    return false;
   }
   setSyncEnabled(true);
   setSyncAppOwnerError(null);
@@ -36,7 +36,7 @@ export async function enableSync({ skipPush = false } = {}) {
     // load failure. Already logged by initSync; surface a toast so the user
     // doesn't sit staring at a Resolving... spinner.
     showNotification(`Sync failed to initialize. ${getSyncAppOwnerError() || 'Check console for [sync] errors.'}`, 'error');
-    return;
+    return false;
   }
   // Race the owner-resolution promise against a 30s ceiling. A stuck
   // OPFS handle or a Web Lock that never resolves can leave Evolu's
@@ -47,7 +47,7 @@ export async function enableSync({ skipPush = false } = {}) {
   if (result === '__timeout__' || !getSyncAppOwner()) {
     const reason = getSyncAppOwnerError() || 'Evolu owner did not resolve within 30s';
     showNotification(`Sync init failed: ${reason}`, 'error');
-    return;
+    return false;
   }
   const queryLoaded = getSyncQueryLoadedPromise();
   if (queryLoaded) {
@@ -60,6 +60,7 @@ export async function enableSync({ skipPush = false } = {}) {
   }
   showNotification('Sync enabled', 'success');
   renderSyncIndicator();
+  return true;
 }
 
 export async function disableSync() {

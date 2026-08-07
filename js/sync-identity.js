@@ -22,6 +22,30 @@ let _getEvolu = () => null;
 let _seedLocalProfiles = async () => {};
 
 export const RESTORE_JOIN_PENDING_KEY = 'labcharts-sync-restore-join-pending';
+export const RESTORE_NOTICE_KEY = 'labcharts-sync-restore-notice';
+
+function setRestoreNotice(kind) {
+  try { sessionStorage.setItem(RESTORE_NOTICE_KEY, kind); } catch {}
+}
+
+function clearRestoreNotice() {
+  try { sessionStorage.removeItem(RESTORE_NOTICE_KEY); } catch {}
+}
+
+export function consumeSyncRestoreNotice() {
+  let kind = '';
+  try {
+    kind = sessionStorage.getItem(RESTORE_NOTICE_KEY) || '';
+    sessionStorage.removeItem(RESTORE_NOTICE_KEY);
+  } catch {}
+  if (kind === 'seed-local') return 'Sync identity restored and this device’s data was republished.';
+  if (kind === 'join') return 'Joined existing sync identity. Syncing data from your other device…';
+  return null;
+}
+
+function normalizeMnemonic(mnemonic) {
+  return String(mnemonic || '').normalize('NFKD').trim().toLowerCase().split(/\s+/).join(' ');
+}
 
 /** @param {{
  *   getAppOwner?: () => SyncAppOwner | null,
@@ -155,9 +179,14 @@ export async function resetLocalSyncHistoryForRelayRebuild() {
  */
 export async function restoreFromMnemonic(mnemonic, options = {}) {
   const evolu = currentEvolu();
-  if (!evolu) return false;
+  if (!evolu) {
+    showNotification('Sync is still starting. Wait a moment and try again.', 'error');
+    return false;
+  }
+  const normalizedMnemonic = normalizeMnemonic(mnemonic);
+  setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
   try {
-    await evolu.restoreAppOwner(mnemonic);
+    await evolu.restoreAppOwner(normalizedMnemonic);
     // sessionStorage survives the reload below. Locks created under the old
     // owner must not veto provider settings pulled from the restored owner.
     sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');
@@ -182,6 +211,7 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
     scheduleSyncRuntimeReload(500);
     return true;
   } catch (e) {
+    clearRestoreNotice();
     console.error('[sync] Restore failed:', e);
     showNotification('Invalid mnemonic', 'error');
     return false;

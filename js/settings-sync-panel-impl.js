@@ -24,6 +24,14 @@ import {
   updateSyncIndicator,
 } from './sync.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import {
+  closeRestoreMnemonicDialog,
+  openRestoreMnemonicDialog,
+  setSyncSetupRestoreBusy,
+  setSyncSetupRestoreReloading,
+  updateRestoreMnemonicDialogState,
+  updateSyncSetupRestoreState,
+} from './settings-sync-restore-ui.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { saveImportedData } from './data.js';
 import { state } from './state.js';
@@ -40,7 +48,7 @@ import {
   toggleMessengerToken,
 } from './settings-agent-access-panel.js';
 
-export { renderMessengerSection };
+export { closeRestoreMnemonicDialog, renderMessengerSection };
 // Agent Access UI implementation moved to settings-agent-access-panel.js.
 // Facade breadcrumbs kept for source-inspection tests/backward ownership:
 // renderMessengerSection · OpenClaw · GETBASED_AGENT_CONTEXT_KEY · messenger-token · data-masked
@@ -85,6 +93,7 @@ let settingsSyncDelegatesInstalled = false;
 const SETTINGS_SYNC_STATE_ACTIONS = new Set([
   'toggle-sync',
   'setup-ack',
+  'setup-restore-input',
   'restore-dialog-input',
   'toggle-messenger',
   'set-agent-wearable-series-days',
@@ -215,9 +224,11 @@ async function handleSettingsSyncChange(event) {
 }
 
 function handleSettingsSyncInput(event) {
-  const actionEl = closestSettingsSyncAction(event, '[data-sync-action]');
-  if (!actionEl || actionEl.dataset.syncAction !== 'restore-dialog-input') return;
-  if (actionEl instanceof HTMLTextAreaElement) updateRestoreMnemonicDialogState(actionEl);
+  const actionEl = closestSettingsSyncAction(event);
+  if (!(actionEl instanceof HTMLTextAreaElement)) return;
+  const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
+  if (action === 'restore-dialog-input') updateRestoreMnemonicDialogState(actionEl);
+  else if (action === 'setup-restore-input') updateSyncSetupRestoreState(actionEl, _syncRestoreInProgress);
 }
 
 function installSettingsSyncDelegates() {
@@ -396,8 +407,8 @@ export function showSyncSetupModal() {
     overlay.className = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Sync setup" style="max-width:480px">
-    <h3 style="margin:0 0 6px;font-size:16px;color:var(--text-primary)">Set up sync</h3>
+  overlay.innerHTML = `<div class="confirm-dialog sync-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="sync-setup-title" style="max-width:480px">
+    <h3 id="sync-setup-title" style="margin:0 0 6px;font-size:16px;color:var(--text-primary)">Set up sync</h3>
     <p style="font-size:13px;color:var(--text-muted);margin:0 0 20px;line-height:1.5">Your data is encrypted with a 24-word mnemonic. The relay server only sees ciphertext.</p>
     <div id="sync-setup-choices">
       <button class="import-btn import-btn-primary" style="width:100%;padding:12px 16px;font-size:13px;margin-bottom:10px;text-align:left" data-sync-setup-action="setup-new">
@@ -411,13 +422,15 @@ export function showSyncSetupModal() {
     </div>
     <div id="sync-setup-new" style="display:none"></div>
     <div id="sync-setup-restore" style="display:none">
-      <textarea id="sync-setup-restore-input" style="font-size:12px;width:100%;height:70px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box;margin-bottom:10px" placeholder="Paste your 24-word mnemonic here..."></textarea>
-      <div style="display:flex;gap:8px">
-        <button class="import-btn import-btn-primary" style="flex:1;padding:8px 16px;font-size:13px" data-sync-setup-action="setup-do-restore">Restore</button>
-        <button class="import-btn import-btn-secondary" style="padding:8px 16px;font-size:13px" data-sync-setup-action="setup-back">Back</button>
+      <textarea id="sync-setup-restore-input" aria-label="24-word mnemonic" aria-describedby="sync-setup-restore-msg" data-sync-setup-action="setup-restore-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-size:12px;width:100%;height:70px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box" placeholder="Paste your 24-word mnemonic here..."></textarea>
+      <div id="sync-setup-restore-msg" role="status" aria-live="polite" style="font-size:11px;color:var(--text-muted);margin:6px 0 10px;min-height:14px"></div>
+      <div class="sync-setup-restore-actions">
+        <button id="sync-setup-restore-go" class="import-btn import-btn-primary" style="flex:1;padding:8px 16px;font-size:13px" data-sync-setup-action="setup-do-restore" disabled>Join &amp; reload</button>
+        <button id="sync-setup-restore-back" class="import-btn import-btn-secondary" style="padding:8px 16px;font-size:13px" data-sync-setup-action="setup-back">Back</button>
+        <button class="confirm-btn confirm-btn-cancel sync-setup-restore-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
       </div>
     </div>
-    <div style="margin-top:16px;text-align:right">
+    <div class="sync-setup-choice-footer" style="margin-top:16px;text-align:right">
       <button class="confirm-btn confirm-btn-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
     </div>
   </div>`;
@@ -425,6 +438,11 @@ export function showSyncSetupModal() {
 }
 
 export async function closeSyncSetup() {
+  if (_syncRestoreInProgress) {
+    showNotification('Joining the existing sync identity…', 'info');
+    nudgeSyncSetupDialog();
+    return false;
+  }
   try {
     closeModalOverlay('sync-setup-overlay');
     // If sync was started during setup but user cancelled, clean up
@@ -442,9 +460,11 @@ export async function closeSyncSetup() {
     if (el) el.innerHTML = renderSyncSection();
     _releaseSyncToggle();
   }
+  return true;
 }
 
 let _syncSetupInProgress = false;
+let _syncRestoreInProgress = false;
 async function syncSetupNew() {
   if (_syncSetupInProgress) return;
   const choicesEl = document.getElementById('sync-setup-choices');
@@ -517,8 +537,13 @@ function syncSetupRestore() {
   if (!choicesEl || !restoreEl) return;
   choicesEl.style.display = 'none';
   restoreEl.style.display = 'block';
-  const input = document.getElementById('sync-setup-restore-input');
-  if (input) input.focus();
+  const title = document.getElementById('sync-setup-title');
+  if (title) title.textContent = 'Join existing sync';
+  const choiceFooter = /** @type {HTMLElement | null} */ (document.querySelector('#sync-setup-overlay .sync-setup-choice-footer'));
+  if (choiceFooter) choiceFooter.hidden = true;
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
+  updateSyncSetupRestoreState(input);
+  input?.focus();
 }
 
 function syncSetupBack() {
@@ -529,10 +554,17 @@ function syncSetupBack() {
   choicesEl.style.display = '';
   restoreEl.style.display = 'none';
   newEl.style.display = 'none';
+  const title = document.getElementById('sync-setup-title');
+  if (title) title.textContent = 'Set up sync';
+  const choiceFooter = /** @type {HTMLElement | null} */ (document.querySelector('#sync-setup-overlay .sync-setup-choice-footer'));
+  if (choiceFooter) choiceFooter.hidden = false;
 }
 
 async function syncSetupDoRestore() {
-  if (_syncSetupInProgress) return;
+  if (_syncSetupInProgress) {
+    showNotification('Sync setup is already in progress…', 'info');
+    return;
+  }
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
   if (!input) return;
   const raw = (input.value || '').trim();
@@ -549,21 +581,33 @@ async function syncSetupDoRestore() {
   }
 
   _syncSetupInProgress = true;
+  _syncRestoreInProgress = true;
+  let restored = false;
+  setSyncSetupRestoreBusy(true, 'Starting encrypted sync…');
   try {
     // Enable sync (generates throwaway identity) then immediately restore
-    await enableSync({ skipPush: true });
+    const enabled = await enableSync({ skipPush: true });
+    if (enabled !== true) {
+      throw new Error(getMnemonicResolutionError() || 'Sync could not initialize in this browser');
+    }
+    setSyncSetupRestoreBusy(true, 'Sync is ready. Checking the 24-word identity…');
     const result = await restoreFromMnemonic(mnemonic);
     if (!result) {
-      // Restore failed — clean up the throwaway identity
-      await disableSync();
-      const el = document.getElementById('sync-section');
-      if (el) el.innerHTML = renderSyncSection();
-      _releaseSyncToggle();
+      setSyncSetupRestoreBusy(false, 'Could not join. Verify all 24 words and try again.');
       return;
     }
+    restored = true;
+    setSyncSetupRestoreReloading();
     // restoreFromMnemonic triggers reload, so nothing else needed
+  } catch (e) {
+    console.error('[sync] join existing device failed:', e);
+    const reason = getErrorMessage(e, e);
+    setSyncSetupRestoreBusy(false, `Could not join: ${reason}`);
+    showNotification(`Could not join existing sync: ${reason}`, 'error');
   } finally {
     _syncSetupInProgress = false;
+    _syncRestoreInProgress = false;
+    if (!restored) setSyncSetupRestoreBusy(false);
   }
 }
 
@@ -675,65 +719,6 @@ function copySyncIdentityCode() {
   });
 }
 
-/**
- * Single-step restore modal — replaces the old two-button flow that confused
- * users into clicking the outer "Restore from mnemonic" button (which only
- * revealed a textarea) and waiting for something to happen. Now the modal
- * contains the seed input + a single Restore action button + Cancel, all
- * in one place. Same pattern as the sync setup wizard so users don't have
- * to learn two different shapes.
- */
-function openRestoreMnemonicDialog() {
-  let overlay = document.getElementById('sync-restore-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'sync-restore-overlay';
-    overlay.className = 'confirm-overlay';
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="sync-restore-title" style="max-width:480px">
-    <h3 id="sync-restore-title" style="margin:0 0 6px;font-size:16px;color:var(--text-primary)">Restore from mnemonic</h3>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">Paste your 24-word seed from another device. This replaces your current sync identity — anything synced under the old identity will no longer reach this device.</p>
-    <textarea id="sync-restore-dialog-input" autofocus aria-label="24-word mnemonic" data-sync-action="restore-dialog-input" style="font-size:12px;width:100%;height:90px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box" placeholder="word word word word word word word word word word word word word word word word word word word word word word word word"></textarea>
-    <div id="sync-restore-dialog-msg" style="font-size:11px;color:var(--text-muted);margin-top:6px;min-height:14px"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-      <button class="confirm-btn confirm-btn-cancel" data-sync-action="close-restore-dialog">Cancel</button>
-      <button id="sync-restore-dialog-go" class="import-btn import-btn-primary" style="padding:8px 16px;font-size:13px" data-sync-action="confirm-restore">Restore &amp; reload</button>
-    </div>
-  </div>`;
-  openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 });
-  // Live word count + button enable so the user gets immediate feedback as
-  // they paste — much friendlier than only finding out on submit.
-  const input = document.getElementById('sync-restore-dialog-input');
-  if (input) {
-    updateRestoreMnemonicDialogState(input instanceof HTMLTextAreaElement ? input : null);
-  }
-}
-
-function updateRestoreMnemonicDialogState(input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-restore-dialog-input'))) {
-  const msg = document.getElementById('sync-restore-dialog-msg');
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-restore-dialog-go'));
-  if (!input) return;
-  const raw = (input.value || '').trim();
-  if (!raw) {
-    if (msg) { msg.textContent = ''; msg.style.color = 'var(--text-muted)'; }
-    if (btn) btn.disabled = true;
-    return;
-  }
-  const words = raw.split(/\s+/);
-  if (words.length === 24) {
-    if (msg) { msg.textContent = '✓ 24 words detected'; msg.style.color = 'var(--green, #22c55e)'; }
-    if (btn) btn.disabled = false;
-  } else {
-    if (msg) { msg.textContent = `${words.length} word${words.length === 1 ? '' : 's'} so far — need exactly 24`; msg.style.color = '#fbbf24'; }
-    if (btn) btn.disabled = true;
-  }
-}
-
-export function closeRestoreMnemonicDialog() {
-  closeModalOverlay('sync-restore-overlay');
-}
-
 async function confirmRestoreMnemonic() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-restore-dialog-input'));
   const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-restore-dialog-go'));
@@ -746,13 +731,26 @@ async function confirmRestoreMnemonic() {
     return;
   }
   if (btn) { btn.disabled = true; btn.textContent = 'Restoring…'; }
+  const msg = document.getElementById('sync-restore-dialog-msg');
+  if (msg) { msg.textContent = 'Checking the 24-word identity…'; msg.style.color = 'var(--text-muted)'; }
   // No second confirm dialog — the modal already explains what restore
   // does, and the action button is explicit ("Restore & reload"). Adding
   // a second confirm pile-up was the friction users complained about.
-  const result = await restoreFromMnemonic(raw);
-  if (!result) {
+  try {
+    const result = await restoreFromMnemonic(raw);
+    if (!result) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Restore & reload'; }
+      if (msg) { msg.textContent = 'Could not restore. Verify all 24 words and try again.'; msg.style.color = 'var(--red)'; }
+      if (!isSyncEnabled()) showNotification('Sync not initialized — enable sync first, then restore', 'error');
+      return;
+    }
+    if (msg) { msg.textContent = 'Identity accepted. Reloading this device…'; msg.style.color = 'var(--green, #22c55e)'; }
+  } catch (e) {
+    const reason = getErrorMessage(e, e);
+    console.error('[sync] restore identity failed:', e);
     if (btn) { btn.disabled = false; btn.textContent = 'Restore & reload'; }
-    if (!isSyncEnabled()) showNotification('Sync not initialized — enable sync first, then restore', 'error');
+    if (msg) { msg.textContent = `Could not restore: ${reason}`; msg.style.color = 'var(--red)'; }
+    showNotification(`Could not restore sync identity: ${reason}`, 'error');
   }
   // On success: restoreFromMnemonic triggers reload (Evolu auto-reloads),
   // so we don't need to close this modal — the page replaces itself.
