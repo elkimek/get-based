@@ -41,7 +41,7 @@
     "axe-core": "4.12.1",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
-    "rolldown": "1.2.1",
+    "rolldown": "1.2.2",
     "typescript": "^6.0.3",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/e76596b5ac9d563b94d3c8d1753fb3770c35fb81.tar.gz",
     "vitest": "^4.1.10",
