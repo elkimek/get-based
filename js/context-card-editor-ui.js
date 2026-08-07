@@ -1,7 +1,7 @@
 // @ts-check
 // context-card-editor-ui.js - Shared context-card editor modal and field controls
 
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { closeContextCardModalRuntime } from './context-cards-runtime.js';
 
 const CONTEXT_EDITOR_STYLESHEET_URL = new URL('../css/context-editor.css', import.meta.url).href;
@@ -111,11 +111,12 @@ function handleContextEditorClick(event) {
   }
 }
 
+let contextEditorDelegatesBound = false;
+
 function initContextEditorDelegates() {
   if (typeof document === 'undefined' || typeof window === 'undefined') return;
-  const appWindow = /** @type {any} */ (window);
-  if (appWindow.__contextEditorDelegatesBound) return;
-  appWindow.__contextEditorDelegatesBound = true;
+  if (contextEditorDelegatesBound) return;
+  contextEditorDelegatesBound = true;
   document.addEventListener('click', handleContextEditorClick);
 }
 
@@ -129,6 +130,8 @@ export function renderContextEditorModal(
   closeActionAttrs = contextEditorActionAttrs('close'),
 ) {
   if (!modal) return;
+  const overlay = modal.closest('.modal-overlay');
+  const shouldResetScroll = !overlay?.classList.contains('show');
   modal.className = 'modal gb-form-modal ctx-editor-modal';
   modal.setAttribute('aria-label', title);
   modal.innerHTML = `<div class="gb-modal-head ctx-editor-head">
@@ -142,12 +145,52 @@ export function renderContextEditorModal(
     ${subtitle ? `<div class="modal-unit">${escapeHTML(subtitle)}</div>` : ''}
     ${bodyHtml}
   </div>`;
+  if (shouldResetScroll) modal.scrollTop = 0;
 }
 
+/** @typedef {string | { value: string, label: string }} ContextEditorOption */
+
+/** @param {ContextEditorOption} option */
+function normalizeContextEditorOption(option) {
+  if (typeof option === 'string') return { value: option, label: option };
+  return { value: String(option.value), label: String(option.label) };
+}
+
+/**
+ * Groups optional editor fields behind a readable, native disclosure control.
+ * Callers can expose an in-progress section while keeping saved optional
+ * answers summarized in the disclosure header.
+ *
+ * @param {string} title
+ * @param {string} summary
+ * @param {string} bodyHtml
+ * @param {boolean} [open]
+ */
+export function renderContextEditorSection(title, summary, bodyHtml, open = false) {
+  return `<details class="ctx-editor-section"${open ? ' open' : ''}>
+    <summary><span class="ctx-editor-section-title">${escapeHTML(title)}</span><span class="ctx-editor-section-summary">${escapeHTML(summary)}</span></summary>
+    <div class="ctx-editor-section-body">${bodyHtml}</div>
+  </details>`;
+}
+
+/**
+ * String options remain supported for the current schema. Object options let
+ * translated labels change independently from the canonical stored value.
+ *
+ * @param {string} label
+ * @param {string} id
+ * @param {ContextEditorOption[]} options
+ * @param {string | null | undefined} current
+ */
 export function renderSelectField(label, id, options, current) {
-  return `<div class="ctx-field-group"><label class="ctx-field-label">${escapeHTML(label)}</label>
-    <div class="ctx-btn-group" id="${id}">
-      ${options.map(o => `<button type="button" class="ctx-btn-option${current === o ? ' active' : ''}" ${contextEditorActionAttrs('select-option', `data-ctx-editor-group="${escapeHTML(id)}"`)}>${escapeHTML(o)}</button>`).join('')}
+  const labelId = `${id}-label`;
+  return `<div class="ctx-field-group"><label class="ctx-field-label" id="${escapeAttr(labelId)}">${escapeHTML(label)}</label>
+    <div class="ctx-btn-group" id="${escapeAttr(id)}" role="group" aria-labelledby="${escapeAttr(labelId)}">
+      ${options.map(option => {
+        const { value, label: optionLabel } = normalizeContextEditorOption(option);
+        const active = current === value || current === optionLabel;
+        return `<button type="button" class="ctx-btn-option${active ? ' active' : ''}" aria-pressed="${active}" data-context-value="${escapeAttr(value)}" ${contextEditorActionAttrs('select-option', `data-ctx-editor-group="${escapeAttr(id)}"`)}>${escapeHTML(optionLabel)}</button>`;
+      }).join('')}
     </div></div>`;
 }
 
@@ -155,22 +198,39 @@ export function selectCtxOption(btn, groupId) {
   const group = document.getElementById(groupId);
   if (!group) return;
   const wasActive = btn.classList.contains('active');
-  group.querySelectorAll('.ctx-btn-option').forEach(b => b.classList.remove('active'));
-  if (!wasActive) btn.classList.add('active');
+  group.querySelectorAll('.ctx-btn-option').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  if (!wasActive) {
+    btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
+  }
 }
 
 export function getSelectedOption(groupId) {
   const group = document.getElementById(groupId);
   if (!group) return null;
-  const active = group.querySelector('.ctx-btn-option.active');
-  return active ? active.textContent : null;
+  const active = /** @type {HTMLElement | null} */ (group.querySelector('.ctx-btn-option.active'));
+  return active ? active.dataset.contextValue || active.textContent : null;
 }
 
+/**
+ * @param {string} label
+ * @param {string} id
+ * @param {ContextEditorOption[]} options
+ * @param {string[] | null | undefined} selected
+ */
 export function renderTagsField(label, id, options, selected) {
   const sel = selected || [];
-  return `<div class="ctx-field-group"><label class="ctx-field-label">${escapeHTML(label)}</label>
-    <div class="ctx-tags" id="${id}">
-      ${options.map(o => `<button type="button" class="ctx-tag${sel.includes(o) ? ' active' : ''}" ${contextEditorActionAttrs('toggle-tag')}>${escapeHTML(o)}</button>`).join('')}
+  const labelId = `${id}-label`;
+  return `<div class="ctx-field-group"><label class="ctx-field-label" id="${escapeAttr(labelId)}">${escapeHTML(label)}</label>
+    <div class="ctx-tags" id="${escapeAttr(id)}" role="group" aria-labelledby="${escapeAttr(labelId)}">
+      ${options.map(option => {
+        const { value, label: optionLabel } = normalizeContextEditorOption(option);
+        const active = sel.includes(value) || sel.includes(optionLabel);
+        return `<button type="button" class="ctx-tag${active ? ' active' : ''}" aria-pressed="${active}" data-context-value="${escapeAttr(value)}" ${contextEditorActionAttrs('toggle-tag')}>${escapeHTML(optionLabel)}</button>`;
+      }).join('')}
     </div></div>`;
 }
 
@@ -181,41 +241,56 @@ const CTX_EXCLUSIONS = [
 ];
 
 export function toggleCtxTag(btn) {
-  const text = btn.textContent.trim();
-  const isNone = text.toLowerCase() === 'none';
+  const value = btn.dataset.contextValue || btn.textContent.trim();
+  const isNone = value.toLowerCase() === 'none';
   const group = btn.parentElement;
   if (isNone) {
     // Toggling "none" on deselects all other options in the group.
     if (!btn.classList.contains('active')) {
-      group.querySelectorAll('.ctx-tag.active').forEach(b => b.classList.remove('active'));
+      group.querySelectorAll('.ctx-tag.active').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
     }
   } else {
     group.querySelectorAll('.ctx-tag.active').forEach(b => {
-      if (b.textContent.trim().toLowerCase() === 'none') b.classList.remove('active');
+      const activeValue = /** @type {HTMLElement} */ (b).dataset.contextValue || b.textContent.trim();
+      if (activeValue.toLowerCase() === 'none') {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      }
     });
     if (!btn.classList.contains('active')) {
       for (const pair of CTX_EXCLUSIONS) {
-        const other = pair[0] === text ? pair[1] : pair[1] === text ? pair[0] : null;
+        const other = pair[0] === value ? pair[1] : pair[1] === value ? pair[0] : null;
         if (other) {
           group.querySelectorAll('.ctx-tag.active').forEach(b => {
-            if (b.textContent.trim() === other) b.classList.remove('active');
+            const activeValue = /** @type {HTMLElement} */ (b).dataset.contextValue || b.textContent.trim();
+            if (activeValue === other) {
+              b.classList.remove('active');
+              b.setAttribute('aria-pressed', 'false');
+            }
           });
         }
       }
     }
   }
   btn.classList.toggle('active');
+  btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
 }
 
 export function getSelectedTags(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return [];
-  return Array.from(el.querySelectorAll('.ctx-tag.active')).map(b => b.textContent);
+  return Array.from(el.querySelectorAll('.ctx-tag.active')).map(b => {
+    const tag = /** @type {HTMLElement} */ (b);
+    return tag.dataset.contextValue || tag.textContent;
+  });
 }
 
 export function renderNoteField(value) {
-  return `<div class="ctx-field-group"><label class="ctx-field-label">Notes</label>
-    <input type="text" class="ctx-note-input" id="ctx-note-input" placeholder="Anything else..." value="${escapeHTML(value || '')}"></div>`;
+  return `<div class="ctx-field-group"><label class="ctx-field-label" for="ctx-note-input">Notes</label>
+    <textarea class="ctx-note-input ctx-note-textarea" id="ctx-note-input" rows="2" placeholder="Anything else that may be relevant">${escapeHTML(value || '')}</textarea></div>`;
 }
 
 export function contextEditorActions(hasCurrent, saveActionAttrs, clearActionAttrs) {

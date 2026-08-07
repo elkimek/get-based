@@ -11,6 +11,62 @@ import {
 import { getDailyRange } from './wearables-store.js';
 import { getActiveProfileId } from './profile.js';
 
+const PROFILE_SLEEP_DURATION_RANGES = {
+  '<5h': [null, 5],
+  '5-6h': [5, 6],
+  '6-7h': [6, 7],
+  '7-8h': [7, 8],
+  '8-9h': [8, 9],
+  '9+h': [9, null],
+};
+
+function recentMetricValue(metric) {
+  const value = metric?.rolling?.d7 ?? metric?.latest;
+  if (value == null || value === '') return null;
+  return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+/**
+ * Detect only strong disagreements between a user's usual sleep profile and
+ * recent tracked data. Neither source wins: self-report describes the usual
+ * experience while wearables describe a recent, device-dependent period.
+ *
+ * @param {any} sleepRest
+ * @param {any} wearableSummary
+ * @returns {null | { reasons: string[], summary: string, trackedDurationHours: number | null, trackedSleepScore: number | null }}
+ */
+export function getSleepContextMismatch(sleepRest, wearableSummary) {
+  if (!sleepRest || !wearableSummary?.metrics) return null;
+  const trackedMinutes = recentMetricValue(wearableSummary.metrics.sleep_total_min);
+  const trackedDurationHours = trackedMinutes == null ? null : trackedMinutes / 60;
+  const trackedSleepScore = recentMetricValue(wearableSummary.metrics.sleep_score);
+  const reasons = [];
+  const selectedRange = PROFILE_SLEEP_DURATION_RANGES[sleepRest.duration];
+  if (selectedRange && trackedDurationHours != null) {
+    const [low, high] = selectedRange;
+    const outsideLow = low != null && trackedDurationHours < low - 0.75;
+    const outsideHigh = high != null && trackedDurationHours > high + 0.75;
+    if (outsideLow || outsideHigh) {
+      reasons.push(`Profile says ${sleepRest.duration}, while recent tracked sleep averages ${trackedDurationHours.toFixed(1)}h`);
+    }
+  }
+  if (trackedSleepScore != null) {
+    const quality = String(sleepRest.quality || '').toLowerCase();
+    if ((quality === 'excellent' && trackedSleepScore < 70)
+      || (quality === 'good' && trackedSleepScore < 55)
+      || (quality === 'poor' && trackedSleepScore >= 80)) {
+      reasons.push(`Profile says ${quality} quality, while the recent tracked sleep score is ${Math.round(trackedSleepScore)}/100`);
+    }
+  }
+  if (!reasons.length) return null;
+  return {
+    reasons,
+    summary: `${reasons.join('. ')}. Treat this as a profile-versus-tracked-data mismatch; check timing and device coverage before interpreting.`,
+    trackedDurationHours,
+    trackedSleepScore,
+  };
+}
+
 function _biologyScoreContextSettings() {
   const imported = /** @type {any} */ (state.importedData || {});
   if (!imported.biologyScoreContextSettings || typeof imported.biologyScoreContextSettings !== 'object') {

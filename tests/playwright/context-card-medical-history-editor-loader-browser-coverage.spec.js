@@ -225,3 +225,105 @@ test('medical-history action contains a failed load and retries with the fixed U
   ]);
   expect(outcomes.notification).toContain('Medical history editor could not be loaded. Try again.');
 });
+
+test('medical-history edits stay in a draft until Save and Cancel discards them', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async () => {
+    const [editor, { state }] = await Promise.all([
+      import('/js/context-card-medical-history-editor-impl.js'),
+      import('/js/state.js'),
+    ]);
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const previous = clone(state.importedData.diagnoses);
+    const saveCalls = [];
+    try {
+      state.importedData.diagnoses = {
+        conditions: [{ name: 'Original condition', severity: 'mild' }],
+        familyHistory: [],
+        flags: {},
+        note: 'Original note',
+      };
+      editor.configureMedicalHistoryEditor({
+        close: () => {},
+        saveAndRefresh: (message, field) => saveCalls.push([message, field]),
+      });
+
+      await editor.openDiagnosesEditor();
+      document.getElementById('condition-input').value = 'Cancelled draft';
+      editor.addCondition();
+      const draftRendered = document.getElementById('detail-modal').textContent.includes('Cancelled draft');
+      const stateUnchangedBeforeSave =
+        state.importedData.diagnoses.conditions.length === 1
+        && state.importedData.diagnoses.conditions[0].name === 'Original condition';
+
+      editor.closeDiagnoses();
+      await editor.openDiagnosesEditor();
+      const cancelDiscardedDraft = !document.getElementById('detail-modal').textContent.includes('Cancelled draft');
+
+      document.getElementById('condition-input').value = 'Saved draft';
+      editor.addCondition();
+      editor.saveDiagnoses();
+      const saveCommittedDraft =
+        state.importedData.diagnoses.conditions.length === 2
+        && state.importedData.diagnoses.conditions.some(item => item.name === 'Saved draft');
+
+      return {
+        draftRendered,
+        stateUnchangedBeforeSave,
+        cancelDiscardedDraft,
+        saveCommittedDraft,
+        saveCalls,
+      };
+    } finally {
+      state.importedData.diagnoses = previous;
+      editor.closeDiagnoses();
+    }
+  });
+
+  expect(outcomes).toEqual({
+    draftRendered: true,
+    stateUnchangedBeforeSave: true,
+    cancelDiscardedDraft: true,
+    saveCommittedDraft: true,
+    saveCalls: [['Medical history saved', 'diagnoses']],
+  });
+});
+
+test('medical-history Clear requires confirmation before deleting saved context', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const [editor, { state }] = await Promise.all([
+      import('/js/context-card-medical-history-editor.js'),
+      import('/js/state.js'),
+    ]);
+    state.importedData.diagnoses = {
+      conditions: [{ name: 'Migraine', severity: 'mild' }],
+      familyHistory: [],
+      flags: {},
+      note: '',
+    };
+    editor.configureMedicalHistoryEditor({
+      close: () => {},
+      saveAndRefresh: () => {},
+    });
+    await editor.openDiagnosesEditor();
+  });
+
+  await page.locator('[data-medical-history-action="clear"]').click();
+  await expect(page.locator('#confirm-dialog-overlay')).toHaveClass(/show/);
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.importedData.diagnoses?.conditions?.length || 0;
+  })).toBe(1);
+
+  await page.locator('#confirm-cancel').click();
+  await expect(page.locator('#confirm-dialog-overlay')).not.toHaveClass(/show/);
+  await page.locator('[data-medical-history-action="clear"]').click();
+  await page.locator('#confirm-ok').click();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.importedData.diagnoses;
+  })).toBeNull();
+});

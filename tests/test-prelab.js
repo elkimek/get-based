@@ -151,20 +151,20 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Should import hasCardContent for health dots fix');
   assert('Checks hasLabs for subtitle', ccSrc.includes('_ccHasLabs'),
     'Should compute hasLabs in renderProfileContextCards');
-  assert('0-cards subtitle text', ccSrc.includes('Fill all 9 cards and the AI can recommend exactly which labs to get'),
-    'Should show fill-all-cards nudge');
-  assert('Some-cards subtitle text', ccSrc.includes('The more you fill in, the better the recommendations'),
-    'Should nudge toward filling all 9');
-  assert('All-cards subtitle text', ccSrc.includes('All filled'),
-    'Should show chat nudge when all cards filled');
+  assert('Profile context copy stays optional', ccSrc.includes('Add only what is relevant'),
+    'Should not pressure users to fill every context area');
+  assert('No-lab subtitle offers a useful next step', ccSrc.includes('use Chat to plan which labs may be useful for you'),
+    'Should explain the no-lab workflow without requiring all 9 cards');
+  assert('Lab-aware subtitle explains context value', ccSrc.includes('help interpretations reflect your goals, history, and daily life'),
+    'Should explain why context matters when labs are present');
   assert('context-section-subtitle class used', ccSrc.includes('context-section-subtitle'),
     'Should use the CSS class');
   assert('Dashboard checks missing demographics', ccSrc.includes('_ccMissingDemo'),
     'Should detect missing sex/DOB');
-  assert('Dashboard sex/DOB hint in subtitle', ccSrc.includes('Set your sex and date of birth in Settings'),
+  assert('Dashboard sex/DOB hint in subtitle', ccSrc.includes('Age and sex in Settings also shape interpretation'),
     'Should nudge sex/DOB when missing');
-  assert('No subtitle when has labs', ccSrc.includes("_ccSubtitle = ''") && ccSrc.includes("if (!_ccHasLabs"),
-    'Should only show subtitle when no labs');
+  assert('Subtitle adapts when labs are present', /_ccHasLabs\s*\?/.test(ccSrc),
+    'Should adapt the explanation to whether the profile has labs');
 
   // CSS check
   const cssSrc = readCssBundle();
@@ -172,10 +172,15 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'CSS should define the subtitle class');
   assert('Subtitle font-size 13px', cssSrc.includes('.context-section-subtitle') && cssSrc.includes('font-size: 13px'),
     'Subtitle should be 13px');
-  assert('Profile context grid is container-aware', cssSrc.includes('repeat(auto-fit, minmax(min(100%, 220px), 1fr))'),
-    'Context cards should not force tiny 3-column tracks inside narrow widgets');
-  assert('Context card labels truncate instead of overflowing', cssSrc.includes('.context-card-label') && cssSrc.includes('text-overflow: ellipsis'),
-    'Card labels should fit compact widget widths');
+  assert('Profile context grid is container-aware',
+    cssSrc.includes('container-type: inline-size')
+      && cssSrc.includes('@container (min-width: 580px)')
+      && cssSrc.includes('@container (min-width: 860px)'),
+    'Context cards should move between one, two, and three columns based on their widget width');
+  assert('Context card labels remain readable instead of truncating',
+    cssSrc.includes('.context-card-label')
+      && !/\.context-card-label\s*{[^}]*text-overflow:\s*ellipsis/.test(cssSrc),
+    'Card labels should wrap when needed instead of hiding their meaning');
   assert('Context editors use redesigned modal shell', (ccSrc + ctxEditorSrc).includes("modal gb-form-modal ctx-editor-modal") && ctxEditorSrc.includes('gb-modal-head ctx-editor-head'),
     'Context editors should use the newer solid modal chrome');
   assert('Context editor actions stay module-owned without dynamic window or bridge dispatch',
@@ -185,7 +190,8 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
       !ctxEditorSrc.includes('ctxEditorFn') &&
       !/\bwindow(?:\.|\s*\[)/.test(ctxEditorSrc) &&
       lifestyleEditorSrc.includes("'save-diet': saveDiet") &&
-      lifestyleEditorSrc.includes("'clear-environment': clearEnvironment") &&
+      lifestyleEditorSrc.includes("'clear-environment': () =>") &&
+      lifestyleEditorSrc.includes("confirmClearProfileContext('Environment', clearEnvironment)") &&
       medicalHistoryEditorSrc.includes("medicalHistoryActionAttrs('close')"),
     'Context editor controls should delegate to their owning modules');
   assert('Context editor actions are sticky', cssSrc.includes('.ctx-editor-modal .ctx-editor-actions') && cssSrc.includes('position: sticky') && cssSrc.includes('bottom: 0'),

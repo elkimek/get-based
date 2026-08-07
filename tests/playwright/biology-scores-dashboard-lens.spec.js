@@ -26,10 +26,10 @@ function contrastRatio(foreground, background) {
 }
 
 async function prepareDemoProfile(page) {
-  // Keep the February demo draw inside the engine's 180-day freshness
+  // Keep the current July demo draws inside the engine's 180-day freshness
   // window. Otherwise this coverage fixture changes behavior as wall-clock
   // time advances and eventually renders every score as stale.
-  await page.clock.setFixedTime(new Date('2026-07-31T12:00:00Z'));
+  await page.clock.setFixedTime(new Date('2026-08-07T12:00:00Z'));
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(async () => {
     const { state } = await import('/js/state.js');

@@ -155,6 +155,7 @@ assert('Summary joins your-conditions + family with " — "',
 console.log('6. AI context family history');
 
 const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
+const labCtxTimelineSrc = await fetch('js/lab-context-change-timeline.js').then(r => r.text());
 const labCtxOutputSrc = await fetch('js/lab-context-output.js').then(r => r.text());
 assert('Family history block emitted within [section:diagnoses]',
   /\[section:diagnoses\][\s\S]{0,1500}### Family history \(heritable\/environmental risk signal\)/.test(labCtxSrc));
@@ -181,8 +182,8 @@ assert("Card label is 'Medical History'",
   /label:\s*'Medical History'/.test(ctxCardSrc));
 assert("Modal headline reads 'Medical History'",
   /renderContextEditorModal\(\s*modal,\s*'Medical History'/.test(ctxMedicalSrc));
-assert('Modal description mentions both diagnoses and family history',
-  /diagnoses and family history/.test(ctxMedicalSrc));
+assert('Modal description explains that entries should matter for interpretation',
+  /Add only what matters for interpretation/.test(ctxMedicalSrc));
 assert('Card placeholder mentions family history',
   /'Add diagnoses or family history'/.test(ctxCardSrc));
 assert("saveDiagnoses toast says 'Medical history saved'",
@@ -194,15 +195,15 @@ assert('Tooltip mentions family history reframing risk',
 assert('AI context section header renamed to Medical History / Diagnoses',
   labCtxSrc.includes('## Medical History / Diagnoses'));
 assert("Field-label map uses 'Medical History'",
-  /diagnoses:\s*'Medical History'/.test(labCtxSrc));
+  /diagnoses:\s*'Medical History'/.test(`${labCtxSrc}\n${labCtxTimelineSrc}`));
 
 // ═══════════════════════════════════════
 // 9. UI subsection markers (CSS hooks the renderer relies on)
 // ═══════════════════════════════════════
 console.log('9. UI subsection');
 
-assert("Modal renders <div class='ctx-family-history'> wrapper",
-  /class="ctx-family-history"/.test(ctxMedicalSrc));
+assert("Modal renders the collapsible family-history section",
+  /class="ctx-editor-section ctx-family-history"/.test(ctxMedicalSrc));
 assert('Relative dropdown uses <optgroup> grouping',
   /<optgroup label="Parents"/.test(ctxMedicalSrc) &&
   /<optgroup label="Siblings & Children"/.test(ctxMedicalSrc) &&

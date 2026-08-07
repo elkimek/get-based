@@ -6,6 +6,12 @@ import {
   DIET_TYPES,
   DIET_RESTRICTIONS,
   DIET_PATTERNS,
+  DIET_PROTEIN_INTAKE,
+  DIET_HYDRATION,
+  DIET_ALCOHOL,
+  DIET_CAFFEINE,
+  DIET_CAFFEINE_TIMING,
+  DIET_RECENT_CHANGES,
   BOWEL_FREQUENCY,
   STOOL_CONSISTENCY,
   BLOATING_SEVERITY,
@@ -20,34 +26,39 @@ import {
   EXERCISE_TYPES,
   EXERCISE_INTENSITY,
   DAILY_MOVEMENT,
+  EXERCISE_DURATION,
+  EXERCISE_MUSCLE_CONTEXT,
+  EXERCISE_LIMITATIONS,
   SLEEP_DURATIONS,
   SLEEP_QUALITY,
   SLEEP_SCHEDULE,
   SLEEP_ROOM_TEMP,
   SLEEP_ISSUES,
+  SLEEP_DAYTIME_SLEEPINESS,
+  SLEEP_APNEA_STATUS,
+  SLEEP_PAP_USE,
+  SLEEP_NAPS,
   SLEEP_ENVIRONMENT,
   SLEEP_PRACTICES,
-  LIGHT_AM,
-  LIGHT_DAYTIME,
-  LIGHT_UV,
-  LIGHT_EVENING,
-  LIGHT_COLD,
-  LIGHT_GROUNDING,
-  LIGHT_SCREEN_TIME,
-  LIGHT_TECH_ENV,
-  LIGHT_MEAL_TIMING,
   STRESS_LEVELS,
   STRESS_SOURCES,
   STRESS_MGMT,
+  STRESS_DURATION,
+  STRESS_TREND,
   LOVE_STATUS,
   LOVE_SATISFACTION,
   LOVE_LIBIDO,
+  LOVE_LIBIDO_CHANGE,
   LOVE_FREQUENCY,
   LOVE_ORGASM,
   LOVE_RELATIONSHIP,
   LOVE_CONCERNS,
+  LOVE_REPRODUCTIVE_GOALS,
   ENV_SETTING,
   ENV_CLIMATE,
+  ENV_ALTITUDE,
+  ENV_INHALED_EXPOSURES,
+  ENV_OCCUPATIONAL_EXPOSURES,
   ENV_WATER,
   ENV_WATER_CONCERNS,
   ENV_EMF,
@@ -57,23 +68,13 @@ import {
   ENV_TOXINS,
   ENV_BUILDING,
 } from './constants.js';
-import { bindDetailModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
-import {
-  appendImportedArrayItem,
-  clearImportedArray,
-  deleteImportedArrayItem,
-} from './data-merge.js';
-import { getLatitudeFromLocation } from './profile.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import {
-  EYEWEAR_OPTIONS,
-  HOME_LIGHT_OPTIONS,
-  ottScoreToLabel,
-  reopenSunSetup,
-} from './sun-defaults.js';
+import { getSleepContextMismatch } from './lab-context-wearables.js';
+import { reopenSunSetup } from './sun-defaults.js';
 import {
   getEMFAssessments,
   renderEMFAssessmentLauncher,
@@ -84,20 +85,35 @@ import {
   getSelectedTags,
   isContextEditorStylesheetLoaded, runWithContextEditorStylesheet,
   renderContextEditorModal,
+  renderContextEditorSection,
   renderNoteField,
   renderSelectField,
   renderTagsField,
   selectCtxOption,
 } from './context-card-editor-ui.js';
 import {
-  closeLifestyleContextModalAndNavigateRuntime,
   closeLifestyleContextModalRuntime,
   discussDietContaminantsRuntime,
   markLifestyleContextDelegatesBoundRuntime,
   openLightSetupFromLifestyleRuntime,
   returnToLifestyleContextModalRuntime,
-  updateLifestyleChatHeaderModelRuntime,
 } from './context-card-lifestyle-runtime.js';
+import {
+  addHealthGoal,
+  clearHealthGoals,
+  clearInterpretiveLens,
+  clearLightCircadian,
+  closeHealthGoals,
+  configureLifestyleSpecialEditors,
+  deleteHealthGoal,
+  openHealthGoalsEditor,
+  openInterpretiveLensEditor,
+  openLightCircadianEditor,
+  renderHealthGoalsModal,
+  saveInterpretiveLens,
+  saveLightCircadian,
+  showDietContaminantsModal,
+} from './context-card-lifestyle-special-editors.js';
 /** @type {(field: string) => void} */
 let recordContextChange = () => {};
 /** @type {(msg: string, field?: string) => void} */
@@ -107,21 +123,13 @@ let saveContextAndRefresh = (msg, field) => {
   showNotification(msg, 'success');
 };
 
-/** @param {{ modal: HTMLElement }} payload */
-function refreshOpenHealthGoalsModalOnSync({ modal }) {
-  renderHealthGoalsModal(modal);
-}
-
-if (typeof window !== 'undefined') {
-  bindDetailModalSyncRefresh('healthGoals', refreshOpenHealthGoalsModalOnSync);
-}
-
 /**
  * @param {{ recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
  */
 export function configureLifestyleContextEditors({ recordChange, saveAndRefresh } = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
+  configureLifestyleSpecialEditors({ recordChange, saveAndRefresh });
 }
 
 /**
@@ -140,9 +148,58 @@ function getInputValue(id) {
   return getTextInput(id)?.value || '';
 }
 
-function getActiveNavCategory() {
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
-  return activeNav?.dataset.category || "dashboard";
+function summarizeSection(values, fallback, limit = 3) {
+  const answers = [];
+  for (const value of values) {
+    const items = Array.isArray(value) ? value : [value];
+    for (const item of items) {
+      const text = String(item || '').trim();
+      if (text && !answers.includes(text)) answers.push(text);
+    }
+  }
+  if (!answers.length) return fallback;
+  const visible = answers.slice(0, limit);
+  const remainder = answers.length - visible.length;
+  return `${visible.join(' · ')}${remainder > 0 ? ` · +${remainder} more` : ''}`;
+}
+
+/** @param {Array<string | {value: string, label: string}>} options @param {string | null | undefined} current */
+function withLegacySelection(options, current) {
+  if (!current || options.some(option => (typeof option === 'string' ? option : option.value) === current)) return options;
+  return [...options, { value: current, label: `Previous estimate: ${current}` }];
+}
+
+function hydrationIntakeOptions() {
+  const usLabels = /** @type {Record<string, string>} */ ({
+    '<1.5 L/day': '<51 fl oz/day',
+    '1.5–2 L/day': '51–68 fl oz/day',
+    '2–3 L/day': '68–101 fl oz/day',
+    '>3 L/day': '>101 fl oz/day',
+    'varies / not sure': 'varies / not sure',
+  });
+  return DIET_HYDRATION.map(value => ({
+    value,
+    label: state.unitSystem === 'US' ? usLabels[value] : value,
+  }));
+}
+
+/** @param {any} current */
+function renderSleepMismatch(current) {
+  const mismatch = getSleepContextMismatch(current, state.importedData.wearableSummary);
+  if (!mismatch) return '';
+  return `<div class="ctx-data-mismatch" role="status"><strong>Profile and tracked sleep differ</strong><span>${escapeHTML(mismatch.reasons.join('. '))}.</span><small>Both are kept. Recent device data can differ from your usual experience or have incomplete coverage.</small></div>`;
+}
+
+async function confirmClearProfileContext(label, clearAction) {
+  const confirmed = await showConfirmDialog(
+    `Clear all saved ${label.toLowerCase()} information? This cannot be undone.`,
+    {
+      confirmLabel: 'Clear',
+      ariaLabel: `Clear ${label}`,
+    },
+  );
+  if (confirmed) clearAction();
+  return confirmed;
 }
 
 function lifestyleActionAttrs(action, extra = '') { return `data-lifestyle-action="${action}"${extra ? ` ${extra}` : ''}`; }
@@ -171,10 +228,28 @@ function returnToContextModal() {
   returnToLifestyleContextModalRuntime();
 }
 
+function useHealthGoalStarter(text) {
+  const input = getTextInput('goal-text-input');
+  if (!input) return;
+  input.value = text;
+  input.focus();
+}
+
 /** @type {Record<string, () => void>} */ const lifestyleEditorActions = {
-  'save-diet': saveDiet, 'clear-diet': clearDiet, 'save-sleep-rest': saveSleepRest, 'clear-sleep-rest': clearSleepRest,
-  'save-light-circadian': saveLightCircadian, 'clear-light-circadian': clearLightCircadian, 'save-exercise': saveExercise, 'clear-exercise': clearExercise, 'save-stress': saveStress,
-  'clear-stress': clearStress, 'save-love-life': saveLoveLife, 'clear-love-life': clearLoveLife, 'save-environment': saveEnvironment, 'clear-environment': clearEnvironment,
+  'save-diet': saveDiet,
+  'clear-diet': () => { void confirmClearProfileContext('Diet & Digestion', clearDiet); },
+  'save-sleep-rest': saveSleepRest,
+  'clear-sleep-rest': () => { void confirmClearProfileContext('Sleep & Rest', clearSleepRest); },
+  'save-light-circadian': saveLightCircadian,
+  'clear-light-circadian': () => { void confirmClearProfileContext('Light & Circadian', clearLightCircadian); },
+  'save-exercise': saveExercise,
+  'clear-exercise': () => { void confirmClearProfileContext('Exercise', clearExercise); },
+  'save-stress': saveStress,
+  'clear-stress': () => { void confirmClearProfileContext('Stress', clearStress); },
+  'save-love-life': saveLoveLife,
+  'clear-love-life': () => { void confirmClearProfileContext('Love Life & Relationships', clearLoveLife); },
+  'save-environment': saveEnvironment,
+  'clear-environment': () => { void confirmClearProfileContext('Environment', clearEnvironment); },
 };
 /** @param {MouseEvent} event */
 function handleLifestyleContextClick(event) {
@@ -184,10 +259,11 @@ function handleLifestyleContextClick(event) {
     case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
     case 'open-light-setup': openLightSetupFromContext(); break;
     case 'delete-health-goal': { const idx = getLifestyleIndex(actionEl); if (idx >= 0) deleteHealthGoal(idx); break; }
+    case 'suggest-health-goal': useHealthGoalStarter(actionEl.dataset.lifestyleValue || ''); break;
     case 'add-health-goal': addHealthGoal(); break;
     case 'select-goal-severity': selectCtxOption(actionEl, 'goal-severity-select'); break;
     case 'close-health-goals': closeHealthGoals(); break;
-    case 'clear-health-goals': clearHealthGoals(); break;
+    case 'clear-health-goals': void confirmClearProfileContext('Health Goals', clearHealthGoals); break;
     case 'save-interpretive-lens': saveInterpretiveLens(); break;
     case 'clear-interpretive-lens': clearInterpretiveLens(); break;
     case 'back-to-context': returnToContextModal(); break;
@@ -224,7 +300,7 @@ export function renderDietContaminantsBadge() {
   if (warnings.length === 0) return '';
   const flagged = warnings.filter(w => w.type !== 'clean').length;
   if (flagged === 0) return '';
-  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}>\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
+  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg><span>${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</span></div>`;
 }
 
 function getTimePlaceholder() {
@@ -238,30 +314,53 @@ function getTimePlaceholder() {
 export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDietEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
-  renderContextEditorModal(modal, 'Diet & Digestion', 'Describe your typical diet and digestive health. The AI will factor this in when interpreting your labs.', `
+  const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, proteinIntake: null, hydration: null, alcohol: null, caffeine: null, caffeineTiming: null, recentChanges: [], breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
+  renderContextEditorModal(modal, 'Diet & Digestion', 'Your usual eating pattern and digestive symptoms can help explain lab trends.', `
     ${renderSelectField('Diet type', 'diet-type', DIET_TYPES, current.type)}
     ${renderSelectField('Eating pattern', 'diet-pattern', DIET_PATTERNS, current.pattern)}
-    ${renderTagsField('Restrictions', 'diet-restrictions', DIET_RESTRICTIONS, current.restrictions)}
-    <div class="ctx-editor-divider"></div>
-    <div class="ctx-field-group"><label class="ctx-field-label">Typical meals</label>
+    ${renderSelectField('Protein intake (g/kg/day)', 'diet-protein', withLegacySelection(DIET_PROTEIN_INTAKE, current.proteinIntake), current.proteinIntake)}
+    ${renderSelectField(`Daily fluid intake (${state.unitSystem === 'US' ? 'fl oz/day' : 'L/day'})`, 'diet-hydration', withLegacySelection(hydrationIntakeOptions(), current.hydration), current.hydration)}
+    ${renderContextEditorSection('Intake and recent changes', summarizeSection([
+      current.restrictions,
+      current.alcohol && `alcohol: ${current.alcohol}`,
+      current.caffeine && `caffeine: ${current.caffeine}`,
+      current.recentChanges,
+    ], 'Optional restrictions, alcohol, caffeine, and recent changes'), `
+      ${renderTagsField('Restrictions', 'diet-restrictions', DIET_RESTRICTIONS, current.restrictions)}
+      ${renderSelectField('Alcohol', 'diet-alcohol', DIET_ALCOHOL, current.alcohol)}
+      ${renderSelectField('Caffeine', 'diet-caffeine', DIET_CAFFEINE, current.caffeine)}
+      ${renderSelectField('Latest caffeine', 'diet-caffeine-timing', DIET_CAFFEINE_TIMING, current.caffeineTiming)}
+      ${renderTagsField('Changes in the past 3 months', 'diet-recent-changes', DIET_RECENT_CHANGES, current.recentChanges)}
+    `)}
+    ${renderContextEditorSection('Typical meals', summarizeSection([
+      current.breakfast && 'Breakfast',
+      current.lunch && 'Lunch',
+      current.dinner && 'Dinner',
+      current.snacks && 'Snacks',
+    ], 'Optional meal timing and examples'), `<div class="ctx-field-group"><label class="ctx-field-label">Meals and times</label>
       <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-breakfast-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.breakfastTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-breakfast" placeholder="Breakfast — e.g. eggs, avocado, coffee" value="${escapeHTML(current.breakfast || '')}"></div>
       <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-lunch-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.lunchTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-lunch" placeholder="Lunch — e.g. salad with grilled chicken" value="${escapeHTML(current.lunch || '')}"></div>
       <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-dinner-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.dinnerTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-dinner" placeholder="Dinner — e.g. salmon, rice, vegetables" value="${escapeHTML(current.dinner || '')}"></div>
       <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-snacks-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.snacksTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-snacks" placeholder="Snacks — e.g. nuts, fruit, dark chocolate" value="${escapeHTML(current.snacks || '')}"></div>
-    </div>
-    <div class="ctx-editor-divider"></div>
-    <div class="ctx-field-group"><label class="ctx-field-label">Digestion</label></div>
-    ${renderSelectField('Bowel frequency', 'diet-bowel', BOWEL_FREQUENCY, current.bowelFrequency || null)}
-    ${renderSelectField('Stool consistency', 'diet-stool', STOOL_CONSISTENCY, current.stoolConsistency || null)}
-    ${renderSelectField('Bloating', 'diet-bloating', BLOATING_SEVERITY, current.bloating || null)}
-    ${renderSelectField('Gas', 'diet-gas', GAS_SEVERITY, current.gas || null)}
-    ${renderSelectField('Acid reflux', 'diet-reflux', ACID_REFLUX, current.acidReflux || null)}
-    ${renderSelectField('Burping', 'diet-burping', BURPING, current.burping || null)}
-    ${renderSelectField('Nausea', 'diet-nausea', NAUSEA, current.nausea || null)}
-    ${renderSelectField('Appetite', 'diet-appetite', APPETITE, current.appetite || null)}
-    ${renderSelectField('Abdominal pain', 'diet-abdpain', ABDOMINAL_PAIN, current.abdominalPain || null)}
-    ${renderTagsField('Food sensitivities', 'diet-sensitivities', FOOD_SENSITIVITIES, current.foodSensitivities || [])}
+    </div>`)}
+    ${renderContextEditorSection('Digestion details', summarizeSection([
+      current.bowelFrequency,
+      current.stoolConsistency,
+      current.bloating && current.bloating !== 'none' ? `${current.bloating} bloating` : '',
+      current.gas && current.gas !== 'none' ? `${current.gas} gas` : '',
+      current.foodSensitivities,
+    ], 'Optional symptoms and sensitivities'), `
+      ${renderSelectField('Bowel frequency', 'diet-bowel', BOWEL_FREQUENCY, current.bowelFrequency || null)}
+      ${renderSelectField('Stool consistency', 'diet-stool', STOOL_CONSISTENCY, current.stoolConsistency || null)}
+      ${renderSelectField('Bloating', 'diet-bloating', BLOATING_SEVERITY, current.bloating || null)}
+      ${renderSelectField('Gas', 'diet-gas', GAS_SEVERITY, current.gas || null)}
+      ${renderSelectField('Acid reflux', 'diet-reflux', ACID_REFLUX, current.acidReflux || null)}
+      ${renderSelectField('Burping', 'diet-burping', BURPING, current.burping || null)}
+      ${renderSelectField('Nausea', 'diet-nausea', NAUSEA, current.nausea || null)}
+      ${renderSelectField('Appetite', 'diet-appetite', APPETITE, current.appetite || null)}
+      ${renderSelectField('Abdominal pain', 'diet-abdpain', ABDOMINAL_PAIN, current.abdominalPain || null)}
+      ${renderTagsField('Food sensitivities', 'diet-sensitivities', FOOD_SENSITIVITIES, current.foodSensitivities || [])}
+    `)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.diet != null, lifestyleActionAttrs('save-diet'), lifestyleActionAttrs('clear-diet'))}`);
   openModalOverlay(overlay);
@@ -270,7 +369,13 @@ export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) retur
 export function saveDiet() {
   const type = getSelectedOption('diet-type');
   const pattern = getSelectedOption('diet-pattern');
+  const proteinIntake = getSelectedOption('diet-protein');
+  const hydration = getSelectedOption('diet-hydration');
   const restrictions = getSelectedTags('diet-restrictions');
+  const alcohol = getSelectedOption('diet-alcohol');
+  const caffeine = getSelectedOption('diet-caffeine');
+  const caffeineTiming = getSelectedOption('diet-caffeine-timing');
+  const recentChanges = getSelectedTags('diet-recent-changes');
   const breakfast = getInputValue('diet-breakfast');
   const breakfastTime = parseTimeInput(getInputValue('diet-breakfast-time'));
   const lunch = getInputValue('diet-lunch');
@@ -290,10 +395,10 @@ export function saveDiet() {
   const abdominalPain = getSelectedOption('diet-abdpain');
   const foodSensitivities = getSelectedTags('diet-sensitivities');
   const note = getInputValue('ctx-note-input');
-  if (!type && !pattern && restrictions.length === 0 && !breakfast.trim() && !lunch.trim() && !dinner.trim() && !snacks.trim() && !bowelFrequency && !stoolConsistency && !bloating && !gas && !acidReflux && !burping && !nausea && !appetite && !abdominalPain && foodSensitivities.length === 0 && !note.trim()) {
+  if (!type && !pattern && !proteinIntake && !hydration && restrictions.length === 0 && !alcohol && !caffeine && !caffeineTiming && recentChanges.length === 0 && !breakfast.trim() && !lunch.trim() && !dinner.trim() && !snacks.trim() && !bowelFrequency && !stoolConsistency && !bloating && !gas && !acidReflux && !burping && !nausea && !appetite && !abdominalPain && foodSensitivities.length === 0 && !note.trim()) {
     state.importedData.diet = null;
   } else {
-    state.importedData.diet = { type, restrictions, pattern, breakfast: breakfast.trim(), breakfastTime, lunch: lunch.trim(), lunchTime, dinner: dinner.trim(), dinnerTime, snacks: snacks.trim(), snacksTime, bowelFrequency, stoolConsistency, bloating, gas, acidReflux, burping, nausea, appetite, abdominalPain, foodSensitivities, note: note.trim() };
+    state.importedData.diet = { type, restrictions, pattern, proteinIntake, hydration, alcohol, caffeine, caffeineTiming, recentChanges, breakfast: breakfast.trim(), breakfastTime, lunch: lunch.trim(), lunchTime, dinner: dinner.trim(), dinnerTime, snacks: snacks.trim(), snacksTime, bowelFrequency, stoolConsistency, bloating, gas, acidReflux, burping, nausea, appetite, abdominalPain, foodSensitivities, note: note.trim() };
   }
   saveContextAndRefresh('Diet & Digestion saved', 'diet');
 }
@@ -310,16 +415,33 @@ export function clearDiet() {
 export function openSleepRestEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openSleepRestEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.sleepRest || { duration: null, quality: null, schedule: null, roomTemp: null, issues: [], environment: [], practices: [], note: '' };
-  renderContextEditorModal(modal, 'Sleep & Rest', 'Sleep is when the body repairs. Duration, temperature, darkness, and EMF exposure all affect hormones, inflammation, and recovery.', `
+  const current = state.importedData.sleepRest || { duration: null, quality: null, daytimeSleepiness: null, apneaStatus: null, papUse: null, naps: null, schedule: null, roomTemp: null, issues: [], environment: [], practices: [], note: '' };
+  renderContextEditorModal(modal, 'Sleep & Rest', 'Sleep duration, quality, and routine add useful context to recovery and metabolic markers.', `
+    ${renderSleepMismatch(current)}
     ${renderSelectField('Duration', 'sleep-duration', SLEEP_DURATIONS, current.duration)}
     ${renderSelectField('Quality', 'sleep-quality', SLEEP_QUALITY, current.quality)}
-    ${renderSelectField('Schedule', 'sleep-schedule', SLEEP_SCHEDULE, current.schedule)}
-    ${renderSelectField('Room temperature', 'sleep-temp', SLEEP_ROOM_TEMP, current.roomTemp)}
     ${renderTagsField('Sleep issues', 'sleep-issues', SLEEP_ISSUES, current.issues)}
-    <div class="ctx-editor-divider"></div>
-    ${renderTagsField('Sleep environment', 'sleep-env', SLEEP_ENVIRONMENT, current.environment)}
-    ${renderTagsField('Sleep practices', 'sleep-practices', SLEEP_PRACTICES, current.practices)}
+    ${renderSelectField('Daytime sleepiness', 'sleep-daytime', SLEEP_DAYTIME_SLEEPINESS, current.daytimeSleepiness)}
+    ${renderContextEditorSection('Sleep breathing and daytime rest', summarizeSection([
+      current.apneaStatus && `apnea: ${current.apneaStatus}`,
+      current.papUse,
+      current.naps && `naps: ${current.naps}`,
+    ], 'Optional apnea, treatment, and naps'), `
+      ${renderSelectField('Sleep apnea status', 'sleep-apnea-status', SLEEP_APNEA_STATUS, current.apneaStatus)}
+      ${renderSelectField('PAP / CPAP use', 'sleep-pap-use', SLEEP_PAP_USE, current.papUse)}
+      ${renderSelectField('Naps', 'sleep-naps', SLEEP_NAPS, current.naps)}
+    `)}
+    ${renderContextEditorSection('Environment and routine', summarizeSection([
+      current.schedule,
+      current.roomTemp,
+      current.environment,
+      current.practices,
+    ], 'Optional schedule, room, and sleep practices'), `
+      ${renderSelectField('Schedule', 'sleep-schedule', SLEEP_SCHEDULE, current.schedule)}
+      ${renderSelectField('Room temperature', 'sleep-temp', SLEEP_ROOM_TEMP, current.roomTemp)}
+      ${renderTagsField('Sleep environment', 'sleep-env', SLEEP_ENVIRONMENT, current.environment)}
+      ${renderTagsField('Sleep practices', 'sleep-practices', SLEEP_PRACTICES, current.practices)}
+    `)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.sleepRest != null, lifestyleActionAttrs('save-sleep-rest'), lifestyleActionAttrs('clear-sleep-rest'))}`);
   openModalOverlay(overlay);
@@ -328,16 +450,20 @@ export function openSleepRestEditor() { if (!isContextEditorStylesheetLoaded()) 
 export function saveSleepRest() {
   const duration = getSelectedOption('sleep-duration');
   const quality = getSelectedOption('sleep-quality');
+  const daytimeSleepiness = getSelectedOption('sleep-daytime');
+  const apneaStatus = getSelectedOption('sleep-apnea-status');
+  const papUse = getSelectedOption('sleep-pap-use');
+  const naps = getSelectedOption('sleep-naps');
   const schedule = getSelectedOption('sleep-schedule');
   const roomTemp = getSelectedOption('sleep-temp');
   const issues = getSelectedTags('sleep-issues');
   const environment = getSelectedTags('sleep-env');
   const practices = getSelectedTags('sleep-practices');
   const note = getInputValue('ctx-note-input');
-  if (!duration && !quality && !schedule && !roomTemp && issues.length === 0 && environment.length === 0 && practices.length === 0 && !note.trim()) {
+  if (!duration && !quality && !daytimeSleepiness && !apneaStatus && !papUse && !naps && !schedule && !roomTemp && issues.length === 0 && environment.length === 0 && practices.length === 0 && !note.trim()) {
     state.importedData.sleepRest = null;
   } else {
-    state.importedData.sleepRest = { duration, quality, schedule, roomTemp, issues, environment, practices, note: note.trim() };
+    state.importedData.sleepRest = { duration, quality, daytimeSleepiness, apneaStatus, papUse, naps, schedule, roomTemp, issues, environment, practices, note: note.trim() };
   }
   saveContextAndRefresh('Sleep saved', 'sleepRest');
 }
@@ -348,121 +474,28 @@ export function clearSleepRest() {
 }
 
 // ═══════════════════════════════════════════════
-// LIGHT & CIRCADIAN
-// ═══════════════════════════════════════════════
-
-export function openLightCircadianEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLightCircadianEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.lightCircadian || { amLight: null, daytime: null, uvExposure: null, skinType: null, evening: [], screenTime: null, techEnv: [], cold: null, grounding: null, mealTiming: [], note: '' };
-  const lat = getLatitudeFromLocation();
-  renderContextEditorModal(modal, 'Light & Circadian', 'Light is the #1 circadian signal. Morning light sets cortisol, UV drives vitamin D and hormones, cold and grounding affect mitochondrial function.', `
-    ${renderSelectField('Morning light', 'light-am', LIGHT_AM, current.amLight)}
-    ${renderSelectField('Daytime outdoor exposure', 'light-daytime', LIGHT_DAYTIME, current.daytime)}
-    ${renderSelectField('UV / sun exposure', 'light-uv', LIGHT_UV, current.uvExposure)}
-    ${renderLightSetupMirror(current)}
-    ${renderTagsField('Evening light discipline', 'light-evening', LIGHT_EVENING, current.evening)}
-    <div class="ctx-editor-divider"></div>
-    ${renderSelectField('Daily screen time', 'light-screen', LIGHT_SCREEN_TIME, current.screenTime)}
-    ${renderTagsField('Technology environment', 'light-tech', LIGHT_TECH_ENV, current.techEnv)}
-    <div class="ctx-editor-divider"></div>
-    ${renderSelectField('Cold exposure', 'light-cold', LIGHT_COLD, current.cold)}
-    ${renderSelectField('Grounding / earthing', 'light-grounding', LIGHT_GROUNDING, current.grounding)}
-    ${renderTagsField('Meal timing signals', 'light-meal', LIGHT_MEAL_TIMING, current.mealTiming)}
-    ${lat ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📍 Latitude: <strong style="color:var(--text-primary)">${escapeHTML(lat)}</strong> <span style="font-size:11px">(from Settings → Location)</span></div>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">💡 Set your country in Settings → Profile for automatic latitude detection</div>`}
-    ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.lightCircadian != null, lifestyleActionAttrs('save-light-circadian'), lifestyleActionAttrs('clear-light-circadian'))}`);
-  openModalOverlay(overlay);
-}
-
-// Render a compact read-only summary of the user's Light lens setup —
-// skin type, home lighting, eyewear, and indoor/outdoor lifestyle. The
-// Light setup card is the single source of truth; this just surfaces what
-// the AI already knows about light from those answers and links over for
-// edits. Matches the design pattern of Settings → linked external editors.
-function renderLightSetupMirror(current) {
-  const sd = state.importedData?.sunDefaults || null;
-  const skin = current.skinType || (sd?.fitzpatrick ? `${sd.fitzpatrick}` : null);
-
-  const homeMeta = HOME_LIGHT_OPTIONS.find(o => o.key === sd?.homeLight);
-  const eyewearMeta = EYEWEAR_OPTIONS.find(o => o.key === sd?.eyewear);
-
-  let ottBadge = '';
-  if (sd && typeof sd.ottScore === 'number') {
-    const { label, tier } = ottScoreToLabel(sd.ottScore);
-    ottBadge = `<span class="ctx-lightsetup-ott-badge ctx-lightsetup-ott-tier-${tier}">${escapeHTML(label)}</span>`;
-  } else if (sd?.skipped) {
-    ottBadge = `<span class="ctx-lightsetup-ott-badge">skipped</span>`;
-  }
-
-  const hasAny = !!(skin || sd?.homeLight || sd?.eyewear || ottBadge);
-
-  if (!hasAny) {
-    return `<div class="ctx-field-group ctx-lightsetup-mirror">
-      <label class="ctx-field-label">Light lens setup</label>
-      <div class="ctx-lightsetup-empty">
-        <span>Not set yet — covers skin type, home lighting, eyewear, and indoor/outdoor lifestyle.</span>
-        <button type="button" class="ctx-lightsetup-edit" ${lifestyleActionAttrs('open-light-setup')}>Set up Light lens →</button>
-      </div>
-    </div>`;
-  }
-
-  return `<div class="ctx-field-group ctx-lightsetup-mirror">
-    <div class="ctx-lightsetup-head">
-      <label class="ctx-field-label" style="margin:0">Light lens setup</label>
-      <button type="button" class="ctx-lightsetup-edit" ${lifestyleActionAttrs('open-light-setup')}>Edit →</button>
-    </div>
-    <div class="ctx-lightsetup-grid">
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Skin type</span><span class="ctx-lightsetup-value">${skin ? escapeHTML(skin) : '—'}</span></div>
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Home lighting</span><span class="ctx-lightsetup-value">${escapeHTML(homeMeta?.label || sd?.homeLight || '—')}</span></div>
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Eyewear outside</span><span class="ctx-lightsetup-value">${escapeHTML(eyewearMeta?.label || sd?.eyewear || '—')}</span></div>
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Light lifestyle</span><span class="ctx-lightsetup-value">${ottBadge || '—'}</span></div>
-    </div>
-    <div class="ctx-lightsetup-hint">Skin type drives UV tolerance and vitamin D math. Home lighting + eyewear shape your indoor light dose. Lifestyle frames the AI's interpretation everywhere.</div>
-  </div>`;
-}
-
-export function saveLightCircadian() {
-  const amLight = getSelectedOption('light-am');
-  const daytime = getSelectedOption('light-daytime');
-  const uvExposure = getSelectedOption('light-uv');
-  // Skin type is no longer editable here — it's owned by the Light setup card
-  // and mirrored to lightCircadian.skinType by sun-defaults.js. Preserve
-  // whatever value is currently saved so this editor doesn't overwrite it.
-  const skinType = state.importedData.lightCircadian?.skinType || null;
-  const evening = getSelectedTags('light-evening');
-  const screenTime = getSelectedOption('light-screen');
-  const techEnv = getSelectedTags('light-tech');
-  const cold = getSelectedOption('light-cold');
-  const grounding = getSelectedOption('light-grounding');
-  const mealTiming = getSelectedTags('light-meal');
-  const note = getInputValue('ctx-note-input');
-  if (!amLight && !daytime && !uvExposure && !skinType && evening.length === 0 && !screenTime && techEnv.length === 0 && !cold && !grounding && mealTiming.length === 0 && !note.trim()) {
-    state.importedData.lightCircadian = null;
-  } else {
-    state.importedData.lightCircadian = { amLight, daytime, uvExposure, skinType, evening, screenTime, techEnv, cold, grounding, mealTiming, note: note.trim() };
-  }
-  saveContextAndRefresh('Light & circadian saved', 'lightCircadian');
-}
-
-export function clearLightCircadian() {
-  state.importedData.lightCircadian = null;
-  saveContextAndRefresh('Light & circadian cleared', 'lightCircadian');
-}
-
-// ═══════════════════════════════════════════════
 // EXERCISE
 // ═══════════════════════════════════════════════
 
 export function openExerciseEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openExerciseEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.exercise || { frequency: null, types: [], intensity: null, dailyMovement: null, note: '' };
-  renderContextEditorModal(modal, 'Exercise & Movement', 'Describe your exercise routine. The AI considers this when interpreting your labs.', `
+  const current = state.importedData.exercise || { frequency: null, types: [], intensity: null, duration: null, dailyMovement: null, muscleContext: null, limitations: [], note: '' };
+  renderContextEditorModal(modal, 'Exercise', 'Your routine can affect recovery, inflammation, and several lab markers.', `
     ${renderSelectField('Frequency', 'exercise-freq', EXERCISE_FREQ, current.frequency)}
     ${renderTagsField('Types', 'exercise-types', EXERCISE_TYPES, current.types)}
     ${renderSelectField('Intensity', 'exercise-intensity', EXERCISE_INTENSITY, current.intensity)}
-    ${renderSelectField('Daily movement', 'exercise-movement', DAILY_MOVEMENT, current.dailyMovement)}
+    ${renderContextEditorSection('Training details', summarizeSection([
+      current.duration && `${current.duration} sessions`,
+      current.dailyMovement,
+      current.muscleContext,
+      current.limitations,
+    ], 'Optional duration, movement, muscle, and recovery context'), `
+      ${renderSelectField('Typical session duration', 'exercise-duration', EXERCISE_DURATION, current.duration)}
+      ${renderSelectField('Daily movement', 'exercise-movement', DAILY_MOVEMENT, current.dailyMovement)}
+      ${renderSelectField('Muscle context', 'exercise-muscle', EXERCISE_MUSCLE_CONTEXT, current.muscleContext)}
+      ${renderTagsField('Limitations and recovery', 'exercise-limitations', EXERCISE_LIMITATIONS, current.limitations)}
+    `)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.exercise != null, lifestyleActionAttrs('save-exercise'), lifestyleActionAttrs('clear-exercise'))}`);
   openModalOverlay(overlay);
@@ -472,12 +505,15 @@ export function saveExercise() {
   const frequency = getSelectedOption('exercise-freq');
   const types = getSelectedTags('exercise-types');
   const intensity = getSelectedOption('exercise-intensity');
+  const duration = getSelectedOption('exercise-duration');
   const dailyMovement = getSelectedOption('exercise-movement');
+  const muscleContext = getSelectedOption('exercise-muscle');
+  const limitations = getSelectedTags('exercise-limitations');
   const note = getInputValue('ctx-note-input');
-  if (!frequency && types.length === 0 && !intensity && !dailyMovement && !note.trim()) {
+  if (!frequency && types.length === 0 && !intensity && !duration && !dailyMovement && !muscleContext && limitations.length === 0 && !note.trim()) {
     state.importedData.exercise = null;
   } else {
-    state.importedData.exercise = { frequency, types, intensity, dailyMovement, note: note.trim() };
+    state.importedData.exercise = { frequency, types, intensity, duration, dailyMovement, muscleContext, limitations, note: note.trim() };
   }
   saveContextAndRefresh('Exercise saved', 'exercise');
 }
@@ -494,11 +530,19 @@ export function clearExercise() {
 export function openStressEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openStressEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.stress || { level: null, sources: [], management: [], note: '' };
-  renderContextEditorModal(modal, 'Stress', 'Chronic stress elevates cortisol, disrupts thyroid, raises inflammation, and impairs immunity.', `
+  const current = state.importedData.stress || { level: null, duration: null, trend: null, sources: [], management: [], note: '' };
+  renderContextEditorModal(modal, 'Stress', 'Add only the stress patterns that feel relevant to your health context.', `
     ${renderSelectField('Stress level', 'stress-level', STRESS_LEVELS, current.level)}
-    ${renderTagsField('Sources', 'stress-sources', STRESS_SOURCES, current.sources)}
-    ${renderTagsField('Management', 'stress-mgmt', STRESS_MGMT, current.management)}
+    ${renderSelectField('Duration', 'stress-duration', STRESS_DURATION, current.duration)}
+    ${renderContextEditorSection('Sources and response', summarizeSection([
+      current.sources,
+      current.trend && `trend: ${current.trend}`,
+      current.management,
+    ], 'Optional sources, trend, and stress management'), `
+      ${renderTagsField('Sources', 'stress-sources', STRESS_SOURCES, current.sources)}
+      ${renderSelectField('Current trend', 'stress-trend', STRESS_TREND, current.trend)}
+      ${renderTagsField('Stress management (what helps)', 'stress-mgmt', STRESS_MGMT, current.management)}
+    `)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.stress != null, lifestyleActionAttrs('save-stress'), lifestyleActionAttrs('clear-stress'))}`);
   openModalOverlay(overlay);
@@ -506,13 +550,15 @@ export function openStressEditor() { if (!isContextEditorStylesheetLoaded()) ret
 
 export function saveStress() {
   const level = getSelectedOption('stress-level');
+  const duration = getSelectedOption('stress-duration');
+  const trend = getSelectedOption('stress-trend');
   const sources = getSelectedTags('stress-sources');
   const management = getSelectedTags('stress-mgmt');
   const note = getInputValue('ctx-note-input');
-  if (!level && sources.length === 0 && management.length === 0 && !note.trim()) {
+  if (!level && !duration && !trend && sources.length === 0 && management.length === 0 && !note.trim()) {
     state.importedData.stress = null;
   } else {
-    state.importedData.stress = { level, sources, management, note: note.trim() };
+    state.importedData.stress = { level, duration, trend, sources, management, note: note.trim() };
   }
   saveContextAndRefresh('Stress profile saved', 'stress');
 }
@@ -529,21 +575,30 @@ export function clearStress() {
 export function openLoveLifeEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLoveLifeEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.loveLife || { status: null, satisfaction: null, relationship: null, libido: null, frequency: null, orgasm: null, concerns: [], note: '' };
-  renderContextEditorModal(modal, 'Love Life', 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', `
+  const current = state.importedData.loveLife || { status: null, satisfaction: null, relationship: null, libido: null, libidoChange: null, frequency: null, orgasm: null, reproductiveGoals: [], concerns: [], note: '' };
+  renderContextEditorModal(modal, 'Love Life & Relationships', 'Private and optional. Share only what feels relevant to your health context.', `
     ${renderSelectField('Relationship status', 'love-status', LOVE_STATUS, current.status)}
     ${renderSelectField('Relationship quality', 'love-relationship', LOVE_RELATIONSHIP, current.relationship)}
     ${renderSelectField('Overall satisfaction', 'love-satisfaction', LOVE_SATISFACTION, current.satisfaction)}
-    <div class="ctx-editor-divider"></div>
-    ${renderSelectField('Libido', 'love-libido', LOVE_LIBIDO, current.libido)}
-    ${renderSelectField('Sexual frequency', 'love-frequency', LOVE_FREQUENCY, current.frequency)}
-    ${renderSelectField('Orgasm', 'love-orgasm', LOVE_ORGASM, current.orgasm)}
-    <div class="ctx-editor-divider"></div>
-    ${renderTagsField('Concerns', 'love-concerns', LOVE_CONCERNS.filter(c => {
-      if (state.profileSex === 'female' && c === 'erectile issues') return false;
-      if (state.profileSex === 'male' && c === 'vaginal dryness') return false;
-      return true;
-    }), current.concerns)}
+    ${renderContextEditorSection('Sexual health details', summarizeSection([
+      current.libido ? `${current.libido} libido` : '',
+      current.libidoChange && `libido ${current.libidoChange}`,
+      current.frequency,
+      current.orgasm ? `orgasm: ${current.orgasm}` : '',
+      current.reproductiveGoals,
+      current.concerns,
+    ], 'Private and optional'), `
+      ${renderSelectField('Libido', 'love-libido', LOVE_LIBIDO, current.libido)}
+      ${renderSelectField('Change from usual', 'love-libido-change', LOVE_LIBIDO_CHANGE, current.libidoChange)}
+      ${renderSelectField('Sexual frequency', 'love-frequency', LOVE_FREQUENCY, current.frequency)}
+      ${renderSelectField('Orgasm', 'love-orgasm', LOVE_ORGASM, current.orgasm)}
+      ${renderTagsField('Reproductive goals', 'love-reproductive-goals', LOVE_REPRODUCTIVE_GOALS, current.reproductiveGoals)}
+      ${renderTagsField('Concerns', 'love-concerns', LOVE_CONCERNS.filter(c => {
+        if (state.profileSex === 'female' && c === 'erectile issues') return false;
+        if (state.profileSex === 'male' && c === 'vaginal dryness') return false;
+        return true;
+      }), current.concerns)}
+    `)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.loveLife != null, lifestyleActionAttrs('save-love-life'), lifestyleActionAttrs('clear-love-life'))}`);
   openModalOverlay(overlay);
@@ -554,14 +609,16 @@ export function saveLoveLife() {
   const relationship = getSelectedOption('love-relationship');
   const satisfaction = getSelectedOption('love-satisfaction');
   const libido = getSelectedOption('love-libido');
+  const libidoChange = getSelectedOption('love-libido-change');
   const frequency = getSelectedOption('love-frequency');
   const orgasm = getSelectedOption('love-orgasm');
+  const reproductiveGoals = getSelectedTags('love-reproductive-goals');
   const concerns = getSelectedTags('love-concerns');
   const note = getInputValue('ctx-note-input');
-  if (!status && !relationship && !satisfaction && !libido && !frequency && !orgasm && concerns.length === 0 && !note.trim()) {
+  if (!status && !relationship && !satisfaction && !libido && !libidoChange && !frequency && !orgasm && reproductiveGoals.length === 0 && concerns.length === 0 && !note.trim()) {
     state.importedData.loveLife = null;
   } else {
-    state.importedData.loveLife = { status, relationship, satisfaction, libido, frequency, orgasm, concerns, note: note.trim() };
+    state.importedData.loveLife = { status, relationship, satisfaction, libido, libidoChange, frequency, orgasm, reproductiveGoals, concerns, note: note.trim() };
   }
   saveContextAndRefresh('Love life saved', 'loveLife');
 }
@@ -578,27 +635,45 @@ export function clearLoveLife() {
 export function openEnvironmentEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openEnvironmentEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.environment || { setting: null, climate: null, water: null, waterConcerns: [], emf: [], emfMitigation: [], homeLight: null, air: [], toxins: [], building: null, note: '' };
+  const current = state.importedData.environment || { setting: null, climate: null, altitude: null, inhaledExposures: [], occupationalExposures: [], water: null, waterConcerns: [], emf: [], emfMitigation: [], homeLight: null, air: [], toxins: [], building: null, note: '' };
   const hasEMFAssessment = getEMFAssessments().length > 0;
-  renderContextEditorModal(modal, 'Environment', 'Your environment shapes your biology — water quality, EMF, light, air, and toxin exposure directly impact mitochondria, inflammation, and hormone function.', `
+  renderContextEditorModal(modal, 'Environment & Exposures', 'Your location, air, water, work, and home environment can add context to health and lab patterns.', `
     ${renderSelectField('Living setting', 'env-setting', ENV_SETTING, current.setting)}
     ${renderSelectField('Climate', 'env-climate', ENV_CLIMATE, current.climate)}
-    <div class="ctx-editor-divider"></div>
-    ${renderSelectField('Primary water source', 'env-water', ENV_WATER, current.water)}
-    ${renderTagsField('Water concerns', 'env-water-concerns', ENV_WATER_CONCERNS, current.waterConcerns)}
-    <div class="ctx-editor-divider"></div>
-    <div class="ctx-field-group">
-      <label class="ctx-field-label">EMF</label>
-      ${renderEMFAssessmentLauncher({ inModal: true, surface: 'environment-editor' })}
-    </div>
-    ${hasEMFAssessment ? '' : `${renderTagsField('EMF exposure', 'env-emf', ENV_EMF, current.emf)}
-    ${renderTagsField('EMF mitigation', 'env-emf-mit', ENV_EMF_MITIGATION, current.emfMitigation)}`}
-    <div class="ctx-editor-divider"></div>
-    ${renderSelectField('Home/work lighting', 'env-light', ENV_HOME_LIGHT, current.homeLight)}
-    ${renderTagsField('Air quality', 'env-air', ENV_AIR, current.air)}
-    <div class="ctx-editor-divider"></div>
-    ${renderTagsField('Toxin exposure', 'env-toxins', ENV_TOXINS, current.toxins)}
-    ${renderSelectField('Building', 'env-building', ENV_BUILDING, current.building)}
+    ${renderSelectField('Altitude exposure', 'env-altitude', ENV_ALTITUDE, current.altitude)}
+    ${renderTagsField('Smoking and inhaled exposure', 'env-inhaled', ENV_INHALED_EXPOSURES, current.inhaledExposures)}
+    ${renderContextEditorSection('Work and hobby exposures', summarizeSection([
+      current.occupationalExposures,
+    ], 'Optional dusts, fumes, chemicals, metals, and radiation'), `
+      ${renderTagsField('Known exposures', 'env-occupational', ENV_OCCUPATIONAL_EXPOSURES, current.occupationalExposures)}
+    `)}
+    ${renderContextEditorSection('Water', summarizeSection([
+      current.water,
+      current.waterConcerns,
+    ], 'Optional source and concerns'), `
+      ${renderSelectField('Primary water source', 'env-water', ENV_WATER, current.water)}
+      ${renderTagsField('Water concerns', 'env-water-concerns', ENV_WATER_CONCERNS, current.waterConcerns)}
+    `)}
+    ${renderContextEditorSection('EMF', summarizeSection([
+      hasEMFAssessment ? `${getEMFAssessments().length} saved assessment${getEMFAssessments().length === 1 ? '' : 's'}` : '',
+      current.emf,
+      current.emfMitigation,
+    ], 'Optional exposure assessment'), `
+      <div class="ctx-field-group">${renderEMFAssessmentLauncher({ inModal: true, surface: 'environment-editor' })}</div>
+      ${hasEMFAssessment ? '' : `${renderTagsField('EMF exposure', 'env-emf', ENV_EMF, current.emf)}
+      ${renderTagsField('EMF mitigation', 'env-emf-mit', ENV_EMF_MITIGATION, current.emfMitigation)}`}
+    `)}
+    ${renderContextEditorSection('Home and exposures', summarizeSection([
+      current.homeLight,
+      current.air,
+      current.toxins,
+      current.building,
+    ], 'Optional lighting, air, toxins, and building'), `
+      ${renderSelectField('Home/work lighting', 'env-light', ENV_HOME_LIGHT, current.homeLight)}
+      ${renderTagsField('Air quality', 'env-air', ENV_AIR, current.air)}
+      ${renderTagsField('Toxin exposure', 'env-toxins', ENV_TOXINS, current.toxins)}
+      ${renderSelectField('Building', 'env-building', ENV_BUILDING, current.building)}
+    `)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.environment != null, lifestyleActionAttrs('save-environment'), lifestyleActionAttrs('clear-environment'))}`);
   openModalOverlay(overlay);
@@ -607,6 +682,9 @@ export function openEnvironmentEditor() { if (!isContextEditorStylesheetLoaded()
 export function saveEnvironment() {
   const setting = getSelectedOption('env-setting');
   const climate = getSelectedOption('env-climate');
+  const altitude = getSelectedOption('env-altitude');
+  const inhaledExposures = getSelectedTags('env-inhaled');
+  const occupationalExposures = getSelectedTags('env-occupational');
   const water = getSelectedOption('env-water');
   const waterConcerns = getSelectedTags('env-water-concerns');
   const hasEMFAssessment = state.importedData.emfAssessment?.assessments?.length > 0;
@@ -617,10 +695,10 @@ export function saveEnvironment() {
   const toxins = getSelectedTags('env-toxins');
   const building = getSelectedOption('env-building');
   const note = getInputValue('ctx-note-input');
-  if (!setting && !climate && !water && waterConcerns.length === 0 && emf.length === 0 && emfMitigation.length === 0 && !homeLight && air.length === 0 && toxins.length === 0 && !building && !note.trim()) {
+  if (!setting && !climate && !altitude && inhaledExposures.length === 0 && occupationalExposures.length === 0 && !water && waterConcerns.length === 0 && emf.length === 0 && emfMitigation.length === 0 && !homeLight && air.length === 0 && toxins.length === 0 && !building && !note.trim()) {
     state.importedData.environment = null;
   } else {
-    state.importedData.environment = { setting, climate, water, waterConcerns, emf, emfMitigation, homeLight, air, toxins, building, note: note.trim() };
+    state.importedData.environment = { setting, climate, altitude, inhaledExposures, occupationalExposures, water, waterConcerns, emf, emfMitigation, homeLight, air, toxins, building, note: note.trim() };
   }
   saveContextAndRefresh('Environment saved', 'environment');
 }
@@ -630,169 +708,18 @@ export function clearEnvironment() {
   saveContextAndRefresh('Environment cleared', 'environment');
 }
 
-// ═══════════════════════════════════════════════
-// HEALTH GOALS
-// ═══════════════════════════════════════════════
-
-export function openHealthGoalsEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openHealthGoalsEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
-  renderHealthGoalsModal(modal);
-  openModalOverlay(overlay);
-}
-
-export function renderHealthGoalsModal(modal) {
-  if (modal?.dataset) modal.dataset.syncRefreshKind = 'healthGoals';
-  const goals = state.importedData.healthGoals || [];
-  let html = '';
-  if (goals.length > 0) {
-    html += `<div class="goals-list">`;
-    for (let i = 0; i < goals.length; i++) {
-      const g = goals[i];
-      html += `<div class="goals-list-item">
-        <span class="goals-severity-badge severity-${g.severity}">${g.severity}</span>
-        <span class="goals-text">${escapeHTML(g.text)}</span>
-        <button class="goals-delete-btn" ${lifestyleActionAttrs('delete-health-goal', `data-lifestyle-index="${i}"`)} title="Remove">&times;</button>
-      </div>`;
-    }
-    html += `</div>`;
-  }
-  html += `<div class="ctx-field-group"><label class="ctx-field-label">Add goal</label>
-    <div class="goals-add-row">
-      <input type="text" class="ctx-note-input" id="goal-text-input" placeholder="e.g. Improve insulin sensitivity, Optimize thyroid function" style="flex:1">
-      <button class="import-btn import-btn-primary" ${lifestyleActionAttrs('add-health-goal')}>Add</button>
-    </div>
-    <div class="ctx-btn-group" id="goal-severity-select" style="margin-top:8px">
-      <button type="button" class="ctx-btn-option active" ${lifestyleActionAttrs('select-goal-severity')}>major</button>
-      <button type="button" class="ctx-btn-option" ${lifestyleActionAttrs('select-goal-severity')}>mild</button>
-      <button type="button" class="ctx-btn-option" ${lifestyleActionAttrs('select-goal-severity')}>minor</button>
-    </div>
-  </div>
-  <div class="ctx-editor-actions">
-    <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-health-goals')}>Done</button>
-    ${goals.length > 0 ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${lifestyleActionAttrs('clear-health-goals')}>Clear All</button>` : ''}
-  </div>`;
-  renderContextEditorModal(modal, 'Health Goals', 'List things you want to solve or improve. The AI will prioritize analysis around your stated goals.', html);
-  setTimeout(() => {
-    const input = getTextInput('goal-text-input');
-    if (input) input.focus();
-  }, 50);
-}
-
-export function addHealthGoal() {
-  const input = getTextInput('goal-text-input');
-  const severity = getSelectedOption('goal-severity-select') || 'major';
-  const text = input ? input.value.trim() : '';
-  if (!text) return;
-  appendImportedArrayItem(state.importedData, 'healthGoals', { text, severity, updatedAt: Date.now() });
-  recordContextChange('healthGoals');
-  saveImportedData();
-  renderHealthGoalsModal(document.getElementById("detail-modal"));
-}
-
-export function deleteHealthGoal(idx) {
-  if (!state.importedData.healthGoals) return;
-  deleteImportedArrayItem(state.importedData, 'healthGoals', idx);
-  recordContextChange('healthGoals');
-  saveImportedData();
-  renderHealthGoalsModal(document.getElementById("detail-modal"));
-}
-
-export function closeHealthGoals() {
-  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
-  if ((state.importedData.healthGoals || []).length > 0) showNotification('Health goals saved', 'success');
-}
-
-export function clearHealthGoals() {
-  clearImportedArray(state.importedData, 'healthGoals');
-  recordContextChange('healthGoals');
-  saveImportedData();
-  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
-  showNotification('Health goals cleared', 'info');
-}
-
-// ═══════════════════════════════════════════════
-// INTERPRETIVE LENS
-// ═══════════════════════════════════════════════
-
-export function openInterpretiveLensEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openInterpretiveLensEditor);
-  const modal = document.getElementById("detail-modal"), overlay = document.getElementById("modal-overlay");
-  if (!modal || !overlay) return;
-  const current = state.importedData.interpretiveLens || '';
-  renderContextEditorModal(modal, 'Interpretive Lens', 'List researchers, clinicians, or scientific paradigms whose frameworks you follow. The AI will consider their perspectives when interpreting your results.', `
-    <textarea class="note-editor" id="interpretive-lens-textarea" placeholder="e.g. Longevity medicine, quantum biology, functional endocrinology framework...">${escapeHTML(current)}</textarea>
-    <div class="ctx-editor-actions">
-      <button class="import-btn import-btn-primary" ${lifestyleActionAttrs('save-interpretive-lens')}>Save</button>
-      <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-modal')}>Cancel</button>
-      ${current ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${lifestyleActionAttrs('clear-interpretive-lens')}>Clear</button>` : ''}
-    </div>`);
-  modal.querySelector('.gb-modal-head')?.insertAdjacentHTML('afterbegin',
-    `<button type="button" class="context-back-btn" ${lifestyleActionAttrs('back-to-context')} aria-label="Back to Context" title="Back to Context"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>`);
-  openModalOverlay(overlay);
-  setTimeout(() => {
-    const ta = getTextInput('interpretive-lens-textarea');
-    if (ta) ta.focus();
-  }, 50);
-}
-
-export function saveInterpretiveLens() {
-  const ta = getTextInput('interpretive-lens-textarea');
-  const text = ta ? ta.value.trim() : '';
-  state.importedData.interpretiveLens = text || '';
-  updateLifestyleChatHeaderModelRuntime();
-  recordContextChange('interpretiveLens');
-  saveImportedData();
-  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
-  showNotification(text ? 'Interpretive lens saved' : 'Interpretive lens cleared', 'success');
-}
-
-export function clearInterpretiveLens() {
-  state.importedData.interpretiveLens = '';
-  updateLifestyleChatHeaderModelRuntime();
-  recordContextChange('interpretiveLens');
-  saveImportedData();
-  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
-  showNotification('Interpretive lens cleared', 'info');
-}
-
-// ── Diet contaminant detail modal ──
-export function showDietContaminantsModal() {
-  const warnings = scanDietForContaminants(state.importedData.diet);
-  if (warnings.length === 0) return;
-  const modal = document.getElementById('detail-modal'), overlay = document.getElementById('modal-overlay');
-  if (!modal || !overlay) return;
-  const pesticide = warnings.filter(w => w.type === 'pesticide');
-  const plastic = warnings.filter(w => w.type === 'plastic');
-  const clean = warnings.filter(w => w.type === 'clean');
-  let html = `<button class="modal-close" ${lifestyleActionAttrs('close-modal')}>&times;</button>
-    <h3>Food Contaminant Signals</h3>
-    <div class="modal-unit">Based on foods mentioned in your diet card, cross-referenced against public contaminant databases.</div>`;
-  if (pesticide.length > 0) {
-    html += `<div class="contaminant-section"><div class="contaminant-section-title">\uD83E\uDD6C Pesticide Residues</div>`;
-    for (const w of pesticide) {
-      html += `<div class="contaminant-detail-item">\u26A0\uFE0F ${escapeHTML(w.warning)} <a href="${escapeHTML(w.url)}" target="_blank" rel="noopener">${escapeHTML(w.source)}</a></div>`;
-    }
-    html += `</div>`;
-  }
-  if (plastic.length > 0) {
-    html += `<div class="contaminant-section"><div class="contaminant-section-title">\uD83E\uDDF4 Plastic Chemicals</div>`;
-    for (const w of plastic) {
-      html += `<div class="contaminant-detail-item">\u26A0\uFE0F ${escapeHTML(w.warning)} <a href="${escapeHTML(w.url)}" target="_blank" rel="noopener">${escapeHTML(w.source)}</a></div>`;
-    }
-    html += `</div>`;
-  }
-  if (clean.length > 0) {
-    html += `<div class="contaminant-section"><div class="contaminant-section-title">\u2705 Low Contamination</div>`;
-    for (const w of clean) {
-      html += `<div class="contaminant-detail-item">${escapeHTML(w.warning)} <a href="${escapeHTML(w.url)}" target="_blank" rel="noopener">${escapeHTML(w.source)}</a></div>`;
-    }
-    html += `</div>`;
-  }
-  html += `<div class="contaminant-actions">
-    <button class="import-btn import-btn-primary" ${lifestyleActionAttrs('discuss-diet-contaminants')}>Discuss with AI</button>
-    <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-modal')}>Close</button>
-  </div>
-  <div class="contaminant-attribution">Sources: <a href="https://www.ewg.org/foodnews/" target="_blank" rel="noopener">EWG Shopper's Guide 2025</a> · <a href="https://www.plasticlist.org/report" target="_blank" rel="noopener">PlasticList</a></div>`;
-  modal.innerHTML = html;
-  openModalOverlay(overlay);
-}
+export {
+  addHealthGoal,
+  clearHealthGoals,
+  clearInterpretiveLens,
+  clearLightCircadian,
+  closeHealthGoals,
+  deleteHealthGoal,
+  openHealthGoalsEditor,
+  openInterpretiveLensEditor,
+  openLightCircadianEditor,
+  renderHealthGoalsModal,
+  saveInterpretiveLens,
+  saveLightCircadian,
+  showDietContaminantsModal,
+};

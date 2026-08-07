@@ -128,6 +128,15 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog gives a readable overview of the redesigned health context release',
+  /version:\s*'1\.12\.0'[\s\S]{0,500}A completely redesigned health context/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,1600}redesigned from the ground up/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,2200}questions are more useful and more complete/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,2800}stay in control of how much you add/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,3600}easier to interpret over time/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,4400}Both demo profiles have been rebuilt/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,5200}Demo AI is safer and more flexible/.test(changelogSrc)
+    && /version:\s*'1\.12\.0'[\s\S]{0,5400}paid AI is only used after clear permission/.test(changelogSrc));
 assert('latest changelog gives a simple cross-device sync overview',
   /version:\s*'1\.11\.7'[\s\S]{0,500}More reliable cross-device sync/.test(changelogSrc)
     && /version:\s*'1\.11\.7'[\s\S]{0,1200}Sync uses less storage/.test(changelogSrc)

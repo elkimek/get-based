@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
+import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 
 /** @typedef {{
  * rollingChannelTotals: null | ((days?: number) => any),
@@ -176,34 +177,36 @@ export function getProfileAgeYears(date = new Date()) {
 }
 
 export function getBiologyProfileContext(options = {}) {
-  const data = /** @type {{diagnoses?: any, supplements?: Array<any>, exercise?: any, sleepRest?: any, lightCircadian?: any, stress?: any, diet?: any, environment?: any, healthGoals?: Array<any>, menstrualCycle?: any, contextNotes?: string, interpretiveLens?: string, genetics?: any, wearableSummary?: any, biologyScoreContextSettings?: any, sunSessions?: Array<any>, deviceSessions?: Array<any>, lightMeasurements?: Array<any>, sunDefaults?: any}} */ (state.importedData || {});
+  const data = /** @type {{diagnoses?: any, supplements?: Array<any>, exercise?: any, sleepRest?: any, lightCircadian?: any, stress?: any, diet?: any, loveLife?: any, environment?: any, healthGoals?: Array<any>, menstrualCycle?: any, contextNotes?: string, interpretiveLens?: string, genetics?: any, wearableSummary?: any, biologyScoreContextSettings?: any, sunSessions?: Array<any>, deviceSessions?: Array<any>, lightMeasurements?: Array<any>, sunDefaults?: any}} */ (state.importedData || {});
   const includeInsightCards = profileContextSetting(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, true, options.ignoreContextToggles);
   const includeSupplementsMeds = profileContextSetting(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, true, options.ignoreContextToggles);
-  const diagnoses = /** @type {{conditions?: Array<{name?: string, note?: string, severity?: string}>, note?: string, flags?: Record<string, boolean>}} */ (includeInsightCards ? (data.diagnoses || {}) : {});
+  const diagnoses = /** @type {{conditions?: Array<{name?: string, note?: string, severity?: string, status?: string}>, familyHistory?: Array<{relative?: string, condition?: string, onsetAge?: number, note?: string}>, proceduresNote?: string, note?: string, flags?: Record<string, boolean>}} */ (includeInsightCards ? (data.diagnoses || {}) : {});
   const conditions = Array.isArray(diagnoses.conditions) ? diagnoses.conditions : [];
   const flags = /** @type {Record<string, boolean>} */ (diagnoses.flags || {});
-  const conditionText = conditions.map(c => `${c?.name || ''} ${c?.note || ''} ${c?.severity || ''}`).join(' ');
+  const conditionText = conditions.map(c => `${c?.name || ''} ${c?.note || ''} ${c?.severity || ''} ${c?.status || ''}`).join(' ');
   const supplements = includeSupplementsMeds && Array.isArray(data.supplements) ? data.supplements.map(s => `${s?.name || ''} ${s?.note || s?.notes || ''} ${s?.type || ''}`).join(' ') : '';
   const exercise = includeInsightCards ? (data.exercise || {}) : {};
   const sleepRest = includeInsightCards ? (data.sleepRest || {}) : {};
   const stress = includeInsightCards ? (data.stress || {}) : {};
   const diet = includeInsightCards ? (data.diet || {}) : {};
+  const loveLife = includeInsightCards ? (data.loveLife || {}) : {};
   const environment = includeInsightCards ? (data.environment || {}) : {};
   const light = collectLightModifiers(data, options);
   const lightCircadian = light.includeLight ? (data.lightCircadian || {}) : {};
-  const healthGoalsText = includeInsightCards && Array.isArray(data.healthGoals) ? data.healthGoals.map(g => typeof g === 'object' ? `${g?.goal || g?.name || ''} ${g?.priority || ''} ${g?.note || ''}` : String(g || '')).join(' ') : '';
-  const exerciseText = `${exercise.frequency || ''} ${exercise.intensity || ''} ${exercise.activityLevel || ''} ${exercise.trainingLoad || ''} ${(exercise.types || []).join(' ')} ${exercise.note || exercise.notes || ''}`;
-  const sleepText = `${sleepRest.quality || ''} ${sleepRest.duration || ''} ${sleepRest.schedule || ''} ${sleepRest.notes || sleepRest.note || ''}`;
-  const lightText = `${lightCircadian.morningLight || ''} ${lightCircadian.daylight || ''} ${lightCircadian.eveningLight || ''} ${lightCircadian.screenUse || ''} ${lightCircadian.notes || lightCircadian.note || ''}`;
-  const stressText = `${stress.level || ''} ${stress.workload || ''} ${stress.recovery || ''} ${stress.notes || stress.note || ''}`;
-  const dietText = `${diet.type || ''} ${diet.pattern || ''} ${(diet.restrictions || []).join(' ')} ${diet.notes || diet.note || ''}`;
-  const environmentText = `${environment.sun || ''} ${environment.outdoorTime || ''} ${environment.toxins || ''} ${environment.notes || environment.note || ''}`;
+  const healthGoalsText = includeInsightCards && Array.isArray(data.healthGoals) ? sortHealthGoalsByPriority(data.healthGoals).map(g => typeof g === 'object' ? `${g?.text || g?.goal || g?.name || ''} ${g?.severity || g?.priority || ''} ${g?.note || ''}` : String(g || '')).join(' ') : '';
+  const exerciseText = `${exercise.frequency || ''} ${exercise.intensity || ''} ${exercise.duration || ''} ${exercise.dailyMovement || ''} ${exercise.muscleContext || ''} ${exercise.activityLevel || ''} ${exercise.trainingLoad || ''} ${(exercise.types || []).join(' ')} ${(exercise.limitations || []).join(' ')} ${exercise.note || exercise.notes || ''}`;
+  const sleepText = `${sleepRest.quality || ''} ${sleepRest.duration || ''} ${sleepRest.daytimeSleepiness || ''} ${sleepRest.apneaStatus || ''} ${sleepRest.papUse || ''} ${sleepRest.naps || ''} ${sleepRest.schedule || ''} ${sleepRest.roomTemp || ''} ${(sleepRest.issues || []).join(' ')} ${(sleepRest.environment || []).join(' ')} ${(sleepRest.practices || []).join(' ')} ${sleepRest.notes || sleepRest.note || ''}`;
+  const lightText = `${lightCircadian.amLight || lightCircadian.morningLight || ''} ${lightCircadian.daytime || lightCircadian.daylight || ''} ${lightCircadian.uvExposure || ''} ${(lightCircadian.evening || []).join(' ')} ${lightCircadian.eveningLight || ''} ${lightCircadian.screenTime || lightCircadian.screenUse || ''} ${(lightCircadian.techEnv || []).join(' ')} ${lightCircadian.cold || ''} ${lightCircadian.grounding || ''} ${(lightCircadian.mealTiming || []).join(' ')} ${lightCircadian.notes || lightCircadian.note || ''}`;
+  const stressText = `${stress.level || ''} ${stress.duration || ''} ${stress.trend || ''} ${stress.workload || ''} ${stress.recovery || ''} ${(stress.sources || []).join(' ')} ${(stress.management || []).join(' ')} ${stress.notes || stress.note || ''}`;
+  const dietText = `${diet.type || ''} ${diet.pattern || ''} ${diet.proteinIntake || ''} ${diet.hydration || ''} ${diet.alcohol || ''} ${diet.caffeine || ''} ${diet.caffeineTiming || ''} ${(diet.recentChanges || []).join(' ')} ${(diet.restrictions || []).join(' ')} ${diet.breakfast || ''} ${diet.lunch || ''} ${diet.dinner || ''} ${diet.snacks || ''} ${diet.bowelFrequency || ''} ${diet.stoolConsistency || ''} ${diet.bloating || ''} ${diet.gas || ''} ${diet.acidReflux || ''} ${diet.burping || ''} ${diet.nausea || ''} ${diet.appetite || ''} ${diet.abdominalPain || ''} ${(diet.foodSensitivities || []).join(' ')} ${diet.notes || diet.note || ''}`;
+  const loveLifeText = `${loveLife.status || ''} ${loveLife.relationship || ''} ${loveLife.satisfaction || ''} ${loveLife.libido || ''} ${loveLife.libidoChange || ''} ${loveLife.frequency || ''} ${loveLife.orgasm || ''} ${(loveLife.reproductiveGoals || []).join(' ')} ${(loveLife.concerns || []).join(' ')} ${loveLife.notes || loveLife.note || ''}`;
+  const environmentText = `${environment.setting || ''} ${environment.climate || ''} ${environment.altitude || ''} ${(environment.inhaledExposures || []).join(' ')} ${(environment.occupationalExposures || []).join(' ')} ${environment.water || ''} ${(environment.waterConcerns || []).join(' ')} ${(environment.emf || []).join(' ')} ${(environment.emfMitigation || []).join(' ')} ${environment.homeLight || ''} ${(environment.air || []).join(' ')} ${(environment.toxins || []).join(' ')} ${environment.building || ''} ${environment.sun || ''} ${environment.outdoorTime || ''} ${environment.notes || environment.note || ''}`;
   const mc = includeInsightCards ? (data.menstrualCycle || null) : null;
   const menopauseStatus = flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null);
-  const notes = [diagnoses.note, includeInsightCards ? data.contextNotes : '', data.interpretiveLens, supplements, exerciseText, sleepText, lightText, stressText, dietText, environmentText, healthGoalsText].filter(Boolean).join(' ');
+  const notes = [conditionText, diagnoses.proceduresNote, diagnoses.note, includeInsightCards ? data.contextNotes : '', data.interpretiveLens, supplements, exerciseText, sleepText, lightText, stressText, dietText, loveLifeText, environmentText, healthGoalsText].filter(Boolean).join(' ');
   const genetic = collectGeneticModifiers(data, options);
   const body = collectBodyModifiers(data, options);
-  const allText = `${conditionText} ${notes}`;
+  const allText = notes;
   const lowMuscleMass = !!flags.lowMuscleMass || textMatchesAny(allText, LOW_MUSCLE_TERMS);
   const lightContextEnabled = light.includeLight !== false;
   const lowSunlightExposure = lightContextEnabled && (

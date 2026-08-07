@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 584 |
-| Internal import edges | 2516 |
+| Modules | 586 |
+| Internal import edges | 2533 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -56,17 +56,17 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 252 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
-| [`js/state.js`](js/state.js) | 174 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/utils.js`](js/utils.js) | 253 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
+| [`js/state.js`](js/state.js) | 175 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/data.js`](js/data.js) | 77 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 70 | [`js/settings.js`](js/settings.js) | 26 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 71 | [`js/settings.js`](js/settings.js) | 26 |
 | [`js/api.js`](js/api.js) | 65 | [`js/wearables-connect.js`](js/wearables-connect.js) | 25 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/chat-send.js`](js/chat-send.js) | 23 |
 | [`js/schema.js`](js/schema.js) | 34 | [`js/views.js`](js/views.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 31 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
-| [`js/constants.js`](js/constants.js) | 21 | [`js/export.js`](js/export.js) | 17 |
+| [`js/constants.js`](js/constants.js) | 22 | [`js/export.js`](js/export.js) | 17 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/lab-context.js`](js/lab-context.js) | 17 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 17 | [`js/sun.js`](js/sun.js) | 17 |
@@ -156,7 +156,7 @@ Native browser modules shipped with the static application.
 - [`js/biology-score-ai.js`](js/biology-score-ai.js) → [`js/api.js`](js/api.js)
 - [`js/biology-score-blood-flow.js`](js/biology-score-blood-flow.js) → [`js/biology-score-engine.js`](js/biology-score-engine.js), [`js/biology-score-profile-modifiers.js`](js/biology-score-profile-modifiers.js), [`js/profile-context.js`](js/profile-context.js)
 - [`js/biology-score-coherence.js`](js/biology-score-coherence.js) → [`js/biology-score-engine.js`](js/biology-score-engine.js)
-- [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/biology-score-copy.js`](js/biology-score-copy.js) → no in-scope imports
 - [`js/biology-score-coverage-planner.js`](js/biology-score-coverage-planner.js) → [`js/biology-score-engine.js`](js/biology-score-engine.js)
 - [`js/biology-score-engine.js`](js/biology-score-engine.js) → [`js/biology-score-profile-modifiers.js`](js/biology-score-profile-modifiers.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile-context.js`](js/profile-context.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -303,20 +303,21 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>context</code> family — 15 modules</summary>
+<details><summary><code>context</code> family — 16 modules</summary>
 
 - [`js/context-card-dashboard-ai-actions.js`](js/context-card-dashboard-ai-actions.js) → [`js/utils.js`](js/utils.js)
 - [`js/context-card-dashboard-ai-impl.js`](js/context-card-dashboard-ai-impl.js) → [`js/backup.js`](js/backup.js), [`js/context-card-dashboard-ai-runtime.js`](js/context-card-dashboard-ai-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-dashboard-ai-runtime.js`](js/context-card-dashboard-ai-runtime.js) → no in-scope imports
 - [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) → [`js/backup.js`](js/backup.js), [`js/context-card-dashboard-ai-actions.js`](js/context-card-dashboard-ai-actions.js), [`js/context-card-dashboard-ai-impl.js`](js/context-card-dashboard-ai-impl.js) *(dynamic)*, [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/lens.js`](js/lens.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/utils.js`](js/utils.js)
-- [`js/context-card-health-dots.js`](js/context-card-health-dots.js) → [`js/api.js`](js/api.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-health-dots.js`](js/context-card-health-dots.js) → [`js/api.js`](js/api.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/lab-context.js`](js/lab-context.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-card-lifestyle-special-editors.js`](js/context-card-lifestyle-special-editors.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js) → [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) *(dynamic)*, [`js/food-contaminants.js`](js/food-contaminants.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js)
-- [`js/context-card-medical-history-editor-impl.js`](js/context-card-medical-history-editor-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-lifestyle-special-editors.js`](js/context-card-lifestyle-special-editors.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-medical-history-editor-impl.js`](js/context-card-medical-history-editor-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js) → [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-medical-history-editor-impl.js`](js/context-card-medical-history-editor-impl.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
-- [`js/context-card-summaries.js`](js/context-card-summaries.js) → [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-summaries.js`](js/context-card-summaries.js) → [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-cards-runtime.js`](js/context-cards-runtime.js) → [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js)
 - [`js/context-cards.js`](js/context-cards.js) → [`js/api.js`](js/api.js), [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-health-dots.js`](js/context-card-health-dots.js), [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js), [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/data.js`](js/data.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-source-registry.js`](js/context-source-registry.js) → [`js/state.js`](js/state.js)
@@ -460,12 +461,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lab</code> family — 7 modules</summary>
+<details><summary><code>lab</code> family — 8 modules</summary>
 
+- [`js/lab-context-change-timeline.js`](js/lab-context-change-timeline.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-output.js`](js/lab-context-output.js)
 - [`js/lab-context-output.js`](js/lab-context-output.js) → [`js/data.js`](js/data.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
 - [`js/lab-context-settings.js`](js/lab-context-settings.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-context-wearables.js`](js/lab-context-wearables.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-store.js`](js/wearables-store.js)
-- [`js/lab-context.js`](js/lab-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-output.js`](js/lab-context-output.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/lab-context.js`](js/lab-context.js) → [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-change-timeline.js`](js/lab-context-change-timeline.js), [`js/lab-context-output.js`](js/lab-context-output.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-date-range.js`](js/lab-date-range.js) → no in-scope imports
 - [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js) → [`js/data-merge.js`](js/data-merge.js), [`js/lab-entry.js`](js/lab-entry.js)
 - [`js/lab-entry.js`](js/lab-entry.js) → no in-scope imports
@@ -681,7 +683,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>profile</code> family — 11 modules</summary>
 
-- [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/state.js`](js/state.js)
+- [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/state.js`](js/state.js)
 - [`js/profile-data-migrations.js`](js/profile-data-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/schema.js`](js/schema.js)
 - [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js) → [`js/adapters.js`](js/adapters.js)
 - [`js/profile-list-store.js`](js/profile-list-store.js) → [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)

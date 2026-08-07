@@ -182,10 +182,10 @@ try {
     assert('Profile Context does not mount data-protection setup pills',
       !/Protect your data|Enable encryption|Sync to other devices|Set up auto-backup/.test(html)
       && !/data-dashboard-ai-action="(open-data-protection-picker|enable-encryption|setup-sync|setup-backup)"/.test(html));
-    assert('Profile Context still renders the GP context cards',
-      /What your GP won't ask you/.test(html) && /profile-context-cards/.test(html));
+    assert('Profile Context still renders the personal context cards',
+      /Your health context/.test(html) && /profile-context-cards/.test(html));
     assert('Profile Context renderer does not prepend the Interpretive Lens surface',
-      /export function renderProfileContextCards\(\) \{[\s\S]{0,2200}What your GP won't ask you/.test(contextCardsSrc)
+      /export function renderProfileContextCards\(\) \{[\s\S]{0,3200}Your health context/.test(contextCardsSrc)
       && !/export function renderProfileContextCards\(\) \{[\s\S]{0,2200}renderInterpretiveLensSection\(\)/.test(contextCardsSrc));
   }
 

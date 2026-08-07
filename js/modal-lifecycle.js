@@ -198,6 +198,10 @@ export function openModalOverlay(overlayOrId, options = {}) {
     _overlayFocusTargets.set(overlay, activeElement);
   }
   overlay.classList.add(showClass);
+  if (!alreadyShown) {
+    const contextEditor = /** @type {HTMLElement | null} */ (overlay.querySelector('.ctx-editor-modal'));
+    if (contextEditor) contextEditor.scrollTop = 0;
+  }
   if (options.scrollLock === true) _acquireOverlayScrollLock(overlay);
 
   if (options.initialFocus) {

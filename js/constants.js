@@ -62,15 +62,42 @@ export const COMMON_CONDITIONS = [
 export const DIET_TYPES = ['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'low-carb', 'paleo', 'carnivore', 'mediterranean', 'other'];
 export const DIET_RESTRICTIONS = ['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'sugar-free', 'seed oil-free', 'low-sodium', 'low-FODMAP'];
 export const DIET_PATTERNS = ['3 meals/day', '2 meals/day', 'IF 16:8', 'IF 18:6', 'IF 20:4', 'OMAD', 'no pattern'];
+export const DIET_PROTEIN_INTAKE = ['<0.8 g/kg/day', '0.8–1.2 g/kg/day', '1.2–1.6 g/kg/day', '1.6–2.2 g/kg/day', '>2.2 g/kg/day', 'not sure'];
+export const DIET_HYDRATION = ['<1.5 L/day', '1.5–2 L/day', '2–3 L/day', '>3 L/day', 'varies / not sure'];
+export const DIET_ALCOHOL = ['none', 'occasional', '1-3 drinks/week', '4-7 drinks/week', '8+ drinks/week', 'binge episodes'];
+export const DIET_CAFFEINE = ['none', '1 serving/day', '2-3 servings/day', '4+ servings/day'];
+export const DIET_CAFFEINE_TIMING = ['morning only', 'afternoon', 'evening'];
+export const DIET_RECENT_CHANGES = ['calorie restriction', 'fasting more than usual', 'significant weight loss', 'significant weight gain', 'recent major diet change'];
 export const EXERCISE_FREQ = ['none', '1-2x/week', '3-4x/week', '5-6x/week', 'daily'];
-export const EXERCISE_TYPES = ['strength', 'cardio/running', 'cycling', 'swimming', 'yoga/mobility', 'walking', 'HIIT', 'sports', 'martial arts'];
+export const EXERCISE_TYPES = [
+  { value: 'strength', label: 'strength / resistance' },
+  'walking',
+  { value: 'cardio/running', label: 'running / jogging' },
+  'cycling',
+  'swimming',
+  { value: 'HIIT', label: 'HIIT / intervals' },
+  'yoga/mobility',
+  'Pilates',
+  'physiotherapy / rehab',
+  { value: 'sports', label: 'team / racket sports' },
+  'martial arts',
+  'dance',
+  'hiking',
+];
 export const EXERCISE_INTENSITY = ['light', 'moderate', 'intense', 'mixed'];
 export const DAILY_MOVEMENT = ['sedentary desk job', 'some walking', 'active job', 'very active'];
+export const EXERCISE_DURATION = ['<30 min', '30-60 min', '60-90 min', '90+ min'];
+export const EXERCISE_MUSCLE_CONTEXT = ['below-average muscle mass', 'average', 'muscular', 'bodybuilding / very muscular'];
+export const EXERCISE_LIMITATIONS = ['mobility limitation', 'current injury', 'chronic pain', 'poor recovery', 'overtraining concern'];
 export const SLEEP_DURATIONS = ['<5h', '5-6h', '6-7h', '7-8h', '8-9h', '9+h'];
 export const SLEEP_QUALITY = ['poor', 'fair', 'good', 'excellent'];
 export const SLEEP_SCHEDULE = ['consistent', 'somewhat variable', 'very irregular', 'shift work'];
 export const SLEEP_ROOM_TEMP = ['cold (<18°C / 65°F)', 'cool (18-20°C / 65-68°F)', 'neutral (20-22°C / 68-72°F)', 'warm (>22°C / 72°F)'];
-export const SLEEP_ISSUES = ['trouble falling asleep', 'waking at night', 'early waking', 'sleep apnea', 'snoring', 'restless legs', 'teeth grinding'];
+export const SLEEP_ISSUES = ['trouble falling asleep', 'waking at night', 'early waking', 'sleep apnea', 'snoring', 'witnessed breathing pauses', 'restless legs', 'teeth grinding'];
+export const SLEEP_DAYTIME_SLEEPINESS = ['rarely', 'sometimes', 'often', 'severe'];
+export const SLEEP_APNEA_STATUS = ['not suspected', 'suspected', 'diagnosed'];
+export const SLEEP_PAP_USE = ['not applicable', 'use consistently', 'use sometimes', 'prescribed, not using'];
+export const SLEEP_NAPS = ['none', 'occasional', 'most days'];
 export const SLEEP_ENVIRONMENT = ['blackout curtains', 'eye mask', 'no EMF (WiFi off)', 'grounding sheet', 'magnetico pad', 'white noise', 'earplugs', 'cool mattress'];
 export const SLEEP_PRACTICES = ['mouth taping', 'CPAP', 'weighted blanket', 'evening magnesium', 'no food 3h before bed', 'cold shower before bed', 'evening walk'];
 // Light & Circadian
@@ -87,17 +114,24 @@ export const LIGHT_MEAL_TIMING = ['eat within daylight only', 'early dinner (bef
 export const STRESS_LEVELS = ['low', 'moderate', 'high', 'chronic'];
 export const STRESS_SOURCES = ['work', 'financial', 'relationships', 'health', 'family', 'caregiving', 'loneliness', 'major life change'];
 export const STRESS_MGMT = ['meditation', 'therapy', 'exercise', 'nature', 'breathing exercises', 'journaling', 'social support', 'none'];
+export const STRESS_DURATION = ['recent (<1 month)', '1-6 months', '6-12 months', 'long-term (1+ year)'];
+export const STRESS_TREND = ['improving', 'stable', 'worsening', 'variable'];
 export const LOVE_STATUS = ['single', 'dating', 'in relationship', 'married', 'divorced/separated', 'widowed', 'it\'s complicated'];
 export const LOVE_SATISFACTION = ['very satisfied', 'satisfied', 'neutral', 'unsatisfied', 'not applicable'];
 export const LOVE_LIBIDO = ['high', 'normal', 'low', 'very low', 'variable'];
+export const LOVE_LIBIDO_CHANGE = ['unchanged', 'increased', 'decreased', 'variable'];
 export const LOVE_FREQUENCY = ['daily', 'few times/week', 'weekly', 'few times/month', 'monthly', 'rarely', 'none'];
 export const LOVE_ORGASM = ['consistently', 'usually', 'sometimes', 'rarely', 'never', 'not applicable'];
 export const LOVE_RELATIONSHIP = ['supportive & secure', 'mostly good', 'strained', 'conflicted', 'emotionally distant', 'codependent', 'new & exciting'];
 export const LOVE_CONCERNS = ['low desire', 'erectile issues', 'vaginal dryness', 'pain during sex', 'performance anxiety', 'mismatched libido', 'hormonal changes', 'medication side effects', 'body image', 'trust issues', 'communication problems'];
+export const LOVE_REPRODUCTIVE_GOALS = ['trying to conceive', 'fertility concerns', 'pregnancy planning'];
 export const ENV_SETTING = ['urban city center', 'urban residential', 'suburban', 'rural', 'near ocean/lake', 'mountain/altitude', 'island'];
 export const ENV_CLIMATE = ['tropical', 'dry/arid', 'temperate', 'cold/northern', 'Mediterranean', 'monsoon/humid'];
-export const ENV_WATER = ['spring water', 'well water', 'reverse osmosis', 'filtered (carbon)', 'tap water (unfiltered)', 'deuterium-depleted', 'distilled', 'bottled'];
-export const ENV_WATER_CONCERNS = ['fluoridated', 'chlorinated', 'hard water', 'unknown source quality'];
+export const ENV_ALTITUDE = ['low altitude / sea level', 'moderate altitude (1,500-2,500 m)', 'high altitude (>2,500 m)', 'frequent high-altitude travel'];
+export const ENV_INHALED_EXPOSURES = ['cigarette smoking', 'vaping / nicotine', 'secondhand smoke', 'wood / solid-fuel smoke'];
+export const ENV_OCCUPATIONAL_EXPOSURES = ['dusts or fumes', 'solvents', 'pesticides', 'heavy metals', 'asbestos or silica', 'radiation', 'industrial chemicals', 'biologic agents / mold'];
+export const ENV_WATER = ['spring water', 'glacier water', 'well water', 'reverse osmosis', 'filtered (carbon)', 'tap water (unfiltered)', 'deuterium-depleted', 'distilled', 'bottled'];
+export const ENV_WATER_CONCERNS = ['fluoridated', 'chlorinated', 'hard water', 'private well', 'lead concern', 'arsenic / nitrate concern', 'unknown source quality'];
 export const ENV_EMF = ['WiFi router in bedroom', 'WiFi router nearby', 'smart meter on home', 'cell tower <500m', 'cell tower <2km', 'Bluetooth always on', '5G dense area', 'high-voltage power lines nearby', 'dirty electricity (old wiring)', 'smart home devices'];
 export const ENV_EMF_MITIGATION = ['WiFi off at night', 'airplane mode sleep', 'wired ethernet', 'EMF meters used', 'faraday canopy', 'no smart meter', 'minimal Bluetooth'];
 
@@ -127,7 +161,7 @@ export const EMF_METER_PRESETS = [
   { name: 'GQ EMF-390', types: ['acElectric', 'acMagnetic', 'rfMicrowave'] },
 ];
 export const ENV_HOME_LIGHT = ['mostly LED lighting', 'incandescent bulbs', 'full-spectrum bulbs', 'fluorescent/CFL', 'natural daylight (large windows)', 'mixed lighting'];
-export const ENV_AIR = ['HEPA air purifier', 'open windows daily', 'houseplants', 'air quality monitor', 'near highway/traffic', 'industrial area nearby', 'wildfire smoke region', 'high pollen area'];
+export const ENV_AIR = ['HEPA air purifier', 'open windows daily', 'houseplants', 'air quality monitor', 'near highway/traffic', 'industrial area nearby', 'agricultural area / crop spraying nearby', 'wildfire smoke region', 'high pollen area', 'water damage / dampness'];
 export const ENV_TOXINS = ['mold exposure', 'heavy metals (lead/mercury)', 'pesticide exposure', 'plastic containers for food', 'non-stick cookware (PFAS)', 'conventional cleaning products', 'new car/furniture off-gassing', 'amalgam dental fillings', 'BPA/phthalate exposure', 'organic food mostly'];
 export const ENV_BUILDING = ['new construction (<5yr)', 'old building (pre-1970)', 'concrete/steel', 'wood frame', 'natural materials', 'carpet (VOCs)', 'hardwood/tile floors'];
 // Diet & Digestion

@@ -62,4 +62,19 @@ describe('profile context light dependencies', () => {
     expect(profileContextSource).not.toContain("from './sun-channel-metrics.js'");
     expect(sunSource).toContain('configureProfileContextLightDeps({ rollingChannelTotals, rollingVitaminDIU });');
   });
+
+  it('reads the current context-card schema for deterministic modifiers', () => {
+    state.importedData = {
+      ...state.importedData,
+      healthGoals: [{ text: 'Recover from low muscle mass', severity: 'major' }],
+      lightCircadian: { amLight: 'minimal sun', daytime: 'mostly indoors' },
+      loveLife: { note: 'Currently using hormone replacement therapy' },
+    };
+
+    const context = getBiologyProfileContext();
+
+    expect(context.lowMuscleMass).toBe(true);
+    expect(context.lowSunlightExposure).toBe(true);
+    expect(context.hormoneTherapy).toBe(true);
+  });
 });
