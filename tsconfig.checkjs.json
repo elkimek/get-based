@@ -536,6 +536,7 @@
     "js/settings-provider-bridge.js",
     "js/settings-sync-panel.js",
     "js/settings-sync-panel-impl.js",
+    "js/settings-sync-restore-ui.js",
     "js/settings-agent-access-panel.js",
     "js/settings-voice-hardware.js",
     "js/settings-voice-model-controller.js",
