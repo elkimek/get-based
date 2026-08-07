@@ -141,6 +141,9 @@ test('cold startup defers context editor presentation until a real editor opens'
 
 test('long context editors use accessible progressive disclosure on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const [{ state }, contextCards] = await Promise.all([
