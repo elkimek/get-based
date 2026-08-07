@@ -65,6 +65,7 @@ const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.j
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsTweaksSrc = fs.readFileSync(path.join(root, 'js/settings-tweaks.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
+const settingsSyncRestoreUiSrc = fs.readFileSync(path.join(root, 'js/settings-sync-restore-ui.js'), 'utf8');
 const serviceWorkerSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
 const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
@@ -191,12 +192,13 @@ assert('mobile sidebar uses shared scroll lock lifecycle helpers',
 
 assert('sync setup and restore dialogs use shared lifecycle helpers',
   settingsSyncPanelSrc.includes("from './modal-lifecycle.js'") &&
+    settingsSyncRestoreUiSrc.includes("from './modal-lifecycle.js'") &&
     settingsSyncPanelSrc.includes("openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action=\"setup-new\"]', focusDelay: 50 })") &&
-    settingsSyncPanelSrc.includes("openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 })") &&
+    settingsSyncRestoreUiSrc.includes("openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 })") &&
     (settingsSyncPanelSrc.match(/closeModalOverlay\('sync-setup-overlay'\)/g) || []).length >= 2 &&
-    settingsSyncPanelSrc.includes("closeModalOverlay('sync-restore-overlay')") &&
-    !settingsSyncPanelSrc.includes("overlay.classList.add('show')") &&
-    !settingsSyncPanelSrc.includes("overlay.classList.remove('show')"));
+    settingsSyncRestoreUiSrc.includes("closeModalOverlay('sync-restore-overlay')") &&
+    !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}`.includes("overlay.classList.add('show')") &&
+    !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}`.includes("overlay.classList.remove('show')"));
 
 assert('global focus trap top-overlay check includes confirm overlays',
   appEventsSrc.includes("'.modal-overlay.show, .confirm-overlay.show'"));

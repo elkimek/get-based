@@ -47,9 +47,10 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
         configurable: true,
         value: undefined,
       });
-      await lifecycle.enableSync();
+      const blockedEnableResult = await lifecycle.enableSync();
       outcomes.enableGuardShowsUnsupportedNotification =
-        notificationText().includes('Sync unavailable in this browser: navigator.locks not available');
+        blockedEnableResult === false
+        && notificationText().includes('Sync unavailable in this browser: navigator.locks not available');
       outcomes.enableGuardDoesNotPersistEnabled = localStorage.getItem(settings.SYNC_STORAGE_KEY) === null;
 
       if (hadOwnLocks && ownLocksDescriptor) {
@@ -67,14 +68,26 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
       runtime.setSyncReadyPromise(Promise.resolve());
       runtime.setSyncQueryLoadedPromise(Promise.resolve().then(() => { queryLoaded = true; }));
       syncUi.configureSyncUI({ isSyncEnabled: settings.isSyncEnabled });
-      await lifecycle.enableSync({ skipPush: true });
+      const successfulEnableResult = await lifecycle.enableSync({ skipPush: true });
 
-      outcomes.enableSuccessPersistsFlag = localStorage.getItem(settings.SYNC_STORAGE_KEY) === 'true';
+      outcomes.enableSuccessPersistsFlag = successfulEnableResult === true
+        && localStorage.getItem(settings.SYNC_STORAGE_KEY) === 'true';
       outcomes.enableSuccessClearsOwnerError = runtime.getSyncAppOwnerError() === null;
       outcomes.enableSuccessWaitsForQueryLoaded = queryLoaded;
       outcomes.enableSuccessShowsToast = notificationText().includes('Sync enabled');
       outcomes.enableSuccessRendersIndicator =
         !!document.getElementById('sync-indicator-slot')?.querySelector('#sync-indicator-btn');
+
+      settings.setSyncEnabled(false, { persist: false });
+      localStorage.removeItem(settings.SYNC_STORAGE_KEY);
+      document.getElementById('notification-container').innerHTML = '';
+      document.getElementById('sync-indicator-slot').innerHTML = '';
+      const provisionalEnableResult = await lifecycle.enableSync({ skipPush: true, persist: false });
+      outcomes.provisionalEnableStaysMemoryOnlyAndSilent = provisionalEnableResult === true
+        && settings.isSyncEnabled() === true
+        && localStorage.getItem(settings.SYNC_STORAGE_KEY) === null
+        && !notificationText().includes('Sync enabled')
+        && document.getElementById('sync-indicator-slot')?.innerHTML === '';
 
       document.getElementById('notification-container').innerHTML = '';
       syncState.updateSyncStatus({ push: 'pending', pull: 'pulling', relay: 'unreachable' });
@@ -137,7 +150,7 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
     }
     if (thrownError) throw thrownError;
 
-    outcomes.allLifecycleOutcomesReached = Object.keys(outcomes).length === 15;
+    outcomes.allLifecycleOutcomesReached = Object.keys(outcomes).length === 16;
     return outcomes;
   }, {
     lifecycleUrl: moduleUrl('/js/sync-lifecycle.js'),

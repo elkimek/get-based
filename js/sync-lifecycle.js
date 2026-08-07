@@ -18,16 +18,17 @@ import {
   setSyncAppOwnerError,
 } from './sync-runtime.js';
 
-/** @param {{ skipPush?: boolean }} [options] */
-export async function enableSync({ skipPush = false } = {}) {
+/** @param {{ skipPush?: boolean, persist?: boolean }} [options] */
+export async function enableSync({ skipPush = false, persist = true } = {}) {
   // Reject early if the webview can't actually run Evolu - no point flipping
   // the persisted flag and starting init only to time out at 30s.
   const blocker = getSyncBlocker();
   if (blocker) {
     showNotification(`Sync unavailable in this browser: ${blocker}`, 'error');
-    return;
+    return false;
   }
-  setSyncEnabled(true);
+  if (persist) setSyncEnabled(true);
+  else setSyncEnabled(true, { persist: false });
   setSyncAppOwnerError(null);
   await initSync();
   const readyPromise = getSyncReadyPromise();
@@ -36,7 +37,7 @@ export async function enableSync({ skipPush = false } = {}) {
     // load failure. Already logged by initSync; surface a toast so the user
     // doesn't sit staring at a Resolving... spinner.
     showNotification(`Sync failed to initialize. ${getSyncAppOwnerError() || 'Check console for [sync] errors.'}`, 'error');
-    return;
+    return false;
   }
   // Race the owner-resolution promise against a 30s ceiling. A stuck
   // OPFS handle or a Web Lock that never resolves can leave Evolu's
@@ -47,7 +48,7 @@ export async function enableSync({ skipPush = false } = {}) {
   if (result === '__timeout__' || !getSyncAppOwner()) {
     const reason = getSyncAppOwnerError() || 'Evolu owner did not resolve within 30s';
     showNotification(`Sync init failed: ${reason}`, 'error');
-    return;
+    return false;
   }
   const queryLoaded = getSyncQueryLoadedPromise();
   if (queryLoaded) {
@@ -58,8 +59,11 @@ export async function enableSync({ skipPush = false } = {}) {
     try { await forcePull(); } catch (e) { console.warn('[sync] initial pull failed:', e); }
     try { await pushAllProfiles(); } catch (e) { console.warn('[sync] initial push failed:', e); }
   }
-  showNotification('Sync enabled', 'success');
-  renderSyncIndicator();
+  if (persist) {
+    showNotification('Sync enabled', 'success');
+    renderSyncIndicator();
+  }
+  return true;
 }
 
 export async function disableSync() {

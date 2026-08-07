@@ -190,11 +190,12 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
   await openSyncInitPage(page, '/sync-init-success-browser-coverage', evoluBundleBody());
 
   const results = await page.evaluate(async ({ initUrl }) => {
-    const [init, runtime, settings, subscriptions] = await Promise.all([
+    const [init, runtime, settings, subscriptions, identity] = await Promise.all([
       import(initUrl),
       import('/js/sync-runtime.js'),
       import('/js/sync-settings-state.js'),
       import('/js/sync-subscriptions.js'),
+      import('/js/sync-identity.js'),
     ]);
     const outcomes = {};
     const original = {
@@ -215,6 +216,7 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
       settings.setSyncEnabled(true, { persist: false });
       localStorage.setItem('labcharts-debug', 'true');
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example/ws');
+      sessionStorage.setItem(identity.RESTORE_NOTICE_KEY, 'join');
       window.__syncInitTrace = { rows: [{ profileId: 'debug-profile' }] };
       init.configureSyncInit({
         reconcileLocalStorageWithEvolu: async () => {
@@ -264,6 +266,10 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
         && runtime.getSyncAppOwner()?.id === 'owner-init'
         && runtime.getSyncAppOwnerError() === null;
 
+      outcomes.restoreReloadShowsDurableJoinConfirmation =
+        document.getElementById('notification-container')?.textContent.includes('Joined existing sync identity') === true
+        && sessionStorage.getItem(identity.RESTORE_NOTICE_KEY) === null;
+
       outcomes.runsConfiguredReconciliationAfterReady = trace.reconciledCount === 1;
 
       outcomes.bindsSubscriptionsAndRelayProbe =
@@ -291,6 +297,7 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
       localStorage.removeItem(settings.SYNC_STORAGE_KEY);
       localStorage.removeItem('labcharts-debug');
       localStorage.removeItem('labcharts-sync-relay');
+      sessionStorage.removeItem(identity.RESTORE_NOTICE_KEY);
       delete window._syncDebug;
       delete window.__syncInitTrace;
       delete window.__syncInitResolveOwner;

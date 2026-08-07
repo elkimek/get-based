@@ -79,6 +79,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
     const hadQRCode = Object.prototype.hasOwnProperty.call(window, 'qrcode');
     const savedQRCode = window.qrcode;
     const savedSetTimeout = window.setTimeout;
+    const savedRestoreNotice = sessionStorage.getItem(identity.RESTORE_NOTICE_KEY);
     const savedBody = document.body.innerHTML;
     const savedScripts = Array.from(document.scripts).map(script => script.getAttribute('src')).filter(Boolean);
     const notifications = () => document.getElementById('notification-container')?.textContent || '';
@@ -98,7 +99,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
 
       outcomes.defaultInjectedDepsReturnEmpty = identity.getMnemonic() === null
         && identity.getMnemonicResolutionError() === null
-        && await identity.restoreFromMnemonic('missing evolu') === false;
+        && await identity.restoreFromMnemonic('missing evolu') === false
+        && notifications().includes('Sync is still starting');
 
       identity.configureSyncIdentity({
         getEvolu: () => ({ restoreAppOwner: async () => {} }),
@@ -109,7 +111,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
       outcomes.defaultSeedLocalDependencyIsCallable = defaultSeedResult === true
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
-        && notifications().includes('seeded this device');
+        && notifications().includes('seeded this device')
+        && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
 
       window.bip39 = { existing: true };
       outcomes.ensureBip39UsesExistingGlobal = await identity.ensureBip39() === window.bip39;
@@ -192,9 +195,10 @@ test('sync identity browser coverage handles libraries getters pending restore a
       });
 
       clearNotifications();
-      const joinResult = await identity.restoreFromMnemonic('join owner mnemonic');
+      const joinResult = await identity.restoreFromMnemonic('  JOIN   OWNER\nMNEMONIC  ');
       outcomes.restoreJoinClearsSyncStorageAndMarksPending = joinResult === true
         && restoreCalls[0] === 'join owner mnemonic'
+        && localStorage.getItem('labcharts-sync-enabled') === 'true'
         && seedCalls === 0
         && identity.isRestoreJoinPending() === true
         && cleanupKeysClearedByJoinRestore.every(key => localStorage.getItem(key) === null)
@@ -202,7 +206,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && localStorage.getItem(identity.RESTORE_JOIN_PENDING_KEY) !== 'remove-me'
         && localStorage.getItem('coverage-keep-key') === 'keep-me'
         && scheduledDelays.includes(500)
-        && notifications().includes('Restored from mnemonic');
+        && notifications().includes('Restored from mnemonic')
+        && identity.consumeSyncRestoreNotice()?.includes('Joined existing sync identity') === true;
 
       clearNotifications();
       scheduledDelays.length = 0;
@@ -212,7 +217,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && seedCalls === 1
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
-        && notifications().includes('seeded this device');
+        && notifications().includes('seeded this device')
+        && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
 
       clearNotifications();
       identity.configureSyncIdentity({
@@ -220,10 +226,13 @@ test('sync identity browser coverage handles libraries getters pending restore a
       });
       const failureResult = await identity.restoreFromMnemonic('bad mnemonic');
       outcomes.restoreFailureNotifiesAndReturnsFalse = failureResult === false
-        && notifications().includes('Invalid mnemonic');
+        && notifications().includes('Invalid mnemonic')
+        && identity.consumeSyncRestoreNotice() === null;
 
+      clearNotifications();
       identity.configureSyncIdentity({ getEvolu: () => null });
-      outcomes.restoreWithoutEvoluReturnsFalse = await identity.restoreFromMnemonic('missing evolu') === false;
+      outcomes.restoreWithoutEvoluReturnsFalse = await identity.restoreFromMnemonic('missing evolu') === false
+        && notifications().includes('Sync is still starting');
     } finally {
       window.setTimeout = savedSetTimeout;
       if (hadBip39) window.bip39 = savedBip39;
@@ -237,6 +246,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
         seedLocalProfiles: async () => {},
       });
       localStorage.clear();
+      if (savedRestoreNotice == null) sessionStorage.removeItem(identity.RESTORE_NOTICE_KEY);
+      else sessionStorage.setItem(identity.RESTORE_NOTICE_KEY, savedRestoreNotice);
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
       }
