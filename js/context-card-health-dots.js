@@ -11,7 +11,6 @@ import { trackUsage } from './schema.js';
 import { hashString, hasCardContent, showNotification } from './utils.js';
 
 const DOT_COLORS = ['green', 'yellow', 'red', 'gray'];
-const DEMO_LIVE_AI_STORAGE_SUFFIX = 'demoContextLiveAI';
 const PROVIDER_LABELS = {
   ollama: 'Local AI',
   openrouter: 'OpenRouter',
@@ -20,6 +19,8 @@ const PROVIDER_LABELS = {
   ppq: 'PPQ',
   custom: 'Custom provider',
 };
+/** @type {Map<string, { provider: string, modelId: string, enabledAt: number }>} */
+const demoLiveAIConsents = new Map();
 
 /** @type {{ buildLabContext: typeof buildLabContext, isActiveDemoProfile: () => boolean }} */
 const contextHealthDotDeps = {
@@ -45,30 +46,20 @@ export function isActiveDemoContextProfile() {
   return contextHealthDotDeps.isActiveDemoProfile();
 }
 
-function getDemoLiveAIStorageKey() {
-  return profileStorageKey(state.currentProfile, DEMO_LIVE_AI_STORAGE_SUFFIX);
+function getDemoLiveAIConsentKey() {
+  return String(state.currentProfile || '');
 }
 
 function readDemoLiveAIConsent() {
-  try {
-    return JSON.parse(localStorage.getItem(getDemoLiveAIStorageKey()) || 'null');
-  } catch (_) {
-    return null;
-  }
+  return demoLiveAIConsents.get(getDemoLiveAIConsentKey()) || null;
 }
 
 function clearDemoLiveAIConsent() {
-  try { localStorage.removeItem(getDemoLiveAIStorageKey()); } catch (_) {}
+  demoLiveAIConsents.delete(getDemoLiveAIConsentKey());
 }
 
 function clearAllDemoLiveAIConsent() {
-  try {
-    for (const profile of getProfiles()) {
-      if (Array.isArray(profile?.tags) && profile.tags.includes('demo')) {
-        localStorage.removeItem(profileStorageKey(profile.id, DEMO_LIVE_AI_STORAGE_SUFFIX));
-      }
-    }
-  } catch (_) {}
+  demoLiveAIConsents.clear();
 }
 
 if (typeof globalThis.addEventListener === 'function') {
@@ -113,14 +104,12 @@ export function getDemoContextAIMode() {
 
 export function enableDemoContextLiveAI() {
   const mode = getDemoContextAIMode();
-  if (!mode.demo || mode.local || !hasAIProvider()) return mode;
-  try {
-    localStorage.setItem(getDemoLiveAIStorageKey(), JSON.stringify({
-      provider: mode.provider,
-      modelId: mode.modelId,
-      enabledAt: Date.now(),
-    }));
-  } catch (_) {}
+  if (mode.mode !== 'paid-off' || !mode.provider) return mode;
+  demoLiveAIConsents.set(getDemoLiveAIConsentKey(), {
+    provider: mode.provider,
+    modelId: mode.modelId,
+    enabledAt: Date.now(),
+  });
   return getDemoContextAIMode();
 }
 

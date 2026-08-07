@@ -1089,6 +1089,10 @@ assert('Chart.js pointStyle per status', chartsSrc.includes('ptStyles') && chart
 
 const ctxSrc2 = read('js/context-cards.js');
 const ctxHealthDotsSrc = read('js/context-card-health-dots.js');
+const demoAIConsentSrc = ctxHealthDotsSrc.slice(
+  ctxHealthDotsSrc.indexOf('const demoLiveAIConsents'),
+  ctxHealthDotsSrc.indexOf('export function applyDotColor'),
+);
 assert('Health dots facade stays in context-cards', ctxSrc2.includes('loadContextHealthDotsImpl'));
 assert('Health dots have title attribute', ctxHealthDotsSrc.includes('dot.title'));
 assert('Health dots have aria-label', ctxHealthDotsSrc.includes("dot.setAttribute('aria-label'"));
@@ -1099,6 +1103,10 @@ assert('AI profile summaries share the cached health-dot batch',
 assert('AI profile summaries are constrained to reported facts',
   ctxHealthDotsSrc.includes("ONLY the person's explicitly reported information")
     && ctxHealthDotsSrc.includes('maximum 24 words and 160 characters'));
+assert('Paid demo AI consent is session-only and never stored in clear text',
+  demoAIConsentSrc.includes('new Map()')
+    && demoAIConsentSrc.includes('demoLiveAIConsents.set')
+    && !demoAIConsentSrc.includes('localStorage.'));
 
 assert('PDF report values have status prefix', reportSrc.includes('sPrefix'));
 
