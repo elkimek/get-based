@@ -186,24 +186,25 @@ const contextCards = await import('../js/context-cards.js');
   const ctxSrc = read('js/context-cards.js');
   const ctxMedicalSrc = read('js/context-card-medical-history-editor-impl.js');
   const ctxLifestyleSrc = read('js/context-card-lifestyle-editors-impl.js');
+  const ctxLifestyleSpecialSrc = read('js/context-card-lifestyle-special-editors.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
   assert('Diet passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Diet & Digestion saved', 'diet')"));
   assert('Exercise passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Exercise saved', 'exercise')"));
   assert('Sleep passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Sleep saved', 'sleepRest')"));
-  assert('Light passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Light & circadian saved', 'lightCircadian')"));
+  assert('Light passes field to saveAndRefresh', ctxLifestyleSpecialSrc.includes("saveContextAndRefresh('Light & circadian saved', 'lightCircadian')"));
   assert('Stress passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Stress profile saved', 'stress')"));
   assert('Love life passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Love life saved', 'loveLife')"));
   assert('Environment passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Environment saved', 'environment')"));
   assert('Diagnoses passes field to saveAndRefresh', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
 
   // ═══════════════════════════════════════
-  // 16. Inline save paths call recordChange
+  // 16. Direct persistence paths call recordChange
   // ═══════════════════════════════════════
-  console.log('16. Inline Save Paths');
+  console.log('16. Direct Persistence Paths');
 
-  assert('addCondition calls recordChange', ctxMedicalSrc.includes("recordContextChange('diagnoses')"));
-  assert('addHealthGoal calls recordChange', ctxLifestyleSrc.includes("recordContextChange('healthGoals')"));
-  assert('saveInterpretiveLens calls recordChange', ctxLifestyleSrc.includes("recordContextChange('interpretiveLens')"));
+  assert('Medical history draft records when saved', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
+  assert('addHealthGoal calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('healthGoals')"));
+  assert('saveInterpretiveLens calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('interpretiveLens')"));
   assert('debounceContextNotes calls recordChange', ctxSrc.includes("recordChange('contextNotes')"));
 
   const cycleSrc = read('js/cycle.js');

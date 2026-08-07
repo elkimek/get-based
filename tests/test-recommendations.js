@@ -155,7 +155,10 @@ const _realFetch = globalThis.fetch;
   const { createRecommendationActions } = await import('../js/recommendation-actions.js');
   const originalGetElementById = document.getElementById;
   const modalStub = { className: 'modal', innerHTML: '' };
-  const overlayStub = { classList: { add: () => {}, contains: () => false } };
+  const overlayStub = {
+    classList: { add: () => {}, contains: () => false },
+    querySelector: () => null,
+  };
   document.getElementById = (id) => id === 'detail-modal' ? modalStub : id === 'modal-overlay' ? overlayStub : null;
   createRecommendationActions({
     getActiveData: () => ({}),
