@@ -78,6 +78,17 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
       outcomes.enableSuccessRendersIndicator =
         !!document.getElementById('sync-indicator-slot')?.querySelector('#sync-indicator-btn');
 
+      settings.setSyncEnabled(false, { persist: false });
+      localStorage.removeItem(settings.SYNC_STORAGE_KEY);
+      document.getElementById('notification-container').innerHTML = '';
+      document.getElementById('sync-indicator-slot').innerHTML = '';
+      const provisionalEnableResult = await lifecycle.enableSync({ skipPush: true, persist: false });
+      outcomes.provisionalEnableStaysMemoryOnlyAndSilent = provisionalEnableResult === true
+        && settings.isSyncEnabled() === true
+        && localStorage.getItem(settings.SYNC_STORAGE_KEY) === null
+        && !notificationText().includes('Sync enabled')
+        && document.getElementById('sync-indicator-slot')?.innerHTML === '';
+
       document.getElementById('notification-container').innerHTML = '';
       syncState.updateSyncStatus({ push: 'pending', pull: 'pulling', relay: 'unreachable' });
       for (const key of cleanupKeys) localStorage.setItem(key, 'delete-me');
@@ -139,7 +150,7 @@ test('sync lifecycle browser coverage handles enable guards success and disable 
     }
     if (thrownError) throw thrownError;
 
-    outcomes.allLifecycleOutcomesReached = Object.keys(outcomes).length === 15;
+    outcomes.allLifecycleOutcomesReached = Object.keys(outcomes).length === 16;
     return outcomes;
   }, {
     lifecycleUrl: moduleUrl('/js/sync-lifecycle.js'),

@@ -29,7 +29,11 @@ async function openIsolatedSyncSetupPage(page) {
       const stub = window.__settingsSyncSetupStub;
       export function isSyncEnabled() { return !!stub.enabled; }
       export async function enableSync(options = {}) {
-        stub.calls.push({ fn: 'enableSync', skipPush: options.skipPush === true });
+        stub.calls.push({
+          fn: 'enableSync',
+          skipPush: options.skipPush === true,
+          persist: options.persist !== false,
+        });
         if (stub.enableResult === false) {
           stub.enabled = false;
           return false;
@@ -283,7 +287,9 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       await waitFor(() => window.__settingsSyncSetupStub.calls
         .filter(call => call.fn === 'restoreFromMnemonic').length >= 2, 'setup restore retry');
       outcomes.setupRestoreEnablesThrowawayIdentityThenRestores =
-        window.__settingsSyncSetupStub.calls.some(call => call.fn === 'enableSync' && call.skipPush === true)
+        window.__settingsSyncSetupStub.calls.some(call =>
+          call.fn === 'enableSync' && call.skipPush === true && call.persist === false
+        )
         && window.__settingsSyncSetupStub.calls.some(call => call.fn === 'restoreFromMnemonic' && call.mnemonic === mnemonic)
         && setupRestoreButton.textContent === 'Reloading…'
         && setupRestoreMessage?.textContent.includes('Identity accepted') === true;

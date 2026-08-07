@@ -198,6 +198,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
       const joinResult = await identity.restoreFromMnemonic('  JOIN   OWNER\nMNEMONIC  ');
       outcomes.restoreJoinClearsSyncStorageAndMarksPending = joinResult === true
         && restoreCalls[0] === 'join owner mnemonic'
+        && localStorage.getItem('labcharts-sync-enabled') === 'true'
         && seedCalls === 0
         && identity.isRestoreJoinPending() === true
         && cleanupKeysClearedByJoinRestore.every(key => localStorage.getItem(key) === null)

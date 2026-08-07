@@ -133,6 +133,20 @@ describe('sync lifecycle runtime behavior', () => {
     expect(deps.renderSyncIndicator).toHaveBeenCalled();
   });
 
+  it('initializes a provisional identity without persisting or announcing sync', async () => {
+    const deps = installLifecycleMocks();
+    const { enableSync } = await loadLifecycle();
+
+    const result = await enableSync({ skipPush: true, persist: false });
+
+    expect(result).toBe(true);
+    expect(deps.setSyncEnabled).toHaveBeenCalledWith(true, { persist: false });
+    expect(deps.forcePull).not.toHaveBeenCalled();
+    expect(deps.pushAllProfiles).not.toHaveBeenCalled();
+    expect(deps.showNotification).not.toHaveBeenCalledWith('Sync enabled', 'success');
+    expect(deps.renderSyncIndicator).not.toHaveBeenCalled();
+  });
+
   it('surfaces init failures without running initial data movement', async () => {
     const deps = installLifecycleMocks({
       getSyncEvolu: vi.fn(() => null),

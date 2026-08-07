@@ -2533,10 +2533,10 @@ await import('../js/settings.js');
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears delta snapshots',
-    /restoreFromMnemonic[\s\S]{0,1000}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    /restoreFromMnemonic[\s\S]{0,1500}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-delta-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears cutover flag',
-    /restoreFromMnemonic[\s\S]{0,1000}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    /restoreFromMnemonic[\s\S]{0,1500}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
 
   // Live: proto-pollution defence — verify a malicious key is rejected

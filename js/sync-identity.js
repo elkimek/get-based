@@ -6,6 +6,7 @@ import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
+import { setSyncEnabled } from './sync-settings-state.js';
 
 /** @typedef {{ id?: unknown, mnemonic?: string }} SyncAppOwner */
 /** @typedef {{ restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }} SyncEvolu */
@@ -187,6 +188,9 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
   try {
     await evolu.restoreAppOwner(normalizedMnemonic);
+    // First-time joins initialize Evolu provisionally. Persist sync only once
+    // the requested identity has actually been accepted.
+    setSyncEnabled(true);
     // sessionStorage survives the reload below. Locks created under the old
     // owner must not veto provider settings pulled from the restored owner.
     sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');

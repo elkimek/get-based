@@ -589,8 +589,9 @@ async function syncSetupDoRestore() {
   let restored = false;
   setSyncSetupRestoreBusy(true, 'Starting encrypted sync…');
   try {
-    // Enable sync (generates throwaway identity) then immediately restore
-    const enabled = await enableSync({ skipPush: true });
+    // Initialize a throwaway identity without persisting it. The restored
+    // identity becomes durable only after Evolu accepts the supplied seed.
+    const enabled = await enableSync({ skipPush: true, persist: false });
     if (enabled !== true) {
       throw new Error(getMnemonicResolutionError() || 'Sync could not initialize in this browser');
     }

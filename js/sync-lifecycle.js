@@ -18,8 +18,8 @@ import {
   setSyncAppOwnerError,
 } from './sync-runtime.js';
 
-/** @param {{ skipPush?: boolean }} [options] */
-export async function enableSync({ skipPush = false } = {}) {
+/** @param {{ skipPush?: boolean, persist?: boolean }} [options] */
+export async function enableSync({ skipPush = false, persist = true } = {}) {
   // Reject early if the webview can't actually run Evolu - no point flipping
   // the persisted flag and starting init only to time out at 30s.
   const blocker = getSyncBlocker();
@@ -27,7 +27,8 @@ export async function enableSync({ skipPush = false } = {}) {
     showNotification(`Sync unavailable in this browser: ${blocker}`, 'error');
     return false;
   }
-  setSyncEnabled(true);
+  if (persist) setSyncEnabled(true);
+  else setSyncEnabled(true, { persist: false });
   setSyncAppOwnerError(null);
   await initSync();
   const readyPromise = getSyncReadyPromise();
@@ -58,8 +59,10 @@ export async function enableSync({ skipPush = false } = {}) {
     try { await forcePull(); } catch (e) { console.warn('[sync] initial pull failed:', e); }
     try { await pushAllProfiles(); } catch (e) { console.warn('[sync] initial push failed:', e); }
   }
-  showNotification('Sync enabled', 'success');
-  renderSyncIndicator();
+  if (persist) {
+    showNotification('Sync enabled', 'success');
+    renderSyncIndicator();
+  }
   return true;
 }
 
