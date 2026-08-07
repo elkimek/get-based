@@ -71,8 +71,8 @@ function clearAllDemoLiveAIConsent() {
   } catch (_) {}
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-ai-settings-local-changed', clearAllDemoLiveAIConsent);
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('labcharts-ai-settings-local-changed', clearAllDemoLiveAIConsent);
 }
 
 export function getDemoContextAIMode() {
