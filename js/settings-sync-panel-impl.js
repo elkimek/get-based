@@ -427,11 +427,10 @@ export function showSyncSetupModal() {
       <div class="sync-setup-restore-actions">
         <button id="sync-setup-restore-go" class="import-btn import-btn-primary" style="flex:1;padding:8px 16px;font-size:13px" data-sync-setup-action="setup-do-restore" disabled>Join &amp; reload</button>
         <button id="sync-setup-restore-back" class="import-btn import-btn-secondary" style="padding:8px 16px;font-size:13px" data-sync-setup-action="setup-back">Back</button>
-        <button class="confirm-btn confirm-btn-cancel sync-setup-restore-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
       </div>
     </div>
     <div class="sync-setup-choice-footer" style="margin-top:16px;text-align:right">
-      <button class="confirm-btn confirm-btn-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
+      <button id="sync-setup-cancel" class="confirm-btn confirm-btn-cancel sync-setup-restore-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
     </div>
   </div>`;
   openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action="setup-new"]', focusDelay: 50 });
@@ -540,6 +539,9 @@ function syncSetupRestore() {
   const title = document.getElementById('sync-setup-title');
   if (title) title.textContent = 'Join existing sync';
   const choiceFooter = /** @type {HTMLElement | null} */ (document.querySelector('#sync-setup-overlay .sync-setup-choice-footer'));
+  const restoreActions = document.querySelector('#sync-setup-overlay .sync-setup-restore-actions');
+  const cancel = document.getElementById('sync-setup-cancel');
+  if (restoreActions && cancel) restoreActions.append(cancel);
   if (choiceFooter) choiceFooter.hidden = true;
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
   updateSyncSetupRestoreState(input);
@@ -557,6 +559,8 @@ function syncSetupBack() {
   const title = document.getElementById('sync-setup-title');
   if (title) title.textContent = 'Set up sync';
   const choiceFooter = /** @type {HTMLElement | null} */ (document.querySelector('#sync-setup-overlay .sync-setup-choice-footer'));
+  const cancel = document.getElementById('sync-setup-cancel');
+  if (choiceFooter && cancel) choiceFooter.append(cancel);
   if (choiceFooter) choiceFooter.hidden = false;
 }
 
