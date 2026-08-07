@@ -33,23 +33,33 @@
     },
     {
       "package": "@phala/dcap-qvl",
-      "version": "0.3.9",
-      "integrity": "sha512-s/4gAFVq1DRhYkuerDR9WAlX8tkCpFTHTVpWnWlrigj5la2X5OtQl9Y7PzwcqY4h0fc25yqZrcRH3AZpzB1qOw==",
+      "version": "0.6.1",
+      "integrity": "sha512-7PvdKq1CdOWKBSG5ha/343WUo2qcpsnv2/2QL+o3QxXtYA+qRAw7MbAmPZYsUM9f52lhsVKnoHXMCzBQhLBFHg==",
       "entry": "scripts/vendor-entries/venice-dcap.js",
       "output": "vendor/venice-dcap.js",
       "format": "es",
       "minified": true,
-      "sha256": "b6794c3fa08d82bcd6728ba15c4c3c3a348c8c17761c0fdf3146cd50185fd802"
+      "sha256": "6fc3091ea805be2b0528020b5badde14e6feabdec7a64f0bcb837812ad6ee7da"
     },
     {
       "package": "venice-e2ee",
-      "version": "0.4.1",
-      "integrity": "sha512-4NIEwT+vLWteVKCPpItmk9hPziDS8tjNzY1RG7qWzfAVjJOYcQz2JP1RGxm4t/hZ7Vnz7VEiatIh+e+h4opUPQ==",
+      "version": "0.5.1",
+      "integrity": "sha512-VHS5xXakBgkL5Nj1Im/gm45zfpFFYz0eOdMhfkgUJccDoo4rR+geLTwZIraLslnfgG6rjcafW2EL0G4N/kMtTg==",
+      "entry": "node_modules/venice-e2ee/dist/venice-e2ee.browser.js",
+      "output": "vendor/venice-e2ee.js",
+      "format": "es",
+      "minified": false,
+      "sha256": "aafcea55e95e3bf3577c96fd8a46a858025d0576c541e504e4040168f49a83a9"
+    },
+    {
+      "package": "venice-e2ee",
+      "version": "0.5.1",
+      "integrity": "sha512-VHS5xXakBgkL5Nj1Im/gm45zfpFFYz0eOdMhfkgUJccDoo4rR+geLTwZIraLslnfgG6rjcafW2EL0G4N/kMtTg==",
       "entry": "scripts/vendor-entries/venice-nvidia.js",
       "output": "vendor/venice-nvidia.js",
       "format": "es",
       "minified": true,
-      "sha256": "1396f69e0a1a5ae4163eba928e31bb0864b89a2d289217ce85e2d2f4c8ad9341"
+      "sha256": "161d0c6e6279ef77c23cdf800a6f5749c65bbbe10daad2f0d52ae97278008522"
     }
   ],
   "bundler": {

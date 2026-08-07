@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { p256 } from '@noble/curves/nist.js';
 
 import { ec as VerifyOnlyEC } from '../scripts/vendor-packages/elliptic-verify-only/index.js';
+import { createDcapVerifier } from '../vendor/venice-dcap.js';
 
 describe('Venice DCAP P-256 verification-only adapter', () => {
   it('accepts valid DER signatures and rejects tampered digests', () => {
@@ -26,5 +27,9 @@ describe('Venice DCAP P-256 verification-only adapter', () => {
 
     expect(verifier.sign).toBeUndefined();
     expect(() => new VerifyOnlyEC('secp256k1')).toThrow('Unsupported DCAP curve');
+  });
+
+  it('loads the bundled DCAP 0.6 verifier and reaches quote parsing', async () => {
+    await expect(createDcapVerifier()(new Uint8Array())).rejects.toThrow('Not enough data to fill buffer');
   });
 });

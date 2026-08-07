@@ -14,7 +14,7 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 | `qrcode-generator.js` | [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (Kazuhiko Arase) | 1.4.4 | MIT | https://opensource.org/licenses/mit-license.php |
 | `bip39-minimal.js` | Custom (BIP-39 wordlist is public domain) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `chartjs-adapter-native.js` | Custom (in-house Chart.js date adapter) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
-| `venice-e2ee.js`, `venice-nvidia.js` | [venice-e2ee](https://github.com/elkimek/venice-e2ee) (the main bundle includes `@noble/secp256k1` and `@noble/hashes`) | 0.4.1 | GPL-3.0-only; bundled noble libraries MIT | https://github.com/elkimek/venice-e2ee/blob/v0.4.1/LICENSE |
+| `venice-e2ee.js`, `venice-nvidia.js` | [venice-e2ee](https://github.com/elkimek/venice-e2ee) (the main bundle includes `@noble/secp256k1` and `@noble/hashes`) | 0.5.1 | GPL-3.0-only; bundled noble libraries MIT | https://github.com/elkimek/venice-e2ee/blob/v0.5.1/LICENSE |
 | `ppq-private-tee.js` | Custom (in-house PPQ adapter for Tinfoil's SecureClient) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `tinfoil-browser.js` | [Tinfoil JS](https://github.com/tinfoilsh/tinfoil-js) browser SecureClient bundle for PPQ and Routstr Private TEE modes | 1.1.12 | AGPL-3.0-or-later | https://github.com/tinfoilsh/tinfoil-js/blob/main/LICENSE |
 | `ehbp-browser.js` | [EHBP](https://github.com/tinfoilsh/encrypted-http-body-protocol) encrypted HTTP transport used by Tinfoil | 0.3.1 | MIT | https://github.com/tinfoilsh/encrypted-http-body-protocol/blob/main/LICENSE |

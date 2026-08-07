@@ -73,6 +73,7 @@ var M = (a, b = P) => {
   const r = a % b;
   return r >= 0n ? r : b + r;
 };
+var modN = (a) => M(a, N);
 var invert = (num, md) => {
   if (num === 0n || md <= 0n)
     err("no inverse n=" + num + " mod=" + md);
@@ -287,6 +288,9 @@ var G = new Point(Gx, Gy, 1n);
 var I = new Point(0n, 1n, 0n);
 Point.BASE = G;
 Point.ZERO = I;
+var doubleScalarMulUns = (R, u1, u2) => {
+  return G.multiply(u1, false).add(R.multiply(u2, false)).assertValidity();
+};
 var bytesToNumBE = (b) => big("0x" + (bytesToHex(b) || "0"));
 var sliceBytesNumBE = (b, from, to) => bytesToNumBE(b.subarray(from, to));
 var B256 = 2n ** 256n;
@@ -295,8 +299,109 @@ var toPrivScalar = (pr) => {
   const num = isBig(pr) ? pr : bytesToNumBE(toU8(pr, L));
   return arange(num, 1n, N, "private key invalid 3");
 };
+var highS = (n) => n > N >> 1n;
 var getPublicKey = (privKey, isCompressed = true) => {
   return G.multiply(toPrivScalar(privKey)).toBytes(isCompressed);
+};
+var Signature = class _Signature {
+  r;
+  s;
+  recovery;
+  constructor(r, s, recovery) {
+    this.r = agroup(r);
+    this.s = agroup(s);
+    if (recovery != null)
+      this.recovery = recovery;
+    Object.freeze(this);
+  }
+  /** Create signature from 64b compact (r || s) representation. */
+  static fromBytes(b) {
+    abytes(b, L2);
+    const r = sliceBytesNumBE(b, 0, L);
+    const s = sliceBytesNumBE(b, L, L2);
+    return new _Signature(r, s);
+  }
+  toBytes() {
+    const { r, s } = this;
+    return concatBytes(numTo32b(r), numTo32b(s));
+  }
+  /** Copy signature, with newly added recovery bit. */
+  addRecoveryBit(bit) {
+    return new _Signature(this.r, this.s, bit);
+  }
+  hasHighS() {
+    return highS(this.s);
+  }
+  toCompactRawBytes() {
+    return this.toBytes();
+  }
+  toCompactHex() {
+    return bytesToHex(this.toBytes());
+  }
+  recoverPublicKey(msg) {
+    return recoverPublicKey(this, msg);
+  }
+  static fromCompact(hex) {
+    return _Signature.fromBytes(toU8(hex, L2));
+  }
+  assertValidity() {
+    return this;
+  }
+  normalizeS() {
+    const { r, s, recovery } = this;
+    return highS(s) ? new _Signature(r, modN(-s), recovery) : this;
+  }
+};
+var bits2int = (bytes) => {
+  const delta = bytes.length * 8 - 256;
+  if (delta > 1024)
+    err("msg invalid");
+  const num = bytesToNumBE(bytes);
+  return delta > 0 ? num >> big(delta) : num;
+};
+var bits2int_modN = (bytes) => modN(bits2int(abytes(bytes)));
+var veriOpts = { lowS: true };
+var verify = (sig, msgh, pub, opts = veriOpts) => {
+  let { lowS } = opts;
+  if (lowS == null)
+    lowS = true;
+  if ("strict" in opts)
+    err("option not supported");
+  let sigg;
+  const rs = sig && typeof sig === "object" && "r" in sig;
+  if (!rs && toU8(sig).length !== L2)
+    err("signature must be 64 bytes");
+  try {
+    sigg = rs ? new Signature(sig.r, sig.s) : Signature.fromCompact(sig);
+    const h = bits2int_modN(toU8(msgh));
+    const P2 = Point.fromBytes(toU8(pub));
+    const { r, s } = sigg;
+    if (lowS && highS(s))
+      return false;
+    const is = invert(s, N);
+    const u1 = modN(h * is);
+    const u2 = modN(r * is);
+    const R = doubleScalarMulUns(P2, u1, u2).toAffine();
+    const v = modN(R.x);
+    return v === r;
+  } catch (error) {
+    return false;
+  }
+};
+var recoverPublicKey = (sig, msgh) => {
+  const { r, s, recovery } = sig;
+  if (![0, 1, 2, 3].includes(recovery))
+    err("recovery id invalid");
+  const h = bits2int_modN(toU8(msgh, L));
+  const radj = recovery === 2 || recovery === 3 ? r + N : r;
+  afield(radj);
+  const head = getPrefix(big(recovery));
+  const Rb = concatBytes(head, numTo32b(radj));
+  const R = Point.fromBytes(Rb);
+  const ir = invert(radj, N);
+  const u1 = modN(-h * ir);
+  const u2 = modN(s * ir);
+  return doubleScalarMulUns(R, u1, u2);
 };
 var getSharedSecret = (privA, pubB, isCompressed = true) => {
   return Point.fromBytes(toU8(pubB)).multiply(toPrivScalar(privA)).toBytes(isCompressed);
@@ -2124,6 +2229,35 @@ async function verifyEd25519(publicKey, signature, message) {
     message
   );
 }
+function recoverReceiptSigner(text, signatureHex) {
+  const clean2 = signatureHex.startsWith("0x") ? signatureHex.slice(2) : signatureHex;
+  if (clean2.length !== 130 || !/^[0-9a-f]+$/i.test(clean2)) {
+    throw new TypeError("Receipt signature must be 65 recoverable bytes of hex");
+  }
+  let recovery = Number.parseInt(clean2.slice(128, 130), 16);
+  if (recovery >= 27 && recovery <= 30) recovery -= 27;
+  if (recovery !== 0 && recovery !== 1) {
+    throw new TypeError(`Unsupported recovery id ${clean2.slice(128, 130)}`);
+  }
+  const message = new TextEncoder().encode(text);
+  const prefix = new TextEncoder().encode(`Ethereum Signed Message:
+${message.length}`);
+  const digest = keccak_256(new Uint8Array([...prefix, ...message]));
+  const signature = new Signature(
+    BigInt(`0x${clean2.slice(0, 64)}`),
+    BigInt(`0x${clean2.slice(64, 128)}`),
+    recovery
+  );
+  const publicKey = signature.recoverPublicKey(digest).toRawBytes(false);
+  return `0x${toHex(deriveEthAddress(toHex(publicKey)))}`;
+}
+function signedTextForReceipt(receipt, responseHashField) {
+  const request = exactlyOneEvent(receipt, "request.received")?.body_hash;
+  const response = exactlyOneEvent(receipt, "response.returned")?.[responseHashField];
+  if (typeof request !== "string" || typeof response !== "string") return null;
+  const strip = (hash) => hash.replace(/^sha256:/, "");
+  return `${strip(request)}:${strip(response)}`;
+}
 function exactlyOneEvent(receipt, type) {
   const matches = receipt.event_log.filter(
     (event) => event && typeof event === "object" && event.type === type
@@ -2282,7 +2416,492 @@ async function verifyReceipt(signatureResponse, attestation, options) {
       attestationAddress && signatureAddress && attestationAddress === signatureAddress ? void 0 : `${signatureAddress ?? "missing"} vs attestation ${attestationAddress ?? "missing"}`
     );
   }
+  const signedText = signatureResponse.text;
+  const topLevelSignature = signatureResponse.signature;
+  if (signedText !== void 0 || topLevelSignature !== void 0) {
+    const complete = typeof signedText === "string" && typeof topLevelSignature === "string";
+    add(
+      "top_level_signature_complete",
+      complete,
+      complete ? void 0 : "top-level receipt signature requires both text and signature strings"
+    );
+    if (!complete) {
+      return { verified: false, checks };
+    }
+    const expectedText = signedTextForReceipt(receipt, responseHashField);
+    add(
+      "signed_text_matches_receipt_hashes",
+      expectedText !== null && expectedText === signedText,
+      expectedText === null ? "receipt has no unambiguous request/response hash pair to compare" : expectedText === signedText ? void 0 : `signature covers "${signedText}", receipt hashes give "${expectedText}"`
+    );
+    if (!attestationAddress) {
+      add(
+        "signature_recovers_to_attested_key",
+        false,
+        "attestation carried no signing address to compare with the recovered signer"
+      );
+    } else {
+      try {
+        const recovered = recoverReceiptSigner(signedText, topLevelSignature).toLowerCase();
+        add(
+          "signature_recovers_to_attested_key",
+          recovered === attestationAddress,
+          recovered === attestationAddress ? void 0 : `recovered ${recovered}, attestation binds ${attestationAddress}`
+        );
+      } catch (error) {
+        add(
+          "signature_recovers_to_attested_key",
+          false,
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+  }
   return { verified: checks.length > 0 && checks.every((check) => check.ok), checks };
+}
+
+// src/aci.ts
+var ACI_REPORT_DATA_PURPOSE = "aci.report_data.v1";
+var ACI_KEYSET_ENDORSEMENT_PURPOSE = "aci.keyset.endorsement.v1";
+var ACI_ATTESTATION_PATH = "/v1/aci/attestation";
+function aciReportDataStatement(workloadId, workloadKeysetDigest, nonce) {
+  return new TextEncoder().encode(
+    jcsStringify({
+      purpose: ACI_REPORT_DATA_PURPOSE,
+      workload_id: workloadId,
+      workload_keyset_digest: workloadKeysetDigest,
+      nonce
+    })
+  );
+}
+function aciReportData(workloadId, workloadKeysetDigest, nonce) {
+  return sha256(aciReportDataStatement(workloadId, workloadKeysetDigest, nonce));
+}
+function aciKeysetEndorsementPayload(workloadKeysetDigest) {
+  return new TextEncoder().encode(
+    jcsStringify({
+      purpose: ACI_KEYSET_ENDORSEMENT_PURPOSE,
+      workload_keyset_digest: workloadKeysetDigest
+    })
+  );
+}
+function constantTimeEqual2(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+async function fetchAciAttestation(baseUrl, nonce, fetchImpl = fetch) {
+  const url = `${baseUrl.replace(/\/+$/, "")}${ACI_ATTESTATION_PATH}?nonce=${encodeURIComponent(nonce)}`;
+  const res = await fetchImpl(url);
+  if (!res.ok) {
+    throw new Error(`ACI attestation fetch failed (${res.status}) from ${baseUrl}`);
+  }
+  return await res.json();
+}
+function generateAciNonce() {
+  return toHex(crypto.getRandomValues(new Uint8Array(32)));
+}
+async function verifyAciAttestation(report, nonce, options = {}) {
+  return runAciChecks(report, nonce, options);
+}
+async function verifyRelayedAciAttestation(report, options = {}) {
+  const result = await runAciChecks(report, void 0, options);
+  return { ...result, anchor: null };
+}
+async function runAciChecks(report, nonce, options = {}) {
+  const {
+    dcapVerifier,
+    requireDcap = true,
+    expectedMeasurements,
+    clockSkewSeconds = 60,
+    now = () => Math.floor(Date.now() / 1e3)
+  } = options;
+  const checks = [];
+  const add = (name, ok, detail) => {
+    checks.push(detail === void 0 ? { name, ok } : { name, ok, detail });
+  };
+  let measurements;
+  let dcap;
+  const attestation = report?.attestation;
+  const keyset = attestation?.workload_keyset;
+  const quote = attestation?.evidence?.quote;
+  const workloadId = report?.workload_id;
+  const keysetDigest = report?.workload_keyset_digest;
+  const staleAfter = attestation?.freshness?.stale_after ?? null;
+  const sourceCommit = attestation?.source_provenance?.repo_commit ?? null;
+  let nonceBound = false;
+  const fail = () => ({
+    verified: false,
+    nonceBound,
+    anchor: null,
+    checks,
+    measurements,
+    dcap,
+    staleAfter,
+    sourceCommit
+  });
+  if (!keyset || !quote || !workloadId || !keysetDigest) {
+    add(
+      "report_well_formed",
+      false,
+      "report needs workload_id, workload_keyset_digest, attestation.workload_keyset and evidence.quote"
+    );
+    return fail();
+  }
+  add("report_well_formed", true);
+  add(
+    "api_version_supported",
+    report.api_version === void 0 || report.api_version === "aci/1",
+    report.api_version === void 0 || report.api_version === "aci/1" ? void 0 : `unsupported api_version "${report.api_version}"`
+  );
+  let computedDigest;
+  let computedWorkloadId;
+  try {
+    computedDigest = computeWorkloadKeysetDigest(keyset);
+    computedWorkloadId = computeWorkloadId(keyset.workload_identity.public_key);
+  } catch (error) {
+    add(
+      "keyset_recomputes",
+      false,
+      `could not canonicalize keyset: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return fail();
+  }
+  add(
+    "keyset_digest_recomputes",
+    computedDigest === keysetDigest,
+    computedDigest === keysetDigest ? void 0 : `computed ${computedDigest}, report says ${keysetDigest}`
+  );
+  add(
+    "workload_id_recomputes",
+    computedWorkloadId === workloadId,
+    computedWorkloadId === workloadId ? void 0 : `computed ${computedWorkloadId}, report says ${workloadId}`
+  );
+  let reportData;
+  let tdAttributes;
+  let quoteBytes;
+  try {
+    ({ bytes: quoteBytes, reportData, tdAttributes, measurements } = parseTdxQuote(quote));
+  } catch (error) {
+    add("quote_parsed", false, error instanceof Error ? error.message : String(error));
+    return fail();
+  }
+  add("quote_parsed", true);
+  const debugMode = (tdAttributes[0] & 1) !== 0;
+  add(
+    "debug_mode_disabled",
+    !debugMode,
+    debugMode ? "TD is running in DEBUG mode \u2014 its measurements mean nothing" : void 0
+  );
+  if (nonce !== void 0) {
+    const expectedReportData = aciReportData(workloadId, keysetDigest, nonce);
+    nonceBound = constantTimeEqual2(reportData.slice(0, 32), expectedReportData);
+    add(
+      "report_data_binds_keyset_and_nonce",
+      nonceBound,
+      nonceBound ? void 0 : `quote REPORTDATA starts ${toHex(reportData.slice(0, 32))}, statement hashes to ${toHex(expectedReportData)}`
+    );
+  } else {
+    add(
+      "report_data_binds_keyset_and_nonce",
+      false,
+      "the nonce used for this relayed report was not published, so its keyset cannot be bound to REPORTDATA"
+    );
+  }
+  const tailClear = reportData.slice(32, 64).every((byte) => byte === 0);
+  add(
+    "report_data_tail_unused",
+    tailClear,
+    tailClear ? void 0 : `expected 32 zero bytes, got ${toHex(reportData.slice(32, 64))}`
+  );
+  const servedReportData = attestation?.report_data;
+  if (typeof servedReportData === "string") {
+    const matches = servedReportData.toLowerCase().replace(/^0x/, "") === toHex(reportData.slice(0, 32));
+    add(
+      "served_report_data_matches_quote",
+      matches,
+      matches ? void 0 : `report says ${servedReportData}, quote says ${toHex(reportData.slice(0, 32))}`
+    );
+  }
+  const endorsement = attestation?.keyset_endorsement;
+  if (endorsement) {
+    if (endorsement.algo !== "ecdsa-secp256k1") {
+      add("keyset_endorsement", false, `unsupported endorsement algo "${endorsement.algo}"`);
+    } else {
+      try {
+        const payloadHash = sha256(aciKeysetEndorsementPayload(keysetDigest));
+        const ok = verify(
+          fromHex(endorsement.value),
+          payloadHash,
+          keyset.workload_identity.public_key.public_key,
+          { lowS: false }
+        );
+        add("keyset_endorsement", ok, ok ? void 0 : "identity key did not endorse this keyset digest");
+      } catch (error) {
+        add(
+          "keyset_endorsement",
+          false,
+          `endorsement check failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  }
+  if (staleAfter !== null) {
+    const fresh = now() <= staleAfter + clockSkewSeconds;
+    add(
+      "report_fresh",
+      fresh,
+      fresh ? void 0 : `report went stale at ${new Date(staleAfter * 1e3).toISOString()}`
+    );
+  }
+  if (dcapVerifier) {
+    try {
+      dcap = await dcapVerifier(quoteBytes);
+      const accepted = /* @__PURE__ */ new Set([
+        "UpToDate",
+        "SWHardeningNeeded",
+        "ConfigurationNeeded",
+        "ConfigurationAndSWHardeningNeeded"
+      ]);
+      const ok = accepted.has(dcap.status);
+      add("dcap_verified", ok, ok ? void 0 : `unacceptable TCB status ${dcap.status || "Unknown"}`);
+    } catch (error) {
+      add("dcap_verified", false, error instanceof Error ? error.message : String(error));
+    }
+  } else if (requireDcap) {
+    add(
+      "dcap_verified",
+      false,
+      "no dcapVerifier supplied \u2014 the anchor would rest on an unverified quote"
+    );
+  }
+  if (expectedMeasurements && measurements) {
+    const entries = Object.entries(expectedMeasurements);
+    if (entries.length === 0) {
+      add("measurements_allowed", false, "expected measurement policy is empty");
+    } else {
+      const normalize = (value) => value.toLowerCase().replace(/^0x/, "");
+      const mismatched = entries.filter(([name, allowed]) => {
+        const values = (Array.isArray(allowed) ? allowed : [allowed]).map(normalize);
+        return !measurements[name] || !values.includes(normalize(measurements[name]));
+      }).map(([name]) => name);
+      add(
+        "measurements_allowed",
+        mismatched.length === 0,
+        mismatched.length === 0 ? void 0 : `mismatched: ${mismatched.join(", ")}`
+      );
+    }
+  }
+  const verified = checks.every((check) => check.ok);
+  return {
+    verified,
+    nonceBound,
+    anchor: verified && nonceBound ? { workloadId, workloadKeysetDigest: keysetDigest } : null,
+    checks,
+    measurements,
+    dcap,
+    staleAfter,
+    sourceCommit
+  };
+}
+async function establishAciTrustAnchor(baseUrl, options = {}) {
+  const { fetchImpl, ...verifyOptions } = options;
+  const nonce = generateAciNonce();
+  const report = await fetchAciAttestation(baseUrl, nonce, fetchImpl ?? fetch);
+  return verifyAciAttestation(report, nonce, verifyOptions);
+}
+
+// src/session.ts
+var ACI_SESSIONS_PATH = "/v1/aci/sessions";
+function computeAttestedSessionId(session) {
+  const material = {
+    upstream_name: session.upstream_name,
+    endpoint: session.endpoint ?? null,
+    verifier_id: session.verifier_id,
+    identity: session.identity ?? null,
+    channel_binding: session.channel_binding,
+    claims: session.claims,
+    evidence_digest: session.evidence?.digest ?? null
+  };
+  return `as_${toHex(sha256(new TextEncoder().encode(jcsStringify(material))))}`;
+}
+async function fetchAttestedSession(baseUrl, sessionId, fetchImpl = fetch) {
+  const url = `${baseUrl.replace(/\/+$/, "")}${ACI_SESSIONS_PATH}/${encodeURIComponent(sessionId)}`;
+  const res = await fetchImpl(url);
+  if (!res.ok) {
+    throw new Error(
+      res.status === 404 ? `attested session ${sessionId} is not in the store (expired, or never existed)` : `attested session fetch failed (${res.status}) from ${baseUrl}`
+    );
+  }
+  return await res.json();
+}
+function decodeSessionEvidence(session) {
+  const data = session.evidence?.data;
+  if (typeof data !== "string") return null;
+  const comma = data.indexOf(",");
+  if (!data.startsWith("data:") || comma < 0) {
+    throw new TypeError("session evidence is not a valid data URI");
+  }
+  const metadata = data.slice("data:".length, comma).toLowerCase().split(";");
+  if (!metadata.includes("base64")) {
+    throw new TypeError("session evidence data URI must use base64 encoding");
+  }
+  const payload = data.slice(comma + 1);
+  const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+  if (!/^[a-z0-9+/]*={0,2}$/i.test(normalized) || normalized.length % 4 === 1) {
+    throw new TypeError("session evidence contains invalid base64");
+  }
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  let binary;
+  try {
+    binary = atob(padded);
+  } catch {
+    throw new TypeError("session evidence contains invalid base64");
+  }
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  let report;
+  try {
+    report = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch {
+    throw new TypeError("session evidence is not valid UTF-8 JSON");
+  }
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    throw new TypeError("session evidence JSON must contain an object");
+  }
+  return { bytes, report };
+}
+function originHost(value) {
+  if (!value) return null;
+  try {
+    return new URL(value).host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+async function verifyAttestedSession(session, options) {
+  const checks = [];
+  const add = (name, ok, detail) => {
+    checks.push(detail === void 0 ? { name, ok } : { name, ok, detail });
+  };
+  const unknownClaims = Object.entries(session?.claims ?? {}).filter(([, claim]) => claim?.status === "unknown").map(([name]) => name);
+  const done = (upstream2) => ({
+    verified: checks.every((check) => check.ok),
+    checks,
+    upstream: upstream2,
+    upstreamNonceBound: upstream2?.nonceBound ?? false,
+    unknownClaims
+  });
+  if (!session || typeof session.session_id !== "string" || !Array.isArray(session.channel_binding)) {
+    add("session_well_formed", false, "session record is missing session_id or channel_binding");
+    return done(null);
+  }
+  add("session_well_formed", true);
+  let recomputed;
+  try {
+    recomputed = computeAttestedSessionId(session);
+  } catch (error) {
+    add(
+      "session_id_recomputes",
+      false,
+      `could not canonicalize session: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return done(null);
+  }
+  add(
+    "session_id_recomputes",
+    recomputed === session.session_id,
+    recomputed === session.session_id ? void 0 : `computed ${recomputed}, record says ${session.session_id}`
+  );
+  add(
+    "session_id_matches_receipt",
+    session.session_id === options.expectedSessionId,
+    session.session_id === options.expectedSessionId ? void 0 : `record is ${session.session_id}, receipt named ${options.expectedSessionId}`
+  );
+  if (options.expectedOrigin) {
+    const matches = originHost(session.endpoint) === originHost(options.expectedOrigin);
+    add(
+      "endpoint_matches_receipt_origin",
+      matches,
+      matches ? void 0 : `session endpoint ${session.endpoint ?? "missing"}, receipt named ${options.expectedOrigin}`
+    );
+  }
+  const now = options.now ?? (() => Math.floor(Date.now() / 1e3));
+  if (typeof session.expires_at === "number") {
+    const live = now() <= session.expires_at + (options.clockSkewSeconds ?? 60);
+    add("session_within_retention", live, live ? void 0 : "session record is past its retention deadline");
+  }
+  if (options.skipEvidence) return done(null);
+  if (typeof session.evidence?.data !== "string") {
+    add(
+      "evidence_present",
+      false,
+      "session carries no inline evidence \u2014 fetch it by id rather than from the list"
+    );
+    return done(null);
+  }
+  add("evidence_present", true);
+  let evidence;
+  try {
+    evidence = decodeSessionEvidence(session);
+    add("evidence_decodes", true);
+  } catch (error) {
+    add(
+      "evidence_decodes",
+      false,
+      error instanceof Error ? error.message : String(error)
+    );
+    return done(null);
+  }
+  const digest = `sha256:${toHex(sha256(evidence.bytes))}`;
+  const digestOk = digest === session.evidence?.digest;
+  add(
+    "evidence_digest_matches",
+    digestOk,
+    digestOk ? void 0 : `computed ${digest}, session says ${session.evidence?.digest ?? "missing"}`
+  );
+  if (!options.dcapVerifier) {
+    add("upstream_report_verified", false, "no dcapVerifier supplied \u2014 the upstream quote was not checked");
+    return done(null);
+  }
+  const upstream = await verifyRelayedAciAttestation(evidence.report, {
+    dcapVerifier: options.dcapVerifier,
+    clockSkewSeconds: options.clockSkewSeconds,
+    now: options.now
+  });
+  for (const check of upstream.checks) {
+    checks.push({ ...check, name: `upstream.${check.name}` });
+  }
+  const keysetQuoteBound = upstream.checks.some(
+    (check) => check.name === "report_data_binds_keyset_and_nonce" && check.ok
+  );
+  if (!keysetQuoteBound) {
+    add(
+      "channel_binding_in_attested_keyset",
+      false,
+      "upstream keyset is not quote-bound because the report nonce was not published"
+    );
+    return done(upstream);
+  }
+  const tlsKeys = evidence.report.attestation?.workload_keyset?.tls_public_keys;
+  const bindings = session.channel_binding.filter((b) => b.type === "tls_spki_sha256");
+  if (bindings.length === 0) {
+    add("channel_binding_present", false, "session records no TLS channel binding");
+  } else if (!Array.isArray(tlsKeys)) {
+    add("channel_binding_in_attested_keyset", false, "upstream keyset publishes no TLS keys");
+  } else {
+    const unmatched = bindings.filter(
+      (binding) => !tlsKeys.some(
+        (key) => key.spki_sha256?.toLowerCase() === binding.spki_sha256?.toLowerCase() && (originHost(binding.origin) === null || key.domain?.toLowerCase() === originHost(binding.origin))
+      )
+    );
+    add(
+      "channel_binding_in_attested_keyset",
+      unmatched.length === 0,
+      unmatched.length === 0 ? void 0 : `no attested TLS key for ${unmatched.map((b) => `${b.origin ?? "?"}/${b.spki_sha256 ?? "?"}`).join(", ")}`
+    );
+  }
+  return done(upstream);
 }
 
 // src/index.ts
@@ -2430,23 +3049,36 @@ function isE2EEModel(modelId) {
   return modelId.startsWith("e2ee-");
 }
 export {
+  ACI_ATTESTATION_PATH,
+  ACI_KEYSET_ENDORSEMENT_PURPOSE,
+  ACI_REPORT_DATA_PURPOSE,
+  ACI_SESSIONS_PATH,
   BODY_BINDING_CHECKS,
   TOOL_CALL_CLOSE,
   TOOL_CALL_OPEN,
   TOOL_RESPONSE_CLOSE,
   TOOL_RESPONSE_OPEN,
   ToolCallStreamParser,
+  aciKeysetEndorsementPayload,
+  aciReportData,
+  aciReportDataStatement,
   buildToolSystemPrompt,
+  computeAttestedSessionId,
   computeWorkloadId,
   computeWorkloadKeysetDigest,
   createVeniceE2EE,
+  decodeSessionEvidence,
   decryptChunk,
   decryptSSEStream,
   deriveAESKey,
   deriveEthAddress,
   encryptMessage,
+  establishAciTrustAnchor,
+  fetchAciAttestation,
+  fetchAttestedSession,
   flattenMessageContent,
   fromHex,
+  generateAciNonce,
   generateKeypair,
   generateToolCallId,
   hashReceiptBody,
@@ -2454,11 +3086,15 @@ export {
   jcsStringify,
   parseToolCalls,
   receiptSigningBytes,
+  recoverReceiptSigner,
   renderToolMessages,
   sha256Prefixed,
   toHex,
+  verifyAciAttestation,
   verifyAttestation,
-  verifyReceipt
+  verifyAttestedSession,
+  verifyReceipt,
+  verifyRelayedAciAttestation
 };
 /*! Bundled license information:
 

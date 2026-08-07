@@ -7,7 +7,7 @@ function asBytes(value, label) {
 }
 
 /**
- * The only elliptic API surface used by @phala/dcap-qvl@0.3.9.
+ * The only elliptic API surface used by @phala/dcap-qvl@0.6.1.
  * This adapter intentionally exposes verification but no signing operation.
  */
 export class ec {
