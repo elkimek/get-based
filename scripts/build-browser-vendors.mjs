@@ -36,11 +36,9 @@ const TARGETS = [
   },
   {
     package: 'venice-e2ee',
-    entry: 'node_modules/venice-e2ee/dist/venice-e2ee.browser.js',
+    entry: 'scripts/vendor-entries/venice-e2ee.js',
     output: 'vendor/venice-e2ee.js',
     format: 'es',
-    minified: false,
-    prebuilt: true,
   },
   {
     package: 'venice-e2ee',
@@ -67,34 +65,28 @@ for (const target of TARGETS) {
   if (installedPackage.version !== packageEntry.version) {
     throw new Error(`node_modules has ${target.package}@${installedPackage.version}; lockfile requires ${packageEntry.version}`);
   }
-  let generated;
-  if (target.prebuilt) {
-    const prebuilt = await fs.readFile(path.join(ROOT, target.entry), 'utf8');
-    generated = prebuilt.endsWith('\n') ? prebuilt : `${prebuilt}\n`;
-  } else {
-    const result = await build({
-      input: path.join(ROOT, target.entry),
-      platform: 'browser',
-      write: false,
-      resolve: {
-        alias: {
-          elliptic: path.join(ROOT, 'scripts/vendor-packages/elliptic-verify-only/index.js'),
-          zlib: path.join(ROOT, 'scripts/vendor-entries/zlib-browser-shim.js'),
-        },
+  const result = await build({
+    input: path.join(ROOT, target.entry),
+    platform: 'browser',
+    write: false,
+    resolve: {
+      alias: {
+        elliptic: path.join(ROOT, 'scripts/vendor-packages/elliptic-verify-only/index.js'),
+        zlib: path.join(ROOT, 'scripts/vendor-entries/zlib-browser-shim.js'),
       },
-      output: {
-        format: target.format,
-        minify: target.minified !== false,
-        codeSplitting: false,
-        sourcemap: false,
-      },
-    });
-    const chunks = result.output.filter(item => item.type === 'chunk');
-    if (chunks.length !== 1) throw new Error(`${target.package} produced ${chunks.length} chunks; expected one`);
-    const banner = `// @ts-nocheck\n// Generated from ${target.package}@${packageEntry.version}; run npm run vendor:check.\n`;
-    const cleanCode = chunks[0].code.replace(/[ \t]+$/gm, '');
-    generated = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
-  }
+    },
+    output: {
+      format: target.format,
+      minify: true,
+      codeSplitting: false,
+      sourcemap: false,
+    },
+  });
+  const chunks = result.output.filter(item => item.type === 'chunk');
+  if (chunks.length !== 1) throw new Error(`${target.package} produced ${chunks.length} chunks; expected one`);
+  const banner = `// @ts-nocheck\n// Generated from ${target.package}@${packageEntry.version}; run npm run vendor:check.\n`;
+  const cleanCode = chunks[0].code.replace(/[ \t]+$/gm, '');
+  const generated = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
   generatedTargets.push({
     ...target,
     version: packageEntry.version,
@@ -113,7 +105,7 @@ const expectedManifest = {
     entry: target.entry,
     output: target.output,
     format: target.format,
-    minified: target.minified !== false,
+    minified: true,
     sha256: target.sha256,
   })),
   bundler: {

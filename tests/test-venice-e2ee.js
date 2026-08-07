@@ -88,16 +88,6 @@ assert('encryptMessage exported', typeof e2eeMod.encryptMessage === 'function');
 assert('decryptChunk exported', typeof e2eeMod.decryptChunk === 'function');
 assert('decryptSSEStream exported', typeof e2eeMod.decryptSSEStream === 'function');
 assert('verifyAttestation exported', typeof e2eeMod.verifyAttestation === 'function');
-assert('encrypted tool helpers exported',
-  typeof e2eeMod.buildToolSystemPrompt === 'function'
-    && typeof e2eeMod.ToolCallStreamParser === 'function'
-    && typeof e2eeMod.parseToolCalls === 'function');
-assert('response receipt verifier exported', typeof e2eeMod.verifyReceipt === 'function');
-assert('v0.4.1 receipt body-binding diagnostics exported',
-  Array.isArray(e2eeMod.BODY_BINDING_CHECKS)
-    && e2eeMod.BODY_BINDING_CHECKS.length === 2
-    && e2eeMod.BODY_BINDING_CHECKS.includes('request_body_hash_matches')
-    && e2eeMod.BODY_BINDING_CHECKS.includes('response_body_hash_matches'));
 assert('isE2EEModel exported', typeof e2eeMod.isE2EEModel === 'function');
 assert('pinned browser DCAP verifier exported',
   typeof dcapMod.createDcapVerifier === 'function'

@@ -45,11 +45,11 @@
       "package": "venice-e2ee",
       "version": "0.5.1",
       "integrity": "sha512-VHS5xXakBgkL5Nj1Im/gm45zfpFFYz0eOdMhfkgUJccDoo4rR+geLTwZIraLslnfgG6rjcafW2EL0G4N/kMtTg==",
-      "entry": "node_modules/venice-e2ee/dist/venice-e2ee.browser.js",
+      "entry": "scripts/vendor-entries/venice-e2ee.js",
       "output": "vendor/venice-e2ee.js",
       "format": "es",
-      "minified": false,
-      "sha256": "aafcea55e95e3bf3577c96fd8a46a858025d0576c541e504e4040168f49a83a9"
+      "minified": true,
+      "sha256": "d05d3e998812e6375f1b76ff7fe51f9bc32575790ed0e989fd28f54f6705524e"
     },
     {
       "package": "venice-e2ee",
