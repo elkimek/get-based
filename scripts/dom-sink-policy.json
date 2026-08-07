@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 565,
+  "scannedFiles": 567,
   "sinkCount": 483,
   "files": {
     "js/backup.js": {
@@ -172,7 +172,7 @@
         "innerHTML": 1
       }
     },
-    "js/context-card-lifestyle-editors-impl.js": {
+    "js/context-card-lifestyle-special-editors.js": {
       "count": 2,
       "digest": "21b53358600ba6fb03f0f4477b1e2ffea1053d0999112ea5cabbe1a1852e4064",
       "kinds": {

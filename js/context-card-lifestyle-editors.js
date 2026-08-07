@@ -83,7 +83,7 @@ export function renderDietContaminantsBadge() {
   if (warnings.length === 0) return '';
   const flagged = warnings.filter(warning => warning.type !== 'clean').length;
   if (flagged === 0) return '';
-  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}>\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
+  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg><span>${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</span></div>`;
 }
 
 /** @param {keyof LifestyleContextEditorsModule} name @param {any[]} args @param {boolean} [shouldLoad] */

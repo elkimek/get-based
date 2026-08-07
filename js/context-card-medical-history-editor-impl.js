@@ -4,7 +4,6 @@
 import { state } from './state.js';
 import { COMMON_CONDITIONS } from './constants.js';
 import { escapeAttr, escapeHTML } from './utils.js';
-import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
   isContextEditorStylesheetLoaded,
@@ -12,15 +11,16 @@ import {
   renderContextEditorModal,
   getSelectedOption,
   renderNoteField,
+  renderSelectField,
 } from './context-card-editor-ui.js';
 
-/** @type {(field: string) => void} */
-let recordContextChange = () => {};
 /** @type {(msg: string, field?: string) => void} */
 let saveContextAndRefresh = () => {};
 let closeMedicalHistoryEditor = () => {};
 let editingConditionIndex = -1;
 let editingFamilyHistoryIndex = -1;
+/** @type {any | null} */
+let diagnosesDraft = null;
 const INTERPRETATION_FLAGS = [
   ['lowMuscleMass', 'Low muscle mass / creatinine unreliable', 'Treat creatinine, creatinine eGFR, BUN/Cr, and creatinine-based biological age as context, not scored truth.'],
   ['hormoneTherapy', 'Hormone therapy / TRT / hormonal contraception', 'Flag sex-hormone markers as treatment/context-sensitive.'],
@@ -28,6 +28,12 @@ const INTERPRETATION_FLAGS = [
   ['intenseTrainingRecent', 'Recent intense training near blood draw', 'Flag CK, AST/ALT, hs-CRP, urea, and recovery scores as training-load sensitive.'],
   ['acuteIllnessNearDraw', 'Acute illness / infection / injury near blood draw', 'Flag immune, inflammation, ferritin/iron, and recovery scores as transiently affected.'],
 ];
+const CONDITION_IMPACT_LABELS = {
+  major: 'High',
+  mild: 'Moderate',
+  minor: 'Low',
+};
+const CONDITION_STATUS = ['active', 'controlled', 'in remission', 'resolved'];
 
 /**
  * @param {string} action
@@ -41,9 +47,8 @@ function medicalHistoryActionAttrs(action, extra = '') {
 /**
  * @param {{ close?: () => void, recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
  */
-export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefresh } = {}) {
+export function configureMedicalHistoryEditor({ close, saveAndRefresh } = {}) {
   if (typeof close === 'function') closeMedicalHistoryEditor = close;
-  if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
 }
 
@@ -61,24 +66,26 @@ export function openDiagnosesEditor() {
   editingFamilyHistoryIndex = -1;
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.diagnoses || { conditions: [], note: '' };
+  diagnosesDraft = cloneDiagnoses(state.importedData.diagnoses);
+  const current = diagnosesDraft;
   renderDiagnosesModal(modal, current);
   openModalOverlay(overlay);
 }
 
-// Relatives surfaced in the Family History subsection. First-degree
-// (mother/father/sibling/child) plus grandparents covers the bulk of
-// clinically-relevant heritable risk without sprawling into the
-// "aunt/uncle/cousin" tail where signal-to-noise drops fast.
+// Keep the common relatives explicit, then use maternal/paternal catch-alls
+// for useful extended-family history without turning the picker into a tree.
 const FAMILY_RELATIVES = [
   { key: 'mother',                 label: 'Mother' },
   { key: 'father',                 label: 'Father' },
   { key: 'sibling',                label: 'Sibling' },
+  { key: 'half_sibling',           label: 'Half-sibling' },
   { key: 'child',                  label: 'Child' },
   { key: 'maternal_grandmother',   label: 'Maternal grandmother' },
   { key: 'maternal_grandfather',   label: 'Maternal grandfather' },
+  { key: 'maternal_relative',      label: 'Other maternal relative' },
   { key: 'paternal_grandmother',   label: 'Paternal grandmother' },
   { key: 'paternal_grandfather',   label: 'Paternal grandfather' },
+  { key: 'paternal_relative',      label: 'Other paternal relative' },
 ];
 
 function _relativeLabel(key) {
@@ -93,12 +100,19 @@ function _activeClass(value, target) {
   return value === target ? ' active' : '';
 }
 
+function cloneDiagnoses(source) {
+  const cloned = source ? JSON.parse(JSON.stringify(source)) : {};
+  if (!Array.isArray(cloned.conditions)) cloned.conditions = [];
+  if (!Array.isArray(cloned.familyHistory)) cloned.familyHistory = [];
+  if (!cloned.flags || typeof cloned.flags !== 'object') cloned.flags = {};
+  if (typeof cloned.note !== 'string') cloned.note = '';
+  if (typeof cloned.proceduresNote !== 'string') cloned.proceduresNote = '';
+  return cloned;
+}
+
 function _getDiagnoses() {
-  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [], flags: {} };
-  if (!Array.isArray(state.importedData.diagnoses.conditions)) state.importedData.diagnoses.conditions = [];
-  if (!Array.isArray(state.importedData.diagnoses.familyHistory)) state.importedData.diagnoses.familyHistory = [];
-  if (!state.importedData.diagnoses.flags || typeof state.importedData.diagnoses.flags !== 'object') state.importedData.diagnoses.flags = {};
-  return state.importedData.diagnoses;
+  if (!diagnosesDraft) diagnosesDraft = cloneDiagnoses(state.importedData.diagnoses);
+  return diagnosesDraft;
 }
 
 export function renderDiagnosesModal(modal, current) {
@@ -108,7 +122,8 @@ export function renderDiagnosesModal(modal, current) {
   if (!familyHistory[editingFamilyHistoryIndex]) editingFamilyHistoryIndex = -1;
   const editingCondition = editingConditionIndex >= 0 ? conditions[editingConditionIndex] : null;
   const editingFamily = editingFamilyHistoryIndex >= 0 ? familyHistory[editingFamilyHistoryIndex] : null;
-  const conditionSeverity = editingCondition ? (editingCondition.severity || 'mild') : 'major';
+  const conditionSeverity = editingCondition ? (editingCondition.severity || 'mild') : 'mild';
+  const conditionStatus = editingCondition?.status || null;
   let html = '';
   if (conditions.length > 0) {
     html += `<div class="ctx-conditions-list" id="ctx-conditions-list">`;
@@ -116,7 +131,8 @@ export function renderDiagnosesModal(modal, current) {
       const c = conditions[i];
       html += `<div class="ctx-condition-item${i === editingConditionIndex ? ' is-editing' : ''}">
         <span class="ctx-condition-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
-        ${c.severity ? `<span class="goals-severity-badge severity-${c.severity}">${c.severity}</span>` : ''}
+        ${c.severity ? `<span class="goals-severity-badge severity-${c.severity}">${escapeHTML(CONDITION_IMPACT_LABELS[c.severity] || c.severity)}</span>` : ''}
+        ${c.status ? `<span class="ctx-condition-since">${escapeHTML(c.status)}</span>` : ''}
         ${c.since ? `<span class="ctx-condition-since">since ${escapeHTML(c.since)}</span>` : ''}
         <span class="ctx-condition-actions">
           <button class="ctx-row-action-btn ctx-row-edit-btn" ${medicalHistoryActionAttrs('edit-condition', `data-medical-history-index="${i}"`)} aria-label="Edit condition" title="Edit condition">✎</button>
@@ -126,35 +142,46 @@ export function renderDiagnosesModal(modal, current) {
     }
     html += `</div>`;
   }
-  html += `<div class="ctx-field-group"><label class="ctx-field-label">Add condition</label>
+  html += `<div class="ctx-field-group"><label class="ctx-field-label">Conditions</label>
+    <div class="ctx-condition-impact">
+      <span class="ctx-field-label" id="condition-impact-label">Impact on interpretation</span>
+      <div class="ctx-btn-group" id="condition-severity" role="group" aria-labelledby="condition-impact-label">
+        <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'major')}" aria-pressed="${conditionSeverity === 'major'}" data-context-value="major" ${medicalHistoryActionAttrs('select-condition-severity')}>High</button>
+        <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'mild')}" aria-pressed="${conditionSeverity === 'mild'}" data-context-value="mild" ${medicalHistoryActionAttrs('select-condition-severity')}>Moderate</button>
+        <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'minor')}" aria-pressed="${conditionSeverity === 'minor'}" data-context-value="minor" ${medicalHistoryActionAttrs('select-condition-severity')}>Low</button>
+      </div>
+    </div>
+    ${renderSelectField('Status', 'condition-status', CONDITION_STATUS, conditionStatus)}
     <div class="ctx-add-condition">
       <div class="ctx-autocomplete-wrapper">
         <input type="text" class="ctx-note-input" id="condition-input" value="${escapeHTML(editingCondition?.name || '')}" placeholder="Type condition name...">
         <div class="ctx-suggestions" id="condition-suggestions"></div>
       </div>
-      <input type="text" class="ctx-note-input" id="condition-since" value="${escapeHTML(editingCondition?.since || '')}" placeholder="Since (e.g. 2020)" style="width:100px">
+      <input type="text" class="ctx-note-input" id="condition-since" value="${escapeHTML(editingCondition?.since || '')}" placeholder="Since (year)" style="width:112px">
       <button class="import-btn import-btn-primary" ${medicalHistoryActionAttrs('add-condition')}>${editingCondition ? 'Update' : 'Add'}</button>
       ${editingCondition ? `<button class="import-btn import-btn-secondary ctx-edit-cancel-btn" ${medicalHistoryActionAttrs('cancel-condition-edit')}>Cancel edit</button>` : ''}
-    </div>
-    <div class="ctx-btn-group" id="condition-severity" style="margin-top:8px">
-      <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'major')}" ${medicalHistoryActionAttrs('select-condition-severity')}>major</button>
-      <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'mild')}" ${medicalHistoryActionAttrs('select-condition-severity')}>mild</button>
-      <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'minor')}" ${medicalHistoryActionAttrs('select-condition-severity')}>minor</button>
     </div>
   </div>`;
 
   const RELATIVE_EMOJI = {
-    mother: '👩', father: '👨', sibling: '👫', child: '🧒',
+    mother: '👩', father: '👨', sibling: '👫', half_sibling: '👫', child: '🧒',
     maternal_grandmother: '👵', maternal_grandfather: '👴',
-    paternal_grandmother: '👵', paternal_grandfather: '👴',
+    maternal_relative: '👤', paternal_grandmother: '👵', paternal_grandfather: '👴',
+    paternal_relative: '👤',
   };
 
-  html += `<div class="ctx-family-history" id="ctx-family-section">
-    <div class="ctx-family-head">
-      <label class="ctx-field-label">Family history</label>
-      <span class="ctx-family-count">${familyHistory.length || ''}</span>
+  html += `<details class="ctx-editor-section">
+    <summary><span class="ctx-editor-section-title">Major procedures & organ changes</span><span class="ctx-editor-section-summary">${current.proceduresNote ? escapeHTML(current.proceduresNote.slice(0, 90)) : 'Optional surgery, transplant, or removed-organ context'}</span></summary>
+    <div class="ctx-editor-section-body">
+      <label class="ctx-field-label" for="diagnosis-procedures-input">Procedures or organ changes</label>
+      <textarea class="ctx-note-input ctx-note-textarea" id="diagnosis-procedures-input" placeholder="For example: bariatric surgery, thyroid removal, transplant, splenectomy">${escapeHTML(current.proceduresNote || '')}</textarea>
     </div>
-    <div class="ctx-modal-hint">Genetic + environmental signal. Affects risk interpretation — e.g. a father's MI at 52 reframes a borderline LDL.</div>`;
+  </details>`;
+
+  html += `<details class="ctx-editor-section ctx-family-history" id="ctx-family-section"${editingFamily ? ' open' : ''}>
+    <summary><span class="ctx-editor-section-title">Family history${familyHistory.length ? ` (${familyHistory.length})` : ''}</span><span class="ctx-editor-section-summary">${familyHistory.length ? `${familyHistory.length} saved relative${familyHistory.length === 1 ? '' : 's'}` : 'Optional inherited-risk context'}</span></summary>
+    <div class="ctx-editor-section-body">
+    <div class="ctx-modal-hint">Family history can change how borderline results are interpreted without implying that you have the same condition.</div>`;
   if (familyHistory.length > 0) {
     const relOrder = new Map(FAMILY_RELATIVES.map((r, i) => [r.key, i]));
     const indexed = familyHistory.map((e, i) => ({ e, i }));
@@ -186,15 +213,18 @@ export function renderDiagnosesModal(modal, current) {
         </optgroup>
         <optgroup label="Siblings & Children">
           <option value="sibling"${_selectedAttr(editingFamily?.relative, 'sibling')}>Sibling</option>
+          <option value="half_sibling"${_selectedAttr(editingFamily?.relative, 'half_sibling')}>Half-sibling</option>
           <option value="child"${_selectedAttr(editingFamily?.relative, 'child')}>Child</option>
         </optgroup>
         <optgroup label="Maternal grandparents">
           <option value="maternal_grandmother"${_selectedAttr(editingFamily?.relative, 'maternal_grandmother')}>Maternal grandmother</option>
           <option value="maternal_grandfather"${_selectedAttr(editingFamily?.relative, 'maternal_grandfather')}>Maternal grandfather</option>
+          <option value="maternal_relative"${_selectedAttr(editingFamily?.relative, 'maternal_relative')}>Other maternal relative</option>
         </optgroup>
         <optgroup label="Paternal grandparents">
           <option value="paternal_grandmother"${_selectedAttr(editingFamily?.relative, 'paternal_grandmother')}>Paternal grandmother</option>
           <option value="paternal_grandfather"${_selectedAttr(editingFamily?.relative, 'paternal_grandfather')}>Paternal grandfather</option>
+          <option value="paternal_relative"${_selectedAttr(editingFamily?.relative, 'paternal_relative')}>Other paternal relative</option>
         </optgroup>
       </select>
       <div class="ctx-autocomplete-wrapper ctx-family-condition-wrap">
@@ -208,14 +238,18 @@ export function renderDiagnosesModal(modal, current) {
       <button class="import-btn import-btn-primary" ${medicalHistoryActionAttrs('add-family-history')}>${editingFamily ? 'Update' : '+ Add'}</button>
       ${editingFamily ? `<button class="import-btn import-btn-secondary ctx-edit-cancel-btn" ${medicalHistoryActionAttrs('cancel-family-history-edit')}>Cancel edit</button>` : ''}
     </div>
-  </div></div>`;
-  html += `<div class="ctx-field-group"><label class="ctx-field-label">Interpretation flags</label>
-    <div class="ctx-modal-hint">Structured flags make Biology Scores deterministic when context changes marker meaning.</div>
-    <div class="ctx-flag-list">${INTERPRETATION_FLAGS.map(([key, label, help]) => `<label class="ctx-checkbox-row" title="${escapeAttr(help)}"><input type="checkbox" id="diagnosis-flag-${escapeAttr(key)}" ${current.flags?.[key] ? 'checked' : ''}> <span><strong>${escapeHTML(label)}</strong><small>${escapeHTML(help)}</small></span></label>`).join('')}</div>
-  </div>`;
-  html += renderNoteField(current.note);
+  </div></div></details>`;
   const hasFlags = INTERPRETATION_FLAGS.some(([key]) => current.flags?.[key]);
-  const hasCurrent = conditions.length > 0 || familyHistory.length > 0 || current.note || hasFlags;
+  const flagCount = INTERPRETATION_FLAGS.filter(([key]) => current.flags?.[key]).length;
+  html += `<details class="ctx-editor-section">
+    <summary><span class="ctx-editor-section-title">Interpretation flags</span><span class="ctx-editor-section-summary">${flagCount ? `${flagCount} saved flag${flagCount === 1 ? '' : 's'}` : 'Only when a score needs special handling'}</span></summary>
+    <div class="ctx-editor-section-body">
+      <div class="ctx-modal-hint">Use these only when context changes what a lab marker means.</div>
+      <div class="ctx-flag-list">${INTERPRETATION_FLAGS.map(([key, label, help]) => `<label class="ctx-checkbox-row" title="${escapeAttr(help)}"><input type="checkbox" id="diagnosis-flag-${escapeAttr(key)}" ${current.flags?.[key] ? 'checked' : ''}> <span><strong>${escapeHTML(label)}</strong><small>${escapeHTML(help)}</small></span></label>`).join('')}</div>
+    </div>
+  </details>`;
+  html += renderNoteField(current.note);
+  const hasCurrent = conditions.length > 0 || familyHistory.length > 0 || current.proceduresNote || current.note || hasFlags;
   html += `<div class="ctx-editor-actions">
     <button class="import-btn import-btn-primary" ${medicalHistoryActionAttrs('save')}>Save</button>
     <button class="import-btn import-btn-secondary" ${medicalHistoryActionAttrs('close')}>Cancel</button>
@@ -224,7 +258,7 @@ export function renderDiagnosesModal(modal, current) {
   renderContextEditorModal(
     modal,
     'Medical History',
-    'Your diagnoses and family history. The AI considers both when interpreting your labs.',
+    'Add only what matters for interpretation. Nothing changes until you save.',
     html,
     medicalHistoryActionAttrs('close'),
   );
@@ -235,7 +269,7 @@ export function filterConditionSuggestions() {
   const container = document.getElementById('condition-suggestions');
   if (!input || !container) return;
   const val = input.value.toLowerCase().trim();
-  const existing = (state.importedData.diagnoses && state.importedData.diagnoses.conditions || []).map(c => c.name.toLowerCase());
+  const existing = _getDiagnoses().conditions.map(c => c.name.toLowerCase());
   const sexFiltered = COMMON_CONDITIONS.filter(c => {
     if (state.profileSex === 'male' && (c === 'PCOS' || c === 'Endometriosis')) return false;
     return true;
@@ -254,7 +288,9 @@ export function selectConditionSuggestion(name) {
 
 export function syncDiagnosesNote() {
   const noteEl = getFormControl('ctx-note-input');
-  if (noteEl && state.importedData.diagnoses) state.importedData.diagnoses.note = noteEl.value.trim();
+  if (noteEl) _getDiagnoses().note = noteEl.value.trim();
+  const proceduresEl = getFormControl('diagnosis-procedures-input');
+  if (proceduresEl) _getDiagnoses().proceduresNote = proceduresEl.value.trim();
 }
 
 function syncDiagnosisFlags(diagnoses = _getDiagnoses()) {
@@ -270,14 +306,16 @@ function syncDiagnosisFlags(diagnoses = _getDiagnoses()) {
 export function addCondition() {
   const input = getFormControl('condition-input');
   const severity = getSelectedOption('condition-severity') || 'mild';
+  const status = getSelectedOption('condition-status');
   const since = getFormControl('condition-since');
   const name = input ? input.value.trim() : '';
   if (!name) return;
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
   syncDiagnosisFlags(diagnoses);
-  /** @type {{ name: string, severity: string, since?: string }} */
+  /** @type {{ name: string, severity: string, status?: string, since?: string }} */
   const cond = { name, severity };
+  if (status) cond.status = status;
   if (since && since.value.trim()) cond.since = since.value.trim();
   if (editingConditionIndex >= 0 && editingConditionIndex < diagnoses.conditions.length) {
     diagnoses.conditions[editingConditionIndex] = cond;
@@ -285,8 +323,6 @@ export function addCondition() {
     diagnoses.conditions.push(cond);
   }
   editingConditionIndex = -1;
-  recordContextChange('diagnoses');
-  saveImportedData();
   renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
 }
 
@@ -301,18 +337,19 @@ export function editCondition(idx) {
 }
 
 export function cancelConditionEdit() {
+  syncDiagnosesNote();
+  syncDiagnosisFlags();
   editingConditionIndex = -1;
   renderDiagnosesModal(document.getElementById("detail-modal"), _getDiagnoses());
 }
 
 export function deleteCondition(idx) {
-  if (!state.importedData.diagnoses || !state.importedData.diagnoses.conditions) return;
+  const diagnoses = _getDiagnoses();
+  if (!diagnoses.conditions[idx]) return;
   syncDiagnosesNote();
-  state.importedData.diagnoses.conditions.splice(idx, 1);
+  diagnoses.conditions.splice(idx, 1);
   editingConditionIndex = -1;
-  recordContextChange('diagnoses');
-  saveImportedData();
-  renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
+  renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
 }
 
 export function addFamilyHistoryEntry() {
@@ -340,8 +377,6 @@ export function addFamilyHistoryEntry() {
     diagnoses.familyHistory.push(entry);
   }
   editingFamilyHistoryIndex = -1;
-  recordContextChange('diagnoses');
-  saveImportedData();
   renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
 }
 
@@ -356,18 +391,19 @@ export function editFamilyHistoryEntry(idx) {
 }
 
 export function cancelFamilyHistoryEdit() {
+  syncDiagnosesNote();
+  syncDiagnosisFlags();
   editingFamilyHistoryIndex = -1;
   renderDiagnosesModal(document.getElementById("detail-modal"), _getDiagnoses());
 }
 
 export function deleteFamilyHistoryEntry(idx) {
-  if (!state.importedData.diagnoses || !Array.isArray(state.importedData.diagnoses.familyHistory)) return;
+  const diagnoses = _getDiagnoses();
+  if (!diagnoses.familyHistory[idx]) return;
   syncDiagnosesNote();
-  state.importedData.diagnoses.familyHistory.splice(idx, 1);
+  diagnoses.familyHistory.splice(idx, 1);
   editingFamilyHistoryIndex = -1;
-  recordContextChange('diagnoses');
-  saveImportedData();
-  renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
+  renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
 }
 
 export function filterFamilyConditionSuggestions() {
@@ -388,22 +424,25 @@ export function selectFamilyConditionSuggestion(name) {
 }
 
 export function saveDiagnoses() {
-  const note = getFormControl('ctx-note-input')?.value || '';
   const diagnoses = _getDiagnoses();
-  diagnoses.note = note.trim();
+  syncDiagnosesNote();
   syncDiagnosisFlags(diagnoses);
   const condLen = diagnoses.conditions.length;
   const fhLen = diagnoses.familyHistory.length;
   const hasFlags = INTERPRETATION_FLAGS.some(([key]) => diagnoses.flags?.[key]);
-  if (condLen === 0 && !diagnoses.note && fhLen === 0 && !hasFlags) {
+  if (condLen === 0 && !diagnoses.proceduresNote && !diagnoses.note && fhLen === 0 && !hasFlags) {
     state.importedData.diagnoses = null;
+  } else {
+    state.importedData.diagnoses = diagnoses;
   }
+  diagnosesDraft = null;
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
   saveContextAndRefresh('Medical history saved', 'diagnoses');
 }
 
 export function closeDiagnoses() {
+  diagnosesDraft = null;
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
   closeMedicalHistoryEditor();
@@ -411,6 +450,7 @@ export function closeDiagnoses() {
 
 export function clearDiagnoses() {
   state.importedData.diagnoses = null;
+  diagnosesDraft = null;
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
   saveContextAndRefresh('Medical history cleared', 'diagnoses');

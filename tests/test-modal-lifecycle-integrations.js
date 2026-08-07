@@ -12,7 +12,10 @@ const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'
 const chatImagesSrc = fs.readFileSync(path.join(root, 'js/chat-images.js'), 'utf8');
 const chatSummariesSrc = fs.readFileSync(path.join(root, 'js/chat-summaries.js'), 'utf8');
 const contextCardsSrc = fs.readFileSync(path.join(root, 'js/context-cards.js'), 'utf8');
-const contextLifestyleSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors-impl.js'), 'utf8');
+const contextLifestyleSrc = [
+  'context-card-lifestyle-editors-impl.js',
+  'context-card-lifestyle-special-editors.js',
+].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medical-history-editor-impl.js'), 'utf8');
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai-impl.js'), 'utf8');
 const dashboardWidgetControlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
@@ -124,7 +127,7 @@ assert('context medical history and card tips open through shared overlay lifecy
 
 assert('lifestyle context editors open through shared overlay lifecycle helper',
   contextLifestyleSrc.includes("from './modal-lifecycle.js'") &&
-    (contextLifestyleSrc.match(/openModalOverlay\(overlay\)/g) || []).length >= 10 &&
+    (contextLifestyleSrc.match(/openModalOverlay\((?:overlay|document\.getElementById\('modal-overlay'\))\)/g) || []).length >= 10 &&
     !contextLifestyleSrc.includes('overlay.classList.add("show")') &&
     !contextLifestyleSrc.includes("overlay.classList.add('show')"));
 

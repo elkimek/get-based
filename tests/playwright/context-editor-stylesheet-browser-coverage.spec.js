@@ -1,4 +1,8 @@
 import { expect, test } from './coverage-fixture.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const axeScriptPath = require.resolve('axe-core/axe.min.js');
 
 function moduleUrl() {
   return `/js/context-card-editor-ui.js?contextEditorStylesheetCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -133,4 +137,100 @@ test('cold startup defers context editor presentation until a real editor opens'
     overflowX: 'hidden',
     headerPosition: 'sticky',
   });
+});
+
+test('long context editors use accessible progressive disclosure on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const [{ state }, contextCards] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/context-cards.js'),
+    ]);
+    state.importedData.diet = null;
+    await contextCards.openDietEditor();
+  });
+
+  const modal = page.locator('#detail-modal');
+  await expect(modal).toHaveAttribute('aria-label', 'Diet & Digestion');
+  await expect(modal.locator('details.ctx-editor-section')).toHaveCount(3);
+  await expect(modal.locator('details.ctx-editor-section[open]')).toHaveCount(0);
+  const mealsSection = modal.locator('details.ctx-editor-section').filter({ hasText: 'Typical meals' });
+  await mealsSection.locator('summary').click();
+  await expect(mealsSection).toHaveAttribute('open', '');
+  await expect(modal.locator('#diet-breakfast')).toBeVisible();
+
+  const bounds = await modal.boundingBox();
+  expect(bounds?.width).toBeLessThanOrEqual(390);
+
+  await page.addScriptTag({ path: axeScriptPath });
+  const violations = await page.evaluate(async () => {
+    const result = await window.axe.run(document.getElementById('detail-modal'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    });
+    return result.violations.map(violation => violation.id);
+  });
+  expect(violations).toEqual([]);
+});
+
+test('saved long-form details stay summarized and reopened editors start at the top', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const [{ state }, contextCards, modalLifecycle] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/context-cards.js'),
+      import('/js/modal-lifecycle.js'),
+    ]);
+    state.importedData.diet = {
+      type: 'mediterranean',
+      lunch: 'Salad',
+      dinner: 'Salmon',
+      bowelFrequency: '1x/day',
+      bloating: 'occasional',
+      note: 'A longer note that should remain fully editable.',
+    };
+    state.importedData.environment = {
+      setting: 'suburban',
+      climate: 'temperate',
+      water: 'reverse osmosis',
+      waterConcerns: ['fluoridated'],
+      emf: ['WiFi router nearby'],
+      emfMitigation: [],
+      homeLight: 'mostly LED lighting',
+      air: ['HEPA air purifier'],
+      toxins: [],
+      building: 'new construction (<5yr)',
+      note: 'Environment note',
+    };
+
+    await contextCards.openDietEditor();
+    const modal = document.getElementById('detail-modal');
+    modal.scrollTop = 500;
+    const scrolledDiet = modal.scrollTop > 0;
+    modalLifecycle.closeModalOverlay('modal-overlay', { restoreFocus: false });
+    await contextCards.openEnvironmentEditor();
+
+    return {
+      scrolledDiet,
+      reopenedAtTop: modal.scrollTop === 0,
+      collapsedSections: modal.querySelectorAll('details.ctx-editor-section[open]').length,
+      sectionSummaries: Array.from(modal.querySelectorAll('.ctx-editor-section-summary'))
+        .map(el => el.textContent.trim()),
+      noteTag: modal.querySelector('#ctx-note-input')?.tagName,
+      noteValue: modal.querySelector('#ctx-note-input')?.value,
+    };
+  });
+
+  expect(result.scrolledDiet).toBe(true);
+  expect(result.reopenedAtTop).toBe(true);
+  expect(result.collapsedSections).toBe(0);
+  expect(result.sectionSummaries).toEqual(expect.arrayContaining([
+    expect.stringContaining('reverse osmosis'),
+    expect.stringContaining('WiFi router nearby'),
+    expect.stringContaining('mostly LED lighting'),
+  ]));
+  expect(result.noteTag).toBe('TEXTAREA');
+  expect(result.noteValue).toBe('Environment note');
 });

@@ -6,6 +6,7 @@ import { filterDatesByRange, getActiveData, invalidateActiveDataCache, saveImpor
 import {
   isGeneticsPriorityInAIContext,
   isGeneticsSummaryInAIContext,
+  getSleepContextMismatch,
   isInsightContextCardsEnabled,
   isLabMarkersContextEnabled,
   isLightSunContextEnabled,
@@ -15,6 +16,7 @@ import {
 import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
+import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 
 /** @type {{
  *   callClaudeAPI: typeof callClaudeAPI,
@@ -74,7 +76,7 @@ function safeStructuredContext(value, allowedKeys, maxPerField = 120) {
 
 function safeCondition(item) {
   if (item && typeof item === 'object') {
-    return safeContextText([item.name, item.severity, item.note].filter(Boolean).join(' — '), 160);
+    return safeContextText([item.name, item.severity, item.status, item.since && `since ${item.since}`, item.note].filter(Boolean).join(' — '), 180);
   }
   return safeContextText(item, 120);
 }
@@ -114,7 +116,7 @@ function lightSummary(imported) {
   const includeLightContext = isLightSunContextEnabled();
   if (!includeLightContext) return { includeLightContext: false };
   return {
-    lightCircadian: safeStructuredContext(imported?.lightCircadian, ['morningLight','daylight','eveningLight','screenUse','notes'], 120),
+    lightCircadian: safeStructuredContext(imported?.lightCircadian, ['amLight','daytime','uvExposure','skinType','evening','screenTime','techEnv','cold','grounding','mealTiming','note','morningLight','daylight','eveningLight','screenUse','notes'], 120),
     sunSessions14d: Array.isArray(imported?.sunSessions) ? imported.sunSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
     deviceSessions14d: Array.isArray(imported?.deviceSessions) ? imported.deviceSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
     measurements14d: Array.isArray(imported?.lightMeasurements) ? imported.lightMeasurements.filter(m => Number(m?.capturedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
@@ -161,21 +163,27 @@ function recentContextLabs(data) {
 function buildInsightContextPayload(imported) {
   const includeInsightCards = isInsightContextCardsEnabled();
   const includeSupplementsMeds = isSupplementsMedsContextEnabled();
+  const includeTrackedSleep = isWearableContextEnabled();
   const diagnoses = includeInsightCards ? (imported?.diagnoses || {}) : {};
   return {
     includeInsightCards,
     includeSupplementsMeds,
     currentExplicitFlags: includeInsightCards ? (diagnoses.flags || {}) : {},
     diagnoses: includeInsightCards && Array.isArray(diagnoses.conditions) ? diagnoses.conditions.slice(0, 20).map(safeCondition).filter(Boolean) : [],
+    procedures: includeInsightCards ? safeContextText(diagnoses.proceduresNote, 240) : '',
     medicalNote: includeInsightCards ? safeContextText(diagnoses.note, 240) : '',
     contextNotes: includeInsightCards ? safeContextText(imported?.contextNotes, 240) : '',
-    exercise: includeInsightCards ? safeStructuredContext(imported?.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140) : {},
-    sleepRest: includeInsightCards ? safeStructuredContext(imported?.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140) : {},
-    stress: includeInsightCards ? safeStructuredContext(imported?.stress, ['level','workload','recovery','majorStressors','notes'], 140) : {},
-    diet: includeInsightCards ? safeStructuredContext(imported?.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100) : {},
-    environment: includeInsightCards ? safeStructuredContext(imported?.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120) : {},
-    healthGoals: includeInsightCards && Array.isArray(imported?.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
-    menstrualCycle: includeInsightCards ? safeStructuredContext(imported?.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140) : {},
+    exercise: includeInsightCards ? safeStructuredContext(imported?.exercise, ['frequency','types','intensity','duration','dailyMovement','muscleContext','limitations','note','activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140) : {},
+    sleepRest: includeInsightCards ? safeStructuredContext(imported?.sleepRest, ['quality','duration','daytimeSleepiness','apneaStatus','papUse','naps','schedule','roomTemp','issues','environment','practices','note','chronotype','wakeTime','bedTime','notes'], 140) : {},
+    sleepProfileTrackedMismatch: includeInsightCards && includeTrackedSleep
+      ? getSleepContextMismatch(imported?.sleepRest, imported?.wearableSummary)?.summary || ''
+      : '',
+    stress: includeInsightCards ? safeStructuredContext(imported?.stress, ['level','duration','trend','sources','management','note','workload','recovery','majorStressors','notes'], 140) : {},
+    diet: includeInsightCards ? safeStructuredContext(imported?.diet, ['type','pattern','proteinIntake','hydration','alcohol','caffeine','caffeineTiming','recentChanges','restrictions','breakfast','lunch','dinner','snacks','bowelFrequency','stoolConsistency','bloating','gas','acidReflux','nausea','appetite','abdominalPain','foodSensitivities','note','notes'], 100) : {},
+    loveLife: includeInsightCards ? safeStructuredContext(imported?.loveLife, ['status','relationship','satisfaction','libido','libidoChange','frequency','orgasm','reproductiveGoals','concerns','note','notes'], 120) : {},
+    environment: includeInsightCards ? safeStructuredContext(imported?.environment, ['setting','climate','altitude','inhaledExposures','occupationalExposures','water','waterConcerns','emf','emfMitigation','homeLight','air','toxins','building','note','outdoorTime','sun','mold','airQuality','notes'], 120) : {},
+    healthGoals: includeInsightCards && Array.isArray(imported?.healthGoals) ? sortHealthGoalsByPriority(imported.healthGoals).slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
+    menstrualCycle: includeInsightCards ? safeStructuredContext(imported?.menstrualCycle, ['cycleStatus','status','phase','cycleDay','regularity','contraceptive','contraception','hormoneTherapy','conditions','note','notes'], 140) : {},
     supplements: includeSupplementsMeds ? supplementsSummary(imported) : [],
   };
 }

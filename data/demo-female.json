@@ -1,7 +1,7 @@
 {
   "_source": "demo",
   "version": 3,
-  "exportedAt": "2026-05-09T08:30:00.000Z",
+  "exportedAt": "2026-08-07T12:00:00.000Z",
   "entries": [
     {
       "date": "2024-04-15",
@@ -710,10 +710,10 @@
         "hormones.shbg": 58.5,
         "hormones.dheaS": 5.5,
         "hormones.estradiol": 310,
-        "hormones.progesterone": 12.5,
+        "hormones.progesterone": 0.6,
         "hormones.insulin": 5.5,
-        "hormones.lh": 2.8,
-        "hormones.fsh": 3.1,
+        "hormones.lh": 8,
+        "hormones.fsh": 6.5,
         "hormones.prolactin": 14.2,
         "hormones.calcitonin": 2.1,
         "electrolytes.sodium": 141,
@@ -1109,63 +1109,63 @@
       },
       "markerSources": {
         "fattyAcids.palmiticC16": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.stearicC18": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.oleicC18_1": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.linoleicC18_2": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.glaC18_3": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.arachidonicC20_4": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.dglaC20_3": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.alaC18_3": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.epaC20_5": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.dpaC22_5": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.dhaC22_6": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.omega3Index": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.omega6to3Ratio": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.membraneFluidity": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         },
         "fattyAcids.mentalResilience": {
-          "file": "Early 2026 Panel.pdf",
+          "file": "2025-Q3 fatty-acid add-on panel.pdf",
           "at": 1754395200000
         }
       }
@@ -1583,7 +1583,7 @@
       }
     },
     {
-      "date": "2026-01-25",
+      "date": "2026-07-18",
       "markers": {
         "biochemistry.glucose": 5.15,
         "biochemistry.urea": 4.6,
@@ -1700,348 +1700,348 @@
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.urea": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.creatinine": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.egfr": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.uricAcid": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.bilirubinTotal": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.ast": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.alt": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.alp": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.ggt": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.ldh": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.creatineKinase": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.cystatinC": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "biochemistry.gfrCystatin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.testosterone": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.freeTestosterone": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.shbg": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.dheaS": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.estradiol": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.progesterone": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.insulin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.lh": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.fsh": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.prolactin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.igf1": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hormones.dht": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.sodium": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.potassium": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.chloride": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.calciumTotal": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.phosphorus": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.magnesium": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.magnesiumRBC": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.copper": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "electrolytes.zinc": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.cholesterol": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.triglycerides": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.hdl": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.ldl": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.nonHdl": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.cholHdlRatio": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.apoAI": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "lipids.apoB": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "iron.iron": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "iron.ferritin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "iron.transferrin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "iron.tibc": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "iron.transferrinSat": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "proteins.hsCRP": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "proteins.totalProtein": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "proteins.albumin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "proteins.ceruloplasmin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "thyroid.tsh": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "thyroid.ft4": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "thyroid.ft3": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "thyroid.t4total": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "thyroid.t3total": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "vitamins.vitaminD": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "vitamins.vitaminD3": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "vitamins.vitaminA": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "diabetes.hba1c": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "diabetes.insulin_d": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "diabetes.homaIR": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "coagulation.homocysteine": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.wbc": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.rbc": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.hemoglobin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.hematocrit": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.mcv": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.mch": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.mchc": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.rdwcv": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.platelets": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.mpv": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "hematology.pdw": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.neutrophils": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.lymphocytes": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.monocytes": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.eosinophils": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.basophils": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.neutrophilsPct": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.lymphocytesPct": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "differential.monocytesPct": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "boneMetabolism.osteocalcin": {
-          "file": "Winter 2025 Panel.pdf",
-          "at": 1769342400000
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         },
         "specialty.glycanAge": {
           "file": "GlycanAge plasma test.pdf",
-          "at": 1769328000000
+          "at": 1784361600000
         },
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
-          "at": 1769328000000
+          "at": 1784361600000
         },
         "oatMetabolic.lactic": {
           "file": "Demo advanced functional panel",
@@ -2130,7 +2130,7 @@
       }
     },
     {
-      "date": "2026-01-25",
+      "date": "2026-07-18",
       "markers": {
         "fattyAcids.palmiticC16": 28,
         "fattyAcids.stearicC18": 12.5,
@@ -2150,64 +2150,64 @@
       },
       "markerSources": {
         "fattyAcids.palmiticC16": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.stearicC18": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.oleicC18_1": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.linoleicC18_2": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.glaC18_3": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.arachidonicC20_4": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.dglaC20_3": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.alaC18_3": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.epaC20_5": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.dpaC22_5": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.dhaC22_6": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.omega3Index": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.omega6to3Ratio": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.membraneFluidity": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         },
         "fattyAcids.mentalResilience": {
-          "file": "Spring 2026 Panel.pdf",
-          "at": 1769342400000
+          "file": "2026-Q3 fatty-acid add-on panel.pdf",
+          "at": 1784376000000
         }
       }
     }
@@ -2215,19 +2215,19 @@
   "notes": [
     {
       "date": "2025-04-10",
-      "text": "Baseline panel. Blood draw on day 7 of cycle (early follicular). Ferritin already borderline low — doctor recommended iron supplementation. Feeling fatigued, especially around periods."
+      "text": "Baseline panel. Blood draw on cycle day 10 (late follicular). Ferritin already borderline low — doctor recommended iron supplementation. Feeling fatigued, especially around periods."
     },
     {
       "date": "2025-08-05",
-      "text": "Mid-luteal draw (day 22). Progesterone elevated as expected for this phase. Ferritin dropped further despite 25mg iron. Switching to iron bisglycinate 36mg with vitamin C. TSH creeping up — monitoring."
+      "text": "Late-follicular draw on cycle day 11. Estradiol was rising while progesterone remained low, consistent with the recorded cycle. Ferritin dropped further despite 25 mg iron, so she switched to iron bisglycinate 36 mg with vitamin C. TSH is creeping up and will be monitored."
     },
     {
       "date": "2025-12-15",
-      "text": "Early follicular draw (day 5). Hemoglobin lowest yet — almost at lower reference limit. Iron saturation below range. Increased iron dose. TSH continues rising, fT4 dropping. GP ordered thyroid antibodies for next visit."
+      "text": "Late-luteal draw on cycle day 27, three days before the next recorded period. Hemoglobin, ferritin, and transferrin saturation all improved on a consistent 36 mg iron-bisglycinate dose. TSH continues to rise while free T4 trends down, so the GP ordered thyroid antibodies."
     },
     {
-      "date": "2026-01-25",
-      "text": "Day 10 (late follicular). Iron and hemoglobin finally improving! Two months of consistent high-dose iron bisglycinate working. But TSH still climbing — fT4 now near lower boundary. Endocrinology referral pending."
+      "date": "2026-07-18",
+      "text": "Cycle day 10 (late follicular). Ferritin, transferrin saturation, and hemoglobin continue to improve after sustained adherence to iron bisglycinate. TSH is still rising and free T4 is near the lower boundary, so thyroid antibodies and an endocrinology review remain pending."
     }
   ],
   "supplements": [
@@ -2272,13 +2272,6 @@
       "startDate": "2025-04-15",
       "endDate": "2025-08-05",
       "type": "supplement"
-    },
-    {
-      "name": "Levothyroxine",
-      "dosage": "under discussion",
-      "startDate": "",
-      "endDate": "",
-      "type": "medication"
     }
   ],
   "diagnoses": {
@@ -2286,15 +2279,34 @@
       {
         "name": "Iron deficiency",
         "severity": "mild",
-        "since": "2025"
+        "since": "2025",
+        "status": "active"
       },
       {
-        "name": "Subclinical hypothyroidism",
+        "name": "Possible thyroid dysfunction — under evaluation",
         "severity": "mild",
-        "since": "2025"
+        "since": "2025",
+        "status": "active"
       }
     ],
-    "note": "Family history: Hashimoto's thyroiditis (mother), osteoporosis (maternal grandmother). No other chronic conditions. Pending thyroid antibody testing (TPO, Tg)."
+    "familyHistory": [
+      {
+        "relative": "mother",
+        "condition": "Hashimoto's Thyroiditis",
+        "note": "Diagnosed in her forties."
+      },
+      {
+        "relative": "maternal_grandmother",
+        "condition": "Osteoporosis",
+        "note": "Diagnosed after menopause."
+      }
+    ],
+    "flags": {
+      "hormoneTherapy": false,
+      "acuteIllnessNearDraw": false
+    },
+    "proceduresNote": "",
+    "note": "No thyroid medication is currently being taken. Thyroid antibody testing (TPOAb and TgAb) and endocrinology review are pending."
   },
   "diet": {
     "type": "omnivore",
@@ -2303,6 +2315,12 @@
       "seed oil-free"
     ],
     "pattern": "3 meals/day",
+    "proteinIntake": "1.6–2.2 g/kg/day",
+    "hydration": "2–3 L/day",
+    "alcohol": "occasional",
+    "caffeine": "1 serving/day",
+    "caffeineTiming": "morning only",
+    "recentChanges": [],
     "breakfast": "Eggs with spinach, sourdough toast, berries",
     "breakfastTime": "07:30",
     "lunch": "Grilled chicken salad with quinoa and roasted vegetables",
@@ -2312,8 +2330,8 @@
     "snacks": "Nuts, dark chocolate, seasonal fruit",
     "snacksTime": "15:30",
     "note": "Higher protein focus (~120g/day). Red meat 2-3x/week for heme iron. Takes iron supplement away from coffee/tea. Green tea 1-2 cups/day.",
-    "bowelFrequency": "1-2x/day",
-    "stoolConsistency": "well-formed",
+    "bowelFrequency": "2x/day",
+    "stoolConsistency": "smooth",
     "bloating": "moderate",
     "gas": "moderate",
     "acidReflux": "none",
@@ -2323,7 +2341,7 @@
     "abdominalPain": "occasional",
     "foodSensitivities": [
       "dairy",
-      "raw onion"
+      "FODMAPs"
     ]
   },
   "exercise": {
@@ -2336,11 +2354,20 @@
     ],
     "intensity": "moderate",
     "dailyMovement": "some walking",
+    "duration": "30-60 min",
+    "muscleContext": "average",
+    "limitations": [
+      "poor recovery"
+    ],
     "note": "Yoga 3x/week (vinyasa + yin). Running 2x/week (5-8 km easy pace). Light resistance training 2x/week since Nov 2025 for bone health. Rest days aligned with heavier period days. Daily 6000+ steps."
   },
   "sleepRest": {
     "duration": "7-8h",
     "quality": "good",
+    "daytimeSleepiness": "sometimes",
+    "apneaStatus": "not suspected",
+    "papUse": "not applicable",
+    "naps": "occasional",
     "schedule": "consistent",
     "roomTemp": "cool (18-20°C / 65-68°F)",
     "issues": [
@@ -2378,6 +2405,8 @@
   },
   "stress": {
     "level": "moderate",
+    "duration": "long-term (1+ year)",
+    "trend": "variable",
     "sources": [
       "work",
       "health"
@@ -2395,16 +2424,21 @@
     "relationship": "supportive & secure",
     "satisfaction": "satisfied",
     "libido": "variable",
+    "libidoChange": "variable",
     "frequency": "few times/week",
     "orgasm": "usually",
     "concerns": [
       "hormonal changes"
     ],
+    "reproductiveGoals": [],
     "note": "Libido fluctuates with cycle — lowest during late luteal/early menstrual. Partner supportive."
   },
   "environment": {
     "setting": "urban residential",
     "climate": "temperate",
+    "altitude": "low altitude / sea level",
+    "inhaledExposures": [],
+    "occupationalExposures": [],
     "water": "filtered (carbon)",
     "waterConcerns": [
       "chlorinated",
@@ -2462,6 +2496,65 @@
     "contraceptive": "",
     "conditions": "",
     "periods": [
+      {
+        "startDate": "2026-07-09",
+        "endDate": "2026-07-13",
+        "flow": "moderate",
+        "symptoms": [
+          "Cramps",
+          "Fatigue"
+        ],
+        "notes": "Five-day period; fatigue was mild and did not interrupt training."
+      },
+      {
+        "startDate": "2026-06-10",
+        "endDate": "2026-06-14",
+        "flow": "moderate",
+        "symptoms": [
+          "Cramps"
+        ],
+        "notes": "Typical cycle and flow."
+      },
+      {
+        "startDate": "2026-05-12",
+        "endDate": "2026-05-16",
+        "flow": "heavy",
+        "symptoms": [
+          "Cramps",
+          "Fatigue",
+          "Clots"
+        ],
+        "notes": "Heavier first two days, then moderate flow."
+      },
+      {
+        "startDate": "2026-04-13",
+        "endDate": "2026-04-17",
+        "flow": "moderate",
+        "symptoms": [
+          "Bloating",
+          "Breast tenderness"
+        ],
+        "notes": "Typical cycle."
+      },
+      {
+        "startDate": "2026-03-15",
+        "endDate": "2026-03-19",
+        "flow": "moderate",
+        "symptoms": [
+          "Cramps",
+          "Fatigue"
+        ],
+        "notes": "Energy improved after day two."
+      },
+      {
+        "startDate": "2026-02-14",
+        "endDate": "2026-02-18",
+        "flow": "moderate",
+        "symptoms": [
+          "Cramps"
+        ],
+        "notes": "Typical cycle."
+      },
       {
         "startDate": "2026-01-16",
         "endDate": "2026-01-20",
@@ -2601,8 +2694,8 @@
           }
         ],
         "note": "Self-measured with rented meters. Pre-1970 building, renovated 2018. Thick masonry walls provide good shielding on courtyard side. Street side has direct line-of-sight to cell tower. Considering shielding curtains for living room windows.",
-        "interpretation": "## Sleep room is the priority\n\n- **Bedroom AC magnetic field** measured high — likely from external wiring or transformer adjacent to the room. Highest-leverage finding because it accumulates 8h/night of exposure.\n  - **Mitigation:** Baubiologie measurement; sleeping head-position relocation; correction from the utility if persistent.\n- **WiFi router** placement could be improved — 4–5 m distance from sleeping/working areas drops exposure ~16× via inverse-square. Alternative: hardwire ethernet + disable WiFi at night via timer.\n- **Phone at bedside** — power off or airplane mode at night eliminates near-field exposure. Removing the phone from the room is even better.\n\nLower priority:\n- Office RF baseline acceptable.\n- Living-area dirty electricity moderate; consider Stetzer filters on heaviest-load circuits.",
-        "interpretedAt": 1777883400000
+      "interpretation": "## The bedroom is comparatively well controlled\n\n- Bedroom RF measured 8.5 µW/m² and AC magnetic field measured 25 nT, both lower than the street-facing living room in this assessment. The 3.2 V/m AC electric reading is the main bedroom item to recheck after moving the meter and changing breaker states.\n- Existing night routines — WiFi off and phone in airplane mode — should be kept consistent before and during any repeat measurement.\n- The living room has the highest measured RF at 180 µW/m², consistent with the street-facing windows, nearby networks, and reported cell-tower line of sight. Distance from the windows and relocating the router are practical comparison tests.\n\nNo office was measured, and phone exposure was not measured separately, so neither should be treated as a confirmed finding from this assessment.",
+        "interpretedAt": 1785141000000
       }
     ]
   },
@@ -2649,7 +2742,7 @@
         "source": "manual"
       },
       {
-        "date": "2026-01-25",
+      "date": "2026-07-18",
         "value": 60,
         "unit": "kg",
         "source": "manual"
@@ -2669,7 +2762,7 @@
         "source": "manual"
       },
       {
-        "date": "2026-01-25",
+      "date": "2026-07-18",
         "sys": 112,
         "dia": 74,
         "source": "manual"
@@ -2687,7 +2780,7 @@
         "source": "manual"
       },
       {
-        "date": "2026-01-25",
+      "date": "2026-07-18",
         "value": 66,
         "source": "manual"
       }
@@ -2776,13 +2869,90 @@
       "importDate": "2025-04-05"
     }
   },
-  "changeHistory": [],
-  "markerNotes": {},
+  "changeHistory": [
+    {
+      "field": "diet",
+      "date": "2025-08-10",
+      "snapshot": {
+        "type": "omnivore",
+        "pattern": "3 meals/day",
+        "restrictions": [
+          "dairy-free",
+          "seed oil-free"
+        ],
+        "note": "Increased heme-iron foods and began taking iron away from tea and coffee."
+      },
+      "updatedAt": 1754812800000
+    },
+    {
+      "field": "exercise",
+      "date": "2025-11-10",
+      "snapshot": {
+        "frequency": "5-6x/week",
+        "types": [
+          "yoga/mobility",
+          "cardio/running",
+          "strength",
+          "walking"
+        ],
+        "intensity": "moderate",
+        "duration": "30-60 min",
+        "note": "Added twice-weekly resistance training for bone health."
+      },
+      "updatedAt": 1762776000000
+    },
+    {
+      "field": "stress",
+      "date": "2025-12-15",
+      "snapshot": {
+        "level": "high",
+        "duration": "6-12 months",
+        "trend": "worsening",
+        "sources": [
+          "work",
+          "health"
+        ],
+        "management": [
+          "exercise",
+          "social support"
+        ]
+      },
+      "updatedAt": 1765792800000
+    },
+    {
+      "field": "stress",
+      "date": "2026-07-18",
+      "snapshot": {
+        "level": "moderate",
+        "duration": "long-term (1+ year)",
+        "trend": "variable",
+        "sources": [
+          "work",
+          "health"
+        ],
+        "management": [
+          "exercise",
+          "nature",
+          "social support",
+          "journaling"
+        ]
+      },
+      "updatedAt": 1784376000000
+    }
+  ],
+  "markerNotes": {
+    "iron.ferritin": "Interpret with menstrual blood loss and inflammation markers; oral iron bisglycinate has been used since August 2025.",
+    "thyroid.tsh": "Maternal Hashimoto's history. Thyroid antibodies are pending, and no thyroid medication is currently being taken."
+  },
+  "markerValueNotes": {
+    "hormones.progesterone:2025-08-05": "Cycle day 11, so this is a follicular rather than mid-luteal progesterone result.",
+    "iron.ferritin:2026-07-18": "Draw occurred on cycle day 10 after approximately eleven months of iron-bisglycinate use."
+  },
   "wearableSummary": {
     "sources": {
       "oura": {
         "connectedSince": "2025-12-15",
-        "lastSyncAt": 1745510400000,
+        "lastSyncAt": 1785657600000,
         "coverageDays": 90
       }
     },
@@ -2790,7 +2960,7 @@
       "hrv_rmssd": {
         "primarySource": "oura",
         "latest": 36,
-        "latestDate": "2026-04-22",
+        "latestDate": "2026-07-15",
         "baseline": 51,
         "baselineP25": 42,
         "baselineP75": 62,
@@ -2818,7 +2988,7 @@
       "rhr": {
         "primarySource": "oura",
         "latest": 64,
-        "latestDate": "2026-04-22",
+        "latestDate": "2026-07-15",
         "baseline": 58,
         "baselineP25": 56,
         "baselineP75": 61,
@@ -2846,7 +3016,7 @@
       "sleep_score": {
         "primarySource": "oura",
         "latest": 72,
-        "latestDate": "2026-04-22",
+        "latestDate": "2026-07-15",
         "baseline": 81,
         "baselineP25": 75,
         "baselineP75": 86,
@@ -2874,7 +3044,7 @@
       "readiness_score": {
         "primarySource": "oura",
         "latest": 68,
-        "latestDate": "2026-04-22",
+        "latestDate": "2026-07-15",
         "baseline": 80,
         "baselineP25": 75,
         "baselineP75": 87,
@@ -2902,7 +3072,7 @@
       "body_temp_delta": {
         "primarySource": "oura",
         "latest": 0.5,
-        "latestDate": "2026-04-22",
+        "latestDate": "2026-07-15",
         "baseline": -0.05,
         "baselineP25": -0.2,
         "baselineP75": 0.15,
@@ -2930,7 +3100,7 @@
       "steps": {
         "primarySource": "oura",
         "latest": 4200,
-        "latestDate": "2026-04-22",
+        "latestDate": "2026-07-15",
         "baseline": 7800,
         "baselineP25": 6200,
         "baselineP75": 9400,
@@ -3087,15 +3257,15 @@
       "mwPerCm2At15cm": 110,
       "recommendedDistanceCm": 30,
       "lux": 4500,
-      "addedAt": 1774341000000,
+      "addedAt": 1781598600000,
       "notes": "Bedside — used post-workout for recovery + on workdays as eye-channel anchor."
     }
   ],
   "sunSessions": [
     {
       "id": "sun_demo_0d",
-      "startedAt": 1778322600000,
-      "endedAt": 1778324100000,
+      "startedAt": 1785580200000,
+      "endedAt": 1785581700000,
       "durationMin": 25,
       "location": {
         "lat": 50.0755,
@@ -3128,7 +3298,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 56.02650191265742,
         "airMass": 1.2,
-        "snapshotAt": 1778322600000,
+        "snapshotAt": 1785580200000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3154,13 +3324,13 @@
         "dot": "green",
         "tip": "Solid 25-min session, well within safe band",
         "detail": "32% body fraction at UVI 5.8. Vit-D synthesis on track, 23% MED leaves room for one more session today if you want.",
-        "generatedAt": 1778324100000
+        "generatedAt": 1785581700000
       }
     },
     {
       "id": "sun_demo_1d",
-      "startedAt": 1778220000000,
-      "endedAt": 1778221320000,
+      "startedAt": 1785477600000,
+      "endedAt": 1785478920000,
       "durationMin": 22,
       "location": {
         "lat": 50.0755,
@@ -3190,7 +3360,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 22,
         "airMass": 2.5,
-        "snapshotAt": 1778220000000,
+        "snapshotAt": 1785477600000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3216,13 +3386,13 @@
         "dot": "yellow",
         "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
         "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
-        "generatedAt": 1778221320000
+        "generatedAt": 1785478920000
       }
     },
     {
       "id": "sun_demo_2d",
-      "startedAt": 1778148000000,
-      "endedAt": 1778149800000,
+      "startedAt": 1785405600000,
+      "endedAt": 1785407400000,
       "durationMin": 30,
       "location": {
         "lat": 50.0755,
@@ -3257,7 +3427,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 56.75814265357501,
         "airMass": 1.2,
-        "snapshotAt": 1778148000000,
+        "snapshotAt": 1785405600000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3283,13 +3453,13 @@
         "dot": "green",
         "tip": "Solid 30-min session, well within safe band",
         "detail": "45% body fraction at UVI 6.4. Vit-D synthesis on track, 43% MED leaves room for one more session today if you want.",
-        "generatedAt": 1778149800000
+        "generatedAt": 1785407400000
       }
     },
     {
       "id": "sun_demo_3d",
-      "startedAt": 1778067000000,
-      "endedAt": 1778068200000,
+      "startedAt": 1785324600000,
+      "endedAt": 1785325800000,
       "durationMin": 20,
       "location": {
         "lat": 50.0755,
@@ -3321,7 +3491,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 53.43269720975488,
         "airMass": 1.2,
-        "snapshotAt": 1778067000000,
+        "snapshotAt": 1785324600000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3347,13 +3517,13 @@
         "dot": "green",
         "tip": "Solid 20-min session, well within safe band",
         "detail": "18% body fraction at UVI 4.5. Vit-D synthesis on track, 8% MED leaves room for one more session today if you want.",
-        "generatedAt": 1778068200000
+        "generatedAt": 1785325800000
       }
     },
     {
       "id": "sun_demo_4d",
-      "startedAt": 1777959000000,
-      "endedAt": 1777959720000,
+      "startedAt": 1785216600000,
+      "endedAt": 1785217320000,
       "durationMin": 12,
       "location": {
         "lat": 50.0755,
@@ -3383,7 +3553,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 22,
         "airMass": 2.5,
-        "snapshotAt": 1777959000000,
+        "snapshotAt": 1785216600000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3409,13 +3579,13 @@
         "dot": "yellow",
         "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
         "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
-        "generatedAt": 1777959720000
+        "generatedAt": 1785217320000
       }
     },
     {
       "id": "sun_demo_6d",
-      "startedAt": 1777804200000,
-      "endedAt": 1777805880000,
+      "startedAt": 1785061800000,
+      "endedAt": 1785063480000,
       "durationMin": 28,
       "location": {
         "lat": 50.0755,
@@ -3448,7 +3618,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 56.69081755758071,
         "airMass": 1.2,
-        "snapshotAt": 1777804200000,
+        "snapshotAt": 1785061800000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3474,13 +3644,13 @@
         "dot": "green",
         "tip": "Solid 28-min session, well within safe band",
         "detail": "32% body fraction at UVI 6.2. Vit-D synthesis on track, 28% MED leaves room for one more session today if you want.",
-        "generatedAt": 1777805880000
+        "generatedAt": 1785063480000
       }
     },
     {
       "id": "sun_demo_9d",
-      "startedAt": 1777546800000,
-      "endedAt": 1777547880000,
+      "startedAt": 1784804400000,
+      "endedAt": 1784805480000,
       "durationMin": 18,
       "location": {
         "lat": 50.0755,
@@ -3512,7 +3682,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 53.9798567876672,
         "airMass": 1.2,
-        "snapshotAt": 1777546800000,
+        "snapshotAt": 1784804400000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3538,13 +3708,13 @@
         "dot": "green",
         "tip": "Solid 18-min session, well within safe band",
         "detail": "18% body fraction at UVI 6.1. Vit-D synthesis on track, 10% MED leaves room for one more session today if you want.",
-        "generatedAt": 1777547880000
+        "generatedAt": 1784805480000
       }
     },
     {
       "id": "sun_demo_14d",
-      "startedAt": 1777109400000,
-      "endedAt": 1777110120000,
+      "startedAt": 1784367000000,
+      "endedAt": 1784367720000,
       "durationMin": 12,
       "location": {
         "lat": 50.0755,
@@ -3574,7 +3744,7 @@
         "ozoneDU": 320,
         "sunElevationDeg": 53.465330405685336,
         "airMass": 1.2,
-        "snapshotAt": 1777109400000,
+        "snapshotAt": 1784367000000,
         "source": "auto",
         "confidence": 0.85
       },
@@ -3600,7 +3770,7 @@
         "dot": "gray",
         "tip": "Glass between you and the sun — no UVB → no vitamin D",
         "detail": "Window glass blocks ~95% of UVB. Other channels (NIR, circadian-eye) still flowed through. Move outside next time for the vit-D path.",
-        "generatedAt": 1777110120000
+        "generatedAt": 1784367720000
       }
     }
   ],
@@ -3608,8 +3778,8 @@
     {
       "id": "devsess_demo_0d",
       "deviceId": "dev_demo_redlight",
-      "startedAt": 1778301000000,
-      "endedAt": 1778301720000,
+      "startedAt": 1785558600000,
+      "endedAt": 1785559320000,
       "durationMin": 12,
       "distanceCm": 25,
       "bodyArea": "face",
@@ -3630,14 +3800,14 @@
         "dot": "green",
         "tip": "12-min session at recommended distance, eyes uncovered (OK at this wavelength)",
         "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=6500, pbm_nir=8200, circadian=1100.",
-        "generatedAt": 1778301720000
+        "generatedAt": 1785559320000
       }
     },
     {
       "id": "devsess_demo_2d",
       "deviceId": "dev_demo_uvb",
-      "startedAt": 1778128200000,
-      "endedAt": 1778128560000,
+      "startedAt": 1785385800000,
+      "endedAt": 1785386160000,
       "durationMin": 6,
       "distanceCm": 60,
       "bodyArea": "torso-front",
@@ -3659,14 +3829,14 @@
         "dot": "green",
         "tip": "6-min session at recommended distance, eyes protected",
         "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=105, nir_solar=600, pbm_red=1500, pbm_nir=2000.",
-        "generatedAt": 1778128560000
+        "generatedAt": 1785386160000
       }
     },
     {
       "id": "devsess_demo_4d",
       "deviceId": "dev_demo_redlight",
-      "startedAt": 1777955400000,
-      "endedAt": 1777956300000,
+      "startedAt": 1785213000000,
+      "endedAt": 1785213900000,
       "durationMin": 15,
       "distanceCm": 25,
       "bodyArea": "torso-back",
@@ -3686,14 +3856,14 @@
         "dot": "green",
         "tip": "15-min session at recommended distance, eyes uncovered (OK at this wavelength)",
         "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=8200, pbm_nir=10500.",
-        "generatedAt": 1777956300000
+        "generatedAt": 1785213900000
       }
     },
     {
       "id": "devsess_demo_5d",
       "deviceId": "dev_demo_uvb",
-      "startedAt": 1777869000000,
-      "endedAt": 1777869420000,
+      "startedAt": 1785126600000,
+      "endedAt": 1785127020000,
       "durationMin": 7,
       "distanceCm": 60,
       "bodyArea": "torso-front",
@@ -3715,14 +3885,14 @@
         "dot": "green",
         "tip": "7-min session at recommended distance, eyes protected",
         "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=125, nir_solar=700, pbm_red=1800, pbm_nir=2300.",
-        "generatedAt": 1777869420000
+        "generatedAt": 1785127020000
       }
     },
     {
       "id": "devsess_demo_8d",
       "deviceId": "dev_demo_redlight",
-      "startedAt": 1777609800000,
-      "endedAt": 1777610400000,
+      "startedAt": 1784867400000,
+      "endedAt": 1784868000000,
       "durationMin": 10,
       "distanceCm": 25,
       "bodyArea": "face",
@@ -3742,14 +3912,14 @@
         "dot": "green",
         "tip": "10-min session at recommended distance, eyes uncovered (OK at this wavelength)",
         "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=5200, pbm_nir=6800, circadian=900.",
-        "generatedAt": 1777610400000
+        "generatedAt": 1784868000000
       }
     },
     {
       "id": "devsess_demo_11d",
       "deviceId": "dev_demo_uvb",
-      "startedAt": 1777350600000,
-      "endedAt": 1777350900000,
+      "startedAt": 1784608200000,
+      "endedAt": 1784608500000,
       "durationMin": 5,
       "distanceCm": 60,
       "bodyArea": "torso-front",
@@ -3770,7 +3940,7 @@
         "dot": "green",
         "tip": "5-min session at recommended distance, eyes protected",
         "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=88, nir_solar=500, pbm_red=1200, pbm_nir=1700.",
-        "generatedAt": 1777350900000
+        "generatedAt": 1784608500000
       }
     }
   ],
@@ -3780,57 +3950,57 @@
         "id": "room_demo_bedroom",
         "name": "Bedroom",
         "primarySource": "led_warm",
-        "cct": 2700,
-        "flickerScore": 1,
+        "cct": 2200,
+        "flickerScore": 0,
         "hoursOccupiedPerDay": 9,
         "eveningHoursAfterSunset": "1-3hr",
         "eveningUseAfterSunset": true,
-        "notes": "Switched to amber bulbs for evening + blackout curtains installed mid-March.",
-        "updatedAt": 1776587400000,
+        "notes": "Uses a low, amber bedside lamp after 20:30; blackout curtains and earplugs support the sleep window.",
+        "updatedAt": 1783845000000,
         "aiAnalysis": {
           "status": "ok",
           "dot": "green",
-          "tip": "Warm bedroom light + evening use — good evening config",
-          "detail": "2700K amber bulbs + 1-3hr of post-sunset use. Melanopic load stays low, sleep onset uninterrupted.",
-          "generatedAt": 1776587400000
+          "tip": "Low 2200K bedroom light supports the evening signal",
+          "detail": "The low amber bedside lamp keeps melanopic load modest during post-sunset use. Blackout curtains address the separate sleep-darkness window.",
+          "generatedAt": 1783845000000
         }
       },
       {
         "id": "room_demo_office",
         "name": "Office",
-        "primarySource": "led_cool",
-        "cct": 5000,
-        "flickerScore": 2,
-        "hoursOccupiedPerDay": 7,
+        "primarySource": "natural_daylight",
+        "cct": 4500,
+        "flickerScore": 1,
+        "hoursOccupiedPerDay": 8,
         "eveningHoursAfterSunset": "<1hr",
         "eveningUseAfterSunset": false,
-        "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
-        "updatedAt": 1775032200000,
+        "notes": "Large east-facing windows dominate the morning; 4000K task lighting is used on dark afternoons.",
+        "updatedAt": 1782289800000,
         "aiAnalysis": {
           "status": "ok",
           "dot": "green",
-          "tip": "Cool-white workspace, daytime-only — appropriate for office",
-          "detail": "5000K + 7h/day during productive hours feeds the daytime alertness signal. Window-adjacent is even better — natural light dominates 9am-4pm.",
-          "generatedAt": 1775032200000
+          "tip": "Window-led daytime workspace supports alertness",
+          "detail": "Natural window light is the main source during working hours, with moderate task lighting used only when daylight falls. Evening exposure in this room is limited.",
+          "generatedAt": 1782289800000
         }
       },
       {
         "id": "room_demo_kitchen",
         "name": "Kitchen",
-        "primarySource": "mixed",
-        "cct": 3500,
-        "flickerScore": 0,
+        "primarySource": "led_warm",
+        "cct": 3000,
+        "flickerScore": 1,
         "hoursOccupiedPerDay": 3,
         "eveningHoursAfterSunset": "1-3hr",
         "eveningUseAfterSunset": true,
-        "notes": "",
-        "updatedAt": 1773995400000,
+        "notes": "Warm under-cabinet lighting is used after sunset instead of the brighter ceiling fixture.",
+        "updatedAt": 1781253000000,
         "aiAnalysis": {
           "status": "ok",
-          "dot": "gray",
-          "tip": "3 h/day — light-burden moderate",
-          "detail": "Mixed/unknown lighting in a low-occupancy room is a low-impact lever. Focus on bedroom + workspace first.",
-          "generatedAt": 1773995400000
+          "dot": "green",
+          "tip": "Warm task lighting keeps evening kitchen exposure moderate",
+          "detail": "The kitchen is occupied for about three hours daily, but warmer under-cabinet lighting limits the evening burden.",
+          "generatedAt": 1781253000000
         }
       }
     ],
@@ -3839,49 +4009,49 @@
         "id": "scr_demo_laptop",
         "device": "laptop",
         "roomId": "room_demo_office",
-        "hoursPerDay": "6+hr",
+        "hoursPerDay": "3-6hr",
         "eveningUseAfterSunset": "<1hr",
         "blueBlockerEnabled": true,
         "flickerScore": 1,
-        "updatedAt": 1774427400000,
+        "updatedAt": 1781685000000,
         "aiAnalysis": {
           "status": "ok",
           "dot": "green",
           "tip": "Blue blocker + minimal evening use — well managed",
-          "detail": "laptop with active blue-light filter + <1hr after sunset. This is the ideal screen profile.",
-          "generatedAt": 1774427400000
+          "detail": "The laptop has an active blue-light filter and less than one hour of evening use. Most exposure occurs in the daylight-rich office.",
+          "generatedAt": 1781685000000
         }
       },
       {
-        "id": "scr_demo_phone",
-        "device": "phone",
+        "id": "scr_demo_reader",
+        "device": "e-reader",
         "roomId": "room_demo_bedroom",
-        "hoursPerDay": "3-6hr",
+        "hoursPerDay": "1-3hr",
         "eveningUseAfterSunset": "1-3hr",
-        "blueBlockerEnabled": false,
-        "flickerScore": 1,
-        "updatedAt": 1774427400000,
+        "blueBlockerEnabled": true,
+        "flickerScore": 0,
+        "updatedAt": 1781685000000,
         "aiAnalysis": {
           "status": "ok",
-          "dot": "yellow",
-          "tip": "Unblocked phone + 1-3hr after sunset",
-          "detail": "Phone/tablet display peaks at ~440nm — same wavelength your circadian system reads as \"morning sun\". A schedule-based blue-blocker (Night Shift / f.lux) cuts the melatonin-suppression effect ~40% without changing your usage habits.",
-          "generatedAt": 1774427400000
+          "dot": "green",
+          "tip": "Warm e-reader mode is enabled for evening reading",
+          "detail": "The e-reader is used for one to three hours after sunset with its warm display mode enabled. Keeping brightness low preserves the benefit of the amber bedroom lighting.",
+          "generatedAt": 1781685000000
         }
       }
     ],
     "burdenAI": {
       "status": "ok",
-      "dot": "yellow",
-      "tip": "Indoor light load is moderate — bedroom evening use is the main lever.",
-      "detail": "Daytime exposure is good (window-side office, kitchen mixed). Evening bedroom is the weak spot: 1–3hr screen + warm-LED is ok for sleep but 1+ unblocked hr of phone reduces melatonin onset by ~30 min on average. Consider blue-blockers on phone after 9pm OR cutting evening phone use to <1hr.",
-      "generatedAt": 1777969800000
+      "dot": "green",
+      "tip": "Daylight-rich work hours and warm evening lighting are well separated",
+      "detail": "The office provides strong daytime light, while the bedroom and kitchen use warm, lower-intensity sources after sunset. The e-reader's warm mode closes the main issue identified in the earlier audit; brightness and total evening duration remain useful to monitor.",
+      "generatedAt": 1785227400000
     }
   },
   "lightAudits": [
     {
       "id": "la_demo_before",
-      "date": "2026-03-20",
+      "date": "2026-06-12",
       "label": "Baseline — pre-bedroom upgrade",
       "notes": "Before swapping bedroom bulbs to amber + installing blackout curtains.",
       "rooms": [
@@ -3895,7 +4065,7 @@
           "eveningHoursAfterSunset": "1-3hr",
           "eveningUseAfterSunset": true,
           "notes": "Cool-white overhead LED",
-          "updatedAt": 1773993600000
+          "updatedAt": 1781251200000
         },
         {
           "id": "room_demo_office",
@@ -3907,7 +4077,7 @@
           "eveningHoursAfterSunset": "<1hr",
           "eveningUseAfterSunset": false,
           "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
-          "updatedAt": 1775032200000
+          "updatedAt": 1782289800000
         },
         {
           "id": "room_demo_kitchen",
@@ -3919,7 +4089,7 @@
           "eveningHoursAfterSunset": "1-3hr",
           "eveningUseAfterSunset": true,
           "notes": "",
-          "updatedAt": 1773995400000
+          "updatedAt": 1781253000000
         }
       ],
       "screens": [
@@ -3931,7 +4101,7 @@
           "eveningUseAfterSunset": "<1hr",
           "blueBlockerEnabled": true,
           "flickerScore": 1,
-          "updatedAt": 1774427400000
+          "updatedAt": 1781685000000
         },
         {
           "id": "scr_demo_phone",
@@ -3941,22 +4111,22 @@
           "eveningUseAfterSunset": "1-3hr",
           "blueBlockerEnabled": false,
           "flickerScore": 1,
-          "updatedAt": 1774427400000
+          "updatedAt": 1781685000000
         }
       ],
       "measurements": [],
-      "createdAt": 1773993600000,
+      "createdAt": 1781251200000,
       "aiAnalysis": {
         "status": "ok",
         "dot": "red",
         "tip": "Cool-white bedroom overhead is the main melatonin suppressor.",
         "detail": "4000K bedroom lighting at evening use breaks the sleep-onset signal. Pair this with 1–3hr unblocked phone time and you get measurable phase delay. Highest-leverage fix is bulb swap to <2700K + blackout for the sleep window.",
-        "generatedAt": 1773995400000
+        "generatedAt": 1781253000000
       }
     },
     {
       "id": "la_demo_after",
-      "date": "2026-04-25",
+      "date": "2026-07-18",
       "label": "After — amber bulbs + blackout",
       "notes": "Swapped bedroom to 2700K amber + blackout curtains for sleep window.",
       "rooms": [
@@ -3969,8 +4139,8 @@
           "hoursOccupiedPerDay": 9,
           "eveningHoursAfterSunset": "1-3hr",
           "eveningUseAfterSunset": true,
-          "notes": "Switched to amber bulbs for evening + blackout curtains installed mid-March.",
-          "updatedAt": 1776587400000
+          "notes": "Switched to amber bulbs for evening + blackout curtains installed in July.",
+          "updatedAt": 1783845000000
         },
         {
           "id": "room_demo_office",
@@ -3982,7 +4152,7 @@
           "eveningHoursAfterSunset": "<1hr",
           "eveningUseAfterSunset": false,
           "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
-          "updatedAt": 1775032200000
+          "updatedAt": 1782289800000
         },
         {
           "id": "room_demo_kitchen",
@@ -3994,7 +4164,7 @@
           "eveningHoursAfterSunset": "1-3hr",
           "eveningUseAfterSunset": true,
           "notes": "",
-          "updatedAt": 1773995400000
+          "updatedAt": 1781253000000
         }
       ],
       "screens": [
@@ -4006,7 +4176,7 @@
           "eveningUseAfterSunset": "<1hr",
           "blueBlockerEnabled": true,
           "flickerScore": 1,
-          "updatedAt": 1774427400000
+          "updatedAt": 1781685000000
         },
         {
           "id": "scr_demo_phone",
@@ -4016,17 +4186,17 @@
           "eveningUseAfterSunset": "1-3hr",
           "blueBlockerEnabled": false,
           "flickerScore": 1,
-          "updatedAt": 1774427400000
+          "updatedAt": 1781685000000
         }
       ],
       "measurements": [],
-      "createdAt": 1777104000000,
+      "createdAt": 1784361600000,
       "aiAnalysis": {
         "status": "ok",
         "dot": "green",
         "tip": "Bedroom melatonin signal restored. Evening phone is now the next lever.",
         "detail": "Amber bedroom lighting + blackout brings the bedroom into the green band for melanopic-EDI. Remaining lever is evening phone use (1–3hr unblocked) — adding a screen-level blue-block schedule would close the loop.",
-        "generatedAt": 1777105800000
+        "generatedAt": 1784363400000
       }
     }
   ],
@@ -4036,7 +4206,7 @@
       "tool": "lux",
       "value": 320,
       "roomId": "room_demo_office",
-      "capturedAt": 1775896200000,
+      "capturedAt": 1783153800000,
       "extra": {
         "device": "phone-camera"
       },
@@ -4046,7 +4216,7 @@
         "dot": "yellow",
         "tip": "320 lux — daytime-low for an office",
         "detail": "Reasonable but below the 500-lux office baseline. Adding window-side time or a daytime-bright lamp would help alertness.",
-        "generatedAt": 1775896200000
+        "generatedAt": 1783153800000
       }
     },
     {
@@ -4054,7 +4224,7 @@
       "tool": "lux",
       "value": 18000,
       "roomId": "room_demo_office",
-      "capturedAt": 1776155400000,
+      "capturedAt": 1783413000000,
       "extra": {
         "device": "phone-camera"
       },
@@ -4064,7 +4234,7 @@
         "dot": "green",
         "tip": "18000 lux — strong daytime signal",
         "detail": "Plenty of light for the circadian pathway during productive hours.",
-        "generatedAt": 1776155400000
+        "generatedAt": 1783413000000
       }
     },
     {
@@ -4072,7 +4242,7 @@
       "tool": "lux",
       "value": 6,
       "roomId": "room_demo_bedroom",
-      "capturedAt": 1776587400000,
+      "capturedAt": 1783845000000,
       "extra": {
         "device": "phone-camera",
         "label": "Light-tight"
@@ -4083,7 +4253,7 @@
         "dot": "green",
         "tip": "6 lux — sleep-spec dark",
         "detail": "Below 50 lux is the ICNIRP-friendly sleep range. Melatonin uninhibited.",
-        "generatedAt": 1776587400000
+        "generatedAt": 1783845000000
       }
     },
     {
@@ -4091,7 +4261,7 @@
       "tool": "cct",
       "value": 2700,
       "roomId": "room_demo_bedroom",
-      "capturedAt": 1776760200000,
+      "capturedAt": 1784017800000,
       "extra": {
         "device": "phone-camera"
       },
@@ -4101,7 +4271,7 @@
         "dot": "green",
         "tip": "2700K — warm, evening-appropriate",
         "detail": "Below 3000K means low blue content. Good for sleep prep.",
-        "generatedAt": 1776760200000
+        "generatedAt": 1784017800000
       }
     },
     {
@@ -4109,7 +4279,7 @@
       "tool": "cct",
       "value": 4900,
       "roomId": "room_demo_office",
-      "capturedAt": 1776933000000,
+      "capturedAt": 1784190600000,
       "extra": {
         "device": "phone-camera"
       },
@@ -4119,7 +4289,7 @@
         "dot": "yellow",
         "tip": "4900K — neutral, room-by-room call",
         "detail": "Mid-CCT works for daytime task lighting; in evening rooms it accelerates melatonin suppression.",
-        "generatedAt": 1776933000000
+        "generatedAt": 1784190600000
       }
     },
     {
@@ -4127,7 +4297,7 @@
       "tool": "flicker",
       "value": 1,
       "roomId": "room_demo_office",
-      "capturedAt": 1777019400000,
+      "capturedAt": 1784277000000,
       "extra": {
         "strobeHz": 240,
         "label": "Mild"
@@ -4138,7 +4308,7 @@
         "dot": "green",
         "tip": "Flicker score 1 — mild",
         "detail": "Detected at 240 Hz. Below 200 Hz is correlated with eye strain + headache susceptibility in flicker-sensitive subjects (Wilkins 2018).",
-        "generatedAt": 1777019400000
+        "generatedAt": 1784277000000
       }
     },
     {
@@ -4146,7 +4316,7 @@
       "tool": "spectrum",
       "value": "warm-incandescent",
       "roomId": "room_demo_bedroom",
-      "capturedAt": 1777192200000,
+      "capturedAt": 1784449800000,
       "extra": {
         "label": "Warm — incandescent-like"
       },
@@ -4156,7 +4326,7 @@
         "dot": "green",
         "tip": "Warm — incandescent-like",
         "detail": "Warm-spectrum lighting in evening rooms minimizes melanopic load.",
-        "generatedAt": 1777192200000
+        "generatedAt": 1784449800000
       }
     },
     {
@@ -4164,7 +4334,7 @@
       "tool": "darkness",
       "value": 0.2,
       "roomId": "room_demo_bedroom",
-      "capturedAt": 1777278600000,
+      "capturedAt": 1784536200000,
       "extra": {
         "label": "Sleep-spec ✓",
         "mean": 0.2,
@@ -4176,72 +4346,44 @@
         "dot": "green",
         "tip": "Sleep-spec ✓ mean 0.2 lux at the pillow",
         "detail": "Sleep darkness goal is <1 lux mean. Brief streetlight peaks (max 1.4 lux) are tolerable; constant exposure isn't.",
-        "generatedAt": 1777278600000
+        "generatedAt": 1784536200000
       }
     }
   ],
   "sunCorrelations": {
-    "computedAt": 1778056200000,
+    "computedAt": 1785313800000,
     "weeksAnalyzed": 12,
-    "pairs": [
-      {
-        "channel": "vitamin_d",
-        "marker": "vitamins.vitaminD",
-        "r": 0.71,
-        "n": 6,
-        "pValue": 0.045
-      },
-      {
-        "channel": "circadian",
-        "marker": "thyroid.tsh",
-        "r": -0.42,
-        "n": 6,
-        "pValue": 0.18
-      },
-      {
-        "channel": "no_card",
-        "marker": "lipids.triglycerides",
-        "r": -0.35,
-        "n": 6,
-        "pValue": 0.24
-      },
-      {
-        "channel": "red_660",
-        "marker": "proteins.hsCRP",
-        "r": -0.51,
-        "n": 5,
-        "pValue": 0.16
-      }
-    ]
+    "weeks": 12,
+    "pairs": []
   },
   "lightDailyVerdicts": {
-    "2026-05-09": {
+    "2026-08-01": {
       "status": "ok",
       "dot": "green",
       "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
-      "detail": "2026-05-09: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
-      "generatedAt": 1778315400000
+      "detail": "2026-08-01: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "generatedAt": 1785573000000
     },
-    "2026-05-08": {
+    "2026-07-31": {
       "status": "ok",
       "dot": "yellow",
       "tip": "Vit-D channel light, but circadian + NIR were good. Add 10 min midday tomorrow.",
-      "detail": "2026-05-08: Vit-D total ~2000 IU, below 4k weekly pace. Circadian + NIR on target. One more 15-min midday session tomorrow closes the gap.",
-      "generatedAt": 1778229000000
+      "detail": "2026-07-31: Vit-D total ~2000 IU, below 4k weekly pace. Circadian + NIR on target. One more 15-min midday session tomorrow closes the gap.",
+      "generatedAt": 1785486600000
     },
-    "2026-05-07": {
+    "2026-07-30": {
       "status": "ok",
       "dot": "green",
       "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
-      "detail": "2026-05-07: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
-      "generatedAt": 1778142600000
+      "detail": "2026-07-30: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "generatedAt": 1785400200000
     },
-    "2026-05-06": {
+    "2026-07-29": {
       "status": "ok",
       "dot": "green",
       "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
-      "detail": "2026-05-06: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
-      "generatedAt": 1778056200000
+      "detail": "2026-07-29: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "generatedAt": 1785313800000
     }
   },
   "lifelightProfile": {
@@ -4251,130 +4393,130 @@
       "end": "07:00"
     },
     "morningSunCommit": "15min outdoor face within 30min of waking",
-    "updatedAt": 1775723400000
+    "updatedAt": 1782981000000
   },
   "manualValues": {
-    "weight:manual:2026-05-09": {
-      "value": 64.5,
+    "weight:manual:2026-08-01": {
+      "value": 61,
       "unit": "kg",
-      "date": "2026-05-09",
+      "date": "2026-08-01",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-05-02": {
-      "value": 64.3,
+    "weight:manual:2026-07-25": {
+      "value": 60.9,
       "unit": "kg",
-      "date": "2026-05-02",
+      "date": "2026-07-25",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-04-25": {
-      "value": 64.1,
+    "weight:manual:2026-07-18": {
+      "value": 60.7,
       "unit": "kg",
-      "date": "2026-04-25",
+      "date": "2026-07-18",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-04-18": {
-      "value": 64,
+    "weight:manual:2026-07-11": {
+      "value": 60.6,
       "unit": "kg",
-      "date": "2026-04-18",
+      "date": "2026-07-11",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-04-11": {
-      "value": 63.8,
+    "weight:manual:2026-07-04": {
+      "value": 60.5,
       "unit": "kg",
-      "date": "2026-04-11",
+      "date": "2026-07-04",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-04-04": {
-      "value": 63.6,
+    "weight:manual:2026-06-27": {
+      "value": 60.4,
       "unit": "kg",
-      "date": "2026-04-04",
+      "date": "2026-06-27",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-03-28": {
-      "value": 63.4,
+    "weight:manual:2026-06-20": {
+      "value": 60.3,
       "unit": "kg",
-      "date": "2026-03-28",
+      "date": "2026-06-20",
       "source": "manual",
       "tag": "morning"
     },
-    "weight:manual:2026-03-21": {
-      "value": 63.2,
+    "weight:manual:2026-06-13": {
+      "value": 60.2,
       "unit": "kg",
-      "date": "2026-03-21",
+      "date": "2026-06-13",
       "source": "manual",
       "tag": "morning"
     },
-    "pulse:manual:2026-04-04": {
+    "pulse:manual:2026-06-27": {
       "value": 66,
       "unit": "bpm",
-      "date": "2026-04-04",
+      "date": "2026-06-27",
       "source": "manual",
       "tag": "morning"
     },
-    "pulse:manual:2026-04-18": {
+    "pulse:manual:2026-07-11": {
       "value": 64,
       "unit": "bpm",
-      "date": "2026-04-18",
+      "date": "2026-07-11",
       "source": "manual",
       "tag": "morning"
     },
-    "pulse:manual:2026-04-29": {
+    "pulse:manual:2026-07-22": {
       "value": 62,
       "unit": "bpm",
-      "date": "2026-04-29",
+      "date": "2026-07-22",
       "source": "manual",
       "tag": "morning"
     },
-    "pulse:manual:2026-05-06": {
+    "pulse:manual:2026-07-29": {
       "value": 61,
       "unit": "bpm",
-      "date": "2026-05-06",
+      "date": "2026-07-29",
       "source": "manual",
       "tag": "morning"
     },
-    "bp:manual:2026-03-28": {
+    "bp:manual:2026-06-20": {
       "value": {
-        "sys": 118,
-        "dia": 76
-      },
-      "unit": "mmHg",
-      "date": "2026-03-28",
-      "source": "manual",
-      "tag": "morning"
-    },
-    "bp:manual:2026-04-11": {
-      "value": {
-        "sys": 116,
-        "dia": 74
-      },
-      "unit": "mmHg",
-      "date": "2026-04-11",
-      "source": "manual",
-      "tag": "morning"
-    },
-    "bp:manual:2026-04-25": {
-      "value": {
-        "sys": 114,
+        "sys": 110,
         "dia": 72
       },
       "unit": "mmHg",
-      "date": "2026-04-25",
+      "date": "2026-06-20",
       "source": "manual",
       "tag": "morning"
     },
-    "bp:manual:2026-05-05": {
+    "bp:manual:2026-07-04": {
       "value": {
-        "sys": 113,
+        "sys": 108,
+        "dia": 70
+      },
+      "unit": "mmHg",
+      "date": "2026-07-04",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "bp:manual:2026-07-18": {
+      "value": {
+        "sys": 109,
         "dia": 71
       },
       "unit": "mmHg",
-      "date": "2026-05-05",
+      "date": "2026-07-18",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "bp:manual:2026-07-28": {
+      "value": {
+        "sys": 107,
+        "dia": 69
+      },
+      "unit": "mmHg",
+      "date": "2026-07-28",
       "source": "manual",
       "tag": "morning"
     }
@@ -4408,16 +4550,16 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v12",
+  "demoUpgradedAt": "2026-08-07-v14",
   "channelMixAI": {
     "status": "ok",
     "dot": "yellow",
-    "tip": "Strong red-light + morning circadian; vitamin-D channel a bit light",
-    "detail": "Weekly mix shows good red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. Near-infrared from solar tracks your outdoor time; cellular-repair channel is well covered. Mood and outdoor-eye channels good.",
-    "generatedAt": 1778142600000
+    "tip": "Morning outdoor light is consistent; midday UVB exposure is more variable",
+    "detail": "Recent Prague sessions provide a dependable morning circadian signal and several useful midday exposures, while shorter face-only sessions contribute little vitamin-D synthesis. Red and near-infrared device sessions fill some non-UV channels without replacing outdoor light. One additional carefully dosed midday session would make the week more balanced.",
+    "generatedAt": 1785400200000
   },
   "focusCard": {
-    "text": "Ferritin 42 µg/L (Jan 2026) is up from 24 in Sep — Iron Bisglycinate is doing real work over the 4-month run, but still under the functional 50+ goal you set. Hemoglobin recovered to 138 g/L from a Sep low of 126, and transferrin saturation tracks the same shape, so the iron-status arc is consistent. TSH and free T4 remain in range, but worth watching given the Hashimoto's family history — a paired thyroid-antibody panel (TPOAb + TgAb) would be the cleanest next step before adjusting the iron protocol."
+    "text": "Ferritin is 42 µg/L in July 2026, up from 24 in August 2025 after sustained iron-bisglycinate use but still below the personal 50+ goal. Hemoglobin improved from 126 to 138 g/L and transferrin saturation from 16% to 28%, so the iron markers tell a consistent recovery story. The draw was cycle day 10. TSH has risen to 3.8 mIU/L while free T4 has declined to 12.5 pmol/L; both remain within the fixture's displayed ranges, but the trend and maternal Hashimoto's history support completing TPOAb and TgAb testing before labeling or treating thyroid disease."
   },
   "contextHealth": {
     "dots": {
@@ -4433,25 +4575,36 @@
     },
     "summaries": {
       "healthGoals": "Specific lab-tied targets — ferritin 50+ tracking",
-      "diagnoses": "Iron + subclinical thyroid; Hashimoto's family history",
-      "diet": "Anti-inflammatory, dairy/seed-oil free supports thyroid",
-      "exercise": "Mixed cardio + strength + yoga; well-balanced",
-      "sleepRest": "Sleep onset issue worth addressing",
+      "diagnoses": "Iron deficiency improving; thyroid status remains under evaluation",
+      "diet": "Higher-protein dairy/seed-oil-free pattern supports iron plan",
+      "exercise": "Yoga, running, strength, and walking with recovery limitations noted",
+      "sleepRest": "Sleep onset and occasional daytime sleepiness worth tracking",
       "lightCircadian": "Strong AM light + midday outdoor exposure",
       "stress": "Health anxiety stacking on work deadlines",
       "loveLife": "Hormonal shifts affecting libido — track with cycle",
       "environment": "Urban EMF + WiFi load partially mitigated"
+    },
+    "cardSummaries": {
+      "healthGoals": "Focused on improving iron and thyroid status, reducing fatigue, maintaining vitamin D, and supporting bone density.",
+      "diagnoses": "Active iron deficiency is improving; possible thyroid dysfunction remains under evaluation, with structured family histories of Hashimoto's thyroiditis and osteoporosis.",
+      "diet": "Omnivorous, dairy-free and seed-oil-free diet with 1.6–2.2 g/kg/day protein, 2–3 L/day fluids, and an iron-focused meal plan. Moderate bloating and FODMAP sensitivity are recorded.",
+      "exercise": "Exercises five to six times weekly with yoga, running, strength training, and walking; typical sessions last 30–60 minutes and recovery can be limited.",
+      "sleepRest": "Usually sleeps seven to eight hours on a consistent schedule. Falling asleep can be difficult, daytime sleepiness occurs sometimes, and apnea is not suspected.",
+      "lightCircadian": "Gets morning outdoor light and one to two daytime hours outside, while dimming lights and devices after sunset.",
+      "stress": "Long-term work and health stress is moderate and variable, managed through exercise, nature, social support, and journaling.",
+      "loveLife": "In a supportive relationship and generally satisfied, with libido and change from usual varying across the menstrual cycle.",
+      "environment": "Low-altitude Prague home with filtered water and mixed lighting. WiFi and Bluetooth exposure are reduced at night."
     }
   },
   "biologyScoreContextAI": {
     "summary": "Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.",
     "suggestions": [],
-    "fingerprint": "biology-context:1rgpz9i",
+    "fingerprint": "biology-context:wvd589",
     "fingerprintsByRange": {
-      "all": "biology-context:1rgpz9i",
-      "1y": "biology-context:7ffmh2",
-      "6m": "biology-context:tc1fgj",
-      "3m": "biology-context:1s3oyl2"
+      "all": "biology-context:wvd589",
+      "1y": "biology-context:c85pw9",
+      "6m": "biology-context:ut8r1y",
+      "3m": "biology-context:1i8i4k3"
     },
     "unlockedRanges": [
       "all",
@@ -4460,6 +4613,6 @@
       "3m"
     ],
     "range": "all",
-    "updatedAt": 1781913600000
+    "updatedAt": 1786104000000
   }
 }

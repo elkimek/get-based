@@ -146,7 +146,10 @@ await import('../js/settings.js');
   const lightEnvSrc = await fetchWithRetry('js/light-env.js');
   const supplementsSrc = await fetchWithRetry('js/supplements.js');
   const notesSrc = await fetchWithRetry('js/notes.js');
-  const contextCardLifestyleEditorsSrc = await fetchWithRetry('js/context-card-lifestyle-editors-impl.js');
+  const contextCardLifestyleEditorsSrc = [
+    await fetchWithRetry('js/context-card-lifestyle-editors-impl.js'),
+    await fetchWithRetry('js/context-card-lifestyle-special-editors.js'),
+  ].join('\n');
   const chatSummariesSrc = await fetchWithRetry('js/chat-summaries.js');
   const markerDetailModalSrc = [
     await fetchWithRetry('js/marker-detail-modal.js'),

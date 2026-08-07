@@ -2,18 +2,33 @@
 // context-card-health-dots.js - AI health-dot scoring for dashboard context cards
 
 import { state } from './state.js';
-import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider } from './api.js';
+import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { CONTEXT_CARD_KEYS } from './context-card-summaries.js';
 import { buildLabContext } from './lab-context.js';
-import { profileStorageKey } from './profile.js';
+import { isCloudModel } from './local-ai-provider-shared.js';
+import { getProfiles, profileStorageKey } from './profile.js';
 import { trackUsage } from './schema.js';
 import { hashString, hasCardContent, showNotification } from './utils.js';
 
 const DOT_COLORS = ['green', 'yellow', 'red', 'gray'];
+const PROVIDER_LABELS = {
+  ollama: 'Local AI',
+  openrouter: 'OpenRouter',
+  venice: 'Venice',
+  routstr: 'Routstr',
+  ppq: 'PPQ',
+  custom: 'Custom provider',
+};
+/** @type {Map<string, { provider: string, modelId: string, enabledAt: number }>} */
+const demoLiveAIConsents = new Map();
 
-/** @type {{ buildLabContext: typeof buildLabContext }} */
+/** @type {{ buildLabContext: typeof buildLabContext, isActiveDemoProfile: () => boolean }} */
 const contextHealthDotDeps = {
   buildLabContext,
+  isActiveDemoProfile: () => {
+    const active = getProfiles().find(profile => profile.id === state.currentProfile);
+    return Array.isArray(active?.tags) && active.tags.includes('demo');
+  },
 };
 
 export function configureContextCardHealthDots(deps = {}) {
@@ -21,7 +36,86 @@ export function configureContextCardHealthDots(deps = {}) {
   if (typeof deps.buildLabContext === 'function') {
     contextHealthDotDeps.buildLabContext = deps.buildLabContext;
   }
+  if (typeof deps.isActiveDemoProfile === 'function') {
+    contextHealthDotDeps.isActiveDemoProfile = deps.isActiveDemoProfile;
+  }
   return previous;
+}
+
+export function isActiveDemoContextProfile() {
+  return contextHealthDotDeps.isActiveDemoProfile();
+}
+
+function getDemoLiveAIConsentKey() {
+  return String(state.currentProfile || '');
+}
+
+function readDemoLiveAIConsent() {
+  return demoLiveAIConsents.get(getDemoLiveAIConsentKey()) || null;
+}
+
+function clearDemoLiveAIConsent() {
+  demoLiveAIConsents.delete(getDemoLiveAIConsentKey());
+}
+
+function clearAllDemoLiveAIConsent() {
+  demoLiveAIConsents.clear();
+}
+
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('labcharts-ai-settings-local-changed', clearAllDemoLiveAIConsent);
+}
+
+export function getDemoContextAIMode() {
+  if (!isActiveDemoContextProfile()) return { mode: 'standard', live: true, demo: false };
+
+  const provider = getAIProvider();
+  const modelId = getActiveModelId(provider) || '';
+  const modelLabel = getActiveModelDisplay(provider) || modelId || 'Selected model';
+  const ollamaCloudModel = provider === 'ollama' && isCloudModel(modelId);
+  const providerLabel = ollamaCloudModel
+    ? 'Local AI cloud model'
+    : PROVIDER_LABELS[provider] || provider || 'AI provider';
+  const consent = readDemoLiveAIConsent();
+  if (consent && (consent.provider !== provider || consent.modelId !== modelId)) {
+    clearDemoLiveAIConsent();
+  }
+  if (isAIPaused()) {
+    return { mode: 'paused', live: false, demo: true, provider, providerLabel, modelId, modelLabel };
+  }
+  if (!hasAIProvider()) {
+    return { mode: 'precomputed', live: false, demo: true, provider, providerLabel, modelId, modelLabel };
+  }
+
+  if (provider === 'ollama' && !ollamaCloudModel) {
+    // Moving from a paid provider to Local AI invalidates the old paid
+    // consent. Switching back must require a fresh, explicit decision.
+    clearDemoLiveAIConsent();
+    return { mode: 'local-live', live: true, local: true, demo: true, provider, providerLabel, modelId, modelLabel };
+  }
+
+  const currentConsent = readDemoLiveAIConsent();
+  if (currentConsent?.provider === provider && currentConsent?.modelId === modelId) {
+    return { mode: 'paid-live', live: true, local: false, demo: true, provider, providerLabel, modelId, modelLabel };
+  }
+  if (currentConsent) clearDemoLiveAIConsent();
+  return { mode: 'paid-off', live: false, local: false, demo: true, provider, providerLabel, modelId, modelLabel };
+}
+
+export function enableDemoContextLiveAI() {
+  const mode = getDemoContextAIMode();
+  if (mode.mode !== 'paid-off' || !mode.provider) return mode;
+  demoLiveAIConsents.set(getDemoLiveAIConsentKey(), {
+    provider: mode.provider,
+    modelId: mode.modelId,
+    enabledAt: Date.now(),
+  });
+  return getDemoContextAIMode();
+}
+
+export function disableDemoContextLiveAI() {
+  clearDemoLiveAIConsent();
+  return getDemoContextAIMode();
 }
 
 export function applyDotColor(key, color) {
@@ -29,24 +123,58 @@ export function applyDotColor(key, color) {
   if (!dot) return;
   dot.className = 'ctx-health-dot ctx-health-dot-' + color;
   const dotLabels = { green: 'Good', yellow: 'Caution', red: 'Concern', gray: 'Not rated' };
-  dot.title = dotLabels[color] || '';
-  dot.setAttribute('aria-label', dotLabels[color] || '');
+  const label = dotLabels[color] || 'Not rated';
+  dot.title = label;
+  const indicator = document.getElementById('ctx-health-' + key);
+  const text = document.getElementById('ctx-health-label-' + key);
+  if (indicator) {
+    indicator.hidden = false;
+    indicator.setAttribute('aria-label', `AI assessment: ${label}`);
+    dot.setAttribute('aria-hidden', 'true');
+    dot.removeAttribute('aria-label');
+  } else {
+    dot.removeAttribute('aria-hidden');
+    dot.setAttribute('aria-label', label);
+  }
+  if (text) text.textContent = label;
 }
 
-export function applyAISummary(key, text, color) {
+export function applyAISummary(key, text, color, source = 'ai') {
   const el = document.getElementById('ctx-ai-' + key);
   if (!el) return;
   el.classList.remove('ctx-ai-summary-green', 'ctx-ai-summary-yellow', 'ctx-ai-summary-red');
   if (text) {
-    const prefixes = { green: '\u2713 ', yellow: '\u26A0 ', red: '\u25B2 ' };
-    el.textContent = (prefixes[color] || '') + text;
+    const severityLabels = { green: 'Good', yellow: 'Caution', red: 'Concern', gray: 'Not rated' };
+    const severity = severityLabels[color] || 'Insight';
+    el.textContent = text;
+    el.dataset.severity = severity;
+    el.dataset.insightLabel = source === 'demo' ? 'Demo insight' : 'AI insight';
     el.classList.add('ctx-ai-summary-visible');
+    el.setAttribute('aria-label', `${source === 'demo' ? 'Demo insight' : 'AI insight'}, ${severity}: ${text}`);
     if (color && color !== 'gray') el.classList.add('ctx-ai-summary-' + color);
   } else {
     el.textContent = '';
+    delete el.dataset.severity;
+    delete el.dataset.insightLabel;
     el.classList.remove('ctx-ai-summary-visible');
+    el.removeAttribute('aria-label');
   }
   // Recommendations are shown in detail modal and chat, not on dashboard cards.
+}
+
+export function applyAIProfileSummary(key, text, source = 'ai') {
+  const el = document.getElementById('ctx-summary-' + key);
+  if (!el) return;
+  const normalized = typeof text === 'string' ? text.trim() : '';
+  if (normalized) {
+    el.textContent = normalized;
+    el.dataset.summarySource = source;
+    return;
+  }
+  if (el.dataset.localSummary !== undefined) {
+    el.textContent = el.dataset.localSummary;
+    el.dataset.summarySource = 'local';
+  }
 }
 
 // Optional ctx allows callers to compute the fingerprint against an explicit
@@ -72,6 +200,8 @@ function readHealthCache(cacheKey) {
   try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { cached = null; }
   if (!cached || !cached.dots) cached = { dots: {}, fingerprints: {} };
   if (!cached.summaries) cached.summaries = {};
+  if (!cached.cardSummaries) cached.cardSummaries = {};
+  if (!cached.sources) cached.sources = {};
   return cached;
 }
 
@@ -79,14 +209,22 @@ function writeHealthCache(cacheKey, cached) {
   try { localStorage.setItem(cacheKey, JSON.stringify(cached)); } catch(e) {}
 }
 
-function findStaleKeys(keys, cached) {
+function findStaleKeys(keys, cached, fallbackSource = 'ai') {
   const staleKeys = [];
   for (const k of keys) {
     let fp;
     try { fp = getCardFingerprint(k); } catch(e) { staleKeys.push(k); continue; }
-    if (cached.fingerprints && cached.fingerprints[k] === fp && cached.dots[k] && cached.summaries[k] !== undefined) {
+    if (
+      cached.fingerprints
+      && cached.fingerprints[k] === fp
+      && cached.dots[k]
+      && cached.summaries[k] !== undefined
+      && cached.cardSummaries[k] !== undefined
+    ) {
+      const source = cached.sources?.[k] || fallbackSource;
       applyDotColor(k, cached.dots[k]);
-      if (cached.summaries[k]) applyAISummary(k, cached.summaries[k], cached.dots[k]);
+      if (cached.cardSummaries[k]) applyAIProfileSummary(k, cached.cardSummaries[k], source);
+      if (cached.summaries[k]) applyAISummary(k, cached.summaries[k], cached.dots[k], source);
     } else {
       staleKeys.push(k);
     }
@@ -94,10 +232,28 @@ function findStaleKeys(keys, cached) {
   return staleKeys;
 }
 
+function markDemoCardsStale(keys) {
+  for (const key of keys) {
+    applyDotColor(key, 'gray');
+    applyAIProfileSummary(key, '');
+    applyAISummary(key, 'Demo insight not recalculated for current context', 'gray', 'demo');
+    const el = document.getElementById('ctx-ai-' + key);
+    if (el) {
+      el.dataset.severity = 'Not recalculated';
+      el.setAttribute('aria-label', 'Demo insight, not recalculated after context changes');
+    }
+  }
+}
+
 function showStaleCardsLoading(staleKeys) {
   for (const k of staleKeys) {
     const dot = document.getElementById('ctx-dot-' + k);
     if (dot) dot.classList.add('ctx-health-dot-shimmer');
+    const indicator = document.getElementById('ctx-health-' + k);
+    const label = document.getElementById('ctx-health-label-' + k);
+    if (indicator) indicator.hidden = false;
+    if (label) label.textContent = 'Assessing';
+    applyAIProfileSummary(k, '');
     const aiEl = document.getElementById('ctx-ai-' + k);
     if (aiEl) {
       aiEl.textContent = '';
@@ -134,13 +290,30 @@ function buildContextForStaleKeys(keys, staleKeys) {
 
 function buildHealthDotsPrompt(staleKeys) {
   const exampleObj = {};
-  for (const k of staleKeys) exampleObj[k] = { dot: '...', tip: '...' };
+  for (const k of staleKeys) exampleObj[k] = { summary: '...', dot: '...', tip: '...' };
   const exampleJSON = JSON.stringify(exampleObj);
-  return `Based on this person's lab data and profile context, assess each profile area. Return ONLY valid JSON with these keys, each having "dot" (green/yellow/red/gray) and "tip" (max 8 words - a brief, specific insight referencing their actual lab markers):
+  return `Based on this person's lab data and profile context, summarize and assess each profile area. Return ONLY valid JSON with these keys, each having "summary", "dot", and "tip":
 ${exampleJSON}
 
+Summary rules: summarize ONLY the person's explicitly reported information from that profile area. Use natural, readable language in 1-2 short sentences, maximum 24 words and 160 characters. Prioritize the 2-3 most meaningful facts. Do not use lab results, interpretation, advice, markdown, raw field names, or add facts. If that profile area has no user-entered data, use an empty summary.
 Dot colors: green = supports health, yellow = needs attention, red = concerning, gray = not enough info.
 Tips must be concise (8 words max, e.g. "Low D may link to limited sun" not "Consider improving this area"). Reference specific markers. If no data, use gray dot and empty tip.`;
+}
+
+function normalizeAIText(value, maxWords, maxChars) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  let result = normalized.split(' ').slice(0, maxWords).join(' ');
+  if (result.length > maxChars) {
+    const clipped = result.slice(0, maxChars + 1);
+    const wordBoundary = clipped.lastIndexOf(' ');
+    result = clipped.slice(0, wordBoundary > 0 ? wordBoundary : maxChars);
+  }
+  if (result.length < normalized.length) {
+    result = result.replace(/[\s,;:\-\u2013\u2014.]+$/g, '') + '\u2026';
+  }
+  return result;
 }
 
 function normalizeHealthDotEntry(entry) {
@@ -148,11 +321,13 @@ function normalizeHealthDotEntry(entry) {
     return {
       color: DOT_COLORS.includes(entry) ? entry : 'gray',
       tip: '',
+      profileSummary: '',
     };
   }
   return {
     color: DOT_COLORS.includes(entry?.dot) ? entry.dot : 'gray',
-    tip: entry?.tip || '',
+    tip: normalizeAIText(entry?.tip, 8, 96),
+    profileSummary: normalizeAIText(entry?.summary, 24, 160),
   };
 }
 
@@ -162,14 +337,21 @@ function parseHealthDotsResponse(text) {
   try { return JSON.parse(jsonMatch[0]); } catch(e) { return null; }
 }
 
-export async function loadContextHealthDots() {
-  if (!hasAIProvider()) return;
-
+async function loadContextHealthDotsOnce() {
   const keys = CONTEXT_CARD_KEYS;
   const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
   const cached = readHealthCache(cacheKey);
-  const staleKeys = findStaleKeys(keys, cached);
+  const demoMode = getDemoContextAIMode();
+  const staleKeys = findStaleKeys(keys, cached, demoMode.demo ? 'demo' : 'ai');
   if (staleKeys.length === 0) return;
+
+  // Demo browsing stays free by default. Local AI is live automatically;
+  // cloud/paid providers need profile- and model-specific consent first.
+  if (demoMode.demo && !demoMode.live) {
+    markDemoCardsStale(staleKeys);
+    return;
+  }
+  if (!hasAIProvider()) return;
 
   showStaleCardsLoading(staleKeys);
   if (!staleCardsHaveAssessableData(staleKeys)) {
@@ -201,13 +383,17 @@ export async function loadContextHealthDots() {
     }
 
     if (!cached.fingerprints) cached.fingerprints = {};
+    if (!cached.sources) cached.sources = {};
     for (const k of staleKeys) {
-      const { color, tip } = normalizeHealthDotEntry(parsed[k] || {});
+      const { color, tip, profileSummary } = normalizeHealthDotEntry(parsed[k] || {});
       applyDotColor(k, color);
+      applyAIProfileSummary(k, profileSummary);
       applyAISummary(k, tip, color);
       cached.dots[k] = color;
       cached.summaries[k] = tip;
+      cached.cardSummaries[k] = profileSummary;
       cached.fingerprints[k] = getCardFingerprint(k);
+      cached.sources[k] = 'ai';
     }
     writeHealthCache(cacheKey, cached);
   } catch(e) {
@@ -215,12 +401,30 @@ export async function loadContextHealthDots() {
   }
 }
 
+const contextHealthLoads = new Map();
+
+export function loadContextHealthDots() {
+  const profileId = state.currentProfile;
+  const inFlight = contextHealthLoads.get(profileId);
+  if (inFlight) return inFlight;
+  const pending = loadContextHealthDotsOnce().finally(() => {
+    if (contextHealthLoads.get(profileId) === pending) contextHealthLoads.delete(profileId);
+  });
+  contextHealthLoads.set(profileId, pending);
+  return pending;
+}
+
 export function refreshAllHealthDots() {
+  const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
+  const demoMode = getDemoContextAIMode();
+  if (demoMode.demo && !demoMode.live) {
+    showNotification('Live AI is off for this demo. Enable it before refreshing insights.', 'info');
+    return;
+  }
   if (!hasAIProvider()) {
     showNotification('Set up an AI provider first', 'error');
     return;
   }
-  const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
   try { localStorage.removeItem(cacheKey); } catch(e) {}
   loadContextHealthDots();
   showNotification('Refreshing all insights...', 'info');

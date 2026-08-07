@@ -2,7 +2,7 @@
 // context-card-medical-history-editor.js - cold-safe Medical History editor facade
 
 import { selectCtxOption } from './context-card-editor-ui.js';
-import { showNotification } from './utils.js';
+import { showConfirmDialog, showNotification } from './utils.js';
 
 /** @typedef {typeof import('./context-card-medical-history-editor-impl.js')} MedicalHistoryEditorModule */
 /** @type {Promise<MedicalHistoryEditorModule> | null} */
@@ -117,6 +117,18 @@ function getMedicalHistoryIndex(el) {
   return Number.isInteger(idx) ? idx : -1;
 }
 
+async function confirmClearMedicalHistory() {
+  const confirmed = await showConfirmDialog(
+    'Clear all saved medical history information? This cannot be undone.',
+    {
+      confirmLabel: 'Clear',
+      ariaLabel: 'Clear Medical History',
+    },
+  );
+  if (confirmed) clearDiagnoses();
+  return confirmed;
+}
+
 /** @param {MouseEvent} event */
 function handleMedicalHistoryClick(event) {
   const actionEl = closestMedicalHistoryElement(event.target, '[data-medical-history-action]');
@@ -135,7 +147,7 @@ function handleMedicalHistoryClick(event) {
     case 'cancel-family-history-edit': cancelFamilyHistoryEdit(); break;
     case 'save': saveDiagnoses(); break;
     case 'close': closeDiagnoses(); break;
-    case 'clear': clearDiagnoses(); break;
+    case 'clear': void confirmClearMedicalHistory(); break;
     default: break;
   }
 }

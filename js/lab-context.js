@@ -19,9 +19,9 @@ import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfi
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
-import { INSIGHT_CONTEXT_CHANGE_FIELDS } from './context-source-registry.js';
 import {
   buildWearableContext,
+  getSleepContextMismatch,
   isWearableContextEnabled,
 } from './lab-context-wearables.js';
 import {
@@ -37,7 +37,7 @@ import {
   isSupplementsMedsContextEnabled,
   setCachedLabContext,
 } from './lab-context-settings.js';
-import { summarizeChange } from './lab-context-output.js';
+import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
 
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean }} LabContextOptions
@@ -69,7 +69,7 @@ export function configureLabContext(deps = {}) {
 
 export {
   buildWearableContext, buildWearableSeriesSection, getAgentWearableSeriesDays,
-  isAgentWearableSeriesEnabled, isWearableContextEnabled, setAgentWearableSeriesDays,
+  getSleepContextMismatch, isAgentWearableSeriesEnabled, isWearableContextEnabled, setAgentWearableSeriesDays,
   setAgentWearableSeriesEnabled,
 } from './lab-context-wearables.js';
 export {
@@ -86,21 +86,8 @@ export { getContextSummary, injectLensChunks } from './lab-context-output.js';
 // ═══════════════════════════════════════════════
 // LAB CONTEXT
 // ═══════════════════════════════════════════════
-// Pre-2026-05-08 a regex (_SUN_INTENT_RE) detected sun/light keywords
-// in the user message and escalated buildSunContext from 'always' to
-// 'standard' tier (adding the 30-day session table + correlations,
-// ~1200 tok). The intent was token-budget conservation, but the regex
-// produced silent failures whenever the user's natural phrasing didn't
-// match the keyword set ("sunbathing" missed, "naked" missed,
-// "swimwear" missed) — and the rest of the app uses a much simpler
-// pattern: include the section when the data exists, full stop. Diet,
-// Exercise, Sleep, Diagnoses, Supplements, Biometrics, every context
-// card — all unconditional if-data-exists includes. Sun was the
-// outlier. Removed the intent-detector; buildSunContext always runs
-// at 'standard' tier, and itself returns '' when there's no data, so
-// users without sessions pay zero tokens and users with sessions get
-// the full session table on every turn — same shape as every other
-// section in this file.
+// Sun context follows the same rule as other context sources: include the
+// standard section whenever data exists, without brittle keyword detection.
 
 export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
@@ -351,7 +338,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[section:diagnoses]\n## Medical History / Diagnoses\n`;
     if (diag.conditions && diag.conditions.length) {
       for (const c of diag.conditions) {
-        ctx += `- ${c.name} (${c.severity}${c.since ? ', since ' + c.since : ''})\n`;
+        const qualifiers = [c.severity, c.status, c.since ? `since ${c.since}` : ''].filter(Boolean);
+        ctx += `- ${c.name}${qualifiers.length ? ` (${qualifiers.join(', ')})` : ''}\n`;
       }
     }
     if (Array.isArray(diag.familyHistory) && diag.familyHistory.length) {
@@ -363,6 +351,18 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
         ctx += `- ${rel}: ${e.condition || ''}${age}${note}\n`;
       }
     }
+    if (diag.proceduresNote) ctx += `Major procedures / organ changes: ${diag.proceduresNote}\n`;
+    const interpretationFlagLabels = {
+      lowMuscleMass: 'Low muscle mass / creatinine may be unreliable',
+      hormoneTherapy: 'Hormone therapy / TRT / hormonal contraception',
+      postmenopause: 'Postmenopause / no active cycle',
+      intenseTrainingRecent: 'Recent intense training near blood draw',
+      acuteIllnessNearDraw: 'Acute illness / infection / injury near blood draw',
+    };
+    const activeInterpretationFlags = Object.entries(diag.flags || {})
+      .filter(([, active]) => active)
+      .map(([key]) => interpretationFlagLabels[key] || key);
+    if (activeInterpretationFlags.length) ctx += `Interpretation flags: ${activeInterpretationFlags.join('; ')}\n`;
     if (diag.note) ctx += `Notes: ${diag.note}\n`;
     ctx += `[/section:diagnoses]\n\n`;
   }
@@ -579,7 +579,13 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const parts = [];
     if (diet.type) parts.push(`Type: ${diet.type}`);
     if (diet.pattern) parts.push(`Pattern: ${diet.pattern}`);
+    if (diet.proteinIntake) parts.push(`Protein intake: ${diet.proteinIntake}`);
+    if (diet.hydration) parts.push(`Daily fluid intake: ${diet.hydration}`);
     if (diet.restrictions && diet.restrictions.length) parts.push(`Restrictions: ${diet.restrictions.join(', ')}`);
+    if (diet.alcohol) parts.push(`Alcohol: ${diet.alcohol}`);
+    if (diet.caffeine) parts.push(`Caffeine: ${diet.caffeine}`);
+    if (diet.caffeineTiming) parts.push(`Latest caffeine: ${diet.caffeineTiming}`);
+    if (diet.recentChanges && diet.recentChanges.length) parts.push(`Recent changes: ${diet.recentChanges.join(', ')}`);
     if (parts.length) ctx += parts.join('. ') + '\n';
     if (diet.breakfast) ctx += `Breakfast${diet.breakfastTime ? ' (' + formatTime(diet.breakfastTime) + ')' : ''}: ${diet.breakfast}\n`;
     if (diet.lunch) ctx += `Lunch${diet.lunchTime ? ' (' + formatTime(diet.lunchTime) + ')' : ''}: ${diet.lunch}\n`;
@@ -616,7 +622,10 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (ex.frequency) parts.push(`Frequency: ${ex.frequency}`);
     if (ex.types && ex.types.length) parts.push(`Types: ${ex.types.join(', ')}`);
     if (ex.intensity) parts.push(`Intensity: ${ex.intensity}`);
+    if (ex.duration) parts.push(`Typical session: ${ex.duration}`);
     if (ex.dailyMovement) parts.push(`Daily movement: ${ex.dailyMovement}`);
+    if (ex.muscleContext) parts.push(`Muscle context: ${ex.muscleContext}`);
+    if (ex.limitations && ex.limitations.length) parts.push(`Limitations / recovery: ${ex.limitations.join(', ')}`);
     ctx += parts.join('. ') + '\n';
     if (ex.note) ctx += `Notes: ${ex.note}\n`;
     ctx += `[/section:exercise]\n\n`;
@@ -629,6 +638,10 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const parts = [];
     if (sl.duration) parts.push(`Duration: ${sl.duration}`);
     if (sl.quality) parts.push(`Quality: ${sl.quality}`);
+    if (sl.daytimeSleepiness) parts.push(`Daytime sleepiness: ${sl.daytimeSleepiness}`);
+    if (sl.apneaStatus) parts.push(`Sleep apnea: ${sl.apneaStatus}`);
+    if (sl.papUse) parts.push(`PAP / CPAP: ${sl.papUse}`);
+    if (sl.naps) parts.push(`Naps: ${sl.naps}`);
     if (sl.schedule) parts.push(`Schedule: ${sl.schedule}`);
     if (sl.roomTemp) parts.push(`Room temp: ${sl.roomTemp}`);
     if (sl.issues && sl.issues.length) parts.push(`Issues: ${sl.issues.join(', ')}`);
@@ -636,6 +649,10 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (sl.practices && sl.practices.length) parts.push(`Practices: ${sl.practices.join(', ')}`);
     ctx += parts.join('. ') + '\n';
     if (sl.note) ctx += `Notes: ${sl.note}\n`;
+    const sleepMismatch = (ignoreContextToggles || isWearableContextEnabled())
+      ? getSleepContextMismatch(sl, state.importedData.wearableSummary)
+      : null;
+    if (sleepMismatch) ctx += `Data mismatch: ${sleepMismatch.summary}\n`;
     ctx += `[/section:sleepRest]\n\n`;
   }
 
@@ -670,6 +687,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[section:stress]\n## Stress\n`;
     const parts = [];
     if (st.level) parts.push(`Level: ${st.level}`);
+    if (st.duration) parts.push(`Duration: ${st.duration}`);
+    if (st.trend) parts.push(`Trend: ${st.trend}`);
     if (st.sources && st.sources.length) parts.push(`Sources: ${st.sources.join(', ')}`);
     if (st.management && st.management.length) parts.push(`Management: ${st.management.join(', ')}`);
     ctx += parts.join('. ') + '\n';
@@ -686,9 +705,11 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (ll.relationship) parts.push(`Relationship quality: ${ll.relationship}`);
     if (ll.satisfaction) parts.push(`Satisfaction: ${ll.satisfaction}`);
     if (ll.libido) parts.push(`Libido: ${ll.libido}`);
+    if (ll.libidoChange) parts.push(`Libido change: ${ll.libidoChange}`);
     if (ll.frequency) parts.push(`Sexual frequency: ${ll.frequency}`);
     if (ll.orgasm) parts.push(`Orgasm: ${ll.orgasm}`);
     if (ll.concerns && ll.concerns.length) parts.push(`Concerns: ${ll.concerns.join(', ')}`);
+    if (ll.reproductiveGoals && ll.reproductiveGoals.length) parts.push(`Reproductive goals: ${ll.reproductiveGoals.join(', ')}`);
     ctx += parts.join('. ') + '\n';
     if (ll.note) ctx += `Notes: ${ll.note}\n`;
     ctx += `[/section:loveLife]\n\n`;
@@ -701,6 +722,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const parts = [];
     if (env.setting) parts.push(`Setting: ${env.setting}`);
     if (env.climate) parts.push(`Climate: ${env.climate}`);
+    if (env.altitude) parts.push(`Altitude exposure: ${env.altitude}`);
+    if (env.inhaledExposures && env.inhaledExposures.length) parts.push(`Smoking / inhaled exposure: ${env.inhaledExposures.join(', ')}`);
+    if (env.occupationalExposures && env.occupationalExposures.length) parts.push(`Work / hobby exposures: ${env.occupationalExposures.join(', ')}`);
     if (env.water) parts.push(`Water: ${env.water}`);
     if (env.waterConcerns && env.waterConcerns.length) parts.push(`Water concerns: ${env.waterConcerns.join(', ')}`);
     if (env.emf && env.emf.length) parts.push(`EMF exposure: ${env.emf.join(', ')}`);
@@ -743,34 +767,11 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 17. Context Change Timeline ──
   const changeHistory = state.importedData.changeHistory || [];
-  if (includeInsightCards && changeHistory.length > 0) {
-    const fieldLabels = { diet: 'Diet & Digestion', exercise: 'Exercise', sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian', stress: 'Stress', loveLife: 'Love Life', environment: 'Environment', diagnoses: 'Medical History', healthGoals: 'Health Goals', interpretiveLens: 'Interpretive Lens', contextNotes: 'Context Notes', menstrualCycle: 'Menstrual Cycle' };
-    // Group by field, sorted by date. Defensive against legacy entries that
-    // somehow missed the date field — sorting on undefined throws and takes
-    // down the whole context push (which is called on every saveImportedData).
-    const sorted = [...changeHistory].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    // Build timeline with diffs between consecutive snapshots per field
-    const lines = [];
-    const byField = {};
-    for (const entry of sorted) {
-      if (!byField[entry.field]) byField[entry.field] = [];
-      byField[entry.field].push(entry);
-    }
-    for (const entry of sorted) {
-      if (!INSIGHT_CONTEXT_CHANGE_FIELDS.includes(entry.field)) continue;
-      if (entry.field === 'lightCircadian' && !ignoreContextToggles && !isLightSunContextEnabled()) continue;
-      const label = fieldLabels[entry.field] || entry.field;
-      const fieldEntries = byField[entry.field];
-      const idx = fieldEntries.indexOf(entry);
-      const prev = idx > 0 ? fieldEntries[idx - 1].snapshot : null;
-      const diff = summarizeChange(prev, entry.snapshot);
-      if (diff) lines.push(`- ${fmtDate(entry.date)}: ${label} — ${diff}`);
-    }
-    if (lines.length > 0) {
-      ctx += `[section:changeTimeline]\n## Context Change Timeline\n`;
-      ctx += lines.join('\n') + '\n[/section:changeTimeline]\n\n';
-    }
-  }
+  ctx += buildContextChangeTimeline(changeHistory, {
+    includeInsightCards,
+    includeLightContext: ignoreContextToggles || isLightSunContextEnabled(),
+    fmtDate,
+  });
 
   // ── 18. Additional Context Notes ──
   const ctxNotes = state.importedData.contextNotes || '';

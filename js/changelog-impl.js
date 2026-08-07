@@ -11,6 +11,17 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.12.0', date: '2026-08-07', title: 'A completely redesigned health context',
+    items: [
+      '<b>Health context has been redesigned from the ground up.</b> The cards are cleaner, easier to scan and edit, work better on mobile, and explain why each area matters.',
+      '<b>The questions are more useful and more complete.</b> Medical and family history, diet and digestion, exercise and physiotherapy, sleep, stress, relationships, and environmental exposures now capture the details most likely to affect interpretation.',
+      '<b>You stay in control of how much you add.</b> Start with the essentials, add deeper context only when it is relevant, or use a custom answer when the available choices do not fit.',
+      '<b>Context is easier to interpret over time.</b> Health priorities are clearer, important changes are preserved, and AI receives a more useful picture of what may be shaping labs and health patterns.',
+      '<b>Both demo profiles have been rebuilt.</b> Alex and Sarah now include realistic, up-to-date context, labs, trends, wearables, light data, and other details that make the full app easier to explore.',
+      '<b>Demo AI is safer and more flexible.</b> Ready-made demo insights use no AI. Local AI can update edited cards automatically, while paid AI is only used after clear permission.',
+    ]
+  },
+  {
     version: '1.11.7', date: '2026-08-06', title: 'More reliable cross-device sync',
     items: [
       '<b>Sync uses less storage.</b> getbased avoids saving and sending the same data repeatedly, helping prevent sync space from filling up when nothing has changed.',

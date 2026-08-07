@@ -5,58 +5,128 @@
   font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-muted); margin-bottom: 10px;
 }
+.profile-context-section {
+  container-type: inline-size;
+  margin-top: 16px;
+}
+.profile-context-section .context-section-title {
+  margin-bottom: 0; color: var(--text-primary);
+  font-size: 15px; font-weight: 700; text-transform: none; letter-spacing: normal;
+}
+.context-section-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; margin-bottom: 16px;
+}
+.context-section-intro { min-width: 0; }
+.context-section-tools {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+}
+.context-progress-text {
+  color: var(--text-muted); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
 .ctx-refresh-all-btn {
-  background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px;
-  padding: 2px 6px; margin-left: 6px; border-radius: var(--radius-sm); vertical-align: middle;
-  transition: color 0.2s, background 0.2s;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px;
+  background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-secondary);
+  cursor: pointer; font: inherit; font-size: 12px; font-weight: 650;
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
-.ctx-refresh-all-btn:hover { color: var(--accent); background: var(--bg-card); }
+.ctx-refresh-all-btn:hover { color: var(--accent); background: var(--bg-hover); border-color: var(--accent); }
+.ctx-refresh-all-icon { font-size: 15px; line-height: 1; }
 .context-section-subtitle {
-  font-size: 13px; color: var(--text-muted); margin-top: 2px; margin-bottom: 8px;
+  max-width: 720px; font-size: 13px; color: var(--text-muted);
+  line-height: 1.5; margin-top: 4px;
 }
+.demo-context-ai-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: -4px 0 14px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+}
+.demo-context-ai-copy { min-width: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+.demo-context-ai-title { color: var(--text-primary); font-weight: 750; margin-right: 5px; }
+.demo-context-ai-action {
+  flex: 0 0 auto; min-height: 30px; padding: 5px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary);
+  cursor: pointer; font: inherit; font-size: 12px; font-weight: 700;
+}
+.demo-context-ai-action:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
+.demo-context-ai-local .demo-context-ai-title { color: var(--green); }
+.demo-context-ai-paid-live .demo-context-ai-title { color: var(--accent); }
 .profile-context-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
 }
-/* Context Cards (fixed height, uniform grid) */
+@container (min-width: 580px) {
+  .profile-context-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (min-width: 860px) {
+  .profile-context-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* Context Cards */
 .context-card {
   background: var(--bg-card); border-radius: var(--radius-sm);
-  border: 1px solid var(--border); padding: 12px 16px;
-  cursor: pointer; transition: all 0.15s;
-  min-height: 90px; display: flex; flex-direction: column; overflow: visible; min-width: 0;
+  border: 1px solid var(--border); padding: 14px 16px;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  min-height: 124px; display: flex; flex-direction: column; overflow: visible; min-width: 0;
+  position: relative;
 }
-.context-card:hover { border-color: var(--accent); }
-.context-card:has(.ctx-health-dot-red) { border-left: 3px solid var(--red); }
-.context-card:has(.ctx-health-dot-yellow) { border-left: 3px solid var(--yellow); }
-.context-card:has(.ctx-health-dot-green) { border-left: 3px solid var(--green); }
+.context-card:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: var(--bg-hover); }
+.context-card:has(.context-card-open:focus-visible) {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent);
+}
+.context-card-empty { border-style: dashed; }
+.context-card-open {
+  position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
+  padding: 0; border: 0; border-radius: inherit; background: transparent;
+  color: inherit; cursor: pointer;
+}
+.context-card-open:focus-visible { outline: none; }
 .context-card-header {
-  display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-shrink: 0; min-width: 0;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-shrink: 0; min-width: 0;
+}
+.context-card-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 18px; width: 18px; height: 18px; color: var(--text-muted);
+  transition: color 0.15s;
+}
+.context-card-icon svg { display: block; width: 18px; height: 18px; stroke: currentColor; }
+.context-card:hover .context-card-icon,
+.context-card:has(.context-card-open:focus-visible) .context-card-icon { color: var(--accent); }
+.context-card-title {
+  min-width: 0; flex: 1; display: inline-flex; align-items: center; gap: 7px;
 }
 .context-card-label {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap;
+  min-width: 0;
+  font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.3;
 }
-.diagnoses-edit-btn {
-  background: none; border: 1px solid var(--border); color: var(--text-muted);
-  font-size: 12px; padding: 2px 10px; border-radius: 4px; cursor: pointer;
-  font-family: inherit; transition: all 0.15s; margin-left: auto; flex-shrink: 0;
+.context-card[data-context-card-key="loveLife"] .context-card-label {
+  font-size: 13px; letter-spacing: -0.01em; white-space: nowrap;
 }
-.diagnoses-edit-btn:hover { color: var(--accent); border-color: var(--accent); }
+.context-card-title .ctx-health-indicator { flex: 0 0 auto; }
+.context-card-title .ctx-health-label {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.context-card-tips-host,
+.context-info-icon,
+.context-card-explanation,
+.diet-contaminants { position: relative; z-index: 2; }
 .context-card-body {
-  font-size: 12px; color: var(--text-secondary); line-height: 1.4;
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; flex: 1; min-height: 0;
+  font-size: 13px; color: color-mix(in srgb, var(--text-primary) 72%, var(--text-secondary)); line-height: 1.5;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical; min-height: 0;
 }
 .context-card-placeholder {
-  font-size: 12px; color: var(--text-muted); font-style: italic;
+  font-size: 13px; color: var(--text-secondary); line-height: 1.5;
 }
-/* Empty context cards are visually hollow */
-.context-card:has(.context-card-placeholder) {
-  border-style: dashed; opacity: 0.75;
+.context-card-explanation {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 12px; line-height: 1.5;
 }
-.context-card:has(.context-card-placeholder):hover { opacity: 1; }
+.context-card-explanation[hidden] { display: none; }
 /* Dashboard notes, health goals, supplements, and medications */
 .notes-section { margin-bottom: 20px; }
 .note-card {
@@ -116,7 +186,18 @@
 .ctx-row-action-btn:hover { background: var(--bg-hover); }
 .ctx-row-edit-btn:hover { color: var(--accent); }
 .goals-add-row {
-  display: flex; gap: 8px; align-items: flex-end; margin-top: 16px;
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.goals-add-controls {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 14px;
+  margin-top: 12px;
+}
+.goals-priority-field { min-width: 0; }
+.goals-priority-field .ctx-field-label { margin-bottom: 7px; }
+.goals-add-btn { flex: 0 0 auto; }
+@media (max-width: 600px) {
+  .goals-add-controls { align-items: stretch; flex-direction: column; }
+  .goals-add-btn { width: 100%; }
 }
 .supp-timeline-section { margin-bottom: 16px; }
 .supp-timeline-header {
@@ -321,9 +402,11 @@
 }
 /* Food contaminant warnings on diet card */
 .diet-contaminants {
-  margin-top: 4px; font-size: 11px; color: var(--yellow); line-height: 1.4;
+  display: inline-flex; align-items: center; gap: 6px;
+  align-self: flex-start; margin-top: 5px; font-size: 11px; color: var(--yellow); line-height: 1.4;
   cursor: pointer; padding: 4px 0;
 }
+.diet-contaminants svg { width: 14px; height: 14px; flex: 0 0 14px; stroke: currentColor; }
 .diet-contaminants:hover { text-decoration: underline; }
 @media (pointer: coarse) {
   .diet-contaminants { min-height: 44px; display: flex; align-items: center; }
@@ -347,6 +430,11 @@
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
   display: inline-block; transition: background 0.3s, box-shadow 0.3s;
 }
+.ctx-health-indicator {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--text-muted); font-size: 11px; font-weight: 650;
+}
+.ctx-health-indicator[hidden] { display: none; }
 .ctx-health-dot-gray { background: var(--text-muted); opacity: 0.4; }
 .ctx-health-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
 .ctx-health-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
@@ -356,15 +444,28 @@
   background-size: 200% 100%; animation: shimmer 1.5s infinite;
 }
 /* AI card summary */
+.ctx-ai-summary-slot {
+  max-height: 0; overflow: hidden; margin-top: auto;
+}
+.ctx-ai-summary-slot:has(.ctx-ai-summary-visible) {
+  min-height: 60px; max-height: 60px; box-sizing: border-box;
+  padding-top: 8px; overflow: visible;
+}
 .ctx-ai-summary {
-  font-size: 11px; line-height: 1.3; color: var(--text-muted); font-style: italic;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 12px; line-height: 1.45; color: var(--text-muted);
+  overflow: hidden; display: block;
   max-height: 0; opacity: 0; transition: max-height 0.2s, opacity 0.2s;
   border-top: 1px solid transparent; padding-top: 0; margin-top: 0;
 }
+.ctx-ai-summary::before {
+  content: attr(data-insight-label) ' · ' attr(data-severity); display: block; margin-bottom: 2px;
+  color: var(--text-muted); font-size: 9px; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase; font-style: normal;
+}
 .ctx-ai-summary-visible {
-  max-height: 20px; opacity: 1;
-  border-top: 1px solid var(--border); padding-top: 4px; margin-top: 4px;
+  min-height: 52px; max-height: 52px; box-sizing: border-box; opacity: 1;
+  border-top-color: color-mix(in srgb, var(--border) 82%, transparent);
+  padding-top: 8px; margin-top: 0;
 }
 .ctx-ai-summary-green { color: var(--green); }
 .ctx-ai-summary-yellow { color: var(--yellow); }
@@ -405,11 +506,20 @@
   padding-top: 16px; border-top: 1px solid var(--border);
 }
 /* Additional Notes textarea */
-.ctx-notes-section { margin-top: 8px; margin-bottom: 16px; }
+.ctx-notes-section {
+  margin-top: 4px; margin-bottom: 16px; padding: 16px 18px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card);
+}
+.ctx-notes-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px;
+}
+.ctx-notes-label { color: var(--text-primary); font-size: 13px; font-weight: 700; }
+.ctx-notes-status { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.ctx-notes-hint { margin-bottom: 10px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .ctx-notes-textarea {
-  width: 100%; min-height: 48px; max-height: 120px; resize: vertical;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  color: var(--text-secondary); font-size: 12px; padding: 10px 14px;
+  width: 100%; min-height: 76px; max-height: 180px; resize: vertical;
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-size: 13px; padding: 11px 13px;
   font-family: inherit; line-height: 1.5; transition: border-color 0.15s;
   box-sizing: border-box;
 }
@@ -417,35 +527,29 @@
 .ctx-notes-textarea::placeholder { color: var(--text-muted); }
 .context-info-icon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 700;
-  color: var(--text-muted); border: 1px solid var(--border); cursor: help;
+  width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 11px; font-weight: 700;
+  background: transparent; font-family: inherit;
+  color: var(--text-muted); border: 1px solid var(--border); cursor: pointer;
   flex-shrink: 0; position: relative; font-style: normal; line-height: 1;
 }
 .context-info-icon:hover { color: var(--accent); border-color: var(--accent); }
-.context-info-icon .context-tooltip {
-  display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
-  transform: translateX(-50%); background: var(--bg-card); color: var(--text-secondary);
-  font-size: 12px; font-weight: 400; line-height: 1.5; padding: 10px 12px;
-  border-radius: 6px; border: 1px solid var(--border); width: max-content;
-  max-width: 260px; z-index: 100; pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-.context-info-icon:hover .context-tooltip { display: block; }
 
 @media (max-width: 480px) {
-  .context-card { min-height: 72px; padding: 10px 12px; }
-  .context-card-label { font-size: 12px; }
+  .context-section-header { flex-direction: column; gap: 10px; }
+  .context-section-tools { width: 100%; justify-content: flex-start; }
+  .demo-context-ai-bar { align-items: flex-start; flex-direction: column; }
+  .context-card { min-height: 116px; padding: 14px; }
+  .context-card-label { font-size: 14px; }
+  .ctx-notes-section { padding: 14px; }
 }
 @media (max-width: 375px) {
-  .context-card { min-height: 64px; }
-}
-@media (hover: none) {
-  .context-info-icon .context-tooltip { display: none; }
-  .context-info-icon { cursor: default; }
+  .context-card { min-height: 112px; }
+  .ctx-refresh-all-label { display: none; }
 }
 @media (pointer: coarse) {
   .ctx-btn-option { min-height: 44px; }
   .ctx-tag { min-height: 44px; }
+  .context-info-icon { width: 44px; height: 44px; cursor: pointer; }
 }
 
 /* Tips badge on chart cards and context cards */

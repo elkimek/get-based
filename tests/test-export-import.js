@@ -13,6 +13,8 @@ return (async function() {
   const dataModule = await import('/js/data.js');
   const exportModule = await import('/js/export.js');
   const contextCards = await import('/js/context-cards.js');
+  const contextHealth = await import('/js/context-card-health-dots.js');
+  const cryptoStore = await import('/js/crypto.js');
   const profile = await import('/js/profile.js');
   const views = await import('/js/views.js');
   const nav = await import('/js/nav.js');
@@ -665,6 +667,9 @@ return (async function() {
     const originalSupplements = Array.isArray(S.importedData.supplements) ? S.importedData.supplements.slice() : [];
     const originalGenetics = S.importedData.genetics;
     const originalBiometrics = S.importedData.biometrics ? JSON.parse(JSON.stringify(S.importedData.biometrics)) : S.importedData.biometrics;
+    const originalManualValues = S.importedData.manualValues;
+    const originalWearableSummary = S.importedData.wearableSummary;
+    const originalEntries = S.importedData.entries;
     const originalProfileSex = S.profileSex;
     const originalProfileDob = S.profileDob;
     const originalProfiles = JSON.parse(JSON.stringify(profile.getProfiles() || []));
@@ -701,6 +706,9 @@ return (async function() {
         bp: [{ date: '2026-05-15', sys: 118, dia: 76, source: 'manual' }],
         pulse: [{ date: '2026-05-15', value: 61, source: 'manual' }],
       };
+      // Isolate the biometrics header fixture from newer demo manual logs.
+      S.importedData.manualValues = {};
+      S.importedData.wearableSummary = null;
       S.importedData.notes = originalNotes.concat([
         { date: isoDate(inWindow), text: 'Between-draw report note retained' },
         { date: isoDate(outsideWindow), text: 'Old report note excluded' }
@@ -724,9 +732,17 @@ return (async function() {
           capturedReport.includes('<dt>Resting pulse</dt><dd>61 bpm (May 15, 2026)</dd>'));
 
       capturedReport = '';
+      // The current demos deliberately carry a fresh July panel. Remove it
+      // for this one assertion so the empty-window behavior remains covered.
+      const emptyWindowCutoff = new Date();
+      emptyWindowCutoff.setMonth(emptyWindowCutoff.getMonth() - 3);
+      S.importedData.entries = (originalEntries || []).filter(entry => entry.date < isoDate(emptyWindowCutoff));
+      dataModule.invalidateActiveDataCache?.();
       exportModule.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
       assert('Report date window with no matching lab draws stays empty',
         capturedReport.includes('No lab dates in selected range') && !capturedReport.includes('<h2>Biochemistry</h2>'));
+      S.importedData.entries = originalEntries;
+      dataModule.invalidateActiveDataCache?.();
 
       capturedReport = '';
       S.importedData.diagnoses = {
@@ -815,6 +831,10 @@ return (async function() {
       S.importedData.supplements = originalSupplements;
       S.importedData.genetics = originalGenetics;
       S.importedData.biometrics = originalBiometrics;
+      S.importedData.manualValues = originalManualValues;
+      S.importedData.wearableSummary = originalWearableSummary;
+      S.importedData.entries = originalEntries;
+      dataModule.invalidateActiveDataCache?.();
       S.profileSex = originalProfileSex;
       S.profileDob = originalProfileDob;
       await profile.saveProfiles(originalProfiles);
@@ -950,13 +970,9 @@ return (async function() {
         'focus card prefill leaks into the regular JSON-import path');
 
       // Context health dots prefill — demo JSONs ship dots+summaries for
-      // all 9 context cards. The demo loader awaits importDataJSON, then
-      // computes live fingerprints (via getCardFingerprint) against the
-      // freshly-imported state and writes the cache. Real users get
-      // standard AI-generated dots; demo prefill suppresses 9 calls on
-      // first dashboard render. No special branch in
-      // loadContextHealthDots — the prefilled fingerprints simply
-      // already match, so the existing fp === fp check renders cached.
+      // all 9 context cards. They stay precomputed by default, update
+      // automatically with Local AI, and require explicit provider/model
+      // consent before a paid provider can recalculate stale cards.
       assert('demo JSON ships contextHealth.dots for all 9 cards',
         demo.contextHealth?.dots && Object.keys(demo.contextHealth.dots).length === 9,
         `got ${Object.keys(demo.contextHealth?.dots || {}).length} cards`);
@@ -968,6 +984,9 @@ return (async function() {
       assert('all 9 context-card summaries covered in demo prefill',
         _allDotKeys.every(k => typeof demo.contextHealth?.summaries?.[k] === 'string'),
         'every dot must have a paired summary');
+      assert('all 9 AI profile summaries covered in demo prefill',
+        _allDotKeys.every(k => typeof demo.contextHealth?.cardSummaries?.[k] === 'string'),
+        'every card must have a factual profile summary');
       assert('importDataJSON returns a Promise (awaitable)',
         /return new Promise/.test(_importBody),
         'demo loader needs to await importDataJSON before computing fingerprints');
@@ -979,6 +998,24 @@ return (async function() {
       assert('contextHealth prefill is inside loadDemoData (demo-only by code path)',
         _loadDemoSection.includes("profileStorageKey(profileId, 'contextHealth')"),
         'prefill must live in loadDemoData, not in importDataJSON');
+      assert('demo contextHealth cache marks every interpretation as bundled content',
+        _loadDemoSection.includes('fixedDemo: true') && _loadDemoSection.includes("sources[k] = 'demo'"),
+        'demo cache must distinguish bundled from provider-generated insights');
+      const healthDotsSrc = await fetch('/js/context-card-health-dots.js').then(r => r.text());
+      const contextCardsSrc = await fetch('/js/context-cards.js').then(r => r.text());
+      assert('demo context cards use provider-aware live AI consent',
+        healthDotsSrc.includes("mode: 'local-live'")
+          && healthDotsSrc.includes("mode: 'paid-off'")
+          && healthDotsSrc.includes("mode: 'paid-live'")
+          && healthDotsSrc.includes('enableDemoContextLiveAI')
+          && healthDotsSrc.includes('Demo insight not recalculated'),
+        'demo context must support free local updates and explicit paid opt-in');
+      assert('paid demo AI enablement uses a clear confirmation and reversible control',
+        contextCardsSrc.includes('showConfirmDialog')
+          && contextCardsSrc.includes('Context edits and manual refreshes may use paid tokens')
+          && contextCardsSrc.includes("contextCardActionAttrs('enable-demo-live-ai')")
+          && contextCardsSrc.includes("contextCardActionAttrs('disable-demo-live-ai')"),
+        'paid demo consent must be explicit in the rendered UI');
       assert('loadDemoData pre-unlocks Biology Scores without AI provider call',
         _loadDemoSection.includes('buildBiologyScoreContextFingerprintsByRange')
           && _loadDemoSection.includes('biologyScoreContextAI')
@@ -1013,7 +1050,7 @@ return (async function() {
         got.lifelightProfile?.chronotype === demo.lifelightProfile?.chronotype);
 
       // Same-date entries — demo ships TWO entries on 2025-08-05 and
-      // 2026-01-25 each (comprehensive panel + specialty add-on like an
+      // 2026-07-18 each (comprehensive panel + specialty add-on like an
       // OmegaQuant run on the same draw day). Earlier draft of the
       // import dedup-by-date silently dropped the second entry, losing
       // every fatty-acid / specialty marker. Verify both panels'
@@ -1026,6 +1063,13 @@ return (async function() {
       assert('2025-08-05 entry has specialty (fatty acid) markers',
         !!aug2025?.markers?.['fattyAcids.epaC20_5'],
         'specialty add-on was dropped on import — same-date merge failed');
+      const july2026 = (got.entries || []).find(e => e.date === '2026-07-18');
+      assert('2026-07-18 entry survived merge',
+        !!july2026 && Object.keys(july2026.markers || {}).length > 100);
+      assert('2026-07-18 entry keeps comprehensive and specialty markers',
+        !!july2026?.markers?.['biochemistry.glucose']
+          && !!july2026?.markers?.['fattyAcids.epaC20_5'],
+        'latest specialty add-on was dropped on import — same-date merge failed');
 
       // id-keyed dedup — re-importing the same demo shouldn't double sun
       // sessions. This is the merge contract for repeat imports.
@@ -1046,12 +1090,13 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
-  // 16. Demo prefill — runtime end-to-end (zero AI calls)
+  // 16. Demo prefill + provider-aware live AI — runtime end-to-end
   // ═══════════════════════════════════════
   // Source-inspection assertions above prove the prefill code is wired
   // up. This block exercises it end-to-end: call loadDemoData('female'),
   // wait for the dashboard to settle, then verify every prefill landed
-  // AND zero AI provider calls fired during the load. Catches:
+  // without provider calls during initial load, then verify Local AI and
+  // paid-provider consent behavior. Catches:
   //  • importDataJSON unit-conversion drift (e.g. hematocrit fraction →
   //    percent migration shifting fingerprints — the bug that bit us
   //    in the original f714591 build cycle)
@@ -1060,10 +1105,14 @@ return (async function() {
   //  • someone re-introducing the "navigate fires loadContextHealthDots
   //    before our cache lands" race
   if (typeof exportModule.loadDemoData === 'function') {
-    console.log('%c 16. Demo prefill end-to-end (zero AI calls) ', 'font-weight:bold;color:#f59e0b');
+    console.log('%c 16. Demo prefill + provider-aware live AI end-to-end ', 'font-weight:bold;color:#f59e0b');
     const snapshot2 = JSON.parse(JSON.stringify(S.importedData || {}));
     const origProfile = S.currentProfile;
     const origFetch = window.fetch;
+    const origAIProvider = localStorage.getItem('labcharts-ai-provider');
+    const origAIPaused = localStorage.getItem('labcharts-ai-paused');
+    const origOpenRouterModel = localStorage.getItem('labcharts-openrouter-model');
+    const origOpenRouterKeyCache = cryptoStore.getCachedKey('labcharts-openrouter-key');
     let aiCallCount = 0;
     const aiCallUrls = [];
     window.fetch = function(url, opts) {
@@ -1074,14 +1123,28 @@ return (async function() {
       if (/\/api\/(generate|chat|completions)|api\.anthropic|openrouter|venice\.ai|ppq\.ai|11434|claude/i.test(u)) {
         aiCallCount++;
         aiCallUrls.push(u.slice(0, 80));
+        const generated = {};
+        for (const key of ['healthGoals','diagnoses','diet','exercise','sleepRest','lightCircadian','stress','loveLife','environment']) {
+          generated[key] = { summary: `Live ${key} summary`, dot: 'green', tip: 'Updated from edited demo context' };
+        }
+        return Promise.resolve(new Response(JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(generated) } }],
+          usage: { prompt_tokens: 12, completion_tokens: 8 },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
       }
       return origFetch.apply(this, arguments);
     };
     try {
+      // Ollama is intentionally optimistic in hasAIProvider(), so this puts
+      // the runtime on a genuinely inference-capable path without a paid key.
+      // Any accidental call is intercepted and counted below.
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.removeItem('labcharts-ai-paused');
       await exportModule.loadDemoData('female');
       // Wait long enough for: import resolve → navigate('dashboard') →
       // loadFocusCard + loadContextHealthDots fire-and-forget paths.
       await wait(4000);
+      const initialSarahAICalls = aiCallCount;
       const profileId = S.currentProfile;
       const profileName = profile.getProfiles().find(p => p.id === profileId)?.name;
       assert('Demo profile created with expected name',
@@ -1115,6 +1178,12 @@ return (async function() {
       assert('contextHealth cache has all 9 summaries',
         expectedKeys.every(k => typeof ctxCached?.summaries?.[k] === 'string'),
         `missing summaries: ${expectedKeys.filter(k => typeof ctxCached?.summaries?.[k] !== 'string').join(', ')}`);
+      assert('contextHealth cache has all 9 AI profile summaries',
+        expectedKeys.every(k => typeof ctxCached?.cardSummaries?.[k] === 'string'),
+        `missing card summaries: ${expectedKeys.filter(k => typeof ctxCached?.cardSummaries?.[k] !== 'string').join(', ')}`);
+      assert('contextHealth cache is fixed for Demo Sarah', ctxCached?.fixedDemo === true);
+      assert('contextHealth cache labels all Demo Sarah interpretations as bundled',
+        expectedKeys.every(key => ctxCached?.sources?.[key] === 'demo'));
       // Critical: cached fingerprints must match what loadContextHealthDots
       // would compute against the live state. If migrateProfileData /
       // same-date merge drifts, fingerprints diverge and dots fall through
@@ -1144,12 +1213,81 @@ return (async function() {
         assert('Biology Scores demo context review module import failed', false, err?.message || String(err));
       }
 
-      // Zero AI calls during the demo-load window
-      assert('Zero AI provider calls fired during demo load',
-        aiCallCount === 0,
-        `got ${aiCallCount} calls: ${aiCallUrls.join('; ')}`);
+      // Local AI is free of provider charges, so a stale demo card should
+      // update automatically after the user edits it.
+      S.importedData.diet = { ...S.importedData.diet, note: 'Edited demo context' };
+      await contextCards.loadContextHealthDots();
+      const localCtxCached = JSON.parse(localStorage.getItem(ctxKey) || '{}');
+      const localDemoHtml = contextCards.renderProfileContextCards();
+      assert('Demo Sarah updates an edited card automatically with Local AI',
+        initialSarahAICalls === 0
+          && aiCallCount === 1
+          && contextHealth.getDemoContextAIMode().mode === 'local-live'
+          && localCtxCached.sources?.diet === 'ai'
+          && localDemoHtml.includes('Local AI active')
+          && localDemoHtml.includes('refresh-all-health-dots'),
+        `initial calls=${initialSarahAICalls}, total calls=${aiCallCount}`);
+
+      // A configured paid provider stays off until this exact provider/model
+      // receives explicit consent for this demo profile.
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
+      localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.4');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', 'demo-paid-test-key');
+      const callsBeforePaidGuard = aiCallCount;
+      S.importedData.stress = { ...S.importedData.stress, note: 'Edited under paid provider' };
+      await contextCards.loadContextHealthDots();
+      const paidOffHtml = contextCards.renderProfileContextCards();
+      assert('Demo Sarah blocks paid inference until explicit consent',
+        aiCallCount === callsBeforePaidGuard
+          && contextHealth.getDemoContextAIMode().mode === 'paid-off'
+          && paidOffHtml.includes('Enable live AI')
+          && !paidOffHtml.includes('refresh-all-health-dots')
+          && document.getElementById('ctx-ai-stress')?.textContent.includes('not recalculated'));
+      contextHealth.enableDemoContextLiveAI();
+      await contextCards.loadContextHealthDots();
+      const paidLiveHtml = contextCards.renderProfileContextCards();
+      assert('Demo Sarah uses paid AI only after provider/model consent',
+        aiCallCount === callsBeforePaidGuard + 1
+          && contextHealth.getDemoContextAIMode().mode === 'paid-live'
+          && paidLiveHtml.includes('Live AI enabled')
+          && paidLiveHtml.includes('Turn off')
+          && paidLiveHtml.includes('refresh-all-health-dots'));
+      contextHealth.disableDemoContextLiveAI();
+
+      const callsBeforeAlexLoad = aiCallCount;
+      await exportModule.loadDemoData('male');
+      await wait(500);
+      const maleProfileId = S.currentProfile;
+      const maleProfileName = profile.getProfiles().find(p => p.id === maleProfileId)?.name;
+      const maleCtxKey = `labcharts-${maleProfileId}-contextHealth`;
+      const maleCtxRaw = localStorage.getItem(maleCtxKey);
+      const maleCtxCached = maleCtxRaw ? JSON.parse(maleCtxRaw) : null;
+      await contextCards.loadContextHealthDots();
+      const maleDemoHtml = contextCards.renderProfileContextCards();
+      assert('Demo Alex loads precomputed under a paid provider without inference',
+        maleProfileName === 'Demo Alex'
+          && maleCtxCached?.fixedDemo === true
+          && Object.keys(maleCtxCached?.dots || {}).length === 9
+          && Object.values(maleCtxCached?.sources || {}).every(source => source === 'demo')
+          && aiCallCount === callsBeforeAlexLoad
+          && localStorage.getItem(maleCtxKey) === maleCtxRaw
+          && contextHealth.getDemoContextAIMode().mode === 'paid-off'
+          && maleDemoHtml.includes('Enable live AI')
+          && !maleDemoHtml.includes('refresh-all-health-dots'),
+        `profile=${maleProfileName}, calls=${aiCallCount}`);
+
+      assert('Both initial demo loads use zero AI inference',
+        initialSarahAICalls === 0 && aiCallCount === callsBeforeAlexLoad,
+        `calls: ${aiCallUrls.join('; ')}`);
     } finally {
       window.fetch = origFetch;
+      if (origAIProvider == null) localStorage.removeItem('labcharts-ai-provider');
+      else localStorage.setItem('labcharts-ai-provider', origAIProvider);
+      if (origAIPaused == null) localStorage.removeItem('labcharts-ai-paused');
+      else localStorage.setItem('labcharts-ai-paused', origAIPaused);
+      if (origOpenRouterModel == null) localStorage.removeItem('labcharts-openrouter-model');
+      else localStorage.setItem('labcharts-openrouter-model', origOpenRouterModel);
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', origOpenRouterKeyCache);
       // Restore prior state so subsequent tests aren't disturbed.
       S.importedData = snapshot2;
       S.currentProfile = origProfile;

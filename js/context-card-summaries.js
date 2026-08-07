@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { getEMFSeverity } from './schema.js';
+import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 
 export const CONTEXT_CARD_KEYS = [
   'healthGoals',
@@ -78,6 +79,7 @@ export function getConditionsSummary(d) {
   if (d.conditions && d.conditions.length) parts.push(d.conditions.map(c => {
     let s = c.name;
     if (c.severity && c.severity !== 'mild') s += ` (${c.severity})`;
+    if (c.status) s += ` · ${c.status}`;
     if (c.since) s += ` since ${c.since}`;
     return s;
   }).join(', '));
@@ -90,6 +92,7 @@ export function getConditionsSummary(d) {
     }).join(', ');
     parts.push(`Family: ${fh}`);
   }
+  if (d.proceduresNote) parts.push(`Procedures: ${d.proceduresNote}`);
   if (d.note) parts.push(d.note);
   return parts.join(' \u2014 ');
 }
@@ -99,7 +102,13 @@ export function getDietSummary(d) {
   const parts = [];
   if (d.type) parts.push(d.type);
   if (d.pattern) parts.push(d.pattern);
+  if (d.proteinIntake) parts.push(`protein: ${d.proteinIntake}`);
+  if (d.hydration) parts.push(`fluids: ${d.hydration}`);
   if (d.restrictions && d.restrictions.length) parts.push(d.restrictions.join(', '));
+  if (d.alcohol) parts.push(`alcohol: ${d.alcohol}`);
+  if (d.caffeine) parts.push(`caffeine: ${d.caffeine}`);
+  if (d.caffeineTiming) parts.push(d.caffeineTiming);
+  if (d.recentChanges && d.recentChanges.length) parts.push(d.recentChanges.join(', '));
   if (d.breakfast) parts.push('B: ' + d.breakfast);
   if (d.lunch) parts.push('L: ' + d.lunch);
   if (d.dinner) parts.push('D: ' + d.dinner);
@@ -124,7 +133,10 @@ export function getExerciseSummary(d) {
   if (d.frequency) parts.push(d.frequency);
   if (d.types && d.types.length) parts.push(d.types.join(', '));
   if (d.intensity) parts.push(d.intensity);
+  if (d.duration) parts.push(`${d.duration} sessions`);
   if (d.dailyMovement) parts.push(d.dailyMovement);
+  if (d.muscleContext) parts.push(d.muscleContext);
+  if (d.limitations && d.limitations.length) parts.push(d.limitations.join(', '));
   if (d.note) parts.push(d.note);
   return parts.join(', ');
 }
@@ -134,6 +146,10 @@ export function getSleepSummary(d) {
   const parts = [];
   if (d.duration) parts.push(d.duration);
   if (d.quality) parts.push(d.quality + ' quality');
+  if (d.daytimeSleepiness) parts.push(`${d.daytimeSleepiness} daytime sleepiness`);
+  if (d.apneaStatus) parts.push(`apnea: ${d.apneaStatus}`);
+  if (d.papUse) parts.push(`PAP: ${d.papUse}`);
+  if (d.naps) parts.push(`naps: ${d.naps}`);
   if (d.schedule) parts.push(d.schedule);
   if (d.roomTemp) parts.push(d.roomTemp);
   if (d.issues && d.issues.length) parts.push(d.issues.join(', '));
@@ -164,6 +180,8 @@ export function getStressSummary(d) {
   if (!d) return '';
   const parts = [];
   if (d.level) parts.push(d.level + ' stress');
+  if (d.duration) parts.push(d.duration);
+  if (d.trend) parts.push(d.trend);
   if (d.sources && d.sources.length) parts.push(d.sources.join(', '));
   if (d.management && d.management.length) parts.push('manages: ' + d.management.join(', '));
   if (d.note) parts.push(d.note);
@@ -177,9 +195,11 @@ export function getLoveLifeSummary(d) {
   if (d.relationship) parts.push(d.relationship);
   if (d.satisfaction) parts.push(d.satisfaction);
   if (d.libido) parts.push(d.libido + ' libido');
+  if (d.libidoChange) parts.push(`libido ${d.libidoChange}`);
   if (d.frequency) parts.push(d.frequency);
   if (d.orgasm) parts.push('orgasm: ' + d.orgasm);
   if (d.concerns && d.concerns.length) parts.push(d.concerns.join(', '));
+  if (d.reproductiveGoals && d.reproductiveGoals.length) parts.push(d.reproductiveGoals.join(', '));
   if (d.note) parts.push(d.note);
   return parts.join(', ');
 }
@@ -189,6 +209,9 @@ export function getEnvironmentSummary(d) {
   if (d) {
     if (d.setting) parts.push(d.setting);
     if (d.climate) parts.push(d.climate);
+    if (d.altitude) parts.push(d.altitude);
+    if (d.inhaledExposures && d.inhaledExposures.length) parts.push(d.inhaledExposures.join(', '));
+    if (d.occupationalExposures && d.occupationalExposures.length) parts.push(d.occupationalExposures.join(', '));
     if (d.water) parts.push(d.water);
     if (d.waterConcerns && d.waterConcerns.length) parts.push(d.waterConcerns.join(', '));
     if (d.emf && d.emf.length) parts.push(d.emf.length + ' EMF source' + (d.emf.length > 1 ? 's' : ''));
@@ -207,7 +230,7 @@ export function getEnvironmentSummary(d) {
 export function getGoalsSummary() {
   const healthGoals = state.importedData.healthGoals || [];
   if (healthGoals.length === 0) return '';
-  const texts = healthGoals.slice(0, 3).map(g => g.text);
+  const texts = sortHealthGoalsByPriority(healthGoals).slice(0, 3).map(g => g.text);
   const summary = texts.join(', ');
   if (healthGoals.length > 3) return summary + ` +${healthGoals.length - 3} more`;
   return summary;
@@ -219,16 +242,34 @@ export function isContextFilled(key) {
   return state.importedData[key] != null;
 }
 
+const CONTEXT_ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"';
+
+function contextIcon(body) {
+  return `<svg ${CONTEXT_ICON_ATTRS} aria-hidden="true">${body}</svg>`;
+}
+
+const CONTEXT_ICONS = {
+  healthGoals: contextIcon('<circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>'),
+  diagnoses: contextIcon('<rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 3.5h6V7H9zM12 10v7M8.5 13.5h7"></path>'),
+  diet: contextIcon('<path d="M6 3v6a3 3 0 0 0 6 0V3M9 3v18M17 3v18M17 3c2.5 2 3.5 4.5 3.5 8H17"></path>'),
+  exercise: contextIcon('<path d="M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12"></path>'),
+  sleepRest: contextIcon('<path d="M20.5 14.5A8 8 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z"></path>'),
+  lightCircadian: contextIcon('<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>'),
+  stress: contextIcon('<path d="M9.5 3a3.5 3.5 0 0 0-3 5.3M14.5 3a3.5 3.5 0 0 1 3 5.3M6.5 8.3A4 4 0 0 0 4 12c0 1.7.7 3.2 1.8 4.3M17.5 8.3A4 4 0 0 1 20 12c0 1.7-.7 3.2-1.8 4.3M9 21a2 2 0 0 1-2-2v-2M15 21a2 2 0 0 0 2-2v-2M12 6v15"></path>'),
+  loveLife: contextIcon('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"></path>'),
+  environment: contextIcon('<circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path>'),
+};
+
 export function getContextCardDefs() {
   return [
-    { key: 'healthGoals', emoji: '\uD83C\uDFAF', label: 'Health Goals', editor: 'openHealthGoalsEditor', tooltip: 'Define what you\'re trying to solve or improve. AI prioritizes analysis around your stated goals.', placeholder: 'Add health goals', summaryFn: getGoalsSummary },
-    { key: 'diagnoses', emoji: '\uD83C\uDFE5', label: 'Medical History', editor: 'openDiagnosesEditor', tooltip: 'Your diagnoses + family history shape how lab markers should be interpreted. What\'s abnormal for most may be expected for you; a parent\'s heart attack at 52 reframes a borderline LDL.', placeholder: 'Add diagnoses or family history', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
-    { key: 'diet', emoji: '\uD83E\uDD57', label: 'Diet & Digestion', editor: 'openDietEditor', tooltip: 'Nutrition and digestion directly affect blood markers \u2014 diet type impacts lipids, B12, iron; GI symptoms correlate with inflammation and nutrient absorption.', placeholder: 'Describe your diet & digestion', summaryFn: () => getDietSummary(state.importedData.diet) },
-    { key: 'exercise', emoji: '\uD83C\uDFCB\uFE0F', label: 'Exercise', editor: 'openExerciseEditor', tooltip: 'Training type and intensity affect CK, liver enzymes, cholesterol, and inflammatory markers.', placeholder: 'Describe your routine', summaryFn: () => getExerciseSummary(state.importedData.exercise) },
-    { key: 'sleepRest', emoji: '\uD83D\uDE34', label: 'Sleep & Rest', editor: 'openSleepRestEditor', tooltip: 'Sleep duration and quality directly affect inflammation, insulin sensitivity, cortisol, and immune function.', placeholder: 'Describe your sleep', summaryFn: () => getSleepSummary(state.importedData.sleepRest) },
-    { key: 'lightCircadian', emoji: '\u2600\uFE0F', label: 'Light & Circadian', editor: 'openLightCircadianEditor', tooltip: 'Light, cold, grounding, screen time, and meal timing drive circadian rhythm, hormones, melatonin, cortisol, and metabolic health.', placeholder: 'Describe your light habits', summaryFn: () => getLightCircadianSummary(state.importedData.lightCircadian) },
-    { key: 'stress', emoji: '\uD83E\uDDE0', label: 'Stress', editor: 'openStressEditor', tooltip: 'Chronic stress elevates cortisol, disrupts thyroid function, raises inflammation, and impairs immune response.', placeholder: 'Rate your stress level', summaryFn: () => getStressSummary(state.importedData.stress) },
-    { key: 'loveLife', emoji: '\u2764\uFE0F', label: 'Love Life & Relationships', editor: 'openLoveLifeEditor', tooltip: 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', placeholder: 'Share your status', summaryFn: () => getLoveLifeSummary(state.importedData.loveLife) },
-    { key: 'environment', emoji: '\uD83C\uDF0D', label: 'Environment', editor: 'openEnvironmentEditor', tooltip: 'Water quality, EMF exposure, air quality, toxins, and building materials shape mitochondrial function, inflammation, hormones, and oxidative stress.', placeholder: 'Describe your environment', summaryFn: () => getEnvironmentSummary(state.importedData.environment) },
+    { key: 'healthGoals', icon: CONTEXT_ICONS.healthGoals, label: 'Health Goals', editor: 'openHealthGoalsEditor', tooltip: 'Define what you\'re trying to solve or improve. AI prioritizes analysis around your stated goals.', placeholder: 'Add health goals', summaryFn: getGoalsSummary },
+    { key: 'diagnoses', icon: CONTEXT_ICONS.diagnoses, label: 'Medical History', editor: 'openDiagnosesEditor', tooltip: 'Your diagnoses + family history shape how lab markers should be interpreted. What\'s abnormal for most may be expected for you; a parent\'s heart attack at 52 reframes a borderline LDL.', placeholder: 'Add diagnoses or family history', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
+    { key: 'diet', icon: CONTEXT_ICONS.diet, label: 'Diet & Digestion', editor: 'openDietEditor', tooltip: 'Nutrition and digestion directly affect blood markers \u2014 diet type impacts lipids, B12, iron; GI symptoms correlate with inflammation and nutrient absorption.', placeholder: 'Describe your diet & digestion', summaryFn: () => getDietSummary(state.importedData.diet) },
+    { key: 'exercise', icon: CONTEXT_ICONS.exercise, label: 'Exercise', editor: 'openExerciseEditor', tooltip: 'Training type and intensity affect CK, liver enzymes, cholesterol, and inflammatory markers.', placeholder: 'Describe your routine', summaryFn: () => getExerciseSummary(state.importedData.exercise) },
+    { key: 'sleepRest', icon: CONTEXT_ICONS.sleepRest, label: 'Sleep & Rest', editor: 'openSleepRestEditor', tooltip: 'Sleep duration and quality directly affect inflammation, insulin sensitivity, cortisol, and immune function.', placeholder: 'Describe your sleep', summaryFn: () => getSleepSummary(state.importedData.sleepRest) },
+    { key: 'lightCircadian', icon: CONTEXT_ICONS.lightCircadian, label: 'Light & Circadian', editor: 'openLightCircadianEditor', tooltip: 'Light, cold, grounding, screen time, and meal timing drive circadian rhythm, hormones, melatonin, cortisol, and metabolic health.', placeholder: 'Describe your light habits', summaryFn: () => getLightCircadianSummary(state.importedData.lightCircadian) },
+    { key: 'stress', icon: CONTEXT_ICONS.stress, label: 'Stress', editor: 'openStressEditor', tooltip: 'Chronic stress elevates cortisol, disrupts thyroid function, raises inflammation, and impairs immune response.', placeholder: 'Rate your stress level', summaryFn: () => getStressSummary(state.importedData.stress) },
+    { key: 'loveLife', icon: CONTEXT_ICONS.loveLife, label: 'Love Life & Relationships', editor: 'openLoveLifeEditor', tooltip: 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', placeholder: 'Share your status', summaryFn: () => getLoveLifeSummary(state.importedData.loveLife) },
+    { key: 'environment', icon: CONTEXT_ICONS.environment, label: 'Environment', editor: 'openEnvironmentEditor', tooltip: 'Water quality, EMF exposure, air quality, toxins, and building materials shape mitochondrial function, inflammation, hormones, and oxidative stress.', placeholder: 'Describe your environment', summaryFn: () => getEnvironmentSummary(state.importedData.environment) },
   ];
 }

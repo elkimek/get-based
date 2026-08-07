@@ -572,13 +572,17 @@ export async function loadDemoData(sex = 'male') {
           const cacheKey = profileStorageKey(profileId, 'contextHealth');
           const dots = {};
           const summaries = {};
+          const cardSummaries = {};
           const fingerprints = {};
+          const sources = {};
           for (const k of Object.keys(demoJson.contextHealth.dots)) {
             dots[k] = demoJson.contextHealth.dots[k];
             summaries[k] = demoJson.contextHealth.summaries?.[k] || '';
+            cardSummaries[k] = demoJson.contextHealth.cardSummaries?.[k] || '';
+            sources[k] = 'demo';
             try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
           }
-          localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, fingerprints }));
+          localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, cardSummaries, fingerprints, sources, fixedDemo: true }));
         }
 
         // Biology Scores use a manual AI context gate in normal profiles. For

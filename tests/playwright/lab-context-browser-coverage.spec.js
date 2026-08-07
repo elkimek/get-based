@@ -108,17 +108,19 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
           { severity: 'minor', text: 'Keep training output stable' },
         ],
         diagnoses: {
-          conditions: [{ name: 'Iron deficiency', severity: 'mild', since: '2024' }],
+          conditions: [{ name: 'Iron deficiency', severity: 'mild', status: 'controlled', since: '2024' }],
           familyHistory: [{ relative: 'maternal_grandmother', condition: 'Hypothyroidism', onsetAge: 62, note: 'treated' }],
+          proceduresNote: 'Bariatric surgery in 2020',
+          flags: { lowMuscleMass: true },
           note: 'Coverage note',
         },
-        diet: { type: 'Mediterranean', pattern: 'early dinner', restrictions: ['gluten free'] },
-        exercise: { frequency: '4x/week', types: ['strength'], intensity: 'moderate' },
-        sleepRest: { duration: '7h', quality: 'variable' },
+        diet: { type: 'Mediterranean', pattern: 'early dinner', proteinIntake: '1.2–1.6 g/kg/day', hydration: '2–3 L/day', alcohol: 'occasional', recentChanges: ['significant weight loss'], restrictions: ['gluten free'] },
+        exercise: { frequency: '4x/week', types: ['strength', 'physiotherapy / rehab'], intensity: 'moderate', duration: '60-90 min', muscleContext: 'muscular', limitations: ['poor recovery'] },
+        sleepRest: { duration: '7-8h', quality: 'excellent', daytimeSleepiness: 'often', apneaStatus: 'diagnosed', papUse: 'use consistently' },
         lightCircadian: { amLight: 'daily', evening: ['dim lights'], screenTime: '2h' },
-        stress: { level: 'moderate', sources: ['work'] },
-        loveLife: { status: 'partnered', satisfaction: 'good' },
-        environment: { setting: 'urban', water: 'filtered' },
+        stress: { level: 'moderate', duration: '6-12 months', trend: 'improving', sources: ['work'] },
+        loveLife: { status: 'partnered', satisfaction: 'good', libidoChange: 'decreased', reproductiveGoals: ['trying to conceive'] },
+        environment: { setting: 'urban', altitude: 'moderate altitude (1,500-2,500 m)', inhaledExposures: ['secondhand smoke'], occupationalExposures: ['solvents'], water: 'glacier water', air: ['agricultural area / crop spraying nearby'] },
         supplements: [{ name: 'Magnesium', dosage: '200mg', type: 'supplement', startDate: recentDates.old }],
         menstrualCycle: { cycleLength: 29, periodLength: 5, regularity: 'regular', periods: [{ startDate: recentDates.old, endDate: recentDates.old, flow: 'medium' }] },
         notes: [{ date: recentDates.current, text: 'Felt better after sleep extension.' }],
@@ -147,7 +149,8 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
             rhr: { latest: 58, baseline: 62, trend30d: 'down', weekly: [63, 62, 61, 60, 59, 58], primarySource: 'oura' },
             body_fat_pct: { latest: 17.4, baseline: 18.1, trend30d: 'flat', primarySource: 'manual' },
             muscle_mass_kg: { latest: 61.2, baseline: 60.4, trend30d: 'up', primarySource: 'manual' },
-            sleep_total_min: { latest: 428, baseline: 405, trend30d: 'up', primarySource: 'oura' },
+            sleep_total_min: { latest: 310, baseline: 405, rolling: { d7: 315 }, trend30d: 'down', primarySource: 'oura' },
+            sleep_score: { latest: 61, baseline: 82, rolling: { d7: 61 }, trend30d: 'down', primarySource: 'oura' },
             sleep_hr_avg: { latest: 55, baseline: 57, trend30d: 'down', primarySource: 'oura' },
             unknown_metric: { latest: 9, baseline: 6, trend30d: 'up', primarySource: 'manual' },
           },
@@ -233,6 +236,15 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && await labContext.buildWearableSeriesSection(7) === '';
       labContext.setWearableContextEnabled(true);
       const wearableOn = labContext.isWearableContextEnabled() === true;
+      outcomes.nullWearableMetricsDoNotCreateFalseSleepMismatch = labContext.getSleepContextMismatch(
+        { duration: '7-8h', quality: 'excellent' },
+        {
+          metrics: {
+            sleep_total_min: { latest: null, rolling: { d7: null } },
+            sleep_score: { latest: null, rolling: { d7: null } },
+          },
+        },
+      ) === null;
       const bodyContextSynced = state.importedData.biologyScoreContextSettings?.includeBodyContext === true;
       labContext.setInsightContextCardsEnabled(false);
       labContext.setSupplementsMedsContextEnabled(true);
@@ -256,6 +268,24 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       labContext.setLightSunContextEnabled(true);
       const lightContextOn = labContext.isLightSunContextEnabled() === true
         && state.importedData.biologyScoreContextSettings?.includeLightContext === true;
+      labContext.invalidateLabContextCache();
+      const enrichedProfileContext = labContext.buildLabContext({ skipGroupFilter: false });
+      outcomes.enrichedProfileFieldsReachInterpretationContext =
+        enrichedProfileContext.includes('controlled')
+        && enrichedProfileContext.includes('Bariatric surgery in 2020')
+        && enrichedProfileContext.includes('Low muscle mass / creatinine may be unreliable')
+        && enrichedProfileContext.includes('Protein intake: 1.2–1.6 g/kg/day')
+        && enrichedProfileContext.includes('Daily fluid intake: 2–3 L/day')
+        && enrichedProfileContext.includes('Typical session: 60-90 min')
+        && enrichedProfileContext.includes('physiotherapy / rehab')
+        && enrichedProfileContext.includes('Sleep apnea: diagnosed')
+        && enrichedProfileContext.includes('profile-versus-tracked-data mismatch')
+        && enrichedProfileContext.includes('Duration: 6-12 months')
+        && enrichedProfileContext.includes('Libido change: decreased')
+        && enrichedProfileContext.includes('Altitude exposure: moderate altitude')
+        && enrichedProfileContext.includes('Work / hobby exposures: solvents')
+        && enrichedProfileContext.includes('Water: glacier water')
+        && enrichedProfileContext.includes('agricultural area / crop spraying nearby');
       labContext.setGeneticsInventoryInAIContext(false);
       const geneticsInventoryOff = labContext.isGeneticsInventoryInAIContext() === false;
       labContext.setGroupInAIContext('specialty-coverage', false);
