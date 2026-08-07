@@ -36,6 +36,12 @@ const TARGETS = [
   },
   {
     package: 'venice-e2ee',
+    entry: 'scripts/vendor-entries/venice-e2ee.js',
+    output: 'vendor/venice-e2ee.js',
+    format: 'es',
+  },
+  {
+    package: 'venice-e2ee',
     entry: 'scripts/vendor-entries/venice-nvidia.js',
     output: 'vendor/venice-nvidia.js',
     format: 'es',
@@ -79,7 +85,7 @@ for (const target of TARGETS) {
   const chunks = result.output.filter(item => item.type === 'chunk');
   if (chunks.length !== 1) throw new Error(`${target.package} produced ${chunks.length} chunks; expected one`);
   const banner = `// @ts-nocheck\n// Generated from ${target.package}@${packageEntry.version}; run npm run vendor:check.\n`;
-  const cleanCode = chunks[0].code.replace(/^[ \t]+$/gm, '');
+  const cleanCode = chunks[0].code.replace(/[ \t]+$/gm, '');
   const generated = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
   generatedTargets.push({
     ...target,

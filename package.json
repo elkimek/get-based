@@ -35,7 +35,7 @@
   "devDependencies": {
     "@cashu/cashu-ts": "4.7.2",
     "@noble/curves": "2.2.0",
-    "@phala/dcap-qvl": "0.3.9",
+    "@phala/dcap-qvl": "0.6.1",
     "@playwright/test": "^1.62.0",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "4.12.1",
@@ -43,7 +43,7 @@
     "jsdom": "^30.0.1",
     "rolldown": "1.2.1",
     "typescript": "^6.0.3",
-    "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/fd7a0e29d50c8a0b931855e528dbe90bf059e40a.tar.gz",
+    "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/e76596b5ac9d563b94d3c8d1753fb3770c35fb81.tar.gz",
     "vitest": "^4.1.10",
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only"
   },

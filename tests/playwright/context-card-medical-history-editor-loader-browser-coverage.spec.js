@@ -29,6 +29,9 @@ const syntheticMedicalHistoryEditor = `
 `;
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
   await page.route('**/medical-history-editor-loader-coverage', route => route.fulfill({
     contentType: 'text/html',
     body: '<!doctype html><html><body><main id="fixture"></main><div id="notification-container"></div></body></html>',

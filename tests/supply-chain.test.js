@@ -89,7 +89,7 @@ describe('supply-chain inventory', () => {
 
     expect(Object.keys(resolved)).toHaveLength(10);
     expect(resolved['@phala/dcap-qvl']).toEqual({
-      package_url: 'pkg:npm/%40phala/dcap-qvl@0.3.9',
+      package_url: 'pkg:npm/%40phala/dcap-qvl@0.6.1',
       relationship: 'direct',
       scope: 'runtime',
     });
