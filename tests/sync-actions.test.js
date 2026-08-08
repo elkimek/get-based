@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   configureSyncActions, prepareRelayCompaction, pushAllProfiles, rebuildOwnerRelayState, syncNow,
 } from '../js/sync-actions.js';
+import { encryptedRemoveItem, encryptedSetItem } from '../js/crypto.js';
 import { state } from '../js/state.js';
 import {
   clearSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty,
@@ -31,6 +32,38 @@ describe('sync action profile dependencies', () => {
     } finally {
       state.currentProfile = previousProfile;
       state.importedData = previousImportedData;
+      configureSyncActions({
+        pushProfile: async () => {},
+        getProfiles: () => [],
+        createDefaultProfileData: () => ({ entries: [] }),
+      });
+    }
+  });
+
+  it('skips an inactive profile whose persisted data is unavailable', async () => {
+    const previousProfile = state.currentProfile;
+    const profileId = 'unavailable-seed-profile';
+    const storageKey = profileStorageKey(profileId, 'imported');
+    const pushProfile = vi.fn().mockResolvedValue({ ok: true });
+    await encryptedRemoveItem(storageKey);
+    state.currentProfile = 'different-active-profile';
+    configureSyncActions({
+      pushProfile,
+      getProfiles: () => [{ id: profileId }],
+      createDefaultProfileData: () => ({ entries: [] }),
+    });
+
+    try {
+      await expect(pushAllProfiles()).resolves.toEqual({
+        total: 1,
+        succeeded: 0,
+        failed: 0,
+        skipped: 1,
+      });
+      expect(pushProfile).not.toHaveBeenCalled();
+    } finally {
+      state.currentProfile = previousProfile;
+      await encryptedRemoveItem(storageKey);
       configureSyncActions({
         pushProfile: async () => {},
         getProfiles: () => [],
@@ -140,7 +173,7 @@ describe('sync action profile dependencies', () => {
     const order = [];
     state.currentProfile = activeId;
     state.importedData = { entries: [], contextNotes: 'fresh active edit' };
-    localStorage.setItem(inactiveKey, JSON.stringify({ entries: [], contextNotes: 'fresh inactive edit' }));
+    await encryptedSetItem(inactiveKey, JSON.stringify({ entries: [], contextNotes: 'fresh inactive edit' }));
     markSyncProfileDirty(activeId);
     markSyncProfileDirty(inactiveId);
     configureSyncActions({
@@ -164,7 +197,7 @@ describe('sync action profile dependencies', () => {
         'pull',
       ]);
     } finally {
-      localStorage.removeItem(inactiveKey);
+      await encryptedRemoveItem(inactiveKey);
       localStorage.removeItem(`labcharts-${activeId}-sync-dirty`);
       localStorage.removeItem(`labcharts-${inactiveId}-sync-dirty`);
       state.currentProfile = previousProfile;
@@ -180,13 +213,15 @@ describe('sync action profile dependencies', () => {
     }
   });
 
-  it('fails compaction before pulling when an inactive dirty profile cannot commit', async () => {
+  it('fails compaction before pulling or pushing when inactive dirty profile data is unavailable', async () => {
     const inactiveId = 'compact-dirty-failed';
     const forcePull = vi.fn();
+    const pushProfile = vi.fn(async () => ({ ok: true }));
+    await encryptedRemoveItem(profileStorageKey(inactiveId, 'imported'));
     markSyncProfileDirty(inactiveId);
     configureSyncActions({
       forcePull,
-      pushProfile: async () => ({ ok: false, reason: 'timeout' }),
+      pushProfile,
       isSyncEnabled: () => true,
       isEvoluReady: () => true,
       isSyncing: () => false,
@@ -194,9 +229,11 @@ describe('sync action profile dependencies', () => {
     });
 
     try {
-      await expect(prepareRelayCompaction()).rejects.toThrow('Could not commit pending changes');
+      await expect(prepareRelayCompaction()).rejects.toThrow('Could not read local data');
       expect(forcePull).not.toHaveBeenCalled();
+      expect(pushProfile).not.toHaveBeenCalled();
     } finally {
+      await encryptedRemoveItem(profileStorageKey(inactiveId, 'imported'));
       localStorage.removeItem(`labcharts-${inactiveId}-sync-dirty`);
       configureSyncActions({
         forcePull: async () => {},

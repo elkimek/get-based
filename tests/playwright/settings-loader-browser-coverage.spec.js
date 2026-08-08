@@ -255,4 +255,13 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   await expect.poll(() => page.evaluate(async () => (
     (await import('/js/settings-sync-panel.js')).isSettingsSyncPanelLoaded()
   ))).toBe(true);
+  await expect(page.locator('#messenger-section [data-sync-action="toggle-messenger"]')).toHaveCount(1);
+  await expect(page.locator('#settings-modal [data-settings-sync-placeholder]')).toHaveCount(0);
+  await page.locator('[data-settings-tab="agent"]').click();
+  const agentAccessSlider = page.locator(
+    '#messenger-section [data-sync-action="toggle-messenger"] + .sync-settings-toggle-slider',
+  );
+  await expect(agentAccessSlider).toBeVisible();
+  await expect(agentAccessSlider).toHaveCSS('width', '32px');
+  await expect(agentAccessSlider).toHaveCSS('height', '18px');
 });

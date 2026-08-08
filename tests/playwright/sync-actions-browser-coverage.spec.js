@@ -7,17 +7,32 @@ function moduleUrl(path) {
 test('sync save hooks and messenger cover debounce and gateway paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async ({ saveHooksUrl, messengerUrl }) => {
-    const [{ state }, saveHooks, messenger] = await Promise.all([
+  const results = await page.evaluate(async ({ saveHooksUrl, messengerUrl, labContextUrl }) => {
+    const [{ state }, saveHooks, messenger, labContext] = await Promise.all([
       import('/js/state.js'),
       import(saveHooksUrl),
       import(messengerUrl),
+      import(labContextUrl),
     ]);
     const outcomes = {};
     const pushes = [];
     const fetches = [];
     const debugCalls = [];
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const decodeBase64 = value => {
+      const binary = atob(value);
+      return Uint8Array.from(binary, char => char.charCodeAt(0));
+    };
+    const decryptAgentContext = async envelope => {
+      const rawKey = Uint8Array.from({ length: 32 }, (_, index) => index);
+      const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
+      const plaintext = await crypto.subtle.decrypt({
+        name: 'AES-GCM',
+        iv: decodeBase64(envelope.iv),
+        additionalData: new TextEncoder().encode(`getbased-agent-context-v2:${profileId}`),
+      }, key, decodeBase64(envelope.ciphertext));
+      return new TextDecoder().decode(plaintext);
+    };
     const profileId = 'sync-hooks-active';
     const storageKeys = [
       'labcharts-messenger-enabled',
@@ -79,7 +94,136 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         });
       };
       state.currentProfile = profileId;
-      state.importedData = { entries: [{ date: '2026-06-09', markers: { metabolic: { glucose: 4.9 } } }] };
+      state.importedData = {
+        entries: [{ date: '2026-06-09', markers: { metabolic: { glucose: 4.9 } } }],
+        contextSourceSettings: {
+          'insight-cards': false,
+          'light-sun': false,
+        },
+        healthGoals: [
+          { severity: 'major', text: 'Restore stable morning energy' },
+          { severity: 'mild', text: 'Improve training recovery' },
+        ],
+        diagnoses: {
+          conditions: [{ name: 'Hashimoto thyroiditis', severity: 'moderate', status: 'controlled', since: '2021' }],
+          familyHistory: [{ relative: 'maternal_grandmother', condition: 'Type 2 diabetes', onsetAge: 55, note: 'required insulin' }],
+          proceduresNote: 'Appendectomy in 2019',
+          flags: {
+            lowMuscleMass: true,
+            hormoneTherapy: true,
+            postmenopause: true,
+            intenseTrainingRecent: true,
+            acuteIllnessNearDraw: true,
+          },
+          note: 'Medical-history agent sentinel',
+        },
+        diet: {
+          type: 'mediterranean',
+          pattern: '3 meals/day',
+          proteinIntake: '1.2–1.6 g/kg/day',
+          hydration: '2–3 L/day',
+          restrictions: ['gluten-free'],
+          alcohol: 'none',
+          caffeine: 'none',
+          caffeineTiming: 'morning only',
+          recentChanges: ['recent major diet change'],
+          breakfast: 'Greek yogurt and berries',
+          breakfastTime: '07:30',
+          lunch: 'Lentil salad',
+          lunchTime: '12:30',
+          dinner: 'Salmon and vegetables',
+          dinnerTime: '18:15',
+          snacks: 'Walnuts',
+          snacksTime: '15:00',
+          bowelFrequency: '1x/day',
+          stoolConsistency: 'smooth',
+          bloating: 'none',
+          gas: 'none',
+          acidReflux: 'none',
+          burping: 'none',
+          nausea: 'none',
+          appetite: 'normal',
+          abdominalPain: 'none',
+          foodSensitivities: ['histamine'],
+          note: 'Diet agent sentinel',
+        },
+        exercise: {
+          frequency: '3-4x/week',
+          types: ['strength', 'physiotherapy / rehab'],
+          intensity: 'moderate',
+          duration: '60-90 min',
+          dailyMovement: 'some walking',
+          muscleContext: 'muscular',
+          limitations: ['poor recovery'],
+          note: 'Exercise agent sentinel',
+        },
+        sleepRest: {
+          duration: '7-8h',
+          quality: 'good',
+          daytimeSleepiness: 'sometimes',
+          apneaStatus: 'not suspected',
+          papUse: 'not applicable',
+          naps: 'none',
+          schedule: 'consistent',
+          roomTemp: 'cool (18-20°C / 65-68°F)',
+          issues: ['waking at night'],
+          environment: ['blackout curtains'],
+          practices: ['evening magnesium'],
+          note: 'Sleep agent sentinel',
+        },
+        lightCircadian: {
+          amLight: 'sunrise outdoor (10+ min)',
+          daytime: '1-2h outdoor',
+          uvExposure: 'midday sun when possible',
+          skinType: 'III — medium',
+          evening: ['dim lights after sunset'],
+          screenTime: '4-8h',
+          techEnv: ['phone in bedroom'],
+          cold: 'cold shower',
+          grounding: 'barefoot occasionally',
+          mealTiming: ['early dinner (before 6pm)'],
+          note: 'Light agent sentinel',
+        },
+        stress: {
+          level: 'moderate',
+          duration: '6-12 months',
+          trend: 'improving',
+          sources: ['work'],
+          management: ['nature'],
+          note: 'Stress agent sentinel',
+        },
+        loveLife: {
+          status: 'married',
+          relationship: 'supportive & secure',
+          satisfaction: 'satisfied',
+          libido: 'normal',
+          libidoChange: 'unchanged',
+          frequency: 'weekly',
+          orgasm: 'usually',
+          concerns: ['mismatched libido'],
+          reproductiveGoals: ['pregnancy planning'],
+          note: 'Love-life agent sentinel',
+        },
+        environment: {
+          setting: 'urban residential',
+          climate: 'temperate',
+          altitude: 'moderate altitude (1,500-2,500 m)',
+          inhaledExposures: ['secondhand smoke'],
+          occupationalExposures: ['solvents'],
+          water: 'glacier water',
+          waterConcerns: ['unknown source quality'],
+          emf: ['WiFi router nearby'],
+          emfMitigation: ['WiFi off at night'],
+          homeLight: 'mostly LED lighting',
+          air: ['agricultural area / crop spraying nearby'],
+          toxins: ['mold exposure'],
+          building: 'old building (pre-1970)',
+          note: 'Environment agent sentinel',
+        },
+        interpretiveLens: 'Prioritize mechanistic circadian interpretation.',
+        contextNotes: 'Additional-context agent sentinel',
+      };
+      labContext.invalidateLabContextCache();
       localStorage.setItem('labcharts-messenger-enabled', 'false');
       localStorage.removeItem('labcharts-messenger-token');
       sessionStorage.removeItem('labcharts-chat-local-lock-until');
@@ -163,12 +307,16 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       localStorage.setItem('labcharts-agent-context-key', 'gbctx_v1_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8');
       const testOwner = { id: 'MDEyMzQ1Njc4OWFiY2RlZg', writeKey: new Uint8Array(32).fill(7) };
       messenger.migrateLocalAgentAccessToProfile();
-      messenger.configureSyncMessenger({ getAppOwner: () => testOwner });
+      messenger.configureSyncMessenger({
+        getAppOwner: () => testOwner,
+        buildLabContext: labContext.buildLabContext,
+      });
       messenger.pushContextToGateway();
       await runPendingTimers();
       const defaultGateway = fetches.at(-1);
       const defaultGatewayBody = JSON.parse(defaultGateway.options?.body || '{}');
       const defaultGatewayContext = JSON.parse(defaultGatewayBody.context || '{}');
+      const decryptedAgentContext = await decryptAgentContext(defaultGatewayContext.encryptedContext);
       outcomes.messengerDefaultRelayPushesEncryptedContext = defaultGateway?.url === 'https://sync.getbased.health/api/context'
         && defaultGateway.options?.headers?.Authorization === 'Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         && defaultGatewayBody.profileId === profileId
@@ -185,6 +333,106 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         && typeof defaultGatewayContext.encryptedContext?.iv === 'string'
         && typeof defaultGatewayContext.encryptedContext?.ciphertext === 'string'
         && !defaultGatewayContext.encryptedContext.ciphertext.includes('2026-06-09');
+      const redesignedContextFragments = [
+        '[section:healthGoals]',
+        'Restore stable morning energy',
+        'Improve training recovery',
+        'Prioritize mechanistic circadian interpretation.',
+        'Hashimoto thyroiditis (moderate, controlled, since 2021)',
+        'maternal grandmother: Type 2 diabetes, onset age 55 — required insulin',
+        'Appendectomy in 2019',
+        'Low muscle mass / creatinine may be unreliable',
+        'Hormone therapy / TRT / hormonal contraception',
+        'Postmenopause / no active cycle',
+        'Recent intense training near blood draw',
+        'Acute illness / infection / injury near blood draw',
+        'Medical-history agent sentinel',
+        'Protein intake: 1.2–1.6 g/kg/day',
+        'Daily fluid intake: 2–3 L/day',
+        'Alcohol: none',
+        'Caffeine: none',
+        'Latest caffeine: morning only',
+        'Recent changes: recent major diet change',
+        'Greek yogurt and berries',
+        'Lentil salad',
+        'Salmon and vegetables',
+        'Walnuts',
+        'Bowel frequency: 1x/day',
+        'Stool consistency: smooth',
+        'Bloating: none',
+        'Gas: none',
+        'Acid reflux: none',
+        'Burping: none',
+        'Nausea: none',
+        'Appetite: normal',
+        'Abdominal pain: none',
+        'Food sensitivities: histamine',
+        'Diet agent sentinel',
+        'Frequency: 3-4x/week',
+        'Types: strength, physiotherapy / rehab',
+        'Intensity: moderate',
+        'Typical session: 60-90 min',
+        'Daily movement: some walking',
+        'Muscle context: muscular',
+        'Limitations / recovery: poor recovery',
+        'Exercise agent sentinel',
+        'Duration: 7-8h',
+        'Quality: good',
+        'Daytime sleepiness: sometimes',
+        'Sleep apnea: not suspected',
+        'PAP / CPAP: not applicable',
+        'Naps: none',
+        'Schedule: consistent',
+        'Room temp: cool (18-20°C / 65-68°F)',
+        'Issues: waking at night',
+        'Environment: blackout curtains',
+        'Practices: evening magnesium',
+        'Sleep agent sentinel',
+        'Morning light: sunrise outdoor (10+ min)',
+        'Daytime outdoor: 1-2h outdoor',
+        'UV exposure: midday sun when possible',
+        'Skin type: III — medium',
+        'Evening light: dim lights after sunset',
+        'Daily screen time: 4-8h',
+        'Tech environment: phone in bedroom',
+        'Cold exposure: cold shower',
+        'Grounding: barefoot occasionally',
+        'Meal timing: early dinner (before 6pm)',
+        'Light agent sentinel',
+        'Level: moderate',
+        'Duration: 6-12 months',
+        'Trend: improving',
+        'Sources: work',
+        'Management: nature',
+        'Stress agent sentinel',
+        'Status: married',
+        'Relationship quality: supportive & secure',
+        'Satisfaction: satisfied',
+        'Libido: normal',
+        'Libido change: unchanged',
+        'Sexual frequency: weekly',
+        'Orgasm: usually',
+        'Concerns: mismatched libido',
+        'Reproductive goals: pregnancy planning',
+        'Love-life agent sentinel',
+        'Setting: urban residential',
+        'Climate: temperate',
+        'Altitude exposure: moderate altitude (1,500-2,500 m)',
+        'Smoking / inhaled exposure: secondhand smoke',
+        'Work / hobby exposures: solvents',
+        'Water: glacier water',
+        'Water concerns: unknown source quality',
+        'EMF exposure: WiFi router nearby',
+        'EMF mitigation: WiFi off at night',
+        'Home lighting: mostly LED lighting',
+        'Air quality: agricultural area / crop spraying nearby',
+        'Toxin exposure: mold exposure',
+        'Building: old building (pre-1970)',
+        'Environment agent sentinel',
+        'Additional-context agent sentinel',
+      ];
+      outcomes.messengerEncryptedPayloadCarriesEveryRedesignedContextField =
+        redesignedContextFragments.every(fragment => decryptedAgentContext.includes(fragment));
 
       messenger.configureSyncMessenger({
         getSyncRelay: () => 'ws://relay.local',
@@ -213,6 +461,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       });
       saveHooks.clearSyncSaveTimers();
       messenger.configureSyncMessenger({ getSyncRelay: () => 'wss://sync.getbased.health', debug: () => {} });
+      labContext.invalidateLabContextCache();
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;
       for (const { type, listener, options } of boundListeners) {
@@ -235,6 +484,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
   }, {
     saveHooksUrl: moduleUrl('/js/sync-save-hooks.js'),
     messengerUrl: moduleUrl('/js/sync-messenger.js'),
+    labContextUrl: moduleUrl('/js/lab-context.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {

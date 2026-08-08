@@ -164,6 +164,9 @@ async function flushDirtyProfilesForRelayCompaction(profiles) {
       if (_isSyncing()) throw new Error('Sync is still busy; wait for it to finish and retry compaction');
 
       const importedData = await readProfileImportedData(profileId);
+      if (!importedData) {
+        throw new Error(`Could not read local data for profile ${profileId.slice(0, 8)}; compaction stopped safely`);
+      }
       const result = await _pushProfile(profileId, importedData);
       if (!result?.ok) {
         throw new Error(`Could not commit pending changes for profile ${profileId.slice(0, 8)}`);

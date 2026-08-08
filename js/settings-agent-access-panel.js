@@ -128,9 +128,9 @@ export function renderMessengerSection() {
         <div class="settings-copy-title">Agent Access</div>
         <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
-      <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${toggleDisabled ? 'disabled' : ''}>
-        <span class="chat-toggle-slider"></span>
+      <label class="chat-websearch-toggle-label sync-settings-toggle" aria-label="Toggle Agent Access">
+        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" ${toggleDisabled ? 'disabled' : ''}>
+        <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
       </label>
     </div>
     ${enabled && token ? `

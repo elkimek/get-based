@@ -99,6 +99,9 @@ assert('Delegated setup acknowledgment updates Done state',
   /action === 'setup-ack'[\s\S]*updateSyncSetupAck\(actionEl\)/.test(src));
 assert('Delegated Agent Access toggle calls toggleMessenger',
   /action === 'toggle-messenger'[\s\S]*toggleMessenger\(actionEl\.checked\)/.test(src));
+assert('Agent Access toggle uses Settings-owned visible slider styles',
+  /data-sync-action="toggle-messenger"[\s\S]{0,180}class="chat-toggle-slider sync-settings-toggle-slider"/.test(agentSrc)
+    && /class="chat-websearch-toggle-label sync-settings-toggle"/.test(agentSrc));
 assert('Agent Access enable checks saveImportedData result before pushing context or success',
   /const saved = await saveImportedData\(\{ reason: 'agent-access-enable' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while enabling Agent Access'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Agent Access enabled', 'success'\)/.test(agentSrc));
 assert('Agent Access disable checks saveImportedData result before success',

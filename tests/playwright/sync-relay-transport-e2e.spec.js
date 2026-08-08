@@ -99,7 +99,9 @@ async function enableNewIdentity(page) {
 async function joinIdentity(page, mnemonic, ownerId) {
   await page.evaluate(async () => {
     const { enableSync } = await import('/js/sync.js');
-    await enableSync({ skipPush: true });
+    // Match the Settings "Join existing device" path: the throwaway owner is
+    // intentionally provisional until restoreFromMnemonic accepts the seed.
+    await enableSync({ skipPush: true, persist: false });
   });
   await waitForOwner(page);
 

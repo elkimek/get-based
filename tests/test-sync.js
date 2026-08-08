@@ -942,6 +942,15 @@ await import('../js/settings.js');
       && syncSaveHooksSrc.includes('const _profileSyncTimers = new Map()')
       && syncSaveHooksSrc.includes('readProfileImportedData(profileId, importedData)')
       && exportBlockIncludes(syncSrc, ['onProfileSaved']));
+  assert('inactive profile sync reads imported blobs through their canonical storage wrapper',
+    syncSaveHooksSrc.includes('const raw = await encryptedGetItem(storageKey)')
+      && !syncSaveHooksSrc.includes('localStorage.getItem(storageKey)'));
+  assert('missing inactive profile data is not replaced with an empty relay payload',
+    /readProfileImportedData[\s\S]{0,1800}return null;/.test(syncSaveHooksSrc)
+      && /scheduleProfilePush[\s\S]{0,500}!data \|\| typeof data !== 'object'/.test(syncSaveHooksSrc));
+  assert('pushProfile rejects unavailable imported data before constructing a relay payload',
+    /pushProfile[\s\S]{0,700}reason:\s*'missing-profile-data'/.test(syncPushSrc)
+      && /pushProfile[\s\S]{0,700}Array\.isArray\(importedData\)/.test(syncPushSrc));
   assert('profile metadata sync retries while Evolu is busy or not ready',
     syncSaveHooksSrc.includes('function scheduleProfilePush')
       && /scheduleProfilePush[\s\S]{0,600}attempt < 60/.test(syncSaveHooksSrc)
@@ -1396,9 +1405,12 @@ await import('../js/settings.js');
       && syncDisableCleanupSrc.includes('localStorage.removeItem(key)'));
   assert('restoreFromMnemonic normalizes the seed before calling evolu.restoreAppOwner',
     syncIdentitySrc.includes("normalize('NFKD')")
-      && syncIdentitySrc.includes('evolu.restoreAppOwner(normalizedMnemonic)'));
+      && syncIdentitySrc.includes('evolu.restoreAppOwner(normalizedMnemonic, { reload: false })'));
+  assert('restoreFromMnemonic defers Evolu reload until join state is persisted',
+    syncIdentitySrc.includes('evolu.restoreAppOwner(normalizedMnemonic, { reload: false })')
+      && syncIdentitySrc.includes('scheduleSyncRuntimeReload(500)'));
   // Verify timestamps are cleared AFTER restoreAppOwner within restoreFromMnemonic (not before)
-  const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(normalizedMnemonic)');
+  const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(normalizedMnemonic, { reload: false })');
   const clearTsInRestore = syncIdentitySrc.indexOf('clearSyncDisableStorage();', restoreIdx);
   assert('Sync-ts cleared after restoreAppOwner (not before)', restoreIdx > 0 && clearTsInRestore > restoreIdx,
     `restoreAppOwner at ${restoreIdx}, sync-ts clear at ${clearTsInRestore}`);
@@ -1502,10 +1514,10 @@ await import('../js/settings.js');
   assert('pushAllProfiles forwards force/seed options to profile pushes',
     /export async function pushAllProfiles\(options = \{\}\)/.test(syncActionsSrc)
       && /_pushProfile\(p\.id,\s*dataJson,\s*options\)/.test(syncActionsSrc));
-  assert('pushAllProfiles pushes metadata-only profiles with default data',
+  assert('pushAllProfiles defaults only the active profile and skips unreadable inactive profiles',
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,800}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
-      && !/pushAllProfiles[\s\S]{0,800}if \(!raw\) continue/.test(syncActionsSrc));
+      && /pushAllProfiles[\s\S]{0,800}if \(!dataJson\)/.test(syncActionsSrc));
   assert('restore-as-source seeds the new owner before reload',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
       && /options\?\.seedLocal[\s\S]{0,400}await _seedLocalProfiles\(\)/.test(syncIdentitySrc)
@@ -1563,6 +1575,11 @@ await import('../js/settings.js');
 
   assert('Settings imports sync panel', settingsSrc.includes("from './settings-sync-panel.js'"));
   assert('Settings hydrates sync panel on open', settingsSrc.includes('hydrateSettingsSyncPanel()'));
+  assert('lazy Settings sync panel replaces both cold placeholders after loading',
+    settingsSyncPanelSrc.includes('replaceSettingsSyncPanelPlaceholders(module)')
+      && settingsSyncPanelSrc.includes('data-settings-sync-placeholder="sync"')
+      && settingsSyncPanelSrc.includes('data-settings-sync-placeholder="messenger"')
+      && /replaceSettingsSyncPanelPlaceholders[\s\S]{0,700}renderSyncSection\(\)[\s\S]{0,400}renderMessengerSection\(\)/.test(settingsSyncPanelSrc));
   assert('settings-sync-panel imports sync functions', settingsSyncPanelSrc.includes("from './sync.js'"));
   assert('renderSyncSection exists', settingsSyncPanelSrc.includes('function renderSyncSection'));
   assert('Sync section in Data tab', settingsSrc.includes('Cross-Device Sync'));
@@ -2533,10 +2550,10 @@ await import('../js/settings.js');
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears delta snapshots',
-    /restoreFromMnemonic[\s\S]{0,1500}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-delta-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears cutover flag',
-    /restoreFromMnemonic[\s\S]{0,1500}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
 
   // Live: proto-pollution defence — verify a malicious key is rejected
@@ -2714,10 +2731,10 @@ await import('../js/settings.js');
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears -relay-bytes- keys',
-    /restoreFromMnemonic[\s\S]{0,1500}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-relay-bytes-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears legacy global quota-warned key',
-    /restoreFromMnemonic[\s\S]{0,1500}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
 
   // P2: warned-marker key now owner-scoped

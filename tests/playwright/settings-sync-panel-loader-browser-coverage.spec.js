@@ -123,6 +123,60 @@ test('Settings sync panel stays cold, single-flights, and applies stored configu
   });
 });
 
+test('cold Settings placeholders hydrate into interactive sync and Agent Access panels', async ({ page }) => {
+  await page.goto('/settings-sync-panel-loader-coverage');
+  await page.route('**/js/settings-sync-panel-impl.js*', route => route.fulfill({
+    contentType: 'text/javascript',
+    body: syntheticSettingsSyncPanel,
+  }));
+
+  const outcomes = await page.evaluate(async url => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <section id="sync-section"></section>
+      <section id="messenger-section"></section>
+    `);
+    const facade = await import(url);
+    const syncSection = document.getElementById('sync-section');
+    const messengerSection = document.getElementById('messenger-section');
+    syncSection.innerHTML = facade.renderSyncSection();
+    messengerSection.innerHTML = facade.renderMessengerSection();
+    const cold = {
+      sync: syncSection.textContent,
+      messenger: messengerSection.textContent,
+    };
+
+    await facade.hydrateSettingsSyncPanel();
+
+    return {
+      cold,
+      hydrated: {
+        sync: syncSection.textContent,
+        messenger: messengerSection.textContent,
+      },
+      placeholdersRemaining: document.querySelectorAll('[data-settings-sync-placeholder]').length,
+      implementationCalls: window.__settingsSyncPanelLoaderCalls || [],
+    };
+  }, facadeUrl());
+
+  expect(outcomes).toEqual({
+    cold: {
+      sync: 'Loading sync settings…',
+      messenger: 'Loading Agent Access…',
+    },
+    hydrated: {
+      sync: 'sync markup',
+      messenger: 'messenger markup',
+    },
+    placeholdersRemaining: 0,
+    implementationCalls: [
+      ['configure', 'applyPendingTombstone,listPendingTombstones,pushContextToGateway,rejectPendingTombstone,updateSyncIndicator'],
+      ['renderSyncSection'],
+      ['renderMessengerSection'],
+      ['hydrateSettingsSyncPanel'],
+    ],
+  });
+});
+
 test('Settings sync panel retries with a fixed URL and reports the first failure', async ({ page }) => {
   await page.goto('/settings-sync-panel-loader-coverage');
   const implementationRequests = [];
