@@ -142,6 +142,7 @@ test('cold startup defers context editor presentation until a real editor opens'
 test('long context editors use accessible progressive disclosure on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
     localStorage.setItem('labcharts-default-tour', 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
@@ -155,6 +156,7 @@ test('long context editors use accessible progressive disclosure on mobile', asy
   });
 
   const modal = page.locator('#detail-modal');
+  await expect(page.locator('#tour-overlay')).toHaveCount(0);
   await expect(modal).toHaveAttribute('aria-label', 'Diet & Digestion');
   await expect(modal.locator('details.ctx-editor-section')).toHaveCount(3);
   await expect(modal.locator('details.ctx-editor-section[open]')).toHaveCount(0);
