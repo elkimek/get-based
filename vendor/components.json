@@ -104,8 +104,8 @@
     },
     {
       "name": "ehbp",
-      "version": "0.3.1",
-      "purl": "pkg:npm/ehbp@0.3.1",
+      "version": "0.3.2",
+      "purl": "pkg:npm/ehbp@0.3.2",
       "license": "MIT",
       "source": "https://github.com/tinfoilsh/encrypted-http-body-protocol",
       "monitoring": "github-advisory",
