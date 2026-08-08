@@ -328,9 +328,21 @@ export async function loadLMStudioModelWithContext({
   timeoutMs = LMSTUDIO_LOAD_TIMEOUT_MS,
 }) {
   if (modelDetail?.loaded) {
+    let unloaded = false;
     try {
-      await unloadLMStudioModel({ baseUrl, apiKey, model, modelDetail });
-    } catch { /* stale instance state — the load below is still authoritative */ }
+      unloaded = await unloadLMStudioModel({ baseUrl, apiKey, model, modelDetail });
+    } catch { unloaded = false; }
+    if (!unloaded) {
+      // A failed unload may just mean the instance already vanished (stale
+      // cached state). Only refuse when the server still reports it loaded —
+      // loading a second copy of a large model would exhaust unified memory.
+      const check = await discoverLMStudioProvider({ baseUrl, apiKey }).catch(() => null);
+      const stillLoaded = check?.modelDetails?.some(detail => detail.loaded
+        && (detail.name === model || (modelDetail.nativeModelKey && detail.nativeModelKey === modelDetail.nativeModelKey)));
+      if (stillLoaded) {
+        throw new Error(`LM Studio could not unload ${model} before reloading it with a larger context. Unload it manually in LM Studio, then retry.`);
+      }
+    }
   }
   const response = await fetch(`${baseUrl}/api/v1/models/load`, {
     method: 'POST',

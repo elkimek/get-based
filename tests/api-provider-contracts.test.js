@@ -59,7 +59,7 @@ import { updateKeyCache } from '../js/crypto.js';
 import { checkOpenAICompatible, clearLocalAiDiscovery, discoverLocalAI } from '../js/local-ai-discovery.js';
 import { estimateLocalAiPromptTokens } from '../js/api-local.js';
 import { LOCAL_AI_PROVIDER_ADAPTERS, getLocalAiProviderCapabilities } from '../js/local-ai-provider-registry.js';
-import { inferWithLMStudioNativeProvider } from '../js/local-ai-provider-lmstudio.js';
+import { inferWithLMStudioNativeProvider, loadLMStudioModelWithContext } from '../js/local-ai-provider-lmstudio.js';
 import { inferWithOllamaNativeProvider } from '../js/local-ai-provider-ollama.js';
 import { getLocalAiExecutionLocation, isLocalAiLoopbackUrl } from '../js/local-ai-provider-shared.js';
 import {
@@ -796,6 +796,7 @@ describe('AI provider request contracts', () => {
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const href = String(url);
       if (init.method === 'POST') {
+        if (href.endsWith('/api/v1/models/unload')) return jsonResponse({ ok: true });
         if (href.endsWith('/api/v1/models/load')) return jsonResponse({ error: { message: 'Not found' } }, { status: 404 });
         expect(href).toBe('http://localhost:11434/api/v1/chat');
         return jsonResponse({
@@ -852,6 +853,44 @@ describe('AI provider request contracts', () => {
         localPlan: { contextLength: 16384 },
       },
     });
+  });
+
+  it('refuses to load a second copy when the prior LM Studio instance cannot be unloaded', async () => {
+    const loadedDetail = { loaded: true, loadedInstanceId: 'big-model-1', nativeModelKey: 'big-model@q4' };
+    const modelsBody = (loaded) => ({ models: [{
+      type: 'llm',
+      key: 'big-model@q4',
+      loaded_instances: loaded ? [{ id: 'big-model-1', config: { context_length: 8192 } }] : [],
+      max_context_length: 131072,
+    }] });
+
+    // Unload fails and the server still reports the instance loaded → refuse.
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (String(url).endsWith('/api/v1/models/unload')) return jsonResponse({ error: 'busy' }, { status: 500 });
+      if (String(url).endsWith('/api/v1/models/load')) throw new Error('Load must not run while the old instance is resident.');
+      if (String(url).endsWith('/api/v1/models')) return jsonResponse(modelsBody(true));
+      return jsonResponse({}, { status: 404 });
+    });
+    await expect(loadLMStudioModelWithContext({
+      baseUrl: 'http://lmstudio.test',
+      model: 'big-model',
+      modelDetail: loadedDetail,
+      contextLength: 16384,
+    })).rejects.toThrow(/could not unload big-model/i);
+
+    // Unload fails but the instance is already gone (stale state) → proceed.
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (String(url).endsWith('/api/v1/models/unload')) return jsonResponse({ error: 'not found' }, { status: 404 });
+      if (String(url).endsWith('/api/v1/models/load')) return jsonResponse({ ok: true });
+      if (String(url).endsWith('/api/v1/models')) return jsonResponse(modelsBody(false));
+      return jsonResponse({}, { status: 404 });
+    });
+    await expect(loadLMStudioModelWithContext({
+      baseUrl: 'http://lmstudio.test',
+      model: 'big-model',
+      modelDetail: loadedDetail,
+      contextLength: 16384,
+    })).resolves.toBe(true);
   });
 
   it('flags a native LM Studio response that stopped at the output or context cap as truncated', async () => {
