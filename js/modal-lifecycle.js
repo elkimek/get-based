@@ -177,6 +177,13 @@ function _resolveOverlay(overlayOrId) {
   return overlayOrId;
 }
 
+function _isNodeConnected(node) {
+  if (!node || typeof document === 'undefined') return false;
+  if (typeof document.body?.contains === 'function') return document.body.contains(node);
+  if (typeof document.contains === 'function') return document.contains(node);
+  return node.isConnected !== false;
+}
+
 function _isRestorableFocusTarget(target) {
   return typeof HTMLElement !== 'undefined'
     && target instanceof HTMLElement
@@ -261,7 +268,7 @@ function _modalScrollLockOverlay(lock) {
 function _pruneDetachedModalScrollLocks() {
   for (const lock of Array.from(_modalScrollLocks)) {
     const overlay = _modalScrollLockOverlay(lock);
-    if (overlay && !document.body.contains(overlay)) {
+    if (overlay && !_isNodeConnected(overlay)) {
       _modalScrollLocks.delete(lock);
       if (lock?.overlay === overlay) _modalOverlayScrollLockTokens.delete(overlay);
     }
@@ -312,7 +319,9 @@ export function trapModalFocus(overlay, options = {}) {
   let teardown = false;
   if (options.autoFocus !== false) {
     setTimeout(() => {
-      if (!document.body.contains(overlay) || overlay.contains(document.activeElement)) return;
+      if (!_isNodeConnected(overlay)
+        || (typeof overlay.contains === 'function' && overlay.contains(document.activeElement))
+        || typeof overlay.querySelectorAll !== 'function') return;
       const focusables = overlay.querySelectorAll(
         'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
       );
@@ -321,7 +330,7 @@ export function trapModalFocus(overlay, options = {}) {
     }, 30);
   }
   const onKeydown = (e) => {
-    if (closeOnEscape && e.key === 'Escape' && document.body.contains(overlay)) {
+    if (closeOnEscape && e.key === 'Escape' && _isNodeConnected(overlay)) {
       e.preventDefault();
       try { overlay.remove(); } catch (_) {}
     }
@@ -333,12 +342,12 @@ export function trapModalFocus(overlay, options = {}) {
     document.removeEventListener('keydown', onKeydown);
     _releaseModalScrollLock(overlay);
     const previousFocusTarget = /** @type {HTMLElement | null} */ (previouslyFocused instanceof HTMLElement ? previouslyFocused : null);
-    if (previousFocusTarget && document.contains(previousFocusTarget)) {
+    if (previousFocusTarget && _isNodeConnected(previousFocusTarget)) {
       try { previousFocusTarget.focus(); } catch (e) {}
     }
   };
   const obs = new MutationObserver(() => {
-    if (!document.body.contains(overlay)) {
+    if (!_isNodeConnected(overlay)) {
       obs.disconnect();
       restore();
     }

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 568,
-  "sinkCount": 482,
+  "scannedFiles": 579,
+  "sinkCount": 487,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -43,7 +43,7 @@
     },
     "js/chat-discussion-picker.js": {
       "count": 1,
-      "digest": "1842156db2759c3158fe9209afd1f24432217c636b77d38e1b9409cfdad128fd",
+      "digest": "23dfeedd784e7326500086f1b44dcc9360eb5042753ead6bf07194cb7aa31103",
       "kinds": {
         "innerHTML": 1
       }
@@ -58,7 +58,7 @@
     },
     "js/chat-discussion-ui.js": {
       "count": 1,
-      "digest": "a0c0d52e1732cfb1d3678241a7181f4864a4dd809d98fa2944f8af57e09227d8",
+      "digest": "42e0ee63ef56491423df281875462819e0c587b50c019187d8ebf67aeb863a7e",
       "kinds": {
         "innerHTML": 1
       }
@@ -72,9 +72,16 @@
     },
     "js/chat-images.js": {
       "count": 2,
-      "digest": "775da009cd85fa84e7c8f0f6b055b6a654d2e1f19c7d7ea984b9c158e09a4426",
+      "digest": "9435182f209fd95dcd14554336f25dd07ebf2343326bf6db58be4e0011a08f9d",
       "kinds": {
         "innerHTML": 2
+      }
+    },
+    "js/chat-message-edit.js": {
+      "count": 1,
+      "digest": "4cf5c9ecee8d08738fdd49efc45630795a9e552d69132578037986d53f25d575",
+      "kinds": {
+        "innerHTML": 1
       }
     },
     "js/chat-onboarding.js": {
@@ -92,6 +99,13 @@
         "innerHTML": 3
       }
     },
+    "js/chat-personality-editor.js": {
+      "count": 1,
+      "digest": "404e2b8ed72d00b4e67928917d5d655c70e5a33760783ea20c33f8b997a3bc53",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
     "js/chat-render.js": {
       "count": 1,
       "digest": "69d0ae46fd037ba1cb04210e31c53159f2fa2349bbf5c273f1dcbb886d09e5c3",
@@ -100,10 +114,10 @@
       }
     },
     "js/chat-send.js": {
-      "count": 9,
-      "digest": "7be56610d7455d3fd1fff2e8dfca4d747f6a858125f37ddadd8fb7b7a820df0e",
+      "count": 10,
+      "digest": "cb8912b15d0521d118f7be3509eded6e1c1e389c1ff750d34b03f1b3fe3fec35",
       "kinds": {
-        "innerHTML": 8,
+        "innerHTML": 9,
         "insertAdjacentHTML": 1
       }
     },
@@ -116,15 +130,16 @@
       }
     },
     "js/chat-thread-search.js": {
-      "count": 2,
-      "digest": "6d7c08c693237d5cb84ee476d659707e0ecb94514d6652ef2297f2192f411c26",
+      "count": 4,
+      "digest": "e93383238e02473b805c4dc0a894f80ea570bc281275547cd1881e8f0c89701d",
       "kinds": {
-        "innerHTML": 2
+        "innerHTML": 3,
+        "insertAdjacentHTML": 1
       }
     },
     "js/chat-threads.js": {
       "count": 2,
-      "digest": "68399a73a7963b9edd559190799fffa27610c74b81d5b4f47075951e76aa1789",
+      "digest": "af3a1916583fa2cdf83acbc67cc302996580c42b39c3691a4dfa880537eae97f",
       "kinds": {
         "innerHTML": 2
       }
@@ -315,7 +330,7 @@
     },
     "js/export-runtime.js": {
       "count": 2,
-      "digest": "43d4ca4558eb3392f2d30887067ca78b83ec86bb8e7bbb237ae735be31cd7401",
+      "digest": "434feb30ae84c23b586df02544b41c34a08cfacf61701cb7dcf8b20130652cce",
       "kinds": {
         "innerHTML": 2
       }

@@ -22,13 +22,15 @@ function assert(name, condition) {
 }
 
 const personalitySrc = read('js/chat-personalities.js');
+const personalityEditorSrc = read('js/chat-personality-editor.js');
 const eventNames = ['click', 'keydown', 'change', 'input', 'submit', 'blur', 'toggle'];
 const inlineEventPattern = new RegExp(`\\bon(?:${eventNames.join('|')})=["']`);
 
 console.log('=== Chat Personality Delegated Actions Tests ===');
 
 assert('chat-personalities.js renderer emits no inline event attributes',
-  !inlineEventPattern.test(personalitySrc));
+  !inlineEventPattern.test(personalitySrc)
+  && !inlineEventPattern.test(personalityEditorSrc));
 
 assert('chat-personalities imports escapeAttr for delegated data attributes',
   /import\s*\{[^}]*\bescapeAttr\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(personalitySrc));
@@ -58,15 +60,15 @@ assert('custom edit and delete buttons use delegated actions with containment',
 
 assert('custom add generate and save buttons use delegated actions',
   personalitySrc.includes("chatPersonalityActionAttrs('start-new-custom')")
-  && personalitySrc.includes("chatPersonalityActionAttrs('generate-custom')")
-  && personalitySrc.includes("chatPersonalityActionAttrs('save-custom')")
+  && personalityEditorSrc.includes("actionAttrs('generate-custom')")
+  && personalityEditorSrc.includes("actionAttrs('save-custom')")
   && personalitySrc.includes("action === 'start-new-custom'")
   && personalitySrc.includes("action === 'generate-custom'")
   && personalitySrc.includes("action === 'save-custom'"));
 
 assert('custom name and textarea inputs use delegated input actions',
-  personalitySrc.includes("chatPersonalityInputAttrs('mark-dirty')")
-  && personalitySrc.includes("chatPersonalityInputAttrs('resize-and-mark-dirty')")
+  personalityEditorSrc.includes("inputAttrs('mark-dirty')")
+  && personalityEditorSrc.includes("inputAttrs('resize-and-mark-dirty')")
   && personalitySrc.includes("action === 'mark-dirty'")
   && personalitySrc.includes("action === 'resize-and-mark-dirty'")
   && personalitySrc.includes('autoResizePersonaTextarea();')
