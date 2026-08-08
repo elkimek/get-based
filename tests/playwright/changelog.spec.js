@@ -18,6 +18,8 @@ test('changelog modal opens, closes, and marks the current version as seen', asy
   await expect(overlay).toHaveClass(SHOW_CLASS_TOKEN);
   await expect(modal.locator('.modal-close')).toHaveCount(1);
   await expect(modal).toContainText("What's New");
+  await expect(modal).toContainText('Safer sync and complete Agent Access');
+  await expect(modal).toContainText('Your genome and other profile data are better protected.');
 
   await page.evaluate(async () => {
     const { closeChangelog } = await import('/js/changelog.js');
@@ -37,7 +39,7 @@ test('changelog forceShow entries auto-open until the latest version is seen', a
     const overlay = document.getElementById('changelog-modal-overlay');
     if (!overlay) throw new Error('changelog overlay unavailable');
 
-    localStorage.setItem('labcharts-changelog-seen', '1.7.0');
+    localStorage.setItem('labcharts-changelog-seen', '1.13.0');
     overlay.classList.remove('show');
     await maybeShowChangelog();
     const opensWhenForceShowIsNewer = overlay.classList.contains('show') === true;

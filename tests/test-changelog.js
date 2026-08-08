@@ -128,6 +128,14 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog explains sync safety and complete Agent Access in user-readable terms',
+  /version:\s*'1\.13\.1'[\s\S]{0,500}Safer sync and complete Agent Access/.test(changelogSrc)
+    && /version:\s*'1\.13\.1'[\s\S]{0,1800}works end to end/.test(changelogSrc)
+    && /version:\s*'1\.13\.1'[\s\S]{0,1800}genome and other profile data are better protected/.test(changelogSrc)
+    && /version:\s*'1\.13\.1'[\s\S]{0,1800}stops safely/.test(changelogSrc)
+    && /version:\s*'1\.13\.1'[\s\S]{0,1800}Agent Access is ready when you open Settings/.test(changelogSrc)
+    && /version:\s*'1\.13\.1'[\s\S]{0,1800}complete health context/.test(changelogSrc)
+    && /version:\s*'1\.13\.1'[\s\S]{0,1800}forceShow:\s*true/.test(changelogSrc));
 assert('latest changelog gives a readable overview of the redesigned health context release',
   /version:\s*'1\.12\.0'[\s\S]{0,500}A completely redesigned health context/.test(changelogSrc)
     && /version:\s*'1\.12\.0'[\s\S]{0,1600}redesigned from the ground up/.test(changelogSrc)
