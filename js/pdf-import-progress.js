@@ -21,13 +21,15 @@ export function isImportRunning() {
   return importStatus.running;
 }
 
-export function updateImportProgressPct(pct) {
+export function updateImportProgressPct(pct, stageLabel) {
   const bar = document.querySelector('.import-progress-bar');
   const fill = /** @type {HTMLElement | null} */ (document.querySelector('.import-progress-bar-fill'));
   const label = document.querySelector('.import-progress-pct');
+  const stage = document.querySelector('.import-progress-stage');
   if (bar) bar.setAttribute('aria-valuenow', String(pct));
   if (fill) fill.style.width = pct + '%';
   if (label) label.textContent = pct + '%';
+  if (stage && stageLabel !== undefined) stage.textContent = stageLabel || '';
   if (importStatus.running) setImportStatus({ pct });
 }
 
@@ -35,6 +37,7 @@ function buildProgressHTML(step, fileName) {
   const pct = STEP_START_PCT[step] || 0;
   let html = `<div class="import-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Import progress"><div class="import-progress-bar-fill" style="width:${pct}%"></div></div>`;
   html += `<div class="import-progress-pct">${pct}%</div>`;
+  html += '<div class="import-progress-stage"></div>';
   html += '<div class="import-progress">';
   for (let i = 0; i < IMPORT_STEPS.length; i++) {
     const isDone = i < step;

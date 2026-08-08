@@ -638,6 +638,17 @@ describe('AI provider request contracts', () => {
     });
     expect(imageEstimate).toBeGreaterThan(1600);
 
+    // Dense numeric inputs (lab tables) opt into a lower chars-per-token ratio.
+    const proseEstimate = estimateLocalAiPromptTokens({
+      messages: [{ role: 'user', content: 'x'.repeat(3500) }],
+    });
+    const denseEstimate = estimateLocalAiPromptTokens({
+      messages: [{ role: 'user', content: 'x'.repeat(3500) }],
+      promptCharsPerToken: 3,
+    });
+    expect(proseEstimate).toBe(1006);
+    expect(denseEstimate).toBe(1173);
+
     globalThis.fetch = vi.fn(async url => {
       if (String(url).endsWith('/api/v1/models')) {
         return jsonResponse({ models: [
@@ -713,32 +724,40 @@ describe('AI provider request contracts', () => {
     });
   });
 
-  it('uses LM Studio native chat to expand context for a large import request', async () => {
+  it('reloads LM Studio with expanded context then streams a large import request', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('thinkingcap-qwen3.6-27b');
+    let loadedCtx = 8192;
+    const lifecycle = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
       if (init.method === 'POST') {
-        expect(String(url)).toBe('http://localhost:11434/api/v1/chat');
-        return jsonResponse({
-          output: [{ type: 'message', content: '{"markers":[]}' }],
-          stats: {
-            input_tokens: 7200,
-            total_output_tokens: 24,
-            tokens_per_second: 31.5,
-            reasoning_output_tokens: 0,
-          },
-        });
+        if (href.endsWith('/api/v1/models/unload')) {
+          lifecycle.push(['unload', JSON.parse(init.body)]);
+          return jsonResponse({ ok: true });
+        }
+        if (href.endsWith('/api/v1/models/load')) {
+          const body = JSON.parse(init.body);
+          lifecycle.push(['load', body]);
+          loadedCtx = body.context_length;
+          return jsonResponse({ ok: true });
+        }
+        if (href.endsWith('/v1/chat/completions')) {
+          lifecycle.push(['chat', JSON.parse(init.body)]);
+          return chatCompletionResponse('{"markers":[]}');
+        }
+        throw new Error(`Unexpected POST URL: ${href}`);
       }
-      if (String(url).endsWith('/api/v1/models')) {
+      if (href.endsWith('/api/v1/models')) {
         return jsonResponse({ models: [{
           type: 'llm',
           key: 'thinkingcap-qwen3.6-27b@q4_k_m',
-          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: loadedCtx } }],
           max_context_length: 262144,
           capabilities: { reasoning: { allowed_options: ['off', 'on'], default: 'on' } },
         }] });
       }
-      if (String(url).endsWith('/v1/models')) {
+      if (href.endsWith('/v1/models')) {
         return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
       }
       return jsonResponse({}, { status: 404 });
@@ -753,8 +772,68 @@ describe('AI provider request contracts', () => {
       preferNativeContext: true,
     }));
 
-    const postCall = globalThis.fetch.mock.calls.find(([, init]) => init?.method === 'POST');
-    const body = JSON.parse(postCall[1].body);
+    // Unload the small-context instance, reload at the planned context, then
+    // generate over the streaming-capable compatible endpoint.
+    expect(lifecycle.map(([action]) => action)).toEqual(['unload', 'load', 'chat']);
+    expect(lifecycle[0][1]).toEqual({ instance_id: 'thinkingcap-qwen3.6-27b' });
+    expect(lifecycle[1][1]).toEqual({
+      model: 'thinkingcap-qwen3.6-27b@q4_k_m',
+      context_length: 16384,
+    });
+    expect(lifecycle[2][1]).toMatchObject({ model: 'thinkingcap-qwen3.6-27b' });
+    expect(result).toMatchObject({
+      text: '{"markers":[]}',
+      diagnostics: {
+        providerApi: 'openai-compatible',
+        localPlan: { contextLength: 16384 },
+      },
+    });
+  });
+
+  it('falls back to LM Studio native chat when the load endpoint is missing', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('thinkingcap-qwen3.6-27b');
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method === 'POST') {
+        if (href.endsWith('/api/v1/models/load')) return jsonResponse({ error: { message: 'Not found' } }, { status: 404 });
+        expect(href).toBe('http://localhost:11434/api/v1/chat');
+        return jsonResponse({
+          output: [{ type: 'message', content: '{"markers":[]}' }],
+          stats: {
+            input_tokens: 7200,
+            total_output_tokens: 24,
+            tokens_per_second: 31.5,
+            reasoning_output_tokens: 0,
+          },
+        });
+      }
+      if (href.endsWith('/api/v1/models')) {
+        return jsonResponse({ models: [{
+          type: 'llm',
+          key: 'thinkingcap-qwen3.6-27b@q4_k_m',
+          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+          max_context_length: 262144,
+          capabilities: { reasoning: { allowed_options: ['off', 'on'], default: 'on' } },
+        }] });
+      }
+      if (href.endsWith('/v1/models')) {
+        return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
+      }
+      return jsonResponse({}, { status: 404 });
+    });
+
+    const result = await callClaudeAPI(baseChatOptions({
+      system: 'Extract the report as JSON.',
+      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
+      maxTokens: 4096,
+      jsonMode: true,
+      reasoningEffort: 'none',
+      preferNativeContext: true,
+    }));
+
+    const chatCall = globalThis.fetch.mock.calls.find(([url, init]) => init?.method === 'POST' && String(url).endsWith('/api/v1/chat'));
+    const body = JSON.parse(chatCall[1].body);
     expect(body).toMatchObject({
       model: 'thinkingcap-qwen3.6-27b',
       context_length: 16384,
@@ -765,6 +844,7 @@ describe('AI provider request contracts', () => {
     });
     expect(result).toMatchObject({
       text: '{"markers":[]}',
+      truncated: false,
       diagnostics: {
         nativeContextOverride: true,
         contextLength: 16384,
@@ -774,27 +854,78 @@ describe('AI provider request contracts', () => {
     });
   });
 
-  it('requests sufficient LM Studio context when switching to an unloaded model', async () => {
+  it('flags a native LM Studio response that stopped at the output or context cap as truncated', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({
+      output: [{ type: 'message', content: '{"markers":[{"rawName":"Potas' }],
+      stats: { input_tokens: 11057, total_output_tokens: 1854 },
+    }));
+    const result = await inferWithLMStudioNativeProvider({
+      config: { url: 'http://lmstudio.test', apiKey: '' },
+      model: 'local-model',
+      opts: { messages: [{ role: 'user', content: 'extract' }], requestTimeoutMs: 1000 },
+      plan: { maxTokens: 4096 },
+      contextLength: 12912,
+      modelDetail: null,
+    });
+    expect(result.truncated).toBe(true);
+    expect(result.finishReason).toBe('length');
+
+    const atOutputCap = await inferWithLMStudioNativeProvider({
+      config: { url: 'http://lmstudio.test', apiKey: '' },
+      model: 'local-model',
+      opts: { messages: [{ role: 'user', content: 'extract' }], requestTimeoutMs: 1000 },
+      plan: { maxTokens: 1854 },
+      contextLength: 65536,
+      modelDetail: null,
+    });
+    expect(atOutputCap.truncated).toBe(true);
+
+    const finishedNaturally = await inferWithLMStudioNativeProvider({
+      config: { url: 'http://lmstudio.test', apiKey: '' },
+      model: 'local-model',
+      opts: { messages: [{ role: 'user', content: 'extract' }], requestTimeoutMs: 1000 },
+      plan: { maxTokens: 4096 },
+      contextLength: 65536,
+      modelDetail: null,
+    });
+    expect(finishedNaturally.truncated).toBe(false);
+    expect(finishedNaturally.finishReason).toBe(null);
+  });
+
+  it('loads sufficient LM Studio context when switching to an unloaded model', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('new-model-q4');
+    let loadedCtx = 0;
+    const lifecycle = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
       if (init.method === 'POST') {
-        expect(String(url)).toBe('http://localhost:11434/api/v1/chat');
-        return jsonResponse({
-          output: [{ type: 'message', content: '{"markers":[]}' }],
-          stats: { input_tokens: 7200, total_output_tokens: 24 },
-        });
+        if (href.endsWith('/api/v1/models/unload')) {
+          lifecycle.push(['unload', JSON.parse(init.body)]);
+          return jsonResponse({ ok: true });
+        }
+        if (href.endsWith('/api/v1/models/load')) {
+          const body = JSON.parse(init.body);
+          lifecycle.push(['load', body]);
+          loadedCtx = body.context_length;
+          return jsonResponse({ ok: true });
+        }
+        if (href.endsWith('/v1/chat/completions')) {
+          lifecycle.push(['chat', JSON.parse(init.body)]);
+          return chatCompletionResponse('{"markers":[]}');
+        }
+        throw new Error(`Unexpected POST URL: ${href}`);
       }
-      if (String(url).endsWith('/api/v1/models')) {
+      if (href.endsWith('/api/v1/models')) {
         return jsonResponse({ models: [{
           type: 'llm',
           key: 'new-model-q4',
-          loaded_instances: [],
+          loaded_instances: loadedCtx > 0 ? [{ id: 'new-model-q4', config: { context_length: loadedCtx } }] : [],
           max_context_length: 131072,
           capabilities: { reasoning: { allowed_options: ['on'], default: 'on' } },
         }] });
       }
-      if (String(url).endsWith('/v1/models')) {
+      if (href.endsWith('/v1/models')) {
         return jsonResponse({ data: [] });
       }
       return jsonResponse({}, { status: 404 });
@@ -809,18 +940,18 @@ describe('AI provider request contracts', () => {
       preferNativeContext: true,
     }));
 
-    const postCall = globalThis.fetch.mock.calls.find(([, init]) => init?.method === 'POST');
-    const body = JSON.parse(postCall[1].body);
-    expect(body).toMatchObject({
+    // Nothing was loaded, so no unload call precedes the load.
+    expect(lifecycle.map(([action]) => action)).toEqual(['load', 'chat']);
+    expect(lifecycle[0][1]).toEqual({
       model: 'new-model-q4',
       context_length: 16384,
-      max_output_tokens: 4096,
     });
-    expect(body).not.toHaveProperty('reasoning');
-    expect(result.diagnostics).toMatchObject({
-      nativeContextOverride: true,
-      contextLength: 16384,
-      localPlan: { contextLength: 16384 },
+    expect(result).toMatchObject({
+      text: '{"markers":[]}',
+      diagnostics: {
+        providerApi: 'openai-compatible',
+        localPlan: { contextLength: 16384 },
+      },
     });
   });
 

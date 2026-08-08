@@ -11,12 +11,18 @@ import { isDebugMode } from './utils.js';
 // silence instead of leaving the chat message stuck in "typing..." forever.
 // Cancels the reader on timeout so the connection releases.
 export const STREAM_STALL_TIMEOUT_MS = 30000;
-export function readWithStallTimeout(reader, label = 'AI stream') {
+// First-read allowance for local inference servers: prompt prefill legitimately
+// produces zero stream bytes for many minutes on long inputs (a dense 31B on
+// Apple silicon prefills ~11k tokens in ~5 minutes), which is silence the 30s
+// guard would misread as a dead connection. Connection-level failures are
+// still caught by the initial-response timeout, and the user can always Stop.
+export const LOCAL_AI_FIRST_TOKEN_STALL_MS = 900000;
+export function readWithStallTimeout(reader, label = 'AI stream', timeoutMs = STREAM_STALL_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       try { reader.cancel(); } catch (e) {}
-      reject(new Error(`${label} stalled — no data for ${Math.round(STREAM_STALL_TIMEOUT_MS / 1000)}s. Check your connection, tap Stop in the chat header, then try again.`));
-    }, STREAM_STALL_TIMEOUT_MS);
+      reject(new Error(`${label} stalled — no data for ${Math.round(timeoutMs / 1000)}s. Check your connection, tap Stop in the chat header, then try again.`));
+    }, timeoutMs);
     reader.read().then(
       (result) => { clearTimeout(timer); resolve(result); },
       (err) => { clearTimeout(timer); reject(err); },

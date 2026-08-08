@@ -462,6 +462,10 @@ select.import-unit-input {
   text-align: center; font-size: 13px; font-weight: 600; color: var(--text-secondary);
   margin-bottom: 12px; font-variant-numeric: tabular-nums;
 }
+.import-progress-stage {
+  text-align: center; font-size: 12px; color: var(--text-muted);
+  margin: -8px 0 12px; min-height: 15px;
+}
 .import-progress-filename {
   font-size: 12px; color: var(--text-muted); margin-top: 4px;
   align-self: center;

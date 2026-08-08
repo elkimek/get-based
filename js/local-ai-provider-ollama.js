@@ -2,7 +2,7 @@
 // Ollama native discovery, lifecycle, context management, and inference adapter.
 
 import { getErrorMessage } from './caught-error.js';
-import { createInitialResponseTimeout, FETCH_REQUEST_TIMEOUT_MS, readWithStallTimeout } from './api-transport.js';
+import { createInitialResponseTimeout, FETCH_REQUEST_TIMEOUT_MS, LOCAL_AI_FIRST_TOKEN_STALL_MS, readWithStallTimeout } from './api-transport.js';
 import {
   createLocalAiHeaders,
   getLocalAiExecutionLocation,
@@ -292,9 +292,13 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
     }
   };
   const maxBuffer = 4 * 1024 * 1024;
+  let receivedAnyChunk = false;
   while (true) {
-    const { done, value } = await readWithStallTimeout(reader, 'Ollama stream');
+    // Prompt prefill emits no bytes; only treat silence as a stall mid-stream.
+    const { done, value } = await readWithStallTimeout(reader, 'Ollama stream',
+      receivedAnyChunk ? undefined : LOCAL_AI_FIRST_TOKEN_STALL_MS);
     if (done) break;
+    receivedAnyChunk = true;
     buffer += decoder.decode(value, { stream: true });
     if (buffer.length > maxBuffer) {
       try { reader.cancel(); } catch {}

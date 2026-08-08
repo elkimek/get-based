@@ -447,8 +447,8 @@ export async function runBundledImportReferenceBenchmark({ onProgress } = {}) {
       }, { persist: false });
       onProgress?.(15, 'Sending 68 results to the model');
       const analysisStartedAt = performance.now();
-      const result = await parseLabPDFWithAI(sourceText, manifest.fileName, pct => {
-        onProgress?.(Math.max(15, Math.min(90, Number(pct) || 15)), 'Model is reading the report');
+      const result = await parseLabPDFWithAI(sourceText, manifest.fileName, (pct, stageLabel) => {
+        onProgress?.(Math.max(15, Math.min(90, Number(pct) || 15)), stageLabel || 'Model is reading the report');
       }, { captureRawModelOutput: true, deterministicBenchmark: true });
       const analysisMs = Math.max(0, Math.round(performance.now() - analysisStartedAt));
       const provider = result?.provider || providerAtStart;

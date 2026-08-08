@@ -49,6 +49,7 @@ const proxyFetch = createProxyFetch(useCustomApiProxy);
  *   useProxy?: boolean,
  *   extraBody?: Record<string, any>,
  *   fetchImpl?: typeof fetch | null,
+ *   firstReadStallMs?: number,
  * }} OpenAICompatibleTransportOptions
  */
 
@@ -100,7 +101,7 @@ function localAIReasoningControlRejected(res, errorText) {
   return (res.status === 400 || res.status === 422) && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -239,9 +240,14 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       }
     };
     const MAX_SSE_BUFFER = 4 * 1024 * 1024;
+    let receivedAnyChunk = false;
     while (true) {
-      const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`);
+      // Before the first chunk, a local server may be prefilling the prompt
+      // (silence is progress); afterwards silence means a stalled stream.
+      const stallMs = !receivedAnyChunk && firstReadStallMs > 0 ? firstReadStallMs : undefined;
+      const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`, stallMs);
       if (done) break;
+      receivedAnyChunk = true;
       buffer += decoder.decode(value, { stream: true });
       if (buffer.length > MAX_SSE_BUFFER) {
         try { reader.cancel(); } catch {}

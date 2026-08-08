@@ -15,6 +15,7 @@ import { localAiDiscoveryError, unavailableLocalAiResult } from './local-ai-prov
  * @property {(context: any) => Promise<any>} [infer] Normalized inference entry point.
  * @property {(context: any) => any} [prepareNativeRequest] Optional native request planner.
  * @property {(context: any) => Promise<boolean>} [unload] Optional model lifecycle hook.
+ * @property {(context: any) => Promise<boolean>} [loadWithContext] Optional load-with-context-length lifecycle hook.
  */
 
 /** @type {ReadonlyArray<LocalAiProviderAdapter>} */
