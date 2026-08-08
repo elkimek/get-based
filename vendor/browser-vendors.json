@@ -43,23 +43,23 @@
     },
     {
       "package": "venice-e2ee",
-      "version": "0.5.1",
-      "integrity": "sha512-VHS5xXakBgkL5Nj1Im/gm45zfpFFYz0eOdMhfkgUJccDoo4rR+geLTwZIraLslnfgG6rjcafW2EL0G4N/kMtTg==",
+      "version": "0.5.3",
+      "integrity": "sha512-bjrWIR4t2PHNBwwId8RTIbIbtAJ5rj+MnQdIobdpaqZNyPziE/IuW8anHIcK5Y3UhmzsTJkaPWgycaYN9WhPJQ==",
       "entry": "scripts/vendor-entries/venice-e2ee.js",
       "output": "vendor/venice-e2ee.js",
       "format": "es",
       "minified": true,
-      "sha256": "d05d3e998812e6375f1b76ff7fe51f9bc32575790ed0e989fd28f54f6705524e"
+      "sha256": "3587d0ae7c2cd1a6c07a2a0f746abba746acc78bfb1ecb489edf1793a35b39cc"
     },
     {
       "package": "venice-e2ee",
-      "version": "0.5.1",
-      "integrity": "sha512-VHS5xXakBgkL5Nj1Im/gm45zfpFFYz0eOdMhfkgUJccDoo4rR+geLTwZIraLslnfgG6rjcafW2EL0G4N/kMtTg==",
+      "version": "0.5.3",
+      "integrity": "sha512-bjrWIR4t2PHNBwwId8RTIbIbtAJ5rj+MnQdIobdpaqZNyPziE/IuW8anHIcK5Y3UhmzsTJkaPWgycaYN9WhPJQ==",
       "entry": "scripts/vendor-entries/venice-nvidia.js",
       "output": "vendor/venice-nvidia.js",
       "format": "es",
       "minified": true,
-      "sha256": "161d0c6e6279ef77c23cdf800a6f5749c65bbbe10daad2f0d52ae97278008522"
+      "sha256": "b246e7b58aefbbbc9a95c1c249abc756867d5b3cdff9ae0d0f7ece19d5be173c"
     }
   ],
   "bundler": {

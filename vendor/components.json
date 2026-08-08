@@ -70,8 +70,8 @@
     },
     {
       "name": "venice-e2ee",
-      "version": "0.5.1",
-      "purl": "pkg:github/elkimek/venice-e2ee@0.5.1",
+      "version": "0.5.3",
+      "purl": "pkg:github/elkimek/venice-e2ee@0.5.3",
       "license": "GPL-3.0-only",
       "source": "https://github.com/elkimek/venice-e2ee",
       "monitoring": "sbom-only",
