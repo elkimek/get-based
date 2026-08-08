@@ -71,6 +71,7 @@ export function buildDiscussionAssistantMessage({
 }) {
   const assistantMsg = {
     role: 'assistant',
+    discussion: true,
     content: fullText,
     personalityName: request.personality.name,
     personalityIcon: request.personality.icon,

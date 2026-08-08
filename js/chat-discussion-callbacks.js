@@ -4,7 +4,7 @@
 /** @type {{
  *   createTypewriter: null | ((el: HTMLElement, typingEl: HTMLElement, container: HTMLElement) => { update(text: string): void, stop(): void }),
  *   getChatAbortController: () => AbortController | null,
- *   renderChatMessages: () => void,
+ *   renderChatMessages: (options?: { preserveScroll?: boolean }) => void,
  *   setChatAbortController: (controller: AbortController | null) => void,
  *   setSendButtonMode: (btn: HTMLElement | null, mode: string) => void,
  * }} */
@@ -31,8 +31,9 @@ export function setChatAbortController(controller) {
   discussionCallbacks.setChatAbortController?.(controller);
 }
 
-export function renderChatMessages() {
-  discussionCallbacks.renderChatMessages?.();
+/** @param {{ preserveScroll?: boolean }} [options] */
+export function renderChatMessages(options = {}) {
+  discussionCallbacks.renderChatMessages?.(options);
 }
 
 /**

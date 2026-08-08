@@ -1781,8 +1781,8 @@ await import('../js/settings.js');
   assert('onChatSaved uses the profile push retry helper instead of one-shot push while syncing',
     /export function onChatSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncSaveHooksSrc));
   assert('chat thread deletes record tombstones before syncing index',
-    await fetchWithRetry('js/chat-threads.js').then(s => s.includes('recordDeletedChatThread(threadId)')
-      && s.indexOf('recordDeletedChatThread(threadId)') < s.indexOf('state.chatThreads = state.chatThreads.filter')));
+    await fetchWithRetry('js/chat-threads.js').then(s =>
+      /export async function deleteThread[\s\S]{0,500}recordDeletedChatThread\(threadId\)[\s\S]{0,500}state\.chatThreads = state\.chatThreads\.filter/.test(s)));
   assert('chat-threads.js imports onChatSaved', await fetchWithRetry('js/chat-threads.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
 
   // ═══════════════════════════════════════

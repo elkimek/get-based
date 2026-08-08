@@ -1070,6 +1070,9 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       ]));
       localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'clinician');
       localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify([{ id: 'direct', label: 'Direct' }]));
+      localStorage.setItem(`labcharts-${profileId}-chatPersonalityDeleted`, JSON.stringify({
+        custom_retired: 1786183200000,
+      }));
 
       let objectUrlIndex = 0;
       URL.createObjectURL = blob => {
@@ -1120,6 +1123,18 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && !Object.prototype.hasOwnProperty.call(allDataBundle.wallet, 'mintUrl')
         && revokedUrls.length === 3;
 
+      const savedThreadIndex = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
+      localStorage.removeItem(`labcharts-${profileId}-chat-threads`);
+      const personaOnlyExport = await exportFacade.buildClientExportObject(profileId, true);
+      outcomes.portableExportIncludesPersonasWithoutConversationThreads =
+        personaOnlyExport.chat?.threads?.length === 0
+        && personaOnlyExport.chat?.personality === 'clinician'
+        && personaOnlyExport.chat?.customPersonalities?.[0]?.id === 'direct'
+        && personaOnlyExport.chat?.customPersonalityDeleted?.custom_retired === 1786183200000;
+      if (savedThreadIndex != null) {
+        localStorage.setItem(`labcharts-${profileId}-chat-threads`, savedThreadIndex);
+      }
+
       class ErrorFileReader {
         readAsText() {
           setTimeout(() => this.onerror?.(new Event('error')), 0);
@@ -1155,6 +1170,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
           messages: { 'single-thread': [{ role: 'user', content: 'Imported message' }] },
           personality: 'coach',
           customPersonalities: [{ id: 'coach', label: 'Coach' }],
+          customPersonalityDeleted: { custom_imported_retired: 1786186800000 },
         },
       };
       viewsModule.navigate('labs');
@@ -1169,7 +1185,9 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && state.importedData.contextSourceSettings?.['lab-group-Fatty Acids'] === false
         && state.importedData.contextSourceSettings?.['lab-group-Specialty Panel'] === true
         && singleThreads[0]?.id === 'single-thread'
-        && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach';
+        && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach'
+        && JSON.parse(localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonalityDeleted`) || '{}')
+          .custom_imported_retired === 1786186800000;
       outcomes.singleClientImportRefreshesDashboardThroughInjectedShellDeps = state.currentView === 'dashboard';
 
       let restoredMintUrl = null;

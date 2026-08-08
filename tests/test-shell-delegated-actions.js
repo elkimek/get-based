@@ -387,12 +387,10 @@ assert('Web search toggle uses delegated change action',
   html.includes('data-chat-change-action="set-websearch"')
     && shellSrc.includes("document.addEventListener('change', handleShellChange)")
     && shellSrc.includes('shellChatActionDeps.setChatWebSearchEnabled(input.checked)'));
-assert('Chat key handlers are delegated',
+assert('Chat composer key handler is delegated',
   html.includes('data-chat-key-action="message-input"')
-    && html.includes('data-chat-key-action="toggle-personality"')
     && shellSrc.includes("document.addEventListener('keydown', handleShellKeydown)")
-    && shellSrc.includes('shellChatActionDeps.handleChatKeydown(event)')
-    && shellSrc.includes('shellChatActionDeps.togglePersonalityBar()'));
+    && shellSrc.includes('shellChatActionDeps.handleChatKeydown(event)'));
 assert('Click delegate only prevents default for handled actions',
   shellSrc.includes('const handled = shellAction')
     && shellSrc.includes('if (handled) event.preventDefault();')

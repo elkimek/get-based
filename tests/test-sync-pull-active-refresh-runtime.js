@@ -50,6 +50,7 @@ const previousDeps = configureSyncPullActiveRefreshDeps({
   buildSidebar: () => calls.push(['buildSidebar']),
   loadChatHistory: () => calls.push(['loadChatHistory']),
   loadChatThreads: () => calls.push(['loadChatThreads']),
+  refreshChatPersonalities: () => calls.push(['refreshChatPersonalities']),
   ensureActiveThread: () => calls.push(['ensureActiveThread']),
   navigate: (route, options) => calls.push(['navigate', route, options?.preserveScroll]),
   renderThreadList: () => calls.push(['renderThreadList']),
@@ -72,6 +73,7 @@ try {
 
   assert('sync pull active refresh runtime delegates shell hooks',
     calls.map(call => call.join('|')).join(',') === [
+      'refreshChatPersonalities',
       'loadChatThreads',
       'ensureActiveThread',
       'renderThreadList',
@@ -83,6 +85,7 @@ try {
 
   const asyncCalls = [];
   configureSyncPullActiveRefreshDeps({
+    refreshChatPersonalities: async () => { asyncCalls.push('refreshChatPersonalities'); },
     loadChatThreads: async () => { asyncCalls.push('loadChatThreads'); return false; },
     ensureActiveThread: () => asyncCalls.push('ensureActiveThread'),
     renderThreadList: () => asyncCalls.push('renderThreadList'),
@@ -91,7 +94,7 @@ try {
   const blockedRefresh = await refreshPulledChatRuntime();
   assert('async thread load failure renders the safe list without selecting or loading a thread',
     blockedRefresh === false
-      && asyncCalls.join('|') === 'loadChatThreads|renderThreadList');
+      && asyncCalls.join('|') === 'refreshChatPersonalities|loadChatThreads|renderThreadList');
 
   asyncCalls.length = 0;
   configureSyncPullActiveRefreshDeps({
@@ -100,7 +103,7 @@ try {
   const completedRefresh = await refreshPulledChatRuntime();
   assert('async thread load success preserves refresh ordering and awaits history',
     completedRefresh === 'history-loaded'
-      && asyncCalls.join('|') === 'loadChatThreads|ensureActiveThread|renderThreadList|loadChatHistory');
+      && asyncCalls.join('|') === 'refreshChatPersonalities|loadChatThreads|ensureActiveThread|renderThreadList|loadChatHistory');
 
   configureSyncPullActiveRefreshDeps({ buildSidebar: () => { throw new Error('sidebar boom'); } });
   assert('sync pull active refresh runtime guards sidebar rebuild failures',
@@ -110,6 +113,7 @@ try {
     buildSidebar: null,
     loadChatHistory: () => undefined,
     loadChatThreads: () => undefined,
+    refreshChatPersonalities: () => undefined,
     ensureActiveThread: () => {},
     navigate: null,
     renderThreadList: () => {},

@@ -35,6 +35,17 @@ describe('chat storage safety', () => {
           updatedAt: 'not-a-date',
           messageCount: '<img onerror=alert(1)>',
           personalityIcon: '<img src=x onerror=alert(1)>',
+          discussionPersonas: [
+            { id: 'default', name: 'Analyst', icon: 'A' },
+            { id: 'custom_safe', name: 'Coach', icon: '<svg>' },
+          ],
+          discussionPendingPersonas: [
+            { id: 'custom_safe', name: 'Coach', icon: 'C' },
+          ],
+          discussionOriginalPersonality: 'default',
+          discussionEnded: true,
+          forkedFromThreadId: 't_parent',
+          forkedFromMessageIndex: 7,
         },
         { id: '__proto__', name: 'Rejected' },
       ],
@@ -47,6 +58,13 @@ describe('chat storage safety', () => {
           hasImages: true,
           thumbnails: [TINY_PNG, 'data:image/svg+xml,<svg onload=alert(1)>'],
           usage: { inputTokens: '<img>', outputTokens: 12 },
+          recSlots: ['sleep.light'],
+          recOpen: true,
+          recNew: true,
+          discussion: true,
+          discussionError: false,
+          discussionPersonaId: 'custom_safe',
+          auto: true,
         }],
       },
       personality: 'default',
@@ -56,9 +74,22 @@ describe('chat storage safety', () => {
           name: 'Coach',
           icon: '<img src=x onerror=alert(1)>',
           promptText: 'Be concise',
+          createdAt: '2026-08-08T09:00:00Z',
+          updatedAt: '2026-08-08T10:00:00Z',
+          personaAgreement: {
+            accepted: true,
+            version: 1,
+            acceptedAt: '2026-08-08T10:00:00Z',
+            host: 'app.getbased.health',
+            statement: 'I agree.',
+          },
         },
         { id: 'default', name: 'Cannot shadow built-ins' },
       ],
+      customPersonalityDeleted: {
+        custom_old: Date.parse('2026-08-07T10:00:00Z'),
+        __proto__: Date.now(),
+      },
     });
 
     expect(chat.threads).toHaveLength(1);
@@ -66,6 +97,15 @@ describe('chat storage safety', () => {
       id: 't_safe',
       messageCount: 1,
       updatedAt: '2026-07-01T12:00:00.000Z',
+      discussionPersonas: [
+        { id: 'default', name: 'Analyst', icon: 'A' },
+        { id: 'custom_safe', name: 'Coach', icon: 'svg' },
+      ],
+      discussionPendingPersonas: [{ id: 'custom_safe', name: 'Coach', icon: 'C' }],
+      discussionOriginalPersonality: 'default',
+      discussionEnded: true,
+      forkedFromThreadId: 't_parent',
+      forkedFromMessageIndex: 7,
     });
     expect(chat.messages.t_safe[0]).toMatchObject({
       content: 'Hello',
@@ -73,10 +113,28 @@ describe('chat storage safety', () => {
       imageCount: 0,
       thumbnails: [TINY_PNG],
       usage: { inputTokens: 0, outputTokens: 12 },
+      recSlots: ['sleep.light'],
+      recOpen: true,
+      recNew: true,
+      discussion: true,
+      discussionPersonaId: 'custom_safe',
+      auto: true,
     });
+    expect(chat.messages.t_safe[0]).not.toHaveProperty('discussionError');
     expect(chat.customPersonalities).toHaveLength(1);
     expect(chat.customPersonalities[0].id).toBe('custom_safe');
     expect(chat.customPersonalities[0].icon).toBe('img src=x onerror=alert(1)');
+    expect(chat.customPersonalities[0].updatedAt).toBe('2026-08-08T10:00:00.000Z');
+    expect(chat.customPersonalities[0].personaAgreement).toEqual({
+      accepted: true,
+      version: 1,
+      acceptedAt: '2026-08-08T10:00:00.000Z',
+      host: 'app.getbased.health',
+      statement: 'I agree.',
+    });
+    expect(chat.customPersonalityDeleted).toEqual({
+      custom_old: Date.parse('2026-08-07T10:00:00Z'),
+    });
   });
 
   it('drops malformed records instead of passing type-confused values to renderers', () => {

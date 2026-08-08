@@ -194,17 +194,20 @@ async function _exportChatData(profileId) {
   const threadsRaw = await encryptedGetItem(`labcharts-${profileId}-chat-threads`);
   let threads;
   try { threads = threadsRaw ? JSON.parse(threadsRaw) : []; } catch { threads = []; }
-  if (!threads.length) return null;
   const messages = {};
   for (const t of threads) {
     const raw = await encryptedGetItem(`labcharts-${profileId}-chat-t_${t.id}`);
     try { messages[t.id] = raw ? JSON.parse(raw) : []; } catch { messages[t.id] = []; }
   }
   const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`) || null;
-  const customRaw = localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`) || null;
+  const customRaw = await encryptedGetItem(`labcharts-${profileId}-chatPersonalityCustom`);
+  const customDeletedRaw = await encryptedGetItem(`labcharts-${profileId}-chatPersonalityDeleted`);
   let customPersonalities;
+  let customPersonalityDeleted;
   try { customPersonalities = customRaw ? JSON.parse(customRaw) : null; } catch { customPersonalities = null; }
-  return { threads, messages, personality, customPersonalities };
+  try { customPersonalityDeleted = customDeletedRaw ? JSON.parse(customDeletedRaw) : null; } catch { customPersonalityDeleted = null; }
+  if (!threads.length && !customPersonalities?.length && !Object.keys(customPersonalityDeleted || {}).length) return null;
+  return { threads, messages, personality, customPersonalities, customPersonalityDeleted };
 }
 
 // ═══════════════════════════════════════════════

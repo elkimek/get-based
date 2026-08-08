@@ -15,6 +15,7 @@ beforeEach(() => {
     ensureActiveThread: null,
     loadChatThreads: null,
     navigate: null,
+    refreshChatPersonalities: null,
     renderProfileButton: null,
     renderThreadList: null,
     updateHeaderDates: null,
@@ -32,6 +33,7 @@ describe('export import runtime dependencies', () => {
       ensureActiveThread: vi.fn(),
       loadChatThreads: vi.fn(() => true),
       navigate: vi.fn(),
+      refreshChatPersonalities: vi.fn(async () => true),
       renderProfileButton: vi.fn(),
       renderThreadList: vi.fn(),
       updateHeaderDates: vi.fn(),
@@ -41,6 +43,7 @@ describe('export import runtime dependencies', () => {
     await refreshImportRuntimeShell({ chat: true, profileButton: true, route: 'labs' });
 
     expect(deps.loadChatThreads).toHaveBeenCalledOnce();
+    expect(deps.refreshChatPersonalities).toHaveBeenCalledOnce();
     expect(deps.ensureActiveThread).toHaveBeenCalledOnce();
     expect(deps.renderThreadList).toHaveBeenCalledOnce();
     expect(deps.buildSidebar).toHaveBeenCalledOnce();

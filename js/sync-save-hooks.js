@@ -5,7 +5,7 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
-import { markChatDataLocal } from './sync-chat-apply.js';
+import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { markSyncProfileDirty } from './sync-dirty-state.js';
@@ -198,8 +198,9 @@ export function onDataSaved(options = {}) {
   pushContextToGateway();
 }
 
-export function onChatSaved() {
-  markChatDataLocal();
+export function onChatSaved(options = {}) {
+  if (options.customPersonality) markCustomPersonalityDataLocal();
+  else markChatDataLocal();
   if (!_isSyncEnabled()) return;
   const profileId = state.currentProfile;
   const data = state.importedData;

@@ -3,8 +3,9 @@
 
 import { state } from './state.js';
 import {
-  updateChatHeaderTitle,
+  getActivePersonality, updateChatHeaderTitle,
 } from './chat-personalities.js';
+import { saveChatThreadIndex } from './chat-threads.js';
 import {
   clearCurrentDiscussionThreadState, getCurrentDiscussionState, getCurrentThread,
 } from './chat-discussion-state.js';
@@ -26,10 +27,12 @@ export function restoreDiscussionContinuePrompt() {
 }
 
 export function showDiscussContinuePrompt(personas, originalPersonality) {
+  const thread = getCurrentThread();
   showDiscussContinuePromptUI(personas, originalPersonality, {
+    pendingPersonas: thread?.discussionPendingPersonas || [],
     onPersist() {
-      const thread = getCurrentThread();
-      if (thread) persistDiscussionThreadState(thread.id, personas, originalPersonality);
+      const currentThread = getCurrentThread();
+      if (currentThread) persistDiscussionThreadState(currentThread.id, personas, originalPersonality);
     },
   });
 }
@@ -53,7 +56,17 @@ export function endDiscussion() {
     state.currentChatPersonality = orig;
     localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, orig);
   }
+  const thread = getCurrentThread();
+  if (thread) {
+    const personality = getActivePersonality();
+    thread.personality = state.currentChatPersonality;
+    thread.personalityName = personality.name;
+    thread.personalityIcon = personality.icon;
+    void saveChatThreadIndex();
+  }
   updateDiscussButton();
+  updateChatHeaderTitle();
+  document.getElementById('chat-input')?.focus();
 }
 
 export function finishDiscussionRound(personas, originalPersonality, threadId = state.currentThreadId) {
@@ -61,6 +74,14 @@ export function finishDiscussionRound(personas, originalPersonality, threadId = 
   if (!isRoundThreadActive(threadId)) return;
   state.currentChatPersonality = originalPersonality;
   localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, originalPersonality);
+  const thread = getCurrentThread();
+  if (thread) {
+    const personality = getActivePersonality();
+    thread.personality = originalPersonality;
+    thread.personalityName = personality.name;
+    thread.personalityIcon = personality.icon;
+    void saveChatThreadIndex();
+  }
   updateDiscussButton();
   updateChatHeaderTitle();
   if (!getChatAbortController()) {

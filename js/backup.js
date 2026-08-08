@@ -6,6 +6,7 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
+import { collectRawChatBackup } from './backup-chat-storage.js';
 import {
   getDailyRangeRaw,
   upsertDailyBatchRaw,
@@ -140,7 +141,7 @@ const GLOBAL_SETTINGS_KEYS = [
 
 const PER_PROFILE_PREF_SUFFIXES = [
   'units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay',
-  'chatPersonality', 'chatPersonalityCustom', 'chatRailOpen'
+  'chatPersonality', 'chatPersonalityCustom', 'chatPersonalityDeleted', 'chatRailOpen'
 ];
 
 // Wearable L1 IndexedDB lives outside localStorage (per-profile DB
@@ -203,6 +204,7 @@ export function buildBackupSnapshot() {
   const backupProfiles = [];
   if (profileList.length > 0) {
     for (const p of profileList) {
+      /** @type {Record<string, string>} */
       const keys = {};
       const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
       if (imported) keys.imported = imported;
@@ -234,6 +236,7 @@ export function buildBackupSnapshot() {
       if (match) profileIds.add(match[1]);
     }
     for (const pid of profileIds) {
+      /** @type {Record<string, string>} */
       const keys = {};
       const imported = localStorage.getItem(profileStorageKey(pid, 'imported'));
       if (imported) keys.imported = imported;
@@ -305,6 +308,7 @@ export async function buildFullBackupSnapshot() {
     } catch {}
     if (Array.isArray(profileList)) {
       for (const p of profileList) {
+        /** @type {Record<string, string>} */
         const keys = {};
         const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
         if (imported) keys.imported = imported;
@@ -337,6 +341,7 @@ export async function buildFullBackupSnapshot() {
       const rawImported = await readRawStoredItem(key);
       if (rawImported != null) p.keys.imported = rawImported;
     }
+    await collectRawChatBackup(p, { encryptedGetItem: getBackupRuntimeDeps().encryptedGetItem, readRawStoredItem });
   }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
   snap.wearableIDB = await collectWearableIDB(profileIds);

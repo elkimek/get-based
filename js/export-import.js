@@ -27,41 +27,47 @@ import {
   normalizeChatBackup,
   normalizeChatThreads,
 } from './chat-storage-safety.js';
+import {
+  saveCustomPersonalitiesToStorage,
+  saveCustomPersonalityTombstones,
+} from './chat-personality-storage.js';
 
 async function _importChatData(profileId, chat) {
   const importedChat = normalizeChatBackup(chat);
-  if (importedChat.threads.length === 0) return;
-  // Read existing threads to merge
-  let existingRaw;
-  if (getEncryptionEnabled()) {
-    try { existingRaw = await encryptedGetItem(`labcharts-${profileId}-chat-threads`); } catch { existingRaw = null; }
-  } else {
-    existingRaw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
+  if (importedChat.threads.length > 0) {
+    // Read existing threads to merge
+    let existingRaw;
+    if (getEncryptionEnabled()) {
+      try { existingRaw = await encryptedGetItem(`labcharts-${profileId}-chat-threads`); } catch { existingRaw = null; }
+    } else {
+      existingRaw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
+    }
+    let existing;
+    try { existing = existingRaw ? JSON.parse(existingRaw) : []; } catch { existing = []; }
+    existing = normalizeChatThreads(existing);
+    const existingIds = new Set(existing.map(t => t.id));
+    for (const t of importedChat.threads) {
+      if (existingIds.has(t.id)) continue;
+      if (existing.length >= 50) break;
+      existing.push(t);
+      existingIds.add(t.id);
+      await encryptedSetItem(
+        `labcharts-${profileId}-chat-t_${t.id}`,
+        JSON.stringify(importedChat.messages[t.id] || []),
+      );
+    }
+    await encryptedSetItem(`labcharts-${profileId}-chat-threads`, JSON.stringify(existing));
   }
-  let existing;
-  try { existing = existingRaw ? JSON.parse(existingRaw) : []; } catch { existing = []; }
-  existing = normalizeChatThreads(existing);
-  const existingIds = new Set(existing.map(t => t.id));
-  for (const t of importedChat.threads) {
-    if (existingIds.has(t.id)) continue;
-    if (existing.length >= 50) break;
-    existing.push(t);
-    existingIds.add(t.id);
-    // Write thread messages
-    const msgs = importedChat.messages[t.id] || [];
-    const value = JSON.stringify(msgs);
-    if (getEncryptionEnabled()) { await encryptedSetItem(`labcharts-${profileId}-chat-t_${t.id}`, value); }
-    else { localStorage.setItem(`labcharts-${profileId}-chat-t_${t.id}`, value); }
-  }
-  const threadsJson = JSON.stringify(existing);
-  if (getEncryptionEnabled()) { await encryptedSetItem(`labcharts-${profileId}-chat-threads`, threadsJson); }
-  else { localStorage.setItem(`labcharts-${profileId}-chat-threads`, threadsJson); }
   // Restore personality + custom personas (only if not already set)
   if (importedChat.personality && !localStorage.getItem(`labcharts-${profileId}-chatPersonality`)) {
     localStorage.setItem(`labcharts-${profileId}-chatPersonality`, importedChat.personality);
   }
   if (importedChat.customPersonalities.length > 0 && !localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`)) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify(importedChat.customPersonalities));
+    await saveCustomPersonalitiesToStorage(importedChat.customPersonalities, profileId);
+  }
+  if (Object.keys(importedChat.customPersonalityDeleted).length > 0
+    && !localStorage.getItem(`labcharts-${profileId}-chatPersonalityDeleted`)) {
+    await saveCustomPersonalityTombstones(importedChat.customPersonalityDeleted, profileId);
   }
 }
 
@@ -141,7 +147,10 @@ export function importDataJSON(file) {
           if (entry.importHash && !existing.importHash) existing.importHash = entry.importHash;
           count++;
         }
-        if (count === 0 && (!json.notes || json.notes.length === 0)) { showNotification('No valid entries found in JSON', 'error'); return; }
+        if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat) {
+          showNotification('No valid entries found in JSON', 'error');
+          return;
+        }
         // Import context fields — handle both old string format (v1) and new object format (v2)
         function importContextField(field) {
           const val = json[field];

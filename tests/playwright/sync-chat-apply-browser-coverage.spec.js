@@ -19,9 +19,11 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
     const outcomes = {};
     const profileId = `syncchatbrowser${Date.now()}`;
     const lockKey = 'labcharts-chat-local-lock-until';
+    const personaLockKey = 'labcharts-chat-persona-local-lock-until';
     const threadsKey = `labcharts-${profileId}-chat-threads`;
     const deletedKey = collectors.chatDeletedThreadsKey(profileId);
     const customPersonalityKey = `labcharts-${profileId}-chatPersonalityCustom`;
+    const customPersonalityDeletedKey = `labcharts-${profileId}-chatPersonalityDeleted`;
     const activePersonalityKey = `labcharts-${profileId}-chatPersonality`;
     const msgKey = id => `labcharts-${profileId}-chat-t_${id}`;
     const readJson = key => JSON.parse(localStorage.getItem(key) || 'null');
@@ -46,17 +48,20 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       threadsKey,
       deletedKey,
       customPersonalityKey,
+      customPersonalityDeletedKey,
       activePersonalityKey,
       ...ids.map(msgKey),
     ];
     const oldStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
     const oldLock = sessionStorage.getItem(lockKey);
+    const oldPersonaLock = sessionStorage.getItem(personaLockKey);
     const oldProfile = state.currentProfile;
     const oldWearablesTest = window.__WEARABLES_TEST;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       sessionStorage.removeItem(lockKey);
+      sessionStorage.removeItem(personaLockKey);
       state.currentProfile = profileId;
       syncState.resetSyncStatus();
 
@@ -65,16 +70,33 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
         && await chatApply.applyChatData(profileId, { threads: 'not-array' }) === false;
 
       localStorage.setItem(threadsKey, JSON.stringify([
-        { id: 'collector', messageCount: 1, updatedAt: '2026-06-08T08:00:00.000Z' },
+        {
+          id: 'collector',
+          messageCount: 1,
+          updatedAt: '2026-06-08T08:00:00.000Z',
+          discussionPersonas: [
+            { id: 'default', name: 'Analyst', icon: 'A' },
+            { id: 'collector_voice', name: 'Collector Voice', icon: 'C' },
+          ],
+          discussionOriginalPersonality: 'default',
+        },
         { id: 'collector-empty', messageCount: 0, updatedAt: '2026-06-08T08:05:00.000Z' },
       ]));
-      localStorage.setItem(msgKey('collector'), JSON.stringify([{ role: 'user', content: 'collect me' }]));
+      localStorage.setItem(msgKey('collector'), JSON.stringify([{
+        role: 'assistant',
+        content: 'collect me',
+        discussion: true,
+        recSlots: ['sleep'],
+        recNew: true,
+      }]));
       localStorage.setItem(customPersonalityKey, JSON.stringify([{ id: 'collector_voice', name: 'Collector Voice' }]));
       localStorage.setItem(activePersonalityKey, 'collector_voice');
       const collectedChat = await collectors.collectChatData(profileId);
       outcomes.collectChatDataParsesCustomPersonalities =
         collectedChat?.threads?.length === 2
         && collectedChat?.messages?.collector?.[0]?.content === 'collect me'
+        && collectedChat?.messages?.collector?.[0]?.recNew === true
+        && collectedChat?.threads?.[0]?.discussionPersonas?.[1]?.id === 'collector_voice'
         && Array.isArray(collectedChat?.messages?.['collector-empty'])
         && collectedChat.customPersonalities?.[0]?.name === 'Collector Voice'
         && collectedChat.activePersonality === 'collector_voice';
@@ -84,6 +106,27 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       outcomes.collectChatDataIgnoresInvalidCustomPersonalities =
         invalidCustomChat?.customPersonalities === undefined
         && invalidCustomChat?.activePersonality === 'collector_voice';
+
+      localStorage.removeItem(threadsKey);
+      localStorage.setItem(customPersonalityKey, JSON.stringify([
+        { id: 'custom_local_only', name: 'Local-only Voice' },
+      ]));
+      const customOnlyChat = await collectors.collectChatData(profileId);
+      outcomes.collectChatDataKeepsCustomPersonalitiesWithoutThreads =
+        customOnlyChat?.threads?.length === 0
+        && customOnlyChat?.messages
+        && customOnlyChat.customPersonalities?.[0]?.name === 'Local-only Voice';
+
+      chatApply.markCustomPersonalityDataLocal();
+      await chatApply.applyChatData(profileId, {
+        threads: [],
+        customPersonalities: [{ id: 'custom_stale_remote', name: 'Stale Remote Voice' }],
+      });
+      const perItemMergedPersonas = readJson(customPersonalityKey);
+      outcomes.perItemPersonaMergePreservesLocalAndRemoteWithoutThreads =
+        perItemMergedPersonas?.some(personality => personality.name === 'Local-only Voice')
+        && perItemMergedPersonas?.some(personality => personality.name === 'Stale Remote Voice');
+      sessionStorage.removeItem(personaLockKey);
 
       localStorage.setItem(threadsKey, 'not-json');
       const corruptApplied = await chatApply.applyChatData(profileId, {
@@ -150,7 +193,8 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
         && Number.isFinite(Number(deletedThreads.gone))
         && Number.isFinite(Number(deletedThreads['array-deleted']))
         && !Object.prototype.hasOwnProperty.call(deletedThreads, 'constructor')
-        && JSON.parse(localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`) || '[]')[0]?.name === 'Sync Voice'
+        && JSON.parse(localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`) || '[]')
+          .some(personality => personality.name === 'Sync Voice')
         && localStorage.getItem(`labcharts-${profileId}-chatPersonality`) === 'custom_sync';
 
       chatApply.markChatDataLocal();
@@ -196,19 +240,61 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       localStorage.setItem('labcharts-encryption-enabled', 'true');
       await cryptoModule._setTestSessionKey('sync-chat-apply-browser');
       const encryptedApplied = await chatApply.applyChatData(profileId, {
-        threads: [{ id: 'secret', messageCount: 1, updatedAt: '2026-06-08T15:00:00.000Z' }],
-        messages: { secret: [{ role: 'assistant', content: 'encrypted remote message' }] },
+        threads: [{
+          id: 'secret',
+          messageCount: 1,
+          updatedAt: '2026-06-08T15:00:00.000Z',
+          discussionPersonas: [
+            { id: 'default', name: 'Analyst', icon: 'A' },
+            { id: 'custom_secret', name: 'Encrypted Voice', icon: 'E' },
+          ],
+          discussionPendingPersonas: [{ id: 'custom_secret', name: 'Encrypted Voice', icon: 'E' }],
+          discussionOriginalPersonality: 'default',
+        }],
+        messages: { secret: [{
+          role: 'assistant',
+          content: 'encrypted remote message',
+          discussion: true,
+          recSlots: ['sleep'],
+          recNew: true,
+        }] },
+        activePersonality: 'custom_secret',
+        customPersonalities: [{
+          id: 'custom_secret',
+          name: 'Encrypted Voice',
+          icon: 'E',
+          promptText: 'Keep this persona instruction encrypted.',
+          personaAgreement: {
+            accepted: true,
+            version: 1,
+            acceptedAt: '2026-08-08T10:00:00.000Z',
+            host: 'app.getbased.health',
+            statement: 'Accepted for personal use.',
+          },
+        }],
       });
       const storedSecret = localStorage.getItem(msgKey('secret'));
       const decryptedSecret = await cryptoModule.encryptedGetItem(msgKey('secret'));
       const storedSecretThreads = localStorage.getItem(threadsKey);
       const decryptedSecretThreads = await cryptoModule.encryptedGetItem(threadsKey);
+      const storedSecretPersonas = localStorage.getItem(customPersonalityKey);
+      const decryptedSecretPersonas = await cryptoModule.encryptedGetItem(customPersonalityKey);
+      const encryptedCollectedChat = await collectors.collectChatData(profileId);
       outcomes.encryptionEnabledWritesSensitiveChatDataEncrypted =
         encryptedApplied === true
         && storedSecret?.startsWith('v1:')
         && storedSecretThreads?.startsWith('v1:')
+        && storedSecretPersonas?.startsWith('v1:')
         && JSON.parse(decryptedSecret || '[]')?.[0]?.content === 'encrypted remote message'
-        && JSON.parse(decryptedSecretThreads || '[]')?.some(thread => thread.id === 'secret');
+        && JSON.parse(decryptedSecret || '[]')?.[0]?.recNew === true
+        && JSON.parse(decryptedSecretThreads || '[]')?.some(thread => thread.id === 'secret')
+        && JSON.parse(decryptedSecretThreads || '[]')?.find(thread => thread.id === 'secret')
+          ?.discussionPendingPersonas?.[0]?.id === 'custom_secret'
+        && JSON.parse(decryptedSecretPersonas || '[]')
+          .some(personality => personality.promptText?.includes('encrypted'))
+        && encryptedCollectedChat?.customPersonalities
+          ?.some(personality => personality.personaAgreement?.accepted === true)
+        && encryptedCollectedChat?.activePersonality === 'custom_secret';
 
       await cryptoModule._setTestSessionKey(null);
       const lockedEncryptedApplied = await chatApply.applyChatData(profileId, {
@@ -233,6 +319,8 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       }
       if (oldLock == null) sessionStorage.removeItem(lockKey);
       else sessionStorage.setItem(lockKey, oldLock);
+      if (oldPersonaLock == null) sessionStorage.removeItem(personaLockKey);
+      else sessionStorage.setItem(personaLockKey, oldPersonaLock);
     }
 
     return outcomes;

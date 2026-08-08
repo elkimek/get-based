@@ -107,7 +107,12 @@ export function openAppendedModalOverlay(overlay, closeFn, options = {}) {
   try { wireBackdropClose(overlay, closeFn); } catch (_) {}
   document.body.appendChild(overlay);
   openModalOverlay(overlay, options);
-  try { trapModalFocus(overlay); } catch (_) {}
+  try {
+    trapModalFocus(overlay, {
+      ...(options.focusTrapOptions || {}),
+      autoFocus: options.initialFocus ? false : options.focusTrapOptions?.autoFocus,
+    });
+  } catch (_) {}
 }
 
 const _modalScrollState = (() => {
@@ -210,6 +215,11 @@ export function openModalOverlay(overlayOrId, options = {}) {
       const currentOverlay = _resolveOverlay(overlayOrId);
       if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
       const target = _resolveFocusTarget(options.initialFocus, currentOverlay);
+      const activeElement = document.activeElement;
+      if (!alreadyShown
+        && activeElement
+        && activeElement !== document.body
+        && currentOverlay.contains(activeElement)) return;
       if (target && typeof target.focus === 'function') {
         try { target.focus(); } catch (_) {}
       }
@@ -300,13 +310,16 @@ export function trapModalFocus(overlay, options = {}) {
   const closeOnEscape = options.closeOnEscape !== false;
   _acquireModalScrollLock(overlay);
   let teardown = false;
-  setTimeout(() => {
-    const focusables = overlay.querySelectorAll(
-      'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
-    );
-    const firstFocusable = /** @type {HTMLElement | undefined} */ (focusables[0]);
-    if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
-  }, 30);
+  if (options.autoFocus !== false) {
+    setTimeout(() => {
+      if (!document.body.contains(overlay) || overlay.contains(document.activeElement)) return;
+      const focusables = overlay.querySelectorAll(
+        'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
+      );
+      const firstFocusable = /** @type {HTMLElement | undefined} */ (focusables[0]);
+      if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
+    }, 30);
+  }
   const onKeydown = (e) => {
     if (closeOnEscape && e.key === 'Escape' && document.body.contains(overlay)) {
       e.preventDefault();

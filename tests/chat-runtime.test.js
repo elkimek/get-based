@@ -379,14 +379,16 @@ function installDiscussionTurnMocks() {
       currentThreadId: 'thread-1',
       chatHistory: [],
     },
-    runDiscussionRound: vi.fn(async () => {}),
+    runDiscussionRound: vi.fn(async () => ({ remainingPersonas: [] })),
     persistDiscussionThreadState: vi.fn(),
+    persistDiscussionPendingPersonas: vi.fn(),
     buildDiscussionJoinMessage: vi.fn(persona => ({
       joined: true,
       joinName: persona.name,
       joinIcon: persona.icon,
     })),
     finishDiscussionRound: vi.fn(),
+    showDiscussContinuePrompt: vi.fn(),
   };
   vi.doMock('../js/state.js', () => ({ state: deps.state }));
   vi.doMock('../js/chat-discussion-round-runner.js', () => ({
@@ -394,6 +396,7 @@ function installDiscussionTurnMocks() {
   }));
   vi.doMock('../js/chat-discussion-round-state.js', () => ({
     persistDiscussionThreadState: deps.persistDiscussionThreadState,
+    persistDiscussionPendingPersonas: deps.persistDiscussionPendingPersonas,
   }));
   vi.doMock('../js/chat-discussion-round-prompts.js', () => ({
     buildDiscussionJoinMessage: deps.buildDiscussionJoinMessage,
@@ -401,6 +404,7 @@ function installDiscussionTurnMocks() {
   }));
   vi.doMock('../js/chat-discussion-lifecycle.js', () => ({
     finishDiscussionRound: deps.finishDiscussionRound,
+    showDiscussContinuePrompt: deps.showDiscussContinuePrompt,
   }));
   return deps;
 }
@@ -417,6 +421,7 @@ describe('chat discussion turn runtime behavior', () => {
     });
 
     expect(deps.persistDiscussionThreadState).toHaveBeenCalledWith('thread-2', personas, 'starter');
+    expect(deps.persistDiscussionPendingPersonas).toHaveBeenCalledWith('thread-2', []);
     expect(deps.runDiscussionRound).toHaveBeenCalledWith(personas, 'steer this', {
       suppressAutoMsg: true,
       threadId: 'thread-2',
@@ -495,14 +500,14 @@ function installDiscussionFlowMocks({ abortController = null, pickerSelection = 
 }
 
 describe('chat discussion flow runtime behavior', () => {
-  it('routes user turns and continue actions through the discussion continuation helper', async () => {
+  it('routes user turns through the discussion continuation helper and keeps one composer', async () => {
     const discussionState = {
       personas: [{ id: 'alpha' }, { id: 'beta' }],
       originalPersonality: 'base',
     };
     const deps = installDiscussionFlowMocks({ discussionState });
-    const steerInput = { value: '  compare sleep and ferritin  ' };
-    globalThis.document.getElementById = vi.fn(id => id === 'chat-discuss-steer' ? steerInput : null);
+    const composer = { focus: vi.fn() };
+    globalThis.document.getElementById = vi.fn(id => id === 'chat-input' ? composer : null);
     const flow = await import('../js/chat-discussion-flow.js');
 
     await flow.sendDiscussionUserTurn('follow-up');
@@ -515,13 +520,9 @@ describe('chat discussion flow runtime behavior', () => {
     );
 
     await flow.continueDiscussion();
-    expect(deps.removeDiscussContinuePrompt).toHaveBeenCalledTimes(2);
-    expect(deps.runDiscussionContinuation).toHaveBeenLastCalledWith(
-      deps.state._discussionPersonas,
-      'original',
-      'compare sleep and ferritin',
-      { threadId: 'thread-flow' },
-    );
+    expect(deps.removeDiscussContinuePrompt).toHaveBeenCalledTimes(1);
+    expect(deps.runDiscussionContinuation).toHaveBeenCalledTimes(1);
+    expect(composer.focus).toHaveBeenCalled();
   });
 
   it('does nothing while streaming', async () => {
@@ -545,10 +546,11 @@ describe('chat discussion flow runtime behavior', () => {
     expect(idle.showDiscussPersonaPicker).toHaveBeenCalled();
   });
 
-  it('runs a single new persona turn from picker selection', async () => {
+  it('lets only the newly added persona answer when starting from an existing reply', async () => {
     const selection = {
-      allPersonas: [{ id: 'one' }, { id: 'two' }],
-      newPersonas: [{ id: 'two' }],
+      allPersonas: [{ id: 'analyst' }, { id: 'house' }],
+      newPersonas: [{ id: 'house' }],
+      addingToExisting: false,
     };
     const deps = installDiscussionFlowMocks({ pickerSelection: selection });
     const flow = await import('../js/chat-discussion-flow.js');
@@ -563,6 +565,7 @@ describe('chat discussion flow runtime behavior', () => {
     const selection = {
       allPersonas: [{ id: 'one' }, { id: 'two' }],
       newPersonas: [],
+      addingToExisting: false,
     };
     const existing = installDiscussionFlowMocks({
       pickerSelection: selection,

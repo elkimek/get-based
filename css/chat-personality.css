@@ -3,10 +3,12 @@
   flex-shrink: 0; border-bottom: 1px solid var(--border);
 }
 .chat-personality-current {
-  display: flex; align-items: center; gap: 8px; padding: 8px 20px;
+  display: flex; align-items: center; gap: 8px; padding: 8px 20px; width: 100%;
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: left;
   cursor: pointer; transition: background 0.15s; user-select: none;
 }
 .chat-personality-current:hover { background: var(--bg-hover); }
+.chat-personality-current:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .chat-personality-current-icon { font-size: 14px; }
 .chat-personality-current-name { font-size: 12px; color: var(--text-muted); flex: 1; }
 .chat-personality-current-arrow {
@@ -38,52 +40,119 @@
   color: var(--text-muted); padding: 8px 12px 4px; font-weight: 600;
   border-top: 1px solid var(--border); margin-top: 4px;
 }
-.chat-personality-custom-area {
-  padding: 8px 10px 0;
+.chat-personality-editor-overlay { z-index: 310; }
+.chat-personality-editor.modal {
+  display: flex; flex-direction: column; width: min(760px, calc(100vw - 32px));
+  max-width: 760px; max-height: min(90vh, 820px); padding: 0; overflow: hidden;
+  background: var(--bg-secondary); box-shadow: var(--shadow-lg);
 }
+.chat-personality-editor-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+  padding: 22px 24px 18px; border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
+}
+.chat-personality-editor-kicker {
+  margin-bottom: 4px; color: var(--accent); font-family: var(--font-mono);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.chat-personality-editor-head h2 {
+  margin: 0; color: var(--text-primary); font-family: var(--font-display);
+  font-size: 21px; line-height: 1.25;
+}
+.chat-personality-editor-head p {
+  max-width: 560px; margin: 6px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.45;
+}
+.chat-personality-editor-close {
+  display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+  flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card); color: var(--text-muted); font-size: 24px; line-height: 1; cursor: pointer;
+}
+.chat-personality-editor-close:hover { color: var(--text-primary); border-color: var(--accent); background: var(--bg-hover); }
+.chat-personality-editor-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chat-personality-editor-body {
+  display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0;
+  padding: 20px 24px; overflow-y: auto;
+}
+.chat-personality-editor-label {
+  display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 600;
+}
+.chat-personality-editor-prompt-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 18px;
+}
+.chat-personality-editor-prompt-head span { color: var(--text-muted); font-size: 10px; }
 .chat-personality-custom-textarea {
-  width: 100%; background: var(--bg-primary); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-primary); font-family: inherit;
-  font-size: 13px; line-height: 1.6; padding: 10px 12px; resize: none;
-  box-sizing: border-box; min-height: 80px; max-height: 300px; overflow-y: auto;
+  width: 100%; min-height: min(42vh, 360px); max-height: none; box-sizing: border-box;
+  padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-primary); color: var(--text-primary); font-family: inherit;
+  font-size: 14px; line-height: 1.65; resize: vertical; overflow-y: auto;
 }
-.chat-personality-custom-textarea:focus { border-color: var(--accent); outline: none; }
+.chat-personality-custom-textarea:focus {
+  border-color: var(--accent); outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
 .chat-personality-custom-textarea::placeholder { color: var(--text-muted); }
 .chat-personality-custom-footer {
-  display: flex; align-items: center; justify-content: flex-end;
-  margin-top: 6px; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-card);
 }
 .chat-personality-disclaimer {
-  font-size: 10px; color: var(--text-muted); flex: 1 1 100%; line-height: 1.3;
+  max-width: 500px; color: var(--text-muted); font-size: 11px; line-height: 1.45;
 }
+.chat-personality-agreement {
+  display: flex; align-items: flex-start; gap: 10px; max-width: 500px; padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent) 7%, var(--bg-secondary));
+  color: var(--text-secondary); font-size: 11px; line-height: 1.45; cursor: pointer;
+}
+.chat-personality-agreement:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+}
+.chat-personality-agreement input {
+  width: 17px; height: 17px; flex: 0 0 auto; margin: 0; accent-color: var(--accent); cursor: pointer;
+}
+.chat-personality-agreement:focus-within {
+  border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.chat-personality-editor-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .chat-personality-custom-save {
-  padding: 4px 14px; font-size: 11px; font-family: inherit;
-  background: var(--accent-gradient); color: white; border: none; border-radius: 4px;
+  min-height: 38px; padding: 7px 16px; font-size: 12px; font-family: inherit;
+  background: var(--accent-gradient); color: white; border: none; border-radius: var(--radius-sm);
   cursor: pointer; transition: all 0.15s; flex-shrink: 0;
 }
+.chat-personality-custom-cancel {
+  min-height: 38px; padding: 7px 14px; font-size: 12px; font-family: inherit; background: transparent;
+  color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.chat-personality-custom-cancel:hover { border-color: var(--text-muted); color: var(--text-primary); }
 .chat-personality-custom-save:hover { box-shadow: 0 2px 8px rgba(79, 140, 255, 0.2); }
 .chat-personality-custom-save:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 .chat-personality-custom-header {
-  display: flex; gap: 6px; margin-bottom: 6px;
+  display: flex; gap: 8px;
 }
 .chat-personality-custom-name-input {
   flex: 1; background: var(--bg-primary); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-primary); font-family: inherit;
-  font-size: 12px; padding: 6px 10px; box-sizing: border-box; min-width: 0;
+  border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
+  font-size: 13px; padding: 9px 11px; box-sizing: border-box; min-width: 0;
 }
-.chat-personality-custom-name-input:focus { border-color: var(--accent); outline: none; }
+.chat-personality-custom-name-input:focus {
+  border-color: var(--accent); outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
 .chat-personality-custom-name-input::placeholder { color: var(--text-muted); }
 .chat-personality-generate-btn {
-  padding: 6px 12px; font-size: 11px; font-family: inherit;
+  min-height: 38px; padding: 7px 14px; font-size: 12px; font-family: inherit;
   background: transparent; color: var(--accent); border: 1px solid var(--accent);
-  border-radius: 4px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .chat-personality-generate-btn:hover { background: var(--accent); color: white; }
 .chat-personality-generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .chat-personality-opt-wrapper {
   position: relative;
 }
-.chat-personality-opt-wrapper:hover .chat-personality-delete { opacity: 1; }
+.chat-personality-opt-wrapper:hover .chat-personality-delete,
+.chat-personality-opt-wrapper:focus-within .chat-personality-delete { opacity: 1; }
 .chat-personality-delete {
   position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
   width: 20px; height: 20px; border: none; background: none; cursor: pointer;
@@ -101,13 +170,55 @@
   opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
   z-index: 1;
 }
-.chat-personality-opt-wrapper:hover .chat-personality-edit { opacity: 1; }
+.chat-personality-opt-wrapper:hover .chat-personality-edit,
+.chat-personality-opt-wrapper:focus-within .chat-personality-edit { opacity: 1; }
 .chat-personality-edit:hover { color: var(--accent); background: rgba(99,102,241,0.1); }
-.discuss-persona-picker {
-  padding: 12px 16px; border-top: 1px solid var(--border);
-  background: var(--bg-card); display: flex; flex-direction: column; gap: 8px;
+@media (hover: none), (pointer: coarse) {
+  .chat-personality-edit,
+  .chat-personality-delete { opacity: 1; width: 44px; height: 44px; }
+  .chat-personality-delete { right: 2px; }
+  .chat-personality-edit { right: 48px; }
+  .chat-personality-opt-wrapper .chat-personality-opt { min-height: 52px; padding-right: 98px; }
+  .discuss-persona-picker .discuss-picker-close { width: 44px; height: 44px; }
 }
+@media (max-width: 600px) {
+  .chat-personality-editor-overlay.modal-overlay { padding: 0; }
+  .chat-personality-editor.modal {
+    width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
+    border: 0; border-radius: 0;
+  }
+  .chat-personality-editor-head { padding: max(16px, env(safe-area-inset-top)) 16px 14px; }
+  .chat-personality-editor-close { width: 44px; height: 44px; }
+  .chat-personality-editor-head h2 { font-size: 19px; }
+  .chat-personality-editor-body { padding: 16px; }
+  .chat-personality-custom-header { flex-direction: column; }
+  .chat-personality-generate-btn { width: 100%; min-height: 44px; }
+  .chat-personality-custom-name-input,
+  .chat-personality-custom-textarea { font-size: 16px; }
+  .chat-personality-custom-textarea { min-height: 38vh; }
+  .chat-personality-custom-footer {
+    align-items: stretch; flex-direction: column; gap: 12px;
+    padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+  }
+  .chat-personality-agreement { max-width: none; font-size: 12px; }
+  .chat-personality-editor-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .chat-personality-custom-cancel,
+  .chat-personality-custom-save { min-height: 44px; }
+}
+.discuss-persona-picker {
+  padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-card); display: flex; flex-direction: column; gap: 10px;
+  box-shadow: var(--shadow-md);
+}
+.discuss-picker-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .discuss-picker-header { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.discuss-picker-help { margin-top: 3px; color: var(--text-muted); font-size: 10px; line-height: 1.4; }
+.discuss-picker-close {
+  width: 32px; height: 32px; flex: 0 0 auto; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-muted); font-size: 20px; cursor: pointer;
+}
+.discuss-picker-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+.discuss-picker-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .discuss-picker-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .discuss-picker-item {
   display: flex; align-items: center; gap: 6px; padding: 6px 12px;
@@ -116,16 +227,27 @@
   user-select: none;
 }
 .discuss-picker-item:hover { border-color: var(--accent); color: var(--text-primary); }
+.discuss-picker-item:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .discuss-picker-item:has(input:checked) { border-color: var(--accent); background: rgba(99,102,241,0.1); color: var(--text-primary); }
-.discuss-picker-item input { display: none; }
+.discuss-picker-item input {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 .discuss-picker-start {
   align-self: flex-end; padding: 6px 16px; border-radius: 16px; border: 1px solid var(--accent);
   background: transparent; color: var(--accent); font-size: 12px; font-weight: 500;
   cursor: pointer; transition: all 0.2s; font-family: inherit;
 }
+.discuss-picker-usage { color: var(--text-muted); font-size: 10px; line-height: 1.45; }
 .discuss-picker-start:hover:not(:disabled) { background: var(--accent); color: white; }
 .discuss-picker-start:disabled { opacity: 0.4; cursor: default; }
 .discuss-picker-item.locked { opacity: 0.6; cursor: default; border-color: var(--accent); background: rgba(99,102,241,0.1); }
+@media (max-width: 480px) {
+  .discuss-persona-picker { padding: 12px; max-height: min(52vh, 440px); overflow-y: auto; }
+  .discuss-picker-list { display: grid; grid-template-columns: 1fr; }
+  .discuss-picker-item { min-height: 44px; }
+  .discuss-picker-start { align-self: stretch; min-height: 44px; }
+}
 .chat-personality-add-btn {
   display: flex; align-items: center; justify-content: center; width: 100%;
   padding: 8px 10px; border: 1px dashed var(--border); background: none;
@@ -133,4 +255,3 @@
   color: var(--text-muted); transition: all 0.15s; margin-top: 4px;
 }
 .chat-personality-add-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.06); }
-

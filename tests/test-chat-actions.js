@@ -69,7 +69,7 @@ console.log('Section 1a: Discuss button UI');
 if (hasState) {
   const origGetElementById = document.getElementById;
   const origHistory = S.chatHistory;
-  const btn = { style: {}, title: '' };
+  const btn = { style: {}, title: '', setAttribute() {} };
   document.getElementById = (id) => (id === 'chat-discuss-btn' ? btn : origGetElementById.call(document, id));
 
   S.chatHistory = [{ role: 'user', content: 'No assistant yet' }];
@@ -79,14 +79,14 @@ if (hasState) {
   S.chatHistory = [{ role: 'assistant', content: 'Direct reply' }];
   updateDiscussButton();
   assert('Discuss button shows after assistant response', btn.style.display === 'flex', btn.style.display);
-  assert('Discuss button prompts second opinion for one persona', btn.style.opacity === '0.5' && btn.title.includes('second opinion'), btn.title);
+  assert('Discuss button offers a discussion for one persona', btn.style.opacity === '0.5' && btn.title.includes('Start a discussion'), btn.title);
 
   S.chatHistory = [
     { role: 'assistant', personalityName: 'Analyst A', content: 'First' },
     { role: 'assistant', personalityName: 'Analyst B', content: 'Second' },
   ];
   updateDiscussButton();
-  assert('Discuss button adds another persona for two discussion personas', btn.style.opacity === '1' && btn.title.includes('Add another persona'), btn.title);
+  assert('Discuss button remains available for multiple perspectives', btn.style.opacity === '1' && btn.title.includes('Start a discussion'), btn.title);
 
   S.chatHistory = origHistory;
   document.getElementById = origGetElementById;
@@ -104,6 +104,7 @@ console.log('Section 1b: Discuss picker selection');
   });
   const withPicker = (locked, checked, fn) => {
     const picker = {
+      dataset: { existingDiscussion: locked.length ? 'true' : 'false' },
       querySelectorAll(selector) {
         if (selector === 'input[data-locked="1"]') return locked;
         if (selector === 'input:checked:not([data-locked="1"])') return checked;
@@ -117,10 +118,10 @@ console.log('Section 1b: Discuss picker selection');
   assert('Picker selection returns null when no picker exists',
     readDiscussPersonaPickerSelection() === null,
     'no picker');
-  assert('Picker selection requires two new personas for a fresh debate',
+  assert('Picker selection requires two personas without a locked current participant',
     withPicker([], [makeInput('a', 'Analyst A')], () => readDiscussPersonaPickerSelection() === null),
     'one fresh selection');
-  assert('Picker selection reads two fresh debate personas',
+  assert('Picker selection reads two fresh discussion personas',
     withPicker([], [makeInput('a', 'Analyst A'), makeInput('b', 'Analyst B')], () => {
       const selection = readDiscussPersonaPickerSelection();
       return selection?.allPersonas.length === 2 &&
@@ -128,10 +129,10 @@ console.log('Section 1b: Discuss picker selection');
         selection.allPersonas[0].name === 'Analyst A';
     }),
     'two fresh selections');
-  assert('Picker selection requires one new persona for an active debate',
+  assert('Picker selection requires one new persona for an active discussion',
     withPicker([makeInput('a'), makeInput('b')], [], () => readDiscussPersonaPickerSelection() === null),
     'locked without new selection');
-  assert('Picker selection reads one added persona for an active debate',
+  assert('Picker selection reads one added persona for an active discussion',
     withPicker([makeInput('a'), makeInput('b')], [makeInput('c', 'Analyst C')], () => {
       const selection = readDiscussPersonaPickerSelection();
       return selection?.allPersonas.length === 3 &&
@@ -249,8 +250,8 @@ if (hasState) {
   assert('AI msg with context has context toggle', bar1.includes('chat-context-toggle'), 'contains toggle');
   assert('AI msg context toggle uses delegated action',
     bar1.includes('data-chat-message-action="toggle-context-details"')
-      && bar1.includes('role="button"')
-      && bar1.includes('tabindex="0"'),
+      && bar1.includes('<button type="button" class="chat-context-toggle"')
+      && bar1.includes('aria-expanded="false"'),
     'delegated context');
   assert('Context shows area count', bar1.includes('1 area'), 'shows 1 area');
   assert('Context details are hidden by default', bar1.includes('display:none'), 'hidden');
@@ -294,12 +295,12 @@ assert('discussion first persona honors steer prompt',
 assert('discussion later persona gets default prompt',
   getDiscussionPromptText({ hasExistingDebate: false, personaIndex: 1 }) === DEFAULT_DISCUSS_PROMPT,
   'fresh later turn');
-assert('discussion existing debate gets default prompt',
+assert('existing discussion gets default prompt',
   getDiscussionPromptText({ hasExistingDebate: true, personaIndex: 0 }) === DEFAULT_DISCUSS_PROMPT,
-  'existing debate');
-assert('discussion existing debate honors steer prompt',
+  'existing discussion');
+assert('existing discussion honors the user prompt',
   getDiscussionPromptText({ hasExistingDebate: true, personaIndex: 0, steerPrompt: 'Compare positions' }) === 'Compare positions',
-  'steered existing debate');
+  'continued discussion');
 assert('hasExistingDiscussionResponses ignores plain assistant messages',
   !hasExistingDiscussionResponses([{ role: 'assistant', content: 'Direct chat reply' }]),
   'plain assistant');
@@ -586,7 +587,7 @@ assert('chat-discussion-picker.js owns discussion picker DOM and selection',
   chatDiscussionPickerSrc.includes('export function removeDiscussPersonaPicker') &&
     chatDiscussionPickerSrc.includes('export function readDiscussPersonaPickerSelection') &&
     chatDiscussionPickerSrc.includes('export function showDiscussPersonaPicker') &&
-    chatDiscussionPickerSrc.includes('const addingToExisting = activePersonaIds.size > 0') &&
+    chatDiscussionPickerSrc.includes('const addingToExisting = existingDiscussion') &&
     chatDiscussionPickerSrc.includes('checkedCount !== maxNewSelections') &&
     !chatDiscussionUiSrc.includes("querySelector('.discuss-persona-picker')"),
   'found');
@@ -615,7 +616,7 @@ assert('chat-discussion-round-view.js owns live discussion round DOM',
     chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
     chatDiscussionRoundViewSrc.includes('export function renderFinalDiscussionMessage') &&
     chatDiscussionRoundViewSrc.includes('export function appendDiscussionUsageFootnote') &&
-    chatDiscussionRoundViewSrc.includes('export function renderDiscussionRoundError'),
+    chatDiscussionRoundViewSrc.includes("setAttribute('role', 'article')"),
   'found');
 assert('chat discussion rounds stay bound to origin thread during streaming',
   chatDiscussionRoundRunnerSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&

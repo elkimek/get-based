@@ -26,6 +26,7 @@ import {
   loadChatThreadsIfLoaded,
   onContextCardSavedIfLoaded,
   openChatPanel,
+  refreshChatPersonalitiesIfLoaded,
   renderThreadListIfLoaded,
   sendChatMessage,
   setChatPersonality,
@@ -151,6 +152,7 @@ import {
 } from './profile-runtime.js';
 import {
   deleteProfileFromRelay,
+  onChatSaved,
   onProfileSaved,
   pushContextToGateway,
 } from './sync.js';
@@ -189,6 +191,7 @@ configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureChatRuntimeCallbacks({
+  onChatSaved,
   updateChatHeaderModel: updateChatHeaderModelIfLoaded,
   updateChatNudge,
 });
@@ -278,6 +281,7 @@ configureExportFacadeLoaderDeps({ buildSidebar, navigate });
 configureExportImportRuntimeDeps({
   buildSidebar,
   navigate,
+  refreshChatPersonalities: refreshChatPersonalitiesIfLoaded,
   renderProfileButton,
   updateHeaderDates,
 });
@@ -356,6 +360,7 @@ configureSyncPullActiveRefreshDeps({
   loadChatHistory: loadChatHistoryIfLoaded,
   loadChatThreads: loadChatThreadsIfLoaded,
   navigate,
+  refreshChatPersonalities: refreshChatPersonalitiesIfLoaded,
   renderThreadList: renderThreadListIfLoaded,
 });
 configureAppleHealthRuntimeDeps({

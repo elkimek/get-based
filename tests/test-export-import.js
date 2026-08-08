@@ -513,8 +513,10 @@ return (async function() {
 
   assert('_exportChatData reads chat-threads', exportSrc.includes('labcharts-${profileId}-chat-threads'));
   assert('_exportChatData reads thread messages', exportSrc.includes('labcharts-${profileId}-chat-t_${t.id}'));
-  assert('_exportChatData returns threads+messages+personality', exportSrc.includes('return { threads, messages, personality, customPersonalities }'));
-  assert('_importChatData writes thread messages', exportImportSrc.includes("localStorage.setItem(`labcharts-${profileId}-chat-t_${t.id}`"));
+  assert('_exportChatData returns threads+messages+personality',
+    exportSrc.includes('return { threads, messages, personality, customPersonalities, customPersonalityDeleted }'));
+  assert('_importChatData writes thread messages through encryption storage', exportImportSrc.includes('await encryptedSetItem(')
+    && exportImportSrc.includes('`labcharts-${profileId}-chat-t_${t.id}`'));
   assert('_importChatData deduplicates by thread id', exportImportSrc.includes('existingIds.has(t.id)'));
   assert('Client export optionally includes chat', exportSrc.includes('if (includeChat)'));
   assert('Bundle export always includes chat', exportSrc.includes('if (chat) entry.chat = chat'));

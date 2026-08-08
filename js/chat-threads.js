@@ -16,12 +16,14 @@ import {
   configureChatThreadSearch, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult,
 } from './chat-thread-search.js';
-import { normalizeChatThreads } from './chat-storage-safety.js';
+import { normalizeChatMessages, normalizeChatThreads } from './chat-storage-safety.js';
 import { createUniqueId } from './unique-id.js';
+import {
+  clearChatDraft, restoreChatDraft, saveChatDraft,
+} from './chat-composer.js';
 
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 
-const MAX_THREADS = 50;
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
@@ -29,23 +31,45 @@ const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype'
 let chatThreadDelegatesInstalled = false;
 let blockedThreadIndexKey = null;
 let blockedThreadIndexNoticeShown = false;
-const noop = () => {};
+const noop = (..._args) => {};
 const asyncNoop = async () => {};
 const defaultPersonality = () => ({ name: 'Default', icon: '' });
 
 const chatThreadDeps = {
   cleanupDiscussionState: noop,
+  deleteAttachmentDraft: noop,
   getActivePersonality: defaultPersonality,
   loadChatHistory: asyncNoop,
   renderChatMessages: noop,
   renderSavedSummaries: noop,
+  refreshAttachmentDraft: noop,
   restoreDiscussionContinuePrompt: noop,
   saveChatHistory: asyncNoop,
+  stopChatGeneration: noop,
   showPromptDialog,
   stopVoiceActivity: noop,
   updateChatHeaderTitle: noop,
   updatePersonalityBar: noop,
 };
+
+function applyThreadContext(thread) {
+  if (!thread) return false;
+  state.currentThreadId = thread.id;
+  state.currentChatPersonality = thread.personality || 'default';
+  localStorage.setItem(
+    `labcharts-${state.currentProfile}-chatPersonality`,
+    state.currentChatPersonality,
+  );
+  chatThreadDeps.updateChatHeaderTitle();
+  chatThreadDeps.updatePersonalityBar();
+  chatThreadDeps.refreshAttachmentDraft();
+  if (typeof document !== 'undefined'
+    && typeof document.dispatchEvent === 'function'
+    && typeof CustomEvent === 'function') {
+    document.dispatchEvent(new CustomEvent('chat-thread-changed', { detail: { threadId: thread.id } }));
+  }
+  return true;
+}
 
 export function configureChatThreadDeps(deps = {}) {
   const previous = { ...chatThreadDeps };
@@ -202,12 +226,12 @@ export function ensureActiveThread() {
   }
   if (state.currentThreadId) {
     const exists = state.chatThreads.find(t => t.id === state.currentThreadId);
-    if (exists) return true;
+    if (exists) return applyThreadContext(exists);
   }
   // Pick most recent thread or create new
   if (state.chatThreads.length > 0) {
     const sorted = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    state.currentThreadId = sorted[0].id;
+    applyThreadContext(sorted[0]);
   } else {
     createNewThread({ sync: false });
   }
@@ -219,7 +243,13 @@ export function createNewThread({ sync = true } = {}) {
     notifyThreadIndexBlocked();
     return null;
   }
+  saveChatDraft();
+  chatThreadDeps.stopChatGeneration();
   chatThreadDeps.stopVoiceActivity();
+  chatThreadDeps.cleanupDiscussionState();
+  // A new conversation intentionally starts with the neutral personality.
+  state.currentChatPersonality = 'default';
+  localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, 'default');
   const id = generateThreadId();
   const now = new Date().toISOString();
   const p = chatThreadDeps.getActivePersonality() || defaultPersonality();
@@ -234,22 +264,64 @@ export function createNewThread({ sync = true } = {}) {
     personalityIcon: p.icon
   };
   state.chatThreads.unshift(thread);
-  pruneOldThreads();
   saveChatThreadIndex({ sync });
-  chatThreadDeps.cleanupDiscussionState();
-  // Reset to default personality for new thread
-  state.currentChatPersonality = 'default';
-  localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, 'default');
-  state.currentThreadId = id;
+  applyThreadContext(thread);
   state.chatHistory = [];
   chatThreadDeps.renderChatMessages();
   chatThreadDeps.updateChatHeaderTitle();
   chatThreadDeps.updatePersonalityBar();
   renderThreadList();
   closeThreadRailAfterMobileSelection();
-  // Focus input
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-  if (input) input.focus();
+  restoreChatDraft(id, { focus: true });
+  return thread;
+}
+
+/**
+ * Creates a non-destructive fork with the supplied conversation context.
+ * @param {string} sourceThreadId
+ * @param {number} sourceMessageIndex
+ * @param {any[]} messages
+ */
+export async function createForkedThread(sourceThreadId, sourceMessageIndex, messages) {
+  if (isThreadIndexWriteBlocked()) {
+    notifyThreadIndexBlocked();
+    return null;
+  }
+  const source = state.chatThreads.find(thread => thread.id === sourceThreadId);
+  if (!source) return null;
+  chatThreadDeps.stopChatGeneration();
+  chatThreadDeps.stopVoiceActivity();
+  chatThreadDeps.cleanupDiscussionState();
+  const id = generateThreadId();
+  const now = new Date().toISOString();
+  const history = normalizeChatMessages(messages);
+  const forkSuffix = ' · fork';
+  const sourceName = String(source.name || 'Conversation');
+  const thread = {
+    id,
+    name: `${sourceName.slice(0, 60 - forkSuffix.length)}${forkSuffix}`,
+    createdAt: now,
+    updatedAt: now,
+    messageCount: history.length,
+    personality: source.personality || 'default',
+    personalityName: source.personalityName || '',
+    personalityIcon: source.personalityIcon || '',
+    forkedFromThreadId: sourceThreadId,
+    forkedFromMessageIndex: sourceMessageIndex,
+  };
+  state.chatThreads.unshift(thread);
+  if (!await saveChatThreadIndex()) {
+    state.chatThreads = state.chatThreads.filter(item => item.id !== id);
+    return null;
+  }
+  applyThreadContext(thread);
+  state.chatHistory = history;
+  await chatThreadDeps.saveChatHistory();
+  chatThreadDeps.renderChatMessages();
+  chatThreadDeps.updateChatHeaderTitle();
+  chatThreadDeps.updatePersonalityBar();
+  renderThreadList();
+  closeThreadRailAfterMobileSelection();
   return thread;
 }
 
@@ -257,28 +329,27 @@ export async function switchToThread(threadId) {
   closeThreadRailAfterMobileSelection();
   if (threadId === state.currentThreadId) return;
   chatThreadDeps.stopVoiceActivity();
+  chatThreadDeps.stopChatGeneration();
+  saveChatDraft();
   // Save current thread messages
   await chatThreadDeps.saveChatHistory();
   chatThreadDeps.cleanupDiscussionState();
   // Switch
-  state.currentThreadId = threadId;
-  await chatThreadDeps.loadChatHistory();
-  // Update thread personality
   const thread = state.chatThreads.find(t => t.id === threadId);
-  if (thread && thread.personality) {
-    state.currentChatPersonality = thread.personality;
-    localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, thread.personality);
-    chatThreadDeps.updateChatHeaderTitle();
-    chatThreadDeps.updatePersonalityBar();
-  }
+  if (!applyThreadContext(thread)) return;
+  await chatThreadDeps.loadChatHistory();
   chatThreadDeps.restoreDiscussionContinuePrompt();
   renderThreadList();
+  await restoreChatDraft(threadId);
 }
 
 export async function deleteThread(threadId) {
   if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
+    if (threadId === state.currentThreadId) chatThreadDeps.stopChatGeneration();
     invalidateThreadContentCache();
     recordDeletedChatThread(threadId);
+    await clearChatDraft(threadId);
+    chatThreadDeps.deleteAttachmentDraft(threadId);
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
     await saveChatThreadIndex();
@@ -292,9 +363,13 @@ export async function deleteThread(threadId) {
     chatThreadDeps.renderSavedSummaries();
     // If we deleted the active thread, switch
     if (state.currentThreadId === threadId) {
+      chatThreadDeps.cleanupDiscussionState();
       if (state.chatThreads.length > 0) {
-        state.currentThreadId = state.chatThreads[0].id;
-        chatThreadDeps.loadChatHistory();
+        const nextThread = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+        applyThreadContext(nextThread);
+        await chatThreadDeps.loadChatHistory();
+        chatThreadDeps.restoreDiscussionContinuePrompt();
+        await restoreChatDraft(state.currentThreadId);
       } else {
         createNewThread();
       }
@@ -340,19 +415,9 @@ export function autoNameThread(threadId, firstMessage) {
 }
 
 export function pruneOldThreads() {
-  if (state.chatThreads.length <= MAX_THREADS) return;
-  // Sort by updatedAt desc, remove oldest
-  const sorted = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const toRemove = sorted.slice(MAX_THREADS);
-  for (const t of toRemove) {
-    recordDeletedChatThread(t.id);
-    localStorage.removeItem(getChatThreadKey(t.id));
-  }
-  state.chatThreads = sorted.slice(0, MAX_THREADS);
-  saveChatThreadIndex();
-  if (toRemove.length > 0) {
-    showNotification(`Pruned ${toRemove.length} old conversation(s)`, 'info');
-  }
+  // Retained as a compatibility no-op. Conversation retention is a user
+  // decision; creating a new chat must never delete an older one.
+  return 0;
 }
 
 // ═══════════════════════════════════════════════
@@ -367,6 +432,7 @@ function closeThreadRailAfterMobileSelection() {
   const rail = document.getElementById('chat-thread-rail');
   if (!rail?.classList.contains('open')) return false;
   rail.classList.remove('open');
+  document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', 'false');
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, 'false');
   return true;
 }
@@ -439,16 +505,18 @@ export function renderThreadList(filter) {
     const messageCount = Number.isFinite(Number(t.messageCount))
       ? Math.max(0, Math.trunc(Number(t.messageCount)))
       : 0;
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-chat-thread-action="switch" data-thread-id="${escapeHTML(t.id)}">
-      <div class="chat-thread-item-name">${escapeHTML(t.name)}</div>
-      <div class="chat-thread-item-meta">
-        <span${iconTitle}>${escapeHTML(icon)}</span>
-        <span>${dateStr}</span>
-        <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
-      </div>
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-thread-id="${escapeHTML(t.id)}">
+      <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
+        <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
+        <span class="chat-thread-item-meta">
+          <span${iconTitle}>${escapeHTML(icon)}</span>
+          <span>${dateStr}</span>
+          <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
+        </span>
+      </button>
       <div class="chat-thread-item-actions">
-        <button class="chat-thread-item-action" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}" title="Rename" aria-label="Rename thread">${THREAD_ICON_EDIT}</button>
-        <button class="chat-thread-item-action delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}" title="Delete" aria-label="Delete thread">${THREAD_ICON_DELETE}</button>
+        <button type="button" class="chat-thread-item-action" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}" title="Rename" aria-label="Rename ${escapeHTML(t.name)}">${THREAD_ICON_EDIT}</button>
+        <button type="button" class="chat-thread-item-action delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}" title="Delete" aria-label="Delete ${escapeHTML(t.name)}">${THREAD_ICON_DELETE}</button>
       </div>
     </div>`;
   }).join('');
@@ -464,13 +532,19 @@ function formatThreadDate(date) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function toggleThreadRail() {
   const rail = document.getElementById('chat-thread-rail');
   if (!rail) return;
   const isOpen = rail.classList.toggle('open');
+  if (isOpen) {
+    document.querySelector('.chat-personality-bar')?.classList.remove('open');
+    document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
+    document.querySelector('.discuss-persona-picker')?.remove();
+  }
+  document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', String(isOpen));
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, isOpen ? 'true' : 'false');
 }
 
@@ -483,6 +557,10 @@ export function restoreRailState() {
   } else {
     rail.classList.remove('open');
   }
+  document.querySelector('.chat-rail-toggle')?.setAttribute(
+    'aria-expanded',
+    String(rail.classList.contains('open')),
+  );
 }
 
 configureChatThreadSearch({

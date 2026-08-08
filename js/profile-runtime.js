@@ -33,6 +33,7 @@ export function invalidateProfileContextCache() {
 export async function reloadProfileRuntimeShell(profileId) {
   const chat = isChatModuleLoaded() ? await loadChatModule() : null;
 
+  await chat?.loadCustomPersonalities?.();
   chat?.loadChatPersonality();
   const threadsLoaded = chat ? await chat.loadChatThreads?.() : false;
   if (threadsLoaded !== false && state.chatThreads.length > 0) chat?.ensureActiveThread?.();

@@ -5,7 +5,7 @@ import { configureChatThreadDeps } from './chat-threads.js';
 import { renderChatMessages } from './chat-render.js';
 import {
   createTypewriter, getChatAbortController, sendChatMessage,
-  setChatAbortController,
+  setChatAbortController, stopChatGeneration,
   setSendButtonMode,
 } from './chat-send.js';
 import { renderSavedSummaries } from './chat-summaries.js';
@@ -22,6 +22,7 @@ import {
 } from './chat-discussion.js';
 import { configureChatOnboarding } from './chat-onboarding.js';
 import { stopVoiceActivity } from './voice-loader.js';
+import { deleteAttachmentDraft, refreshAttachmentDraft } from './chat-images.js';
 
 configureChatDiscussion({
   createTypewriter,
@@ -40,12 +41,15 @@ configureChatOnboarding({
 configureChatPanel({ restoreDiscussionContinuePrompt });
 configureChatThreadDeps({
   cleanupDiscussionState,
+  deleteAttachmentDraft,
   getActivePersonality,
   loadChatHistory,
   renderChatMessages,
   renderSavedSummaries,
+  refreshAttachmentDraft,
   restoreDiscussionContinuePrompt,
   saveChatHistory,
+  stopChatGeneration,
   stopVoiceActivity,
   updateChatHeaderTitle,
   updatePersonalityBar,

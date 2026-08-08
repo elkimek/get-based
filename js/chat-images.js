@@ -14,11 +14,15 @@ import { resizeImage, isValidImageType } from './image-utils.js';
 import { hasAIProvider, supportsVision } from './api.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
+import { state } from './state.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
-/** @type {Array<{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null }>} */
-let _pendingAttachments = []; // { base64, mediaType, name, previewUrl, thumbUrl }
+/** @typedef {{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null }} PendingAttachment */
+/** @type {Map<string, PendingAttachment[]>} */
+const pendingAttachmentsByThread = new Map();
+/** @type {WeakMap<object, PendingAttachment[]>} */
+const sentMessageAttachments = new WeakMap();
 let _hdMode = localStorage.getItem('labcharts-hd-images') === 'true';
 const chatImageDeps = {
   updateSendButtonState: () => {},
@@ -30,9 +34,23 @@ export function configureChatImages(deps = {}) {
   }
 }
 
+function attachmentDraftKey(threadId = state.currentThreadId) {
+  return `${state.currentProfile || 'default'}:${threadId || 'unassigned'}`;
+}
+
+function currentAttachmentDraft({ create = true } = {}) {
+  const key = attachmentDraftKey();
+  let draft = pendingAttachmentsByThread.get(key);
+  if (!draft && create) {
+    draft = [];
+    pendingAttachmentsByThread.set(key, draft);
+  }
+  return draft || [];
+}
+
 /// Queue inspection for chat.js's sendChatMessage + send-button state.
-export function getPendingAttachments() { return _pendingAttachments; }
-export function hasPendingAttachments() { return _pendingAttachments.length > 0; }
+export function getPendingAttachments() { return currentAttachmentDraft(); }
+export function hasPendingAttachments() { return currentAttachmentDraft({ create: false }).length > 0; }
 
 /** Shrink an image to a tiny thumbnail data URL for chat history storage */
 function makeThumbnail(previewUrl, width, height) {
@@ -75,7 +93,8 @@ export async function addImageAttachment(file) {
     showNotification('Unsupported image type. Use JPEG, PNG, GIF, or WebP.', 'error');
     return;
   }
-  if (_pendingAttachments.length >= MAX_ATTACHMENTS) {
+  const pendingAttachments = currentAttachmentDraft();
+  if (pendingAttachments.length >= MAX_ATTACHMENTS) {
     showNotification(`Maximum ${MAX_ATTACHMENTS} images per message`, 'error');
     return;
   }
@@ -85,7 +104,7 @@ export async function addImageAttachment(file) {
     const { base64, mediaType, width, height, origWidth, origHeight, quality_warnings } = await resizeImage(file, maxDim, quality);
     const previewUrl = `data:${mediaType};base64,${base64}`;
     const thumbUrl = await makeThumbnail(previewUrl, width, height);
-    _pendingAttachments.push({ base64, mediaType, name: file.name, previewUrl, thumbUrl });
+    pendingAttachments.push({ base64, mediaType, name: file.name, previewUrl, thumbUrl });
     renderAttachmentPreview();
     chatImageDeps.updateSendButtonState();
     // Warn about image quality issues
@@ -105,7 +124,7 @@ export async function addImageAttachment(file) {
 }
 
 export function removeImageAttachment(index) {
-  _pendingAttachments.splice(index, 1);
+  currentAttachmentDraft().splice(index, 1);
   renderAttachmentPreview();
   chatImageDeps.updateSendButtonState();
 }
@@ -113,34 +132,46 @@ export function removeImageAttachment(index) {
 export function renderAttachmentPreview() {
   const container = document.getElementById('chat-attach-preview');
   if (!container) return;
-  if (_pendingAttachments.length === 0) {
+  const pendingAttachments = currentAttachmentDraft({ create: false });
+  if (pendingAttachments.length === 0) {
     container.innerHTML = '';
     container.style.display = 'none';
     return;
   }
   container.style.display = 'flex';
-  container.innerHTML = _pendingAttachments.map((att, i) =>
+  container.innerHTML = pendingAttachments.map((att, i) =>
     `<div class="chat-attach-thumb" title="${escapeHTML(att.name)}">` +
     `<img src="${att.previewUrl}" alt="${escapeHTML(att.name)}">` +
-    `<button class="chat-attach-remove" type="button" ${chatMessageActionAttrs('remove-image-attachment', { index: i })} aria-label="Remove">&times;</button>` +
+    `<button class="chat-attach-remove" type="button" ${chatMessageActionAttrs('remove-image-attachment', { index: i })} aria-label="Remove ${escapeHTML(att.name)}">&times;</button>` +
     `</div>`
   ).join('') +
-  `<span class="chat-attach-count">${_pendingAttachments.length}/${MAX_ATTACHMENTS}</span>`;
+  `<span class="chat-attach-count">${pendingAttachments.length}/${MAX_ATTACHMENTS}</span>`;
 }
 
 export function openImageLightbox(src) {
+  const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const overlay = document.createElement('div');
   overlay.className = 'chat-lightbox';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Attached image preview');
   const img = document.createElement('img');
   img.src = src;
-  img.alt = 'Full image';
+  img.alt = 'Attached image preview';
   overlay.appendChild(img);
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'chat-lightbox-close';
+  closeButton.setAttribute('aria-label', 'Close image preview');
+  closeButton.textContent = '\u00d7';
+  overlay.appendChild(closeButton);
   let closed = false;
   const closeLightbox = () => {
     if (closed) return;
     closed = true;
     document.removeEventListener('keydown', onKeydown);
     removeModalOverlay(overlay);
+    returnFocus?.focus();
   };
   const onKeydown = (e) => {
     if (e.key === 'Escape') {
@@ -148,15 +179,46 @@ export function openImageLightbox(src) {
       closeLightbox();
     }
   };
-  overlay.addEventListener('click', closeLightbox);
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay || event.target === closeButton) closeLightbox();
+  });
   document.addEventListener('keydown', onKeydown);
   document.body.appendChild(overlay);
   openModalOverlay(overlay);
+  closeButton.focus();
 }
 
-export function clearAttachments() {
-  _pendingAttachments = [];
+export function clearAttachments(threadId = state.currentThreadId) {
+  pendingAttachmentsByThread.delete(attachmentDraftKey(threadId));
   renderAttachmentPreview();
+}
+
+export function deleteAttachmentDraft(threadId) {
+  pendingAttachmentsByThread.delete(attachmentDraftKey(threadId));
+  if (threadId === state.currentThreadId) refreshAttachmentDraft();
+}
+
+export function refreshAttachmentDraft() {
+  renderAttachmentPreview();
+  chatImageDeps.updateSendButtonState();
+}
+
+export function rememberMessageAttachments(message, attachments) {
+  if (!message || typeof message !== 'object' || !Array.isArray(attachments) || !attachments.length) return;
+  sentMessageAttachments.set(message, attachments.map(attachment => ({ ...attachment })));
+}
+
+export function restoreMessageAttachments(message) {
+  const attachments = message && typeof message === 'object'
+    ? sentMessageAttachments.get(message)
+    : null;
+  if (!attachments?.length) return false;
+  pendingAttachmentsByThread.set(
+    attachmentDraftKey(),
+    attachments.map(attachment => ({ ...attachment })),
+  );
+  refreshAttachmentDraft();
+  return true;
 }
 
 export function updateAttachButtonVisibility() {

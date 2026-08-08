@@ -31,17 +31,28 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         const userMsgs = realContainer.querySelectorAll('.chat-msg.chat-user');
         outcomes.aiMessagesHaveActionBars = aiMsgs.length > 0 && aiMsgs[0].querySelector('.chat-action-bar') !== null;
         outcomes.aiActionBarHasButtons = aiMsgs.length > 0 && aiMsgs[0].querySelectorAll('.chat-action-btn').length >= 1;
-        outcomes.userMessagesHaveNoActionBars = userMsgs.length > 0 && userMsgs[0].querySelector('.chat-action-bar') === null;
+        outcomes.editStaysOnLatestUserWhileForkStaysOnAssistant = userMsgs.length === 2
+          && userMsgs[0].querySelector('[data-chat-message-action="edit-user-message"]') === null
+          && userMsgs[0].querySelector('[data-chat-message-action="fork-message"]') === null
+          && userMsgs[1].querySelector('[data-chat-message-action="edit-user-message"]')?.textContent.includes('Edit & retry')
+          && userMsgs[1].querySelector('[data-chat-message-action="fork-message"]') === null
+          && aiMsgs[0].querySelector('[data-chat-message-action="fork-message"]')?.textContent.includes('Fork to new chat');
       } else {
         const doc = new DOMParser().parseFromString(
-          `<div class="chat-msg chat-ai">${chatActions.buildActionBar(1)}</div><div class="chat-msg chat-user">Hello</div>`,
+          `<div class="chat-msg chat-ai">${chatActions.buildActionBar(1)}</div><div class="chat-msg chat-user old-user">Hello${chatActions.buildUserActionBar(0)}</div><div class="chat-msg chat-user latest-user">More${chatActions.buildUserActionBar(2)}</div>`,
           'text/html'
         );
         const aiMsg = doc.querySelector('.chat-msg.chat-ai');
-        const userMsg = doc.querySelector('.chat-msg.chat-user');
+        const oldUserMsg = doc.querySelector('.chat-msg.old-user');
+        const latestUserMsg = doc.querySelector('.chat-msg.latest-user');
         outcomes.aiMessagesHaveActionBars = !!aiMsg?.querySelector('.chat-action-bar');
         outcomes.aiActionBarHasButtons = (aiMsg?.querySelectorAll('.chat-action-btn').length || 0) >= 1;
-        outcomes.userMessagesHaveNoActionBars = userMsg?.querySelector('.chat-action-bar') === null;
+        outcomes.editStaysOnLatestUserWhileForkStaysOnAssistant =
+          oldUserMsg?.querySelector('[data-chat-message-action="edit-user-message"]') === null
+          && oldUserMsg?.querySelector('[data-chat-message-action="fork-message"]') === null
+          && latestUserMsg?.querySelector('[data-chat-message-action="edit-user-message"]')?.textContent.includes('Edit & retry')
+          && latestUserMsg?.querySelector('[data-chat-message-action="fork-message"]') === null
+          && aiMsg?.querySelector('[data-chat-message-action="fork-message"]')?.textContent.includes('Fork to new chat');
       }
 
       outcomes.clipboardAvailable = typeof navigator.clipboard !== 'undefined';

@@ -131,6 +131,9 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
         import * as syncMessenger from '/js/sync-messenger.js';
         import { applyAISettings } from '/js/sync-apply.js';
+        import { applyChatData } from '/js/sync-chat-apply.js';
+        import { collectChatData } from '/js/sync-payload-collectors.js';
+        import * as personaStorage from '/js/chat-personality-storage.js';
         import * as cryptoStore from '/js/crypto.js';
         import { getRoutstrKey } from '/js/api-provider-storage.js';
         window.__syncE2EMergePulledImportedData = mergePulledImportedData;
@@ -138,6 +141,9 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
         window.__syncE2EMessenger = syncMessenger;
         window.__syncE2EApplyAISettings = applyAISettings;
+        window.__syncE2EApplyChatData = applyChatData;
+        window.__syncE2ECollectChatData = collectChatData;
+        window.__syncE2EPersonaStorage = personaStorage;
         window.__syncE2ECrypto = cryptoStore;
         window.__syncE2EGetRoutstrKey = getRoutstrKey;
       `,
@@ -148,6 +154,9 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function'
         && typeof window.__syncE2EMessenger?.disableMessengerTokenLocal === 'function'
         && typeof window.__syncE2EApplyAISettings === 'function'
+        && typeof window.__syncE2EApplyChatData === 'function'
+        && typeof window.__syncE2ECollectChatData === 'function'
+        && typeof window.__syncE2EPersonaStorage?.saveCustomPersonalitiesToStorage === 'function'
         && typeof window.__syncE2ECrypto?._setTestSessionKey === 'function'
         && typeof window.__syncE2EGetRoutstrKey === 'function',
       null,
@@ -541,6 +550,93 @@ async function run(browser, testInfo) {
         && routstrSync.node === 'https://node.routstr.e2e/'
         && routstrSync.updatedAt === '200',
       JSON.stringify(routstrSync));
+
+    const savePersonas = (page, personalities) => page.evaluate(async ({ profileId, items }) => {
+      await window.__syncE2EPersonaStorage.saveCustomPersonalitiesToStorage(items, profileId);
+    }, { profileId: PROFILE_ID, items: personalities });
+    const collectChat = page => page.evaluate(profileId =>
+      window.__syncE2ECollectChatData(profileId), PROFILE_ID);
+    const applyChat = (page, chatData) => page.evaluate(({ profileId, payload }) =>
+      window.__syncE2EApplyChatData(profileId, payload), {
+      profileId: PROFILE_ID,
+      payload: chatData,
+    });
+    const personaSnapshot = page => page.evaluate(async profileId => {
+      const storage = window.__syncE2EPersonaStorage;
+      return {
+        items: await storage.loadCustomPersonalitiesFromStorage(profileId),
+        tombstones: await storage.loadCustomPersonalityTombstones(profileId),
+        rawItems: localStorage.getItem(storage.customPersonalityStorageKey(profileId)),
+        rawTombstones: localStorage.getItem(storage.customPersonalityTombstoneStorageKey(profileId)),
+      };
+    }, PROFILE_ID);
+
+    const personaA = {
+      id: 'custom_device_a', name: 'Device A Voice', icon: 'A', promptText: 'Created on A.',
+      createdAt: '2026-08-08T10:00:00.000Z', updatedAt: '2026-08-08T10:00:00.000Z',
+    };
+    const personaB = {
+      id: 'custom_device_b', name: 'Device B Voice', icon: 'B', promptText: 'Created on B.',
+      createdAt: '2026-08-08T10:01:00.000Z', updatedAt: '2026-08-08T10:01:00.000Z',
+    };
+    await savePersonas(pageA, [personaA]);
+    await savePersonas(pageB, [personaB]);
+    const initialA = await collectChat(pageA);
+    const initialB = await collectChat(pageB);
+    await applyChat(pageA, initialB);
+    await applyChat(pageB, initialA);
+    let personasA = await personaSnapshot(pageA);
+    let personasB = await personaSnapshot(pageB);
+    assert('Two devices union independently-created personas across encrypted storage modes',
+      personasA.items.length === 2
+        && personasB.items.length === 2
+        && personasA.items.some(item => item.id === personaA.id)
+        && personasA.items.some(item => item.id === personaB.id)
+        && personasB.rawItems?.startsWith('v1:'),
+      JSON.stringify({ personasA, personasB }));
+
+    await savePersonas(pageA, personasA.items.map(item => item.id === personaA.id ? {
+      ...item, name: 'Newest A Edit', updatedAt: '2026-08-08T10:05:00.000Z',
+    } : item));
+    await savePersonas(pageB, personasB.items.map(item => item.id === personaA.id ? {
+      ...item, name: 'Older B Edit', updatedAt: '2026-08-08T10:04:00.000Z',
+    } : item));
+    const editedA = await collectChat(pageA);
+    const editedB = await collectChat(pageB);
+    await applyChat(pageA, editedB);
+    await applyChat(pageB, editedA);
+    personasA = await personaSnapshot(pageA);
+    personasB = await personaSnapshot(pageB);
+    assert('Concurrent persona edits converge on the per-item newer version',
+      personasA.items.find(item => item.id === personaA.id)?.name === 'Newest A Edit'
+        && personasB.items.find(item => item.id === personaA.id)?.name === 'Newest A Edit',
+      JSON.stringify({ personasA, personasB }));
+
+    await pageB.evaluate(async ({ profileId, personaId, deletedAt }) => {
+      const storage = window.__syncE2EPersonaStorage;
+      const items = await storage.loadCustomPersonalitiesFromStorage(profileId);
+      await storage.saveCustomPersonalitiesToStorage(items.filter(item => item.id !== personaId), profileId);
+      await storage.recordCustomPersonalityDeletion(personaId, profileId, deletedAt);
+      localStorage.setItem(`labcharts-${profileId}-chatPersonality`, personaId);
+    }, {
+      profileId: PROFILE_ID,
+      personaId: personaA.id,
+      deletedAt: Date.parse('2026-08-08T10:06:00.000Z'),
+    });
+    await applyChat(pageA, await collectChat(pageB));
+    await applyChat(pageB, await collectChat(pageA));
+    personasA = await personaSnapshot(pageA);
+    personasB = await personaSnapshot(pageB);
+    const activeA = await pageA.evaluate(profileId =>
+      localStorage.getItem(`labcharts-${profileId}-chatPersonality`), PROFILE_ID);
+    assert('Persona deletion tombstones propagate without resurrection and reject deleted active selection',
+      !personasA.items.some(item => item.id === personaA.id)
+        && !personasB.items.some(item => item.id === personaA.id)
+        && Number(personasA.tombstones[personaA.id]) > 0
+        && Number(personasB.tombstones[personaA.id]) > 0
+        && personasB.rawTombstones?.startsWith('v1:')
+        && activeA === 'default',
+      JSON.stringify({ personasA, personasB, activeA }));
 
     const staleB = await getImportedData(pageB);
 

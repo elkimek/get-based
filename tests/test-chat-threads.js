@@ -256,9 +256,9 @@ else globalThis.__WEARABLES_TEST = _origWearablesTest;
 // live in tests/playwright/chat-threads-dom.spec.js.
 
 // ═══════════════════════════════════════════════
-// 13. Thread Pruning (50 max)
+// 13. Thread retention
 // ═══════════════════════════════════════════════
-console.log('13. Thread Pruning (50 max)');
+console.log('13. Thread retention');
 st.chatThreads = [];
 for (let i = 0; i < 55; i++) {
   const ts = new Date(Date.now() - (55 - i) * 60000).toISOString();
@@ -272,8 +272,8 @@ for (let i = 0; i < 55; i++) {
   });
 }
 chatThreadsModule.pruneOldThreads();
-assert('pruned to 50 threads', st.chatThreads.length === 50, 'Got ' + st.chatThreads.length);
-assert('oldest threads removed', !st.chatThreads.find(t => t.id === 't_prune_0'));
+assert('retains all conversations', st.chatThreads.length === 55, 'Got ' + st.chatThreads.length);
+assert('oldest threads retained', !!st.chatThreads.find(t => t.id === 't_prune_0'));
 assert('newest threads kept', !!st.chatThreads.find(t => t.id === 't_prune_54'));
 for (let i = 0; i < 55; i++) {
   localStorage.removeItem(chatThreadsModule.getChatThreadKey(`t_prune_${i}`));
@@ -465,7 +465,8 @@ st.currentThreadId = null;
 st.currentChatPersonality = 'house';
 chatThreadsModule.createNewThread();
 const pThread = st.chatThreads.find(t => t.id === st.currentThreadId);
-assert('new thread inherits current personality', pThread && pThread.personality === 'house');
+assert('new thread starts with default personality', pThread && pThread.personality === 'default');
+assert('new thread active personality matches metadata', st.currentChatPersonality === pThread?.personality);
 
 // ═══════════════════════════════════════════════
 // CLEANUP — Restore original state

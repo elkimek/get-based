@@ -40,6 +40,12 @@ test('backup browser coverage exercises export import auto backup and folder sta
       showDirectoryPicker: Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker'),
     };
     const previousBackupRuntimeDeps = backup.configureBackupRuntimeDeps({
+      encryptedGetItem: async key => {
+        if (key === `labcharts-${profileId}-chat-threads`) {
+          return JSON.stringify([{ id: threadId, title: 'Thread' }]);
+        }
+        return localStorage.getItem(key);
+      },
       getEncryptionEnabled: () => true,
     });
     const delay = ms => new Promise(resolve => originalSetTimeout(resolve, ms));
@@ -94,6 +100,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
         keys: {
           imported: JSON.stringify({ entries: [{ date: '2026-06-10', markers: { glucose: 88 } }] }),
           chat: JSON.stringify([{ role: 'user', content: 'restore me' }]),
+          chatPersonalityCustom: 'v1:restored-encrypted-personas',
+          chatPersonalityDeleted: 'v1:restored-encrypted-persona-tombstones',
           units: 'US',
         },
       }],
@@ -154,6 +162,19 @@ test('backup browser coverage exercises export import auto backup and folder sta
       const fullSnapshot = await backup.buildFullBackupSnapshot();
       outcomes.fullSnapshotReadsRawImportedBlob = fullSnapshot?.profiles?.[0]?.keys?.imported?.includes('cobalt') === true;
 
+      localStorage.setItem(`labcharts-${profileId}-chat-threads`, 'v1:encrypted-thread-index');
+      localStorage.setItem(`labcharts-${profileId}-chat-t_${threadId}`, 'v1:encrypted-thread-messages');
+      localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, 'v1:encrypted-custom-personas');
+      localStorage.setItem(`labcharts-${profileId}-chatPersonalityDeleted`, 'v1:encrypted-persona-tombstones');
+      const encryptedChatSnapshot = await backup.buildFullBackupSnapshot();
+      outcomes.fullSnapshotPreservesEncryptedChatAndPersonaEnvelopes =
+        encryptedChatSnapshot?.profiles?.[0]?.keys?.['chat-threads'] === 'v1:encrypted-thread-index'
+        && encryptedChatSnapshot?.profiles?.[0]?.keys?.[`chat-t_${threadId}`] === 'v1:encrypted-thread-messages'
+        && encryptedChatSnapshot?.profiles?.[0]?.keys?.chatPersonalityCustom === 'v1:encrypted-custom-personas'
+        && encryptedChatSnapshot?.profiles?.[0]?.keys?.chatPersonalityDeleted === 'v1:encrypted-persona-tombstones';
+      localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread' }]));
+      localStorage.setItem(`labcharts-${profileId}-chat-t_${threadId}`, JSON.stringify([{ role: 'assistant', content: 'saved thread' }]));
+
       const downloads = [];
       URL.createObjectURL = blob => {
         downloads.push({ blobType: blob.type, blobSize: blob.size });
@@ -203,6 +224,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
         && localStorage.getItem('labcharts-profiles') === backupPayload.profileList
         && localStorage.getItem('labcharts-theme') === 'glass'
         && localStorage.getItem(`labcharts-${restoredProfileId}-chat`)?.includes('restore me') === true
+        && localStorage.getItem(`labcharts-${restoredProfileId}-chatPersonalityCustom`) === 'v1:restored-encrypted-personas'
+        && localStorage.getItem(`labcharts-${restoredProfileId}-chatPersonalityDeleted`) === 'v1:restored-encrypted-persona-tombstones'
         && localStorage.getItem(`labcharts-${restoredProfileId}-units`) === 'US'
         && restoredImported?.includes('glucose') === true
         && restoreTimeouts.some(t => t.ms === 1000)

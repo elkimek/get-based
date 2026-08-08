@@ -11,9 +11,7 @@ import { isRoundThreadActive } from './chat-discussion-round-state.js';
 export function createDiscussionTypingIndicator() {
   const typingEl = document.createElement('div');
   typingEl.className = 'typing-indicator';
-  typingEl.setAttribute('role', 'status');
-  typingEl.setAttribute('aria-live', 'polite');
-  typingEl.setAttribute('aria-label', 'AI is responding');
+  typingEl.setAttribute('aria-hidden', 'true');
   typingEl.innerHTML = '<span></span><span></span><span></span>';
   return typingEl;
 }
@@ -33,6 +31,8 @@ export function appendRoundPersonaLabel(threadId, container, labelEl) {
 export function createDiscussionAiMessage() {
   const aiMsgEl = document.createElement('div');
   aiMsgEl.className = 'chat-msg chat-ai';
+  aiMsgEl.setAttribute('role', 'article');
+  aiMsgEl.setAttribute('aria-label', 'AI response');
   aiMsgEl.style.whiteSpace = 'pre-wrap';
   return aiMsgEl;
 }

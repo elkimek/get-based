@@ -7,7 +7,7 @@ import {
 } from './chat-threads.js';
 import { loadChatHistory } from './chat-history.js';
 import {
-  loadChatPersonality, updateChatHeaderTitle, updatePersonalityBar,
+  loadChatPersonality, loadCustomPersonalities, updateChatHeaderTitle, updatePersonalityBar,
 } from './chat-personalities.js';
 import { renderSavedSummaries } from './chat-summaries.js';
 import { updateLensIndicator } from './lens.js';
@@ -16,6 +16,9 @@ import {
   startMobileChatViewportSync,
   stopMobileChatViewportSync,
 } from './chat-mobile-viewport.js';
+import {
+  initChatComposer, refreshChatComposer, restoreChatDraft, setChatInputValue,
+} from './chat-composer.js';
 import { showNotification } from './utils.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
@@ -55,6 +58,23 @@ const panelCallbacks = {
   stopVoiceActivity: null,
 };
 let chatThreadInputBlocked = false;
+let chatPanelReturnFocus = null;
+
+function setChatBackgroundInert(inert) {
+  document.querySelectorAll('.main, .sidebar, .app-footer, .mobile-dashboard').forEach(element => {
+    if (element.id === 'chat-panel' || element.contains(document.getElementById('chat-panel'))) return;
+    /** @type {HTMLElement} */ (element).inert = inert;
+  });
+}
+
+function updateChatPanelAccessibility(panel, open) {
+  const mobile = typeof matchMedia === 'function' && matchMedia('(max-width: 768px)').matches;
+  panel.setAttribute('aria-hidden', String(!open));
+  panel.setAttribute('role', mobile ? 'dialog' : 'complementary');
+  if (mobile && open) panel.setAttribute('aria-modal', 'true');
+  else panel.removeAttribute('aria-modal');
+  setChatBackgroundInert(open && mobile);
+}
 
 /** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, refreshMobileDashboardActiveTab?: (() => void) | null, stopVoiceActivity?: (() => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
@@ -217,14 +237,21 @@ export function toggleChatFullscreen() {
   panel.classList.toggle('chat-panel-fullscreen', next);
   document.body.classList.toggle('chat-fullscreen', next);
   localStorage.setItem('labcharts-chat-fullscreen', next ? 'true' : 'false');
+  const button = /** @type {HTMLElement | null} */ (document.querySelector('.chat-fullscreen-btn'));
+  button?.setAttribute('aria-pressed', String(next));
+  button?.setAttribute('aria-label', next ? 'Exit fullscreen chat' : 'Enter fullscreen chat');
+  if (button) button.title = next ? 'Exit fullscreen' : 'Enter fullscreen';
 }
 
 export async function openChatPanel(prefillMessage) {
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
   if (!panel || !backdrop) return false;
+  const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (!(await loadChatPresentationStylesheetsForAction())) return false;
+  chatPanelReturnFocus = returnFocus;
   panel.classList.add('open');
+  updateChatPanelAccessibility(panel, true);
   startMobileChatViewportSync(panel);
   // Restore the user's last fullscreen preference. Persisted in
   // localStorage so reopening chat keeps the mode they chose last.
@@ -232,6 +259,9 @@ export async function openChatPanel(prefillMessage) {
   // not just additive — when localStorage flips to false.
   const fullscreen = localStorage.getItem('labcharts-chat-fullscreen') === 'true';
   panel.classList.toggle('chat-panel-fullscreen', fullscreen);
+  const fullscreenButton = panel.querySelector('.chat-fullscreen-btn');
+  fullscreenButton?.setAttribute('aria-pressed', String(fullscreen));
+  fullscreenButton?.setAttribute('aria-label', fullscreen ? 'Exit fullscreen chat' : 'Enter fullscreen chat');
   // Body classes drive the dashboard auto-shift — `.chat-open` adds
   // padding-right matching the chat panel's responsive width so the
   // dashboard reflows instead of hiding behind the panel; `.chat-
@@ -246,6 +276,7 @@ export async function openChatPanel(prefillMessage) {
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.add('hidden');
   dismissCurrentChatNudge();
+  await loadCustomPersonalities();
   loadChatPersonality();
   updateChatHeaderTitle();
   updateLensIndicator();
@@ -264,10 +295,10 @@ export async function openChatPanel(prefillMessage) {
   if (threadsLoaded !== false) await loadChatHistory();
   panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-  if (input && !chatThreadInputBlocked) {
-    if (prefillMessage) input.value = prefillMessage;
-    input.focus();
+  initChatComposer();
+  if (!chatThreadInputBlocked) {
+    if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
+    else await restoreChatDraft(undefined, { focus: true });
   }
   return true;
 }
@@ -288,18 +319,27 @@ export function updateChatInputState() {
   }
   if (sendBtn) sendBtn.disabled = noAI || blocked;
   if (voiceBtn) voiceBtn.disabled = noAI || blocked;
+  refreshChatComposer();
   updateWebSearchToggleVisibility();
 }
 
 export function closeChatPanel() {
   panelCallbacks.stopVoiceActivity?.();
   stopMobileChatViewportSync();
-  document.getElementById('chat-panel')?.classList.remove('open');
+  const panel = document.getElementById('chat-panel');
+  panel?.classList.remove('open');
+  if (panel) updateChatPanelAccessibility(panel, false);
+  document.querySelector('.chat-personality-bar')?.classList.remove('open');
+  document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
+  document.querySelector('.discuss-persona-picker')?.remove();
   document.getElementById('chat-backdrop')?.classList.remove('open');
   // body.style.overflow no longer set on open (so nothing to restore)
   // Drop the dashboard-shift body classes so the layout reflows back.
   document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus', 'chat-autostart-reserved');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
+  const returnTarget = chatPanelReturnFocus?.isConnected ? chatPanelReturnFocus : fab;
+  returnTarget?.focus?.();
+  chatPanelReturnFocus = null;
   panelCallbacks.refreshMobileDashboardActiveTab?.();
 }
