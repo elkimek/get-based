@@ -1,5 +1,12 @@
 import { expect, test } from './coverage-fixture.js';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
+});
+
 function moduleUrl(path) {
   return `${path}?customPersonalityCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
