@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.13.1', date: '2026-08-08', title: 'Safer sync and complete Agent Access',
+    forceShow: true,
+    items: [
+      '<b>Joining an existing Sync identity now works end to end.</b> After you enter the 24 words, the new device completes setup and downloads the existing data from the relay instead of only appearing to be connected.',
+      '<b>Your genome and other profile data are better protected.</b> If a saved profile cannot be read, sync now stops safely instead of treating that profile as empty and sending a blank replacement to your other devices.',
+      '<b>Agent Access is ready when you open Settings.</b> Sync and Agent Access controls finish loading automatically, and the Agent Access on/off slider is visible again.',
+      '<b>AI agents receive your complete health context.</b> The redesigned Context-card answers now reach both in-app AI and encrypted external agents, including skin type and explicit digestive answers such as “none” or “normal”.',
+    ]
+  },
+  {
     version: '1.13.0', date: '2026-08-08', title: 'A completely redesigned Chat',
     items: [
       '<b>Chat has been redesigned from the ground up.</b> The message box grows for longer prompts, drafts stay with their conversations, and the experience works more naturally across desktop and mobile.',

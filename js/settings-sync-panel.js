@@ -25,6 +25,18 @@ const settingsSyncPanelDeps = {
   updateSyncIndicator,
 };
 
+/** @param {SettingsSyncPanelModule} module */
+function replaceSettingsSyncPanelPlaceholders(module) {
+  const syncSection = document.getElementById('sync-section');
+  if (syncSection?.querySelector('[data-settings-sync-placeholder="sync"]')) {
+    syncSection.innerHTML = module.renderSyncSection();
+  }
+  const messengerSection = document.getElementById('messenger-section');
+  if (messengerSection?.querySelector('[data-settings-sync-placeholder="messenger"]')) {
+    messengerSection.innerHTML = module.renderMessengerSection();
+  }
+}
+
 export function isSettingsSyncPanelLoaded() {
   return settingsSyncPanelModule !== null;
 }
@@ -45,6 +57,11 @@ export function loadSettingsSyncPanelModule() {
       .then(module => {
         settingsSyncPanelModule = module;
         module.configureSettingsSyncPanelDeps(settingsSyncPanelDeps);
+        // renderSyncSection/renderMessengerSection return placeholders on a
+        // cold Settings open. Once the lazy module arrives, replace those
+        // placeholders in place so users get the real controls without
+        // closing and reopening Settings.
+        replaceSettingsSyncPanelPlaceholders(module);
         return module;
       })
       .catch(err => {
@@ -105,13 +122,13 @@ function runSettingsSyncPanelAction(name, args, shouldLoad = true) {
 export function renderSyncSection() {
   if (settingsSyncPanelModule) return settingsSyncPanelModule.renderSyncSection();
   void loadSettingsSyncPanelModule().catch(() => {});
-  return '<div class="settings-loading-placeholder">Loading sync settings…</div>';
+  return '<div class="settings-loading-placeholder" data-settings-sync-placeholder="sync">Loading sync settings…</div>';
 }
 
 export function renderMessengerSection() {
   if (settingsSyncPanelModule) return settingsSyncPanelModule.renderMessengerSection();
   void loadSettingsSyncPanelModule().catch(() => {});
-  return '<div class="settings-loading-placeholder">Loading Agent Access…</div>';
+  return '<div class="settings-loading-placeholder" data-settings-sync-placeholder="messenger">Loading Agent Access…</div>';
 }
 
 export function showSyncSetupModal() {

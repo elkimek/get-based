@@ -594,13 +594,14 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const dParts = [];
     if (diet.bowelFrequency) dParts.push(`Bowel frequency: ${diet.bowelFrequency}`);
     if (diet.stoolConsistency) dParts.push(`Stool consistency: ${diet.stoolConsistency}`);
-    if (diet.bloating && diet.bloating !== 'none') dParts.push(`Bloating: ${diet.bloating}`);
-    if (diet.gas && diet.gas !== 'none') dParts.push(`Gas: ${diet.gas}`);
-    if (diet.acidReflux && diet.acidReflux !== 'none') dParts.push(`Acid reflux: ${diet.acidReflux}`);
-    if (diet.burping && diet.burping !== 'none') dParts.push(`Burping: ${diet.burping}`);
-    if (diet.nausea && diet.nausea !== 'none') dParts.push(`Nausea: ${diet.nausea}`);
-    if (diet.appetite && diet.appetite !== 'normal') dParts.push(`Appetite: ${diet.appetite}`);
-    if (diet.abdominalPain && diet.abdominalPain !== 'none') dParts.push(`Abdominal pain: ${diet.abdominalPain}`);
+    // Preserve explicit negatives: `null` is unanswered; `none` / `normal` means ruled out.
+    if (diet.bloating) dParts.push(`Bloating: ${diet.bloating}`);
+    if (diet.gas) dParts.push(`Gas: ${diet.gas}`);
+    if (diet.acidReflux) dParts.push(`Acid reflux: ${diet.acidReflux}`);
+    if (diet.burping) dParts.push(`Burping: ${diet.burping}`);
+    if (diet.nausea) dParts.push(`Nausea: ${diet.nausea}`);
+    if (diet.appetite) dParts.push(`Appetite: ${diet.appetite}`);
+    if (diet.abdominalPain) dParts.push(`Abdominal pain: ${diet.abdominalPain}`);
     if (diet.foodSensitivities && diet.foodSensitivities.length) dParts.push(`Food sensitivities: ${diet.foodSensitivities.join(', ')}`);
     if (dParts.length) ctx += dParts.join('. ') + '\n';
     if (diet.note) ctx += `Notes: ${diet.note}\n`;
@@ -666,6 +667,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       if (lc.amLight) parts.push(`Morning light: ${lc.amLight}`);
       if (lc.daytime) parts.push(`Daytime outdoor: ${lc.daytime}`);
       if (lc.uvExposure) parts.push(`UV exposure: ${lc.uvExposure}`);
+      if (lc.skinType) parts.push(`Skin type: ${lc.skinType}`);
       if (lc.evening && lc.evening.length) parts.push(`Evening light: ${lc.evening.join(', ')}`);
       if (lc.screenTime) parts.push(`Daily screen time: ${lc.screenTime}`);
       if (lc.techEnv && lc.techEnv.length) parts.push(`Tech environment: ${lc.techEnv.join(', ')}`);

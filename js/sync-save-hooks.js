@@ -4,7 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { profileStorageKey } from './profile-storage-key.js';
-import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
+import { encryptedGetItem } from './crypto.js';
 import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
@@ -115,14 +115,19 @@ export async function readProfileImportedData(profileId, fallback = null) {
   if (!profileId) return _createDefaultProfileData();
   try {
     const storageKey = profileStorageKey(profileId, 'imported');
-    const raw = getEncryptionEnabled()
-      ? await encryptedGetItem(storageKey)
-      : localStorage.getItem(storageKey);
+    // Imported profile blobs live in IndexedDB regardless of whether their
+    // contents are encrypted. encryptedGetItem owns that routing (and the
+    // legacy localStorage migration), so bypassing it when encryption is off
+    // makes every inactive profile look empty.
+    const raw = await encryptedGetItem(storageKey);
     if (raw) return normalize(JSON.parse(raw));
   } catch (e) {
     console.warn('[sync] Could not read profile importedData for profile sync:', getErrorMessage(e, e));
   }
-  return _createDefaultProfileData();
+  // A named profile whose persisted blob is absent or unreadable must not be
+  // replaced on the relay with a freshly-created empty profile. New profiles
+  // pass their default data explicitly through the fallback argument.
+  return null;
 }
 
 /** @param {string} profileId
@@ -130,6 +135,12 @@ export async function readProfileImportedData(profileId, fallback = null) {
  * @param {number} [attempt]
  */
 function scheduleProfilePush(profileId, data, attempt = 0) {
+  // Fail closed when profile storage could not be read. Publishing null here
+  // can turn a transient local read problem into permanent cross-device loss.
+  if (!data || typeof data !== 'object') {
+    _profileSyncTimers.delete(profileId);
+    return;
+  }
   if (!_isSyncEnabled()) {
     _profileSyncTimers.delete(profileId);
     return;

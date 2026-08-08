@@ -689,6 +689,23 @@ describe('sync push runtime behavior', () => {
     }
   });
 
+  it('rejects unavailable profile data before writing any relay rows', async () => {
+    const fake = makeEvolu();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    configureRuntimeDeps(fake);
+
+    await expect(pushProfile(PROFILE_ID, null)).resolves.toEqual({
+      ok: false,
+      skipped: true,
+      reason: 'missing-profile-data',
+    });
+
+    expect(fake.calls.insert).toHaveLength(0);
+    expect(fake.calls.update).toHaveLength(0);
+    expect(isSyncPushInFlight()).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('imported profile data is unavailable'));
+  });
+
   it('inserts and updates profile rows only after a committed push and records local commit state', async () => {
     const fake = makeEvolu();
     const debug = vi.fn();

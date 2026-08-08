@@ -81,6 +81,13 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   const profileQuery = _getProfileQuery();
   if (!evolu || !_isSyncEnabled()) return;
   if (!profileId || typeof profileId !== 'string') return;
+  // Never turn a failed profile-storage read into an authoritative empty
+  // relay update. Callers that intentionally create an empty profile pass an
+  // explicit default object; null/undefined/arrays are always invalid here.
+  if (!importedData || typeof importedData !== 'object' || Array.isArray(importedData)) {
+    console.warn(`[sync] pushProfile skipped ${profileId.slice(0, 8)} — imported profile data is unavailable`);
+    return { ok: false, skipped: true, reason: 'missing-profile-data' };
+  }
   // _syncing was a guard against concurrent pushes, but if a previous push
   // hangs (Evolu's onComplete never fires) _syncing stays true and every
   // subsequent push (including manual Sync now / Reload-and-retry) silently
