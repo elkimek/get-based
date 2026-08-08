@@ -294,6 +294,11 @@ test('medical-history edits stay in a draft until Save and Cancel discards them'
 });
 
 test('medical-history Clear requires confirmation before deleting saved context', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
   await page.goto('/app', { waitUntil: 'load' });
 
   await page.evaluate(async () => {
