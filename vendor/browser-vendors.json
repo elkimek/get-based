@@ -19,17 +19,17 @@
       "output": "vendor/tinfoil-browser.js",
       "format": "es",
       "minified": true,
-      "sha256": "141f78829d4356d39a0ee4122b921c5ee5b410e4b913bdacf7a9311602d95de1"
+      "sha256": "e2a9e195a1f802663004e93d54d6893af3545e099c50f6865a3e9b93a5482c7a"
     },
     {
       "package": "ehbp",
-      "version": "0.3.1",
-      "integrity": "sha512-Y0g5OWSBWis5rJgw3mEftnvJtW5vD+5LSuzYwAy39HlmMWHm6KFBtw+Wr50IrCKWyRVW2VdxkMMwA8yAnBmkag==",
+      "version": "0.3.2",
+      "integrity": "sha512-t6aIXrztsQC7jGypZ4Mvc7oMP2LN1q5zAWRKZUcVbgEZgXq/OoD9MAQGFOaCv5LMexx6BOKYpEfIhM/kaRMrtg==",
       "entry": "scripts/vendor-entries/ehbp.js",
       "output": "vendor/ehbp-browser.js",
       "format": "es",
       "minified": true,
-      "sha256": "79d08b9f0a18e7564f31be074a99abfc9992c5b31cd4432a55eb48a47c2c9c48"
+      "sha256": "b90c92f240adcb8b67051f8e62c47f36f1815a41d1c98742e37c5b9155ee62ef"
     },
     {
       "package": "@phala/dcap-qvl",
