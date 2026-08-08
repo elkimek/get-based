@@ -178,7 +178,8 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         await saveRoundChatHistory(roundThreadId, roundHistory);
         renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
       }
-      remainingPersonas = personas.slice(partialText ? interruptedRound.index + 1 : interruptedRound?.index || 0);
+      const interruptedIndex = interruptedRound?.index ?? 0;
+      remainingPersonas = personas.slice(partialText ? interruptedIndex + 1 : interruptedIndex);
     } else {
       outcome = 'error';
       const persona = interruptedRound?.persona || personas[completedCount];
