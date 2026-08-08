@@ -594,10 +594,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const dParts = [];
     if (diet.bowelFrequency) dParts.push(`Bowel frequency: ${diet.bowelFrequency}`);
     if (diet.stoolConsistency) dParts.push(`Stool consistency: ${diet.stoolConsistency}`);
-    // A selected negative answer is still useful clinical context. `null`
-    // means unanswered, while `none` / `normal` means the user explicitly
-    // ruled the symptom out; do not silently collapse those two states for AI
-    // chat or the encrypted Agent Access projection.
+    // Preserve explicit negatives: `null` is unanswered; `none` / `normal` means ruled out.
     if (diet.bloating) dParts.push(`Bloating: ${diet.bloating}`);
     if (diet.gas) dParts.push(`Gas: ${diet.gas}`);
     if (diet.acidReflux) dParts.push(`Acid reflux: ${diet.acidReflux}`);
