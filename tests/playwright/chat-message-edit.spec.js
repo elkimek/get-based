@@ -4,6 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.setItem('labcharts-ai-paused', 'false');
+    localStorage.setItem('labcharts-default-tour', 'completed');
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
       termsVersion: '2026-06-22',

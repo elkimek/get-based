@@ -305,7 +305,8 @@ return (async function () {
     assert('sync-payload-collectors.js loaded', src.length > 1000);
     // Find the inner loop that reads per-thread message JSON.
     const collectIdx = src.indexOf('async function collectChatData');
-    const block = src.slice(collectIdx, collectIdx + 2200);
+    const collectEndIdx = src.indexOf('\nexport function collectDisplayPrefs', collectIdx);
+    const block = src.slice(collectIdx, collectEndIdx === -1 ? collectIdx + 3600 : collectEndIdx);
     assert('collectChatData function present', collectIdx !== -1);
     assert('per-thread parse wrapped in try/catch (skip-bad-msg pattern)',
       /try\s*\{\s*messages\[t\.id\]\s*=\s*JSON\.parse\(msgRaw\);?\s*\}\s*catch/.test(block));

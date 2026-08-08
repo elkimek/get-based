@@ -127,7 +127,7 @@ export async function collectChatData(profileId) {
       }
       // Per-thread try/catch - a single corrupted thread payload must NOT
       // nuke the entire chat-data collection.
-      try { messages[t.id] = JSON.parse(msgRaw); } catch (_) {}
+      try { messages[t.id] = JSON.parse(msgRaw); } catch {}
     }
     return {
       threads,
