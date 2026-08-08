@@ -36,7 +36,7 @@
     "@cashu/cashu-ts": "4.7.2",
     "@noble/curves": "2.2.0",
     "@phala/dcap-qvl": "0.6.1",
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "4.12.1",
     "fake-indexeddb": "^6.2.5",
