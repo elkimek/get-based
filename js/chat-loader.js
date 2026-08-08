@@ -124,6 +124,15 @@ export function loadChatThreadsIfLoaded(...args) {
   return callLoadedChatModule('loadChatThreads', args, false);
 }
 
+export async function refreshChatPersonalitiesIfLoaded() {
+  if (!chatModule) return false;
+  await chatModule.loadCustomPersonalities();
+  chatModule.loadChatPersonality();
+  chatModule.updateChatHeaderTitle();
+  chatModule.updatePersonalityBar();
+  return true;
+}
+
 export function renderThreadListIfLoaded(...args) {
   return callLoadedChatModule('renderThreadList', args, false);
 }

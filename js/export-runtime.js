@@ -44,6 +44,7 @@ export function loadCashuWalletModule() {
  * ensureActiveThread: null | (() => void),
  * loadChatThreads: null | (() => any),
  * navigate: null | ((route?: string) => void),
+ * refreshChatPersonalities: null | (() => any),
  * renderProfileButton: null | (() => void),
  * renderThreadList: null | (() => void),
  * updateHeaderDates: null | (() => void),
@@ -55,6 +56,7 @@ const exportImportRuntimeDeps = {
   ensureActiveThread: null,
   loadChatThreads: null,
   navigate: null,
+  refreshChatPersonalities: null,
   renderProfileButton: null,
   renderThreadList: null,
   updateHeaderDates: null,
@@ -78,6 +80,11 @@ export function configureExportImportRuntimeDeps(deps = {}) {
   }
   if ('navigate' in deps) {
     exportImportRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
+  }
+  if ('refreshChatPersonalities' in deps) {
+    exportImportRuntimeDeps.refreshChatPersonalities = typeof deps.refreshChatPersonalities === 'function'
+      ? deps.refreshChatPersonalities
+      : null;
   }
   if ('renderProfileButton' in deps) {
     exportImportRuntimeDeps.renderProfileButton = typeof deps.renderProfileButton === 'function'
@@ -184,13 +191,15 @@ function renderThreadListFallback() {
       : '';
     const updatedAt = formatThreadDateFallback(thread?.updatedAt);
     const messageCount = Math.max(0, Number(thread?.messageCount) || 0);
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-chat-thread-action="switch" data-thread-id="${threadId}">
-      <div class="chat-thread-item-name">${name}</div>
-      <div class="chat-thread-item-meta">
-        <span${iconTitle}>${icon}</span>
-        <span>${escapeRuntimeHTML(updatedAt)}</span>
-        <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
-      </div>
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-thread-id="${threadId}">
+      <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
+        <span class="chat-thread-item-name">${name}</span>
+        <span class="chat-thread-item-meta">
+          <span${iconTitle}>${icon}</span>
+          <span>${escapeRuntimeHTML(updatedAt)}</span>
+          <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
+        </span>
+      </button>
     </div>`;
   }).join('');
 }
@@ -201,6 +210,7 @@ async function refreshChatThreadsRuntime() {
   const renderThreadList = exportImportRuntimeDeps.renderThreadList || getRuntimeFunction('renderThreadList');
   let threadsLoaded = true;
 
+  await exportImportRuntimeDeps.refreshChatPersonalities?.();
   if (loadChatThreads) threadsLoaded = await loadChatThreads() !== false;
   else threadsLoaded = await loadChatThreadsFromStorageFallback();
   if (!threadsLoaded) return;

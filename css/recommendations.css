@@ -25,14 +25,45 @@
 .rec-in-range-note { font-size: 12px; color: var(--green); margin-bottom: 8px; }
 .rec-chat-wrapper { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
 .rec-chat-summary {
-  font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer;
-  list-style: none; padding: 4px 0; transition: color 0.15s;
+  font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer;
+  list-style: none; padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .rec-chat-summary::-webkit-details-marker { display: none; }
 .rec-chat-summary::marker { display: none; content: ''; }
 .rec-chat-summary::before { content: '\25B8'; margin-right: 6px; display: inline-block; transition: transform 0.2s; font-size: 11px; }
 .rec-chat-wrapper[open] > .rec-chat-summary::before { transform: rotate(90deg); }
-.rec-chat-summary:hover { color: var(--text-primary); }
+.rec-chat-summary:hover {
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.rec-chat-wrapper[open] > .rec-chat-summary {
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.rec-chat-count { color: inherit; font-weight: 650; }
+.rec-chat-wrapper.rec-chat-unseen > .rec-chat-summary {
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+}
+.rec-chat-wrapper.rec-chat-attention > .rec-chat-summary {
+  animation: recChatAttention 1s ease-in-out 3;
+}
+@keyframes recChatAttention {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent); }
+}
+.rec-chat-new {
+  display: inline-flex; align-items: center; margin-left: 8px; padding: 1px 6px;
+  border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; vertical-align: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-chat-wrapper.rec-chat-attention > .rec-chat-summary { animation: none; }
+}
 .rec-chat-subheading { font-size: 13px; font-weight: 600; color: var(--accent); margin-top: 8px; }
 .rec-section-gated { display: none; }
 .rec-disclosure-banner {

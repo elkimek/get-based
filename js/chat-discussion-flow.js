@@ -15,6 +15,8 @@ import {
 import {
   runDiscussion, runDiscussionContinuation, runSingleDiscussionTurn,
 } from './chat-discussion-turns.js';
+import { hasPendingAttachments } from './chat-images.js';
+import { showNotification } from './utils.js';
 
 export {
   cleanupDiscussionState, endDiscussion, restoreDiscussionContinuePrompt,
@@ -34,21 +36,46 @@ export async function sendDiscussionUserTurn(text, discussionState = getCurrentD
   );
 }
 
+/** @param {string | null} [personaId] */
+export async function resumeDiscussion(personaId = null) {
+  if (getChatAbortController()) return;
+  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+  const discussionState = getCurrentDiscussionState({ allowHistoryFallback: false });
+  const pendingPersonas = thread?.discussionPendingPersonas;
+  if (!discussionState || !Array.isArray(pendingPersonas) || !pendingPersonas.length) return;
+  const selectedPersonas = personaId
+    ? pendingPersonas.filter(persona => persona.id === personaId)
+    : pendingPersonas;
+  if (!selectedPersonas.length) return;
+  const deferredPersonas = personaId
+    ? pendingPersonas.filter(persona => persona.id !== personaId)
+    : [];
+  await runDiscussionContinuation(
+    selectedPersonas,
+    discussionState.originalPersonality,
+    null,
+    {
+      allPersonas: discussionState.personas,
+      deferredPersonas,
+      pendingOrder: pendingPersonas,
+      suppressAutoMsg: true,
+      threadId: state.currentThreadId,
+    },
+  );
+}
+
 export async function continueDiscussion() {
   if (getChatAbortController()) return;
-  const steerInput = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-discuss-steer'));
-  const steerText = steerInput ? steerInput.value.trim() : '';
-  const threadId = state.currentThreadId;
-  removeDiscussContinuePrompt();
-  const personas = state._discussionPersonas;
-  const originalPersonality = state._discussionOriginalPersonality;
-  if (!personas || personas.length < 2) return;
-
-  await runDiscussionContinuation(personas, originalPersonality, steerText || null, { threadId });
+  // Compatibility entry point. Discussion turns now use the main composer.
+  document.getElementById('chat-input')?.focus();
 }
 
 export async function startDiscussion() {
   if (getChatAbortController()) return;
+  if (hasPendingAttachments()) {
+    showNotification('Send or remove the attached images before starting a discussion.', 'info', 5000);
+    return;
+  }
 
   reopenCurrentDiscussionThread();
 
@@ -61,8 +88,9 @@ export async function startDiscussionFromPicker() {
   const { allPersonas, newPersonas } = selection;
   removeDiscussPersonaPicker();
 
-  if (newPersonas.length > 0) {
-    // Adding a new persona - only they respond for this turn.
+  if (newPersonas.length === 1) {
+    // The active persona has already answered the current turn. Let only the
+    // newly added perspective weigh in now; everyone joins future user turns.
     return runSingleDiscussionTurn(newPersonas[0], allPersonas);
   }
   return runDiscussion(allPersonas);

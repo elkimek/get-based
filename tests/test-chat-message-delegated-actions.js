@@ -69,6 +69,7 @@ assert('chat-actions delegates dynamic chat controls',
     'delete-summary',
     'start-discussion-from-picker',
     'continue-discussion',
+    'resume-discussion',
     'end-discussion',
   ].every(action => actionsSrc.includes(`action === '${action}'`)));
 assert('chat image message actions use configured module dependencies',
@@ -101,10 +102,10 @@ assert('summary list and modal use delegated summary actions',
     && summariesSrc.includes("chatMessageActionAttrs('download-summary')")
     && summariesSrc.includes("chatMessageActionAttrs('print-summary')")
     && summariesSrc.includes("chatMessageActionAttrs('delete-summary', { summaryId: thread._savedId })"));
-assert('discussion prompt uses delegated buttons and enter key action',
-  discussionUiSrc.includes('data-chat-message-key-action="continue-discussion"')
-    && discussionUiSrc.includes("chatMessageActionAttrs('continue-discussion')")
-    && discussionUiSrc.includes("chatMessageActionAttrs('end-discussion')"));
+assert('discussion mode uses delegated resume and end buttons',
+  discussionUiSrc.includes("chatMessageActionAttrs('resume-discussion')")
+    && discussionUiSrc.includes("chatMessageActionAttrs('end-discussion')")
+    && discussionUiSrc.includes('data-chat-action="start-discussion"'));
 
 console.log(`\nChat message delegated actions tests: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

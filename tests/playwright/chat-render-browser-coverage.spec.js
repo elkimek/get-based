@@ -9,11 +9,12 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
   await page.waitForSelector('#chat-messages', { state: 'attached' });
 
   const results = await page.evaluate(async ({ chatRenderUrl }) => {
-    const [{ state }, chatRender, chatActions, recommendationRuntime] = await Promise.all([
+    const [{ state }, chatRender, chatActions, recommendationRuntime, recommendationDisclosure] = await Promise.all([
       import('/js/state.js'),
       import(chatRenderUrl),
       import('/js/chat-actions.js'),
       import('/js/recommendations-runtime.js'),
+      import('/js/chat-recommendation-disclosure.js'),
     ]);
     const outcomes = {};
     const messages = document.getElementById('chat-messages');
@@ -21,6 +22,7 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
     const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     const saved = {
       chatHistory: state.chatHistory,
+      currentThreadId: state.currentThreadId,
       messagesHTML: messages?.innerHTML,
       messagesId: messages?.id,
       panelClass: panel?.className,
@@ -46,6 +48,24 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         && sourceHost.querySelector('.chat-lens-source-text')?.innerHTML.includes('Ferritin &lt;low&gt;<br>Line two') === true
         && sourceHost.querySelectorAll('.chat-lens-source').length === 2;
       outcomes.lensSourcesEmptyInputReturnsBlank = chatRender._renderLensSources([], '') === '';
+
+      const attentionWrapper = document.createElement('details');
+      attentionWrapper.className = 'rec-chat-wrapper rec-chat-unseen';
+      attentionWrapper.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9999';
+      attentionWrapper.innerHTML = '<summary class="rec-chat-summary">See 2 helpful suggestions</summary>';
+      document.body.appendChild(attentionWrapper);
+      recommendationDisclosure.startRecommendationAttention(attentionWrapper);
+      for (let attempt = 0; attempt < 10 && !attentionWrapper.classList.contains('rec-chat-attention'); attempt++) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+      const attentionStyle = getComputedStyle(attentionWrapper.querySelector('.rec-chat-summary'));
+      const startsThreeFinitePulses = attentionWrapper.classList.contains('rec-chat-attention')
+        && attentionStyle.animationName === 'recChatAttention'
+        && attentionStyle.animationIterationCount === '3';
+      attentionWrapper.querySelector('.rec-chat-summary').dispatchEvent(new Event('animationend'));
+      outcomes.recommendationAttentionIsFiniteAndSelfClearing = startsThreeFinitePulses
+        && !attentionWrapper.classList.contains('rec-chat-attention');
+      attentionWrapper.remove();
 
       if (messages) {
         messages.id = 'chat-messages-off';
@@ -115,6 +135,7 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
           lensSourceName: 'Knowledge <Base>',
           emfHint: true,
           recSlots: ['emf.bedroom', 'sleep.blackout'],
+          recOpen: true,
         },
         {
           role: 'assistant',
@@ -163,12 +184,55 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       }));
       outcomes.emfHintClickUsesEditor = emfOpens === 1;
       outcomes.recommendationSectionsRenderDedupedDisclosure =
-        rendered.querySelector('.rec-chat-summary')?.textContent === 'What can help'
+        rendered.querySelector('.rec-chat-summary')?.textContent === 'See 2 helpful suggestions'
+        && rendered.querySelector('.rec-chat-wrapper')?.open === true
         && rendered.querySelectorAll('.rec-disclosure-banner').length === 1
         && [...rendered.querySelectorAll('.rec-chat-subheading')].map(el => el.textContent).join('|') ===
           'Bedroom EMF|Blackout setup';
+
+      const recommendationMessage = state.chatHistory[3];
+      const initialDisclosure = rendered.querySelector('.rec-chat-wrapper');
+      initialDisclosure.open = false;
+      await new Promise(resolve => setTimeout(resolve, 0));
+      recommendationMessage.recNew = true;
+      chatRender.renderChatMessages();
+      const redisplayedDisclosure = rendered.querySelector('.rec-chat-wrapper');
+      const showedPersistedNewCue = redisplayedDisclosure?.open === false
+        && redisplayedDisclosure.querySelector('.rec-chat-new')?.textContent === 'New'
+        && redisplayedDisclosure.classList.contains('rec-chat-unseen')
+        && !redisplayedDisclosure.classList.contains('rec-chat-attention');
+      redisplayedDisclosure.open = true;
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const seenSummaryStyle = getComputedStyle(redisplayedDisclosure.querySelector('.rec-chat-summary'));
+      outcomes.recommendationChoiceAndDiscoveryStatePersist = showedPersistedNewCue
+        && recommendationMessage.recOpen === true
+        && recommendationMessage.recNew === false
+        && redisplayedDisclosure.querySelector('.rec-chat-new') === null
+        && !redisplayedDisclosure.classList.contains('rec-chat-unseen')
+        && seenSummaryStyle.borderTopColor !== 'rgba(0, 0, 0, 0)'
+        && seenSummaryStyle.backgroundColor !== 'rgba(0, 0, 0, 0)';
+
+      state.currentThreadId = 'render-window-coverage';
+      state.chatHistory = Array.from({ length: 260 }, (_, index) => ({
+        role: index % 2 ? 'assistant' : 'user',
+        content: `Windowed message ${index}`,
+      }));
+      chatRender.renderChatMessages();
+      const initialWindow = [...rendered.querySelectorAll('.chat-msg')];
+      const initialEarlier = rendered.querySelector('.chat-history-earlier');
+      chatRender.showEarlierChatMessages();
+      const expandedWindow = [...rendered.querySelectorAll('.chat-msg')];
+      chatRender.revealChatMessage(3);
+      outcomes.longTranscriptRendersBoundedWindowAndCanRevealHistory =
+        initialWindow.length === 120
+        && initialWindow[0]?.id === 'chat-msg-140'
+        && initialEarlier?.textContent.includes('140 remaining')
+        && expandedWindow.length === 240
+        && expandedWindow[0]?.id === 'chat-msg-20'
+        && rendered.querySelector('#chat-msg-3')?.textContent.includes('Windowed message 3');
     } finally {
       state.chatHistory = saved.chatHistory;
+      state.currentThreadId = saved.currentThreadId;
       if (messages) {
         messages.id = saved.messagesId || 'chat-messages';
         messages.innerHTML = saved.messagesHTML || '';

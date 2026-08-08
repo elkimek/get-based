@@ -8,7 +8,9 @@ import {
   getAIProvider, getActiveModelDisplay, getActiveModelId,
 } from './api.js';
 import { renderMarkdown } from './markdown.js';
-import { buildActionBar, chatMessageActionAttrs } from './chat-actions.js';
+import {
+  buildActionBar, buildForkSourceNotice, buildUserActionBar, chatMessageActionAttrs,
+} from './chat-actions.js';
 import { responseLimitNote } from './chat-continuation.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
 import { updateChatHeaderTitle } from './chat-personalities.js';
@@ -17,6 +19,16 @@ import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
 import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
 import { sanitizeChatThumbnailUrl } from './chat-storage-safety.js';
+import { recommendationSummaryHTML } from './chat-recommendation-disclosure.js';
+import {
+  followChatLatest, initChatScrollControls, notifyChatContentAdded,
+} from './chat-scroll.js';
+import {
+  expandChatRenderWindow,
+  getChatRenderStart,
+  resetChatRenderWindow,
+  revealChatRenderIndex,
+} from './chat-render-range.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -56,20 +68,28 @@ export function _renderLensSources(chunks, sourceName) {
   </details>`;
 }
 
-export function renderChatMessages() {
+/** @param {{ preserveScroll?: boolean }} [options] */
+export function renderChatMessages({ preserveScroll = false } = {}) {
   const container = document.getElementById('chat-messages');
   if (!container) return;
+  initChatScrollControls();
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('chat-onboarding-active');
 
   if (state.chatHistory.length === 0) {
+    resetChatRenderWindow(state.currentThreadId);
     renderEmptyChatState(container, panel);
+    followChatLatest(container, { behavior: 'auto' });
     updateDiscussButton();
     return;
   }
-  let html = '';
+  const renderStart = getChatRenderStart(state.currentThreadId, state.chatHistory.length);
+  let html = buildForkSourceNotice();
+  html += renderStart > 0
+    ? `<div class="chat-history-window"><button type="button" class="chat-history-earlier" ${chatMessageActionAttrs('show-earlier-messages')}>Show earlier messages <span>(${renderStart} remaining)</span></button></div>`
+    : '';
   let lastPersonaName = null;
-  for (let i = 0; i < state.chatHistory.length; i++) {
+  for (let i = renderStart; i < state.chatHistory.length; i++) {
     const msg = state.chatHistory[i];
     const cls = msg.role === 'user' ? 'chat-user' : 'chat-ai';
     // "Joined" system messages
@@ -105,7 +125,9 @@ export function renderChatMessages() {
     const messageBody = msg.error
       ? `<span style="color:var(--red)">${escapeHTML(msg.content)}</span>`
       : renderMarkdown(msg.content);
-    html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${messageBody}${stoppedNote}`;
+    const messageLabel = msg.role === 'user' ? 'You' : msg.personalityName || 'AI response';
+    html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}" role="article" aria-label="${escapeAttr(messageLabel)}">${imageBadge}${messageBody}${stoppedNote}`;
+    if (msg.role === 'user') html += buildUserActionBar(i);
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
@@ -135,7 +157,9 @@ export function renderChatMessages() {
       if (msg.recSlots?.length) {
         const recSections = renderChatRecommendationSections(msg.recSlots);
         if (recSections.length) {
-          html += `<details class="rec-chat-wrapper" ${chatMessageActionAttrs('contain-click')}><summary class="rec-chat-summary">What can help</summary>`;
+          const openAttr = msg.recOpen ? ' open' : '';
+          const unseenClass = msg.recNew ? ' rec-chat-unseen' : '';
+          html += `<details class="rec-chat-wrapper${unseenClass}" ${chatMessageActionAttrs('contain-click', { index: i })}${openAttr}><summary class="rec-chat-summary">${recommendationSummaryHTML(recSections.length, Boolean(msg.recNew))}</summary>`;
           let recBody = recSections.map(s => s.replace('rec-section-header', 'rec-chat-subheading')).join('');
           // Deduplicate disclosure banners (each renderRecommendationSectionSync prepends one)
           let bannerCount = 0;
@@ -149,8 +173,33 @@ export function renderChatMessages() {
   }
   container.innerHTML = html;
   bindRenderedChatContainClicks(container);
-  container.scrollTop = container.scrollHeight;
+  if (preserveScroll) notifyChatContentAdded(container);
+  else followChatLatest(container, { behavior: 'auto' });
   updateDiscussButton();
   updateChatHeaderTitle();
   updateChatInputState();
+}
+
+export function showEarlierChatMessages() {
+  const container = document.getElementById('chat-messages');
+  if (!container || !state.currentThreadId) return false;
+  const previousHeight = container.scrollHeight;
+  const previousTop = container.scrollTop;
+  const nextStart = expandChatRenderWindow(state.currentThreadId, state.chatHistory.length);
+  renderChatMessages({ preserveScroll: true });
+  requestAnimationFrame(() => {
+    container.scrollTop = previousTop + Math.max(0, container.scrollHeight - previousHeight);
+    if (nextStart > 0) /** @type {HTMLElement | null} */ (
+      container.querySelector('.chat-history-earlier')
+    )?.focus();
+  });
+  return true;
+}
+
+/** @param {number} index */
+export function revealChatMessage(index) {
+  if (!state.currentThreadId) return false;
+  const changed = revealChatRenderIndex(state.currentThreadId, index, state.chatHistory.length);
+  if (changed) renderChatMessages({ preserveScroll: true });
+  return changed;
 }

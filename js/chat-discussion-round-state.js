@@ -26,10 +26,19 @@ export function persistDiscussionThreadState(threadId, personas, originalPersona
   saveChatThreadIndex();
 }
 
+export function persistDiscussionPendingPersonas(threadId, personas) {
+  const thread = getThreadById(threadId);
+  if (!thread) return;
+  if (Array.isArray(personas) && personas.length) thread.discussionPendingPersonas = personas;
+  else delete thread.discussionPendingPersonas;
+  saveChatThreadIndex();
+}
+
+/** @param {string | null | undefined} threadId @param {any[]} messages @param {(options?: { preserveScroll?: boolean }) => void} [renderMessages] */
 export function renderRoundMessages(threadId, messages, renderMessages = () => {}) {
   if (!isRoundThreadActive(threadId)) return;
   state.chatHistory = messages;
-  renderMessages();
+  renderMessages({ preserveScroll: true });
 }
 
 export async function saveRoundChatHistory(threadId, messages) {

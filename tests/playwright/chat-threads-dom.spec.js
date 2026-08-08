@@ -15,6 +15,9 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
     const rail = document.getElementById('chat-thread-rail');
     const originalThreads = state.chatThreads.slice();
     const originalThreadId = state.currentThreadId;
+    const originalPersonality = state.currentChatPersonality;
+    const personalityKey = `labcharts-${profileId}-chatPersonality`;
+    const originalStoredPersonality = localStorage.getItem(personalityKey);
     const originalRailState = localStorage.getItem(railKey);
     let savedThreadDeps = null;
     const waitFor = async (fn, timeoutMs = 500) => {
@@ -69,7 +72,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
 
       const threadFixtures = [
         { id: 't_a', name: 'Thyroid Panel Discussion', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 5, personality: 'default' },
-        { id: 't_b', name: 'Vitamin D Levels', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 3, personality: 'default' },
+        { id: 't_b', name: 'Vitamin D Levels', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 3, personality: 'house' },
         { id: 't_c', name: 'Cholesterol Overview', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 2, personality: 'default' },
       ];
       state.chatThreads = threadFixtures.map(thread => ({ ...thread }));
@@ -78,15 +81,19 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       outcomes.allThreadsRendered = document.querySelectorAll('.chat-thread-item').length === 3;
 
       const threadItem = document.querySelector('.chat-thread-item[data-thread-id="t_a"]');
+      const threadSwitch = threadItem?.querySelector('.chat-thread-item-main');
       const renameBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action');
       const deleteBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action.delete');
-      outcomes.threadItemUsesDelegatedSwitch = threadItem?.getAttribute('data-chat-thread-action') === 'switch'
-        && !threadItem.hasAttribute('onclick');
+      outcomes.threadItemUsesNativeDelegatedSwitch = threadSwitch?.tagName === 'BUTTON'
+        && threadSwitch?.getAttribute('data-chat-thread-action') === 'switch'
+        && threadSwitch?.getAttribute('aria-current') === 'false'
+        && !threadSwitch.hasAttribute('onclick');
       outcomes.renameButtonUsesDelegatedAction = renameBtn?.getAttribute('data-chat-thread-action') === 'rename'
         && !renameBtn.hasAttribute('onclick');
       outcomes.deleteButtonUsesDelegatedAction = deleteBtn?.getAttribute('data-chat-thread-action') === 'delete'
         && !deleteBtn.hasAttribute('onclick');
 
+      let stoppedGenerations = 0;
       savedThreadDeps = chatThreads.configureChatThreadDeps({
         saveChatHistory: async () => {},
         loadChatHistory: async () => {},
@@ -98,12 +105,20 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         updatePersonalityBar: () => {},
         getActivePersonality: () => ({ name: 'Default', icon: '' }),
         showPromptDialog: async () => 'Renamed Thread',
+        stopChatGeneration: () => { stoppedGenerations += 1; },
       });
       state.currentThreadId = 't_b';
+      state.currentChatPersonality = 'house';
       rail?.classList.add('open');
       localStorage.setItem(railKey, 'true');
-      threadItem?.click();
+      threadSwitch?.click();
       outcomes.threadItemClickSwitchesThread = await waitFor(() => state.currentThreadId === 't_a');
+      outcomes.threadSwitchRestoresPersonalityAndStopsGeneration =
+        state.currentChatPersonality === 'default'
+        && localStorage.getItem(personalityKey) === 'default'
+        && stoppedGenerations === 1;
+      outcomes.activeThreadIsExposedToAssistiveTechnology =
+        document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-main')?.getAttribute('aria-current') === 'true';
       outcomes.desktopThreadSelectionKeepsSplitRailOpen =
         rail?.classList.contains('open') === true
         && localStorage.getItem(railKey) === 'true';
@@ -151,6 +166,9 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
     } finally {
       state.chatThreads = originalThreads;
       state.currentThreadId = originalThreadId;
+      state.currentChatPersonality = originalPersonality;
+      if (originalStoredPersonality == null) localStorage.removeItem(personalityKey);
+      else localStorage.setItem(personalityKey, originalStoredPersonality);
       if (savedThreadDeps) chatThreads.configureChatThreadDeps(savedThreadDeps);
       if (originalRailState == null) localStorage.removeItem(railKey);
       else localStorage.setItem(railKey, originalRailState);
@@ -211,7 +229,7 @@ test('mobile thread selection and creation return directly to the chat', async (
       rail?.classList.add('open');
       localStorage.setItem(railKey, 'true');
 
-      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"]')?.click();
+      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"] .chat-thread-item-main')?.click();
       outcomes.selectingThreadClosesMobileRail =
         await waitFor(() => state.currentThreadId === 'mobile-a')
         && rail?.classList.contains('open') === false
@@ -219,7 +237,7 @@ test('mobile thread selection and creation return directly to the chat', async (
 
       rail?.classList.add('open');
       localStorage.setItem(railKey, 'true');
-      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"]')?.click();
+      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"] .chat-thread-item-main')?.click();
       outcomes.selectingActiveThreadAlsoClosesMobileRail =
         rail?.classList.contains('open') === false
         && localStorage.getItem(railKey) === 'false';

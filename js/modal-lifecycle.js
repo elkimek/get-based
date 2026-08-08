@@ -107,7 +107,12 @@ export function openAppendedModalOverlay(overlay, closeFn, options = {}) {
   try { wireBackdropClose(overlay, closeFn); } catch (_) {}
   document.body.appendChild(overlay);
   openModalOverlay(overlay, options);
-  try { trapModalFocus(overlay); } catch (_) {}
+  try {
+    trapModalFocus(overlay, {
+      ...(options.focusTrapOptions || {}),
+      autoFocus: options.initialFocus ? false : options.focusTrapOptions?.autoFocus,
+    });
+  } catch (_) {}
 }
 
 const _modalScrollState = (() => {
@@ -172,6 +177,13 @@ function _resolveOverlay(overlayOrId) {
   return overlayOrId;
 }
 
+function _isNodeConnected(node) {
+  if (!node || typeof document === 'undefined') return false;
+  if (typeof document.body?.contains === 'function') return document.body.contains(node);
+  if (typeof document.contains === 'function') return document.contains(node);
+  return node.isConnected !== false;
+}
+
 function _isRestorableFocusTarget(target) {
   return typeof HTMLElement !== 'undefined'
     && target instanceof HTMLElement
@@ -210,6 +222,11 @@ export function openModalOverlay(overlayOrId, options = {}) {
       const currentOverlay = _resolveOverlay(overlayOrId);
       if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
       const target = _resolveFocusTarget(options.initialFocus, currentOverlay);
+      const activeElement = document.activeElement;
+      if (!alreadyShown
+        && activeElement
+        && activeElement !== document.body
+        && currentOverlay.contains(activeElement)) return;
       if (target && typeof target.focus === 'function') {
         try { target.focus(); } catch (_) {}
       }
@@ -251,7 +268,7 @@ function _modalScrollLockOverlay(lock) {
 function _pruneDetachedModalScrollLocks() {
   for (const lock of Array.from(_modalScrollLocks)) {
     const overlay = _modalScrollLockOverlay(lock);
-    if (overlay && !document.body.contains(overlay)) {
+    if (overlay && !_isNodeConnected(overlay)) {
       _modalScrollLocks.delete(lock);
       if (lock?.overlay === overlay) _modalOverlayScrollLockTokens.delete(overlay);
     }
@@ -300,15 +317,20 @@ export function trapModalFocus(overlay, options = {}) {
   const closeOnEscape = options.closeOnEscape !== false;
   _acquireModalScrollLock(overlay);
   let teardown = false;
-  setTimeout(() => {
-    const focusables = overlay.querySelectorAll(
-      'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
-    );
-    const firstFocusable = /** @type {HTMLElement | undefined} */ (focusables[0]);
-    if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
-  }, 30);
+  if (options.autoFocus !== false) {
+    setTimeout(() => {
+      if (!_isNodeConnected(overlay)
+        || (typeof overlay.contains === 'function' && overlay.contains(document.activeElement))
+        || typeof overlay.querySelectorAll !== 'function') return;
+      const focusables = overlay.querySelectorAll(
+        'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
+      );
+      const firstFocusable = /** @type {HTMLElement | undefined} */ (focusables[0]);
+      if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
+    }, 30);
+  }
   const onKeydown = (e) => {
-    if (closeOnEscape && e.key === 'Escape' && document.body.contains(overlay)) {
+    if (closeOnEscape && e.key === 'Escape' && _isNodeConnected(overlay)) {
       e.preventDefault();
       try { overlay.remove(); } catch (_) {}
     }
@@ -320,12 +342,12 @@ export function trapModalFocus(overlay, options = {}) {
     document.removeEventListener('keydown', onKeydown);
     _releaseModalScrollLock(overlay);
     const previousFocusTarget = /** @type {HTMLElement | null} */ (previouslyFocused instanceof HTMLElement ? previouslyFocused : null);
-    if (previousFocusTarget && document.contains(previousFocusTarget)) {
+    if (previousFocusTarget && _isNodeConnected(previousFocusTarget)) {
       try { previousFocusTarget.focus(); } catch (e) {}
     }
   };
   const obs = new MutationObserver(() => {
-    if (!document.body.contains(overlay)) {
+    if (!_isNodeConnected(overlay)) {
       obs.disconnect();
       restore();
     }

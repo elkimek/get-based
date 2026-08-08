@@ -52,7 +52,8 @@ const personalityExports = [
   'getCustomPersonalityText', 'pickPersonaIcon', 'generateCustomPersonality',
   'saveCustomPersonality', 'startNewCustomPersonality', 'deleteCustomPersonality',
   'getActivePersonality', 'autoResizePersonaTextarea', 'markPersonalityDirty',
-  'snapshotPersonalityClean',
+  'snapshotPersonalityClean', 'isOfficialHostedPersonaApp',
+  'hasCurrentPersonaAgreement', 'isCustomPersonalityUsable',
 ];
 for (const name of personalityExports) {
   assert(`${name} exported`, typeof personalities[name] === 'function');
@@ -71,6 +72,21 @@ const iconNull = personalities.pickPersonaIcon(null);
 assert('pickPersonaIcon null returns pencil', iconNull === '✏️');
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 assert('pickPersonaIcon result is from palette', PERSONA_ICONS.includes(icon1), `got: ${icon1}`);
+assert('official getbased hosts require the persona agreement',
+  personalities.isOfficialHostedPersonaApp({ hostname: 'getbased.health' })
+    && personalities.isOfficialHostedPersonaApp({ hostname: 'app.getbased.health' })
+    && personalities.isOfficialHostedPersonaApp({ hostname: 'beta.getbased.health.' }));
+assert('localhost and self-host domains do not require the persona agreement',
+  !personalities.isOfficialHostedPersonaApp({ hostname: 'localhost' })
+    && !personalities.isOfficialHostedPersonaApp({ hostname: 'health.example.com' })
+    && !personalities.isOfficialHostedPersonaApp({ hostname: 'getbased.health.example.com' }));
+const acceptedPersona = {
+  personaAgreement: { accepted: true, version: 1, acceptedAt: '2026-08-08T00:00:00.000Z' },
+};
+assert('hosted custom personas require the current explicit agreement',
+  !personalities.isCustomPersonalityUsable({}, { hostname: 'app.getbased.health' })
+    && personalities.isCustomPersonalityUsable(acceptedPersona, { hostname: 'app.getbased.health' })
+    && personalities.isCustomPersonalityUsable({}, { hostname: 'selfhost.example.com' }));
 
 // ── 3. getCustomPersonalities — array storage ──
 console.log('3. getCustomPersonalities array storage');
@@ -128,7 +144,7 @@ assert('Compat shim: empty returns blank', compatEmpty.promptText === '' && comp
 // ── 7. saveCustomPersonalities ──
 console.log('7. saveCustomPersonalities');
 const testArr = [{ id: 'custom_test1', name: 'Test1', icon: '⚡', promptText: 'p1', evidenceBased: false }];
-personalities.saveCustomPersonalities(testArr);
+await personalities.saveCustomPersonalities(testArr);
 const saved = JSON.parse(localStorage.getItem(key));
 assert('saveCustomPersonalities writes array', Array.isArray(saved));
 assert('saveCustomPersonalities data correct', saved[0].name === 'Test1');
@@ -197,6 +213,7 @@ console.log('16. Service worker version');
 const swSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('custom personality storage module is precached', swSrc.includes("'/js/chat-personality-storage.js'"));
 
 // ── 18. Stop button exports ──
 console.log('18. Stop button');
@@ -232,9 +249,9 @@ assert('getThreadPersonaCount exported', typeof chatDiscussion.getThreadPersonaC
 console.log('22. Discuss button CSS');
 assert('CSS has .chat-discuss-btn', css.includes('.chat-discuss-btn'));
 assert('CSS has .chat-msg-auto', css.includes('.chat-msg-auto'));
-assert('CSS has .chat-discuss-continue', css.includes('.chat-discuss-continue'));
-assert('CSS has .chat-discuss-continue-btn', css.includes('.chat-discuss-continue-btn'));
-assert('CSS has .chat-discuss-done-btn', css.includes('.chat-discuss-done-btn'));
+assert('CSS has persistent discussion mode', css.includes('.chat-discussion-mode'));
+assert('CSS has discussion participants', css.includes('.chat-discussion-participants'));
+assert('CSS has discussion progress', css.includes('.chat-discussion-progress'));
 
 // ── 23. getThreadPersonaCount source ──
 console.log('23. getThreadPersonaCount');
@@ -266,10 +283,11 @@ const discSrc = chatDiscussion.startDiscussion.toString();
 assert('startDiscussion shows persona picker', discSrc.includes('showDiscussPersonaPicker'));
 const pickerSrc = chatDiscussion.startDiscussionFromPicker.toString();
 assert('startDiscussionFromPicker delegates to runDiscussion', pickerSrc.includes('runDiscussion'));
+assert('starting a discussion runs only the newly added perspective first',
+  pickerSrc.includes('newPersonas.length === 1') && pickerSrc.includes('runSingleDiscussionTurn'));
 const contSrc = chatDiscussion.continueDiscussion.toString();
-assert('continueDiscussion removes prompt', contSrc.includes('removeDiscussContinuePrompt'));
-assert('continueDiscussion runs another round', contSrc.includes('runDiscussionContinuation'));
-assert('continueDiscussion reads steer input', contSrc.includes('chat-discuss-steer'));
+assert('continueDiscussion focuses the main composer', contSrc.includes('chat-input') && contSrc.includes('.focus()'));
+assert('continueDiscussion no longer reads a second input', !contSrc.includes('chat-discuss-steer'));
 const endSrc = chatDiscussion.endDiscussion.toString();
 assert('endDiscussion cleans up state', endSrc.includes('cleanupDiscussionState'));
 assert('endDiscussion marks discussion ended', endSrc.includes('markEnded: true'));
@@ -282,10 +300,10 @@ assert('chat window bindings configure discussion callbacks',
   chatWindowBindingsSrc.includes('configureChatDiscussion') && chatWindowBindingsSrc.includes('setChatAbortController'));
 assert('endDiscussion restores personality', endSrc.includes('currentChatPersonality'));
 
-// ── 27. Steer input CSS ──
-console.log('27. Steer input');
-assert('CSS has .chat-discuss-steer', css.includes('.chat-discuss-steer'));
-assert('CSS has .chat-discuss-continue-actions', css.includes('.chat-discuss-continue-actions'));
+// ── 27. Single-composer discussion ──
+console.log('27. Single-composer discussion');
+assert('legacy steer input CSS removed', !css.includes('.chat-discuss-steer'));
+assert('discussion uses main-composer mode bar', css.includes('.chat-discussion-mode-actions'));
 
 // ── Restore ──
 if (origVal !== null) localStorage.setItem(key, origVal);

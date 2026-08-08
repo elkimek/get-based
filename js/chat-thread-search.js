@@ -5,15 +5,18 @@ import { state } from './state.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { escapeHTML } from './utils.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
+import { preferredChatScrollBehavior } from './chat-scroll.js';
 
 /** @type {{
  *   getChatThreadKey: (threadId: string) => string,
  *   renderThreadList: (filter?: string) => void,
+ *   revealMessage: (index: number) => boolean,
  *   switchToThread: (threadId: string) => Promise<void>,
  * }} */
 const threadSearchCallbacks = {
   getChatThreadKey: () => '',
   renderThreadList: () => {},
+  revealMessage: () => false,
   switchToThread: async () => {},
 };
 
@@ -57,6 +60,8 @@ export function filterThreadList(value) {
   }
   // Instant: filter thread names
   threadSearchCallbacks.renderThreadList(value);
+  const list = document.getElementById('chat-thread-list');
+  if (list) list.insertAdjacentHTML('beforeend', '<div class="chat-search-progress" role="status">Searching messages…</div>');
   // Debounced: search message content
   if (_threadSearchTimer !== null) clearTimeout(_threadSearchTimer);
   _threadSearchTimer = setTimeout(() => searchThreadContent(value.trim()), 250);
@@ -65,8 +70,12 @@ export function filterThreadList(value) {
 async function searchThreadContent(query) {
   const q = query.toLowerCase();
   const results = [];
+  let scannedThreads = 0;
   for (const t of state.chatThreads) {
+    const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
+    if (!input || input.value.trim().toLowerCase() !== q) return;
     const messages = await getThreadMessages(t.id);
+    scannedThreads += 1;
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i];
       if (!m.content) continue;
@@ -83,6 +92,8 @@ async function searchThreadContent(query) {
       if (results.length > SEARCH_RESULT_LIMIT) break;
     }
     if (results.length > SEARCH_RESULT_LIMIT) break;
+    const progress = document.querySelector('.chat-search-progress');
+    if (progress) progress.textContent = `Searching messages… ${scannedThreads}/${state.chatThreads.length}`;
   }
   // Re-check input hasn't changed
   const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
@@ -93,22 +104,30 @@ async function searchThreadContent(query) {
 function showSearchResults(results) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
+  const query = input?.value?.trim() || '';
+  threadSearchCallbacks.renderThreadList(query);
+  const hasNameMatches = !list.textContent.includes('No matching');
+  const nameResults = hasNameMatches
+    ? `<div class="chat-search-results-label">Conversations</div>${list.innerHTML}`
+    : '';
+  if (results.length === 0 && !hasNameMatches) {
+    list.innerHTML = '<div class="chat-search-empty">No matches in conversations or messages</div>';
+    return;
+  }
   if (results.length === 0) {
-    // Append "no message matches" if thread list already shows no results
-    if (list.textContent.includes('No matching')) {
-      list.innerHTML = '<div style="padding:12px 10px;font-size:11px;color:var(--text-muted);text-align:center">No matches in conversations or messages</div>';
-    }
+    list.innerHTML = nameResults;
     return;
   }
   const visibleResults = results.slice(0, SEARCH_RESULT_LIMIT);
   const truncated = results.length > SEARCH_RESULT_LIMIT ? `<div style="padding:6px 10px;font-size:10px;color:var(--text-muted);text-align:center">Showing first ${SEARCH_RESULT_LIMIT} matches</div>` : '';
-  list.innerHTML = `<div class="chat-search-results-label">Messages</div>` +
+  list.innerHTML = nameResults + `<div class="chat-search-results-label">Messages</div>` +
     visibleResults.map(r => {
       const icon = r.role === 'user' ? '\uD83D\uDCDD' : '\uD83E\uDD16';
-      return `<div class="chat-search-result" ${chatMessageActionAttrs('jump-search-result', { threadId: r.threadId, index: r.msgIndex, prefix: r.contentPrefix })}>
-        <div class="chat-search-result-thread">${escapeHTML(r.threadName)}</div>
-        <div class="chat-search-result-snippet">${icon} ${escapeHTML(r.pre)}<mark>${escapeHTML(r.match)}</mark>${escapeHTML(r.post)}</div>
-      </div>`;
+      return `<button type="button" class="chat-search-result" ${chatMessageActionAttrs('jump-search-result', { threadId: r.threadId, index: r.msgIndex, prefix: r.contentPrefix })}>
+        <span class="chat-search-result-thread">${escapeHTML(r.threadName)}</span>
+        <span class="chat-search-result-snippet">${icon} ${escapeHTML(r.pre)}<mark>${escapeHTML(r.match)}</mark>${escapeHTML(r.post)}</span>
+      </button>`;
     }).join('') + truncated;
 }
 
@@ -121,6 +140,7 @@ export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
     // Restore search results after thread switch re-rendered the list
     if (query) searchThreadContent(query);
   }
+  threadSearchCallbacks.revealMessage(msgIndex);
   // Wait for DOM to settle after potential re-render
   requestAnimationFrame(() => {
     let msgEl = document.getElementById('chat-msg-' + msgIndex);
@@ -130,7 +150,10 @@ export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
       if (actual !== contentPrefix) {
         // Index shifted — find the right message
         const correctIdx = state.chatHistory.findIndex(m => m.content && m.content.slice(0, 50) === contentPrefix);
-        if (correctIdx !== -1) msgEl = document.getElementById('chat-msg-' + correctIdx);
+        if (correctIdx !== -1) {
+          threadSearchCallbacks.revealMessage(correctIdx);
+          msgEl = document.getElementById('chat-msg-' + correctIdx);
+        }
         else msgEl = null;
       }
     }
@@ -140,7 +163,7 @@ export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
     document.querySelectorAll('.chat-msg-highlight').forEach(m => m.classList.remove('chat-msg-highlight'));
     if (query) highlightInMessage(msgEl, query);
     const mark = msgEl.querySelector('.chat-search-mark');
-    (mark || msgEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (mark || msgEl).scrollIntoView({ behavior: preferredChatScrollBehavior(), block: 'center' });
     msgEl.classList.add('chat-msg-highlight');
   });
 }

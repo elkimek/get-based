@@ -5,11 +5,11 @@ import './chat-window-bindings.js';
 
 export { renderChatMessages } from './chat-render.js';
 export { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
-export { handleChatKeydown, isChatStreaming, sendChatMessage } from './chat-send.js';
+export { handleChatKeydown, isChatStreaming, sendChatMessage, stopChatGeneration } from './chat-send.js';
 export {
-  autoResizePersonaTextarea, deleteCustomPersonality, editCustomPersonality,
+  autoResizePersonaTextarea, cancelCustomPersonalityEditor, deleteCustomPersonality, editCustomPersonality,
   generateCustomPersonality, getActivePersonality, getCustomPersonalities,
-  getCustomPersonality, getCustomPersonalityText, loadChatPersonality,
+  getCustomPersonality, getCustomPersonalityText, loadCustomPersonalities, loadChatPersonality,
   markPersonalityDirty, pickPersonaIcon, saveCustomPersonalities,
   saveCustomPersonality, setChatPersonality, snapshotPersonalityClean,
   startNewCustomPersonality, togglePersonalityBar, updateChatHeaderModel,
@@ -29,6 +29,7 @@ export {
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 export {
   cleanupDiscussionState, continueDiscussion, endDiscussion,
+  resumeDiscussion,
   getCurrentDiscussionState, getThreadPersonaCount,
   removeDiscussContinuePrompt, restoreDiscussionContinuePrompt,
   sendDiscussionUserTurn, showDiscussContinuePrompt, startDiscussion,

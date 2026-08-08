@@ -27,6 +27,7 @@ const REMOTE_SPEECH_CHUNK_CHARACTERS = 3500;
 let captureSession = null;
 let captureState = 'idle';
 let captureStartedAt = 0;
+let capturePrivacyText = '';
 /** @type {ReturnType<typeof setInterval> | null} */
 let captureTicker = null;
 /** @type {AbortController | null} */
@@ -79,7 +80,7 @@ function startCaptureTicker() {
   clearCaptureTicker();
   captureTicker = setInterval(() => {
     if (captureState !== 'recording') return;
-    setCaptureUi('recording', `Listening · ${formatElapsed(Date.now() - captureStartedAt)} · tap to finish`);
+    setCaptureUi('recording', `Listening · ${formatElapsed(Date.now() - captureStartedAt)} · ${capturePrivacyText} · tap to finish`);
   }, 1000);
 }
 
@@ -177,6 +178,12 @@ async function startVoiceRecording() {
   const activityEpoch = voiceActivityEpoch;
   stopSpeechPlayback();
   const settings = getVoiceSettings();
+  const inputProvider = getVoiceProviderDefinition(settings.inputProvider);
+  capturePrivacyText = inputProvider.privacy === 'local'
+    ? 'audio stays on this device'
+    : inputProvider.privacy === 'local-network'
+      ? `audio goes to ${inputProvider.label}`
+      : `audio will be sent to ${inputProvider.label}`;
   if (settings.inputProvider === 'browser-local') {
     let modelReady = isLocalVoiceModelReady(
       'stt',
@@ -206,7 +213,7 @@ async function startVoiceRecording() {
       return false;
     }
     captureStartedAt = Date.now();
-    setCaptureUi('recording', 'Listening · 0:00 · tap to finish');
+    setCaptureUi('recording', `Listening · 0:00 · ${capturePrivacyText} · tap to finish`);
     startCaptureTicker();
     return true;
   } catch (error) {

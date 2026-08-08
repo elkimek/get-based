@@ -545,7 +545,7 @@ test('chat discussion flow guards and empty rounds cover no-network browser cont
       await flow.startDiscussionFromPicker();
       outcomes.flowGuardBranchesAvoidUiWork =
         !document.querySelector('.chat-discuss-picker')
-        && !document.querySelector('.chat-discuss-continue');
+        && !document.querySelector('.chat-discussion-mode');
 
       currentAbortController = null;
       await turns.runDiscussionContinuation([], 'default', 'No-network steer', { threadId: 'discussion-empty' });
@@ -561,7 +561,7 @@ test('chat discussion flow guards and empty rounds cover no-network browser cont
         && state.chatThreads[0].discussionOriginalPersonality === 'default'
         && Array.isArray(state.chatThreads[0].discussionPersonas);
       outcomes.emptyRoundsShowContinuePromptWithoutRenderingMessages =
-        document.querySelector('.chat-discuss-continue') !== null
+        document.querySelector('.chat-discussion-mode') !== null
         && renderCalls === 0;
     } finally {
       callbacks.configureChatDiscussion({

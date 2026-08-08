@@ -11,6 +11,17 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.13.0', date: '2026-08-08', title: 'A completely redesigned Chat',
+    items: [
+      '<b>Chat has been redesigned from the ground up.</b> The message box grows for longer prompts, drafts stay with their conversations, and the experience works more naturally across desktop and mobile.',
+      '<b>Conversations are easier to navigate.</b> Search your chats, jump to the latest reply, edit and retry your latest question, or fork an assistant reply into a new chat without losing its context.',
+      '<b>Discussion mode is clearer and more predictable.</b> Choose the participants, follow whose turn it is, pause a discussion, and retry an individual response when needed.',
+      '<b>Custom personalities are easier to create and manage.</b> The new editor provides more room for detailed instructions, while saved personalities persist securely across refreshes, encrypted backups, and synchronized devices.',
+      '<b>Responses and helpful suggestions are less disruptive.</b> Streaming status is clearer, and new suggestions remain noticeable without automatically opening after every response.',
+      '<b>Accessibility and mobile usability have been improved throughout.</b> Chat now works better with keyboards, touch controls, screen readers, smaller displays, and reduced-motion preferences.',
+    ]
+  },
+  {
     version: '1.12.2', date: '2026-08-07', title: 'Easier, more reliable sync setup',
     items: [
       '<b>Joining an existing sync identity now keeps you informed.</b> You can see when sync is starting, when the 24 words are being checked, and whether the device is reloading or needs you to try again.',

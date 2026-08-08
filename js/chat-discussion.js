@@ -6,6 +6,7 @@ export { configureChatDiscussion } from './chat-discussion-callbacks.js';
 export { removeDiscussContinuePrompt, updateDiscussButton } from './chat-discussion-ui.js';
 export {
   cleanupDiscussionState, continueDiscussion, endDiscussion,
+  resumeDiscussion,
   restoreDiscussionContinuePrompt, sendDiscussionUserTurn, showDiscussContinuePrompt,
   startDiscussion, startDiscussionFromPicker,
 } from './chat-discussion-flow.js';

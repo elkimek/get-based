@@ -9,7 +9,10 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ chatImagesUrl }) => {
-    const chatImages = await import(chatImagesUrl);
+    const [chatImages, { state }] = await Promise.all([
+      import(chatImagesUrl),
+      import('/js/state.js'),
+    ]);
     const outcomes = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -27,6 +30,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const originalHdClass = hdBtn?.className;
     const originalAttachDisplay = attachBtn?.style.display;
     const originalInputFiles = input ? Object.getOwnPropertyDescriptor(input, 'files') : null;
+    const originalThreadId = state.currentThreadId;
     let sendButtonRefreshes = 0;
 
     const pngBytes = Uint8Array.from(atob(
@@ -70,6 +74,21 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         && preview?.style.display === 'flex'
         && preview?.querySelector('.chat-attach-count')?.textContent === '1/5'
         && preview?.querySelector('img')?.getAttribute('alt') === 'tiny <lab>.png';
+
+      const attachmentMessage = {};
+      chatImages.rememberMessageAttachments(attachmentMessage, chatImages.getPendingAttachments());
+      state.currentThreadId = 'attachment-other-thread';
+      chatImages.refreshAttachmentDraft();
+      const otherThreadStartsEmpty = chatImages.getPendingAttachments().length === 0
+        && preview?.style.display === 'none';
+      state.currentThreadId = originalThreadId;
+      chatImages.refreshAttachmentDraft();
+      outcomes.attachmentsAreScopedPerThread = otherThreadStartsEmpty
+        && chatImages.getPendingAttachments()[0]?.name === 'tiny <lab>.png';
+
+      chatImages.clearAttachments();
+      outcomes.sentImageCanBeRestoredForRetry = chatImages.restoreMessageAttachments(attachmentMessage) === true
+        && chatImages.getPendingAttachments()[0]?.name === 'tiny <lab>.png';
 
       chatImages.removeImageAttachment(0);
       outcomes.removeImageClearsPreview = chatImages.getPendingAttachments().length === 0
@@ -136,7 +155,10 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
 
       chatImages.openImageLightbox('data:image/png;base64,abc');
       const lightbox = document.querySelector('.chat-lightbox');
-      outcomes.lightboxOpens = !!lightbox?.querySelector('img[alt="Full image"]');
+      outcomes.lightboxOpens = lightbox?.getAttribute('role') === 'dialog'
+        && lightbox?.getAttribute('aria-modal') === 'true'
+        && !!lightbox.querySelector('img[alt="Attached image preview"]')
+        && document.activeElement === lightbox.querySelector('.chat-lightbox-close');
       lightbox?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       outcomes.lightboxClickCloses = !document.querySelector('.chat-lightbox');
 
@@ -157,6 +179,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       }
       if (attachBtn) attachBtn.style.display = originalAttachDisplay || '';
       if (input && originalInputFiles) Object.defineProperty(input, 'files', originalInputFiles);
+      state.currentThreadId = originalThreadId;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
@@ -318,7 +341,7 @@ test('chat thread search covers message results clearing and jump highlighting',
 
 test('chat panel browser coverage toggles web search and panel chrome', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-panel');
+  await page.waitForSelector('#chat-panel', { state: 'attached' });
 
   const results = await page.evaluate(async ({ chatPanelUrl }) => {
     const [{ state }, chatPanel] = await Promise.all([
@@ -428,6 +451,57 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
     }
 
     return outcomes;
+  }, {
+    chatPanelUrl: moduleUrl('/js/chat-panel.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('mobile chat panel behaves as a modal and restores the page on close', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-panel', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ chatPanelUrl }) => {
+    const chatPanel = await import(chatPanelUrl);
+    const panel = document.getElementById('chat-panel');
+    const trigger = document.getElementById('sidebar-toggle');
+    const main = document.querySelector('.main');
+    const sidebar = document.querySelector('.sidebar');
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return [key, key ? localStorage.getItem(key) : null];
+    }));
+
+    try {
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      trigger?.focus();
+      await chatPanel.openChatPanel();
+      const opensAsModal = panel?.getAttribute('role') === 'dialog'
+        && panel?.getAttribute('aria-modal') === 'true'
+        && panel?.getAttribute('aria-hidden') === 'false'
+        && main?.inert === true
+        && sidebar?.inert === true;
+
+      chatPanel.closeChatPanel();
+      return {
+        opensAsModal,
+        closeHidesMobileDialog: panel?.getAttribute('aria-hidden') === 'true'
+          && !panel?.hasAttribute('aria-modal'),
+        closeRestoresBackground: main?.inert === false && sidebar?.inert === false,
+        closeRestoresTriggerFocus: document.activeElement === trigger,
+      };
+    } finally {
+      chatPanel.closeChatPanel();
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
   }, {
     chatPanelUrl: moduleUrl('/js/chat-panel.js'),
   });
@@ -640,16 +714,19 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
       const firstPicker = document.querySelector('.discuss-persona-picker');
       const firstInputs = [...firstPicker.querySelectorAll('input:not([data-locked="1"])')];
       firstInputs[0].click();
-      firstInputs[1].click();
-      outcomes.newDiscussionPickerRequiresTwoSelections =
+      outcomes.newDiscussionPickerRequiresOneAdditionalSelection =
         firstPicker.querySelector('.discuss-picker-start')?.disabled === false
+        && firstPicker.querySelector('.discuss-picker-start')?.textContent.includes('1 response')
         && firstPicker.querySelector('.discuss-picker-start')?.getAttribute('data-chat-message-action') === 'start-discussion-from-picker'
         && !firstPicker.querySelector('.discuss-picker-start')?.hasAttribute('onclick')
         && picker.readDiscussPersonaPickerSelection()?.allPersonas.length === 2
-        && firstInputs.slice(2).every(input => input.disabled);
+        && firstInputs.slice(1).every(input => input.disabled)
+        && firstPicker.querySelector('input[data-locked="1"]')?.value === 'default';
 
       picker.removeDiscussPersonaPicker();
       state.chatHistory = [{ role: 'assistant', personalityName: CHAT_PERSONALITIES[0].name, personalityIcon: CHAT_PERSONALITIES[0].icon, content: 'First opinion' }];
+      state.chatThreads[0].discussionPersonas = personas;
+      state.chatThreads[0].discussionOriginalPersonality = 'default';
       picker.showDiscussPersonaPicker();
       const addPicker = document.querySelector('.discuss-persona-picker');
       const locked = addPicker.querySelector('input[data-locked="1"]');
@@ -662,25 +739,25 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
         && selection?.newPersonas.length === 1;
 
       lifecycle.showDiscussContinuePrompt(personas, 'default');
-      outcomes.continuePromptPersistsThreadState = !!document.querySelector('.chat-discuss-continue')
-        && document.querySelector('.chat-discuss-steer')?.getAttribute('data-chat-message-key-action') === 'continue-discussion'
-        && document.querySelector('.chat-discuss-continue-btn')?.getAttribute('data-chat-message-action') === 'continue-discussion'
-        && document.querySelector('.chat-discuss-done-btn')?.getAttribute('data-chat-message-action') === 'end-discussion'
+      outcomes.discussionModePersistsThreadState = !!document.querySelector('.chat-discussion-mode')
+        && document.querySelector('.chat-discussion-end')?.getAttribute('data-chat-message-action') === 'end-discussion'
+        && document.querySelector('.chat-discussion-add')?.getAttribute('data-chat-action') === 'start-discussion'
+        && document.getElementById('chat-input')?.placeholder === 'Reply to the discussion…'
         && state.chatThreads[0].discussionPersonas?.length === 2
         && state._discussionPersonas?.length === 2;
 
       lifecycle.cleanupDiscussionState();
-      outcomes.cleanupRemovesTransientUiKeepsThreadMetadata = !document.querySelector('.chat-discuss-continue')
+      outcomes.cleanupRemovesTransientUiKeepsThreadMetadata = !document.querySelector('.chat-discussion-mode')
         && !document.querySelector('.discuss-persona-picker')
         && state.chatThreads[0].discussionPersonas?.length === 2;
 
       lifecycle.restoreDiscussionContinuePrompt();
-      outcomes.restoreDiscussionPromptUsesThreadMetadata = !!document.querySelector('.chat-discuss-continue');
+      outcomes.restoreDiscussionPromptUsesThreadMetadata = !!document.querySelector('.chat-discussion-mode');
 
       lifecycle.finishDiscussionRound(personas, 'default', 'discussion-thread');
       outcomes.finishRoundRestoresPersonality = state.currentChatPersonality === 'default'
         && localStorage.getItem(`labcharts-${state.currentProfile}-chatPersonality`) === 'default'
-        && !!document.querySelector('.chat-discuss-continue');
+        && !!document.querySelector('.chat-discussion-mode');
 
       state._discussionOriginalPersonality = 'longevity';
       lifecycle.endDiscussion();
@@ -703,7 +780,7 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
       state.currentThreadId = original.currentThreadId;
       state.currentChatPersonality = original.currentChatPersonality;
       document.querySelector('.discuss-persona-picker')?.remove();
-      document.querySelector('.chat-discuss-continue')?.remove();
+      document.querySelector('.chat-discussion-mode')?.remove();
       const messages = document.getElementById('chat-messages');
       if (messages && original.messagesHTML != null) messages.innerHTML = original.messagesHTML;
       const inputArea = document.querySelector('.chat-input-area');

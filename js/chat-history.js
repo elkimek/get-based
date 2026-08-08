@@ -78,5 +78,6 @@ export async function clearChatHistory() {
     updateChatHeaderTitle();
     updateDiscussButtonRuntime();
     showNotification('Chat history cleared', 'info');
+    document.querySelector('.chat-more-menu')?.removeAttribute('open');
   }
 }

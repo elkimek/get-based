@@ -82,6 +82,8 @@ describe('JSON restore runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    runtime.encryptedGetItem.mockImplementation(async key => localStorage.getItem(key));
+    runtime.encryptedSetItem.mockImplementation(async (key, value) => localStorage.setItem(key, value));
     runtime.state.currentProfile = 'profile-1';
     runtime.state.importedData = {
       entries: [{ date: '2026-01-10', markers: { glucose: 90 } }],
@@ -112,6 +114,41 @@ describe('JSON restore runtime', () => {
       notes: [{ date: '2026-01-01', text: 'Existing note' }],
       importSnapshots: [{ id: 'snap-existing', importedAt: 10 }],
     };
+  });
+
+  it('restores a persona-only chat backup without requiring a conversation thread', async () => {
+    const backup = {
+      entries: [],
+      chat: {
+        threads: [],
+        messages: {},
+        personality: 'custom_portable',
+        customPersonalities: [{
+          id: 'custom_portable',
+          name: 'Portable Coach',
+          icon: 'P',
+          promptText: 'Use a calm systems-thinking style.',
+          personaAgreement: {
+            accepted: true,
+            version: 1,
+            acceptedAt: '2026-08-08T10:00:00.000Z',
+            host: 'app.getbased.health',
+            statement: 'Accepted for personal use.',
+          },
+        }],
+      },
+    };
+
+    await importDataJSON(new File([JSON.stringify(backup)], 'persona-only.json', { type: 'application/json' }));
+
+    expect(localStorage.getItem('labcharts-profile-1-chatPersonality')).toBe('custom_portable');
+    expect(JSON.parse(localStorage.getItem('labcharts-profile-1-chatPersonalityCustom')))
+      .toEqual([expect.objectContaining({
+        id: 'custom_portable',
+        promptText: 'Use a calm systems-thinking style.',
+        personaAgreement: expect.objectContaining({ accepted: true, version: 1 }),
+      })]);
+    expect(runtime.refreshImportRuntimeShell).toHaveBeenCalledWith({ chat: true });
   });
 
   it('merges a rich backup without duplicating same-date or stable-id data', async () => {

@@ -7,6 +7,7 @@ import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import {
   continueDiscussion,
   endDiscussion,
+  resumeDiscussion,
   startDiscussionFromPicker,
   updateDiscussButton,
 } from './chat-discussion.js';
@@ -24,8 +25,15 @@ import {
 } from './chat-panel.js';
 import { configureChatOnboardingHostBindings } from './chat-onboarding-host-bindings.js';
 import { configureChatRuntimeCallbacks } from './chat-runtime.js';
-import { renderChatMessages } from './chat-render.js';
-import { isChatStreaming, sendChatMessage } from './chat-send.js';
+import { renderChatMessages, revealChatMessage, showEarlierChatMessages } from './chat-render.js';
+import {
+  beginChatMessageEdit,
+  cancelChatMessageEdit,
+  configureChatMessageEditDeps,
+  forkChatFromMessage,
+  submitChatMessageEdit,
+} from './chat-message-edit.js';
+import { isChatStreaming, sendChatMessage, stopChatGeneration } from './chat-send.js';
 import {
   closeSummaryModal,
   copySummary,
@@ -34,12 +42,13 @@ import {
   printSummary,
   viewSavedSummary,
 } from './chat-summaries.js';
-import { jumpToSearchResult } from './chat-thread-search.js';
+import { configureChatThreadSearch, jumpToSearchResult } from './chat-thread-search.js';
 import { updateChatNudge } from './chat-nudge.js';
 import {
   updateChatHeaderModel,
 } from './chat-personalities.js';
 import { stopVoiceActivity, toggleMessageSpeech } from './voice-loader.js';
+import { switchToThread } from './chat-threads.js';
 let initialized = false;
 
 function resumeAI() {
@@ -71,6 +80,7 @@ export function configureAppChatHooks(deps = {}) {
     updateChatHeaderModel,
     updateChatNudge,
   });
+  configureChatMessageEditDeps({ renderChatMessages, sendChatMessage, updateChatInputState });
   configureChatMessageActionDeps({
     closeSummaryModal,
     continueDiscussion,
@@ -78,14 +88,24 @@ export function configureAppChatHooks(deps = {}) {
     deleteSavedSummary,
     downloadSummary,
     endDiscussion,
+    editUserMessage: beginChatMessageEdit,
+    forkMessage: forkChatFromMessage,
     jumpToSearchResult,
     openImageLightbox,
+    pauseDiscussion: stopChatGeneration,
     printSummary,
+    cancelMessageEdit: cancelChatMessageEdit,
     removeImageAttachment,
+    resumeDiscussion,
+    retryDiscussionParticipant: resumeDiscussion,
+    showEarlierMessages: showEarlierChatMessages,
     startDiscussionFromPicker,
+    submitMessageEdit: submitChatMessageEdit,
+    switchThread: switchToThread,
     toggleMessageSpeech,
     viewSavedSummary,
   });
+  configureChatThreadSearch({ revealMessage: revealChatMessage });
 
   if (!initialized) {
     initialized = true;

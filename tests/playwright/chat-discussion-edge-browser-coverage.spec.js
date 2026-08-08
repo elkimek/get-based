@@ -171,8 +171,9 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
         && modes.at(-1) === 'idle'
         && state.currentChatPersonality === 'default';
       outcomes.singleTurnRendersLocalErrorWithoutNetwork =
-        messages?.textContent.includes('Unknown AI provider: coverage-unknown') === true
-        && document.querySelector('.chat-discuss-continue') !== null;
+        messages?.textContent.includes("Couldn't get Reviewer\'s response") === true
+        && document.querySelector('.chat-discussion-mode') !== null
+        && thread?.discussionPendingPersonas?.[0]?.id === 'house';
     } finally {
       callbacks.configureChatDiscussion({
         createTypewriter: null,
@@ -187,7 +188,7 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
       state.chatHistory = original.chatHistory;
       state.chatThreads = original.chatThreads;
       if (messages && original.messagesHTML != null) messages.innerHTML = original.messagesHTML;
-      document.querySelector('.chat-discuss-continue')?.remove();
+      document.querySelector('.chat-discussion-mode')?.remove();
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

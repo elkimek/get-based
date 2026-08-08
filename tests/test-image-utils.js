@@ -160,8 +160,9 @@ assert('chat-send.js wires send-button refresh into chat-images without a window
     && chatSendSrc.includes('configureChatImages({ updateSendButtonState })')
     && !chatSendSrc.includes('Object.assign(window, { updateSendButtonState')
     && !chatImagesSrc.includes('window.updateSendButtonState'));
-assert('Pending attachments variable lives in chat-images.js',
-  chatImagesSrc.includes('_pendingAttachments'));
+assert('Pending attachments are scoped by thread in chat-images.js',
+  chatImagesSrc.includes('pendingAttachmentsByThread')
+    && chatImagesSrc.includes('attachmentDraftKey'));
 assert('chat-images.js imports isValidImageType + resizeImage',
   chatImagesSrc.includes('isValidImageType') && chatImagesSrc.includes('resizeImage'));
 assert('Image badge in renderChatMessages', chatRenderSrc.includes('chat-image-badge'));

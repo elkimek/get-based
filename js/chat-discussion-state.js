@@ -50,6 +50,7 @@ export function clearCurrentDiscussionThreadState({ clearThread = false, markEnd
 
   delete thread.discussionPersonas;
   delete thread.discussionOriginalPersonality;
+  delete thread.discussionPendingPersonas;
   if (markEnded) thread.discussionEnded = true;
   else delete thread.discussionEnded;
   saveChatThreadIndex();

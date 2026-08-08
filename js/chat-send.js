@@ -12,13 +12,17 @@ import {
 import { buildVisionContent, formatImageBlock } from './image-utils.js';
 import {
   clearAttachments, configureChatImages, getPendingAttachments, hasPendingAttachments,
+  rememberMessageAttachments,
 } from './chat-images.js';
+import {
+  configureChatComposer, initChatComposer, resetChatComposer,
+} from './chat-composer.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
 import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { renderMarkdown } from './markdown.js';
 import { setIconButtonContent } from './chat-icons.js';
-import { renderChatMessages } from './chat-render.js';
+import { _renderLensSources, renderChatMessages } from './chat-render.js';
 import {
   CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
   isAIResponseTruncated, responseLimitNote,
@@ -44,6 +48,17 @@ import {
   isChatSendEMFRelevant,
 } from './chat-send-runtime.js';
 import { maybeAutoReadAssistantMessage } from './voice-loader.js';
+import {
+  initChatScrollControls, notifyChatContentAdded,
+} from './chat-scroll.js';
+import {
+  getRecommendationDisclosureState, recommendationSummaryHTML, startRecommendationAttention,
+} from './chat-recommendation-disclosure.js';
+import {
+  getPendingChatMessageEditText,
+  prepareChatMessageEditSend,
+} from './chat-message-edit.js';
+import { setChatStreamStatus } from './chat-stream-status.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -63,6 +78,10 @@ export function setChatAbortController(controller) {
   _chatAbortController = controller;
 }
 
+export function stopChatGeneration() {
+  _chatAbortController?.abort();
+}
+
 // ═══════════════════════════════════════════════
 // TYPEWRITER — smooth character trickle for streaming
 // ═══════════════════════════════════════════════
@@ -76,24 +95,6 @@ export function createTypewriter(el, typingEl, container) {
   let displayed = 0;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let timer = null;
-  let autoScrollLocked = false;
-
-  function isNearBottom() {
-    return container.scrollHeight - container.scrollTop - container.clientHeight < 80;
-  }
-  function onWheel(e) { if (e.deltaY < 0) autoScrollLocked = true; }
-  function onTouchMove() { autoScrollLocked = true; }
-  function onScroll() { if (isNearBottom()) autoScrollLocked = false; }
-
-  container.addEventListener('wheel', onWheel, { passive: true });
-  container.addEventListener('touchmove', onTouchMove, { passive: true });
-  container.addEventListener('scroll', onScroll, { passive: true });
-
-  function cleanup() {
-    container.removeEventListener('wheel', onWheel);
-    container.removeEventListener('touchmove', onTouchMove);
-    container.removeEventListener('scroll', onScroll);
-  }
 
   function tick() {
     if (displayed >= target.length) { timer = null; return; }
@@ -103,19 +104,27 @@ export function createTypewriter(el, typingEl, container) {
     if (typingEl.parentNode) typingEl.remove();
     if (!el.parentNode) container.appendChild(el);
     el.textContent = target.slice(0, displayed);
-    if (!autoScrollLocked) container.scrollTop = container.scrollHeight;
+    notifyChatContentAdded(container);
     timer = setTimeout(tick, 16);
   }
 
   return {
     update(text) {
       target = text;
+      if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        if (timer) { clearTimeout(timer); timer = null; }
+        displayed = target.length;
+        if (typingEl.parentNode) typingEl.remove();
+        if (!el.parentNode) container.appendChild(el);
+        el.textContent = target;
+        notifyChatContentAdded(container);
+        return;
+      }
       if (!timer) tick();
     },
     stop() {
       if (timer) { clearTimeout(timer); timer = null; }
       displayed = target.length;
-      cleanup();
     }
   };
 }
@@ -134,6 +143,9 @@ export function updateSendButtonState() {
   sendBtn.disabled = !hasContent && !_chatAbortController;
 }
 configureChatImages({ updateSendButtonState });
+configureChatComposer({ updateSendButtonState });
+initChatComposer();
+initChatScrollControls();
 
 // ═══════════════════════════════════════════════
 // SEND BUTTON STATE
@@ -144,10 +156,14 @@ export function setSendButtonMode(btn, mode) {
     btn.disabled = false;
     setIconButtonContent(btn, 'stop');
     btn.classList.add('streaming');
+    btn.setAttribute('aria-label', 'Stop generating');
+    btn.title = 'Stop generating';
   } else {
-    btn.disabled = false;
     setIconButtonContent(btn, 'send');
     btn.classList.remove('streaming');
+    btn.setAttribute('aria-label', 'Send message');
+    btn.title = 'Send message';
+    updateSendButtonState();
   }
 }
 
@@ -171,8 +187,10 @@ export async function sendChatMessage() {
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages'));
   if (!input || !sendBtn || !container) return;
-  const text = input.value.trim();
-  const hasImages = hasPendingAttachments();
+  const pendingEditText = getPendingChatMessageEditText();
+  const isEditedRetry = pendingEditText != null;
+  const text = (pendingEditText ?? input.value).trim();
+  const hasImages = !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
 
   // Capture attachments before clearing (they're ephemeral)
@@ -183,6 +201,8 @@ export async function sendChatMessage() {
     createNewThread();
     if (!state.currentThreadId) return;
   }
+  const editPreparation = prepareChatMessageEditSend();
+  if (editPreparation === false) return;
 
   const discussionState = text && !hasImages ? getCurrentDiscussionState() : null;
 
@@ -195,11 +215,13 @@ export async function sendChatMessage() {
     userMsg.hasImages = true;
     userMsg.imageCount = attachments.length;
     userMsg.thumbnails = attachments.map(a => a.thumbUrl).filter(Boolean);
+    rememberMessageAttachments(userMsg, attachments);
   }
   state.chatHistory.push(userMsg);
-  input.value = '';
-  input.style.height = '';
-  clearAttachments();
+  if (!editPreparation) {
+    resetChatComposer();
+    clearAttachments();
+  }
   renderChatMessages();
   await saveChatHistory(); // persist immediately so messages survive API failures
 
@@ -215,16 +237,16 @@ export async function sendChatMessage() {
   // Show typing indicator
   const typingEl = document.createElement('div');
   typingEl.className = 'typing-indicator';
-  typingEl.setAttribute('role', 'status');
-  typingEl.setAttribute('aria-live', 'polite');
-  typingEl.setAttribute('aria-label', 'AI is responding');
+  typingEl.setAttribute('aria-hidden', 'true');
   typingEl.innerHTML = '<span></span><span></span><span></span>';
   container.appendChild(typingEl);
-  container.scrollTop = container.scrollHeight;
+  notifyChatContentAdded(container);
 
   // Switch to stop mode
   _chatAbortController = new AbortController();
   setSendButtonMode(sendBtn, 'streaming');
+  setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
+  let streamOutcome = 'complete';
 
   // Snapshot context areas before sending
   const contextSnapshot = getContextSummary();
@@ -287,6 +309,8 @@ export async function sendChatMessage() {
     // Create AI message placeholder
     aiMsgEl = document.createElement('div');
     aiMsgEl.className = 'chat-msg chat-ai';
+    aiMsgEl.setAttribute('role', 'article');
+    aiMsgEl.setAttribute('aria-label', `${personality.name} response`);
     aiMsgEl.style.whiteSpace = 'pre-wrap';
 
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
@@ -342,7 +366,12 @@ export async function sendChatMessage() {
 
     // Detect supplement slots from AI text — persist on message for re-rendering
     const _recSlots = detectChatSendSupplementSlots(fullText);
-    if (_recSlots.length) assistantMsg.recSlots = _recSlots;
+    if (_recSlots.length) {
+      const disclosure = getRecommendationDisclosureState(state.chatHistory, _recSlots, assistantMsg);
+      assistantMsg.recSlots = _recSlots;
+      assistantMsg.recOpen = disclosure.open;
+      assistantMsg.recNew = disclosure.isNew;
+    }
 
     // EMF hint with profile-level 30-day cooldown. Fires only when (a) EMF is
     // explicitly on the user's mind in this turn AND (b) they haven't already
@@ -382,6 +411,12 @@ export async function sendChatMessage() {
 
     await saveChatHistory(); // persist before any sync-triggered chat reload can repaint older storage
 
+    if (assistantMsg.lensSources?.length) {
+      const lensContainer = document.createElement('div');
+      lensContainer.innerHTML = _renderLensSources(assistantMsg.lensSources, assistantMsg.lensSourceName);
+      while (lensContainer.firstChild) aiMsgEl.appendChild(lensContainer.firstChild);
+    }
+
     // Append action bar
     const msgIndex = state.chatHistory.length - 1;
     const actionBarHtml = buildActionBar(msgIndex);
@@ -401,12 +436,13 @@ export async function sendChatMessage() {
         }).filter(Boolean);
         if (!sections.length) return;
         const wrapper = document.createElement('details');
-        wrapper.className = 'rec-chat-wrapper';
-        wrapper.open = true;
+        wrapper.className = `rec-chat-wrapper${assistantMsg.recNew ? ' rec-chat-unseen' : ''}`;
+        wrapper.open = Boolean(assistantMsg.recOpen);
+        wrapper.setAttribute('data-chat-message-index', String(msgIndex));
         wrapper.addEventListener('click', e => e.stopPropagation());
         const summary = document.createElement('summary');
         summary.className = 'rec-chat-summary';
-        summary.textContent = 'What can help';
+        summary.innerHTML = recommendationSummaryHTML(sections.length, Boolean(assistantMsg.recNew));
         wrapper.appendChild(summary);
         const body = document.createElement('div');
         body.innerHTML = sections.join('');
@@ -419,10 +455,12 @@ export async function sendChatMessage() {
         const actionBar = aiMsgEl.querySelector('.chat-action-bar');
         if (actionBar) aiMsgEl.insertBefore(wrapper, actionBar);
         else aiMsgEl.appendChild(wrapper);
+        if (assistantMsg.recNew) startRecommendationAttention(wrapper);
+        notifyChatContentAdded(container);
       });
     }
 
-    container.scrollTop = container.scrollHeight;
+    notifyChatContentAdded(container);
     void maybeAutoReadAssistantMessage(msgIndex);
   } catch (err) {
     const error = /** @type {any} */ (err);
@@ -430,6 +468,7 @@ export async function sendChatMessage() {
 
     // Abort: save partial streamed text as a normal message
     if (error.name === 'AbortError') {
+      streamOutcome = 'stopped';
       // Read partial text from the DOM (typewriter accumulates into textContent)
       const partialText = aiMsgEl?.textContent?.trim() || '';
       if (partialText && aiMsgEl) {
@@ -439,29 +478,33 @@ export async function sendChatMessage() {
         const personality = getActivePersonality();
         state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, stopped: true });
         await saveChatHistory();
+        renderChatMessages({ preserveScroll: true });
       }
-    } else if (!error?._modalShown) {
-      // Skip inline error rendering when a modal already surfaced the
-      // condition (e.g., OpenRouter 402 → showInsufficientBalanceDialog),
-      // to avoid double-notifying the user.
-      const errEl = document.createElement('div');
-      errEl.className = 'chat-msg chat-ai';
-      const errorMessage = `Error: ${error.message || 'AI request failed'}`;
-      errEl.innerHTML = `<span style="color:var(--red)">${escapeHTML(errorMessage)}</span>`;
-      container.appendChild(errEl);
-      const personality = getActivePersonality();
-      state.chatHistory.push({
-        role: 'assistant',
-        content: errorMessage,
-        error: true,
-        personalityName: personality.name,
-        personalityIcon: personality.icon,
-        provider: _msgProvider,
-        modelId: _msgModelId,
-        modelDisplay: _msgModelDisplay,
-      });
-      await saveChatHistory();
-      showNotification(errorMessage, 'error', 10000);
+    } else {
+      streamOutcome = 'failed';
+      if (!error?._modalShown) {
+        // Skip inline error rendering when a modal already surfaced the
+        // condition (e.g., OpenRouter 402 → showInsufficientBalanceDialog),
+        // to avoid double-notifying the user.
+        const technicalMessage = error.message || 'AI request failed';
+        const errorMessage = 'I couldn\'t complete this response. Check your provider connection and try again.';
+        const personality = getActivePersonality();
+        state.chatHistory.push({
+          role: 'assistant',
+          content: errorMessage,
+          error: true,
+          errorDetail: technicalMessage,
+          personalityName: personality.name,
+          personalityIcon: personality.icon,
+          provider: _msgProvider,
+          modelId: _msgModelId,
+          modelDisplay: _msgModelDisplay,
+        });
+        await saveChatHistory();
+        renderChatMessages({ preserveScroll: true });
+        console.warn('[chat] AI request failed', technicalMessage);
+        showNotification('AI response failed. Check your provider connection and try again.', 'error', 10000);
+      }
     }
   }
 
@@ -469,10 +512,17 @@ export async function sendChatMessage() {
   setSendButtonMode(sendBtn, 'idle');
   updateDiscussButton();
   updateChatHeaderTitle();
-  container.scrollTop = container.scrollHeight;
+  notifyChatContentAdded(container);
+  setChatStreamStatus(
+    streamOutcome === 'complete' ? 'Response complete.'
+      : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
+        : 'Response failed. Retry is available.',
+    { busy: false },
+  );
 }
 
 export function handleChatKeydown(event) {
+  if (event.isComposing || event.keyCode === 229) return;
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
     sendChatMessage();

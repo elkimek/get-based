@@ -111,6 +111,9 @@ assert('labcharts-default-imported is sensitive', cryptoModule.isSensitiveKey('l
 assert('labcharts-abc123-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-abc123-imported'));
 assert('labcharts-default-imported-corrupt is sensitive', cryptoModule.isSensitiveKey('labcharts-default-imported-corrupt'));
 assert('labcharts-default-chat is sensitive', cryptoModule.isSensitiveKey('labcharts-default-chat'));
+assert('custom persona instructions are sensitive', cryptoModule.isSensitiveKey('labcharts-default-chatPersonalityCustom'));
+assert('custom persona deletion history is sensitive', cryptoModule.isSensitiveKey('labcharts-default-chatPersonalityDeleted'));
+assert('chat composer drafts are sensitive', cryptoModule.isSensitiveKey('labcharts-default-chatDraft_t_123'));
 assert('labcharts-profiles is sensitive', cryptoModule.isSensitiveKey('labcharts-profiles'));
 assert('labcharts-api-key IS sensitive', cryptoModule.isSensitiveKey('labcharts-api-key'));
 assert('labcharts-venice-key IS sensitive', cryptoModule.isSensitiveKey('labcharts-venice-key'));
@@ -637,6 +640,7 @@ try {
   assert('backup.js includes noteOverlay in prefs', bkSrc.includes("'noteOverlay'"));
   assert('backup.js includes chatPersonality in prefs', bkSrc.includes("'chatPersonality'"));
   assert('backup.js includes chatPersonalityCustom in prefs', bkSrc.includes("'chatPersonalityCustom'"));
+  assert('backup.js includes chatPersonalityDeleted in prefs', bkSrc.includes("'chatPersonalityDeleted'"));
   assert('backup.js has openBackupDB function', bkSrc.includes('function openBackupDB'));
   assert('backup.js has performAutoBackup function', bkSrc.includes('async function performAutoBackup'));
   assert('backup.js has scheduleAutoBackup function', bkSrc.includes('function scheduleAutoBackup'));

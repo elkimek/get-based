@@ -8,6 +8,7 @@
  *   loadChatHistory: () => unknown | Promise<unknown>,
  *   loadChatThreads: () => boolean | undefined | Promise<boolean | undefined>,
  *   navigate: null | ((route: string, options?: Record<string, unknown>) => unknown),
+ *   refreshChatPersonalities: () => unknown | Promise<unknown>,
  *   renderThreadList: () => unknown,
  * }} SyncPullActiveRefreshDeps
  */
@@ -19,6 +20,7 @@ const syncPullActiveRefreshDeps = {
   loadChatHistory: () => undefined,
   loadChatThreads: () => undefined,
   navigate: null,
+  refreshChatPersonalities: () => undefined,
   renderThreadList: () => {},
 };
 
@@ -30,6 +32,7 @@ export function configureSyncPullActiveRefreshDeps(deps = {}) {
   if (typeof deps.loadChatHistory === 'function') syncPullActiveRefreshDeps.loadChatHistory = deps.loadChatHistory;
   if (typeof deps.loadChatThreads === 'function') syncPullActiveRefreshDeps.loadChatThreads = deps.loadChatThreads;
   if ('navigate' in deps) syncPullActiveRefreshDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
+  if (typeof deps.refreshChatPersonalities === 'function') syncPullActiveRefreshDeps.refreshChatPersonalities = deps.refreshChatPersonalities;
   if (typeof deps.renderThreadList === 'function') syncPullActiveRefreshDeps.renderThreadList = deps.renderThreadList;
   return previous;
 }
@@ -60,11 +63,16 @@ export function refreshPulledChatRuntime() {
     return syncPullActiveRefreshDeps.loadChatHistory();
   };
 
-  const loaded = syncPullActiveRefreshDeps.loadChatThreads();
-  if (isThenableThreadLoad(loaded)) {
-    return loaded.then(finishRefresh);
+  const refreshThreads = () => {
+    const loaded = syncPullActiveRefreshDeps.loadChatThreads();
+    if (isThenableThreadLoad(loaded)) return loaded.then(finishRefresh);
+    return finishRefresh(loaded);
+  };
+  const personalitiesRefreshed = syncPullActiveRefreshDeps.refreshChatPersonalities();
+  if (isThenableThreadLoad(personalitiesRefreshed)) {
+    return personalitiesRefreshed.then(refreshThreads);
   }
-  return finishRefresh(loaded);
+  return refreshThreads();
 }
 
 export function rebuildPulledSidebarRuntime() {

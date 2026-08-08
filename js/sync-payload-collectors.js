@@ -86,10 +86,27 @@ export async function collectAISettings() {
 export async function collectChatData(profileId) {
   const threadsKey = `labcharts-${profileId}-chat-threads`;
   const deletedThreads = readChatDeletedThreads(profileId);
+  const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
+  const customDeletedKey = `labcharts-${profileId}-chatPersonalityDeleted`;
+  const customStored = localStorage.getItem(customKey);
+  const customDeletedStored = localStorage.getItem(customDeletedKey);
+  const customRaw = customStored === null ? null : await encryptedGetItem(customKey);
+  const customDeletedRaw = customDeletedStored === null ? null : await encryptedGetItem(customDeletedKey);
+  const customPersonalities = parseCustomPersonalities(customRaw);
+  const customPersonalityDeleted = parseCustomPersonalities(customDeletedRaw);
+  const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
+  const hasCustomPersonalityState = customStored !== null || customDeletedStored !== null;
   const threadsRaw = await encryptedGetItem(threadsKey) || localStorage.getItem(threadsKey);
   if (!threadsRaw) {
-    return Object.keys(deletedThreads).length > 0
-      ? { threads: [], messages: {}, deletedThreads }
+    return Object.keys(deletedThreads).length > 0 || hasCustomPersonalityState
+      ? {
+          threads: [],
+          messages: {},
+          deletedThreads: Object.keys(deletedThreads).length > 0 ? deletedThreads : undefined,
+          customPersonalities,
+          customPersonalityDeleted,
+          activePersonality: personality || undefined,
+        }
       : null;
   }
   try {
@@ -99,7 +116,7 @@ export async function collectChatData(profileId) {
         ? { threads: [], messages: {}, deletedThreads }
         : null;
     }
-    if (threads.length === 0 && Object.keys(deletedThreads).length === 0) return null;
+    if (threads.length === 0 && Object.keys(deletedThreads).length === 0 && !hasCustomPersonalityState) return null;
     const messages = {};
     for (const t of threads) {
       const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
@@ -110,16 +127,14 @@ export async function collectChatData(profileId) {
       }
       // Per-thread try/catch - a single corrupted thread payload must NOT
       // nuke the entire chat-data collection.
-      try { messages[t.id] = JSON.parse(msgRaw); } catch (_) {}
+      try { messages[t.id] = JSON.parse(msgRaw); } catch {}
     }
-    const customRaw = localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`);
-    const customPersonalities = parseCustomPersonalities(customRaw);
-    const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
     return {
       threads,
       messages,
       deletedThreads: Object.keys(deletedThreads).length > 0 ? deletedThreads : undefined,
       customPersonalities,
+      customPersonalityDeleted,
       activePersonality: personality || undefined,
     };
   } catch { return null; }

@@ -36,12 +36,14 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
     };
     const profileId = `crypto-browser-${Date.now()}`;
     const importedKey = `labcharts-${profileId}-imported`;
+    const customPersonaKey = `labcharts-${profileId}-chatPersonalityCustom`;
     const keys = [
       'labcharts-encryption-enabled',
       'labcharts-encryption-salt',
       'labcharts-api-key',
       'labcharts-venice-key',
       importedKey,
+      customPersonaKey,
     ];
     const saved = {
       wearablesTest: window.__WEARABLES_TEST,
@@ -104,6 +106,11 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       localStorage.removeItem('labcharts-encryption-salt');
       localStorage.removeItem('labcharts-api-key');
       localStorage.setItem('labcharts-venice-key', 'plain-venice-key');
+      localStorage.setItem(customPersonaKey, JSON.stringify([{
+        id: 'custom_existing',
+        name: 'Existing Persona',
+        promptText: 'Encrypt this existing persona during migration.',
+      }]));
       document.getElementById('encryption-section').innerHTML = cryptoStore.renderEncryptionSection();
       outcomes.renderEncryptionSectionUsesDelegatedActions =
         !!document.querySelector('[data-crypto-action="enable-encryption"]')
@@ -133,10 +140,14 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       click('#passphrase-set-btn');
       await waitFor(() => document.getElementById('passphrase-overlay')?.style.display === 'none', 'enable success');
       const encryptedVenice = localStorage.getItem('labcharts-venice-key');
+      const encryptedPersonas = localStorage.getItem(customPersonaKey);
+      const decryptedPersonas = await cryptoStore.encryptedGetItem(customPersonaKey);
       outcomes.enableEncryptsSensitiveKeysAndRefreshesUi =
         cryptoStore.getEncryptionEnabled() === true
         && cryptoStore.isUnlocked() === true
         && encryptedVenice?.startsWith('v1:') === true
+        && encryptedPersonas?.startsWith('v1:') === true
+        && JSON.parse(decryptedPersonas || '[]')[0]?.promptText.includes('existing persona')
         && cryptoStore.getCachedKey('labcharts-venice-key') === 'plain-venice-key'
         && document.getElementById('encryption-section')?.textContent.includes('Encryption is ON') === true
         && document.getElementById('notification-container')?.textContent.includes('Encryption enabled') === true;
@@ -150,6 +161,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         && cryptoStore.isUnlocked() === false
         && localStorage.getItem('labcharts-encryption-salt') === null
         && localStorage.getItem('labcharts-venice-key') === 'plain-venice-key'
+        && JSON.parse(localStorage.getItem(customPersonaKey) || '[]')[0]?.id === 'custom_existing'
         && document.getElementById('encryption-section')?.textContent.includes('Encryption is OFF') === true
         && document.getElementById('notification-container')?.textContent.includes('Encryption disabled') === true;
     } finally {

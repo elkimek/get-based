@@ -8,10 +8,18 @@ import {
 } from './crypto.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { logSyncEvent } from './sync-state.js';
+import {
+  loadCustomPersonalitiesFromStorage,
+  loadCustomPersonalityTombstones,
+  saveCustomPersonalitiesToStorage,
+  saveCustomPersonalityTombstones,
+} from './chat-personality-storage.js';
+import { mergeCustomPersonalityState } from './chat-personality-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
 const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
+const CHAT_PERSONA_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-persona-local-lock-until';
 const CHAT_LOCAL_LOCK_MS = 90 * 1000;
 const CHAT_DELETED_THREADS_MAX = 200;
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -20,6 +28,11 @@ export function markChatDataLocal() {
   try {
     sessionStorage.setItem(CHAT_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + CHAT_LOCAL_LOCK_MS));
   } catch {}
+}
+
+export function markCustomPersonalityDataLocal() {
+  // Item timestamps and tombstones protect local persona edits during pulls.
+  try { sessionStorage.removeItem(CHAT_PERSONA_LOCAL_LOCK_UNTIL_KEY); } catch {}
 }
 
 /** @param {string | null | undefined} profileId */
@@ -35,7 +48,11 @@ function getLocalChatLockUntil(profileId) {
 
 /** @param {string | null | undefined} profileId */
 export function getChatDataLocalLockRemainingMs(profileId) {
-  return Math.max(0, getLocalChatLockUntil(profileId) - Date.now());
+  if (profileId !== state.currentProfile) return 0;
+  return Math.max(
+    0,
+    getLocalChatLockUntil(profileId) - Date.now(),
+  );
 }
 
 /** @param {string} profileId */
@@ -53,8 +70,32 @@ async function hasMeaningfulLocalChatData(profileId) {
 
 /** @param {string} profileId */
 async function shouldKeepLocalChatData(profileId) {
-  return getChatDataLocalLockRemainingMs(profileId) > 0
-    && await hasMeaningfulLocalChatData(profileId);
+  if (profileId !== state.currentProfile) return false;
+  return (
+    getLocalChatLockUntil(profileId) > Date.now()
+    && await hasMeaningfulLocalChatData(profileId)
+  );
+}
+
+/** @param {string} profileId @param {any} chatData */
+async function applyCustomPersonalityState(profileId, chatData) {
+  const hasPersonalities = Object.prototype.hasOwnProperty.call(chatData, 'customPersonalities');
+  const hasTombstones = Object.prototype.hasOwnProperty.call(chatData, 'customPersonalityDeleted');
+  if (!hasPersonalities && !hasTombstones) return false;
+  const localPersonalities = await loadCustomPersonalitiesFromStorage(profileId);
+  const localTombstones = await loadCustomPersonalityTombstones(profileId);
+  const merged = mergeCustomPersonalityState(
+    localPersonalities,
+    Array.isArray(chatData.customPersonalities) ? chatData.customPersonalities : [],
+    localTombstones,
+    chatData.customPersonalityDeleted,
+  );
+  const changed = JSON.stringify(localPersonalities) !== JSON.stringify(merged.personalities)
+    || JSON.stringify(localTombstones) !== JSON.stringify(merged.tombstones);
+  if (!changed) return false;
+  await saveCustomPersonalitiesToStorage(merged.personalities, profileId);
+  await saveCustomPersonalityTombstones(merged.tombstones, profileId);
+  return true;
 }
 
 /** @param {any} thread */
@@ -160,12 +201,13 @@ export async function applyChatData(profileId, chatData) {
     deletedThreads[id] = Math.max(Number(deletedThreads[id]) || 0, deletedAt);
   }
   const tombstonesChanged = await applyChatThreadTombstones(profileId, existingThreads, deletedThreads);
+  const personalitiesChanged = await applyCustomPersonalityState(profileId, chatData);
 
   if (await shouldKeepLocalChatData(profileId)) {
     writeLocalDeletedThreads(profileId, deletedThreads);
     dbg(`Skipped chatData for ${profileId.slice(0, 8)} - local chat has newer unsynced changes`);
     logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
-    return tombstonesChanged;
+    return tombstonesChanged || personalitiesChanged;
   }
 
   const mergedById = new Map();
@@ -218,11 +260,13 @@ export async function applyChatData(profileId, chatData) {
     }
   }
   writeLocalDeletedThreads(profileId, deletedThreads);
-  if (chatData.customPersonalities) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify(chatData.customPersonalities));
-  }
   if (chatData.activePersonality) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonality`, chatData.activePersonality);
+    const customIds = new Set((await loadCustomPersonalitiesFromStorage(profileId)).map(item => item.id));
+    const requested = String(chatData.activePersonality);
+    localStorage.setItem(
+      `labcharts-${profileId}-chatPersonality`,
+      requested.startsWith('custom_') && !customIds.has(requested) ? 'default' : requested,
+    );
   }
   return true;
 }

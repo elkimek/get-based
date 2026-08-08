@@ -211,10 +211,10 @@ body.chat-open .analytics-consent-banner {
 }
 .chat-input-row {
   gap: 8px;
-  align-items: flex-end;
+  align-items: stretch;
 }
 .chat-input {
-  min-height: 40px;
+  min-height: 48px;
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
 }
@@ -229,8 +229,6 @@ body.chat-open .analytics-consent-banner {
   box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .chat-prompt-btn,
-.chat-discuss-continue-btn,
-.chat-discuss-done-btn,
 .chat-quiz-option,
 .chat-setup-btn,
 .chat-onboard-next,
@@ -311,7 +309,6 @@ body.chat-open .analytics-consent-banner {
     gap: 4px;
   }
   .chat-summary-btn,
-  .chat-clear-btn,
   .chat-close-btn,
   .chat-rail-toggle {
     width: 34px;
@@ -406,8 +403,12 @@ body.chat-open .analytics-consent-banner {
   }
   .chat-thread-item {
     min-height: 64px;
-    padding: 12px 14px;
+    padding: 0;
     margin-bottom: 8px;
+  }
+  .chat-thread-item-main {
+    min-height: 64px;
+    padding: 12px 86px 12px 14px;
   }
   .chat-thread-item-actions {
     display: flex;
@@ -468,15 +469,12 @@ body.chat-open.chat-fullscreen:has(#chat-thread-rail.open) .main {
     padding-inline: 10px;
   }
   .chat-summary-btn,
-  .chat-clear-btn,
   .chat-close-btn,
   .chat-rail-toggle {
     width: 32px;
     height: 32px;
   }
-  .chat-clear-btn {
-    display: none;
-  }
+  .chat-more-menu-popover .chat-clear-btn { display: flex; width: 100%; height: auto; }
   .chat-onboard-row {
     display: grid;
     grid-template-columns: 72px minmax(0, 1fr);

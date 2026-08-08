@@ -2,7 +2,7 @@
 // test-a11y-phase3.js — accessibility regression tests for v1.5.2.
 // Covers: global keyboard delegation, role="button" tabindex on clickable
 // divs, modal-close aria-labels, brand-voice copy, settings tablist,
-// chart layers ARIA, tour dialog role, chat typing aria-live, progress bar.
+// chart layers ARIA, tour dialog role, chat stream status, progress bar.
 //
 // Static source inspection only — fs.readFileSync instead of HTTP fetch.
 //
@@ -143,20 +143,16 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('tour heading has matching id',
     tourSrc.includes('id="tour-tooltip-heading"'));
 
-  // ─── 8. Chat typing indicator aria-live ───
+  // ─── 8. Chat streaming announcements ───
   const chatSendSrc = read('/js/chat-send.js');
-  const chatDiscussionSrc = read('/js/chat-discussion.js');
   const chatDiscussionRoundViewSrc = read('/js/chat-discussion-round-view.js');
-  const ariaLiveCount = (
-    chatSendSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
-  ).length + (
-    chatDiscussionSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
-  ).length + (
-    chatDiscussionRoundViewSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
-  ).length;
-  assert('both typing-indicator sites have aria-live=polite',
-    ariaLiveCount >= 2,
-    `found ${ariaLiveCount}`);
+  const chatStreamStatusSrc = read('/js/chat-stream-status.js');
+  const chatMarkupSrc = read('/index.html');
+  assert('decorative typing indicators stay silent while one shared status announces response phases',
+    chatSendSrc.includes("typingEl.setAttribute('aria-hidden', 'true')")
+    && chatDiscussionRoundViewSrc.includes("typingEl.setAttribute('aria-hidden', 'true')")
+    && chatMarkupSrc.includes('id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"')
+    && chatStreamStatusSrc.includes('if (status) status.textContent = message;'));
 
   // ─── 9. Progress bar ARIA ───
   assert('import-progress-bar declares role=progressbar',

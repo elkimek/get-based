@@ -3,10 +3,11 @@
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
-/** @type {Record<'closeModal' | 'isChatStreaming' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
+/** @type {Record<'closeModal' | 'isChatStreaming' | 'onChatSaved' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
 const chatRuntimeCallbacks = {
   closeModal: null,
   isChatStreaming: null,
+  onChatSaved: null,
   refreshWebSearchToggle: null,
   renderChatMessages: null,
   resumeAI: null,
@@ -54,6 +55,10 @@ function getRuntimeValue(name) {
 
 export function renderChatMessagesRuntime() {
   callChatRuntimeCallback('renderChatMessages');
+}
+
+export function notifyCustomPersonalitySavedRuntime() {
+  chatRuntimeCallbacks.onChatSaved?.({ customPersonality: true });
 }
 
 export function resumeChatAIRuntime() {

@@ -22,15 +22,18 @@ import {
 } from './chat-discussion-round-state.js';
 import {
   appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
-  createDiscussionPersonaLabel, createDiscussionTypingIndicator, renderDiscussionRoundError,
+  createDiscussionPersonaLabel, createDiscussionTypingIndicator,
   renderFinalDiscussionMessage,
 } from './chat-discussion-round-view.js';
 import { getChatProviderAttestation } from './chat-runtime.js';
+import { notifyChatContentAdded } from './chat-scroll.js';
+import { updateDiscussionProgress } from './chat-discussion-ui.js';
+import { setChatStreamStatus } from './chat-stream-status.js';
 
 export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const container = document.getElementById('chat-messages');
   const sendBtn = document.getElementById('chat-send-btn');
-  if (!container) return;
+  if (!container) return { completedCount: 0, outcome: 'unavailable', remainingPersonas: personas };
   const roundThreadId = opts.threadId || state.currentThreadId;
   const roundHistory = state.chatHistory;
 
@@ -39,11 +42,22 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   setSendButtonMode(sendBtn, 'streaming');
 
   const hasExistingDebate = hasExistingDiscussionResponses(roundHistory);
+  /** @type {{ aiMsgEl: HTMLElement | null, index: number, persona: any, request: any, typewriter: any, typingEl: HTMLElement } | null} */
+  let activeRound = null;
+  let completedCount = 0;
+  let remainingPersonas = [];
+  let outcome = 'complete';
 
   try {
     for (let pi = 0; pi < personas.length; pi++) {
-      if (controller.signal.aborted) break;
+      if (controller.signal.aborted) {
+        outcome = 'stopped';
+        remainingPersonas = personas.slice(pi);
+        break;
+      }
       const persona = personas[pi];
+      updateDiscussionProgress(persona, pi, personas.length);
+      setChatStreamStatus(`${persona.name || 'Participant'} is responding, ${pi + 1} of ${personas.length}.`, { busy: true });
 
       state.currentChatPersonality = persona.id;
 
@@ -60,9 +74,10 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       }
 
       const typingEl = createDiscussionTypingIndicator();
+      activeRound = { aiMsgEl: null, index: pi, persona, request: null, typewriter: null, typingEl };
       if (isRoundThreadActive(roundThreadId)) {
         container.appendChild(typingEl);
-        container.scrollTop = container.scrollHeight;
+        notifyChatContentAdded(container);
       }
 
       const request = await buildDiscussionRoundRequest({
@@ -70,6 +85,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         roundHistory,
         signal: controller.signal,
       });
+      activeRound.request = request;
 
       const labelEl = createDiscussionPersonaLabel(request.personality);
       appendRoundPersonaLabel(roundThreadId, container, labelEl);
@@ -77,6 +93,8 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const aiMsgEl = createDiscussionAiMessage();
 
       const typewriter = createDiscussionTypewriter(aiMsgEl, typingEl, container);
+      activeRound.aiMsgEl = aiMsgEl;
+      activeRound.typewriter = typewriter;
 
       const aiResult = await callChatAPIWithContinuation({
         system: request.systemPrompt,
@@ -133,18 +151,64 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       }
       roundHistory.push(assistantMsg);
       await saveRoundChatHistory(roundThreadId, roundHistory);
-      if (isRoundThreadActive(roundThreadId)) container.scrollTop = container.scrollHeight;
+      renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
+      completedCount = pi + 1;
+      activeRound = null;
+      if (isRoundThreadActive(roundThreadId)) notifyChatContentAdded(container);
     }
   } catch (err) {
     const error = /** @type {any} */ (err);
+    const interruptedRound = activeRound;
+    interruptedRound?.typewriter?.stop?.();
+    interruptedRound?.typingEl?.remove?.();
     if (error.name === 'AbortError') {
-      // Partial text handled by DOM already.
-    } else if (!error?._modalShown) {
-      // Skip when a modal already surfaced the condition (e.g., 402).
-      renderDiscussionRoundError({ threadId: roundThreadId, container, error });
+      outcome = 'stopped';
+      const partialText = interruptedRound?.aiMsgEl?.textContent?.trim() || '';
+      if (partialText && interruptedRound?.request) {
+        const assistantMsg = buildDiscussionAssistantMessage({
+          fullText: partialText,
+          request: interruptedRound.request,
+          aiResult: {},
+          responseTruncated: false,
+          attestation: getChatProviderAttestation(interruptedRound.request.provider),
+        });
+        assistantMsg.stopped = true;
+        roundHistory.push(assistantMsg);
+        completedCount = interruptedRound.index + 1;
+        await saveRoundChatHistory(roundThreadId, roundHistory);
+        renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
+      }
+      const interruptedIndex = interruptedRound?.index ?? 0;
+      remainingPersonas = personas.slice(partialText ? interruptedIndex + 1 : interruptedIndex);
+    } else {
+      outcome = 'error';
+      const persona = interruptedRound?.persona || personas[completedCount];
+      remainingPersonas = personas.slice(interruptedRound?.index ?? completedCount);
+      if (!error?._modalShown) {
+        roundHistory.push({
+          role: 'assistant',
+          content: `Couldn't get ${persona?.name || 'this participant'}'s response. You can retry the remaining round or continue the discussion.`,
+          error: true,
+          discussion: true,
+          discussionError: true,
+          discussionPersonaId: persona?.id,
+          personalityName: persona?.name,
+          personalityIcon: persona?.icon,
+        });
+        await saveRoundChatHistory(roundThreadId, roundHistory);
+        renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
+      }
     }
   }
 
+  updateDiscussionProgress(null, 0, 0);
   setChatAbortController(null);
+  setChatStreamStatus(
+    outcome === 'complete' ? 'Discussion round complete.'
+      : outcome === 'stopped' ? 'Discussion round paused.'
+        : 'Discussion response failed. Retry is available.',
+    { busy: false },
+  );
   setSendButtonMode(sendBtn, 'idle');
+  return { completedCount, outcome, remainingPersonas };
 }
