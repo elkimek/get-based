@@ -284,6 +284,9 @@ export function collectQualityTests(pendingImport = null) {
     const includeInAIContext = aiInput instanceof HTMLInputElement ? aiInput.checked : true;
     const originalIndex = Number.parseInt(row.getAttribute('data-original-index') || '', 10);
     const previous = Number.isInteger(originalIndex) && originalIndex >= 0 ? previousTests[originalIndex] : null;
+    const previousIdentityMatches = previous
+      && previous.category === category
+      && supplementQualityKey(previous.analyte) === supplementQualityKey(analyte);
     const importIndex = Number.parseInt(row.getAttribute('data-import-index') || '', 10);
     const importedByIndex = Number.isInteger(importIndex) && importIndex >= 0
       ? pendingImport?.draft?.qualityTests?.[importIndex] : null;
@@ -296,15 +299,15 @@ export function collectQualityTests(pendingImport = null) {
         : pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte)
           && test.category === category && supplementQualityKey(test.basis) === supplementQualityKey(basis))
       : null;
+    const sourceMetadata = imported || (previousIdentityMatches ? previous : null);
     const parsed = parseSupplementQuantity(resultText.replace(/^(?:≤|<=|>=|<|>|=)\s*/u, ''));
-    const comparator = resultText.match(/^(≤|<=|<|>=|>|=)/u)?.[1] || imported?.comparator || previous?.comparator || '';
+    const comparator = resultText.match(/^(≤|<=|<|>=|>|=)/u)?.[1] || sourceMetadata?.comparator || '';
     tests.push({
-      ...(imported && typeof imported === 'object' ? imported : {}),
-      ...(previous && typeof previous === 'object' ? previous : {}),
+      ...(sourceMetadata && typeof sourceMetadata === 'object' ? sourceMetadata : {}),
       category, analyte, resultText, comparator,
       value: parsed?.value ?? null,
       unit: unit || parsed?.unit || '', basis,
-      status: qualityStatus(resultText, imported?.status || previous?.status || ''),
+      status: qualityStatus(resultText, sourceMetadata?.status || ''),
       includeInAIContext,
     });
   }

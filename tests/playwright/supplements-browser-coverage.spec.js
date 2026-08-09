@@ -552,7 +552,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
             ingredients: [],
             inactiveIngredients: ['rostlinná kapsle'],
             qualityTests: [
-              { category: 'contaminant', analyte: 'Kadmium', resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected', method: 'ICP-MS capsule' },
+              { category: 'contaminant', analyte: 'Kadmium', canonicalAnalyte: 'cadmium', resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected', method: 'ICP-MS capsule', limitText: '< 0.01 mg', sourceKinds: ['url-page'] },
               { category: 'contaminant', analyte: 'Kadmium', canonicalAnalyte: 'cadmium', resultText: '< 0.01', unit: 'mg', basis: 'per gram', comparator: '<', status: 'reported', method: 'ICP-MS bulk', limitText: '< 0.02 mg', sourceKinds: ['url-page'] },
               { category: 'contaminant', analyte: 'Rtuť', resultText: 'NQ', unit: 'mg', basis: 'per capsule', status: 'not-quantified' },
               { category: 'contaminant', analyte: 'Olovo', resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected' },
@@ -565,13 +565,22 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
     };
     const previousData = state.importedData;
     state.importedData = {
-      entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null,
+      entries: [], notes: [], supplements: [{
+        name: 'BrainMax Activated B-Complex®, 90 rostlinných kapslí',
+        type: 'supplement', startDate: '2026-01-01', endDate: null,
+        periods: [{ start: '2026-01-01', end: null }],
+        qualityEvidenceScope: 'unknown',
+        qualityTests: [{
+          category: 'contaminant', analyte: 'Kadmium', canonicalAnalyte: 'stale-cadmium',
+          resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected',
+          method: 'OLD METHOD', limitText: 'old limit', sourceKinds: ['old-report'],
+        }],
+      }], healthGoals: [], diagnoses: null,
       customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [],
     };
     data.invalidateActiveDataCache();
     try {
-      supplements.openSupplementsEditor();
-      supplements.showAddSuppForm();
+      supplements.openSupplementsEditor(0);
       document.getElementById('supp-url').value = 'https://www.brainmarket.cz/brainmax-activated-b-complex--90-rostlinnych-kapsli/';
       const importPromise = supplements.fetchSupplementFromURL();
       await waitUntil(
@@ -626,7 +635,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
       if (reclassifiedAnalyte instanceof HTMLInputElement) reclassifiedAnalyte.value = 'Corrected copper';
       if (reclassifiedCategory instanceof HTMLSelectElement) reclassifiedCategory.value = 'identity';
       document.getElementById('supp-times').value = '1';
-      supplements.saveSupplement(-1);
+      supplements.saveSupplement(0);
       const saved = state.importedData.supplements[0];
       return {
         aiCalls,
@@ -646,7 +655,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
         ...formValues,
         savedQualityCount: saved?.qualityTests?.length || 0,
         savedCadmiumMetadata: saved?.qualityTests?.filter(test => test.analyte === 'Kadmium')
-          .map(test => ({ basis: test.basis, comparator: test.comparator, status: test.status, method: test.method })),
+          .map(test => ({ basis: test.basis, comparator: test.comparator, status: test.status, method: test.method, canonicalAnalyte: test.canonicalAnalyte, limitText: test.limitText, sourceKinds: test.sourceKinds })),
         savedReclassifiedMetadata: saved?.qualityTests?.filter(test => test.analyte === 'Corrected copper')
           .map(test => ({ category: test.category, method: test.method || null, canonicalAnalyte: test.canonicalAnalyte || null, limitText: test.limitText || null, sourceKinds: test.sourceKinds || null })),
         savedPotencyAIIncluded: saved?.qualityTests?.find(test => test.category === 'potency')?.includeInAIContext,
@@ -694,7 +703,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
     b12Unit: 'mcg',
     savedQualityCount: 5,
     savedCadmiumMetadata: [
-      { basis: 'per corrected capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule' },
+      { basis: 'per corrected capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule', canonicalAnalyte: 'cadmium', limitText: '< 0.01 mg', sourceKinds: ['url-page', 'product URL'] },
     ],
     savedReclassifiedMetadata: [
       { category: 'identity', method: null, canonicalAnalyte: null, limitText: null, sourceKinds: null },
@@ -702,7 +711,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
     savedPotencyAIIncluded: false,
     savedQualityScope: 'unknown',
     savedIngredientHasCadmium: false,
-    overviewText: expect.stringContaining('Kadmium'),
+    overviewText: expect.stringContaining('Cadmium'),
   });
 });
 
