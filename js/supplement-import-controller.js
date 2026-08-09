@@ -250,7 +250,21 @@ function applyImportedQualityTests(qualityTests) {
     const key = qualityRowKey(test.category, test.analyte, test.basis);
     const existing = rowsByKey.get(key);
     if (existing) {
-      if (existing instanceof HTMLElement) existing.dataset.importIndex = String(importIndex);
+      if (existing instanceof HTMLElement) {
+        existing.dataset.importIndex = String(importIndex);
+        for (const [selector, value] of [
+          ['.supp-quality-category', test.category || 'other'],
+          ['.supp-quality-analyte', test.analyte || ''],
+          ['.supp-quality-result', test.resultText || ''],
+          ['.supp-quality-unit', test.unit || ''],
+          ['.supp-quality-basis', test.basis || ''],
+        ]) {
+          const field = existing.querySelector(selector);
+          if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) field.value = String(value);
+        }
+        const aiInput = existing.querySelector('.supp-quality-ai-context');
+        if (aiInput instanceof HTMLInputElement) aiInput.checked = test.includeInAIContext !== false;
+      }
       continue;
     }
     container.insertAdjacentHTML('beforeend', qualityTestRowHtml(container.children.length, test, -1, importIndex));

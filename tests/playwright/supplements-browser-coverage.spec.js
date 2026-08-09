@@ -572,7 +572,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
         qualityEvidenceScope: 'unknown',
         qualityTests: [{
           category: 'contaminant', analyte: 'Kadmium', canonicalAnalyte: 'stale-cadmium',
-          resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected',
+          resultText: '< 9.99', unit: 'g', basis: 'per capsule', status: 'reported',
           method: 'OLD METHOD', limitText: 'old limit', sourceKinds: ['old-report'],
         }],
       }], healthGoals: [], diagnoses: null,
@@ -655,7 +655,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
         ...formValues,
         savedQualityCount: saved?.qualityTests?.length || 0,
         savedCadmiumMetadata: saved?.qualityTests?.filter(test => test.analyte === 'Kadmium')
-          .map(test => ({ basis: test.basis, comparator: test.comparator, status: test.status, method: test.method, canonicalAnalyte: test.canonicalAnalyte, limitText: test.limitText, sourceKinds: test.sourceKinds })),
+          .map(test => ({ resultText: test.resultText, unit: test.unit, basis: test.basis, comparator: test.comparator, status: test.status, method: test.method, canonicalAnalyte: test.canonicalAnalyte, limitText: test.limitText, sourceKinds: test.sourceKinds })),
         savedReclassifiedMetadata: saved?.qualityTests?.filter(test => test.analyte === 'Corrected copper')
           .map(test => ({ category: test.category, method: test.method || null, canonicalAnalyte: test.canonicalAnalyte || null, limitText: test.limitText || null, sourceKinds: test.sourceKinds || null })),
         savedPotencyAIIncluded: saved?.qualityTests?.find(test => test.category === 'potency')?.includeInAIContext,
@@ -703,7 +703,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
     b12Unit: 'mcg',
     savedQualityCount: 5,
     savedCadmiumMetadata: [
-      { basis: 'per corrected capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule', canonicalAnalyte: 'cadmium', limitText: '< 0.01 mg', sourceKinds: ['url-page', 'product URL'] },
+      { resultText: 'ND', unit: 'mg', basis: 'per corrected capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule', canonicalAnalyte: 'cadmium', limitText: '< 0.01 mg', sourceKinds: ['url-page', 'product URL'] },
     ],
     savedReclassifiedMetadata: [
       { category: 'identity', method: null, canonicalAnalyte: null, limitText: null, sourceKinds: null },
