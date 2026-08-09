@@ -140,9 +140,14 @@ export async function callOpenAICompatibleLocalAPI(opts) {
       // The server auto-fits context to available memory and may load less (or
       // more) than requested — read back the real value and plan against it.
       const discovery = await discoverLocalAI(url, config.apiKey, { force: true });
-      const loadedDetail = discovery.modelDetails?.find(detail => detail.name === model) || null;
-      if (loadedDetail) effectiveModelDetail = loadedDetail;
-      else effectiveModelDetail = nativeRequest.modelDetail || modelDetail;
+      const loadedModelKey = modelDetail?.nativeModelKey || model;
+      const loadedDetail = discovery.modelDetails?.find(detail => detail.loaded
+        && Number(detail.contextLength) > 0
+        && (detail.name === model || detail.nativeModelKey === loadedModelKey)) || null;
+      if (!loadedDetail) {
+        throw new Error(`Local AI reloaded ${model}, but could not verify its active context length. Check the model state in the local server, then retry.`);
+      }
+      effectiveModelDetail = loadedDetail;
     } catch (error) {
       // Older servers have no load route; keep the native chat fallback path.
       if (Number(/** @type {any} */ (error)?.status) !== 404) throw error;

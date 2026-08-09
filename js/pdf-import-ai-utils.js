@@ -80,6 +80,13 @@ function readImportAIPerf() {
   catch { return {}; }
 }
 
+/**
+ * @param {string} perfKey
+ * @param {{
+ *   usage?: ImportUsage,
+ *   diagnostics?: { performance?: { timeToFirstTokenMs?: number, tokensPerSecond?: number } }
+ * }} [result]
+ */
 export function saveImportAIPerf(perfKey, { usage, diagnostics } = {}) {
   if (!perfKey) return;
   const perf = diagnostics?.performance;
@@ -95,7 +102,9 @@ export function saveImportAIPerf(perfKey, { usage, diagnostics } = {}) {
   const keys = Object.keys(all);
   while (keys.length > 12) {
     keys.sort((a, b) => (all[a]?.at || 0) - (all[b]?.at || 0));
-    delete all[keys.shift()];
+    const oldestKey = keys.shift();
+    if (!oldestKey) break;
+    delete all[oldestKey];
   }
   try { localStorage.setItem(IMPORT_AI_PERF_KEY, JSON.stringify(all)); } catch {}
 }

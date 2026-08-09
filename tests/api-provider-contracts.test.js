@@ -855,6 +855,43 @@ describe('AI provider request contracts', () => {
     });
   });
 
+  it('refuses inference when LM Studio cannot verify the context after loading', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('thinkingcap-qwen3.6-27b');
+    let nativeDiscoveryCalls = 0;
+    let loaded = false;
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method === 'POST') {
+        if (href.endsWith('/api/v1/models/unload')) return jsonResponse({ ok: true });
+        if (href.endsWith('/api/v1/models/load')) { loaded = true; return jsonResponse({ ok: true }); }
+        if (href.endsWith('/v1/chat/completions')) throw new Error('Inference must not run with an unverified context.');
+      }
+      if (href.endsWith('/api/v1/models')) {
+        nativeDiscoveryCalls++;
+        if (nativeDiscoveryCalls > 1) return jsonResponse({ error: 'unavailable' }, { status: 503 });
+        return jsonResponse({ models: [{
+          type: 'llm',
+          key: 'thinkingcap-qwen3.6-27b@q4_k_m',
+          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+          max_context_length: 262144,
+        }] });
+      }
+      if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
+      return jsonResponse({}, { status: 404 });
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({
+      system: 'Extract the report as JSON.',
+      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
+      maxTokens: 4096,
+      jsonMode: true,
+      reasoningEffort: 'none',
+      preferNativeContext: true,
+    }))).rejects.toThrow(/could not verify its active context length/i);
+    expect(loaded).toBe(true);
+  });
+
   it('refuses to load a second copy when the prior LM Studio instance cannot be unloaded', async () => {
     const loadedDetail = { loaded: true, loadedInstanceId: 'big-model-1', nativeModelKey: 'big-model@q4' };
     const modelsBody = (loaded) => ({ models: [{
@@ -891,6 +928,20 @@ describe('AI provider request contracts', () => {
       modelDetail: loadedDetail,
       contextLength: 16384,
     })).resolves.toBe(true);
+
+    // Unload fails and discovery cannot verify residency → fail closed.
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (String(url).endsWith('/api/v1/models/unload')) return jsonResponse({ error: 'busy' }, { status: 500 });
+      if (String(url).endsWith('/api/v1/models/load')) throw new Error('Load must not run without an authoritative residency check.');
+      if (String(url).endsWith('/api/v1/models')) return jsonResponse({ error: 'unavailable' }, { status: 503 });
+      return jsonResponse({}, { status: 404 });
+    });
+    await expect(loadLMStudioModelWithContext({
+      baseUrl: 'http://lmstudio.test',
+      model: 'big-model',
+      modelDetail: loadedDetail,
+      contextLength: 16384,
+    })).rejects.toThrow(/could not verify that big-model was unloaded/i);
   });
 
   it('flags a native LM Studio response that stopped at the output or context cap as truncated', async () => {

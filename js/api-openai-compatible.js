@@ -204,6 +204,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     let inputTokens = 0;
     let outputTokens = 0;
     let performance = null;
+    let receivedFirstToken = false;
     const handleSSELine = (line, boundary) => {
       if (!line.startsWith('data: ')) return;
       const data = line.slice(6);
@@ -216,10 +217,12 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
         if (choice?.finish_reason) finishReason = choice.finish_reason;
         else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
         if (delta?.content) {
+          receivedFirstToken = true;
           if (!hasContent) hasContent = true;
           fullText += delta.content;
           onStream(fullText);
         } else if (delta?.reasoning_content || delta?.reasoning) {
+          receivedFirstToken = true;
           if (!hasContent) reasoningBuf += delta.reasoning_content || delta.reasoning;
         }
         if (event.usage) {
@@ -240,14 +243,12 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       }
     };
     const MAX_SSE_BUFFER = 4 * 1024 * 1024;
-    let receivedAnyChunk = false;
     while (true) {
-      // Before the first chunk, a local server may be prefilling the prompt
-      // (silence is progress); afterwards silence means a stalled stream.
-      const stallMs = !receivedAnyChunk && firstReadStallMs > 0 ? firstReadStallMs : undefined;
+      // Metadata and role-only SSE events can arrive before prefill finishes;
+      // keep the extended allowance until an actual response token arrives.
+      const stallMs = !receivedFirstToken && firstReadStallMs > 0 ? firstReadStallMs : undefined;
       const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`, stallMs);
       if (done) break;
-      receivedAnyChunk = true;
       buffer += decoder.decode(value, { stream: true });
       if (buffer.length > MAX_SSE_BUFFER) {
         try { reader.cancel(); } catch {}

@@ -276,12 +276,14 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
   let buffer = '';
   let fullText = '';
   let finalEvent = null;
+  let receivedFirstToken = false;
   const handleNdjsonLine = (line, boundary) => {
     if (!line.trim()) return;
     try {
       const event = JSON.parse(line);
       if (event.error) throw new Error(redactApiSecretText(event.error, [config.apiKey]));
       if (event.message?.content) {
+        receivedFirstToken = true;
         fullText += event.message.content;
         opts.onStream(fullText);
       }
@@ -292,13 +294,12 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
     }
   };
   const maxBuffer = 4 * 1024 * 1024;
-  let receivedAnyChunk = false;
   while (true) {
-    // Prompt prefill emits no bytes; only treat silence as a stall mid-stream.
+    // Metadata-only events can precede the first generated token, so retain
+    // the prefill allowance until response content actually arrives.
     const { done, value } = await readWithStallTimeout(reader, 'Ollama stream',
-      receivedAnyChunk ? undefined : LOCAL_AI_FIRST_TOKEN_STALL_MS);
+      receivedFirstToken ? undefined : LOCAL_AI_FIRST_TOKEN_STALL_MS);
     if (done) break;
-    receivedAnyChunk = true;
     buffer += decoder.decode(value, { stream: true });
     if (buffer.length > maxBuffer) {
       try { reader.cancel(); } catch {}

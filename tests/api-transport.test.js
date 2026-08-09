@@ -232,20 +232,21 @@ describe('stream stall guard', () => {
     const encoder = new TextEncoder();
     let readCount = 0;
     const chunks = [
+      'data: {"choices":[{"delta":{"role":"assistant","content":""}}]}\n',
       'data: {"choices":[{"delta":{"content":"par"}}]}\n',
       'data: {"choices":[{"delta":{"content":"tial"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n',
     ];
     const stream = new ReadableStream({
       async pull(controller) {
         readCount++;
-        if (readCount === 1) {
-          // Simulate prompt prefill: first chunk arrives after the default
-          // stall window but inside the local first-token allowance.
+        if (readCount <= 2) {
+          // Simulate a role-only metadata event, then continued prompt prefill:
+          // both reads need the first-token allowance.
           await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS * 3);
-          controller.enqueue(encoder.encode(chunks[0]));
+          controller.enqueue(encoder.encode(chunks[readCount - 1]));
           return;
         }
-        controller.enqueue(encoder.encode(chunks[1]));
+        controller.enqueue(encoder.encode(chunks[2]));
         controller.close();
       },
     });

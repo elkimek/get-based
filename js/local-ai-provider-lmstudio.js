@@ -292,15 +292,6 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
 }
 
 /**
- * @param {{
- *   baseUrl: string,
- *   apiKey?: string,
- *   model: string,
- *   modelDetail?: { loadedInstanceId?: string } | null,
- *   timeoutMs?: number,
- * }} context
- */
-/**
  * Load (or reload) a model with an explicit context length via the native
  * REST API, so generation can then run over the streaming OpenAI-compatible
  * endpoint instead of the non-streaming native chat call. Any loaded instance
@@ -334,9 +325,13 @@ export async function loadLMStudioModelWithContext({
     } catch { unloaded = false; }
     if (!unloaded) {
       // A failed unload may just mean the instance already vanished (stale
-      // cached state). Only refuse when the server still reports it loaded —
-      // loading a second copy of a large model would exhaust unified memory.
+      // cached state), but only an authoritative discovery response can prove
+      // that. Fail closed when residency cannot be verified: loading a second
+      // copy of a large model would exhaust unified memory.
       const check = await discoverLMStudioProvider({ baseUrl, apiKey }).catch(() => null);
+      if (!check?.available || !check.runningStatusKnown) {
+        throw new Error(`LM Studio could not verify that ${model} was unloaded before reloading it with a larger context. Check the model state in LM Studio, then retry.`);
+      }
       const stillLoaded = check?.modelDetails?.some(detail => detail.loaded
         && (detail.name === model || (modelDetail.nativeModelKey && detail.nativeModelKey === modelDetail.nativeModelKey)));
       if (stillLoaded) {
@@ -364,6 +359,15 @@ export async function loadLMStudioModelWithContext({
   return true;
 }
 
+/**
+ * @param {{
+ *   baseUrl: string,
+ *   apiKey?: string,
+ *   model: string,
+ *   modelDetail?: { loadedInstanceId?: string } | null,
+ *   timeoutMs?: number,
+ * }} context
+ */
 export async function unloadLMStudioModel({ baseUrl, apiKey = '', model, modelDetail = null, timeoutMs = 5000 }) {
   const instanceId = modelDetail?.loadedInstanceId || model;
   if (!instanceId) return false;
