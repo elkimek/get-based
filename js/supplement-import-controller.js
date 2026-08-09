@@ -305,9 +305,12 @@ export function discardSupplementImportDraft() {
 }
 
 function extractJsonLdProduct(html) {
+  /** @type {{ product: string, brand: string, dosageForm: string, deterministicFields: string[] }} */
   const result = { product: '', brand: '', dosageForm: '', deterministicFields: [] };
   const matches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  /** @type {any[]} */
   const candidates = [];
+  /** @param {any} value */
   const collect = value => {
     if (Array.isArray(value)) value.forEach(collect);
     else if (value && typeof value === 'object') {

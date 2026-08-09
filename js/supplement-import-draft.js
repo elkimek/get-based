@@ -7,6 +7,17 @@ import {
   parseSupplementQuantity,
 } from './supplement-medication-domain.js';
 
+/**
+ * @typedef {{ value: number, unit: string }} ParsedPageQuantity
+ * @typedef {{
+ *   name: string,
+ *   amountValue: number | null,
+ *   amountUnit: string,
+ *   basis: string,
+ *   confidence: number | null,
+ * }} ImportedIngredient
+ */
+
 const EMPTYISH = /^(?:n\/?a|none|unknown|not\s+(?:specified|found|available|provided))$/i;
 
 /** @param {unknown} value */
@@ -211,7 +222,7 @@ function pageText(value) {
 // relying on \b, whose word semantics do not work at CJK/Cyrillic boundaries.
 const PAGE_QUANTITY_RE = /([+-]?(?:\d{1,3}(?:[ ,.\u00a0]\d{3})+|\d+)(?:[.,]\d+)?)\s*((?:(?:billion|milliard|miliard)\s+)?CFU|マイクログラム|ミリリットル|ミリグラム|마이크로그램|밀리그램|밀리리터|अंतरराष्ट्रीय इकाई|माइक्रोग्राम|मिलीग्राम|मिलीलीटर|میكروغرام|ميكروغرام|国际单位|國際單位|国際単位|毫克|微克|毫升|มิลลิกรัม|ไมโครกรัม|มิลลิลิตร|мкг|мг|мл|м\.?е\.?|ед\.?|кое|ملغ|مجم|مكغ|מק["״]?ג|מ["״]?ג|גרם|מ["״]?ל|국제단위|그램|ग्राम|mcg|[µμ]g|ug|mg|mL|ml|IU|I\.U\.|mmol|mEq|CFU|units?|克|グラム|г|غ|مل|%)(?=$|[\s)\](*,/;:†‡（])/iu;
 
-/** @param {string} text */
+/** @param {string} text @returns {ParsedPageQuantity | null} */
 function parsePageQuantity(text) {
   const clean = pageText(text);
   const knownUnit = clean.match(PAGE_QUANTITY_RE);
@@ -220,7 +231,10 @@ function parsePageQuantity(text) {
   return parseSupplementQuantity(withoutFootnotes);
 }
 
-/** @param {{ unit?: string } | null | undefined} amount */
+/**
+ * @param {{ value?: number, unit?: string } | null | undefined} amount
+ * @returns {amount is ParsedPageQuantity}
+ */
 function isCredibleIngredientQuantity(amount) {
   const unit = pageText(amount?.unit || '');
   if (!unit || !/[\p{L}%]/u.test(unit) || /^\./u.test(unit)) return false;
@@ -230,7 +244,7 @@ function isCredibleIngredientQuantity(amount) {
   return !/(?:capsul|softgel|tablet|caplet|serving|dose|pieces?|count|bottles?|kapsl|dáv|davk|balen|kus|kapsuł|sztuk|gélul|comprim|cápsul|compresse|капсул|таблет|доз|штук|カプセル|錠|粒|片)$/iu.test(unit);
 }
 
-/** @param {string} text @param {string} [basis] */
+/** @param {string} text @param {string} [basis] @returns {ImportedIngredient | null} */
 function ingredientFromText(text, basis = 'per serving') {
   const clean = pageText(text);
   const quantityMatch = clean.match(PAGE_QUANTITY_RE);
@@ -281,7 +295,7 @@ function structuredBrand(value) {
   return '';
 }
 
-/** @param {any} raw @param {string} basis */
+/** @param {any} raw @param {string} basis @returns {ImportedIngredient | null} */
 function structuredIngredient(raw, basis) {
   if (typeof raw === 'string') return ingredientFromText(raw, basis);
   if (!raw || typeof raw !== 'object') return null;
@@ -305,10 +319,11 @@ function structuredIngredient(raw, basis) {
   };
 }
 
-/** @param {any} product */
+/** @param {any} product @returns {ImportedIngredient[]} */
 function jsonLdIngredients(product) {
   if (!product) return [];
   const basis = pageText(product.servingSize || product.doseSchedule || 'per serving');
+  /** @type {any[]} */
   const candidates = [];
   for (const field of ['activeIngredient', 'activeIngredients', 'ingredient', 'ingredients', 'hasPart']) {
     const value = product[field];
@@ -320,14 +335,16 @@ function jsonLdIngredients(product) {
   candidates.push(...additional);
   return candidates.flatMap(candidate => {
     if (typeof candidate === 'string' && /[;,]/u.test(candidate)) {
-      return candidate.split(/\s*[;]\s*/u).map(value => structuredIngredient(value, basis)).filter(Boolean);
+      return candidate.split(/\s*[;]\s*/u)
+        .map(value => structuredIngredient(value, basis))
+        .filter(ingredient => ingredient !== null);
     }
     const ingredient = structuredIngredient(candidate, basis);
     return ingredient ? [ingredient] : [];
   });
 }
 
-/** @param {string} text */
+/** @param {string} text @returns {{ value: number | null, unit: string }} */
 function servingFromText(text) {
   const match = pageText(text).match(/(?:per|in|ve|v|na)\s*(\d+(?:[.,]\d+)?)\s*(softgels?|capsules?|caps?|kapsl\p{L}*|tablets?|tablet\p{L}*|drops?|kapek|ml|mL|scoops?|odměr\p{L}*)/iu);
   if (!match) return { value: null, unit: '' };
@@ -458,6 +475,7 @@ export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) 
   const selectedTables = tables.filter(candidate => candidate.score >= 16).map(candidate => candidate.table);
   const ingredients = jsonLdIngredients(product);
   const seen = new Set(ingredients.map(ingredient => supplementImportIngredientKey(ingredient.name)));
+  /** @type {{ value: number | null, unit: string }} */
   let servingSize = { value: null, unit: '' };
   for (const selectedTable of selectedTables) {
     const headerCells = Array.from(selectedTable.querySelectorAll('thead th, tr:first-child th'));
@@ -476,12 +494,11 @@ export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) 
         .find(isCredibleIngredientQuantity);
       if (!amount) {
         const inline = ingredientFromText(name, basis);
-        if (inline) {
+        if (inline?.amountValue != null) {
           name = inline.name;
           amount = {
             value: inline.amountValue,
             unit: inline.amountUnit,
-            raw: formatSupplementAmount(inline.amountValue, inline.amountUnit),
           };
         }
       }

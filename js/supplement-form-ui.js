@@ -187,6 +187,7 @@ export function collectPeriods() {
   return periods;
 }
 
+/** @param {{ draft: any, issues: string[] } | null} [pendingImport] */
 export function collectIngredients(pendingImport = null) {
   const ingredients = [];
   for (const row of document.querySelectorAll('#supp-ingredients .supp-ingredient-row')) {
@@ -266,6 +267,7 @@ function qualityStatus(resultText, priorStatus = '') {
   return priorStatus && priorStatus !== 'unknown' ? priorStatus : resultText ? 'reported' : 'unknown';
 }
 
+/** @param {{ draft: any, issues: string[] } | null} [pendingImport] */
 export function collectQualityTests(pendingImport = null) {
   const tests = [];
   const supplementIndex = Number.parseInt(document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') || '', 10);
