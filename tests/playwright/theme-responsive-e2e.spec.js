@@ -868,7 +868,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const selectors = [
       '.supp-form-field',
       '.supp-ingredient-row',
-      '.supp-ingredient-row input',
+      '.supp-ingredient-row input:not([hidden])',
       '.supp-period-row',
       '.supp-period-row input',
       '#supp-type',
