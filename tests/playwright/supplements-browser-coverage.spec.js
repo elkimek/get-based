@@ -617,6 +617,10 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
         b12Amount: b12?.querySelector('.supp-ing-amount')?.value,
         b12Unit: b12?.querySelector('.supp-ing-unit')?.value,
       };
+      const cadmiumRows = Array.from(document.querySelectorAll('#supp-quality-tests .supp-quality-row'))
+        .filter(row => row.querySelector('.supp-quality-analyte')?.value === 'Kadmium');
+      const correctedBasis = cadmiumRows[0]?.querySelector('.supp-quality-basis');
+      if (correctedBasis instanceof HTMLInputElement) correctedBasis.value = 'per corrected capsule';
       document.getElementById('supp-times').value = '1';
       supplements.saveSupplement(-1);
       const saved = state.importedData.supplements[0];
@@ -684,7 +688,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
     b12Unit: 'mcg',
     savedQualityCount: 5,
     savedCadmiumMetadata: [
-      { basis: 'per capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule' },
+      { basis: 'per corrected capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule' },
       { basis: 'per gram', comparator: '<', status: 'reported', method: 'ICP-MS bulk' },
     ],
     savedPotencyAIIncluded: false,

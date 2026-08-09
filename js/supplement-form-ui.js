@@ -223,12 +223,12 @@ export function collectIngredients(pendingImport = null) {
   return ingredients.length ? ingredients : undefined;
 }
 
-export function qualityTestRowHtml(idx, test = {}, originalIndex = -1) {
+export function qualityTestRowHtml(idx, test = {}, originalIndex = -1, importIndex = -1) {
   const categories = [
     ['contaminant', 'Contaminant / heavy metal'], ['potency', 'Potency / label claim'],
     ['microbiology', 'Microbiology'], ['identity', 'Identity / purity'], ['other', 'Other laboratory result'],
   ];
-  return `<div class="supp-quality-row" data-idx="${idx}" data-original-index="${originalIndex}">
+  return `<div class="supp-quality-row" data-idx="${idx}" data-original-index="${originalIndex}" data-import-index="${importIndex}">
     <select class="supp-quality-category" aria-label="Laboratory result category">${categories.map(([value, label]) => `<option value="${value}"${(test.category || 'other') === value ? ' selected' : ''}>${label}</option>`).join('')}</select>
     <input type="text" class="supp-quality-analyte" aria-label="Tested analyte" placeholder="Analyte" value="${escapeHTML(test.analyte || '')}">
     <input type="text" class="supp-quality-result" aria-label="Reported laboratory result" placeholder="ND, &lt; 0.01, 98…" value="${escapeHTML(test.resultText || '')}">
@@ -284,8 +284,11 @@ export function collectQualityTests(pendingImport = null) {
     const includeInAIContext = aiInput instanceof HTMLInputElement ? aiInput.checked : true;
     const originalIndex = Number.parseInt(row.getAttribute('data-original-index') || '', 10);
     const previous = Number.isInteger(originalIndex) && originalIndex >= 0 ? previousTests[originalIndex] : null;
+    const importIndex = Number.parseInt(row.getAttribute('data-import-index') || '', 10);
+    const importedByIndex = Number.isInteger(importIndex) && importIndex >= 0
+      ? pendingImport?.draft?.qualityTests?.[importIndex] : null;
     const imported = pendingImport?.draft?.source?.reviewed
-      ? pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte)
+      ? importedByIndex || pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte)
         && test.category === category && supplementQualityKey(test.basis) === supplementQualityKey(basis))
       : null;
     const parsed = parseSupplementQuantity(resultText.replace(/^(?:≤|<=|>=|<|>|=)\s*/u, ''));

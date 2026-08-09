@@ -230,6 +230,7 @@ function applyImportedIngredients(ingredients) {
   }
 }
 
+/** @param {{ test: any, importIndex: number }[]} qualityTests */
 function applyImportedQualityTests(qualityTests) {
   const container = document.getElementById('supp-quality-tests');
   if (!container || !qualityTests?.length) return;
@@ -245,10 +246,14 @@ function applyImportedQualityTests(qualityTests) {
     const basis = getElementValue(row.querySelector('.supp-quality-basis')).trim();
     if (analyte) rowsByKey.set(qualityRowKey(category, analyte, basis), row);
   }
-  for (const test of qualityTests) {
+  for (const { test, importIndex } of qualityTests) {
     const key = qualityRowKey(test.category, test.analyte, test.basis);
-    if (rowsByKey.has(key)) continue;
-    container.insertAdjacentHTML('beforeend', qualityTestRowHtml(container.children.length, test, -1));
+    const existing = rowsByKey.get(key);
+    if (existing) {
+      if (existing instanceof HTMLElement) existing.dataset.importIndex = String(importIndex);
+      continue;
+    }
+    container.insertAdjacentHTML('beforeend', qualityTestRowHtml(container.children.length, test, -1, importIndex));
     if (container.lastElementChild) rowsByKey.set(key, container.lastElementChild);
   }
 }
@@ -284,7 +289,8 @@ export function applySupplementImportDraft() {
   const ingredients = selectedImportValues('ingredient', draft.ingredients || []);
   const inactiveIngredients = selectedImportValues('inactive', draft.inactiveIngredients || []);
   const qualityTests = selectedImportValues('quality', draft.qualityTests || []).map(test => ({
-    ...test, includeInAIContext: isSupplementQualityIncludedInAI(test, { ingredients }),
+    test: { ...test, includeInAIContext: isSupplementQualityIncludedInAI(test, { ingredients }) },
+    importIndex: draft.qualityTests.indexOf(test),
   }));
   const identityWasBlank = !getFormField('supp-name')?.value.trim();
   applyImportedIngredients(ingredients);
