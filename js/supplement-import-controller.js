@@ -304,32 +304,26 @@ export function discardSupplementImportDraft() {
   showPendingImportReview();
 }
 
-function extractJsonLdProduct(html) {
-  /** @type {{ product: string, brand: string, dosageForm: string, deterministicFields: string[] }} */
-  const result = { product: '', brand: '', dosageForm: '', deterministicFields: [] };
-  const matches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-  /** @type {any[]} */
-  const candidates = [];
-  /** @param {any} value */
-  const collect = value => {
-    if (Array.isArray(value)) value.forEach(collect);
-    else if (value && typeof value === 'object') {
-      if (Array.isArray(value['@graph'])) value['@graph'].forEach(collect);
-      candidates.push(value);
-    }
-  };
-  for (const match of matches) {
-    try { collect(JSON.parse(match.replace(/<script[^>]*>|<\/script>/gi, '').trim())); }
-    catch { /* malformed publisher JSON-LD remains available to the AI pass */ }
+/** @param {Document} pageDocument @param {string} selector @param {number} [limit] */
+function collectImportScriptText(pageDocument, selector, limit = 8000) {
+  let output = '';
+  for (const script of pageDocument.querySelectorAll(selector)) {
+    const text = (script.textContent || '').trim();
+    if (!text) continue;
+    output += `${text.slice(0, Math.max(0, limit - output.length))}\n`;
+    if (output.length >= limit) break;
   }
-  const product = candidates.find(item => /product|drug|dietarysupplement/i.test(String(item['@type'] || '')))
-    || candidates.find(item => item.name && (item.brand || item.description));
-  if (!product) return result;
-  if (typeof product.name === 'string') { result.product = product.name.trim(); result.deterministicFields.push('product'); }
-  const brand = typeof product.brand === 'string' ? product.brand : product.brand?.name;
-  if (typeof brand === 'string') { result.brand = brand.trim(); result.deterministicFields.push('brand'); }
-  if (typeof product.dosageForm === 'string') { result.dosageForm = product.dosageForm.trim(); result.deterministicFields.push('dosageForm'); }
-  return result;
+  return output;
+}
+
+/** @param {Document} pageDocument */
+function collectImportPageText(pageDocument) {
+  const body = /** @type {Element | null} */ (pageDocument.body?.cloneNode(true) || null);
+  if (!body) return '';
+  for (const element of body.querySelectorAll('script, style, noscript, template, nav, footer, header, svg')) {
+    element.remove();
+  }
+  return (body.textContent || '').replace(/\s{2,}/gu, ' ').trim();
 }
 
 export async function fetchSupplementFromURL() {
@@ -371,11 +365,10 @@ export async function fetchSupplementFromURL() {
     }
     if (!html || html.length < 100) throw new Error('The website returned no readable product content. Try label photos for the missing facts.');
     updateImportProgress(progressId, 2, 'Finding label, ingredient, and COA tables…');
-    const deterministic = extractJsonLdProduct(html);
+    const pageDocument = new DOMParser().parseFromString(html, 'text/html');
     const structuredPage = extractSupplementPageFacts(html);
     const pageFacts = { ...structuredPage.facts };
-    for (const field of deterministic.deterministicFields) if (deterministic[field]) pageFacts[field] = deterministic[field];
-    const deterministicFields = [...new Set([...structuredPage.deterministicFields, ...deterministic.deterministicFields])];
+    const deterministicFields = [...new Set(structuredPage.deterministicFields)];
     const source = { kind: 'product URL', url, deterministicFields };
     const hasVerifiedIngredients = pageFacts.product && Array.isArray(pageFacts.ingredients) && pageFacts.ingredients.length;
     const hasCoreLabelContext = pageFacts.servingSize?.value != null || pageFacts.labelDirections;
@@ -386,23 +379,12 @@ export async function fetchSupplementFromURL() {
       if (!hasVerifiedIngredients || !hasCoreLabelContext) showNotification('Verified page facts were staged. Configure AI or add label photos to classify ambiguous tables and fill missing facts.', 'info');
       return;
     }
-    const ldMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-    let ldText = '';
-    for (const match of ldMatches) {
-      ldText += `${match.replace(/<script[^>]*>|<\/script>/gi, '').trim().slice(0, Math.max(0, 8000 - ldText.length))}\n`;
-      if (ldText.length >= 8000) break;
-    }
-    const embeddedMatches = html.match(/<script[^>]*(?:type=["']application\/json["']|id=["']__NEXT_DATA__["'])[^>]*>([\s\S]*?)<\/script>/gi) || [];
-    let embeddedText = '';
-    for (const match of embeddedMatches) {
-      embeddedText += `${match.replace(/<script[^>]*>|<\/script>/gi, '').trim().slice(0, Math.max(0, 8000 - embeddedText.length))}\n`;
-      if (embeddedText.length >= 8000) break;
-    }
-    const plainText = structuredPage.evidenceText || html
-      .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<footer[\s\S]*?<\/footer>/gi, '')
-      .replace(/<header[\s\S]*?<\/header>/gi, '').replace(/<svg[\s\S]*?<\/svg>/gi, '')
-      .replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ');
+    const ldText = collectImportScriptText(pageDocument, 'script[type="application/ld+json"]');
+    const embeddedText = collectImportScriptText(
+      pageDocument,
+      'script[type="application/json"], script#__NEXT_DATA__',
+    );
+    const plainText = structuredPage.evidenceText || collectImportPageText(pageDocument);
     const trimmed = `${ldText.slice(0, 8000)}\n${embeddedText.slice(0, 8000)}\n${plainText.slice(0, 8000)}\n${plainText.slice(-3000)}`.slice(0, 24000);
     updateImportProgress(progressId, 3, 'Classifying active ingredients and quality evidence with AI…');
     const result = await callClaudeAPI({
