@@ -287,9 +287,14 @@ export function collectQualityTests(pendingImport = null) {
     const importIndex = Number.parseInt(row.getAttribute('data-import-index') || '', 10);
     const importedByIndex = Number.isInteger(importIndex) && importIndex >= 0
       ? pendingImport?.draft?.qualityTests?.[importIndex] : null;
+    const importedIdentityMatches = importedByIndex
+      && importedByIndex.category === category
+      && supplementQualityKey(importedByIndex.analyte) === supplementQualityKey(analyte);
     const imported = pendingImport?.draft?.source?.reviewed
-      ? importedByIndex || pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte)
-        && test.category === category && supplementQualityKey(test.basis) === supplementQualityKey(basis))
+      ? importedByIndex
+        ? importedIdentityMatches ? importedByIndex : null
+        : pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte)
+          && test.category === category && supplementQualityKey(test.basis) === supplementQualityKey(basis))
       : null;
     const parsed = parseSupplementQuantity(resultText.replace(/^(?:≤|<=|>=|<|>|=)\s*/u, ''));
     const comparator = resultText.match(/^(≤|<=|<|>=|>|=)/u)?.[1] || imported?.comparator || previous?.comparator || '';

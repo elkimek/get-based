@@ -553,7 +553,7 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
             inactiveIngredients: ['rostlinná kapsle'],
             qualityTests: [
               { category: 'contaminant', analyte: 'Kadmium', resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected', method: 'ICP-MS capsule' },
-              { category: 'contaminant', analyte: 'Kadmium', resultText: '< 0.01', unit: 'mg', basis: 'per gram', comparator: '<', status: 'reported', method: 'ICP-MS bulk' },
+              { category: 'contaminant', analyte: 'Kadmium', canonicalAnalyte: 'cadmium', resultText: '< 0.01', unit: 'mg', basis: 'per gram', comparator: '<', status: 'reported', method: 'ICP-MS bulk', limitText: '< 0.02 mg', sourceKinds: ['url-page'] },
               { category: 'contaminant', analyte: 'Rtuť', resultText: 'NQ', unit: 'mg', basis: 'per capsule', status: 'not-quantified' },
               { category: 'contaminant', analyte: 'Olovo', resultText: 'ND', unit: 'mg', basis: 'per capsule', status: 'not-detected' },
               { category: 'potency', analyte: 'Vitamín B12', resultText: '102%', unit: '%', basis: 'label claim', status: 'pass' },
@@ -621,6 +621,10 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
         .filter(row => row.querySelector('.supp-quality-analyte')?.value === 'Kadmium');
       const correctedBasis = cadmiumRows[0]?.querySelector('.supp-quality-basis');
       if (correctedBasis instanceof HTMLInputElement) correctedBasis.value = 'per corrected capsule';
+      const reclassifiedAnalyte = cadmiumRows[1]?.querySelector('.supp-quality-analyte');
+      const reclassifiedCategory = cadmiumRows[1]?.querySelector('.supp-quality-category');
+      if (reclassifiedAnalyte instanceof HTMLInputElement) reclassifiedAnalyte.value = 'Corrected copper';
+      if (reclassifiedCategory instanceof HTMLSelectElement) reclassifiedCategory.value = 'identity';
       document.getElementById('supp-times').value = '1';
       supplements.saveSupplement(-1);
       const saved = state.importedData.supplements[0];
@@ -643,6 +647,8 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
         savedQualityCount: saved?.qualityTests?.length || 0,
         savedCadmiumMetadata: saved?.qualityTests?.filter(test => test.analyte === 'Kadmium')
           .map(test => ({ basis: test.basis, comparator: test.comparator, status: test.status, method: test.method })),
+        savedReclassifiedMetadata: saved?.qualityTests?.filter(test => test.analyte === 'Corrected copper')
+          .map(test => ({ category: test.category, method: test.method || null, canonicalAnalyte: test.canonicalAnalyte || null, limitText: test.limitText || null, sourceKinds: test.sourceKinds || null })),
         savedPotencyAIIncluded: saved?.qualityTests?.find(test => test.category === 'potency')?.includeInAIContext,
         savedQualityScope: saved?.qualityEvidenceScope,
         savedIngredientHasCadmium: saved?.ingredients?.some(ingredient => ingredient.name === 'Kadmium') || false,
@@ -689,7 +695,9 @@ test('review link reads a BrainMarket composition table without AI JSON truncati
     savedQualityCount: 5,
     savedCadmiumMetadata: [
       { basis: 'per corrected capsule', comparator: '', status: 'not-detected', method: 'ICP-MS capsule' },
-      { basis: 'per gram', comparator: '<', status: 'reported', method: 'ICP-MS bulk' },
+    ],
+    savedReclassifiedMetadata: [
+      { category: 'identity', method: null, canonicalAnalyte: null, limitText: null, sourceKinds: null },
     ],
     savedPotencyAIIncluded: false,
     savedQualityScope: 'unknown',
