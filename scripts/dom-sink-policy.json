@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 579,
-  "sinkCount": 489,
+  "scannedFiles": 586,
+  "sinkCount": 493,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -783,12 +783,34 @@
         "innerHTML": 1
       }
     },
-    "js/supplements.js": {
-      "count": 12,
-      "digest": "62e1d38ae30f2102b828bffef2636a96fd0523443be69a7403816419f348d4bd",
+    "js/supplement-dashboard.js": {
+      "count": 1,
+      "digest": "dfa48a391deb467dffb86c7c9e9644d518f7e8c6208b0cd9a173da2223492707",
       "kinds": {
-        "innerHTML": 5,
-        "insertAdjacentHTML": 4,
+        "outerHTML": 1
+      }
+    },
+    "js/supplement-form-ui.js": {
+      "count": 3,
+      "digest": "9ea0949de4fd036a1a8e6582ebf6c31ff59dd8f0b748b9b6521ed1ed82b602e4",
+      "kinds": {
+        "insertAdjacentHTML": 3
+      }
+    },
+    "js/supplement-import-controller.js": {
+      "count": 4,
+      "digest": "d28f2a9d86abb34b3a35da91894d7ecb5da622ab29ebfd0e8427d73eb7086117",
+      "kinds": {
+        "innerHTML": 2,
+        "insertAdjacentHTML": 2
+      }
+    },
+    "js/supplements.js": {
+      "count": 8,
+      "digest": "3f2c3a9223eadaec4ed3c144a293918b4c77887296c47d9170571fe0541c7d59",
+      "kinds": {
+        "innerHTML": 4,
+        "insertAdjacentHTML": 1,
         "outerHTML": 3
       }
     },

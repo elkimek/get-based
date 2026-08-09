@@ -233,14 +233,20 @@ function applyImportedIngredients(ingredients) {
 function applyImportedQualityTests(qualityTests) {
   const container = document.getElementById('supp-quality-tests');
   if (!container || !qualityTests?.length) return;
+  const qualityRowKey = (category, analyte, basis) => [
+    category,
+    supplementQualityKey(analyte),
+    supplementQualityKey(basis),
+  ].join('|');
   const rowsByKey = new Map();
   for (const row of container.querySelectorAll('.supp-quality-row')) {
     const analyte = getElementValue(row.querySelector('.supp-quality-analyte')).trim();
     const category = getElementValue(row.querySelector('.supp-quality-category'));
-    if (analyte) rowsByKey.set(`${category}|${supplementQualityKey(analyte)}`, row);
+    const basis = getElementValue(row.querySelector('.supp-quality-basis')).trim();
+    if (analyte) rowsByKey.set(qualityRowKey(category, analyte, basis), row);
   }
   for (const test of qualityTests) {
-    const key = `${test.category}|${supplementQualityKey(test.analyte)}`;
+    const key = qualityRowKey(test.category, test.analyte, test.basis);
     if (rowsByKey.has(key)) continue;
     container.insertAdjacentHTML('beforeend', qualityTestRowHtml(container.children.length, test, -1));
     if (container.lastElementChild) rowsByKey.set(key, container.lastElementChild);

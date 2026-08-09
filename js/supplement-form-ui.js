@@ -285,7 +285,8 @@ export function collectQualityTests(pendingImport = null) {
     const originalIndex = Number.parseInt(row.getAttribute('data-original-index') || '', 10);
     const previous = Number.isInteger(originalIndex) && originalIndex >= 0 ? previousTests[originalIndex] : null;
     const imported = pendingImport?.draft?.source?.reviewed
-      ? pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte) && test.category === category)
+      ? pendingImport.draft.qualityTests?.find(test => supplementQualityKey(test.analyte) === supplementQualityKey(analyte)
+        && test.category === category && supplementQualityKey(test.basis) === supplementQualityKey(basis))
       : null;
     const parsed = parseSupplementQuantity(resultText.replace(/^(?:≤|<=|>=|<|>|=)\s*/u, ''));
     const comparator = resultText.match(/^(≤|<=|<|>=|>|=)/u)?.[1] || imported?.comparator || previous?.comparator || '';
