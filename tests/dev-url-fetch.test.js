@@ -67,7 +67,7 @@ describe('dev URL fetch guard', () => {
       expect.objectContaining({ method: 'GET' }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    expect(readResponseTextWithCap).toHaveBeenCalledWith(upstream, 256 * 1024);
+    expect(readResponseTextWithCap).toHaveBeenCalledWith(upstream, 20 * 1024 * 1024);
     expect(JSON.parse(response.body)).toEqual({ status: 206, html: '<html>safe</html>' });
   });
 

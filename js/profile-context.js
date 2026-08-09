@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
+import { getCurrentSupplements } from './supplement-medication-domain.js';
 
 /** @typedef {{
  * rollingChannelTotals: null | ((days?: number) => any),
@@ -184,7 +185,7 @@ export function getBiologyProfileContext(options = {}) {
   const conditions = Array.isArray(diagnoses.conditions) ? diagnoses.conditions : [];
   const flags = /** @type {Record<string, boolean>} */ (diagnoses.flags || {});
   const conditionText = conditions.map(c => `${c?.name || ''} ${c?.note || ''} ${c?.severity || ''} ${c?.status || ''}`).join(' ');
-  const supplements = includeSupplementsMeds && Array.isArray(data.supplements) ? data.supplements.map(s => `${s?.name || ''} ${s?.note || s?.notes || ''} ${s?.type || ''}`).join(' ') : '';
+  const supplements = includeSupplementsMeds && Array.isArray(data.supplements) ? getCurrentSupplements(data.supplements).map(s => `${s?.name || ''} ${s?.note || s?.notes || ''} ${s?.type || ''}`).join(' ') : '';
   const exercise = includeInsightCards ? (data.exercise || {}) : {};
   const sleepRest = includeInsightCards ? (data.sleepRest || {}) : {};
   const stress = includeInsightCards ? (data.stress || {}) : {};

@@ -72,4 +72,30 @@ describe('profile data boundaries', () => {
 
     expect(migrateProfileData(lampData).lightCircadian.amLight).toBe('light therapy lamp');
   });
+
+  it('upgrades therapy records additively without rewriting health history', () => {
+    const data = createDefaultProfileData();
+    data.supplements = [{
+      name: 'Legacy medication',
+      type: 'medication',
+      startDate: '2025-01-01',
+      endDate: '2025-02-01',
+      dosage: 'original directions',
+      ingredients: [{ name: 'Active', amount: 'unstructured amount', extra: 'keep' }],
+      futureClientField: { keep: true },
+    }];
+
+    const migrated = migrateProfileData(data);
+    const firstPass = structuredClone(migrated.supplements[0]);
+    migrateProfileData(data);
+
+    expect(migrated.supplements[0]).toEqual(firstPass);
+    expect(migrated.supplements[0]).toMatchObject({
+      id: expect.stringMatching(/^s_/),
+      schemaVersion: 2,
+      dosage: 'original directions',
+      ingredients: [{ amount: 'unstructured amount', extra: 'keep' }],
+      futureClientField: { keep: true },
+    });
+  });
 });

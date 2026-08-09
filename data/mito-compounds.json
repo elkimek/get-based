@@ -1,2654 +1,586 @@
 [
   {
-    "_meta": "Independently compiled by the getbased project from primary published literature. Each entry cites a PubMed ID (PMID) for the source study. NOT derived from MitoTox or any third-party database."
-  },
-  {
-    "name": "Metformin",
-    "k": [
-      "metformin",
-      "glucophage"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "supratherapeutic dose; primary low-dose target debated"
-      },
-      {
-        "f": "mGPDH",
-        "a": "inhibits",
-        "t": "candidate primary target at therapeutic dose (Madiraju 2014)"
-      },
-      {
-        "f": "AMPK",
-        "a": "activates",
-        "t": "lysosomal, complex-I-independent at low dose (Cameron 2018)"
-      }
-    ],
-    "pmid": 39693440,
-    "more": "metformin+mitochondrial+mGPDH+AMPK"
-  },
-  {
-    "name": "Simvastatin",
-    "k": [
-      "simvastatin",
-      "zocor"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "CoQ10 biosynthesis",
-        "a": "depletes",
-        "t": "chronic use"
-      },
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 39126062,
-    "more": "simvastatin+mitochondria+toxicity"
-  },
-  {
-    "name": "Atorvastatin",
-    "k": [
-      "atorvastatin",
-      "lipitor"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "CoQ10 biosynthesis",
-        "a": "depletes",
-        "t": "chronic use"
-      },
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 39126062,
-    "more": "atorvastatin+mitochondria"
-  },
-  {
-    "name": "Rosuvastatin",
-    "k": [
-      "rosuvastatin",
-      "crestor"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "CoQ10 biosynthesis",
-        "a": "depletes",
-        "t": "chronic use"
-      }
-    ],
-    "pmid": 18957876,
-    "more": "rosuvastatin+coenzyme+Q10+depletion"
-  },
-  {
-    "name": "Pravastatin",
-    "k": [
-      "pravastatin",
-      "pravachol"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "CoQ10 biosynthesis",
-        "a": "depletes",
-        "t": "mild, less lipophilic"
-      }
-    ],
-    "pmid": 18957876,
-    "more": "pravastatin+coenzyme+Q10"
-  },
-  {
-    "name": "Acetaminophen",
-    "k": [
-      "acetaminophen",
-      "paracetamol",
-      "tylenol"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "overdose"
-      },
-      {
-        "f": "Glutathione",
-        "a": "depletes",
-        "t": "overdose"
-      },
-      {
-        "f": "MPT pore",
-        "a": "opens",
-        "t": "overdose, hepatotoxicity"
-      }
-    ],
-    "pmid": 31307587,
-    "more": "acetaminophen+mitochondrial+toxicity+hepatotoxicity"
-  },
-  {
-    "name": "Ibuprofen",
-    "k": [
-      "ibuprofen",
-      "advil",
-      "motrin",
-      "brufen"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Membrane permeability transition",
-        "a": "induces",
-        "t": "high dose"
-      },
-      {
-        "f": "Mitochondrial apoptosis",
-        "a": "induces",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 10643865,
-    "more": "ibuprofen+mitochondria+toxicity"
-  },
-  {
-    "name": "Diclofenac",
-    "k": [
-      "diclofenac",
-      "voltaren"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Oxidative phosphorylation",
-        "a": "inhibits",
-        "t": "hepatotoxicity risk"
-      },
-      {
-        "f": "Uncoupling",
-        "a": "induces",
-        "t": "therapeutic to high dose"
-      }
-    ],
-    "pmid": 26627130,
-    "more": "diclofenac+mitochondrial+toxicity"
-  },
-  {
-    "name": "Aspirin",
-    "k": [
-      "aspirin",
-      "acetylsalicylic acid"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Oxidative phosphorylation",
-        "a": "uncouples",
-        "t": "high dose only — 81 mg cardioprotective dose has no measurable effect"
-      }
-    ],
-    "pmid": 9048975,
-    "more": "aspirin+mitochondria+uncoupling"
-  },
-  {
-    "name": "Naproxen",
-    "k": [
-      "naproxen",
-      "aleve",
-      "naprosyn"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 31342476,
-    "more": "naproxen+mitochondria"
-  },
-  {
-    "name": "Indomethacin",
-    "k": [
-      "indomethacin",
-      "indocin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Oxidative phosphorylation",
-        "a": "uncouples",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 36868495,
-    "more": "indomethacin+mitochondria+uncoupling"
-  },
-  {
-    "name": "Celecoxib",
-    "k": [
-      "celecoxib",
-      "celebrex"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "supratherapeutic dose"
-      }
-    ],
-    "pmid": 38334825,
-    "more": "celecoxib+mitochondria"
-  },
-  {
-    "name": "Omeprazole",
-    "k": [
-      "omeprazole",
-      "prilosec",
-      "losec"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial function (kidney)",
-        "a": "disrupts",
-        "t": "chronic use, nephrotoxicity"
-      },
-      {
-        "f": "Magnesium",
-        "a": "depletes",
-        "t": "chronic use, indirect"
-      }
-    ],
-    "pmid": 32092686,
-    "more": "omeprazole+mitochondria+toxicity"
-  },
-  {
-    "name": "Esomeprazole",
-    "k": [
-      "esomeprazole",
-      "nexium"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Magnesium",
-        "a": "depletes",
-        "t": "chronic use, indirect mito effect"
-      }
-    ],
-    "pmid": 40785690,
-    "more": "esomeprazole+mitochondria"
-  },
-  {
-    "name": "Lansoprazole",
-    "k": [
-      "lansoprazole",
-      "prevacid"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Magnesium",
-        "a": "depletes",
-        "t": "chronic use, indirect mito effect"
-      }
-    ],
-    "pmid": 21765603,
-    "more": "lansoprazole+mitochondria"
-  },
-  {
-    "name": "Valproic acid",
-    "k": [
-      "valproic acid",
-      "valproate",
-      "depakote",
-      "depakene",
-      "epilim",
-      "divalproex"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Beta-oxidation",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Carnitine",
-        "a": "depletes",
-        "t": "chronic use"
-      },
-      {
-        "f": "Complex IV",
-        "a": "inhibits",
-        "t": "chronic use"
-      }
-    ],
-    "pmid": 37235285,
-    "more": "valproic+acid+mitochondrial+toxicity"
-  },
-  {
-    "name": "Phenytoin",
-    "k": [
-      "phenytoin",
-      "dilantin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial function",
-        "a": "disrupts",
-        "t": "chronic use"
-      },
-      {
-        "f": "CoQ10",
-        "a": "depletes",
-        "t": "chronic use"
-      }
-    ],
-    "pmid": 27590225,
-    "more": "phenytoin+mitochondria+toxicity"
-  },
-  {
-    "name": "Carbamazepine",
-    "k": [
-      "carbamazepine",
-      "tegretol"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Bioenergetics",
-        "a": "disrupts",
-        "t": "blood-brain barrier"
-      }
-    ],
-    "pmid": 32805338,
-    "more": "carbamazepine+mitochondria"
-  },
-  {
-    "name": "Ciprofloxacin",
-    "k": [
-      "ciprofloxacin",
-      "cipro"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "mtDNA",
-        "a": "disrupts",
-        "t": "topoisomerase II inhibition"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 39964703,
-    "more": "ciprofloxacin+mitochondrial+toxicity"
-  },
-  {
-    "name": "Levofloxacin",
-    "k": [
-      "levofloxacin",
-      "levaquin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "mtDNA",
-        "a": "disrupts",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 39964703,
-    "more": "fluoroquinolone+mitochondrial+toxicity"
-  },
-  {
-    "name": "Moxifloxacin",
-    "k": [
-      "moxifloxacin",
-      "avelox"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "mtDNA",
-        "a": "disrupts",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "decreases",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 24284031,
-    "more": "fluoroquinolone+mitochondrial+toxicity"
-  },
-  {
-    "name": "Doxycycline",
-    "k": [
-      "doxycycline",
-      "vibramycin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial translation",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Cardiac mitochondria",
-        "a": "impairs",
-        "t": "chronic use"
-      }
-    ],
-    "pmid": 33921053,
-    "more": "doxycycline+mitochondrial+translation"
-  },
-  {
-    "name": "Linezolid",
-    "k": [
-      "linezolid",
-      "zyvox"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial ribosome",
-        "a": "inhibits",
-        "t": "chronic use"
-      },
-      {
-        "f": "Lactic acidosis",
-        "a": "induces",
-        "t": "chronic use"
-      }
-    ],
-    "pmid": 15909253,
-    "more": "linezolid+mitochondrial+toxicity+lactic+acidosis"
-  },
-  {
-    "name": "Gentamicin",
-    "k": [
-      "gentamicin",
-      "garamycin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial ribosome",
-        "a": "disrupts",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "ototoxicity, nephrotoxicity"
-      }
-    ],
-    "pmid": 41654647,
-    "more": "gentamicin+mitochondria+ototoxicity"
-  },
-  {
-    "name": "Amiodarone",
-    "k": [
-      "amiodarone",
-      "cordarone",
-      "pacerone"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Complex II",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Beta-oxidation",
-        "a": "inhibits",
-        "t": "hepatotoxicity"
-      }
-    ],
-    "pmid": 34769217,
-    "more": "amiodarone+mitochondrial+toxicity"
-  },
-  {
-    "name": "Doxorubicin",
-    "k": [
-      "doxorubicin",
-      "adriamycin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "cardiotoxicity"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "mtDNA",
-        "a": "damages",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 39921259,
-    "more": "doxorubicin+mitochondrial+cardiotoxicity"
-  },
-  {
-    "name": "Cisplatin",
-    "k": [
-      "cisplatin",
-      "platinol"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "mtDNA",
-        "a": "crosslinks",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "nephro/ototoxicity"
-      }
-    ],
-    "pmid": 36923942,
-    "more": "cisplatin+mitochondria+nephrotoxicity"
-  },
-  {
-    "name": "Tamoxifen",
-    "k": [
-      "tamoxifen",
-      "nolvadex"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Uncoupling",
-        "a": "induces",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "MPT pore",
-        "a": "opens",
-        "t": "hepatotoxicity"
-      }
-    ],
-    "pmid": 34896079,
-    "more": "tamoxifen+mitochondria+hepatotoxicity"
-  },
-  {
-    "name": "Fluoxetine",
-    "k": [
-      "fluoxetine",
-      "prozac"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "decreases",
-        "t": "supratherapeutic"
-      }
-    ],
-    "pmid": 27392437,
-    "more": "fluoxetine+mitochondria+toxicity"
+    "_meta": {
+      "schemaVersion": 2,
+      "verifiedOn": "2026-08-09",
+      "scope": "Conservative primary-study evidence matched to tracked supplements and medications.",
+      "inclusionRule": "Every displayed statement must be directly supported by its cited primary study and must disclose the study model, exposure context, and main limitation.",
+      "legacyAudit": "The previous 114-entry catalog was retired after an end-to-end PMID audit found review citations, unrelated papers, over-broad claims, and model-to-human extrapolation. Entries return only after claim-level verification."
+    }
   },
   {
     "name": "Sertraline",
-    "k": [
-      "sertraline",
-      "zoloft"
-    ],
-    "cat": "drug",
-    "effects": [
+    "aliases": ["sertraline", "zoloft", "lustral"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "most mitotoxic SSRI"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "decreases",
-        "t": "supratherapeutic"
+        "id": "sertraline-39586906",
+        "direction": "adverse",
+        "summary": "Muscle biopsies from 11 adults who developed weakness and lipid-storage myopathy while taking sertraline showed respiratory-chain deficiency.",
+        "studyType": "human_observational",
+        "studyLabel": "Human case series",
+        "model": "11 adults with muscle weakness and lipid-storage myopathy during sertraline treatment",
+        "exposure": "Prescribed treatment; dose and duration are not reported in the PubMed abstract.",
+        "limitations": "A selected case series can show an association, but not frequency, causality, or risk at this user's dose.",
+        "pmid": 39586906,
+        "title": "Lipid storage myopathy associated with sertraline treatment is an acquired mitochondrial disorder with respiratory chain deficiency."
       }
-    ],
-    "pmid": 39586906,
-    "more": "sertraline+mitochondria"
+    ]
   },
   {
-    "name": "Paroxetine",
-    "k": [
-      "paroxetine",
-      "paxil"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Linezolid",
+    "aliases": ["linezolid", "zyvox", "zyvoxid"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
+        "id": "linezolid-17194826",
+        "direction": "adverse",
+        "summary": "Five patients with linezolid-related hyperlactatemia had markedly reduced mitochondrial COX-II protein and COX activity; most abnormalities returned toward control after withdrawal and recovery.",
+        "studyType": "human_observational",
+        "studyLabel": "Human withdrawal study",
+        "model": "Peripheral blood mononuclear cells from 5 patients during hyperlactatemia and after recovery",
+        "exposure": "Long-term linezolid treatment followed by withdrawal.",
+        "limitations": "Only patients who developed hyperlactatemia were studied; this does not estimate risk for all users.",
+        "pmid": 17194826,
+        "title": "Reversible inhibition of mitochondrial protein synthesis during linezolid-related hyperlactatemia."
       }
-    ],
-    "pmid": 25404050,
-    "more": "paroxetine+mitochondria"
+    ]
   },
   {
-    "name": "Amitriptyline",
-    "k": [
-      "amitriptyline",
-      "elavil"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Doxycycline",
+    "aliases": ["doxycycline", "vibramycin", "doryx"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic to high dose"
-      },
-      {
-        "f": "Mitophagy",
-        "a": "induces",
-        "t": "precedes apoptosis"
+        "id": "doxycycline-33921053",
+        "direction": "adverse",
+        "summary": "Doxycycline produced a mitonuclear protein imbalance, reduced maximal respiration, and fragmented mitochondria across cardiac cell and animal models.",
+        "studyType": "translational_preclinical",
+        "studyLabel": "Multi-model preclinical",
+        "model": "H9C2 cells, adult rat cardiomyocytes, Drosophila, and mice",
+        "exposure": "Experimental cell and animal exposures; equivalence to routine human dosing was not established.",
+        "limitations": "No treated-human mitochondrial or clinical outcome was measured in this study.",
+        "pmid": 33921053,
+        "title": "The Antibiotic Doxycycline Impairs Cardiac Mitochondrial and Contractile Function."
       }
-    ],
-    "pmid": 27738496,
-    "more": "amitriptyline+mitochondria"
+    ]
+  },
+  {
+    "name": "Amiodarone",
+    "aliases": ["amiodarone", "cordarone", "pacerone"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "amiodarone-34769217",
+        "direction": "adverse",
+        "summary": "Amiodarone and its metabolite concentration-dependently impaired complex I- and II-supported respiration in human blood cells and a liver-derived cell line.",
+        "studyType": "human_cells",
+        "studyLabel": "Human cells / ex vivo",
+        "model": "Human platelets, peripheral blood mononuclear cells, and HepG2 cells",
+        "exposure": "Acute concentration-response experiments outside the body.",
+        "limitations": "Direct mitochondrial inhibition in cells does not quantify clinical risk at a prescribed dose.",
+        "pmid": 34769217,
+        "title": "Cell-Permeable Succinate Rescues Mitochondrial Respiration in Cellular Models of Amiodarone Toxicity."
+      }
+    ]
+  },
+  {
+    "name": "Doxorubicin",
+    "aliases": ["doxorubicin", "adriamycin", "rubex"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "doxorubicin-39921259",
+        "direction": "adverse",
+        "summary": "Doxorubicin opened the mitochondrial permeability transition pore and caused mtDNA leakage in cardiomyocyte models; lower mitochondrial copy number increased susceptibility.",
+        "studyType": "translational_preclinical",
+        "studyLabel": "Human cells + animal",
+        "model": "Patient PBMC correlation, isogenic human iPSC cardiomyocytes, and mice",
+        "exposure": "Anthracycline-treated patients were correlated with biomarkers; causal tests used cell and mouse models.",
+        "limitations": "The mechanistic experiments do not predict an individual patient's cardiotoxicity or safe dose.",
+        "pmid": 39921259,
+        "title": "Mitochondrial Amount Determines Doxorubicin-Induced Cardiotoxicity in Cardiomyocytes."
+      }
+    ]
   },
   {
     "name": "Haloperidol",
-    "k": [
-      "haloperidol",
-      "haldol"
-    ],
-    "cat": "drug",
-    "effects": [
+    "aliases": ["haloperidol", "haldol"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic dose"
+        "id": "haloperidol-10221760",
+        "direction": "adverse",
+        "summary": "Haloperidol caused time- and concentration-dependent complex I inhibition associated with thiol oxidation in incubated mouse brain slices.",
+        "studyType": "isolated_tissue",
+        "studyLabel": "Isolated animal tissue",
+        "model": "Mouse brain slices incubated with haloperidol; isolated mitochondria used for reversal tests",
+        "exposure": "In-vitro tissue exposure, including 10 nM haloperidol.",
+        "limitations": "An isolated-tissue mechanism is not evidence of clinical mitochondrial injury at a prescribed dose.",
+        "pmid": 10221760,
+        "title": "Inhibition of mitochondrial complex I by haloperidol: the role of thiol oxidation."
       }
-    ],
-    "pmid": 10221760,
-    "more": "haloperidol+complex+I+mitochondria"
-  },
-  {
-    "name": "Chlorpromazine",
-    "k": [
-      "chlorpromazine",
-      "thorazine"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic dose"
-      },
-      {
-        "f": "Oxidative phosphorylation",
-        "a": "uncouples",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 31104106,
-    "more": "chlorpromazine+mitochondria"
-  },
-  {
-    "name": "Quetiapine",
-    "k": [
-      "quetiapine",
-      "seroquel"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial respiration",
-        "a": "inhibits",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 31104106,
-    "more": "quetiapine+mitochondria"
-  },
-  {
-    "name": "Propranolol",
-    "k": [
-      "propranolol",
-      "inderal"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose, lipophilic"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "decreases",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 32120430,
-    "more": "propranolol+mitochondria"
-  },
-  {
-    "name": "Diazepam",
-    "k": [
-      "diazepam",
-      "valium"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "TSPO (mitochondrial translocator protein)",
-        "a": "binds",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 29211020,
-    "more": "diazepam+TSPO+mitochondria"
-  },
-  {
-    "name": "Ketoconazole",
-    "k": [
-      "ketoconazole",
-      "nizoral"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial apoptosis",
-        "a": "induces",
-        "t": "hepatotoxicity"
-      },
-      {
-        "f": "GSH",
-        "a": "depletes",
-        "t": "therapeutic dose"
-      }
-    ],
-    "pmid": 35628239,
-    "more": "ketoconazole+mitochondrial+toxicity"
-  },
-  {
-    "name": "Nefazodone",
-    "k": [
-      "nefazodone",
-      "serzone"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "therapeutic dose, withdrawn"
-      },
-      {
-        "f": "MPT pore",
-        "a": "opens",
-        "t": "hepatotoxicity"
-      }
-    ],
-    "pmid": 27288927,
-    "more": "nefazodone+mitochondrial+hepatotoxicity"
-  },
-  {
-    "name": "Propofol",
-    "k": [
-      "propofol",
-      "diprivan"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "prolonged infusion"
-      },
-      {
-        "f": "CoQ10",
-        "a": "depletes",
-        "t": "propofol infusion syndrome"
-      }
-    ],
-    "pmid": 25296107,
-    "more": "propofol+infusion+syndrome+mitochondria"
-  },
-  {
-    "name": "Bupivacaine",
-    "k": [
-      "bupivacaine",
-      "marcaine"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose, myotoxicity"
-      },
-      {
-        "f": "Uncoupling",
-        "a": "induces",
-        "t": "cardiotoxicity"
-      }
-    ],
-    "pmid": 32275945,
-    "more": "bupivacaine+mitochondrial+toxicity"
-  },
-  {
-    "name": "Berberine",
-    "k": [
-      "berberine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "similar to metformin"
-      },
-      {
-        "f": "AMPK",
-        "a": "activates",
-        "t": "via Complex I inhibition"
-      }
-    ],
-    "pmid": 18285556,
-    "more": "berberine+complex+I+AMPK+mitochondria"
-  },
-  {
-    "name": "Coenzyme Q10",
-    "k": [
-      "coenzyme q10",
-      "coq10",
-      "ubiquinone",
-      "ubiquinol"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I-III electron transport",
-        "a": "enhances",
-        "t": "supplemental dose"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "antioxidant"
-      }
-    ],
-    "pmid": 34129891,
-    "more": "coenzyme+Q10+mitochondrial+electron+transport"
-  },
-  {
-    "name": "N-Acetylcysteine",
-    "k": [
-      "n-acetylcysteine",
-      "nac",
-      "n-acetyl cysteine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Glutathione",
-        "a": "replenishes",
-        "t": "GSH precursor"
-      },
-      {
-        "f": "Mitochondrial function",
-        "a": "improves",
-        "t": "aging, oxidative stress"
-      }
-    ],
-    "pmid": 35975308,
-    "more": "N-acetylcysteine+mitochondria+glutathione"
-  },
-  {
-    "name": "Alpha-Lipoic Acid",
-    "k": [
-      "alpha-lipoic acid",
-      "alpha lipoic acid",
-      "ala",
-      "lipoic acid",
-      "thioctic acid"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I cofactor",
-        "a": "enhances",
-        "t": "mitochondrial redox"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "antioxidant"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "PGC-1alpha"
-      }
-    ],
-    "pmid": 29191830,
-    "more": "alpha+lipoic+acid+mitochondria"
-  },
-  {
-    "name": "Nicotinamide Riboside",
-    "k": [
-      "nicotinamide riboside",
-      "nr",
-      "niagen",
-      "tru niagen"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "NAD+ biosynthesis",
-        "a": "replenishes",
-        "t": "supplemental dose"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via SIRT1/PGC-1alpha"
-      }
-    ],
-    "pmid": 22682224,
-    "more": "nicotinamide+riboside+NAD+mitochondria"
-  },
-  {
-    "name": "NMN",
-    "k": [
-      "nmn",
-      "nicotinamide mononucleotide"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "NAD+ biosynthesis",
-        "a": "replenishes",
-        "t": "supplemental dose"
-      },
-      {
-        "f": "Mitochondrial stress response",
-        "a": "improves",
-        "t": "UPR activation"
-      }
-    ],
-    "pmid": 39394148,
-    "more": "nicotinamide+mononucleotide+NMN+mitochondria"
-  },
-  {
-    "name": "PQQ",
-    "k": [
-      "pqq",
-      "pyrroloquinoline quinone"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "AMPK/PGC-1alpha"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "antioxidant"
-      }
-    ],
-    "pmid": 32860006,
-    "more": "PQQ+pyrroloquinoline+quinone+mitochondrial+biogenesis"
-  },
-  {
-    "name": "Melatonin",
-    "k": [
-      "melatonin"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I, III, IV",
-        "a": "protects",
-        "t": "from ROS damage (indirect via antioxidant effect, not direct activity enhancement)"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "mitochondrially-targeted antioxidant, concentrates in matrix"
-      },
-      {
-        "f": "MPT pore",
-        "a": "prevents opening",
-        "t": "neuroprotective"
-      }
-    ],
-    "pmid": 28828619,
-    "more": "melatonin+mitochondria+protective"
-  },
-  {
-    "name": "L-Carnitine",
-    "k": [
-      "l-carnitine",
-      "carnitine",
-      "acetyl-l-carnitine",
-      "alcar",
-      "acetylcarnitine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Beta-oxidation",
-        "a": "enhances",
-        "t": "fatty acid transport into matrix"
-      }
-    ],
-    "pmid": 28508995,
-    "more": "L-carnitine+mitochondria+beta+oxidation"
-  },
-  {
-    "name": "Resveratrol",
-    "k": [
-      "resveratrol",
-      "trans-resveratrol"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "low dose — functional effect replicated, but direct SIRT1 binding contested (Pacholec 2010); likely upstream via AMPK"
-      },
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "very high dose only"
-      }
-    ],
-    "pmid": 17112576,
-    "more": "resveratrol+SIRT1+mitochondrial+biogenesis"
-  },
-  {
-    "name": "Curcumin",
-    "k": [
-      "curcumin",
-      "turmeric extract"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitophagy",
-        "a": "promotes",
-        "t": "AMPK/PINK1/Parkin"
-      },
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose, biphasic"
-      }
-    ],
-    "pmid": 31580521,
-    "more": "curcumin+mitochondria"
-  },
-  {
-    "name": "Quercetin",
-    "k": [
-      "quercetin"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "low dose, antioxidant"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "low dose"
-      }
-    ],
-    "pmid": 41752502,
-    "more": "quercetin+mitochondria"
-  },
-  {
-    "name": "Vitamin B2",
-    "k": [
-      "riboflavin",
-      "vitamin b2",
-      "b-complex",
-      "b complex"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I (FMN)",
-        "a": "cofactor",
-        "t": "essential"
-      },
-      {
-        "f": "Complex II (FAD)",
-        "a": "cofactor",
-        "t": "essential"
-      }
-    ],
-    "pmid": 33886098,
-    "more": "riboflavin+FAD+mitochondrial+complex+I"
-  },
-  {
-    "name": "Vitamin B3",
-    "k": [
-      "niacin",
-      "niacinamide",
-      "nicotinamide",
-      "vitamin b3"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "NAD+ (Complex I substrate)",
-        "a": "replenishes",
-        "t": "precursor"
-      }
-    ],
-    "pmid": 22682224,
-    "more": "niacin+NAD+mitochondria"
-  },
-  {
-    "name": "Creatine",
-    "k": [
-      "creatine",
-      "creatine monohydrate"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Phosphocreatine shuttle",
-        "a": "enhances",
-        "t": "energy buffering"
-      }
-    ],
-    "pmid": 12044443,
-    "more": "creatine+mitochondria+neuroprotection"
-  },
-  {
-    "name": "Omega-3",
-    "k": [
-      "omega-3",
-      "omega 3",
-      "fish oil",
-      "epa",
-      "dha",
-      "eicosapentaenoic",
-      "docosahexaenoic"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Membrane fluidity",
-        "a": "improves",
-        "t": "cardiolipin composition"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "anti-inflammatory"
-      }
-    ],
-    "pmid": 19703463,
-    "more": "omega-3+mitochondrial+cardiolipin+membrane"
-  },
-  {
-    "name": "Magnesium",
-    "k": [
-      "magnesium",
-      "magnesium glycinate",
-      "magnesium citrate",
-      "magnesium threonate",
-      "magnesium bisglycinate",
-      "magnesium oxide",
-      "magnesium taurate",
-      "magnesium malate",
-      "magnesium l-threonate"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "ATP synthase",
-        "a": "cofactor",
-        "t": "ATP-Mg complex essential"
-      }
-    ],
-    "pmid": 41859661,
-    "more": "magnesium+mitochondria+ATP"
-  },
-  {
-    "name": "Glyphosate",
-    "k": [
-      "glyphosate",
-      "roundup"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Complex II",
-        "a": "inhibits",
-        "t": "environmental exposure"
-      },
-      {
-        "f": "Complex III",
-        "a": "inhibits",
-        "t": "environmental exposure"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "oxidative stress"
-      }
-    ],
-    "pmid": 40423452,
-    "more": "glyphosate+mitochondrial+toxicity"
-  },
-  {
-    "name": "BPA",
-    "k": [
-      "bpa",
-      "bisphenol a",
-      "bisphenol"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Mitochondrial apoptosis",
-        "a": "induces",
-        "t": "neuronal cells"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "environmental exposure"
-      }
-    ],
-    "pmid": 32927158,
-    "more": "bisphenol+A+BPA+mitochondria+toxicity"
-  },
-  {
-    "name": "Lead",
-    "k": [
-      "lead",
-      "pb"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Complex I, III, IV",
-        "a": "inhibits",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "mtDNA",
-        "a": "damages",
-        "t": "chronic exposure"
-      }
-    ],
-    "pmid": 39056765,
-    "more": "lead+mitochondrial+toxicity"
-  },
-  {
-    "name": "Mercury",
-    "k": [
-      "mercury",
-      "methylmercury",
-      "hg"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Complex I, III",
-        "a": "inhibits",
-        "t": "thiol binding"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "MPT pore",
-        "a": "opens",
-        "t": "neurotoxicity"
-      }
-    ],
-    "pmid": 38703851,
-    "more": "methylmercury+mitochondria+toxicity"
-  },
-  {
-    "name": "Cadmium",
-    "k": [
-      "cadmium",
-      "cd"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Complex II, III",
-        "a": "inhibits",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "ferroptosis"
-      },
-      {
-        "f": "MPT pore",
-        "a": "opens",
-        "t": "apoptosis"
-      }
-    ],
-    "pmid": 38733909,
-    "more": "cadmium+mitochondrial+toxicity"
-  },
-  {
-    "name": "Arsenic",
-    "k": [
-      "arsenic",
-      "arsenite"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "PDH complex",
-        "a": "inhibits",
-        "t": "binds lipoic acid"
-      },
-      {
-        "f": "Complex I, IV",
-        "a": "inhibits",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "ferroptosis"
-      }
-    ],
-    "pmid": 31735470,
-    "more": "arsenic+mitochondria+toxicity"
-  },
-  {
-    "name": "Rotenone",
-    "k": [
-      "rotenone"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "potent, reference inhibitor"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "Parkinsonism"
-      }
-    ],
-    "pmid": 12496265,
-    "more": "rotenone+complex+I+mitochondria"
-  },
-  {
-    "name": "Paraquat",
-    "k": [
-      "paraquat"
-    ],
-    "cat": "toxin",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "redox cycles",
-        "t": "massive superoxide generation"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "Parkinsonism"
-      }
-    ],
-    "pmid": 32604037,
-    "more": "paraquat+mitochondria+superoxide"
-  },
-  {
-    "name": "Escitalopram",
-    "k": [
-      "escitalopram",
-      "lexapro",
-      "cipralex"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 41806632,
-    "more": "escitalopram+mitochondria"
-  },
-  {
-    "name": "Citalopram",
-    "k": [
-      "citalopram",
-      "celexa"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 33791799,
-    "more": "citalopram+mitochondria"
-  },
-  {
-    "name": "Vitamin D",
-    "k": [
-      "vitamin d",
-      "vitamin d3",
-      "cholecalciferol",
-      "calcitriol",
-      "ergocalciferol"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "VDR-mediated"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "adequate levels"
-      }
-    ],
-    "pmid": 41856333,
-    "more": "vitamin+D+mitochondrial+biogenesis"
-  },
-  {
-    "name": "Iron",
-    "k": [
-      "iron",
-      "ferrous sulfate",
-      "ferrous fumarate",
-      "ferrous gluconate",
-      "iron bisglycinate"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "ETC iron-sulfur clusters",
-        "a": "cofactor",
-        "t": "essential for Complex I-III"
-      },
-      {
-        "f": "ROS (Fenton reaction)",
-        "a": "increases",
-        "t": "excess/overload"
-      }
-    ],
-    "pmid": 41828457,
-    "more": "iron+mitochondria+electron+transport"
-  },
-  {
-    "name": "Zinc",
-    "k": [
-      "zinc",
-      "zinc picolinate",
-      "zinc citrate",
-      "zinc gluconate",
-      "zinc carnosine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial membrane potential",
-        "a": "modulates",
-        "t": "dose-dependent"
-      },
-      {
-        "f": "Complex III",
-        "a": "inhibits",
-        "t": "excess, Ki < 1 \u00b5M"
-      }
-    ],
-    "pmid": 12694382,
-    "more": "zinc+mitochondria+complex+III"
-  },
-  {
-    "name": "Selenium",
-    "k": [
-      "selenium",
-      "selenomethionine",
-      "sodium selenite"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "GPX4 (mitochondrial)",
-        "a": "cofactor",
-        "t": "essential for antioxidant defense"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "adequate levels"
-      }
-    ],
-    "pmid": 37272058,
-    "more": "selenium+GPX4+mitochondrial+ROS"
-  },
-  {
-    "name": "Taurine",
-    "k": [
-      "taurine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial tRNA modification",
-        "a": "enhances",
-        "t": "essential for translation"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "stabilizes",
-        "t": "cardioprotective"
-      }
-    ],
-    "pmid": 41877804,
-    "more": "taurine+mitochondria+tRNA"
-  },
-  {
-    "name": "Methotrexate",
-    "k": [
-      "methotrexate",
-      "mtx",
-      "trexall"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Glutathione",
-        "a": "depletes",
-        "t": "oxidative stress cascade"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "disrupts",
-        "t": "collapses \u0394\u03a8m"
-      },
-      {
-        "f": "Cytochrome c",
-        "a": "increases",
-        "t": "apoptosis induction"
-      }
-    ],
-    "pmid": 28298149,
-    "more": "methotrexate+mitochondrial+dysfunction"
-  },
-  {
-    "name": "Dexamethasone",
-    "k": [
-      "dexamethasone",
-      "decadron"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "mtDNA",
-        "a": "damages",
-        "t": "oxidative lesions"
-      },
-      {
-        "f": "Muscle mitochondria",
-        "a": "impairs",
-        "t": "atrophy pathway"
-      }
-    ],
-    "pmid": 26592738,
-    "more": "dexamethasone+mitochondrial+muscle+atrophy"
-  },
-  {
-    "name": "Prednisone",
-    "k": [
-      "prednisone",
-      "prednisolone",
-      "deltasone"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Oxidative phosphorylation",
-        "a": "impairs",
-        "t": "chronic use"
-      },
-      {
-        "f": "mtDNA copy number",
-        "a": "decreases",
-        "t": "skeletal muscle"
-      }
-    ],
-    "pmid": 39180608,
-    "more": "corticosteroids+mitochondrial+skeletal+muscle"
-  },
-  {
-    "name": "Hydroxychloroquine",
-    "k": [
-      "hydroxychloroquine",
-      "plaquenil",
-      "hcq"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Autophagy/mitophagy",
-        "a": "inhibits",
-        "t": "lysosomal alkalinization"
-      },
-      {
-        "f": "Damaged mitochondria",
-        "a": "increases",
-        "t": "accumulation from blocked clearance"
-      }
-    ],
-    "pmid": 37085872,
-    "more": "hydroxychloroquine+mitophagy+lysosome"
-  },
-  {
-    "name": "Morphine",
-    "k": [
-      "morphine",
-      "ms contin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "TRPM2-mediated"
-      },
-      {
-        "f": "mtDNA copy number",
-        "a": "decreases",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "Apoptosis",
-        "a": "induces",
-        "t": "neuronal"
-      }
-    ],
-    "pmid": 32524520,
-    "more": "morphine+mitochondrial+dysfunction+neurotoxicity"
-  },
-  {
-    "name": "Tramadol",
-    "k": [
-      "tramadol",
-      "ultram"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "dose-dependent"
-      },
-      {
-        "f": "Complex III",
-        "a": "inhibits",
-        "t": "dose-dependent"
-      },
-      {
-        "f": "Complex IV",
-        "a": "inhibits",
-        "t": "dose-dependent"
-      },
-      {
-        "f": "Glutathione",
-        "a": "depletes",
-        "t": "hepatic"
-      }
-    ],
-    "pmid": 34909675,
-    "more": "tramadol+mitochondrial+electron+transport+chain"
-  },
-  {
-    "name": "Codeine",
-    "k": [
-      "codeine"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Oxidative phosphorylation",
-        "a": "impairs",
-        "t": "opioid class effect"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "metabolized to morphine"
-      }
-    ],
-    "pmid": 35829998,
-    "more": "opioid+mitochondrial+dysfunction"
-  },
-  {
-    "name": "Metoprolol",
-    "k": [
-      "metoprolol",
-      "lopressor",
-      "toprol"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Fatty acid oxidation",
-        "a": "impairs",
-        "t": "cardiac mitochondria"
-      },
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high dose"
-      }
-    ],
-    "pmid": 40759985,
-    "more": "metoprolol+mitochondrial+cardiac"
-  },
-  {
-    "name": "Amlodipine",
-    "k": [
-      "amlodipine",
-      "norvasc"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "mPTP opening",
-        "a": "inhibits",
-        "t": "cardioprotective"
-      },
-      {
-        "f": "Mitochondrial respiration",
-        "a": "improves",
-        "t": "ischemia-reperfusion"
-      }
-    ],
-    "pmid": 24588464,
-    "more": "amlodipine+mitochondrial+permeability+transition"
-  },
-  {
-    "name": "Levothyroxine",
-    "k": [
-      "levothyroxine",
-      "synthroid",
-      "t4",
-      "euthyrox"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "physiological"
-      },
-      {
-        "f": "Uncoupling",
-        "a": "increases",
-        "t": "excess T3 conversion"
-      }
-    ],
-    "pmid": 41654685,
-    "more": "thyroid+hormone+mitochondrial+biogenesis+uncoupling"
-  },
-  {
-    "name": "Gabapentin",
-    "k": [
-      "gabapentin",
-      "neurontin"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial membrane potential",
-        "a": "stabilizes",
-        "t": "neuroprotective"
-      },
-      {
-        "f": "Calcium overload",
-        "a": "decreases",
-        "t": "via \u03b12\u03b4 subunit"
-      }
-    ],
-    "pmid": 41075634,
-    "more": "gabapentin+mitochondrial+neuroprotection"
-  },
-  {
-    "name": "Pregabalin",
-    "k": [
-      "pregabalin",
-      "lyrica"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial calcium uptake",
-        "a": "decreases",
-        "t": "neuroprotective"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "indirect via calcium modulation"
-      }
-    ],
-    "pmid": 37239154,
-    "more": "pregabalin+mitochondrial+calcium"
-  },
-  {
-    "name": "THC",
-    "k": [
-      "thc",
-      "tetrahydrocannabinol",
-      "dronabinol",
-      "marijuana",
-      "cannabis"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "71% Vmax reduction via mitochondrial CB1"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "disrupts",
-        "t": "dose-dependent"
-      }
-    ],
-    "pmid": 25195527,
-    "more": "THC+mitochondrial+CB1+complex+I"
-  },
-  {
-    "name": "CBD",
-    "k": [
-      "cbd",
-      "cannabidiol"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "high concentration"
-      },
-      {
-        "f": "Mitochondrial calcium",
-        "a": "modulates",
-        "t": "neuroprotective at low dose"
-      }
-    ],
-    "pmid": 19228959,
-    "more": "cannabidiol+mitochondrial+calcium"
-  },
-  {
-    "name": "Amphetamine",
-    "k": [
-      "amphetamine",
-      "adderall",
-      "dextroamphetamine"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "decreases",
-        "t": "subunit expression"
-      },
-      {
-        "f": "Complex II",
-        "a": "decreases",
-        "t": "subunit expression"
-      },
-      {
-        "f": "Complex III",
-        "a": "decreases",
-        "t": "subunit expression"
-      }
-    ],
-    "pmid": 35008791,
-    "more": "amphetamine+mitochondrial+complex+subunits"
+    ]
   },
   {
     "name": "Methylphenidate",
-    "k": [
-      "methylphenidate",
-      "ritalin",
-      "concerta"
-    ],
-    "cat": "drug",
-    "effects": [
+    "aliases": ["methylphenidate", "ritalin", "concerta"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "dose-dependent, young more susceptible"
-      },
-      {
-        "f": "Complex II",
-        "a": "inhibits",
-        "t": "dose-dependent"
-      },
-      {
-        "f": "Complex III",
-        "a": "inhibits",
-        "t": "dose-dependent"
-      },
-      {
-        "f": "Complex IV",
-        "a": "inhibits",
-        "t": "dose-dependent"
+        "id": "methylphenidate-19777344",
+        "direction": "adverse",
+        "summary": "Acute and 28-day methylphenidate administration inhibited respiratory-chain complex activities in several brain regions of adult rats.",
+        "studyType": "animal_in_vivo",
+        "studyLabel": "Animal study",
+        "model": "Adult rats after acute or once-daily administration for 28 days",
+        "exposure": "Injected animal dosing; human exposure equivalence was not established in the abstract.",
+        "limitations": "Rat brain enzyme activity cannot establish cognitive, neurological, or mitochondrial harm in treated people.",
+        "pmid": 19777344,
+        "title": "Inhibition of mitochondrial respiratory chain in the brain of adult rats after acute and chronic administration of methylphenidate."
       }
-    ],
-    "pmid": 19777344,
-    "more": "methylphenidate+mitochondrial+electron+transport"
+    ]
   },
   {
-    "name": "Semaglutide",
-    "k": [
-      "semaglutide",
-      "ozempic",
-      "wegovy",
-      "rybelsus"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Simvastatin",
+    "aliases": ["simvastatin", "zocor"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via GLP-1R signaling"
-      },
-      {
-        "f": "Complex I",
-        "a": "enhances",
-        "t": "restores activity"
-      },
-      {
-        "f": "Mitochondrial dynamics",
-        "a": "improves",
-        "t": "normalizes fission/fusion"
+        "id": "simvastatin-39126062",
+        "direction": "adverse",
+        "summary": "Simvastatin dose-dependently reduced respiratory-chain activity, membrane potential, and oxidative-phosphorylation efficiency in isolated rat brain mitochondria.",
+        "studyType": "isolated_mitochondria",
+        "studyLabel": "Isolated animal mitochondria",
+        "model": "Mitochondria isolated from rat brain",
+        "exposure": "Direct in-vitro statin exposure; no whole-body pharmacokinetics.",
+        "limitations": "This demonstrates a laboratory mechanism, not CoQ10 depletion or clinical mitochondrial injury at prescribed doses.",
+        "pmid": 39126062,
+        "title": "Effects of Atorvastatin and Simvastatin on the Bioenergetic Function of Isolated Rat Brain Mitochondria."
       }
-    ],
-    "pmid": 37051656,
-    "more": "semaglutide+mitochondrial+biogenesis"
+    ]
   },
   {
-    "name": "Empagliflozin",
-    "k": [
-      "empagliflozin",
-      "jardiance"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Atorvastatin",
+    "aliases": ["atorvastatin", "lipitor"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "Mitochondrial fission",
-        "a": "inhibits",
-        "t": "via AMPK activation"
-      },
-      {
-        "f": "ATP production",
-        "a": "increases",
-        "t": "cardiac"
+        "id": "atorvastatin-39126062",
+        "direction": "adverse",
+        "summary": "Atorvastatin dose-dependently reduced respiratory-chain activity, membrane potential, and oxidative-phosphorylation efficiency in isolated rat brain mitochondria.",
+        "studyType": "isolated_mitochondria",
+        "studyLabel": "Isolated animal mitochondria",
+        "model": "Mitochondria isolated from rat brain",
+        "exposure": "Direct in-vitro statin exposure; no whole-body pharmacokinetics.",
+        "limitations": "This demonstrates a laboratory mechanism, not CoQ10 depletion or clinical mitochondrial injury at prescribed doses.",
+        "pmid": 39126062,
+        "title": "Effects of Atorvastatin and Simvastatin on the Bioenergetic Function of Isolated Rat Brain Mitochondria."
       }
-    ],
-    "pmid": 29306791,
-    "more": "empagliflozin+mitochondrial+AMPK+fission"
+    ]
   },
   {
-    "name": "Sildenafil",
-    "k": [
-      "sildenafil",
-      "viagra"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Metformin",
+    "aliases": ["metformin", "glucophage"],
+    "category": "medication",
+    "evidence": [
       {
-        "f": "mitoKATP channel",
-        "a": "opens",
-        "t": "cardioprotective"
-      },
-      {
-        "f": "Complex I",
-        "a": "enhances",
-        "t": "via SIRT1/PGC-1\u03b1"
+        "id": "metformin-39693440",
+        "direction": "mechanism",
+        "summary": "In transgenic mice, acute oral metformin's glucose-lowering effect was attenuated when mitochondrial complex I inhibition was genetically bypassed.",
+        "studyType": "animal_in_vivo",
+        "studyLabel": "Animal mechanism study",
+        "model": "Transgenic and control mice under standard-chow and high-fat-diet conditions",
+        "exposure": "Acute oral metformin administration.",
+        "limitations": "This supports a drug mechanism in mice; it does not show mitochondrial injury or settle every metformin mechanism in humans.",
+        "pmid": 39693440,
+        "title": "Metformin targets mitochondrial complex I to lower blood glucose levels."
       }
-    ],
-    "pmid": 17157308,
-    "more": "sildenafil+mitochondrial+KATP+cardioprotection"
+    ]
   },
   {
-    "name": "Tadalafil",
-    "k": [
-      "tadalafil",
-      "cialis"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Berberine",
+    "aliases": ["berberine", "berberine hcl", "dihydroberberine"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via PDE5 inhibition / cGMP"
-      },
-      {
-        "f": "Complex I",
-        "a": "enhances",
-        "t": "restores activity"
+        "id": "berberine-18285556",
+        "direction": "mechanism",
+        "summary": "Berberine dose-dependently inhibited respiration through complex I in muscle cells and isolated muscle mitochondria, alongside AMPK activation.",
+        "studyType": "translational_preclinical",
+        "studyLabel": "Cells + animal",
+        "model": "L6 myotubes, isolated muscle mitochondria, and high-fat-fed rodents",
+        "exposure": "Cell and isolated-mitochondria concentration responses; rodent efficacy used a more bioavailable derivative.",
+        "limitations": "The study does not establish mitochondrial harm, benefit, or equivalent exposure from a person's supplement dose.",
+        "pmid": 18285556,
+        "title": "Berberine and its more biologically available derivative, dihydroberberine, inhibit mitochondrial respiratory complex I: a mechanism for the action of berberine to activate AMP-activated protein kinase and improve insulin action."
       }
-    ],
-    "pmid": 24727492,
-    "more": "PDE5+inhibitor+mitochondrial+biogenesis"
+    ]
   },
   {
-    "name": "Montelukast",
-    "k": [
-      "montelukast",
-      "singulair"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "GlyNAC",
+    "aliases": ["glynac", "glycine nac", "glycine n acetylcysteine", "glycine and n acetylcysteine"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "enhances",
-        "t": "preserves activity"
-      },
-      {
-        "f": "Complex II",
-        "a": "enhances",
-        "t": "preserves activity"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "scavenging"
+        "id": "glynac-35975308",
+        "direction": "beneficial",
+        "summary": "A 16-week randomized trial in older adults reported improvements in measured mitochondrial fatty-acid oxidation with combined glycine plus N-acetylcysteine.",
+        "studyType": "human_trial",
+        "studyLabel": "Small human RCT",
+        "model": "24 older adults randomized to GlyNAC or alanine placebo, plus a young-adult reference group",
+        "exposure": "Combined glycine and N-acetylcysteine for 16 weeks.",
+        "limitations": "Small, specific population and combination intervention; effects cannot be assigned to glycine or NAC alone.",
+        "pmid": 35975308,
+        "title": "Supplementing Glycine and N-Acetylcysteine (GlyNAC) in Older Adults Improves Glutathione Deficiency, Oxidative Stress, Mitochondrial Dysfunction, Inflammation, Physical Function, and Aging Hallmarks: A Randomized Clinical Trial."
       }
-    ],
-    "pmid": 20813166,
-    "more": "montelukast+mitochondrial+neuroprotection"
-  },
-  {
-    "name": "Losartan",
-    "k": [
-      "losartan",
-      "cozaar"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "NADPH oxidase",
-        "a": "inhibits",
-        "t": "blocks Ang II-ROS axis"
-      },
-      {
-        "f": "Mitochondrial ROS",
-        "a": "decreases",
-        "t": "cardioprotective"
-      }
-    ],
-    "pmid": 39838394,
-    "more": "losartan+angiotensin+mitochondrial+ROS"
-  },
-  {
-    "name": "Lisinopril",
-    "k": [
-      "lisinopril",
-      "prinivil",
-      "zestril"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "NADPH oxidase",
-        "a": "inhibits",
-        "t": "ACE inhibitor class effect"
-      },
-      {
-        "f": "Mitochondrial ROS",
-        "a": "decreases",
-        "t": "cardioprotective"
-      }
-    ],
-    "pmid": 30373167,
-    "more": "ACE+inhibitor+mitochondrial+oxidative+stress"
-  },
-  {
-    "name": "Ramipril",
-    "k": [
-      "ramipril",
-      "altace"
-    ],
-    "cat": "drug",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via reduced Ang II"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "ACE inhibitor class effect"
-      }
-    ],
-    "pmid": 29123192,
-    "more": "ramipril+mitochondrial+biogenesis"
-  },
-  {
-    "name": "DHEA",
-    "k": [
-      "dhea",
-      "dehydroepiandrosterone"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "IC50 ~13 \u00b5M, high dose"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "neurotoxic at supraphysiological dose"
-      }
-    ],
-    "pmid": 16849397,
-    "more": "DHEA+mitochondrial+complex+I+inhibition"
-  },
-  {
-    "name": "Ashwagandha",
-    "k": [
-      "ashwagandha",
-      "withania",
-      "withaferin"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex III",
-        "a": "inhibits",
-        "t": "withaferin A, selective for cancer cells"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "cancer cells, spares normal cells"
-      }
-    ],
-    "pmid": 21853114,
-    "more": "withaferin+mitochondrial+complex+III"
-  },
-  {
-    "name": "St John's Wort",
-    "k": [
-      "st john's wort",
-      "st johns wort",
-      "hypericum",
-      "hypericin"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Membrane potential",
-        "a": "disrupts",
-        "t": "protonophore activity"
-      },
-      {
-        "f": "Mitochondrial ROS",
-        "a": "decreases",
-        "t": "paradoxical benefit"
-      }
-    ],
-    "pmid": 36674794,
-    "more": "hypericum+mitochondrial+protonophore"
-  },
-  {
-    "name": "Rhodiola",
-    "k": [
-      "rhodiola",
-      "rhodiola rosea",
-      "salidroside"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via PGC-1\u03b1/SIRT1"
-      },
-      {
-        "f": "ATP production",
-        "a": "increases",
-        "t": "exercise performance"
-      }
-    ],
-    "pmid": 24868319,
-    "more": "salidroside+mitochondrial+biogenesis+PGC1a"
-  },
-  {
-    "name": "5-HTP",
-    "k": [
-      "5-htp",
-      "5-hydroxytryptophan"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "serotonin via SIRT1"
-      },
-      {
-        "f": "H2O2",
-        "a": "increases",
-        "t": "MAO metabolism byproduct"
-      }
-    ],
-    "pmid": 38462693,
-    "more": "serotonin+mitochondrial+biogenesis+SIRT1"
-  },
-  {
-    "name": "Ginseng",
-    "k": [
-      "ginseng",
-      "panax",
-      "ginsenoside"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "ginsenoside Rh2, cancer cells"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "red ginseng, protective"
-      }
-    ],
-    "pmid": 23506615,
-    "more": "ginsenoside+mitochondrial+complex+I"
-  },
-  {
-    "name": "Silymarin",
-    "k": [
-      "silymarin",
-      "milk thistle",
-      "silibinin"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "enhances",
-        "t": "restores activity"
-      },
-      {
-        "f": "Complex V",
-        "a": "enhances",
-        "t": "optimizes ATP synthase"
-      },
-      {
-        "f": "Electron leakage",
-        "a": "decreases",
-        "t": "reduces ROS"
-      }
-    ],
-    "pmid": 28125040,
-    "more": "silymarin+mitochondrial+electron+transport"
-  },
-  {
-    "name": "Glycine",
-    "k": [
-      "glycine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Glutathione",
-        "a": "replenishes",
-        "t": "GSH substrate"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "stabilizes",
-        "t": "cytoprotective"
-      },
-      {
-        "f": "ATP production",
-        "a": "increases",
-        "t": "restores in aging"
-      }
-    ],
-    "pmid": 29136945,
-    "more": "glycine+mitochondrial+glutathione+aging"
-  },
-  {
-    "name": "SAM-e",
-    "k": [
-      "sam-e",
-      "same",
-      "s-adenosylmethionine",
-      "ademetionine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Glutathione",
-        "a": "replenishes",
-        "t": "GSH precursor"
-      },
-      {
-        "f": "Mitochondrial respiration",
-        "a": "improves",
-        "t": "hepatoprotective"
-      }
-    ],
-    "pmid": 20150243,
-    "more": "SAMe+mitochondrial+glutathione+liver"
-  },
-  {
-    "name": "Spirulina",
-    "k": [
-      "spirulina",
-      "arthrospira"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "NADPH oxidase",
-        "a": "inhibits",
-        "t": "phycocyanin"
-      },
-      {
-        "f": "Membrane potential",
-        "a": "stabilizes",
-        "t": "neuroprotective"
-      }
-    ],
-    "pmid": 37416477,
-    "more": "spirulina+phycocyanin+mitochondrial+neuroprotection"
-  },
-  {
-    "name": "Glutamine",
-    "k": [
-      "glutamine",
-      "l-glutamine"
-    ],
-    "cat": "supplement",
-    "effects": [
-      {
-        "f": "Complex I",
-        "a": "enhances",
-        "t": "substrate for glutamate \u2192 \u03b1-KG \u2192 NADH"
-      },
-      {
-        "f": "Glutathione",
-        "a": "replenishes",
-        "t": "glutamate precursor for GSH"
-      }
-    ],
-    "pmid": 41435838,
-    "more": "glutamine+mitochondrial+anaplerosis"
+    ]
   },
   {
     "name": "Urolithin A",
-    "k": [
-      "urolithin a",
-      "urolithin",
-      "mitopure"
-    ],
-    "cat": "supplement",
-    "effects": [
+    "aliases": ["urolithin a", "mitopure"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Mitophagy",
-        "a": "induces",
-        "t": "PINK1/Parkin-independent pathway (Ryu 2016 Nat Med)"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via PGC-1alpha; validated in sarcopenic elderly RCTs"
+        "id": "urolithin-a-41174221",
+        "direction": "beneficial",
+        "summary": "In a randomized trial, urolithin A increased CD8+ T-cell fatty-acid oxidation capacity and secondary measures of mitochondrial biogenesis.",
+        "studyType": "human_trial",
+        "studyLabel": "Human RCT",
+        "model": "50 healthy middle-aged adults randomized to urolithin A or placebo for 4 weeks",
+        "exposure": "1,000 mg urolithin A daily for 4 weeks.",
+        "limitations": "Short study focused on immune-cell biology; it does not establish a broad clinical benefit or apply to every dose and population.",
+        "pmid": 41174221,
+        "title": "Effect of the mitophagy inducer urolithin A on age-related immune decline: a randomized, placebo-controlled trial."
       }
-    ],
-    "pmid": 27214900,
-    "more": "urolithin+A+mitophagy+mitochondrial"
+    ]
   },
   {
-    "name": "Methylene Blue",
-    "k": [
-      "methylene blue",
-      "methylthioninium chloride"
-    ],
-    "cat": "drug",
-    "effects": [
+    "name": "Nicotinamide riboside",
+    "aliases": ["nicotinamide riboside", "niagen", "nr", "nr chloride"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Complex IV",
-        "a": "enhances",
-        "t": "low dose <2 mg/kg — alternative electron carrier, bypasses Complex I/III"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "low dose — biphasic response"
-      },
-      {
-        "f": "ROS",
-        "a": "increases",
-        "t": "high dose >10 mg/kg — pro-oxidant direction at elevated doses"
+        "id": "nicotinamide-riboside-31710095",
+        "direction": "null",
+        "scopeLabel": "Obese men",
+        "summary": "In a randomized trial, nicotinamide riboside did not change skeletal-muscle mitochondrial respiration, mitochondrial protein abundance, fractional area, or network morphology.",
+        "studyType": "human_trial",
+        "studyLabel": "Human RCT",
+        "model": "40 middle-aged, obese, insulin-resistant men randomized to nicotinamide riboside or placebo",
+        "exposure": "1,000 mg nicotinamide riboside twice daily for 12 weeks.",
+        "limitations": "This is a direct human null result in one male metabolic-risk population; it does not exclude effects in other tissues, doses, sexes, or populations.",
+        "pmid": 31710095,
+        "title": "Nicotinamide riboside does not alter mitochondrial respiration, content or morphology in skeletal muscle from obese and insulin-resistant men."
       }
-    ],
-    "pmid": 21531634,
-    "more": "methylene+blue+mitochondrial+electron+transport"
+    ]
   },
   {
-    "name": "Spermidine",
-    "k": [
-      "spermidine",
-      "wheat germ extract"
-    ],
-    "cat": "supplement",
-    "effects": [
+    "name": "Resveratrol",
+    "aliases": ["resveratrol", "trans resveratrol"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Mitophagy",
-        "a": "induces",
-        "t": "via autophagy induction and hypusination of eIF5A"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via TFEB — Eisenberg 2016 cardiac benefit"
+        "id": "resveratrol-33934389",
+        "direction": "null",
+        "scopeLabel": "Mitochondrial myopathy",
+        "summary": "A randomized crossover trial found no improvement in exercise outcomes, electron-transport-chain activities, or muscle mitochondrial biomarkers with resveratrol.",
+        "studyType": "human_trial",
+        "studyLabel": "Human crossover RCT",
+        "model": "11 adults with genetically verified mitochondrial myopathy",
+        "exposure": "1,000 mg resveratrol daily for 8 weeks versus placebo, separated by a 4-week washout.",
+        "limitations": "This small disease-specific null trial does not address lower doses, longer use, or people without mitochondrial myopathy.",
+        "pmid": 33934389,
+        "title": "No effect of resveratrol in patients with mitochondrial myopathy: A cross-over randomized controlled trial."
       }
-    ],
-    "pmid": 27892468,
-    "more": "spermidine+autophagy+mitophagy+longevity"
+    ]
   },
   {
-    "name": "Fisetin",
-    "k": [
-      "fisetin"
-    ],
-    "cat": "supplement",
-    "effects": [
+    "name": "Omega-3 (EPA + DHA)",
+    "aliases": ["omega 3", "omega-3", "fish oil", "epa dha", "epa and dha", "eicosapentaenoic acid", "docosahexaenoic acid"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Senescent cell clearance",
-        "a": "induces",
-        "t": "most potent natural senolytic per Mayo screen (Yousefzadeh 2018)"
-      },
-      {
-        "f": "ROS",
-        "a": "decreases",
-        "t": "Nrf2 induction"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via SIRT1"
+        "id": "omega-3-19703463",
+        "direction": "beneficial",
+        "summary": "Dietary EPA plus DHA changed cardiac mitochondrial phospholipid composition and increased calcium capacity before permeability-transition-pore opening in rats.",
+        "studyType": "animal_in_vivo",
+        "studyLabel": "Animal study",
+        "model": "Sham-operated and myocardial-infarction rats fed EPA plus DHA for 12 weeks",
+        "exposure": "EPA plus DHA supplied as 2.3% of dietary energy for 12 weeks.",
+        "limitations": "A rat cardiac-mitochondria result is not proof of a human clinical benefit from a particular fish-oil product or dose.",
+        "pmid": 19703463,
+        "title": "Dietary omega-3 fatty acids alter cardiac mitochondrial phospholipid composition and delay Ca2+-induced permeability transition."
       }
-    ],
-    "pmid": 30279143,
-    "more": "fisetin+senolytic+mitochondrial"
+    ]
   },
   {
-    "name": "Caffeine",
-    "k": [
-      "caffeine",
-      "coffee",
-      "guarana"
-    ],
-    "cat": "supplement",
-    "effects": [
+    "name": "PQQ",
+    "aliases": ["pqq", "pyrroloquinoline quinone", "pyrroloquinoline quinone disodium"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Mitochondrial biogenesis",
-        "a": "increases",
-        "t": "via AMPK/PGC-1alpha — exercise-mimetic signaling"
-      },
-      {
-        "f": "Mitochondrial calcium uptake",
-        "a": "increases",
-        "t": "ryanodine receptor agonist, dose-dependent"
-      },
-      {
-        "f": "Beta-oxidation",
-        "a": "enhances",
-        "t": "lipolysis upstream"
+        "id": "pqq-32860006",
+        "direction": "beneficial",
+        "summary": "PQQ preserved mitochondrial number and increased PGC-1alpha and TFAM signaling in rotenone-injured Parkinson's disease models.",
+        "studyType": "translational_preclinical",
+        "studyLabel": "Disease-model preclinical",
+        "model": "Rotenone-treated mice and rotenone-injured SH-SY5Y neuroblastoma cells",
+        "exposure": "Injected PQQ at 0.8, 4, or 20 mg/kg/day in mice for 3 weeks, alongside rotenone.",
+        "limitations": "A toxin-induced disease model does not establish mitochondrial or neurological benefit from oral PQQ in healthy people.",
+        "pmid": 32860006,
+        "title": "Pyrroloquinoline quinone promotes mitochondrial biogenesis in rotenone-induced Parkinson's disease model via AMPK activation."
       }
-    ],
-    "pmid": 24463434,
-    "more": "caffeine+mitochondrial+biogenesis+AMPK"
+    ]
   },
   {
-    "name": "Ethanol",
-    "k": [
-      "ethanol",
-      "alcohol",
-      "ethyl alcohol"
-    ],
-    "cat": "toxin",
-    "effects": [
+    "name": "Coenzyme Q10",
+    "aliases": ["coenzyme q10", "coq10", "co q10", "ubiquinone", "ubiquinol", "reduced coq10"],
+    "category": "supplement",
+    "evidence": [
       {
-        "f": "Complex I",
-        "a": "inhibits",
-        "t": "chronic exposure"
+        "id": "coenzyme-q10-42249931",
+        "direction": "beneficial",
+        "scopeLabel": "Ubiquinol only",
+        "summary": "Ubiquinol improved skeletal-muscle oxidative-phosphorylation coupling efficiency, but did not improve exercise tolerance or oxygen-uptake kinetics.",
+        "studyType": "human_trial",
+        "studyLabel": "Human RCT",
+        "model": "54 healthy, recreationally active men randomized to ubiquinol or placebo",
+        "exposure": "300 mg ubiquinol daily for 6 weeks.",
+        "limitations": "The trial tested the reduced ubiquinol form in active men, was industry match-funded, and found no exercise-performance benefit; it should not be generalized to ubiquinone or other populations.",
+        "pmid": 42249931,
+        "title": "Effect of six weeks ubiquinol supplementation on mitochondrial respiratory function and exercise capacity in healthy males."
       },
       {
-        "f": "Complex IV",
-        "a": "inhibits",
-        "t": "chronic exposure"
-      },
-      {
-        "f": "mtDNA",
-        "a": "damages",
-        "t": "acetaldehyde adducts"
-      },
-      {
-        "f": "Glutathione",
-        "a": "depletes",
-        "t": "hepatic GSH pool"
-      },
-      {
-        "f": "Mitochondrial biogenesis",
-        "a": "decreases",
-        "t": "PGC-1alpha suppression in chronic use"
+        "id": "coenzyme-q10-36139772",
+        "direction": "null",
+        "scopeLabel": "Simvastatin users",
+        "summary": "CoQ10 did not change muscle CoQ10 content, mitochondrial respiratory function, reactive-oxygen-species production, or myalgia in simvastatin users.",
+        "studyType": "human_trial",
+        "studyLabel": "Human RCT",
+        "model": "37 adults taking simvastatin, with or without myalgia, randomized to CoQ10 or placebo",
+        "exposure": "400 mg CoQ10 daily for 8 weeks.",
+        "limitations": "This direct null result is limited to a small simvastatin-treated population and does not negate the separate ubiquinol finding in healthy active men.",
+        "pmid": 36139772,
+        "title": "Coenzyme Q10 Supplementation in Statin Treated Patients: A Double-Blinded Randomized Placebo-Controlled Trial."
       }
-    ],
-    "pmid": 31430245,
-    "more": "ethanol+mitochondrial+toxicity+liver"
+    ]
+  },
+  {
+    "name": "MitoQ",
+    "aliases": ["mitoq", "mito q", "mitoquinone", "mitoquinol"],
+    "category": "supplement",
+    "evidence": [
+      {
+        "id": "mitoq-32458156",
+        "direction": "mixed",
+        "summary": "MitoQ mildly lowered net mitochondrial hydrogen-peroxide levels during leak respiration and increased muscle catalase, but did not change mitochondrial respiration, density markers, or systemic oxidative-stress markers.",
+        "studyType": "human_intervention_mechanistic",
+        "studyLabel": "Human muscle study",
+        "model": "20 healthy middle-aged men studied before and after MitoQ or CoQ10 supplementation",
+        "exposure": "20 mg MitoQ daily for 6 weeks.",
+        "limitations": "Small male pre/post study without a placebo arm; lower mitochondrial hydrogen peroxide did not translate into improved mitochondrial respiration or systemic oxidative-stress measures.",
+        "pmid": 32458156,
+        "title": "MitoQ and CoQ10 supplementation mildly suppresses skeletal muscle mitochondrial hydrogen peroxide levels without impacting mitochondrial function in middle-aged men."
+      }
+    ]
+  },
+  {
+    "name": "Creatine",
+    "aliases": ["creatine", "creatine monohydrate"],
+    "category": "supplement",
+    "evidence": [
+      {
+        "id": "creatine-11744769",
+        "direction": "mechanism",
+        "summary": "In permeabilized human muscle, creatine increased sensitivity of mitochondrial respiration to ADP while phosphocreatine reduced it; 16 days of supplementation lowered basal leak respiration without changing ADP-stimulated respiration.",
+        "studyType": "human_intervention_mechanistic",
+        "studyLabel": "Human tissue + supplementation",
+        "model": "Permeabilized vastus-lateralis fibers from adults; 8 participants also completed supplementation",
+        "exposure": "A 16-day creatine program; the dose is not reported in the PubMed abstract.",
+        "limitations": "Small uncontrolled supplementation component and ex-vivo respiration measurements; this establishes phosphate-shuttle regulation, not a health or performance benefit.",
+        "pmid": 11744769,
+        "title": "The role of phosphorylcreatine and creatine in the regulation of mitochondrial respiration in human skeletal muscle."
+      }
+    ]
+  },
+  {
+    "name": "L-carnitine",
+    "aliases": ["l carnitine", "l-carnitine", "levocarnitine", "carnitine tartrate", "l carnitine l tartrate"],
+    "category": "supplement",
+    "evidence": [
+      {
+        "id": "l-carnitine-21224234",
+        "direction": "beneficial",
+        "scopeLabel": "With high carbohydrate intake",
+        "summary": "L-carnitine added to carbohydrate increased muscle carnitine and altered exercise fuel handling, with better matching of glycolytic, pyruvate-dehydrogenase, and mitochondrial flux at high intensity.",
+        "studyType": "human_trial",
+        "studyLabel": "Small human RCT",
+        "model": "14 healthy young men randomized to carbohydrate with or without L-carnitine",
+        "exposure": "2 g L-carnitine L-tartrate plus 80 g carbohydrate twice daily for 24 weeks; control received the same carbohydrate.",
+        "limitations": "Small male study using 160 g/day carbohydrate to drive carnitine uptake; it does not establish the same effect from ordinary L-carnitine use, other forms, or shorter exposure.",
+        "pmid": 21224234,
+        "title": "Chronic oral ingestion of L-carnitine and carbohydrate increases muscle carnitine content and alters muscle fuel metabolism during exercise in humans."
+      }
+    ]
+  },
+  {
+    "name": "Taurine",
+    "aliases": ["taurine"],
+    "category": "supplement",
+    "evidence": [
+      {
+        "id": "taurine-29666206",
+        "direction": "beneficial",
+        "scopeLabel": "MELAS only",
+        "summary": "High-dose taurine increased taurine modification of mitochondrial tRNA in some patients and reduced recurrence of stroke-like episodes in MELAS.",
+        "studyType": "human_trial",
+        "studyLabel": "Open-label phase III",
+        "model": "10 patients with recurrent stroke-like episodes from genetically defined MELAS",
+        "exposure": "9 or 12 g taurine daily for 52 weeks.",
+        "limitations": "Tiny uncontrolled disease-specific trial at very high doses; it does not support mitochondrial or anti-aging benefit in people without MELAS.",
+        "pmid": 29666206,
+        "title": "Taurine supplementation for prevention of stroke-like episodes in MELAS: a multicentre, open-label, 52-week phase III trial."
+      }
+    ]
+  },
+  {
+    "name": "Riboflavin",
+    "aliases": ["riboflavin", "vitamin b2", "vitamin b 2"],
+    "category": "supplement",
+    "evidence": [
+      {
+        "id": "riboflavin-8229067",
+        "direction": "beneficial",
+        "scopeLabel": "Complex I deficiency only",
+        "summary": "During riboflavin treatment, muscle complex I activity normalized in 3 of 4 retested patients with complex I-deficient mitochondrial myopathy, although clinical response was inconsistent.",
+        "studyType": "human_observational",
+        "studyLabel": "Five-patient case series",
+        "model": "5 patients with mitochondrial myopathy and measured complex I deficiency",
+        "exposure": "Riboflavin treatment; dose and duration are not reported in the PubMed abstract.",
+        "limitations": "Very small uncontrolled case series in a specific diagnosed deficiency, with poor correlation between biochemical normalization and clinical improvement.",
+        "pmid": 8229067,
+        "title": "Treatment of complex I deficiency with riboflavin."
+      }
+    ]
+  },
+  {
+    "name": "Magnesium chloride",
+    "aliases": ["magnesium chloride", "mgcl2"],
+    "category": "supplement",
+    "evidence": [
+      {
+        "id": "magnesium-chloride-40077784",
+        "direction": "adverse",
+        "scopeLabel": "MgCl2 in Mg-replete exercisers",
+        "summary": "Nine days of magnesium chloride modestly reduced fatty-acid-supported complex II respiration, maximal oxygen uptake, and sprint power in regular exercisers.",
+        "studyType": "human_trial",
+        "studyLabel": "Small crossover RCT",
+        "model": "15 magnesium-replete men and women who exercised regularly",
+        "exposure": "300 mg magnesium chloride twice daily for 9 days.",
+        "limitations": "Small short study in magnesium-replete exercisers; it does not establish harm from dietary magnesium, correction of deficiency, longer use, or other supplemental forms.",
+        "pmid": 40077784,
+        "title": "Short-Term Magnesium Supplementation Has Modest Detrimental Effects on Cycle Ergometer Exercise Performance and Skeletal Muscle Mitochondria and Negligible Effects on the Gut Microbiota: A Randomized Crossover Clinical Trial."
+      }
+    ]
+  },
+  {
+    "name": "Acetaminophen",
+    "aliases": ["acetaminophen", "paracetamol", "tylenol", "panadol"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "acetaminophen-24923598",
+        "direction": "adverse",
+        "scopeLabel": "Overdose only",
+        "summary": "In acetaminophen-induced acute liver failure, circulating mitochondrial-DNA and glutamate-dehydrogenase damage markers were higher in nonsurvivors than survivors.",
+        "studyType": "human_observational",
+        "studyLabel": "Human overdose cohort",
+        "model": "69 patients with acetaminophen-induced acute liver failure: 34 survivors and 35 nonsurvivors",
+        "exposure": "Acetaminophen overdose causing acute liver failure.",
+        "limitations": "This is severe-overdose evidence only. It does not show mitochondrial injury from labeled therapeutic dosing and must not be presented as a routine-use warning.",
+        "pmid": 24923598,
+        "title": "Serum mitochondrial biomarkers and damage-associated molecular patterns are higher in acetaminophen overdose patients with poor outcome."
+      }
+    ]
+  },
+  {
+    "name": "Valproate",
+    "aliases": ["valproate", "valproic acid", "sodium valproate", "divalproex", "depakote", "depakene", "epilim"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "valproate-32623605",
+        "direction": "adverse",
+        "summary": "Prolonged valproic-acid exposure reduced basal and maximal oxygen-consumption rates in primary human hepatocytes; a 3-hour exposure did not.",
+        "studyType": "human_cells",
+        "studyLabel": "Primary human liver cells",
+        "model": "Primary human hepatocytes with short and prolonged valproic-acid exposure",
+        "exposure": "Experimental exposure for 3 to 72 hours; the abstract does not establish equivalence to an individual's serum concentration.",
+        "limitations": "A human-cell mechanism relevant to liver toxicity, not a clinical incidence estimate or proof of mitochondrial injury at a prescribed dose.",
+        "pmid": 32623605,
+        "title": "Valproic acid promotes mitochondrial dysfunction in primary human hepatocytes in vitro; impact of C/EBPalpha-controlled gene expression."
+      }
+    ]
+  },
+  {
+    "name": "Propofol",
+    "aliases": ["propofol", "diprivan"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "propofol-31584947",
+        "direction": "adverse",
+        "scopeLabel": "Anesthesia/infusion exposure",
+        "summary": "Propofol directly inhibited fatty-acid oxidation and electron-transfer flux in human skeletal- and cardiac-muscle homogenates at concentrations achieved during anesthesia.",
+        "studyType": "human_cells",
+        "studyLabel": "Human tissue / ex vivo",
+        "model": "Skeletal muscle from 11 hip-surgery patients and myocardium from 10 organ donors, with rat tissue comparison",
+        "exposure": "Acute ex-vivo propofol exposure from 2.5 to 100 micrograms/mL.",
+        "limitations": "Tissue-homogenate mechanism, not a study of routine anesthesia outcomes or the incidence of propofol infusion syndrome.",
+        "pmid": 31584947,
+        "title": "Kinetic characteristics of propofol-induced inhibition of electron-transfer chain and fatty acid oxidation in human and rodent skeletal and cardiac muscles."
+      }
+    ]
+  },
+  {
+    "name": "Zidovudine",
+    "aliases": ["zidovudine", "azt", "retrovir"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "zidovudine-8438050",
+        "direction": "adverse",
+        "scopeLabel": "Historic high-dose regimen",
+        "summary": "In a prospective AIDS cohort, chronic zidovudine was associated with proximal myopathy and grossly enlarged muscle mitochondria that improved substantially after withdrawal.",
+        "studyType": "human_observational",
+        "studyLabel": "Prospective human cohort",
+        "model": "118 adults with AIDS followed for 1 year; 88 received zidovudine",
+        "exposure": "1,000-1,200 mg/day; myopathy occurred only after more than 270 days in this cohort.",
+        "limitations": "Early-1990s high-dose regimen in people with AIDS; it does not estimate risk for current lower-dose combination therapy.",
+        "pmid": 8438050,
+        "title": "Mitochondrial myopathy associated with chronic zidovudine therapy in AIDS."
+      }
+    ]
+  },
+  {
+    "name": "Gentamicin",
+    "aliases": ["gentamicin", "gentamycin", "garamycin"],
+    "category": "medication",
+    "evidence": [
+      {
+        "id": "gentamicin-41496330",
+        "direction": "adverse",
+        "scopeLabel": "Inner-ear model",
+        "summary": "Clinical gentamicin caused more mitochondria-dependent apoptosis than the C2b subtype in human iPSC-derived otic progenitor cells, with corresponding hearing-loss differences in mice.",
+        "studyType": "translational_preclinical",
+        "studyLabel": "Human cells + animal",
+        "model": "Human iPSC-derived otic progenitor cells and mouse auditory-function models",
+        "exposure": "Experimental exposure to clinical gentamicin mixture or purified gentamicin C2b.",
+        "limitations": "A comparative formulation study in cells and mice; it does not quantify hearing-loss risk or mitochondrial injury in treated patients.",
+        "pmid": 41496330,
+        "title": "Establishment of a human inner ear model reveals that gentamicin C2b is substantially less ototoxic than clinical gentamicin."
+      }
+    ]
   }
 ]

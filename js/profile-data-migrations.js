@@ -12,6 +12,7 @@ import {
 } from './lab-entry.js';
 import { repairProfileMarkerData } from './profile-marker-migrations.js';
 import { MARKER_SCHEMA } from './schema.js';
+import { migrateSupplementMedicationRecords } from './supplement-medication-domain.js';
 
 /** @typedef {import('../types/app-state.js').ProfileData} ProfileData */
 
@@ -260,5 +261,6 @@ export function migrateProfileData(data) {
     }
     delete data.sunDefaults.location;
   }
+  migrateSupplementMedicationRecords(data);
   return data;
 }

@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.14.0', date: '2026-08-09', title: 'Supplements and medications, rebuilt',
+    items: [
+      '<b>Keep active routines clean.</b> Ended supplements and medications move to history and can be restarted anytime.',
+      '<b>Add products faster.</b> Choose common units, import from links and label photos, and review the result before saving.',
+      '<b>See clearer product context.</b> Active ingredients, capsule materials, excipients, and laboratory results stay organized separately and reach AI only when useful.',
+      '<b>Review better mitochondrial evidence.</b> Verified primary studies are grouped by compound with clear scope and limitations.',
+      '<b>Bug fixes and improvements.</b> Imports are more reliable, progress is clearer, mobile layouts work better, and existing data migrates safely.',
+    ]
+  },
+  {
     version: '1.13.1', date: '2026-08-08', title: 'Safer sync and complete Agent Access',
     forceShow: true,
     items: [

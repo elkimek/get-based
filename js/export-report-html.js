@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { getStatus, formatValue, getTrend, showNotification } from './utils.js';
 import { getEffectiveRange } from './marker-analysis.js';
 import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
+import { getSupplementPeriods, getSupplementStatus } from './supplement-medication-domain.js';
 import {
   buildReportHeaderFacts,
   buildPreparedReportPayload,
@@ -48,7 +49,9 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   const reportOptions = normalizeReportOptions(options);
   const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const unitLabel = state.unitSystem === 'US' ? 'US (conventional)' : 'EU (SI)';
-  const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtDate = d => d && Number.isFinite(new Date(d + 'T00:00:00').getTime())
+    ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'date not set';
   const fullDateLabels = data.dates.map(d => fmtDate(d));
   const dateRange = fullDateLabels.length > 0
     ? `${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}`
@@ -167,11 +170,12 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   // Supplements
   if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
-    body += `<h2>Supplements & Medications</h2><table><thead><tr><th>Name</th><th>Dosage</th><th>Type</th><th>Period</th><th>Note</th></tr></thead><tbody>`;
-    for (const s of supps) {
-      const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
-      const periodStr = pds.map(p => `${fmtDate(p.start)} \u2192 ${p.end ? fmtDate(p.end) : 'ongoing'}`).join('<br>');
-      body += `<tr><td>${esc(s.name)}</td><td>${formatSupplementDosage(s)}</td><td>${esc(s.type || '\u2014')}</td>
+    body += `<h2>Supplements & Medications</h2><table><thead><tr><th>Name</th><th>Status</th><th>Dosage</th><th>Type</th><th>Period</th><th>Note</th></tr></thead><tbody>`;
+    const orderedSupps = [...supps].sort((a, b) => (getSupplementStatus(a) === 'active' ? -1 : 1) - (getSupplementStatus(b) === 'active' ? -1 : 1));
+    for (const s of orderedSupps) {
+      const pds = getSupplementPeriods(s);
+      const periodStr = pds.map(p => `${fmtDate(p.start)} \u2192 ${p.end ? fmtDate(p.end) : 'ongoing'}${p.dose ? ` · ${esc(p.dose)}` : ''}`).join('<br>');
+      body += `<tr><td>${esc(s.name)}</td><td>${esc(getSupplementStatus(s))}</td><td>${formatSupplementDosage(s)}</td><td>${esc(s.type || '\u2014')}</td>
         <td>${periodStr}</td><td style="font-size:11px">${esc(s.note || '\u2014')}</td></tr>`;
     }
     body += `</tbody></table>`;
@@ -284,6 +288,15 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       }).filter(Boolean);
       if (ingredientParts.length > 0) parts.push(ingredientParts.join('; '));
     }
+    if (Array.isArray(s.inactiveIngredients) && s.inactiveIngredients.length > 0) {
+      parts.push(`Other label ingredients: ${s.inactiveIngredients.join(', ')}`);
+    }
+    if (Array.isArray(s.qualityTests) && s.qualityTests.length > 0) {
+      parts.push(`Source-reported laboratory results: ${s.qualityTests.map(test => {
+        const result = test.resultText || test.status || 'result not reported';
+        return `${test.analyte || 'Unknown analyte'} ${result}${test.basis ? ` (${test.basis})` : ''}`;
+      }).join('; ')}`);
+    }
     if (s.timesPerDay && !parts.some(part => /\b\/day\b|\bx\s*\d/i.test(part))) {
       parts.push(`${s.timesPerDay}x/day`);
     }
@@ -297,7 +310,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   function formatSupplementSummary(s) {
     const dosage = getSupplementDosageParts(s)[0];
-    return `${esc(s.name)}${dosage ? ' (' + esc(dosage) + ')' : ''}`;
+    return `${esc(s.name)} [${esc(getSupplementStatus(s))}]${dosage ? ' (' + esc(dosage) + ')' : ''}`;
   }
 
   function getRangeModeLabel() {

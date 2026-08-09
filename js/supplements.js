@@ -1,9 +1,8 @@
 // @ts-check
-// supplements.js — Supplement/medication editor and dashboard section
+// supplements.js — Public facade and editor controller for supplements/medications.
 
-import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { bindDetailModalSyncRefresh, escapeHTML, showNotification, isDebugMode } from './utils.js';
+import { bindDetailModalSyncRefresh, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
@@ -11,37 +10,101 @@ import {
   getConfiguredArrayItemId,
   replaceImportedArrayItem,
 } from './data-merge.js';
-import { callClaudeAPI, getAIProvider, hasAIProvider, supportsVision } from './api.js';
-import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { initSupplementActionDelegates, suppActionAttrs } from './supplement-action-delegates.js';
-import {
-  hasMitoCompoundData,
-  humanizeEffect,
-  preloadMitoCompoundData,
-  scanSupplementsForWarnings,
-} from './supplement-warnings.js';
-import { getUtilsRuntimeHostname } from './utils-runtime.js';
 import { closeSupplementsModalRuntime, navigateSupplementsViewRuntime } from './supplements-runtime.js';
+import { askAIMitoContext, renderSupplementsSection } from './supplement-dashboard.js';
 import {
   effectiveTimesPerDay,
   formatSupplementTotal,
-  getSupplementPeriods,
   ingredientDailyTotal,
   refreshSupplementImpact,
   renderSupplementImpact,
 } from './supplement-impact.js';
+import {
+  SUPPLEMENT_RECORD_VERSION,
+  createSupplementRecordId,
+  getSupplementPeriods,
+  getSupplementRecordId,
+  getSupplementStatus,
+  localDateKey,
+  normalizeSupplementUnit,
+} from './supplement-medication-domain.js';
+import {
+  aggregateSupplementContaminants,
+  formatContaminantMass,
+  formatSupplementQualityResult,
+  isSupplementQualityIncludedInAI,
+} from './supplement-quality.js';
+import {
+  addIngredientRow,
+  addPeriodRow,
+  addQualityTestRow,
+  collectInactiveIngredients,
+  collectIngredients,
+  collectPeriods,
+  collectQualityTests,
+  getElementValue,
+  getFieldValue,
+  getFormField,
+  removeIngredientRow,
+  removePeriodRow,
+  removeQualityTestRow,
+  sourceUrlParts,
+  suppFormHtml,
+  updateAllIngTotals,
+  updateIngTotal,
+  updateIngredientUnit,
+} from './supplement-form-ui.js';
+import {
+  applySupplementImportDraft,
+  clearPendingSupplementImport,
+  discardSupplementImportDraft,
+  fetchSupplementFromURL,
+  getPendingSupplementImport,
+  keepSafetyFocusedImportQuality,
+  renderPendingImportReview,
+  scanSupplementLabel,
+} from './supplement-import-controller.js';
 
 export {
   computeAllImpacts,
   computeSupplementImpact,
   effectiveTimesPerDay,
-  getSupplementPeriods,
   ingredientDailyTotal,
   parseAmount,
   refreshSupplementImpact,
   renderSupplementImpact,
 } from './supplement-impact.js';
+export {
+  getCurrentSupplements,
+  getInactiveSupplements,
+  getSupplementPeriods,
+  getSupplementStatus,
+  getSupplementsOverlappingRange,
+  getUpcomingSupplements,
+  isSupplementCurrent,
+  isSupplementExpectedOnDate,
+} from './supplement-medication-domain.js';
+export { askAIMitoContext, renderSupplementsSection } from './supplement-dashboard.js';
+export {
+  addIngredientRow,
+  addPeriodRow,
+  addQualityTestRow,
+  removeIngredientRow,
+  removePeriodRow,
+  removeQualityTestRow,
+  updateAllIngTotals,
+  updateIngTotal,
+  updateIngredientUnit,
+} from './supplement-form-ui.js';
+export {
+  applySupplementImportDraft,
+  discardSupplementImportDraft,
+  fetchSupplementFromURL,
+  keepSafetyFocusedImportQuality,
+  scanSupplementLabel,
+} from './supplement-import-controller.js';
 
 function closeSupplementModal() {
   closeSupplementsModalRuntime();
@@ -51,685 +114,361 @@ function navigateSupplementView(category) {
   navigateSupplementsViewRuntime(category);
 }
 
-/** @type {Promise<void> | null} */
-let supplementWarningRefreshLoad = null;
-
-/**
- * @param {Array<any>} supplements
- */
-function scheduleSupplementWarningRefresh(supplements) {
-  if (!supplements.length || hasMitoCompoundData() || supplementWarningRefreshLoad) return;
-  supplementWarningRefreshLoad = preloadMitoCompoundData()
-    .then(data => {
-      if (!data) return;
-      const section = document.querySelector('.supp-timeline-section');
-      if (section) section.outerHTML = renderSupplementsSection();
-    })
-    .finally(() => {
-      supplementWarningRefreshLoad = null;
-    });
-}
-
-/**
- * @param {string} id
- * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null}
- */
-function getFormField(id) {
-  const el = document.getElementById(id);
-  if (
-    el instanceof HTMLInputElement ||
-    el instanceof HTMLSelectElement ||
-    el instanceof HTMLTextAreaElement
-  ) {
-    return el;
-  }
-  return null;
-}
-
-/**
- * @param {Element | null} el
- * @returns {string}
- */
-function getElementValue(el) {
-  if (
-    el instanceof HTMLInputElement ||
-    el instanceof HTMLSelectElement ||
-    el instanceof HTMLTextAreaElement
-  ) {
-    return el.value;
-  }
-  return '';
-}
-
-/**
- * @param {string} id
- * @returns {string}
- */
-function getFieldValue(id) {
-  return getFormField(id)?.value || '';
-}
-
-function _parseHttpUrl(raw) {
-  const value = (raw || '').trim();
-  if (!value) return null;
-  try {
-    const parsed = new URL(value);
-    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function _sourceUrlParts(raw) {
-  const parsed = _parseHttpUrl(raw);
-  if (!parsed) return null;
-  return {
-    url: parsed.toString(),
-    host: parsed.hostname.replace(/^www\./, '')
-  };
-}
-
 function refreshOpenSupplementsEditorOnSync({ modal }) {
-  const idx = Number.parseInt(modal.dataset.syncRefreshEditIdx || '', 10);
+  const index = Number.parseInt(modal.dataset.syncRefreshEditIdx || '', 10);
   const itemId = modal.dataset.syncRefreshItemId || '';
-  const supps = state.importedData.supplements || [];
-  let nextIdx = -1;
-  if (Number.isInteger(idx) && supps[idx]) {
-    const idxItemId = getConfiguredArrayItemId('supplements', supps[idx]);
-    if (!itemId || idxItemId === itemId) nextIdx = idx;
+  const supplements = state.importedData.supplements || [];
+  let nextIndex = -1;
+  if (Number.isInteger(index) && supplements[index]) {
+    const indexItemId = getConfiguredArrayItemId('supplements', supplements[index]);
+    if (!itemId || indexItemId === itemId) nextIndex = index;
   }
-  if (nextIdx < 0 && itemId) {
-    nextIdx = supps.findIndex(s => getConfiguredArrayItemId('supplements', s) === itemId);
+  if (nextIndex < 0 && itemId) {
+    nextIndex = supplements.findIndex(item => getConfiguredArrayItemId('supplements', item) === itemId);
   }
-  openSupplementsEditor(nextIdx >= 0 ? nextIdx : undefined);
+  openSupplementsEditor(nextIndex >= 0 ? nextIndex : undefined);
 }
 
-if (typeof window !== 'undefined') {
-  bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync);
-}
+if (typeof window !== 'undefined') bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync);
 
-export function renderSupplementsSection() {
-  const supps = state.importedData.supplements || [];
-  scheduleSupplementWarningRefresh(supps);
-  let html = `<div class="supp-timeline-section">
-    <div class="supp-timeline-header">
-      <span class="context-section-title">Supplements & Medications</span>
-      <button class="supp-add-btn" ${suppActionAttrs('open-editor')}>+ Add</button>
-    </div>`;
-  if (supps.length > 0) {
-    const today = new Date().toISOString().slice(0, 10);
-    let allDates = [];
-    for (const s of supps) {
-      for (const p of getSupplementPeriods(s)) {
-        if (p.start) allDates.push(p.start);
-        allDates.push(p.end || today);
-      }
-    }
-    if (state.importedData.entries) {
-      for (const e of state.importedData.entries) {
-        if (e.date) allDates.push(e.date);
-      }
-    }
-    // Drop empty / unparseable dates before sort — a supplement with
-    // startDate:"" ("under discussion, not started yet") would otherwise
-    // sort to position 0 and yield NaN in the toISOString below, crashing
-    // the whole dashboard render.
-    allDates = allDates.filter(d => d && !isNaN(new Date(d + 'T00:00:00').getTime()));
-    if (allDates.length === 0) {
-      // Edge case: every supplement is start-less and no entries yet.
-      // Anchor to today so the timeline still renders something.
-      allDates.push(today);
-    }
-    allDates.sort();
-    const minDate = allDates[0];
-    const maxDate = allDates[allDates.length - 1];
-    const minT = new Date(minDate + 'T00:00:00').getTime();
-    const maxT = new Date(maxDate + 'T00:00:00').getTime();
-    const range = maxT - minT || 1;
-    const fmtAxis = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    const midDate = new Date((minT + maxT) / 2).toISOString().slice(0, 10);
-    html += `<div class="supp-timeline">
-      <div class="supp-timeline-axis">
-        <span>${fmtAxis(minDate)}</span><span>${fmtAxis(midDate)}</span><span>${fmtAxis(maxDate)}</span>
-      </div>`;
-    for (let i = 0; i < supps.length; i++) {
-      const s = supps[i];
-      const isMed = s.type === 'medication';
-      const typeCls = isMed ? 'supp-bar-medication' : 'supp-bar-supplement';
-      const pds = getSupplementPeriods(s);
-      let barsHtml = '';
-      for (let pi = 0; pi < pds.length; pi++) {
-        const p = pds[pi];
-        const sT = new Date(p.start + 'T00:00:00').getTime();
-        const eT = new Date((p.end || today) + 'T00:00:00').getTime();
-        const leftPct = ((sT - minT) / range * 100).toFixed(2);
-        const widthPct = (((eT - sT) / range) * 100).toFixed(2);
-        const ongoingCls = !p.end ? ' supp-bar-ongoing' : '';
-        // Gap marker between periods
-        if (pi > 0 && pds[pi - 1].end) {
-          const gapStart = new Date(pds[pi - 1].end + 'T00:00:00').getTime();
-          const gapLeft = ((gapStart - minT) / range * 100).toFixed(2);
-          const gapWidth = (((sT - gapStart) / range) * 100).toFixed(2);
-          if (parseFloat(gapWidth) > 0.3) {
-            barsHtml += `<div class="supp-bar-gap" style="left:${gapLeft}%;width:${gapWidth}%"></div>`;
-          }
-        }
-        barsHtml += `<div class="supp-bar ${typeCls}${ongoingCls}" style="left:${leftPct}%;width:${Math.max(parseFloat(widthPct), 0.5)}%"></div>`;
-      }
-      const fullLabel = s.name + (s.dosage ? ' · ' + s.dosage : '');
-      const shortName = s.name.replace(/,?\s*\d+\s*x?\s*(?:ml|g|kg|oz|fl\.?\s*oz|caps(?:ules?)?|tabs?|tablets?|softgels?|ct)\b.*$/i, '').trim() || s.name;
-      html += `<div class="supp-bar-row" role="button" tabindex="0" aria-label="Edit ${escapeHTML(fullLabel)}" ${suppActionAttrs('open-editor', `data-supp-index="${i}"`)}>
-        <span class="supp-bar-label" title="${escapeHTML(fullLabel)}">${escapeHTML(shortName)}</span>
-        <div class="supp-bar-track">${barsHtml}</div>
-      </div>`;
-    }
-    html += `</div>`;
-    // Mitochondrial harm warnings (only flags harmful effects, not protective)
-    const mitoWarnings = scanSupplementsForWarnings(supps);
-    if (mitoWarnings.length > 0) {
-      html += `<div class="supp-mitotox">`;
-      html += `<div class="supp-mitotox-header">Mitochondrial effects \u2014 <span class="supp-mitotox-ask" ${suppActionAttrs('ask-mito')}>ask AI for context</span></div>`;
-      for (const w of mitoWarnings) {
-        const top = w.effects.slice(0, 2).map(e => humanizeEffect(e, { showContext: true })).join(' and ');
-        html += `<div class="supp-mitotox-item">\u26A0\uFE0F <strong>${escapeHTML(w.match)}</strong>: ${escapeHTML(top)} <a href="${w.url}" target="_blank" rel="noopener" class="supp-mitotox-link">primary study</a> <a href="${w.searchUrl}" target="_blank" rel="noopener" class="supp-mitotox-link">more studies</a></div>`;
-      }
-      html += `</div>`;
-    }
-  } else {
-    html += `<div class="supp-timeline"><div class="supp-empty">No supplements or medications tracked yet</div></div>`;
-  }
-  html += `</div>`;
-  return html;
-}
-
-/**
- * @param {number} idx
- * @param {string} [name]
- * @param {string} [amount]
- * @param {string | number} [timesPerDay]
- * @param {string | number} [outerTimes]
- */
-function _ingredientRowHtml(idx, name = '', amount = '', timesPerDay = '', outerTimes = '') {
-  const rowTimes = timesPerDay !== '' && timesPerDay != null ? String(timesPerDay) : '';
-  const effective = rowTimes || outerTimes;
-  const total = effective ? ingredientDailyTotal({ amount, timesPerDay: effective }) : null;
-  return `<div class="supp-ingredient-row" data-idx="${idx}">
-    <input type="text" class="supp-ing-name" placeholder="Ingredient" value="${escapeHTML(name)}">
-    <input type="text" class="supp-ing-amount" placeholder="Per dose" value="${escapeHTML(amount)}">
-    <input type="number" class="supp-ing-times" placeholder="×/day" min="0" max="99" step="0.5" value="${escapeHTML(rowTimes)}">
-    <span class="supp-ing-total">${total ? escapeHTML(formatSupplementTotal(total)) : ''}</span>
-    <button class="supp-ing-remove" ${suppActionAttrs('remove-ingredient')} title="Remove">&times;</button>
-  </div>`;
-}
-
-function _getOuterTimesFromForm() {
-  return getFieldValue('supp-times').trim();
-}
-
-/**
- * @param {Element} inputEl
- */
-export function updateIngTotal(inputEl) {
-  const row = inputEl.closest('.supp-ingredient-row');
-  if (!row) return;
-  const amount = getElementValue(row.querySelector('.supp-ing-amount'));
-  const rowTimes = getElementValue(row.querySelector('.supp-ing-times'));
-  const totalEl = row.querySelector('.supp-ing-total');
-  if (!totalEl) return;
-  const effective = rowTimes || _getOuterTimesFromForm();
-  const total = effective ? ingredientDailyTotal({ amount, timesPerDay: effective }) : null;
-  totalEl.textContent = total ? formatSupplementTotal(total) : '';
-}
-
-export function updateAllIngTotals() {
-  const rows = document.querySelectorAll('#supp-ingredients .supp-ingredient-row');
-  for (const row of rows) {
-    const amountInput = row.querySelector('.supp-ing-amount');
-    if (amountInput) updateIngTotal(amountInput);
-  }
-}
-
-export function addIngredientRow() {
-  const container = document.getElementById('supp-ingredients');
-  if (!container) return;
-  const idx = container.children.length;
-  container.insertAdjacentHTML('beforeend', _ingredientRowHtml(idx, '', '', '', _getOuterTimesFromForm()));
-  const rows = container.querySelectorAll('.supp-ing-name');
-  const lastRow = rows[rows.length - 1];
-  if (lastRow instanceof HTMLElement) lastRow.focus();
-}
-
-/**
- * @param {Element} btn
- */
-export function removeIngredientRow(btn) {
-  btn.closest('.supp-ingredient-row')?.remove();
-}
-
-function _periodRowHtml(idx, start = '', end = '', showRemove = true) {
-  return `<div class="supp-period-row" data-idx="${idx}">
-    <input type="date" class="supp-period-start" value="${start}">
-    <span class="supp-period-arrow">&rarr;</span>
-    <input type="date" class="supp-period-end" value="${end}" placeholder="ongoing">
-    <button class="supp-period-remove" ${suppActionAttrs('remove-period')} title="Remove"${showRemove ? '' : ' style="display:none"'}>&times;</button>
-  </div>`;
-}
-
-export function addPeriodRow() {
-  const container = document.getElementById('supp-periods');
-  if (!container) return;
-  const idx = container.children.length;
-  container.insertAdjacentHTML('beforeend', _periodRowHtml(idx));
-  // Show all remove buttons when 2+ rows
-  for (const btn of container.querySelectorAll('.supp-period-remove')) {
-    if (btn instanceof HTMLElement) btn.style.display = '';
-  }
-}
-
-/**
- * @param {Element} btn
- */
-export function removePeriodRow(btn) {
-  const container = document.getElementById('supp-periods');
-  if (!container) return;
-  btn.closest('.supp-period-row')?.remove();
-  const rows = container.querySelectorAll('.supp-period-row');
-  if (rows.length === 1) {
-    const rem = rows[0].querySelector('.supp-period-remove');
-    if (rem instanceof HTMLElement) rem.style.display = 'none';
-  }
-}
-
-function _collectPeriods() {
-  const rows = document.querySelectorAll('#supp-periods .supp-period-row');
-  const periods = [];
-  for (const row of rows) {
-    const start = getElementValue(row.querySelector('.supp-period-start'));
-    const end = getElementValue(row.querySelector('.supp-period-end')) || null;
-    if (start) periods.push({ start, end });
-  }
-  return periods;
-}
-
-function _collectIngredients() {
-  const rows = document.querySelectorAll('#supp-ingredients .supp-ingredient-row');
-  const ingredients = [];
-  for (const row of rows) {
-    const name = getElementValue(row.querySelector('.supp-ing-name')).trim();
-    const amount = getElementValue(row.querySelector('.supp-ing-amount')).trim();
-    const timesRaw = getElementValue(row.querySelector('.supp-ing-times')).trim();
-    if (!name) continue;
-    const ing = { name, amount };
-    const times = timesRaw ? parseFloat(timesRaw) : NaN;
-    if (isFinite(times) && times > 0) ing.timesPerDay = times;
-    ingredients.push(ing);
-  }
-  return ingredients.length > 0 ? ingredients : undefined;
-}
-
-export async function scanSupplementLabel(input) {
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file || !isValidImageType(file.type)) { showNotification('Please select an image (JPG, PNG, WebP)', 'error'); return; }
-  const scanBtn = document.querySelector('.supp-scan-label');
-  if (scanBtn instanceof HTMLButtonElement) { scanBtn.textContent = 'Scanning...'; scanBtn.disabled = true; }
-  try {
-    const { base64, mediaType } = await resizeImage(file, 1024, 0.85);
-    const provider = getAIProvider();
-    const imageBlock = formatImageBlock(base64, mediaType, provider);
-    const content = buildVisionContent([imageBlock], 'Extract product name and active ingredients from this supplement/medication label. Reply with ONLY JSON: {"product":"product name","dosage":"serving size e.g. 2 capsules/day","ingredients":[{"name":"ingredient","amount":"per serving"},...]}\nOnly active ingredients — skip fillers, excipients, binders, coatings, flavors, sweeteners. No other text.', provider);
-    const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 2000 }, provider);
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { showNotification('Could not parse label from image', 'error'); return; }
-    _applyParsedSupplement(JSON.parse(jsonMatch[0]));
-  } catch (e) {
-    if (isDebugMode()) console.warn('[scanLabel]', e);
-    showNotification('Failed to scan label: ' + (getErrorMessage(e, 'Unknown error')), 'error');
-  } finally {
-    if (scanBtn instanceof HTMLButtonElement) { scanBtn.textContent = 'Scan label'; scanBtn.disabled = false; }
-  }
-}
-
-function _applyParsedSupplement(parsed) {
-  const ingredients = parsed.ingredients || parsed;
-  if (Array.isArray(ingredients) && ingredients.length > 0) {
-    const container = document.getElementById('supp-ingredients');
-    if (container) {
-      container.innerHTML = '';
-      for (let i = 0; i < ingredients.length; i++) {
-        const ing = ingredients[i];
-        container.insertAdjacentHTML('beforeend', _ingredientRowHtml(i, ing.name || '', ing.amount || '', '', _getOuterTimesFromForm()));
-      }
-    }
-    showNotification(`${ingredients.length} ingredients extracted`, 'success');
-  }
-  const _valid = v => v && !/not (specified|found|available|provided)/i.test(v) && !/n\/?a/i.test(v);
-  const nameInput = getFormField('supp-name');
-  if (nameInput && !nameInput.value.trim() && _valid(parsed.product)) nameInput.value = parsed.product;
-  const dosageInput = getFormField('supp-dosage');
-  if (dosageInput && !dosageInput.value.trim() && _valid(parsed.dosage)) dosageInput.value = parsed.dosage;
-}
-
-export async function fetchSupplementFromURL() {
-  const rawUrl = getFieldValue('supp-url').trim();
-  if (!rawUrl) { showNotification('Paste a product URL first', 'error'); return; }
-  const parsedUrl = _parseHttpUrl(rawUrl);
-  if (!parsedUrl) { showNotification('Product URL must be http or https', 'error'); return; }
-  const url = parsedUrl.toString();
-  const btn = document.querySelector('.supp-url-fetch');
-  if (btn instanceof HTMLButtonElement) { btn.textContent = 'Fetching...'; btn.disabled = true; }
-  try {
-    // Fetch page HTML — use /api/fetch-page on localhost, proxy GET on hosted
-    const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
-    let html;
-    if (isLocal) {
-      const res = await fetch('/api/fetch-page?url=' + encodeURIComponent(url));
-      const json = await res.json();
-      html = json.html;
-    } else {
-      const res = await fetch('/api/proxy', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, method: 'GET', headers: {} })
-      });
-      html = await res.text();
-    }
-    if (!html || html.length < 100) { showNotification('Could not fetch page content', 'error'); return; }
-    // Extract JSON-LD structured data (has product description with dosage/ingredients)
-    const ldMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-    let ldText = '';
-    for (const m of ldMatches) {
-      const inner = m.replace(/<script[^>]*>|<\/script>/gi, '').trim();
-      if (/ingredient|supplement|serving|dosage|vitamin|capsule|tablet|složení|dávkování/i.test(inner)) ldText += inner + '\n';
-    }
-    // Strip non-content elements to plain text
-    const plainText = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-      .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-      .replace(/<header[\s\S]*?<\/header>/gi, '')
-      .replace(/<svg[\s\S]*?<\/svg>/gi, '')
-      .replace(/<!--[\s\S]*?-->/g, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s{2,}/g, ' ');
-    // Extract paragraphs near supplement-relevant keywords to capture ingredient tables
-    const kwPattern = /(.{0,300}(?:ingredient|supplement.fact|serving size|složení|dávkování|výživové|nutritional|active).{0,500})/gi;
-    const kwMatches = plainText.match(kwPattern) || [];
-    const kwText = kwMatches.join('\n');
-    // Combine: JSON-LD + keyword-adjacent text + beginning of page (product name/description)
-    const trimmed = (ldText + '\n' + kwText + '\n' + plainText.slice(0, 5000)).slice(0, 15000);
-    const result = await callClaudeAPI({
-      system: 'Extract supplement/medication info from this product page. Reply with ONLY JSON: {"product":"name","dosage":"serving size e.g. 2 capsules/day","ingredients":[{"name":"ingredient","amount":"per serving"},...]}\nOnly active ingredients — skip fillers, excipients, binders, coatings, flavors, sweeteners. Use null for fields not found. No other text.',
-      messages: [{ role: 'user', content: trimmed }],
-      maxTokens: 2000
-    });
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { showNotification('Could not parse product info', 'error'); return; }
-    _applyParsedSupplement(JSON.parse(jsonMatch[0]));
-  } catch (e) {
-    if (isDebugMode()) console.warn('[fetchURL]', e);
-    showNotification('Failed to fetch: ' + (getErrorMessage(e, 'Unknown error')), 'error');
-  } finally {
-    if (btn instanceof HTMLButtonElement) { btn.textContent = 'Fetch'; btn.disabled = false; }
-  }
-}
-
-function _suppFormHtml(editIdx, s) {
-  const editing = !!s;
-  const ingredients = editing && s.ingredients ? s.ingredients : [];
-  const periods = editing ? getSupplementPeriods(s) : [{ start: new Date().toISOString().slice(0, 10), end: null }];
-  const sourceUrl = editing && s.sourceUrl ? s.sourceUrl : '';
-  return `<div class="supp-form" id="supp-form-panel">
-    <div class="supp-form-row supp-url-row">
-      <div class="supp-form-field"><label>Product URL <span style="font-weight:normal;color:var(--text-muted)">(saved for reference${hasAIProvider() ? '; Fetch auto-fills' : ''})</span></label>
-        <div class="supp-url-input-row">
-          <input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(sourceUrl)}">
-          ${hasAIProvider() ? `<button class="supp-url-fetch" ${suppActionAttrs('fetch-url')}>Fetch</button>` : ''}
-        </div>
-      </div>
-    </div>
-    <div class="supp-form-row">
-      <div class="supp-form-field"><label>Name</label>
-        <input type="text" id="supp-name" placeholder="e.g. Creatine, Metformin" value="${editing ? escapeHTML(s.name) : ''}">
-      </div>
-      <div class="supp-form-field"><label>Dosage <span style="font-weight:normal;color:var(--text-muted)">(free text)</span></label>
-        <input type="text" id="supp-dosage" placeholder="e.g. with food, before bed" value="${editing ? escapeHTML(s.dosage || '') : ''}">
-      </div>
-      <div class="supp-form-field supp-form-field-compact"><label>Doses/day</label>
-        <input type="number" id="supp-times" placeholder="e.g. 2" min="0" max="99" step="0.5" value="${editing && s.timesPerDay != null ? escapeHTML(String(s.timesPerDay)) : ''}">
-      </div>
-    </div>
-    <div class="supp-form-row">
-      <div class="supp-form-field"><label>Type</label>
-        <select id="supp-type">
-          <option value="supplement"${editing && s.type === 'medication' ? '' : ' selected'}>Supplement</option>
-          <option value="medication"${editing && s.type === 'medication' ? ' selected' : ''}>Medication</option>
-        </select>
-      </div>
-      <div class="supp-form-field supp-form-field-wide"><label>Periods <span style="font-weight:normal;color:var(--text-muted)">(blank end = ongoing)</span></label>
-        <div id="supp-periods">${periods.map((p, i) => _periodRowHtml(i, p.start, p.end || '', periods.length > 1)).join('')}</div>
-        <div class="supp-period-actions"><button class="supp-period-add" ${suppActionAttrs('add-period')}>+ Add period</button></div>
-      </div>
-    </div>
-    <div class="supp-form-row">
-      <div class="supp-form-field"><label>Ingredients</label>
-        <div id="supp-ingredients">${ingredients.map((ing, i) => _ingredientRowHtml(i, ing.name, ing.amount, ing.timesPerDay, editing && s.timesPerDay ? s.timesPerDay : '')).join('')}</div>
-        <div class="supp-ingredient-actions">
-          <button class="supp-ingredient-add" ${suppActionAttrs('add-ingredient')}>+ Add</button>
-          ${hasAIProvider() && supportsVision() ? `<button class="supp-ingredient-add supp-scan-label" ${suppActionAttrs('scan-label')}>Scan label</button>
-          <input type="file" id="supp-label-input" accept="image/*" capture="environment" style="display:none">` : ''}
-        </div>
-      </div>
-    </div>
-    <div class="supp-form-row">
-      <div class="supp-form-field"><label>Note / Reason</label>
-        <input type="text" id="supp-note" placeholder="e.g. For low vitamin D, recommended by Dr. Smith" value="${editing ? escapeHTML(s.note || '') : ''}">
-      </div>
-    </div>
-    <div class="note-editor-actions">
-      <button class="import-btn import-btn-primary" ${suppActionAttrs('save', `data-supp-index="${editIdx}"`)}>${editing ? 'Update' : 'Add'}</button>
-      ${editing ? `<button class="import-btn import-btn-secondary" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)" ${suppActionAttrs('delete', `data-supp-index="${editIdx}"`)}>Delete</button>` : ''}
-      <button class="import-btn import-btn-secondary" ${editing ? suppActionAttrs('toggle-accordion', `data-supp-index="${editIdx}"`) : suppActionAttrs('toggle-add-form')}>Cancel</button>
-    </div>
-  </div>`;
-}
-
-export function toggleSuppAccordion(idx) {
-  // Close the "Add New" form if open to prevent duplicate IDs
+export function toggleSuppAccordion(index) {
+  clearPendingSupplementImport();
   const addArea = document.getElementById('supp-add-form-area');
   if (addArea) addArea.innerHTML = '';
   const existing = document.querySelector('.supp-list-expanded');
-  const clickedRow = document.querySelector(`.supp-list-item[data-idx="${idx}"]`);
-  // Collapse currently expanded
+  const clickedRow = document.querySelector(`.supp-list-item[data-idx="${index}"]`);
   if (existing) {
-    const oldIdx = existing instanceof HTMLElement ? parseInt(existing.dataset.expandedIdx || '', 10) : NaN;
+    const oldIndex = existing instanceof HTMLElement ? parseInt(existing.dataset.expandedIdx || '', 10) : NaN;
     existing.remove();
-    const oldRow = document.querySelector(`.supp-list-item[data-idx="${oldIdx}"]`);
-    if (oldRow) oldRow.classList.remove('supp-list-item-active');
-    if (oldIdx === idx) return; // toggle off
+    document.querySelector(`.supp-list-item[data-idx="${oldIndex}"]`)?.classList.remove('supp-list-item-active');
+    if (oldIndex === index) return;
   }
   if (!clickedRow) return;
+  const supplement = state.importedData.supplements?.[index];
+  if (!supplement) return;
   clickedRow.classList.add('supp-list-item-active');
-  const supps = state.importedData.supplements || [];
-  const s = supps[idx];
-  if (!s) return;
-  const expandedHtml = `<div class="supp-list-expanded" data-expanded-idx="${idx}">
-    ${renderSupplementImpact(s, idx)}
-    ${_suppFormHtml(idx, s)}
-  </div>`;
-  clickedRow.insertAdjacentHTML('afterend', expandedHtml);
-  // Scroll the expanded panel into view
-  const panel = document.querySelector('.supp-list-expanded');
-  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  clickedRow.insertAdjacentHTML('afterend', `<div class="supp-list-expanded" data-expanded-idx="${index}">${renderSupplementImpact(supplement, index)}${suppFormHtml(index, supplement)}</div>`);
+  document.querySelector('.supp-list-expanded')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-export function openSupplementsEditor(editIdx) {
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
+function renderSupplementQualityOverview(supplements) {
+  const current = (Array.isArray(supplements) ? supplements : [])
+    .filter(supplement => getSupplementStatus(supplement) === 'active');
+  const groups = aggregateSupplementContaminants(current);
+  if (!groups.length) return '';
+  const rows = groups.map(group => {
+    const reported = group.entries.map(entry => `<div><strong>${escapeHTML(entry.product)}</strong>: ${escapeHTML(formatSupplementQualityResult(entry.test))}</div>`).join('');
+    const totalMcg = group.exactMcgPerDay + group.upperMcgPerDay;
+    const total = group.summableCount
+      ? `${group.upperMcgPerDay > 0 ? '≤ ' : ''}${formatContaminantMass(totalMcg)}${group.summableCount < group.reportedCount ? ` + ${group.reportedCount - group.summableCount} not summable` : ''}`
+      : 'Not summable';
+    const analyte = group.analyte ? group.analyte.charAt(0).toUpperCase() + group.analyte.slice(1) : '';
+    return `<tr><th>${escapeHTML(analyte)}</th><td>${reported}</td><td>${escapeHTML(total)}</td></tr>`;
+  }).join('');
+  return `<section class="supp-quality-overview"><div class="supp-form-section-title">Current contaminant overview</div><div class="supp-form-help">Source-reported, often lot-specific laboratory data. Totals are shown only after the user confirms the report matches their bottle lot and the result is a compatible mass-per-serving/unit value with a personal daily frequency. No safety threshold or regulatory conclusion is applied.</div><div class="supp-quality-overview-scroll"><table><thead><tr><th>Analyte</th><th>Reported by product</th><th>Combined daily amount</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+export function openSupplementsEditor(editIndex) {
+  const modal = document.getElementById('detail-modal');
+  const overlay = document.getElementById('modal-overlay');
   if (!modal || !overlay) return;
-  const supps = state.importedData.supplements || [];
-  const isEdit = typeof editIdx === 'number' && !!supps[editIdx];
-  let html = `<button class="modal-close" ${suppActionAttrs('close-modal')}>&times;</button>
-    <h3>Supplements & Medications</h3>
-    <div class="modal-unit">Track what you're taking and when. Click a supplement to edit it.</div>`;
-  if (supps.length > 0) {
-    html += `<div class="supp-list">`;
-    const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    for (let i = 0; i < supps.length; i++) {
-      const s = supps[i];
-      const isMed = s.type === 'medication';
-      const icon = isMed ? '\uD83D\uDC8A' : '\uD83D\uDCA7';
-      const pds = getSupplementPeriods(s);
-      const dateRange = pds.length === 1
-        ? `${fmtDate(pds[0].start)} \u2192 ${pds[0].end ? fmtDate(pds[0].end) : 'ongoing'}`
-        : pds.map(p => `${fmtDate(p.start)}\u2192${p.end ? fmtDate(p.end) : 'now'}`).join(' \u00b7 ');
-      const source = _sourceUrlParts(s.sourceUrl);
-      html += `<div class="supp-list-item${isEdit && editIdx === i ? ' supp-list-item-active' : ''}" data-idx="${i}" ${suppActionAttrs('toggle-accordion', `data-supp-index="${i}"`)}>
-        <span class="supp-list-icon">${icon}</span>
-        <div class="supp-list-info">
-          <div class="supp-list-name">${escapeHTML(s.name)}${s.dosage ? ` <span class="supp-list-meta">${escapeHTML(s.dosage)}</span>` : ''}</div>
-          <div class="supp-list-meta">${dateRange}${source ? ` &middot; <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer" class="supp-list-source">${escapeHTML(source.host)} ↗</a>` : ''}</div>
-          ${s.ingredients?.length ? `<div class="supp-list-ingredients">${s.ingredients.map(ing => {
-            const total = ingredientDailyTotal(ing, s);
-            const times = effectiveTimesPerDay(ing, s);
-            const timesStr = times && times > 1 ? ` × ${times}/day` : '';
-            const totalStr = total ? ` → ${formatSupplementTotal(total)}` : '';
-            return `<span class="supp-ing-pill">${escapeHTML(ing.name)}${ing.amount ? ` ${escapeHTML(ing.amount)}` : ''}${escapeHTML(timesStr)}${escapeHTML(totalStr)}</span>`;
-          }).join('')}</div>` : ''}
-          ${s.note ? `<div class="supp-list-note">${escapeHTML(s.note)}</div>` : ''}
-        </div>
-      </div>`;
-      // If this row should be pre-expanded (clicked from dashboard)
-      if (isEdit && editIdx === i) {
-        html += `<div class="supp-list-expanded" data-expanded-idx="${i}">
-          ${renderSupplementImpact(s, i)}
-          ${_suppFormHtml(i, s)}
-        </div>`;
+  const supplements = state.importedData.supplements || [];
+  clearPendingSupplementImport();
+  const isEdit = typeof editIndex === 'number' && !!supplements[editIndex];
+  let html = `<button class="modal-close" aria-label="Close supplements and medications" ${suppActionAttrs('close-modal')}>&times;</button><h3>Supplements & Medications</h3><div class="modal-unit">Track what you're taking and when. Click an item to edit it. This history supports context and research warnings; it is not a comprehensive interaction or prescribing checker.</div>${renderSupplementQualityOverview(supplements)}`;
+  if (supplements.length) {
+    const formatDate = date => date && Number.isFinite(new Date(`${date}T00:00:00`).getTime())
+      ? new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'date not set';
+    const statusOrder = { active: 0, scheduled: 1, paused: 2, ended: 3, planned: 4 };
+    const statusLabels = { active: 'Current', scheduled: 'Upcoming', paused: 'Paused / between cycles', ended: 'History', planned: 'Planned' };
+    const orderedRows = supplements.map((supplement, index) => ({ supplement, index, status: getSupplementStatus(supplement) }))
+      .sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || a.index - b.index);
+    html += '<div class="supp-list">';
+    let previousStatus = '';
+    for (const { supplement, index, status } of orderedRows) {
+      if (status !== previousStatus) {
+        html += `<div class="supp-list-group-title">${escapeHTML(statusLabels[status])}</div>`;
+        previousStatus = status;
       }
+      const icon = supplement.type === 'medication' ? '💊' : '💧';
+      const periods = getSupplementPeriods(supplement);
+      const dateRange = periods.length === 1
+        ? `${formatDate(periods[0].start)} → ${periods[0].end ? formatDate(periods[0].end) : 'ongoing'}`
+        : periods.map(period => `${formatDate(period.start)}→${period.end ? formatDate(period.end) : 'now'}`).join(' · ');
+      const source = sourceUrlParts(supplement.sourceUrl);
+      const qualityAICount = (supplement.qualityTests || []).filter(test => isSupplementQualityIncludedInAI(test, supplement)).length;
+      const ingredientPills = supplement.ingredients?.map(ingredient => {
+        const total = ingredientDailyTotal(ingredient, supplement);
+        const times = effectiveTimesPerDay(ingredient, supplement);
+        const timesText = times && times > 1 ? ` × ${times}/day` : '';
+        const totalText = total ? ` → ${formatSupplementTotal(total)}` : '';
+        return `<span class="supp-ing-pill">${escapeHTML(ingredient.name)}${ingredient.amount ? ` ${escapeHTML(ingredient.amount)}` : ''}${escapeHTML(timesText)}${escapeHTML(totalText)}</span>`;
+      }).join('') || '';
+      html += `<div class="supp-list-item${isEdit && editIndex === index ? ' supp-list-item-active' : ''}" data-idx="${index}" role="button" tabindex="0" aria-label="Edit ${escapeHTML(supplement.name)}" ${suppActionAttrs('toggle-accordion', `data-supp-index="${index}"`)}><span class="supp-list-icon">${icon}</span><div class="supp-list-info"><div class="supp-list-name">${escapeHTML(supplement.name)} <span class="supp-status-badge supp-status-${status}">${escapeHTML(status === 'active' ? 'Current' : status)}</span>${supplement.dosage ? ` <span class="supp-list-meta">${escapeHTML(supplement.dosage)}</span>` : ''}</div><div class="supp-list-meta">${dateRange}${source ? ` &middot; <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer" class="supp-list-source">${escapeHTML(source.host)} ↗</a>` : ''}</div>${ingredientPills ? `<div class="supp-list-ingredients">${ingredientPills}</div>` : ''}${supplement.qualityTests?.length ? `<div class="supp-list-quality">${supplement.qualityTests.length} laboratory result${supplement.qualityTests.length === 1 ? '' : 's'} kept separate from ingredients · ${qualityAICount} in AI context</div>` : ''}${supplement.note ? `<div class="supp-list-note">${escapeHTML(supplement.note)}</div>` : ''}</div></div>`;
+      if (isEdit && editIndex === index) html += `<div class="supp-list-expanded" data-expanded-idx="${index}">${renderSupplementImpact(supplement, index)}${suppFormHtml(index, supplement)}</div>`;
     }
-    html += `</div>`;
+    html += '</div>';
   }
-  // Add New button — opens form at end
-  html += `<div class="supp-add-section">
-    <button class="supp-add-btn" ${suppActionAttrs('toggle-add-form')}>+ Add New</button>
-    <div id="supp-add-form-area"></div>
-  </div>`;
+  html += `<div class="supp-add-section"><button class="supp-add-btn" ${suppActionAttrs('toggle-add-form')}>+ Add New</button><div id="supp-add-form-area"></div></div>`;
   modal.innerHTML = html;
   modal.dataset.syncRefreshKind = 'supplements';
-  modal.dataset.syncRefreshEditIdx = isEdit ? String(editIdx) : '';
-  modal.dataset.syncRefreshItemId = isEdit ? (getConfiguredArrayItemId('supplements', supps[editIdx]) || '') : '';
+  modal.dataset.syncRefreshEditIdx = isEdit ? String(editIndex) : '';
+  modal.dataset.syncRefreshItemId = isEdit ? getConfiguredArrayItemId('supplements', supplements[editIndex]) || '' : '';
   openModalOverlay(overlay);
-  if (isEdit) {
-    const expanded = document.querySelector('.supp-list-expanded');
-    if (expanded) setTimeout(() => expanded.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
-  }
+  if (isEdit) setTimeout(() => document.querySelector('.supp-list-expanded')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 }
 
 export function showAddSuppForm() {
   const area = document.getElementById('supp-add-form-area');
   if (!area) return;
-  if (area.innerHTML.trim()) { area.innerHTML = ''; return; } // toggle off
-  // Collapse any open accordion to prevent duplicate IDs
+  if (area.innerHTML.trim()) { area.innerHTML = ''; return; }
+  clearPendingSupplementImport();
   const existing = document.querySelector('.supp-list-expanded');
   if (existing) {
-    const oldIdx = existing instanceof HTMLElement ? parseInt(existing.dataset.expandedIdx || '', 10) : NaN;
+    const oldIndex = existing instanceof HTMLElement ? parseInt(existing.dataset.expandedIdx || '', 10) : NaN;
     existing.remove();
-    const oldRow = document.querySelector(`.supp-list-item[data-idx="${oldIdx}"]`);
-    if (oldRow) oldRow.classList.remove('supp-list-item-active');
+    document.querySelector(`.supp-list-item[data-idx="${oldIndex}"]`)?.classList.remove('supp-list-item-active');
   }
-  area.innerHTML = _suppFormHtml(-1, null);
+  area.innerHTML = suppFormHtml(-1, null, renderPendingImportReview());
   setTimeout(() => {
-    const nameInput = getFormField('supp-name');
-    if (nameInput) nameInput.focus();
+    getFormField('supp-name')?.focus();
     area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 50);
 }
 
-export function saveSupplement(idx) {
+function parseScheduleDetails(mode, details) {
+  if (mode === 'selected-days') {
+    const names = [['sun', 0], ['mon', 1], ['tue', 2], ['wed', 3], ['thu', 4], ['fri', 5], ['sat', 6]];
+    return { daysOfWeek: names.filter(([name]) => new RegExp(`\\b${name}(?:day)?s?\\b`, 'i').test(details)).map(([, day]) => day) };
+  }
+  if (mode === 'interval') {
+    const match = details.match(/(?:every\s*)?(\d+)\s*days?/i);
+    const intervalDays = match ? Number(match[1]) : NaN;
+    return Number.isInteger(intervalDays) && intervalDays > 0 ? { intervalDays } : {};
+  }
+  return {};
+}
+
+export function saveSupplement(index) {
   const name = getFieldValue('supp-name').trim();
   const dosage = getFieldValue('supp-dosage').trim();
   const type = getFieldValue('supp-type');
   if (!name) { showNotification('Name is required', 'error'); return; }
-  const collectedPeriods = _collectPeriods();
-  if (collectedPeriods.length === 0) { showNotification('At least one period is required', 'error'); return; }
-  for (const p of collectedPeriods) {
-    if (!p.start) { showNotification('Each period needs a start date', 'error'); return; }
-    if (p.end && p.end < p.start) { showNotification('Period end must be after start', 'error'); return; }
+  const periods = collectPeriods();
+  if (!periods.length) { showNotification('At least one period is required', 'error'); return; }
+  for (const period of periods) {
+    if (!period.start) { showNotification('Each period needs a start date', 'error'); return; }
+    if (period.end && period.end < period.start) { showNotification('Period end must be after start', 'error'); return; }
   }
-  const sorted = [...collectedPeriods].sort((a, b) => a.start.localeCompare(b.start));
-  for (let i = 0; i < sorted.length - 1; i++) {
-    if ((sorted[i].end || '9999-12-31') > sorted[i + 1].start) { showNotification('Periods must not overlap', 'error'); return; }
+  const sorted = [...periods].sort((a, b) => a.start.localeCompare(b.start));
+  for (let periodIndex = 0; periodIndex < sorted.length - 1; periodIndex += 1) {
+    if ((sorted[periodIndex].end || '9999-12-31') >= sorted[periodIndex + 1].start) {
+      showNotification('Periods must not overlap or share the same date', 'error');
+      return;
+    }
   }
-  const startDate = sorted[0].start;
-  const endDate = sorted[sorted.length - 1].end;
-  const note = getFieldValue('supp-note').trim();
-  const ingredients = _collectIngredients();
+  const pendingImport = getPendingSupplementImport();
+  const ingredients = collectIngredients(pendingImport);
+  const inactiveIngredients = collectInactiveIngredients();
+  const qualityTests = collectQualityTests(pendingImport);
   const timesRaw = getFieldValue('supp-times').trim();
-  const timesNum = timesRaw ? parseFloat(timesRaw) : NaN;
+  const timesPerDay = timesRaw ? parseFloat(timesRaw) : NaN;
+  const scheduleMode = getFieldValue('supp-schedule-mode') || 'daily';
+  const scheduleDetails = getFieldValue('supp-schedule-details').trim();
+  const maxPerDayRaw = getFieldValue('supp-max-per-day').trim();
+  const maxPerDay = maxPerDayRaw ? parseFloat(maxPerDayRaw) : NaN;
   const sourceUrlRaw = getFieldValue('supp-url').trim();
-  let parsedSourceUrl = null;
+  let sourceUrl = null;
   if (sourceUrlRaw) {
     try {
-      parsedSourceUrl = new URL(sourceUrlRaw);
-      if (parsedSourceUrl.protocol !== 'http:' && parsedSourceUrl.protocol !== 'https:') {
-        showNotification('Product URL must be http or https', 'error');
-        return;
-      }
+      sourceUrl = new URL(sourceUrlRaw);
+      if (!['http:', 'https:'].includes(sourceUrl.protocol)) throw new Error('Invalid protocol');
     } catch {
       showNotification('Invalid product URL', 'error');
       return;
     }
   }
-  const entry = { name, dosage, startDate, endDate, type, note, updatedAt: Date.now() };
-  if (sorted.length > 1) entry.periods = sorted;
-  if (ingredients) entry.ingredients = ingredients;
-  if (isFinite(timesNum) && timesNum > 0) entry.timesPerDay = timesNum;
-  if (parsedSourceUrl) entry.sourceUrl = parsedSourceUrl.toString();
-  if (idx >= 0) {
-    replaceImportedArrayItem(state.importedData, 'supplements', idx, entry);
+  const previous = index >= 0 ? state.importedData.supplements?.[index] : null;
+  const entry = {
+    ...(previous && typeof previous === 'object' ? previous : {}),
+    id: getSupplementRecordId(previous) || createSupplementRecordId(),
+    schemaVersion: SUPPLEMENT_RECORD_VERSION,
+    name, dosage, type,
+    startDate: sorted[0].start,
+    endDate: sorted[sorted.length - 1].end,
+    note: getFieldValue('supp-note').trim(),
+    periods: sorted,
+    schedule: {
+      ...(previous?.schedule && typeof previous.schedule === 'object' ? previous.schedule : {}),
+      mode: scheduleMode,
+      ...(scheduleDetails ? { details: scheduleDetails } : {}),
+      ...(isFinite(maxPerDay) && maxPerDay > 0 ? { maxPerDay } : {}),
+      ...parseScheduleDetails(scheduleMode, scheduleDetails),
+    },
+    lifecycle: {
+      ...(previous?.lifecycle && typeof previous.lifecycle === 'object' ? previous.lifecycle : {}),
+      state: sorted.some(period => period.start <= localDateKey() && !period.end) ? 'active' : previous?.lifecycle?.state || 'ended',
+    },
+    updatedAt: Date.now(),
+  };
+  if (!scheduleDetails) delete entry.schedule.details;
+  if (!(isFinite(maxPerDay) && maxPerDay > 0)) delete entry.schedule.maxPerDay;
+  if (scheduleMode !== 'selected-days') delete entry.schedule.daysOfWeek;
+  if (scheduleMode !== 'interval') delete entry.schedule.intervalDays;
+  if (ingredients) entry.ingredients = ingredients; else delete entry.ingredients;
+  if (inactiveIngredients) entry.inactiveIngredients = inactiveIngredients; else delete entry.inactiveIngredients;
+  if (qualityTests) {
+    entry.qualityTests = qualityTests;
+    entry.qualityEvidenceScope = getFieldValue('supp-quality-evidence-scope') || 'unknown';
   } else {
-    appendImportedArrayItem(state.importedData, 'supplements', entry);
+    delete entry.qualityTests;
+    delete entry.qualityEvidenceScope;
   }
+  if (scheduleMode !== 'prn' && isFinite(timesPerDay) && timesPerDay > 0) entry.timesPerDay = timesPerDay;
+  else delete entry.timesPerDay;
+  entry.schedule.timesPerDay = entry.timesPerDay ?? null;
+  if (sourceUrl) entry.sourceUrl = sourceUrl.toString(); else delete entry.sourceUrl;
+  for (const [field, id] of [['brand','supp-brand'],['genericName','supp-generic-name'],['dosageForm','supp-dosage-form'],['route','supp-route'],['labelDirections','supp-label-directions'],['reason','supp-reason'],['prescriber','supp-prescriber']]) {
+    const value = getFieldValue(id).trim();
+    if (value) entry[field] = value; else delete entry[field];
+  }
+  const lifecycleReason = getFieldValue('supp-end-reason').trim();
+  if (lifecycleReason) {
+    entry.lifecycle.reason = lifecycleReason;
+    const latestPeriod = entry.periods[entry.periods.length - 1];
+    if (latestPeriod?.end) latestPeriod.endReason = lifecycleReason;
+  } else delete entry.lifecycle.reason;
+  const servingValueRaw = getFieldValue('supp-serving-value').trim();
+  const servingValue = servingValueRaw ? parseFloat(servingValueRaw) : NaN;
+  const servingUnit = normalizeSupplementUnit(getFieldValue('supp-serving-unit'));
+  if (isFinite(servingValue) || servingUnit) entry.servingSize = { ...(isFinite(servingValue) ? { value: servingValue } : {}), ...(servingUnit ? { unit: servingUnit } : {}) };
+  else delete entry.servingSize;
+  const latestDose = sorted[sorted.length - 1]?.dose;
+  if (latestDose) entry.currentDose = latestDose; else delete entry.currentDose;
+  if (pendingImport?.draft?.source?.reviewed) {
+    const draft = pendingImport.draft;
+    const fields = ['product', 'genericName', 'brand', 'type', 'dosageForm', 'route', 'servingSize', 'labelDirections', 'ingredients', 'inactiveIngredients', 'qualityTests'];
+    entry.importProvenance = {
+      ...draft.source,
+      reviewedAt: Date.now(),
+      fields: Object.fromEntries(fields.filter(field => draft[field] && (!Array.isArray(draft[field]) || draft[field].length)).map(field => [field, {
+        source: draft.fieldSources?.[field] || draft.source.kind,
+        confidence: draft.confidence,
+        deterministic: draft.source.deterministicFields.includes(field),
+      }])),
+    };
+    if (draft.warnings.length) entry.labelWarnings = [...draft.warnings];
+  }
+  if (index >= 0) replaceImportedArrayItem(state.importedData, 'supplements', index, entry);
+  else appendImportedArrayItem(state.importedData, 'supplements', entry);
   saveImportedData();
-  showNotification(idx >= 0 ? 'Supplement updated' : 'Supplement added', 'success');
-  // Re-render dashboard supplements section
-  const el = document.querySelector('.supp-timeline-section');
-  if (el) el.outerHTML = renderSupplementsSection();
-  // Re-render modal with the saved supplement expanded
-  const savedIdx = idx >= 0 ? idx : state.importedData.supplements.length - 1;
-  openSupplementsEditor(savedIdx);
+  showNotification(index >= 0 ? 'Item updated' : 'Item added', 'success');
+  const section = document.querySelector('.supp-timeline-section');
+  if (section) section.outerHTML = renderSupplementsSection();
+  openSupplementsEditor(index >= 0 ? index : state.importedData.supplements.length - 1);
 }
 
-export function deleteSupplement(idx) {
-  if (!state.importedData.supplements || !state.importedData.supplements[idx]) return;
-  const name = state.importedData.supplements[idx].name;
-  deleteImportedArrayItem(state.importedData, 'supplements', idx);
-  saveImportedData();
-  showNotification(`"${name}" removed`, 'info');
-  // Re-render dashboard supplements section
-  const el = document.querySelector('.supp-timeline-section');
-  if (el) el.outerHTML = renderSupplementsSection();
-  // Re-render the modal with remaining supplements
-  if (state.importedData.supplements.length > 0) {
-    openSupplementsEditor();
-  } else {
-    closeSupplementModal();
-    const activeNav = document.querySelector(".nav-item.active");
-    navigateSupplementView(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
-  }
+function refreshSupplementSurfaces(editIndex) {
+  const section = document.querySelector('.supp-timeline-section');
+  if (section) section.outerHTML = renderSupplementsSection();
+  openSupplementsEditor(editIndex);
 }
 
-export function askAIMitoContext() {
-  const askButton = document.querySelector('[aria-label="Ask AI"]');
-  if (askButton instanceof HTMLElement) askButton.click();
-  setTimeout(() => {
-    const ta = document.querySelector('textarea.chat-input');
-    if (ta instanceof HTMLTextAreaElement) {
-      ta.value = 'Explain the mitochondrial effects of my current supplements and medications. Which ones should I be concerned about and why?';
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-      ta.focus();
+function previousDateKey(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() - 1);
+  return localDateKey(date);
+}
+
+function closeSupplementPeriod(index, lifecycleState) {
+  const previous = state.importedData.supplements?.[index];
+  if (!previous) return;
+  const today = localDateKey();
+  const formMatches = Number.parseInt(document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') || '', 10) === index;
+  const reason = formMatches ? getFieldValue('supp-end-reason').trim() : '';
+  let changed = false;
+  const periods = getSupplementPeriods(previous).map(period => {
+    if (period?.start && period.start <= today && !period.end) {
+      changed = true;
+      return { ...period, end: today, ...(reason ? { endReason: reason } : {}) };
     }
-  }, 500);
+    return { ...period };
+  });
+  if (!changed) { showNotification('This item has no open period to close.', 'info'); return; }
+  const entry = {
+    ...previous, periods,
+    startDate: periods[0]?.start || previous.startDate,
+    endDate: periods[periods.length - 1]?.end || null,
+    lifecycle: { ...(previous.lifecycle || {}), state: lifecycleState, changedAt: Date.now(), ...(reason ? { reason } : {}) },
+    updatedAt: Date.now(),
+  };
+  replaceImportedArrayItem(state.importedData, 'supplements', index, entry);
+  saveImportedData();
+  showNotification(lifecycleState === 'paused' ? 'Item paused and moved out of Current' : 'Item ended and moved to History', 'success');
+  refreshSupplementSurfaces(index);
+}
+
+export function pauseSupplement(index) { closeSupplementPeriod(index, 'paused'); }
+export function endSupplement(index) { closeSupplementPeriod(index, 'ended'); }
+
+export function restartSupplement(index) {
+  const previous = state.importedData.supplements?.[index];
+  if (!previous) return;
+  if (getSupplementStatus(previous) === 'active') { showNotification('This item is already current.', 'info'); return; }
+  const today = localDateKey();
+  const periods = getSupplementPeriods(previous).map(period => ({ ...period }));
+  const latest = periods[periods.length - 1];
+  if (latest?.end === today) latest.end = null;
+  else periods.push({ start: today, end: null, ...(previous.currentDose ? { dose: previous.currentDose } : {}) });
+  replaceImportedArrayItem(state.importedData, 'supplements', index, {
+    ...previous, periods, startDate: periods[0]?.start || today, endDate: null,
+    lifecycle: { ...(previous.lifecycle || {}), state: 'active', changedAt: Date.now() }, updatedAt: Date.now(),
+  });
+  saveImportedData();
+  showNotification('Item restarted. Review the current dose and schedule.', 'success');
+  refreshSupplementSurfaces(index);
+}
+
+export function beginSupplementDoseChange(index) {
+  const previous = state.importedData.supplements?.[index];
+  if (!previous || getSupplementStatus(previous) !== 'active') return;
+  const today = localDateKey();
+  const openRow = Array.from(document.querySelectorAll('#supp-periods .supp-period-row'))
+    .find(row => !getElementValue(row.querySelector('.supp-period-end')));
+  if (!openRow) return;
+  if (getElementValue(openRow.querySelector('.supp-period-start')) === today) {
+    const dose = openRow.querySelector('.supp-period-dose');
+    if (dose instanceof HTMLElement) dose.focus();
+    showNotification('Update today’s dose, then save.', 'info');
+    return;
+  }
+  const end = openRow.querySelector('.supp-period-end');
+  if (end instanceof HTMLInputElement) end.value = previousDateKey(today);
+  addPeriodRow({ start: today, end: null, dose: '' });
+  const doseInputs = document.querySelectorAll('#supp-periods .supp-period-dose');
+  const latestDose = doseInputs[doseInputs.length - 1];
+  if (latestDose instanceof HTMLElement) latestDose.focus();
+  showNotification('A new period starts today. Enter the new dose and save.', 'info');
+}
+
+export async function deleteSupplement(index) {
+  const supplement = state.importedData.supplements?.[index];
+  if (!supplement) return;
+  const confirmed = await showConfirmDialog(`Permanently delete "${supplement.name}" and its full usage history? Ending it keeps the history and is usually better.`, {
+    confirmLabel: 'Delete permanently', tone: 'danger', ariaLabel: 'Delete supplement or medication',
+  });
+  if (!confirmed) return;
+  deleteImportedArrayItem(state.importedData, 'supplements', index);
+  saveImportedData();
+  showNotification(`"${supplement.name}" removed`, 'info');
+  const section = document.querySelector('.supp-timeline-section');
+  if (section) section.outerHTML = renderSupplementsSection();
+  if (state.importedData.supplements.length) openSupplementsEditor();
+  else {
+    closeSupplementModal();
+    const activeNav = document.querySelector('.nav-item.active');
+    navigateSupplementView(activeNav instanceof HTMLElement ? activeNav.dataset.category || 'dashboard' : 'dashboard');
+  }
 }
 
 initSupplementActionDelegates({
@@ -740,6 +479,8 @@ initSupplementActionDelegates({
   askMito: askAIMitoContext,
   addIngredient: addIngredientRow,
   removeIngredient: removeIngredientRow,
+  addQualityTest: addQualityTestRow,
+  removeQualityTest: removeQualityTestRow,
   addPeriod: addPeriodRow,
   removePeriod: removePeriodRow,
   fetchUrl: fetchSupplementFromURL,
@@ -747,7 +488,15 @@ initSupplementActionDelegates({
   scanLabel: scanSupplementLabel,
   save: saveSupplement,
   delete: deleteSupplement,
+  pause: pauseSupplement,
+  end: endSupplement,
+  restart: restartSupplement,
+  changeDose: beginSupplementDoseChange,
+  applyImport: applySupplementImportDraft,
+  keepSafetyQuality: keepSafetyFocusedImportQuality,
+  discardImport: discardSupplementImportDraft,
   refreshImpact: refreshSupplementImpact,
   updateIngredientTotal: updateIngTotal,
   updateAllIngredientTotals: updateAllIngTotals,
+  updateIngredientUnit,
 });

@@ -7,27 +7,27 @@ import { callClaudeAPI, hasAIProvider } from './api.js';
 import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
+import {
+  getIngredientQuantity,
+  getSupplementRecordId,
+  getSupplementPeriods,
+  parseSupplementQuantity,
+} from './supplement-medication-domain.js';
 
-export function getSupplementPeriods(s) {
-  if (s?.periods && s.periods.length > 0) return s.periods;
-  return [{ start: s?.startDate, end: s?.endDate }];
-}
+export { getSupplementPeriods };
 
 // Extract numeric value + unit from amount strings like "890mg", "500 IU", "25 mcg", "5,4 mg".
 // Handles both dot and comma decimal separators. Returns null for pure text ("once daily").
 export function parseAmount(str) {
-  if (!str || typeof str !== 'string') return null;
-  const match = str.trim().match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Zµμ]+)?/);
-  if (!match) return null;
-  const value = parseFloat(match[1].replace(',', '.'));
-  if (!isFinite(value)) return null;
-  const unit = (match[2] || '').trim();
-  return { value, unit };
+  const parsed = parseSupplementQuantity(str);
+  return parsed ? { value: parsed.value, unit: parsed.unit } : null;
 }
 
 // Effective timesPerDay for an ingredient: row override wins, else the supp-level default.
 export function effectiveTimesPerDay(ing, supp) {
   if (ing && (ing.timesPerDay === 0 || ing.timesPerDay)) return Number(ing.timesPerDay);
+  if (supp?.schedule?.mode === 'prn') return null;
+  if (supp?.schedule && (supp.schedule.timesPerDay === 0 || supp.schedule.timesPerDay)) return Number(supp.schedule.timesPerDay);
   if (supp && (supp.timesPerDay === 0 || supp.timesPerDay)) return Number(supp.timesPerDay);
   return null;
 }
@@ -36,7 +36,7 @@ export function effectiveTimesPerDay(ing, supp) {
 export function ingredientDailyTotal(ing, supp) {
   const times = effectiveTimesPerDay(ing, supp);
   if (!ing || !times) return null;
-  const parsed = parseAmount(ing.amount);
+  const parsed = getIngredientQuantity(ing);
   if (!parsed) return null;
   const total = parsed.value * times;
   if (!isFinite(total)) return null;
@@ -120,8 +120,9 @@ function getOverlappingSupplements(supplement, supps) {
 function getSuppFingerprint(supp, data) {
   const labPart = (data.dates || []).join(',');
   const pds = getSupplementPeriods(supp);
-  const ings = (supp.ingredients || []).map(i => `${i.name}:${i.amount || ''}:${i.timesPerDay || ''}`).join(',');
-  const suppPart = `${supp.name}|${supp.dosage || ''}|${supp.timesPerDay || ''}|${supp.type || ''}|${ings}|${pds.map(p => p.start + '~' + (p.end || '')).join(',')}`;
+  const ings = (supp.ingredients || []).map(i => `${i.name}:${i.amount || ''}:${i.amountValue ?? ''}:${i.amountUnit || ''}:${i.timesPerDay || ''}`).join(',');
+  const schedule = supp.schedule && typeof supp.schedule === 'object' ? JSON.stringify(supp.schedule) : '';
+  const suppPart = `${supp.name}|${supp.dosage || ''}|${supp.timesPerDay || ''}|${schedule}|${supp.type || ''}|${ings}|${pds.map(p => p.start + '~' + (p.end || '') + '~' + (p.dose || '')).join(',')}`;
   return hashString(labPart + '||' + suppPart);
 }
 
@@ -168,7 +169,8 @@ export function renderSupplementImpact(supplement, editIdx) {
 
   const fp = getSuppFingerprint(supplement, data);
   const cache = getImpactCache();
-  const entry = cache[supplement.name];
+  const cacheKey = getSupplementRecordId(supplement) || supplement.name;
+  const entry = cache[cacheKey] || cache[supplement.name];
   const cached = (entry && entry.fp === fp) ? entry : null;
 
   const dotColor = cached ? `ctx-health-dot-${cached.dot}` : (hasAI ? 'ctx-health-dot-shimmer' : 'ctx-health-dot-gray');
@@ -190,7 +192,7 @@ export function renderSupplementImpact(supplement, editIdx) {
 }
 
 function scheduleAnalyze(supplement, editIdx, data) {
-  _pendingAnalyses.set(supplement.name, { supplement, editIdx });
+  _pendingAnalyses.set(getSupplementRecordId(supplement) || supplement.name, { supplement, editIdx });
   if (_analyzeTimer) return;
   _analyzeTimer = setTimeout(() => { _analyzeTimer = null; flushAnalyses(data); }, 50);
 }
@@ -222,7 +224,10 @@ async function loadImpactsForSupps(pending, data) {
     const pdStr = pds.length === 1
       ? `since ${pds[0].start}${pds[0].end ? ' until ' + pds[0].end : ''}`
       : `CYCLING: ${pds.map(p => p.start + ' to ' + (p.end || 'ongoing')).join('; ')}`;
-    ctx += `\n[${s.name}] ${s.dosage || ''} (${s.type}) ${pdStr}`;
+    const regimen = s.schedule?.mode === 'prn'
+      ? `PRN${s.schedule?.maxPerDay ? ` (max ${s.schedule.maxPerDay}/day)` : ''}`
+      : [s.schedule?.mode, s.schedule?.details].filter(Boolean).join(': ');
+    ctx += `\n[${s.name}] ${s.dosage || ''} (${s.type}) ${pdStr}${regimen ? `; schedule ${regimen}` : ''}`;
     if (s.ingredients?.length) ctx += ` ingredients: ${s.ingredients.map(ing => {
       const total = ingredientDailyTotal(ing, s);
       const times = effectiveTimesPerDay(ing, s);
@@ -260,7 +265,9 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
           dot: ['green', 'yellow', 'red', 'gray'].includes(entry.dot) ? entry.dot : 'gray',
           summary: typeof entry.summary === 'string' ? entry.summary.slice(0, 150) : ''
         };
-        cache[s.name] = record;
+        const cacheKey = getSupplementRecordId(s) || s.name;
+        cache[cacheKey] = record;
+        if (cacheKey !== s.name) delete cache[s.name];
         applyImpactToDOM(editIdx, record);
       }
       // Cap cache at 50 entries (one per supp).
@@ -281,6 +288,7 @@ export function refreshSupplementImpact(editIdx) {
   const data = getActiveData();
   if (!data) return;
   const cache = getImpactCache();
+  delete cache[getSupplementRecordId(s) || s.name];
   delete cache[s.name];
   setImpactCache(cache);
   const dotEl = document.getElementById(`supp-impact-dot-${editIdx}`);
