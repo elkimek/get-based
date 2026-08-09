@@ -15,6 +15,14 @@ import {
   unavailableLocalAiResult,
 } from './local-ai-provider-shared.js';
 
+// A 20GB model load takes 20-60s; leave headroom for memory-pressure stalls.
+const LMSTUDIO_LOAD_TIMEOUT_MS = 300000;
+// The native chat endpoint is non-streaming, so the initial-response timeout
+// spans the entire generation. Local generations legitimately run for many
+// minutes (long prompts at ~15 tok/s), so the streaming-oriented request
+// timeout must not apply here. The caller's abort signal still cancels.
+const LMSTUDIO_NATIVE_GENERATION_TIMEOUT_MS = 900000;
+
 export const lmStudioProviderAdapter = Object.freeze({
   id: 'lmstudio',
   label: 'LM Studio',
@@ -33,6 +41,7 @@ export const lmStudioProviderAdapter = Object.freeze({
   prepareNativeRequest: prepareLMStudioNativeRequest,
   infer: inferWithLMStudioNativeProvider,
   unload: unloadLMStudioModel,
+  loadWithContext: loadLMStudioModelWithContext,
 });
 
 function indexLMStudioModels(rawModels) {
@@ -227,7 +236,10 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
     }),
     signal: opts.signal,
   };
-  const timeoutState = createInitialResponseTimeout(requestInit, opts.requestTimeoutMs || FETCH_REQUEST_TIMEOUT_MS);
+  const timeoutState = createInitialResponseTimeout(
+    requestInit,
+    Math.max(opts.requestTimeoutMs || FETCH_REQUEST_TIMEOUT_MS, LMSTUDIO_NATIVE_GENERATION_TIMEOUT_MS),
+  );
   let response;
   try {
     response = await fetch(`${String(config.url || '').replace(/\/+$/, '')}/api/v1/chat`, timeoutState.fetchOptions);
@@ -249,14 +261,21 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
   if (!text) throw new Error('LM Studio returned no final response content.');
   if (opts.onStream) opts.onStream(text);
   const stats = data.stats || {};
+  const inputTokens = Number(stats.input_tokens) || 0;
+  const outputTokens = Number(stats.total_output_tokens) || 0;
+  // The native endpoint reports no finish reason. Infer truncation from the
+  // token accounting: generation that stopped at the output cap or filled the
+  // context window did not finish naturally.
+  const truncated = (plan.maxTokens > 0 && outputTokens >= plan.maxTokens)
+    || (contextLength > 0 && inputTokens + outputTokens >= contextLength - 1);
   return {
     text,
     usage: {
-      inputTokens: Number(stats.input_tokens) || 0,
-      outputTokens: Number(stats.total_output_tokens) || 0,
+      inputTokens,
+      outputTokens,
     },
-    finishReason: null,
-    truncated: false,
+    finishReason: truncated ? 'length' : null,
+    truncated,
     diagnostics: {
       providerApi: 'native',
       nativeContextOverride: true,
@@ -270,6 +289,74 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
       },
     },
   };
+}
+
+/**
+ * Load (or reload) a model with an explicit context length via the native
+ * REST API, so generation can then run over the streaming OpenAI-compatible
+ * endpoint instead of the non-streaming native chat call. Any loaded instance
+ * is unloaded first — LM Studio instances are additive, and two resident
+ * copies of a large model would exhaust unified memory.
+ *
+ * Throws with `status` set on HTTP failure; callers treat 404 (older builds
+ * without the load route) as "fall back to the native chat path".
+ *
+ * @param {{
+ *   baseUrl: string,
+ *   apiKey?: string,
+ *   model: string,
+ *   modelDetail?: { nativeModelKey?: string, loadedInstanceId?: string, loaded?: boolean } | null,
+ *   contextLength: number,
+ *   timeoutMs?: number,
+ * }} context
+ */
+export async function loadLMStudioModelWithContext({
+  baseUrl,
+  apiKey = '',
+  model,
+  modelDetail = null,
+  contextLength,
+  timeoutMs = LMSTUDIO_LOAD_TIMEOUT_MS,
+}) {
+  if (modelDetail?.loaded) {
+    let unloaded = false;
+    try {
+      unloaded = await unloadLMStudioModel({ baseUrl, apiKey, model, modelDetail });
+    } catch { unloaded = false; }
+    if (!unloaded) {
+      // A failed unload may just mean the instance already vanished (stale
+      // cached state), but only an authoritative discovery response can prove
+      // that. Fail closed when residency cannot be verified: loading a second
+      // copy of a large model would exhaust unified memory.
+      const check = await discoverLMStudioProvider({ baseUrl, apiKey }).catch(() => null);
+      if (!check?.available || !check.runningStatusKnown) {
+        throw new Error(`LM Studio could not verify that ${model} was unloaded before reloading it with a larger context. Check the model state in LM Studio, then retry.`);
+      }
+      const stillLoaded = check?.modelDetails?.some(detail => detail.loaded
+        && (detail.name === model || (modelDetail.nativeModelKey && detail.nativeModelKey === modelDetail.nativeModelKey)));
+      if (stillLoaded) {
+        throw new Error(`LM Studio could not unload ${model} before reloading it with a larger context. Unload it manually in LM Studio, then retry.`);
+      }
+    }
+  }
+  const response = await fetch(`${baseUrl}/api/v1/models/load`, {
+    method: 'POST',
+    headers: createLocalAiHeaders(apiKey, { json: true }),
+    body: JSON.stringify({
+      model: modelDetail?.nativeModelKey || model,
+      context_length: contextLength,
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const detail = body?.error?.message || response.statusText;
+    const error = new Error(`LM Studio could not load ${model} (${response.status}): ${redactApiSecretText(detail, [apiKey])}`);
+    /** @type {any} */ (error).status = response.status;
+    throw error;
+  }
+  await response.json().catch(() => null);
+  return true;
 }
 
 /**

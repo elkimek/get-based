@@ -49,6 +49,7 @@ const proxyFetch = createProxyFetch(useCustomApiProxy);
  *   useProxy?: boolean,
  *   extraBody?: Record<string, any>,
  *   fetchImpl?: typeof fetch | null,
+ *   firstReadStallMs?: number,
  * }} OpenAICompatibleTransportOptions
  */
 
@@ -100,7 +101,7 @@ function localAIReasoningControlRejected(res, errorText) {
   return (res.status === 400 || res.status === 422) && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -203,6 +204,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     let inputTokens = 0;
     let outputTokens = 0;
     let performance = null;
+    let receivedFirstToken = false;
     const handleSSELine = (line, boundary) => {
       if (!line.startsWith('data: ')) return;
       const data = line.slice(6);
@@ -215,10 +217,12 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
         if (choice?.finish_reason) finishReason = choice.finish_reason;
         else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
         if (delta?.content) {
+          receivedFirstToken = true;
           if (!hasContent) hasContent = true;
           fullText += delta.content;
           onStream(fullText);
         } else if (delta?.reasoning_content || delta?.reasoning) {
+          receivedFirstToken = true;
           if (!hasContent) reasoningBuf += delta.reasoning_content || delta.reasoning;
         }
         if (event.usage) {
@@ -240,7 +244,10 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     };
     const MAX_SSE_BUFFER = 4 * 1024 * 1024;
     while (true) {
-      const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`);
+      // Metadata and role-only SSE events can arrive before prefill finishes;
+      // keep the extended allowance until an actual response token arrives.
+      const stallMs = !receivedFirstToken && firstReadStallMs > 0 ? firstReadStallMs : undefined;
+      const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`, stallMs);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       if (buffer.length > MAX_SSE_BUFFER) {

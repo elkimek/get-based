@@ -6,19 +6,22 @@ import { prepareLocalAiRuntimeHandoff, rememberLocalAiRuntimeUse } from './local
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { discoverLocalAI, getCachedLocalAiModelDetail, markCachedLocalAiModelLoaded } from './local-ai-discovery.js';
 
-function contentTokenEstimate(content) {
-  if (typeof content === 'string') return content.length / 3.5;
+function contentTokenEstimate(content, charsPerToken) {
+  if (typeof content === 'string') return content.length / charsPerToken;
   if (!Array.isArray(content)) return 0;
   return content.reduce((total, block) => {
-    if (typeof block?.text === 'string') return total + block.text.length / 3.5;
+    if (typeof block?.text === 'string') return total + block.text.length / charsPerToken;
     if (block?.type === 'image' || block?.type === 'image_url') return total + 1600;
     return total;
   }, 0);
 }
 
-export function estimateLocalAiPromptTokens({ system, messages }) {
-  const contentTokens = String(system || '').length / 3.5
-    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate(message?.content), 0) : 0);
+export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerToken }) {
+  // 3.5 chars/token fits prose; dense numeric tables (lab reports) tokenize
+  // closer to 3, so callers with that input shape pass promptCharsPerToken.
+  const charsPerToken = Number(promptCharsPerToken) > 0 ? Number(promptCharsPerToken) : 3.5;
+  const contentTokens = String(system || '').length / charsPerToken
+    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate(message?.content, charsPerToken), 0) : 0);
   const messageOverhead = (Array.isArray(messages) ? messages.length : 0) * 6 + (system ? 6 : 0);
   return Math.ceil(contentTokens) + messageOverhead;
 }
@@ -117,10 +120,43 @@ export async function callOpenAICompatibleLocalAPI(opts) {
     requiredContext,
     roundContextLength,
   }) || null;
-  const effectiveModelDetail = nativeRequest?.modelDetail || modelDetail;
+  let effectiveModelDetail = nativeRequest?.modelDetail || modelDetail;
+  let useNativeInfer = !!(nativeRequest && providerAdapter.infer);
+
+  // Prefer load-then-stream: (re)load the model at the target context via the
+  // lifecycle hook, then generate over the streaming compatible endpoint. The
+  // native chat endpoint is non-streaming, so long generations there would sit
+  // behind the initial-response timeout with no progress signal.
+  if (nativeRequest && providerAdapter.loadWithContext) {
+    try {
+      await providerAdapter.loadWithContext({
+        baseUrl: url,
+        apiKey: config.apiKey,
+        model,
+        modelDetail,
+        contextLength: nativeRequest.contextLength,
+      });
+      useNativeInfer = false;
+      // The server auto-fits context to available memory and may load less (or
+      // more) than requested — read back the real value and plan against it.
+      const discovery = await discoverLocalAI(url, config.apiKey, { force: true });
+      const loadedModelKey = modelDetail?.nativeModelKey || model;
+      const loadedDetail = discovery.modelDetails?.find(detail => detail.loaded
+        && Number(detail.contextLength) > 0
+        && (detail.name === model || detail.nativeModelKey === loadedModelKey)) || null;
+      if (!loadedDetail) {
+        throw new Error(`Local AI reloaded ${model}, but could not verify its active context length. Check the model state in the local server, then retry.`);
+      }
+      effectiveModelDetail = loadedDetail;
+    } catch (error) {
+      // Older servers have no load route; keep the native chat fallback path.
+      if (Number(/** @type {any} */ (error)?.status) !== 404) throw error;
+    }
+  }
+
   const plan = planLocalAiRequest(opts, effectiveModelDetail);
 
-  if (nativeRequest && providerAdapter.infer) {
+  if (useNativeInfer && nativeRequest && providerAdapter.infer) {
     let nativeResult;
     try {
       nativeResult = await providerAdapter.infer({

@@ -14,8 +14,11 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   callImportAIWithStreamFallback,
   compactMarkerReference,
+  createImportAIProgress,
   getUsageTokens,
   IMPORT_JSON_SCHEMA,
+  importAIPerfKey,
+  saveImportAIPerf,
   tryParseJSON,
 } from './pdf-import-ai-utils.js';
 import { extractXLSXText, isCsvTextFile, isXlsxFile } from './pdf-import-spreadsheet.js';
@@ -194,7 +197,7 @@ export async function extractPDFText(file) {
 /**
  * @param {string} pdfText
  * @param {string} fileName
- * @param {((pct: number) => void) | undefined} onProgress
+ * @param {((pct: number, stageLabel?: string) => void) | undefined} onProgress
  * @param {{captureRawModelOutput?: boolean, deterministicBenchmark?: boolean}} [options]
  * @returns {Promise<any>}
  */
@@ -287,34 +290,45 @@ Return ONLY valid JSON in this exact format, no other text:
 
   const provider = getAIProvider();
   const maxTokens = 16384;
-  // Stream AI response to report real-time progress during analysis (15% → 90%)
-  let onStream;
-  if (onProgress) {
-    let lastPct = -1;
-    onStream = (text) => {
-      const pct = Math.min(15 + Math.round((text.length / (maxTokens * 3)) * 75), 90);
-      if (pct !== lastPct) { lastPct = pct; onProgress(pct); }
-    };
-  }
   // Include previously imported marker keys so the AI reuses consistent mappings
   const existingKeys = deterministicBenchmark ? new Set() : getExistingImportMarkerKeys();
   const existingKeysNote = existingKeys.size > 0
     ? `\n\nIMPORTANT — These marker keys were used in previous imports for this profile. Reuse them for the same biomarkers to ensure consistency:\n${[...existingKeys].join(', ')}`
     : '';
 
-  const { text: response, usage, diagnostics } = await callImportAIWithStreamFallback({
-    system: system + existingKeysNote,
-    messages: [{ role: 'user', content: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}:\n\n${pdfText}` }],
-    maxTokens,
-    onStream,
-    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
-    jsonMode: true,
-    jsonSchema: IMPORT_JSON_SCHEMA,
-    reasoningEffort: 'none',
-    temperature: 0,
-    minOutputTokens: 2048,
-    preferNativeContext: true,
-  }, 'PDF text analysis');
+  // Phase-aware progress: "reading" until the first streamed token, then
+  // "writing" driven by generated length (15% → 90%).
+  const perfKey = importAIPerfKey();
+  const progress = createImportAIProgress({
+    perfKey,
+    estimatedPromptTokens: Math.ceil((system.length + pdfText.length) / 3),
+    onProgress,
+  });
+  let response, usage, diagnostics, truncated;
+  progress.start();
+  try {
+    ({ text: response, usage, diagnostics, truncated } = await callImportAIWithStreamFallback({
+      system: system + existingKeysNote,
+      messages: [{ role: 'user', content: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}:\n\n${pdfText}` }],
+      maxTokens,
+      onStream: progress.onStream,
+      requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
+      jsonMode: true,
+      jsonSchema: IMPORT_JSON_SCHEMA,
+      reasoningEffort: 'none',
+      temperature: 0,
+      minOutputTokens: 2048,
+      preferNativeContext: true,
+      promptCharsPerToken: 3,
+    }, 'PDF text analysis'));
+  } finally {
+    progress.finish();
+  }
+  saveImportAIPerf(perfKey, { usage, diagnostics });
+
+  if (truncated) {
+    throw new Error('The AI response was cut off before the marker list completed (output limit or context window reached). Increase the model’s context length, or split the report into smaller imports.');
+  }
 
   // Parse JSON from response (handle markdown code blocks, thinking tags, truncated output)
   let jsonStr = (response || '').trim();
@@ -471,14 +485,6 @@ Return ONLY valid JSON in this exact format:
 
   const provider = getAIProvider();
   const maxTokens = 16384;
-  let onStream;
-  if (onProgress) {
-    let lastPct = -1;
-    onStream = (text) => {
-      const pct = Math.min(15 + Math.round((text.length / (maxTokens * 3)) * 75), 90);
-      if (pct !== lastPct) { lastPct = pct; onProgress(pct); }
-    };
-  }
 
   // Build content array with image blocks + text instruction
   // All providers use OpenAI-compatible image format
@@ -490,19 +496,37 @@ Return ONLY valid JSON in this exact format:
     { type: 'text', text: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}. Read every page carefully.` }
   ];
 
-  const { text: response, usage, diagnostics } = await callImportAIWithStreamFallback({
-    system,
-    messages: [{ role: 'user', content }],
-    maxTokens,
-    onStream,
-    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
-    jsonMode: true,
-    jsonSchema: IMPORT_JSON_SCHEMA,
-    reasoningEffort: 'none',
-    temperature: 0,
-    minOutputTokens: 2048,
-    preferNativeContext: true,
-  }, 'PDF image analysis');
+  const perfKey = importAIPerfKey();
+  const progress = createImportAIProgress({
+    perfKey,
+    estimatedPromptTokens: Math.ceil(system.length / 3) + images.length * 1600,
+    onProgress,
+  });
+  let response, usage, diagnostics, truncated;
+  progress.start();
+  try {
+    ({ text: response, usage, diagnostics, truncated } = await callImportAIWithStreamFallback({
+      system,
+      messages: [{ role: 'user', content }],
+      maxTokens,
+      onStream: progress.onStream,
+      requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
+      jsonMode: true,
+      jsonSchema: IMPORT_JSON_SCHEMA,
+      reasoningEffort: 'none',
+      temperature: 0,
+      minOutputTokens: 2048,
+      preferNativeContext: true,
+      promptCharsPerToken: 3,
+    }, 'PDF image analysis'));
+  } finally {
+    progress.finish();
+  }
+  saveImportAIPerf(perfKey, { usage, diagnostics });
+
+  if (truncated) {
+    throw new Error('The AI response was cut off before the marker list completed (output limit or context window reached). Increase the model’s context length, or import fewer pages at once.');
+  }
 
   let jsonStr = (response || '').trim();
   jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();

@@ -199,3 +199,76 @@ describe('custom secure fetch request timeout lifecycle', () => {
     )).rejects.toThrow('stream ended without response content');
   });
 });
+
+describe('stream stall guard', () => {
+  it('gives the first read a longer stall window and reverts to the default afterwards', async () => {
+    const { readWithStallTimeout, STREAM_STALL_TIMEOUT_MS } = await import('../js/api-transport.js');
+    vi.useFakeTimers();
+    const neverResolves = () => new Promise(() => {});
+
+    // Default window: rejects at STREAM_STALL_TIMEOUT_MS.
+    const defaultReader = { read: neverResolves, cancel: vi.fn() };
+    const defaultRead = readWithStallTimeout(defaultReader, 'Test stream');
+    const defaultRejection = expect(defaultRead).rejects.toThrow(/stalled — no data for 30s/);
+    await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS + 1);
+    await defaultRejection;
+    expect(defaultReader.cancel).toHaveBeenCalled();
+
+    // Extended first-read window: still pending after the default deadline.
+    const { LOCAL_AI_FIRST_TOKEN_STALL_MS } = await import('../js/api-transport.js');
+    const slowReader = { read: neverResolves, cancel: vi.fn() };
+    const pending = readWithStallTimeout(slowReader, 'Test stream', LOCAL_AI_FIRST_TOKEN_STALL_MS);
+    const pendingRejection = expect(pending).rejects.toThrow(new RegExp(`no data for ${LOCAL_AI_FIRST_TOKEN_STALL_MS / 1000}s`));
+    await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS + 1);
+    expect(slowReader.cancel).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(LOCAL_AI_FIRST_TOKEN_STALL_MS);
+    await pendingRejection;
+    expect(slowReader.cancel).toHaveBeenCalled();
+  });
+
+  it('applies the first-read allowance to Local AI streams then guards subsequent reads', async () => {
+    const { LOCAL_AI_FIRST_TOKEN_STALL_MS, STREAM_STALL_TIMEOUT_MS } = await import('../js/api-transport.js');
+    vi.useFakeTimers();
+    const encoder = new TextEncoder();
+    let readCount = 0;
+    const chunks = [
+      'data: {"choices":[{"delta":{"role":"assistant","content":""}}]}\n',
+      'data: {"choices":[{"delta":{"content":"par"}}]}\n',
+      'data: {"choices":[{"delta":{"content":"tial"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n',
+    ];
+    const stream = new ReadableStream({
+      async pull(controller) {
+        readCount++;
+        if (readCount <= 2) {
+          // Simulate a role-only metadata event, then continued prompt prefill:
+          // both reads need the first-token allowance.
+          await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS * 3);
+          controller.enqueue(encoder.encode(chunks[readCount - 1]));
+          return;
+        }
+        controller.enqueue(encoder.encode(chunks[2]));
+        controller.close();
+      },
+    });
+    const result = await callOpenAICompatibleAPI(
+      'http://localhost:1234/v1/chat/completions',
+      '',
+      'local-model',
+      'Local AI',
+      {
+        messages: [{ role: 'user', content: 'long prompt' }],
+        maxTokens: 32,
+        onStream: vi.fn(),
+        requestTimeoutMs: 1000,
+      },
+      {},
+      {
+        useProxy: false,
+        firstReadStallMs: LOCAL_AI_FIRST_TOKEN_STALL_MS,
+        fetchImpl: async () => new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      },
+    );
+    expect(result.text).toBe('partial');
+    expect(result.finishReason).toBe('stop');
+  });
+});

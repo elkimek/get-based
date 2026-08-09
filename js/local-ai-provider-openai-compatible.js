@@ -2,6 +2,7 @@
 // Generic OpenAI-compatible Local AI adapter (Jan, llama.cpp, LocalAI, etc.).
 
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
+import { LOCAL_AI_FIRST_TOKEN_STALL_MS } from './api-transport.js';
 import {
   createLocalAiHeaders,
   isLikelyEmbeddingModel,
@@ -79,7 +80,7 @@ export async function inferWithOpenAICompatibleProvider({ config, model, opts, p
     'Local AI',
     { ...opts, maxTokens: plan.maxTokens },
     {},
-    { useProxy: false, extraBody },
+    { useProxy: false, extraBody, firstReadStallMs: LOCAL_AI_FIRST_TOKEN_STALL_MS },
   );
   return {
     ...result,

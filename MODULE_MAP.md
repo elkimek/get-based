@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 598 |
-| Internal import edges | 2584 |
+| Internal import edges | 2586 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -581,7 +581,7 @@ Native browser modules shipped with the static application.
 - [`js/local-ai-lifecycle.js`](js/local-ai-lifecycle.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
 - [`js/local-ai-provider-lmstudio.js`](js/local-ai-provider-lmstudio.js) → [`js/api-transport.js`](js/api-transport.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
 - [`js/local-ai-provider-ollama.js`](js/local-ai-provider-ollama.js) → [`js/api-transport.js`](js/api-transport.js), [`js/caught-error.js`](js/caught-error.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
-- [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
+- [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-transport.js`](js/api-transport.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
 - [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js) → [`js/local-ai-provider-lmstudio.js`](js/local-ai-provider-lmstudio.js), [`js/local-ai-provider-ollama.js`](js/local-ai-provider-ollama.js), [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
 - [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js) → no in-scope imports
 
@@ -657,7 +657,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>pdf</code> family — 13 modules</summary>
 
-- [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js) → [`js/api.js`](js/api.js), [`js/utils.js`](js/utils.js)
+- [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api.js`](js/api.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-commit.js`](js/pdf-import-commit.js) → [`js/adapters.js`](js/adapters.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-handlers.js`](js/pdf-import-file-handlers.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js), [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pii.js`](js/pii.js), [`js/privacy-safe-diagnostics.js`](js/privacy-safe-diagnostics.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js) → [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pdfjs-loader.js`](js/pdfjs-loader.js)
