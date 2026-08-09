@@ -799,7 +799,7 @@
     },
     "js/supplement-import-controller.js": {
       "count": 4,
-      "digest": "d28f2a9d86abb34b3a35da91894d7ecb5da622ab29ebfd0e8427d73eb7086117",
+      "digest": "d462e6092237cd4bcbdabad3fa2c26206247d092b388080b05085d10c8734d59",
       "kinds": {
         "innerHTML": 2,
         "insertAdjacentHTML": 2
