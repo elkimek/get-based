@@ -221,6 +221,10 @@ const profile = {
         genotype: 'AA', gene: 'COMT', variant: 'Val158Met', effect: 'none', valence: 'informational',
         source: { type: 'manual', label: 'Manual entry' },
       },
+      rs1815739: {
+        genotype: 'CC', gene: 'ACTN3', variant: 'R577X', effect: 'none', valence: 'informational',
+        source: { type: 'report', label: 'Clinical SNP report' },
+      },
       rs1801133: { genotype: 'GA', gene: 'MTHFR', variant: 'C677T', effect: 'moderate' },
     },
     mtdna: {
@@ -230,10 +234,20 @@ const profile = {
   },
 };
 const adhInfo = catalog.rs1229984.genotypes.CT;
+const rawComtInfo = catalog.rs4680.genotypes.GG;
+const rawActn3Info = catalog.rs1815739.genotypes.TT;
 dna.saveGeneticsData(profile, {
   source: 'New raw import',
-  coverage: { found: 1, total: 60 },
+  coverage: { found: 3, total: 60 },
   matches: {
+    rs4680: {
+      genotype: 'GG', gene: 'COMT', variant: 'Val158Met', category: 'neurotransmitters', markers: [],
+      effect: rawComtInfo.effect, valence: rawComtInfo.valence, note: rawComtInfo.note,
+    },
+    rs1815739: {
+      genotype: 'TT', gene: 'ACTN3', variant: 'R577X', category: 'performance', markers: [],
+      effect: rawActn3Info.effect, valence: rawActn3Info.valence, note: rawActn3Info.note,
+    },
     rs1229984: {
       genotype: 'CT', gene: 'ADH1B', variant: 'Arg48His', category: 'alcohol', markers: [],
       effect: adhInfo.effect, valence: adhInfo.valence, note: adhInfo.note,
@@ -242,9 +256,13 @@ dna.saveGeneticsData(profile, {
 });
 assert('Autosomal re-import preserves mtDNA', profile.genetics.mtdna?.haplogroup === 'U5a');
 assert('Autosomal re-import preserves manually added SNPs', profile.genetics.snps.rs4680?.source?.type === 'manual');
+assert('Autosomal re-import keeps an overlapping manual SNP authoritative',
+  profile.genetics.snps.rs4680?.genotype === 'AA' && profile.genetics.snps.rs4680?.source?.label === 'Manual entry');
+assert('Autosomal re-import keeps an overlapping report SNP authoritative',
+  profile.genetics.snps.rs1815739?.genotype === 'CC' && profile.genetics.snps.rs1815739?.source?.type === 'report');
 assert('Autosomal re-import replaces stale raw-file SNP calls', profile.genetics.snps.rs1801133 == null);
 assert('Autosomal re-import stores the fresh raw-file call', profile.genetics.snps.rs1229984?.genotype === 'CT');
-assert('Coverage is recalculated after merging preserved manual SNPs', profile.genetics.coverage.found === 2 && profile.genetics.coverage.total === 60,
+assert('Coverage is recalculated after merging preserved manual and report SNPs', profile.genetics.coverage.found === 3 && profile.genetics.coverage.total === 60,
   JSON.stringify(profile.genetics.coverage));
 
 console.log('\n5. mtDNA routing and display UX');

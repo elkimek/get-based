@@ -306,7 +306,11 @@ export function saveGeneticsData(profileData, parseResult) {
     };
   }
   for (const [rsid, stored] of Object.entries(preservedAddedSnps)) {
-    if (!profileData.genetics.snps[rsid]) profileData.genetics.snps[rsid] = stored;
+    // Manual and report-derived calls are explicit user-curated overrides.
+    // Keep them authoritative when a later raw-file import contains the same
+    // rsID; otherwise re-importing can silently replace a clinically reported
+    // genotype with a consumer-file call.
+    profileData.genetics.snps[rsid] = stored;
   }
   if (preservedMtDna) profileData.genetics.mtdna = preservedMtDna;
   if (apoe) {
