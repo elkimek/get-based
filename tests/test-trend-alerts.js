@@ -751,10 +751,10 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardWidgetsBlock.includes("id: 'light-environment'") &&
     !dashboardWidgetsBlock.includes("id: 'light-tools'") &&
     !dashboardWidgetsBlock.includes("id: 'light-methods'"));
-  assert('Genome dashboard widget copy describes modifiers, not import management',
+  assert('Genome dashboard widget copy describes curated modifiers, not import management',
     dashboardWidgetsSrc.includes("id: 'genome'") &&
     dashboardWidgetsSrc.includes("title: 'Genetic Modifiers'") &&
-    dashboardWidgetsSrc.includes("description: 'Actionable SNP context relevant to labs and goals'"));
+    dashboardWidgetsSrc.includes("description: 'Curated SNP context relevant to labs and goals'"));
   assert('Dashboard adds biometrics inside the Biometrics Overview widget',
     dashboardControlsSrc.includes('dashboardBiometricSelectionKey') &&
     dashboardControlsSrc.includes('addDashboardBiometricMetric') &&
