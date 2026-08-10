@@ -108,10 +108,10 @@ dependency.
 | Boot and shell | `main.js`, `app-*`, `startup-*`, `nav*`, `views-router*` | Startup ordering, route selection, and shell wiring |
 | Foundation | `state.js`, `profile*`, `data*`, `crypto.js`, `blob-storage.js` | Active state, durable profile data, encryption, migration, and storage |
 | Labs and genome | `schema*`, `adapters.js`, `marker-*`, `dna*`, `biology-score*` | Marker normalization, reference data, genetics, and deterministic scoring |
-| Body | `wearables-*`, `wearable-*`, `cycle*`, `supplements*` | Device adapters, local raw rows, synced summaries, cycle and body context |
+| Body | `wearables-*`, `wearable-*`, `cycle*`, `supplements*`, `supplement-*` | Device adapters, local raw rows, synced summaries, cycle context, and period-based therapy/product evidence |
 | Light and environment | `light-*`, `sun-*`, `emf*` | Light measurements, spectral/session models, environment and EMF context |
 | AI, voice, and knowledge | `api-*`, `provider-*`, `chat-*`, `voice-*`, `lens-*`, `pii.js` | Provider routing, prompt/context workflows, STT/TTS, RAG, transport, and PII controls |
-| Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, identity, and agent context |
+| Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, configured/paused identity lifecycle, restore preflight, and agent context |
 | Import/export | `pdf-import*`, `import-*`, `export*`, `backup*` | File classification, review/commit, reports, backups, and restoration |
 | Presentation | `dashboard-*`, `context-card-*`, `settings*`, `modal-*` | Views, editing surfaces, settings, accessibility, and interaction lifecycle |
 | Hosted and local server runtime | `api/*`, `lib/*`, `dev-server.js` | Server-side validation, proxy transport, sharing, and repository operations |
@@ -131,6 +131,13 @@ the higher-layer behavior through a narrow runtime seam.
   proofs, genetics, or health records.
 - Raw wearable and cycle stores remain device-local unless an explicit,
   privacy-reviewed summary surface is added to sync.
+- Supplement and medication status is derived from dated periods. Product-label
+  facts, a user's regimen, inactive materials, and source quality evidence stay
+  separate; AI consumers use the bounded projections in `supplement-context.js`.
+- A configured Sync identity may be active or paused. Pause preserves the owner,
+  planner state, and dirty edits; disconnect/reset is the explicit cleanup path.
+  Restored backups must publish their marked profiles before inbound tombstones
+  can apply.
 - Network calls use the existing provider, URL-safety, PII, same-origin, and
   proxy-policy boundaries. New direct fetch paths require an explicit review.
 - UI modules render escaped/sanitized values and use the shared modal and

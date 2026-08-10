@@ -17,7 +17,11 @@ const CHANGELOG = [
       '<b>Add products faster.</b> Choose common units, import from links and label photos, and review the result before saving.',
       '<b>See clearer product context.</b> Active ingredients, capsule materials, excipients, and laboratory results stay organized separately and reach AI only when useful.',
       '<b>Review better mitochondrial evidence.</b> Verified primary studies are grouped by compound with clear scope and limitations.',
-      '<b>Bug fixes and improvements.</b> Imports are more reliable, progress is clearer, mobile layouts work better, and existing data migrates safely.',
+      '<b>Pause Sync without disconnecting.</b> Pausing this browser keeps its identity and local Sync history. Edits made while paused stay queued and publish before incoming changes when you resume; disconnect/reset remains available under Advanced.',
+      '<b>Restore and rejoin safely.</b> Profiles restored from a full backup are published before older relay deletions can apply, so recovered supplement and medication history does not disappear during the first Sync.',
+      '<b>Join Sync reliably on the hosted app.</b> Production builds now load the encrypted Sync database worker from its stable app location instead of waiting on a missing asset.',
+      '<b>Large Local AI lab imports finish more reliably.</b> Progress now separates reading the report from writing results, long model-prefill waits no longer look like broken streams, and incomplete output is rejected instead of offering a partial marker list.',
+      '<b>Bug fixes and improvements.</b> Product-page extraction and quality-result edits are more reliable, mobile layouts work better, and existing data migrates safely.',
     ]
   },
   {

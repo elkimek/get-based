@@ -15,7 +15,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
-| Computed dynamic imports | 2 |
+| Computed dynamic imports | 3 |
 
 ## Enforced source boundaries
 
@@ -84,6 +84,7 @@ These expressions cannot be resolved statically and require manual review when c
 
 - [`js/lens-local-worker.js`](js/lens-local-worker.js): `import(transformersUrl)`
 - [`js/pdfjs-loader.js`](js/pdfjs-loader.js): `import(PDFJS_MODULE_URL)`
+- [`js/sync-init.js`](js/sync-init.js): `import(EVOLU_BUNDLE_URL)`
 
 ## browser modules
 

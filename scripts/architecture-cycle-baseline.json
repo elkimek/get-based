@@ -11,6 +11,10 @@
     {
       "file": "js/pdfjs-loader.js",
       "expression": "import(PDFJS_MODULE_URL)"
+    },
+    {
+      "file": "js/sync-init.js",
+      "expression": "import(EVOLU_BUNDLE_URL)"
     }
   ]
 }
