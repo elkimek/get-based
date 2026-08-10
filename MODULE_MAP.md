@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 606 |
-| Internal import edges | 2630 |
+| Modules | 607 |
+| Internal import edges | 2633 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -56,7 +56,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 260 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
+| [`js/utils.js`](js/utils.js) | 261 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
 | [`js/state.js`](js/state.js) | 180 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/chat-send.js`](js/chat-send.js) | 28 |
 | [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
@@ -147,7 +147,7 @@ Native browser modules shipped with the static application.
 - [`js/backup-chat-storage.js`](js/backup-chat-storage.js) → no in-scope imports
 - [`js/backup-cycle.js`](js/backup-cycle.js) → [`js/cycle-store.js`](js/cycle-store.js)
 - [`js/backup-serialization.js`](js/backup-serialization.js) → no in-scope imports
-- [`js/backup.js`](js/backup.js) → [`js/backup-chat-storage.js`](js/backup-chat-storage.js), [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/utils.js`](js/utils.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/backup.js`](js/backup.js) → [`js/backup-chat-storage.js`](js/backup-chat-storage.js), [`js/backup-cycle.js`](js/backup-cycle.js) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/utils.js`](js/utils.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js), [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 
@@ -770,7 +770,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 19 modules</summary>
+<details><summary><code>settings</code> family — 20 modules</summary>
 
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -782,7 +782,8 @@ Native browser modules shipped with the static application.
 - [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js) → [`js/api.js`](js/api.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*
 - [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) → no in-scope imports
 - [`js/settings-runtime.js`](js/settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js)
-- [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-sync-restore-ui.js`](js/settings-sync-restore-ui.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-sync-panel-render.js`](js/settings-sync-panel-render.js), [`js/settings-sync-restore-ui.js`](js/settings-sync-restore-ui.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-sync-panel-render.js`](js/settings-sync-panel-render.js) → [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-sync-panel.js`](js/settings-sync-panel.js) → [`js/settings-sync-panel-impl.js`](js/settings-sync-panel-impl.js) *(dynamic)*, [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-sync-restore-ui.js`](js/settings-sync-restore-ui.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js)
 - [`js/settings-tweaks.js`](js/settings-tweaks.js) → [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
@@ -887,7 +888,7 @@ Native browser modules shipped with the static application.
 
 - [`js/sync-actions.js`](js/sync-actions.js) → [`js/state.js`](js/state.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-apply.js`](js/sync-apply.js) → [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
-- [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js) → no in-scope imports
+- [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js) → [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js)
 - [`js/sync-chat-apply.js`](js/sync-chat-apply.js) → [`js/chat-personality-merge.js`](js/chat-personality-merge.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-configure.js`](js/sync-configure.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-cutover.js`](js/sync-cutover.js) → [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-payload.js`](js/sync-payload.js)

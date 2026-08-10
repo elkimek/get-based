@@ -300,14 +300,17 @@ export function collectQualityTests(pendingImport = null) {
           && test.category === category && supplementQualityKey(test.basis) === supplementQualityKey(basis))
       : null;
     const sourceMetadata = imported || (previousIdentityMatches ? previous : null);
+    const sourceResultText = sourceMetadata?.resultText == null ? '' : String(sourceMetadata.resultText).trim();
+    const resultSemanticsChanged = Boolean(sourceMetadata) && resultText !== sourceResultText;
     const parsed = parseSupplementQuantity(resultText.replace(/^(?:≤|<=|>=|<|>|=)\s*/u, ''));
-    const comparator = resultText.match(/^(≤|<=|<|>=|>|=)/u)?.[1] || sourceMetadata?.comparator || '';
+    const comparator = resultText.match(/^(≤|<=|<|>=|>|=)/u)?.[1]
+      || (resultSemanticsChanged ? '' : sourceMetadata?.comparator || '');
     tests.push({
       ...(sourceMetadata && typeof sourceMetadata === 'object' ? sourceMetadata : {}),
       category, analyte, resultText, comparator,
       value: parsed?.value ?? null,
       unit: unit || parsed?.unit || '', basis,
-      status: qualityStatus(resultText, sourceMetadata?.status || ''),
+      status: qualityStatus(resultText, resultSemanticsChanged ? '' : sourceMetadata?.status || ''),
       includeInAIContext,
     });
   }

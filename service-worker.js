@@ -1,6 +1,5 @@
 importScripts('/version.js');
 importScripts('/service-worker-runtime.js');
-
 // Cache key strategy:
 //   Production (app.getbased.health) → labcharts-v${APP_VERSION}
 //   Anywhere else (Vercel previews, local dev) → labcharts-v${APP_VERSION}-${sha8}
@@ -302,6 +301,7 @@ const APP_SHELL = [
   '/js/settings-runtime-bridge.js',
   '/js/settings-sync-panel.js',
   '/js/settings-sync-panel-impl.js',
+  '/js/settings-sync-panel-render.js',
   '/js/settings-sync-restore-ui.js',
   '/js/settings-tweaks.js',
   '/js/voice-audio.js',

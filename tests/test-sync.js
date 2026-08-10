@@ -130,6 +130,7 @@ await import('../js/settings.js');
   const settingsSyncPanelSrc = [
     await fetchWithRetry('js/settings-sync-panel.js'),
     await fetchWithRetry('js/settings-sync-panel-impl.js'),
+    await fetchWithRetry('js/settings-sync-panel-render.js'),
   ].join('\n');
   const settingsSyncRestoreUiSrc = await fetchWithRetry('js/settings-sync-restore-ui.js');
   const dataSrc = await fetchWithRetry('js/data.js');
@@ -447,6 +448,8 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/settings-sync-panel.js'"));
   assert('service worker precaches settings-sync-panel-impl.js',
     serviceWorkerSrc.includes("'/js/settings-sync-panel-impl.js'"));
+  assert('service worker precaches settings-sync-panel-render.js',
+    serviceWorkerSrc.includes("'/js/settings-sync-panel-render.js'"));
   assert('service worker precaches settings-sync-restore-ui.js',
     serviceWorkerSrc.includes("'/js/settings-sync-restore-ui.js'"));
   assert('pushContextToGateway treats gateway HTTP errors as failures with relay error detail',

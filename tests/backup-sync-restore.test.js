@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { prepareRestoredProfilesForSync } from '../js/backup.js';
 import { clearProfileDeltaSnapshots } from '../js/sync-delta-snapshot.js';
-import { getPendingBackupRestoreProfileIds } from '../js/sync-backup-restore-state.js';
+import {
+  getPendingBackupRestoreProfileIds,
+  prepareRestoredProfilesForSync,
+} from '../js/sync-backup-restore-state.js';
 
 describe('backup restore sync handoff', () => {
   beforeEach(() => {
