@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "version": "1.1.0",
-    "description": "Curated health-relevant SNP lookup table for DNA raw data import. Forward (+) strand alleles. snpHints connect genetics to supplement recommendation slots. UPDATE when new research warrants adding/revising SNPs — each entry needs gene, genotypes, effect notes, and at least one citation.",
-    "snpCount": 51,
+    "version": "2.0.0",
+    "description": "Curated wellness SNP lookup table for DNA raw data import. Forward (+) strand alleles. Evidence strength and personal relevance are graded separately; legacy effect fields remain for compatibility and are not scientific evidence grades. snpHints connect genetics to supplement recommendation slots.",
+    "snpCount": 60,
     "categories": [
       "methylation",
       "iron",
@@ -16,14 +16,47 @@
       "sexHormones",
       "alcohol",
       "caffeine",
-      "bodyComposition"
+      "bodyComposition",
+      "neurotransmitters",
+      "performance",
+      "digestion",
+      "vitaminA",
+      "skin"
     ],
     "sources": [
       "SNPedia",
       "ClinVar",
       "GWAS Catalog",
-      "PharmGKB"
-    ]
+      "PharmGKB",
+      "PubMed"
+    ],
+    "evidenceFramework": {
+      "version": "1.0.0",
+      "reviewedAt": "2026-08-10",
+      "reviewScope": "All retained links were checked for claim relevance at metadata and abstract level; full text or supporting tables were reviewed for targeted ambiguous or high-impact claims. This is not a systematic full-text review of every publication.",
+      "methodology": "docs/genome-evidence-methodology.md",
+      "evidenceLevels": [
+        "strong",
+        "supported",
+        "mixed",
+        "preliminary",
+        "mechanistic"
+      ],
+      "relevanceLevels": [
+        "health_context",
+        "contextual",
+        "trait"
+      ],
+      "claimTypes": [
+        "functional",
+        "biomarker_association",
+        "health_association",
+        "exposure_interaction",
+        "trait_association",
+        "composite_marker",
+        "null_or_mixed"
+      ]
+    }
   },
   "rs671": {
     "gene": "ALDH2",
@@ -41,9 +74,24 @@
     ],
     "strandNote": "dbSNP forward: G(ref Glu504) / A(alt Lys504 = ALDH2*2). 0% in Europeans/Africans; ~28–45% allele frequency in East Asians — one of the most population-stratified clinically relevant SNPs.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/19724652/",
-      "https://pubmed.ncbi.nlm.nih.gov/29553379/"
+      "https://pubmed.ncbi.nlm.nih.gov/11375898/",
+      "https://pubmed.ncbi.nlm.nih.gov/25848305/",
+      "https://pubmed.ncbi.nlm.nih.gov/37978873/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "exposure_interaction",
+        "health_association"
+      ],
+      "scope": "Established ALDH2 loss of function and alcohol-dependent acetaldehyde effects; health-risk estimates are exposure- and ancestry-dependent.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Alcohol exposure determines whether the health-risk association is expressed."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -51,25 +99,25 @@
       },
       "GA": {
         "effect": "significant",
-        "note": "~6% residual enzyme activity (dominant-negative tetramer); facial flush with alcohol; ~6–10× elevated esophageal squamous-cell carcinoma risk if drinking; lower alcohol tolerance"
+        "note": "One dysfunctional, dominant-negative ALDH2*2 allele; facial flushing and lower alcohol tolerance. Drinking substantially amplifies esophageal squamous-cell carcinoma risk in carriers."
       },
       "AA": {
         "effect": "significant",
-        "note": "~1% activity; severe flush and nausea even with small doses; near-absolute alcohol intolerance and very high cancer risk if drinking despite reaction"
+        "note": "Two ALDH2*2 alleles; very low acetaldehyde clearance, usually causing severe flushing and nausea with alcohol. Avoiding alcohol also avoids the acetaldehyde exposure implicated in cancer risk."
       }
     },
     "snpHints": {
       "GA": {
         "slotKey": "biochemistry.ggt",
         "direction": "avoid",
-        "text": "Your ALDH2 Glu504Lys (heterozygous) means acetaldehyde clears slowly — minimizing alcohol significantly lowers esophageal cancer and liver-enzyme elevation risk",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19724652/"
+        "text": "Your ALDH2 Glu504Lys (heterozygous) slows acetaldehyde clearance. Limiting or avoiding alcohol reduces the exposure linked to esophageal-cancer risk in ALDH2*2 carriers.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/11375898/"
       },
       "AA": {
         "slotKey": "biochemistry.ggt",
         "direction": "avoid",
-        "text": "Your ALDH2 Glu504Lys (homozygous) means near-absolute alcohol intolerance — drinking despite the flush response is strongly linked to esophageal cancer; abstinence is the actionable path",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19724652/"
+        "text": "Your ALDH2 Glu504Lys (homozygous) indicates very low acetaldehyde clearance. Avoiding alcohol is the direct way to avoid this exposure.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/11375898/"
       }
     }
   },
@@ -88,29 +136,43 @@
     ],
     "strandNote": "dbSNP forward: A(ref Ile) / G(alt Val). G ≈ 0.32 globally. Complements existing rs708272 TaqIB (partially correlated, r² ≈ 0.5 in CEU — not redundant).",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/14563833/",
-      "https://pubmed.ncbi.nlm.nih.gov/29420005/"
+      "https://pubmed.ncbi.nlm.nih.gov/17568242/",
+      "https://pubmed.ncbi.nlm.nih.gov/23977315/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "HDL associations appear in some cohorts, while cardiovascular and longevity directions vary across populations.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "A lipid panel is more informative than this genotype, and no genotype-specific action follows."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
-        "note": "Standard CETP activity; baseline HDL"
+        "valence": "informational",
+        "note": "Ile/Ile reference genotype. Reported HDL, cardiovascular, and longevity associations vary across cohorts and ancestry groups."
       },
       "AG": {
-        "effect": "mild",
-        "valence": "protective",
-        "note": "Slightly higher HDL; modestly improved cognitive aging in some cohorts"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Ile/Val genotype. Some cohorts report higher HDL with the Val allele, but clinical associations are not consistent across populations."
       },
       "GG": {
-        "effect": "moderate",
-        "valence": "protective",
-        "note": "Lowest CETP activity; highest HDL; in the Ashkenazi centenarian study associated with larger HDL/LDL particles, lower cardiovascular and dementia incidence, exceptional longevity. Replication in non-Ashkenazi cohorts is mixed — effect smaller but directionally consistent."
+        "effect": "none",
+        "valence": "informational",
+        "note": "Val/Val was associated with higher HDL and lower myocardial-infarction risk in men in the Rotterdam cohort. Longevity findings vary by ancestry and are not consistently protective."
       }
     }
   },
   "rs6257": {
     "gene": "SHBG",
-    "variant": "promoter",
+    "variant": "intron 1",
     "category": "sexHormones",
     "markers": [
       "hormones.shbg",
@@ -119,35 +181,38 @@
       "hormones.freeTestosterone"
     ],
     "contextCards": [],
+    "strandNote": "Forward strand: T (major) / C (minor). In the cited cohorts, C carriers had modestly lower SHBG than TT, but this was not replicated in every population and does not predict a person's hormone status by itself.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/19064566/"
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC2774225/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC2615755/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "A modest SHBG association was observed in two cohorts but was not reproduced in another population.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Use a measured hormone panel rather than this SNP to assess current hormone status."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "Higher SHBG; more bound testosterone/estradiol"
+        "valence": "informational",
+        "note": "C/C is the minor-allele genotype. C carriers had about 10% lower SHBG than TT in two prospective cohorts; another cohort did not find a significant rs6257 effect. A blood measurement is more informative than this SNP."
       },
       "CT": {
-        "effect": "moderate",
-        "note": "Intermediate SHBG levels"
+        "effect": "none",
+        "valence": "informational",
+        "note": "C/T carriers had modestly lower SHBG than TT in two prospective cohorts, but the association was not consistent in every population."
       },
       "TT": {
-        "effect": "moderate",
-        "note": "Lower SHBG; higher free testosterone/estradiol"
-      }
-    },
-    "snpHints": {
-      "CT": {
-        "slotKey": "hormones.shbg",
-        "direction": "form",
-        "text": "Your SHBG promoter (heterozygous) suggests boron (calcium fructoborate) may help modulate SHBG levels",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19064566/"
-      },
-      "TT": {
-        "slotKey": "hormones.shbg",
-        "direction": "form",
-        "text": "Your SHBG promoter (homozygous) suggests lower SHBG — boron and nettle root may help optimize free hormone balance",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19064566/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "T/T is the major comparison genotype and was associated with somewhat higher SHBG than C-carrier genotypes in two cohorts."
       }
     }
   },
@@ -168,6 +233,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/8346443/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "composite_marker",
+        "health_association"
+      ],
+      "scope": "This is one of two well-established APOE-defining markers and has no standalone haplotype interpretation.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Interpret only as the rs429358/rs7412 APOE haplotype and with broader health and family context."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -193,42 +271,58 @@
     "contextCards": [
       "diet"
     ],
-    "markerNote": "Maps to custom fatty acid markers (omega-3 index, AA, EPA, DHA)",
+    "markerNote": "FADS-cluster tag associated with estimated delta-5 desaturase activity and n-6 fatty-acid profiles; maps to the omega-3 index for measured context.",
+    "strandNote": "Forward strand: C/T. In the cited European cohort, each T allele tracked with lower estimated delta-5 desaturase activity. The study was observational and did not test omega-3 supplementation.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/16670158/"
+      "https://pubmed.ncbi.nlm.nih.gov/20691134/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "A human cohort supports an association with estimated desaturase activity and fatty-acid profiles, not supplement response.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured fatty-acid status is needed before drawing dietary or supplement conclusions."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "High delta-5 desaturase activity; efficient n-3/n-6 PUFA conversion"
+        "valence": "informational",
+        "note": "C/C was the higher estimated delta-5 desaturase-activity comparison genotype in the cited European cohort."
       },
       "TC": {
-        "effect": "moderate",
-        "note": "Intermediate desaturase activity"
+        "effect": "mild",
+        "valence": "informational",
+        "note": "One T allele was associated with lower estimated delta-5 desaturase activity and altered n-6 fatty-acid profiles."
       },
       "TT": {
-        "effect": "significant",
-        "note": "Low D5D activity; higher DGLA, lower AA; poor ALA→EPA/DHA conversion; may need preformed DHA"
+        "effect": "moderate",
+        "valence": "informational",
+        "note": "Two T alleles were associated with lower estimated delta-5 desaturase activity and altered n-6 fatty-acid profiles; this does not by itself establish poor omega-3 conversion or a supplement need."
       }
     },
     "snpHints": {
       "TC": {
         "slotKey": "fattyAcids.omega3Index",
         "direction": "form",
-        "text": "Your FADS1 3'-UTR (heterozygous) suggests preformed EPA/DHA may be more effective than plant-based ALA",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/16670158/"
+        "text": "Your FADS1 rs174546 genotype is associated with lower estimated desaturase activity; your measured omega-3 index can show whether food or supplement changes improve your actual status.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/20691134/"
       },
       "TT": {
         "slotKey": "fattyAcids.omega3Index",
         "direction": "form",
-        "text": "Your FADS1 3'-UTR (homozygous) suggests preformed DHA from fish or algal oil — ALA conversion is significantly reduced",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/16670158/"
+        "text": "Your FADS1 rs174546 genotype is associated with lower estimated desaturase activity; use your measured omega-3 index rather than the genotype alone to evaluate diet or supplements.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/20691134/"
       }
     }
   },
   "rs174547": {
     "gene": "FADS1",
-    "variant": "coding region",
+    "variant": "intron 9",
     "category": "fattyAcids",
     "markers": [
       "fattyAcids.omega3Index"
@@ -236,36 +330,38 @@
     "contextCards": [
       "diet"
     ],
-    "markerNote": "In strong LD with rs174546; largely redundant",
+    "markerNote": "In strong linkage disequilibrium with rs174546; largely redundant as an independent signal.",
+    "strandNote": "Forward strand: T/C. In the cited study, C carriers had lower estimated desaturase activity than T carriers in both young Caucasian and Asian groups, although which allele was less common differed between the groups.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/16670158/"
+      "https://pubmed.ncbi.nlm.nih.gov/21414826/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "A small multi-ancestry human study supports an estimated desaturase-activity association at a correlated FADS marker.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "This linked marker is biochemical context and does not establish a deficiency or intervention need."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "High delta-5 desaturase activity"
+        "valence": "informational",
+        "note": "C carriers had lower estimated delta-5 desaturase activity than T carriers in the cited small multi-ancestry study."
       },
       "TC": {
-        "effect": "moderate",
-        "note": "Intermediate activity"
+        "effect": "none",
+        "valence": "informational",
+        "note": "C/T was associated with lower estimated delta-5 desaturase activity than T/T; this marker is strongly correlated with nearby FADS variants."
       },
       "TT": {
-        "effect": "significant",
-        "note": "Low D5D; reduced n-3/n-6 conversion efficiency"
-      }
-    },
-    "snpHints": {
-      "TC": {
-        "slotKey": "fattyAcids.omega3Index",
-        "direction": "form",
-        "text": "Your FADS1 coding region (heterozygous) suggests preformed EPA/DHA over plant-based omega-3",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/16670158/"
-      },
-      "TT": {
-        "slotKey": "fattyAcids.omega3Index",
-        "direction": "form",
-        "text": "Your FADS1 coding region (homozygous) suggests preformed DHA from fish or algal oil over ALA",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/16670158/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "T/T was the higher estimated desaturase-activity comparison genotype in the cited study."
       }
     }
   },
@@ -281,34 +377,35 @@
     ],
     "markerNote": "Maps to custom fatty acid markers (GLA, AA, EPA, DHA)",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/17984066/"
+      "https://pubmed.ncbi.nlm.nih.gov/18936223/"
     ],
+    "evidence": {
+      "level": "preliminary",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "The catalog claim comes from a small pregnancy cohort and may not generalize beyond that population or setting.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "Treat as fatty-acid trait context rather than a diagnosis or supplement indication."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "Normal D6D; standard LA→GLA and ALA→SDA conversion"
+        "valence": "informational",
+        "note": "Reference genotype. In a small pregnancy cohort, maternal fatty-acid levels varied by rs174575 genotype."
       },
       "CG": {
-        "effect": "moderate",
-        "note": "Mildly reduced D6D activity"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype; the cited cohort reported genotype-related differences in long-chain polyunsaturated fatty acids, not a diagnosed enzyme deficiency."
       },
       "GG": {
-        "effect": "significant",
-        "note": "Reduced D6D; lower GLA/SDA; may benefit from GLA (evening primrose) and preformed EPA/DHA"
-      }
-    },
-    "snpHints": {
-      "CG": {
-        "slotKey": "fattyAcids.omega3Index",
-        "direction": "form",
-        "text": "Your FADS2 delta-6 desaturase (heterozygous) suggests preformed EPA/DHA may be more effective",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/17984066/"
-      },
-      "GG": {
-        "slotKey": "fattyAcids.omega3Index",
-        "direction": "form",
-        "text": "Your FADS2 delta-6 desaturase (homozygous) suggests preformed EPA/DHA and possibly GLA (evening primrose oil)",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/17984066/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Associated with lower arachidonic acid, EPA, and DHA in breast milk in a small cohort of pregnant women; applicability outside that setting is uncertain."
       }
     }
   },
@@ -325,6 +422,18 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/19244275/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "health_association"
+      ],
+      "scope": "A common-variant Graves disease association is supported, but it is not diagnostic and does not apply to Hashimoto disease.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Symptoms, thyroid testing, antibodies, and family history matter more than this common SNP alone."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -351,35 +460,39 @@
     "contextCards": [
       "sleepRest"
     ],
+    "strandNote": "Forward strand: T(ref Thr92) / C(alt Ala92). Evidence is mixed: mechanistic studies report altered DIO2 behavior, while a large population cohort found no material association with thyroid parameters, quality of life, or cognition.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/12788902/"
+      "https://pubmed.ncbi.nlm.nih.gov/27786042/",
+      "https://pubmed.ncbi.nlm.nih.gov/28324063/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "functional",
+        "null_or_mixed"
+      ],
+      "scope": "Mechanistic and thyroid-tissue findings have not translated into a consistent population phenotype or treatment response.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "No genotype-specific thyroid treatment follows from this marker."
+    },
     "genotypes": {
       "TT": {
         "effect": "none",
-        "note": "Normal DIO2; efficient intracellular T4→T3 conversion"
+        "valence": "informational",
+        "note": "Thr/Thr reference genotype. A large cohort found no material genotype association with thyroid parameters or quality-of-life measures."
       },
       "TC": {
-        "effect": "moderate",
-        "note": "Mildly reduced local T4→T3 conversion"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Thr/Ala genotype. Laboratory and thyroidectomy studies suggest altered DIO2 function, but large population data did not show a clear clinical effect."
       },
       "CC": {
-        "effect": "significant",
-        "note": "Impaired tissue T4→T3 conversion; serum T3 may appear normal while intracellular T3 is suboptimal; may benefit from T4+T3 combination therapy"
-      }
-    },
-    "snpHints": {
-      "TC": {
-        "slotKey": "thyroid.ft3",
-        "direction": "form",
-        "text": "Your DIO2 Thr92Ala (heterozygous) suggests selenium and zinc to support intracellular T4-to-T3 conversion",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/12788902/"
-      },
-      "CC": {
-        "slotKey": "thyroid.ft3",
-        "direction": "form",
-        "text": "Your DIO2 Thr92Ala (homozygous) suggests selenium, zinc, and discussing T4+T3 combination therapy with your doctor",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/12788902/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Ala/Ala genotype. Mechanistic and thyroidectomy evidence suggests reduced local T4-to-T3 conversion, but this has not translated into a consistent population-level clinical phenotype or a genotype-specific treatment recommendation."
       }
     }
   },
@@ -397,6 +510,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/11149614/"
     ],
+    "evidence": {
+      "level": "preliminary",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "Evidence for a directional common-variant effect on CBS activity or homocysteine is limited and debated.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Homocysteine and relevant nutrient markers are more informative than this genotype."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -415,14 +541,12 @@
       "GA": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your CBS c.699C>T (heterozygous) suggests monitoring homocysteine and supporting transsulfuration with B6 (P5P)",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/11149614/"
+        "text": "Your CBS c.699C>T genotype is a modest, context-dependent association marker; use measured homocysteine and nutritional status rather than this SNP alone to decide on B6."
       },
       "AA": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your CBS c.699C>T (homozygous) suggests active B6 (P5P) and monitoring homocysteine clearance",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/11149614/"
+        "text": "Your CBS c.699C>T genotype is a modest, context-dependent association marker; check homocysteine and nutritional status before inferring a B6 need."
       }
     }
   },
@@ -443,6 +567,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/8346443/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "composite_marker",
+        "health_association"
+      ],
+      "scope": "This is one of two well-established APOE-defining markers and has no standalone haplotype interpretation.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Interpret only as the rs429358/rs7412 APOE haplotype and with broader health and family context."
+    },
     "genotypes": {
       "TT": {
         "effect": "none",
@@ -471,6 +608,18 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/19744961/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Human association evidence supports lower total B12 through haptocorrin, with less certain relevance to active B12 status.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Interpret with holotranscobalamin, MMA, homocysteine, and diet rather than serum B12 alone."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
@@ -499,6 +648,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/18776911/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "FUT2 secretor status is functional and associated with B12-related biomarkers, but serum B12 direction can be misleading.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Functional B12 markers are needed because non-secretor status can alter total serum B12 without proving better status."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -519,8 +681,7 @@
       "GA": {
         "slotKey": "vitamins.vitaminB12",
         "direction": "form",
-        "text": "Your FUT2 W154X (heterozygous secretor) suggests sublingual B12 forms may offer better bioavailability",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/18776911/"
+        "text": "Your FUT2 W154X genotype can affect the interpretation of total B12; use functional markers such as methylmalonic acid or homocysteine rather than preferring one B12 form from genotype alone."
       }
     }
   },
@@ -535,20 +696,36 @@
     "contextCards": [],
     "strandNote": "Forward strand: C(ref)/T(alt) — actual Ancestry alleles. Literature cites A/G (complement).",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/23643682/"
+      "https://pubmed.ncbi.nlm.nih.gov/30353958/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "biomarker_association",
+        "null_or_mixed"
+      ],
+      "scope": "Published hormone findings concern CYP19A1 haplotypes and do not support a reliable standalone direction for rs700518.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "Do not infer aromatase activity or hormone status from this SNP alone."
+    },
     "genotypes": {
       "CC": {
-        "effect": "moderate",
-        "note": "Altered testosterone→estradiol conversion; direction depends on sex and body composition"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Reference genotype. The cited study found hormone associations for CYP19A1 haplotypes rather than a reliable standalone effect for rs700518."
       },
       "CT": {
-        "effect": "moderate",
-        "note": "Mildly altered aromatase activity"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype; any hormone association appears context- and haplotype-dependent."
       },
       "TT": {
         "effect": "none",
-        "note": "Normal aromatase; standard androgen→estrogen conversion"
+        "valence": "informational",
+        "note": "Alternate homozygous genotype; rs700518 alone does not establish a direction of aromatase activity or hormone conversion."
       }
     }
   },
@@ -567,19 +744,35 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/11888533/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association",
+        "null_or_mixed"
+      ],
+      "scope": "The cited cohort supports an HDL association but not a genotype-specific myocardial-infarction difference.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "Use measured lipids and overall cardiovascular context; this marker does not establish protection."
+    },
     "genotypes": {
       "GG": {
-        "effect": "moderate",
-        "note": "Highest CETP activity; lowest HDL (B2B2)"
+        "effect": "none",
+        "valence": "informational",
+        "note": "B2/B2 was associated with higher HDL in the cited cohort, but not with a lower myocardial-infarction rate."
       },
       "GA": {
-        "effect": "moderate",
-        "note": "Intermediate HDL (B1B2)"
+        "effect": "none",
+        "valence": "informational",
+        "note": "B1/B2 genotype; HDL was intermediate in the cited cohort, without evidence of a genotype-specific reduction in myocardial infarction."
       },
       "AA": {
-        "effect": "moderate",
-        "valence": "protective",
-        "note": "Lowest CETP activity; highest HDL; ~24% lower MI risk per A allele (B1B1)"
+        "effect": "none",
+        "valence": "informational",
+        "note": "B1/B1 genotype; associated with lower HDL than B2/B2 in the cited cohort, but myocardial-infarction rates did not differ by genotype."
       }
     }
   },
@@ -595,20 +788,35 @@
     "contextCards": [],
     "strandNote": "Forward strand: A(ref)/G(alt). Literature often cites T/C (complement).",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/9067272/"
+      "https://pubmed.ncbi.nlm.nih.gov/17986287/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "null_or_mixed"
+      ],
+      "scope": "A large human study did not support a reliable circulating-hormone or prostate-cancer association for this SNP.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "No steroid-production or health conclusion should be inferred from this marker."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
-        "note": "Normal CYP17A1; baseline sex steroid precursor synthesis"
+        "valence": "informational",
+        "note": "Reference genotype. A large study found no association between rs743572 and circulating sex hormones or prostate-cancer risk."
       },
       "AG": {
-        "effect": "moderate",
-        "note": "Slightly increased steroid precursor synthesis"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype; the cited large study did not find a measurable circulating-hormone difference."
       },
       "GG": {
-        "effect": "moderate",
-        "note": "Higher steroid synthesis flux; increased estradiol in women, altered T/E ratio in men"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Alternate homozygous genotype; current evidence does not support inferring higher steroid synthesis from this SNP alone."
       }
     }
   },
@@ -629,9 +837,21 @@
     ],
     "strandNote": "dbSNP forward: A(ref, fast inducible) / C(alt, slow). 23andMe / Ancestry / Illumina report A/C. C ≈ 0.32 globally, fairly even across populations.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/16522833/",
-      "https://pubmed.ncbi.nlm.nih.gov/29570621/"
+      "https://pubmed.ncbi.nlm.nih.gov/16522833/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "exposure_interaction"
+      ],
+      "scope": "CYP1A2 inducibility and caffeine metabolism are supported; the cardiovascular interaction comes from exposure-specific observational evidence.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Caffeine amount, timing, smoking, medications, and symptoms materially change its meaning."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
@@ -643,20 +863,20 @@
       },
       "CC": {
         "effect": "moderate",
-        "note": "Slow metabolizer; coffee >2 cups/day associated with ~64% increased non-fatal MI risk in <50yo (Cornelis 2006, replicated). Also linked to higher BP response and worse glucose control after caffeine."
+        "note": "Slow metabolizer; in the cited case-control study, coffee intake was associated with higher non-fatal myocardial-infarction risk among C-allele carriers, especially at four or more cups per day."
       }
     },
     "snpHints": {
       "AC": {
         "slotKey": "lipids.cholesterol",
         "direction": "avoid",
-        "text": "Your CYP1A2 *1F (heterozygous) clears caffeine at an intermediate rate — moderate coffee intake is fine; avoid drinking after 4pm to preserve sleep",
+        "text": "Your CYP1A2 *1F genotype includes the slower-metabolizing C allele. The cited study supports being cautious with high coffee intake, particularly four or more cups per day.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/16522833/"
       },
       "CC": {
         "slotKey": "lipids.cholesterol",
         "direction": "avoid",
-        "text": "Your CYP1A2 *1F (homozygous slow) means caffeine lingers 6+ hours — limiting coffee to 1–2 cups before noon reduces cardiovascular and sleep impact measurably",
+        "text": "Your CYP1A2 *1F genotype is the slower-metabolizing CC form. The cited study supports limiting high coffee intake rather than predicting an exact clearance time.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/16522833/"
       }
     }
@@ -677,6 +897,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/19820698/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "Replicated human genetic and functional evidence links this TMPRSS6 variant to hepcidin and iron-status differences.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Ferritin, transferrin saturation, CBC, diet, and blood loss determine current iron status."
+    },
     "genotypes": {
       "AA": {
         "effect": "moderate",
@@ -695,13 +928,13 @@
       "AA": {
         "slotKey": "iron.ferritin",
         "direction": "increase",
-        "text": "Your TMPRSS6 V736A suggests a higher need for dietary iron or iron supplementation due to increased hepcidin",
+        "text": "Your TMPRSS6 V736A genotype is associated with lower hemoglobin and iron measures in population studies; check ferritin, transferrin saturation, and blood count before considering iron.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/19820698/"
       },
       "AG": {
         "slotKey": "iron.ferritin",
         "direction": "increase",
-        "text": "Your TMPRSS6 V736A (heterozygous) suggests a mildly higher iron need due to intermediate hepcidin regulation",
+        "text": "Your TMPRSS6 V736A genotype has a modest association with iron-related measures; use ferritin, transferrin saturation, and blood count rather than genotype alone to decide on iron.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/19820698/"
       }
     }
@@ -718,34 +951,37 @@
     ],
     "markerNote": "Maps to custom fatty acid markers (EPA, DHA, Omega-3 Index)",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/19148276/"
+      "https://pubmed.ncbi.nlm.nih.gov/31928966/",
+      "https://pubmed.ncbi.nlm.nih.gov/24292947/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "Human response data and enhancer experiments support ELOVL2 expression and fatty-acid associations without proving deficiency.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured fatty acids and diet are needed to interpret any practical relevance."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
-        "note": "Normal ELOVL2; efficient EPA→DHA elongation"
+        "valence": "informational",
+        "note": "A/A genotype. The mechanistic study found lower enhancer activity than with the G allele; fatty-acid levels and fish-oil response still depend on more than this SNP."
       },
       "AG": {
-        "effect": "moderate",
-        "note": "Mildly reduced DHA synthesis"
+        "effect": "none",
+        "valence": "informational",
+        "note": "A/G genotype. rs953413 was associated with differences in ELOVL2 expression and with fatty-acid response to fish-oil supplementation, without establishing a simple deficiency state."
       },
       "GG": {
-        "effect": "significant",
-        "note": "Reduced elongase; EPA supplementation may not efficiently raise DHA; supplement DHA directly"
-      }
-    },
-    "snpHints": {
-      "AG": {
-        "slotKey": "fattyAcids.omega3Index",
-        "direction": "form",
-        "text": "Your ELOVL2 elongase (heterozygous) suggests supplementing DHA directly — EPA elongation may be mildly reduced",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19148276/"
-      },
-      "GG": {
-        "slotKey": "fattyAcids.omega3Index",
-        "direction": "form",
-        "text": "Your ELOVL2 elongase (homozygous) suggests supplementing DHA directly rather than relying on EPA conversion",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19148276/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "G/G genotype. The G allele increases enhancer binding and ELOVL2 expression in the mechanistic study; it should not be interpreted as reduced elongase activity."
       }
     }
   },
@@ -760,6 +996,18 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/10910054/"
     ],
+    "evidence": {
+      "level": "mechanistic",
+      "claimTypes": [
+        "functional"
+      ],
+      "scope": "Laboratory evidence supports altered CYP1B1 catalytic activity, but the catalog does not establish a reliable personal health outcome.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "Treat as enzyme-function context, not as a hormone diagnosis or treatment target."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -778,14 +1026,12 @@
       "CG": {
         "slotKey": "hormones.estradiol",
         "direction": "form",
-        "text": "Your CYP1B1 Leu432Val (heterozygous) suggests DIM or calcium D-glucarate to support healthy estrogen metabolism",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/10910054/"
+        "text": "Your CYP1B1 Leu432Val genotype changes enzyme activity in laboratory studies, but it does not establish that DIM or calcium D-glucarate will improve a clinical outcome."
       },
       "GG": {
         "slotKey": "hormones.estradiol",
         "direction": "form",
-        "text": "Your CYP1B1 Leu432Val (homozygous) suggests DIM, calcium D-glucarate, and cruciferous vegetables to reduce 4-OH-estradiol",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/10910054/"
+        "text": "Your CYP1B1 Leu432Val genotype changes enzyme activity in laboratory studies; food-first cruciferous vegetables are reasonable, but this SNP does not prove a DIM or calcium D-glucarate need."
       }
     }
   },
@@ -802,27 +1048,45 @@
       "diet",
       "exercise"
     ],
+    "strandNote": "Literature convention: +276 G/T. Associations vary by ancestry, diet, metabolic context, and study design; this SNP is not a standalone predictor of insulin resistance.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/11812766/"
+      "https://pubmed.ncbi.nlm.nih.gov/11812766/",
+      "https://pubmed.ncbi.nlm.nih.gov/25135112/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "Adiponectin, insulin-resistance, and diabetes associations vary by ancestry, diet, metabolic context, and study design.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Metabolic biomarkers and lived context are more informative than this genotype."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
-        "note": "Higher adiponectin; better insulin sensitivity"
+        "valence": "informational",
+        "note": "G/G was associated with lower adiponectin and greater insulin resistance/type-2-diabetes risk in the original Italian cohort, but direction and size are not universal across populations."
       },
       "GT": {
-        "effect": "moderate",
-        "note": "Intermediate adiponectin levels"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype; published associations are population- and context-dependent rather than reliably intermediate."
       },
       "TT": {
-        "effect": "moderate",
-        "note": "Lower adiponectin; higher insulin resistance and fasting insulin"
+        "effect": "none",
+        "valence": "informational",
+        "note": "T/T was the lower-risk comparison genotype in the original Italian study, while broader studies show ancestry-dependent and sometimes conflicting associations."
       }
     }
   },
   "rs1799941": {
     "gene": "SHBG",
-    "variant": "5'-region",
+    "variant": "5'-UTR / promoter",
     "category": "sexHormones",
     "markers": [
       "hormones.shbg",
@@ -830,35 +1094,39 @@
       "hormones.freeTestosterone"
     ],
     "contextCards": [],
+    "strandNote": "Forward strand: G (major) / A (minor). Each A allele has been associated with higher circulating SHBG across several cohorts, but the size and downstream hormone associations vary with sex, age, body composition, and population.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/22829776/"
+      "https://pubmed.ncbi.nlm.nih.gov/16926255/",
+      "https://pubmed.ncbi.nlm.nih.gov/19064566/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC2615755/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Several cohorts support higher circulating SHBG with the A allele, while effect size and downstream hormone relevance vary.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Use a measured hormone panel and personal context rather than genotype alone."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
-        "note": "Lower SHBG baseline"
+        "valence": "informational",
+        "note": "G/G is the lower-SHBG comparison genotype in the cited cohorts."
       },
       "GA": {
-        "effect": "moderate",
-        "note": "Intermediate SHBG"
+        "effect": "none",
+        "valence": "informational",
+        "note": "One A allele has been associated with higher circulating SHBG; a measured hormone panel is more informative than genotype alone."
       },
       "AA": {
-        "effect": "significant",
-        "note": "~24-39% higher SHBG; higher total but lower free testosterone"
-      }
-    },
-    "snpHints": {
-      "GA": {
-        "slotKey": "hormones.shbg",
-        "direction": "form",
-        "text": "Your SHBG 5'-region (heterozygous) suggests monitoring SHBG — boron may help optimize free hormone levels",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/22829776/"
-      },
-      "AA": {
-        "slotKey": "hormones.shbg",
-        "direction": "form",
-        "text": "Your SHBG 5'-region (homozygous) suggests elevated SHBG — boron and stinging nettle root may help optimize free hormone levels",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/22829776/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "A/A was associated with higher SHBG than G/G, including a 39% difference in one postmenopausal cohort; that cohort-specific estimate is not a personal prediction."
       }
     }
   },
@@ -878,6 +1146,20 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/8696333/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "HFE H63D is well established, but penetrance is usually low unless combined with other HFE risk variants or cofactors.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Ferritin, transferrin saturation, the C282Y genotype, and clinical context determine relevance."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -896,14 +1178,12 @@
       "CG": {
         "slotKey": "iron.ferritin",
         "direction": "avoid",
-        "text": "Your HFE H63D (heterozygous) suggests monitoring iron levels and avoiding unnecessary iron supplementation",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/8696333/"
+        "text": "Your HFE H63D carrier genotype suggests checking ferritin and transferrin saturation before using iron supplements."
       },
       "GG": {
         "slotKey": "iron.ferritin",
         "direction": "avoid",
-        "text": "Your HFE H63D (homozygous) suggests avoiding iron supplementation and monitoring ferritin regularly",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/8696333/"
+        "text": "Your HFE H63D genotype suggests checking ferritin and transferrin saturation and avoiding unnecessary iron supplementation."
       }
     }
   },
@@ -922,6 +1202,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/8696333/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "health_association"
+      ],
+      "scope": "HFE C282Y is a well-established hereditary-hemochromatosis variant with strongly genotype-dependent penetrance.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Iron studies and professional interpretation are needed; carrier and homozygous states are not equivalent."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -940,14 +1233,12 @@
       "GA": {
         "slotKey": "iron.ferritin",
         "direction": "avoid",
-        "text": "Your HFE C282Y (carrier) suggests monitoring ferritin and avoiding iron supplementation unless deficiency is confirmed",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/8696333/"
+        "text": "Your HFE C282Y carrier genotype suggests checking ferritin and transferrin saturation and avoiding iron supplementation unless deficiency is confirmed."
       },
       "AA": {
         "slotKey": "iron.ferritin",
         "direction": "avoid",
-        "text": "Your HFE C282Y (homozygous) suggests avoiding iron supplementation and iron-fortified foods — regular ferritin monitoring recommended",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/8696333/"
+        "text": "Your HFE C282Y genotype warrants clinician-guided ferritin and transferrin-saturation monitoring; avoid self-directed iron supplementation unless deficiency is confirmed."
       }
     }
   },
@@ -965,20 +1256,34 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/9486964/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association",
+        "null_or_mixed"
+      ],
+      "scope": "A human cohort supports hepatic-lipase and lipoprotein associations but not a coronary-heart-disease difference.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured lipids and overall cardiovascular context are more useful than this SNP."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "Normal hepatic lipase activity"
+        "valence": "informational",
+        "note": "C/C reference genotype; associated with higher hepatic-lipase activity than T-allele genotypes in the cited study"
       },
       "CT": {
-        "effect": "moderate",
-        "valence": "protective",
-        "note": "Mildly higher HDL; slightly larger LDL particles"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Associated with lower hepatic-lipase activity and a different lipoprotein profile; the cited study found no coronary-heart-disease association."
       },
       "TT": {
-        "effect": "moderate",
-        "valence": "protective",
-        "note": "Highest HDL; larger, more buoyant LDL particles"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Associated with lower hepatic-lipase activity and higher HDL2 in the cited cohort, but not with reduced coronary-heart-disease risk."
       }
     }
   },
@@ -998,6 +1303,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/9545395/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "A1298C has a modest functional association; common-genotype health effects are small and most relevant with C677T or adverse nutrient context.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Homocysteine, folate, B12, and the paired MTHFR genotype determine practical relevance."
+    },
     "genotypes": {
       "TT": {
         "effect": "none",
@@ -1016,14 +1334,12 @@
       "TG": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your MTHFR A1298C (heterozygous) suggests methylfolate may be more effective than folic acid for BH4 support",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/9545395/"
+        "text": "Your MTHFR A1298C genotype has a modest effect by itself; use folate status and homocysteine rather than genotype alone to choose a folate dose or form."
       },
       "GG": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your MTHFR A1298C (homozygous) suggests methylfolate and active B vitamins for BH4 pathway support",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/9545395/"
+        "text": "Your MTHFR A1298C genotype does not by itself establish a methylfolate need; use folate status, homocysteine, and any C677T result for context."
       }
     }
   },
@@ -1043,6 +1359,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/7647779/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "C677T has a replicated effect on MTHFR activity and homocysteine, strongly modified by folate and other nutritional context.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Use homocysteine and nutrient biomarkers; genotype alone does not establish disease or a supplement form."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -1061,14 +1390,12 @@
       "GA": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your MTHFR C677T (heterozygous) suggests methylfolate (5-MTHF) may be more effective than folic acid",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/7647779/"
+        "text": "Your MTHFR C677T genotype can lower enzyme activity; use folate status and homocysteine rather than genotype alone to choose a folate dose or form."
       },
       "AA": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your MTHFR C677T (homozygous) strongly suggests methylfolate (5-MTHF) over folic acid",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/7647779/"
+        "text": "Your MTHFR C677T genotype can substantially lower enzyme activity, especially with low folate; labs should guide folate dosing and form."
       }
     }
   },
@@ -1084,34 +1411,34 @@
       "diet"
     ],
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/12194912/"
+      "https://pubmed.ncbi.nlm.nih.gov/12194912/",
+      "https://pubmed.ncbi.nlm.nih.gov/28814397/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "A meta-analysis supports holotranscobalamin and small homocysteine associations, primarily in European-ancestry participants.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Interpret with B12 biomarkers rather than diagnosing cellular deficiency from genotype."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "Normal transcobalamin II; efficient cellular B12 delivery"
+        "note": "Associated with higher holotranscobalamin than GG in the cited meta-analysis"
       },
       "CG": {
+        "effect": "mild",
+        "valence": "informational",
+        "note": "Intermediate genotype; rs1801198 is associated with holotranscobalamin, but it does not by itself diagnose cellular B12 deficiency."
+      },
+      "GG": {
         "effect": "moderate",
-        "note": "Mildly reduced cellular B12 delivery"
-      },
-      "GG": {
-        "effect": "significant",
-        "note": "Reduced holotranscobalamin → impaired cellular B12; total serum B12 can be misleadingly normal"
-      }
-    },
-    "snpHints": {
-      "CG": {
-        "slotKey": "vitamins.vitaminB12",
-        "direction": "form",
-        "text": "Your TCN2 P259R (heterozygous) suggests sublingual or hydroxocobalamin B12 for better cellular delivery",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/12194912/"
-      },
-      "GG": {
-        "slotKey": "vitamins.vitaminB12",
-        "direction": "form",
-        "text": "Your TCN2 P259R (homozygous) suggests sublingual methylcobalamin or hydroxocobalamin — serum B12 may be misleadingly normal",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/12194912/"
+        "note": "Associated with lower holotranscobalamin and a small increase in homocysteine among participants of European ancestry in a meta-analysis; clinical status still requires biomarkers."
       }
     }
   },
@@ -1125,35 +1452,37 @@
     "contextCards": [
       "diet"
     ],
+    "strandNote": "Forward alleles G/A. The common A allele is associated with modestly lower circulating B12 in population studies; this association does not prove clinically important intestinal malabsorption.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/19303062/"
+      "https://pubmed.ncbi.nlm.nih.gov/19744961/",
+      "https://pubmed.ncbi.nlm.nih.gov/22199995/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Population studies support a modest circulating-B12 association; this common SNP is not equivalent to rare pathogenic CUBN variants.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "B12 biomarkers and symptoms are needed before inferring impaired status."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
-        "note": "Normal intestinal B12 absorption"
+        "note": "Associated with higher circulating B12 than A-allele genotypes in the cited population studies"
       },
       "GA": {
+        "effect": "mild",
+        "valence": "informational",
+        "note": "Associated with modestly lower circulating B12; the studies do not establish a clinically important absorption defect from this genotype alone."
+      },
+      "AA": {
         "effect": "moderate",
-        "note": "Mildly reduced B12 absorption"
-      },
-      "AA": {
-        "effect": "significant",
-        "note": "Reduced cubilin function; lower dietary B12 absorption"
-      }
-    },
-    "snpHints": {
-      "GA": {
-        "slotKey": "vitamins.vitaminB12",
-        "direction": "form",
-        "text": "Your CUBN cubilin (heterozygous) suggests sublingual B12 forms to partially bypass reduced intestinal absorption",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19303062/"
-      },
-      "AA": {
-        "slotKey": "vitamins.vitaminB12",
-        "direction": "form",
-        "text": "Your CUBN cubilin (homozygous) suggests sublingual or injectable B12 — intestinal absorption is significantly reduced",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/19303062/"
+        "valence": "informational",
+        "note": "Associated with lower circulating B12 in population studies. This common SNP is not equivalent to rare pathogenic CUBN variants that cause severe B12 malabsorption."
       }
     }
   },
@@ -1174,6 +1503,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/10973253/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "Human studies support a modest insulin-sensitivity and diabetes-risk association, with population and metabolic-context limitations.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Body composition, diet, activity, and measured glucose control dominate personal relevance."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -1205,6 +1547,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/11472746/"
     ],
+    "evidence": {
+      "level": "preliminary",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "Common-variant effects on B12 recycling and homocysteine are modest, context-dependent, and not consistently directional across studies.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Homocysteine, B12, folate, riboflavin, and other variants are needed for interpretation."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
@@ -1223,14 +1578,12 @@
       "AG": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your MTRR A66G (heterozygous) suggests ensuring adequate active B12 and riboflavin (B2)",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/11472746/"
+        "text": "Your MTRR A66G genotype is an association marker; use B12, methylmalonic acid, homocysteine, and diet before inferring a need for a particular B12 form or riboflavin."
       },
       "GG": {
         "slotKey": "coagulation.homocysteine",
         "direction": "form",
-        "text": "Your MTRR A66G (homozygous) suggests active B12 forms (methylcobalamin) and riboflavin (B2) for B12 recycling",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/11472746/"
+        "text": "Your MTRR A66G genotype is an association marker; use functional B12 and homocysteine results rather than assuming methylcobalamin or riboflavin is required."
       }
     }
   },
@@ -1244,10 +1597,23 @@
     ],
     "strandNote": "Forward strand: C(ref Arg151)/T(alt Cys151). Loss-of-function for α-MSH signaling.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/7493038/",
-      "https://pubmed.ncbi.nlm.nih.gov/19710684/",
-      "https://pubmed.ncbi.nlm.nih.gov/22182852/"
+      "https://pubmed.ncbi.nlm.nih.gov/19452503/",
+      "https://pubmed.ncbi.nlm.nih.gov/30657907/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "trait_association",
+        "health_association"
+      ],
+      "scope": "R151C is a replicated MC1R loss-of-function pigmentation variant; UV outcomes remain phenotype- and exposure-dependent.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Observed skin phenotype, UV index, exposure, protection, and other pigmentation genes determine practical risk."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -1255,15 +1621,15 @@
       },
       "CT": {
         "effect": "moderate",
-        "note": "One RHC allele; intermediate burn risk, common in fair-skinned populations"
+        "note": "One R151C red-hair-color allele; associated with fair pigmentation and greater UV sensitivity, with phenotype modified by other pigmentation variants and sun exposure"
       },
       "TC": {
         "effect": "moderate",
-        "note": "One RHC allele; intermediate burn risk, common in fair-skinned populations"
+        "note": "One R151C red-hair-color allele; associated with fair pigmentation and greater UV sensitivity, with phenotype modified by other pigmentation variants and sun exposure"
       },
       "TT": {
         "effect": "significant",
-        "note": "Two RHC alleles; classic red-hair / freckle / burn-easily phenotype (Fitzpatrick I-II); halve typical burn-time estimates"
+        "note": "Two R151C loss-of-function alleles; strongly associated with red hair and fair, UV-sensitive pigmentation. This genotype does not support calculating an exact personal burn time."
       }
     }
   },
@@ -1277,9 +1643,23 @@
     ],
     "strandNote": "Forward strand: C(ref Arg160)/T(alt Trp160). Loss-of-function for α-MSH signaling.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/7493038/",
-      "https://pubmed.ncbi.nlm.nih.gov/19710684/"
+      "https://pubmed.ncbi.nlm.nih.gov/19452503/",
+      "https://pubmed.ncbi.nlm.nih.gov/30657907/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "trait_association",
+        "health_association"
+      ],
+      "scope": "R160W is a replicated MC1R loss-of-function pigmentation variant; UV outcomes remain phenotype- and exposure-dependent.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Observed skin phenotype, UV index, exposure, protection, and other pigmentation genes determine practical risk."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -1287,15 +1667,15 @@
       },
       "CT": {
         "effect": "moderate",
-        "note": "One RHC allele; intermediate burn risk, common in fair-skinned populations"
+        "note": "One R160W red-hair-color allele; associated with fair pigmentation and greater UV sensitivity, with phenotype modified by other pigmentation variants and sun exposure"
       },
       "TC": {
         "effect": "moderate",
-        "note": "One RHC allele; intermediate burn risk, common in fair-skinned populations"
+        "note": "One R160W red-hair-color allele; associated with fair pigmentation and greater UV sensitivity, with phenotype modified by other pigmentation variants and sun exposure"
       },
       "TT": {
         "effect": "significant",
-        "note": "Two RHC alleles; classic red-hair / freckle / burn-easily phenotype (Fitzpatrick I-II); halve typical burn-time estimates"
+        "note": "Two R160W loss-of-function alleles; strongly associated with red hair and fair, UV-sensitive pigmentation. This genotype does not support calculating an exact personal burn time."
       }
     }
   },
@@ -1313,32 +1693,33 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/9327029/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "null_or_mixed"
+      ],
+      "scope": "The foundational human study did not support a homocysteine effect and described the common variant as probably benign.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "No methylation or supplement conclusion follows from this genotype."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
-        "note": "Normal methionine synthase activity"
+        "valence": "informational",
+        "note": "Reference genotype. The foundational study did not find an association between A2756G and homocysteine concentrations."
       },
       "AG": {
-        "effect": "mild",
-        "note": "Mildly reduced MTR activity; small heterozygous effect on homocysteine in modern meta-analyses"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype. The cited study described the variant as probably benign and found no homocysteine association."
       },
       "GG": {
-        "effect": "moderate",
-        "note": "Reduced methionine synthase; may elevate homocysteine especially with low B12"
-      }
-    },
-    "snpHints": {
-      "AG": {
-        "slotKey": "coagulation.homocysteine",
-        "direction": "form",
-        "text": "Your MTR A2756G (heterozygous) suggests active B12 forms (methylcobalamin) to support homocysteine metabolism",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/9327029/"
-      },
-      "GG": {
-        "slotKey": "coagulation.homocysteine",
-        "direction": "form",
-        "text": "Your MTR A2756G (homozygous) suggests active B12 forms (methylcobalamin) and adequate folate for homocysteine clearance",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/9327029/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Alternate homozygous genotype. The cited study does not support inferring reduced methionine-synthase activity or elevated homocysteine from this SNP alone."
       }
     }
   },
@@ -1352,29 +1733,37 @@
     "contextCards": [
       "lightCircadian"
     ],
+    "strandNote": "Forward strand: A/G corresponds to the literature T/C convention. A encodes the longer VDR isoform and G the shorter isoform; the cited study measured transcriptional activity in vitro, not personal vitamin D status or supplementation response.",
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/8970885/"
     ],
+    "evidence": {
+      "level": "mechanistic",
+      "claimTypes": [
+        "functional"
+      ],
+      "scope": "In-vitro work supports different VDR isoform activity but does not establish personal vitamin D status or treatment response.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "Do not use this SNP to set a vitamin D target or dose."
+    },
     "genotypes": {
       "AA": {
-        "effect": "mild",
-        "note": "Longer VDR isoform; slightly lower receptor efficiency. Downstream 25(OH)D levels largely unaffected per Jolliffe meta-analysis — phenotypic effect on bone density and supplementation response is small."
+        "effect": "none",
+        "valence": "informational",
+        "note": "A/A encodes the longer VDR isoform, which had lower transcriptional activity than the shorter form in vitro. This does not establish a higher vitamin D requirement."
       },
       "AG": {
-        "effect": "mild",
-        "note": "Intermediate receptor activity"
+        "effect": "none",
+        "valence": "informational",
+        "note": "A/G can produce both VDR isoforms. The functional evidence is from laboratory assays and does not predict an individual supplementation response."
       },
       "GG": {
         "effect": "none",
-        "note": "Shorter VDR isoform; more transcriptionally active"
-      }
-    },
-    "snpHints": {
-      "AA": {
-        "slotKey": "vitamins.vitaminD",
-        "direction": "form",
-        "text": "Your VDR FokI suggests maintaining higher 25(OH)D levels to compensate for lower receptor efficiency",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/8970885/"
+        "valence": "informational",
+        "note": "G/G encodes the shorter VDR isoform, which was more transcriptionally active in vitro; this is not a guaranteed health advantage."
       }
     }
   },
@@ -1390,22 +1779,38 @@
     "contextCards": [
       "diet"
     ],
-    "strandNote": "Forward strand: G(ref)/A(alt). Literature often cites C/T (complement).",
+    "strandNote": "Forward strand: G/A. The cited studies were conducted in healthy rural Gambian adults; effects were subtle and may not generalize to other populations.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/19820699/"
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC8044158/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC7994066/"
     ],
+    "evidence": {
+      "level": "preliminary",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Subtle hepcidin findings come from healthy rural Gambian cohorts and did not extend to broader iron-status indicators.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "No anemia or iron-supplement conclusion follows from this marker."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
-        "note": "Normal hepcidin regulation"
+        "valence": "informational",
+        "note": "G/G had higher baseline hepcidin than A/A in the cited Gambian studies, without a significant genotype effect on other iron-status indicators."
       },
       "GA": {
-        "effect": "moderate",
-        "note": "Modestly reduced hepcidin"
+        "effect": "none",
+        "valence": "informational",
+        "note": "G/A is a common heterozygous genotype. The cited studies found subtle genotype differences in hepcidin but not in plasma iron or broader iron-status indicators."
       },
       "AA": {
-        "effect": "moderate",
-        "note": "Lower hepcidin; associated with benign microcytic anemia phenotype"
+        "effect": "none",
+        "valence": "informational",
+        "note": "A/A had lower hepcidin than G/G in the cited Gambian cohorts; the studies did not establish anemia or a need for iron supplementation from this genotype."
       }
     }
   },
@@ -1425,6 +1830,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/11812766/"
     ],
+    "evidence": {
+      "level": "mixed",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "Adiponectin and insulin-resistance associations are population-stratified, stronger in some Asian cohorts and weak elsewhere.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Use metabolic biomarkers and ancestry context rather than this genotype alone."
+    },
     "genotypes": {
       "TT": {
         "effect": "none",
@@ -1442,7 +1860,7 @@
   },
   "rs2282679": {
     "gene": "GC",
-    "variant": "VDBP",
+    "variant": "intronic VDBP marker",
     "category": "vitaminD",
     "markers": [
       "vitamins.vitaminD"
@@ -1450,35 +1868,50 @@
     "contextCards": [
       "lightCircadian"
     ],
-    "strandNote": "Forward strand: G(ref)/T(alt). Literature often cites C/A (complement).",
+    "strandNote": "Forward strand: T (reference) / G (alternate). The G allele is associated with lower circulating 25(OH)D and vitamin-D-binding protein in the cited GWAS; some publications report the A/C complement.",
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/20541252/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Large human genetic studies consistently associate the G allele with circulating 25(OH)D and vitamin-D-binding-protein differences.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured 25(OH)D should guide interpretation and any response."
+    },
     "genotypes": {
-      "GG": {
+      "TT": {
         "effect": "none",
-        "note": "Normal vitamin D binding protein levels"
+        "valence": "informational",
+        "note": "T/T is the higher-25(OH)D comparison genotype in the cited GWAS."
       },
       "GT": {
-        "effect": "moderate",
-        "note": "Modestly lower 25(OH)D (~2-4 nmol/L)"
+        "effect": "mild",
+        "valence": "informational",
+        "note": "One G allele is associated with modestly lower circulating 25(OH)D and vitamin-D-binding protein; this is an association, not a personal dose requirement."
       },
-      "TT": {
-        "effect": "significant",
-        "note": "Significantly lower 25(OH)D (~4-8 nmol/L lower); most replicated vitamin D SNP"
+      "GG": {
+        "effect": "moderate",
+        "valence": "informational",
+        "note": "Two G alleles are associated with lower circulating 25(OH)D and vitamin-D-binding protein. Measured 25(OH)D should guide any response."
       }
     },
     "snpHints": {
       "GT": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your GC VDBP (heterozygous) suggests a modestly higher vitamin D3 need due to lower binding protein",
+        "text": "Your GC rs2282679 genotype is associated with modestly lower circulating 25(OH)D; use your measured level and response to personalize sun, food, or vitamin D intake.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       },
-      "TT": {
+      "GG": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your GC VDBP (homozygous) suggests a significantly higher vitamin D3 need — this is the most replicated vitamin D SNP",
+        "text": "Your GC rs2282679 genotype is associated with lower circulating 25(OH)D; labs should guide whether your sun, food, or vitamin D intake needs adjustment.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       }
     }
@@ -1496,18 +1929,33 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/12749058/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "null_or_mixed"
+      ],
+      "scope": "The cited human study did not demonstrate a homocysteine difference or genotype-specific folate response.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "No BHMT impairment or supplement need should be inferred from this marker."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
-        "note": "Normal betaine-homocysteine remethylation"
+        "valence": "informational",
+        "note": "Reference genotype. The cited study found no significant homocysteine difference among rs3733890 genotypes."
       },
       "GA": {
-        "effect": "moderate",
-        "note": "Mildly reduced BHMT activity"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype; the cited study does not support inferring reduced BHMT activity from this SNP alone."
       },
       "AA": {
-        "effect": "moderate",
-        "note": "Reduced betaine remethylation; folate therapy may be less effective"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Alternate homozygous genotype; no significant homocysteine difference or genotype-specific folate response was demonstrated in the cited study."
       }
     }
   },
@@ -1525,6 +1973,18 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/19084217/"
     ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Human genetic evidence supports transferrin, TIBC, and transferrin-saturation associations, not a standalone iron diagnosis.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Interpret with ferritin, transferrin saturation, CBC, inflammation, diet, and blood loss."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -1551,6 +2011,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/9929972/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "UGT1A1 G71R is a well-established reduced-function variant associated with unconjugated bilirubin, especially in East Asian populations.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Bilirubin results, ancestry, symptoms, and medication context determine practical relevance."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -1568,7 +2041,7 @@
   },
   "rs6013897": {
     "gene": "CYP24A1",
-    "variant": "24-hydroxylase",
+    "variant": "near CYP24A1",
     "category": "vitaminD",
     "markers": [
       "vitamins.vitaminD"
@@ -1576,39 +2049,51 @@
     "contextCards": [
       "lightCircadian"
     ],
-    "strandNote": "Forward strand: A(ref)/T(alt). Minor allele increases CYP24A1 activity → faster vit-D catabolism.",
+    "strandNote": "Forward strand: T(ref)/A(alt). The A allele is associated with modestly lower circulating 25(OH)D; the GWAS does not establish a direct change in enzyme activity.",
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/20541252/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Large human genetic studies support a modest 25(OH)D association at this locus but do not prove altered CYP24A1 activity.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured 25(OH)D is the useful check and should guide any response."
+    },
     "genotypes": {
-      "AA": {
+      "TT": {
         "effect": "none",
-        "note": "Standard 24-hydroxylase clearance rate"
+        "note": "Typical population association for circulating 25(OH)D at this locus"
       },
       "AT": {
-        "effect": "moderate",
-        "note": "Mildly elevated catabolism; ~1-2 nmol/L lower 25(OH)D"
+        "effect": "mild",
+        "note": "One A allele is associated with modestly lower circulating 25(OH)D in population studies"
       },
       "TA": {
-        "effect": "moderate",
-        "note": "Mildly elevated catabolism; ~1-2 nmol/L lower 25(OH)D"
+        "effect": "mild",
+        "note": "One A allele is associated with modestly lower circulating 25(OH)D in population studies"
       },
-      "TT": {
-        "effect": "significant",
-        "note": "Higher 24-hydroxylase activity clears 25(OH)D faster; ~3-4 nmol/L lower 25(OH)D"
+      "AA": {
+        "effect": "moderate",
+        "note": "Two A alleles are associated with lower circulating 25(OH)D; an actual vitamin D test is the useful check"
       }
     },
     "snpHints": {
       "AT": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your CYP24A1 (heterozygous) suggests a modestly higher vitamin D3 need — faster catabolism reduces serum 25(OH)D for the same UV dose",
+        "text": "Your CYP24A1-region genotype is associated with modestly lower circulating 25(OH)D, so your measured vitamin D response may be worth watching",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       },
-      "TT": {
+      "AA": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your CYP24A1 (homozygous) suggests a higher vitamin D3 need — accelerated 24-hydroxylase clearance of 25(OH)D",
+        "text": "Your CYP24A1-region genotype is associated with lower circulating 25(OH)D, so labs can help personalize sun, food, or vitamin D intake",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       }
     }
@@ -1630,6 +2115,18 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/16415884/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "health_association"
+      ],
+      "scope": "TCF7L2 rs7903146 is a widely replicated common type-2-diabetes association with meaningful but non-deterministic effect size.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Glucose markers, body composition, diet, activity, ancestry, and family history determine absolute risk."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -1648,14 +2145,12 @@
       "CT": {
         "slotKey": "biochemistry.glucose",
         "direction": "increase",
-        "text": "Your TCF7L2 (heterozygous) is a tendency toward harder blood-sugar control — post-meal walks, lower glycemic load, and berberine can each help",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/16415884/"
+        "text": "Your TCF7L2 genotype is associated with higher type-2-diabetes risk; use glucose trends to prioritize established food, movement, sleep, and weight-management habits."
       },
       "TT": {
         "slotKey": "biochemistry.glucose",
         "direction": "increase",
-        "text": "Your TCF7L2 (homozygous) is a tendency toward harder blood-sugar control — post-meal walks, lower glycemic load, and berberine are worth trying. Lifestyle matters more than this genotype.",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/16415884/"
+        "text": "Your TCF7L2 genotype is associated with higher type-2-diabetes risk; follow glucose trends and prioritize established lifestyle measures. The genotype alone does not establish a berberine need."
       }
     }
   },
@@ -1671,6 +2166,19 @@
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/7565971/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "The UGT1A1 TA repeat is a well-established functional bilirubin and pharmacogenetic variant with genotype-dependent effect.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Interpret with bilirubin, symptoms, ancestry, and medication context."
+    },
     "genotypes": {
       "6/6": {
         "effect": "none",
@@ -1703,8 +2211,21 @@
     "strandNote": "dbSNP forward: T(ref, protective) / A(alt, risk). A ≈ 0.42 in Europeans, ~0.16 in East Asians, ~0.5 in Africans (weaker effect). 23andMe / Ancestry report T/A.",
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/17434869/",
-      "https://pubmed.ncbi.nlm.nih.gov/22087105/"
+      "https://pubmed.ncbi.nlm.nih.gov/22069379/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "health_association",
+        "exposure_interaction"
+      ],
+      "scope": "Large cohorts and meta-analyses support a modest body-weight association that is attenuated by physical activity and varies by ancestry.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Diet, appetite, activity, sleep, environment, and ancestry outweigh this small population-average association."
+    },
     "genotypes": {
       "TT": {
         "effect": "none",
@@ -1716,7 +2237,7 @@
       },
       "AA": {
         "effect": "moderate",
-        "note": "~+3 kg average weight (~1.7 BMI units); ~1.7× obesity risk. Regular physical activity attenuates ~30% of the genetic effect — exercise matters more here than for most people."
+        "note": "The original European study reported an average weight difference of about 3 kg versus TT. A meta-analysis found that physical activity attenuated the risk-allele association with adult obesity by 27%; this is a population association, not a personal weight prediction."
       }
     }
   },
@@ -1730,34 +2251,50 @@
     "contextCards": [
       "lightCircadian"
     ],
+    "strandNote": "Forward strand: A/G. The G allele is associated with lower circulating 25(OH)D in the cited GWAS, but the marker does not by itself measure CYP2R1 enzyme activity or establish an individual dose requirement.",
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/20541252/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Large human genetic studies support an association with circulating 25(OH)D but do not directly measure CYP2R1 enzyme activity.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured 25(OH)D, sun exposure, diet, and other factors determine current status."
+    },
     "genotypes": {
       "AA": {
         "effect": "none",
-        "note": "Highest CYP2R1 activity; efficient 25-hydroxylation"
+        "valence": "informational",
+        "note": "A/A is the higher-25(OH)D comparison genotype in the cited GWAS."
       },
       "AG": {
-        "effect": "moderate",
-        "note": "Mildly lower 25(OH)D"
+        "effect": "mild",
+        "valence": "informational",
+        "note": "One G allele is associated with modestly lower circulating 25(OH)D; the GWAS did not directly measure enzyme activity."
       },
       "GG": {
-        "effect": "significant",
-        "note": "Reduced 25-hydroxylation; ~6-7 nmol/L lower 25(OH)D"
+        "effect": "moderate",
+        "valence": "informational",
+        "note": "Two G alleles are associated with lower circulating 25(OH)D; this does not by itself establish reduced hydroxylation or a supplement dose."
       }
     },
     "snpHints": {
       "AG": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your CYP2R1 25-hydroxylase (heterozygous) suggests a mildly higher vitamin D3 need due to reduced conversion",
+        "text": "Your CYP2R1 rs10741657 genotype is associated with modestly lower circulating 25(OH)D; use measured levels to personalize sun, food, or vitamin D intake.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       },
       "GG": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your CYP2R1 25-hydroxylase (homozygous) suggests a higher vitamin D3 need due to reduced 25-hydroxylation",
+        "text": "Your CYP2R1 rs10741657 genotype is associated with lower circulating 25(OH)D; labs should guide whether your sun, food, or vitamin D intake needs adjustment.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       }
     }
@@ -1780,8 +2317,22 @@
     "strandNote": "dbSNP forward: C(ref) / G(alt = risk allele). G ≈ 0.30 globally. 23andMe / Ancestry / Illumina report C/G.",
     "references": [
       "https://pubmed.ncbi.nlm.nih.gov/19060907/",
-      "https://pubmed.ncbi.nlm.nih.gov/35105993/"
+      "https://pubmed.ncbi.nlm.nih.gov/35015083/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association",
+        "exposure_interaction"
+      ],
+      "scope": "Replicated human genetics and a randomized meal-timing study support glucose and late-eating interactions in G-allele carriers.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Meal timing, sleep timing, diet, activity, and measured glucose determine practical relevance."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
@@ -1789,25 +2340,25 @@
       },
       "CG": {
         "effect": "moderate",
-        "note": "~0.06–0.07 mmol/L higher fasting glucose per G allele; modestly higher T2D and gestational-diabetes risk. Late-night eating amplifies the effect."
+        "note": "Associated with modestly higher fasting glucose and type-2-diabetes risk. In a randomized crossover trial, glucose tolerance was worse with a meal 1 hour rather than 4 hours before habitual bedtime, especially in G-allele carriers."
       },
       "GG": {
         "effect": "moderate",
-        "note": "~0.12 mmol/L higher fasting glucose; ~1.4× T2D risk; impaired insulin secretion when eating during the melatonin window (late dinner, shift work, midnight snacks)"
+        "note": "Two G risk alleles; associated with higher fasting glucose and impaired insulin secretion. A randomized crossover trial found a stronger adverse glucose response to eating 1 hour before habitual bedtime in G-allele carriers."
       }
     },
     "snpHints": {
       "CG": {
         "slotKey": "biochemistry.glucose",
         "direction": "avoid",
-        "text": "Your MTNR1B (heterozygous risk) means melatonin suppresses insulin release — eating carbs within 2–3 hours of bedtime spikes glucose more than for other people. Earlier dinners help.",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/35105993/"
+        "text": "Your MTNR1B genotype includes the G risk allele. In a randomized crossover trial, eating 1 hour rather than 4 hours before habitual bedtime worsened glucose tolerance, especially in G-allele carriers.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/35015083/"
       },
       "GG": {
         "slotKey": "biochemistry.glucose",
         "direction": "avoid",
-        "text": "Your MTNR1B (homozygous risk) strongly couples late eating to elevated fasting glucose — finishing dinner ≥3 hours before bed is one of the most effective things you can do for HbA1c",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/35105993/"
+        "text": "Your MTNR1B genotype has two G risk alleles. The cited randomized crossover trial supports avoiding meals very close to bedtime, but it does not establish a guaranteed HbA1c effect.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/35015083/"
       }
     }
   },
@@ -1821,21 +2372,37 @@
     "contextCards": [
       "lightCircadian"
     ],
+    "strandNote": "Forward G/T corresponds to literature C/A. In the cited functional study, the literature C allele (forward G) had lower promoter activity than A (forward T); results came from an elderly cohort and an in-vitro reporter assay.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/20541252/"
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC3030947/"
     ],
+    "evidence": {
+      "level": "mechanistic",
+      "claimTypes": [
+        "functional"
+      ],
+      "scope": "Promoter-reporter experiments support allele-specific activity, while the human cohort did not show a consistent serum 25(OH)D difference.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "Do not infer active-vitamin-D production or supplementation needs from this SNP."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
-        "note": "Standard 1-alpha hydroxylase activity"
+        "valence": "informational",
+        "note": "Forward G/G (literature C/C) had lower promoter activity than A-containing constructs in vitro. The study did not find a consistent genotype difference in serum 25(OH)D."
       },
       "GT": {
-        "effect": "moderate",
-        "note": "Modestly higher CYP27B1 expression"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Forward G/T (literature C/A); promoter activity differed by allele in vitro, but this common SNP does not directly measure active-vitamin-D production in an individual."
       },
       "TT": {
-        "effect": "moderate",
-        "note": "Higher 25(OH)D-to-active-form conversion; may compensate for low 25(OH)D"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Forward T/T (literature A/A) had higher promoter-reporter activity than C/C in vitro. It should not be interpreted as guaranteed compensation for low 25(OH)D."
       }
     }
   },
@@ -1849,34 +2416,36 @@
     ],
     "contextCards": [],
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/18492748/"
+      "https://doi.org/10.1016/j.humgen.2022.201110"
     ],
+    "evidence": {
+      "level": "preliminary",
+      "claimTypes": [
+        "biomarker_association",
+        "null_or_mixed"
+      ],
+      "scope": "A small study reported a reverse-T3 association but no T3, T4, or levothyroxine-response difference.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "No genotype-specific thyroid treatment follows from this preliminary marker."
+    },
     "genotypes": {
       "CC": {
         "effect": "none",
-        "note": "Normal DIO1; standard peripheral T4→T3 conversion"
+        "valence": "informational",
+        "note": "Reference genotype in the cited study of women with hypothyroidism; rs11206244 was not associated with T3, T4, or levothyroxine response."
       },
       "CT": {
-        "effect": "moderate",
-        "note": "Mildly reduced DIO1; may lower T3/T4 ratio"
+        "effect": "none",
+        "valence": "informational",
+        "note": "Heterozygous genotype. The small cited study linked the T allele to higher reverse T3, but not to T3, T4, or levothyroxine response."
       },
       "TT": {
-        "effect": "significant",
-        "note": "Reduced DIO1; lower T3 production; may need higher T4 dose to achieve target T3"
-      }
-    },
-    "snpHints": {
-      "CT": {
-        "slotKey": "thyroid.ft3",
-        "direction": "form",
-        "text": "Your DIO1 3'-UTR (heterozygous) suggests selenium (selenomethionine) to support T4-to-T3 conversion",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/18492748/"
-      },
-      "TT": {
-        "slotKey": "thyroid.ft3",
-        "direction": "form",
-        "text": "Your DIO1 3'-UTR (homozygous) suggests selenium and monitoring T3/T4 ratio — peripheral conversion is reduced",
-        "ref": "https://pubmed.ncbi.nlm.nih.gov/18492748/"
+        "effect": "none",
+        "valence": "informational",
+        "note": "T/T genotype. In a small study, the T allele was associated with higher reverse T3 but not lower T3/T4 or a different levothyroxine response; no genotype-specific treatment follows from it."
       }
     }
   },
@@ -1893,8 +2462,23 @@
       "diet"
     ],
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/20579540/"
+      "https://pubmed.ncbi.nlm.nih.gov/20579540/",
+      "https://pubmed.ncbi.nlm.nih.gov/27218270/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "PCSK9 R46L is a replicated loss-of-function variant associated with lower LDL and lower ischemic-heart-disease risk.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "A measured lipid panel remains necessary; this protective association does not cancel other risk factors."
+    },
     "genotypes": {
       "GG": {
         "effect": "none",
@@ -1903,7 +2487,7 @@
       "GT": {
         "effect": "significant",
         "valence": "protective",
-        "note": "PCSK9 loss-of-function; ~15% lower LDL, ~25% lower Lp(a); protective"
+        "note": "PCSK9 loss-of-function carrier; associated with roughly 11–16% lower LDL, lower lipoprotein(a), and lower ischemic-heart-disease risk in population studies"
       },
       "TT": {
         "effect": "significant",
@@ -1914,7 +2498,7 @@
   },
   "rs12785878": {
     "gene": "DHCR7",
-    "variant": "7-dehydrocholesterol reductase",
+    "variant": "NADSYN1/DHCR7 locus marker",
     "category": "vitaminD",
     "markers": [
       "vitamins.vitaminD"
@@ -1922,41 +2506,457 @@
     "contextCards": [
       "lightCircadian"
     ],
-    "strandNote": "Forward strand: T(ref)/G(alt). Major allele = lower DHCR7 expression = more substrate for UVB-driven synthesis.",
+    "strandNote": "Forward strand: T (reference) / G (alternate). The G allele is associated with lower circulating 25(OH)D, but this locus marker does not by itself establish DHCR7 expression or the amount of skin precursor available.",
     "references": [
-      "https://pubmed.ncbi.nlm.nih.gov/20541252/",
-      "https://pubmed.ncbi.nlm.nih.gov/20541251/"
+      "https://pubmed.ncbi.nlm.nih.gov/20541252/"
     ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "biomarker_association"
+      ],
+      "scope": "Large human genetic studies support a circulating-25(OH)D association at the NADSYN1/DHCR7 locus without proving the proposed mechanism.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "Measured 25(OH)D should guide interpretation and any response."
+    },
     "genotypes": {
       "TT": {
         "effect": "none",
-        "note": "Reference DHCR7 expression; full skin substrate available for vit D synthesis"
+        "valence": "informational",
+        "note": "T/T is the higher-25(OH)D comparison genotype in the cited GWAS."
       },
       "TG": {
-        "effect": "moderate",
-        "note": "Modestly elevated DHCR7; ~2-3 nmol/L lower 25(OH)D"
+        "effect": "mild",
+        "valence": "informational",
+        "note": "One G allele is associated with modestly lower circulating 25(OH)D; the mechanism and personal effect size are not established by this marker."
       },
       "GT": {
-        "effect": "moderate",
-        "note": "Modestly elevated DHCR7; ~2-3 nmol/L lower 25(OH)D"
+        "effect": "mild",
+        "valence": "informational",
+        "note": "One G allele is associated with modestly lower circulating 25(OH)D; the mechanism and personal effect size are not established by this marker."
       },
       "GG": {
-        "effect": "significant",
-        "note": "Higher DHCR7 expression depletes 7-DHC precursor; ~3-5 nmol/L lower 25(OH)D"
+        "effect": "moderate",
+        "valence": "informational",
+        "note": "Two G alleles are associated with lower circulating 25(OH)D; this does not directly prove higher DHCR7 expression or a supplement need."
       }
     },
     "snpHints": {
       "GT": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your DHCR7 (heterozygous) suggests a modestly higher vitamin D3 need — slightly less skin substrate available for UVB synthesis",
+        "text": "Your NADSYN1/DHCR7-locus genotype is associated with modestly lower circulating 25(OH)D; use measured levels to evaluate your sun, food, or vitamin D response.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
       },
       "GG": {
         "slotKey": "vitamins.vitaminD",
         "direction": "increase",
-        "text": "Your DHCR7 (homozygous) suggests a higher vitamin D3 need — reduced skin precursor available for UVB-driven synthesis",
+        "text": "Your NADSYN1/DHCR7-locus genotype is associated with lower circulating 25(OH)D; labs should guide whether your sun, food, or vitamin D intake needs adjustment.",
         "ref": "https://pubmed.ncbi.nlm.nih.gov/20541252/"
+      }
+    }
+  },
+  "rs4680": {
+    "gene": "COMT",
+    "variant": "Val158Met",
+    "category": "neurotransmitters",
+    "markers": [],
+    "contextCards": [
+      "stress"
+    ],
+    "strandNote": "Forward strand: G(ref Val) / A(alt Met). This functional variant changes COMT activity, but does not determine personality, mood, or treatment response by itself.",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/15457404/"
+    ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional"
+      ],
+      "scope": "Val158Met has a replicated effect on COMT enzyme activity; personality, cognition, and treatment claims are not included.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "This is biochemical context, not a mental-health prediction or supplement indication."
+    },
+    "genotypes": {
+      "GG": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Val/Val; higher COMT enzyme activity and faster catecholamine breakdown than Met carriers. This is a biochemical trait, not a standalone prediction of stress response or behavior."
+      },
+      "AG": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Val/Met; intermediate COMT activity. Effects on cognition and stress-related traits are small, context-dependent, and inconsistent across studies."
+      },
+      "AA": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Met/Met; lower COMT activity and slower catecholamine breakdown than Val carriers. This does not by itself establish a mental-health or supplement need."
+      }
+    }
+  },
+  "rs1815739": {
+    "gene": "ACTN3",
+    "variant": "R577X",
+    "category": "performance",
+    "markers": [
+      "bodyComposition.leanMass"
+    ],
+    "contextCards": [
+      "exercise"
+    ],
+    "strandNote": "Forward strand: C(ref R577) / T(alt X577 stop). Athletic-performance associations are population- and sport-dependent and are not training prescriptions.",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/10192379/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC3174315/"
+    ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "trait_association"
+      ],
+      "scope": "ACTN3 deficiency is a well-established functional trait; performance enrichment is modest, population-dependent, and non-deterministic.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "The genotype does not prescribe a sport or training style."
+    },
+    "genotypes": {
+      "CC": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "R/R; alpha-actinin-3 is expressed in fast-twitch muscle fibers. The genotype is modestly enriched in some sprint/power cohorts but does not determine performance."
+      },
+      "CT": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "R/X; one functional ACTN3 copy. This common genotype is compatible with the full range of athletic abilities."
+      },
+      "TT": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "X/X; alpha-actinin-3 deficiency, a common healthy muscle phenotype. Any endurance association is modest and is not a reason to avoid power training."
+      }
+    }
+  },
+  "rs4988235": {
+    "gene": "MCM6 / LCT",
+    "variant": "−13910 lactase-persistence enhancer",
+    "category": "digestion",
+    "markers": [],
+    "contextCards": [
+      "diet"
+    ],
+    "strandNote": "Forward genomic strand: G(ref, corresponding to −13910C) / A(alt, corresponding to −13910T). Strongly informative in European-ancestry populations; other populations have additional lactase-persistence variants.",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/29063188/"
+    ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "trait_association"
+      ],
+      "scope": "This enhancer is strongly predictive of lactase persistence in many European-ancestry populations, with different causal variants elsewhere.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Ancestry, symptoms, dairy type, amount, and food matrix determine lived tolerance."
+    },
+    "genotypes": {
+      "GG": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Associated with adult lactase non-persistence in many European-ancestry populations. It predicts enzyme persistence, not whether dairy actually causes symptoms; ancestry and the food matrix matter."
+      },
+      "AG": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "One lactase-persistence allele; usually associated with continued adult lactase expression in populations where this variant is informative."
+      },
+      "AA": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Two lactase-persistence alleles; usually associated with continued adult lactase expression in populations where this variant is informative."
+      }
+    }
+  },
+  "rs1229984": {
+    "gene": "ADH1B",
+    "variant": "Arg48His",
+    "category": "alcohol",
+    "markers": [
+      "biochemistry.ggt",
+      "biochemistry.ast",
+      "biochemistry.alt"
+    ],
+    "contextCards": [
+      "diet",
+      "loveLife"
+    ],
+    "strandNote": "Forward genomic strand: C(ref Arg48) / T(alt His48). The His allele accelerates ethanol oxidation; frequency and effect estimates vary substantially by ancestry.",
+    "references": [
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC3252425/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC4091648/"
+    ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "health_association"
+      ],
+      "scope": "ADH1B His48 has a replicated functional effect and population association with lower alcohol consumption and dependence risk.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Ancestry and alcohol exposure matter, and the allele does not make drinking harmless."
+    },
+    "genotypes": {
+      "CC": {
+        "effect": "none",
+        "note": "Arg/Arg; slower ADH1B ethanol oxidation relative to His48 carriers. This does not imply that alcohol is safe or beneficial."
+      },
+      "CT": {
+        "effect": "mild",
+        "valence": "protective",
+        "note": "Arg/His; faster initial ethanol oxidation and, across many populations, lower average alcohol consumption and alcohol-dependence risk. It does not remove alcohol-related health risks."
+      },
+      "TT": {
+        "effect": "moderate",
+        "valence": "protective",
+        "note": "His/His; markedly faster initial ethanol oxidation and lower alcohol-dependence risk in population studies. It does not make drinking harmless."
+      }
+    }
+  },
+  "rs12934922": {
+    "gene": "BCO1",
+    "variant": "R267S",
+    "category": "vitaminA",
+    "markers": [
+      "vitamins.vitaminA"
+    ],
+    "contextCards": [
+      "diet"
+    ],
+    "strandNote": "Forward strand: A(ref Arg267) / T(alt Ser267). This affects provitamin-A carotenoid conversion, not absorption of preformed vitamin A.",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/19103647/"
+    ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "Human conversion studies support reduced provitamin-A carotenoid conversion, especially as part of the wider BCO1 haplotype.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Diet, the paired BCO1 variant, and measured nutritional context determine practical relevance."
+    },
+    "genotypes": {
+      "AA": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Arg/Arg at BCO1 R267S; no reduced-conversion allele at this site. Other BCO1 variants and dietary factors still affect beta-carotene conversion."
+      },
+      "AT": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "One Ser267 allele; associated with less efficient beta-carotene conversion, especially when combined with rs7501331. Vitamin A status is better assessed from diet and appropriate labs than genotype alone."
+      },
+      "TT": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Two Ser267 alleles; associated with less efficient beta-carotene conversion. This does not automatically indicate deficiency or justify high-dose preformed vitamin A."
+      }
+    }
+  },
+  "rs7501331": {
+    "gene": "BCO1",
+    "variant": "A379V",
+    "category": "vitaminA",
+    "markers": [
+      "vitamins.vitaminA"
+    ],
+    "contextCards": [
+      "diet"
+    ],
+    "strandNote": "Forward strand: C(ref Ala379) / T(alt Val379). Combined BCO1 variants can have a larger effect than this marker alone.",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/19103647/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC3497927/"
+    ],
+    "evidence": {
+      "level": "supported",
+      "claimTypes": [
+        "functional",
+        "biomarker_association"
+      ],
+      "scope": "Human conversion studies support reduced provitamin-A carotenoid conversion, with combined BCO1 variants producing larger effects.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "contextual",
+      "context": "Diet, the paired BCO1 variant, and measured nutritional context determine practical relevance."
+    },
+    "genotypes": {
+      "CC": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Ala/Ala at BCO1 A379V; no reduced-conversion allele at this site. Other variants and dietary factors can still influence carotenoid conversion."
+      },
+      "CT": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Ala/Val; associated with reduced beta-carotene conversion. The practical effect depends on the rest of the BCO1 haplotype and diet."
+      },
+      "TT": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Val/Val; associated with reduced beta-carotene conversion. This does not by itself diagnose vitamin A deficiency or establish a supplement dose."
+      }
+    }
+  },
+  "rs12913832": {
+    "gene": "HERC2 / OCA2",
+    "variant": "OCA2 regulatory enhancer",
+    "category": "skin",
+    "markers": [],
+    "contextCards": [
+      "lightCircadian"
+    ],
+    "strandNote": "Forward strand: A(ref) / G(alt). Eye-color prediction is strongest in European-ancestry populations and is modified by several other pigmentation genes.",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+    ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "trait_association"
+      ],
+      "scope": "This HERC2/OCA2 regulatory marker is strongly associated with eye pigmentation in European-ancestry prediction models.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "trait",
+      "context": "This is a pigmentation trait modified by ancestry and other genes, with no health action implied."
+    },
+    "genotypes": {
+      "AA": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "More often associated with brown or darker eye pigmentation in European-ancestry prediction models; other pigmentation variants can change the observed color."
+      },
+      "AG": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Intermediate pigmentation tendency; hazel, green, or brown eyes are common outcomes depending on other pigmentation variants."
+      },
+      "GG": {
+        "effect": "none",
+        "valence": "informational",
+        "note": "Strongly associated with blue or lighter eye pigmentation in European-ancestry prediction models, with modification by other genes."
+      }
+    }
+  },
+  "rs10455872": {
+    "gene": "LPA",
+    "variant": "Lp(a)-raising intronic variant",
+    "category": "lipids",
+    "markers": [
+      "lipids.lpA"
+    ],
+    "contextCards": [
+      "diet",
+      "healthGoals"
+    ],
+    "strandNote": "Forward strand: A(ref) / G(alt risk allele). This variant is most informative in European-ancestry populations and does not capture all genetic causes of high Lp(a).",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/20032323/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC9639807/"
+    ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "Replicated human studies link the G allele to higher Lp(a) and coronary risk, especially in European-ancestry populations.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "A direct Lp(a) measurement is needed because this marker does not capture all genetic causes or the actual level."
+    },
+    "genotypes": {
+      "AA": {
+        "effect": "none",
+        "note": "No rs10455872 Lp(a)-raising allele detected. This does not rule out elevated Lp(a); a direct Lp(a) measurement remains the relevant check."
+      },
+      "AG": {
+        "effect": "moderate",
+        "note": "One Lp(a)-raising allele; associated with higher Lp(a) and increased coronary risk. Confirm with a direct Lp(a) blood measurement because genotype does not determine the exact level."
+      },
+      "GG": {
+        "effect": "significant",
+        "note": "Two Lp(a)-raising alleles, a rare genotype associated with substantially higher Lp(a). A direct Lp(a) blood measurement is needed to determine the actual level."
+      }
+    }
+  },
+  "rs3798220": {
+    "gene": "LPA",
+    "variant": "Ile1891Met",
+    "category": "lipids",
+    "markers": [
+      "lipids.lpA"
+    ],
+    "contextCards": [
+      "diet",
+      "healthGoals"
+    ],
+    "strandNote": "Forward strand: T(ref Ile) / C(alt Met risk allele). Allele frequency differs greatly by ancestry, and absence does not rule out high Lp(a).",
+    "references": [
+      "https://pubmed.ncbi.nlm.nih.gov/20032323/",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC9639807/"
+    ],
+    "evidence": {
+      "level": "strong",
+      "claimTypes": [
+        "functional",
+        "biomarker_association",
+        "health_association"
+      ],
+      "scope": "Replicated human studies link Met1891 to higher Lp(a) and coronary risk, with substantial ancestry-frequency differences.",
+      "reviewedAt": "2026-08-10"
+    },
+    "relevance": {
+      "level": "health_context",
+      "context": "A direct Lp(a) measurement is needed because absence does not exclude high Lp(a) and genotype does not give the actual level."
+    },
+    "genotypes": {
+      "TT": {
+        "effect": "none",
+        "note": "No rs3798220 Lp(a)-raising allele detected. Other LPA variants can still produce high Lp(a), so this is not a substitute for measurement."
+      },
+      "CT": {
+        "effect": "significant",
+        "note": "One Met1891 allele; associated with higher Lp(a) and increased coronary risk. Confirm with a direct Lp(a) blood measurement."
+      },
+      "CC": {
+        "effect": "significant",
+        "note": "Two Met1891 alleles, an exceptionally rare genotype associated with high Lp(a). A direct Lp(a) blood measurement is needed for the actual level."
       }
     }
   }

@@ -137,3 +137,4 @@
 .rec-dna-avoid { border-left: 3px solid var(--orange); padding: 4px 12px; margin: 4px 0; background: rgba(251, 191, 36, 0.06); border-radius: 0 var(--radius) var(--radius) 0; }
 .rec-dna-ref { font-size: 11px; color: var(--accent); text-decoration: none; margin-left: 4px; opacity: 0.6; }
 .rec-dna-ref:hover { text-decoration: underline; opacity: 1; }
+.rec-dna-evidence { display: inline-flex; margin-left: 4px; padding: 1px 5px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: 9px; font-weight: 700; white-space: nowrap; }

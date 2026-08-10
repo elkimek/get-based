@@ -17,7 +17,7 @@ import {
   toggleGeneticsCollapse,
   toggleGeneticsExpand,
 } from './dna-ui.js';
-import { findGenotypeInfo as findGenotypeInfoImpl, findGenotypeMatch, findSnpHint as findSnpHintImpl, sortAlleles } from './dna-genotype.js';
+import { findGenotypeInfo as findGenotypeInfoImpl, findGenotypeMatch, findSnpHint as findSnpHintImpl, normalizeGenotype, sortAlleles } from './dna-genotype.js';
 import {
   detectDNAFile,
   isDNAFile,
@@ -30,7 +30,7 @@ import {
   confirmDnaDeleteDialog, getPendingDnaImport,
   isDnaLabImportRunning, logDnaDebugError, logDnaDebugWarn,
   loadGeneticsStylesheetForAction,
-  navigateDnaRoute, refreshDnaShell,
+  navigateDnaRoute, openDnaChatPrompt, refreshDnaShell,
   refreshDnaSidebar,
   triggerDnaFilePicker, updateDnaChatNudge,
 } from './dna-runtime.js';
@@ -47,6 +47,7 @@ import {
   resolveHaplogroup,
   setManualHaplogroup,
 } from './dna-mtdna.js';
+import { buildSnpAIInterpretationPrompt, resolveSnpEvidenceProfile, snpFindingPresentation, snpFindingRank } from './dna-evidence.js';
 export { detectDNAFile, isDNAFile, isDNAFileByContent };
 export {
   closeDNAImportPreview,
@@ -75,6 +76,10 @@ export const SNP_CATEGORY_LABELS = {
   alcohol: 'Alcohol',
   caffeine: 'Caffeine',
   bodyComposition: 'Body Composition',
+  neurotransmitters: 'Neurotransmitter Metabolism',
+  performance: 'Exercise Traits',
+  digestion: 'Digestion',
+  vitaminA: 'Vitamin A',
   skin: 'Skin & Sun',
   other: 'Other'
 };
@@ -112,14 +117,23 @@ export function ensureSNPTable() {
   return state.importedData?.genetics ? loadSNPTable() : Promise.resolve(null);
 }
 
-// Catalog signature: { size, hash } over the sorted rsID list. Stamped on
+// Catalog signature: { size, hash } over every sorted rsID and its complete
+// catalog annotation. Stamped on
 // genetics at import time and re-computed at render time so the genetics
 // card can flag "catalog grew since your import — re-import to include
 // new SNPs". Hash catches swap/replace cases that a raw size compare misses.
 function _catalogSignature(snpTable) {
   if (!snpTable) return null;
   const rsids = Object.keys(snpTable).filter(k => k.startsWith('rs')).sort();
-  return { size: rsids.length, hash: hashString(rsids.join(',')) };
+  const canonicalize = value => {
+    if (Array.isArray(value)) return value.map(canonicalize);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]));
+    }
+    return value;
+  };
+  const catalogContent = rsids.map(rsid => [rsid, canonicalize(snpTable[rsid])]);
+  return { size: rsids.length, hash: hashString(JSON.stringify(catalogContent)) };
 }
 
 // Returns { matches: { rsid: { genotype, gene, variant, effect, note } }, source, totalLines, coverage }
@@ -192,10 +206,13 @@ function recalculateGeneticsSummary(genetics) {
 }
 
 export function upsertGeneticsSnp(profileData, rsidInput, genotypeInput, source = {}) {
+  const previousGenetics = profileData.genetics || null;
+  const hadStoredSnps = Object.keys(previousGenetics?.snps || {}).length > 0;
+  const previousCatalogVersion = previousGenetics?.catalogVersion;
   const rsid = String(rsidInput || '').trim().toLowerCase();
-  const genotype = String(genotypeInput || '').trim().toUpperCase();
+  const genotype = normalizeGenotype(genotypeInput);
   if (!/^rs\d+$/.test(rsid)) return { ok: false, error: 'Enter a valid rsID, e.g. rs1801133.' };
-  if (!/^[ACGT]{1,2}$/.test(genotype)) return { ok: false, error: 'Enter a genotype using A/C/G/T, e.g. CT.' };
+  if (!genotype) return { ok: false, error: 'Enter an allele genotype such as CT, or a supported repeat such as 6/7.' };
   const entry = _snpTable?.[rsid];
   if (!entry) return { ok: false, error: 'This SNP is not in the getbased health SNP catalog yet.' };
   const match = findGenotypeMatch(entry, genotype);
@@ -220,17 +237,31 @@ export function upsertGeneticsSnp(profileData, rsidInput, genotypeInput, source 
     markers: entry.markers || [],
     effect: match.info.effect,
     valence: match.info.valence,
+    evidence: entry.evidence,
+    relevance: entry.relevance,
     note: match.info.note,
     source: sourceMeta,
   };
-  profileData.genetics.source = sourceMeta.label || profileData.genetics.source || 'Manual SNPs';
+  if (!hadStoredSnps || !profileData.genetics.source) {
+    profileData.genetics.source = sourceMeta.label || profileData.genetics.source || 'Manual SNPs';
+  }
   profileData.genetics.importDate = new Date().toISOString().slice(0, 10);
-  profileData.genetics.catalogVersion = _catalogSignature(_snpTable);
+  // A manual/report addition does not mean the user's existing raw file was
+  // reprocessed against the newest catalog. Preserve its prior signature so
+  // a genuine catalog-staleness prompt is not accidentally cleared.
+  if (!hadStoredSnps) profileData.genetics.catalogVersion = _catalogSignature(_snpTable);
+  else if (previousCatalogVersion) profileData.genetics.catalogVersion = previousCatalogVersion;
+  else delete profileData.genetics.catalogVersion;
   recalculateGeneticsSummary(profileData.genetics);
   return { ok: true, rsid, snp: profileData.genetics.snps[rsid] };
 }
 
 export function saveGeneticsData(profileData, parseResult) {
+  const previous = profileData.genetics || null;
+  const preservedMtDna = previous?.mtdna ? JSON.parse(JSON.stringify(previous.mtdna)) : null;
+  const preservedAddedSnps = Object.fromEntries(
+    Object.entries(previous?.snps || {}).filter(([, snp]) => snp?.source && typeof snp.source === 'object')
+  );
   // Count effects for quick display (avoids needing SNP table at render time)
   const apoe = resolveAPOE(parseResult.matches);
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
@@ -260,12 +291,19 @@ export function saveGeneticsData(profileData, parseResult) {
       markers: data.markers || [],
       effect: data.effect,
       valence: data.valence,
+      evidence: data.evidence || _snpTable?.[rsid]?.evidence,
+      relevance: data.relevance || _snpTable?.[rsid]?.relevance,
       note: data.note,
     };
   }
+  for (const [rsid, stored] of Object.entries(preservedAddedSnps)) {
+    if (!profileData.genetics.snps[rsid]) profileData.genetics.snps[rsid] = stored;
+  }
+  if (preservedMtDna) profileData.genetics.mtdna = preservedMtDna;
   if (apoe) {
     profileData.genetics.apoe = apoe;
   }
+  recalculateGeneticsSummary(profileData.genetics);
 }
 
 export function deleteGeneticsData(profileData) {
@@ -308,13 +346,22 @@ export function buildGeneticsContext(genetics, activeMarkerKeys, options = {}) {
   const includeGenomeSummary = options.includeGenomeSummary !== false;
   const includePriorityFindings = options.includePriorityFindings !== false;
   const includeSnpInventory = options.includeSnpInventory === true;
+  const includeEvidenceDetails = options.includeEvidenceDetails === true;
+  const maxPriorityFindings = Number.isFinite(options.maxPriorityFindings)
+    ? Math.max(0, Math.floor(options.maxPriorityFindings))
+    : 12;
 
   // mtDNA haplogroup — always include when present
   if (includeGenomeSummary && genetics.mtdna) {
     const mt = genetics.mtdna;
     const cLabel = mt.coupling ? mt.coupling.label : 'coupling unknown';
     lines.push(`mtDNA Haplogroup: ${mt.haplogroup} (${cLabel})`);
+    if (mt.origin) lines.push(`Maternal lineage origin context: ${mt.origin}`);
+    if (mt.details) lines.push(`Lineage context: ${mt.details}`);
     if (mt.coupling) {
+      if (mt.coupling.description) lines.push(`Wallace coupling context: ${mt.coupling.description}`);
+      if (mt.coupling.implications) lines.push(`Wallace lens implications: ${mt.coupling.implications}`);
+      lines.push('Interpretation guide: use this as an evolutionary bioenergetics lens for plausible environment fit and self-observation, not as a direct measurement of personal coupling or proof that a climate causes symptoms.');
       const mismatch = detectMtDNAMismatch(genetics);
       if (mismatch && mismatch.mismatch) {
         lines.push(`ENVIRONMENT MISMATCH: ${mismatch.message}`);
@@ -337,13 +384,8 @@ export function buildGeneticsContext(genetics, activeMarkerKeys, options = {}) {
   const apoeRsids = new Set(['rs429358', 'rs7412']);
   const byCategory = {};
   const inventory = [];
-  const impactLabelFor = (effect, valence) => {
-    if (valence === 'protective') return 'beneficial';
-    if (valence === 'neutral') return effect && effect !== 'none' ? `neutral/${effect}` : 'neutral';
-    if (effect === 'significant' || effect === 'moderate' || effect === 'mild') return `${effect} risk`;
-    if (effect === 'none') return 'normal/no impact';
-    return 'unclassified';
-  };
+  const priorityFindings = [];
+  let hasSnpEvidenceContext = false;
   for (const [rsid, stored] of Object.entries(genetics.snps || {})) {
     const entry = snpTable?.[rsid];
     const genotypeInfo = entry ? findGenotypeInfo(entry, stored.genotype) : {
@@ -357,17 +399,20 @@ export function buildGeneticsContext(genetics, activeMarkerKeys, options = {}) {
     const genotype = stored.genotype || '?';
     const effect = genotypeInfo?.effect || stored.effect || '';
     const valence = genotypeInfo?.valence || stored.valence || '';
+    const presentation = snpFindingPresentation(effect, valence);
+    const evidenceProfile = resolveSnpEvidenceProfile(entry || stored, genotypeInfo || stored);
+    hasSnpEvidenceContext = true;
     const apoeComponent = genetics.apoe && apoeRsids.has(rsid);
     if (includeSnpInventory) {
       const componentLabel = apoeComponent ? ', APOE component' : '';
-      inventory.push(`${gene}${variant ? ' ' + variant : ''} ${rsid}: ${genotype} (${impactLabelFor(effect, valence)}, ${getSnpCategoryLabel(cat)}${componentLabel})`);
+      inventory.push(`${gene}${variant ? ' ' + variant : ''} ${rsid}: ${genotype} (${presentation.label}; evidence: ${evidenceProfile.evidenceLabel}; relevance: ${evidenceProfile.relevanceLabel}; ${getSnpCategoryLabel(cat)}${componentLabel})`);
     }
 
     // APOE component SNPs are not detailed as separate findings when the
     // combined haplotype is available; the optional inventory can still expose
     // the raw imported calls for lookup/confirmation.
     if (!includePriorityFindings || apoeComponent) continue;
-    if (!genotypeInfo || (genotypeInfo.effect === 'none' && genotypeInfo.valence !== 'protective')) continue;
+    if (!genotypeInfo || (genotypeInfo.effect === 'none' && !['protective', 'informational'].includes(genotypeInfo.valence))) continue;
 
     // Filter to SNPs relevant to active markers (if provided)
     if (activeMarkerKeys && activeMarkerKeys.length > 0) {
@@ -376,15 +421,33 @@ export function buildGeneticsContext(genetics, activeMarkerKeys, options = {}) {
       if (!hasRelevantMarker) continue;
     }
 
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push(`${gene} ${variant}: ${genotype} — ${genotypeInfo.note}`);
+    const evidenceScope = includeEvidenceDetails && evidenceProfile.scope ? ` Scope: ${evidenceProfile.scope}` : '';
+    const relevanceContext = includeEvidenceDetails && evidenceProfile.context ? ` Interpretation context: ${evidenceProfile.context}` : '';
+    priorityFindings.push({
+      cat,
+      rank: snpFindingRank(evidenceProfile, presentation),
+      text: `${gene} ${variant}: ${genotype} — ${presentation.label}; ${genotypeInfo.note} [Evidence: ${evidenceProfile.evidenceLabel}. Relevance: ${evidenceProfile.relevanceLabel}.${evidenceScope}${relevanceContext}]`,
+    });
+  }
+
+  priorityFindings.sort((a, b) => a.rank - b.rank || String(a.text).localeCompare(String(b.text)));
+  for (const finding of priorityFindings.slice(0, maxPriorityFindings)) {
+    if (!byCategory[finding.cat]) byCategory[finding.cat] = [];
+    byCategory[finding.cat].push(finding.text);
   }
 
   for (const [cat, entries] of Object.entries(byCategory)) {
     lines.push(`${getSnpCategoryLabel(cat)} (${entries.length}): ${entries.join('; ')}`);
   }
+  const omittedPriorityCount = Math.max(0, priorityFindings.length - maxPriorityFindings);
+  if (omittedPriorityCount > 0) {
+    lines.push(`${omittedPriorityCount} additional priority SNP finding${omittedPriorityCount === 1 ? '' : 's'} omitted from automatic context; ask about a gene or rsID for a focused interpretation.`);
+  }
   if (includeSnpInventory && inventory.length > 0) {
     lines.push(`Imported SNP inventory for lookup (normal/no-impact calls are stored but not priority findings): ${inventory.join('; ')}`);
+  }
+  if (hasSnpEvidenceContext) {
+    lines.push('Genome evidence guide: direction, evidence strength, and relevance are separate; genotype alone is not diagnostic. Catalog annotations are a grounded baseline, not a limit on broader model knowledge; distinguish established evidence from inference.');
   }
 
   if (lines.length === 0) return '';
@@ -397,7 +460,18 @@ export function buildGeneticsContext(genetics, activeMarkerKeys, options = {}) {
 
 // Full genetics dump for when user explicitly asks about genetics
 export function buildFullGeneticsContext(genetics) {
-  return buildGeneticsContext(genetics, null, { includeSnpInventory: true });
+  return buildGeneticsContext(genetics, null, {
+    includeSnpInventory: true,
+    includeEvidenceDetails: true,
+    maxPriorityFindings: Number.MAX_SAFE_INTEGER,
+  });
+}
+
+export function askAIAboutSnp(rsid) {
+  const normalizedRsid = String(rsid || '').trim().toLowerCase();
+  const stored = state.importedData?.genetics?.snps?.[normalizedRsid];
+  const entry = _snpTable?.[normalizedRsid];
+  return openDnaChatPrompt(buildSnpAIInterpretationPrompt(normalizedRsid, stored, entry));
 }
 
 // ═══════════════════════════════════════════════
@@ -411,9 +485,9 @@ export function parseManualSnpRows(singleRsid, singleGenotype, bulkText) {
   for (const rawLine of String(bulkText || '').split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
-    const match = line.match(/^(rs\d+)\s*[,;:\t ]\s*([ACGT]{1,2})\b\s*(.*)$/i);
+    const match = line.match(/^(rs\d+)\s*[,;:\t ]\s*([ACGT]{1,2}|\d+\s*[\/|]\s*\d+)\b\s*(.*)$/i);
     if (match) addRow(match[1], match[2], match[3]);
-    else rows.push({ rsid: '', genotype: '', note: line, error: `Could not read "${line}". Use: rs1801133 CC` });
+    else rows.push({ rsid: '', genotype: '', note: line, error: `Could not read "${line}". Use: rs1801133 CC or rs8175347 6/7` });
   }
   return rows;
 }
@@ -598,10 +672,25 @@ export function getRelevantSNPs(dotKey) {
     if (!entry.markers.includes(dotKey)) continue;
     const info = findGenotypeInfo(entry, stored.genotype);
     if (!info) continue;
-    results.push({ rsid, gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, note: info.note, references: entry.references || [] });
+    const presentation = snpFindingPresentation(info.effect, info.valence);
+    const evidenceProfile = resolveSnpEvidenceProfile(entry, info);
+    results.push({
+      rsid,
+      gene: stored.gene,
+      variant: stored.variant,
+      genotype: stored.genotype,
+      effect: info.effect,
+      valence: info.valence,
+      note: info.note,
+      references: entry.references || [],
+      evidence: entry.evidence,
+      relevance: entry.relevance,
+      presentation,
+      evidenceProfile,
+      rank: (presentation.rank * 100) + (evidenceProfile.relevanceRank * 10) + evidenceProfile.evidenceRank,
+    });
   }
-  const order = { significant: 0, moderate: 1, mild: 2, none: 3 };
-  results.sort((a, b) => (order[a.effect] ?? 3) - (order[b.effect] ?? 3));
+  results.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
   return results;
 }
 
@@ -647,7 +736,7 @@ configureDnaUi({
   setImportRunning: running => { _dnaImportRunning = !!running; },
 });
 
-initDnaActionDelegates({ triggerDNAFilePicker: triggerDnaFilePicker, closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
+initDnaActionDelegates({ askAIAboutSnp, triggerDNAFilePicker: triggerDnaFilePicker, closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
 
 configureDnaModuleBridge({
   buildGeneticsContext, getRelevantSNPs,

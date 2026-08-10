@@ -20,6 +20,7 @@ const dnaRuntimeDeps = {
   isDebugMode,
   isImportRunning,
   navigate: /** @type {null | ((route: string) => void)} */ (null),
+  openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
   showConfirmDialog: /** @type {null | typeof showConfirmDialog} */ (showConfirmDialog),
 };
 
@@ -92,6 +93,11 @@ export function configureDnaRuntimeDeps(deps = {}) {
       ? /** @type {(route: string) => void} */ (deps.navigate)
       : null;
   }
+  if ('openChatPanel' in deps) {
+    dnaRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
+      : null;
+  }
   if ('showConfirmDialog' in deps) {
     dnaRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
       ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
@@ -120,6 +126,11 @@ export function cacheDnaSnpTable(data) {
   getRuntimeWindow()._snpTableCache = data;
 }
 
+/** @param {any} data */
+export function cacheDnaHaplogroupTable(data) {
+  getRuntimeWindow()._haplogroupTableCache = data;
+}
+
 /** @param {...any} args */
 export function logDnaDebugError(...args) {
   if (isDnaDebugMode()) console.error(...args);
@@ -133,6 +144,14 @@ export function logDnaDebugWarn(...args) {
 /** @param {string} route */
 export function navigateDnaRoute(route) {
   dnaRuntimeDeps.navigate?.(route);
+}
+
+/** @param {string} prompt */
+export function openDnaChatPrompt(prompt) {
+  const openChatPanel = dnaRuntimeDeps.openChatPanel;
+  if (!openChatPanel || !String(prompt || '').trim()) return false;
+  void Promise.resolve(openChatPanel(prompt)).catch(() => {});
+  return true;
 }
 
 export function refreshDnaSidebar() {

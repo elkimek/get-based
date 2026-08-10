@@ -11,6 +11,17 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.15.0', date: '2026-08-10', title: 'A redesigned and expanded Genome',
+    items: [
+      '<b>Genome is clearer and easier to explore.</b> Findings now use simple risk, protective, trait, and reference associations, with deeper interpretation available only when you want it.',
+      '<b>More useful variants are recognized.</b> The curated SNP catalog has been expanded with widely studied wellness and health associations, while genotype matching and DNA-file imports are more reliable.',
+      '<b>Evidence is easier to check.</b> SNP findings include relevant publication links and clearer evidence context, plus a direct way to suggest a correction.',
+      '<b>Mitochondrial DNA has been improved.</b> More maternal haplogroup subclades are supported, and the mitochondrial climate and environmental-fit view is more complete and easier to use.',
+      '<b>Ask AI stays focused without limiting the model.</b> Routine context remains compact, while asking about a finding adds its relevant details and still lets your selected model use broader knowledge.',
+      '<b>Imports and related insights are safer.</b> Re-importing DNA preserves manually added findings and mitochondrial data, with additional fixes for strand handling, vitamin D genetics, and light-related guidance.',
+    ]
+  },
+  {
     version: '1.14.0', date: '2026-08-09', title: 'Supplements and medications, rebuilt',
     items: [
       '<b>Keep active routines clean.</b> Ended supplements and medications move to history and can be restarted anytime.',

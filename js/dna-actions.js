@@ -47,6 +47,9 @@ function handleDnaActionClick(event) {
   } else if (action === 'toggle-genetics-expand') {
     event.preventDefault();
     dnaActionHandlers.toggleGeneticsExpand?.(actionEl);
+  } else if (action === 'ask-ai-snp') {
+    event.preventDefault();
+    dnaActionHandlers.askAIAboutSnp?.(actionEl.dataset.dnaRsid || '');
   } else if (action === 'reimport-dna') {
     event.preventDefault();
     dnaActionHandlers.reimportDNA?.();

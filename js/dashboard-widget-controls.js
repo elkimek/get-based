@@ -5,6 +5,7 @@ import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from '.
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
+  askDashboardAIAboutSnp,
   deleteDashboardNote,
   getDashboardViewportHeight,
   navigateDashboardRoute,
@@ -288,6 +289,8 @@ export function createDashboardWidgetControls(deps) {
       openDashboardManualLogForm(id, event);
     } else if (action === 'open-marker-detail') {
       if (safeMarkerId(id)) openDashboardMarkerDetail(id);
+    } else if (action === 'ask-genome-snp') {
+      askDashboardAIAboutSnp(actionEl.dataset.dashboardWidgetRsid || '');
     } else if (action === 'navigate') {
       const route = actionEl.dataset.dashboardWidgetRoute || '';
       if (/^[a-zA-Z0-9_-]+$/.test(route)) navigateDashboardRoute(route);

@@ -17,7 +17,16 @@ export function detectDNAFile(text) {
     if (dataLines.length > 0 && dataLines.every(line => /^\S+\tY\t/.test(line))) return '23andme-y';
     return '23andme';
   }
-  if (first.includes('# Living DNA customer genotype data download file version')) return 'livingdna';
+  if (first.includes('# Living DNA customer genotype data download file version')) {
+    // Living DNA offers separate autosomal and motherline downloads. The
+    // motherline file contains only positive mtDNA markers such as "263G".
+    const livingDataLines = first
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'));
+    if (livingDataLines.length > 0 && livingDataLines.every(line => /^\d+[ACGT]$/i.test(line))) return 'mtdna';
+    return 'livingdna';
+  }
   if (first.includes('GSGT Version,')) return 'illumina-gsgt';
 
   const firstNonComment = first

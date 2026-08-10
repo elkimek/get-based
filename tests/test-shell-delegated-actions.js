@@ -298,7 +298,7 @@ assert('App shell injects client list view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureClientListRuntimeDeps({ navigate, renderProfileButton });'));
 
 assert('App shell injects DNA view callbacks without bridge lookups',
-  appShellHooksSrc.includes('configureDnaRuntimeDeps({ buildSidebar, navigate });'));
+  appShellHooksSrc.includes('configureDnaRuntimeDeps({ buildSidebar, navigate, openChatPanel });'));
 
 assert('App shell injects export demo refresh callbacks without bridge lookups',
   !exportSrc.includes("from './views-runtime-bridge.js'")
@@ -331,7 +331,7 @@ assert('App shell injects views router callbacks without bridge lookups',
   appShellHooksSrc.includes('configureViewsRouterRuntimeDeps({ closeMobileSidebar, navigate });'));
 
 assert('App shell injects dashboard widget view callbacks without bridge lookups',
-  appShellHooksSrc.includes('configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });'));
+  appShellHooksSrc.includes('configureDashboardWidgetRuntimeDeps({ navigate, openChatPanel, showDetailModal });'));
 
 assert('App shell injects dashboard recommendation actions without dynamic runtime fallbacks',
   !dashboardRecommendationWidgetSrc.includes("from './views-runtime-bridge.js'")

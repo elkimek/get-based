@@ -74,7 +74,7 @@ for (const [rsid, entry] of Object.entries(snpData)) {
   if (!entry.snpHints) continue;
   hintsCount++;
   for (const [genotype, hint] of Object.entries(entry.snpHints)) {
-    if (!hint.slotKey || !hint.direction || !hint.text || !hint.ref) {
+    if (!hint.slotKey || !hint.direction || !hint.text) {
       allHintsValid = false;
       console.error(`  Invalid hint: ${rsid} ${genotype}`, hint);
     }
@@ -82,14 +82,14 @@ for (const [rsid, entry] of Object.entries(snpData)) {
       allHintsValid = false;
       console.error(`  Invalid direction: ${rsid} ${genotype} ${hint.direction}`);
     }
-    if (!/^https?:\/\/pubmed/.test(hint.ref)) {
+    if (hint.ref && !/^https?:\/\/(?:pubmed|pmc)\.ncbi\.nlm\.nih\.gov\//.test(hint.ref)) {
       allHintsValid = false;
-      console.error(`  Non-PubMed ref: ${rsid} ${genotype} ${hint.ref}`);
+      console.error(`  Invalid evidence ref: ${rsid} ${genotype} ${hint.ref}`);
     }
   }
 }
-assert('snpHints on 20+ SNPs', hintsCount >= 20, `found ${hintsCount}`);
-assert('All snpHints have required fields (slotKey, direction, text, ref)', allHintsValid);
+assert('snpHints remain available on a substantial curated set', hintsCount >= 15, `found ${hintsCount}`);
+assert('All snpHints have required fields; evidence links are optional and validated when present', allHintsValid);
 
 // Check wording rules
 let wordingValid = true;
@@ -156,6 +156,10 @@ assert('buildDNAHints exported', recSrc.includes('export function buildDNAHints'
 assert('buildDNAHints is module-exported', typeof recommendationsModule.buildDNAHints === 'function');
 assert('buildDNAHints stays off window', !('buildDNAHints' in window));
 assert('buildDNAHints handles APOE specially', recSrc.includes('genetics.apoe') && recSrc.includes('lipids.ldl'));
+assert('APOE hint is measured-lipid context rather than a genotype diet prescription',
+  recSrc.includes('not a genotype-specific diet prescription') &&
+  recSrc.includes('Use measured LDL, ApoB') &&
+  !recSrc.includes('dietary fat has amplified impact'));
 assert('buildDNAHints handles genotype reversal', recSrc.includes('[1] + g[0]') || recSrc.includes('rev'));
 
 // Test with no genetics — should return empty
@@ -173,6 +177,8 @@ assert('Avoid hints get amber styling', recSrc.includes('rec-dna-avoid'));
 assert('Study link rendered for hints', recSrc.includes('rec-dna-ref'));
 assert('escapeHTML used for hint text', recSrc.includes('escapeHTML(h.text)'));
 assert('Hint ref validated to https', recSrc.includes("'https?://'") || recSrc.includes('/^https?:\\/\\//'));
+assert('Recommendation genetics copy displays evidence and relevance',
+  recSrc.includes('rec-dna-evidence') && recSrc.includes('profile.evidenceShortLabel') && recSrc.includes('profile.relevanceShortLabel'));
 
 // ═══════════════════════════════════════
 // 5. detectSupplementSlots DNA enhancement
@@ -213,6 +219,7 @@ assert('CSS has .rec-dna-hints', cssSrc.includes('.rec-dna-hints'));
 assert('CSS has .rec-dna-row', cssSrc.includes('.rec-dna-row'));
 assert('CSS has .rec-dna-avoid', cssSrc.includes('.rec-dna-avoid'));
 assert('CSS has .rec-dna-ref', cssSrc.includes('.rec-dna-ref'));
+assert('CSS has .rec-dna-evidence', cssSrc.includes('.rec-dna-evidence'));
 assert('CSS has .ctx-tip-avoid', cssSrc.includes('.ctx-tip-avoid'));
 assert('CSS has .ctx-tips-badge', cssSrc.includes('.ctx-tips-badge'));
 

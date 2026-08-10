@@ -60,7 +60,7 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     { id: 'wearables', source: 'Body', title: 'Biometrics Overview', description: 'User-selected body signal tiles', size: 'full', render: renderers.renderDashboardWearableTilesWidget },
     { id: 'quick-markers', source: 'Labs', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', size: 'full', render: renderers.renderDashboardQuickMarkersWidget },
     { id: 'insights', source: 'Insight', title: 'AI Insights', description: 'Top trend and range reads', size: 'half', render: renderers.renderDashboardInsightsListWidget },
-    { id: 'genome', source: 'Genome', title: 'Genetic Modifiers', description: 'Actionable SNP context relevant to labs and goals', size: 'half', render: renderers.renderDashboardGenomeWidget },
+    { id: 'genome', source: 'Genome', title: 'Genetic Modifiers', description: 'Curated SNP context relevant to labs and goals', size: 'half', render: renderers.renderDashboardGenomeWidget },
     { id: 'alerts', source: 'Labs', title: 'Needs Attention', description: 'Sudden changes and critical out-of-range markers', size: 'half', render: renderers.renderDashboardAlertsWidget },
     { id: 'correlation', source: 'Tools', title: 'Correlations', description: 'Highest linked marker pairs', size: 'half', render: renderers.renderDashboardCorrelationWidget },
     { id: 'light-today', source: 'Light', title: 'Light Today', description: "Today's light synthesis across sun, devices, and environment", render: renderers.renderDashboardLightTodayWidget },

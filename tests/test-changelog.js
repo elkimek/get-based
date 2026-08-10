@@ -128,6 +128,14 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog gives a simple overview of the redesigned Genome release',
+  /version:\s*'1\.15\.0'[\s\S]{0,500}A redesigned and expanded Genome/.test(changelogSrc)
+    && /version:\s*'1\.15\.0'[\s\S]{0,2600}Genome is clearer and easier to explore/.test(changelogSrc)
+    && /version:\s*'1\.15\.0'[\s\S]{0,2600}More useful variants are recognized/.test(changelogSrc)
+    && /version:\s*'1\.15\.0'[\s\S]{0,2600}Evidence is easier to check/.test(changelogSrc)
+    && /version:\s*'1\.15\.0'[\s\S]{0,2600}Mitochondrial DNA has been improved/.test(changelogSrc)
+    && /version:\s*'1\.15\.0'[\s\S]{0,2600}Ask AI stays focused without limiting the model/.test(changelogSrc)
+    && /version:\s*'1\.15\.0'[\s\S]{0,2600}Imports and related insights are safer/.test(changelogSrc));
 assert('latest changelog explains sync safety and complete Agent Access in user-readable terms',
   /version:\s*'1\.13\.1'[\s\S]{0,500}Safer sync and complete Agent Access/.test(changelogSrc)
     && /version:\s*'1\.13\.1'[\s\S]{0,1800}works end to end/.test(changelogSrc)

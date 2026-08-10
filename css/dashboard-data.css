@@ -658,10 +658,14 @@
   white-space: nowrap;
 }
 .db-genome-legend-item span { line-height: 1; }
+.db-genome-legend-help { flex: 1 0 100%; color: var(--text-muted); font-size: 10px; font-weight: 500; line-height: 1.4; }
 .db-genome-legend-significant { border-color: rgba(239, 68, 68, 0.48); background: rgba(239, 68, 68, 0.13); }
 .db-genome-legend-moderate { border-color: rgba(249, 115, 22, 0.5); background: rgba(249, 115, 22, 0.15); }
 .db-genome-legend-mild { border-color: rgba(234, 179, 8, 0.48); background: rgba(234, 179, 8, 0.13); }
 .db-genome-legend-beneficial { border-color: rgba(34, 197, 94, 0.48); background: rgba(34, 197, 94, 0.13); }
+.db-genome-legend-risk { border-color: rgba(239, 68, 68, 0.48); background: rgba(239, 68, 68, 0.13); }
+.db-genome-legend-protective { border-color: rgba(34, 197, 94, 0.48); background: rgba(34, 197, 94, 0.13); }
+.db-genome-legend-trait { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.14); }
 .db-genome-legend-informational {
   border-color: rgba(148, 163, 184, 0.5);
   background: rgba(148, 163, 184, 0.16);
@@ -685,6 +689,12 @@
   border-left-color: var(--db-snp-tone);
   background: linear-gradient(90deg, rgba(239, 68, 68, 0.26), rgba(239, 68, 68, 0.12) 44%, var(--bg-hover) 100%);
 }
+.db-snp-risk {
+  --db-snp-tone: #ef4444;
+  border-color: rgba(239, 68, 68, 0.45);
+  border-left-color: var(--db-snp-tone);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.26), rgba(239, 68, 68, 0.12) 44%, var(--bg-hover) 100%);
+}
 .db-snp-moderate {
   --db-snp-tone: #f97316;
   border-color: rgba(249, 115, 22, 0.48);
@@ -703,6 +713,18 @@
   border-left-color: var(--db-snp-tone);
   background: linear-gradient(90deg, rgba(34, 197, 94, 0.23), rgba(34, 197, 94, 0.1) 44%, var(--bg-hover) 100%);
 }
+.db-snp-protective {
+  --db-snp-tone: #22c55e;
+  border-color: rgba(34, 197, 94, 0.46);
+  border-left-color: var(--db-snp-tone);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.23), rgba(34, 197, 94, 0.1) 44%, var(--bg-hover) 100%);
+}
+.db-snp-trait {
+  --db-snp-tone: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.46);
+  border-left-color: var(--db-snp-tone);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.23), rgba(59, 130, 246, 0.1) 44%, var(--bg-hover) 100%);
+}
 .db-snp-informational {
   --db-snp-tone: #cbd5e1;
   border-color: rgba(148, 163, 184, 0.38);
@@ -720,10 +742,24 @@
   font-family: var(--font-mono); font-size: 12px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
+.db-snp-neutral,
+.db-snp-reference,
+.db-snp-unclassified {
+  --db-snp-tone: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.38);
+  border-left-color: rgba(148, 163, 184, 0.7);
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.22), rgba(148, 163, 184, 0.09) 44%, var(--bg-hover) 100%);
+}
+.db-snp-risk .db-snp-main strong::before,
+.db-snp-protective .db-snp-main strong::before,
+.db-snp-neutral .db-snp-main strong::before,
+.db-snp-reference .db-snp-main strong::before,
+.db-snp-unclassified .db-snp-main strong::before,
 .db-snp-significant .db-snp-main strong::before,
 .db-snp-moderate .db-snp-main strong::before,
 .db-snp-mild .db-snp-main strong::before,
 .db-snp-beneficial .db-snp-main strong::before,
+.db-snp-trait .db-snp-main strong::before,
 .db-snp-informational .db-snp-main strong::before,
 .db-snp-pending .db-snp-main strong::before,
 .db-snp-normal .db-snp-main strong::before {
@@ -757,12 +793,18 @@
 .db-snp-moderate .db-snp-impact { border-color: rgba(249, 115, 22, 0.62); background: rgba(249, 115, 22, 0.18); }
 .db-snp-mild .db-snp-impact { border-color: rgba(234, 179, 8, 0.6); background: rgba(234, 179, 8, 0.16); }
 .db-snp-beneficial .db-snp-impact { border-color: rgba(34, 197, 94, 0.6); background: rgba(34, 197, 94, 0.16); }
+.db-snp-risk .db-snp-impact { border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.16); }
+.db-snp-protective .db-snp-impact { border-color: rgba(34, 197, 94, 0.6); background: rgba(34, 197, 94, 0.16); }
+.db-snp-trait .db-snp-impact { border-color: rgba(59, 130, 246, 0.6); background: rgba(59, 130, 246, 0.16); }
 .db-snp-informational .db-snp-impact {
   border-color: rgba(148, 163, 184, 0.55);
   background: rgba(148, 163, 184, 0.16);
 }
 .db-snp-pending .db-snp-impact,
-.db-snp-normal .db-snp-impact {
+.db-snp-normal .db-snp-impact,
+.db-snp-neutral .db-snp-impact,
+.db-snp-reference .db-snp-impact,
+.db-snp-unclassified .db-snp-impact {
   border-color: rgba(148, 163, 184, 0.38);
   background: rgba(148, 163, 184, 0.1);
 }
@@ -783,8 +825,14 @@
 .db-genome-category-moderate { --db-genome-category-tone: #f97316; }
 .db-genome-category-mild { --db-genome-category-tone: #eab308; }
 .db-genome-category-beneficial { --db-genome-category-tone: #22c55e; }
+.db-genome-category-risk { --db-genome-category-tone: #ef4444; }
+.db-genome-category-protective { --db-genome-category-tone: #22c55e; }
+.db-genome-category-trait { --db-genome-category-tone: #3b82f6; }
 .db-genome-category-informational,
 .db-genome-category-normal,
+.db-genome-category-neutral,
+.db-genome-category-reference,
+.db-genome-category-unclassified,
 .db-genome-category-pending { --db-genome-category-tone: #94a3b8; }
 .db-genome-category-secondary {
   background: color-mix(in srgb, var(--bg-hover) 34%, transparent);
@@ -835,6 +883,215 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.45;
+}
+.db-snp-evidence {
+  grid-column: 1 / -1;
+  border-top: 1px solid color-mix(in srgb, var(--db-snp-tone, var(--border)) 22%, transparent);
+  padding-top: 5px;
+}
+.db-snp-evidence > summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.db-snp-evidence > summary small {
+  margin-left: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.db-snp-evidence-body {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.db-snp-interpretation {
+  display: grid;
+  gap: 5px;
+}
+.db-snp-interpretation p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
+.db-snp-interpretation strong { color: var(--text-primary); font-weight: 700; }
+.db-snp-evidence-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 6px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.db-snp-evidence-source-label { font-weight: 700; }
+.db-snp-evidence-source,
+.db-snp-text-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+.db-snp-text-action { cursor: pointer; }
+.db-snp-correction-action { color: var(--text-muted); font-weight: 600; }
+.db-snp-evidence-source:hover,
+.db-snp-text-action:hover { text-decoration: underline; }
+.db-genome-contribute-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.db-genome-contribute-link:hover { border-color: var(--accent); }
+.db-mtdna-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: var(--radius-sm);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 9%, var(--bg-secondary)), var(--bg-primary));
+}
+.db-mtdna-head,
+.db-mtdna-coupling {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.db-mtdna-head > span { display: grid; gap: 2px; }
+.db-mtdna-head small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.db-mtdna-head strong { color: var(--text-primary); font-size: 17px; }
+.db-mtdna-head em {
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.db-mtdna-coupling strong { color: var(--text-primary); font-size: 13px; }
+.db-mtdna-coupling span { color: var(--text-secondary); font-size: 12px; text-align: right; }
+.db-mtdna-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.db-mtdna-facts > span {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-primary) 76%, transparent);
+}
+.db-mtdna-facts small { color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
+.db-mtdna-facts strong { color: var(--text-primary); font-size: 12px; }
+.db-mtdna-copy { display: grid; gap: 6px; }
+.db-mtdna-copy p,
+.db-mtdna-caveat {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.db-mtdna-environment {
+  padding: 9px 10px;
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.db-mtdna-environment.is-mismatch {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+.db-mtdna-evidence {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.db-mtdna-evidence > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+.db-mtdna-evidence > summary span { color: var(--text-muted); font-weight: 600; }
+.db-mtdna-evidence-body { display: grid; gap: 10px; padding-top: 10px; }
+.db-mtdna-study-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.db-mtdna-study {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  background: var(--bg-primary);
+}
+.db-mtdna-study-mixed { border-left-color: #f59e0b; }
+.db-mtdna-study-null { border-left-color: #94a3b8; }
+.db-mtdna-study-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.db-mtdna-study-head span,
+.db-mtdna-study-head em {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.db-mtdna-study-head em { color: var(--accent); }
+.db-mtdna-study > strong { color: var(--text-primary); font-size: 12px; line-height: 1.35; }
+.db-mtdna-study > small { color: var(--text-muted); font-size: 10px; }
+.db-mtdna-study p { margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
+.db-mtdna-study dl { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 5px; margin: 0; font-size: 10px; line-height: 1.4; }
+.db-mtdna-study dt { color: var(--text-muted); font-weight: 800; }
+.db-mtdna-study dd { margin: 0; color: var(--text-secondary); }
+.db-mtdna-study > a { color: var(--accent); font-size: 10px; font-weight: 700; }
+.db-genome-contribute {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.db-genome-contribute span { display: grid; gap: 2px; }
+.db-genome-contribute strong { color: var(--text-primary); }
+@media (max-width: 680px) {
+  .db-mtdna-head,
+  .db-mtdna-coupling,
+  .db-genome-contribute { align-items: flex-start; flex-direction: column; }
+  .db-mtdna-coupling span { text-align: left; }
+  .db-mtdna-facts,
+  .db-mtdna-study-grid { grid-template-columns: 1fr; }
 }
 .db-genome-empty,
 .db-correlation-empty {

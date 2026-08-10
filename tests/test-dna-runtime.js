@@ -15,6 +15,7 @@ import {
   logDnaDebugError,
   logDnaDebugWarn,
   navigateDnaRoute,
+  openDnaChatPrompt,
   refreshDnaShell,
   refreshDnaSidebar,
   setPendingMtDnaImport,
@@ -71,6 +72,7 @@ try {
   configureDnaRuntimeDeps({
     buildSidebar: () => calls.push(['sidebar']),
     navigate: route => calls.push(['navigate', route]),
+    openChatPanel: prompt => calls.push(['chat', prompt]),
   });
   refreshDnaShell('dashboard');
   assert('refreshDnaShell refreshes sidebar then navigates',
@@ -81,15 +83,20 @@ try {
   assert('navigateDnaRoute delegates route changes',
     calls.length === 1 && calls[0][0] === 'navigate' && calls[0][1] === 'genome');
 
+  assert('openDnaChatPrompt delegates an explicit editable AI handoff',
+    openDnaChatPrompt('Interpret this SNP') === true &&
+    calls.some(call => call[0] === 'chat' && call[1] === 'Interpret this SNP'));
+
   configureDnaRuntimeDeps({ buildSidebar: () => { throw new Error('sidebar failed'); } });
   let sidebarThrew = false;
   try { refreshDnaSidebar(); } catch (_) { sidebarThrew = true; }
   assert('refreshDnaSidebar swallows sidebar refresh errors', !sidebarThrew);
 
-  configureDnaRuntimeDeps({ buildSidebar: null, navigate: null });
+  configureDnaRuntimeDeps({ buildSidebar: null, navigate: null, openChatPanel: null });
   let missingCallbacksThrew = false;
   try { refreshDnaShell('dashboard'); } catch (_) { missingCallbacksThrew = true; }
   assert('DNA view callbacks are safe no-ops before shell wiring', !missingCallbacksThrew);
+  assert('DNA AI handoff no-ops without a configured chat host', openDnaChatPrompt('Interpret this SNP') === false);
 
   configureDnaRuntimeDeps({ isImportRunning: () => true });
   assert('isDnaLabImportRunning delegates true state', isDnaLabImportRunning() === true);

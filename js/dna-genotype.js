@@ -6,6 +6,17 @@ export function sortAlleles(genotype) {
   return genotype.split('').sort().join('');
 }
 
+export function normalizeGenotype(genotype) {
+  const raw = String(genotype || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/[|\\]/g, '/');
+  if (/^[ACGT]{1,2}$/.test(raw)) return raw;
+  if (/^\d+\/\d+$/.test(raw)) return raw;
+  return '';
+}
+
 const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 
 function reverseComplement(genotype) {
@@ -29,6 +40,11 @@ function isPalindromicEntry(entry) {
 
 function buildStrandAwareKeys(genotype, palindromic) {
   const tries = [genotype];
+  if (/^\d+\/\d+$/.test(genotype)) {
+    const [left, right] = genotype.split('/');
+    if (left !== right) tries.push(`${right}/${left}`);
+    return tries;
+  }
   if (genotype.length === 2) tries.push(genotype[1] + genotype[0]);
   tries.push(sortAlleles(genotype));
   if (!palindromic) {
@@ -50,15 +66,15 @@ function findStrandAwareEntry(table, genotype, palindromic) {
 
 export function findGenotypeKey(entry, genotype) {
   if (!entry || !entry.genotypes) return null;
-  const raw = String(genotype || '').trim().toUpperCase();
-  if (!/^[ACGT]{1,2}$/.test(raw)) return null;
+  const raw = normalizeGenotype(genotype);
+  if (!raw) return null;
   return findStrandAwareEntry(entry.genotypes, raw, isPalindromicEntry(entry))?.key || null;
 }
 
 export function findGenotypeMatch(entry, genotype) {
   if (!entry || !entry.genotypes) return null;
-  const raw = String(genotype || '').trim().toUpperCase();
-  if (!/^[ACGT]{1,2}$/.test(raw)) return null;
+  const raw = normalizeGenotype(genotype);
+  if (!raw) return null;
   const match = findStrandAwareEntry(entry.genotypes, raw, isPalindromicEntry(entry));
   return match ? { key: match.key, info: match.value } : null;
 }

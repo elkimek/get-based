@@ -6,13 +6,23 @@ import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wear
 import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
 import {
   getDashboardDeviceSessions,
+  getDashboardHaplogroupTableCache,
   getDashboardLightSessions,
   getDashboardSnpTableCache,
 } from './dashboard-widget-runtime.js';
 import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { createDashboardLabWidgetRenderers } from './dashboard-lab-widget-renderers.js';
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
-import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './health-data-loader.js';
+import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './health-data-loader.js';
+import {
+  dnaStudyReferenceLabel,
+  mtdnaEvidenceIssueUrl,
+  newSnpSuggestionIssueUrl,
+  resolveSnpEvidenceProfile,
+  snpEvidenceIssueUrl,
+  snpFindingPresentation,
+  snpFindingRank,
+} from './dna-evidence.js';
 import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
 import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
 
@@ -27,7 +37,7 @@ function dashboardMarkerDetailAttrs(id) {
 }
 
 export function createDashboardWidgetRenderers(deps) {
-  let _dashboardGenomeSnpLoadPromise = null;
+  let _dashboardGenomeDataLoadPromise = null;
   let _lightSunModulesLoadPromise = null;
 
   const {
@@ -308,16 +318,52 @@ export function createDashboardWidgetRenderers(deps) {
     const effect = info?.effect || stored?.effect || '';
     const valence = info?.valence || stored?.valence || 'risk';
     const note = info?.note || stored?.note || '';
-    if (valence === 'protective') return { label: 'beneficial', tone: 'beneficial', rank: 3, note };
-    if (valence === 'neutral') return { label: 'neutral', tone: 'informational', rank: 4, note };
-    if (effect === 'significant') return { label: 'significant', tone: 'significant', rank: 0, note };
-    if (effect === 'moderate') return { label: 'moderate', tone: 'moderate', rank: 1, note };
-    if (effect === 'mild') return { label: 'mild', tone: 'mild', rank: 2, note };
-    if (effect === 'none') return { label: 'normal', tone: 'normal', rank: 5, note };
-    return { label: entry ? 'unclassified' : 'pending', tone: 'pending', rank: 6, note };
+    const presentation = snpFindingPresentation(effect, valence);
+    const evidenceProfile = resolveSnpEvidenceProfile(entry || stored, info || stored);
+    return {
+      label: presentation.shortLabel,
+      tone: presentation.tone,
+      rank: snpFindingRank(evidenceProfile, presentation),
+      note,
+      presentation,
+      evidenceProfile,
+    };
   }
 
-  const DASHBOARD_VISIBLE_SNP_TONES = new Set(['significant', 'moderate', 'mild', 'beneficial']);
+  const DASHBOARD_VISIBLE_SNP_TONES = new Set(['risk', 'protective', 'trait']);
+
+  function dashboardSnpAssessmentText(profile) {
+    const evidence = profile.evidenceShortLabel === 'Not graded'
+      ? 'Evidence not graded'
+      : `${profile.evidenceShortLabel} evidence`;
+    return `${evidence} · ${profile.relevanceShortLabel}`;
+  }
+
+  function renderDashboardSnpEvidence(f) {
+    const references = Array.isArray(f.references)
+      ? f.references.filter(reference => /^https?:\/\//i.test(String(reference || '')))
+      : [];
+    const issueUrl = snpEvidenceIssueUrl(f.rsid, f.catalogEntry || {});
+    const profile = f.evidenceProfile || resolveSnpEvidenceProfile(f.catalogEntry || {}, f);
+    return `<details class="db-snp-evidence" data-snp-evidence="${escapeAttr(f.rsid)}">
+      <summary>Evidence &amp; interpretation <small>${escapeHTML(dashboardSnpAssessmentText(profile))}</small></summary>
+      <div class="db-snp-evidence-body">
+        ${profile.scope || profile.context ? `<div class="db-snp-interpretation">
+          ${profile.scope ? `<p><strong>What it supports.</strong> ${escapeHTML(profile.scope)}</p>` : ''}
+          ${profile.context ? `<p><strong>Use in context.</strong> ${escapeHTML(profile.context)}</p>` : ''}
+        </div>` : ''}
+        <div class="db-snp-evidence-footer">
+          ${references.length
+            ? `<span class="db-snp-evidence-source-label">Sources:</span>${references.map(reference => `<a href="${escapeAttr(String(reference))}" target="_blank" rel="noopener" class="db-snp-evidence-source">${escapeHTML(dnaStudyReferenceLabel(String(reference)).replace(/^PubMed(?: Central)? · /, ''))}</a>`).join('<span aria-hidden="true">·</span>')}`
+            : '<span>No catalog source linked yet</span>'}
+          <span aria-hidden="true">·</span>
+          <button type="button" class="db-snp-text-action db-snp-ai-action" ${dashboardWidgetActionAttrs('ask-genome-snp', { rsid: f.rsid })}>Ask AI</button>
+          <span aria-hidden="true">·</span>
+          <a href="${escapeAttr(issueUrl)}" target="_blank" rel="noopener" class="db-snp-text-action db-snp-correction-action">Suggest correction</a>
+        </div>
+      </div>
+    </details>`;
+  }
 
   function renderDashboardGenomeRow(f, { showCategoryLabel = true } = {}) {
     const subline = [
@@ -332,6 +378,65 @@ export function createDashboardWidgetRenderers(deps) {
       <span class="db-snp-impact">${escapeHTML(f.impactLabel || 'pending')}</span>
       <span class="db-snp-geno">${escapeHTML(f.genotype || '—')}</span>
       ${f.note ? `<span class="db-snp-note">${escapeHTML(f.note)}</span>` : ''}
+      ${renderDashboardSnpEvidence(f)}
+    </div>`;
+  }
+
+  function renderDashboardMtdnaEvidenceStudy(study) {
+    const pmid = String(study?.pmid || '').replace(/\D/g, '');
+    const direction = String(study?.direction || 'context').toLowerCase();
+    return `<article class="db-mtdna-study db-mtdna-study-${escapeAttr(direction)}">
+      <div class="db-mtdna-study-head">
+        <span>${escapeHTML(study?.studyLabel || 'Study')}</span>
+        <em>${escapeHTML(study?.direction || 'context')}</em>
+      </div>
+      <strong>${escapeHTML(study?.title || 'Mitochondrial evidence')}</strong>
+      ${study?.scopeLabel ? `<small>${escapeHTML(study.scopeLabel)}</small>` : ''}
+      ${study?.summary ? `<p>${escapeHTML(study.summary)}</p>` : ''}
+      ${study?.model ? `<dl><dt>Model</dt><dd>${escapeHTML(study.model)}</dd></dl>` : ''}
+      ${study?.limitations ? `<dl><dt>Limits</dt><dd>${escapeHTML(study.limitations)}</dd></dl>` : ''}
+      ${pmid ? `<a href="https://pubmed.ncbi.nlm.nih.gov/${escapeAttr(pmid)}/" target="_blank" rel="noopener">PubMed · PMID ${escapeHTML(pmid)}</a>` : ''}
+    </article>`;
+  }
+
+  function renderDashboardMtdnaPanel(mtdna, haplogroupTable, genetics) {
+    const mismatch = detectMtDNAMismatch(genetics);
+    const studies = Array.isArray(haplogroupTable?._meta?.references) ? haplogroupTable._meta.references : [];
+    const facts = [
+      mtdna.origin ? `<span><small>Origin</small><strong>${escapeHTML(mtdna.origin)}</strong></span>` : '',
+      mtdna.source ? `<span><small>Source</small><strong>${escapeHTML(mtdna.source)}</strong></span>` : '',
+      Number.isFinite(Number(mtdna.matchedMutations)) && Number.isFinite(Number(mtdna.totalDiagnostic))
+        ? `<span><small>Marker match</small><strong>${Number(mtdna.matchedMutations)} / ${Number(mtdna.totalDiagnostic)}</strong></span>`
+        : '',
+    ].filter(Boolean);
+    const couplingDetails = [mtdna.details, mtdna.coupling?.description, mtdna.coupling?.implications]
+      .filter(Boolean)
+      .map(detail => `<p>${escapeHTML(detail)}</p>`)
+      .join('');
+    return `<section class="db-mtdna-panel" data-mtdna-haplogroup="${escapeAttr(mtdna.haplogroup || '')}">
+      <div class="db-mtdna-head">
+        <span><small>Maternal lineage</small><strong>mtDNA ${escapeHTML(mtdna.haplogroup || 'Unresolved')}</strong></span>
+        <em>${escapeHTML(mtdna.coupling?.shortLabel || 'Wallace lens')}</em>
+      </div>
+      ${mtdna.coupling ? `<div class="db-mtdna-coupling"><strong>${escapeHTML(mtdna.coupling.label || 'Coupling context')}</strong><span>${escapeHTML(mtdna.coupling.climate || '')}</span></div>` : ''}
+      ${facts.length ? `<div class="db-mtdna-facts">${facts.join('')}</div>` : ''}
+      ${couplingDetails ? `<div class="db-mtdna-copy">${couplingDetails}</div>` : ''}
+      ${mismatch?.message ? `<div class="db-mtdna-environment${mismatch.mismatch ? ' is-mismatch' : ' is-match'}">${escapeHTML(mismatch.message)}</div>` : ''}
+      ${studies.length ? `<details class="db-mtdna-evidence" data-mtdna-evidence>
+        <summary>Wallace framework &amp; evidence <span>${studies.length} sources</span></summary>
+        <div class="db-mtdna-evidence-body">
+          ${haplogroupTable?._meta?.caveat ? `<p class="db-mtdna-caveat">${escapeHTML(haplogroupTable._meta.caveat)}</p>` : ''}
+          <div class="db-mtdna-study-grid">${studies.map(renderDashboardMtdnaEvidenceStudy).join('')}</div>
+          <a href="${escapeAttr(mtdnaEvidenceIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest an mtDNA study or correction</a>
+        </div>
+      </details>` : ''}
+    </section>`;
+  }
+
+  function renderDashboardGenomeContribution() {
+    return `<div class="db-genome-contribute">
+      <span><strong>Improve the public catalog</strong> Suggest a well-supported SNP or correct an annotation. The link does not include your genotype or imported data.</span>
+      <a href="${escapeAttr(newSnpSuggestionIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest a SNP</a>
     </div>`;
   }
 
@@ -377,15 +482,18 @@ export function createDashboardWidgetRenderers(deps) {
     </div>`;
   }
 
-  function refreshDashboardGenomeWidgetWhenSNPTableReady() {
-    if (_dashboardGenomeSnpLoadPromise) return;
-    _dashboardGenomeSnpLoadPromise = ensureSNPTable()
+  function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false } = {}) {
+    if (_dashboardGenomeDataLoadPromise) return;
+    _dashboardGenomeDataLoadPromise = Promise.all([
+      needsSnps ? ensureSNPTable() : Promise.resolve(null),
+      needsMtdna ? ensureHaplogroupTable() : Promise.resolve(null),
+    ])
       .then(() => {
-        _dashboardGenomeSnpLoadPromise = null;
+        _dashboardGenomeDataLoadPromise = null;
         const body = document.querySelector?.('.dashboard-widget[data-widget-id="genome"] .dashboard-widget-body');
         if (body) body.innerHTML = renderDashboardGenomeWidget();
       })
-      .catch(() => { _dashboardGenomeSnpLoadPromise = null; });
+      .catch(() => { _dashboardGenomeDataLoadPromise = null; });
   }
 
   function renderDashboardGenomeWidget() {
@@ -393,9 +501,14 @@ export function createDashboardWidgetRenderers(deps) {
     const snps = genetics?.snps || {};
     const apoe = genetics?.apoe;
     const snpTable = getDashboardSnpTableCache();
+    const haplogroupTable = getDashboardHaplogroupTableCache();
     const snpCount = Object.keys(snps).length;
-    if (snpCount && !snpTable) {
-      refreshDashboardGenomeWidgetWhenSNPTableReady();
+    const apoeProfile = resolveSnpEvidenceProfile(snpTable?.rs429358 || snpTable?.rs7412 || {});
+    const needsSnps = !!snpCount && !snpTable;
+    const needsMtdna = !!genetics?.mtdna && !haplogroupTable;
+    if (needsMtdna) refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna });
+    if (needsSnps) {
+      refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna });
       return `<div class="db-genome-list">
         <div class="db-genome-summary">${snpCount} imported SNP${snpCount === 1 ? '' : 's'}</div>
         <div class="db-genome-empty db-genome-loading" aria-live="polite">
@@ -418,14 +531,20 @@ export function createDashboardWidgetRenderers(deps) {
           impactTone: impact.tone,
           impactRank: impact.rank,
           note: impact.note || stored.note || '',
+          evidenceProfile: impact.evidenceProfile,
+          references: entry?.references || [],
+          catalogEntry: entry || {},
         };
       })
       .filter(f => f.gene || f.variant || f.genotype)
       .sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
     if (!findings.length && !apoe && !genetics?.mtdna) {
-      return `<div class="db-genome-empty">
-        <strong>No DNA data imported yet</strong>
-        <span>Import a raw DNA file above to see actionable variants alongside your labs and body signals.</span>
+      return `<div class="db-genome-list">
+        <div class="db-genome-empty">
+          <strong>No DNA data imported yet</strong>
+          <span>Import a raw DNA file above to see curated findings and traits alongside your labs and body signals.</span>
+        </div>
+        ${renderDashboardGenomeContribution()}
       </div>`;
     }
     const visibleFindings = findings.filter(f => DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
@@ -438,15 +557,15 @@ export function createDashboardWidgetRenderers(deps) {
       <div class="db-genome-secondary-list">${secondaryGroups.map(group => renderDashboardGenomeGroup(group, { secondary: true })).join('')}</div>
     </details>` : '';
     const noVisibleRows = snpCount && !visibleFindings.length ? `<div class="db-genome-empty db-genome-no-priority">
-      <strong>No significant, moderate, mild, or beneficial SNP calls</strong>
+      <strong>No priority or informational trait calls</strong>
       <span>Normal, neutral, and unclassified imported calls are collapsed below.</span>
     </div>` : '';
-    const legend = visibleFindings.length ? `<div class="db-genome-legend" aria-label="Genome significance legend">
-      <span class="db-genome-legend-item db-genome-legend-significant"><span>🔴</span> significant</span>
-      <span class="db-genome-legend-item db-genome-legend-moderate"><span>🟠</span> moderate</span>
-      <span class="db-genome-legend-item db-genome-legend-mild"><span>🟡</span> mild</span>
-      <span class="db-genome-legend-item db-genome-legend-beneficial"><span>🟢</span> beneficial</span>
+    const legend = visibleFindings.length ? `<div class="db-genome-legend" aria-label="Genome interpretation legend">
+      <span class="db-genome-legend-item db-genome-legend-risk"><span>🔴</span> risk association</span>
+      <span class="db-genome-legend-item db-genome-legend-protective"><span>🟢</span> protective association</span>
+      <span class="db-genome-legend-item db-genome-legend-trait"><span>🔵</span> trait</span>
       <span class="db-genome-legend-item db-genome-legend-informational"><span>⚪</span> neutral</span>
+      <span class="db-genome-legend-help">Direction, evidence, and relevance are separate. Strong evidence is not a diagnosis or a proven intervention.</span>
     </div>` : '';
     const meta = [
       snpCount ? `${snpCount} imported SNP${snpCount === 1 ? '' : 's'}` : '',
@@ -456,11 +575,12 @@ export function createDashboardWidgetRenderers(deps) {
     return `<div class="db-genome-list">
       ${meta ? `<div class="db-genome-summary">${escapeHTML(meta)}</div>` : ''}
       ${legend}
-      ${apoe ? `<div class="db-snp-row db-snp-row-apoe"><span class="db-snp-main"><strong>APOE</strong><small>Haplotype</small></span><span class="db-snp-impact">context</span><span class="db-snp-geno">${escapeHTML(apoe)}</span></div>` : ''}
-      ${genetics?.mtdna ? `<div class="db-snp-row"><span class="db-snp-main"><strong>mtDNA</strong><small>${escapeHTML(genetics.mtdna.coupling?.shortLabel || 'Haplogroup')}</small></span><span class="db-snp-impact">lineage</span><span class="db-snp-geno">${escapeHTML(genetics.mtdna.haplogroup)}</span></div>` : ''}
+      ${apoe ? `<div class="db-snp-row db-snp-row-apoe"><span class="db-snp-main"><strong>APOE</strong><small>Haplotype · ${escapeHTML(dashboardSnpAssessmentText(apoeProfile))}</small></span><span class="db-snp-impact">context</span><span class="db-snp-geno">${escapeHTML(apoe)}</span></div>` : ''}
+      ${genetics?.mtdna ? renderDashboardMtdnaPanel(genetics.mtdna, haplogroupTable, genetics) : ''}
       ${noVisibleRows}
       ${rows}
       ${secondaryRows}
+      ${renderDashboardGenomeContribution()}
     </div>`;
   }
 

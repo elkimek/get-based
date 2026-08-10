@@ -7,7 +7,6 @@ importScripts('/service-worker-runtime.js');
 // without burning patch versions, while production stays clean.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
-
 let _cacheNamePromise = null;
 async function resolveCacheName() {
   const base = `labcharts-v${self.APP_VERSION}`;
@@ -440,6 +439,7 @@ const APP_SHELL = [
   '/js/dna-genotype.js',
   '/js/dna-parser.js',
   '/js/dna.js',
+  '/js/dna-evidence.js',
   '/js/dna-ui.js',
   '/js/dna-runtime.js',
   '/js/dna-runtime-bridge.js',

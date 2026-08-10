@@ -276,7 +276,7 @@ configureCycleRuntimeDeps({
   renderProfileButton,
 });
 configureDataRuntimeDeps({ buildSidebar, navigate, showDetailModal });
-configureDnaRuntimeDeps({ buildSidebar, navigate });
+configureDnaRuntimeDeps({ buildSidebar, navigate, openChatPanel });
 configureExportFacadeLoaderDeps({ buildSidebar, navigate });
 configureExportImportRuntimeDeps({
   buildSidebar,
@@ -303,7 +303,7 @@ configureLightSunShellLoaderDeps({
 });
 configureBiologyScoreContextAIDeps({ navigate });
 configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
-configureDashboardWidgetRuntimeDeps({ navigate, showDetailModal });
+configureDashboardWidgetRuntimeDeps({ navigate, openChatPanel, showDetailModal });
 configureDashboardRecommendationRuntimeDeps({
   detectWearableTrendSlots,
   dismissRecommendation,

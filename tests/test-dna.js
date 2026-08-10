@@ -229,7 +229,7 @@ assert('Annotated SNP report: generic data absent does not infer reference', ann
 console.log('7. Genotype Reversal');
 
 // FADS1 table has TC but Ancestry gives CT — should still match via reversal
-assert('FADS1 CT matched as TC', aResult.matches.rs174546?.effect === 'moderate', aResult.matches.rs174546?.note);
+assert('FADS1 CT matched as TC', aResult.matches.rs174546?.effect === 'mild', aResult.matches.rs174546?.note);
 
 // ═══════════════════════════════════════
 // 7b. Strand-flip + sequencing-noise handling
@@ -247,21 +247,23 @@ const wgsEdgeContent =
   '##fileformat=MyHeritage\n' +
   '##method=Low-pass Whole Genome Sequencing\n' +
   'RSID,CHROMOSOME,POSITION,RESULT\n' +
-  '"rs5882","16","57016092","AG"\n' +        // direct catalog AG, effect mild — must NOT be dropped
+  '"rs5882","16","57016092","AG"\n' +        // direct catalog AG, informational — must NOT be dropped
   '"rs762551","15","75041917","AC"\n' +      // direct catalog AC, effect mild — must NOT be dropped
   '"rs11591147","1","55505647","AC"\n' +     // RC of GT — must resolve to significant
   '"rs1801394","5","7870973","TT"\n' +       // RC of AA — must resolve to none (MTRR wild-type)
-  '"rs1805087","1","237048500","CC"\n' +     // RC of GG — must resolve to moderate
+  '"rs1805087","1","237048500","CC"\n' +     // RC of GG — must resolve to informational
   '"rs11206244","1","54375701","CG"\n' +     // invalid call on C/T locus — must be dropped
   '"rs1801198","22","31011610","AA"\n';      // invalid call on C/G palindromic locus — must be dropped (RC of AA is TT, also invalid)
 const wgsEdgeFile = new File([wgsEdgeContent], 'wgs-edge.csv', { type: 'text/csv' });
 const wgsEdgeResult = await dna.parseDNAFile(wgsEdgeFile);
 
-assert('WGS edge: effect "mild" kept on rs5882 (was being dropped as unknown)', wgsEdgeResult.matches.rs5882?.effect === 'mild');
+assert('WGS edge: informational rs5882 call is retained',
+  wgsEdgeResult.matches.rs5882?.effect === 'none' && wgsEdgeResult.matches.rs5882?.valence === 'informational');
 assert('WGS edge: effect "mild" kept on rs762551 (was being dropped as unknown)', wgsEdgeResult.matches.rs762551?.effect === 'mild');
 assert('WGS edge: strand-flipped AC → GT resolves to significant (PCSK9 R46L)', wgsEdgeResult.matches.rs11591147?.effect === 'significant');
 assert('WGS edge: strand-flipped TT → AA resolves to none (MTRR A66G wild-type)', wgsEdgeResult.matches.rs1801394?.effect === 'none');
-assert('WGS edge: strand-flipped CC → GG resolves to moderate (MTR A2756G)', wgsEdgeResult.matches.rs1805087?.effect === 'moderate');
+assert('WGS edge: strand-flipped CC → GG resolves to informational (MTR A2756G)',
+  wgsEdgeResult.matches.rs1805087?.effect === 'none' && wgsEdgeResult.matches.rs1805087?.valence === 'informational');
 assert('WGS edge: invalid CG call on C/T locus dropped (not surfaced as unknown)', wgsEdgeResult.matches.rs11206244 == null);
 assert('WGS edge: invalid AA call on C/G palindromic locus dropped (RC guard prevents false positive)', wgsEdgeResult.matches.rs1801198 == null);
 
@@ -319,6 +321,7 @@ assert('SNP has marker links', Array.isArray(profileData.genetics?.snps?.rs18011
 
 const manualProfile = { genetics: JSON.parse(JSON.stringify(profileData.genetics)) };
 const beforeManualCount = Object.keys(manualProfile.genetics.snps || {}).length;
+const beforeManualCatalogVersion = JSON.stringify(manualProfile.genetics.catalogVersion);
 const manualC677T = dna.upsertGeneticsSnp(manualProfile, 'rs1801133', 'CC', {
   type: 'manual',
   label: 'Unilabs thrombophilia report',
@@ -329,6 +332,8 @@ assert('Manual SNP preserves existing SNP map instead of replacing genetics', Ob
 assert('Manual SNP keeps reported genotype', manualProfile.genetics.snps.rs1801133?.genotype === 'CC');
 assert('Manual SNP records normalized catalog genotype', manualProfile.genetics.snps.rs1801133?.normalizedGenotype === 'GG');
 assert('Manual SNP stores source metadata', manualProfile.genetics.snps.rs1801133?.source?.type === 'manual' && manualProfile.genetics.snps.rs1801133?.source?.label === 'Unilabs thrombophilia report');
+assert('Manual SNP keeps the raw import source label', manualProfile.genetics.source === 'AncestryDNA');
+assert('Manual SNP does not clear raw catalog staleness tracking', JSON.stringify(manualProfile.genetics.catalogVersion) === beforeManualCatalogVersion);
 assert('Manual SNP rejects unknown rsID', dna.upsertGeneticsSnp(manualProfile, 'rs999999999', 'AA', { type: 'manual' }).ok === false);
 assert('Manual SNP rejects malformed genotype', dna.upsertGeneticsSnp(manualProfile, 'rs1801133', 'C?', { type: 'manual' }).ok === false);
 const manualRows = dna.parseManualSnpRows('rs1801133', 'CC', 'rs1801131 AC Unilabs line\nrs429358;TT\nnot parseable');
@@ -366,7 +371,7 @@ assert('Full context includes APOE', fullCtx.includes('APOE: ε3/ε4'));
 assert('Full context labels MTHFR under Methylation category', fullCtx.includes('Methylation') && fullCtx.includes('MTHFR C677T'));
 assert('Full context includes MTHFR', fullCtx.includes('MTHFR C677T'));
 assert('Full context includes compact SNP inventory for lookup', fullCtx.includes('Imported SNP inventory for lookup'));
-assert('Full context includes normal SNPs only in compact inventory', fullCtx.includes('HFE C282Y rs1800562: GG (normal/no impact') && !fullCtx.includes('No hemochromatosis risk from C282Y'));
+assert('Full context includes reference SNPs only in compact inventory', fullCtx.includes('HFE C282Y rs1800562: GG (reference finding') && !fullCtx.includes('No hemochromatosis risk from C282Y'));
 assert('Full context includes APOE component SNPs only as lookup inventory', fullCtx.includes('APOE APOE-part1 rs429358') && fullCtx.includes('APOE component') && !fullCtx.includes('APOE part 1 — one ε4 allele possible'));
 
 // Filtered context — only SNPs relevant to specific markers
@@ -381,6 +386,14 @@ assert('Genetics context can exclude APOE and mtDNA summary while keeping priori
 const noPriorityCtx = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine'], { includePriorityFindings: false });
 assert('Genetics context can exclude priority SNPs while keeping APOE summary',
   noPriorityCtx.includes('APOE:') && !noPriorityCtx.includes('MTHFR C677T'));
+const markerGeneticsBefore = state.importedData.genetics;
+state.importedData.genetics = profileData.genetics;
+const homocysteineSnps = dna.getRelevantSNPs('coagulation.homocysteine');
+state.importedData.genetics = markerGeneticsBefore;
+assert('Marker-detail SNPs carry the same evidence and relevance profile',
+  homocysteineSnps.some(snp => snp.rsid === 'rs1801133' &&
+    snp.evidenceProfile?.evidenceShortLabel === 'Strong' &&
+    snp.evidenceProfile?.relevanceShortLabel === 'Health context'));
 const filteredCtxWithInventory = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine'], { includeSnpInventory: true });
 assert('Filtered context can opt into non-marker SNP lookup inventory', filteredCtxWithInventory.includes('FADS1') && !filteredCtxWithInventory.includes('Intermediate desaturase activity'));
 
@@ -438,16 +451,22 @@ const viewsSrc = await fetchWithRetry('js/views.js');
 const dashboardRenderersSrc = await fetchWithRetry('js/dashboard-widget-renderers.js');
 const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
 assert('dashboard widget renderers import SNP category labels', dashboardRenderersSrc.includes('getSnpCategoryLabel'));
+assert('dashboard genome keeps mtDNA interpretation behind the lazy health-data facade',
+  dashboardRenderersSrc.includes('detectMtDNAMismatch') && !dashboardRenderersSrc.includes("from './dna-mtdna.js'"));
 assert('dashboard genome widget waits for SNP catalog before rows', dashboardRenderersSrc.includes('Loading SNP interpretations'));
-assert('dashboard genome widget refreshes itself after catalog load', dashboardRenderersSrc.includes('refreshDashboardGenomeWidgetWhenSNPTableReady') && dashboardRenderersSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
+assert('dashboard genome widget refreshes itself after catalog load', dashboardRenderersSrc.includes('refreshDashboardGenomeWidgetWhenDataReady') && dashboardRenderersSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
 assert('dashboard genome widget no longer gates refresh on currentView', !dashboardRenderersSrc.includes("state.currentView === 'dashboard' && window.navigate"));
 assert('dashboard genome rows include category label', dashboardRenderersSrc.includes('categoryLabel'));
-assert('dashboard genome only shows priority SNP tiers up front', dashboardRenderersSrc.includes('DASHBOARD_VISIBLE_SNP_TONES') && dashboardRenderersSrc.includes("['significant', 'moderate', 'mild', 'beneficial']"));
+assert('dashboard genome shows risk, protective, and informational traits up front', dashboardRenderersSrc.includes('DASHBOARD_VISIBLE_SNP_TONES') && dashboardRenderersSrc.includes("['risk', 'protective', 'trait']"));
+assert('dashboard genome keeps evidence and relevance in quiet disclosure metadata',
+  dashboardRenderersSrc.includes('function dashboardSnpAssessmentText(profile)') &&
+  dashboardRenderersSrc.includes('Evidence &amp; interpretation <small>${escapeHTML(dashboardSnpAssessmentText(profile))}</small>') &&
+  !dashboardRenderersSrc.includes('db-snp-axes'));
 assert('dashboard genome groups priority SNPs by category', dashboardRenderersSrc.includes('groupDashboardGenomeFindings') && dashboardRenderersSrc.includes('db-genome-category'));
 assert('dashboard genome collapses low-priority SNP calls', dashboardRenderersSrc.includes('db-genome-secondary') && dashboardRenderersSrc.includes('Other imported SNPs'));
 assert('dashboard genome collapsed SNPs reuse category groups', dashboardRenderersSrc.includes('secondaryGroups.map(group => renderDashboardGenomeGroup'));
 assert('Genome lens avoids duplicated full genetics surfaces',
-  lensPagesSrc.includes('Actionable Genetic Modifiers') &&
+  lensPagesSrc.includes('Genetic Findings & Traits') &&
   lensPagesSrc.includes('renderGenomeImportDetailsWidget') &&
   lensPagesSrc.includes("id: 'genome-import', title: 'Import Details'") &&
   lensPagesSrc.includes("renderLensPageWidgets('genome'") &&
@@ -475,12 +494,12 @@ const stylesSrc = [
   await fetchWithRetry('css/genetics.css'),
 ].join('\n');
 const genomeCategoryCss = (stylesSrc.match(/\.db-genome-category\s*\{([^}]*)\}/) || [null, ''])[1];
-assert('dashboard genome category groups avoid duplicate severity border',
+assert('dashboard genome category groups avoid duplicate direction border',
   genomeCategoryCss &&
   !genomeCategoryCss.includes('border-left') &&
   genomeCategoryCss.includes('color-mix(in srgb, var(--bg-secondary)'));
-assert('dashboard genome SNP rows keep severity left border',
-  stylesSrc.includes('.db-snp-significant') && stylesSrc.includes('border-left-color: var(--db-snp-tone)'));
+assert('dashboard genome SNP rows keep direction left border',
+  stylesSrc.includes('.db-snp-risk') && stylesSrc.includes('.db-snp-protective') && stylesSrc.includes('border-left-color: var(--db-snp-tone)'));
 assert('Lens page headers space CTA controls away from header copy',
   stylesSrc.includes('.lens-page-header .dashboard-widget-inline-controls') &&
   stylesSrc.includes('margin-top: 14px') &&
@@ -542,7 +561,13 @@ assert('manual/report SNP imports stage changes in a draft and restore memory on
   dnaSrc.includes('state.importedData = originalData'));
 assert('manual/report SNP imports merge through upsert instead of replacing genetics',
   dnaSrc.includes('result.mergeSnps') && dnaSrc.includes('upsertGeneticsSnp(draftData'));
-assert('DNA import preview separates beneficial findings', dnaUiSrc.includes('Beneficial findings') && dnaUiSrc.includes("impact: match.valence === 'protective' ? 'beneficial' : match.effect"));
+assert('DNA import preview separates association direction and evidence axes',
+  dnaUiSrc.includes('Protective associations') &&
+  dnaUiSrc.includes('Risk associations') &&
+  dnaUiSrc.includes('Informational traits') &&
+  dnaUiSrc.includes('renderPreviewAssessment') &&
+  dnaUiSrc.includes('Evidence · ${escapeHTML(profile.evidenceShortLabel)}') &&
+  dnaUiSrc.includes('Relevance · ${escapeHTML(profile.relevanceShortLabel)}'));
 assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nudge',
   dnaUiSrc.includes("from './modal-lifecycle.js'") &&
     dnaUiSrc.includes('nudgeDnaModal') &&
@@ -619,6 +644,8 @@ assert('J coupling is uncoupled', hapData.haplogroups.J.coupling === 'uncoupled'
 assert('H has isReference flag', hapData.haplogroups.H.isReference === true);
 assert('All haplogroups have valid coupling keys', Object.values(hapData.haplogroups).every(h => hapData.couplingLevels[h.coupling]));
 assert('References include Wallace 2015', hapData._meta.references.some(r => r.pmid === 26406369));
+assert('mtDNA evidence records supportive, mixed, and null results', ['supportive', 'mixed', 'null'].every(direction => hapData._meta.references.some(r => r.direction === direction)));
+assert('mtDNA evidence entries expose model and limitations', hapData._meta.references.every(r => r.pmid && r.summary && r.model && r.limitations));
 
 // ═══════════════════════════════════════
 // 16. mtDNA Storage and Context
