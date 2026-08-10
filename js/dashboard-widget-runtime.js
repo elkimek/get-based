@@ -2,7 +2,7 @@
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
-import { buildSnpAIInterpretationPrompt } from './dna-evidence.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { state } from './state.js';
 import {
@@ -151,7 +151,7 @@ export function askDashboardAIAboutSnp(rsid) {
   if (!/^rs\d+$/.test(normalizedRsid)) return false;
   const stored = state.importedData?.genetics?.snps?.[normalizedRsid];
   const entry = getDashboardSnpTableCache()?.[normalizedRsid];
-  const prompt = buildSnpAIInterpretationPrompt(normalizedRsid, stored, entry);
+  const prompt = getDnaModuleFunction('buildSnpAIInterpretationPrompt')?.(normalizedRsid, stored, entry) || '';
   const openChatPanel = dashboardWidgetRuntimeDeps.openChatPanel;
   if (!prompt || !openChatPanel) return false;
   void Promise.resolve(openChatPanel(prompt)).catch(() => {});

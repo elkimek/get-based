@@ -13,16 +13,8 @@ import {
 import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { createDashboardLabWidgetRenderers } from './dashboard-lab-widget-renderers.js';
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
-import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './health-data-loader.js';
-import {
-  dnaStudyReferenceLabel,
-  mtdnaEvidenceIssueUrl,
-  newSnpSuggestionIssueUrl,
-  resolveSnpEvidenceProfile,
-  snpEvidenceIssueUrl,
-  snpFindingPresentation,
-  snpFindingRank,
-} from './dna-evidence.js';
+import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel, loadDnaModule } from './health-data-loader.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
 import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
 
@@ -38,6 +30,7 @@ function dashboardMarkerDetailAttrs(id) {
 
 export function createDashboardWidgetRenderers(deps) {
   let _dashboardGenomeDataLoadPromise = null;
+  let _dashboardGenomeEvidence = null;
   let _lightSunModulesLoadPromise = null;
 
   const {
@@ -313,17 +306,32 @@ export function createDashboardWidgetRenderers(deps) {
     return `${toolbar}<div class="db-wearable-grid db-biometric-overview-grid">${tiles.map(renderDashboardBiometricTile).join('')}</div>`;
   }
 
+  function getDashboardGenomeEvidence() {
+    const helpers = {
+      dnaStudyReferenceLabel: getDnaModuleFunction('dnaStudyReferenceLabel'),
+      mtdnaEvidenceIssueUrl: getDnaModuleFunction('mtdnaEvidenceIssueUrl'),
+      newSnpSuggestionIssueUrl: getDnaModuleFunction('newSnpSuggestionIssueUrl'),
+      resolveSnpEvidenceProfile: getDnaModuleFunction('resolveSnpEvidenceProfile'),
+      snpEvidenceIssueUrl: getDnaModuleFunction('snpEvidenceIssueUrl'),
+      snpFindingPresentation: getDnaModuleFunction('snpFindingPresentation'),
+      snpFindingRank: getDnaModuleFunction('snpFindingRank'),
+    };
+    return Object.values(helpers).every(helper => typeof helper === 'function') ? helpers : null;
+  }
+
   function getDashboardGenomeImpact(stored, entry) {
+    const evidence = _dashboardGenomeEvidence;
+    if (!evidence) return { label: 'pending', tone: 'pending', rank: 999, note: stored?.note || '', evidenceProfile: null };
     const info = entry ? findGenotypeInfo(entry, stored?.genotype) : null;
     const effect = info?.effect || stored?.effect || '';
     const valence = info?.valence || stored?.valence || 'risk';
     const note = info?.note || stored?.note || '';
-    const presentation = snpFindingPresentation(effect, valence);
-    const evidenceProfile = resolveSnpEvidenceProfile(entry || stored, info || stored);
+    const presentation = evidence.snpFindingPresentation(effect, valence);
+    const evidenceProfile = evidence.resolveSnpEvidenceProfile(entry || stored, info || stored);
     return {
       label: presentation.shortLabel,
       tone: presentation.tone,
-      rank: snpFindingRank(evidenceProfile, presentation),
+      rank: evidence.snpFindingRank(evidenceProfile, presentation),
       note,
       presentation,
       evidenceProfile,
@@ -340,11 +348,13 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function renderDashboardSnpEvidence(f) {
+    const evidence = _dashboardGenomeEvidence;
+    if (!evidence) return '';
     const references = Array.isArray(f.references)
       ? f.references.filter(reference => /^https?:\/\//i.test(String(reference || '')))
       : [];
-    const issueUrl = snpEvidenceIssueUrl(f.rsid, f.catalogEntry || {});
-    const profile = f.evidenceProfile || resolveSnpEvidenceProfile(f.catalogEntry || {}, f);
+    const issueUrl = evidence.snpEvidenceIssueUrl(f.rsid, f.catalogEntry || {});
+    const profile = f.evidenceProfile || evidence.resolveSnpEvidenceProfile(f.catalogEntry || {}, f);
     return `<details class="db-snp-evidence" data-snp-evidence="${escapeAttr(f.rsid)}">
       <summary>Evidence &amp; interpretation <small>${escapeHTML(dashboardSnpAssessmentText(profile))}</small></summary>
       <div class="db-snp-evidence-body">
@@ -354,7 +364,7 @@ export function createDashboardWidgetRenderers(deps) {
         </div>` : ''}
         <div class="db-snp-evidence-footer">
           ${references.length
-            ? `<span class="db-snp-evidence-source-label">Sources:</span>${references.map(reference => `<a href="${escapeAttr(String(reference))}" target="_blank" rel="noopener" class="db-snp-evidence-source">${escapeHTML(dnaStudyReferenceLabel(String(reference)).replace(/^PubMed(?: Central)? · /, ''))}</a>`).join('<span aria-hidden="true">·</span>')}`
+            ? `<span class="db-snp-evidence-source-label">Sources:</span>${references.map(reference => `<a href="${escapeAttr(String(reference))}" target="_blank" rel="noopener" class="db-snp-evidence-source">${escapeHTML(evidence.dnaStudyReferenceLabel(String(reference)).replace(/^PubMed(?: Central)? · /, ''))}</a>`).join('<span aria-hidden="true">·</span>')}`
             : '<span>No catalog source linked yet</span>'}
           <span aria-hidden="true">·</span>
           <button type="button" class="db-snp-text-action db-snp-ai-action" ${dashboardWidgetActionAttrs('ask-genome-snp', { rsid: f.rsid })}>Ask AI</button>
@@ -400,6 +410,7 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function renderDashboardMtdnaPanel(mtdna, haplogroupTable, genetics) {
+    const evidence = _dashboardGenomeEvidence;
     const mismatch = detectMtDNAMismatch(genetics);
     const studies = Array.isArray(haplogroupTable?._meta?.references) ? haplogroupTable._meta.references : [];
     const facts = [
@@ -427,16 +438,18 @@ export function createDashboardWidgetRenderers(deps) {
         <div class="db-mtdna-evidence-body">
           ${haplogroupTable?._meta?.caveat ? `<p class="db-mtdna-caveat">${escapeHTML(haplogroupTable._meta.caveat)}</p>` : ''}
           <div class="db-mtdna-study-grid">${studies.map(renderDashboardMtdnaEvidenceStudy).join('')}</div>
-          <a href="${escapeAttr(mtdnaEvidenceIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest an mtDNA study or correction</a>
+          ${evidence ? `<a href="${escapeAttr(evidence.mtdnaEvidenceIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest an mtDNA study or correction</a>` : ''}
         </div>
       </details>` : ''}
     </section>`;
   }
 
   function renderDashboardGenomeContribution() {
+    const evidence = _dashboardGenomeEvidence;
+    if (!evidence) return '';
     return `<div class="db-genome-contribute">
       <span><strong>Improve the public catalog</strong> Suggest a well-supported SNP or correct an annotation. The link does not include your genotype or imported data.</span>
-      <a href="${escapeAttr(newSnpSuggestionIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest a SNP</a>
+      <a href="${escapeAttr(evidence.newSnpSuggestionIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest a SNP</a>
     </div>`;
   }
 
@@ -482,14 +495,16 @@ export function createDashboardWidgetRenderers(deps) {
     </div>`;
   }
 
-  function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false } = {}) {
+  function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false, needsEvidence = false } = {}) {
     if (_dashboardGenomeDataLoadPromise) return;
     _dashboardGenomeDataLoadPromise = Promise.all([
       needsSnps ? ensureSNPTable() : Promise.resolve(null),
       needsMtdna ? ensureHaplogroupTable() : Promise.resolve(null),
+      needsEvidence ? loadDnaModule() : Promise.resolve(null),
     ])
       .then(() => {
         _dashboardGenomeDataLoadPromise = null;
+        _dashboardGenomeEvidence = getDashboardGenomeEvidence();
         const body = document.querySelector?.('.dashboard-widget[data-widget-id="genome"] .dashboard-widget-body');
         if (body) body.innerHTML = renderDashboardGenomeWidget();
       })
@@ -503,12 +518,13 @@ export function createDashboardWidgetRenderers(deps) {
     const snpTable = getDashboardSnpTableCache();
     const haplogroupTable = getDashboardHaplogroupTableCache();
     const snpCount = Object.keys(snps).length;
-    const apoeProfile = resolveSnpEvidenceProfile(snpTable?.rs429358 || snpTable?.rs7412 || {});
+    _dashboardGenomeEvidence ||= getDashboardGenomeEvidence();
     const needsSnps = !!snpCount && !snpTable;
     const needsMtdna = !!genetics?.mtdna && !haplogroupTable;
-    if (needsMtdna) refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna });
-    if (needsSnps) {
-      refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna });
+    const needsEvidence = !_dashboardGenomeEvidence;
+    if (needsMtdna) refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna, needsEvidence });
+    if (needsSnps || needsEvidence) {
+      refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna, needsEvidence });
       return `<div class="db-genome-list">
         <div class="db-genome-summary">${snpCount} imported SNP${snpCount === 1 ? '' : 's'}</div>
         <div class="db-genome-empty db-genome-loading" aria-live="polite">
@@ -517,6 +533,7 @@ export function createDashboardWidgetRenderers(deps) {
         </div>
       </div>`;
     }
+    const apoeProfile = _dashboardGenomeEvidence.resolveSnpEvidenceProfile(snpTable?.rs429358 || snpTable?.rs7412 || {});
     const findings = Object.entries(snps)
       .map(([rsid, stored]) => {
         const entry = snpTable?.[rsid];

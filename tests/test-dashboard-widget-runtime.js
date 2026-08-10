@@ -22,6 +22,7 @@ import {
   triggerDashboardDnaPicker,
 } from '../js/dashboard-widget-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
@@ -44,6 +45,9 @@ const savedImportedData = state.importedData;
 let previousWearablesModule = null;
 let previousSettingsModule = null;
 const originalDashboardWidgetRuntimeDeps = configureDashboardWidgetRuntimeDeps();
+const previousDnaBridge = configureDnaModuleBridge({
+  buildSnpAIInterpretationPrompt: (rsid, stored) => `Help me interpret my ${stored?.gene} ${stored?.variant} (${rsid}) result using broader relevant knowledge beyond this catalog.`,
+});
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -191,6 +195,7 @@ try {
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   configureDashboardWidgetRuntimeDeps(originalDashboardWidgetRuntimeDeps);
+  configureDnaModuleBridge({ buildSnpAIInterpretationPrompt: null, ...previousDnaBridge });
   configureSettingsModuleBridge({
     openSettingsModal: null,
     ...previousSettingsModule,

@@ -507,6 +507,7 @@ for (const name of [
 configureDnaModuleBridge({
   ...lazyDnaActions,
   buildGeneticsContext: (...args) => callLoadedDnaModule('buildGeneticsContext', args, ''),
+  buildSnpAIInterpretationPrompt: (...args) => callLoadedDnaModule('buildSnpAIInterpretationPrompt', args, ''),
   getRelevantSNPs: (...args) => callLoadedDnaModule('getRelevantSNPs', args, []),
   parseClinicalSnpReportText: (...args) => callLoadedDnaModule(
     'parseClinicalSnpReportText',

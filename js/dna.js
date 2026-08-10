@@ -47,7 +47,16 @@ import {
   resolveHaplogroup,
   setManualHaplogroup,
 } from './dna-mtdna.js';
-import { buildSnpAIInterpretationPrompt, resolveSnpEvidenceProfile, snpFindingPresentation, snpFindingRank } from './dna-evidence.js';
+import {
+  buildSnpAIInterpretationPrompt,
+  dnaStudyReferenceLabel,
+  mtdnaEvidenceIssueUrl,
+  newSnpSuggestionIssueUrl,
+  resolveSnpEvidenceProfile,
+  snpEvidenceIssueUrl,
+  snpFindingPresentation,
+  snpFindingRank,
+} from './dna-evidence.js';
 export { detectDNAFile, isDNAFile, isDNAFileByContent };
 export {
   closeDNAImportPreview,
@@ -739,7 +748,9 @@ configureDnaUi({
 initDnaActionDelegates({ askAIAboutSnp, triggerDNAFilePicker: triggerDnaFilePicker, closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
 
 configureDnaModuleBridge({
-  buildGeneticsContext, getRelevantSNPs,
+  buildGeneticsContext, buildSnpAIInterpretationPrompt, getRelevantSNPs,
+  dnaStudyReferenceLabel, mtdnaEvidenceIssueUrl, newSnpSuggestionIssueUrl,
+  resolveSnpEvidenceProfile, snpEvidenceIssueUrl, snpFindingPresentation, snpFindingRank,
   isDNAFile, isDNAFileByContent, detectDNAFile, parseClinicalSnpReportText, parseManualSnpRows, upsertGeneticsSnp, handleDNAFile, handleSnpReportFile,
   importSnpReport, openManualSnpModal, saveManualSnpFromModal, closeDNAImportPreview, confirmDNAImport, confirmDeleteDNA, deleteGeneticsData,
   getSnpCategoryLabel, SNP_CATEGORY_LABELS, toggleGeneticsCollapse, toggleGeneticsExpand, reimportDNA,
