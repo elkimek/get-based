@@ -626,25 +626,33 @@ export async function confirmDNAImport() {
   clearPendingDnaImport();
   _dnaImportRunning = false;
   closeModalOverlay('dna-modal-overlay');
-  showNotification(`Imported ${result.coverage.found} SNPs from ${result.source}`, 'success');
 
-  // Build summary for chat confirmation
-  const apoe = state.importedData.genetics?.apoe;
+  // Build the confirmation from the authoritative saved genome. Raw calls
+  // that lost to explicit manual/report overrides must not leak into the
+  // summary and contradict the dashboard or recommendations.
+  const genetics = state.importedData.genetics;
+  const savedSnps = genetics?.snps || {};
+  const savedSnpEntries = Object.entries(savedSnps);
+  const savedSnpCount = savedSnpEntries.length;
+  showNotification(`Genome updated from ${result.source}: ${savedSnpCount} SNP calls available`, 'success');
+
+  const apoe = genetics?.apoe;
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
-  let sigCount = 0, modCount = 0, mildCount = 0, normCount = 0;
-  for (const [rsid, m] of Object.entries(result.matches)) {
+  /** @type {Record<string, number>} */
+  const findingCounts = { risk: 0, protective: 0, trait: 0, neutral: 0, reference: 0, unclassified: 0 };
+  for (const [rsid, snp] of savedSnpEntries) {
     if (apoeRsids.has(rsid)) continue;
-    if (m.effect === 'significant') sigCount++;
-    else if (m.effect === 'moderate') modCount++;
-    else if (m.effect === 'mild') mildCount++;
-    else if (m.effect === 'none') normCount++;
+    const tone = snpFindingPresentation(snp.effect, snp.valence).tone;
+    findingCounts[tone] = (findingCounts[tone] || 0) + 1;
   }
   const parts = [];
   if (apoe) parts.push(`APOE: <strong>${escapeHTML(apoe)}</strong>`);
-  if (sigCount > 0) parts.push(`\uD83D\uDD34 ${sigCount} significant`);
-  if (modCount > 0) parts.push(`\uD83D\uDFE1 ${modCount} moderate`);
-  if (mildCount > 0) parts.push(`\uD83D\uDFE0 ${mildCount} mild`);
-  if (normCount > 0) parts.push(`\uD83D\uDFE2 ${normCount} normal`);
+  if (findingCounts.risk > 0) parts.push(`\uD83D\uDD34 ${findingCounts.risk} risk association${findingCounts.risk === 1 ? '' : 's'}`);
+  if (findingCounts.protective > 0) parts.push(`\uD83D\uDFE2 ${findingCounts.protective} protective association${findingCounts.protective === 1 ? '' : 's'}`);
+  if (findingCounts.trait > 0) parts.push(`\uD83D\uDD35 ${findingCounts.trait} informational trait${findingCounts.trait === 1 ? '' : 's'}`);
+  const referenceCount = findingCounts.neutral + findingCounts.reference;
+  if (referenceCount > 0) parts.push(`\u26AA ${referenceCount} reference / neutral finding${referenceCount === 1 ? '' : 's'}`);
+  if (findingCounts.unclassified > 0) parts.push(`\u2753 ${findingCounts.unclassified} unclassified finding${findingCounts.unclassified === 1 ? '' : 's'}`);
 
   // Update chat onboarding — replace DNA upload with confirmation
   const dnaEl = /** @type {HTMLElement | null} */ (document.querySelector('.chat-onboard-dna'));
@@ -652,7 +660,7 @@ export async function confirmDNAImport() {
     dnaEl.style.borderTop = '1px solid var(--border)';
     dnaEl.style.paddingTop = '12px';
     dnaEl.style.marginTop = '12px';
-    dnaEl.innerHTML = `<p style="margin:0 0 6px">\uD83E\uDDEC <strong>${result.coverage.found} SNPs imported</strong> from ${escapeHTML(result.source)}</p>
+    dnaEl.innerHTML = `<p style="margin:0 0 6px">\uD83E\uDDEC <strong>${savedSnpCount} SNP call${savedSnpCount === 1 ? '' : 's'} available</strong> after importing ${escapeHTML(result.source)}</p>
       <div style="font-size:13px;line-height:1.8">${parts.join(' &nbsp;\u00B7&nbsp; ')}</div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:6px">I'll factor these into all your lab interpretations.</div>`;
   } else {

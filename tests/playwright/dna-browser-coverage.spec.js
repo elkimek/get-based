@@ -248,14 +248,28 @@ rs999999\t1\t100\tAG
     await wait();
     check('close preview clears pending import', window._pendingDNAImport == null && !overlay?.classList.contains('show'));
 
+    const manualOverride = dna.upsertGeneticsSnp(state.importedData, 'rs1801133', 'CC', {
+      type: 'manual',
+      label: 'Clinical manual override',
+    });
     await dna.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
     const importConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
     overlay?.querySelector('[data-dna-action="confirm-import"]')?.click();
     const importFinished = importConfirmReady && await waitFor(() => !overlay?.classList.contains('show') && calls.includes('navigate:dashboard'));
-    check('confirmDNAImport stores genetics', state.importedData.genetics?.snps?.rs1801133?.genotype === 'GA');
+    check('confirmDNAImport preserves an overlapping manual genotype',
+      manualOverride.ok === true &&
+      state.importedData.genetics?.snps?.rs1801133?.genotype === 'CC' &&
+      state.importedData.genetics?.snps?.rs1801133?.source?.type === 'manual');
     check('confirmDNAImport closes preview and refreshes', importFinished && calls.includes('sidebar'));
-    check('chat onboarding confirmation updated', document.querySelector('.chat-onboard-dna')?.textContent.includes('SNPs imported'));
+    const importConfirmation = document.querySelector('.chat-onboard-dna')?.textContent || '';
+    check('chat onboarding confirmation uses authoritative saved findings',
+      importConfirmation.includes('7 SNP calls available') &&
+      importConfirmation.includes('1 risk association') &&
+      importConfirmation.includes('2 informational traits') &&
+      importConfirmation.includes('2 reference / neutral findings') &&
+      !importConfirmation.includes('2 risk associations'),
+      importConfirmation);
 
     const html = dna.renderGeneticsSection();
     document.getElementById('fixture').innerHTML = html;
