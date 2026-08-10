@@ -36,6 +36,13 @@ function reconcileLocalStorageWithEvolu() {
 /** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
+// Keep Evolu as a runtime-loaded vendor module. If the production bundler
+// absorbs it into a /js/bundle-*.js chunk, Evolu's import.meta-relative
+// Db.worker.js URL moves with the chunk and incorrectly becomes
+// /js/Db.worker.js. The worker and its SQLite assets intentionally live
+// together under /vendor/evolu in both source and production deployments.
+const EVOLU_BUNDLE_URL = new URL('../vendor/evolu/evolu-bundle.js', import.meta.url).href;
+
 export async function initSync() {
   primeSyncState();
   if (!isSyncConfigured()) return;
@@ -69,7 +76,7 @@ export async function initSync() {
 
   try {
     const { createEvolu, id, nullOr, SimpleName, NonEmptyString, evoluWebDeps } =
-      await import('../vendor/evolu/evolu-bundle.js');
+      await import(EVOLU_BUNDLE_URL);
 
     const Schema = createSyncSchema({ id, nullOr, NonEmptyString });
 

@@ -91,6 +91,19 @@ describe('production startup build', () => {
     );
   });
 
+  it('keeps Evolu beside its database worker in production', async () => {
+    const generatedFiles = (await fs.readdir(path.join(outputRoot, 'js')))
+      .filter(fileName => /^bundle-.*\.js$/.test(fileName));
+    const generatedSource = (await Promise.all(generatedFiles.map(fileName =>
+      fs.readFile(path.join(outputRoot, 'js', fileName), 'utf8')))).join('\n');
+    const serviceWorker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
+
+    expect(generatedSource).toContain('../vendor/evolu/evolu-bundle.js');
+    expect(generatedSource).not.toContain('Db.worker.js');
+    expect(serviceWorker).toContain("'/vendor/evolu/evolu-bundle.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu/Db.worker.js',");
+  });
+
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {
     const fonts = await fs.readFile('vendor/fonts/fonts.css', 'utf8');
     expect(fonts).toMatch(
