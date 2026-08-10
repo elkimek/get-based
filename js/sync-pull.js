@@ -18,9 +18,10 @@ import { clearRestoreJoinPending, isRestoreJoinPending } from './sync-identity.j
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
-import { state } from './state.js';
-import { getSyncDirtyToken } from './sync-dirty-state.js';
 import { isLocalSyncCommitEcho } from './sync-origin-state.js';
+import {
+  clearBackupRestorePending, getPendingBackupRestoreProfileIds,
+} from './sync-backup-restore-state.js';
 
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
@@ -28,8 +29,13 @@ import { isLocalSyncCommitEcho } from './sync-origin-state.js';
 var _getEvolu = _getEvolu || (() => null);
 var _getProfileQuery = _getProfileQuery || (() => null);
 var _isSyncPushInFlight = _isSyncPushInFlight || (() => false);
+var _isSyncEnabled = _isSyncEnabled || (() => true);
 /** @type {(...args: any[]) => Promise<any>} */
 var _pushProfile = _pushProfile || (async () => {});
+/** @type {(...args: any[]) => Promise<any>} */
+var _pushDirtyProfiles = _pushDirtyProfiles || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
+/** @type {(...args: any[]) => Promise<any>} */
+var _pushProfilesById = _pushProfilesById || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
 var _renderProfileButton = _renderProfileButton || (() => {});
 /** @type {(...args: any[]) => any} */
 var _debug = _debug || (() => {});
@@ -94,7 +100,10 @@ export function combinePulledAISettings(selection) {
  *   getEvolu?: () => any,
  *   getProfileQuery?: () => any,
  *   isSyncPushInFlight?: () => boolean,
+ *   isSyncEnabled?: () => boolean,
  *   pushProfile?: (...args: any[]) => Promise<any>,
+ *   pushDirtyProfiles?: (...args: any[]) => Promise<any>,
+ *   pushProfilesById?: (...args: any[]) => Promise<any>,
  *   renderProfileButton?: () => void,
  *   debug?: (...args: any[]) => any,
  * }} [deps]
@@ -103,14 +112,20 @@ export function configureSyncPull({
   getEvolu,
   getProfileQuery,
   isSyncPushInFlight,
+  isSyncEnabled,
   pushProfile,
+  pushDirtyProfiles,
+  pushProfilesById,
   renderProfileButton,
   debug,
 } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof isSyncPushInFlight === 'function') _isSyncPushInFlight = isSyncPushInFlight;
+  if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
+  if (typeof pushDirtyProfiles === 'function') _pushDirtyProfiles = pushDirtyProfiles;
+  if (typeof pushProfilesById === 'function') _pushProfilesById = pushProfilesById;
   if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;
   if (typeof debug === 'function') _debug = debug;
 }
@@ -169,6 +184,10 @@ function scheduleChatPullRetry(profileId, delayMs) {
 }
 
 export async function onSyncReceived() {
+  if (!_isSyncEnabled()) {
+    dbg('onSyncReceived skipped: sync paused or off');
+    return;
+  }
   const evolu = currentEvolu();
   const profileQuery = currentProfileQuery();
   if (!evolu || !profileQuery || _pulling) {
@@ -179,6 +198,29 @@ export async function onSyncReceived() {
   clearStaleSyncHashKeysOnce(dbg);
   updateSyncStatus({ pull: 'pulling' });
   try {
+    // Backup restore is an explicit local recovery action. Republish every
+    // restored profile before processing any relay tombstones; otherwise a
+    // Join Existing pull can make the recovered data flash briefly and then
+    // disappear. The durable pending list survives the identity-switch reload.
+    const restoredProfileIds = getPendingBackupRestoreProfileIds();
+    if (restoredProfileIds.length > 0) {
+      dbg(`Restore preflight: republishing ${restoredProfileIds.length} restored profile(s)`);
+      const restored = await _pushProfilesById(restoredProfileIds, { force: true });
+      if (restored.failed > 0 || restored.skipped > 0 || restored.succeeded !== restoredProfileIds.length) {
+        logSyncEvent('skip', `Pull deferred — ${restored.succeeded}/${restoredProfileIds.length} restored profiles were republished`);
+        return;
+      }
+      clearBackupRestorePending();
+    }
+
+    // Paused devices keep dirty markers while offline. Flush every affected
+    // profile, including inactive ones, before remote state can be applied.
+    const dirty = await _pushDirtyProfiles({ force: true });
+    if (dirty.failed > 0 || dirty.skipped > 0) {
+      logSyncEvent('skip', 'Pull deferred — local changes are not committed yet');
+      return;
+    }
+
     // Apply remote tombstones FIRST - when another device deleted a profile,
     // wipe our local copy before processing live rows. Skipping this leaves
     // orphan profiles in the local list that the active query no longer
@@ -188,21 +230,6 @@ export async function onSyncReceived() {
     let rawRows = evolu.getQueryRows(profileQuery);
     dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
     if (!rawRows || rawRows.length === 0) return;
-
-    // Startup/query subscriptions can fire before the normal save debounce.
-    // If this active profile has durable local edits, commit them into Evolu
-    // before reading the query row; otherwise the stale row can erase scalar
-    // edits that the structural array merge cannot infer as locally newer.
-    const dirtyProfileId = state.currentProfile;
-    if (dirtyProfileId && getSyncDirtyToken(dirtyProfileId)) {
-      dbg(`Pull preflight: flushing dirty local profile ${dirtyProfileId.slice(0, 8)}`);
-      const flushed = await _pushProfile(dirtyProfileId, state.importedData);
-      if (!flushed?.ok) {
-        logSyncEvent('skip', `Pull deferred — local changes for ${dirtyProfileId.slice(0, 8)} are not committed yet`);
-        return;
-      }
-      rawRows = evolu.getQueryRows(profileQuery);
-    }
 
     const rows = await prepareSyncPullRows(rawRows);
     // A restored device is joining an existing owner, so the relay's provider

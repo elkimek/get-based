@@ -73,8 +73,8 @@ async function openStartupOrchestratorPage(page) {
   await page.route('**/js/sync.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
-      export function configureSyncLifecycleDeps({ enableSync, disableSync }) {
-        window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync]);
+      export function configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync }) {
+        window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync, typeof pauseSync]);
       }
     `,
   }));
@@ -91,6 +91,7 @@ async function openStartupOrchestratorPage(page) {
     body: `
       export async function enableSync() {}
       export async function disableSync() {}
+      export async function pauseSync() {}
     `,
   }));
   await page.goto('/startup-orchestrator-browser-coverage', { waitUntil: 'load' });

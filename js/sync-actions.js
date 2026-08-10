@@ -123,7 +123,11 @@ export async function syncNow() {
 // Push all profiles on first enable.
 /** @param {any} [options] */
 export async function pushAllProfiles(options = {}) {
-  const profiles = _getProfiles();
+  return pushSelectedProfiles(_getProfiles(), options);
+}
+
+/** @param {any[]} profiles @param {any} [options] */
+async function pushSelectedProfiles(profiles, options = {}) {
   const summary = { total: profiles.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const p of profiles) {
     try {
@@ -146,6 +150,39 @@ export async function pushAllProfiles(options = {}) {
     }
   }
   return summary;
+}
+
+/**
+ * Publish only the requested local profiles. A missing profile is reported as
+ * skipped so restore preflight can fail closed instead of accepting relay
+ * tombstones over a profile it could not read.
+ *
+ * @param {string[]} profileIds
+ * @param {any} [options]
+ */
+export async function pushProfilesById(profileIds, options = {}) {
+  const requested = [...new Set(
+    (Array.isArray(profileIds) ? profileIds : [])
+      .filter(profileId => typeof profileId === 'string' && /^[a-zA-Z0-9_-]+$/.test(profileId)),
+  )];
+  const byId = new Map(_getProfiles().map(profile => [profile?.id, profile]));
+  const available = [];
+  let missing = 0;
+  for (const profileId of requested) {
+    const profile = byId.get(profileId);
+    if (profile) available.push(profile);
+    else missing++;
+  }
+  const summary = await pushSelectedProfiles(available, options);
+  summary.total = requested.length;
+  summary.skipped += missing;
+  return summary;
+}
+
+/** @param {any} [options] */
+export async function pushDirtyProfiles(options = {}) {
+  const dirtyProfiles = _getProfiles().filter(profile => getSyncDirtyToken(profile?.id));
+  return pushSelectedProfiles(dirtyProfiles, options);
 }
 
 /** @param {any[]} profiles */

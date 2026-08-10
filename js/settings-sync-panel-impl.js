@@ -4,9 +4,12 @@
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
+  isSyncConfigured,
   isSyncEnabled,
+  isSyncPaused,
   enableSync,
   disableSync,
+  pauseSync,
   getMnemonic,
   getMnemonicResolutionError,
   getSyncIdentityFingerprint,
@@ -159,8 +162,12 @@ async function handleSettingsSyncClick(event) {
   } else if (action === 'setup-restore-direct') {
     showSyncSetupModal();
     syncSetupRestore();
-  } else if (action === 'disable-sync') {
+  } else if (action === 'pause-sync') {
     void toggleSync(false);
+  } else if (action === 'resume-sync') {
+    void toggleSync(true);
+  } else if (action === 'disconnect-sync' || action === 'disable-sync') {
+    void disconnectSync();
   } else if (action === 'setup-new') {
     void syncSetupNew();
   } else if (action === 'setup-restore') {
@@ -261,9 +268,12 @@ function renderPendingTombstones() {
 
 export function renderSyncSection() {
   const enabled = isSyncEnabled();
+  const configured = isSyncConfigured();
+  const paused = isSyncPaused();
   const relay = getSyncRelay();
   const blocker = getSyncBlocker();
-  const enableDisabled = blocker && !enabled ? 'disabled' : '';
+  const enableDisabled = blocker && !configured ? 'disabled' : '';
+  const toggleDisabled = blocker && !enabled ? 'disabled' : '';
   // Banner appears in place of the toggle when the browser is missing a
   // primitive Evolu needs (Web Locks, StorageManager, OPFS, or WebCrypto).
   // Lets the user see "this is broken and here's why" instead of clicking
@@ -282,9 +292,9 @@ export function renderSyncSection() {
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">E2E encrypted via Evolu CRDT</div>
       </div>
       <div class="sync-settings-state">
-        <span class="sync-settings-badge ${enabled ? 'is-enabled' : ''}">${enabled ? 'Enabled' : 'Off'}</span>
+        <span class="sync-settings-badge ${enabled ? 'is-enabled' : paused ? 'is-paused' : ''}">${enabled ? 'Enabled' : paused ? 'Paused' : 'Off'}</span>
         <label class="chat-websearch-toggle-label sync-settings-toggle" aria-label="Toggle cross-device sync">
-          <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" ${enableDisabled}>
+          <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" ${toggleDisabled}>
           <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
         </label>
       </div>
@@ -321,9 +331,9 @@ export function renderSyncSection() {
 
       <div class="sync-management-actions">
         <button class="import-btn import-btn-secondary" data-sync-action="open-restore-dialog">Restore / switch identity…</button>
-        <button class="import-btn import-btn-secondary sync-disable-btn" data-sync-action="disable-sync">Disable on this device</button>
+        <button class="import-btn import-btn-secondary" data-sync-action="pause-sync">Pause on this device</button>
       </div>
-      <div class="sync-management-help">Restoring switches this device to another 24-word identity and replaces local synced data. Disabling stops sync here and reloads the app; relay data is not deleted.</div>
+      <div class="sync-management-help">Pausing keeps this identity and queues local changes for the next resume. Restoring switches this device to another 24-word identity.</div>
 
       <details style="margin-bottom:8px">
         <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">Advanced</summary>
@@ -334,17 +344,30 @@ export function renderSyncSection() {
             <button class="import-btn import-btn-secondary" style="font-size:12px;padding:4px 12px" data-sync-action="save-relay">Save</button>
           </div>
           <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%;margin-top:10px" data-sync-action="show-sync-diagnose">Sync status &amp; storage</button>
+          <button class="import-btn import-btn-secondary sync-disable-btn" style="font-size:12px;padding:5px 14px;width:100%;margin-top:8px" data-sync-action="disconnect-sync">Disconnect &amp; reset sync on this device</button>
+          <div class="sync-management-help" style="margin-top:6px">Disconnecting forgets this device’s sync identity and local sync history. Your profile data and relay data are not deleted.</div>
         </div>
       </details>
     ` : `
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
-        Sync profiles, lab data, and AI settings across your devices. Data is encrypted with a key derived from a 24-word mnemonic — the relay server only sees ciphertext.
-      </div>
-      <div class="sync-setup-actions">
-        <button class="import-btn import-btn-primary" data-sync-action="setup-new-direct" ${enableDisabled}>Set up new sync</button>
-        <button class="import-btn import-btn-secondary" data-sync-action="setup-restore-direct" ${enableDisabled}>Join existing device</button>
-      </div>
-      <div class="sync-management-help">Choose <b>Join existing device</b> if another device already has sync enabled. You will need its 24-word mnemonic.</div>
+      ${paused ? `
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:12px">
+          Sync is paused on this device. The identity and sync history are retained, and local edits will be uploaded before remote changes are applied when you resume.
+        </div>
+        <div class="sync-setup-actions">
+          <button class="import-btn import-btn-primary" data-sync-action="resume-sync" ${blocker ? 'disabled' : ''}>Resume sync</button>
+          <button class="import-btn import-btn-secondary sync-disable-btn" data-sync-action="disconnect-sync">Disconnect &amp; reset sync</button>
+        </div>
+        <div class="sync-management-help">Disconnect only if you want this device to forget the current sync identity. Keep your 24-word mnemonic before disconnecting.</div>
+      ` : `
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
+          Sync profiles, lab data, and AI settings across your devices. Data is encrypted with a key derived from a 24-word mnemonic — the relay server only sees ciphertext.
+        </div>
+        <div class="sync-setup-actions">
+          <button class="import-btn import-btn-primary" data-sync-action="setup-new-direct" ${enableDisabled}>Set up new sync</button>
+          <button class="import-btn import-btn-secondary" data-sync-action="setup-restore-direct" ${enableDisabled}>Join existing device</button>
+        </div>
+        <div class="sync-management-help">Choose <b>Join existing device</b> if another device already has sync enabled. You will need its 24-word mnemonic.</div>
+      `}
     `}
   `;
 }
@@ -372,30 +395,64 @@ async function toggleSync(enabled) {
   // recover from a wedge before the user gives up.
   _syncToggleWatchdog = setTimeout(_releaseSyncToggle, 60000);
   if (enabled) {
+    if (isSyncPaused()) {
+      try {
+        const resumed = await enableSync();
+        if (!resumed) throw new Error('Sync could not resume');
+        const el = document.getElementById('sync-section');
+        if (el) el.innerHTML = renderSyncSection();
+        loadMnemonic();
+        void loadSyncIdentityFingerprint();
+        updateRelayStatus();
+      } catch (e) {
+        console.error('[sync] resume failed:', e);
+        showNotification(`Resume failed: ${getErrorMessage(e, e)}`, 'error');
+      } finally {
+        _releaseSyncToggle();
+      }
+      return;
+    }
     showSyncSetupModal();
     // _syncToggling cleared by closeSyncSetup, syncSetupDone, or watchdog
   } else {
     try {
-      _mnemonicCache = null;
-      _identityFingerprintCache = null;
-      _mnemonicRetries = 0;
-      clearTimeout(_mnemonicRetryTimer);
-      await disableSync();
-      // disableSync triggers a page reload, but if we're still here render
-      // the disabled state immediately for visual feedback.
+      await pauseSync();
+      // Pause is immediate and retains the current identity/runtime.
       const el = document.getElementById('sync-section');
       if (el) el.innerHTML = renderSyncSection();
     } catch (e) {
-      console.error('[sync] disable failed:', e);
-      showNotification(`Disable failed: ${getErrorMessage(e, e)}`, 'error');
-      // Visually un-stick the toggle by re-rendering — the underlying
-      // localStorage flag is already false (set early in disableSync) so
-      // the toggle will show as off.
+      console.error('[sync] pause failed:', e);
+      showNotification(`Pause failed: ${getErrorMessage(e, e)}`, 'error');
       const el = document.getElementById('sync-section');
       if (el) el.innerHTML = renderSyncSection();
     } finally {
       _releaseSyncToggle();
     }
+  }
+}
+
+async function disconnectSync() {
+  if (_syncToggling) {
+    showNotification('Sync change already in progress…', 'info');
+    return;
+  }
+  _syncToggling = true;
+  _syncToggleWatchdog = setTimeout(_releaseSyncToggle, 60000);
+  try {
+    _mnemonicCache = null;
+    _identityFingerprintCache = null;
+    _mnemonicRetries = 0;
+    clearTimeout(_mnemonicRetryTimer);
+    await disableSync();
+    const el = document.getElementById('sync-section');
+    if (el) el.innerHTML = renderSyncSection();
+  } catch (e) {
+    console.error('[sync] disconnect failed:', e);
+    showNotification(`Disconnect failed: ${getErrorMessage(e, e)}`, 'error');
+    const el = document.getElementById('sync-section');
+    if (el) el.innerHTML = renderSyncSection();
+  } finally {
+    _releaseSyncToggle();
   }
 }
 

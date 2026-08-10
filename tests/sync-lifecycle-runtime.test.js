@@ -4,7 +4,10 @@ function installLifecycleMocks(overrides = {}) {
   const deps = {
     showNotification: vi.fn(),
     getSyncBlocker: vi.fn(() => null),
+    isSyncEnabled: vi.fn(() => true),
+    isSyncPaused: vi.fn(() => false),
     setSyncEnabled: vi.fn(),
+    setSyncPaused: vi.fn(),
     clearSyncDisableStorage: vi.fn(),
     resetSyncStatus: vi.fn(),
     pushAllProfiles: vi.fn(async () => {}),
@@ -32,7 +35,13 @@ function installLifecycleMocks(overrides = {}) {
     getSyncBlocker: deps.getSyncBlocker,
   }));
   vi.doMock('../js/sync-settings-state.js', () => ({
+    isSyncEnabled: deps.isSyncEnabled,
+    isSyncPaused: deps.isSyncPaused,
     setSyncEnabled: deps.setSyncEnabled,
+    setSyncPaused: deps.setSyncPaused,
+  }));
+  vi.doMock('../js/sync-backup-restore-state.js', () => ({
+    getPendingBackupRestoreProfileIds: vi.fn(() => []),
   }));
   vi.doMock('../js/sync-disable-cleanup.js', () => ({
     clearSyncDisableStorage: deps.clearSyncDisableStorage,
@@ -89,6 +98,7 @@ afterEach(() => {
   vi.doUnmock('../js/utils.js');
   vi.doUnmock('../js/sync-environment.js');
   vi.doUnmock('../js/sync-settings-state.js');
+  vi.doUnmock('../js/sync-backup-restore-state.js');
   vi.doUnmock('../js/sync-disable-cleanup.js');
   vi.doUnmock('../js/sync-state.js');
   vi.doUnmock('../js/sync-actions.js');
@@ -162,6 +172,32 @@ describe('sync lifecycle runtime behavior', () => {
     );
     expect(deps.forcePull).not.toHaveBeenCalled();
     expect(deps.pushAllProfiles).not.toHaveBeenCalled();
+  });
+
+  it('pauses without clearing storage, runtime, or the Evolu identity', async () => {
+    const deps = installLifecycleMocks();
+    const { pauseSync } = await loadLifecycle();
+
+    await expect(pauseSync()).resolves.toBe(true);
+
+    expect(deps.setSyncPaused).toHaveBeenCalledWith(true);
+    expect(deps.clearSyncSaveTimers).toHaveBeenCalled();
+    expect(deps.clearSyncPullTimers).toHaveBeenCalled();
+    expect(deps.clearSyncSubscriptionTimers).toHaveBeenCalled();
+    expect(deps.clearSyncDisableStorage).not.toHaveBeenCalled();
+    expect(deps.getSyncEvolu).not.toHaveBeenCalled();
+    expect(deps.clearSyncRuntimeState).not.toHaveBeenCalled();
+    expect(deps.showNotification).toHaveBeenCalledWith('Sync paused', 'success');
+    expect(deps.scheduleSyncRuntimeReload).not.toHaveBeenCalled();
+  });
+
+  it('announces resume distinctly from first enable', async () => {
+    const deps = installLifecycleMocks({ isSyncPaused: vi.fn(() => true) });
+    const { enableSync } = await loadLifecycle();
+
+    await expect(enableSync({ skipPush: true })).resolves.toBe(true);
+
+    expect(deps.showNotification).toHaveBeenCalledWith('Sync resumed', 'success');
   });
 
   it('disables sync, clears timers and snapshots, resets Evolu, and schedules reload', async () => {

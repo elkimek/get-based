@@ -452,6 +452,7 @@ const APP_SHELL = [
   '/js/sync-init.js',
   '/js/sync-lifecycle.js',
   '/js/sync-disable-cleanup.js',
+  '/js/sync-backup-restore-state.js',
   '/js/sync-apply.js',
   '/js/sync-chat-apply.js',
   '/js/sync-schema.js',

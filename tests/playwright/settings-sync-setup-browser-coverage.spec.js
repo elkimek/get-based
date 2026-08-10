@@ -28,6 +28,8 @@ async function openIsolatedSyncSetupPage(page) {
     body: `
       const stub = window.__settingsSyncSetupStub;
       export function isSyncEnabled() { return !!stub.enabled; }
+      export function isSyncConfigured() { return !!stub.enabled || !!stub.paused; }
+      export function isSyncPaused() { return !!stub.paused; }
       export async function enableSync(options = {}) {
         stub.calls.push({
           fn: 'enableSync',
@@ -39,11 +41,19 @@ async function openIsolatedSyncSetupPage(page) {
           return false;
         }
         stub.enabled = true;
+        stub.paused = false;
         return true;
       }
       export async function disableSync() {
         stub.calls.push({ fn: 'disableSync' });
         stub.enabled = false;
+        stub.paused = false;
+        return true;
+      }
+      export async function pauseSync() {
+        stub.calls.push({ fn: 'pauseSync' });
+        stub.enabled = false;
+        stub.paused = true;
         return true;
       }
       export function getMnemonic() { return stub.mnemonic || null; }
@@ -213,10 +223,11 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
 
       window.__settingsSyncSetupStub.enabled = true;
       syncSection.innerHTML = syncPanel.renderSyncSection();
-      outcomes.enabledStateExposesRestoreAndDisableControls =
+      outcomes.enabledStateExposesRestorePauseAndDisconnectControls =
         syncSection.querySelector('[data-sync-action="open-restore-dialog"]')?.textContent.includes('Restore / switch identity') === true
-        && syncSection.querySelector('[data-sync-action="disable-sync"]')?.textContent.includes('Disable on this device') === true
-        && syncSection.textContent.includes('relay data is not deleted');
+        && syncSection.querySelector('[data-sync-action="pause-sync"]')?.textContent.includes('Pause on this device') === true
+        && syncSection.querySelector('[data-sync-action="disconnect-sync"]')?.textContent.includes('Disconnect & reset sync') === true
+        && syncSection.textContent.includes('relay data are not deleted');
       syncPanel.hydrateSettingsSyncPanel();
       await waitFor(() => document.getElementById('sync-mnemonic')?.dataset.masked === 'true', 'masked mnemonic');
       await waitFor(() => document.getElementById('sync-identity-code')?.textContent === 'A94F-2C71-B803', 'sync identity code');

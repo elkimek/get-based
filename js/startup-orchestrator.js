@@ -11,7 +11,7 @@ import { showNotification } from './utils.js';
 import { restorePendingImportReviewDraft } from './import-loader.js';
 import { configureSyncLifecycleDeps } from './sync.js';
 import { configureSyncModules } from './sync-configure.js';
-import { disableSync, enableSync } from './sync-lifecycle.js';
+import { disableSync, enableSync, pauseSync } from './sync-lifecycle.js';
 
 let appStarted = false;
 
@@ -35,7 +35,7 @@ function handleStartupSequenceError(error) {
 }
 
 function configureSyncComposition() {
-  configureSyncLifecycleDeps({ enableSync, disableSync });
+  configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync });
   configureSyncModules({ enableSync });
 }
 

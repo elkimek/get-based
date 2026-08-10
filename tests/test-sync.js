@@ -170,7 +170,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('1. Module Exports');
 
-  const requiredExports = ['isSyncEnabled', 'initSync', 'enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'getSyncRelay', 'setSyncRelay', 'onDataSaved', 'onProfileSaved', 'pushCurrentProfile', 'deleteProfileFromRelay'];
+  const requiredExports = ['isSyncEnabled', 'isSyncConfigured', 'isSyncPaused', 'initSync', 'enableSync', 'pauseSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'getSyncRelay', 'setSyncRelay', 'onDataSaved', 'onProfileSaved', 'pushCurrentProfile', 'deleteProfileFromRelay'];
   for (const fn of requiredExports) {
     assert(`sync.js exports ${fn}`,
       syncSrc.includes(`export function ${fn}`)
@@ -245,14 +245,16 @@ await import('../js/settings.js');
       && syncInitSrc.includes('setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery })'));
   assert('service worker precaches sync-init.js',
     serviceWorkerSrc.includes("'/js/sync-init.js'"));
-  assert('sync-lifecycle.js owns enable/disable lifecycle actions',
+  assert('sync-lifecycle.js owns enable/pause/disable lifecycle actions',
     !syncSrc.includes("from './sync-lifecycle.js'")
       && startupOrchestratorSrc.includes("from './sync-lifecycle.js'")
       && syncSrc.includes('export function configureSyncLifecycleDeps')
       && syncSrc.includes('return syncLifecycleDeps.enableSync(...args)')
+      && syncSrc.includes('return syncLifecycleDeps.pauseSync(...args)')
       && syncSrc.includes('return syncLifecycleDeps.disableSync(...args)')
-      && startupOrchestratorSrc.includes('configureSyncLifecycleDeps({ enableSync, disableSync });')
+      && startupOrchestratorSrc.includes('configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync });')
       && syncLifecycleSrc.includes('export async function enableSync')
+      && syncLifecycleSrc.includes('export async function pauseSync')
       && syncLifecycleSrc.includes('export async function disableSync')
       && syncLifecycleSrc.includes('await initSync()')
       && syncLifecycleSrc.includes('await forcePull()')
@@ -1025,7 +1027,9 @@ await import('../js/settings.js');
       && syncTombstonesSrc.includes('export async function rejectPendingTombstone')
       && exportBlockIncludes(syncSrc, ['listPendingTombstones', 'applyPendingTombstone', 'rejectPendingTombstone']));
   assert('applyRemoteTombstones runs before the active-rows pass in onSyncReceived',
-    /async function onSyncReceived[\s\S]{0,800}await\s+applyRemoteTombstones[\s\S]{0,400}getQueryRows\(profileQuery\)/.test(syncPullSrc));
+    /async function onSyncReceived[\s\S]{0,2600}await\s+applyRemoteTombstones[\s\S]{0,400}getQueryRows\(profileQuery\)/.test(syncPullSrc));
+  assert('restored and dirty local profiles publish before remote tombstones',
+    /async function onSyncReceived[\s\S]{0,1800}_pushProfilesById[\s\S]{0,900}_pushDirtyProfiles[\s\S]{0,900}await\s+applyRemoteTombstones/.test(syncPullSrc));
   assert('applyRemoteTombstones keeps at least one survivor (mass-delete safety)',
     /survivors\.length\s*===\s*0[\s\S]{0,200}return/.test(syncTombstonesSrc));
 
@@ -1427,7 +1431,9 @@ await import('../js/settings.js');
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
   assert('Transport uses plural "transports" array (not singular)', syncInitSrc.includes('transports: [{ type:') && !syncInitSrc.includes('transport: { type:'));
   assert('COOP header in dev-server', await fetchWithRetry('dev-server.js').then(s => s.includes('Cross-Origin-Opener-Policy')));
-  assert('initSync has re-entrancy guard', syncInitSrc.includes('if (getSyncEvolu()) return'));
+  assert('initSync reuses an existing runtime instead of creating a duplicate',
+    syncInitSrc.includes('const existingEvolu = getSyncEvolu()')
+      && /if \(existingEvolu\)[\s\S]{0,600}return;/.test(syncInitSrc));
   assert('checkRelayConnection exported', exportBlockIncludes(syncSrc, ['checkRelayConnection']));
 
   // ═══════════════════════════════════════

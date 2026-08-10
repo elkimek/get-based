@@ -12,7 +12,7 @@ import {
   getRecentSyncEvents, subscribeSyncStatus,
 } from './sync-state.js';
 import {
-  isSyncEnabled, primeSyncState,
+  isSyncConfigured, isSyncEnabled, isSyncPaused, primeSyncState,
 } from './sync-settings-state.js';
 import {
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
@@ -59,21 +59,25 @@ import { initSync } from './sync-init.js';
 /** @type {{
  *   enableSync: (...args: any[]) => Promise<any>,
  *   disableSync: (...args: any[]) => Promise<any>,
+ *   pauseSync: (...args: any[]) => Promise<any>,
  * }} */
 const syncLifecycleDeps = {
   enableSync: async () => { throw new Error('Sync lifecycle is not configured'); },
   disableSync: async () => { throw new Error('Sync lifecycle is not configured'); },
+  pauseSync: async () => { throw new Error('Sync lifecycle is not configured'); },
 };
 
 /** @param {{
  *   enableSync?: (...args: any[]) => Promise<any>,
  *   disableSync?: (...args: any[]) => Promise<any>,
+ *   pauseSync?: (...args: any[]) => Promise<any>,
  * }} [deps]
  */
 export function configureSyncLifecycleDeps(deps = {}) {
   const previous = { ...syncLifecycleDeps };
   if (typeof deps.enableSync === 'function') syncLifecycleDeps.enableSync = deps.enableSync;
   if (typeof deps.disableSync === 'function') syncLifecycleDeps.disableSync = deps.disableSync;
+  if (typeof deps.pauseSync === 'function') syncLifecycleDeps.pauseSync = deps.pauseSync;
   return previous;
 }
 
@@ -87,11 +91,16 @@ export function disableSync(...args) {
   return syncLifecycleDeps.disableSync(...args);
 }
 
+/** @param {...any} args */
+export function pauseSync(...args) {
+  return syncLifecycleDeps.pauseSync(...args);
+}
+
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
   getRelayQuotaEstimate, resetRelayQuotaEstimate, verifyPushLanded,
   getRecentSyncEvents, subscribeSyncStatus,
-  isSyncEnabled, initSync, primeSyncState,
+  isSyncConfigured, isSyncEnabled, isSyncPaused, initSync, primeSyncState,
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
   rejectPendingTombstone,
   clearAgentAccessMigrationDirty, clearLegacyAgentAccessSecrets,

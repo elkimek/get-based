@@ -4,13 +4,16 @@
 import { isDebugMode, showNotification } from './utils.js';
 import { createSyncQueries, createSyncSchema } from './sync-schema.js';
 import { getSyncBlocker, getSyncRelay } from './sync-environment.js';
-import { primeSyncState, setSyncEnabled } from './sync-settings-state.js';
+import {
+  isSyncConfigured, isSyncEnabled, primeSyncState, setSyncEnabled,
+} from './sync-settings-state.js';
 import { bindSyncRecoveryEvents } from './sync-recovery.js';
 import { bindSyncSubscriptions, startRelayProbe } from './sync-subscriptions.js';
 import { scheduleOwnerStorageRefresh } from './sync-relay-health.js';
 import { consumeSyncRestoreNotice } from './sync-identity.js';
 import {
-  getSyncAppOwner, getSyncEvolu, getSyncReloadUrlRuntime,
+  getSyncAppOwner, getSyncEvolu, getSyncItemRowQuery, getSyncProfileQuery,
+  getSyncReloadUrlRuntime, getSyncTombstoneQuery,
   setSyncAppOwner, setSyncAppOwnerError, setSyncEvolu,
   setSyncQueries, setSyncQueryLoadedPromise,
   setSyncReadyPromise,
@@ -34,7 +37,8 @@ function reconcileLocalStorageWithEvolu() {
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
 export async function initSync() {
-  if (!primeSyncState()) return;
+  primeSyncState();
+  if (!isSyncConfigured()) return;
 
   // Fail fast if the webview doesn't have what Evolu needs. Otherwise the
   // worker hangs forever on appOwner and the toggle/restore flow looks
@@ -46,8 +50,19 @@ export async function initSync() {
     return;
   }
 
-  // Re-entrancy guard - don't create duplicate Evolu instances.
-  if (getSyncEvolu()) return;
+  // Reuse the retained runtime when resuming from Pause. Pause unsubscribes
+  // application listeners without resetting the owner or Evolu database.
+  const existingEvolu = getSyncEvolu();
+  if (existingEvolu) {
+    const profileQuery = getSyncProfileQuery();
+    const tombstoneQuery = getSyncTombstoneQuery();
+    const itemRowQuery = getSyncItemRowQuery();
+    if (isSyncEnabled() && profileQuery && tombstoneQuery && itemRowQuery) {
+      bindSyncSubscriptions({ evolu: existingEvolu, profileQuery, tombstoneQuery, itemRowQuery });
+      startRelayProbe();
+    }
+    return;
+  }
 
   // Defer to next microtask - Worker + navigator.locks can race during DOMContentLoaded.
   await new Promise(r => setTimeout(r, 0));
@@ -70,7 +85,9 @@ export async function initSync() {
     const { profileQuery, tombstoneQuery, itemRowQuery } = createSyncQueries(evolu);
     setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery });
 
-    bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery });
+    if (isSyncEnabled()) {
+      bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery });
+    }
 
     // Load initial data - store promise for enableSync to await.
     const queryLoaded = Promise.all([
@@ -117,7 +134,7 @@ export async function initSync() {
     }
 
     // Initial relay probe + periodic 60s health check.
-    startRelayProbe();
+    if (isSyncEnabled()) startRelayProbe();
 
     bindSyncRecoveryEvents();
 

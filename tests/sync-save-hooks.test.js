@@ -6,6 +6,7 @@ import { state } from '../js/state.js';
 import {
   clearSyncSaveTimers,
   configureSyncSaveHooks,
+  onDataSaved,
   onProfileSaved,
   readProfileImportedData,
 } from '../js/sync-save-hooks.js';
@@ -106,6 +107,32 @@ describe('sync save-hook profile data dependencies', () => {
       state.importedData = previousImportedData;
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       await encryptedRemoveItem(storageKey);
+    }
+  });
+
+  it('keeps paused edits dirty without starting a push', () => {
+    const previousCurrentProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const profileId = 'paused-edit-profile';
+    const pushProfile = vi.fn();
+    const previous = configureSyncSaveHooks({
+      pushProfile,
+      isSyncConfigured: () => true,
+      isSyncEnabled: () => false,
+      isEvoluReady: () => false,
+    });
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], supplements: [{ id: 'supplement-1' }] };
+
+    try {
+      onDataSaved({ immediate: true });
+      expect(localStorage.getItem(`labcharts-${profileId}-sync-dirty`)).toMatch(/^\d+:\d+$/);
+      expect(pushProfile).not.toHaveBeenCalled();
+    } finally {
+      configureSyncSaveHooks(previous);
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      state.currentProfile = previousCurrentProfile;
+      state.importedData = previousImportedData;
     }
   });
 });

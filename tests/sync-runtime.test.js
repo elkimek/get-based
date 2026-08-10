@@ -853,6 +853,13 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
     expect(localStorage.getItem('labcharts-relay-quota-warned')).toBeNull();
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-imported`)).toBe('{"keep":true}');
 
+    localStorage.setItem(`labcharts-${PROFILE_ID}-sync-dirty`, 'restore-token');
+    localStorage.setItem('labcharts-other-profile-sync-dirty', 'stale-token');
+    clearSyncDisableStorage({ preserveDirtyProfileIds: [PROFILE_ID] });
+    expect(localStorage.getItem(`labcharts-${PROFILE_ID}-sync-dirty`)).toBe('restore-token');
+    expect(localStorage.getItem('labcharts-other-profile-sync-dirty')).toBeNull();
+    localStorage.removeItem(`labcharts-${PROFILE_ID}-sync-dirty`);
+
     const debug = vi.fn();
     localStorage.setItem(`labcharts-${PROFILE_ID}-sync-hash`, 'old-hash');
     localStorage.setItem('labcharts-not-sync-hash-extra', 'keep');

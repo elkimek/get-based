@@ -7,6 +7,9 @@ import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 import { collectRawChatBackup } from './backup-chat-storage.js';
+import { clearProfileDeltaSnapshots } from './sync-delta-snapshot.js';
+import { markSyncProfileDirty } from './sync-dirty-state.js';
+import { markBackupRestorePending } from './sync-backup-restore-state.js';
 import {
   getDailyRangeRaw,
   upsertDailyBatchRaw,
@@ -119,6 +122,33 @@ async function writeRawStoredItem(key, value) {
   } else {
     localStorage.setItem(key, value);
   }
+}
+
+/**
+ * A restored profile blob must win the first sync race after reload. Without
+ * this reset, the per-row overlay can immediately reapply item tombstones
+ * from the pre-restore state, making restored supplements briefly appear and
+ * then disappear. Clearing planner snapshots also guarantees that an exact
+ * restored copy is emitted again instead of being skipped by content hash.
+ *
+ * @param {any} backup
+ */
+export function prepareRestoredProfilesForSync(backup) {
+  const profiles = Array.isArray(backup?.profiles) ? backup.profiles : [];
+  const prepared = new Set();
+  for (const profile of profiles) {
+    const profileId = profile?.profileId;
+    if (typeof profileId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(profileId) || prepared.has(profileId)) continue;
+    prepared.add(profileId);
+    clearProfileDeltaSnapshots(profileId);
+    // A restored blob may not have complete per-row history, so force the
+    // first recovery push to include the full v3 payload as a safety net.
+    try { localStorage.removeItem(`labcharts-${profileId}-sync-cutover-v2`); } catch {}
+    try { localStorage.removeItem(`labcharts-${profileId}-sync-ts`); } catch {}
+    markSyncProfileDirty(profileId);
+  }
+  markBackupRestorePending([...prepared]);
+  return prepared.size;
 }
 
 // ═══════════════════════════════════════════════
@@ -422,6 +452,7 @@ export function importEncryptedBackup(file) {
             }
           }
         }
+        prepareRestoredProfilesForSync(backup);
 
         Promise.all([
           restoreWearableIDB(backup.wearableIDB),
@@ -569,6 +600,7 @@ export async function restoreAutoBackup(id) {
         }
       }
     }
+    prepareRestoredProfilesForSync(backup);
     // Wearable L1 IDB rows live outside localStorage \u2014 restore them
     // separately so the strip's detail-modal chart history is preserved
     // along with everything else.

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  configureSyncActions, prepareRelayCompaction, pushAllProfiles, rebuildOwnerRelayState, syncNow,
+  configureSyncActions, prepareRelayCompaction, pushAllProfiles, pushDirtyProfiles,
+  pushProfilesById, rebuildOwnerRelayState, syncNow,
 } from '../js/sync-actions.js';
 import { encryptedRemoveItem, encryptedSetItem } from '../js/crypto.js';
 import { state } from '../js/state.js';
@@ -69,6 +70,44 @@ describe('sync action profile dependencies', () => {
         getProfiles: () => [],
         createDefaultProfileData: () => ({ entries: [] }),
       });
+    }
+  });
+
+  it('publishes requested restore profiles and every dirty profile selectively', async () => {
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const restoredId = 'requested-restored-profile';
+    const cleanId = 'clean-profile';
+    const pushProfile = vi.fn(async profileId => {
+      clearSyncProfileDirty(profileId, getSyncDirtyToken(profileId));
+      return { ok: true };
+    });
+    state.currentProfile = restoredId;
+    state.importedData = { entries: [], supplements: [{ id: 'restored-supplement' }] };
+    markSyncProfileDirty(restoredId);
+    configureSyncActions({
+      pushProfile,
+      getProfiles: () => [{ id: restoredId }, { id: cleanId }],
+    });
+
+    try {
+      await expect(pushProfilesById([restoredId], { force: true })).resolves.toEqual({
+        total: 1, succeeded: 1, failed: 0, skipped: 0,
+      });
+      expect(pushProfile).toHaveBeenCalledWith(restoredId, state.importedData, { force: true });
+
+      markSyncProfileDirty(restoredId);
+      pushProfile.mockClear();
+      await expect(pushDirtyProfiles({ force: true })).resolves.toEqual({
+        total: 1, succeeded: 1, failed: 0, skipped: 0,
+      });
+      expect(pushProfile).toHaveBeenCalledOnce();
+      expect(pushProfile).toHaveBeenCalledWith(restoredId, state.importedData, { force: true });
+    } finally {
+      localStorage.removeItem(`labcharts-${restoredId}-sync-dirty`);
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+      configureSyncActions({ pushProfile: async () => {}, getProfiles: () => [] });
     }
   });
 
