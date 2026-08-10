@@ -424,6 +424,11 @@ export function showDNAImportPreview(result) {
   setPendingDnaImport(result);
 
   const apoe = dnaUiDeps.resolveAPOE?.(result.matches);
+  const rawMatchedCount = Number(result.rawMatchedCount);
+  const preservedOverrideCount = Number(result.preservedOverrideCount) || 0;
+  const previewStats = preservedOverrideCount > 0
+    ? `${result.totalLines.toLocaleString()} SNPs scanned · ${rawMatchedCount.toLocaleString()} found in file · ${result.coverage.found} available after preserving ${preservedOverrideCount} curated override${preservedOverrideCount === 1 ? '' : 's'}`
+    : `${result.totalLines.toLocaleString()} SNPs scanned · ${result.coverage.found} of ${result.coverage.total} health-relevant SNPs found`;
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
   const risk = [];
   const protective = [];
@@ -486,7 +491,7 @@ export function showDNAImportPreview(result) {
   const html = `
     <div class="dna-preview-header">
       <div class="dna-preview-title">DNA Import \u2014 ${escapeHTML(result.source)}</div>
-      <div class="dna-preview-stats">${result.totalLines.toLocaleString()} SNPs scanned \u00B7 ${result.coverage.found} of ${result.coverage.total} health-relevant SNPs found</div>
+      <div class="dna-preview-stats">${escapeHTML(previewStats)}</div>
       ${apoe ? `<div class="dna-preview-apoe">APOE Haplotype: <strong>${escapeHTML(apoe)}</strong></div>` : ''}
     </div>
     <div class="dna-preview-body">

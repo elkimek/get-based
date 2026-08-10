@@ -214,6 +214,26 @@ function recalculateGeneticsSummary(genetics) {
   else delete genetics.apoe;
 }
 
+function getCuratedSnpOverrides(genetics) {
+  return Object.fromEntries(
+    Object.entries(genetics?.snps || {}).filter(([, snp]) => snp?.source && typeof snp.source === 'object')
+  );
+}
+
+function prepareRawDnaImportResult(profileData, parseResult) {
+  const curatedOverrides = getCuratedSnpOverrides(profileData?.genetics);
+  const preservedOverrideCount = Object.keys(curatedOverrides).length;
+  if (preservedOverrideCount === 0) return parseResult;
+  const matches = { ...(parseResult.matches || {}), ...curatedOverrides };
+  return {
+    ...parseResult,
+    matches,
+    coverage: { ...(parseResult.coverage || {}), found: Object.keys(matches).length },
+    rawMatchedCount: Number(parseResult.coverage?.found) || Object.keys(parseResult.matches || {}).length,
+    preservedOverrideCount,
+  };
+}
+
 export function upsertGeneticsSnp(profileData, rsidInput, genotypeInput, source = {}) {
   const previousGenetics = profileData.genetics || null;
   const hadStoredSnps = Object.keys(previousGenetics?.snps || {}).length > 0;
@@ -268,9 +288,7 @@ export function upsertGeneticsSnp(profileData, rsidInput, genotypeInput, source 
 export function saveGeneticsData(profileData, parseResult) {
   const previous = profileData.genetics || null;
   const preservedMtDna = previous?.mtdna ? JSON.parse(JSON.stringify(previous.mtdna)) : null;
-  const preservedAddedSnps = Object.fromEntries(
-    Object.entries(previous?.snps || {}).filter(([, snp]) => snp?.source && typeof snp.source === 'object')
-  );
+  const preservedAddedSnps = getCuratedSnpOverrides(previous);
   // Count effects for quick display (avoids needing SNP table at render time)
   const apoe = resolveAPOE(parseResult.matches);
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
@@ -591,12 +609,13 @@ export async function handleDNAFile(file) {
   _dnaImportRunning = true;
   try {
     showNotification('Parsing DNA file...', 'info');
-    const result = await parseDNAFile(file);
-    if (Object.keys(result.matches).length === 0) {
+    const parsedResult = await parseDNAFile(file);
+    if (Object.keys(parsedResult.matches).length === 0) {
       showNotification('No health-relevant SNPs found in this file. Is it a DNA raw data export?', 'error');
       _dnaImportRunning = false;
       return false;
     }
+    const result = prepareRawDnaImportResult(state.importedData, parsedResult);
     showDNAImportPreview(result);
     return true;
   } catch (e) {

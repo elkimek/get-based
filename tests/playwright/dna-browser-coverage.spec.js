@@ -255,6 +255,13 @@ rs999999\t1\t100\tAG
     await dna.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
     const importConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
+    const mthfrPreviewRow = Array.from(overlay?.querySelectorAll('.dna-preview-row') || [])
+      .find(row => row.textContent?.includes('C677T'))?.textContent || '';
+    check('raw re-import preview shows the authoritative preserved override',
+      mthfrPreviewRow.includes('CC') &&
+      !mthfrPreviewRow.includes('GA') &&
+      overlay?.querySelector('.dna-preview-stats')?.textContent.includes('1 curated override'),
+      `${mthfrPreviewRow} | ${overlay?.querySelector('.dna-preview-stats')?.textContent || ''}`);
     overlay?.querySelector('[data-dna-action="confirm-import"]')?.click();
     const importFinished = importConfirmReady && await waitFor(() => !overlay?.classList.contains('show') && calls.includes('navigate:dashboard'));
     check('confirmDNAImport preserves an overlapping manual genotype',
