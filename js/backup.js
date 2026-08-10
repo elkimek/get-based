@@ -7,10 +7,8 @@ import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 import { collectRawChatBackup } from './backup-chat-storage.js';
-import {
-  getDailyRangeRaw,
-  upsertDailyBatchRaw,
-} from './wearables-store.js';
+import { prepareRestoredProfilesForSync } from './sync-backup-restore-state.js';
+import { getDailyRangeRaw, upsertDailyBatchRaw } from './wearables-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
@@ -422,6 +420,7 @@ export function importEncryptedBackup(file) {
             }
           }
         }
+        prepareRestoredProfilesForSync(backup);
 
         Promise.all([
           restoreWearableIDB(backup.wearableIDB),
@@ -569,6 +568,7 @@ export async function restoreAutoBackup(id) {
         }
       }
     }
+    prepareRestoredProfilesForSync(backup);
     // Wearable L1 IDB rows live outside localStorage \u2014 restore them
     // separately so the strip's detail-modal chart history is preserved
     // along with everything else.

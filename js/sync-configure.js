@@ -8,7 +8,7 @@ import {
 } from './profile.js';
 import { configureRelayHealth } from './sync-relay-health.js';
 import { logSyncEvent, updateSyncStatus } from './sync-state.js';
-import { isSyncEnabled } from './sync-settings-state.js';
+import { isSyncConfigured, isSyncEnabled } from './sync-settings-state.js';
 import { configureSyncDelta } from './sync-delta.js';
 import { configureSyncTombstones } from './sync-tombstones.js';
 import { configureSyncMessenger } from './sync-messenger.js';
@@ -22,7 +22,7 @@ import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from '.
 import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
 import {
   configureSyncActions, forceResendCurrentProfile, pushAllProfiles,
-  pushCurrentProfile, syncNow,
+  pushCurrentProfile, pushDirtyProfiles, pushProfilesById, syncNow,
 } from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
@@ -85,13 +85,17 @@ export function configureSyncModules({ enableSync } = {}) {
     getEvolu: getSyncEvolu,
     getProfileQuery: getSyncProfileQuery,
     isSyncPushInFlight,
+    isSyncEnabled,
     pushProfile,
+    pushDirtyProfiles,
+    pushProfilesById,
     debug: dbg,
   });
 
   configureSyncSubscriptions({
     isSyncing: isSyncPushInFlight,
     isPulling: isSyncPulling,
+    isSyncEnabled,
     onSyncReceived,
     checkRelayConnection,
     updateSyncStatus,
@@ -172,6 +176,7 @@ export function configureSyncModules({ enableSync } = {}) {
   configureSyncSaveHooks({
     pushProfile,
     isSyncEnabled,
+    isSyncConfigured,
     isEvoluReady: isSyncEvoluReady,
     isSyncing: isSyncPushInFlight,
     createDefaultProfileData,

@@ -55,3 +55,29 @@ export function clearDeltaSnapshot(profileId, arrayName) {
     return true;
   } catch { return false; }
 }
+
+/**
+ * Forget every last-pushed surface snapshot for one profile. Backup restore
+ * uses this before reload so restored rows are planned as fresh inserts (or
+ * tombstone-clearing updates) instead of being skipped because their content
+ * hash happens to match a pre-restore push snapshot.
+ *
+ * Keep delta telemetry: it is diagnostic history, not planner state.
+ *
+ * @param {string | null | undefined} profileId
+ */
+export function clearProfileDeltaSnapshots(profileId) {
+  if (typeof profileId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(profileId)) return 0;
+  const prefix = `labcharts-${profileId}-delta-`;
+  const telemetryKey = `${prefix}telemetry`;
+  let cleared = 0;
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key || key === telemetryKey || !key.startsWith(prefix)) continue;
+      localStorage.removeItem(key);
+      cleared++;
+    }
+  } catch {}
+  return cleared;
+}

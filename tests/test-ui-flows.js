@@ -437,7 +437,10 @@ return (async function() {
   // Delete the test supplement
   const testIdx = S.importedData.supplements.findIndex(s => s.name === '__UI_TEST_SUPP__');
   if (testIdx >= 0) {
-    supplements.deleteSupplement(testIdx);
+    const deletion = supplements.deleteSupplement(testIdx);
+    await wait(20);
+    document.getElementById('confirm-ok')?.click();
+    await deletion;
     await wait(50);
   }
   assert('Supplement removed from state', (S.importedData.supplements || []).length === initialSuppCount);

@@ -6,6 +6,7 @@ import { BODY_REGIONS } from './sun-body-silhouette.js';
 import { liveDosesFor as _liveDosesFor } from './sun-active-session.js';
 import { getSessions } from './sun-sessions-store.js';
 import { ingredientDailyTotal } from './supplement-impact.js';
+import { getSupplementsOverlappingRange, isSupplementExpectedOnDate } from './supplement-medication-domain.js';
 import {
   circadianMelanopicLux,
   pbmJoulesPerCm2,
@@ -232,12 +233,15 @@ export function cumulativeVitaminDIUToday() {
 }
 
 function dailySupplementVitaminDIU() {
-  const supps = state.importedData?.supplements || [];
   const today = currentDateKeyRange();
+  const supps = getSupplementsOverlappingRange(
+    state.importedData?.supplements || [],
+    today.earliest,
+    today.latest,
+  );
   let total = 0;
   for (const supp of supps) {
-    if (supp.startDate && supp.startDate > today.latest) continue;
-    if (supp.endDate && supp.endDate < today.earliest) continue;
+    if (!isSupplementExpectedOnDate(supp, today.latest)) continue;
     for (const ing of (supp.ingredients || [])) {
       const name = (ing.name || '').toLowerCase();
       if (!/vit(?:amin)?[\s-]*d[23]?\b|cholecalciferol|ergocalciferol/.test(name)) continue;

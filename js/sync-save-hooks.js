@@ -13,6 +13,7 @@ import { markSyncProfileDirty } from './sync-dirty-state.js';
 /** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
 let _isSyncEnabled = () => false;
+let _isSyncConfigured = () => _isSyncEnabled();
 let _isEvoluReady = () => false;
 let _isSyncing = () => false;
 let _createDefaultProfileData = () => ({ entries: [] });
@@ -32,6 +33,7 @@ let _eventsBound = false;
 /** @param {{
  *   pushProfile?: (...args: any[]) => Promise<any>,
  *   isSyncEnabled?: () => boolean,
+ *   isSyncConfigured?: () => boolean,
  *   isEvoluReady?: () => boolean,
  *   isSyncing?: () => boolean,
  *   createDefaultProfileData?: () => any,
@@ -41,6 +43,7 @@ let _eventsBound = false;
 export function configureSyncSaveHooks({
   pushProfile,
   isSyncEnabled,
+  isSyncConfigured,
   isEvoluReady,
   isSyncing,
   createDefaultProfileData,
@@ -49,6 +52,7 @@ export function configureSyncSaveHooks({
   const previous = {
     pushProfile: _pushProfile,
     isSyncEnabled: _isSyncEnabled,
+    isSyncConfigured: _isSyncConfigured,
     isEvoluReady: _isEvoluReady,
     isSyncing: _isSyncing,
     createDefaultProfileData: _createDefaultProfileData,
@@ -56,6 +60,7 @@ export function configureSyncSaveHooks({
   };
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
+  if (typeof isSyncConfigured === 'function') _isSyncConfigured = isSyncConfigured;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
   if (typeof isSyncing === 'function') _isSyncing = isSyncing;
   if (typeof createDefaultProfileData === 'function') _createDefaultProfileData = createDefaultProfileData;
@@ -66,8 +71,9 @@ export function configureSyncSaveHooks({
 export function bindSyncSaveHookEvents() {
   if (_eventsBound) return;
   const bound = addUtilsRuntimeListener('labcharts-ai-settings-local-changed', () => {
-    if (!_isSyncEnabled() || !state.currentProfile || !state.importedData) return;
+    if (!_isSyncConfigured() || !state.currentProfile || !state.importedData) return;
     markSyncProfileDirty(state.currentProfile);
+    if (!_isSyncEnabled()) return;
     scheduleAISettingsPush(state.currentProfile, state.importedData);
   });
   if (bound) _eventsBound = true;
@@ -168,8 +174,9 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
  */
 export function onProfileSaved(profileId, importedData = null) {
   if (!profileId) return;
-  if (!_isSyncEnabled()) return;
+  if (!_isSyncConfigured()) return;
   markSyncProfileDirty(profileId);
+  if (!_isSyncEnabled()) return;
   const prev = _profileSyncTimers.get(profileId);
   if (prev) clearTimeout(prev);
   const timer = setTimeout(async () => {
@@ -183,11 +190,15 @@ export function onProfileSaved(profileId, importedData = null) {
 
 /** @param {{ immediate?: boolean, skipSync?: boolean }} [options] */
 export function onDataSaved(options = {}) {
-  if (!options?.skipSync && _isSyncEnabled()) {
+  if (!options?.skipSync && _isSyncConfigured()) {
     const profileId = state.currentProfile;
     const data = state.importedData;
     if (profileId) {
       markSyncProfileDirty(profileId);
+      if (!_isSyncEnabled()) {
+        pushContextToGateway();
+        return;
+      }
       if (!_isEvoluReady()) {
         pushContextToGateway();
         return;
@@ -212,11 +223,12 @@ export function onDataSaved(options = {}) {
 export function onChatSaved(options = {}) {
   if (options.customPersonality) markCustomPersonalityDataLocal();
   else markChatDataLocal();
-  if (!_isSyncEnabled()) return;
+  if (!_isSyncConfigured()) return;
   const profileId = state.currentProfile;
   const data = state.importedData;
   if (!profileId) return;
   markSyncProfileDirty(profileId);
+  if (!_isSyncEnabled()) return;
   if (!_isEvoluReady()) return;
   const prev = _chatSyncTimers.get(profileId);
   if (prev) clearTimeout(prev);

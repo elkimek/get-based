@@ -169,6 +169,43 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
         && debugCalls.includes('onSyncReceived: 0 rows')
         && debugCalls.includes('query:expected');
 
+      const restoredProfileId = 'restored_profile';
+      const restorePendingKey = 'labcharts-sync-backup-restore-pending';
+      const preflightOrder = [];
+      localStorage.setItem(restorePendingKey, JSON.stringify([restoredProfileId]));
+      pull.configureSyncPull({
+        getEvolu: () => ({
+          getQueryRows() {
+            preflightOrder.push('query');
+            return [];
+          },
+        }),
+        getProfileQuery: () => queryToken,
+        pushProfilesById: async (profileIds, options) => {
+          preflightOrder.push(`restore:${profileIds.join(',')}:${options?.force === true}`);
+          return { total: 1, succeeded: 1, failed: 0, skipped: 0 };
+        },
+        pushDirtyProfiles: async options => {
+          preflightOrder.push(`dirty:${options?.force === true}`);
+          return { total: 0, succeeded: 0, failed: 0, skipped: 0 };
+        },
+        debug,
+      });
+      await pull.onSyncReceived();
+      outcomes.restoreRepublishesBeforeReadingRelayRows =
+        preflightOrder.join('|') === `restore:${restoredProfileId}:true|dirty:true|query`
+        && localStorage.getItem(restorePendingKey) === null;
+
+      pull.configureSyncPull({
+        getEvolu: () => evolu,
+        getProfileQuery: () => queryToken,
+        isSyncPushInFlight: () => false,
+        pushProfile: async profileId => { debugCalls.push(`push:${profileId}`); },
+        pushProfilesById: async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }),
+        pushDirtyProfiles: async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }),
+        debug,
+      });
+
       rows.splice(
         0,
         rows.length,
@@ -204,6 +241,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
       localStorage.removeItem('labcharts-bad id-sync-ts');
       localStorage.removeItem('labcharts-safe_profile-sync-ts');
       localStorage.removeItem('labcharts-sync-hash-v2-migrated');
+      localStorage.removeItem('labcharts-sync-backup-restore-pending');
     }
 
     return outcomes;

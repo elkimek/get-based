@@ -142,22 +142,26 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   console.log('%c 8. Source & UI Integration ', 'font-weight:bold;color:#f59e0b');
 
   const suppSrc = read('js/supplements.js');
+  const suppFormSrc = read('js/supplement-form-ui.js');
+  const suppDashboardSrc = read('js/supplement-dashboard.js');
+  const suppImportSrc = read('js/supplement-import-controller.js');
+  const supplementSurfaceSrc = `${suppSrc}\n${suppFormSrc}\n${suppDashboardSrc}\n${suppImportSrc}`;
   const supplementsRuntimeSrc = read('js/supplements-runtime.js');
   const impactSrc = read('js/supplement-impact.js');
   const delegateSrc = read('js/supplement-action-delegates.js');
   assert('renderSupplementImpact exists', impactSrc.includes('function renderSupplementImpact'));
-  assert('Wired into openSupplementsEditor', suppSrc.includes('renderSupplementImpact(s,'));
+  assert('Wired into openSupplementsEditor', suppSrc.includes('renderSupplementImpact(supplement,'));
   assert('Detects overlapping supplements', impactSrc.includes('getOverlappingSupplements'));
   assert('computeAllImpacts on window', suppSrc.includes('computeAllImpacts'));
   assert('Supplement editor actions are delegated',
     suppSrc.includes("from './supplement-action-delegates.js'") &&
-      suppSrc.includes("suppActionAttrs('save'") &&
+      suppFormSrc.includes("suppActionAttrs('save'") &&
       delegateSrc.includes("document.addEventListener('click'") &&
       delegateSrc.includes('actions.triggerLabelPicker()'));
   assert('Supplement impact refresh uses delegated action',
     impactSrc.includes('data-supp-action="refresh-impact"'));
   assert('Supplement surface has no inline event attributes',
-    !/\son[a-z]+\s*=/.test(suppSrc) && !/\son[a-z]+\s*=/.test(impactSrc));
+    !/\son[a-z]+\s*=/.test(supplementSurfaceSrc) && !/\son[a-z]+\s*=/.test(impactSrc));
   assert('Supplements injects view callbacks without the view runtime bridge',
     supplementsRuntimeSrc.includes('export function configureSupplementsRuntimeDeps')
       && supplementsRuntimeSrc.includes('supplementsRuntimeDeps.closeModal?.()')
@@ -187,15 +191,21 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('Per-supp AI call (not whole batch)', impactSrc.includes('loadImpactsForSupps'));
   assert('Coalesces concurrent renders via debounce', impactSrc.includes('_pendingAnalyses') && impactSrc.includes('scheduleAnalyze'));
   assert('Deduplicates in-flight calls', impactSrc.includes('_batchPromise'));
-  assert('Cache keyed by supp name with fp field', impactSrc.includes('cache[s.name]') && impactSrc.includes('fp: getSuppFingerprint'));
+  assert('Cache keyed by stable supplement identity with fp field',
+    impactSrc.includes('getSupplementRecordId') && impactSrc.includes('fp: getSuppFingerprint'));
   assert('Fingerprint also includes timesPerDay', impactSrc.includes('i.timesPerDay'));
-  assert('Ingredient row has ×/day input', suppSrc.includes('supp-ing-times'));
+  assert('Ingredient row has ×/day input', suppFormSrc.includes('supp-ing-times'));
   assert('AI prompt uses computed total with supp-level fallback', impactSrc.includes('ingredientDailyTotal(ing, s)') && impactSrc.includes('effectiveTimesPerDay'));
-  assert('Outer ×/day form field exists', suppSrc.includes('id="supp-times"'));
-  assert('Row placeholder is just ×/day (no "inherit N" jargon)', suppSrc.includes('placeholder="×/day"'));
-  assert('Outer label reads "Doses/day" (non-tech)', suppSrc.includes('<label>Doses/day</label>'));
-  assert('Saves supp.timesPerDay when provided', suppSrc.includes('entry.timesPerDay = timesNum'));
-  assert('lab-context uses computed total too', (read('js/lab-context.js')).includes('ingredientDailyTotal'));
+  assert('Outer ×/day form field exists', suppFormSrc.includes('id="supp-times"'));
+  assert('Row placeholder is just ×/day (no "inherit N" jargon)', suppFormSrc.includes('placeholder="×/day"'));
+  assert('Outer label reads "Uses/day" and distinguishes PRN maximums',
+    suppFormSrc.includes('<label>Uses/day</label>') && suppFormSrc.includes('<label>PRN max/day</label>'));
+  assert('Saves supp.timesPerDay when provided', suppSrc.includes('entry.timesPerDay = timesPerDay'));
+  const labContextSrc = read('js/lab-context.js');
+  const supplementContextSrc = read('js/supplement-context.js');
+  assert('lab-context uses shared computed daily totals',
+    labContextSrc.includes('buildSupplementAIContext')
+      && supplementContextSrc.includes('ingredientDailyTotal(ingredient, supplement)'));
 
   // ═══════════════════════════════════════
   // 9. parseAmount — number/unit extraction

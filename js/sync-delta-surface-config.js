@@ -50,11 +50,12 @@ export const DELTA_ARRAY_CONFIG = {
   importSnapshots: {
     itemIdFn: (it) => (it && typeof it.id === 'string' && _isAllowlistSafeId(it.id)) ? it.id : null,
   },
-  // Supplements have no `.id`; hash stable identity fields so identical
-  // pre-existing data derives the same itemId on each device.
+  // V2 supplements carry a stable `.id`. Legacy records keep the original
+  // deterministic natural key so old/new clients address the same sync row.
   supplements: {
     itemIdFn: (it) => {
       if (!it || typeof it !== 'object') return null;
+      if (typeof it.id === 'string' && _isAllowlistSafeId(it.id)) return it.id;
       const sig = `${it.name || ''}|${it.startDate || ''}|${it.type || ''}`;
       return sig === '||' ? null : `s_${_djb2(sig)}`;
     },

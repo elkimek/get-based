@@ -53,16 +53,26 @@ function hasNestedInteractiveTarget(actionEl, target) {
  *   askMito: () => void,
  *   addIngredient: () => void,
  *   removeIngredient: (btn: Element) => void,
+ *   addQualityTest: () => void,
+ *   removeQualityTest: (btn: Element) => void,
  *   addPeriod: () => void,
  *   removePeriod: (btn: Element) => void,
  *   fetchUrl: () => Promise<void> | void,
  *   triggerLabelPicker: () => void,
  *   scanLabel: (input: HTMLInputElement) => Promise<void> | void,
  *   save: (idx: number) => void,
- *   delete: (idx: number) => void,
+ *   delete: (idx: number) => Promise<void> | void,
+ *   pause: (idx: number) => void,
+ *   end: (idx: number) => void,
+ *   restart: (idx: number) => void,
+ *   changeDose: (idx: number) => void,
+ *   applyImport: () => void,
+ *   keepSafetyQuality: () => void,
+ *   discardImport: () => void,
  *   refreshImpact: (idx: number) => Promise<void> | void,
  *   updateIngredientTotal: (input: Element) => void,
  *   updateAllIngredientTotals: () => void,
+ *   updateIngredientUnit: (input: Element) => void,
  * }} SupplementActions
  */
 
@@ -98,6 +108,12 @@ function makeClickHandler(actions) {
       case 'remove-ingredient':
         actions.removeIngredient(actionEl);
         break;
+      case 'add-quality-test':
+        actions.addQualityTest();
+        break;
+      case 'remove-quality-test':
+        actions.removeQualityTest(actionEl);
+        break;
       case 'add-period':
         actions.addPeriod();
         break;
@@ -114,7 +130,28 @@ function makeClickHandler(actions) {
         actions.save(idx);
         break;
       case 'delete':
-        if (idx >= 0) actions.delete(idx);
+        if (idx >= 0) void actions.delete(idx);
+        break;
+      case 'pause':
+        if (idx >= 0) actions.pause(idx);
+        break;
+      case 'end':
+        if (idx >= 0) actions.end(idx);
+        break;
+      case 'restart':
+        if (idx >= 0) actions.restart(idx);
+        break;
+      case 'change-dose':
+        if (idx >= 0) actions.changeDose(idx);
+        break;
+      case 'apply-import':
+        actions.applyImport();
+        break;
+      case 'quality-safety-only':
+        actions.keepSafetyQuality();
+        break;
+      case 'discard-import':
+        actions.discardImport();
         break;
       case 'refresh-impact':
         if (idx >= 0) void actions.refreshImpact(idx);
@@ -143,7 +180,7 @@ function handleSupplementKeydown(event) {
  */
 function makeInputHandler(actions) {
   return event => {
-    const input = closestSuppElement(event.target, '.supp-ing-amount, .supp-ing-times, #supp-times');
+    const input = closestSuppElement(event.target, '.supp-ing-amount, .supp-ing-unit-custom, .supp-ing-times, #supp-times');
     if (!input) return;
     if (input.id === 'supp-times') {
       actions.updateAllIngredientTotals();
@@ -159,8 +196,9 @@ function makeInputHandler(actions) {
  */
 function makeChangeHandler(actions) {
   return event => {
-    const input = closestSuppElement(event.target, '#supp-label-input');
-    if (input instanceof HTMLInputElement) void actions.scanLabel(input);
+    const target = closestSuppElement(event.target, '#supp-label-input, .supp-ing-unit');
+    if (target instanceof HTMLInputElement) void actions.scanLabel(target);
+    else if (target instanceof HTMLSelectElement) actions.updateIngredientUnit(target);
   };
 }
 

@@ -17,6 +17,8 @@ import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
+import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
+import { buildCompactSupplementContextRecords } from './supplement-context.js';
 
 /** @type {{
  *   callClaudeAPI: typeof callClaudeAPI,
@@ -132,12 +134,17 @@ function bodySummary(imported) {
   return { includeBodyContext, hrv: pick('hrv_rmssd'), rhr: pick('rhr'), sleep: pick('sleep_score'), readiness: pick('readiness_score') };
 }
 
-function supplementsSummary(imported) {
+function supplementsSummary(imported, data) {
   if (!Array.isArray(imported?.supplements)) return [];
-  return imported.supplements.map(item => {
-    try { return JSON.stringify(item); }
-    catch { return String(item || ''); }
-  }).filter(Boolean);
+  const relevant = data?.dates?.length
+    ? getSupplementsOverlappingRange(imported.supplements, data.dates[0], data.dates[data.dates.length - 1])
+    : getCurrentSupplements(imported.supplements);
+  return buildCompactSupplementContextRecords(relevant);
+}
+
+function supplementInventoryFingerprint(imported) {
+  try { return hashString(JSON.stringify(imported?.supplements || [])); }
+  catch { return hashString(String(imported?.supplements || '')); }
 }
 
 function latest(data, cat, key) {
@@ -160,7 +167,7 @@ function recentContextLabs(data) {
   return labs;
 }
 
-function buildInsightContextPayload(imported) {
+function buildInsightContextPayload(imported, data) {
   const includeInsightCards = isInsightContextCardsEnabled();
   const includeSupplementsMeds = isSupplementsMedsContextEnabled();
   const includeTrackedSleep = isWearableContextEnabled();
@@ -184,13 +191,13 @@ function buildInsightContextPayload(imported) {
     environment: includeInsightCards ? safeStructuredContext(imported?.environment, ['setting','climate','altitude','inhaledExposures','occupationalExposures','water','waterConcerns','emf','emfMitigation','homeLight','air','toxins','building','note','outdoorTime','sun','mold','airQuality','notes'], 120) : {},
     healthGoals: includeInsightCards && Array.isArray(imported?.healthGoals) ? sortHealthGoalsByPriority(imported.healthGoals).slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
     menstrualCycle: includeInsightCards ? safeStructuredContext(imported?.menstrualCycle, ['cycleStatus','status','phase','cycleDay','regularity','contraceptive','contraception','hormoneTherapy','conditions','note','notes'], 140) : {},
-    supplements: includeSupplementsMeds ? supplementsSummary(imported) : [],
+    supplements: includeSupplementsMeds ? supplementsSummary(imported, data) : [],
   };
 }
 
 export function buildBiologyScoreContextFingerprint(data, range = state.dateRangeFilter || 'all') {
   const imported = /** @type {any} */ (state.importedData || {});
-  const insight = buildInsightContextPayload(imported);
+  const insight = buildInsightContextPayload(imported, data);
   const labs = recentContextLabs(data);
   const basis = JSON.stringify({
     range,
@@ -198,6 +205,7 @@ export function buildBiologyScoreContextFingerprint(data, range = state.dateRang
     profileSex: state.profileSex || '',
     profileDob: state.profileDob || '',
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
+    supplementInventoryFingerprint: supplementInventoryFingerprint(imported),
     insight,
     light: lightSummary(imported),
     genetics: geneticsSummary(imported),
@@ -227,7 +235,7 @@ export function buildBiologyScoreContextFingerprintsByRange(rawData) {
 
 export function buildBiologyScoreContextMaterialSignature(data, range = state.dateRangeFilter || 'all') {
   const imported = /** @type {any} */ (state.importedData || {});
-  const insight = buildInsightContextPayload(imported);
+  const insight = buildInsightContextPayload(imported, data);
   const labs = recentContextLabs(data);
   const basis = JSON.stringify({
     range,
@@ -235,6 +243,7 @@ export function buildBiologyScoreContextMaterialSignature(data, range = state.da
     profileSex: state.profileSex || '',
     profileDob: state.profileDob || '',
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
+    supplementInventoryFingerprint: supplementInventoryFingerprint(imported),
     insight,
     light: lightSummary(imported),
     genetics: geneticsSummary(imported),
@@ -272,7 +281,7 @@ export function hasBiologyScoreContextReview(_data = null) {
 
 function buildReviewContext(data) {
   const imported = /** @type {any} */ (state.importedData || {});
-  const insight = buildInsightContextPayload(imported);
+  const insight = buildInsightContextPayload(imported, data);
   const context = {
     profileSex: state.profileSex || 'not set',
     profileDob: state.profileDob || 'not set',

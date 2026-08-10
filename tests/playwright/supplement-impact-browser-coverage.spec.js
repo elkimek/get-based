@@ -47,12 +47,14 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
       data,
       { profileStorageKey },
       supplements,
+      { getSupplementRecordId },
     ] = await Promise.all([
       import(impactUrl),
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/profile.js'),
       import('/js/supplements.js'),
+      import('/js/supplement-medication-domain.js'),
     ]);
 
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -191,8 +193,14 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
       await waitUntil(() => document.getElementById('supp-impact-summary-0')?.textContent?.includes('Creatinine rose'), 'AI impact summary');
       outcomes.aiSummaryAppliedToDom = document.getElementById('supp-impact-summary-0')?.textContent === 'Creatinine rose with stable glucose.';
       outcomes.aiDotAppliedToDom = document.getElementById('supp-impact-dot-0')?.classList.contains('ctx-health-dot-green') === true;
+      const supplementCacheKey = getSupplementRecordId(supp) || supp.name;
+      await waitUntil(() => {
+        const cached = JSON.parse(localStorage.getItem(cacheKey()) || '{}');
+        return cached[supplementCacheKey]?.summary === 'Creatinine rose with stable glucose.';
+      }, 'AI impact cache');
       const cacheAfterAi = JSON.parse(localStorage.getItem(cacheKey()) || '{}');
-      outcomes.aiCacheWritten = cacheAfterAi.Creatine?.dot === 'green' && cacheAfterAi.Creatine?.summary === 'Creatinine rose with stable glucose.';
+      outcomes.aiCacheWritten = cacheAfterAi[supplementCacheKey]?.dot === 'green'
+        && cacheAfterAi[supplementCacheKey]?.summary === 'Creatinine rose with stable glucose.';
       outcomes.legacyCacheShapePruned = !('OldShape' in cacheAfterAi);
 
       const cachedText = renderIntoHost();

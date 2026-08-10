@@ -17,7 +17,7 @@ function expectAll(outcomes) {
   }
 }
 
-test('supplement warning browser coverage exercises lookup scan urls and effect labels', async ({ page }) => {
+test('mitochondrial evidence browser coverage exercises loading lookup matching and context bounds', async ({ page }) => {
   test.setTimeout(30_000);
   await openBlankPage(page, '/supplement-warnings-browser-coverage');
 
@@ -83,15 +83,14 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
       outcomes.successfulLoadMarksDataReady = warnings.hasMitoCompoundData() === true;
 
       const metformin = warnings.lookupMitoCompound(' METFORMIN ');
-      const tylenol = warnings.lookupMitoCompound('daily tylenol tablets');
-      const shortAliasExact = warnings.lookupMitoCompound('nac');
-      const shortAliasInPhrase = warnings.lookupMitoCompound('daily nac');
+      const berberine = warnings.lookupMitoCompound('daily berberine HCl capsules');
+      const shortAliasExact = warnings.lookupMitoCompound('nr');
+      const shortAliasInPhrase = warnings.lookupMitoCompound('daily nr capsules');
 
       outcomes.lookupExactNormalizesCaseAndTrim = metformin?.name === 'Metformin';
-      outcomes.lookupWordBoundaryFindsKeywordInPhrase = tylenol?.name === 'Acetaminophen';
-      outcomes.lookupShortExactKeywordWorks = shortAliasExact?.name === 'N-Acetylcysteine';
+      outcomes.lookupTokenPhraseFindsAlias = berberine?.name === 'Berberine';
+      outcomes.lookupShortExactKeywordWorks = shortAliasExact?.name === 'Nicotinamide riboside';
       outcomes.lookupShortKeywordDoesNotWordMatch = shortAliasInPhrase === null;
-      outcomes.lookupRejectsTooShortQueries = warnings.lookupMitoCompound('nr') === null;
       outcomes.lookupMissReturnsNull = warnings.lookupMitoCompound('made-up-compound') === null;
 
       outcomes.pubmedUrlFormatsPmid =
@@ -104,39 +103,55 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
       const metforminWarnings = warnings.scanSupplementsForWarnings([
         { name: 'Metformin' },
         { name: 'glucophage' },
-        { name: 'Coenzyme Q10' },
+        { name: 'Omega-3 fish oil' },
         { name: 'unknown thing' },
       ]);
-      const paraquatWarnings = warnings.scanSupplementsForWarnings([{ name: 'Paraquat' }]);
-      const fluoxetineWarnings = warnings.scanSupplementsForWarnings([{ name: 'fluoxetine' }]);
-      const protectiveWarnings = warnings.scanSupplementsForWarnings([
-        { name: 'CoQ10' },
-        { name: 'Melatonin' },
-        { name: 'Alpha-Lipoic Acid' },
+      const combinationEvidence = warnings.scanSupplementsForWarnings([
+        { name: 'Combination', brand: 'Linezolid', ingredients: [
+          { name: 'Sertraline 50 mg' },
+          { name: 'Berberine HCl' },
+        ] },
       ]);
-      const metforminWarning = metforminWarnings[0];
+      const metforminWarning = metforminWarnings.find(item => item.compound === 'Metformin');
       const metforminSearchUrl = metforminWarning?.searchUrl ? new URL(metforminWarning.searchUrl) : null;
 
       outcomes.scanNullReturnsEmpty = Array.isArray(emptyWarnings) && emptyWarnings.length === 0;
-      outcomes.scanDedupesAliases = metforminWarnings.length === 1;
-      outcomes.scanUsesOriginalSupplementName = metforminWarning?.match === 'Metformin';
-      outcomes.scanBuildsWarningFromLoadedEntry =
-        metforminWarning?.warning.startsWith(`${metformin?.name}: `) === true
-        && metforminWarning.effects.every(effect => metforminWarning.warning.includes(effect.f));
+      outcomes.scanDedupesAliasesAndKeepsDistinctCompounds =
+        metforminWarnings.filter(item => item.compound === 'Metformin').length === 1
+        && metforminWarnings.some(item => item.compound === 'Omega-3 (EPA + DHA)');
+      outcomes.scanTracksEveryActiveIngredient =
+        combinationEvidence.some(item => item.compound === 'Sertraline')
+        && combinationEvidence.some(item => item.compound === 'Berberine');
+      outcomes.scanIgnoresBrandAsAnUncuratedCandidate =
+        combinationEvidence.every(item => item.compound !== 'Linezolid');
+      outcomes.scanBuildsClaimLevelRecord =
+        metforminWarning?.summary.includes('acute oral metformin') === true
+        && metforminWarning.studyLabel === 'Animal mechanism study'
+        && metforminWarning.limitations.includes('does not show mitochondrial injury');
       outcomes.scanIncludesPubMedUrls =
         /^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/.test(metforminWarning?.url || '');
       outcomes.scanIncludesSearchUrls =
         metforminSearchUrl?.hostname === 'pubmed.ncbi.nlm.nih.gov'
         && !!metforminSearchUrl.searchParams.get('term');
-      outcomes.scanIgnoresProtectiveEffects = protectiveWarnings.length === 0;
-      outcomes.scanTreatsRedoxCyclesAsHarmful =
-        paraquatWarnings[0]?.effects.some(effect => effect.a === 'redox cycles') === true;
-      outcomes.scanTreatsIncreasedRosAsHarmful =
-        paraquatWarnings[0]?.effects.some(effect => effect.a === 'increases' && effect.f === 'ROS') === true;
-      outcomes.scanTreatsDecreasedMembranePotentialAsHarmful =
-        fluoxetineWarnings[0]?.effects.some(
-          effect => effect.a === 'decreases' && effect.f === 'Membrane potential',
-        ) === true;
+      outcomes.directionLabelsDoNotOverstateMechanisticWork =
+        warnings.mitochondrialDirectionLabel('mechanism', 'animal_in_vivo') === 'Mechanism, not harm'
+        && warnings.mitochondrialDirectionLabel('adverse', 'human_cells') === 'Adverse lab signal'
+        && warnings.mitochondrialDirectionLabel('adverse', 'human_observational') === 'Human caution signal'
+        && warnings.mitochondrialDirectionLabel('beneficial', 'human_trial') === 'Potential benefit'
+        && warnings.mitochondrialDirectionLabel('null', 'human_trial') === 'No effect detected'
+        && warnings.mitochondrialDirectionLabel('mixed', 'human_intervention_mechanistic') === 'Mixed finding';
+
+      const boundedContext = warnings.buildMitochondrialEvidenceContext([
+        { name: 'Combination', ingredients: [
+          { name: 'Sertraline' }, { name: 'Berberine' }, { name: 'Metformin' },
+          { name: 'PQQ' }, { name: 'Resveratrol' },
+        ] },
+      ], { maxItems: 2, maxChars: 1500 });
+      outcomes.contextIsBoundedAndCaveated =
+        boundedContext.length <= 1500
+        && (boundedContext.match(/PMID/g) || []).length <= 2
+        && boundedContext.includes('additional verified evidence record(s)')
+        && boundedContext.includes('do not advise stopping prescription medication');
 
       outcomes.humanizeMappedVerbWithContext =
         warnings.humanizeEffect(
@@ -144,7 +159,7 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
           { showContext: true },
         ) === 'may inhibit Complex I (high dose)';
       outcomes.humanizeMappedVerbNoContextField =
-        warnings.humanizeEffect({ a: 'binds', f: 'CoQ10' }, { showContext: true }) === 'binds CoQ10';
+        warnings.humanizeEffect({ a: 'binds', f: 'CoQ10' }, { showContext: true }) === 'may bind CoQ10';
       outcomes.humanizeUnknownVerbSingularizes =
         warnings.humanizeEffect({ a: 'protects', f: 'Complex I' }) === 'may protect Complex I';
       outcomes.humanizeMissingActionDefaults =

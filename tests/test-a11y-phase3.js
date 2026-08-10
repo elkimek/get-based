@@ -72,7 +72,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     cycleSrc.includes("cycleActionAttrs('open-editor')") &&
       !cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
 
-  const suppSrc = read('/js/supplements.js');
+  const suppSrc = read('/js/supplement-dashboard.js');
   assert('supp-bar-row has role+tabindex',
     suppSrc.includes('class="supp-bar-row" role="button" tabindex="0"'));
 

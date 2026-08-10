@@ -16,9 +16,10 @@ import {
   getCycleNextBestDrawDateRuntime as getNextBestDrawDate,
 } from './cycle-runtime.js';
 import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
-import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
+import { buildMitochondrialEvidenceContext } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
+import { buildSupplementAIContext, resolveSupplementContextMode } from './supplement-context.js';
+import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 import {
   buildWearableContext,
   getSleepContextMismatch,
@@ -40,7 +41,7 @@ import {
 import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
 
 /**
- * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean }} LabContextOptions
+ * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
  */
 
 /** @type {{
@@ -89,22 +90,23 @@ export { getContextSummary, injectLensChunks } from './lab-context-output.js';
 // Sun context follows the same rule as other context sources: include the
 // standard section whenever data exists, without brittle keyword detection.
 
-export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles } = {}) {
+export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
   // ignoreContextToggles: true → Agent Access permission already granted; assemble full context
-  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '');
+  const supplementContextMode = resolveSupplementContextMode(queryText, state.importedData.supplements || []);
+  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}`;
   const cached = getCachedLabContext(fp);
   if (cached) {
     if (isDebugMode()) console.log('[AI] Lab context cache hit');
     return cached;
   }
   if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
-  const ctx = _buildLabContextInner({ skipGroupFilter, ignoreContextToggles });
+  const ctx = _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, supplementContextMode });
   setCachedLabContext(fp, ctx);
   return ctx;
 }
 
-function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles } = {}) {
+function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, supplementContextMode = 'compact' } = {}) {
   const data = getActiveData();
   const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled();
   const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
@@ -368,33 +370,21 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   }
 
   // ── 7. Supplements & Medications ──
-  const supps = state.importedData.supplements || [];
-  if (includeSupplementsMeds && supps.length > 0) {
+  const allSupps = state.importedData.supplements || [];
+  const relevantSupps = data?.dates?.length
+    ? getSupplementsOverlappingRange(allSupps, data.dates[0], data.dates[data.dates.length - 1])
+    : getCurrentSupplements(allSupps);
+  // A supplement-specific question may need a paused/ended course. Detail mode
+  // remains bounded, but draws from the complete stored history.
+  const supps = supplementContextMode === 'detail' ? allSupps : relevantSupps;
+  if (includeSupplementsMeds && allSupps.length > 0) {
     ctx += `[section:supplements]\n## Supplements & Medications\n`;
-    for (const s of supps) {
-      const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
-      const dateRange = pds.length === 1
-        ? `${fmtDate(pds[0].start)} \u2192 ${pds[0].end ? fmtDate(pds[0].end) : 'ongoing'}`
-        : `CYCLING: ${pds.map(p => fmtDate(p.start) + '\u2192' + (p.end ? fmtDate(p.end) : 'ongoing')).join(', ')}`;
-      ctx += `- ${s.name}${s.dosage ? ' (' + s.dosage + ')' : ''} [${s.type}]: ${dateRange}${s.note ? ' — ' + s.note : ''}`;
-      if (s.ingredients?.length) ctx += ` | ingredients: ${s.ingredients.map(ing => {
-        const total = ingredientDailyTotal(ing, s);
-        const times = effectiveTimesPerDay(ing, s);
-        if (total) return `${ing.name} ${ing.amount} × ${times}/day = ${total.value}${total.unit ? ' ' + total.unit : ''}/day`;
-        if (times) return `${ing.name}${ing.amount ? ' ' + ing.amount : ''} × ${times}/day`;
-        return `${ing.name}${ing.amount ? ' ' + ing.amount : ''}`;
-      }).join(', ')}`;
-      ctx += `\n`;
-    }
-    // Mitochondrial harm warnings (from curated PubMed-cited database)
-    const mitoWarnings = scanSupplementsForWarnings(supps);
-    if (mitoWarnings.length > 0) {
-      ctx += `\nMitochondrial effects detected:\n`;
-      for (const w of mitoWarnings) {
-        const effects = w.effects.slice(0, 3).map(e => humanizeEffect(e, { showContext: true })).join('; ');
-        ctx += `- ${w.match}: ${effects} (PMID: ${w.pmid})\n`;
-      }
-    }
+    ctx += buildSupplementAIContext(supps, {
+      mode: supplementContextMode,
+      inventorySupplements: allSupps,
+    });
+    const mitochondrialEvidence = buildMitochondrialEvidenceContext(supps);
+    if (mitochondrialEvidence) ctx += `\n${mitochondrialEvidence}`;
     ctx += `[/section:supplements]\n\n`;
   }
 

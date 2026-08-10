@@ -8,8 +8,9 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
+const renderSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel-render.js'), 'utf8');
 const restoreUiSrc = fs.readFileSync(path.join(root, 'js/settings-sync-restore-ui.js'), 'utf8');
-const syncUiSrc = `${src}\n${restoreUiSrc}`;
+const syncUiSrc = `${src}\n${renderSrc}\n${restoreUiSrc}`;
 const agentSrc = fs.readFileSync(path.join(root, 'js/settings-agent-access-panel.js'), 'utf8');
 
 let passed = 0;
@@ -60,7 +61,9 @@ assert('Click delegate lets state controls reach change/input events',
   'toggle-sync',
   'setup-new-direct',
   'setup-restore-direct',
-  'disable-sync',
+  'pause-sync',
+  'resume-sync',
+  'disconnect-sync',
   'toggle-mnemonic',
   'copy-mnemonic',
   'open-restore-dialog',

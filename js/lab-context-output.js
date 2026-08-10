@@ -2,6 +2,7 @@
 // Lab-context summaries, change narration, and Lens prompt injection.
 
 import { state } from './state.js';
+import { getCurrentSupplements } from './supplement-medication-domain.js';
 import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { getLatitudeFromLocation } from './profile.js';
@@ -132,9 +133,10 @@ export function getContextSummary() {
   }
   const supplements = state.importedData.supplements || [];
   if (includeSupplementsMeds && supplements.length > 0) {
+    const currentCount = getCurrentSupplements(supplements).length;
     areas.push({
       label: 'Supplements',
-      detail: `${supplements.length} item${supplements.length !== 1 ? 's' : ''}`,
+      detail: `${currentCount} current${supplements.length > currentCount ? ` · ${supplements.length - currentCount} history` : ''}`,
     });
   }
   const notes = state.importedData.notes || [];

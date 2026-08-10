@@ -262,7 +262,7 @@ export async function sendChatMessage() {
   let aiMsgEl = null;
 
   try {
-    let labContext = buildLabContext();
+    let labContext = buildLabContext({ queryText: text });
     let _lensResultForMsg = null;
     if (hasLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });

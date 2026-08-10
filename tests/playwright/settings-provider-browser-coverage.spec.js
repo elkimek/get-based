@@ -394,6 +394,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
 
     const storageKeys = [
       'labcharts-sync-enabled',
+      'labcharts-sync-paused',
       'labcharts-sync-relay',
       'labcharts-messenger-enabled',
       'labcharts-messenger-token',
@@ -491,6 +492,15 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       syncSection.innerHTML = syncPanel.renderSyncSection();
       const enabledRender = syncSection.textContent.includes('Your mnemonic')
         && syncSection.querySelector('#sync-relay-input')?.value === 'wss://relay.example';
+      syncState.setSyncPaused(true);
+      syncSection.innerHTML = syncPanel.renderSyncSection();
+      const pausedRender = syncSection.textContent.includes('Paused')
+        && syncSection.textContent.includes('identity and sync history are retained')
+        && !!syncSection.querySelector('[data-sync-action="resume-sync"]')
+        && !!syncSection.querySelector('[data-sync-action="disconnect-sync"]')
+        && !syncSection.querySelector('[data-sync-action="setup-restore-direct"]');
+      syncState.setSyncPaused(false);
+      syncSection.innerHTML = syncPanel.renderSyncSection();
       syncSection.querySelector('[data-sync-action="open-restore-dialog"]').click();
       await wait(0);
       const restoreOverlay = document.getElementById('sync-restore-overlay');
@@ -597,6 +607,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         ownerPendingDisabled,
         ownerReadyRerenderEnables,
         enabledRender,
+        pausedRender,
         restoreDialogOpens,
         restoreCountsWords,
         restoreEnablesSubmit,

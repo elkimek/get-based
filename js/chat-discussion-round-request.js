@@ -17,7 +17,7 @@ import {
 import { getChatWebSearchEnabled } from './chat-panel.js';
 
 export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal }) {
-  let labContext = buildLabContext();
+  let labContext = buildLabContext({ queryText: msgText });
   let lensResult = null;
   if (hasLens()) {
     lensResult = await queryLensMulti(msgText, { signal });

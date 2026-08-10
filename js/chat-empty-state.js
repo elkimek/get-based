@@ -9,6 +9,7 @@ import { renderProfileContextCards } from './context-cards.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
+import { getCurrentSupplements } from './supplement-medication-domain.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
@@ -394,8 +395,14 @@ function buildOptionalContextTaskCards() {
 }
 
 function summarizeSupplements(supps) {
+  const current = getCurrentSupplements(supps);
+  if (current.length) {
+    return current.slice(0, 2).map(s => `${s.name}${s.dosage ? ` ${s.dosage}` : ''}`).join(', ')
+      + (current.length > 2 ? ` +${current.length - 2}` : '')
+      + (supps.length > current.length ? ` · ${supps.length - current.length} in history` : '');
+  }
   return supps.length
-    ? supps.slice(0, 2).map(s => `${s.name}${s.dosage ? ` ${s.dosage}` : ''}`).join(', ') + (supps.length > 2 ? ` +${supps.length - 2}` : '')
+    ? `No current items · ${supps.length} in history`
     : 'Add medications or supplements that can shift labs.';
 }
 

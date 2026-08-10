@@ -12,6 +12,7 @@ import { injectLensChunks, isGroupInAIContext, isInsightContextCardsEnabled, isL
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
 import { computeAllImpacts } from './supplement-impact.js';
+import { getCurrentSupplements, getSupplementPeriods, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 
 const focusCardActionDelegateRoots = new WeakSet();
 const FOCUS_CARD_ACTION_ATTR = 'data-focus-card-action';
@@ -119,11 +120,14 @@ export function buildFocusContext() {
     }
   }
 
-  const supps = (state.importedData.supplements || []).slice(0, 8);
+  const allSupps = state.importedData.supplements || [];
+  const supps = (data.dates?.length
+    ? getSupplementsOverlappingRange(allSupps, data.dates[0], data.dates[data.dates.length - 1])
+    : getCurrentSupplements(allSupps)).slice(0, 8);
   if (includeSupplementsMeds && supps.length > 0) {
     ctx += `Supplements:\n`;
     for (const s of supps) {
-      const pds = (s.periods && s.periods.length > 0) ? [...s.periods].sort((a, b) => a.start.localeCompare(b.start)) : [{ start: s.startDate, end: s.endDate }];
+      const pds = [...getSupplementPeriods(s)].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
       const dateRange = pds.length === 1
         ? `${pds[0].start} \u2192 ${pds[0].end || 'ongoing'}`
         : pds.map(p => `${p.start}\u2192${p.end || 'now'}`).join(', ');

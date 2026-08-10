@@ -1,9 +1,11 @@
 // @ts-check
-// sync-lifecycle.js - Sync enable / disable lifecycle actions.
+// sync-lifecycle.js - Sync enable / pause / disconnect lifecycle actions.
 
 import { showNotification } from './utils.js';
 import { getSyncBlocker } from './sync-environment.js';
-import { setSyncEnabled } from './sync-settings-state.js';
+import {
+  isSyncEnabled, isSyncPaused, setSyncEnabled, setSyncPaused,
+} from './sync-settings-state.js';
 import { clearSyncDisableStorage } from './sync-disable-cleanup.js';
 import { resetSyncStatus } from './sync-state.js';
 import { pushAllProfiles } from './sync-actions.js';
@@ -17,9 +19,11 @@ import {
   getSyncQueryLoadedPromise, getSyncReadyPromise, scheduleSyncRuntimeReload,
   setSyncAppOwnerError,
 } from './sync-runtime.js';
+import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
 
 /** @param {{ skipPush?: boolean, persist?: boolean }} [options] */
 export async function enableSync({ skipPush = false, persist = true } = {}) {
+  const resuming = isSyncPaused();
   // Reject early if the webview can't actually run Evolu - no point flipping
   // the persisted flag and starting init only to time out at 30s.
   const blocker = getSyncBlocker();
@@ -60,9 +64,26 @@ export async function enableSync({ skipPush = false, persist = true } = {}) {
     try { await pushAllProfiles(); } catch (e) { console.warn('[sync] initial push failed:', e); }
   }
   if (persist) {
-    showNotification('Sync enabled', 'success');
+    showNotification(resuming ? 'Sync resumed' : 'Sync enabled', 'success');
     renderSyncIndicator();
   }
+  return true;
+}
+
+export async function pauseSync() {
+  if (!isSyncEnabled()) return false;
+  setSyncPaused(true);
+  setSyncAppOwnerError(null);
+  clearSyncSaveTimers();
+  clearSyncPullTimers();
+  clearSyncSubscriptionTimers();
+  resetSyncStatus();
+  renderSyncIndicator();
+
+  // Keep Evolu's local database, owner, mnemonic, planner snapshots, runtime,
+  // and dirty markers intact. Subscription/timer cleanup above stops inbound
+  // application merges; paused local edits are queued by the normal hooks.
+  showNotification('Sync paused', 'success');
   return true;
 }
 
@@ -88,7 +109,12 @@ export async function disableSync() {
   // so the next push re-emits everything as inserts (relay starts
   // empty under the new owner anyway). Same for telemetry + cutover
   // flag (cutover was profile-scoped to the previous owner).
-  clearSyncDisableStorage();
+  const restoredProfileIds = getPendingBackupRestoreProfileIds();
+  if (restoredProfileIds.length > 0) {
+    clearSyncDisableStorage({ preserveDirtyProfileIds: restoredProfileIds });
+  } else {
+    clearSyncDisableStorage();
+  }
 
   // Fire-and-forget the Evolu reset. We can't trust this await: if the
   // worker is hung (OPFS / lock contention), `resetAppOwner` never

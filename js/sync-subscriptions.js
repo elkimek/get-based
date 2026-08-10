@@ -7,6 +7,7 @@
 let _isSyncing = () => false;
 /** @type {() => boolean} */
 let _isPulling = () => false;
+let _isSyncEnabled = () => true;
 /** @type {() => any} */
 let _onSyncReceived = () => {};
 /** @type {() => Promise<boolean>} */
@@ -25,11 +26,14 @@ let _pendingReceiveTimer = null;
 let _lastPollProfileSignature = '';
 let _lastPollTombstoneSignature = '';
 let _subscriptionFireCount = 0;
+/** @type {Array<() => void>} */
+let _unsubscribeCallbacks = [];
 const RECEIVE_RETRY_MS = 500;
 
 /** @param {{
  *   isSyncing?: () => boolean,
  *   isPulling?: () => boolean,
+ *   isSyncEnabled?: () => boolean,
  *   onSyncReceived?: () => any,
  *   checkRelayConnection?: () => Promise<boolean>,
  *   updateSyncStatus?: (partial: any) => void,
@@ -39,6 +43,7 @@ const RECEIVE_RETRY_MS = 500;
 export function configureSyncSubscriptions({
   isSyncing,
   isPulling,
+  isSyncEnabled,
   onSyncReceived,
   checkRelayConnection,
   updateSyncStatus,
@@ -46,6 +51,7 @@ export function configureSyncSubscriptions({
 } = {}) {
   if (typeof isSyncing === 'function') _isSyncing = isSyncing;
   if (typeof isPulling === 'function') _isPulling = isPulling;
+  if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof onSyncReceived === 'function') _onSyncReceived = onSyncReceived;
   if (typeof checkRelayConnection === 'function') _checkRelayConnection = checkRelayConnection;
   if (typeof updateSyncStatus === 'function') _updateSyncStatus = updateSyncStatus;
@@ -57,6 +63,10 @@ export function getSyncSubscriptionFireCount() {
 }
 
 export function clearSyncSubscriptionTimers() {
+  for (const unsubscribe of _unsubscribeCallbacks) {
+    try { unsubscribe(); } catch {}
+  }
+  _unsubscribeCallbacks = [];
   if (_pollInterval) {
     clearInterval(_pollInterval);
     _pollInterval = null;
@@ -75,11 +85,15 @@ export function clearSyncSubscriptionTimers() {
 }
 
 function canReceiveSync() {
-  return !_isSyncing() && !_isPulling();
+  return _isSyncEnabled() && !_isSyncing() && !_isPulling();
 }
 
 /** @param {string} [reason] */
 function requestSyncReceive(reason = 'subscription') {
+  if (!_isSyncEnabled()) {
+    _debug(`${reason}: receive ignored while sync is paused or off`);
+    return;
+  }
   if (canReceiveSync()) {
     _onSyncReceived();
     return;
@@ -106,30 +120,30 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
 
   clearSyncSubscriptionTimers();
 
-  evolu.subscribeQuery(profileQuery)(() => {
+  _unsubscribeCallbacks.push(evolu.subscribeQuery(profileQuery)(() => {
     _subscriptionFireCount++;
     const syncing = _isSyncing();
     const pulling = _isPulling();
     _debug(`subscription fired (#${_subscriptionFireCount}), syncing: ${syncing}, pulling: ${pulling}`);
     requestSyncReceive('profile subscription');
-  });
+  }));
 
   // Tombstone rows live outside profileQuery's "isDeleted is not 1"
   // filter. Evolu refreshes subscribed queries after remote mutations,
   // so this subscription is required for device B to see device A's
   // profile-delete tombstone without waiting for a full reload.
-  evolu.subscribeQuery(tombstoneQuery)(() => {
+  _unsubscribeCallbacks.push(evolu.subscribeQuery(tombstoneQuery)(() => {
     requestSyncReceive('tombstone subscription');
-  });
+  }));
 
   // itemRow rows arriving asynchronously must also retrigger the merge
   // - without this, a per-row push from device A would only land on
   // device B after the next blob-driven pull tick (which v1.6.4's 10s
   // debounce stretches out). Subscribing here gives near-real-time
   // delta propagation, which is half the point of Phase 1.
-  evolu.subscribeQuery(itemRowQuery)(() => {
+  _unsubscribeCallbacks.push(evolu.subscribeQuery(itemRowQuery)(() => {
     requestSyncReceive('itemRow subscription');
-  });
+  }));
 
   // Poll every 30s as safety net - subscribeQuery may miss remote changes.
   // Compare a row signature, not just counts: chat/profile pushes update the
@@ -150,14 +164,14 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   }, 30000);
 
   // Subscribe to Evolu errors - catches relay connection failures.
-  evolu.subscribeError((error) => {
+  _unsubscribeCallbacks.push(evolu.subscribeError((error) => {
     if (!error) return;
     const type = error?.type || 'unknown';
     _debug('Evolu error:', type);
     if (type.startsWith('WebSocket')) {
       _updateSyncStatus({ relay: 'unreachable', lastError: { type, message: type, at: Date.now() } });
     }
-  });
+  }));
 }
 
 async function runRelayProbe() {

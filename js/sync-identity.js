@@ -5,6 +5,7 @@ import { loadScriptOnce, showNotification } from './utils.js';
 import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
+import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled } from './sync-settings-state.js';
 
@@ -210,7 +211,12 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
     // delta snapshot would tell the planner "I already pushed these items",
     // leaving the new owner's relay empty. Drop snapshots so the first push
     // under the new identity re-emits everything as inserts.
-    clearSyncDisableStorage();
+    const restoredProfileIds = getPendingBackupRestoreProfileIds();
+    if (restoredProfileIds.length > 0) {
+      clearSyncDisableStorage({ preserveDirtyProfileIds: restoredProfileIds });
+    } else {
+      clearSyncDisableStorage();
+    }
     if (options?.seedLocal) {
       setRestoreJoinPending(false);
       await _seedLocalProfiles();

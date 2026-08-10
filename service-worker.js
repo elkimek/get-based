@@ -1,6 +1,5 @@
 importScripts('/version.js');
 importScripts('/service-worker-runtime.js');
-
 // Cache key strategy:
 //   Production (app.getbased.health) → labcharts-v${APP_VERSION}
 //   Anywhere else (Vercel previews, local dev) → labcharts-v${APP_VERSION}-${sha8}
@@ -176,6 +175,13 @@ const APP_SHELL = [
   '/js/notes-runtime.js',
   '/js/notes.js',
   '/js/supplement-action-delegates.js',
+  '/js/supplement-dashboard.js',
+  '/js/supplement-form-ui.js',
+  '/js/supplement-import-controller.js',
+  '/js/supplement-import-draft.js',
+  '/js/supplement-context.js',
+  '/js/supplement-medication-domain.js',
+  '/js/supplement-quality.js',
   '/js/supplements.js',
   '/js/supplements-runtime.js',
   '/js/supplement-impact.js',
@@ -295,6 +301,7 @@ const APP_SHELL = [
   '/js/settings-runtime-bridge.js',
   '/js/settings-sync-panel.js',
   '/js/settings-sync-panel-impl.js',
+  '/js/settings-sync-panel-render.js',
   '/js/settings-sync-restore-ui.js',
   '/js/settings-tweaks.js',
   '/js/voice-audio.js',
@@ -445,6 +452,7 @@ const APP_SHELL = [
   '/js/sync-init.js',
   '/js/sync-lifecycle.js',
   '/js/sync-disable-cleanup.js',
+  '/js/sync-backup-restore-state.js',
   '/js/sync-apply.js',
   '/js/sync-chat-apply.js',
   '/js/sync-schema.js',

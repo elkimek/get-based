@@ -6,6 +6,7 @@ import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './marker-analysis.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
+import { getSupplementsOverlappingRange, localDateKey } from './supplement-medication-domain.js';
 import {
   createChartRuntime,
   getChartConstructorRuntime,
@@ -274,14 +275,7 @@ export function getSupplementsForChart(chartDates) {
   if (!supps.length || !chartDates.length) return [];
   const minDate = chartDates[0];
   const maxDate = chartDates[chartDates.length - 1];
-  const today = new Date().toISOString().slice(0, 10);
-  return supps.filter(s => {
-    const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
-    return pds.some(p => {
-      const end = p.end || today;
-      return p.start <= maxDate && end >= minDate;
-    });
-  });
+  return getSupplementsOverlappingRange(supps, minDate, maxDate);
 }
 
 export const supplementBarPlugin = {
@@ -311,7 +305,7 @@ export const supplementBarPlugin = {
     if (!cfg || !cfg.supplements || !cfg.supplements.length) return [];
     const { left, right, top } = chart.chartArea;
     const BAR_H = 12, GAP = 2, TOP_PAD = 4;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     const rects = [];
     cfg.supplements.forEach((s, i) => {
       const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
