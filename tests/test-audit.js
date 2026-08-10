@@ -1164,6 +1164,8 @@ assert('buildFocusContext exists in focus-card.js', focusCardSrc.includes('funct
 assert('views.js imports focus card module', viewsSrc.includes("from './focus-card.js'"));
 assert('Focus card uses buildFocusContext', focusCardSrc.includes('buildFocusContext()'));
 assert('Focus card context-aware system prompt', focusCardSrc.includes("this person's goals/conditions"));
+assert('Focus card disables reasoning for its small token cap', /reasoningEffort:\s*'none'/.test(focusCardSrc));
+assert('Focus card surfaces the failure reason', focusCardSrc.includes('escapeHTML(reason)'));
 
 assert('askAIAboutMarker uses marker.refMin/refMax', chatMarkerPromptsSrc.includes('${marker.refMin}') && chatMarkerPromptsSrc.includes('${marker.refMax}'));
 assert('askAIAboutMarker has trend direction', chatMarkerPromptsSrc.includes("Trend: ${dir}"));

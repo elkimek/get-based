@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { trackUsage } from './schema.js';
-import { escapeAttr, hasCardContent, getStatus } from './utils.js';
+import { escapeAttr, escapeHTML, hasCardContent, getStatus } from './utils.js';
 import { getActiveData, getFocusCardFingerprint } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
@@ -239,6 +239,9 @@ export async function loadFocusCard(opts = {}) {
       system: focusSystem,
       messages: [{ role: 'user', content: ctx }],
       maxTokens: 500,
+      // A thinking model spends this 500-token cap on reasoning and finishes
+      // with `length` before writing any content, leaving the card empty.
+      reasoningEffort: 'none',
       onStream(text) {
         if (text.length < target.length) displayed = 0;
         target = text;
@@ -267,7 +270,12 @@ export async function loadFocusCard(opts = {}) {
       el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">No insight available</span>`;
     }
   } catch(e) {
-    el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">Could not load insight</span>`;
+    // Show why. The transport raises actionable messages here (e.g. a local
+    // model spending its output budget on reasoning); collapsing them all to
+    // "Could not load insight" sends people debugging the network instead.
+    console.error('Focus card insight failed:', e);
+    const reason = e instanceof Error && e.message ? e.message : '';
+    el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">Could not load insight${reason ? ` — ${escapeHTML(reason)}` : ''}</span>`;
   }
 }
 
