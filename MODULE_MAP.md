@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 607 |
-| Internal import edges | 2633 |
+| Modules | 608 |
+| Internal import edges | 2639 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -364,8 +364,8 @@ Native browser modules shipped with the static application.
 - [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) → [`js/chat-loader.js`](js/chat-loader.js), [`js/commit-hash.js`](js/commit-hash.js), [`js/dashboard-page-view.js`](js/dashboard-page-view.js), [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js), [`js/dashboard-widget-renderers.js`](js/dashboard-widget-renderers.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-drop-zone.js`](js/import-drop-zone.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/nav.js`](js/nav.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/views-router-runtime.js`](js/views-router-runtime.js), [`js/wearable-adapters.js`](js/wearable-adapters.js)
 - [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js) → [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
-- [`js/dashboard-widget-renderers.js`](js/dashboard-widget-renderers.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/dashboard-lab-widget-renderers.js`](js/dashboard-lab-widget-renderers.js), [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js), [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js)
-- [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
+- [`js/dashboard-widget-renderers.js`](js/dashboard-widget-renderers.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/dashboard-lab-widget-renderers.js`](js/dashboard-lab-widget-renderers.js), [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js), [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js)
+- [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/dashboard-widgets.js`](js/dashboard-widgets.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
@@ -380,17 +380,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>dna</code> family — 9 modules</summary>
+<details><summary><code>dna</code> family — 10 modules</summary>
 
 - [`js/dna-actions.js`](js/dna-actions.js) → [`js/utils.js`](js/utils.js)
+- [`js/dna-evidence.js`](js/dna-evidence.js) → [`js/dna-genotype.js`](js/dna-genotype.js)
 - [`js/dna-file-detection.js`](js/dna-file-detection.js) → no in-scope imports
 - [`js/dna-genotype.js`](js/dna-genotype.js) → no in-scope imports
 - [`js/dna-mtdna.js`](js/dna-mtdna.js) → [`js/caught-error.js`](js/caught-error.js), [`js/constants.js`](js/constants.js), [`js/data.js`](js/data.js), [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/dna-parser.js`](js/dna-parser.js) → [`js/dna-file-detection.js`](js/dna-file-detection.js), [`js/dna-genotype.js`](js/dna-genotype.js)
 - [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js) → no in-scope imports
 - [`js/dna-runtime.js`](js/dna-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/profile.js`](js/profile.js), [`js/utils.js`](js/utils.js)
-- [`js/dna-ui.js`](js/dna-ui.js) → [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/dna.js`](js/dna.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-parser.js`](js/dna-parser.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/dna-ui.js`](js/dna-ui.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/dna-ui.js`](js/dna-ui.js) → [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/dna.js`](js/dna.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-parser.js`](js/dna-parser.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/dna-ui.js`](js/dna-ui.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -741,7 +742,7 @@ Native browser modules shipped with the static application.
 - [`js/recommendations-products.js`](js/recommendations-products.js) → [`js/profile.js`](js/profile.js), [`js/recommendations-region.js`](js/recommendations-region.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/recommendations-region.js`](js/recommendations-region.js) → no in-scope imports
 - [`js/recommendations-runtime.js`](js/recommendations-runtime.js) → [`js/emf-runtime.js`](js/emf-runtime.js)
-- [`js/recommendations.js`](js/recommendations.js) → [`js/dna-genotype.js`](js/dna-genotype.js), [`js/recommendations-products.js`](js/recommendations-products.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/recommendations.js`](js/recommendations.js) → [`js/dna-evidence.js`](js/dna-evidence.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/recommendations-products.js`](js/recommendations-products.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
