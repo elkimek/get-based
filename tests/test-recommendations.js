@@ -24,6 +24,7 @@ console.log('=== Supplement & Lifestyle Recommendations Tests ===\n');
 // Recommendations are consumed through native module exports.
 await import('../js/state.js');
 const recommendationsModule = await import('../js/recommendations.js');
+const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/schema.js');
 
 // Original test reads data/light-device-presets.json via fetchWithRetry —
 // pass through fs read.
@@ -219,13 +220,12 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 8. Schema & Keyword Safety ', 'font-weight:bold;color:#f59e0b');
 
-  const schemaSrc = await fetchWithRetry('js/schema.js');
-  assert('MARKER_SCHEMA has vitamins.vitaminB12', schemaSrc.includes("vitaminB12: { name:"));
-  assert('MARKER_SCHEMA has vitamins.folate', schemaSrc.includes("folate: { name:"));
-  assert('UNIT_CONVERSIONS has vitaminB12', schemaSrc.includes("'vitamins.vitaminB12'"));
-  assert('UNIT_CONVERSIONS has folate', schemaSrc.includes("'vitamins.folate'"));
-  assert('OPTIMAL_RANGES has vitaminB12', schemaSrc.includes("'vitamins.vitaminB12'"));
-  assert('OPTIMAL_RANGES has folate', schemaSrc.includes("'vitamins.folate'"));
+  assert('MARKER_SCHEMA has vitamins.vitaminB12', !!MARKER_SCHEMA.vitamins?.markers?.vitaminB12);
+  assert('MARKER_SCHEMA has vitamins.folate', !!MARKER_SCHEMA.vitamins?.markers?.folate);
+  assert('UNIT_CONVERSIONS has vitaminB12', !!UNIT_CONVERSIONS['vitamins.vitaminB12']);
+  assert('UNIT_CONVERSIONS has folate', !!UNIT_CONVERSIONS['vitamins.folate']);
+  assert('OPTIMAL_RANGES has vitaminB12', !!OPTIMAL_RANGES['vitamins.vitaminB12']);
+  assert('OPTIMAL_RANGES has folate', !!OPTIMAL_RANGES['vitamins.folate']);
 
   // Short keywords use word boundaries (regex) to avoid false positives
   assert('EXTRA_TERMS epa uses regex word boundary', recSrc.includes('/\\bepa\\b/'));

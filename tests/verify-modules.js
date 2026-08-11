@@ -165,6 +165,7 @@
     '/js/touch-tooltip-runtime.js',
     '/js/utils-runtime.js',
     '/js/schema.js',
+    '/js/marker-schema.js',
     '/js/dna-runtime-bridge.js',
     '/js/sync-diagnose-runtime.js',
     '/js/sync-pull-active-refresh-runtime.js',

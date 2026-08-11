@@ -94,6 +94,7 @@ const APP_SHELL = [
   '/js/startup-orchestrator.js',
   '/js/legal-consent.js',
   '/js/schema.js',
+  '/js/marker-schema.js',
   '/js/schema-environment.js',
   '/js/constants.js',
   '/js/state.js',
