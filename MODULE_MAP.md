@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 638 |
-| Internal import edges | 2697 |
+| Internal import edges | 2698 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -69,8 +69,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/constants.js`](js/constants.js) | 22 | [`js/export.js`](js/export.js) | 19 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/lab-context.js`](js/lab-context.js) | 19 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 19 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 19 |
-| [`js/marker-placement.js`](js/marker-placement.js) | 18 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
+| [`js/marker-placement.js`](js/marker-placement.js) | 19 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 19 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
 
 ## Existing cyclic components
 
@@ -709,7 +709,7 @@ Native browser modules shipped with the static application.
 
 - [`js/marker-analysis.js`](js/marker-analysis.js) → [`js/marker-placement.js`](js/marker-placement.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-actions.js`](js/marker-detail-actions.js) → [`js/utils.js`](js/utils.js)
-- [`js/marker-detail-content.js`](js/marker-detail-content.js) → [`js/api.js`](js/api.js), [`js/schema.js`](js/schema.js)
+- [`js/marker-detail-content.js`](js/marker-detail-content.js) → [`js/api.js`](js/api.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/schema.js`](js/schema.js)
 - [`js/marker-detail-custom-markers.js`](js/marker-detail-custom-markers.js) → [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-editing.js`](js/marker-detail-editing.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-detail-store.js`](js/marker-detail-store.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)

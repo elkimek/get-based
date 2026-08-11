@@ -2,6 +2,7 @@
 // marker-detail-content.js — Biological-age and custom-description content helpers
 
 import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider } from './api.js';
+import { resolveActiveMarkerPath } from './marker-placement.js';
 import { trackUsage } from './schema.js';
 
 // Keep these inputs aligned with the PhenoAge and Bortz Age calculations in
@@ -69,7 +70,7 @@ export function bioAgeReferenceIndex(data, marker, latestPoint) {
 export function bioAgeInputStatusAtIndex(data, idx, inputs, profileRequirement = null) {
   const status = inputs.map(([category, key, label]) => ({
     label,
-    present: idx >= 0 && data.categories?.[category]?.markers?.[key]?.values?.[idx] != null,
+    present: idx >= 0 && resolveActiveMarkerPath(data.categories, category, key)?.marker?.values?.[idx] != null,
     kind: 'marker',
   }));
   if (profileRequirement) status.unshift(profileRequirement);

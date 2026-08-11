@@ -108,6 +108,20 @@ describe('marker category placement engine', () => {
     expect(profile.markerPlacements).toEqual({});
   });
 
+  it('places calculated markers in regular categories after calculation', () => {
+    const profile = { customMarkers: {}, markerPlacements: {} };
+
+    expect(setMarkerPlacement(profile, 'calculatedRatios.tgHdlRatio', 'lipids')).toMatchObject({
+      ok: true,
+      storageDotKey: 'calculatedRatios.tgHdlRatio',
+      categoryKey: 'lipids',
+    });
+    expect(getMarkerPlacementPlan(profile)[getBuiltinMarkerId('calculatedRatios.tgHdlRatio')])
+      .toMatchObject({ effectiveCategoryKey: 'lipids', reason: 'placed' });
+    expect(setMarkerPlacement(profile, 'biochemistry.glucose', 'calculatedRatios'))
+      .toMatchObject({ ok: false, reason: 'calculated-category' });
+  });
+
   it('preserves forward metadata and ignores unresolved imported assignments', () => {
     const unknownId = 'custom:arrives_later';
     const profile = {

@@ -147,7 +147,7 @@ export function getMarkerPlacementPlan(profileData) {
       const destinationSlot = `${requestedCategoryKey}.${marker.markerKey}`;
       if (!destinationMode) {
         reason = 'unknown-category';
-      } else if (sourceMode?.calculated || destinationMode.calculated) {
+      } else if (destinationMode.calculated) {
         reason = 'calculated-category';
       } else if (!!sourceMode?.singlePoint !== !!destinationMode.singlePoint) {
         reason = 'category-mode-mismatch';

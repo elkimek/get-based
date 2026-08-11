@@ -96,6 +96,58 @@ test('marker detail moves and restores a marker without re-keying profile data',
   })).toEqual({});
 });
 
+test('calculated ratio can move to a regular category and keeps its diagnostics', async ({ page }) => {
+  await seedMarkerPlacementProfile(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const data = await import('/js/data.js');
+    state.importedData.entries[0].markers['lipids.triglycerides'] = 1.5;
+    state.importedData.entries[0].markers['lipids.hdl'] = 1.2;
+    data.invalidateActiveDataCache();
+    const modal = await import('/js/marker-detail-modal.js');
+    await modal.showDetailModal('calculatedRatios_tgHdlRatio');
+  });
+
+  const detail = page.locator('#detail-modal');
+  await detail.getByRole('button', { name: 'Change category for TG/HDL Ratio' }).click();
+  const category = detail.getByLabel('Category');
+  await expect(category.locator('option[value="lipids"]')).toHaveCount(1);
+  await category.selectOption('lipids');
+  await detail.getByRole('button', { name: 'Move marker' }).click();
+
+  await expect(detail).toHaveAttribute('data-sync-refresh-item-id', 'lipids_tgHdlRatio');
+  await expect(detail).toContainText('Originally Calculated Ratios');
+  await expect(detail).not.toContainText('Not calculated');
+  const movedState = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { getActiveData } = await import('/js/data.js');
+    const active = getActiveData();
+    return {
+      placements: state.importedData.markerPlacements,
+      storedMarkers: state.importedData.entries[0].markers,
+      ratio: active.categories.lipids.markers.tgHdlRatio,
+    };
+  });
+  expect(movedState.placements).toEqual({
+    'gb:marker:tgHdlRatio': { categoryKey: 'lipids' },
+  });
+  expect(movedState.storedMarkers).not.toHaveProperty('lipids.tgHdlRatio');
+  expect(movedState.ratio).toMatchObject({
+    storageDotKey: 'calculatedRatios.tgHdlRatio',
+    values: [1.25],
+  });
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const data = await import('/js/data.js');
+    delete state.importedData.entries[0].markers['lipids.hdl'];
+    data.invalidateActiveDataCache();
+    const modal = await import('/js/marker-detail-modal.js');
+    await modal.showDetailModal('lipids_tgHdlRatio');
+  });
+  await expect(detail).toContainText('Not calculated — Missing: HDL');
+});
+
 test('marker placement form remains focused and usable on a narrow mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await seedMarkerPlacementProfile(page);

@@ -78,9 +78,11 @@ re-import.
 
 Marker details expose a **Change category** action. The picker lists categories
 that the placement engine can accept, puts categories already used by the
-profile first, and hides calculated, mode-incompatible, and marker-key
-collisions. A moved marker shows its original category and offers a one-click
-restore path.
+profile first, and hides calculated destinations, mode-incompatible categories,
+and marker-key collisions. A calculated marker may be displayed in a compatible
+regular category after its value is computed, but regular markers cannot be
+moved into a calculated category. A moved marker shows its original category
+and offers a one-click restore path.
 
 The picker deliberately changes only the marker's primary display category. It
 does not create aliases or duplicate a marker across multiple categories, and
