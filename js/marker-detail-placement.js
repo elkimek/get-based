@@ -30,7 +30,7 @@ export function configureMarkerDetailPlacement(runtime = {}) {
   return previous;
 }
 
-/** @param {unknown} value */
+/** @param {unknown} value @returns {value is Record<string, any>} */
 function isRecord(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -237,7 +237,7 @@ async function persistMarkerPlacement(id, categoryKey, action) {
   const saved = await saveImportedData();
   if (!saved) {
     if (hadPlacements) state.importedData.markerPlacements = previousPlacements || {};
-    else delete state.importedData.markerPlacements;
+    else Reflect.deleteProperty(state.importedData, 'markerPlacements');
     invalidateActiveDataCache();
     return false;
   }
