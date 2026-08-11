@@ -27,11 +27,10 @@ moving or reordering a marker should not require changing that checksum.
 
 ## Compatibility boundary
 
-This foundation does not write marker ids into profiles, exports, backups,
-shares, or sync payloads. Existing users continue to store the same dotKeys and
-require no migration. Consumers can resolve current and historical locations
+Existing users continue to store values and companion metadata under the same
+dotKeys. Consumers can resolve current and historical built-in locations
 through `getBuiltinMarkerId`, `getBuiltinMarkerDotKey`, and
-`resolveBuiltinMarkerDotKey` without changing the wire format.
+`resolveBuiltinMarkerDotKey` without changing those storage addresses.
 
 Custom markers likewise keep their current dotKeys for values and companion
 maps. Each custom marker definition now carries a `markerId` in the
@@ -43,9 +42,37 @@ The migration is additive and idempotent: it does not re-key entries,
 reference overrides, notes, labels, manual-value provenance, imports, exports,
 backups, shares, or sync payloads. Unique existing ids are preserved. Invalid
 or duplicated ids are repaired deterministically, and the current dotKey still
-wins all existing conflict behavior. Moving a custom marker in a later slice
-must preserve its `markerId` while category assignment becomes separate
-metadata.
+wins all existing conflict behavior.
+
+## Profile category placement
+
+A profile may choose a different display category without moving the marker's
+stored data. The additive `markerPlacements` map is keyed by immutable marker
+identity:
+
+```json
+{
+  "markerPlacements": {
+    "gb:marker:glucose": { "categoryKey": "energyMetabolism" },
+    "custom:opaque_id": { "categoryKey": "biochemistry" }
+  }
+}
+```
+
+The active-data pipeline calculates values, ratios, reference ranges, and unit
+conversions at the native dotKey first. Placement is the final view projection.
+Every projected marker carries `markerId`, `storageDotKey`,
+`nativeCategoryKey`, and `displayCategoryKey`; mutations must use
+`storageDotKey`, never reconstruct a storage key from its rendered category.
+
+Placements travel through profile exports, database backups, encrypted shares,
+imports, and per-row sync. Missing or invalid assignments fall back to the
+native category and are preserved for forward-compatible sync ordering.
+Calculated categories cannot participate, regular and single-point category
+modes cannot be mixed, and marker-key collisions are rejected. Moving a marker
+back to its native category removes the redundant assignment. Profiles without
+`markerPlacements` migrate to an empty map and require no value migration or
+re-import.
 
 ## Terminology metadata
 

@@ -6,6 +6,7 @@ import { getBiologyProfileContext } from './profile-context.js';
 import { getInputProfileModifier, getScoreProfileFlags } from './biology-score-profile-modifiers.js';
 import { UNIT_CONVERSIONS, OPTIMAL_RANGES } from './schema.js';
 import { state } from './state.js';
+import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
 import { formatValue } from './utils.js';
 
 export const TONE_LABELS = { excellent: 'Strong', good: 'Good', strained: 'Watch', poor: 'Low score', concerning: 'Concerning', significant: 'Significant', severe: 'Severe' };
@@ -141,20 +142,21 @@ export function getMarkerHit(data, paths) {
   for (const path of candidates) {
     const [catKey, markerKey] = parsePath(path);
     if (!catKey || !markerKey) continue;
-    const category = data?.categories?.[catKey];
-    const marker = category?.markers?.[markerKey];
-    if (!marker) continue;
+    const resolved = resolveActiveMarkerPath(data?.categories, catKey, markerKey);
+    if (!resolved) continue;
+    const { categoryKey: displayCategoryKey, category, marker } = resolved;
     const latestIdx = getLatestValueIndex(marker.values || []);
     if (latestIdx < 0) continue;
     const value = Number(marker.values[latestIdx]);
     if (!Number.isFinite(value)) continue;
-    const dotKey = `${catKey}.${markerKey}`;
+    const dotKey = getMarkerStorageDotKey(marker, `${catKey}_${markerKey}`);
+    if (!dotKey) continue;
     const effectiveMarker = markerWithSchemaOptimalFallback(dotKey, marker);
     const range = getEffectiveRangeForDate(effectiveMarker, latestIdx);
     const date = marker.singleDate || category.singleDate || data?.dates?.[latestIdx] || '';
     const entryContext = date ? (data?.entryContextByDate?.[date] || {}) : {};
     return {
-      id: `${catKey}_${markerKey}`,
+      id: `${displayCategoryKey}_${markerKey}`,
       dotKey,
       path: dotKey,
       label: marker.name || markerKey,
@@ -201,11 +203,10 @@ function getDerivedMarkerHit(data, candidates) {
       };
     }
     if (!['aaEpaRatio', 'omega3Index'].includes(markerKey)) continue;
-    const category = data?.categories?.[catKey];
     const derived = markerKey === 'aaEpaRatio'
-      ? deriveRatioFromMarkers(data, category, 'arachidonicC20_4', 'epaC20_5', (aa, epa) => epa > 0 ? aa / epa : null)
-      : (deriveRatioFromMarkers(data, category, 'epaC20_5', 'dhaC22_6', (epa, dha) => epa + dha)
-        || deriveRatioFromMarkers(data, category, 'epa', 'dha', (epa, dha) => epa + dha, valuesLookLikeFattyAcidPercent));
+      ? deriveRatioFromMarkers(data, catKey, 'arachidonicC20_4', 'epaC20_5', (aa, epa) => epa > 0 ? aa / epa : null)
+      : (deriveRatioFromMarkers(data, catKey, 'epaC20_5', 'dhaC22_6', (epa, dha) => epa + dha)
+        || deriveRatioFromMarkers(data, catKey, 'epa', 'dha', (epa, dha) => epa + dha, valuesLookLikeFattyAcidPercent));
     if (!derived) continue;
     const { value, date, ageDays } = derived;
     const label = markerKey === 'aaEpaRatio' ? 'AA/EPA ratio' : 'Omega-3 index';
@@ -232,11 +233,12 @@ function getDerivedMarkerHit(data, candidates) {
 }
 
 function deriveTotalCholesterolHdlRatio(data) {
-  const category = data?.categories?.lipids;
-  const pickMarker = (keys) => keys.map(key => category?.markers?.[key]).find(Boolean);
-  const totalMarker = pickMarker(['cholesterol', 'totalCholesterol', 'cholesterolTotal', 'total_cholesterol', 'totalChol']);
-  const hdlMarker = pickMarker(['hdl', 'hdlCholesterol', 'hdl_cholesterol']);
-  if (!totalMarker || !hdlMarker) return null;
+  const pickMarker = (keys) => keys.map(key => resolveActiveMarkerPath(data?.categories, 'lipids', key)).find(Boolean);
+  const totalHit = pickMarker(['cholesterol', 'totalCholesterol', 'cholesterolTotal', 'total_cholesterol', 'totalChol']);
+  const hdlHit = pickMarker(['hdl', 'hdlCholesterol', 'hdl_cholesterol']);
+  if (!totalHit || !hdlHit) return null;
+  const totalMarker = totalHit.marker;
+  const hdlMarker = hdlHit.marker;
   const totalIdx = getLatestValueIndex(totalMarker.values || []);
   const hdlIdx = getLatestValueIndex(hdlMarker.values || []);
   if (totalIdx < 0 || hdlIdx < 0) return null;
@@ -246,24 +248,26 @@ function deriveTotalCholesterolHdlRatio(data) {
   const total = canonicalMarkerValue('lipids.cholesterol', totalMarker, totalRaw);
   const hdl = canonicalMarkerValue('lipids.hdl', hdlMarker, hdlRaw);
   if (!Number.isFinite(total) || !Number.isFinite(hdl) || hdl <= 0) return null;
-  const totalDate = totalMarker.singleDate || category.singleDate || data?.dates?.[totalIdx] || '';
-  const hdlDate = hdlMarker.singleDate || category.singleDate || data?.dates?.[hdlIdx] || '';
+  const totalDate = totalMarker.singleDate || totalHit.category.singleDate || data?.dates?.[totalIdx] || '';
+  const hdlDate = hdlMarker.singleDate || hdlHit.category.singleDate || data?.dates?.[hdlIdx] || '';
   const date = hdlDate && totalDate && hdlDate !== totalDate ? hdlDate : (totalDate || hdlDate);
   return { value: parseFloat((total / hdl).toPrecision(6)), date, ageDays: getAgeDays(date) };
 }
 
 /**
  * @param {any} data
- * @param {any} category
+ * @param {string} categoryKey
  * @param {string} leftKey
  * @param {string} rightKey
  * @param {(left: number, right: number) => number | null} compute
  * @param {((left: number, right: number, leftMarker: any, rightMarker: any) => boolean) | null} [valuesOk]
  */
-function deriveRatioFromMarkers(data, category, leftKey, rightKey, compute, valuesOk = null) {
-  const leftMarker = category?.markers?.[leftKey];
-  const rightMarker = category?.markers?.[rightKey];
-  if (!leftMarker || !rightMarker) return null;
+function deriveRatioFromMarkers(data, categoryKey, leftKey, rightKey, compute, valuesOk = null) {
+  const leftHit = resolveActiveMarkerPath(data?.categories, categoryKey, leftKey);
+  const rightHit = resolveActiveMarkerPath(data?.categories, categoryKey, rightKey);
+  if (!leftHit || !rightHit) return null;
+  const leftMarker = leftHit.marker;
+  const rightMarker = rightHit.marker;
   const leftIdx = getLatestValueIndex(leftMarker.values || []);
   const rightIdx = getLatestValueIndex(rightMarker.values || []);
   if (leftIdx < 0 || rightIdx < 0) return null;
@@ -273,8 +277,8 @@ function deriveRatioFromMarkers(data, category, leftKey, rightKey, compute, valu
   if (valuesOk && !valuesOk(left, right, leftMarker, rightMarker)) return null;
   const raw = compute(left, right);
   if (raw == null || !Number.isFinite(raw)) return null;
-  const leftDate = leftMarker.singleDate || category.singleDate || data?.dates?.[leftIdx] || '';
-  const rightDate = rightMarker.singleDate || category.singleDate || data?.dates?.[rightIdx] || '';
+  const leftDate = leftMarker.singleDate || leftHit.category.singleDate || data?.dates?.[leftIdx] || '';
+  const rightDate = rightMarker.singleDate || rightHit.category.singleDate || data?.dates?.[rightIdx] || '';
   const date = rightDate && leftDate && rightDate !== leftDate ? rightDate : (leftDate || rightDate);
   return { value: parseFloat(raw.toPrecision(6)), date, ageDays: getAgeDays(date) };
 }

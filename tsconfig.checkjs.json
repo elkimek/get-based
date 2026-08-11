@@ -543,6 +543,7 @@
     "js/recommendation-actions.js",
     "js/recommendations-region.js",
     "js/custom-marker-identity.js",
+    "js/marker-placement.js",
     "js/marker-schema.js",
     "js/marker-schema/index.js",
     "js/marker-schema/biochemistry.js",

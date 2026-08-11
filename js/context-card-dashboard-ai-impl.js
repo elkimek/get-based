@@ -27,6 +27,7 @@ import {
 } from './lab-context.js';
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
 import { state } from './state.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 import { isSyncEnabled } from './sync.js';
 import { showSyncSetupModal } from './settings-sync-panel.js';
 import { escapeAttr, escapeHTML } from './utils.js';
@@ -141,8 +142,9 @@ function getLabSourceStats() {
         const row = groups.get(cat.group) || { name: cat.group, count: 0, products: new Set(), sections: new Set() };
         row.count += markers.length;
         if (cat.label) row.sections.add(cat.label);
-        for (const [markerKey] of markers) {
-          const dotKey = `${catKey}.${markerKey}`;
+        for (const [markerKey, marker] of markers) {
+          const dotKey = getMarkerStorageDotKey(marker, `${catKey}_${markerKey}`);
+          if (!dotKey) continue;
           for (const label of sourceProductLabel(dotKey)) row.products.add(label);
           const cm = imported.customMarkers?.[dotKey];
           const categoryLabel = cm?.categoryLabel;

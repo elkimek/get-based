@@ -79,6 +79,11 @@ describe('custom marker export boundaries', () => {
               futureField: { preserve: true },
             },
           },
+          markerPlacements: {
+            [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')]: {
+              categoryKey: 'biochemistry',
+            },
+          },
         });
       }
       return null;
@@ -94,6 +99,11 @@ describe('custom marker export boundaries', () => {
       futureField: { preserve: true },
     });
     expect(exported.entries[0].markers).toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
+    expect(exported.markerPlacements).toEqual({
+      [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')]: {
+        categoryKey: 'biochemistry',
+      },
+    });
   });
 
   it('includes the same ids in full database backups', async () => {
@@ -104,5 +114,8 @@ describe('custom marker export boundaries', () => {
       .toBe(deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid'));
     expect(bundle.profiles[0].data.entries[0].markers)
       .toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
+    expect(bundle.profiles[0].data.markerPlacements).toEqual({
+      [definition.markerId]: { categoryKey: 'biochemistry' },
+    });
   });
 });

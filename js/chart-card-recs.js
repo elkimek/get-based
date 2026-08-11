@@ -4,6 +4,8 @@
 import { showNotification } from './utils.js';
 import { showDetailModal } from './marker-detail-modal.js';
 import { isRecommendationsProductRecsEnabled, loadRecommendationsCatalogRuntime } from './recommendations-runtime.js';
+import { state } from './state.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 
 export async function loadChartCardRecs() {
   if (!isRecommendationsProductRecsEnabled()) return;
@@ -14,7 +16,8 @@ export async function loadChartCardRecs() {
   for (const el of els) {
     if (el.children.length > 0) continue;
     const id = el.id.replace('chart-rec-', '');
-    const slotKey = id.replace('_', '.');
+    const slotKey = getMarkerStorageDotKey(state.markerRegistry[id], id);
+    if (!slotKey) continue;
     const slot = catalog.slots[slotKey];
     if (!slot) continue;
     const badge = document.createElement('button');

@@ -103,6 +103,11 @@ export const DELTA_MAP_CONFIG = {
       return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
     },
   },
+  // Stable marker IDs contain `:`. Encode them into a collision-free safe row
+  // ID while retaining the original marker ID in payload.k.
+  markerPlacements: {
+    keyIdFn: (rawKey) => unsafeMapKeyToHexId(rawKey, 'mpl_'),
+  },
   contextSourceSettings: {
     keyIdFn: (rawKey) => unsafeMapKeyToHexId(rawKey, 'ctxu_'),
   },

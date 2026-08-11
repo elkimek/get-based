@@ -3,6 +3,7 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
+import { migrateMarkerPlacements } from './marker-placement.js';
 import { state } from './state.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import {
@@ -248,6 +249,7 @@ async function _exportChatData(profileId) {
  * @property {string} contextNotes
  * @property {Array<unknown>} healthGoals
  * @property {Object.<string, unknown>} customMarkers
+ * @property {Object.<string, unknown>} markerPlacements
  * @property {Object.<string, unknown>} refOverrides
  * @property {unknown} categoryLabels
  * @property {unknown} categoryIcons
@@ -302,6 +304,7 @@ export async function buildClientExportObject(profileId, includeChat = false) {
   let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
   migrateCustomMarkerIdentities(data?.customMarkers);
+  if (data) migrateMarkerPlacements(data);
   if (!data || !data.entries || data.entries.length === 0) throw new Error('No data to export for this client');
   const exportObj = {
     version: 2, exportedAt: new Date().toISOString(),
@@ -312,6 +315,7 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     stress: data.stress || null, loveLife: data.loveLife || null, environment: data.environment || null,
     interpretiveLens: data.interpretiveLens || '', contextNotes: data.contextNotes || '',
     healthGoals: data.healthGoals || [], customMarkers: data.customMarkers || {},
+    markerPlacements: data.markerPlacements || {},
     refOverrides: data.refOverrides || {},
     categoryLabels: data.categoryLabels || null,
     categoryIcons: data.categoryIcons || null,
@@ -402,6 +406,7 @@ export async function buildAllDataBundle() {
     let data;
     try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
     migrateCustomMarkerIdentities(data?.customMarkers);
+    migrateMarkerPlacements(data);
     const chat = await _exportChatData(p.id);
     const entry = {
       id: p.id, name: p.name, sex: p.sex || null, dob: p.dob || null,

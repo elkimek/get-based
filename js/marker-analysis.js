@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { getStatus, formatValue, linearRegression } from './utils.js';
+import { resolveActiveMarkerPath } from './marker-placement.js';
 
 // Tunables — calibrated against dashboard "needs attention" callouts.
 const TREND_SUDDEN_JUMP_FRAC = 0.25;   // jump > 25% of ref range → sudden change
@@ -162,20 +163,16 @@ export function getKeyTrendMarkers(filteredData, profileSex = state.profileSex) 
   const seen = new Set();
   const MAX = KEY_TRENDS_MAX;
 
-  function hasData(cat, key) {
-    const c = filteredData.categories[cat];
-    if (!c || c.singlePoint) return false;
-    const m = c.markers[key];
-    return m && m.values && m.values.some(v => v !== null);
-  }
-
   function add(cat, key) {
     if (selected.length >= MAX) return;
-    const id = cat + '_' + key;
+    const resolved = resolveActiveMarkerPath(filteredData.categories, cat, key);
+    if (!resolved || resolved.category.singlePoint) return;
+    const { categoryKey, marker } = resolved;
+    if (!marker.values?.some(v => v !== null)) return;
+    const id = categoryKey + '_' + key;
     if (seen.has(id)) return;
-    if (!hasData(cat, key)) return;
     seen.add(id);
-    selected.push({ cat, key });
+    selected.push({ cat: categoryKey, key });
   }
 
   // Tier 1: Trend alerts (sudden > past > approaching — already sorted)

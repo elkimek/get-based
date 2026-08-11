@@ -9,6 +9,7 @@ import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId,
 import { filterDatesByRange, renderDateRangeFilter } from './data.js';
 import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
+import { resolveActiveMarkerPath } from './marker-placement.js';
 
 function dashboardNavigateAttrs(route) {
   return dashboardWidgetActionAttrs('navigate', { route });
@@ -41,11 +42,11 @@ export function createDashboardLabWidgetRenderers(deps) {
   }
 
   function getDashboardMarkerByPath(data, catKey, markerKey) {
-    const id = `${catKey}_${markerKey}`;
+    const resolved = resolveActiveMarkerPath(data.categories, catKey, markerKey);
+    if (!resolved || !markerHasData(resolved.marker)) return null;
+    const { categoryKey, category, marker } = resolved;
+    const id = `${categoryKey}_${markerKey}`;
     if (!safeMarkerId(id)) return null;
-    const category = data.categories?.[catKey];
-    const marker = category?.markers?.[markerKey];
-    if (!category || !marker || !markerHasData(marker)) return null;
     const latestIdx = getLatestValueIndex(marker.values || []);
     if (latestIdx < 0) return null;
     const range = getEffectiveRangeForDate(marker, latestIdx);
@@ -55,14 +56,12 @@ export function createDashboardLabWidgetRenderers(deps) {
     state.markerRegistry[id] = marker;
     return { id, category, marker, latestIdx, range, value, status, trend };
   }
-
   function getDashboardMarkerById(data, id) {
     if (!safeMarkerId(id)) return null;
     const idx = id.indexOf('_');
     if (idx <= 0) return null;
     return getDashboardMarkerByPath(data, id.slice(0, idx), id.slice(idx + 1));
   }
-
   function getDashboardAge() {
     if (!state.profileDob) return null;
     const dob = new Date(state.profileDob);

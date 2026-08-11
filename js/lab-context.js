@@ -39,6 +39,7 @@ import {
   setCachedLabContext,
 } from './lab-context-settings.js';
 import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
+import { resolveActiveMarkerPath } from './marker-placement.js';
 
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
@@ -52,6 +53,11 @@ const labContextDeps = {
   buildBiologyScoresAIContext: null,
   buildSunContext: null,
 };
+
+function markerNameForStorageDotKey(data, dotKey) {
+  const [categoryKey, markerKey] = String(dotKey || '').split('.');
+  return resolveActiveMarkerPath(data.categories, categoryKey, markerKey)?.marker?.name || dotKey;
+}
 
 export function configureLabContext(deps = {}) {
   const previous = { ...labContextDeps };
@@ -296,8 +302,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   if (includeLabMarkers && mnKeys.length > 0) {
     ctx += `[section:markerNotes]\n## Marker Notes\n`;
     for (const key of mnKeys) {
-      const [catKey, mKey] = key.split('.');
-      const mName = data.categories[catKey]?.markers[mKey]?.name || key;
+      const mName = markerNameForStorageDotKey(data, key);
       ctx += `- ${mName}: ${markerNotes[key]}\n`;
     }
     ctx += `[/section:markerNotes]\n\n`;
@@ -324,8 +329,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     ctx += `[section:markerValueNotes]\n## Per-Value Notes (context tied to specific readings)\n`;
     for (const [dotKey, entries] of byMarker) {
-      const [catKey, mKey] = dotKey.split('.');
-      const mName = data.categories[catKey]?.markers[mKey]?.name || dotKey;
+      const mName = markerNameForStorageDotKey(data, dotKey);
       entries.sort((a, b) => a.date.localeCompare(b.date));
       for (const e of entries) {
         ctx += `- ${mName} on ${e.date}: ${e.note}\n`;

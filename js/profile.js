@@ -223,6 +223,7 @@ export function createDefaultProfileData() {
     emfAssessment: null,
     genetics: null,
     customMarkers: {},
+    markerPlacements: {},
     markerNotes: {},
     markerValueNotes: {},
     biologyScoreAI: {},
