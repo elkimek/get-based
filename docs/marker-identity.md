@@ -33,9 +33,19 @@ require no migration. Consumers can resolve current and historical locations
 through `getBuiltinMarkerId`, `getBuiltinMarkerDotKey`, and
 `resolveBuiltinMarkerDotKey` without changing the wire format.
 
-Custom markers likewise keep their current dotKeys. The `custom:<opaque-id>`
-namespace is reserved for a future dual-read migration; custom ids must be
-generated independently of category and display name before they are persisted.
+Custom markers likewise keep their current dotKeys for values and companion
+maps. Each custom marker definition now carries a `markerId` in the
+`custom:<opaque-id>` namespace. New ids are generated independently of category
+and display name. Legacy definitions receive deterministic opaque ids so two
+offline devices upgrading the same profile converge without coordination.
+
+The migration is additive and idempotent: it does not re-key entries,
+reference overrides, notes, labels, manual-value provenance, imports, exports,
+backups, shares, or sync payloads. Unique existing ids are preserved. Invalid
+or duplicated ids are repaired deterministically, and the current dotKey still
+wins all existing conflict behavior. Moving a custom marker in a later slice
+must preserve its `markerId` while category assignment becomes separate
+metadata.
 
 ## Terminology metadata
 

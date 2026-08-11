@@ -102,6 +102,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
       const createdKey = 'custom7ToxicMetals.leadBurden';
       const created = state.importedData.customMarkers?.[createdKey];
       outcomes.createStoresCustomMarkerDefinition = created?.name === 'Lead Burden'
+        && /^custom:[A-Za-z0-9_-]+$/.test(created?.markerId || '')
         && created?.unit === 'ug/L'
         && created?.refMax === 5
         && created?.categoryLabel === '7 Toxic Metals!'

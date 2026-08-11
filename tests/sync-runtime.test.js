@@ -80,6 +80,7 @@ import {
 import { setSyncRelay } from '../js/sync-environment.js';
 import { buildAgentAccessSetupCommand } from '../js/settings-agent-access-panel.js';
 import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
+import { deriveLegacyCustomMarkerId } from '../js/custom-marker-identity.js';
 
 const PROFILE_ID = 'profile-runtime';
 const PROFILE_QUERY = Symbol('profile-query');
@@ -747,8 +748,14 @@ describe('sync push runtime behavior', () => {
     configureRuntimeDeps(fake);
 
     await expect(pushProfile(PROFILE_ID, {
-      entries: [{ date: '2026-01-01', markers: { 'hormones.cPeptide': 1 } }],
-      customMarkers: { 'hormones.cPeptide': { name: 'C-peptide' } },
+      entries: [{
+        date: '2026-01-01',
+        markers: { 'hormones.cPeptide': 1, 'customPanel.acetoacetate': 2 },
+      }],
+      customMarkers: {
+        'hormones.cPeptide': { name: 'C-peptide' },
+        'customPanel.acetoacetate': { name: 'Acetoacetate' },
+      },
     })).resolves.toEqual({ ok: true });
 
     const profileWrite = fake.calls.insert.find(call => call.table === 'profileData')?.args;
@@ -756,6 +763,8 @@ describe('sync push runtime behavior', () => {
     expect(parsed.importedData.entries[0].markers['diabetes.cPeptide']).toBe(1);
     expect(parsed.importedData.entries[0].markers['hormones.cPeptide']).toBeUndefined();
     expect(parsed.importedData.customMarkers['hormones.cPeptide']).toBeUndefined();
+    expect(parsed.importedData.customMarkers['customPanel.acetoacetate'].markerId)
+      .toBe(deriveLegacyCustomMarkerId('customPanel.acetoacetate'));
   });
 
   it('does not append another Evolu message when the complete outbound state is unchanged', async () => {

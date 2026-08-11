@@ -2,6 +2,7 @@
 // marker-detail-custom-markers.js — Custom biomarker create/delete flow owner
 
 import { state } from './state.js';
+import { createCustomMarkerId } from './custom-marker-identity.js';
 import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
 import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
@@ -178,6 +179,7 @@ export function saveCustomMarker() {
 
   if (!state.importedData.customMarkers) state.importedData.customMarkers = {};
   state.importedData.customMarkers[fullKey] = {
+    markerId: createCustomMarkerId(state.importedData.customMarkers),
     name,
     unit: (unitInput?.value || '').trim(),
     refMin: validRefMin,

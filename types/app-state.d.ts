@@ -1,3 +1,15 @@
+export interface CustomMarkerDefinition {
+  markerId?: string;
+  name?: string;
+  unit?: string;
+  refMin?: number | null;
+  refMax?: number | null;
+  categoryLabel?: string;
+  icon?: string;
+  group?: string | null;
+  [key: string]: any;
+}
+
 export interface ProfileData {
   entries: Array<Record<string, any>>;
   notes: any[];
@@ -16,7 +28,7 @@ export interface ProfileData {
   menstrualCycle: any;
   emfAssessment: any;
   genetics: any;
-  customMarkers: Record<string, any>;
+  customMarkers: Record<string, CustomMarkerDefinition>;
   markerNotes: Record<string, any>;
   markerValueNotes: Record<string, any>;
   biologyScoreAI: Record<string, any>;
