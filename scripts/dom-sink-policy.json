@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 589,
+  "scannedFiles": 590,
   "sinkCount": 496,
   "files": {
     "js/backup.js": {
@@ -344,7 +344,7 @@
     },
     "js/focus-card.js": {
       "count": 8,
-      "digest": "3ca7d7d45b7ed0e8ba9b2133889869b1b03beaae419a38a1958f689dfaa75faf",
+      "digest": "c3d5dd3e9a5d351c1d7bc4da0babbe9ed5b9f44c7a7b97dbe4dfca760899bfed",
       "kinds": {
         "innerHTML": 8
       }
