@@ -43,4 +43,5 @@ LOINC, NPU, NCLP, and other terminology mappings should be stored in a separate
 registry keyed by `gb:marker:*`, never used as the primary GetBased identity.
 One conceptual marker may need several codes depending on specimen, method, or
 system. UCUM describes units and belongs on individual terminology mappings,
-not in the marker identity itself.
+not in the marker identity itself. The registry and its update contract are
+documented in [marker-terminology.md](marker-terminology.md).

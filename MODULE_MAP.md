@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 629 |
-| Internal import edges | 2659 |
+| Modules | 635 |
+| Internal import edges | 2663 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -217,6 +217,12 @@ Native browser modules shipped with the static application.
 - [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+
+</details>
+
+<details><summary><code>catalogs</code> family — 1 module</summary>
+
+- [`js/marker-terminology/catalogs.js`](js/marker-terminology/catalogs.js) → no in-scope imports
 
 </details>
 
@@ -541,9 +547,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>index</code> family — 1 module</summary>
+<details><summary><code>index</code> family — 2 modules</summary>
 
 - [`js/marker-schema/index.js`](js/marker-schema/index.js) → [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js), [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js), [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js), [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js), [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js), [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js), [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js), [`js/marker-schema/differential.js`](js/marker-schema/differential.js), [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js), [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js), [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js), [`js/marker-schema/identities.js`](js/marker-schema/identities.js), [`js/marker-schema/iron.js`](js/marker-schema/iron.js), [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js), [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js), [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js), [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js), [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js), [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js)
+- [`js/marker-terminology/index.js`](js/marker-terminology/index.js) → [`js/marker-terminology/catalogs.js`](js/marker-terminology/catalogs.js), [`js/marker-terminology/loinc.js`](js/marker-terminology/loinc.js), [`js/marker-terminology/nclp.js`](js/marker-terminology/nclp.js), [`js/marker-terminology/npu.js`](js/marker-terminology/npu.js)
 
 </details>
 
@@ -674,6 +681,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>loinc</code> family — 1 module</summary>
+
+- [`js/marker-terminology/loinc.js`](js/marker-terminology/loinc.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>main</code> family — 1 module</summary>
 
 - [`js/main.js`](js/main.js) → [`js/app-feature-modules.js`](js/app-feature-modules.js), [`js/shell-actions.js`](js/shell-actions.js), [`js/startup-orchestrator.js`](js/startup-orchestrator.js)
@@ -686,7 +699,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 11 modules</summary>
+<details><summary><code>marker</code> family — 12 modules</summary>
 
 - [`js/marker-analysis.js`](js/marker-analysis.js) → [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-actions.js`](js/marker-detail-actions.js) → [`js/utils.js`](js/utils.js)
@@ -699,6 +712,7 @@ Native browser modules shipped with the static application.
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
 - [`js/marker-schema.js`](js/marker-schema.js) → no in-scope imports
+- [`js/marker-terminology.js`](js/marker-terminology.js) → no in-scope imports
 
 </details>
 
@@ -723,6 +737,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>nclp</code> family — 1 module</summary>
+
+- [`js/marker-terminology/nclp.js`](js/marker-terminology/nclp.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>nostr</code> family — 1 module</summary>
 
 - [`js/nostr-discovery.js`](js/nostr-discovery.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
@@ -733,6 +753,12 @@ Native browser modules shipped with the static application.
 
 - [`js/notes-runtime.js`](js/notes-runtime.js) → no in-scope imports
 - [`js/notes.js`](js/notes.js) → [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/notes-runtime.js`](js/notes-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+
+</details>
+
+<details><summary><code>npu</code> family — 1 module</summary>
+
+- [`js/marker-terminology/npu.js`](js/marker-terminology/npu.js) → no in-scope imports
 
 </details>
 
