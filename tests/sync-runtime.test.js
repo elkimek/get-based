@@ -756,6 +756,11 @@ describe('sync push runtime behavior', () => {
         'hormones.cPeptide': { name: 'C-peptide' },
         'customPanel.acetoacetate': { name: 'Acetoacetate' },
       },
+      markerPlacements: {
+        [deriveLegacyCustomMarkerId('customPanel.acetoacetate')]: {
+          categoryKey: 'biochemistry',
+        },
+      },
     })).resolves.toEqual({ ok: true });
 
     const profileWrite = fake.calls.insert.find(call => call.table === 'profileData')?.args;
@@ -765,6 +770,18 @@ describe('sync push runtime behavior', () => {
     expect(parsed.importedData.customMarkers['hormones.cPeptide']).toBeUndefined();
     expect(parsed.importedData.customMarkers['customPanel.acetoacetate'].markerId)
       .toBe(deriveLegacyCustomMarkerId('customPanel.acetoacetate'));
+    expect(parsed.importedData.markerPlacements).toEqual({
+      [deriveLegacyCustomMarkerId('customPanel.acetoacetate')]: {
+        categoryKey: 'biochemistry',
+      },
+    });
+    const placementRow = fake.calls.insert.find(call =>
+      call.table === 'itemRow' && call.args.arrayName === 'markerPlacements');
+    expect(placementRow?.args.itemId).toMatch(/^mpl_[a-f0-9]+$/);
+    expect(JSON.parse(placementRow?.args.payload || '{}')).toEqual({
+      k: deriveLegacyCustomMarkerId('customPanel.acetoacetate'),
+      v: { categoryKey: 'biochemistry' },
+    });
   });
 
   it('does not append another Evolu message when the complete outbound state is unchanged', async () => {

@@ -10,6 +10,11 @@ export interface CustomMarkerDefinition {
   [key: string]: any;
 }
 
+export interface MarkerPlacement {
+  categoryKey: string;
+  [key: string]: any;
+}
+
 export interface ProfileData {
   entries: Array<Record<string, any>>;
   notes: any[];
@@ -29,6 +34,7 @@ export interface ProfileData {
   emfAssessment: any;
   genetics: any;
   customMarkers: Record<string, CustomMarkerDefinition>;
+  markerPlacements: Record<string, MarkerPlacement>;
   markerNotes: Record<string, any>;
   markerValueNotes: Record<string, any>;
   biologyScoreAI: Record<string, any>;

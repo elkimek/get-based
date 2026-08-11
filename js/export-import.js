@@ -223,6 +223,16 @@ export function importDataJSON(file) {
             }
           }
         }
+        // Placement metadata is keyed by stable marker ID, so it composes
+        // without changing any dotkey-indexed values or definitions.
+        if (json.markerPlacements && typeof json.markerPlacements === 'object') {
+          if (!state.importedData.markerPlacements) state.importedData.markerPlacements = {};
+          for (const [key, placement] of Object.entries(json.markerPlacements)) {
+            if (!state.importedData.markerPlacements[key]) {
+              state.importedData.markerPlacements[key] = placement;
+            }
+          }
+        }
         // Import reference range overrides (merge, don't overwrite)
         if (json.refOverrides && typeof json.refOverrides === 'object') {
           if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
@@ -648,7 +658,7 @@ async function _importDatabaseBundle(json) {
         sortImportedArray(current, 'importSnapshots', (a, b) => (b.importedAt || 0) - (a.importedAt || 0));
       }
       // Display overrides: merge labels/icons/manualValues (don't overwrite existing)
-      for (const field of ['categoryLabels', 'categoryIcons', 'markerLabels', 'manualValues']) {
+      for (const field of ['categoryLabels', 'categoryIcons', 'markerLabels', 'markerPlacements', 'manualValues']) {
         if (importData[field] && typeof importData[field] === 'object') {
           if (!current[field]) current[field] = {};
           for (const [k, v] of Object.entries(importData[field])) {

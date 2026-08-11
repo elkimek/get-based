@@ -4,6 +4,7 @@
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { normalizeContextSourceSettings } from './context-source-registry.js';
 import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
+import { migrateMarkerPlacements } from './marker-placement.js';
 import { normalizeLightEnvironmentEveningFields } from './light-env-evening.js';
 import {
   deleteLabEntryMarker,
@@ -264,5 +265,6 @@ export function migrateProfileData(data) {
   }
   migrateSupplementMedicationRecords(data);
   migrateCustomMarkerIdentities(data.customMarkers);
+  migrateMarkerPlacements(data);
   return data;
 }

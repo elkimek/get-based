@@ -10,6 +10,7 @@ import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { hasAIProvider } from './api.js';
 import { getInsulinMirrorMarkerKey } from './lab-entry.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
@@ -339,7 +340,8 @@ function renderDetailModal(id, opts = {}) {
       <div class="gb-range-band-scale"><span>${escapeHTML(formatValue(min))}</span><span>${escapeHTML(formatValue(max))}</span></div>
     </div>`;
   })();
-  const dotKey = id.replace('_', '.');
+  const dotKey = getMarkerStorageDotKey(marker, id);
+  if (!dotKey) return false;
   let rangeInfo = '';
   const overrides = state.importedData?.refOverrides?.[dotKey] || {};
   const refEditable = (label, min, max, type) => {

@@ -14,6 +14,7 @@ import {
   setRecommendationsCatalogCache,
 } from './recommendations-runtime.js';
 import { getLoadedRollingChannelTotals } from './light-sun-loader.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
 
@@ -191,7 +192,8 @@ export function createDashboardRecommendationWidget({
       for (const [markerKey, marker] of Object.entries(category.markers || {})) {
         if (!marker || marker.hidden || !markerHasData(marker)) continue;
         const markerId = `${catKey}_${markerKey}`;
-        const slotKey = `${catKey}.${markerKey}`;
+        const slotKey = getMarkerStorageDotKey(marker, markerId);
+        if (!slotKey) continue;
         if (!catalog.slots[slotKey]) continue;
         const latestIdx = getLatestValueIndex(marker.values || []);
         if (latestIdx < 0) continue;

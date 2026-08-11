@@ -18,6 +18,7 @@ import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
+import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildCompactSupplementContextRecords } from './supplement-context.js';
 
 /** @type {{
@@ -148,7 +149,7 @@ function supplementInventoryFingerprint(imported) {
 }
 
 function latest(data, cat, key) {
-  const m = data?.categories?.[cat]?.markers?.[key];
+  const m = resolveActiveMarkerPath(data?.categories, cat, key)?.marker;
   if (!m?.values?.length) return '';
   const idx = m.values.map((v, i) => v == null ? null : i).filter(i => i != null).at(-1);
   if (idx == null) return '';

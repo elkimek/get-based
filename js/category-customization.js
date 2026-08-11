@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { getActiveData, saveImportedData } from './data.js';
 import { showDetailModal } from './marker-detail-modal.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 import {
   getCategoryCustomizationBuildSidebar,
   getCategoryCustomizationViewportSize,
@@ -77,7 +78,8 @@ export async function renameMarker(id) {
   if (!newName || newName === marker.name) return;
   const trimmed = newName.trim();
   if (!trimmed) return;
-  const dotKey = catKey + '.' + mKey;
+  const dotKey = getMarkerStorageDotKey(marker, id);
+  if (!dotKey) return;
   if (!state.importedData.markerLabels) state.importedData.markerLabels = {};
   state.importedData.markerLabels[dotKey] = trimmed;
   await saveImportedData();
@@ -88,7 +90,10 @@ export async function renameMarker(id) {
 
 export function revertMarkerName(id) {
   const idx = id.indexOf('_');
-  const dotKey = id.slice(0, idx) + '.' + id.slice(idx + 1);
+  const data = getActiveData();
+  const marker = data.categories[id.slice(0, idx)]?.markers[id.slice(idx + 1)];
+  const dotKey = getMarkerStorageDotKey(marker, id);
+  if (!dotKey) return;
   if (!state.importedData.markerLabels?.[dotKey]) return;
   delete state.importedData.markerLabels[dotKey];
   if (Object.keys(state.importedData.markerLabels).length === 0) delete state.importedData.markerLabels;

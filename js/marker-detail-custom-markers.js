@@ -6,6 +6,7 @@ import { createCustomMarkerId } from './custom-marker-identity.js';
 import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
 import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
@@ -213,7 +214,12 @@ export function saveCustomMarker() {
 
 /** @param {string} id */
 export async function deleteCustomMarker(id) {
-  const dotKey = id.replace('_', '.');
+  const separator = id.indexOf('_');
+  const activeMarker = separator > 0
+    ? getActiveData().categories[id.slice(0, separator)]?.markers[id.slice(separator + 1)]
+    : null;
+  const dotKey = getMarkerStorageDotKey(activeMarker || state.markerRegistry[id], id);
+  if (!dotKey) return;
   const categoryKey = dotKey.split('.')[0];
   const definition = state.importedData?.customMarkers?.[dotKey];
   if (!definition) return;
@@ -227,10 +233,14 @@ export async function deleteCustomMarker(id) {
   const keysToDelete = isLastInCategory ? siblings : [dotKey];
   const now = Date.now();
   for (const key of keysToDelete) {
+    const markerId = state.importedData.customMarkers[key]?.markerId;
     deleteLabEntryMarkerValues(state.importedData, key, { now, deleteEmptyEntries: false });
     if (state.importedData.refOverrides) delete state.importedData.refOverrides[key];
     if (state.importedData.markerNotes) delete state.importedData.markerNotes[key];
     if (state.importedData.markerLabels) delete state.importedData.markerLabels[key];
+    if (markerId && state.importedData.markerPlacements) {
+      delete state.importedData.markerPlacements[markerId];
+    }
     delete state.importedData.customMarkers[key];
   }
   deleteEmptyLabEntries(state.importedData);

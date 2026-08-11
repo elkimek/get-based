@@ -42,6 +42,7 @@ export const DELTA_MAPS = [
   'markerNotes',
   'markerValueNotes',
   'customMarkers',
+  'markerPlacements',
   'manualValues',
   'refOverrides',
   'categoryLabels',

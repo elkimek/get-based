@@ -17,6 +17,7 @@ import {
   getAllFlaggedMarkers as getAllFlaggedMarkersForData,
 } from './marker-analysis.js';
 import { configureDataViewCoreDependencies } from './data-view-controls.js';
+import { applyMarkerPlacements } from './marker-placement.js';
 
 export {
   countFlagged,
@@ -118,6 +119,7 @@ function _activeDataCacheMatches(meta) {
     && prev.entries === meta.entries
     && prev.entriesLength === meta.entriesLength
     && prev.customMarkers === meta.customMarkers
+    && prev.markerPlacements === meta.markerPlacements
     && prev.refOverrides === meta.refOverrides
     && prev.categoryLabels === meta.categoryLabels
     && prev.categoryIcons === meta.categoryIcons
@@ -149,6 +151,7 @@ function _makeActiveDataCacheMeta() {
     entries,
     entriesLength: Array.isArray(entries) ? entries.length : 0,
     customMarkers: importedData.customMarkers || null,
+    markerPlacements: importedData.markerPlacements || null,
     refOverrides: importedData.refOverrides || null,
     categoryLabels: importedData.categoryLabels || null,
     categoryIcons: importedData.categoryIcons || null,
@@ -681,6 +684,9 @@ export function getActiveData() {
   }
 
   if (state.unitSystem === 'US') applyUnitConversion(data);
+  // Values, calculations, and unit conversions always run against immutable
+  // storage dotkeys. Category placement is a final view projection only.
+  applyMarkerPlacements(data.categories, state.importedData || {});
   _activeDataCache = data;
   _activeDataCacheMeta = cacheMeta;
   return data;

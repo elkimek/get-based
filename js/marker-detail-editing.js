@@ -24,6 +24,7 @@ import {
   deleteMarkerNoteText,
   deleteMarkerValueNote,
 } from './marker-detail-store.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
@@ -62,6 +63,11 @@ function closeModal() {
   return markerDetailDeps.closeModal();
 }
 
+/** @param {string} id @param {Record<string, any> | null | undefined} [marker] */
+function storageDotKeyForId(id, marker = state.markerRegistry[id]) {
+  return getMarkerStorageDotKey(marker, id);
+}
+
 export async function saveManualEntry(id, opts = {}) {
   const { keepOpen = false } = opts;
   const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-date'));
@@ -78,7 +84,6 @@ export async function saveManualEntry(id, opts = {}) {
   const noteText = noteRaw.length > 500 ? noteRaw.slice(0, 500) : noteRaw;
   if (!date) { showNotification('Please enter a date', 'error'); return; }
   if (isNaN(value)) { showNotification('Please enter a valid number', 'error'); return; }
-  const dotKey = id.replace('_', '.');
   // Always re-resolve marker from getActiveData (not state.markerRegistry):
   // the registry may hold a marker.unit captured under a different unit-system
   // mode, which would break the unit-picker comparison below.
@@ -86,6 +91,8 @@ export async function saveManualEntry(id, opts = {}) {
   const marker = _meIdx > 0
     ? getActiveData().categories[id.slice(0, _meIdx)]?.markers[id.slice(_meIdx + 1)]
     : null;
+  const dotKey = storageDotKeyForId(id, marker);
+  if (!dotKey) return;
   // Unit-picker integration: if the user selected the alternate unit, the
   // range sanity check needs alt-unit-space refs (otherwise typing "90 mg/dL"
   // against an SI ref range of 4–6 mmol/L would always trigger the warning).
@@ -157,7 +164,8 @@ export function saveAndAddAnotherManualEntry(id) {
 }
 
 export async function deleteMarkerValue(id, date) {
-  const dotKey = id.replace('_', '.');
+  const dotKey = storageDotKeyForId(id);
+  if (!dotKey) return;
   if (!state.importedData.entries) return;
   const entry = state.importedData.entries.find(e => e.date === date);
   if (!entry) return;
@@ -199,7 +207,8 @@ export function editMarkerValue(id, date, currentValue, event) {
     if (isNaN(newValue)) { showDetailModal(id); return; }
     // No-op if the value didn't change — don't flip provenance to manual.
     if (newValue === parseFloat(currentValue)) { showDetailModal(id); return; }
-    const dotKey = id.replace('_', '.');
+    const dotKey = storageDotKeyForId(id);
+    if (!dotKey) return;
     const storedValue = convertDisplayToSI(dotKey, newValue);
     const updated = await editManualMarkerValue({ dotKey, date, storedValue });
     if (!updated) return;
@@ -215,7 +224,8 @@ export function editMarkerValue(id, date, currentValue, event) {
 }
 
 export async function revertMarkerValue(id, date) {
-  const dotKey = id.replace('_', '.');
+  const dotKey = storageDotKeyForId(id);
+  if (!dotKey) return;
   const updated = await revertManualMarkerValue(dotKey, date);
   if (!updated) return;
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
@@ -225,7 +235,8 @@ export async function revertMarkerValue(id, date) {
 
 export async function editValueNote(id, date) {
   if (!id || !date) return;
-  const dotKey = id.replace('_', '.');
+  const dotKey = storageDotKeyForId(id);
+  if (!dotKey) return;
   const current = getMarkerValueNote(dotKey, date);
   const result = await showPromptDialog(
     current ? `Edit note for ${date}` : `Add note for ${date}`,
@@ -244,7 +255,8 @@ export async function editValueNote(id, date) {
 export async function deleteValueNote(id, date) {
   if (!id || !date) return;
   if (!await showConfirmDialog(`Remove the note for ${date}?`)) return;
-  const dotKey = id.replace('_', '.');
+  const dotKey = storageDotKeyForId(id);
+  if (!dotKey) return;
   const changed = await deleteMarkerValueNote(dotKey, date);
   if (changed) showDetailModal(id);
 }
@@ -279,7 +291,8 @@ export function editRefRange(id, type, evt) {
 }
 
 export async function saveRefRange(id, type) {
-  const dotKey = id.replace('_', '.');
+  const dotKey = storageDotKeyForId(id);
+  if (!dotKey) return;
   const minEl = /** @type {HTMLInputElement | null} */ (document.getElementById('ref-edit-min'));
   const maxEl = /** @type {HTMLInputElement | null} */ (document.getElementById('ref-edit-max'));
   if (!minEl || !maxEl) return;
@@ -303,7 +316,8 @@ export async function saveRefRange(id, type) {
 }
 
 export async function revertRefRange(id, type) {
-  const dotKey = id.replace('_', '.');
+  const dotKey = storageDotKeyForId(id);
+  if (!dotKey) return;
   const result = await revertRefRangeOverride(dotKey, type);
   if (!result) return;
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));

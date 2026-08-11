@@ -9,6 +9,7 @@ import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import { saveManualEntry } from './marker-detail-editing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openWithMarkerDetailStylesheet, setDetailModalShell } from './marker-detail-runtime.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 
 /**
  * @typedef {{
@@ -76,7 +77,8 @@ function renderManualEntryForm(id, prefillDate) {
 
   // Offer the current display unit, alternate US/EU unit, and secondary
   // clinical units so a lab result can be entered without mental conversion.
-  const dotKey = id.replace('_', '.');
+  const dotKey = getMarkerStorageDotKey(marker, id);
+  if (!dotKey) return;
   const isUS = state.unitSystem === 'US';
   const conversion = UNIT_CONVERSIONS[dotKey];
   const units = [marker.unit];

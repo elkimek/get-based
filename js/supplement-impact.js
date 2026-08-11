@@ -7,6 +7,7 @@ import { callClaudeAPI, hasAIProvider } from './api.js';
 import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
+import { getMarkerStorageDotKey } from './marker-placement.js';
 import {
   getIngredientQuantity,
   getSupplementRecordId,
@@ -89,7 +90,8 @@ export function computeAllImpacts(supplement, data) {
   const results = [];
   for (const [catKey, cat] of Object.entries(data.categories)) {
     for (const [mKey, marker] of Object.entries(cat.markers)) {
-      const dotKey = catKey + '.' + mKey;
+      const dotKey = getMarkerStorageDotKey(marker, `${catKey}_${mKey}`);
+      if (!dotKey) continue;
       const impact = computeSupplementImpact(
         supplement, dotKey, marker.name, marker.unit,
         marker.values, data.dates, marker.refMin, marker.refMax

@@ -95,6 +95,7 @@ const APP_SHELL = [
   '/js/schema.js',
   '/js/marker-schema.js',
   '/js/custom-marker-identity.js',
+  '/js/marker-placement.js',
   '/js/schema-environment.js',
   '/js/constants.js',
   '/js/state.js',
@@ -777,7 +778,6 @@ function isLocalOrPrivateHost(hostname) {
     hostname.startsWith('10.') ||
     /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 }
-
 function shouldUseNetworkOnly(url, sameOrigin) {
   const h = url.hostname;
   return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));

@@ -185,6 +185,9 @@ describe('JSON restore runtime', () => {
         { text: 'Improve recovery', severity: 'high' },
       ],
       customMarkers: { 'custom.one': { label: 'One' } },
+      markerPlacements: {
+        'custom:one': { categoryKey: 'metabolic', futureField: true },
+      },
       refOverrides: { glucose: { min: 70, max: 99 } },
       categoryLabels: { metabolic: 'Metabolic' },
       categoryIcons: { metabolic: '⚡' },
@@ -322,6 +325,9 @@ describe('JSON restore runtime', () => {
     expect(imported.sleepRest.issues).toEqual(['restless sleep']);
     expect(imported.lightCircadian.practices).toEqual(['blue light blockers']);
     expect(imported.healthGoals).toHaveLength(2);
+    expect(imported.markerPlacements).toEqual({
+      'custom:one': { categoryKey: 'metabolic', futureField: true },
+    });
     expect(imported.menstrualCycle.periods).toHaveLength(2);
     expect(imported.emfAssessment.assessments).toHaveLength(2);
     expect(imported.biometrics.weight).toHaveLength(2);

@@ -97,6 +97,7 @@ export const COMPOSITE_KEYED_ARRAYS = [
 
 const LOCAL_WINS_MAP_FIELDS = [
   'customMarkers',
+  'markerPlacements',
   'refOverrides',
   'categoryLabels',
   'categoryIcons',
