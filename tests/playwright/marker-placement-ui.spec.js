@@ -59,6 +59,15 @@ test('marker detail moves and restores a marker without re-keying profile data',
   const category = form.getByLabel('Category');
   await expect(category).toHaveValue('biochemistry');
   await expect(category.locator('option[value="calculatedRatios"]')).toHaveCount(0);
+  expect((await category.locator('option').evaluateAll(options => options.map(option => ({
+    value: option.value,
+    label: option.textContent,
+  })))).slice(0, 4)).toEqual([
+    { value: 'biochemistry', label: 'Biochemistry' },
+    { value: 'lipids', label: 'Lipid Panel' },
+    { value: 'hormones', label: 'Hormones' },
+    { value: 'electrolytes', label: 'Electrolytes & Minerals' },
+  ]);
   await category.selectOption('lipids');
   await form.getByRole('button', { name: 'Move marker' }).click();
 

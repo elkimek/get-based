@@ -2,6 +2,7 @@
 // nav.js — Sidebar, compact profile button
 
 import { state } from './state.js';
+import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
 import { escapeHTML, escapeAttr, hashString } from './utils.js';
 import { getActiveData, filterDatesByRange } from './data.js';
 import { countFlagged } from './marker-analysis.js';
@@ -285,7 +286,7 @@ export function buildSidebar(data) {
   // Separate categories into blood work (no group) and specialty groups
   const bloodWork = [];
   const specialtyGroups = {};
-  for (const [key, cat] of Object.entries(data.categories)) {
+  for (const [key, cat] of getLabCategoryEntriesInSidebarOrder(data.categories)) {
     const item = _buildNavItem(key, cat);
     if (!item) continue;
     if (cat.group) {

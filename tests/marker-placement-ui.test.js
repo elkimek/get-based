@@ -36,7 +36,11 @@ function activeData() {
       icon: '❤️',
       markers: { cholesterol: { name: 'Cholesterol', values: [4.4] } },
     },
-    hormones: { label: 'Hormones', icon: '⚗️', markers: {} },
+    hormones: {
+      label: 'Hormones',
+      icon: '⚗️',
+      markers: { testosterone: { name: 'Testosterone', values: [18] } },
+    },
     calculatedRatios: {
       label: 'Calculated Ratios',
       icon: '📐',
@@ -131,6 +135,8 @@ describe('marker placement UI', () => {
     expect(modal.textContent).toContain('Only where this marker appears will change.');
     expect(modal.textContent).toContain('Values, history, units, notes, reference ranges, backups, shares, imports, and sync');
     expect(select.value).toBe('biochemistry');
+    expect([...select.options].map(option => option.value)).toEqual(['biochemistry', 'lipids', 'hormones']);
+    expect([...select.options].map(option => option.textContent)).toEqual(['Biochemistry', 'Lipids', 'Hormones']);
     expect([...select.options].map(option => option.value)).not.toContain('calculatedRatios');
   });
 

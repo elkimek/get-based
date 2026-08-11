@@ -68,11 +68,12 @@ Every projected marker carries `markerId`, `storageDotKey`,
 Placements travel through profile exports, database backups, encrypted shares,
 imports, and per-row sync. Missing or invalid assignments fall back to the
 native category and are preserved for forward-compatible sync ordering.
-Calculated categories cannot participate, regular and single-point category
-modes cannot be mixed, and marker-key collisions are rejected. Moving a marker
-back to its native category removes the redundant assignment. Profiles without
-`markerPlacements` migrate to an empty map and require no value migration or
-re-import.
+Calculated destinations are rejected, but calculated markers may be displayed
+in compatible regular categories after computation. Regular and single-point
+category modes cannot be mixed, and marker-key collisions are rejected. Moving
+a marker back to its native category removes the redundant assignment. Profiles
+without `markerPlacements` migrate to an empty map and require no value migration
+or re-import.
 
 ### User-facing placement
 
