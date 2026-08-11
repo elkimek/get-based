@@ -95,6 +95,7 @@ const APP_SHELL = [
   '/js/legal-consent.js',
   '/js/schema.js',
   '/js/marker-schema.js',
+  '/js/custom-marker-identity.js',
   '/js/schema-environment.js',
   '/js/constants.js',
   '/js/state.js',
