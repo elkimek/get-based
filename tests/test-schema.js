@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as dataModule from '../js/data.js';
 import { migrateProfileData } from '../js/profile.js';
+import { MARKER_SCHEMA } from '../js/schema.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
@@ -38,37 +39,33 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
 
   const specialtyCats = ['oatMicrobial', 'oatMetabolic', 'oatNeuro', 'oatNutritional', 'oatAminoFatty', 'oxidativeStress', 'urineAmino', 'urineAminoMetab', 'toxicElements', 'nutrientElements'];
 
-  // Check source: specialty categories should NOT appear as MARKER_SCHEMA keys
-  // They should only appear in SPECIALTY_MARKER_DEFS
-  const schemaBlock = schemaSrc.substring(
-    schemaSrc.indexOf('export const MARKER_SCHEMA'),
-    schemaSrc.indexOf('export const UNIT_CONVERSIONS')
-  );
+  // Specialty categories should NOT appear as MARKER_SCHEMA keys.
+  // They should only appear in SPECIALTY_MARKER_DEFS.
   for (const cat of specialtyCats) {
-    assert(`MARKER_SCHEMA lacks ${cat}`, !schemaBlock.includes(`  ${cat}:`), `should not be in MARKER_SCHEMA`);
+    assert(`MARKER_SCHEMA lacks ${cat}`, !Object.hasOwn(MARKER_SCHEMA, cat), `should not be in MARKER_SCHEMA`);
   }
 
   // Standard categories should still be present
   const standardCats = ['biochemistry', 'hormones', 'electrolytes', 'lipids', 'iron', 'proteins', 'thyroid', 'vitamins', 'diabetes', 'tumorMarkers', 'coagulation', 'hematology', 'differential', 'boneMetabolism', 'calculatedRatios'];
   for (const cat of standardCats) {
-    assert(`MARKER_SCHEMA has ${cat}`, schemaBlock.includes(`  ${cat}:`));
+    assert(`MARKER_SCHEMA has ${cat}`, Object.hasOwn(MARKER_SCHEMA, cat));
   }
   const biologyScoreStandardMarkers = [
     'lactate', 'pyruvate', 'cortisol', 'androstenedione', 'solubleTransferrinReceptor',
     'neurofilamentLight', 'reverseT3', 'tpoAb', 'tgAb', 'methylmalonicAcid',
     'fructosamine', 'fibrinogen', 'dDimer', 'cholHdlRatio'
   ];
+  const standardMarkerKeys = new Set(
+    Object.values(MARKER_SCHEMA).flatMap(category => Object.keys(category.markers || {})),
+  );
   for (const marker of biologyScoreStandardMarkers) {
-    assert(`MARKER_SCHEMA has biology-score marker ${marker}`, schemaBlock.includes(`${marker}: {`));
+    assert(`MARKER_SCHEMA has biology-score marker ${marker}`, standardMarkerKeys.has(marker));
   }
-  const hormonesBlock = schemaBlock.substring(schemaBlock.indexOf('  hormones:'), schemaBlock.indexOf('  electrolytes:'));
-  const diabetesBlock = schemaBlock.substring(schemaBlock.indexOf('  diabetes:'), schemaBlock.indexOf('  tumorMarkers:'));
-  const lipidsBlock = schemaBlock.substring(schemaBlock.indexOf('  lipids:'), schemaBlock.indexOf('  iron:'));
-  const calculatedRatiosBlock = schemaBlock.substring(schemaBlock.indexOf('  calculatedRatios:'));
   assert('C-peptide has one canonical standard schema home under diabetes',
-    diabetesBlock.includes('cPeptide: {') && !hormonesBlock.includes('cPeptide: {'));
+    !!MARKER_SCHEMA.diabetes?.markers?.cPeptide && !MARKER_SCHEMA.hormones?.markers?.cPeptide);
   assert('Chol/HDL ratio has one schema home under calculatedRatios',
-    !lipidsBlock.includes('cholHdlRatio: {') && calculatedRatiosBlock.includes('cholHdlRatio: {'));
+    !MARKER_SCHEMA.lipids?.markers?.cholHdlRatio
+      && !!MARKER_SCHEMA.calculatedRatios?.markers?.cholHdlRatio);
 
   // ═══════════════════════════════════════
   // 2. SPECIALTY_MARKER_DEFS owned by adapters.js

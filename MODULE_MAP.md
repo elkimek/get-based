@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 608 |
-| Internal import edges | 2639 |
+| Modules | 609 |
+| Internal import edges | 2640 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -601,7 +601,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 10 modules</summary>
+<details><summary><code>marker</code> family — 11 modules</summary>
 
 - [`js/marker-analysis.js`](js/marker-analysis.js) → [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-actions.js`](js/marker-detail-actions.js) → [`js/utils.js`](js/utils.js)
@@ -613,6 +613,7 @@ Native browser modules shipped with the static application.
 - [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
+- [`js/marker-schema.js`](js/marker-schema.js) → no in-scope imports
 
 </details>
 
@@ -756,7 +757,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>schema</code> family — 2 modules</summary>
 
 - [`js/schema-environment.js`](js/schema-environment.js) → no in-scope imports
-- [`js/schema.js`](js/schema.js) → [`js/schema-environment.js`](js/schema-environment.js), [`js/secondary-unit-conversions.js`](js/secondary-unit-conversions.js), [`js/state.js`](js/state.js)
+- [`js/schema.js`](js/schema.js) → [`js/marker-schema.js`](js/marker-schema.js), [`js/schema-environment.js`](js/schema-environment.js), [`js/secondary-unit-conversions.js`](js/secondary-unit-conversions.js), [`js/state.js`](js/state.js)
 
 </details>
 

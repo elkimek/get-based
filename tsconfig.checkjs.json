@@ -542,6 +542,7 @@
     "js/provider-wallet-panel-renderers.js",
     "js/recommendation-actions.js",
     "js/recommendations-region.js",
+    "js/marker-schema.js",
     "js/schema.js",
     "js/schema-environment.js",
     "js/settings-data.js",
