@@ -1,7 +1,11 @@
 // @ts-check
 // profile-marker-migrations.js - Marker alias, unit-suffix, and specialty import repairs.
 
-import { MARKER_SCHEMA, normalizeToSI } from './schema.js';
+import {
+  BUILTIN_MARKER_DOT_KEY_ALIASES,
+  MARKER_SCHEMA,
+  normalizeToSI,
+} from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 import {
@@ -78,20 +82,6 @@ function _buildProfileStandardMarkerLookup() {
  */
 function _repairCanonicalMarkerAliases(data) {
   if (!data.entries?.length) return;
-  const aliases = {
-    'hormones.cPeptide': 'diabetes.cPeptide',
-    'lipids.lpa': 'lipids.lpA',
-    'lipids.lp_a': 'lipids.lpA',
-    'lipids.lipoproteinA': 'lipids.lpA',
-    'lipids.lipoproteina': 'lipids.lpA',
-    'lipids.totalCholesterol': 'lipids.cholesterol',
-    'lipids.cholesterolTotal': 'lipids.cholesterol',
-    'lipids.total_cholesterol': 'lipids.cholesterol',
-    'lipids.totalChol': 'lipids.cholesterol',
-    'lipids.hdlCholesterol': 'lipids.hdl',
-    'lipids.hdl_cholesterol': 'lipids.hdl',
-    'lipids.cholHdlRatio': 'calculatedRatios.cholHdlRatio',
-  };
   const remapByPrefix = (obj, oldKey, nextKey) => {
     if (!obj) return;
     const prefix = oldKey + ':';
@@ -102,7 +92,7 @@ function _repairCanonicalMarkerAliases(data) {
       delete obj[key];
     }
   };
-  for (const [oldKey, nextKey] of Object.entries(aliases)) {
+  for (const [oldKey, nextKey] of Object.entries(BUILTIN_MARKER_DOT_KEY_ALIASES)) {
     for (const entry of data.entries) renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false });
     remapByPrefix(data.manualValues, oldKey, nextKey);
     remapByPrefix(data.markerValueNotes, oldKey, nextKey);

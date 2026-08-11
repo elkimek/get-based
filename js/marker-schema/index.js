@@ -19,6 +19,9 @@ import { URINALYSIS_CATEGORY } from './urinalysis.js';
 import { BODY_COMPOSITION_CATEGORY } from './body-composition.js';
 import { BONE_DENSITY_CATEGORY } from './bone-density.js';
 import { CALCULATED_RATIOS_CATEGORY } from './calculated-ratios.js';
+import { BUILTIN_MARKER_IDENTITY_DEFINITIONS } from './identities.js';
+
+export { BUILTIN_MARKER_IDENTITY_DEFINITIONS };
 
 // Keep category order stable: it is part of the public schema contract.
 export const MARKER_SCHEMA = {

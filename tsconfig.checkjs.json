@@ -562,6 +562,7 @@
     "js/marker-schema/body-composition.js",
     "js/marker-schema/bone-density.js",
     "js/marker-schema/calculated-ratios.js",
+    "js/marker-schema/identities.js",
     "js/schema.js",
     "js/schema-environment.js",
     "js/settings-data.js",

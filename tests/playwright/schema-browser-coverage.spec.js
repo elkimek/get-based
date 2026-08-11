@@ -47,6 +47,15 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         && schema.UNIT_CONVERSIONS['biochemistry.glucose'].usUnit === 'mg/dl'
         && schema.OPTIMAL_RANGES['calculatedRatios.crpHdlRatio'].optimalMax === 0.24;
 
+      outcomes.schemaExportsStableMarkerIdentityContract =
+        schema.BUILTIN_MARKER_IDENTITIES.length === 149
+        && schema.getBuiltinMarkerId('biochemistry.glucose') === 'gb:marker:glucose'
+        && schema.getBuiltinMarkerDotKey('gb:marker:glucose') === 'biochemistry.glucose'
+        && schema.resolveBuiltinMarkerDotKey('lipids.cholHdlRatio') === 'calculatedRatios.cholHdlRatio'
+        && schema.BUILTIN_MARKER_DOT_KEY_ALIASES['hormones.cPeptide'] === 'diabetes.cPeptide'
+        && schema.CUSTOM_MARKER_ID_PREFIX === 'custom:'
+        && schema.isCustomMarkerId('custom:browser_01') === true;
+
       const glucoseUs = schema.getAlternateUnit('biochemistry.glucose', 5, false);
       const glucoseSi = schema.getAlternateUnit('biochemistry.glucose', 90.09, true);
       const hba1cUs = schema.getAlternateUnit('diabetes.hba1c', 38.8, false);
@@ -150,6 +159,7 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
 
   const expectedOutcomeKeys = [
     'schemaExportsCoreMarkerAndRangeTables',
+    'schemaExportsStableMarkerIdentityContract',
     'alternateUnitsHandleMultiplyAndHba1cConversions',
     'alternateUnitsRejectMissingInvalidAndUnknownInputs',
     'userInputConversionYieldsCanonicalSiValues',

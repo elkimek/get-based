@@ -12,6 +12,15 @@ export { PHASE_RANGES, SBM_2015_THRESHOLDS, getEMFSeverity } from './schema-envi
 // Keep consumers on ./schema.js while catalog concerns are separated safely.
 // ═══════════════════════════════════════════════
 export { MARKER_SCHEMA };
+export {
+  BUILTIN_MARKER_DOT_KEY_ALIASES,
+  BUILTIN_MARKER_IDENTITIES,
+  CUSTOM_MARKER_ID_PREFIX,
+  getBuiltinMarkerDotKey,
+  getBuiltinMarkerId,
+  isCustomMarkerId,
+  resolveBuiltinMarkerDotKey,
+} from './marker-schema.js';
 
 // ═══════════════════════════════════════════════
 // UNIT CONVERSIONS (EU SI → US conventional)
