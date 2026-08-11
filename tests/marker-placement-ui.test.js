@@ -36,6 +36,7 @@ function activeData() {
       icon: '❤️',
       markers: { cholesterol: { name: 'Cholesterol', values: [4.4] } },
     },
+    hormones: { label: 'Hormones', icon: '⚗️', markers: {} },
     calculatedRatios: {
       label: 'Calculated Ratios',
       icon: '📐',
@@ -175,5 +176,32 @@ describe('marker placement UI', () => {
     expect(runtime.invalidateActiveDataCache).toHaveBeenCalled();
     expect(runtime.navigate).not.toHaveBeenCalled();
     expect(runtime.showDetailModal).not.toHaveBeenCalled();
+  });
+
+  it('single-flights move and restore so persistence and navigation cannot race', async () => {
+    runtime.state.importedData.markerPlacements = {
+      'gb:marker:glucose': { categoryKey: 'lipids' },
+    };
+    let finishSave;
+    runtime.saveImportedData.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
+    await openMarkerPlacementModal('lipids_glucose');
+    const restoreControl = document.querySelector('[data-marker-detail-action="restore-marker-placement"]');
+    document.getElementById('marker-placement-category').value = 'hormones';
+
+    const moving = saveMarkerPlacement('lipids_glucose');
+    const restoring = restoreMarkerPlacement('hormones_glucose');
+
+    expect(document.getElementById('marker-placement-category').disabled).toBe(true);
+    expect(restoreControl.disabled).toBe(true);
+    await expect(restoring).resolves.toBe(false);
+    expect(runtime.saveImportedData).toHaveBeenCalledTimes(1);
+    finishSave(true);
+    await expect(moving).resolves.toBe(true);
+
+    expect(runtime.state.importedData.markerPlacements).toEqual({
+      'gb:marker:glucose': { categoryKey: 'hormones' },
+    });
+    expect(runtime.navigate).toHaveBeenCalledTimes(1);
+    expect(runtime.showDetailModal).toHaveBeenLastCalledWith('hormones_glucose');
   });
 });

@@ -22,6 +22,7 @@ import { escapeAttr, escapeHTML, safeMarkerId, showNotification } from './utils.
 const placementRuntime = {
   showDetailModal: () => false,
 };
+let placementMutationInFlight = false;
 
 /** @param {{ showDetailModal?: (id: string) => any }} [runtime] */
 export function configureMarkerDetailPlacement(runtime = {}) {
@@ -211,6 +212,22 @@ function setPlacementControlsBusy(busy) {
     button.disabled = busy;
     button.textContent = busy ? 'Moving…' : 'Move marker';
   }
+  document.querySelectorAll('[data-marker-detail-action="restore-marker-placement"]').forEach(control => {
+    if (control instanceof HTMLButtonElement) control.disabled = busy;
+  });
+}
+
+/** @param {() => Promise<boolean>} mutation */
+async function runPlacementMutation(mutation) {
+  if (placementMutationInFlight) return false;
+  placementMutationInFlight = true;
+  setPlacementControlsBusy(true);
+  try {
+    return await mutation();
+  } finally {
+    placementMutationInFlight = false;
+    setPlacementControlsBusy(false);
+  }
 }
 
 /**
@@ -261,12 +278,8 @@ export async function saveMarkerPlacement(id) {
   if (!safeMarkerId(id)) return false;
   const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('marker-placement-category'));
   if (!select?.value) return false;
-  setPlacementControlsBusy(true);
-  try {
-    return await persistMarkerPlacement(id, select.value, 'move');
-  } finally {
-    setPlacementControlsBusy(false);
-  }
+  const categoryKey = select.value;
+  return runPlacementMutation(() => persistMarkerPlacement(id, categoryKey, 'move'));
 }
 
 /** @param {string} id */
@@ -274,5 +287,5 @@ export async function restoreMarkerPlacement(id) {
   if (!safeMarkerId(id)) return false;
   const context = getMarkerPlacementContext(id);
   if (!context) return false;
-  return persistMarkerPlacement(id, context.nativeCategoryKey, 'restore');
+  return runPlacementMutation(() => persistMarkerPlacement(id, context.nativeCategoryKey, 'restore'));
 }
