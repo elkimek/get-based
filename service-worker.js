@@ -756,7 +756,6 @@ const APP_SHELL = [
   '/data/import-benchmark-reference-us-v2.gold.json',
   '/data/emf-assessment-template.html',
 ];
-
 const NETWORK_ONLY_HOSTS = new Set([
   'openrouter.ai',
   'api.venice.ai',
