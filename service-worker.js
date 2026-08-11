@@ -19,7 +19,6 @@ async function resolveCacheName() {
   }
   return _cacheNamePromise;
 }
-
 // Local app shell — pre-cached on install
 const APP_SHELL = [
   '/version.js',
