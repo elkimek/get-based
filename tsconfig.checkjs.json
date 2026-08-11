@@ -543,6 +543,7 @@
     "js/recommendation-actions.js",
     "js/recommendations-region.js",
     "js/marker-schema.js",
+    "js/marker-schema/index.js",
     "js/marker-schema/biochemistry.js",
     "js/marker-schema/hormones.js",
     "js/marker-schema/electrolytes.js",

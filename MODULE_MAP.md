@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 627 |
+| Modules | 628 |
 | Internal import edges | 2658 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
@@ -67,7 +67,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/constants.js`](js/constants.js) | 22 | [`js/lab-context.js`](js/lab-context.js) | 18 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/marker-schema.js`](js/marker-schema.js) | 18 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 18 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/chat-render.js`](js/chat-render.js) | 17 |
 | [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 17 | [`js/export.js`](js/export.js) | 17 |
@@ -535,6 +535,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>index</code> family — 1 module</summary>
+
+- [`js/marker-schema/index.js`](js/marker-schema/index.js) → [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js), [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js), [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js), [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js), [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js), [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js), [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js), [`js/marker-schema/differential.js`](js/marker-schema/differential.js), [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js), [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js), [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js), [`js/marker-schema/iron.js`](js/marker-schema/iron.js), [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js), [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js), [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js), [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js), [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js), [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js)
+
+</details>
+
 <details><summary><code>iron</code> family — 1 module</summary>
 
 - [`js/marker-schema/iron.js`](js/marker-schema/iron.js) → no in-scope imports
@@ -686,7 +692,7 @@ Native browser modules shipped with the static application.
 - [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
-- [`js/marker-schema.js`](js/marker-schema.js) → [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js), [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js), [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js), [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js), [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js), [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js), [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js), [`js/marker-schema/differential.js`](js/marker-schema/differential.js), [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js), [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js), [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js), [`js/marker-schema/iron.js`](js/marker-schema/iron.js), [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js), [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js), [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js), [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js), [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js), [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js)
+- [`js/marker-schema.js`](js/marker-schema.js) → no in-scope imports
 
 </details>
 

@@ -14,7 +14,7 @@ function readRepoFile(url) {
 function appShellEntries() {
   const source = readRepoFile('/service-worker.js');
   const body = source.match(/const APP_SHELL = \[([\s\S]*?)\n\];/)?.[1] || '';
-  return [...body.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  return [...body.matchAll(/^\s*'([^']+)',\s*$/gm)].map((match) => match[1]);
 }
 
 function resolveLocalAsset(importerUrl, specifier) {

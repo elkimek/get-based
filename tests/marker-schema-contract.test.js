@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { MARKER_SCHEMA as directMarkerSchema } from '../js/marker-schema.js';
+import { MARKER_SCHEMA as authoredMarkerSchema } from '../js/marker-schema/index.js';
 import { migrateProfileData } from '../js/profile-data-migrations.js';
 import { MARKER_SCHEMA as facadeMarkerSchema } from '../js/schema.js';
 
@@ -57,11 +58,15 @@ describe('marker schema compatibility contract', () => {
     expect(facadeMarkerSchema).toBe(directMarkerSchema);
   });
 
+  it('keeps the generated runtime catalog aligned with category sources', () => {
+    expect(directMarkerSchema).toEqual(authoredMarkerSchema);
+  });
+
   it('composes every category module without cloning its definitions', async () => {
     for (const [categoryKey, modulePath] of Object.entries(CATEGORY_MODULES)) {
       const categoryExports = Object.values(await import(modulePath));
       expect(categoryExports).toHaveLength(1);
-      expect(directMarkerSchema[categoryKey]).toBe(categoryExports[0]);
+      expect(authoredMarkerSchema[categoryKey]).toBe(categoryExports[0]);
     }
   });
 

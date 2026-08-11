@@ -19,6 +19,7 @@ async function resolveCacheName() {
   }
   return _cacheNamePromise;
 }
+
 // Local app shell — pre-cached on install
 const APP_SHELL = [
   '/version.js',
@@ -93,8 +94,7 @@ const APP_SHELL = [
   '/js/startup-orchestrator.js',
   '/js/legal-consent.js',
   '/js/schema.js',
-  '/js/marker-schema.js', '/js/marker-schema/biochemistry.js', '/js/marker-schema/hormones.js', '/js/marker-schema/electrolytes.js', '/js/marker-schema/lipids.js', '/js/marker-schema/iron.js', '/js/marker-schema/proteins.js',
-  '/js/marker-schema/thyroid.js', '/js/marker-schema/vitamins.js', '/js/marker-schema/diabetes.js', '/js/marker-schema/tumor-markers.js', '/js/marker-schema/coagulation.js', '/js/marker-schema/hematology.js', '/js/marker-schema/differential.js', '/js/marker-schema/bone-metabolism.js', '/js/marker-schema/urinalysis.js', '/js/marker-schema/body-composition.js', '/js/marker-schema/bone-density.js', '/js/marker-schema/calculated-ratios.js',
+  '/js/marker-schema.js',
   '/js/schema-environment.js',
   '/js/constants.js',
   '/js/state.js',
