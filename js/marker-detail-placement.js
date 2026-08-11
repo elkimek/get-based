@@ -22,7 +22,8 @@ import { escapeAttr, escapeHTML, safeMarkerId, showNotification } from './utils.
 const placementRuntime = {
   showDetailModal: () => false,
 };
-const placementMutationProfiles = new Set();
+/** @type {Map<string, Promise<boolean>>} */
+const placementMutationProfiles = new Map();
 
 /** @param {{ showDetailModal?: (id: string) => any }} [runtime] */
 export function configureMarkerDetailPlacement(runtime = {}) {
@@ -219,27 +220,31 @@ function setPlacementControlsBusy(busy) {
 
 /** @param {string} profileId @param {() => Promise<boolean>} mutation */
 async function runPlacementMutation(profileId, mutation) {
-  if (placementMutationProfiles.has(profileId)) return false;
-  placementMutationProfiles.add(profileId);
+  const previous = placementMutationProfiles.get(profileId) || Promise.resolve(true);
+  const pending = previous.catch(() => false).then(() => {
+    if (state.currentProfile === profileId) setPlacementControlsBusy(true);
+    return mutation();
+  });
+  placementMutationProfiles.set(profileId, pending);
   setPlacementControlsBusy(true);
   try {
-    return await mutation();
+    return await pending;
   } finally {
-    placementMutationProfiles.delete(profileId);
-    if (state.currentProfile === profileId) setPlacementControlsBusy(false);
+    if (placementMutationProfiles.get(profileId) === pending) {
+      placementMutationProfiles.delete(profileId);
+      if (state.currentProfile === profileId) setPlacementControlsBusy(false);
+    }
   }
 }
 
 /**
- * @param {string} id
+ * @param {NonNullable<ReturnType<typeof getMarkerPlacementContext>>} context
+ * @param {string} profileId
+ * @param {Record<string, any>} profileData
  * @param {string} categoryKey
  * @param {'move' | 'restore'} action
  */
-async function persistMarkerPlacement(id, categoryKey, action) {
-  const context = getMarkerPlacementContext(id);
-  if (!context) return false;
-  const profileId = state.currentProfile;
-  const profileData = state.importedData;
+async function persistMarkerPlacement(context, profileId, profileData, categoryKey, action) {
   const modal = document.getElementById('detail-modal');
   const modalContent = modal?.firstElementChild;
   const overlay = document.getElementById('modal-overlay');
@@ -252,8 +257,12 @@ async function persistMarkerPlacement(id, categoryKey, action) {
     showNotification('That marker cannot be placed in the selected category.', 'error');
     return false;
   }
+  const destinationCategoryKey = result.categoryKey;
+  const nextId = `${destinationCategoryKey}_${context.markerKey}`;
   if (!result.changed) {
-    placementRuntime.showDetailModal(id);
+    if (state.currentProfile === profileId && state.importedData === profileData) {
+      placementRuntime.showDetailModal(nextId);
+    }
     return true;
   }
   invalidateActiveDataCache();
@@ -272,9 +281,7 @@ async function persistMarkerPlacement(id, categoryKey, action) {
     && modal?.firstElementChild === modalContent
     && overlay?.classList.contains('show');
   if (!stillOwnsView) return true;
-  const destinationCategoryKey = result.categoryKey;
   const destinationLabel = getActiveData().categories?.[destinationCategoryKey]?.label || destinationCategoryKey;
-  const nextId = `${destinationCategoryKey}_${context.markerKey}`;
   buildMarkerDetailSidebarRuntime();
   navigateMarkerDetailRuntime(destinationCategoryKey, getActiveData());
   placementRuntime.showDetailModal(nextId);
@@ -292,8 +299,12 @@ export async function saveMarkerPlacement(id) {
   if (!safeMarkerId(id)) return false;
   const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('marker-placement-category'));
   if (!select?.value) return false;
+  const context = getMarkerPlacementContext(id);
+  if (!context) return false;
   const categoryKey = select.value;
-  return runPlacementMutation(state.currentProfile, () => persistMarkerPlacement(id, categoryKey, 'move'));
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
+  return runPlacementMutation(profileId, () => persistMarkerPlacement(context, profileId, profileData, categoryKey, 'move'));
 }
 
 /** @param {string} id */
@@ -301,5 +312,7 @@ export async function restoreMarkerPlacement(id) {
   if (!safeMarkerId(id)) return false;
   const context = getMarkerPlacementContext(id);
   if (!context) return false;
-  return runPlacementMutation(state.currentProfile, () => persistMarkerPlacement(id, context.nativeCategoryKey, 'restore'));
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
+  return runPlacementMutation(profileId, () => persistMarkerPlacement(context, profileId, profileData, context.nativeCategoryKey, 'restore'));
 }

@@ -183,7 +183,7 @@ describe('marker placement UI', () => {
     expect(runtime.showDetailModal).not.toHaveBeenCalled();
   });
 
-  it('single-flights move and restore so persistence and navigation cannot race', async () => {
+  it('serializes move and restore so the latest user action is preserved', async () => {
     runtime.state.importedData.markerPlacements = {
       'gb:marker:glucose': { categoryKey: 'lipids' },
     };
@@ -194,20 +194,20 @@ describe('marker placement UI', () => {
     document.getElementById('marker-placement-category').value = 'hormones';
 
     const moving = saveMarkerPlacement('lipids_glucose');
-    const restoring = restoreMarkerPlacement('hormones_glucose');
+    const restoring = restoreMarkerPlacement('lipids_glucose');
 
     expect(document.getElementById('marker-placement-category').disabled).toBe(true);
     expect(restoreControl.disabled).toBe(true);
-    await expect(restoring).resolves.toBe(false);
+    await vi.waitFor(() => expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(1));
     expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(1);
     finishSave(true);
     await expect(moving).resolves.toBe(true);
+    await expect(restoring).resolves.toBe(true);
 
-    expect(runtime.state.importedData.markerPlacements).toEqual({
-      'gb:marker:glucose': { categoryKey: 'hormones' },
-    });
-    expect(runtime.navigate).toHaveBeenCalledTimes(1);
-    expect(runtime.showDetailModal).toHaveBeenLastCalledWith('hormones_glucose');
+    expect(runtime.state.importedData.markerPlacements).toEqual({});
+    expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(2);
+    expect(runtime.navigate).toHaveBeenCalledTimes(2);
+    expect(runtime.showDetailModal).toHaveBeenLastCalledWith('biochemistry_glucose');
   });
 
   it('rolls a failed save back on its initiating profile after a profile switch', async () => {
@@ -218,6 +218,7 @@ describe('marker placement UI', () => {
     const initiatingData = runtime.state.importedData;
 
     const moving = saveMarkerPlacement('biochemistry_glucose');
+    await vi.waitFor(() => expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(1));
     runtime.state.currentProfile = 'other-profile';
     runtime.state.importedData = { markerPlacements: { 'custom:other': { categoryKey: 'hormones' } } };
     finishSave(false);
@@ -239,6 +240,7 @@ describe('marker placement UI', () => {
     await openMarkerPlacementModal('biochemistry_glucose');
     document.getElementById('marker-placement-category').value = 'lipids';
     const firstMove = saveMarkerPlacement('biochemistry_glucose');
+    await vi.waitFor(() => expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(1));
 
     runtime.state.currentProfile = 'second-profile';
     runtime.state.importedData = secondProfileData;
@@ -271,6 +273,7 @@ describe('marker placement UI', () => {
     document.getElementById('marker-placement-category').value = 'lipids';
 
     const moving = saveMarkerPlacement('biochemistry_glucose');
+    await vi.waitFor(() => expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(1));
     document.getElementById('modal-overlay').classList.remove('show');
     finishSave(true);
     await expect(moving).resolves.toBe(true);
