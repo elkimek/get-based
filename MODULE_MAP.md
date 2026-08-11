@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 609 |
-| Internal import edges | 2640 |
+| Modules | 628 |
+| Internal import edges | 2658 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -67,10 +67,10 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
 | [`js/constants.js`](js/constants.js) | 22 | [`js/lab-context.js`](js/lab-context.js) | 18 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/chat-render.js`](js/chat-render.js) | 17 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/export.js`](js/export.js) | 17 |
-| [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 17 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 17 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 18 |
+| [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/chat-render.js`](js/chat-render.js) | 17 |
+| [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 17 | [`js/export.js`](js/export.js) | 17 |
 
 ## Existing cyclic components
 
@@ -152,6 +152,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>biochemistry</code> family — 1 module</summary>
+
+- [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>biology</code> family — 18 modules</summary>
 
 - [`js/biology-score-ai-context.js`](js/biology-score-ai-context.js) → [`js/biology-score-coverage-planner.js`](js/biology-score-coverage-planner.js), [`js/biology-score-engine.js`](js/biology-score-engine.js), [`js/biology-scores.js`](js/biology-scores.js)
@@ -181,9 +187,28 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>body</code> family — 1 module</summary>
+
+- [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>bone</code> family — 2 modules</summary>
+
+- [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js) → no in-scope imports
+- [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>brand</code> family — 1 module</summary>
 
 - [`js/brand-assets.js`](js/brand-assets.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>calculated</code> family — 1 module</summary>
+
+- [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js) → no in-scope imports
 
 </details>
 
@@ -297,6 +322,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>coagulation</code> family — 1 module</summary>
+
+- [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>commit</code> family — 1 module</summary>
 
 - [`js/commit-hash.js`](js/commit-hash.js) → [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
@@ -380,6 +411,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>diabetes</code> family — 1 module</summary>
+
+- [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>differential</code> family — 1 module</summary>
+
+- [`js/marker-schema/differential.js`](js/marker-schema/differential.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>dna</code> family — 10 modules</summary>
 
 - [`js/dna-actions.js`](js/dna-actions.js) → [`js/utils.js`](js/utils.js)
@@ -392,6 +435,12 @@ Native browser modules shipped with the static application.
 - [`js/dna-runtime.js`](js/dna-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/profile.js`](js/profile.js), [`js/utils.js`](js/utils.js)
 - [`js/dna-ui.js`](js/dna-ui.js) → [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/dna.js`](js/dna.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/dna-actions.js`](js/dna-actions.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/dna-mtdna.js`](js/dna-mtdna.js), [`js/dna-parser.js`](js/dna-parser.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/dna-ui.js`](js/dna-ui.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+
+</details>
+
+<details><summary><code>electrolytes</code> family — 1 module</summary>
+
+- [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js) → no in-scope imports
 
 </details>
 
@@ -454,6 +503,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>hematology</code> family — 1 module</summary>
+
+- [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>hormones</code> family — 1 module</summary>
+
+- [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>image</code> family — 1 module</summary>
 
 - [`js/image-utils.js`](js/image-utils.js) → no in-scope imports
@@ -471,6 +532,18 @@ Native browser modules shipped with the static application.
 - [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js)
 - [`js/import-review-draft.js`](js/import-review-draft.js) → no in-scope imports
 - [`js/import-review-row-actions.js`](js/import-review-row-actions.js) → [`js/utils.js`](js/utils.js)
+
+</details>
+
+<details><summary><code>index</code> family — 1 module</summary>
+
+- [`js/marker-schema/index.js`](js/marker-schema/index.js) → [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js), [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js), [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js), [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js), [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js), [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js), [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js), [`js/marker-schema/differential.js`](js/marker-schema/differential.js), [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js), [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js), [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js), [`js/marker-schema/iron.js`](js/marker-schema/iron.js), [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js), [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js), [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js), [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js), [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js), [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js)
+
+</details>
+
+<details><summary><code>iron</code> family — 1 module</summary>
+
+- [`js/marker-schema/iron.js`](js/marker-schema/iron.js) → no in-scope imports
 
 </details>
 
@@ -574,6 +647,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>lighting</code> family — 1 module</summary>
 
 - [`js/lighting-hardware-caveats.js`](js/lighting-hardware-caveats.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>lipids</code> family — 1 module</summary>
+
+- [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js) → no in-scope imports
 
 </details>
 
@@ -708,6 +787,12 @@ Native browser modules shipped with the static application.
 - [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/profile-storage-key.js`](js/profile-storage-key.js) → no in-scope imports
 - [`js/profile.js`](js/profile.js) → [`js/api.js`](js/api.js), [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+
+</details>
+
+<details><summary><code>proteins</code> family — 1 module</summary>
+
+- [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js) → no in-scope imports
 
 </details>
 
@@ -973,6 +1058,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>thyroid</code> family — 1 module</summary>
+
+- [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>tinfoil</code> family — 1 module</summary>
 
 - [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) → no in-scope imports
@@ -993,9 +1084,21 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>tumor</code> family — 1 module</summary>
+
+- [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>unique</code> family — 1 module</summary>
 
 - [`js/unique-id.js`](js/unique-id.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>urinalysis</code> family — 1 module</summary>
+
+- [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js) → no in-scope imports
 
 </details>
 
@@ -1017,6 +1120,12 @@ Native browser modules shipped with the static application.
 - [`js/views-router-runtime.js`](js/views-router-runtime.js) → [`js/pdf-import-progress.js`](js/pdf-import-progress.js)
 - [`js/views-router.js`](js/views-router.js) → [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/views-router-runtime.js`](js/views-router-runtime.js)
 - [`js/views.js`](js/views.js) → [`js/category-customization.js`](js/category-customization.js), [`js/category-glyphs.js`](js/category-glyphs.js), [`js/category-page-runtime.js`](js/category-page-runtime.js), [`js/category-page-view.js`](js/category-page-view.js), [`js/category-view-renderers.js`](js/category-view-renderers.js), [`js/compare-correlations.js`](js/compare-correlations.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/data.js`](js/data.js), [`js/dna-runtime.js`](js/dna-runtime.js), [`js/focus-card.js`](js/focus-card.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-drop-zone.js`](js/import-drop-zone.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/lens-pages.js`](js/lens-pages.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/nav.js`](js/nav.js), [`js/onboarding-view.js`](js/onboarding-view.js), [`js/recommendation-actions.js`](js/recommendation-actions.js), [`js/state.js`](js/state.js), [`js/views-router.js`](js/views-router.js)
+
+</details>
+
+<details><summary><code>vitamins</code> family — 1 module</summary>
+
+- [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js) → no in-scope imports
 
 </details>
 

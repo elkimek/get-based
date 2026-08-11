@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { MARKER_SCHEMA as directMarkerSchema } from '../js/marker-schema.js';
+import { MARKER_SCHEMA as authoredMarkerSchema } from '../js/marker-schema/index.js';
 import { migrateProfileData } from '../js/profile-data-migrations.js';
 import { MARKER_SCHEMA as facadeMarkerSchema } from '../js/schema.js';
 
@@ -26,6 +27,27 @@ const EXPECTED_CATEGORIES = [
   'calculatedRatios',
 ];
 
+const CATEGORY_MODULES = {
+  biochemistry: '../js/marker-schema/biochemistry.js',
+  hormones: '../js/marker-schema/hormones.js',
+  electrolytes: '../js/marker-schema/electrolytes.js',
+  lipids: '../js/marker-schema/lipids.js',
+  iron: '../js/marker-schema/iron.js',
+  proteins: '../js/marker-schema/proteins.js',
+  thyroid: '../js/marker-schema/thyroid.js',
+  vitamins: '../js/marker-schema/vitamins.js',
+  diabetes: '../js/marker-schema/diabetes.js',
+  tumorMarkers: '../js/marker-schema/tumor-markers.js',
+  coagulation: '../js/marker-schema/coagulation.js',
+  hematology: '../js/marker-schema/hematology.js',
+  differential: '../js/marker-schema/differential.js',
+  boneMetabolism: '../js/marker-schema/bone-metabolism.js',
+  urinalysis: '../js/marker-schema/urinalysis.js',
+  bodyComposition: '../js/marker-schema/body-composition.js',
+  boneDensity: '../js/marker-schema/bone-density.js',
+  calculatedRatios: '../js/marker-schema/calculated-ratios.js',
+};
+
 function markerDotKeys(schema) {
   return Object.entries(schema).flatMap(([categoryKey, category]) =>
     Object.keys(category.markers || {}).map(markerKey => `${categoryKey}.${markerKey}`));
@@ -34,6 +56,18 @@ function markerDotKeys(schema) {
 describe('marker schema compatibility contract', () => {
   it('keeps schema.js as the stable compatibility facade', () => {
     expect(facadeMarkerSchema).toBe(directMarkerSchema);
+  });
+
+  it('keeps the generated runtime catalog aligned with category sources', () => {
+    expect(directMarkerSchema).toEqual(authoredMarkerSchema);
+  });
+
+  it('composes every category module without cloning its definitions', async () => {
+    for (const [categoryKey, modulePath] of Object.entries(CATEGORY_MODULES)) {
+      const categoryExports = Object.values(await import(modulePath));
+      expect(categoryExports).toHaveLength(1);
+      expect(authoredMarkerSchema[categoryKey]).toBe(categoryExports[0]);
+    }
   });
 
   it('preserves the existing built-in catalog exactly', () => {
