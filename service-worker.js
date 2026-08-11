@@ -374,6 +374,7 @@ const APP_SHELL = [
   '/js/chart-card-recs.js',
   '/js/category-customization-runtime.js',
   '/js/category-glyphs.js',
+  '/js/category-order.js',
   '/js/category-page-runtime.js',
   '/js/category-page-view.js',
   '/js/category-view-renderers.js',
@@ -769,7 +770,6 @@ const NETWORK_ONLY_HOSTS = new Set([
   'sync.getbased.health',
   'free.evoluhq.com',
 ]);
-
 function isLocalOrPrivateHost(hostname) {
   return hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
