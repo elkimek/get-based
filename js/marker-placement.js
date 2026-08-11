@@ -274,6 +274,17 @@ export function getMarkerStorageDotKey(marker, viewId) {
 }
 
 /**
+ * Return the immutable storage path in the underscore form used by UI state.
+ *
+ * @param {Record<string, any> | null | undefined} marker
+ * @param {unknown} viewId
+ */
+export function getMarkerStorageViewId(marker, viewId) {
+  const parts = splitDotKey(getMarkerStorageDotKey(marker, viewId));
+  return parts ? `${parts.categoryKey}_${parts.markerKey}` : null;
+}
+
+/**
  * Resolve a rendered path first, then its immutable native storage path. The
  * fallback lets saved dashboard references follow a marker after placement.
  *
@@ -293,4 +304,13 @@ export function resolveActiveMarkerPath(categories, categoryKey, markerKey) {
     }
   }
   return null;
+}
+
+/** @param {Record<string, any>} categories @param {unknown} viewId */
+export function resolveMarkerStorageViewId(categories, viewId) {
+  if (typeof viewId !== 'string') return null;
+  const separator = viewId.indexOf('_');
+  if (separator < 1 || separator === viewId.length - 1) return null;
+  const resolved = resolveActiveMarkerPath(categories, viewId.slice(0, separator), viewId.slice(separator + 1));
+  return getMarkerStorageViewId(resolved?.marker, viewId);
 }

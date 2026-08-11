@@ -68,6 +68,12 @@ function handleMarkerDetailAction(actionEl, event, actions) {
     void actions.renameMarker?.(id);
   } else if (action === 'revert-marker-name') {
     void actions.revertMarkerName?.(id);
+  } else if (action === 'open-marker-placement') {
+    void actions.openMarkerPlacementModal?.(id);
+  } else if (action === 'save-marker-placement') {
+    void actions.saveMarkerPlacement?.(id);
+  } else if (action === 'restore-marker-placement') {
+    void actions.restoreMarkerPlacement?.(id);
   } else if (action === 'toggle-history-note') {
     actionEl.closest('.marker-history-row')?.querySelector('.mv-note-text')?.classList.toggle('show');
   } else if (action === 'edit-marker-value') {

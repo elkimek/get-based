@@ -384,6 +384,7 @@ const APP_SHELL = [
   '/js/marker-detail-content.js',
   '/js/marker-detail-manual-entry.js',
   '/js/marker-detail-custom-markers.js',
+  '/js/marker-detail-placement.js',
   '/js/modal-trigger-memory.js',
   '/js/marker-detail-runtime.js',
   '/js/marker-detail-actions.js',
@@ -789,7 +790,6 @@ function shouldUseNetworkOnly(url, sameOrigin) {
  *   }
  * }} */
 const serviceWorkerScope = /** @type {any} */ (self);
-
 serviceWorkerScope.GetBasedServiceWorkerRuntime.install({
   scope: serviceWorkerScope,
   appShell: APP_SHELL,

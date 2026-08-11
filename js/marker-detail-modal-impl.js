@@ -32,6 +32,7 @@ import {
   pickNewCatIcon,
   saveCustomMarker,
 } from './marker-detail-custom-markers.js';
+import { configureMarkerDetailPlacement, openMarkerPlacementModal, renderMarkerPlacementSummary, restoreMarkerPlacement, saveMarkerPlacement } from './marker-detail-placement.js';
 import {
   askAIAboutMarkerRuntime,
   buildMarkerDetailSidebarRuntime,
@@ -87,8 +88,7 @@ export {
   saveMarkerNote,
   deleteMarkerNote,
 };
-export { loadMarkerDetailStylesheet };
-export { rememberModalTrigger };
+export { loadMarkerDetailStylesheet, rememberModalTrigger };
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
@@ -122,16 +122,14 @@ configureMarkerDetailEditing({
   openManualEntryForm: (id, prefillDate) => id ? openManualEntryForm(id, prefillDate) : false,
   closeModal: () => closeModal(),
 });
-configureMarkerDetailManualEntry({
-  showDetailModal,
-});
+configureMarkerDetailManualEntry({ showDetailModal });
 configureMarkerDetailCustomMarkers({
   closeModal,
   navigate: (...args) => markerDetailDeps.navigate(...args),
   openManualEntryForm,
   showEmojiPicker: (...args) => markerDetailDeps.showEmojiPicker(...args),
 });
-
+configureMarkerDetailPlacement({ showDetailModal });
 if (typeof document !== 'undefined') {
   installMarkerDetailActionDelegates({
     closeModal,
@@ -140,6 +138,7 @@ if (typeof document !== 'undefined') {
     revertRefRange,
     renameMarker: (...args) => markerDetailDeps.renameMarker(...args),
     revertMarkerName: (...args) => markerDetailDeps.revertMarkerName(...args),
+    openMarkerPlacementModal, saveMarkerPlacement, restoreMarkerPlacement,
     editMarkerValue,
     deleteMarkerValue,
     revertMarkerValue,
@@ -412,7 +411,7 @@ function renderDetailModal(id, opts = {}) {
   const quickMarkerPinTitle = quickMarkerPinned ? 'Remove from Quick Markers' : 'Pin to Quick Markers';
   let html = `<div class="gb-detail-head">
       <div>
-        <div class="gb-detail-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
+        ${renderMarkerPlacementSummary(id, marker, data.categories)}
         <h3>${escapeHTML(marker.name)}${renameLink}</h3>
         <div class="modal-unit">${escapeHTML(marker.unit)}</div>
         ${altUnitInfo}
@@ -722,7 +721,7 @@ function renderDetailModal(id, opts = {}) {
   // Async-fill recommendation section (unified: genetics + actionable tips)
   if (shouldRenderRecommendations) {
     const _markerStatus = latestStatus === 'unrated' ? 'missing' : latestStatus;
-    renderRecommendationSectionRuntime(id.replace('_','.'), { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
+    renderRecommendationSectionRuntime(dotKey, { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
       .then(h => {
         const el = document.getElementById('rec-modal-' + id);
         if (h && el) {
@@ -740,13 +739,14 @@ function renderDetailModal(id, opts = {}) {
   // Display marker description (sync for schema markers, async fetch for custom)
   const descEl = document.getElementById('marker-desc');
   if (descEl) {
-    const desc = getMarkerDescription(id);
+    const descriptionKey = dotKey.replace('.', '_');
+    const desc = getMarkerDescription(id) || getMarkerDescription(descriptionKey);
     if (desc) {
       descEl.textContent = desc;
       descEl.classList.add('loaded');
     } else if (!marker.desc && hasAIProvider()) {
       descEl.classList.add('loading');
-      fetchCustomMarkerDescription(id, marker.name, marker.unit).then(text => {
+      fetchCustomMarkerDescription(descriptionKey, marker.name, marker.unit).then(text => {
         const el = document.getElementById('marker-desc');
         if (text && el) {
           el.textContent = text;
