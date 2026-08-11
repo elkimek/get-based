@@ -22,7 +22,7 @@ import { escapeAttr, escapeHTML, safeMarkerId, showNotification } from './utils.
 const placementRuntime = {
   showDetailModal: () => false,
 };
-let placementMutationInFlight = false;
+const placementMutationProfiles = new Set();
 
 /** @param {{ showDetailModal?: (id: string) => any }} [runtime] */
 export function configureMarkerDetailPlacement(runtime = {}) {
@@ -217,16 +217,16 @@ function setPlacementControlsBusy(busy) {
   });
 }
 
-/** @param {() => Promise<boolean>} mutation */
-async function runPlacementMutation(mutation) {
-  if (placementMutationInFlight) return false;
-  placementMutationInFlight = true;
+/** @param {string} profileId @param {() => Promise<boolean>} mutation */
+async function runPlacementMutation(profileId, mutation) {
+  if (placementMutationProfiles.has(profileId)) return false;
+  placementMutationProfiles.add(profileId);
   setPlacementControlsBusy(true);
   try {
     return await mutation();
   } finally {
-    placementMutationInFlight = false;
-    setPlacementControlsBusy(false);
+    placementMutationProfiles.delete(profileId);
+    if (state.currentProfile === profileId) setPlacementControlsBusy(false);
   }
 }
 
@@ -293,7 +293,7 @@ export async function saveMarkerPlacement(id) {
   const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('marker-placement-category'));
   if (!select?.value) return false;
   const categoryKey = select.value;
-  return runPlacementMutation(() => persistMarkerPlacement(id, categoryKey, 'move'));
+  return runPlacementMutation(state.currentProfile, () => persistMarkerPlacement(id, categoryKey, 'move'));
 }
 
 /** @param {string} id */
@@ -301,5 +301,5 @@ export async function restoreMarkerPlacement(id) {
   if (!safeMarkerId(id)) return false;
   const context = getMarkerPlacementContext(id);
   if (!context) return false;
-  return runPlacementMutation(() => persistMarkerPlacement(id, context.nativeCategoryKey, 'restore'));
+  return runPlacementMutation(state.currentProfile, () => persistMarkerPlacement(id, context.nativeCategoryKey, 'restore'));
 }

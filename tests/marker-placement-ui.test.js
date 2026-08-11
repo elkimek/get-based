@@ -231,6 +231,39 @@ describe('marker placement UI', () => {
     expect(runtime.showDetailModal).not.toHaveBeenCalled();
   });
 
+  it('allows an independent profile placement while another profile is saving', async () => {
+    let finishFirstSave;
+    runtime.saveImportedDataForProfile.mockImplementationOnce(() => new Promise(resolve => { finishFirstSave = resolve; }));
+    const firstProfileData = runtime.state.importedData;
+    const secondProfileData = structuredClone(firstProfileData);
+    await openMarkerPlacementModal('biochemistry_glucose');
+    document.getElementById('marker-placement-category').value = 'lipids';
+    const firstMove = saveMarkerPlacement('biochemistry_glucose');
+
+    runtime.state.currentProfile = 'second-profile';
+    runtime.state.importedData = secondProfileData;
+    await openMarkerPlacementModal('biochemistry_glucose');
+    document.getElementById('marker-placement-category').value = 'hormones';
+    await expect(saveMarkerPlacement('biochemistry_glucose')).resolves.toBe(true);
+
+    expect(secondProfileData.markerPlacements).toEqual({
+      'gb:marker:glucose': { categoryKey: 'hormones' },
+    });
+    expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
+      'second-profile',
+      secondProfileData,
+      { forceProfileScope: true, reason: 'marker-placement' },
+    );
+    expect(runtime.showDetailModal).toHaveBeenLastCalledWith('hormones_glucose');
+
+    finishFirstSave(true);
+    await expect(firstMove).resolves.toBe(true);
+    expect(firstProfileData.markerPlacements).toEqual({
+      'gb:marker:glucose': { categoryKey: 'lipids' },
+    });
+    expect(runtime.navigate).toHaveBeenCalledTimes(1);
+  });
+
   it('does not reopen stale marker UI after the placement flow is dismissed', async () => {
     let finishSave;
     runtime.saveImportedDataForProfile.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
