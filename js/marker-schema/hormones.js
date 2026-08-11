@@ -1,0 +1,29 @@
+// @ts-check
+// Stable built-in hormones marker category.
+
+export const HORMONES_CATEGORY = {
+  label: "Hormones", icon: "\uD83E\uDDEC",
+  markers: {
+    testosterone: { name: "Testosterone", unit: "nmol/l", refMin: 8.64, refMax: 29.00, refMin_f: 0.29, refMax_f: 1.67, desc: "The primary male sex hormone; critical for muscle mass, bone density, libido, and mood in both sexes." },
+    freeTestosterone: { name: "Free Testosterone", unit: "pmol/l", refMin: 30.70, refMax: 161.70, refMin_f: 0.30, refMax_f: 10.40, desc: "The unbound, biologically active fraction of testosterone; a better indicator of androgen status than total testosterone." },
+    freeTestosteronePercentage: { name: "Free Testosterone %", unit: "%", refMin: 1.53, refMax: 2.88, desc: "The proportion of total testosterone that is entirely unbound in blood; an excellent metric for monitoring true androgen availability." },
+    shbg: { name: "SHBG", unit: "nmol/l", refMin: 14.5, refMax: 54.1, refMin_f: 26.1, refMax_f: 110.0, desc: "A protein that binds sex hormones and regulates their availability; high levels reduce free testosterone." },
+    dheaS: { name: "DHEA-S", unit: "\u00b5mol/l", refMin: 2.41, refMax: 11.60, refMin_f: 1.77, refMax_f: 9.22, desc: "An adrenal hormone precursor to testosterone and estrogen; declines with age and reflects adrenal function." },
+    fai: { name: "Free Androgen Index", unit: "%", refMin: 34.0, refMax: 106.0, refMin_f: 0.5, refMax_f: 6.9, desc: "Ratio of total testosterone to SHBG; estimates bioavailable androgen activity, useful for detecting hormonal imbalances." },
+    estradiol: { name: "Estradiol", unit: "pmol/l", refMin: 41.4, refMax: 159.0, refMin_f: 45.4, refMax_f: 854.0, desc: "The primary estrogen hormone; essential for bone health, cardiovascular protection, and reproductive function." },
+    progesterone: { name: "Progesterone", unit: "nmol/l", refMin: 0.159, refMax: 0.474, refMin_f: 0.181, refMax_f: 27.0, desc: "A hormone supporting pregnancy and menstrual cycle regulation; also has neuroprotective and calming effects." },
+    pth: { name: "Parathyroid Hormone (PTH)", unit: "pmol/l", refMin: 1.6, refMax: 6.9, desc: "Regulates calcium and phosphorus balance; interpret alongside calcium, vitamin D, and kidney function because reference ranges vary by assay and laboratory." },
+    calcitonin: { name: "Calcitonin", unit: "ng/l", refMin: 1.0, refMax: 11.8, refMin_f: 1.0, refMax_f: 4.6, desc: "A thyroid hormone that lowers blood calcium; used as a tumor marker for medullary thyroid carcinoma." },
+    dht: { name: "DHT", unit: "nmol/l", refMin: 0.86, refMax: 3.40, refMin_f: 0.12, refMax_f: 0.86, desc: "A potent androgen converted from testosterone; drives male-pattern hair loss and prostate growth." },
+    igf1: { name: "IGF-1", unit: "\u00b5g/l", refMin: 96.4, refMax: 227.8, desc: "A growth-factor hormone mediating the effects of growth hormone; reflects GH status and influences tissue repair." },
+    insulin: { name: "Insulin", unit: "mU/l", refMin: 2.6, refMax: 24.9, desc: "The hormone regulating blood sugar uptake into cells; elevated fasting levels indicate insulin resistance." },
+    cortisol: { name: "Cortisol", unit: "nmol/l", refMin: 140, refMax: 620, desc: "Primary glucocorticoid stress hormone; interpretation depends strongly on collection time and rhythm." },
+    androstenedione: { name: "Androstenedione", unit: "nmol/l", refMin: 1.4, refMax: 7.4, refMin_f: 1.0, refMax_f: 11.5, desc: "Androgen precursor made by adrenals and gonads; useful for androgen-excess and steroid-pathway context." },
+    lh: { name: "LH", unit: "U/l", refMin: 1.7, refMax: 8.6, refMin_f: 2.4, refMax_f: 12.6, desc: "Luteinizing hormone; triggers ovulation in women and stimulates testosterone production in men. Surges mid-cycle." },
+    fsh: { name: "FSH", unit: "U/l", refMin: 1.5, refMax: 12.4, refMin_f: 3.5, refMax_f: 12.5, desc: "Follicle-stimulating hormone; drives egg maturation in women and sperm production in men. Rises in menopause." },
+    prolactin: { name: "Prolactin", unit: "\u00b5g/l", refMin: 4.0, refMax: 15.2, refMin_f: 4.8, refMax_f: 23.3, desc: "Stimulates milk production; elevated levels can suppress ovulation and indicate pituitary issues." },
+    bioactiveTestosterone: { name: "Bioactive Testosterone", unit: "nmol/l", refMin: 4.37, refMax: 14.3, refMin_f: 0.05, refMax_f: 0.60, desc: "The sum of free and weakly albumin-bound testosterone; ready to be utilized by tissues, making it a powerful indicator of bioavailable androgen status." },
+    bioactiveTestosteronePercentage: { name: "Bioactive Testosterone %", unit: "%", refMin: 35.0, refMax: 66.3, desc: "The proportion of total testosterone that is biologically active; helps evaluate hormonal availability when SHBG is abnormal." },
+    hCG: { name: "hCG (Chorionic Gonadotropin)", unit: "U/l", refMin: 0.0, refMax: 2.5, desc: "Human chorionic gonadotropin; a hormone produced during pregnancy and also utilized as a highly specific biomarker for certain reproductive conditions." }
+  }
+};
