@@ -2,6 +2,7 @@
 // marker-detail-placement.js — Marker category placement form and persistence.
 
 import { getActiveData, invalidateActiveDataCache, saveImportedDataForProfile } from './data.js';
+import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import {
   clearMarkerPlacement,
@@ -79,8 +80,8 @@ function categoryHasData(category) {
 
 /**
  * Return only destinations accepted by the placement engine. Categories that
- * cannot preserve marker semantics (calculated, mode-mismatched, or colliding)
- * stay out of the control instead of failing after the user chooses them.
+ * cannot preserve marker semantics (calculated destinations, mode-mismatched,
+ * or colliding) stay out of the control instead of failing after selection.
  *
  * @param {string} id
  */
@@ -89,7 +90,7 @@ export function getMarkerPlacementChoices(id) {
   if (!context) return null;
   const choices = [];
   let unavailableCount = 0;
-  for (const [categoryKey, category] of Object.entries(context.data.categories || {})) {
+  for (const [categoryKey, category] of getLabCategoryEntriesInSidebarOrder(context.data.categories || {})) {
     const candidatePlacements = clonePlacements(state.importedData?.markerPlacements) || {};
     const candidateProfile = { ...state.importedData, markerPlacements: candidatePlacements };
     const result = setMarkerPlacement(candidateProfile, context.markerReference, categoryKey);
@@ -100,17 +101,12 @@ export function getMarkerPlacementChoices(id) {
     choices.push({
       categoryKey,
       label: category.label || categoryKey,
-      icon: category.icon || '',
       inProfile: categoryHasData(category)
         || categoryKey === context.displayCategoryKey
         || categoryKey === context.nativeCategoryKey,
       selected: categoryKey === context.displayCategoryKey,
     });
   }
-  choices.sort((left, right) => {
-    if (left.inProfile !== right.inProfile) return left.inProfile ? -1 : 1;
-    return String(left.label).localeCompare(String(right.label));
-  });
   return { ...context, choices, unavailableCount };
 }
 
@@ -146,10 +142,7 @@ function renderPlacementOptions(choices) {
   return groups
     .filter(group => group.options.length > 0)
     .map(({ label, options }) => `<optgroup label="${escapeAttr(label)}">
-      ${options.map(choice => {
-        const visibleLabel = `${choice.icon ? `${choice.icon} ` : ''}${choice.label}`;
-        return `<option value="${escapeAttr(choice.categoryKey)}"${choice.selected ? ' selected' : ''}>${escapeHTML(visibleLabel)}</option>`;
-      }).join('')}
+      ${options.map(choice => `<option value="${escapeAttr(choice.categoryKey)}"${choice.selected ? ' selected' : ''}>${escapeHTML(choice.label)}</option>`).join('')}
     </optgroup>`)
     .join('');
 }

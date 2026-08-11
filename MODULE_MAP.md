@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 638 |
-| Internal import edges | 2698 |
+| Modules | 639 |
+| Internal import edges | 2700 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -226,11 +226,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>category</code> family — 6 modules</summary>
+<details><summary><code>category</code> family — 7 modules</summary>
 
 - [`js/category-customization-runtime.js`](js/category-customization-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/category-customization.js`](js/category-customization.js) → [`js/category-customization-runtime.js`](js/category-customization-runtime.js), [`js/data.js`](js/data.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/category-glyphs.js`](js/category-glyphs.js) → [`js/utils.js`](js/utils.js)
+- [`js/category-order.js`](js/category-order.js) → no in-scope imports
 - [`js/category-page-runtime.js`](js/category-page-runtime.js) → [`js/recommendations-runtime.js`](js/recommendations-runtime.js)
 - [`js/category-page-view.js`](js/category-page-view.js) → [`js/category-glyphs.js`](js/category-glyphs.js), [`js/category-page-runtime.js`](js/category-page-runtime.js), [`js/category-view-renderers.js`](js/category-view-renderers.js), [`js/chart-card-recs.js`](js/chart-card-recs.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/category-view-renderers.js`](js/category-view-renderers.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
@@ -715,7 +716,7 @@ Native browser modules shipped with the static application.
 - [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) → [`js/api.js`](js/api.js), [`js/charts.js`](js/charts.js), [`js/context-cards.js`](js/context-cards.js), [`js/data.js`](js/data.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-content.js`](js/marker-detail-content.js), [`js/marker-detail-custom-markers.js`](js/marker-detail-custom-markers.js), [`js/marker-detail-editing.js`](js/marker-detail-editing.js), [`js/marker-detail-manual-entry.js`](js/marker-detail-manual-entry.js), [`js/marker-detail-placement.js`](js/marker-detail-placement.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-modal.js`](js/marker-detail-modal.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) *(dynamic)*, [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/modal-trigger-memory.js`](js/modal-trigger-memory.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/marker-detail-placement.js`](js/marker-detail-placement.js) → [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/marker-detail-placement.js`](js/marker-detail-placement.js) → [`js/category-order.js`](js/category-order.js), [`js/data.js`](js/data.js), [`js/marker-detail-actions.js`](js/marker-detail-actions.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/marker-detail-store.js`](js/marker-detail-store.js) → [`js/data.js`](js/data.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/state.js`](js/state.js)
 - [`js/marker-placement.js`](js/marker-placement.js) → [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/marker-schema.js`](js/marker-schema.js)
@@ -741,7 +742,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>nav</code> family — 2 modules</summary>
 
 - [`js/nav-runtime.js`](js/nav-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/export-loader.js`](js/export-loader.js)
-- [`js/nav.js`](js/nav.js) → [`js/data.js`](js/data.js), [`js/lens.js`](js/lens.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav-runtime.js`](js/nav-runtime.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/nav.js`](js/nav.js) → [`js/category-order.js`](js/category-order.js), [`js/data.js`](js/data.js), [`js/lens.js`](js/lens.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav-runtime.js`](js/nav-runtime.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
