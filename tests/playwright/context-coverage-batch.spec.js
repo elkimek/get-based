@@ -892,11 +892,17 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'context-test-model');
       const focusAiCalls = [];
+      let focusResponseMode = 'success';
       window.fetch = async (url, options = {}) => {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href === 'http://ollama.test/v1/chat/completions') {
           const body = JSON.parse(options.body || '{}');
           focusAiCalls.push(body);
+          if (focusResponseMode === 'failure') {
+            return new Response(JSON.stringify({
+              error: { message: '<img src=x onerror=alert(1)> model rejected request' },
+            }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+          }
           const stream = new ReadableStream({
             start(controller) {
               const encoder = new TextEncoder();
@@ -916,8 +922,19 @@ test('context health dots and focus card cover cache fallback and empty states',
       const streamedFocusCache = JSON.parse(localStorage.getItem(focusCacheKey) || '{}');
       outcomes.loadFocusCardStreamsAndCachesLocalAI = focusAiCalls.length === 1
         && focusAiCalls[0].stream === true
+        && focusAiCalls[0].max_tokens === 500
+        && focusAiCalls[0].reasoning_effort === 'none'
         && document.getElementById('focus-card-body')?.textContent.includes('Vitamin D is low. Recheck with ApoB') === true
         && streamedFocusCache.text === 'Vitamin D is low. Recheck with ApoB.';
+
+      localStorage.removeItem(focusCacheKey);
+      focusResponseMode = 'failure';
+      document.getElementById('focus-card-body').innerHTML = '';
+      await focus.loadFocusCard();
+      const failedFocusBody = document.getElementById('focus-card-body');
+      outcomes.loadFocusCardSafelySurfacesProviderFailure =
+        failedFocusBody?.textContent.includes('model rejected request') === true
+        && failedFocusBody.querySelector('img') === null;
       window.fetch = saved.fetch;
 
       localStorage.removeItem(focusCacheKey);
