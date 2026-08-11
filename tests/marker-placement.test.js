@@ -8,9 +8,11 @@ import {
   clearMarkerPlacement,
   getMarkerPlacementPlan,
   getMarkerStorageDotKey,
+  getMarkerStorageViewId,
   migrateMarkerPlacements,
   resolveMarkerIdentity,
   resolveActiveMarkerPath,
+  resolveMarkerStorageViewId,
   setMarkerPlacement,
 } from '../js/marker-placement.js';
 
@@ -106,6 +108,20 @@ describe('marker category placement engine', () => {
     expect(profile.markerPlacements).toEqual({});
   });
 
+  it('places calculated markers in regular categories after calculation', () => {
+    const profile = { customMarkers: {}, markerPlacements: {} };
+
+    expect(setMarkerPlacement(profile, 'calculatedRatios.tgHdlRatio', 'lipids')).toMatchObject({
+      ok: true,
+      storageDotKey: 'calculatedRatios.tgHdlRatio',
+      categoryKey: 'lipids',
+    });
+    expect(getMarkerPlacementPlan(profile)[getBuiltinMarkerId('calculatedRatios.tgHdlRatio')])
+      .toMatchObject({ effectiveCategoryKey: 'lipids', reason: 'placed' });
+    expect(setMarkerPlacement(profile, 'biochemistry.glucose', 'calculatedRatios'))
+      .toMatchObject({ ok: false, reason: 'calculated-category' });
+  });
+
   it('preserves forward metadata and ignores unresolved imported assignments', () => {
     const unknownId = 'custom:arrives_later';
     const profile = {
@@ -151,6 +167,12 @@ describe('marker category placement engine', () => {
     });
     expect(getMarkerStorageDotKey(categories.lipids.markers.glucose, 'lipids_glucose'))
       .toBe('biochemistry.glucose');
+    expect(getMarkerStorageViewId(categories.lipids.markers.glucose, 'lipids_glucose'))
+      .toBe('biochemistry_glucose');
+    expect(resolveMarkerStorageViewId(categories, 'lipids_glucose'))
+      .toBe('biochemistry_glucose');
+    expect(resolveMarkerStorageViewId(categories, 'biochemistry_glucose'))
+      .toBe('biochemistry_glucose');
     expect(resolveActiveMarkerPath(categories, 'biochemistry', 'glucose')).toMatchObject({
       categoryKey: 'lipids',
       marker: { storageDotKey: 'biochemistry.glucose' },

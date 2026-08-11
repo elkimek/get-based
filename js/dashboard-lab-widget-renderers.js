@@ -6,19 +6,17 @@ import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
 import { openDashboardMarkerDetail } from './dashboard-widget-runtime.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId, showNotification } from './utils.js';
-import { filterDatesByRange, renderDateRangeFilter } from './data.js';
+import { filterDatesByRange, getActiveData, renderDateRangeFilter } from './data.js';
 import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { resolveActiveMarkerPath } from './marker-placement.js';
+import { getMarkerStorageViewId, resolveActiveMarkerPath, resolveMarkerStorageViewId } from './marker-placement.js';
 
 function dashboardNavigateAttrs(route) {
   return dashboardWidgetActionAttrs('navigate', { route });
 }
-
 function dashboardMarkerDetailAttrs(id) {
   return dashboardWidgetActionAttrs('open-marker-detail', { id });
 }
-
 export function createDashboardLabWidgetRenderers(deps) {
   const {
     markerHasData,
@@ -54,7 +52,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     const status = getStatus(value, range.min, range.max);
     const trend = getTrend(marker.values || [], range.min, range.max);
     state.markerRegistry[id] = marker;
-    return { id, category, marker, latestIdx, range, value, status, trend };
+    return { id, storageId: getMarkerStorageViewId(marker, id) || id, category, marker, latestIdx, range, value, status, trend };
   }
   function getDashboardMarkerById(data, id) {
     if (!safeMarkerId(id)) return null;
@@ -218,11 +216,12 @@ export function createDashboardLabWidgetRenderers(deps) {
   }
 
   function isDashboardQuickMarkerPinned(id) {
-    return getDashboardQuickMarkerPins().includes(id);
+    return getDashboardQuickMarkerPins().includes(resolveMarkerStorageViewId(getActiveData().categories, id) || id);
   }
 
   function toggleDashboardQuickMarkerPin(id) {
     if (!safeMarkerId(id)) return;
+    id = resolveMarkerStorageViewId(getActiveData().categories, id) || id;
     const pins = getDashboardQuickMarkerPins();
     const existing = pins.indexOf(id);
     let pinned = false;
@@ -283,8 +282,9 @@ export function createDashboardLabWidgetRenderers(deps) {
     const base = scoreDashboardSpotlightHit(hit, priority);
     let score = base.priorityScore;
     let reason = base.priorityReason;
+    const storageId = hit.storageId || hit.id;
 
-    const goalMatch = priority.goalMatches.get(hit.id);
+    const goalMatch = priority.goalMatches.get(storageId);
     if (goalMatch) {
       score += goalMatch.score;
       if (base.priorityScore < 25 || reason === 'core dashboard marker' || reason === 'latest tracked marker') {
@@ -292,13 +292,13 @@ export function createDashboardLabWidgetRenderers(deps) {
       }
     }
 
-    const coreRank = priority.coreRanks.get(hit.id);
+    const coreRank = priority.coreRanks.get(storageId);
     if (coreRank != null) {
       score += Math.max(4, 18 - coreRank * 2);
       if (reason === 'latest tracked marker') reason = 'core quick marker';
     }
 
-    const pinned = priority.pinnedIds.has(hit.id);
+    const pinned = priority.pinnedIds.has(storageId);
     if (pinned) {
       score += 140;
       reason = 'manual pick';
@@ -350,7 +350,7 @@ export function createDashboardLabWidgetRenderers(deps) {
         || priority.coreRanks.has(hit.id)
         || priority.goalMatches.has(hit.id));
 
-    const byId = new Map(scored.map(hit => [hit.id, hit]));
+    const byId = new Map(scored.map(hit => [hit.storageId || hit.id, hit]));
     const pinned = priority.pins.map(id => byId.get(id)).filter(Boolean);
     const pinnedIds = new Set(pinned.map(hit => hit.id));
     const dynamic = scored

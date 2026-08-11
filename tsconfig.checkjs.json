@@ -243,6 +243,7 @@
     "js/marker-detail-content.js",
     "js/marker-detail-custom-markers.js",
     "js/marker-detail-manual-entry.js",
+    "js/marker-detail-placement.js",
     "js/marker-detail-runtime.js",
     "js/modal-trigger-memory.js",
     "js/mobile-dashboard.js",

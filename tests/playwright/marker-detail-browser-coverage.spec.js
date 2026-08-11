@@ -922,6 +922,9 @@ test('marker detail delegated actions cover click key and data attribute contrac
       revertRefRange: (id, type) => calls.push(['revert-ref', id, type]),
       renameMarker: id => calls.push(['rename', id]),
       revertMarkerName: id => calls.push(['revert-name', id]),
+      openMarkerPlacementModal: id => calls.push(['open-placement', id]),
+      saveMarkerPlacement: id => calls.push(['save-placement', id]),
+      restoreMarkerPlacement: id => calls.push(['restore-placement', id]),
       editMarkerValue: (id, date, value) => calls.push(['edit-value', id, date, value]),
       deleteMarkerValue: (id, date) => calls.push(['delete-value', id, date]),
       revertMarkerValue: (id, date) => calls.push(['revert-value', id, date]),
@@ -957,6 +960,9 @@ test('marker detail delegated actions cover click key and data attribute contrac
       clickAction('revert-ref-range', { id: 'proteins_albumin', type: 'optimal' });
       clickAction('rename-marker', { id: 'proteins_albumin' });
       clickAction('revert-marker-name', { id: 'proteins_albumin' });
+      clickAction('open-marker-placement', { id: 'proteins_albumin' });
+      clickAction('save-marker-placement', { id: 'proteins_albumin' });
+      clickAction('restore-marker-placement', { id: 'proteins_albumin' });
       clickAction('edit-marker-value', { id: 'proteins_albumin', date: '2026-06-01', value: 42.2 });
       clickAction('edit-marker-value', { id: 'proteins_albumin', date: '2026-06-01', value: 'not-number' });
       clickAction('delete-marker-value', { id: 'proteins_albumin', date: '2026-06-01' });
@@ -1024,6 +1030,9 @@ test('marker detail delegated actions cover click key and data attribute contrac
         && calls.some(call => call[0] === 'revert-ref' && call[2] === 'optimal')
         && calls.some(call => call[0] === 'rename')
         && calls.some(call => call[0] === 'revert-name')
+        && calls.some(call => call[0] === 'open-placement')
+        && calls.some(call => call[0] === 'save-placement')
+        && calls.some(call => call[0] === 'restore-placement')
         && calls.filter(call => call[0] === 'edit-value').length === 1
         && calls.some(call => call[0] === 'delete-value')
         && calls.some(call => call[0] === 'revert-value')

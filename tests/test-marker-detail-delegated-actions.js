@@ -11,7 +11,8 @@ const modalFacadeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.j
 const modalImplSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal-impl.js'), 'utf8');
 const manualEntrySrc = fs.readFileSync(path.join(root, 'js/marker-detail-manual-entry.js'), 'utf8');
 const customMarkersSrc = fs.readFileSync(path.join(root, 'js/marker-detail-custom-markers.js'), 'utf8');
-const modalSrc = `${modalImplSrc}\n${manualEntrySrc}\n${customMarkersSrc}`;
+const placementSrc = fs.readFileSync(path.join(root, 'js/marker-detail-placement.js'), 'utf8');
+const modalSrc = `${modalImplSrc}\n${manualEntrySrc}\n${customMarkersSrc}\n${placementSrc}`;
 const editingSrc = fs.readFileSync(path.join(root, 'js/marker-detail-editing.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/marker-detail-actions.js'), 'utf8');
 const runtimeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-runtime.js'), 'utf8');
@@ -82,6 +83,8 @@ assert('service worker precaches marker-detail-actions.js',
   swSrc.includes("'/js/marker-detail-actions.js'"));
 assert('service worker precaches marker-detail-runtime.js',
   swSrc.includes("'/js/marker-detail-runtime.js'"));
+assert('service worker precaches marker-detail-placement.js',
+  swSrc.includes("'/js/marker-detail-placement.js'"));
 assert('marker-detail-modal delegates browser globals through runtime adapter',
   modalSrc.includes("from './marker-detail-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(modalSrc) &&
@@ -108,6 +111,9 @@ assert('marker-detail-modal only creates recommendation placeholders when render
   'revert-ref-range',
   'rename-marker',
   'revert-marker-name',
+  'open-marker-placement',
+  'save-marker-placement',
+  'restore-marker-placement',
   'toggle-history-note',
   'edit-marker-value',
   'delete-marker-value',
@@ -139,6 +145,9 @@ assert('marker-detail-modal only creates recommendation placeholders when render
   "markerDetailActionAttrs('save-ref-range', { id, type })",
   "markerDetailActionAttrs('revert-marker-name', { id })",
   "markerDetailActionAttrs('rename-marker', { id })",
+  "markerDetailActionAttrs('open-marker-placement', { id })",
+  "markerDetailActionAttrs('save-marker-placement', { id })",
+  "markerDetailActionAttrs('restore-marker-placement', { id })",
   "markerDetailActionAttrs('quick-pin', { id })",
   "markerDetailActionAttrs('close-modal')",
   "markerDetailActionAttrs('toggle-history-note')",

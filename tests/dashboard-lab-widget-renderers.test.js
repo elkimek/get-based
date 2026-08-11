@@ -3,6 +3,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDashboardLabWidgetRenderers } from '../js/dashboard-lab-widget-renderers.js';
+import { invalidateActiveDataCache } from '../js/data.js';
+import { getBuiltinMarkerId } from '../js/marker-schema.js';
 import { profileStorageKey } from '../js/profile.js';
 import { state } from '../js/state.js';
 
@@ -58,6 +60,7 @@ describe('dashboard lab widget renderers', () => {
     state.profileDob = savedState.profileDob;
     localStorage.clear();
     document.body.innerHTML = '';
+    invalidateActiveDataCache();
     vi.restoreAllMocks();
   });
 
@@ -84,6 +87,27 @@ describe('dashboard lab widget renderers', () => {
     expect(renderers.isDashboardQuickMarkerPinned('lipids_apoB')).toBe(true);
 
     renderers.toggleDashboardQuickMarkerPin('lipids_apoB');
+    expect(JSON.parse(localStorage.getItem(storageKey))).toEqual([]);
+  });
+
+  it('keeps quick pins attached to storage identity after a marker moves', () => {
+    const glucoseId = getBuiltinMarkerId('biochemistry.glucose');
+    state.importedData = {
+      entries: [{ date: '2026-08-01', markers: { 'biochemistry.glucose': 5.2 } }],
+      customMarkers: {},
+      markerPlacements: { [glucoseId]: { categoryKey: 'lipids' } },
+    };
+    invalidateActiveDataCache();
+    const renderers = createRenderers();
+    const storageKey = profileStorageKey(state.currentProfile, 'dashboardQuickMarkerPinsV1');
+
+    renderers.toggleDashboardQuickMarkerPin('lipids_glucose');
+
+    expect(JSON.parse(localStorage.getItem(storageKey))).toEqual(['biochemistry_glucose']);
+    expect(renderers.isDashboardQuickMarkerPinned('lipids_glucose')).toBe(true);
+    expect(renderers.isDashboardQuickMarkerPinned('biochemistry_glucose')).toBe(true);
+
+    renderers.toggleDashboardQuickMarkerPin('biochemistry_glucose');
     expect(JSON.parse(localStorage.getItem(storageKey))).toEqual([]);
   });
 });

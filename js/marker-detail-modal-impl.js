@@ -10,7 +10,7 @@ import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { hasAIProvider } from './api.js';
 import { getInsulinMirrorMarkerKey } from './lab-entry.js';
-import { getMarkerStorageDotKey } from './marker-placement.js';
+import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
@@ -32,6 +32,7 @@ import {
   pickNewCatIcon,
   saveCustomMarker,
 } from './marker-detail-custom-markers.js';
+import { configureMarkerDetailPlacement, openMarkerPlacementModal, renderMarkerPlacementSummary, restoreMarkerPlacement, saveMarkerPlacement } from './marker-detail-placement.js';
 import {
   askAIAboutMarkerRuntime,
   buildMarkerDetailSidebarRuntime,
@@ -87,8 +88,7 @@ export {
   saveMarkerNote,
   deleteMarkerNote,
 };
-export { loadMarkerDetailStylesheet };
-export { rememberModalTrigger };
+export { loadMarkerDetailStylesheet, rememberModalTrigger };
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
@@ -122,16 +122,14 @@ configureMarkerDetailEditing({
   openManualEntryForm: (id, prefillDate) => id ? openManualEntryForm(id, prefillDate) : false,
   closeModal: () => closeModal(),
 });
-configureMarkerDetailManualEntry({
-  showDetailModal,
-});
+configureMarkerDetailManualEntry({ showDetailModal });
 configureMarkerDetailCustomMarkers({
   closeModal,
   navigate: (...args) => markerDetailDeps.navigate(...args),
   openManualEntryForm,
   showEmojiPicker: (...args) => markerDetailDeps.showEmojiPicker(...args),
 });
-
+configureMarkerDetailPlacement({ showDetailModal });
 if (typeof document !== 'undefined') {
   installMarkerDetailActionDelegates({
     closeModal,
@@ -140,6 +138,7 @@ if (typeof document !== 'undefined') {
     revertRefRange,
     renameMarker: (...args) => markerDetailDeps.renameMarker(...args),
     revertMarkerName: (...args) => markerDetailDeps.revertMarkerName(...args),
+    openMarkerPlacementModal, saveMarkerPlacement, restoreMarkerPlacement,
     editMarkerValue,
     deleteMarkerValue,
     revertMarkerValue,
@@ -412,7 +411,7 @@ function renderDetailModal(id, opts = {}) {
   const quickMarkerPinTitle = quickMarkerPinned ? 'Remove from Quick Markers' : 'Pin to Quick Markers';
   let html = `<div class="gb-detail-head">
       <div>
-        <div class="gb-detail-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
+        ${renderMarkerPlacementSummary(id, marker, data.categories)}
         <h3>${escapeHTML(marker.name)}${renameLink}</h3>
         <div class="modal-unit">${escapeHTML(marker.unit)}</div>
         ${altUnitInfo}
@@ -521,7 +520,6 @@ function renderDetailModal(id, opts = {}) {
     const dir = ch > 0 ? "increased" : ch < 0 ? "decreased" : "unchanged";
     html += `<div class="modal-ref-info"><strong>Trend:</strong> ${dir} by ${Math.abs(ch).toFixed(2)} ${escapeHTML(marker.unit)} (${ch>0?"+":""}${pct}%) from ${dates[f.i]} to ${dates[l.i]}</div>`;
   }
-  // Calculated marker input diagnostic — show missing inputs
   const calcInputs = {
     'calculatedRatios_phenoAge': BIO_AGE_PHENO_INPUTS,
     'calculatedRatios_bortzAge': BIO_AGE_BORTZ_INPUTS,
@@ -540,34 +538,35 @@ function renderDetailModal(id, opts = {}) {
     'calculatedRatios_apoBapoAIRatio': [['lipids', 'apoB', 'ApoB'], ['lipids', 'apoAI', 'ApoA-I']],
     'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'hs-CRP'], ['lipids', 'hdl', 'HDL']],
   };
-  const inputs = calcInputs[id];
+  const inputs = calcInputs[dotKey.replace('.', '_')];
   if (inputs) {
     const issues = [];
+    const activeMarker = (cat, key) => resolveActiveMarkerPath(data.categories, cat, key)?.marker;
     // Check for completely missing markers
     const missing = inputs.filter(([cat, key]) => {
-      const vals = data.categories[cat]?.markers[key]?.values;
+      const vals = activeMarker(cat, key)?.values;
       return !vals || vals.every(v => v == null);
     });
-    if ((id === 'calculatedRatios_phenoAge' || id === 'calculatedRatios_bortzAge' || id === 'calculatedRatios_biologicalAge') && !state.profileDob) {
+    if ((dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge' || dotKey === 'calculatedRatios.biologicalAge') && !state.profileDob) {
       issues.push('Date of birth not set (required for age at blood draw)');
     }
     if (missing.length > 0) {
       issues.push(`Missing: ${missing.map(m => m[2]).join(', ')}`);
     }
     // Biological age clocks: per-date gap check, CRP fallback, unit sanity
-    const _isBioAgeClock = id === 'calculatedRatios_phenoAge' || id === 'calculatedRatios_bortzAge';
+    const _isBioAgeClock = dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge';
     if (_isBioAgeClock && state.profileDob) {
       // For CRP check: accept either hs-CRP or standard CRP
       const _hasCRPonDate = (idx) => {
-        const hs = data.categories.proteins?.markers.hsCRP?.values?.[idx];
-        const std = data.categories.proteins?.markers.crp?.values?.[idx];
+        const hs = activeMarker('proteins', 'hsCRP')?.values?.[idx];
+        const std = activeMarker('proteins', 'crp')?.values?.[idx];
         return hs != null || std != null;
       };
       // Override the missing check for CRP — it's satisfied by either marker
       const crpInInputs = inputs.some(([, key]) => key === 'hsCRP');
       if (crpInInputs && missing.some(([, key]) => key === 'hsCRP')) {
-        const hasAnyCRP = data.categories.proteins?.markers.hsCRP?.values?.some(v => v != null)
-          || data.categories.proteins?.markers.crp?.values?.some(v => v != null);
+        const hasAnyCRP = activeMarker('proteins', 'hsCRP')?.values?.some(v => v != null)
+          || activeMarker('proteins', 'crp')?.values?.some(v => v != null);
         if (hasAnyCRP) {
           // Remove CRP from missing list — it's covered by the fallback
           const idx = missing.findIndex(([, key]) => key === 'hsCRP');
@@ -587,28 +586,28 @@ function renderDetailModal(id, opts = {}) {
         if (latestIdx >= 0) {
           const nullAt = inputs.filter(([cat, key]) => {
             if (key === 'hsCRP') return !_hasCRPonDate(latestIdx);
-            const v = data.categories[cat]?.markers[key]?.values?.[latestIdx];
+            const v = activeMarker(cat, key)?.values?.[latestIdx];
             return v == null;
           });
           if (nullAt.length > 0) {
             issues.push(`Missing on latest date (${data.dateLabels[latestIdx]}): ${nullAt.map(m => m[2]).join(', ')}`);
           }
           // CRP value sanity
-          const crpVal = data.categories.proteins?.markers.hsCRP?.values?.[latestIdx]
-            ?? data.categories.proteins?.markers.crp?.values?.[latestIdx];
+          const crpVal = activeMarker('proteins', 'hsCRP')?.values?.[latestIdx]
+            ?? activeMarker('proteins', 'crp')?.values?.[latestIdx];
           if (crpVal != null && crpVal <= 0) {
             issues.push('CRP is zero or negative — cannot calculate (log undefined)');
           }
           // Unit sanity warnings
-          const albVal = data.categories.proteins?.markers.albumin?.values?.[latestIdx];
+          const albVal = activeMarker('proteins', 'albumin')?.values?.[latestIdx];
           if (albVal != null && albVal > 10) {
             issues.push(`Albumin value ${albVal} looks like g/dL — expected g/L (typically 35–55)`);
           }
-          const lymphVal = data.categories.differential?.markers.lymphocytesPct?.values?.[latestIdx];
+          const lymphVal = activeMarker('differential', 'lymphocytesPct')?.values?.[latestIdx];
           if (lymphVal != null && lymphVal > 1) {
             issues.push(`Lymphocytes % value ${lymphVal} looks like a percentage — expected fraction 0–1 (e.g. 0.28)`);
           }
-          const alpVal = data.categories.biochemistry?.markers.alp?.values?.[latestIdx];
+          const alpVal = activeMarker('biochemistry', 'alp')?.values?.[latestIdx];
           if (alpVal != null && alpVal > 10) {
             issues.push(`ALP value ${alpVal} looks like U/L — expected µkat/L (typically 0.5–2.0)`);
           }
@@ -618,12 +617,12 @@ function renderDetailModal(id, opts = {}) {
     // Biological Age: show component breakdown. The dashboard can show a
     // value from whichever component is non-null, so the modal should not
     // describe that as a generic "Not calculated" error.
-    if (id === 'calculatedRatios_biologicalAge') {
+    if (dotKey === 'calculatedRatios.biologicalAge') {
       const refIdx = bioAgeReferenceIndex(data, marker, latestPoint);
       const refDate = refIdx >= 0 ? data.dates?.[refIdx] : null;
       const refDateLabel = refIdx >= 0 ? (data.dateLabels?.[refIdx] || refDate || '') : '';
-      const pheno = refIdx >= 0 ? data.categories.calculatedRatios?.markers?.phenoAge?.values?.[refIdx] : null;
-      const bortz = refIdx >= 0 ? data.categories.calculatedRatios?.markers?.bortzAge?.values?.[refIdx] : null;
+      const pheno = refIdx >= 0 ? activeMarker('calculatedRatios', 'phenoAge')?.values?.[refIdx] : null;
+      const bortz = refIdx >= 0 ? activeMarker('calculatedRatios', 'bortzAge')?.values?.[refIdx] : null;
       const age = state.profileDob && refDate
         ? ((new Date(refDate + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))
         : null;
@@ -722,7 +721,7 @@ function renderDetailModal(id, opts = {}) {
   // Async-fill recommendation section (unified: genetics + actionable tips)
   if (shouldRenderRecommendations) {
     const _markerStatus = latestStatus === 'unrated' ? 'missing' : latestStatus;
-    renderRecommendationSectionRuntime(id.replace('_','.'), { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
+    renderRecommendationSectionRuntime(dotKey, { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
       .then(h => {
         const el = document.getElementById('rec-modal-' + id);
         if (h && el) {
@@ -740,13 +739,14 @@ function renderDetailModal(id, opts = {}) {
   // Display marker description (sync for schema markers, async fetch for custom)
   const descEl = document.getElementById('marker-desc');
   if (descEl) {
-    const desc = getMarkerDescription(id);
+    const descriptionKey = dotKey.replace('.', '_');
+    const desc = getMarkerDescription(id) || getMarkerDescription(descriptionKey);
     if (desc) {
       descEl.textContent = desc;
       descEl.classList.add('loaded');
     } else if (!marker.desc && hasAIProvider()) {
       descEl.classList.add('loading');
-      fetchCustomMarkerDescription(id, marker.name, marker.unit).then(text => {
+      fetchCustomMarkerDescription(descriptionKey, marker.name, marker.unit).then(text => {
         const el = document.getElementById('marker-desc');
         if (text && el) {
           el.textContent = text;
