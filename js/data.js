@@ -213,13 +213,13 @@ export async function saveImportedData(options = {}) {
 }
 
 // Persist a specific profile snapshot without consulting or replacing the
-// active global profile. Long-running privacy operations (for example,
-// wearable disconnect) can finish after the user switches profiles; routing
-// through saveImportedData() at that point would write profile A's deletion
-// into profile B. Active-profile calls retain the usual save hooks.
+// active global profile. Long-running operations can finish after the user
+// switches profiles; routing through saveImportedData() at that point would
+// write profile A's change into profile B. Active-profile calls retain the
+// usual save hooks unless the caller explicitly requires profile scoping.
 export async function saveImportedDataForProfile(profileId, importedData, options = {}) {
   if (!profileId || !importedData || typeof importedData !== 'object') return false;
-  if (profileId === state.currentProfile && importedData === state.importedData) {
+  if (!options?.forceProfileScope && profileId === state.currentProfile && importedData === state.importedData) {
     return saveImportedData(options);
   }
   try {

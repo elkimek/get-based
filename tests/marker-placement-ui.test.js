@@ -9,7 +9,7 @@ const runtime = vi.hoisted(() => ({
     currentView: 'biochemistry',
     markerRegistry: {},
   },
-  saveImportedData: vi.fn(async () => true),
+  saveImportedDataForProfile: vi.fn(async () => true),
   invalidateActiveDataCache: vi.fn(),
   buildSidebar: vi.fn(),
   navigate: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock('../js/state.js', () => ({ state: runtime.state }));
 vi.mock('../js/data.js', () => ({
   getActiveData: () => activeData(),
   invalidateActiveDataCache: runtime.invalidateActiveDataCache,
-  saveImportedData: runtime.saveImportedData,
+  saveImportedDataForProfile: runtime.saveImportedDataForProfile,
 }));
 vi.mock('../js/marker-detail-runtime.js', () => ({
   buildMarkerDetailSidebarRuntime: runtime.buildSidebar,
@@ -95,7 +95,8 @@ const {
 describe('marker placement UI', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    runtime.saveImportedData.mockResolvedValue(true);
+    runtime.saveImportedDataForProfile.mockResolvedValue(true);
+    runtime.state.currentProfile = 'marker-placement-ui-test';
     runtime.state.importedData = {
       entries: [{ date: '2026-08-01', markers: { 'biochemistry.glucose': 5.2 } }],
       customMarkers: {
@@ -146,7 +147,11 @@ describe('marker placement UI', () => {
     });
     expect(runtime.state.importedData.entries).toEqual(originalEntries);
     expect(runtime.state.importedData.markerNotes).toEqual(originalNotes);
-    expect(runtime.saveImportedData).toHaveBeenCalledTimes(1);
+    expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
+      'marker-placement-ui-test',
+      runtime.state.importedData,
+      { forceProfileScope: true, reason: 'marker-placement' },
+    );
     expect(runtime.navigate).toHaveBeenCalledWith('lipids', expect.any(Object));
     expect(runtime.showDetailModal).toHaveBeenCalledWith('lipids_glucose');
 
@@ -166,7 +171,7 @@ describe('marker placement UI', () => {
 
   it('rolls placement metadata back when persistence fails', async () => {
     delete runtime.state.importedData.markerPlacements;
-    runtime.saveImportedData.mockResolvedValueOnce(false);
+    runtime.saveImportedDataForProfile.mockResolvedValueOnce(false);
     await openMarkerPlacementModal('biochemistry_glucose');
     document.getElementById('marker-placement-category').value = 'lipids';
 
@@ -183,7 +188,7 @@ describe('marker placement UI', () => {
       'gb:marker:glucose': { categoryKey: 'lipids' },
     };
     let finishSave;
-    runtime.saveImportedData.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
+    runtime.saveImportedDataForProfile.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
     await openMarkerPlacementModal('lipids_glucose');
     const restoreControl = document.querySelector('[data-marker-detail-action="restore-marker-placement"]');
     document.getElementById('marker-placement-category').value = 'hormones';
@@ -194,7 +199,7 @@ describe('marker placement UI', () => {
     expect(document.getElementById('marker-placement-category').disabled).toBe(true);
     expect(restoreControl.disabled).toBe(true);
     await expect(restoring).resolves.toBe(false);
-    expect(runtime.saveImportedData).toHaveBeenCalledTimes(1);
+    expect(runtime.saveImportedDataForProfile).toHaveBeenCalledTimes(1);
     finishSave(true);
     await expect(moving).resolves.toBe(true);
 
@@ -203,5 +208,44 @@ describe('marker placement UI', () => {
     });
     expect(runtime.navigate).toHaveBeenCalledTimes(1);
     expect(runtime.showDetailModal).toHaveBeenLastCalledWith('hormones_glucose');
+  });
+
+  it('rolls a failed save back on its initiating profile after a profile switch', async () => {
+    let finishSave;
+    runtime.saveImportedDataForProfile.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
+    await openMarkerPlacementModal('biochemistry_glucose');
+    document.getElementById('marker-placement-category').value = 'lipids';
+    const initiatingData = runtime.state.importedData;
+
+    const moving = saveMarkerPlacement('biochemistry_glucose');
+    runtime.state.currentProfile = 'other-profile';
+    runtime.state.importedData = { markerPlacements: { 'custom:other': { categoryKey: 'hormones' } } };
+    finishSave(false);
+    await expect(moving).resolves.toBe(false);
+
+    expect(initiatingData.markerPlacements).toEqual({});
+    expect(runtime.state.importedData.markerPlacements).toEqual({
+      'custom:other': { categoryKey: 'hormones' },
+    });
+    expect(runtime.navigate).not.toHaveBeenCalled();
+    expect(runtime.showDetailModal).not.toHaveBeenCalled();
+  });
+
+  it('does not reopen stale marker UI after the placement flow is dismissed', async () => {
+    let finishSave;
+    runtime.saveImportedDataForProfile.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
+    await openMarkerPlacementModal('biochemistry_glucose');
+    document.getElementById('marker-placement-category').value = 'lipids';
+
+    const moving = saveMarkerPlacement('biochemistry_glucose');
+    document.getElementById('modal-overlay').classList.remove('show');
+    finishSave(true);
+    await expect(moving).resolves.toBe(true);
+
+    expect(runtime.state.importedData.markerPlacements).toEqual({
+      'gb:marker:glucose': { categoryKey: 'lipids' },
+    });
+    expect(runtime.navigate).not.toHaveBeenCalled();
+    expect(runtime.showDetailModal).not.toHaveBeenCalled();
   });
 });

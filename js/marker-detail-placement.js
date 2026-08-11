@@ -1,7 +1,7 @@
 // @ts-check
 // marker-detail-placement.js — Marker category placement form and persistence.
 
-import { getActiveData, invalidateActiveDataCache, saveImportedData } from './data.js';
+import { getActiveData, invalidateActiveDataCache, saveImportedDataForProfile } from './data.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import {
   clearMarkerPlacement,
@@ -238,11 +238,16 @@ async function runPlacementMutation(mutation) {
 async function persistMarkerPlacement(id, categoryKey, action) {
   const context = getMarkerPlacementContext(id);
   if (!context) return false;
-  const hadPlacements = isRecord(state.importedData?.markerPlacements);
-  const previousPlacements = clonePlacements(state.importedData?.markerPlacements);
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
+  const modal = document.getElementById('detail-modal');
+  const modalContent = modal?.firstElementChild;
+  const overlay = document.getElementById('modal-overlay');
+  const hadPlacements = isRecord(profileData?.markerPlacements);
+  const previousPlacements = clonePlacements(profileData?.markerPlacements);
   const result = action === 'restore'
-    ? clearMarkerPlacement(state.importedData, context.markerReference)
-    : setMarkerPlacement(state.importedData, context.markerReference, categoryKey);
+    ? clearMarkerPlacement(profileData, context.markerReference)
+    : setMarkerPlacement(profileData, context.markerReference, categoryKey);
   if (!result.ok) {
     showNotification('That marker cannot be placed in the selected category.', 'error');
     return false;
@@ -251,13 +256,22 @@ async function persistMarkerPlacement(id, categoryKey, action) {
     placementRuntime.showDetailModal(id);
     return true;
   }
-  const saved = await saveImportedData();
+  invalidateActiveDataCache();
+  const saved = await saveImportedDataForProfile(profileId, profileData, {
+    forceProfileScope: true,
+    reason: 'marker-placement',
+  });
   if (!saved) {
-    if (hadPlacements) state.importedData.markerPlacements = previousPlacements || {};
-    else Reflect.deleteProperty(state.importedData, 'markerPlacements');
+    if (hadPlacements) profileData.markerPlacements = previousPlacements || {};
+    else Reflect.deleteProperty(profileData, 'markerPlacements');
     invalidateActiveDataCache();
     return false;
   }
+  const stillOwnsView = state.currentProfile === profileId
+    && state.importedData === profileData
+    && modal?.firstElementChild === modalContent
+    && overlay?.classList.contains('show');
+  if (!stillOwnsView) return true;
   const destinationCategoryKey = result.categoryKey;
   const destinationLabel = getActiveData().categories?.[destinationCategoryKey]?.label || destinationCategoryKey;
   const nextId = `${destinationCategoryKey}_${context.markerKey}`;
