@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BUILTIN_MARKER_IDENTITY_DEFINITIONS } from '../js/marker-schema/index.js';
@@ -122,7 +123,7 @@ function validateMarkerTerminology() {
     validateUcumUnits(mapping.ucumUnits, codeKey);
     requireHttpsUrl(mapping.source.url, `${codeKey} source URL`);
     requireNonEmptyString(mapping.source.release, `${codeKey} source release`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(mapping.source.verifiedOn)) {
+    if (!isValidIsoCalendarDate(mapping.source.verifiedOn)) {
       throw new Error(`Invalid verification date for ${codeKey}: ${mapping.source.verifiedOn}`);
     }
     if (mapping.terminology === 'loinc' && !mapping.source.url.endsWith(`/${mapping.code}`)) {
@@ -182,13 +183,21 @@ function requireHttpsUrl(value, label) {
   if (url.protocol !== 'https:') throw new Error(`${label} must use HTTPS`);
 }
 
-const rendered = renderMarkerTerminology();
-if (process.argv.includes('--write')) {
-  fs.writeFileSync(TARGET_PATH, rendered);
-  console.log('Updated js/marker-terminology.js');
-} else if (!fs.existsSync(TARGET_PATH) || fs.readFileSync(TARGET_PATH, 'utf8') !== rendered) {
-  console.error('js/marker-terminology.js is stale; run npm run marker-terminology:build');
-  process.exitCode = 1;
-} else {
-  console.log('Marker terminology runtime registry is current.');
+export function isValidIsoCalendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const rendered = renderMarkerTerminology();
+  if (process.argv.includes('--write')) {
+    fs.writeFileSync(TARGET_PATH, rendered);
+    console.log('Updated js/marker-terminology.js');
+  } else if (!fs.existsSync(TARGET_PATH) || fs.readFileSync(TARGET_PATH, 'utf8') !== rendered) {
+    console.error('js/marker-terminology.js is stale; run npm run marker-terminology:build');
+    process.exitCode = 1;
+  } else {
+    console.log('Marker terminology runtime registry is current.');
+  }
 }

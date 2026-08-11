@@ -11,6 +11,7 @@ import {
   TERMINOLOGY_CATALOG_DEFINITIONS,
 } from '../js/marker-terminology/index.js';
 import { BUILTIN_MARKER_IDENTITIES, MARKER_SCHEMA } from '../js/marker-schema.js';
+import { isValidIsoCalendarDate } from '../scripts/build-marker-terminology.mjs';
 
 function authoredRegistry() {
   return Object.groupBy(MARKER_TERMINOLOGY_DEFINITIONS, mapping => mapping.markerId);
@@ -72,6 +73,14 @@ describe('marker terminology registry', () => {
       expect(mapping.source.url).toMatch(/^https:\/\//);
       expect(mapping.source.verifiedOn).toBe('2026-08-11');
     }
+  });
+
+  it('rejects impossible verification dates while accepting real leap days', () => {
+    expect(isValidIsoCalendarDate('2024-02-29')).toBe(true);
+    expect(isValidIsoCalendarDate('2025-02-29')).toBe(false);
+    expect(isValidIsoCalendarDate('2026-02-30')).toBe(false);
+    expect(isValidIsoCalendarDate('2026-8-11')).toBe(false);
+    expect(isValidIsoCalendarDate(null)).toBe(false);
   });
 
   it('supports safe forward and reverse lookups without coercing codes', () => {
