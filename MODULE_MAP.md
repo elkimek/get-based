@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 628 |
-| Internal import edges | 2658 |
+| Modules | 629 |
+| Internal import edges | 2659 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -66,8 +66,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/schema.js`](js/schema.js) | 34 | [`js/views.js`](js/views.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
-| [`js/constants.js`](js/constants.js) | 22 | [`js/lab-context.js`](js/lab-context.js) | 18 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 18 |
+| [`js/constants.js`](js/constants.js) | 22 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 19 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/lab-context.js`](js/lab-context.js) | 18 |
 | [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/chat-render.js`](js/chat-render.js) | 17 |
 | [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) | 17 | [`js/export.js`](js/export.js) | 17 |
@@ -515,6 +515,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>identities</code> family — 1 module</summary>
+
+- [`js/marker-schema/identities.js`](js/marker-schema/identities.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>image</code> family — 1 module</summary>
 
 - [`js/image-utils.js`](js/image-utils.js) → no in-scope imports
@@ -537,7 +543,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>index</code> family — 1 module</summary>
 
-- [`js/marker-schema/index.js`](js/marker-schema/index.js) → [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js), [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js), [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js), [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js), [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js), [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js), [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js), [`js/marker-schema/differential.js`](js/marker-schema/differential.js), [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js), [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js), [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js), [`js/marker-schema/iron.js`](js/marker-schema/iron.js), [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js), [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js), [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js), [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js), [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js), [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js)
+- [`js/marker-schema/index.js`](js/marker-schema/index.js) → [`js/marker-schema/biochemistry.js`](js/marker-schema/biochemistry.js), [`js/marker-schema/body-composition.js`](js/marker-schema/body-composition.js), [`js/marker-schema/bone-density.js`](js/marker-schema/bone-density.js), [`js/marker-schema/bone-metabolism.js`](js/marker-schema/bone-metabolism.js), [`js/marker-schema/calculated-ratios.js`](js/marker-schema/calculated-ratios.js), [`js/marker-schema/coagulation.js`](js/marker-schema/coagulation.js), [`js/marker-schema/diabetes.js`](js/marker-schema/diabetes.js), [`js/marker-schema/differential.js`](js/marker-schema/differential.js), [`js/marker-schema/electrolytes.js`](js/marker-schema/electrolytes.js), [`js/marker-schema/hematology.js`](js/marker-schema/hematology.js), [`js/marker-schema/hormones.js`](js/marker-schema/hormones.js), [`js/marker-schema/identities.js`](js/marker-schema/identities.js), [`js/marker-schema/iron.js`](js/marker-schema/iron.js), [`js/marker-schema/lipids.js`](js/marker-schema/lipids.js), [`js/marker-schema/proteins.js`](js/marker-schema/proteins.js), [`js/marker-schema/thyroid.js`](js/marker-schema/thyroid.js), [`js/marker-schema/tumor-markers.js`](js/marker-schema/tumor-markers.js), [`js/marker-schema/urinalysis.js`](js/marker-schema/urinalysis.js), [`js/marker-schema/vitamins.js`](js/marker-schema/vitamins.js)
 
 </details>
 
