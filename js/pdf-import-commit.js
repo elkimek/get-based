@@ -2,6 +2,7 @@
 // pdf-import-commit.js - Import commit, snapshot deletion, and re-review actions.
 
 import { state } from './state.js';
+import { ensureCustomMarkerIdentity } from './custom-marker-identity.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
 import { MARKER_SCHEMA } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
@@ -158,6 +159,7 @@ export async function confirmImport() {
       || cmDef.categoryLabel
       || (catKey === 'spadiaFA' ? 'Spadia' : catKey.charAt(0).toUpperCase() + catKey.slice(1));
     cmDef.group = m.suggestedGroup || importGroup || def.group || cmDef.group || null;
+    ensureCustomMarkerIdentity(cmDef, state.importedData.customMarkers);
     state.importedData.customMarkers[m.mappedKey] = cmDef;
   }
   // Save new (custom) marker values and definitions
@@ -179,6 +181,7 @@ export async function confirmImport() {
     cmDef.categoryLabel = categoryLabel;
     // FA-normalized markers carry their own group — don't override with testType-based importGroup
     cmDef.group = m.suggestedGroup || importGroup || m.group || cmDef.group || null;
+    ensureCustomMarkerIdentity(cmDef, state.importedData.customMarkers);
     state.importedData.customMarkers[m.suggestedKey] = cmDef;
   }
   // Mirror insulin between hormones and diabetes categories (AI may map to either)

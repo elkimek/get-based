@@ -2,6 +2,7 @@
 // export.js — JSON export/import, report facade, clear all data
 
 import { getErrorMessage } from './caught-error.js';
+import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
 import { state } from './state.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import {
@@ -300,6 +301,7 @@ export async function buildClientExportObject(profileId, includeChat = false) {
   const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+  migrateCustomMarkerIdentities(data?.customMarkers);
   if (!data || !data.entries || data.entries.length === 0) throw new Error('No data to export for this client');
   const exportObj = {
     version: 2, exportedAt: new Date().toISOString(),
@@ -399,6 +401,7 @@ export async function buildAllDataBundle() {
     const raw = await encryptedGetItem(profileStorageKey(p.id, 'imported'));
     let data;
     try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
+    migrateCustomMarkerIdentities(data?.customMarkers);
     const chat = await _exportChatData(p.id);
     const entry = {
       id: p.id, name: p.name, sex: p.sex || null, dob: p.dob || null,

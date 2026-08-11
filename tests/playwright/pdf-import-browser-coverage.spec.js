@@ -832,7 +832,8 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && restoredSpadia?.markerSources?.['spadiaFA.omega3Index']?.snapshotId === 'snap-spadia-re-review'
         && restoredSpadiaDef?.name === 'Omega-3 Index'
         && restoredSpadiaDef?.categoryLabel === 'Spadia'
-        && restoredSpadiaDef?.group === 'Fatty Acids';
+        && restoredSpadiaDef?.group === 'Fatty Acids'
+        && /^custom:[A-Za-z0-9_-]+$/.test(restoredSpadiaDef?.markerId || '');
     } finally {
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;
