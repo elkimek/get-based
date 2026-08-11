@@ -194,12 +194,12 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
 
       const genetics = {
         snps: {
-          rs2282679: 'TT',
+          rs2282679: 'GG',
           rs10741657: { gene: 'CYP2R1', genotype: 'GG' },
           rs10877012: { gene: 'CYP27B1', genotype: 'TT' },
           rs2228570: { gene: 'VDR', genotype: 'AA' },
           rs12785878: { gene: 'DHCR7', genotype: 'GG' },
-          rs6013897: { gene: 'CYP24A1', genotype: 'TT' },
+          rs6013897: { gene: 'CYP24A1', genotype: 'AA' },
           rs0000000: { gene: 'IGNORED', genotype: 'AA' },
         },
       };
@@ -207,7 +207,7 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
       outcomes.geneticVitaminDMultiplierBranches = mod.geneticVitaminDMultiplier(null).mult === 1
         && mod.geneticVitaminDMultiplier({}).contributors.length === 0
         && geneResult.mult < 1
-        && geneResult.contributors.length === 6;
+        && geneResult.contributors.length === 4;
 
       outcomes.vitaminDConversions = mod.vitaminDIURaw(-1, 'II', 8) === 0
         && mod.vitaminDIU(100, 'II', 1.5) === 0

@@ -109,8 +109,7 @@ const iResult = await dna.parseDNAFile(illuminaFile);
 assert('Illumina: source detected', iResult.source === 'Illumina GenomeStudio (DNAEra)');
 assert('Illumina: bare rs1801133 matched', iResult.matches.rs1801133 != null);
 assert('Illumina: rs1801133 genotype is AA', iResult.matches.rs1801133?.genotype === 'AA');
-assert('Illumina: seq-rs1815739 prefix stripped → match', iResult.matches.rs1815739 == null || iResult.matches.rs1815739?.genotype === 'TC');
-// rs1815739 may not be in snp-health.json (we know it isn't) — test prefix strip via known rsid instead
+assert('Illumina: seq-rs1815739 prefix stripped → ACTN3 match', iResult.matches.rs1815739?.genotype === 'TC');
 assert('Illumina: GSA-rs1800562 prefix stripped → HFE matched', iResult.matches.rs1800562 != null);
 assert('Illumina: GSA-rs1800562 genotype GG', iResult.matches.rs1800562?.genotype === 'GG');
 assert('Illumina: ilmnseq_rs7412_* prefix+suffix stripped → match', iResult.matches.rs7412 != null);
@@ -134,7 +133,8 @@ assert('rs708272 has AA key (forward strand)', cetp.genotypes.AA != null);
 assert('rs708272 does NOT have old GT reverse-strand key', cetp.genotypes.GT == null);
 assert('rs708272 does NOT have old TT reverse-strand key', cetp.genotypes.TT == null);
 assert('rs708272 has strandNote acknowledging old G/T notation', /reverse strand|G\/T/i.test(cetp.strandNote || ''));
-assert('rs708272 AA marked protective (B1B1 = lower MI risk)', cetp.genotypes.AA.valence === 'protective');
+assert('rs708272 is informational because the cited cohort found no MI difference',
+  Object.values(cetp.genotypes).every(info => info.valence === 'informational'));
 
 // ═══════════════════════════════════════
 // 4. Effect-label recalibration (Part B)
@@ -143,9 +143,12 @@ console.log('4. Recalibration Findings');
 
 assert('rs1801131 MTHFR A1298C TG recalibrated to mild', snpTable.rs1801131?.genotypes?.TG?.effect === 'mild');
 assert('rs1801131 MTHFR A1298C GG recalibrated to mild', snpTable.rs1801131?.genotypes?.GG?.effect === 'mild');
-assert('rs1805087 MTR A2756G AG recalibrated to mild', snpTable.rs1805087?.genotypes?.AG?.effect === 'mild');
-assert('rs1805087 MTR GG kept at moderate', snpTable.rs1805087?.genotypes?.GG?.effect === 'moderate');
-assert('rs2228570 VDR FokI AA recalibrated to mild', snpTable.rs2228570?.genotypes?.AA?.effect === 'mild');
+assert('rs1805087 MTR A2756G AG is informational',
+  snpTable.rs1805087?.genotypes?.AG?.effect === 'none' && snpTable.rs1805087?.genotypes?.AG?.valence === 'informational');
+assert('rs1805087 MTR GG is informational',
+  snpTable.rs1805087?.genotypes?.GG?.effect === 'none' && snpTable.rs1805087?.genotypes?.GG?.valence === 'informational');
+assert('rs2228570 VDR FokI AA is functional context, not a dose-risk call',
+  snpTable.rs2228570?.genotypes?.AA?.effect === 'none' && snpTable.rs2228570?.genotypes?.AA?.valence === 'informational');
 assert('rs2241766 ADIPOQ TG recalibrated to mild', snpTable.rs2241766?.genotypes?.TG?.effect === 'mild');
 assert('rs2241766 ADIPOQ GG recalibrated to mild', snpTable.rs2241766?.genotypes?.GG?.effect === 'mild');
 
@@ -192,11 +195,6 @@ console.log('6. Valence Field');
 const protective = [
   ['rs11591147', 'GT', 'PCSK9 R46L'],
   ['rs11591147', 'TT', 'PCSK9 R46L'],
-  ['rs5882',     'AG', 'CETP I405V'],
-  ['rs5882',     'GG', 'CETP I405V'],
-  ['rs708272',   'AA', 'CETP TaqIB B1B1'],
-  ['rs1800588',  'CT', 'LIPC -514T'],
-  ['rs1800588',  'TT', 'LIPC -514T'],
   ['rs1801282',  'CG', 'PPARG Pro/Ala'],
   ['rs1801282',  'GG', 'PPARG Ala/Ala'],
 ];
@@ -243,17 +241,19 @@ let html = mockAndRender({ rs11591147: { genotype: 'GT', gene: 'PCSK9', variant:
 assert('Protective finding row has green dot', findingRowDots(html).includes('🟢'));
 assert('Protective finding row has NO red dot', !findingRowDots(html).includes('🔴'));
 
-// Significant risk: MTHFR C677T AA → red dot
+// Risk direction: MTHFR C677T AA → red dot
 html = mockAndRender({ rs1801133: { genotype: 'AA', gene: 'MTHFR', variant: 'C677T' } });
-assert('Significant risk renders red dot', html.includes('🔴'));
+assert('Risk association renders red dot', html.includes('🔴'));
 
-// Moderate risk: MTHFR A1298C GG... wait we recalibrated that to mild. Use HFE C282Y heterozygote → moderate
+// Legacy moderate and mild values now share the risk-direction dot; their
+// scientific support comes from the independent evidence label.
 html = mockAndRender({ rs1800562: { genotype: 'GA', gene: 'HFE', variant: 'C282Y' } });
-assert('Moderate risk renders orange dot', html.includes('🟠'));
+assert('Legacy moderate HFE call renders risk direction plus strong evidence',
+  html.includes('🔴') && html.includes('Evidence · Strong'));
 
-// Mild risk: MTR A2756G AG → orange dot (🟠 = D83D DFE0)
-html = mockAndRender({ rs1805087: { genotype: 'AG', gene: 'MTR', variant: 'A2756G' } });
-assert('Mild risk renders yellow dot', html.includes('🟡'));
+html = mockAndRender({ rs1801131: { genotype: 'TG', gene: 'MTHFR', variant: 'A1298C' } });
+assert('Legacy mild MTHFR call renders risk direction plus supported evidence',
+  html.includes('🔴') && html.includes('Evidence · Supported'));
 
 // Neutral: FUT2 AA → white circle, but collapsed under other imported SNPs
 html = mockAndRender({ rs601338: { genotype: 'AA', gene: 'FUT2', variant: 'W154X' } });
@@ -262,7 +262,7 @@ assert('Neutral genotype is collapsed with other SNPs', html.includes('genetics-
 
 // None: FUT2 GG (wild-type) → collapsed, not shown in the priority tier
 html = mockAndRender({ rs601338: { genotype: 'GG', gene: 'FUT2', variant: 'W154X' } });
-assert('None-effect genotype is collapsed with other SNPs', html.includes('genetics-other-snps') && html.includes('normal') && findingRowDots(html).includes('⚪'));
+assert('None-effect genotype is collapsed with other SNPs', html.includes('genetics-other-snps') && html.includes('reference') && findingRowDots(html).includes('⚪'));
 
 // Restore genetics state
 state.importedData.genetics = origGenetics;
@@ -280,11 +280,11 @@ state.importedData.genetics = {
 };
 const legendHtml = dna.renderGeneticsSection();
 assert('Legend block renders', legendHtml.includes('genetics-legend'));
-assert('Legend has "significant risk" label', legendHtml.includes('significant risk'));
-assert('Legend has "mild risk" label', legendHtml.includes('mild risk'));
-assert('Legend has "beneficial" label', legendHtml.includes('beneficial'));
+assert('Legend has "risk association" label', legendHtml.includes('risk association'));
+assert('Legend has "protective association" label', legendHtml.includes('protective association'));
 assert('Legend has "neutral" label', legendHtml.includes('neutral'));
-assert('Legend has "moderate risk" label', legendHtml.includes('moderate risk'));
+assert('Finding shows separate evidence and relevance labels',
+  legendHtml.includes('Evidence · Strong') && legendHtml.includes('Relevance · Health context'));
 state.importedData.genetics = origGenetics;
 
 // Every category used in snp-health.json must have a display label in SNP_CATEGORY_LABELS
@@ -313,7 +313,7 @@ console.log('9. End-to-End: Illumina file → render dashboard');
 //   PCSK9 GT (protective)            → 🟢
 //   MTHFR C677T AA (significant)     → 🔴
 //   HFE C282Y GA (moderate)          → 🟠
-//   MTR A2756G AG (mild)             → 🟡
+//   MTR A2756G AG (informational)    → trait row
 //   FUT2 W154X AA (neutral)          → ⚪
 const e2eContent = '﻿[Header]\nGSGT Version,2.0.5\n[Data]\n' +
   'Sample Name,SNP Name,Chr,Position,Allele1 - Plus,Allele2 - Plus\n' +
@@ -333,8 +333,8 @@ assert('E2E: HFE C282Y heterozygous matched', e2eResult.matches.rs1800562 != nul
 assert('E2E: MTR AG matched', e2eResult.matches.rs1805087?.genotype === 'AG');
 assert('E2E: FUT2 AA matched', e2eResult.matches.rs601338?.genotype === 'AA');
 
-// Now save the parsed result and render the dashboard, asserting all 5 dots
-// are present in the rendered HTML.
+// Now save the parsed result and render the dashboard, asserting the relevant
+// direction dots plus the informational trait and evidence treatment are present.
 const e2eOrig = state.importedData.genetics;
 const e2eState = { source: e2eResult.source, importDate: '2026-04-24', coverage: e2eResult.coverage, effects: {}, snps: {} };
 for (const [rsid, m] of Object.entries(e2eResult.matches)) {
@@ -343,23 +343,24 @@ for (const [rsid, m] of Object.entries(e2eResult.matches)) {
 state.importedData.genetics = e2eState;
 const e2eHtml = dna.renderGeneticsSection();
 assert('E2E render: green dot present (PCSK9 protective)', e2eHtml.includes('🟢'));
-assert('E2E render: red dot present (MTHFR significant)', e2eHtml.includes('🔴'));
-assert('E2E render: orange dot present (HFE moderate)', e2eHtml.includes('🟠'));
-assert('E2E render: yellow dot present (MTR mild)', e2eHtml.includes('🟡'));
+assert('E2E render: red direction dot present (risk association)', e2eHtml.includes('🔴'));
+assert('E2E render: strong evidence label present', e2eHtml.includes('Evidence · Strong'));
+assert('E2E render: MTR is presented as an informational trait',
+  e2eHtml.includes('genetics-finding-trait') && e2eHtml.includes('MTR'));
 assert('E2E render: white circle present (FUT2 neutral)', e2eHtml.includes('⚪'));
 assert('E2E render: legend visible', e2eHtml.includes('genetics-legend'));
 assert('E2E render: source name "Illumina GenomeStudio (DNAEra)" visible', e2eHtml.includes('Illumina GenomeStudio'));
 state.importedData.genetics = e2eOrig;
 
 // ═══════════════════════════════════════
-// 10. Severity ordering (categories + within-category)
+// 10. Evidence/relevance ordering (categories + within-category)
 // ═══════════════════════════════════════
 // After the v1.7.6 mild-tier addition, the category sort and within-category
 // sort each promote a full rank (significant > moderate > mild) instead of a
 // binary "has significant?" / "is significant?". A category of moderate
 // findings must out-rank a category of only mild findings, and inside a
 // category mild rows must follow moderate rows.
-console.log('10. Severity Ordering');
+console.log('10. Evidence & Relevance Ordering');
 
 const sortOrig = state.importedData.genetics;
 state.importedData.genetics = {
@@ -370,7 +371,7 @@ state.importedData.genetics = {
     rs601338: { genotype: 'GA', gene: 'FUT2', variant: 'W154X' },
     // iron cat → only moderate (HFE GA = moderate/risk)
     rs1800562: { genotype: 'GA', gene: 'HFE', variant: 'C282Y' },
-    // methylation cat → both moderate (MTHFR GA) AND mild (MTR AG) — proves within-category ordering
+    // methylation cat → moderate MTHFR plus informational MTR — proves within-category ordering
     rs1801133: { genotype: 'GA', gene: 'MTHFR', variant: 'C677T' },
     rs1805087: { genotype: 'AG', gene: 'MTR',   variant: 'A2756G' },
   }
@@ -381,14 +382,14 @@ const sortFlat = sortHtml.replace(/\s+/g, ' ');
 const ironPos        = sortFlat.indexOf('>Iron<');
 const vitaminB12Pos  = sortFlat.indexOf('>Vitamin B12<');
 const methylationPos = sortFlat.indexOf('>Methylation<');
-assert('Category sort: iron (moderate) renders before vitaminB12 (mild only)', ironPos > 0 && vitaminB12Pos > ironPos);
-assert('Category sort: methylation (has moderate) renders before vitaminB12 (mild only)', methylationPos > 0 && vitaminB12Pos > methylationPos);
+assert('Category sort: health-context risk renders before collapsed neutral vitaminB12', ironPos > 0 && vitaminB12Pos > ironPos);
+assert('Category sort: methylation risk renders before collapsed neutral vitaminB12', methylationPos > 0 && vitaminB12Pos > methylationPos);
 
-// Within methylation: MTHFR (moderate) must appear before MTR (mild).
+// Within methylation: MTHFR (moderate) must appear before MTR (informational).
 const methylationBlock = sortFlat.slice(methylationPos, sortFlat.indexOf('genetics-cat-group', methylationPos + 1));
 const mthfrPos = methylationBlock.indexOf('MTHFR');
 const mtrPos   = methylationBlock.indexOf('MTR ');
-assert('Within-category sort: MTHFR (moderate) before MTR (mild) inside methylation', mthfrPos > 0 && mtrPos > mthfrPos);
+assert('Within-category sort: MTHFR risk before MTR informational trait inside methylation', mthfrPos > 0 && mtrPos > mthfrPos);
 
 state.importedData.genetics = sortOrig;
 

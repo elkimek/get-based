@@ -452,11 +452,15 @@ export function getSnpCategoryLabel(category) {
   return dna.get()?.getSnpCategoryLabel?.(category) || String(category || 'Other');
 }
 
+export function detectMtDNAMismatch(genetics) {
+  return dna.get()?.detectMtDNAMismatch?.(genetics) || null;
+}
+
 export function ensureDnaTablesForPersistedState() {
   if (!state.importedData?.genetics) return Promise.resolve(null);
   return loadDnaModule().then(module => Promise.all([
     module.ensureSNPTable(),
-    Promise.resolve(module.ensureHaplogroupTable()),
+    module.ensureHaplogroupTable(),
   ]));
 }
 
@@ -503,6 +507,7 @@ for (const name of [
 configureDnaModuleBridge({
   ...lazyDnaActions,
   buildGeneticsContext: (...args) => callLoadedDnaModule('buildGeneticsContext', args, ''),
+  buildSnpAIInterpretationPrompt: (...args) => callLoadedDnaModule('buildSnpAIInterpretationPrompt', args, ''),
   getRelevantSNPs: (...args) => callLoadedDnaModule('getRelevantSNPs', args, []),
   parseClinicalSnpReportText: (...args) => callLoadedDnaModule(
     'parseClinicalSnpReportText',

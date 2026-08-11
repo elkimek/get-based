@@ -508,6 +508,7 @@
     "js/cycle-runtime.js",
     "js/data-wipe.js",
     "js/dna-actions.js",
+    "js/dna-evidence.js",
     "js/dna-genotype.js",
     "js/dna-mtdna.js",
     "js/emf-runtime.js",

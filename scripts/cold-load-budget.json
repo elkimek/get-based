@@ -5,7 +5,7 @@
   "maximums": {
     "requests": 294,
     "transferBytes": 1193220,
-    "decodedBytes": 2925000
+    "decodedBytes": 2940000
   },
   "reference": {
     "requests": 276,

@@ -1,18 +1,154 @@
 {
   "_meta": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "mtDNA haplogroup diagnostic mutations and mitochondrial coupling classification. Based on Doug Wallace's mitochondrial paradigm. Diagnostic mutations from MITOMAP/PhyloTree Build 17.",
     "haplogroupCount": 39,
-    "caveat": "The coupling/uncoupling classification is a research framework supported by cybrid studies and epidemiological data, but not universally accepted. Individual variation within haplogroups is large.",
+    "frameworkLabel": "Wallace mitochondrial adaptation lens",
+    "caveat": "The coupling and climate layer is an evolutionary bioenergetics framework, not a measured personal coupling test. Population-genetic evidence for climate-associated mtDNA selection is substantial and growing, while direct haplogroup bioenergetics results vary by lineage, tissue, nuclear background, and experimental model.",
     "references": [
-      { "pmid": 26406369, "desc": "Wallace 2015 (Cell) — Mitochondrial DNA variation in human radiation and disease" },
-      { "pmid": 12509511, "desc": "Mishmar/Wallace 2003 (PNAS) — Natural selection shaped regional mtDNA variation" },
-      { "pmid": 14716012, "desc": "Ruiz-Pesini/Wallace 2004 (Science) — Purifying and adaptive selection on mtDNA" },
-      { "pmid": 16285865, "desc": "Wallace 2005 (Annu Rev Genet) — Mitochondrial paradigm" },
-      { "pmid": 23543062, "desc": "Wallace 2013 (JCI) — Bioenergetic etiology of disease" },
-      { "pmid": 10936107, "desc": "Ruiz-Pesini 2000 — Haplogroup sperm motility differences" },
-      { "pmid": 20566709, "desc": "Gomez-Duran 2010 — Cybrid OXPHOS differences H vs T" },
-      { "pmid": 24200652, "desc": "Kenney/Wallace 2014 — African vs European haplogroup bioenergetics" }
+      {
+        "pmid": 26406369,
+        "title": "Mitochondrial DNA Variation in Human Radiation and Disease",
+        "studyType": "framework_review",
+        "studyLabel": "Wallace framework",
+        "scopeLabel": "Evolutionary medicine",
+        "direction": "framework",
+        "summary": "Wallace synthesizes mtDNA phylogeny, regional adaptation, cybrid biology, and disease-modifier evidence into an evolutionary bioenergetics model.",
+        "model": "Cell perspective integrating population genetics, mitochondrial physiology, and disease studies.",
+        "limitations": "A synthesis and hypothesis framework, not an individual climate-response test or relocation trial."
+      },
+      {
+        "pmid": 16285865,
+        "title": "A Mitochondrial Paradigm of Metabolic and Degenerative Diseases, Aging, and Cancer",
+        "studyType": "framework_review",
+        "studyLabel": "Wallace review",
+        "scopeLabel": "Bioenergetic paradigm",
+        "direction": "framework",
+        "summary": "A foundational account of how mitochondrial energetics, inherited mtDNA variation, and environmental pressures may interact across evolution and disease.",
+        "model": "Annual Review synthesis spanning mitochondrial genetics, physiology, evolution, and disease.",
+        "limitations": "Broad mechanistic synthesis; it does not validate the app's latitude bands or predict an individual's preferred environment."
+      },
+      {
+        "pmid": 23543062,
+        "title": "A Mitochondrial Bioenergetic Etiology of Disease",
+        "studyType": "framework_review",
+        "studyLabel": "Wallace review",
+        "scopeLabel": "Energetics and disease",
+        "direction": "framework",
+        "summary": "Connects mitochondrial energy transformation, redox signaling, and inherited variation with complex disease biology.",
+        "model": "JCI review of experimental, genetic, and clinical observations.",
+        "limitations": "Provides biological rationale rather than haplogroup-specific effect sizes or wellness interventions."
+      },
+      {
+        "pmid": 12509511,
+        "title": "Natural Selection Shaped Regional mtDNA Variation in Humans",
+        "studyType": "population_genomics",
+        "studyLabel": "Population genetics",
+        "scopeLabel": "Regional adaptation",
+        "direction": "supportive",
+        "summary": "An early global-sequence analysis found regional departures from neutral expectations and proposed climate as one selective influence on mtDNA variation.",
+        "model": "Phylogenetic analysis of 104 complete mtDNA sequences across major global regions and lineages.",
+        "limitations": "Small by modern genomic standards; demographic history and lineage structure can resemble selection, and population patterns are not individual phenotypes."
+      },
+      {
+        "pmid": 14716012,
+        "title": "Effects of Purifying and Adaptive Selection on Regional Variation in Human mtDNA",
+        "studyType": "population_genomics",
+        "studyLabel": "Population genomics",
+        "scopeLabel": "Adaptive selection",
+        "direction": "supportive",
+        "summary": "A larger phylogenetic analysis reported regional patterns consistent with both purifying and adaptive selection in human mtDNA.",
+        "model": "Phylogenetic analysis of 1,125 global human mtDNA sequences.",
+        "limitations": "Sequence evolution cannot directly quantify coupling, thermogenesis, symptoms, or the best present-day climate for one person."
+      },
+      {
+        "pmid": 14712420,
+        "title": "Comparative Genomics and the Evolution of Human Mitochondrial DNA: Assessing the Effects of Selection",
+        "studyType": "population_genomics",
+        "studyLabel": "Alternative analysis",
+        "scopeLabel": "Selection complexity",
+        "direction": "mixed",
+        "summary": "This analysis found evidence that selection shaped mtDNA but did not support a simple model in which climate was the major force.",
+        "model": "Gene-by-gene and whole-genome selection tests across 560 human mtDNA coding-region sequences.",
+        "limitations": "Older and smaller than current datasets, but important evidence against treating one climate-adaptation mechanism as settled."
+      },
+      {
+        "pmid": 19586946,
+        "title": "Climate Shaped the Worldwide Distribution of Human Mitochondrial DNA Sequence Variation",
+        "studyType": "population_genomics",
+        "studyLabel": "Geographic analysis",
+        "scopeLabel": "Climate association",
+        "direction": "supportive",
+        "summary": "After accounting for distance from Africa, mtDNA diversity and differentiation remained associated with temperature, with candidate ND3 and ATP6 variants.",
+        "model": "Worldwide population-sequence geography compared with climate and demographic-distance measures.",
+        "limitations": "Geographic association supports selection but does not establish present-day personal climate compatibility or a specific coupling rank."
+      },
+      {
+        "pmid": 41701624,
+        "title": "Climate-Associated Natural Selection in the Human Mitochondrial Genome",
+        "studyType": "population_genomics",
+        "studyLabel": "Large modern genomics",
+        "scopeLabel": "Modern + paleoclimate",
+        "direction": "supportive",
+        "summary": "A 2026 analysis identified 18 independent mtDNA candidate variants associated with different modern or reconstructed paleoclimate variables.",
+        "model": "19,570 full human mitochondrial genomes modeled against modern climate and paleoclimate variables.",
+        "limitations": "Variant-climate associations do not directly measure coupling, thermogenesis, symptoms, or whether moving climates improves wellbeing."
+      },
+      {
+        "pmid": 20566709,
+        "title": "Unmasking the Causes of Multifactorial Disorders: OXPHOS Differences Between Mitochondrial Haplogroups",
+        "studyType": "human_cybrids",
+        "studyLabel": "Human cybrid study",
+        "scopeLabel": "H versus Uk",
+        "direction": "supportive",
+        "summary": "H and Uk cybrids with a standardized nuclear background differed in mtDNA expression, protein synthesis, complex IV activity, oxygen consumption, membrane potential, and growth.",
+        "model": "Transmitochondrial human cell lines comparing European haplogroup H with Uk backgrounds.",
+        "limitations": "Cultured-cell differences between selected European lineages do not establish whole-body climate response or a universal haplogroup hierarchy."
+      },
+      {
+        "pmid": 18280061,
+        "title": "Experimental Assessment of Bioenergetic Differences Caused by the Common European Mitochondrial DNA Haplogroups H and T",
+        "studyType": "human_cybrids",
+        "studyLabel": "Human cybrid study",
+        "scopeLabel": "H versus T",
+        "direction": "null",
+        "summary": "In this cybrid model, H and T mitochondria showed no functionally important difference in respiration or coupling efficiency.",
+        "model": "A549 human cybrids from three H and three T donors, assessed in cells and isolated mitochondria.",
+        "limitations": "A specific cell line and small donor set cannot exclude effects in other tissues, subclades, environments, or nuclear backgrounds."
+      },
+      {
+        "pmid": 24200652,
+        "title": "Molecular and Bioenergetic Differences Between Cells with African Versus European Inherited Mitochondrial DNA Haplogroups",
+        "studyType": "human_cybrids",
+        "studyLabel": "Human cybrid study",
+        "scopeLabel": "L versus H",
+        "direction": "supportive",
+        "summary": "Retinal cybrids with L versus H mtDNA backgrounds differed in bioenergetic, expression, and inflammatory measurements despite a shared nuclear background.",
+        "model": "Transmitochondrial retinal pigment epithelial cell lines comparing African L and European H haplogroups.",
+        "limitations": "Cell-line results are tissue- and nuclear-background-specific and cannot be converted directly into personal heat, ATP, or climate requirements."
+      },
+      {
+        "pmid": 24184346,
+        "title": "Increased Intrinsic Mitochondrial Function in Humans with Mitochondrial Haplogroup H",
+        "studyType": "human_observational",
+        "studyLabel": "Human muscle study",
+        "scopeLabel": "H versus U",
+        "direction": "supportive",
+        "summary": "Men with haplogroup H showed higher skeletal-muscle intrinsic mitochondrial function than men with haplogroup U, without a corresponding difference in VO2max.",
+        "model": "Skeletal-muscle mitochondrial measurements in 54 men with common European H or U haplogroups.",
+        "limitations": "Small male observational comparison; it does not isolate mtDNA from nuclear ancestry or establish climate preference."
+      },
+      {
+        "pmid": 29093766,
+        "title": "Generation and Bioenergetic Profiles of Cybrids with East Asian mtDNA Haplogroups",
+        "studyType": "human_cybrids",
+        "studyLabel": "Human cybrid study",
+        "scopeLabel": "East Asian lineages",
+        "direction": "supportive",
+        "summary": "East Asian cybrids showed mtDNA-, RNA-, and OXPHOS-level differences among M and N backgrounds, with particular subhaplogroups contributing strongly.",
+        "model": "Transmitochondrial cybrid system comparing East Asian macrohaplogroups and subhaplogroups.",
+        "limitations": "Laboratory cells show functional plausibility, not a validated climate-matching rule or predictable wellness outcome."
+      }
     ]
   },
   "haplogroups": {

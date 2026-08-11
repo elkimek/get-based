@@ -4,6 +4,7 @@
 import { escapeHTML } from './utils.js';
 import { state } from './state.js';
 import { findGenotypeInfo, findSnpHint } from './dna-genotype.js';
+import { resolveSnpEvidenceProfile, snpFindingPresentation } from './dna-evidence.js';
 import {
   closeRecommendationsModal,
   configureRecommendationModuleBridge,
@@ -215,7 +216,8 @@ function _buildCardDNASection(cardKey) {
     const icon = isAvoid ? '\u26A0' : '\u2192';
     const cls = isAvoid ? ' ctx-tip-avoid' : ' ctx-tip-free';
     const refLink = hint.ref && /^https?:\/\//.test(hint.ref) ? ` <a href="${escapeHTML(hint.ref)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);opacity:0.6">study</a>` : '';
-    hints.push(`<div class="ctx-tip-item${cls}">${icon} <strong>${escapeHTML(stored.gene)}</strong> ${escapeHTML(g)} \u2014 ${escapeHTML(hint.text)}${refLink}</div>`);
+    const profile = resolveSnpEvidenceProfile(entry, info);
+    hints.push(`<div class="ctx-tip-item${cls}">${icon} <strong>${escapeHTML(stored.gene)}</strong> ${escapeHTML(g)} \u2014 ${escapeHTML(hint.text)} <span class="rec-dna-evidence">Evidence · ${escapeHTML(profile.evidenceShortLabel)} · ${escapeHTML(profile.relevanceShortLabel)}</span>${refLink}</div>`);
   }
   if (!hints.length) return '';
   return `<div class="ctx-tip-slot"><div class="ctx-tip-slot-label">Your Genetics</div>${hints.join('')}</div>`;
@@ -289,12 +291,13 @@ export function buildDNAHints(slotKey) {
   if (genetics.apoe && slotKey === 'lipids.ldl') {
     const hap = genetics.apoe;
     if (hap.includes('\u03B54')) {
+      const apoeEntry = snpTable.rs429358 || snpTable.rs7412 || {};
+      const evidenceProfile = resolveSnpEvidenceProfile(apoeEntry);
       hints.push({
         gene: 'APOE', variant: hap, genotype: hap, direction: 'form',
-        text: hap === '\u03B54/\u03B54'
-          ? 'Your APOE \u03B54/\u03B54 suggests strict saturated fat management and LDL particle monitoring \u2014 dietary fat significantly impacts your LDL'
-          : `Your APOE ${hap} suggests moderating saturated fat and monitoring LDL response \u2014 dietary fat has amplified impact on your LDL`,
-        ref: 'https://pubmed.ncbi.nlm.nih.gov/8346443/'
+        text: `Your APOE ${hap} is health context, not a genotype-specific diet prescription. Use measured LDL, ApoB, and personal or family context to evaluate your response to dietary changes.`,
+        ref: 'https://pubmed.ncbi.nlm.nih.gov/8346443/',
+        evidenceProfile,
       });
     }
   }
@@ -316,7 +319,8 @@ export function buildDNAHints(slotKey) {
 
     hints.push({
       rsid, gene: stored.gene, variant: stored.variant, genotype: g,
-      direction: hint.direction, text: hint.text, ref: hint.ref
+      direction: hint.direction, text: hint.text, ref: hint.ref,
+      evidenceProfile: resolveSnpEvidenceProfile(entry, info),
     });
   }
 
@@ -364,10 +368,12 @@ function _renderRecSection(slotKey, opts = {}) {
     inner += `<div class="rec-section-label">\uD83E\uDDEC YOUR GENETICS</div>`;
     // Show raw SNP genotypes with effect levels
     for (const s of inlineSNPs) {
-      const icon = s.effect === 'significant' ? '\uD83D\uDD34' : s.effect === 'moderate' ? '\uD83D\uDFE1' : '\uD83D\uDFE2';
+      const presentation = s.presentation || snpFindingPresentation(s.effect, s.valence);
+      const profile = s.evidenceProfile || resolveSnpEvidenceProfile(s, s);
+      const icon = presentation.icon;
       const refLink = s.references?.[0] && /^https?:/.test(s.references[0]) ? ` <a href="${escapeHTML(s.references[0])}" target="_blank" rel="noopener" class="rec-dna-ref">study</a>` : '';
       const moreLink = s.rsid ? ` <a href="https://www.snpedia.com/index.php/${s.rsid.charAt(0).toUpperCase() + s.rsid.slice(1)}" target="_blank" rel="noopener" class="rec-dna-ref">SNPedia</a>` : '';
-      inner += `<div class="rec-dna-row">${icon} <strong>${escapeHTML(s.gene)} ${escapeHTML(s.variant)}</strong>: ${escapeHTML(s.genotype)} \u2014 ${escapeHTML(s.note)}${refLink}${moreLink}</div>`;
+      inner += `<div class="rec-dna-row">${icon} <strong>${escapeHTML(s.gene)} ${escapeHTML(s.variant)}</strong>: ${escapeHTML(s.genotype)} \u2014 ${escapeHTML(s.note)} <span class="rec-dna-evidence">Evidence · ${escapeHTML(profile.evidenceShortLabel)} · ${escapeHTML(profile.relevanceShortLabel)}</span>${refLink}${moreLink}</div>`;
     }
     // Actionable hints from snpHints
     for (const h of dnaHints) {
@@ -375,7 +381,8 @@ function _renderRecSection(slotKey, opts = {}) {
       const icon = isAvoid ? '\u26A0' : '\u2192';
       const cls = isAvoid ? ' rec-dna-avoid' : '';
       const refLink = h.ref && /^https?:\/\//.test(h.ref) ? ` <a href="${escapeHTML(h.ref)}" target="_blank" rel="noopener" class="rec-dna-ref">study</a>` : '';
-      inner += `<div class="rec-dna-row${cls}">${icon} ${escapeHTML(h.text)}${refLink}</div>`;
+      const profile = h.evidenceProfile || resolveSnpEvidenceProfile();
+      inner += `<div class="rec-dna-row${cls}">${icon} ${escapeHTML(h.text)} <span class="rec-dna-evidence">Evidence · ${escapeHTML(profile.evidenceShortLabel)} · ${escapeHTML(profile.relevanceShortLabel)}</span>${refLink}</div>`;
     }
     inner += `</div>`;
   }

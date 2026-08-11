@@ -61,9 +61,16 @@ function renderGenomeImportDetailsWidget(lensPageActionAttrs) {
     } : null,
   ].filter(card => card !== null);
 
+  const mtdnaMeta = hasMtdna
+    ? [genetics.mtdna.origin, genetics.mtdna.source, genetics.mtdna.importDate].filter(Boolean).map(value => escapeHTML(value)).join(' · ')
+    : '';
   const mtdnaDetail = hasMtdna ? `<div class="db-genome-import-note">
     <strong>mtDNA ${escapeHTML(genetics.mtdna.haplogroup)}</strong>
-    <span>${escapeHTML(genetics.mtdna.coupling?.label || 'Haplogroup stored')}${genetics.mtdna.importDate ? ` · ${escapeHTML(genetics.mtdna.importDate)}` : ''}</span>
+    <span>${escapeHTML(genetics.mtdna.coupling?.label || 'Haplogroup stored')}</span>
+    ${mtdnaMeta ? `<span>${mtdnaMeta}</span>` : ''}
+    ${genetics.mtdna.details ? `<span>${escapeHTML(genetics.mtdna.details)}</span>` : ''}
+    ${genetics.mtdna.coupling?.description ? `<span>${escapeHTML(genetics.mtdna.coupling.description)}</span>` : ''}
+    ${genetics.mtdna.coupling?.implications ? `<span>${escapeHTML(genetics.mtdna.coupling.implications)}</span>` : ''}
   </div>` : '';
 
   return `<div class="genome-import-details">
@@ -224,9 +231,9 @@ export function createLensPageHandlers(deps) {
     const genomeActions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('import-dna')}>Import raw DNA</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('import-snp-report')}>Import report</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('add-manual-snp')}>Add SNP manually</button>${affiliate}`;
-    let html = renderLensHeader('Genome', 'Dedicated DNA workspace: actionable genetic modifiers, import status, mtDNA, and lab-linked context.', genomeActions, { className: 'genome-lens-header' });
+    let html = renderLensHeader('Genome', 'Dedicated DNA workspace: curated findings and traits, mtDNA context and evidence, import status, and lab-linked signals.', genomeActions, { className: 'genome-lens-header' });
     html += renderLensPageWidgets('genome', [
-      { id: 'genome', title: 'Actionable Genetic Modifiers', description: 'Priority SNP context relevant to labs and goals', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
+      { id: 'genome', title: 'Genetic Findings & Traits', description: 'Curated SNP context, evidence, and lab-linked modifiers', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
       importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,
     ]);
     main.innerHTML = html;

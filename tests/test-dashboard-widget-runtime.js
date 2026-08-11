@@ -4,6 +4,7 @@
 import './_node-shim.js';
 import { state } from '../js/state.js';
 import {
+  askDashboardAIAboutSnp,
   configureDashboardNoteActions,
   configureDashboardWidgetRuntimeDeps,
   deleteDashboardNote,
@@ -21,6 +22,7 @@ import {
   triggerDashboardDnaPicker,
 } from '../js/dashboard-widget-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
@@ -43,6 +45,9 @@ const savedImportedData = state.importedData;
 let previousWearablesModule = null;
 let previousSettingsModule = null;
 const originalDashboardWidgetRuntimeDeps = configureDashboardWidgetRuntimeDeps();
+const previousDnaBridge = configureDnaModuleBridge({
+  buildSnpAIInterpretationPrompt: (rsid, stored) => `Help me interpret my ${stored?.gene} ${stored?.variant} (${rsid}) result using broader relevant knowledge beyond this catalog.`,
+});
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -78,10 +83,18 @@ try {
   assert('getDashboardViewportHeight preserves zero-height runtime fallback',
     getDashboardViewportHeight() === 0);
 
-  const snpTable = { rs123: { rsid: 'rs123' } };
+  const snpTable = {
+    rs4680: {
+      gene: 'COMT', variant: 'Val158Met',
+      evidence: { level: 'strong', scope: 'Replicated enzyme-activity effect.' },
+      relevance: { level: 'trait', context: 'Biochemical context only.' },
+      genotypes: { AA: { effect: 'none', valence: 'informational', note: 'Lower COMT activity association.' } },
+    },
+  };
   state.importedData = {
     sunSessions: [{ id: 'sun-1' }],
     deviceSessions: [{ id: 'device-1' }],
+    genetics: { snps: { rs4680: { genotype: 'AA', gene: 'COMT', variant: 'Val158Met' } } },
   };
   setRuntimeValue('_snpTableCache', snpTable);
   assert('runtime adapter reads dashboard renderer data hooks',
@@ -110,8 +123,13 @@ try {
   });
   configureDashboardWidgetRuntimeDeps({
     navigate: route => calls.push(['navigate', route]),
+    openChatPanel: prompt => calls.push(['chat', prompt]),
     showDetailModal: id => calls.push(['marker-detail', id]),
   });
+  state.importedData.genetics = {
+    snps: { rs4680: { genotype: 'AA', gene: 'COMT', variant: 'Val158Met' } },
+  };
+  setRuntimeValue('_snpTableCache', snpTable);
   setRuntimeValue('triggerDNAFilePicker', () => calls.push(['legacy-dna']));
 
   openDashboardWearablesSettings();
@@ -119,6 +137,7 @@ try {
   const openedDetail = openDashboardWearableDetail('sleep');
   openDashboardManualLogForm('weight', event);
   openDashboardMarkerDetail('lipids_apob');
+  const openedSnpChat = askDashboardAIAboutSnp('rs4680');
   navigateDashboardRoute('labs');
   triggerDashboardDnaPicker();
   openDashboardNoteEditor();
@@ -131,6 +150,10 @@ try {
       calls.some(call => call.join('|') === 'wearable-detail|sleep') &&
       calls.some(call => call.join('|') === 'manual-log|weight|click') &&
       calls.some(call => call.join('|') === 'marker-detail|lipids_apob') &&
+      openedSnpChat &&
+      calls.some(call => call[0] === 'chat'
+        && call[1].includes('COMT Val158Met (rs4680)')
+        && call[1].includes('broader relevant knowledge beyond this catalog')) &&
       calls.some(call => call.join('|') === 'navigate|labs') &&
       calls.some(call => call.join('|') === 'dna') &&
       calls.some(call => call.join('|') === 'note-editor') &&
@@ -148,13 +171,14 @@ try {
     openManualLogForm: null,
   });
   configureSettingsModuleBridge({ openSettingsModal: null });
-  configureDashboardWidgetRuntimeDeps({ navigate: null, showDetailModal: null });
+  configureDashboardWidgetRuntimeDeps({ navigate: null, openChatPanel: null, showDetailModal: null });
   delete globalThis.window;
   const callCountBeforeMissingRuntime = calls.length;
   openDashboardWearablesSettings();
   syncDashboardWearableNow(actionEl);
   openDashboardManualLogForm('weight', event);
   openDashboardMarkerDetail('lipids_apob');
+  const missingSnpChat = askDashboardAIAboutSnp('rs4680');
   navigateDashboardRoute('dashboard');
   triggerDashboardDnaPicker();
   openDashboardNoteEditor(3);
@@ -165,11 +189,13 @@ try {
       getDashboardDeviceSessions().length === 0 &&
       getDashboardSnpTableCache() === null &&
       openDashboardWearableDetail('sleep') === false &&
+      missingSnpChat === false &&
       calls.length === callCountBeforeMissingRuntime);
   configureDashboardNoteActions(previousDashboardNoteActions);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   configureDashboardWidgetRuntimeDeps(originalDashboardWidgetRuntimeDeps);
+  configureDnaModuleBridge({ buildSnpAIInterpretationPrompt: null, ...previousDnaBridge });
   configureSettingsModuleBridge({
     openSettingsModal: null,
     ...previousSettingsModule,

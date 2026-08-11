@@ -298,15 +298,16 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       labContext.setGeneticsPriorityInAIContext(false);
       labContext.setGeneticsInventoryInAIContext(false);
       const agentAccessContext = labContext.buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true });
-      outcomes.agentAccessContextIgnoresContextToggles =
-        agentAccessContext.includes('Coverage Labs')
-        && agentAccessContext.includes('Medical History / Diagnoses')
-        && agentAccessContext.includes('Magnesium')
-        && agentAccessContext.includes('APOE:')
-        && agentAccessContext.includes('Imported SNP inventory for lookup')
-        && agentAccessContext.includes('HFE C282Y rs1800562: GG (neutral, Iron)')
-        && agentAccessContext.includes('[section:wearables]')
-        && agentAccessContext.includes('[section:sun]');
+      const agentAccessHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
+        agentAccessContext.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
+      outcomes.agentAccessIncludesLabsWhenContextTogglesAreIgnored = agentAccessContext.includes('Coverage Labs');
+      outcomes.agentAccessIncludesMedicalHistoryWhenContextTogglesAreIgnored = agentAccessContext.includes('Medical History / Diagnoses');
+      outcomes.agentAccessIncludesSupplementsWhenContextTogglesAreIgnored = agentAccessContext.includes('Magnesium');
+      outcomes.agentAccessIncludesGeneticsSummaryWhenContextTogglesAreIgnored = agentAccessContext.includes('APOE:');
+      outcomes.agentAccessIncludesGeneticsInventoryWhenContextTogglesAreIgnored =
+        agentAccessContext.includes('Imported SNP inventory for lookup') && agentAccessHasHfeInventory;
+      outcomes.agentAccessIncludesWearablesWhenContextTogglesAreIgnored = agentAccessContext.includes('[section:wearables]');
+      outcomes.agentAccessIncludesSunWhenContextTogglesAreIgnored = agentAccessContext.includes('[section:sun]');
       labContext.setGroupInAIContext('specialty-coverage', true);
       labContext.setLabMarkersContextEnabled(true);
       labContext.setInsightContextCardsEnabled(true);
@@ -404,13 +405,15 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       labContext.setGeneticsInventoryInAIContext(true);
       const geneticsInventoryOn = labContext.isGeneticsInventoryInAIContext() === true;
       const context = labContext.buildLabContext({ skipGroupFilter: false });
+      const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
+        context.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
       const summary = labContext.getContextSummary();
       outcomes.groupWearableAndGeneticsTogglesAreApplied = groupDisabled && groupSettingSyncedOff && groupEnabled && groupDefaultsOnInOtherProfile && groupScopedToProfile && groupProfileSettingControls && labMarkersOff && labMarkersOn && wearableOff && wearableOn && bodyContextSynced && supplementsIndependentFromInsightCards && supplementsMedsToggleOff && lightContextOff && lightContextOn && geneticsInventoryOff && geneticsSummaryOff && geneticsPriorityOff && geneticsInventoryOn;
       outcomes.geneticsInventoryToggleControlsNormalSnpContext =
         !contextWithoutGeneticsInventory.includes('Imported SNP inventory for lookup')
         && !contextWithoutGeneticsInventory.includes('HFE C282Y')
         && context.includes('Imported SNP inventory for lookup')
-        && context.includes('HFE C282Y rs1800562: GG (neutral, Iron)');
+        && contextHasHfeInventory;
       outcomes.buildLabContextIncludesSpecialtyLabs = context.includes('Coverage Labs');
       outcomes.buildLabContextIncludesChangeTimeline = context.includes('Context Change Timeline');
       outcomes.buildLabContextIncludesDietDiff = context.includes('type: Standard') && context.includes('Mediterranean');

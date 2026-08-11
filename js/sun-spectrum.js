@@ -493,49 +493,36 @@ function _uviThresholdMultiplier(uvi) {
   return uvi - 2.0;
 }
 
-// Genetic effect-size table for the vit-D pathway. Effect sizes are
-// the median post-test 25(OH)D delta per literature; we apply them as
-// a multiplier on the synthesis-IU output as a coarse but useful
-// approximation of "how much of the modeled synthesis ends up
-// circulating" for a user with these variants.
+// Heuristic weights for vitamin-D-pathway variants. Most source studies
+// report associations with circulating 25(OH)D, not genotype-specific
+// intervention responses. These conservative multipliers provide context
+// around the modeled UV result; they are not clinical dose calculations.
 //
-// Strictly speaking these affect different physiological steps —
-// VDBP carrier capacity, 25-hydroxylation, 1α-hydroxylation, receptor
-// affinity — not skin synthesis itself. Reporting them as a single
-// IU multiplier conflates "produced at the keratinocyte" with
-// "available in serum 25-OH-D." The honest framing in the UI is
+// These loci concern transport, 25-hydroxylation, or circulating
+// 25(OH)D associations rather than skin synthesis itself. Reporting
+// them as a single IU multiplier still conflates "produced at the
+// keratinocyte" with "available in serum 25-OH-D." The UI therefore says
 // "effective serum response per modeled UV dose" rather than "skin
 // synthesized." See the tooltip in sun.js for the user-facing copy.
 //
-// Effect sizes derived from rs2282679 / rs10741657 / rs10877012 /
-// rs2228570 / rs12785878 — anchored to published 25(OH)D deltas
-// (Wang 2010, Ahn 2010, Jolliffe 2018, Bu 2010, Slater 2017).
-// References live in data/snp-health.json under each rsID.
+// Variants: rs2282679 / rs10741657 / rs12785878 / rs6013897.
+// CYP27B1 rs10877012 and VDR rs2228570 remain informational catalog
+// entries but are intentionally excluded because their cited functional
+// studies do not establish a change in circulating 25(OH)D or UV response.
+// References and scope notes live in data/snp-health.json under each rsID.
 const _VITD_GENETIC_EFFECTS = {
-  // GC VDBP — most replicated vit-D SNP. TT carries ~4-8 nmol/L
-  // lower 25(OH)D vs GG (Wang 2010). Coded as a 15% knockdown.
-  rs2282679: { GG: 1.0,  GT: 0.95, TG: 0.95, TT: 0.85 },
+  // GC/VDBP GWAS marker: forward-strand G is the lower-25(OH)D allele.
+  rs2282679: { TT: 1.0,  GT: 0.95, TG: 0.95, GG: 0.85 },
   // CYP2R1 25-hydroxylase — converts cholecalciferol to 25(OH)D in
   // liver. GG ~6-7 nmol/L lower 25(OH)D (Wang 2010). 12% knockdown.
   rs10741657: { AA: 1.0,  AG: 0.95, GA: 0.95, GG: 0.88 },
-  // CYP27B1 1α-hydroxylase — converts 25(OH)D → calcitriol. The TT
-  // variant raises CYP27B1 expression and can compensate for low
-  // serum 25(OH)D by accelerating activation (Bu 2010). Modest +5/+10%.
-  rs10877012: { GG: 1.0,  GT: 1.05, TG: 1.05, TT: 1.10 },
-  // VDR FokI — receptor isoform length affects DNA binding. Jolliffe
-  // 2018 meta-analysis: little measurable effect on serum 25(OH)D;
-  // small downstream effect on bone outcomes. Tiny knockdown.
-  rs2228570: { GG: 1.0,  AG: 0.98, GA: 0.98, AA: 0.95 },
-  // DHCR7 — 7-dehydrocholesterol reductase converts 7DHC (the
-  // precursor) into cholesterol. Variants that elevate DHCR7 deplete
-  // the skin substrate available for UVB-driven vit-D synthesis.
-  // Slater 2017 reports ~3-5 nmol/L lower 25(OH)D for the high-DHCR7
-  // allele. Conservative 5/8% knockdown.
+  // NADSYN1/DHCR7-locus GWAS marker: G is associated with lower 25(OH)D;
+  // this marker does not establish DHCR7 expression or skin-substrate level.
   rs12785878: { TT: 1.0,  GT: 0.95, TG: 0.95, GG: 0.92 },
-  // CYP24A1 — 24-hydroxylase, vit-D catabolism. T allele increases
-  // clearance of 25(OH)D and 1,25(OH)2D → less in serum for the same
-  // UV dose (Wang 2010, Ahn 2010). ~3-4 nmol/L lower 25(OH)D for TT.
-  rs6013897:  { AA: 1.0,  AT: 0.97, TA: 0.97, TT: 0.92 },
+  // CYP24A1-region GWAS marker. The A allele is associated with modestly
+  // lower circulating 25(OH)D; the association does not establish a direct
+  // enzyme-activity change. Keep this as a conservative modeled modifier.
+  rs6013897:  { TT: 1.0,  AT: 0.97, TA: 0.97, AA: 0.92 },
 };
 
 // Walk the user's genetics and return a compound multiplier for

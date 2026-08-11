@@ -109,7 +109,7 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     const genomeText = main?.textContent || '';
     const genomeHtml = main?.innerHTML || '';
     outcomes.showGenomeLensRendersDedicatedWorkspace = genomeText.includes('Dedicated DNA workspace');
-    outcomes.showGenomeLensRendersGeneticModifiers = genomeText.includes('Actionable Genetic Modifiers');
+    outcomes.showGenomeLensRendersGeneticModifiers = genomeText.includes('Genetic Findings & Traits');
     outcomes.showGenomeLensRendersMtDnaHaplogroup = genomeText.includes('mtDNA H1');
     outcomes.showGenomeLensEscapesGeneticSource = genomeHtml.includes('23andMe &lt;raw&gt;');
     outcomes.showGenomeLensDoesNotRenderRawGeneticSource = !genomeHtml.includes('23andMe <raw>');

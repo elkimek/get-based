@@ -43,6 +43,7 @@ assert('dashboard widget runtime owns shell callbacks and explicit note actions'
     runtimeSrc.includes('syncWearableNow') &&
     runtimeSrc.includes('configureDashboardWidgetRuntimeDeps') &&
     runtimeSrc.includes('dashboardWidgetRuntimeDeps.navigate') &&
+    runtimeSrc.includes('dashboardWidgetRuntimeDeps.openChatPanel') &&
     runtimeSrc.includes('dashboardWidgetRuntimeDeps.showDetailModal') &&
     !runtimeSrc.includes('getViewRuntimeFunction') &&
     runtimeSrc.includes('configureDashboardNoteActions') &&
@@ -125,6 +126,7 @@ assert('dashboard organize mode disables dense grid packing',
   'open-biometric-detail',
   'open-biometric-manual-log',
   'open-marker-detail',
+  'ask-genome-snp',
   'navigate',
   'trigger-dna-picker',
   'open-note-editor',

@@ -1,7 +1,7 @@
 // @ts-check
 // dna-parser.js - DNA file detection and parser helpers.
 
-import { findGenotypeInfo, findGenotypeMatch } from './dna-genotype.js';
+import { findGenotypeInfo, findGenotypeMatch, normalizeGenotype } from './dna-genotype.js';
 import { detectDNAFile } from './dna-file-detection.js';
 
 export { detectDNAFile, isDNAFile, isDNAFileByContent } from './dna-file-detection.js';
@@ -172,8 +172,8 @@ function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
   const rawZygosity = getReportCell(cells, columns.zygosity);
   const rawRiskAllele = getReportCell(cells, columns.riskAllele);
   const rawResult = getReportCell(cells, columns.result);
-  const direct = rawGenotype.trim().toUpperCase();
-  if (/^[ACGT]{1,2}$/.test(direct)) return direct;
+  const direct = normalizeGenotype(rawGenotype);
+  if (direct) return direct;
 
   const apoe = inferApoeReportGenotype(rsid, rawResult) || inferApoeReportGenotype(rsid, rawGenotype);
   if (apoe) return apoe;
@@ -238,6 +238,8 @@ function parseAnnotatedSnpReport(text, snpTable) {
 
 function parseClinicalSnpGenotypeTail(tail) {
   const cleaned = String(tail || '').replace(/\s+/g, ' ');
+  const repeatMatches = [...cleaned.matchAll(/(?:^|[^\d])(\d+\s*[\/|]\s*\d+)(?=\s*(?:[–-]|—|\b|$))/g)];
+  if (repeatMatches.length) return normalizeGenotype(repeatMatches[repeatMatches.length - 1][1]);
   const matches = [...cleaned.matchAll(/(?:^|[^A-Z])([ACGT]{2})(?=\s*(?:[–-]|—|\b|$))/g)];
   if (!matches.length) return null;
   return matches[matches.length - 1][1];
@@ -270,6 +272,8 @@ export function parseClinicalSnpReportTextWithTable(text, snpTable, options = {}
       markers: entry.markers || [],
       effect: match.info.effect,
       valence: match.info.valence,
+      evidence: entry.evidence,
+      relevance: entry.relevance,
       note: match.info.note,
       source: { type: options.type || 'report-text', label: source, fileName: options.fileName || null, rawText: chunk.trim().slice(0, 500) },
     };
@@ -321,6 +325,8 @@ export async function parseDNAFileWithTable(file, snpTable) {
       markers: entry.markers || [],
       effect: genotypeInfo.effect,
       valence: genotypeInfo.valence,
+      evidence: entry.evidence,
+      relevance: entry.relevance,
       note: genotypeInfo.note,
     };
   }

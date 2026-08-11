@@ -2,6 +2,7 @@
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { state } from './state.js';
 import {
@@ -12,6 +13,7 @@ import {
 
 const dashboardWidgetRuntimeDeps = {
   navigate: /** @type {null | ((route: string) => unknown)} */ (null),
+  openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
   showDetailModal: /** @type {null | ((id: string) => unknown)} */ (null),
 };
 
@@ -20,6 +22,11 @@ export function configureDashboardWidgetRuntimeDeps(deps = {}) {
   if ('navigate' in deps) {
     dashboardWidgetRuntimeDeps.navigate = typeof deps.navigate === 'function'
       ? /** @type {(route: string) => unknown} */ (deps.navigate)
+      : null;
+  }
+  if ('openChatPanel' in deps) {
+    dashboardWidgetRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
+      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
       : null;
   }
   if ('showDetailModal' in deps) {
@@ -88,6 +95,12 @@ export function getDashboardSnpTableCache() {
   return runtime._snpTableCache || null;
 }
 
+export function getDashboardHaplogroupTableCache() {
+  const runtime = getRuntimeWindow();
+  if (!runtime) return null;
+  return runtime._haplogroupTableCache || null;
+}
+
 /** @param {Element} actionEl */
 export function syncDashboardWearableNow(actionEl) {
   getWearablesModuleFunction('syncWearableNow')?.(actionEl);
@@ -130,6 +143,19 @@ export function openDashboardManualLogForm(id, event) {
 /** @param {string} id */
 export function openDashboardMarkerDetail(id) {
   dashboardWidgetRuntimeDeps.showDetailModal?.(id);
+}
+
+/** @param {string} rsid */
+export function askDashboardAIAboutSnp(rsid) {
+  const normalizedRsid = String(rsid || '').trim().toLowerCase();
+  if (!/^rs\d+$/.test(normalizedRsid)) return false;
+  const stored = state.importedData?.genetics?.snps?.[normalizedRsid];
+  const entry = getDashboardSnpTableCache()?.[normalizedRsid];
+  const prompt = getDnaModuleFunction('buildSnpAIInterpretationPrompt')?.(normalizedRsid, stored, entry) || '';
+  const openChatPanel = dashboardWidgetRuntimeDeps.openChatPanel;
+  if (!prompt || !openChatPanel) return false;
+  void Promise.resolve(openChatPanel(prompt)).catch(() => {});
+  return true;
 }
 
 /** @param {string} route */

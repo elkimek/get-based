@@ -9,6 +9,7 @@ import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs } from './dna-actions.js';
 import {
+  cacheDnaHaplogroupTable,
   clearPendingMtDnaImport,
   getDnaProfileLatitudeBand,
   getPendingMtDnaImport,
@@ -26,14 +27,14 @@ export function loadHaplogroupTable() {
   if (!_haplogroupTablePromise) {
     _haplogroupTablePromise = fetch('data/haplogroups.json')
       .then(r => r.json())
-      .then(data => { _haplogroupTable = data; return data; })
+      .then(data => { _haplogroupTable = data; cacheDnaHaplogroupTable(data); return data; })
       .catch(err => { _haplogroupTablePromise = null; console.error('Failed to load haplogroup table:', err); throw err; });
   }
   return _haplogroupTablePromise;
 }
 
 export function ensureHaplogroupTable() {
-  if (state.importedData?.genetics?.mtdna) loadHaplogroupTable();
+  return state.importedData?.genetics?.mtdna ? loadHaplogroupTable() : Promise.resolve(null);
 }
 
 export function parseMtDNAMutations(text) {
@@ -41,7 +42,7 @@ export function parseMtDNAMutations(text) {
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
-    // Format 1: simple "263G" mutation notation (CSV export)
+    // Format 1: simple "263G" positive-marker notation (Living DNA export)
     const match = trimmed.match(/^(\d+)([ACGT])$/i);
     if (match) { mutations.push({ position: parseInt(match[1]), allele: match[2].toUpperCase(), raw: match[1] + match[2].toUpperCase() }); continue; }
     // Format 2: 23andMe tab-separated "rsid\tMT\tposition\tallele"
@@ -62,7 +63,6 @@ export function resolveHaplogroup(mutations, hapTable) {
   let bestMatchedCount = 0;
 
   for (const [hg, data] of Object.entries(hapTable.haplogroups)) {
-    if (data.isReference) continue; // H is reference - handle separately
     const diag = data.mutations;
     const matched = diag.filter(m => mutationSet.has(m));
     const score = matched.length / diag.length;
@@ -122,7 +122,7 @@ export function detectMtDNAMismatch(genetics) {
 
   const bandNames = ['tropical', 'subtropical', 'temperate', 'northern', 'subarctic'];
   if (coupling.matchedLatBands.includes(bandIndex)) {
-    return { mismatch: false, message: `mtDNA haplogroup ${genetics.mtdna.haplogroup} (${coupling.shortLabel}) is well-matched to your ${bandNames[bandIndex]} latitude.` };
+    return { mismatch: false, message: `In the Wallace lens, mtDNA haplogroup ${genetics.mtdna.haplogroup} (${coupling.shortLabel}) aligns with your ${bandNames[bandIndex]} latitude.` };
   }
 
   const minBand = Math.min(...coupling.matchedLatBands);
@@ -133,7 +133,7 @@ export function detectMtDNAMismatch(genetics) {
   return {
     mismatch: true,
     severity,
-    message: `mtDNA haplogroup ${genetics.mtdna.haplogroup} (${coupling.shortLabel}) evolved for ${coupling.climate.toLowerCase()} climates, but you live at a ${bandNames[bandIndex]} latitude.`,
+    message: `The Wallace lens places mtDNA haplogroup ${genetics.mtdna.haplogroup} (${coupling.shortLabel}) with ${coupling.climate.toLowerCase()} climates, while your current latitude is ${bandNames[bandIndex]}.`,
     implications: coupling.implications
   };
 }
@@ -155,7 +155,12 @@ export async function handleMtDNAFile(file) {
 
     const coupling = classifyCoupling(resolved.haplogroup, hapTable);
     const hgData = hapTable.haplogroups[resolved.haplogroup];
-    const source = file.name.toLowerCase().includes('23andme') || file.name.toLowerCase().includes('genome') ? 'mtDNA (23andMe)' : 'mtDNA CSV';
+    const lowerName = file.name.toLowerCase();
+    const source = lowerName.includes('livingdna') || lowerName.includes('living_dna')
+      ? 'mtDNA (Living DNA)'
+      : lowerName.includes('23andme') || lowerName.includes('genome')
+        ? 'mtDNA (23andMe)'
+        : 'mtDNA marker list';
     setPendingMtDnaImport({ mutations, resolved, coupling, hgData, source });
     _showMtDNAPreview(resolved, coupling, mutations, file.name);
     _mtdnaImportRunning = false;
@@ -173,13 +178,13 @@ function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
 
   let html = `<div class="dna-preview-header">
     <div class="dna-preview-title">mtDNA Import</div>
-    <div class="dna-preview-stats">${mutations.length} mutations from ${escapeHTML(fileName)}</div>
+    <div class="dna-preview-stats">${mutations.length} mtDNA markers read from ${escapeHTML(fileName)}</div>
   </div>
   <div class="dna-preview-body">
     <div class="mtdna-preview-haplogroup">
       <div class="mtdna-hg-label">Haplogroup</div>
       <div class="mtdna-hg-value">${escapeHTML(resolved.haplogroup)}</div>
-      <div class="mtdna-hg-confidence">${resolved.matchedMutations}/${resolved.totalDiagnostic} diagnostic mutations matched (${Math.round(resolved.confidence * 100)}%)</div>
+      <div class="mtdna-hg-confidence">${resolved.matchedMutations}/${resolved.totalDiagnostic} diagnostic markers matched</div>
     </div>`;
   if (coupling) {
     html += `<div class="mtdna-preview-coupling">
@@ -229,11 +234,17 @@ export async function confirmMtDNAImport() {
   state.importedData.genetics.mtdna = {
     haplogroup: pending.resolved.haplogroup,
     confidence: pending.resolved.confidence,
+    matchedMutations: pending.resolved.matchedMutations,
+    totalDiagnostic: pending.resolved.totalDiagnostic,
+    origin: pending.hgData?.origin || null,
+    details: pending.hgData?.etc || null,
     coupling: pending.coupling ? {
       level: pending.coupling.level,
       label: pending.coupling.label,
       shortLabel: pending.coupling.shortLabel,
       climate: pending.coupling.climate,
+      description: pending.coupling.description,
+      implications: pending.coupling.implications,
       matchedLatBands: pending.coupling.matchedLatBands
     } : null,
     mutations: pending.mutations.map(m => m.raw),
@@ -260,9 +271,10 @@ export { HAPLOGROUP_LIST };
 
 export async function setManualHaplogroup(haplogroup) {
   if (!haplogroup) return;
-  const hg = haplogroup.toUpperCase().trim();
-  if (!HAPLOGROUP_LIST.includes(hg)) {
-    showNotification(`Unknown haplogroup "${hg}" - expected one of: ${HAPLOGROUP_LIST.join(', ')}`, 'error');
+  const input = String(haplogroup).trim();
+  const hg = HAPLOGROUP_LIST.find(candidate => candidate.toUpperCase() === input.toUpperCase());
+  if (!hg) {
+    showNotification(`Unknown haplogroup "${input}" - expected one of: ${HAPLOGROUP_LIST.join(', ')}`, 'error');
     return;
   }
   const hapTable = await loadHaplogroupTable();
@@ -273,11 +285,15 @@ export async function setManualHaplogroup(haplogroup) {
   state.importedData.genetics.mtdna = {
     haplogroup: hg,
     confidence: 1,
+    origin: hapTable.haplogroups[hg]?.origin || null,
+    details: hapTable.haplogroups[hg]?.etc || null,
     coupling: coupling ? {
       level: coupling.level,
       label: coupling.label,
       shortLabel: coupling.shortLabel,
       climate: coupling.climate,
+      description: coupling.description,
+      implications: coupling.implications,
       matchedLatBands: coupling.matchedLatBands
     } : null,
     mutations: [],

@@ -126,6 +126,10 @@ const dnaMtDnaSrc = read('js/dna-mtdna.js');
   assert('Equal-score tiebreaker picks more-specific sub-clade',
     tieResolved?.haplogroup === 'H1' && tieResolved?.matchedMutations === 3,
     `got ${tieResolved?.haplogroup} matched=${tieResolved?.matchedMutations}`);
+  const directHResolved = dna.resolveHaplogroup([{raw:'2706A'},{raw:'7028C'}], hapTable);
+  assert('Reference diagnostic markers can resolve H directly',
+    directHResolved?.haplogroup === 'H',
+    `got ${directHResolved?.haplogroup}`);
 
   // ═══════════════════════════════════════
   // 5. Part C: existing haplogroup cleanup
