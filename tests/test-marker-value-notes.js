@@ -103,7 +103,7 @@ const state = (await import('../js/state.js')).state;
   assert('saveManualEntry reads me-note from the form',
     /saveManualEntry[\s\S]{0,800}document\.getElementById\('me-note'\)/.test(markerDetailEditingSrc));
   assert('saveManualEntry stores noteText in markerValueNotes when non-empty',
-    /saveManualEntry[\s\S]{0,5200}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc)
+    /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc)
       && /function writeMarkerValueNote\(dotKey, date, noteText\)[\s\S]{0,500}notes\[key\] = capped/.test(markerDetailStoreSrc));
   assert('saveManualEntry clears the entry when noteText is empty (idempotent edit-to-blank)',
     /function writeMarkerValueNote\(dotKey, date, noteText\)[\s\S]{0,700}clearSyncedMapValue\(notes, key\)/.test(markerDetailStoreSrc));
@@ -166,7 +166,7 @@ const state = (await import('../js/state.js')).state;
       && /LEGACY_INSULIN_MARKER_KEYS = Object\.freeze/.test(labEntrySrc)
       && /const storageKey = canonicalMarkerKey\(dotKey\)/.test(labEntrySrc));
   assert('saveManualEntry uses the canonical marker store boundary',
-    /saveManualEntry[\s\S]{0,5200}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc)
+    /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc)
       && /writeMarkerValueNote[\s\S]{0,500}mapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
   assert('deleteMarkerValue uses the canonical marker store boundary',
     /deleteMarkerValue[\s\S]{0,1200}deleteManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc)

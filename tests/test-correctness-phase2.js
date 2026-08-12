@@ -426,7 +426,7 @@ assert('Venice E2EE stream also flushes trailing buffer',
 
 // ─── 9. PhenoAge requires hs-CRP only ───
 console.log('\n9. PhenoAge CRP strictness');
-const dataSrc = read('js/data.js');
+const dataSrc = read('js/data-calculated-markers.js');
 assert('PhenoAge no longer falls back to standard CRP',
   !dataSrc.match(/_getCRP[\s\S]{0,200}getVals\('proteins', 'crp'\)/),
   'standard CRP and hs-CRP differ in detection range — silent substitution corrupted estimates');
