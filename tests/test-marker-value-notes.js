@@ -146,15 +146,10 @@ const state = (await import('../js/state.js')).state;
     /deleteMarkerValue[\s\S]{0,1200}deleteManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc)
       && /deleteManualMarkerValue[\s\S]{0,900}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailStoreSrc)
       && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,500}importedData\.markerValueNotes\[key\] = null/.test(labEntryMutationsSrc));
-  assert('deleteMarkerValue drops mirrored insulin manualValues state',
-    /deleteManualMarkerValue[\s\S]{0,1200}mirrorInsulin: true/.test(markerDetailStoreSrc)
-      && /deleteLabEntryMarker[\s\S]{0,700}const mirrorKey = opts\.mirrorInsulin \? getInsulinMirrorMarkerKey\(dotKey\)/.test(labEntrySrc)
+  assert('deleteMarkerValue uses one canonical metadata key',
+    /deleteManualMarkerValue[\s\S]{0,900}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailStoreSrc)
+      && !/insulinMirrorMapKey/.test(markerDetailStoreSrc)
       && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,250}importedData\.manualValues\[key\] = null/.test(labEntryMutationsSrc));
-
-  // Insulin dual-mapping parity: the value mirrors hormones.insulin ↔
-  // diabetes.insulin_d, so the per-value note must mirror too. Bidirectional
-  // — user may save / edit / delete via either category page (Greptile P1
-  // 2026-05-12). Asserted via _insulinMirrorNoteKey helper presence below.
 
   // 500-char cap defends against runaway paste (matches the wearable note cap).
   assert('saveManualEntry caps the note at 500 chars before storing',
@@ -162,29 +157,24 @@ const state = (await import('../js/state.js')).state;
   assert('editValueNote caps the note at 500 chars before storing',
     /editValueNote[\s\S]{0,1200}result\.length > 500 \? result\.slice\(0, 500\) : result/.test(markerDetailEditingSrc));
 
-  // editValueNote + deleteValueNote also route through _insulinMirrorNoteKey
-  // — see the bidirectional helper asserts below.
-  assert('deleteValueNote cleans the mirror note for insulin',
+  assert('deleteValueNote cleans the canonical marker note',
     /deleteValueNote[\s\S]{0,800}deleteMarkerValueNote\(dotKey, date\)/.test(markerDetailEditingSrc)
-      && /deleteMarkerValueNote[\s\S]{0,500}insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
+      && /deleteMarkerValueNote[\s\S]{0,500}mapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
 
-  // Greptile P1: insulin note mirror must be BIDIRECTIONAL — user may
-  // edit/delete via the hormones panel OR the diabetes panel.
-  assert('_insulinMirrorNoteKey helper defined and bidirectional',
-    /insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc) &&
-    /getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailStoreSrc) &&
-    /if \(dotKey === 'hormones\.insulin'\) return 'diabetes\.insulin_d'/.test(labEntrySrc) &&
-    /if \(dotKey === 'diabetes\.insulin_d'\) return 'hormones\.insulin'/.test(labEntrySrc));
-  assert('saveManualEntry uses bidirectional mirror helper',
+  assert('legacy insulin keys canonicalize at the lab-entry boundary',
+    /CANONICAL_INSULIN_MARKER_KEY = 'diabetes\.insulin'/.test(labEntrySrc)
+      && /LEGACY_INSULIN_MARKER_KEYS = Object\.freeze/.test(labEntrySrc)
+      && /const storageKey = canonicalMarkerKey\(dotKey\)/.test(labEntrySrc));
+  assert('saveManualEntry uses the canonical marker store boundary',
     /saveManualEntry[\s\S]{0,5200}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc)
-      && /writeMarkerValueNote[\s\S]{0,900}insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
-  assert('deleteMarkerValue uses bidirectional mirror helper',
+      && /writeMarkerValueNote[\s\S]{0,500}mapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
+  assert('deleteMarkerValue uses the canonical marker store boundary',
     /deleteMarkerValue[\s\S]{0,1200}deleteManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc)
-      && /deleteManualMarkerValue[\s\S]{0,900}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey[\s\S]{0,200}mirrorInsulin: true/.test(markerDetailStoreSrc));
-  assert('editValueNote uses bidirectional mirror helper',
+      && /deleteManualMarkerValue[\s\S]{0,900}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailStoreSrc));
+  assert('editValueNote writes one canonical note',
     /editValueNote[\s\S]{0,1500}saveMarkerValueNote\(dotKey, date, capped\)/.test(markerDetailEditingSrc)
       && /saveMarkerValueNote[\s\S]{0,500}writeMarkerValueNote\(dotKey, date, noteText\)/.test(markerDetailStoreSrc)
-      && /writeMarkerValueNote[\s\S]{0,900}insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
+      && !/insulinMirrorMapKey/.test(markerDetailStoreSrc));
 
   assert('Empty-cell manual entry uses delegated id/date attrs',
     categoryViewRenderersSrc.includes("markerDetailActionAttrs('open-manual-entry', { id, date: colDate })") &&

@@ -167,7 +167,7 @@ export const SCORE_DEFINITIONS = [
     compute: computeWeightedComposite,
     inputs: [
       { key: 'homaIR', label: 'HOMA-IR', weight: 1.7, paths: 'diabetes.homaIR', core: true },
-      { key: 'insulin', label: 'Fasting insulin', weight: 1.45, paths: ['hormones.insulin', 'diabetes.insulin_d'], core: true },
+      { key: 'insulin', label: 'Fasting insulin', weight: 1.45, paths: 'diabetes.insulin', core: true },
       { key: 'glucose', label: 'Fasting glucose', weight: 0.95, paths: 'biochemistry.glucose', core: true },
       { key: 'hba1c', label: 'HbA1c', weight: 0.85, paths: 'diabetes.hba1c' },
       { key: 'tgHdlRatio', label: 'TG/HDL ratio', weight: 1.15, paths: 'calculatedRatios.tgHdlRatio', core: true },

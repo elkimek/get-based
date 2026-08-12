@@ -128,6 +128,14 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog gives a simple user-readable overview of the lab improvements',
+  /version:\s*'1\.15\.1'[\s\S]{0,500}Better lab results and ranges/.test(changelogSrc)
+    && /version:\s*'1\.15\.1'[\s\S]{0,2600}More lab results are recognized and organized correctly/.test(changelogSrc)
+    && /version:\s*'1\.15\.1'[\s\S]{0,2600}Ranges are more useful without pretending to know more than they do/.test(changelogSrc)
+    && /version:\s*'1\.15\.1'[\s\S]{0,2600}suggest a correction to a built-in range/.test(changelogSrc)
+    && /version:\s*'1\.15\.1'[\s\S]{0,2600}Hormone results now understand cycle context/.test(changelogSrc)
+    && /version:\s*'1\.15\.1'[\s\S]{0,2600}Charts and calculated results are easier to understand/.test(changelogSrc)
+    && /version:\s*'1\.15\.1'[\s\S]{0,2600}Lab imports and demo data are easier to trust/.test(changelogSrc));
 assert('latest changelog gives a simple overview of the redesigned Genome release',
   /version:\s*'1\.15\.0'[\s\S]{0,500}A redesigned and expanded Genome/.test(changelogSrc)
     && /version:\s*'1\.15\.0'[\s\S]{0,2600}Genome is clearer and easier to explore/.test(changelogSrc)
@@ -239,7 +247,7 @@ assert('previous changelog documents PPQ Private TEE in user-readable terms',
   /version:\s*'1\.10\.8'[\s\S]{0,900}PPQ Private TEE Mode/.test(changelogSrc)
     && /version:\s*'1\.10\.8'[\s\S]{0,900}encrypts prompts in your browser/.test(changelogSrc)
     && /version:\s*'1\.10\.8'[\s\S]{0,900}No local proxy or extra setup/.test(changelogSrc));
-assert('SW imports version.js', swSrc.includes("importScripts('/version.js')"));
+assert('SW imports version.js', swSrc.includes("importScripts('/version.js'"));
 assert('SW CACHE_NAME uses template literal', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW APP_SHELL includes version.js', swSrc.includes("'/version.js'"));
 assert('index.html loads version.js', indexSrc.includes('src="version.js"'));

@@ -83,13 +83,11 @@ test('marker detail store browser coverage persists manual values notes ranges a
           date: '2026-05-01',
           updatedAt: 100,
           markers: {
-            'hormones.insulin': 8,
-            'diabetes.insulin_d': 8,
+            'diabetes.insulin': 8,
             'biochemistry.glucose': 4.7,
           },
           markerSources: {
-            'hormones.insulin': { file: 'lab.pdf', at: 100 },
-            'diabetes.insulin_d': { file: 'lab.pdf', at: 100 },
+            'diabetes.insulin': { file: 'lab.pdf', at: 100 },
             'biochemistry.glucose': { file: 'lab.pdf', at: 100 },
           },
           sourceFiles: ['lab.pdf'],
@@ -102,25 +100,21 @@ test('marker detail store browser coverage persists manual values notes ranges a
       const entry = state.importedData.entries[0];
 
       await store.saveManualMarkerValue({
-        dotKey: 'hormones.insulin',
+        dotKey: 'diabetes.insulin',
         date: '2026-05-01',
         storedValue: 9,
         noteText: 'fasted',
         now: 1_000,
       });
-      outcomes.saveManualMarkerValueMirrorsInsulinOriginalsNotesAndHOMAIR =
-        entry.markers['hormones.insulin'] === 9
-        && entry.markers['diabetes.insulin_d'] === 9
+      outcomes.saveManualMarkerValueStoresCanonicalInsulinOriginalNoteAndHOMAIR =
+        entry.markers['diabetes.insulin'] === 9
         && entry.markers['diabetes.homaIR'] === 1.88
-        && entry.markerSources['hormones.insulin'].file === null
-        && entry.markerSources['diabetes.insulin_d'].file === null
-        && state.importedData.manualValues['hormones.insulin:2026-05-01'] === 8
-        && state.importedData.manualValues['diabetes.insulin_d:2026-05-01'] === 8
-        && store.getManualOriginalForMarker('diabetes.insulin_d', '2026-05-01') === 8
-        && state.importedData.markerValueNotes['hormones.insulin:2026-05-01'] === 'fasted'
-        && state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'] === 'fasted'
-        && store.getMarkerValueNote('hormones.insulin', '2026-05-01') === 'fasted'
-        && store.hasMarkerValueForDate('diabetes.insulin_d', '2026-05-01')
+        && entry.markerSources['diabetes.insulin'].file === null
+        && state.importedData.manualValues['diabetes.insulin:2026-05-01'] === 8
+        && store.getManualOriginalForMarker('diabetes.insulin', '2026-05-01') === 8
+        && state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === 'fasted'
+        && store.getMarkerValueNote('diabetes.insulin', '2026-05-01') === 'fasted'
+        && store.hasMarkerValueForDate('diabetes.insulin', '2026-05-01')
         && !store.hasMarkerValueForDate('hormones.cortisol', '2026-05-01');
 
       const editedGlucose = await store.editManualMarkerValue({
@@ -136,7 +130,7 @@ test('marker detail store browser coverage persists manual values notes ranges a
         now: 1_101,
       });
       const revertedGlucose = await store.revertManualMarkerValue('biochemistry.glucose', '2026-05-01', { now: 1_200 });
-      const missingRevert = await store.revertManualMarkerValue('hormones.insulin', '2026-05-02', { now: 1_201 });
+      const missingRevert = await store.revertManualMarkerValue('diabetes.insulin', '2026-05-02', { now: 1_201 });
       outcomes.editAndRevertManualValueRestoreImportedSource =
         editedGlucose === entry
         && missingEdit === null
@@ -148,29 +142,27 @@ test('marker detail store browser coverage persists manual values notes ranges a
         && !hasOwn(entry.markerSources, 'biochemistry.glucose');
 
       const deleteMissing = await store.deleteManualMarkerValue('hormones.cortisol', '2026-05-01', { now: 1_250 });
-      const deletedInsulin = await store.deleteManualMarkerValue('hormones.insulin', '2026-05-01', { now: 1_300 });
-      outcomes.deleteManualMarkerValueMirrorsTombstonesAndHOMAIR =
+      const deletedInsulin = await store.deleteManualMarkerValue('diabetes.insulin', '2026-05-01', { now: 1_300 });
+      outcomes.deleteManualMarkerValueStoresCanonicalTombstoneAndClearsHOMAIR =
         deleteMissing === null
         && deletedInsulin?.changed === true
         && !hasOwn(entry.markers, 'hormones.insulin')
         && !hasOwn(entry.markers, 'diabetes.insulin_d')
+        && !hasOwn(entry.markers, 'diabetes.insulin')
         && !hasOwn(entry.markers, 'diabetes.homaIR')
-        && entry.deletedMarkers['hormones.insulin'] === 1_300
-        && entry.deletedMarkers['diabetes.insulin_d'] === 1_300
-        && state.importedData.manualValues['hormones.insulin:2026-05-01'] === null
-        && state.importedData.manualValues['diabetes.insulin_d:2026-05-01'] === null;
+        && entry.deletedMarkers['diabetes.insulin'] === 1_300
+        && state.importedData.manualValues['diabetes.insulin:2026-05-01'] === null;
 
-      const savedLongNote = await store.saveMarkerValueNote('diabetes.insulin_d', '2026-05-01', 'x'.repeat(520));
-      const savedSameNoteAgain = await store.saveMarkerValueNote('diabetes.insulin_d', '2026-05-01', 'x'.repeat(520));
-      const deletedValueNote = await store.deleteMarkerValueNote('hormones.insulin', '2026-05-01');
-      const deletedMissingValueNote = await store.deleteMarkerValueNote('hormones.insulin', '2026-05-02');
-      outcomes.valueNotesCapMirrorAndDeleteAsNulls =
+      const savedLongNote = await store.saveMarkerValueNote('diabetes.insulin', '2026-05-01', 'x'.repeat(520));
+      const savedSameNoteAgain = await store.saveMarkerValueNote('diabetes.insulin', '2026-05-01', 'x'.repeat(520));
+      const deletedValueNote = await store.deleteMarkerValueNote('diabetes.insulin', '2026-05-01');
+      const deletedMissingValueNote = await store.deleteMarkerValueNote('diabetes.insulin', '2026-05-02');
+      outcomes.valueNotesCapAndDeleteAsNulls =
         savedLongNote === true
         && savedSameNoteAgain === false
         && deletedValueNote === true
         && deletedMissingValueNote === false
-        && state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'] === null
-        && state.importedData.markerValueNotes['hormones.insulin:2026-05-01'] === null;
+        && state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === null;
 
       state.importedData.refOverrides['biochemistry.alt'] = {
         refMin: 7,

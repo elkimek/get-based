@@ -153,7 +153,8 @@ export function mergeLabEntry(existing, incoming) {
   else delete base[LAB_ENTRY_MARKER_TOMBSTONES];
   const hasMergedHOMAIR = Object.prototype.hasOwnProperty.call(markers, 'diabetes.homaIR');
   const hasMergedGlucose = Object.prototype.hasOwnProperty.call(markers, 'biochemistry.glucose');
-  const hasMergedInsulin = Object.prototype.hasOwnProperty.call(markers, 'hormones.insulin')
+  const hasMergedInsulin = Object.prototype.hasOwnProperty.call(markers, 'diabetes.insulin')
+    || Object.prototype.hasOwnProperty.call(markers, 'hormones.insulin')
     || Object.prototype.hasOwnProperty.call(markers, 'diabetes.insulin_d');
   const wouldDeleteExistingHOMAIR = hasMergedHOMAIR && (!hasMergedGlucose || !hasMergedInsulin);
   if (homaIRInputChanged && (!wouldDeleteExistingHOMAIR || homaIRInputDeleted)) recalculateLabEntryHOMAIR(base);

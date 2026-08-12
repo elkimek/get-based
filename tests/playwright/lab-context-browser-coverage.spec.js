@@ -79,6 +79,14 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
           },
           {
             date: recentDates.current,
+            context: {
+              sampleTime: '08:35',
+              fasting: true,
+              cycleDay: 27,
+              cyclePhase: 'luteal',
+              cyclePhaseDetail: 'late_luteal',
+              cyclePhaseSource: 'recorded',
+            },
             markers: {
               'coverage.ferritin': 44,
               'coverage.crp': 8.2,
@@ -405,6 +413,10 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       labContext.setGeneticsInventoryInAIContext(true);
       const geneticsInventoryOn = labContext.isGeneticsInventoryInAIContext() === true;
       const context = labContext.buildLabContext({ skipGroupFilter: false });
+      const collectionContextBlock = context.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
+      state.importedData.entries[1].context.fasting = false;
+      const contextAfterFastingEdit = labContext.buildLabContext({ skipGroupFilter: false });
+      const editedCollectionContextBlock = contextAfterFastingEdit.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
       const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
         context.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
       const summary = labContext.getContextSummary();
@@ -418,6 +430,14 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       outcomes.buildLabContextIncludesChangeTimeline = context.includes('Context Change Timeline');
       outcomes.buildLabContextIncludesDietDiff = context.includes('type: Standard') && context.includes('Mediterranean');
       outcomes.buildLabContextIncludesAddedGoalDiff = context.includes('added: Added goal');
+      outcomes.buildLabContextIncludesExplicitPerDrawCollectionMetadata =
+        collectionContextBlock.includes(`${recentDates.current}: collection time 08:35; fasting`)
+        && collectionContextBlock.includes('cycle day 27; late luteal phase (recorded)')
+        && !collectionContextBlock.includes(recentDates.old)
+        && collectionContextBlock.includes('Omitted fields were not reported; do not infer them');
+      outcomes.collectionContextEditsBreakLabContextCache =
+        editedCollectionContextBlock.includes(`${recentDates.current}: collection time 08:35; not fasting`)
+        && editedCollectionContextBlock !== collectionContextBlock;
       outcomes.buildLabContextIncludesWearablesAndSunHook =
         context.includes('[section:wearables]')
         && context.includes('[section:sun]');

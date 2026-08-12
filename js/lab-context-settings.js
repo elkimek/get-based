@@ -57,8 +57,10 @@ function getContextPreferencePart() {
 
 export function getLabContextFingerprint() {
   const data = state.importedData;
-  const entryPart = (data.entries || []).map(entry =>
-    entry.date + ':' + Object.keys(entry.markers || {}).length).join(',');
+  // Values and per-draw context can change without replacing the entries
+  // array. Hash the rows themselves so collection-time/fasting edits cannot
+  // reuse an AI context assembled from stale draw metadata.
+  const entryPart = hashString(JSON.stringify(data.entries || []));
   const cardPart = ['healthGoals', 'diagnoses', 'supplements', 'biometrics', 'genetics',
     'menstrualCycle', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress',
     'loveLife', 'environment', 'emfAssessment', 'changeHistory', 'wearableSummary'

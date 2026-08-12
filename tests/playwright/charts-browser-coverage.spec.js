@@ -198,6 +198,29 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && suppChart.ctx.calls.some(call => call[0] === 'createLinearGradient')
       && suppChart.ctx.calls.some(call => call[0] === 'fillText' && String(call[1]).includes('Magnesium'));
 
+    const phaseChart = {
+      options: {
+        plugins: {
+          phaseBands: {
+            phases: ['follicular', 'luteal', 'ovulatory'],
+            chartDates: ['2026-01-01', '2026-02-01', '2026-03-01'],
+            observed: [true, false, true],
+            cycleDays: [10, 27, 14],
+          },
+        },
+      },
+      chartArea,
+      scales: { x: xTime },
+      ctx: makeCtx(),
+    };
+    charts.phaseBandPlugin.afterDatasetsDraw(phaseChart);
+    const phasePills = phaseChart.ctx.calls.filter(call => call[0] === 'roundRect');
+    const phaseTexts = phaseChart.ctx.calls.filter(call => call[0] === 'fillText').map(call => call[1]);
+    outcomes.phasePluginAnnotatesOnlyMeasuredDrawsWithoutBackgroundColumns = phasePills.length === 2
+      && phaseTexts.join('|') === 'F · D10|O · D14'
+      && !phaseChart.ctx.calls.some(call => call[0] === 'fillRect')
+      && phasePills.every(call => call[2] < chartArea.top);
+
     const captured = {};
     const singlePointCaptured = {};
     const canvas = document.createElement('canvas');
@@ -229,7 +252,11 @@ test('charts browser coverage exercises annotation supplement and theme callback
         optimalMin: 1.5,
         optimalMax: 2.5,
         phaseLabels: ['Follicular', 'Luteal', 'Luteal'],
-      }, ['Jan', 'Feb', 'Mar'], ['2026-01-01', '2026-02-01', '2026-03-01'], ['follicular', 'luteal', 'luteal']);
+      }, ['Jan', 'Feb', 'Mar'], ['2026-01-01', '2026-02-01', '2026-03-01'], ['follicular', 'luteal', 'luteal'], {
+        displayLabels: ['Late follicular', 'Late luteal', 'Luteal'],
+        cycleDays: [10, 27, 20],
+        sources: ['recorded', 'recorded', 'predicted'],
+      });
 
       state.dateRangeFilter = '3m';
       const recent = new Date();
@@ -255,11 +282,14 @@ test('charts browser coverage exercises annotation supplement and theme callback
     const yTickCallback = captured.config.options.scales.y.ticks.callback;
     const tooltipCallbacksOk = captured.canvas === canvas
       && labelText === '4.50 mg/L'
-      && afterLabelText.includes('Phase: Luteal')
-      && afterLabelText.includes('Phase ref:')
+      && afterLabelText.includes('Draw phase: Late luteal · cycle day 27 (recorded)')
+      && afterLabelText.includes('Optimal:')
       && chronoAfterLabelText === ''
       && yTickCallback(1.000000000000009) === '1'
       && yTickCallback(449.6) === '449.6'
+      && yTickCallback(12.34567) === '12.3'
+      && yTickCallback(1.23456) === '1.23'
+      && yTickCallback(0.123456) === '0.123'
       && captured.config.options.scales.y.min === 0;
     outcomes.createLineChartTooltipCallbacksFormatValuesAndRanges = tooltipCallbacksOk || {
       labelText,

@@ -15,6 +15,9 @@ export const HEMATOLOGY_CATEGORY = {
     platelets: { name: "Platelets", unit: "10^9/l", refMin: 150, refMax: 400, desc: "Blood cells essential for clotting; low counts risk bleeding, high counts risk clotting or indicate inflammation." },
     mpv: { name: "MPV", unit: "fl", refMin: 7.8, refMax: 12.8, desc: "Average platelet size; larger platelets are more reactive, and elevated MPV is linked to cardiovascular risk." },
     pdw: { name: "PDW", unit: "fl", refMin: 9.0, refMax: 17.0, desc: "Variation in platelet size; elevated values suggest active platelet production or consumption in clotting disorders." },
-    pct: { name: "Plateletcrit", unit: "%", refMin: 0.15, refMax: 0.40, desc: "The percentage of blood volume occupied by platelets; analogous to hematocrit but for platelets, reflecting total platelet mass." }
+    pct: { name: "Plateletcrit", unit: "%", refMin: 0.15, refMax: 0.40, desc: "The percentage of blood volume occupied by platelets; analogous to hematocrit but for platelets, reflecting total platelet mass." },
+    reticulocytes: { name: "Reticulocytes #", unit: "10^9/l", refMin: 30, refMax: 100, desc: "Absolute count of newly produced red blood cells; shows bone-marrow response to anemia, blood loss, or treatment." },
+    reticulocytesPct: { name: "Reticulocytes %", unit: "%", refMin: 0.5, refMax: 2.5, desc: "Proportion of circulating red cells that are newly produced; interpret with anemia severity and the absolute reticulocyte count." },
+    immatureGranulocytes: { name: "Immature Granulocytes #", unit: "10^9/l", refMin: 0, refMax: 0.10, desc: "Early granulocyte forms in peripheral blood; elevations can accompany infection, inflammation, marrow stress, or pregnancy." }
   }
 };

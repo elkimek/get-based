@@ -128,15 +128,16 @@
 }
 .chart-card-tips-host .ctx-tips-badge { margin-left: 0; }
 .chart-card-header > div:last-child {
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 50%;
 }
 .chart-card-state {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 6px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  max-width: 46%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .chart-card-title {
   display: flex;
@@ -147,6 +148,7 @@
   font-weight: 700;
 }
 .chart-card-status {
+  flex: 0 1 auto; min-width: 0; max-width: 100%; white-space: nowrap;
   font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
 }
 .status-normal { background: var(--green-bg); color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 20%, transparent); }
@@ -306,7 +308,7 @@
 .chart-value-num.val-missing { color: var(--text-muted); }
 .chart-value-num.val-unrated { color: var(--text-secondary); }
 .chart-card-trend {
-  font-size: 11px; font-weight: 600; margin-left: 8px; white-space: nowrap;
+  max-width: 100%; font-size: 11px; font-weight: 600; white-space: normal; overflow-wrap: anywhere;
 }
 .chart-card-gap-section { margin-top: 16px; }
 .chart-card-gap-section > p { color: var(--text-secondary); font-size: 13px; margin-bottom: 8px; }

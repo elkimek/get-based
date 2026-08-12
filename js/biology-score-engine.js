@@ -1,7 +1,7 @@
 // @ts-check
 // biology-score-engine.js — shared primitives for the Biology Scores composite engine.
 
-import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
+import { getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { getInputProfileModifier, getScoreProfileFlags } from './biology-score-profile-modifiers.js';
 import { UNIT_CONVERSIONS, OPTIMAL_RANGES } from './schema.js';
@@ -120,7 +120,7 @@ function markerWithSchemaOptimalFallback(dotKey, marker) {
   const opt = OPTIMAL_RANGES[dotKey];
   if (!opt) return marker;
   const rawMin = state.profileSex === 'female' && opt.optimalMin_f !== undefined ? opt.optimalMin_f : opt.optimalMin;
-  const rawMax = state.profileSex === 'female' && opt.optimalMin_f !== undefined ? opt.optimalMax_f : opt.optimalMax;
+  const rawMax = state.profileSex === 'female' && opt.optimalMax_f !== undefined ? opt.optimalMax_f : opt.optimalMax;
   const conv = UNIT_CONVERSIONS[dotKey];
   const convert = (value) => {
     if (value == null) return value;
@@ -132,9 +132,7 @@ function markerWithSchemaOptimalFallback(dotKey, marker) {
 }
 
 function getEffectiveRangeLabel(marker, dateIndex) {
-  if (marker?.phaseRefRanges && marker.phaseRefRanges[dateIndex]) return 'cycle-phase range';
-  if ((state.rangeMode === 'optimal' || state.rangeMode === 'both') && (marker?.optimalMin != null || marker?.optimalMax != null)) return 'optimal range';
-  return 'reference range';
+  return `${getEffectiveRangeLabelForDate(marker, dateIndex).toLowerCase()} range`.replace('range range', 'range');
 }
 
 export function getMarkerHit(data, paths) {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BUILTIN_MARKER_DOT_KEY_ALIASES,
+  BUILTIN_MARKER_ID_ALIASES,
   BUILTIN_MARKER_IDENTITIES,
   CUSTOM_MARKER_ID_PREFIX,
   getBuiltinMarkerDotKey,
@@ -26,7 +27,7 @@ describe('stable built-in marker identity contract', () => {
     const identityDotKeys = BUILTIN_MARKER_IDENTITIES.map(identity => identity.currentDotKey);
     const ids = BUILTIN_MARKER_IDENTITIES.map(identity => identity.id);
 
-    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(149);
+    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(196);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(identityDotKeys).size).toBe(identityDotKeys.length);
     expect(new Set(identityDotKeys)).toEqual(new Set(schemaDotKeys));
@@ -39,7 +40,7 @@ describe('stable built-in marker identity contract', () => {
       .digest('hex');
 
     // A marker move changes currentDotKey, not this checksum or its marker id.
-    expect(checksum).toBe('5b50c5d092e043b7aa9ed11e3d5acfc8491ca677a8a0a00886906af060a867d7');
+    expect(checksum).toBe('50a763e0b84b47918d26e9e7f2864515162b92e0a93e2d26e7f7178a395468f9');
   });
 
   it('keeps authored and generated identity catalogs aligned and immutable at runtime', () => {
@@ -47,7 +48,9 @@ describe('stable built-in marker identity contract', () => {
     expect(byId(BUILTIN_MARKER_IDENTITIES)).toEqual(byId(BUILTIN_MARKER_IDENTITY_DEFINITIONS));
     expect(Object.isFrozen(BUILTIN_MARKER_IDENTITIES)).toBe(true);
     expect(BUILTIN_MARKER_IDENTITIES.every(identity =>
-      Object.isFrozen(identity) && Object.isFrozen(identity.legacyDotKeys))).toBe(true);
+      Object.isFrozen(identity)
+      && Object.isFrozen(identity.legacyDotKeys)
+      && Object.isFrozen(identity.legacyIds))).toBe(true);
   });
 
   it('resolves ids, current dotKeys, and historical aliases bidirectionally', () => {
@@ -62,13 +65,21 @@ describe('stable built-in marker identity contract', () => {
       'lipids.lp_a': 'lipids.lpA',
       'lipids.lipoproteinA': 'lipids.lpA',
       'lipids.lipoproteina': 'lipids.lpA',
+      'hormones.insulin': 'diabetes.insulin',
+      'diabetes.insulin_d': 'diabetes.insulin',
       'hormones.cPeptide': 'diabetes.cPeptide',
       'lipids.cholHdlRatio': 'calculatedRatios.cholHdlRatio',
+    });
+    expect(BUILTIN_MARKER_ID_ALIASES).toEqual({
+      'gb:marker:insulin_d': 'gb:marker:insulin',
     });
     expect(getBuiltinMarkerId('biochemistry.glucose')).toBe('gb:marker:glucose');
     expect(getBuiltinMarkerDotKey('gb:marker:glucose')).toBe('biochemistry.glucose');
     expect(resolveBuiltinMarkerDotKey('gb:marker:glucose')).toBe('biochemistry.glucose');
     expect(resolveBuiltinMarkerDotKey('biochemistry.glucose')).toBe('biochemistry.glucose');
+    expect(getBuiltinMarkerId('hormones.insulin')).toBe('gb:marker:insulin');
+    expect(getBuiltinMarkerDotKey('gb:marker:insulin_d')).toBe('diabetes.insulin');
+    expect(resolveBuiltinMarkerDotKey('gb:marker:insulin_d')).toBe('diabetes.insulin');
 
     for (const [legacyDotKey, currentDotKey] of Object.entries(BUILTIN_MARKER_DOT_KEY_ALIASES)) {
       const markerId = getBuiltinMarkerId(legacyDotKey);
@@ -85,6 +96,7 @@ describe('stable built-in marker identity contract', () => {
   it('exposes the same identity contract through the schema compatibility facade', () => {
     expect(schemaFacade.BUILTIN_MARKER_IDENTITIES).toBe(BUILTIN_MARKER_IDENTITIES);
     expect(schemaFacade.BUILTIN_MARKER_DOT_KEY_ALIASES).toBe(BUILTIN_MARKER_DOT_KEY_ALIASES);
+    expect(schemaFacade.BUILTIN_MARKER_ID_ALIASES).toBe(BUILTIN_MARKER_ID_ALIASES);
     expect(schemaFacade.getBuiltinMarkerId).toBe(getBuiltinMarkerId);
     expect(schemaFacade.getBuiltinMarkerDotKey).toBe(getBuiltinMarkerDotKey);
     expect(schemaFacade.resolveBuiltinMarkerDotKey).toBe(resolveBuiltinMarkerDotKey);
@@ -100,6 +112,8 @@ describe('stable built-in marker identity contract', () => {
           'lipids.totalCholesterol': 4.8,
           'lipids.hdlCholesterol': 1.4,
           'lipids.cholHdlRatio': 3.4,
+          'hormones.insulin': 7.2,
+          'diabetes.insulin_d': 7.2,
         },
       }],
       customMarkers: {
@@ -111,6 +125,15 @@ describe('stable built-in marker identity contract', () => {
       refOverrides: { 'lipids.hdlCholesterol': { refMin: 1 } },
       manualValues: { 'hormones.cPeptide:2026-01-15': true },
       markerValueNotes: { 'lipids.cholHdlRatio:2026-01-15': 'Calculated by lab' },
+      markerPlacements: { 'gb:marker:insulin_d': { categoryKey: 'biochemistry' } },
+      importSnapshots: [{
+        id: 'legacy-alias-snapshot',
+        date: '2026-01-15',
+        markers: [
+          { mappedKey: 'hormones.insulin', suggestedKey: null, matched: true },
+          { mappedKey: null, suggestedKey: 'lipids.cholHdlRatio', matched: false },
+        ],
+      }],
     };
 
     const migrated = migrateProfileData(structuredClone(legacyProfile));
@@ -122,6 +145,7 @@ describe('stable built-in marker identity contract', () => {
       'lipids.cholesterol': 4.8,
       'lipids.hdl': 1.4,
       'calculatedRatios.cholHdlRatio': 3.4,
+      'diabetes.insulin': 7.2,
     });
     expect(Object.keys(markers).some(key => key in BUILTIN_MARKER_DOT_KEY_ALIASES)).toBe(false);
     expect(migrated.customMarkers['hormones.cPeptide']).toBeUndefined();
@@ -132,6 +156,13 @@ describe('stable built-in marker identity contract', () => {
     expect(migrated.manualValues['diabetes.cPeptide:2026-01-15']).toBe(true);
     expect(migrated.markerValueNotes['calculatedRatios.cholHdlRatio:2026-01-15'])
       .toBe('Calculated by lab');
+    expect(migrated.markerPlacements).toEqual({
+      'gb:marker:insulin': { categoryKey: 'biochemistry' },
+    });
+    expect(migrated.importSnapshots[0].markers).toMatchObject([
+      { mappedKey: 'diabetes.insulin', suggestedKey: null, matched: true },
+      { mappedKey: 'calculatedRatios.cholHdlRatio', suggestedKey: null, matched: true },
+    ]);
   });
 
   it('reserves a separate opaque identity namespace for future custom-marker adoption', () => {

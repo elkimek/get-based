@@ -40,8 +40,10 @@ const dataSrc = read('js/data.js');
 assert('PhenoAge uses SI albumin directly', dataSrc.includes('0.0336  * albumin_si'));
 assert('PhenoAge uses SI creatinine directly', dataSrc.includes('0.0095  * creatinine_si'));
 assert('PhenoAge uses SI glucose directly', dataSrc.includes('0.1953  * glucose_si'));
-assert('PhenoAge uses SI lymphocytes directly', dataSrc.includes('0.0120  * lymphPct_si'));
-assert('PhenoAge uses SI ALP directly', dataSrc.includes('0.00188 * alp_si'));
+assert('PhenoAge converts lymphocyte fraction to the published percent input',
+  dataSrc.includes('const lymphPct = lymphPct_si * 100') && dataSrc.includes('0.0120  * lymphPct'));
+assert('PhenoAge converts ALP from µkat/L to the published U/L input',
+  dataSrc.includes('const alp_ul = alp_si * 60') && dataSrc.includes('0.00188 * alp_ul'));
 
 // ═══════════════════════════════════════
 // 2. Service Worker registration (CRITICAL)

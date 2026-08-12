@@ -157,6 +157,44 @@ test('hard-refreshed category view opens a marker card before any Dashboard mark
   await expect(page.locator('#modal-overlay')).toHaveClass(/show/);
   await expect(page.locator('#detail-modal')).toHaveClass(/marker-detail-modal/);
   await expect(page.locator('#detail-modal')).toHaveAttribute('data-sync-refresh-item-id', markerId);
+  const rangeSuggestion = page.locator('#detail-modal .marker-range-suggest');
+  await expect(rangeSuggestion).toHaveText(/Suggest a better range/);
+  const suggestionHref = await rangeSuggestion.getAttribute('href');
+  const suggestionUrl = new URL(suggestionHref);
+  expect(suggestionUrl.pathname).toBe('/elkimek/get-based/issues/new');
+  expect(suggestionUrl.searchParams.get('body')).toContain('## Built-in marker');
+  expect(suggestionUrl.searchParams.get('body')).not.toContain('1987-11-22');
+
+  const rangeSuggestionGating = await page.evaluate(async () => {
+    const [{ state }, dataModule, modalModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/marker-detail-modal.js'),
+    ]);
+    const dotKey = 'biochemistry.glucose';
+    const id = 'biochemistry_glucose';
+    state.importedData.refOverrides ||= {};
+    state.importedData.refOverrides[dotKey] = { refMin: 3.9, refMax: 5.5, refSource: 'import' };
+    dataModule.invalidateActiveDataCache();
+    await modalModule.showDetailModal(id);
+    const hiddenForLabRange = !document.querySelector('#detail-modal .marker-range-suggest');
+
+    state.importedData.refOverrides[dotKey] = { optimalMin: 4.4, optimalMax: 5.0, optimalSource: 'manual' };
+    dataModule.invalidateActiveDataCache();
+    await modalModule.showDetailModal(id);
+    const hiddenForManualOptimal = !document.querySelector('#detail-modal .marker-range-suggest');
+
+    delete state.importedData.refOverrides[dotKey];
+    dataModule.invalidateActiveDataCache();
+    await modalModule.showDetailModal(id);
+    const restoredForBuiltIn = !!document.querySelector('#detail-modal .marker-range-suggest');
+    return { hiddenForLabRange, hiddenForManualOptimal, restoredForBuiltIn };
+  });
+  expect(rangeSuggestionGating).toEqual({
+    hiddenForLabRange: true,
+    hiddenForManualOptimal: true,
+    restoredForBuiltIn: true,
+  });
 });
 
 test('marker detail lazy facade forwards its complete editing contract', async ({ page }) => {
@@ -1257,21 +1295,36 @@ test('marker detail modal covers default deps descriptions alt units and bio age
 
       await modal.openManualEntryForm(albuminId, '2026-06-02');
       await wait(70);
+      outcomes.manualEntryExposesStructuredDrawContext =
+        document.getElementById('me-sample-time')?.getAttribute('type') === 'time'
+        && document.getElementById('me-fasting')?.value === 'unknown'
+        && document.getElementById('detail-modal')?.textContent.includes('not the lab processing or report time');
       document.getElementById('me-value').value = '43';
+      document.getElementById('me-sample-time').value = '07:35';
+      document.getElementById('me-fasting').value = 'fasting';
       await modal.saveManualEntry(albuminId, { keepOpen: true });
       await wait(20);
+      const structuredContextEntry = state.importedData.entries.find(entry => entry.date === '2026-06-02');
       outcomes.keepOpenManualSaveRunsDefaultSidebarAndFormCallbacks =
         calls.some(call => call[0] === 'sidebar')
         && calls.some(call => call[0] === 'navigate')
-        && document.getElementById('me-date')?.value === '2026-06-02';
+        && document.getElementById('me-date')?.value === '2026-06-02'
+        && document.getElementById('me-sample-time')?.value === '07:35'
+        && document.getElementById('me-fasting')?.value === 'fasting'
+        && structuredContextEntry?.context?.sampleTime === '07:35'
+        && structuredContextEntry?.context?.fasting === true;
 
       document.getElementById('me-date').value = '2026-06-03';
+      document.getElementById('me-date').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('me-value').value = '44';
       await modal.saveManualEntry(albuminId);
       await wait(80);
       outcomes.closingManualSaveRunsDefaultCloseCallback =
         !document.getElementById('modal-overlay')?.classList.contains('show')
-        || document.getElementById('detail-modal')?.textContent.includes('Albumin renamed') === true;
+        || (document.getElementById('detail-modal')?.textContent.includes('Albumin renamed') === true
+          && document.getElementById('detail-modal')?.textContent.includes('Collected 07:35 · fasting') === true);
+      outcomes.markerHistoryExposesCollectionContext =
+        document.getElementById('detail-modal')?.textContent.includes('Collected 07:35 · fasting') === true;
 
       state.importedData.entries = [{
         date: '2026-06-10',

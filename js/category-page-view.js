@@ -233,7 +233,11 @@ export function showCategory(categoryKey, preData) {
   else if (cat.singleDate) { renderFattyAcidsCharts(cat); }
   else {
     for (const [key, marker] of withData) {
-      createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels);
+      createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
+        displayLabels: data.phaseDisplayLabels,
+        cycleDays: data.phaseCycleDays,
+        sources: data.phaseSources,
+      });
     }
   }
   void loadChartCardRecs();
@@ -301,7 +305,11 @@ export function switchView(view, categoryKey, btn) {
       html += renderMarkerDataGapSections(allEntries, rawCat, categoryKey);
       container.innerHTML = html;
       for (const [key, marker] of withData) {
-        createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels);
+        createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
+          displayLabels: data.phaseDisplayLabels,
+          cycleDays: data.phaseCycleDays,
+          sources: data.phaseSources,
+        });
       }
       void loadChartCardRecs();
     }

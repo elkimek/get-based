@@ -65,6 +65,7 @@ import {
   handlePDFFileWorkflow,
 } from './pdf-import-file-handlers.js';
 import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
+import { normalizeLabFastingStatus, normalizeLabSampleTime } from './lab-entry.js';
 
 const pdfImportDeps = {
   importDataJSON,
@@ -94,6 +95,7 @@ export { extractXLSXText } from './pdf-import-spreadsheet.js';
 export {
   showImportPreview,
   applyManualImportDate,
+  applyManualImportCollectionContext,
   mapUnmatchedMarker,
   mapUnmatchedMarkerInput,
   setImportReviewFilter,
@@ -232,6 +234,8 @@ Don't limit yourself just to the examples and languages provided. Always transla
 Your task:
 1. Find the sample collection date in the text. Return it as YYYY-MM-DD. Look for dates near keywords like "collection", "collected", "date", "odběr", "datum", or similar in any language.
 ${dateHint}
+   - Also return sampleTime as HH:MM (24-hour time) only when the report explicitly labels a collection, draw, or specimen time. Never substitute received, accessioned, processed, analyzed, result, or report time. Return null if the collection time is absent or ambiguous.
+   - Return fasting as true only when the report explicitly says fasting/fasted or uses an explicit fasting-specimen label such as fS-. Return false only when it explicitly says non-fasting. Do not infer fasting from the clock time, the tests ordered, or a glucose result; return null when unknown.
 2. For each biomarker result found in the text, extract:
    - rawName: the test name exactly as it appears in the PDF
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
@@ -281,6 +285,8 @@ Return ONLY valid JSON in this exact format, no other text:
 {
   "testType": "blood",
   "date": "YYYY-MM-DD",
+  "sampleTime": "08:30",
+  "fasting": true,
   "markers": [
     {"rawName": "Test Name", "value": 5.23, "mappedKey": "category.marker", "unit": "mg/dL", "refMin": 70, "refMax": 100},
     {"rawName": "Unknown Test", "value": 1.0, "mappedKey": null, "suggestedKey": "oatMicrobial.someMarker", "suggestedName": "Some Marker", "suggestedCategoryLabel": "Microbial Overgrowth", "suggestedGroup": "OAT", "unit": "mg/l", "refMin": 0.5, "refMax": 3.0},
@@ -342,6 +348,8 @@ Return ONLY valid JSON in this exact format, no other text:
   const parsed = tryParseJSON(jsonStr);
   const rawModelResult = options.captureRawModelOutput ? {
     date: parsed.date || null,
+    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
+    fasting: normalizeLabFastingStatus(parsed.fasting),
     testType: parsed.testType || 'blood',
     markers: Array.isArray(parsed.markers)
       ? parsed.markers.map(marker => ({ ...marker }))
@@ -358,6 +366,8 @@ Return ONLY valid JSON in this exact format, no other text:
   });
   return {
     date: parsed.date || null,
+    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
+    fasting: normalizeLabFastingStatus(parsed.fasting),
     testType,
     markers,
     fileName,
@@ -461,6 +471,8 @@ Don't limit yourself just to the examples and languages provided. Always transla
 Your task:
 1. Read the lab report page images carefully. Find the sample collection date. Return it as YYYY-MM-DD.
 ${dateHint}
+   - Also return sampleTime as HH:MM (24-hour time) only when the report explicitly labels a collection, draw, or specimen time. Never substitute received, accessioned, processed, analyzed, result, or report time. Return null if the collection time is absent or ambiguous.
+   - Return fasting as true only when the report explicitly says fasting/fasted or uses an explicit fasting-specimen label such as fS-. Return false only when it explicitly says non-fasting. Do not infer fasting from the clock time, the tests ordered, or a glucose result; return null when unknown.
 2. For each biomarker result found, extract:
    - rawName: the test name exactly as it appears
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
@@ -478,6 +490,8 @@ Return ONLY valid JSON in this exact format:
 {
   "testType": "blood",
   "date": "YYYY-MM-DD",
+  "sampleTime": null,
+  "fasting": null,
   "markers": [
     {"rawName": "Test Name", "value": 5.23, "mappedKey": "category.marker", "unit": "mg/dL", "refMin": 70, "refMax": 100}
   ]
@@ -544,6 +558,8 @@ Return ONLY valid JSON in this exact format:
   });
   return {
     date: parsed.date || null,
+    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
+    fasting: normalizeLabFastingStatus(parsed.fasting),
     testType,
     markers,
     fileName,

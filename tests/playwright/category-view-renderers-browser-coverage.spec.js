@@ -6,7 +6,7 @@ async function openBlankPage(page) {
   await page.route('**/category-view-renderers-browser-coverage', route => route.fulfill({
     status: 200,
     contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+    body: '<!doctype html><html><head><link rel="stylesheet" href="/css/category-views.css"></head><body><main id="fixture"></main></body></html>',
   }));
   await page.goto('/category-view-renderers-browser-coverage', { waitUntil: 'load' });
 }
@@ -109,6 +109,61 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && phaseCard.querySelector('.chart-card-range-row > span')?.textContent === 'Luteal range'
         && phaseCard.querySelector('.chart-card-range-row > strong')?.textContent === '20 – 30 nmol/L'
         && phaseCard.querySelector('.chart-card-main')?.getAttribute('aria-label')?.includes('Luteal range 20 – 30 nmol/L');
+
+      state.rangeMode = 'reference';
+      const guidanceMarker = {
+        name: 'FIB-4 Index', unit: '', values: [1.7], refMin: 0, refMax: 1.3,
+        rangePolicy: 'guidance', contextRefRanges: [{ min: 0, max: 2 }],
+        contextRangeLabels: ['AASLD threshold (65+)'],
+      };
+      fixture.innerHTML = renderers.renderChartCard('calculatedRatios_fib4Index', guidanceMarker, ['May 2026'], ['2026-05-20']);
+      const guidanceCard = fixture.querySelector('.chart-card');
+      const guidanceCardOk =
+        guidanceCard?.classList.contains('chart-card-normal')
+        && guidanceCard.querySelector('.chart-card-status')?.textContent.includes('Normal')
+        && guidanceCard.querySelector('.chart-card-range-row > span')?.textContent === 'AASLD threshold (65+)'
+        && guidanceCard.querySelector('.chart-card-range-row > strong')?.textContent === '0 – 2';
+      outcomes.chartCardLabelsContextualGuidanceWithoutCallingItALabReference = guidanceCardOk || {
+        className: guidanceCard?.className,
+        status: guidanceCard?.querySelector('.chart-card-status')?.textContent,
+        label: guidanceCard?.querySelector('.chart-card-range-row > span')?.textContent,
+        value: guidanceCard?.querySelector('.chart-card-range-row > strong')?.textContent,
+      };
+
+      state.rangeMode = 'both';
+      const datedOptimalMarker = {
+        name: 'Testosterone', unit: 'nmol/L', values: [12], refMin: 8.64, refMax: 29,
+        optimalMin: 15, optimalMax: 25,
+        contextOptimalRanges: [{ min: 9.8, max: 15.8 }],
+        contextOptimalRangeLabels: ['Lower-mortality cohort band (70–89)'],
+      };
+      fixture.innerHTML = renderers.renderChartCard('hormones_testosterone', datedOptimalMarker, ['May 2026'], ['2026-05-20']);
+      const datedOptimalRows = [...fixture.querySelectorAll('.chart-card-range-row')];
+      const datedOptimalOk = datedOptimalRows.length === 2
+        && datedOptimalRows[0].querySelector('span')?.textContent === 'Reference'
+        && datedOptimalRows[0].querySelector('strong')?.textContent === '8.64 – 29 nmol/L'
+        && datedOptimalRows[1].querySelector('span')?.textContent === 'Lower-mortality cohort band (70–89)'
+        && datedOptimalRows[1].querySelector('strong')?.textContent === '9.80 – 15.8 nmol/L';
+      outcomes.chartCardShowsDatedOptimalGuidanceBesideReference = datedOptimalOk || {
+        rows: datedOptimalRows.map(row => ({
+          label: row.querySelector('span')?.textContent,
+          value: row.querySelector('strong')?.textContent,
+        })),
+      };
+
+      fixture.style.width = '240px';
+      fixture.innerHTML = renderers.renderChartCard('calculatedRatios_crpHdlRatio', {
+        name: 'hs-CRP/HDL-C Ratio', unit: '', values: [0.0001, 2], refMin: 0, refMax: 0.05,
+      }, ['April 2026', 'May 2026'], ['2026-04-20', '2026-05-20']);
+      const narrowCard = fixture.querySelector('.chart-card');
+      const narrowTrend = narrowCard?.querySelector('.chart-card-trend');
+      const narrowCardRect = narrowCard?.getBoundingClientRect();
+      const narrowTrendRect = narrowTrend?.getBoundingClientRect();
+      outcomes.chartCardContainsLargeTrendPercentageAtNarrowWidth =
+        narrowTrend?.textContent?.includes('%')
+        && narrowTrendRect.left >= narrowCardRect.left
+        && narrowTrendRect.right <= narrowCardRect.right + 0.5;
+      fixture.style.width = '';
 
       const unratedMarker = { name: 'Unrated', unit: 'u', values: [1.2], refMin: null, refMax: null };
       fixture.innerHTML = renderers.renderChartCard('custom_unrated', unratedMarker, ['May 2026'], ['2026-05-20']);
@@ -276,6 +331,9 @@ test('category view renderers browser coverage exercises chart table heatmap and
   const expectedOutcomeKeys = [
     'chartCardEscapesMarkerStoresRegistryAndShowsLatest',
     'chartCardStatusAndDisplayedRangeUseSamePhaseBounds',
+    'chartCardLabelsContextualGuidanceWithoutCallingItALabReference',
+    'chartCardShowsDatedOptimalGuidanceBesideReference',
+    'chartCardContainsLargeTrendPercentageAtNarrowWidth',
     'chartCardDoesNotCallAValueNormalWithoutARange',
     'chartCardDisambiguatesMultipleResultsInTheSameMonth',
     'chartCardRejectsUnsafeIds',

@@ -68,7 +68,7 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
 
     outcomes.safeMarkerIdAcceptsStrictMarkerIds = [
       'biochemistry.glucose',
-      'diabetes.insulin_d',
+      'diabetes.insulin_legacy',
       'biochemistry_glucose',
       'metabolomix.5_h_indoleacetic_acid',
       'cat_marker_with_underscores',
@@ -101,7 +101,7 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
     outcomes.sanitizeMarkerKeyCleansAllowedPartsAndRejectsUnsafeShapes =
       utils.sanitizeMarkerKey('biochemistry.glucose') === 'biochemistry.glucose'
       && utils.sanitizeMarkerKey("bio'chem.glu cose") === 'biochem.glucose'
-      && utils.sanitizeMarkerKey('diabetes.insulin_d') === 'diabetes.insulin_d'
+      && utils.sanitizeMarkerKey('diabetes.insulin_legacy') === 'diabetes.insulin_legacy'
       && [
         'biochemistryglucose',
         '.glucose',

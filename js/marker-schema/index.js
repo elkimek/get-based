@@ -16,6 +16,7 @@ import { HEMATOLOGY_CATEGORY } from './hematology.js';
 import { DIFFERENTIAL_CATEGORY } from './differential.js';
 import { BONE_METABOLISM_CATEGORY } from './bone-metabolism.js';
 import { URINALYSIS_CATEGORY } from './urinalysis.js';
+import { CARDIAC_CATEGORY } from './cardiac.js';
 import { BODY_COMPOSITION_CATEGORY } from './body-composition.js';
 import { BONE_DENSITY_CATEGORY } from './bone-density.js';
 import { CALCULATED_RATIOS_CATEGORY } from './calculated-ratios.js';
@@ -40,6 +41,7 @@ export const MARKER_SCHEMA = {
   differential: DIFFERENTIAL_CATEGORY,
   boneMetabolism: BONE_METABOLISM_CATEGORY,
   urinalysis: URINALYSIS_CATEGORY,
+  cardiac: CARDIAC_CATEGORY,
   bodyComposition: BODY_COMPOSITION_CATEGORY,
   boneDensity: BONE_DENSITY_CATEGORY,
   calculatedRatios: CALCULATED_RATIOS_CATEGORY,

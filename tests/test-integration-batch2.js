@@ -93,17 +93,19 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
     for (const [mKey, marker] of Object.entries(cat.markers || {})) {
       const fullKey = `${catKey}.${mKey}`;
-      if (marker.refMin != null && marker.refMax != null && marker.refMin >= marker.refMax) {
+      if (marker.refMin != null && marker.refMax != null
+        && (marker.refMin > marker.refMax || (marker.refMin === marker.refMax && marker.rangePolicy !== 'target'))) {
         schemaErrors++;
         console.error(`Schema: ${fullKey} refMin ${marker.refMin} >= refMax ${marker.refMax}`);
       }
-      if (marker.refMin_f != null && marker.refMax_f != null && marker.refMin_f >= marker.refMax_f) {
+      if (marker.refMin_f != null && marker.refMax_f != null
+        && (marker.refMin_f > marker.refMax_f || (marker.refMin_f === marker.refMax_f && marker.rangePolicy !== 'target'))) {
         schemaErrors++;
         console.error(`Schema: ${fullKey} refMin_f ${marker.refMin_f} >= refMax_f ${marker.refMax_f}`);
       }
     }
   }
-  assert('All ref ranges valid (min < max)', schemaErrors === 0, `${schemaErrors} errors`);
+  assert('All ref ranges valid (min < max, or exact target)', schemaErrors === 0, `${schemaErrors} errors`);
 
   // Optimal ranges consistency
   let optErrors = 0;
@@ -114,6 +116,16 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     }
   }
   assert('All optimal ranges valid (min < max)', optErrors === 0, `${optErrors} errors`);
+  assert('Evidence-audited adequacy and lower-risk bands remain explicit',
+    OPTIMAL_RANGES['biochemistry.bicarbonate']?.optimalMin === 22
+      && OPTIMAL_RANGES['biochemistry.bicarbonate']?.optimalMax === 26
+      && OPTIMAL_RANGES['electrolytes.selenium']?.optimalMin === 1.01
+      && OPTIMAL_RANGES['electrolytes.selenium']?.optimalMax === 1.65
+      && OPTIMAL_RANGES['vitamins.vitaminB6']?.optimalMin === 30
+      && OPTIMAL_RANGES['vitamins.vitaminB6']?.optimalMax === 125
+      && OPTIMAL_RANGES['vitamins.vitaminC']?.optimalMin === 50
+      && OPTIMAL_RANGES['vitamins.vitaminC']?.optimalMax === 114
+      && OPTIMAL_RANGES['calculatedRatios.crpHdlRatio']?.optimalMax === 0.02);
 
   // ═══════════════════════════════════════
   // 6. CSS checks
@@ -320,14 +332,18 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     // mmol/l electrolytes (= mEq/L for monovalent ions)
     'electrolytes.sodium', 'electrolytes.potassium', 'electrolytes.chloride',
     // Same unit in US
-    'hormones.shbg', 'hormones.insulin', 'hormones.lh', 'hormones.fsh',
+    'hormones.shbg', 'hormones.lh', 'hormones.fsh',
     'thyroid.tsh',
     'proteins.hsCRP', 'biochemistry.cystatinC', 'biochemistry.gfrCystatin',
+    'biochemistry.bicarbonate', 'biochemistry.osmolality',
     'coagulation.homocysteine', 'coagulation.fibrinogen', 'coagulation.dDimer',
+    'coagulation.pt', 'coagulation.inr', 'coagulation.aptt',
     'biochemistry.lactate', 'biochemistry.pyruvate',
     'iron.solubleTransferrinReceptor', 'proteins.neurofilamentLight',
-    'thyroid.reverseT3', 'thyroid.tpoAb', 'thyroid.tgAb',
+    'proteins.esr', 'hormones.renin',
+    'thyroid.reverseT3', 'thyroid.tpoAb', 'thyroid.tgAb', 'thyroid.trab',
     'vitamins.methylmalonicAcid', 'diabetes.fructosamine', 'calculatedRatios.cholHdlRatio',
+    'vitamins.vitaminB1', 'vitamins.vitaminB6',
     // Unitless or % — no conversion
     'hormones.fai', 'hormones.freeTestosteronePercentage', 'hormones.bioactiveTestosteronePercentage',
     'iron.transferrinSat',
@@ -336,19 +352,23 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'hematology.rdwcv', 'hematology.hematocrit',
     'calculatedRatios.tgHdlRatio', 'calculatedRatios.ldlHdlRatio',
     'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.nlr',
-    'calculatedRatios.plr', 'calculatedRatios.deRitisRatio',
+    'calculatedRatios.plr', 'calculatedRatios.mlr', 'calculatedRatios.deRitisRatio',
     'calculatedRatios.copperZincRatio', 'calculatedRatios.bunCreatRatio',
     'calculatedRatios.freeWaterDeficit', 'calculatedRatios.crpHdlRatio',
+    'calculatedRatios.atherogenicIndexPlasma', 'calculatedRatios.tygIndex',
+    'calculatedRatios.albuminGlobulinRatio', 'calculatedRatios.fib4Index',
+    'calculatedRatios.systemicImmuneInflammationIndex', 'calculatedRatios.anionGap',
     'calculatedRatios.phenoAge', 'calculatedRatios.bortzAge', 'calculatedRatios.biologicalAge',
     // Standard units same in US (fl, pg, 10^9/l, 10^12/l, %)
     'hematology.wbc', 'hematology.rbc', 'hematology.mcv', 'hematology.mch',
     'hematology.platelets', 'hematology.mpv', 'hematology.pdw', 'hematology.pct',
+    'hematology.reticulocytes', 'hematology.reticulocytesPct', 'hematology.immatureGranulocytes',
     'differential.neutrophils', 'differential.lymphocytes',
     'differential.monocytes', 'differential.eosinophils', 'differential.basophils',
     // eGFR (ml/s vs ml/min is display convention, not a conversion)
     'biochemistry.egfr',
-    // Diabetes (insulin_d mirrors hormones.insulin, homaIR is unitless)
-    'diabetes.insulin_d', 'diabetes.homaIR',
+    // Glucose and insulin metabolism (HOMA-IR is unitless)
+    'diabetes.insulin', 'diabetes.homaIR',
     // CRP (mg/l same unit US/SI)
     'proteins.crp',
     // Urinalysis (unitless)

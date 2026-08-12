@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
-import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './marker-analysis.js';
+import { getContextOptimalEnvelope, getContextRefEnvelope, getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getPhaseRefEnvelope } from './marker-analysis.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
 import { getSupplementsOverlappingRange, localDateKey } from './supplement-medication-domain.js';
 import {
@@ -23,14 +23,18 @@ let _chartJsLoad = null;
 let _chartDateAdapterLoad = null;
 
 /**
- * Keep Chart.js floating-point tick artifacts out of user-facing labels.
+ * Keep the navigational y-axis compact. This changes only tick labels; marker
+ * values, tooltips, exports, and model context retain their own precision.
  * @param {unknown} value
  * @returns {string}
  */
 export function formatChartTickValue(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return String(value ?? '');
-  return String(Number(numeric.toPrecision(12)));
+  const magnitude = Math.abs(numeric);
+  const maxFractionDigits = magnitude >= 10 ? 1 : magnitude >= 1 ? 2 : 3;
+  const rounded = Number(numeric.toFixed(maxFractionDigits));
+  return String(Object.is(rounded, -0) ? 0 : rounded);
 }
 
 export function isChartDateAdapterReady() {
@@ -422,63 +426,61 @@ export const supplementBarPlugin = {
   }
 };
 
-// Chart.js plugin for cycle phase background bands
+// Chart.js plugin for cycle phase tags tied to actual blood-draw observations.
+// Broad background columns made sparse lab dates look like continuous cycle
+// coverage, so the overlay now annotates only the measured points.
 export const phaseBandPlugin = {
   id: 'phaseBands',
-  beforeDraw(chart) {
+  afterDatasetsDraw(chart) {
     const cfg = chart.options.plugins.phaseBands;
     if (!cfg?.phases?.length || !cfg?.chartDates?.length) return;
     const { ctx, chartArea, scales: { x } } = chart;
     if (!x || !chartArea) return;
-    const { top, bottom } = chartArea;
+    const { top } = chartArea;
     const colors = {
-      menstrual:  'rgba(239, 68, 68, 0.08)',
-      follicular: 'rgba(59, 130, 246, 0.08)',
-      ovulatory:  'rgba(168, 85, 247, 0.08)',
-      luteal:     'rgba(245, 158, 11, 0.08)'
-    };
-    const labelColors = {
-      menstrual:  'rgba(239, 68, 68, 0.6)',
-      follicular: 'rgba(59, 130, 246, 0.6)',
-      ovulatory:  'rgba(168, 85, 247, 0.6)',
-      luteal:     'rgba(245, 158, 11, 0.6)'
+      menstrual:  'rgba(239, 68, 68, 0.88)',
+      follicular: 'rgba(59, 130, 246, 0.88)',
+      ovulatory:  'rgba(168, 85, 247, 0.88)',
+      luteal:     'rgba(245, 158, 11, 0.9)'
     };
     const phaseLetters = { menstrual: 'M', follicular: 'F', ovulatory: 'O', luteal: 'L' };
     const phases = cfg.phases;
     const chartDates = cfg.chartDates;
     const toTs = d => new Date(d + 'T00:00:00').getTime();
     ctx.save();
-    for (let i = 0; i < phases.length; i++) {
-      if (!phases[i] || !colors[phases[i]] || !chartDates[i]) continue;
-      const px = x.getPixelForValue(toTs(chartDates[i]));
-      const prevPx = i > 0 && chartDates[i - 1] ? x.getPixelForValue(toTs(chartDates[i - 1])) : null;
-      const nextPx = i < phases.length - 1 && chartDates[i + 1] ? x.getPixelForValue(toTs(chartDates[i + 1])) : null;
-      const left = prevPx != null ? (px + prevPx) / 2 : chartArea.left;
-      const right = nextPx != null ? (px + nextPx) / 2 : chartArea.right;
-      ctx.fillStyle = colors[phases[i]];
-      ctx.fillRect(left, top, right - left, bottom - top);
-    }
-    // Phase labels at top
-    ctx.font = '9px Inter, sans-serif';
+    ctx.font = '600 9px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = 'middle';
     for (let i = 0; i < phases.length; i++) {
-      if (!phases[i] || !chartDates[i]) continue;
-      if (i > 0 && phases[i] === phases[i - 1]) continue;
+      const phase = String(phases[i] || '').toLowerCase();
+      if (!phase || !colors[phase] || !chartDates[i] || cfg.observed?.[i] === false) continue;
       const px = x.getPixelForValue(toTs(chartDates[i]));
-      ctx.fillStyle = labelColors[phases[i]] || 'rgba(150,150,150,0.6)';
-      ctx.fillText(phaseLetters[phases[i]] || '', px, top + 2);
+      const cycleDay = Number(cfg.cycleDays?.[i]);
+      const text = Number.isInteger(cycleDay) && cycleDay > 0
+        ? `${phaseLetters[phase]} · D${cycleDay}`
+        : phaseLetters[phase];
+      if (!Number.isFinite(px)) continue;
+      const width = Math.ceil(ctx.measureText(text).width) + 10;
+      const height = 16;
+      const left = Math.max(chartArea.left, Math.min(px - width / 2, chartArea.right - width));
+      const y = top - height - 2;
+      ctx.fillStyle = colors[phase];
+      ctx.beginPath();
+      ctx.roundRect(left, y, width, height, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(text, left + width / 2, y + height / 2 + 0.5);
     }
     ctx.restore();
   }
 };
 
-export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels) {
+export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels, phaseMetadata = {}) {
   const canvas = document.getElementById("chart-" + id);
   if (!canvas) return;
   if (!hasChartRuntime()) {
     ensureChartJs().then(() => {
-      if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels);
+      if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels, phaseMetadata);
     }).catch(() => {});
     return;
   }
@@ -493,7 +495,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   const useTimeScale = !!timelineBounds;
   if (useTimeScale && !isChartDateAdapterReady()) {
     ensureChartJs().then(() => {
-      if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels);
+      if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels, phaseMetadata);
     }).catch(() => {});
     return;
   }
@@ -509,6 +511,11 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
       dates = dates.slice(first, last + 1);
       if (chartDates) chartDates = chartDates.slice(first, last + 1);
       if (phaseLabels) phaseLabels = phaseLabels.slice(first, last + 1);
+      phaseMetadata = {
+        displayLabels: phaseMetadata.displayLabels?.slice(first, last + 1),
+        cycleDays: phaseMetadata.cycleDays?.slice(first, last + 1),
+        sources: phaseMetadata.sources?.slice(first, last + 1),
+      };
     }
   }
 
@@ -524,11 +531,12 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
     });
   }
   const allValid = chronoAgeValues ? [...valid, ...chronoAgeValues.filter(v => v !== null)] : valid;
-  const envelope = getPhaseRefEnvelope(marker);
+  const envelope = getPhaseRefEnvelope(marker) || getContextRefEnvelope(marker);
+  const optimalEnvelope = getContextOptimalEnvelope(marker);
   const refMinSafe = envelope ? Math.min(marker.refMin != null ? marker.refMin : Infinity, envelope.min) : (marker.refMin != null ? marker.refMin : Infinity);
   const refMaxSafe = envelope ? Math.max(marker.refMax != null ? marker.refMax : -Infinity, envelope.max) : (marker.refMax != null ? marker.refMax : -Infinity);
-  const optMinSafe = marker.optimalMin != null ? marker.optimalMin : Infinity;
-  const optMaxSafe = marker.optimalMax != null ? marker.optimalMax : -Infinity;
+  const optMinSafe = Math.min(marker.optimalMin != null ? marker.optimalMin : Infinity, optimalEnvelope?.min ?? Infinity);
+  const optMaxSafe = Math.max(marker.optimalMax != null ? marker.optimalMax : -Infinity, optimalEnvelope?.max ?? -Infinity);
   const minV = Math.min(...allValid, refMinSafe, optMinSafe);
   const maxV = Math.max(...allValid, refMaxSafe, optMaxSafe);
   const pad = (maxV - minV) * 0.15 || 1;
@@ -586,13 +594,26 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
     options: { responsive:true, maintainAspectRatio:false,
       plugins: { legend:{ display: isPhenoAge && chronoAgeValues ? true : false, labels: { color: tc.legendColor, font: { size: 11 }, boxWidth: 20, padding: 10 } },
         tooltip:{ backgroundColor:tc.tooltipBg, titleColor:tc.tooltipTitle, bodyColor:tc.tooltipBody, borderColor:tc.tooltipBorder, borderWidth:1,
-          callbacks:{ label:(c)=>`${c.dataset.label ? c.dataset.label + ': ' : ''}${formatValue(c.parsed.y)} ${marker.unit}`, afterLabel:(c)=> { if (c.datasetIndex !== 0) return ''; const di = c.dataIndex; const oi = di + trimOffset; const pr = getEffectiveRangeForDate(marker, oi); const phaseLabel = marker.phaseLabels && marker.phaseLabels[oi]; const lines = []; if (phaseLabel) lines.push(`Phase: ${phaseLabel}`); if (pr.min != null || pr.max != null) { const rl = phaseLabel ? 'Phase ref' : (state.rangeMode === 'optimal' && marker.optimalMin != null ? 'Optimal' : 'Ref'); const rMin = pr.min != null ? formatValue(pr.min) : '–'; const rMax = pr.max != null ? formatValue(pr.max) : '–'; lines.push(`${rl}: ${rMin} \u2013 ${rMax}`); } return lines.join('\n'); } }},
-        refBand: (() => { const env = getPhaseRefEnvelope(marker); if (state.rangeMode === 'both') return { refMin: marker.refMin, refMax: marker.refMax }; if (env) return { refMin: env.min, refMax: env.max }; return { refMin: chartRange.min, refMax: chartRange.max }; })(),
-        optimalBand: state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) ? { optimalMin: marker.optimalMin, optimalMax: marker.optimalMax } : false,
+          callbacks:{ label:(c)=>`${c.dataset.label ? c.dataset.label + ': ' : ''}${formatValue(c.parsed.y)} ${marker.unit}`, afterLabel:(c)=> { if (c.datasetIndex !== 0) return ''; const di = c.dataIndex; const oi = di + trimOffset; const pr = getEffectiveRangeForDate(marker, oi); const phaseLabel = marker.phaseDisplayLabels?.[oi] || phaseMetadata.displayLabels?.[di] || marker.phaseLabels?.[oi] || phaseLabels?.[di]; const cycleDay = marker.phaseCycleDays?.[oi] ?? phaseMetadata.cycleDays?.[di]; const phaseSource = marker.phaseSources?.[oi] || phaseMetadata.sources?.[di]; const rangeLabel = getEffectiveRangeLabelForDate(marker, oi); const lines = []; if (phaseLabel) { const dayText = Number.isInteger(Number(cycleDay)) && Number(cycleDay) > 0 ? ` · cycle day ${cycleDay}` : ''; const sourceText = phaseSource === 'recorded' ? ' (recorded)' : phaseSource === 'predicted' ? ' (predicted)' : ''; lines.push(`Draw phase: ${phaseLabel}${dayText}${sourceText}`); } if (pr.min != null || pr.max != null) { const rMin = pr.min != null ? formatValue(pr.min) : '–'; const rMax = pr.max != null ? formatValue(pr.max) : '–'; lines.push(`${rangeLabel}: ${rMin} \u2013 ${rMax}`); } else if (marker.contextRefRanges?.[oi] || marker.contextOptimalRanges?.[oi]) { lines.push(`${rangeLabel}: not set`); } return lines.join('\n'); } }},
+        refBand: (() => {
+          const refEnv = getPhaseRefEnvelope(marker) || getContextRefEnvelope(marker);
+          const optEnv = getContextOptimalEnvelope(marker);
+          if (state.rangeMode === 'optimal' && marker.contextOptimalRanges) return optEnv ? { refMin: optEnv.min, refMax: optEnv.max } : { refMin: null, refMax: null };
+          if (marker.contextRefRanges && !refEnv) return { refMin: null, refMax: null };
+          if (state.rangeMode === 'both') return refEnv ? { refMin: refEnv.min, refMax: refEnv.max } : { refMin: marker.refMin, refMax: marker.refMax };
+          if (refEnv) return { refMin: refEnv.min, refMax: refEnv.max };
+          return { refMin: chartRange.min, refMax: chartRange.max };
+        })(),
+        optimalBand: (() => {
+          if (state.rangeMode !== 'both') return false;
+          const optEnv = getContextOptimalEnvelope(marker);
+          if (marker.contextOptimalRanges) return optEnv ? { optimalMin: optEnv.min, optimalMax: optEnv.max } : false;
+          return marker.optimalMin != null || marker.optimalMax != null ? { optimalMin: marker.optimalMin, optimalMax: marker.optimalMax } : false;
+        })(),
         noteAnnotations: chartNotes.length ? { notes: chartNotes, chartDates: visibleRangeDates } : false,
         supplementBars: chartSupps.length ? { supplements: chartSupps, chartDates: visibleRangeDates } : false,
-        phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates } : false},
-      layout: { padding: { top: chartSupps.length ? chartSupps.length * 14 + 6 : 0 } },
+        phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates, observed: values.map(v => v != null), cycleDays: phaseMetadata.cycleDays, sources: phaseMetadata.sources } : false},
+      layout: { padding: { top: (chartSupps.length ? chartSupps.length * 14 + 6 : 0) + ((phaseLabels?.some(p => p) && state.phaseOverlayMode === 'on') ? 20 : 0) } },
       scales: { x: xScale,
         y:{min:axisMin, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
     },

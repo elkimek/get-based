@@ -1201,7 +1201,7 @@ assert('minimum-panel Biology Score inputs have high optimal-range coverage',
   minimumOptimalCovered / minimumScoreInputs.length >= 0.85,
   `${minimumOptimalCovered}/${minimumScoreInputs.length}`);
 assert('new high-impact optimal target ranges cover ratios and common baseline gaps',
-  ['calculatedRatios.tgHdlRatio', 'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.cholHdlRatio', 'calculatedRatios.nlr', 'biochemistry.alp', 'biochemistry.gfrCystatin', 'electrolytes.phosphorus', 'electrolytes.copper', 'hematology.hematocrit', 'iron.tibc', 'coagulation.fibrinogen', 'coagulation.dDimer', 'proteins.crp', 'lipids.lpA', 'fattyAcids.omega3Index', 'fattyAcids.aaEpaRatio', 'stool.calprotectin', 'stool.zonulin', 'nutrientElements.selenium']
+  ['calculatedRatios.tgHdlRatio', 'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.cholHdlRatio', 'calculatedRatios.nlr', 'calculatedRatios.crpHdlRatio', 'biochemistry.alp', 'biochemistry.gfrCystatin', 'biochemistry.bicarbonate', 'electrolytes.phosphorus', 'electrolytes.copper', 'electrolytes.selenium', 'hematology.hematocrit', 'iron.tibc', 'coagulation.fibrinogen', 'coagulation.dDimer', 'proteins.crp', 'lipids.lpA', 'vitamins.vitaminB6', 'vitamins.vitaminC', 'fattyAcids.omega3Index', 'fattyAcids.aaEpaRatio', 'stool.calprotectin', 'stool.zonulin', 'nutrientElements.selenium']
     .every(key => optimalRangeKeys.has(key)),
   JSON.stringify(Object.keys(OPTIMAL_RANGES).filter(key => key.includes('Ratio') || key === 'lipids.lpA')));
 assert('Lp(a) is a first-class lipid marker for cardiovascular score imports',
@@ -1210,7 +1210,7 @@ const unresolvedStaticOptimalInputs = minimumScoreInputs
   .filter(row => !row.paths.some(path => optimalRangeKeys.has(path)))
   .map(row => `${row.score}:${row.input.label}`);
 assert('remaining minimum optimal gaps are timing/cycle/specialty-context markers, not routine baseline holes',
-  unresolvedStaticOptimalInputs.every(label => /(Progesterone|LH|FSH|DHT|Androstenedione|Cortisol|Free androgen index|Creatine kinase|Cystatin-C eGFR|TIBC|Copper|Selenium)/.test(label)),
+  unresolvedStaticOptimalInputs.every(label => /(Progesterone|LH|FSH|DHT|Androstenedione|DHEA-S|Cortisol|Free androgen index|Creatine kinase|Cystatin-C eGFR|TIBC|Copper|Selenium)/.test(label)),
   JSON.stringify(unresolvedStaticOptimalInputs));
 assert('liver-bile mapping includes ALT AST GGT ALP', ['biochemistry.alt', 'biochemistry.ast', 'biochemistry.ggt', 'biochemistry.alp'].every(path => mapping.find(s => s.id === 'liverBileSignal')?.inputs.some(i => i.paths.includes(path))));
 assert('bone-mineral mapping includes D calcium phosphorus', mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('vitamins.vitaminD')) && mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('electrolytes.calciumTotal')) && mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('electrolytes.phosphorus')));

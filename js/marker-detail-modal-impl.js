@@ -5,15 +5,16 @@ import { state } from './state.js';
 import { UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
 import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, safeMarkerId } from './utils.js';
 import { getActiveData } from './data.js';
-import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
+import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate } from './marker-analysis.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { hasAIProvider } from './api.js';
-import { getInsulinMirrorMarkerKey } from './lab-entry.js';
 import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
+import { markerRangeSuggestionIssueUrl } from './marker-range-suggestions.js';
+import { buildMarkerHistoryMetadata } from './marker-detail-history.js';
 import {
   BIO_AGE_BORTZ_INPUTS,
   BIO_AGE_PHENO_INPUTS,
@@ -179,13 +180,7 @@ function getManualValueForMarker(dotKey, date) {
   if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;
   const key = dotKey + ':' + date;
   if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) return map[key];
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  const mirrorKey = mirror ? mirror + ':' + date : null;
-  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey) && map[mirrorKey] != null && map[mirrorKey] !== true) {
-    return map[mirrorKey];
-  }
   if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
-  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey)) return map[mirrorKey];
   return undefined;
 }
 
@@ -243,15 +238,21 @@ function renderDetailModal(id, opts = {}) {
   const latestUnit = marker.unit || '';
   const latestDisplay = latestPoint ? formatValue(latestPoint.v) : '—';
   const latestDateLabel = latestPoint ? (dates[latestPoint.i] || 'Latest') : 'No values';
-  const hasReferenceRange = marker.refMin != null || marker.refMax != null;
-  const referenceMinDisplay = hasReferenceRange && marker.refMin != null ? formatValue(marker.refMin) : latestRange.min != null ? formatValue(latestRange.min) : '—';
-  const referenceMaxDisplay = hasReferenceRange && marker.refMax != null ? formatValue(marker.refMax) : latestRange.max != null ? formatValue(latestRange.max) : '—';
+  const latestContextRange = latestPoint ? marker.contextRefRanges?.[latestPoint.i] : null;
+  const latestContextOptimalRange = latestPoint ? marker.contextOptimalRanges?.[latestPoint.i] : null;
+  const referenceRange = latestContextRange || { min: marker.refMin, max: marker.refMax };
+  const hasReferenceRange = referenceRange.min != null || referenceRange.max != null;
+  const referenceMinDisplay = hasReferenceRange && referenceRange.min != null ? formatValue(referenceRange.min) : '—';
+  const referenceMaxDisplay = hasReferenceRange && referenceRange.max != null ? formatValue(referenceRange.max) : '—';
   const referenceDisplay = `${referenceMinDisplay}–${referenceMaxDisplay} ${latestUnit}`.trim();
-  const referenceMetaLabel = hasReferenceRange ? 'Reference' : 'Range';
-  const hasOptimalRange = marker.optimalMin != null || marker.optimalMax != null;
-  const optimalDisplay = `${marker.optimalMin != null ? formatValue(marker.optimalMin) : '—'}–${marker.optimalMax != null ? formatValue(marker.optimalMax) : '—'} ${latestUnit}`.trim();
+  const referenceMetaLabel = latestPoint ? getEffectiveRangeLabelForDate(marker, latestPoint.i, 'reference') : (marker.rangePolicy === 'target' ? 'Target' : 'Reference');
+  const optimalRange = latestContextOptimalRange || { min: marker.optimalMin, max: marker.optimalMax };
+  const hasOptimalRange = optimalRange.min != null || optimalRange.max != null;
+  const optimalDisplay = `${optimalRange.min != null ? formatValue(optimalRange.min) : '—'}–${optimalRange.max != null ? formatValue(optimalRange.max) : '—'} ${latestUnit}`.trim();
+  const optimalMetaLabel = latestContextOptimalRange
+    ? (marker.contextOptimalRangeLabels?.[latestPoint.i] || 'Optimal guidance')
+    : 'Optimal';
   const latestPhaseRange = latestPoint ? marker.phaseRefRanges?.[latestPoint.i] : null;
-  const latestPhaseLabel = latestPoint ? marker.phaseLabels?.[latestPoint.i] : null;
   const hasLatestPhaseRange = latestPhaseRange?.min != null || latestPhaseRange?.max != null;
   const phaseDisplay = `${latestRange.min != null ? formatValue(latestRange.min) : '—'}–${latestRange.max != null ? formatValue(latestRange.max) : '—'} ${latestUnit}`.trim();
   let rangeMainDisplay = 'Not set';
@@ -260,24 +261,28 @@ function renderDetailModal(id, opts = {}) {
   let rangeSecondaryLabel = '';
   if (hasLatestPhaseRange) {
     rangeMainDisplay = phaseDisplay;
-    rangeMainLabel = latestPhaseLabel ? `${latestPhaseLabel} range` : 'phase range';
+    rangeMainLabel = getEffectiveRangeLabelForDate(marker, latestPoint.i, 'reference').toLowerCase();
   } else if (state.rangeMode === 'both') {
     if (hasReferenceRange) {
       rangeMainDisplay = referenceDisplay;
-      rangeMainLabel = 'reference';
+      rangeMainLabel = referenceMetaLabel.toLowerCase();
       if (hasOptimalRange) {
         rangeSecondaryDisplay = optimalDisplay;
-        rangeSecondaryLabel = 'Optimal';
+        rangeSecondaryLabel = optimalMetaLabel;
       }
     } else if (hasOptimalRange) {
       rangeMainDisplay = optimalDisplay;
       rangeMainLabel = 'optimal';
+    } else if (latestContextRange) {
+      rangeMainLabel = referenceMetaLabel.toLowerCase();
     }
   } else if (state.rangeMode === 'optimal' && hasOptimalRange) {
     rangeMainDisplay = optimalDisplay;
-    rangeMainLabel = 'optimal';
+    rangeMainLabel = optimalMetaLabel.toLowerCase();
   } else if (hasReferenceRange) {
     rangeMainDisplay = referenceDisplay;
+    rangeMainLabel = referenceMetaLabel.toLowerCase();
+  } else if (latestContextRange) {
     rangeMainLabel = referenceMetaLabel.toLowerCase();
   }
   const clampPct = value => Math.max(0, Math.min(100, value));
@@ -288,20 +293,20 @@ function renderDetailModal(id, opts = {}) {
   };
   const rangeBandHtml = (() => {
     const latestValue = latestPoint ? numericOrNull(latestPoint.v) : null;
-    const refMin = numericOrNull(marker.refMin);
-    const refMax = numericOrNull(marker.refMax);
+    const refMin = numericOrNull(referenceRange.min);
+    const refMax = numericOrNull(referenceRange.max);
     const effMin = numericOrNull(latestRange.min);
     const effMax = numericOrNull(latestRange.max);
-    const optMin = numericOrNull(marker.optimalMin);
-    const optMax = numericOrNull(marker.optimalMax);
+    const optMin = numericOrNull(optimalRange.min);
+    const optMax = numericOrNull(optimalRange.max);
     if (effMin == null || effMax == null || latestValue == null || Number(effMax) === Number(effMin)) return '';
     const baseMin = refMin ?? effMin;
     const baseMax = refMax ?? effMax;
     if (baseMin == null || baseMax == null || Number(baseMax) === Number(baseMin)) return '';
-    const usePhaseBand = hasLatestPhaseRange && effMin != null && effMax != null;
-    const useOptimalBand = !usePhaseBand && state.rangeMode !== 'reference' && optMin != null && optMax != null;
-    const goodMin = usePhaseBand ? Math.min(effMin, effMax) : useOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
-    const goodMax = usePhaseBand ? Math.max(effMin, effMax) : useOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);
+    const useDatedBand = (hasLatestPhaseRange || !!latestContextRange) && effMin != null && effMax != null;
+    const useOptimalBand = !useDatedBand && state.rangeMode !== 'reference' && optMin != null && optMax != null;
+    const goodMin = useDatedBand ? Math.min(effMin, effMax) : useOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
+    const goodMax = useDatedBand ? Math.max(effMin, effMax) : useOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);
     let min = Math.min(baseMin, baseMax);
     let max = Math.max(baseMin, baseMax);
     const goodSpan = goodMax - goodMin;
@@ -354,22 +359,29 @@ function renderDetailModal(id, opts = {}) {
     return ` &middot; <button type="button" class="ref-editable${type === 'optimal' ? ' ref-editable-optimal' : ''}" aria-label="Edit ${label} range, currently ${escapeAttr(currentRange)}" ${markerDetailActionAttrs('edit-ref-range', { id, type })}>Edit ${label.toLowerCase()}</button>${editedBadge}`;
   };
   const isCustom = !!state.importedData?.customMarkers?.[dotKey];
-  const hasRef = marker.refMin != null || marker.refMax != null;
-  const hasOpt = marker.optimalMin != null || marker.optimalMax != null;
+  const hasRef = hasReferenceRange || marker.refMin != null || marker.refMax != null;
+  const hasOpt = hasOptimalRange;
+  const referenceControlLabel = marker.rangePolicy === 'target' && !marker.referenceRangeSource ? 'Target' : 'Reference';
   if (state.rangeMode === 'both') {
-    if (hasRef) rangeInfo += refEditable('Reference', marker.refMin, marker.refMax, 'ref');
+    if (hasRef) rangeInfo += refEditable(referenceControlLabel, referenceRange.min, referenceRange.max, 'ref');
     else if (isCustom) rangeInfo += refEditable('Reference', '–', '–', 'ref');
-    if (hasOpt) rangeInfo += refEditable('Optimal', marker.optimalMin, marker.optimalMax, 'optimal');
+    if (hasOpt) rangeInfo += refEditable('Optimal', optimalRange.min, optimalRange.max, 'optimal');
     else if (isCustom) rangeInfo += refEditable('Optimal', '–', '–', 'optimal');
   } else if (state.rangeMode === 'optimal') {
-    if (hasOpt) rangeInfo = refEditable('Optimal', marker.optimalMin, marker.optimalMax, 'optimal');
+    if (hasOpt) rangeInfo = refEditable('Optimal', optimalRange.min, optimalRange.max, 'optimal');
     else if (isCustom) rangeInfo = refEditable('Optimal', '–', '–', 'optimal');
   } else if (hasRef) {
-    rangeInfo = refEditable('Reference', marker.refMin, marker.refMax, 'ref');
+    rangeInfo = refEditable(referenceControlLabel, referenceRange.min, referenceRange.max, 'ref');
   } else if (isCustom) {
     rangeInfo = refEditable('Reference', '–', '–', 'ref');
   }
   const rangeCardControls = rangeInfo ? rangeInfo.replace(/^ &middot; /, '') : '';
+  const hasPersonalRange = ['refMin', 'refMax', 'optimalMin', 'optimalMax']
+    .some(field => Object.prototype.hasOwnProperty.call(overrides, field));
+  const rangeSuggestionUrl = isCustom || hasPersonalRange ? null : markerRangeSuggestionIssueUrl(dotKey);
+  const rangeSuggestionLink = rangeSuggestionUrl
+    ? `<a class="marker-range-suggest" href="${escapeAttr(rangeSuggestionUrl)}" target="_blank" rel="noopener noreferrer" title="Open a public, pre-filled GitHub issue without including your health data">Suggest a better range <span aria-hidden="true">↗</span></a>`
+    : '';
   const isRenamed = !!state.importedData?.markerLabels?.[dotKey];
   const renameLink = isRenamed
     ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" ${markerDetailActionAttrs('revert-marker-name', { id })} style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`
@@ -397,9 +409,9 @@ function renderDetailModal(id, opts = {}) {
       let altRanges = '';
       if (state.rangeMode === 'both') {
         if (hasRef) altRanges += ` &middot; Reference: ${altRange(marker.refMin, marker.refMax)}`;
-        if (hasOpt) altRanges += ` &middot; <span style="color:var(--green)">Optimal: ${altRange(marker.optimalMin, marker.optimalMax)}</span>`;
+        if (hasOpt) altRanges += ` &middot; <span style="color:var(--green)">Optimal: ${altRange(optimalRange.min, optimalRange.max)}</span>`;
       } else if (state.rangeMode === 'optimal' && hasOpt) {
-        altRanges = ` &middot; Optimal: ${altRange(marker.optimalMin, marker.optimalMax)}`;
+        altRanges = ` &middot; Optimal: ${altRange(optimalRange.min, optimalRange.max)}`;
       } else if (hasRef) {
         altRanges = ` &middot; Reference: ${altRange(marker.refMin, marker.refMax)}`;
       }
@@ -434,8 +446,8 @@ function renderDetailModal(id, opts = {}) {
         <div class="stat-card-value stat-card-value-range">${escapeHTML(rangeMainDisplay)} <span>${escapeHTML(rangeMainLabel)}</span></div>
         ${rangeSecondaryDisplay
           ? `<div class="stat-card-meta">${escapeHTML(rangeSecondaryLabel)} ${escapeHTML(rangeSecondaryDisplay)}</div>`
-          : hasLatestPhaseRange ? `<div class="stat-card-meta">Used for the latest status</div>` : ''}
-        ${rangeCardControls ? `<div class="stat-card-range-controls">${rangeCardControls}</div>` : ''}
+          : (hasLatestPhaseRange || latestContextRange) ? `<div class="stat-card-meta">Used for the latest status</div>` : ''}
+        ${(rangeCardControls || rangeSuggestionLink) ? `<div class="stat-card-range-controls">${rangeCardControls}${rangeSuggestionLink}</div>` : ''}
       </div>
     </div>
     ${rangeBandHtml}
@@ -458,6 +470,7 @@ function renderDetailModal(id, opts = {}) {
     const mvKey = dotKey + ':' + rawDate;
     const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;
     const src = srcEntry?.markerSources?.[dotKey];
+    const { collectionContextHtml, sourceHtml } = buildMarkerHistoryMetadata(srcEntry, src, rawDate);
     const manualVal = rawDate ? getManualValueForMarker(dotKey, rawDate) : undefined;
     const isManualSource = !!(src && src.file == null);
     const isManual = isManualSource || (manualVal !== undefined && manualVal !== null);
@@ -467,23 +480,6 @@ function renderDetailModal(id, opts = {}) {
       : isManual ? ' <span class="ref-edited-badge" title="Manually entered">manual</span>' : '';
     const deleteBtn = `<button class="mv-delete" ${markerDetailActionAttrs('delete-marker-value', { id, date: actionDate })} title="Remove this value">&times;</button>`;
     const editAction = rawDate ? ` ${markerDetailActionAttrs('edit-marker-value', { id, date: actionDate, value: v })} role="button" tabindex="0" title="Click to edit" style="cursor:pointer"` : '';
-    // Provenance: which file imported this value
-    let sourceHtml = '';
-    if (rawDate) {
-      if (src) {
-        const fname = src.file;
-        if (fname) {
-          const display = fname.length > 30 ? fname.slice(0, 27) + '...' : fname;
-          sourceHtml = `<div class="mv-source" title="${escapeHTML(fname)}">${escapeHTML(display)}</div>`;
-        } else {
-          sourceHtml = `<div class="mv-source mv-source-manual">manual entry</div>`;
-        }
-      } else if (srcEntry?.sourceFile) {
-        const fname = srcEntry.sourceFile;
-        const display = fname.length > 30 ? fname.slice(0, 27) + '...' : fname;
-        sourceHtml = `<div class="mv-source" title="${escapeHTML(fname)}">${escapeHTML(display)}</div>`;
-      }
-    }
     // Per-value note (markerValueNotes keyed `dotKey:date`).
     const valueNote = rawDate ? state.importedData.markerValueNotes?.[mvKey] : null;
     const valueNoteHtml = rawDate
@@ -496,7 +492,7 @@ function renderDetailModal(id, opts = {}) {
     html += `<div class="modal-value-card marker-history-row status-${s}">${deleteBtn}
       <div class="marker-history-date-row"><div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}</div>
       <div class="marker-history-value-row"><div class="mv-value val-${s}"${editAction}>${formatValue(v)}${manualBadge}</div><div class="mv-status val-${s}">${sl}</div></div>
-      ${altLine}${phaseInfo}${valueNoteHtml}</div>`;
+      ${altLine}${phaseInfo}${collectionContextHtml}${valueNoteHtml}</div>`;
   }
   html += `</div>`;
   if (hiddenHistoryCount > 0) {
@@ -537,6 +533,7 @@ function renderDetailModal(id, opts = {}) {
     'calculatedRatios_ft3ft4Ratio': [['thyroid', 'ft3', 'Free T3'], ['thyroid', 'ft4', 'Free T4']],
     'calculatedRatios_apoBapoAIRatio': [['lipids', 'apoB', 'ApoB'], ['lipids', 'apoAI', 'ApoA-I']],
     'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'hs-CRP'], ['lipids', 'hdl', 'HDL']],
+    'calculatedRatios_mlr': [['differential', 'monocytes', 'Monocytes'], ['differential', 'lymphocytes', 'Lymphocytes']],
   };
   const inputs = calcInputs[dotKey.replace('.', '_')];
   if (inputs) {
@@ -733,7 +730,11 @@ function renderDetailModal(id, opts = {}) {
   setTimeout(() => {
     if (document.getElementById("chart-modal")) {
       if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
-      createLineChart("modal", marker, data.dateLabels, data.dates, data.phaseLabels);
+      createLineChart("modal", marker, data.dateLabels, data.dates, data.phaseLabels, {
+        displayLabels: data.phaseDisplayLabels,
+        cycleDays: data.phaseCycleDays,
+        sources: data.phaseSources,
+      });
     }
   }, 50);
   // Display marker description (sync for schema markers, async fetch for custom)

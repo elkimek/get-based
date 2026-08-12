@@ -180,7 +180,7 @@ export function migrateProfileData(data) {
       if (!hasValues) delete data.customMarkers[fullKey];
     }
   }
-  // Backfill insulin mirror: sync hormones.insulin ↔ diabetes.insulin_d.
+  // Coalesce historical insulin locations into diabetes.insulin.
   if (data.entries) {
     for (const entry of data.entries) {
       syncLabEntryInsulinMirror(entry, { stamp: false });

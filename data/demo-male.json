@@ -348,7 +348,6 @@
         "hormones.freeTestosterone": 68.2,
         "hormones.shbg": 28.5,
         "hormones.dheaS": 8.4,
-        "hormones.insulin": 5.2,
         "electrolytes.sodium": 141,
         "electrolytes.potassium": 4.3,
         "electrolytes.chloride": 103,
@@ -373,7 +372,6 @@
         "thyroid.ft3": 4.5,
         "vitamins.vitaminD": 42,
         "diabetes.hba1c": 31,
-        "diabetes.insulin_d": 5.2,
         "diabetes.homaIR": 1.11,
         "coagulation.homocysteine": 11.5,
         "hematology.wbc": 5.8,
@@ -399,7 +397,8 @@
         "hormones.dht": 1.54,
         "thyroid.t4total": 99.3,
         "specialty.glycanAge": 43,
-        "specialty.urinaryIodine": 95
+        "specialty.urinaryIodine": 95,
+        "diabetes.insulin": 5.2
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -463,10 +462,6 @@
           "at": 1742040000000
         },
         "hormones.dheaS": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
-        },
-        "hormones.insulin": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1742040000000
         },
@@ -563,10 +558,6 @@
           "at": 1742040000000
         },
         "diabetes.hba1c": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
-        },
-        "diabetes.insulin_d": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1742040000000
         },
@@ -673,6 +664,10 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1742025600000
+        },
+        "diabetes.insulin": {
+          "file": "Spring 2025 Complete Panel.pdf",
+          "at": 1742040000000
         }
       }
     },
@@ -778,7 +773,6 @@
         "hormones.shbg": 26.8,
         "hormones.dheaS": 7.8,
         "hormones.estradiol": 72.5,
-        "hormones.insulin": 7.8,
         "electrolytes.sodium": 140,
         "electrolytes.potassium": 4.5,
         "electrolytes.chloride": 102,
@@ -809,7 +803,6 @@
         "vitamins.vitaminD": 68,
         "vitamins.vitaminA": 1.85,
         "diabetes.hba1c": 33,
-        "diabetes.insulin_d": 7.8,
         "diabetes.homaIR": 1.77,
         "tumorMarkers.psa": 0.32,
         "coagulation.homocysteine": 13,
@@ -832,7 +825,8 @@
         "differential.lymphocytesPct": 0.298,
         "differential.monocytesPct": 0.074,
         "specialty.glycanAge": 42,
-        "specialty.urinaryIodine": 130
+        "specialty.urinaryIodine": 130,
+        "diabetes.insulin": 7.8
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -900,10 +894,6 @@
           "at": 1753012800000
         },
         "hormones.estradiol": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
-        },
-        "hormones.insulin": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1753012800000
         },
@@ -1027,10 +1017,6 @@
           "file": "Summer 2025 Panel.pdf",
           "at": 1753012800000
         },
-        "diabetes.insulin_d": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
-        },
         "diabetes.homaIR": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1753012800000
@@ -1122,6 +1108,10 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1752998400000
+        },
+        "diabetes.insulin": {
+          "file": "Summer 2025 Panel.pdf",
+          "at": 1753012800000
         }
       }
     },
@@ -1146,7 +1136,6 @@
         "hormones.shbg": 25.2,
         "hormones.dheaS": 7.1,
         "hormones.estradiol": 85.3,
-        "hormones.insulin": 11.5,
         "hormones.igf1": 195,
         "electrolytes.sodium": 139,
         "electrolytes.potassium": 4.6,
@@ -1179,7 +1168,6 @@
         "vitamins.vitaminD": 95,
         "vitamins.vitaminD3": 82,
         "diabetes.hba1c": 31,
-        "diabetes.insulin_d": 11.5,
         "diabetes.homaIR": 2.5,
         "tumorMarkers.psa": 0.35,
         "coagulation.homocysteine": 10.5,
@@ -1204,7 +1192,8 @@
         "differential.monocytesPct": 0.071,
         "boneMetabolism.osteocalcin": 22.5,
         "specialty.glycanAge": 41,
-        "specialty.urinaryIodine": 160
+        "specialty.urinaryIodine": 160,
+        "diabetes.insulin": 11.5
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1276,10 +1265,6 @@
           "at": 1762776000000
         },
         "hormones.estradiol": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
-        },
-        "hormones.insulin": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1762776000000
         },
@@ -1411,10 +1396,6 @@
           "file": "Fall 2025 Panel.pdf",
           "at": 1762776000000
         },
-        "diabetes.insulin_d": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
-        },
         "diabetes.homaIR": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1762776000000
@@ -1514,6 +1495,10 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1762761600000
+        },
+        "diabetes.insulin": {
+          "file": "Fall 2025 Panel.pdf",
+          "at": 1762776000000
         }
       }
     },
@@ -1622,7 +1607,6 @@
         "hormones.dheaS": 6.5,
         "hormones.estradiol": 90.8,
         "hormones.progesterone": 0.28,
-        "hormones.insulin": 8,
         "hormones.igf1": 188,
         "hormones.dht": 1.65,
         "electrolytes.sodium": 138,
@@ -1659,7 +1643,6 @@
         "vitamins.vitaminD3": 105,
         "vitamins.vitaminA": 2.1,
         "diabetes.hba1c": 29,
-        "diabetes.insulin_d": 8,
         "diabetes.homaIR": 1.67,
         "tumorMarkers.psa": 0.38,
         "coagulation.homocysteine": 9.2,
@@ -1729,7 +1712,8 @@
         "oatMicrobial.hphpa": 75,
         "oatMicrobial.cresol4": 42,
         "oatMicrobial.dArabinitol": 31,
-        "iron.transferrinSaturation": 0.34
+        "iron.transferrinSaturation": 0.34,
+        "diabetes.insulin": 8
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1809,10 +1793,6 @@
           "at": 1783857600000
         },
         "hormones.progesterone": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
-        },
-        "hormones.insulin": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1783857600000
         },
@@ -1957,10 +1937,6 @@
           "at": 1783857600000
         },
         "diabetes.hba1c": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
-        },
-        "diabetes.insulin_d": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1783857600000
         },
@@ -2211,6 +2187,10 @@
         "oatMicrobial.dArabinitol": {
           "file": "Demo advanced functional panel",
           "page": 1
+        },
+        "diabetes.insulin": {
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1783857600000
         }
       }
     }
@@ -2763,7 +2743,7 @@
         "source": "manual"
       },
       {
-      "date": "2026-07-12",
+        "date": "2026-07-12",
         "value": 83.2,
         "unit": "kg",
         "source": "manual"
@@ -2783,7 +2763,7 @@
         "source": "manual"
       },
       {
-      "date": "2026-07-12",
+        "date": "2026-07-12",
         "sys": 125,
         "dia": 80,
         "source": "manual"
@@ -2801,7 +2781,7 @@
         "source": "manual"
       },
       {
-      "date": "2026-07-12",
+        "date": "2026-07-12",
         "value": 65,
         "source": "manual"
       }
@@ -2931,8 +2911,8 @@
     "hormones.testosterone": "Follow-up hormone panels were collected in the morning where possible; interpret alongside sleep and training load."
   },
   "markerValueNotes": {
-    "hormones.insulin:2026-07-12": "Fasted 12 hours. No intense training for 36 hours before the draw.",
-    "coagulation.homocysteine:2026-07-12": "Repeat after consistent daily B-complex use."
+    "coagulation.homocysteine:2026-07-12": "Repeat after consistent daily B-complex use.",
+    "diabetes.insulin:2026-07-12": "Fasted 12 hours. No intense training for 36 hours before the draw."
   },
   "wearableSummary": {
     "sources": {

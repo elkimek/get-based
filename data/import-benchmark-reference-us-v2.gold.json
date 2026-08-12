@@ -81,7 +81,7 @@
       { "section": "Vitamins and Metabolic", "page": 3, "rawName": "Vitamin B12", "mappedKey": "vitamins.vitaminB12", "value": 612, "unit": "pg/mL", "refMin": 197, "refMax": 771 },
       { "section": "Vitamins and Metabolic", "page": 3, "rawName": "Folate", "mappedKey": "vitamins.folate", "value": 11.8, "unit": "ng/mL", "refMin": 3.1, "refMax": 20 },
       { "section": "Vitamins and Metabolic", "page": 3, "rawName": "Hemoglobin A1c", "mappedKey": "diabetes.hba1c", "value": 5.7, "unit": "%", "refMin": 4, "refMax": 5.6 },
-      { "section": "Vitamins and Metabolic", "page": 3, "rawName": "Fasting Insulin", "mappedKey": "diabetes.insulin_d", "value": 9.8, "unit": "uIU/mL", "refMin": 2.6, "refMax": 24.9 },
+      { "section": "Vitamins and Metabolic", "page": 3, "rawName": "Fasting Insulin", "mappedKey": "diabetes.insulin", "value": 9.8, "unit": "uIU/mL", "refMin": 2.6, "refMax": 24.9 },
       { "section": "Vitamins and Metabolic", "page": 3, "rawName": "C-Peptide", "mappedKey": "diabetes.cPeptide", "value": 2.1, "unit": "ng/mL", "refMin": 0.8, "refMax": 3.1 },
       { "section": "Vitamins and Metabolic", "page": 3, "rawName": "Fructosamine", "mappedKey": "diabetes.fructosamine", "value": 248, "unit": "umol/L", "refMin": 205, "refMax": 285 },
       { "section": "Vitamins and Metabolic", "page": 3, "rawName": "HOMA-IR (Calculated)", "mappedKey": "diabetes.homaIR", "value": 2.47, "unit": "", "refMin": 0, "refMax": 2.5 }

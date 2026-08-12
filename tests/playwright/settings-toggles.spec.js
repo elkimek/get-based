@@ -87,6 +87,50 @@ test('Settings data sync exposes visible setup controls and a working toggle', a
   await expect(setupOverlay).not.toHaveClass(SHOW_CLASS_TOKEN);
 });
 
+test('Settings Review & Edit loads the complete import modal presentation', async ({ page }) => {
+  await preparePage(page);
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData = {
+      ...state.importedData,
+      entries: [{
+        date: '2026-08-08',
+        markers: { 'biochemistry.glucose': 5.1 },
+        context: { sampleTime: '08:35', fasting: true },
+      }],
+      importSnapshots: [{
+        id: 'settings-review-layout',
+        date: '2026-08-08',
+        fileName: 'review-layout.pdf',
+        importedAt: Date.UTC(2026, 7, 8, 9, 0),
+        markerCount: 1,
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.1,
+          unit: 'mmol/l',
+          refMin: 3.9,
+          refMax: 5.5,
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+        }],
+      }],
+    };
+    await (await import('/js/settings-loader.js')).openSettingsModal('data');
+  });
+
+  await page.locator('[data-settings-action="review-import"][data-snap-id="settings-review-layout"]').click();
+
+  const importOverlay = page.locator('#import-modal-overlay');
+  await expect(importOverlay).toHaveClass(SHOW_CLASS_TOKEN);
+  await expect(page.locator('link[data-import-stylesheet]')).toHaveCount(1);
+  await expect(page.locator('#import-modal')).toHaveClass(/import-preview-modal/);
+  await expect(page.locator('.import-review-summary')).toHaveCSS('display', 'grid');
+  await expect(page.locator('.import-table-wrap')).toHaveCSS('overflow-x', 'auto');
+  await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(SHOW_CLASS_TOKEN);
+  await expect(page.locator('#import-modal')).toContainText('review-layout.pdf');
+});
+
 test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ page }) => {
   await preparePage(page);
 

@@ -51,25 +51,34 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
 
   // Estradiol values
   const e = PR['hormones.estradiol'];
-  assert('Estradiol menstrual min=45', e.menstrual.min === 45);
-  assert('Estradiol menstrual max=130', e.menstrual.max === 130);
-  assert('Estradiol follicular min=45', e.follicular.min === 45);
-  assert('Estradiol follicular max=400', e.follicular.max === 400);
-  assert('Estradiol ovulatory min=400', e.ovulatory.min === 400);
-  assert('Estradiol ovulatory max=1470', e.ovulatory.max === 1470);
-  assert('Estradiol luteal min=180', e.luteal.min === 180);
-  assert('Estradiol luteal max=780', e.luteal.max === 780);
+  assert('Estradiol menstrual min=46', e.menstrual.min === 46);
+  assert('Estradiol menstrual max=609', e.menstrual.max === 609);
+  assert('Estradiol follicular min=46', e.follicular.min === 46);
+  assert('Estradiol follicular max=609', e.follicular.max === 609);
+  assert('Estradiol ovulatory min=315', e.ovulatory.min === 315);
+  assert('Estradiol ovulatory max=1828', e.ovulatory.max === 1828);
+  assert('Estradiol luteal min=161', e.luteal.min === 161);
+  assert('Estradiol luteal max=775', e.luteal.max === 775);
 
   // Progesterone values
   const p = PR['hormones.progesterone'];
-  assert('Progesterone menstrual min=0.18', p.menstrual.min === 0.18);
-  assert('Progesterone menstrual max=2.5', p.menstrual.max === 2.5);
-  assert('Progesterone follicular min=0.18', p.follicular.min === 0.18);
-  assert('Progesterone follicular max=2.5', p.follicular.max === 2.5);
-  assert('Progesterone ovulatory min=0.18', p.ovulatory.min === 0.18);
-  assert('Progesterone ovulatory max=9.5', p.ovulatory.max === 9.5);
-  assert('Progesterone luteal min=5.7', p.luteal.min === 5.7);
-  assert('Progesterone luteal max=75.9', p.luteal.max === 75.9);
+  assert('Progesterone menstrual min=0.32', p.menstrual.min === 0.32);
+  assert('Progesterone menstrual max=2.86', p.menstrual.max === 2.86);
+  assert('Progesterone follicular min=0.32', p.follicular.min === 0.32);
+  assert('Progesterone follicular max=2.86', p.follicular.max === 2.86);
+  assert('Progesterone ovulatory min=0.32', p.ovulatory.min === 0.32);
+  assert('Progesterone ovulatory max=38.2', p.ovulatory.max === 38.2);
+  assert('Progesterone luteal min=5.72', p.luteal.min === 5.72);
+  assert('Progesterone luteal max=76', p.luteal.max === 76);
+
+  const lh = PR['hormones.lh'];
+  const fsh = PR['hormones.fsh'];
+  assert('LH Roche phase table retained', lh.follicular.min === 2.4 && lh.ovulatory.max === 95.6 && lh.luteal.max === 11.4);
+  assert('FSH Roche phase table retained', fsh.follicular.min === 3.5 && fsh.ovulatory.max === 21.5 && fsh.luteal.max === 7.7);
+  for (const [name, phaseMap] of Object.entries({ Estradiol: e, Progesterone: p, LH: lh, FSH: fsh })) {
+    assert(`${name} exposes assay provenance`, Object.values(phaseMap).every(range => range.source?.includes('Labcorp')));
+    assert(`${name} labels ranges as predicted`, Object.values(phaseMap).every(range => range.label?.startsWith('Predicted')));
+  }
 
   // ═══════════════════════════════════════
   // 3. data.js and marker-analysis integration
@@ -110,11 +119,34 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   assert('Fallback for null phase range', r2.min === 45.4 && r2.max === 854.0, `got ${r2.min}-${r2.max}`);
   const r3 = dataModule.getEffectiveRangeForDate(mockMarkerWithPhase, 3);
   assert('Phase range returned for index 3', r3.min === 180 && r3.max === 780, `got ${r3.min}-${r3.max}`);
+  const labeledPhaseMarker = {
+    ...mockMarkerWithPhase,
+    phaseRefRanges: [{ min: 46, max: 609, label: 'Predicted follicular range' }],
+  };
+  assert('Assay phase label is exposed to UI and model consumers',
+    dataModule.getEffectiveRangeLabelForDate(labeledPhaseMarker, 0) === 'Predicted follicular range');
 
   // Test without phase ranges (fallback)
   const mockMarkerNoPhase = { refMin: 10, refMax: 50, optimalMin: null, optimalMax: null };
   const rf = dataModule.getEffectiveRangeForDate(mockMarkerNoPhase, 0);
   assert('Fallback when no phaseRefRanges', rf.min === 10 && rf.max === 50, `got ${rf.min}-${rf.max}`);
+
+  const mockMarkerWithContext = {
+    refMin: 0, refMax: 1.3, optimalMin: 0, optimalMax: 1,
+    rangePolicy: 'guidance',
+    contextRefRanges: [{ min: 0, max: 2 }, { min: null, max: null }],
+    contextRangeLabels: ['AASLD threshold (65+)', 'Not validated under 35'],
+  };
+  const contextualRef = dataModule.getEffectiveRangeForDate(mockMarkerWithContext, 0, 'reference');
+  assert('Context guidance overrides the static reference for that date', contextualRef.max === 2);
+  const contextualOptimal = dataModule.getEffectiveRangeForDate(mockMarkerWithContext, 0, 'optimal');
+  assert('Explicit optimal range still wins in optimal mode', contextualOptimal.max === 1);
+  const unratedContext = dataModule.getEffectiveRangeForDate(mockMarkerWithContext, 1, 'reference');
+  assert('A contextual not-valid state suppresses the static fallback', unratedContext.min == null && unratedContext.max == null);
+  assert('Context guidance label is exposed to UI and model consumers',
+    dataModule.getEffectiveRangeLabelForDate(mockMarkerWithContext, 0, 'reference') === 'AASLD threshold (65+)');
+  const contextEnvelope = dataModule.getContextRefEnvelope(mockMarkerWithContext);
+  assert('Context envelope ignores unrated dates', contextEnvelope.min === 0 && contextEnvelope.max === 2);
 
   // ═══════════════════════════════════════
   // 5. getPhaseRefEnvelope function
@@ -181,19 +213,20 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
     const phase0 = estradiol?.phaseLabels?.[0];
     assert('First date is Menstrual phase', phase0 === 'Menstrual', `got ${phase0}`);
     const pr0 = estradiol?.phaseRefRanges?.[0];
-    assert('Menstrual estradiol range 45-130', pr0?.min === 45 && pr0?.max === 130, pr0 ? `got ${pr0.min}-${pr0.max}` : 'null');
+    assert('Menstrual estradiol range 46-609', pr0?.min === 46 && pr0?.max === 609, pr0 ? `got ${pr0.min}-${pr0.max}` : 'null');
+    assert('Menstrual estradiol range is explicitly predicted', pr0?.label === 'Predicted menstrual range');
 
     // 2026-01-15 is day 18 of cycle starting 2025-12-29 → luteal (ovulation day=14, day 18 > 15)
     const phase1 = estradiol?.phaseLabels?.[1];
     assert('Second date is Luteal phase', phase1 === 'Luteal', `got ${phase1}`);
     const pr1 = estradiol?.phaseRefRanges?.[1];
-    assert('Luteal estradiol range 180-780', pr1?.min === 180 && pr1?.max === 780, pr1 ? `got ${pr1.min}-${pr1.max}` : 'null');
+    assert('Luteal estradiol range 161-775', pr1?.min === 161 && pr1?.max === 775, pr1 ? `got ${pr1.min}-${pr1.max}` : 'null');
 
     // Progesterone phase ranges
     const ppr0 = progesterone?.phaseRefRanges?.[0];
-    assert('Menstrual progesterone range 0.18-2.5', ppr0?.min === 0.18 && ppr0?.max === 2.5, ppr0 ? `got ${ppr0.min}-${ppr0.max}` : 'null');
+    assert('Menstrual progesterone range 0.32-2.86', ppr0?.min === 0.32 && ppr0?.max === 2.86, ppr0 ? `got ${ppr0.min}-${ppr0.max}` : 'null');
     const ppr1 = progesterone?.phaseRefRanges?.[1];
-    assert('Luteal progesterone range 5.7-75.9', ppr1?.min === 5.7 && ppr1?.max === 75.9, ppr1 ? `got ${ppr1.min}-${ppr1.max}` : 'null');
+    assert('Luteal progesterone range 5.72-76', ppr1?.min === 5.72 && ppr1?.max === 76, ppr1 ? `got ${ppr1.min}-${ppr1.max}` : 'null');
 
     // ═══════════════════════════════════════
     // 7. Male profile — no phaseRefRanges
@@ -223,6 +256,36 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
     const noPeriodsData = dataModule.getActiveData();
     const noPeriodsEstradiol = noPeriodsData.categories.hormones?.markers?.estradiol;
     assert('No periods → no phaseRefRanges', !noPeriodsEstradiol?.phaseRefRanges);
+
+    // Calendar-only phase inference is unreliable for irregular and
+    // perimenopausal cycles, so the generic/lab range remains visible.
+    const loggedPeriods = [
+      { startDate: '2025-12-01', endDate: '2025-12-05', flow: 'moderate', notes: '' },
+      { startDate: '2025-12-29', endDate: '2026-01-02', flow: 'moderate', notes: '' },
+    ];
+    window.state.importedData.menstrualCycle = {
+      cycleStatus: 'regular', cycleLength: 28, periodLength: 5, regularity: 'irregular',
+      contraceptive: '', periods: loggedPeriods,
+    };
+    const irregularData = dataModule.getActiveData();
+    assert('Irregular cycle → no predicted phase ranges',
+      !irregularData.categories.hormones?.markers?.estradiol?.phaseRefRanges);
+
+    window.state.importedData.menstrualCycle = {
+      cycleStatus: 'perimenopause', cycleLength: 28, periodLength: 5, regularity: 'regular',
+      contraceptive: '', periods: loggedPeriods,
+    };
+    const perimenopauseData = dataModule.getActiveData();
+    assert('Perimenopause → no predicted phase ranges',
+      !perimenopauseData.categories.hormones?.markers?.estradiol?.phaseRefRanges);
+
+    window.state.importedData.menstrualCycle = {
+      cycleStatus: 'regular', cycleLength: 28, periodLength: 5, regularity: 'regular',
+      contraceptive: 'combined pill', periods: loggedPeriods,
+    };
+    const contraceptiveData = dataModule.getActiveData();
+    assert('Hormonal contraception → no predicted phase ranges',
+      !contraceptiveData.categories.hormones?.markers?.estradiol?.phaseRefRanges);
 
     // ═══════════════════════════════════════
     // 10. Phase can't be determined for some dates
@@ -256,12 +319,16 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
     const usEstradiol = usData.categories.hormones?.markers?.estradiol;
     // Estradiol conversion: pmol/l → pg/ml, factor = 0.2724 (from UNIT_CONVERSIONS)
     if (usEstradiol?.phaseRefRanges?.[0]) {
-      const expectedMin = parseFloat((45 * 0.2724).toPrecision(4));
-      const expectedMax = parseFloat((130 * 0.2724).toPrecision(4));
+      const expectedMin = parseFloat((46 * 0.2724).toPrecision(4));
+      const expectedMax = parseFloat((609 * 0.2724).toPrecision(4));
       assert('US conversion applied to phase range min', usEstradiol.phaseRefRanges[0].min === expectedMin,
         `expected ${expectedMin}, got ${usEstradiol.phaseRefRanges[0].min}`);
       assert('US conversion applied to phase range max', usEstradiol.phaseRefRanges[0].max === expectedMax,
         `expected ${expectedMax}, got ${usEstradiol.phaseRefRanges[0].max}`);
+      assert('US conversion preserves phase range label',
+        usEstradiol.phaseRefRanges[0].label === 'Predicted menstrual range');
+      assert('US conversion preserves phase range source',
+        usEstradiol.phaseRefRanges[0].source === 'Labcorp 004515 (Roche cobas ECLIA)');
     } else {
       assert('US estradiol has phase ranges for conversion test', false, 'phaseRefRanges missing');
       assert('(skipped conversion max)', false);
@@ -367,6 +434,8 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   console.log('Section 20: filterDatesByRange source');
   assert('filterDatesByRange spreads phaseRefRanges', dataSource.includes('marker.phaseRefRanges && { phaseRefRanges'));
   assert('filterDatesByRange spreads phaseLabels', dataSource.includes('marker.phaseLabels && { phaseLabels'));
+  assert('filterDatesByRange spreads contextRefRanges', dataSource.includes('marker.contextRefRanges && { contextRefRanges'));
+  assert('filterDatesByRange spreads contextRangeLabels', dataSource.includes('marker.contextRangeLabels && { contextRangeLabels'));
 
   // ═══════════════════════════════════════
   // 21. CSS for mv-phase
@@ -379,6 +448,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   // ═══════════════════════════════════════
   console.log('Section 22: applyUnitConversion');
   assert('applyUnitConversion converts phaseRefRanges', dataSource.includes('marker.phaseRefRanges') && dataSource.includes('conv.factor).toPrecision(4)'));
+  assert('applyUnitConversion converts contextual ranges', dataSource.includes('marker.contextRefRanges'));
 
   // ═══════════════════════════════════════
   // Summary

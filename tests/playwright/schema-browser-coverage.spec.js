@@ -45,14 +45,18 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         schema.MARKER_SCHEMA.biochemistry.markers.glucose.unit === 'mmol/l'
         && schema.MARKER_SCHEMA.vitamins.markers.vitaminD.name === 'Vitamin D Total'
         && schema.UNIT_CONVERSIONS['biochemistry.glucose'].usUnit === 'mg/dl'
-        && schema.OPTIMAL_RANGES['calculatedRatios.crpHdlRatio'].optimalMax === 0.24;
+        && schema.MARKER_SCHEMA.calculatedRatios.markers.tygIndex.refMax === 8.8
+        && schema.MARKER_SCHEMA.calculatedRatios.markers.anionGap.refMin === 5
+        && schema.OPTIMAL_RANGES['calculatedRatios.atherogenicIndexPlasma'].optimalMax === 0.11;
 
       outcomes.schemaExportsStableMarkerIdentityContract =
-        schema.BUILTIN_MARKER_IDENTITIES.length === 149
+        schema.BUILTIN_MARKER_IDENTITIES.length === 196
         && schema.getBuiltinMarkerId('biochemistry.glucose') === 'gb:marker:glucose'
         && schema.getBuiltinMarkerDotKey('gb:marker:glucose') === 'biochemistry.glucose'
         && schema.resolveBuiltinMarkerDotKey('lipids.cholHdlRatio') === 'calculatedRatios.cholHdlRatio'
-        && schema.BUILTIN_MARKER_DOT_KEY_ALIASES['hormones.cPeptide'] === 'diabetes.cPeptide'
+      && schema.BUILTIN_MARKER_DOT_KEY_ALIASES['hormones.cPeptide'] === 'diabetes.cPeptide'
+      && schema.BUILTIN_MARKER_DOT_KEY_ALIASES['hormones.insulin'] === 'diabetes.insulin'
+      && schema.BUILTIN_MARKER_ID_ALIASES['gb:marker:insulin_d'] === 'gb:marker:insulin'
         && schema.CUSTOM_MARKER_ID_PREFIX === 'custom:'
         && schema.isCustomMarkerId('custom:browser_01') === true;
 

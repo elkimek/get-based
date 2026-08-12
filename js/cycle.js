@@ -213,12 +213,39 @@ export function getNextBestDrawDate(mc) {
   };
 }
 
-export function getBloodDrawPhases(mc, dates) {
-  if (!mc || !dates) return {};
+export function getBloodDrawPhases(mc, dates, entryContextByDate = {}) {
+  if (!dates) return {};
   const phases = {};
   for (const d of dates) {
-    const p = getCyclePhase(d, mc);
-    if (p) phases[d] = p;
+    const context = entryContextByDate[d];
+    const normalizedPhase = String(context?.cyclePhase || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    const phase = normalizedPhase.includes('menstrual') || normalizedPhase === 'menses' ? 'menstrual'
+      : normalizedPhase.includes('follicular') ? 'follicular'
+      : normalizedPhase.includes('ovulat') ? 'ovulatory'
+      : normalizedPhase.includes('luteal') ? 'luteal'
+      : null;
+    if (phase) {
+      const phaseNames = { menstrual: 'Menstrual', follicular: 'Follicular', ovulatory: 'Ovulatory', luteal: 'Luteal' };
+      const detailNames = {
+        early_follicular: 'Early follicular', late_follicular: 'Late follicular', periovulatory: 'Periovulatory',
+        early_luteal: 'Early luteal', mid_luteal: 'Mid-luteal', late_luteal: 'Late luteal',
+      };
+      const detail = String(context?.cyclePhaseDetail || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+      const cycleDayNumber = Number(context?.cycleDay);
+      const phaseSource = String(context?.cyclePhaseSource || '').toLowerCase() === 'predicted' ? 'predicted' : 'recorded';
+      phases[d] = {
+        cycleDay: Number.isInteger(cycleDayNumber) && cycleDayNumber > 0 ? cycleDayNumber : null,
+        phase,
+        phaseName: phaseNames[phase],
+        phaseDetailName: detailNames[detail] || phaseNames[phase],
+        confidence: phaseSource === 'recorded' ? 'recorded' : 'medium',
+        basedOnStartDate: null,
+        source: phaseSource,
+      };
+      continue;
+    }
+    const p = mc ? getCyclePhase(d, mc) : null;
+    if (p) phases[d] = { ...p, phaseDetailName: p.phaseName, source: 'predicted' };
   }
   return phases;
 }
@@ -724,13 +751,14 @@ export function renderMenstrualCycleSection(data, opts = {}) {
       </div>`;
     }
     if (isActiveCycle && data?.dates?.length > 0) {
-      const phases = getBloodDrawPhases(mc, data.dates);
+      const phases = getBloodDrawPhases(mc, data.dates, data.entryContextByDate);
       const phaseDates = Object.entries(phases);
       if (phaseDates.length > 0) {
         html += `<div class="cycle-draw-phases">`;
         const visiblePhaseDates = compact ? phaseDates.slice(0, 2) : phaseDates;
         for (const [date, p] of visiblePhaseDates) {
-          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${escapeHTML(p.phaseName)}</span><span>${escapeHTML(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span><span class="cycle-tag-day">Day ${p.cycleDay}</span></span>`;
+          const sourceLabel = p.source === 'recorded' ? 'Recorded' : 'Predicted';
+          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${escapeHTML(p.phaseDetailName || p.phaseName)}</span><span>${escapeHTML(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>${p.cycleDay ? `<span class="cycle-tag-day">Day ${p.cycleDay}</span>` : ''}<span class="cycle-tag-day">${sourceLabel}</span></span>`;
         }
         if (compact && phaseDates.length > visiblePhaseDates.length) {
           html += `<span class="cycle-draw-tag cycle-draw-more">+${phaseDates.length - visiblePhaseDates.length} more draws</span>`;

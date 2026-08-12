@@ -742,6 +742,8 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       };
       review.showImportPreview({
         date: '2026-06-07',
+        sampleTime: '07:45',
+        fasting: true,
         fileName: 'confirm-import.pdf',
         testType: 'blood',
         importHash: 'confirm-import-hash',
@@ -765,6 +767,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           mappedKey: 'biochemistry.glucose',
         }],
       });
+      outcomes.labRangeAdoptionDefaultsOn = document.getElementById('import-adopt-ranges')?.checked === true;
       await pdfImport.confirmImport();
       const imported = state.importedData.entries.find(entry => entry.date === '2026-06-07');
       const snapshot = state.importedData.importSnapshots?.find(snap => snap.fileName === 'confirm-import.pdf');
@@ -774,7 +777,13 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && imported.importedWith?.modelId === 'llama-confirm'
         && imported.importHash === 'confirm-import-hash'
         && imported.sourceFiles?.includes('confirm-import.pdf') === true
+        && imported.context?.sampleTime === '07:45'
+        && imported.context?.fasting === true
         && review.getPendingImport() === null;
+      outcomes.defaultLabRangeBecomesActive =
+        state.importedData.refOverrides['biochemistry.glucose']?.refMin === 3.9
+        && state.importedData.refOverrides['biochemistry.glucose']?.refMax === 5.5
+        && state.importedData.refOverrides['biochemistry.glucose']?.refSource === 'import';
       outcomes.confirmImportPersistsBenchmarkMetrics = snapshot?.costInfo?.inputTokens === 10
         && snapshot.costInfo.outputTokens === 5
         && snapshot.costInfo.cost === 0
@@ -783,7 +792,134 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && snapshot.importMode === 'text'
         && snapshot.diagnostics?.structuredOutputFallback === true
         && snapshot.diagnostics?.streamFallback === true
-        && Number.isFinite(snapshot.benchmarkAt);
+        && snapshot.sampleTime === '07:45'
+        && snapshot.fasting === true
+        && Number.isFinite(snapshot.benchmarkAt)
+        && snapshot.adoptReferenceRanges === true;
+
+      review.showImportPreview({
+        date: '2026-06-07',
+        sampleTime: '09:10',
+        fasting: false,
+        fileName: 'same-date-context.pdf',
+        testType: 'blood',
+        markers: [{
+          rawName: 'Sodium',
+          value: 140,
+          unit: 'mmol/L',
+          matched: true,
+          mappedKey: 'electrolytes.sodium',
+        }],
+      });
+      await pdfImport.confirmImport();
+      const laterContextSnapshot = state.importedData.importSnapshots
+        ?.find(snap => snap.fileName === 'same-date-context.pdf');
+      await pdfImport.deleteImportSnapshot(laterContextSnapshot?.id);
+      outcomes.deletingLatestSameDateImportRestoresEarlierCollectionContext =
+        imported.context?.sampleTime === '07:45'
+        && imported.context?.fasting === true
+        && imported.collectionContextSources?.sampleTime === snapshot?.id
+        && imported.collectionContextSources?.fasting === snapshot?.id;
+
+      pdfImport.openImportReviewFromSnapshot(snapshot?.id);
+      review.applyManualImportCollectionContext({ sampleTime: null, fasting: null });
+      await pdfImport.confirmImport();
+      const clearedSnapshot = state.importedData.importSnapshots?.find(snap => snap.id === snapshot?.id);
+      const clearedEntry = state.importedData.entries.find(entry => entry.date === '2026-06-07');
+      outcomes.reReviewCanExplicitlyClearCollectionContext =
+        clearedEntry?.context?.sampleTime === undefined
+        && clearedEntry?.context?.fasting === undefined
+        && clearedEntry?.collectionContextSources?.sampleTime === snapshot?.id
+        && clearedEntry?.collectionContextSources?.fasting === snapshot?.id
+        && clearedSnapshot?.sampleTime === null
+        && clearedSnapshot?.fasting === null
+        && clearedSnapshot?.collectionContextApplied?.includes('sampleTime')
+        && clearedSnapshot?.collectionContextApplied?.includes('fasting');
+
+      state.importedData.refOverrides['biochemistry.glucose'] = {
+        ...state.importedData.refOverrides['biochemistry.glucose'],
+        refMin: 4.2,
+        refMax: 5.2,
+        refSource: 'manual',
+      };
+      review.showImportPreview({
+        date: '2026-06-08',
+        fileName: 'manual-range-guard.pdf',
+        testType: 'blood',
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.1,
+          unit: 'mmol/L',
+          refMin: 4.0,
+          refMax: 6.0,
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+        }],
+      });
+      await pdfImport.confirmImport();
+      const guardedRange = state.importedData.refOverrides['biochemistry.glucose'];
+      outcomes.manualRangeWinsWhileLatestLabRangeIsStashed =
+        guardedRange?.refMin === 4.2
+        && guardedRange.refMax === 5.2
+        && guardedRange.refSource === 'manual'
+        && guardedRange.labRefMin === 4.0
+        && guardedRange.labRefMax === 6.0
+        && guardedRange.labRefDate === '2026-06-08';
+
+      review.showImportPreview({
+        date: '2026-06-01',
+        fileName: 'uploaded-later-but-collected-earlier.pdf',
+        testType: 'blood',
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.0,
+          unit: 'mmol/L',
+          refMin: 3.5,
+          refMax: 6.5,
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+        }],
+      });
+      await pdfImport.confirmImport();
+      outcomes.olderCollectionDoesNotReplaceNewestLabRange =
+        state.importedData.refOverrides['biochemistry.glucose']?.labRefMin === 4.0
+        && state.importedData.refOverrides['biochemistry.glucose']?.labRefMax === 6.0
+        && state.importedData.refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-08';
+
+      const newestRangeSnapshot = state.importedData.importSnapshots
+        ?.find(snap => snap.fileName === 'manual-range-guard.pdf');
+      await pdfImport.deleteImportSnapshot(newestRangeSnapshot?.id);
+      outcomes.deletingNewestRangeFallsBackByCollectionDate =
+        state.importedData.refOverrides['biochemistry.glucose']?.labRefMin === 3.9
+        && state.importedData.refOverrides['biochemistry.glucose']?.labRefMax === 5.5
+        && state.importedData.refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
+        && state.importedData.refOverrides['biochemistry.glucose']?.labRefSnapshotId === snapshot?.id;
+
+      review.showImportPreview({
+        date: '2026-06-09',
+        fileName: 'declined-range.pdf',
+        testType: 'blood',
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.2,
+          unit: 'mmol/L',
+          refMin: 3.0,
+          refMax: 7.0,
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+        }],
+      });
+      const declinedRangeCheckbox = document.getElementById('import-adopt-ranges');
+      if (declinedRangeCheckbox) declinedRangeCheckbox.checked = false;
+      await pdfImport.confirmImport();
+      const declinedRangeSnapshot = state.importedData.importSnapshots
+        ?.find(snap => snap.fileName === 'declined-range.pdf');
+      pdfImport.openImportReviewFromSnapshot(declinedRangeSnapshot?.id);
+      outcomes.declinedRangeStaysInactiveAndUncheckedOnReview =
+        declinedRangeSnapshot?.adoptReferenceRanges === false
+        && state.importedData.refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
+        && document.getElementById('import-adopt-ranges')?.checked === false;
+      review.closeImportModal();
 
       state.importedData = {
         entries: [],

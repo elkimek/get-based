@@ -5,83 +5,26 @@ import { state } from './state.js';
 import {
   MARKER_SCHEMA,
   normalizeClinicalUnit as normalizeUnitStr,
-  normalizeToSI,
   UNIT_CONVERSIONS,
 } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
-import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
+import {
+  annotateImportedRatioUnitConventions,
+  IMPORTABLE_CALCULATED_MARKER_KEYS,
+} from './pdf-import-ratio-units.js';
 
-export { normalizeToSI };
+export { normalizeToSI } from './schema.js';
+export {
+  convertGenericImportValueUnit,
+  convertImportValueUnit,
+  convertSIToImportUnit,
+  GENERIC_IMPORT_UNITS,
+  getValidUnitsForMarker,
+} from './pdf-import-unit-conversions.js';
 
 // ═══════════════════════════════════════════════
 // UNIT NORMALIZATION — convert US-unit values to SI before storage
 // ═══════════════════════════════════════════════
-function isPercentImportUnit(unit) {
-  const norm = normalizeUnitStr(String(unit || ''));
-  return norm === '%' || norm === 'pct' || norm === 'percent' || norm === 'percentage';
-}
-
-export const GENERIC_IMPORT_UNITS = [
-  '', '%', 'ratio', 'arb.j.',
-  'U/l', 'IU/l', '\u00b5kat/l',
-  '/\u00b5l', '10^9/l', '10^12/l',
-  'g/l', 'mg/l', '\u00b5g/l', 'ng/ml', 'ng/l',
-  'mol/l', 'mmol/l', '\u00b5mol/l', 'nmol/l', 'pmol/l',
-  'g/mol', 'fL', 'pg', 'mm/h',
-];
-
-function normalizeGenericImportUnit(unit) {
-  return normalizeUnitStr(String(unit || ''))
-    .replace(/^mcg\//, 'ug/')
-    .replace(/^cells\//, '/')
-    .replace(/^x(10\^\d+\/l)$/i, '$1');
-}
-
-const GENERIC_UNIT_FACTORS = new Map([
-  ['g/l', { group: 'mass-concentration', factor: 1 }],
-  ['mg/l', { group: 'mass-concentration', factor: 1e-3 }],
-  ['ug/l', { group: 'mass-concentration', factor: 1e-6 }],
-  ['ng/ml', { group: 'mass-concentration', factor: 1e-6 }],
-  ['ng/l', { group: 'mass-concentration', factor: 1e-9 }],
-  ['mol/l', { group: 'amount-concentration', factor: 1 }],
-  ['mmol/l', { group: 'amount-concentration', factor: 1e-3 }],
-  ['umol/l', { group: 'amount-concentration', factor: 1e-6 }],
-  ['nmol/l', { group: 'amount-concentration', factor: 1e-9 }],
-  ['pmol/l', { group: 'amount-concentration', factor: 1e-12 }],
-  ['/ul', { group: 'cell-count', factor: 1e6 }],
-  ['10^6/l', { group: 'cell-count', factor: 1e6 }],
-  ['10^9/l', { group: 'cell-count', factor: 1e9 }],
-  ['10^12/l', { group: 'cell-count', factor: 1e12 }],
-  ['u/l', { group: 'activity', factor: 1 }],
-  ['iu/l', { group: 'activity', factor: 1 }],
-  ['ukat/l', { group: 'activity', factor: 60 }],
-]);
-
-function getSchemaUnitForMarker(key) {
-  const [catKey, markerKey] = String(key || '').split('.');
-  return MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.unit || '';
-}
-
-function isRecognizedUnitForMarker(key, unit) {
-  if (!key) return false;
-  if (!unit) return true;
-  const aiUnit = normalizeUnitStr(unit);
-  const siUnit = getSchemaUnitForMarker(key);
-  if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return true;
-  const primaryConv = UNIT_CONVERSIONS[key];
-  if (primaryConv?.type === 'multiply' && primaryConv.usUnit) {
-    if (aiUnit === normalizeUnitStr(primaryConv.usUnit)) return true;
-    if (isPercentImportUnit(aiUnit) && isPercentImportUnit(primaryConv.usUnit)) return true;
-  }
-  if (primaryConv?.type === 'hba1c' && aiUnit === '%') return true;
-  const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
-  if (secondaryList) {
-    for (const sec of secondaryList) {
-      if (sec.unit && aiUnit === normalizeUnitStr(sec.unit)) return true;
-    }
-  }
-  return false;
-}
 
 // Marker keys flow into onclick handlers and dynamic property names. Reject
 // anything that isn't strictly `category.markerKey` (alphanumeric, optional
@@ -89,10 +32,6 @@ function isRecognizedUnitForMarker(key, unit) {
 // response can't escape an attribute context. Downstream code already
 // handles `null` mappedKey/suggestedKey by deriving a safe key from rawName.
 const _SAFE_MARKER_KEY = /^[a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9_]*$/;
-
-const IMPORTABLE_CALCULATED_MARKER_KEYS = new Set([
-  'calculatedRatios.cholHdlRatio',
-]);
 
 function _isImportableCalculatedMarkerKey(key) {
   if (!IMPORTABLE_CALCULATED_MARKER_KEYS.has(key)) return false;
@@ -199,72 +138,6 @@ function _suggestDifferentialPercentImportKey(marker) {
   return `differential.${stem}Pct`;
 }
 
-export function getValidUnitsForMarker(key) {
-  if (!key) return [];
-  const [catKey, markerKey] = key.split('.');
-  const schema = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-  const units = [];
-  if (schema?.unit) units.push(schema.unit);
-  const conv = UNIT_CONVERSIONS[key];
-  if (conv?.usUnit) units.push(conv.usUnit);
-  const secondaries = SECONDARY_UNIT_CONVERSIONS[key];
-  if (secondaries) {
-    secondaries.forEach(sec => {
-      if (sec.unit) units.push(sec.unit);
-    });
-  }
-  return [...new Set(units)];
-}
-
-export function convertSIToImportUnit(key, value, unit) {
-  if (value == null || isNaN(value)) return null;
-  if (!key || !unit) return value;
-  const aiUnit = normalizeUnitStr(unit);
-  const siUnit = getSchemaUnitForMarker(key);
-  if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return value;
-
-  const primaryConv = UNIT_CONVERSIONS[key];
-  if (primaryConv?.type === 'multiply' && primaryConv.usUnit && aiUnit === normalizeUnitStr(primaryConv.usUnit)) {
-    return parseFloat((value * primaryConv.factor).toPrecision(6));
-  }
-  if (primaryConv?.type === 'hba1c' && aiUnit === '%') {
-    return parseFloat(((value / 10.929) + 2.15).toFixed(1));
-  }
-
-  const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
-  if (secondaryList) {
-    for (const sec of secondaryList) {
-      if (sec.type === 'multiply' && aiUnit === normalizeUnitStr(sec.unit)) {
-        return parseFloat((value * sec.factor).toPrecision(6));
-      }
-      if (sec.type === 'hba1c' && aiUnit === normalizeUnitStr(sec.unit)) {
-        return parseFloat(((value / 10.929) + 2.15).toFixed(1));
-      }
-    }
-  }
-  return null;
-}
-
-export function convertImportValueUnit(key, value, fromUnit, toUnit) {
-  if (value == null || isNaN(value)) return null;
-  if (!key) return null;
-  if (normalizeUnitStr(fromUnit || '') === normalizeUnitStr(toUnit || '')) return value;
-  if (!isRecognizedUnitForMarker(key, fromUnit)) return null;
-  const siValue = normalizeToSI(key, value, fromUnit);
-  return convertSIToImportUnit(key, siValue, toUnit);
-}
-
-export function convertGenericImportValueUnit(value, fromUnit, toUnit) {
-  if (value == null || isNaN(value)) return null;
-  const from = normalizeGenericImportUnit(fromUnit);
-  const to = normalizeGenericImportUnit(toUnit);
-  if (from === to) return value;
-  if (!from || !to) return null;
-  const fromMeta = GENERIC_UNIT_FACTORS.get(from);
-  const toMeta = GENERIC_UNIT_FACTORS.get(to);
-  if (!fromMeta || !toMeta || fromMeta.group !== toMeta.group) return null;
-  return parseFloat(((value * fromMeta.factor) / toMeta.factor).toPrecision(6));
-}
 
 export function _cleanImportedMarkerDisplayName(value) {
   const cleaned = _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
@@ -302,9 +175,16 @@ const URINE_CUSTOM_IMPORT_KEYS = new Map([
   ['erytrocyty', 'urinalysis.erythrocytes'],
   ['hlen', 'urinalysis.mucus'],
   ['kreatinin', 'urinalysis.creatinine'],
+  ['albumin', 'urinalysis.albumin'],
+  ['mikroalbumin', 'urinalysis.albumin'],
+  ['pomeralbuminkreatinin', 'urinalysis.albuminCreatinineRatio'],
+  ['albuminkreatininratio', 'urinalysis.albuminCreatinineRatio'],
+  ['acr', 'urinalysis.albuminCreatinineRatio'],
   ['celkbilkovina', 'urinalysis.totalProtein'],
   ['celkovabilkovina', 'urinalysis.totalProtein'],
   ['pomerproteinkreatinin', 'urinalysis.proteinCreatinineRatio'],
+  ['proteincreatinineratio', 'urinalysis.proteinCreatinineRatio'],
+  ['pcr', 'urinalysis.proteinCreatinineRatio'],
 ]);
 
 function _isSpecimenIncompatibleImportKey(marker, key, standardCats) {
@@ -344,6 +224,15 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['egfr', 'biochemistry.egfr'],
   ['kyselinamocova', 'biochemistry.uricAcid'],
   ['bilirubincelkovy', 'biochemistry.bilirubinTotal'],
+  ['bilirubinprimy', 'biochemistry.bilirubinDirect'],
+  ['directbilirubin', 'biochemistry.bilirubinDirect'],
+  ['bilirubinneprimy', 'biochemistry.bilirubinIndirect'],
+  ['indirectbilirubin', 'biochemistry.bilirubinIndirect'],
+  ['bikarbonat', 'biochemistry.bicarbonate'],
+  ['totalco2', 'biochemistry.bicarbonate'],
+  ['amylaza', 'biochemistry.amylase'],
+  ['lipaza', 'biochemistry.lipase'],
+  ['osmolalita', 'biochemistry.osmolality'],
   ['ast', 'biochemistry.ast'],
   ['alt', 'biochemistry.alt'],
   ['alp', 'biochemistry.alp'],
@@ -360,9 +249,12 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['draslik', 'electrolytes.potassium'],
   ['chloridy', 'electrolytes.chloride'],
   ['cacelkovy', 'electrolytes.calciumTotal'],
+  ['caionizovany', 'electrolytes.calciumIonized'],
+  ['ionizedcalcium', 'electrolytes.calciumIonized'],
   ['panorganicky', 'electrolytes.phosphorus'],
   ['horcik', 'electrolytes.magnesium'],
   ['horcikvery', 'electrolytes.magnesiumRBC'],
+  ['selen', 'electrolytes.selenium'],
   ['cholesterol', 'lipids.cholesterol'],
   ['triacylglyceroly', 'lipids.triglycerides'],
   ['hdlcholesterol', 'lipids.hdl'],
@@ -372,10 +264,53 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['lpa', 'lipids.lpA'],
   ['lipoproteina', 'lipids.lpA'],
   ['nonhdl', 'lipids.nonHdl'],
+  ['tghdl', 'calculatedRatios.tgHdlRatio'],
+  ['tghdlratio', 'calculatedRatios.tgHdlRatio'],
+  ['triglyceridehdlratio', 'calculatedRatios.tgHdlRatio'],
+  ['triglyceridestohdlratio', 'calculatedRatios.tgHdlRatio'],
+  ['ldlhdl', 'calculatedRatios.ldlHdlRatio'],
+  ['ldlhdlratio', 'calculatedRatios.ldlHdlRatio'],
+  ['ldltohdlratio', 'calculatedRatios.ldlHdlRatio'],
+  ['apobapoai', 'calculatedRatios.apoBapoAIRatio'],
+  ['apobapoairatio', 'calculatedRatios.apoBapoAIRatio'],
+  ['apobapoa1', 'calculatedRatios.apoBapoAIRatio'],
+  ['apobapoa1ratio', 'calculatedRatios.apoBapoAIRatio'],
   ['cholhdl', 'calculatedRatios.cholHdlRatio'],
   ['cholhdlratio', 'calculatedRatios.cholHdlRatio'],
   ['cholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
   ['totalcholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
+  ['nlr', 'calculatedRatios.nlr'],
+  ['neutrophillymphocyteratio', 'calculatedRatios.nlr'],
+  ['neutrophiltolymphocyteratio', 'calculatedRatios.nlr'],
+  ['plr', 'calculatedRatios.plr'],
+  ['plateletlymphocyteratio', 'calculatedRatios.plr'],
+  ['platelettolymphocyteratio', 'calculatedRatios.plr'],
+  ['monocytelymphocyteratio', 'calculatedRatios.mlr'],
+  ['monocytetolymphocyteratio', 'calculatedRatios.mlr'],
+  ['mlr', 'calculatedRatios.mlr'],
+  ['deritisratio', 'calculatedRatios.deRitisRatio'],
+  ['astalt', 'calculatedRatios.deRitisRatio'],
+  ['astaltratio', 'calculatedRatios.deRitisRatio'],
+  ['copperzincratio', 'calculatedRatios.copperZincRatio'],
+  ['cuznratio', 'calculatedRatios.copperZincRatio'],
+  ['freet3freet4ratio', 'calculatedRatios.ft3ft4Ratio'],
+  ['ft3ft4ratio', 'calculatedRatios.ft3ft4Ratio'],
+  ['buncreatinineratio', 'calculatedRatios.bunCreatRatio'],
+  ['buncreatratio', 'calculatedRatios.bunCreatRatio'],
+  ['hscrphdlratio', 'calculatedRatios.crpHdlRatio'],
+  ['hscrphdlcratio', 'calculatedRatios.crpHdlRatio'],
+  ['atherogenicindexofplasma', 'calculatedRatios.atherogenicIndexPlasma'],
+  ['aip', 'calculatedRatios.atherogenicIndexPlasma'],
+  ['triglycerideglucoseindex', 'calculatedRatios.tygIndex'],
+  ['tygindex', 'calculatedRatios.tygIndex'],
+  ['tyg', 'calculatedRatios.tygIndex'],
+  ['albuminglobulinratio', 'calculatedRatios.albuminGlobulinRatio'],
+  ['agr', 'calculatedRatios.albuminGlobulinRatio'],
+  ['fib4index', 'calculatedRatios.fib4Index'],
+  ['fib4', 'calculatedRatios.fib4Index'],
+  ['systemicimmuneinflammationindex', 'calculatedRatios.systemicImmuneInflammationIndex'],
+  ['sii', 'calculatedRatios.systemicImmuneInflammationIndex'],
+  ['aniongap', 'calculatedRatios.anionGap'],
   ['zelezo', 'iron.iron'],
   ['ferritin', 'iron.ferritin'],
   ['transferin', 'iron.transferrin'],
@@ -395,6 +330,9 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['celkbilkovina', 'proteins.totalProtein'],
   ['celkovabilkovina', 'proteins.totalProtein'],
   ['albumin', 'proteins.albumin'],
+  ['globulin', 'proteins.globulin'],
+  ['sedimentace', 'proteins.esr'],
+  ['esr', 'proteins.esr'],
   ['vitamindcelkovy', 'vitamins.vitaminD'],
   ['kyselinalistova', 'vitamins.folate'],
   ['holotranskobalamin', 'vitamins.activeB12'],
@@ -405,12 +343,20 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['methylmalonicacid', 'vitamins.methylmalonicAcid'],
   ['kyselinamethylmalonova', 'vitamins.methylmalonicAcid'],
   ['mma', 'vitamins.methylmalonicAcid'],
+  ['vitaminb1', 'vitamins.vitaminB1'],
+  ['thiamine', 'vitamins.vitaminB1'],
+  ['vitaminb6', 'vitamins.vitaminB6'],
+  ['pyridoxalphosphate', 'vitamins.vitaminB6'],
+  ['vitaminc', 'vitamins.vitaminC'],
+  ['ascorbicacid', 'vitamins.vitaminC'],
+  ['vitamine', 'vitamins.vitaminE'],
+  ['alphatocopherol', 'vitamins.vitaminE'],
   ['hba1c', 'diabetes.hba1c'],
   ['cpeptide', 'diabetes.cPeptide'],
   ['cpeptid', 'diabetes.cPeptide'],
   ['fructosamine', 'diabetes.fructosamine'],
   ['fruktosamin', 'diabetes.fructosamine'],
-  ['inzulin', 'hormones.insulin'],
+  ['inzulin', 'diabetes.insulin'],
   ['fsh', 'hormones.fsh'],
   ['lh', 'hormones.lh'],
   ['prolaktin', 'hormones.prolactin'],
@@ -424,6 +370,12 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['parathyroidhormoneintact', 'hormones.pth'],
   ['kortizol', 'hormones.cortisol'],
   ['cortisol', 'hormones.cortisol'],
+  ['acth', 'hormones.acth'],
+  ['aldosteron', 'hormones.aldosterone'],
+  ['aldosterone', 'hormones.aldosterone'],
+  ['renin', 'hormones.renin'],
+  ['amh', 'hormones.amh'],
+  ['antimullerianhormone', 'hormones.amh'],
   ['androstenedion', 'hormones.androstenedione'],
   ['androstenedione', 'hormones.androstenedione'],
   ['dihydrotestosteron', 'hormones.dht'],
@@ -442,6 +394,10 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['tgantibodies', 'thyroid.tgAb'],
   ['thyroglobulinantibodies', 'thyroid.tgAb'],
   ['antitg', 'thyroid.tgAb'],
+  ['trab', 'thyroid.trab'],
+  ['tshreceptorantibodies', 'thyroid.trab'],
+  ['thyreoglobulin', 'thyroid.thyroglobulin'],
+  ['thyroglobulin', 'thyroid.thyroglobulin'],
   ['leukocyty', 'hematology.wbc'],
   ['erytrocyty', 'hematology.rbc'],
   ['hemoglobin', 'hematology.hemoglobin'],
@@ -454,11 +410,34 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['trombokrit', 'hematology.pct'],
   ['pdw', 'hematology.pdw'],
   ['mpv', 'hematology.mpv'],
+  ['retikulocyty', 'hematology.reticulocytes'],
+  ['reticulocytes', 'hematology.reticulocytes'],
+  ['retikulocytyprocenta', 'hematology.reticulocytesPct'],
+  ['reticulocytespercent', 'hematology.reticulocytesPct'],
+  ['nezralegranulocyty', 'hematology.immatureGranulocytes'],
+  ['immaturegranulocytes', 'hematology.immatureGranulocytes'],
   ['homocystein', 'coagulation.homocysteine'],
+  ['pt', 'coagulation.pt'],
+  ['prothrombintime', 'coagulation.pt'],
+  ['inr', 'coagulation.inr'],
+  ['aptt', 'coagulation.aptt'],
+  ['activatedpartialthromboplastintime', 'coagulation.aptt'],
   ['fibrinogen', 'coagulation.fibrinogen'],
   ['ddimer', 'coagulation.dDimer'],
   ['ddimery', 'coagulation.dDimer'],
   ['dimerd', 'coagulation.dDimer'],
+  ['p1np', 'boneMetabolism.p1np'],
+  ['betactx', 'boneMetabolism.ctx'],
+  ['ctx', 'boneMetabolism.ctx'],
+  ['hstropont', 'cardiac.hsTroponinT'],
+  ['hstroponint', 'cardiac.hsTroponinT'],
+  ['hstroponini', 'cardiac.hsTroponinI'],
+  ['bnp', 'cardiac.bnp'],
+  ['ntprobnp', 'cardiac.ntProBnp'],
+  ['cea', 'tumorMarkers.cea'],
+  ['ca125', 'tumorMarkers.ca125'],
+  ['ca199', 'tumorMarkers.ca199'],
+  ['ca153', 'tumorMarkers.ca153'],
 ]);
 
 function _standardMarkerShortNames() {
@@ -562,9 +541,9 @@ function _buildStandardBloodNameLookup() {
     }
   };
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
-    if (cat.calculated) continue;
     for (const [markerKey, marker] of Object.entries(cat.markers || {})) {
       const fullKey = `${catKey}.${markerKey}`;
+      if (cat.calculated && !_isImportableCalculatedMarkerKey(fullKey)) continue;
       add(markerKey, fullKey);
       add(marker.name, fullKey);
     }
@@ -586,6 +565,8 @@ function _resolveStandardBloodImportKey(
   if (_isUrineImportSpecimen(specimen)) {
     if (compactBase === 'ph') return 'urinalysis.ph';
     if (compactBase === 'hustotamoci' || compactBase === 'specifickahustota' || compactBase === 'specificgravity') return 'urinalysis.specificGravity';
+    const urineKey = URINE_CUSTOM_IMPORT_KEYS.get(compactBase);
+    if (urineKey && refLookup[urineKey]) return urineKey;
     return null;
   }
 
@@ -662,6 +643,7 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
       marker.matched = false;
     }
   }
+  annotateImportedRatioUnitConventions(markers);
   return markers;
 }
 

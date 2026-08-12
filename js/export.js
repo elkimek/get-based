@@ -570,7 +570,7 @@ export async function loadDemoData(sex = 'male') {
           if (!entry.date || !entry.markers) continue;
           const existing = findOrCreateLabEntry(_ctxData, entry.date, { now: _ctxImportTs });
           for (const [key, value] of Object.entries(entry.markers)) {
-            setLabEntryMarker(existing, key, value, { now: _ctxImportTs, mirrorInsulin: true });
+            setLabEntryMarker(existing, key, value, { now: _ctxImportTs });
           }
         }
         try { migrateProfileData(_ctxData); } catch (_) {}

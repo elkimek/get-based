@@ -1041,7 +1041,7 @@
     "category": "bloodSugar",
     "markers": [
       "biochemistry.glucose",
-      "hormones.insulin",
+      "diabetes.insulin",
       "diabetes.homaIR"
     ],
     "contextCards": [
@@ -1493,7 +1493,7 @@
     "markers": [
       "biochemistry.glucose",
       "diabetes.hba1c",
-      "hormones.insulin",
+      "diabetes.insulin",
       "diabetes.homaIR"
     ],
     "contextCards": [
@@ -1820,7 +1820,7 @@
     "category": "bloodSugar",
     "markers": [
       "biochemistry.glucose",
-      "hormones.insulin",
+      "diabetes.insulin",
       "diabetes.homaIR"
     ],
     "contextCards": [
@@ -2105,7 +2105,7 @@
     "markers": [
       "biochemistry.glucose",
       "diabetes.hba1c",
-      "hormones.insulin",
+      "diabetes.insulin",
       "diabetes.homaIR"
     ],
     "contextCards": [
@@ -2306,7 +2306,7 @@
     "markers": [
       "biochemistry.glucose",
       "diabetes.hba1c",
-      "hormones.insulin",
+      "diabetes.insulin",
       "diabetes.homaIR"
     ],
     "contextCards": [

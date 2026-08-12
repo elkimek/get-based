@@ -80,13 +80,12 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /function rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailStoreSrc) &&
     /manualValues\[key\] = hasImportedOriginal \? current : true/.test(markerDetailStoreSrc) &&
     /saveManualMarkerValue[\s\S]{0,1200}rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailStoreSrc) &&
-    /saveManualEntry[\s\S]{0,5000}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc));
-  assert('Manual original detection accepts sourceFiles and mirrored insulin entries',
-    /function entryMarkerValue\(entry, dotKey\)[\s\S]{0,500}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailStoreSrc) &&
+    /saveManualEntry[\s\S]{0,6000}saveManualMarkerValue\(\{[\s\S]{0,300}dotKey,[\s\S]{0,300}collectionContext:/.test(markerDetailEditingSrc));
+  assert('Manual original detection reads the canonical entry and accepts sourceFiles',
+    /function entryMarkerValue\(entry, dotKey\)[\s\S]{0,300}hasOwnProperty\.call\(markers, dotKey\)/.test(markerDetailStoreSrc) &&
     /function entryHasImportedSource\(entry, dotKey\)[\s\S]{0,700}entry\.sourceFiles\.some\(Boolean\)/.test(markerDetailStoreSrc));
-  assert('Manual revert can use the mirrored insulin manual original',
-    /function insulinMirrorMapKey\(dotKey, date\)[\s\S]{0,250}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailStoreSrc) &&
-    /export function getManualOriginalForMarker\(dotKey, date\)[\s\S]{0,900}insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc) &&
+  assert('Manual revert uses the canonical marker manual original',
+    /export function getManualOriginalForMarker\(dotKey, date\)[\s\S]{0,500}mapKey\(dotKey, date\)/.test(markerDetailStoreSrc) &&
     /revertMarkerValue[\s\S]{0,350}revertManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc));
   assert('Manual value saves stamp lab entry updatedAt for sync freshness',
     /function stampLabEntryUpdated\(entry, now = Date\.now\(\)\)/.test(labEntrySrc)
@@ -101,10 +100,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /manual \\u00d7/.test(markerDetailSrc) &&
     /Revert manual value to imported value/.test(markerDetailSrc) &&
     markerDetailSrc.includes("markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })"));
-  assert('Manual badge reads mirrored insulin original before falling back to plain manual state',
-    /function getManualValueForMarker\(dotKey, date\)[\s\S]{0,800}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailSrc) &&
+  assert('Manual badge reads the canonical marker original before falling back to plain manual state',
+    /function getManualValueForMarker\(dotKey, date\)[\s\S]{0,500}const key = dotKey \+ ':' \+ date/.test(markerDetailSrc) &&
     /map\[key\] != null && map\[key\] !== true/.test(markerDetailSrc) &&
-    /map\[mirrorKey\] != null && map\[mirrorKey\] !== true/.test(markerDetailSrc) &&
     /const manualVal = rawDate \? getManualValueForMarker\(dotKey, rawDate\) : undefined/.test(markerDetailSrc) &&
     /const isManualSource = !!\(src && src\.file == null\)/.test(markerDetailSrc));
 
@@ -136,6 +134,13 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /\/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(raw\)/.test(markerDetailSrc));
   assert('Date fallback chain: prefillDate → sessionLast → today',
     /typeof prefillDate === 'string' && [\s\S]{0,200}sessionLast \|\| today/.test(markerDetailSrc));
+  assert('Manual form exposes structured collection time and fasting inputs',
+    markerDetailSrc.includes('id="me-sample-time"')
+      && markerDetailSrc.includes('id="me-fasting"')
+      && markerDetailSrc.includes('not the lab processing or report time'));
+  assert('Manual save persists collection context on the date-level lab entry',
+    /collectionContext:\s*\{[\s\S]{0,200}sampleTime:[\s\S]{0,120}fasting/.test(markerDetailEditingSrc)
+      && /saveManualMarkerValue[\s\S]{0,1400}setLabEntryCollectionContext\(entry, collectionContext/.test(markerDetailStoreSrc));
 
   // Live behavior: write → openManualEntryForm reads.
   try {

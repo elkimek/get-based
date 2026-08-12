@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { formatValue, getStatus } from './utils.js';
 import { getActiveData } from './data.js';
-import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
+import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
 import { openChatPanel } from './chat-panel.js';
 import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } from './chat-threads.js';
 import { loadChatHistory, saveChatHistory } from './chat-history.js';
@@ -35,16 +35,33 @@ export function askAIAboutMarker(markerId) {
       let text = `${dates[i]}: ${formatValue(v)} ${marker.unit}`;
       if (marker.phaseLabels && marker.phaseLabels[i]) {
         const pr = marker.phaseRefRanges[i];
-        text += ` (${marker.phaseLabels[i]} phase, ref ${formatValue(pr.min)}\u2013${formatValue(pr.max)})`;
+        const phaseLabel = marker.phaseDisplayLabels?.[i] || marker.phaseLabels[i];
+        const cycleDay = marker.phaseCycleDays?.[i];
+        const source = marker.phaseSources?.[i] === 'recorded' ? 'recorded' : 'predicted';
+        text += ` (${phaseLabel} phase${cycleDay ? `, cycle day ${cycleDay}` : ''}, ${source}; ref ${formatValue(pr.min)}\u2013${formatValue(pr.max)})`;
+      } else if (marker.contextRefRanges?.[i] || marker.contextOptimalRanges?.[i]) {
+        const cr = getEffectiveRangeForDate(marker, i);
+        const label = getEffectiveRangeLabelForDate(marker, i);
+        const rangeText = cr.min != null || cr.max != null
+          ? `${cr.min != null ? formatValue(cr.min) : '–'}\u2013${cr.max != null ? formatValue(cr.max) : '–'}`
+          : 'not set';
+        text += ` (${label}: ${rangeText})`;
       }
       return text;
     })
     .filter(Boolean).join(', ');
   const latestIdx = getLatestValueIndex(marker.values);
   const lr = getEffectiveRangeForDate(marker, latestIdx);
-  const status = latestIdx !== -1 ? getStatus(marker.values[latestIdx], lr.min, lr.max) : 'no data';
-  let prompt = `Tell me about my ${marker.name} results. Values: ${valuesText}. Reference range: ${marker.refMin}\u2013${marker.refMax} ${marker.unit}${marker.optimalMin != null ? `. Optimal range: ${marker.optimalMin}\u2013${marker.optimalMax}` : ''}. Current status: ${status}.`;
+  const latestRangeLabel = getEffectiveRangeLabelForDate(marker, latestIdx);
+  const status = latestIdx !== -1
+    ? (lr.min != null || lr.max != null ? getStatus(marker.values[latestIdx], lr.min, lr.max) : 'unrated')
+    : 'no data';
+  const latestRangeText = lr.min != null || lr.max != null
+    ? `${lr.min != null ? lr.min : '–'}\u2013${lr.max != null ? lr.max : '–'} ${marker.unit}`
+    : 'not set';
+  let prompt = `Tell me about my ${marker.name} results. Values: ${valuesText}. ${latestRangeLabel}: ${latestRangeText}${marker.optimalMin != null && !marker.contextOptimalRanges?.[latestIdx] && latestRangeLabel !== 'Optimal' ? `. Optimal range: ${marker.optimalMin}\u2013${marker.optimalMax}` : ''}. Current status: ${status}.`;
   if (marker.phaseLabels) prompt += ' Note: reference ranges shown are phase-specific for the menstrual cycle.';
+  if (marker.rangePolicy === 'guidance') prompt += ' Note: the displayed band is guidance, not a diagnostic interval; use a report-provided laboratory range when available.';
   const nonNull = marker.values.filter(v => v !== null);
   if (nonNull.length >= 2) {
     const prev = nonNull[nonNull.length - 2];

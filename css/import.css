@@ -101,7 +101,9 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-#import-manual-date {
+#import-manual-date,
+#import-sample-time,
+#import-fasting {
   min-height: 34px;
   padding: 5px 9px;
   border: 1px solid var(--border);
@@ -110,6 +112,11 @@
   color: var(--text-primary);
   font: inherit;
   font-family: var(--font-mono);
+}
+.import-review-file small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
 }
 .import-review-controls {
   display: grid;

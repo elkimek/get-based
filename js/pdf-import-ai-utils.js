@@ -11,6 +11,8 @@ export const IMPORT_JSON_SCHEMA = {
   properties: {
     testType: { type: ['string', 'null'] },
     date: { type: ['string', 'null'] },
+    sampleTime: { type: ['string', 'null'] },
+    fasting: { type: ['boolean', 'null'] },
     markers: {
       type: 'array',
       items: {
@@ -32,7 +34,7 @@ export const IMPORT_JSON_SCHEMA = {
       },
     },
   },
-  required: ['testType', 'date', 'markers'],
+  required: ['testType', 'date', 'sampleTime', 'fasting', 'markers'],
 };
 
 export const IMPORT_CLASSIFICATION_JSON_SCHEMA = {
