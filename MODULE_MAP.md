@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 650 |
-| Internal import edges | 2725 |
+| Modules | 651 |
+| Internal import edges | 2726 |
 | Dynamic internal edges | 72 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -59,8 +59,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils.js`](js/utils.js) | 264 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
 | [`js/state.js`](js/state.js) | 183 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/chat-send.js`](js/chat-send.js) | 28 |
-| [`js/data.js`](js/data.js) | 78 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
-| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 75 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/data.js`](js/data.js) | 78 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 75 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/api.js`](js/api.js) | 66 | [`js/settings.js`](js/settings.js) | 26 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/wearables-connect.js`](js/wearables-connect.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/views.js`](js/views.js) | 22 |
@@ -394,8 +394,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cycle</code> family — 8 modules</summary>
+<details><summary><code>cycle</code> family — 9 modules</summary>
 
+- [`js/cycle-draw-phases.js`](js/cycle-draw-phases.js) → no in-scope imports
 - [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js) → [`js/cycle-summary.js`](js/cycle-summary.js)
 - [`js/cycle-import-file.js`](js/cycle-import-file.js) → [`js/caught-error.js`](js/caught-error.js)
 - [`js/cycle-import-loader.js`](js/cycle-import-loader.js) → [`js/cycle-import.js`](js/cycle-import.js) *(dynamic)*, [`js/cycle-summary.js`](js/cycle-summary.js), [`js/utils.js`](js/utils.js)
@@ -403,7 +404,7 @@ Native browser modules shipped with the static application.
 - [`js/cycle-runtime.js`](js/cycle-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/cycle-store.js`](js/cycle-store.js) → no in-scope imports
 - [`js/cycle-summary.js`](js/cycle-summary.js) → no in-scope imports
-- [`js/cycle.js`](js/cycle.js) → [`js/caught-error.js`](js/caught-error.js), [`js/constants.js`](js/constants.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-import-loader.js`](js/cycle-import-loader.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js)
+- [`js/cycle.js`](js/cycle.js) → [`js/caught-error.js`](js/caught-error.js), [`js/constants.js`](js/constants.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-draw-phases.js`](js/cycle-draw-phases.js), [`js/cycle-import-loader.js`](js/cycle-import-loader.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -792,7 +793,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>pdf</code> family — 16 modules</summary>
 
-- [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api.js`](js/api.js), [`js/utils.js`](js/utils.js)
+- [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api.js`](js/api.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-commit.js`](js/pdf-import-commit.js) → [`js/adapters.js`](js/adapters.js), [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-ratio-units.js`](js/pdf-import-ratio-units.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-handlers.js`](js/pdf-import-file-handlers.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js), [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pii.js`](js/pii.js), [`js/privacy-safe-diagnostics.js`](js/privacy-safe-diagnostics.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js) → [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pdfjs-loader.js`](js/pdfjs-loader.js)
@@ -807,7 +808,7 @@ Native browser modules shipped with the static application.
 - [`js/pdf-import-review.js`](js/pdf-import-review.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-marker-map-modal.js`](js/import-marker-map-modal.js), [`js/import-review-draft.js`](js/import-review-draft.js), [`js/import-review-row-actions.js`](js/import-review-row-actions.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-review-formatting.js`](js/pdf-import-review-formatting.js), [`js/pdf-import-review-runtime.js`](js/pdf-import-review-runtime.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js) → no in-scope imports
 - [`js/pdf-import-unit-conversions.js`](js/pdf-import-unit-conversions.js) → [`js/schema.js`](js/schema.js), [`js/secondary-unit-conversions.js`](js/secondary-unit-conversions.js)
-- [`js/pdf-import.js`](js/pdf-import.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/export.js`](js/export.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-commit.js`](js/pdf-import-commit.js), [`js/pdf-import-file-handlers.js`](js/pdf-import-file-handlers.js), [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-marker-normalization.js`](js/pdf-import-marker-normalization.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pii.js`](js/pii.js), [`js/privacy-safe-diagnostics.js`](js/privacy-safe-diagnostics.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/pdf-import.js`](js/pdf-import.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-import.js`](js/cycle-import.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/export.js`](js/export.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-commit.js`](js/pdf-import-commit.js), [`js/pdf-import-file-handlers.js`](js/pdf-import-file-handlers.js), [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-marker-normalization.js`](js/pdf-import-marker-normalization.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pii.js`](js/pii.js), [`js/privacy-safe-diagnostics.js`](js/privacy-safe-diagnostics.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
