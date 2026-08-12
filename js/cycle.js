@@ -10,6 +10,7 @@ import { calculateCycleStats, createCyclePeriod, recentCyclePeriods, upgradeMens
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import-loader.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
+import { getRecordedDrawPhase } from './cycle-draw-phases.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -213,12 +214,17 @@ export function getNextBestDrawDate(mc) {
   };
 }
 
-export function getBloodDrawPhases(mc, dates) {
-  if (!mc || !dates) return {};
+export function getBloodDrawPhases(mc, dates, entryContextByDate = {}) {
+  if (!dates) return {};
   const phases = {};
   for (const d of dates) {
-    const p = getCyclePhase(d, mc);
-    if (p) phases[d] = p;
+    const recordedPhase = getRecordedDrawPhase(entryContextByDate[d]);
+    if (recordedPhase) {
+      phases[d] = recordedPhase;
+      continue;
+    }
+    const p = mc ? getCyclePhase(d, mc) : null;
+    if (p) phases[d] = { ...p, phaseDetailName: p.phaseName, source: 'predicted' };
   }
   return phases;
 }
@@ -724,13 +730,14 @@ export function renderMenstrualCycleSection(data, opts = {}) {
       </div>`;
     }
     if (isActiveCycle && data?.dates?.length > 0) {
-      const phases = getBloodDrawPhases(mc, data.dates);
+      const phases = getBloodDrawPhases(mc, data.dates, data.entryContextByDate);
       const phaseDates = Object.entries(phases);
       if (phaseDates.length > 0) {
         html += `<div class="cycle-draw-phases">`;
         const visiblePhaseDates = compact ? phaseDates.slice(0, 2) : phaseDates;
         for (const [date, p] of visiblePhaseDates) {
-          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${escapeHTML(p.phaseName)}</span><span>${escapeHTML(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span><span class="cycle-tag-day">Day ${p.cycleDay}</span></span>`;
+          const sourceLabel = p.source === 'recorded' ? 'Recorded' : 'Predicted';
+          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${escapeHTML(p.phaseDetailName || p.phaseName)}</span><span>${escapeHTML(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>${p.cycleDay ? `<span class="cycle-tag-day">Day ${p.cycleDay}</span>` : ''}<span class="cycle-tag-day">${sourceLabel}</span></span>`;
         }
         if (compact && phaseDates.length > visiblePhaseDates.length) {
           html += `<span class="cycle-draw-tag cycle-draw-more">+${phaseDates.length - visiblePhaseDates.length} more draws</span>`;

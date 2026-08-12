@@ -73,7 +73,7 @@ export const TIER2_BIOLOGY_SCORE_DEFINITIONS = [
       { key: 'dheaS', label: 'DHEA-S', weight: 0.95, paths: 'hormones.dheaS' },
       { key: 'testCortisolRatio', label: 'Testosterone/cortisol ratio', weight: 0.8, paths: 'biostarksHormone.testCortisolRatio' },
       { key: 'glucose', label: 'Fasting glucose', weight: 0.45, paths: 'biochemistry.glucose' },
-      { key: 'insulin', label: 'Insulin', weight: 0.45, paths: ['hormones.insulin', 'diabetes.insulin_d'] },
+      { key: 'insulin', label: 'Insulin', weight: 0.45, paths: 'diabetes.insulin' },
       { key: 'hsCrp', label: 'hs-CRP', weight: 0.55, paths: 'proteins.hsCRP' },
       { key: 'wbc', label: 'WBC', weight: 0.35, paths: 'hematology.wbc' },
       { key: 'neutrophils', label: 'Neutrophils', weight: 0.35, paths: 'differential.neutrophils' },

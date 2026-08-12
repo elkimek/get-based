@@ -34,6 +34,26 @@ const DAY_MS  = 24 * HOUR_MS;
 // these extend the window back so every marker hits ≥4 datapoints.
 const BACKFILL_DATES = ['2024-04-15', '2024-12-08'];
 
+function coalesceInsulinKeys(value) {
+  if (!value || typeof value !== 'object') return false;
+  let changed = false;
+  if (!Array.isArray(value)) {
+    for (const oldKey of ['hormones.insulin', 'diabetes.insulin_d']) {
+      for (const key of Object.keys(value)) {
+        if (key !== oldKey && !key.startsWith(`${oldKey}:`)) continue;
+        const nextKey = `diabetes.insulin${key.slice(oldKey.length)}`;
+        if (!Object.prototype.hasOwnProperty.call(value, nextKey)) value[nextKey] = value[key];
+        delete value[key];
+        changed = true;
+      }
+    }
+  }
+  for (const nested of Object.values(value)) {
+    changed = coalesceInsulinKeys(nested) || changed;
+  }
+  return changed;
+}
+
 // ─── 1. Marker backfill ───────────────────────────────────────────────
 //
 // We pad the history with two new comprehensive panels. Each panel
@@ -798,10 +818,10 @@ function fixBiomarkerTrends(data, sex) {
     setOn('2025-07-20', 'diabetes.homaIR',  1.40);
     setOn('2025-11-10', 'diabetes.homaIR',  1.05);
     setOn('2026-02-01', 'diabetes.homaIR',  0.85);
-    setOn('2025-03-15', 'diabetes.insulin_d', 5.2);
-    setOn('2025-07-20', 'diabetes.insulin_d', 6.5);
-    setOn('2025-11-10', 'diabetes.insulin_d', 4.8);
-    setOn('2026-02-01', 'diabetes.insulin_d', 3.9);
+    setOn('2025-03-15', 'diabetes.insulin', 5.2);
+    setOn('2025-07-20', 'diabetes.insulin', 6.5);
+    setOn('2025-11-10', 'diabetes.insulin', 4.8);
+    setOn('2026-02-01', 'diabetes.insulin', 3.9);
     setOn('2025-03-15', 'diabetes.hba1c',  31);
     setOn('2025-07-20', 'diabetes.hba1c',  33);
     setOn('2025-11-10', 'diabetes.hba1c',  31);
@@ -846,9 +866,10 @@ function alreadyUpgraded(data) {
 }
 
 function upgrade(data, sex) {
+  const insulinChanged = coalesceInsulinKeys(data);
   if (alreadyUpgraded(data)) {
     console.log('  (already upgraded — skipping)');
-    return false;
+    return insulinChanged;
   }
 
   // 1. Marker backfill.

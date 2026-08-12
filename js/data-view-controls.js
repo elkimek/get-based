@@ -194,7 +194,9 @@ export function setDateRange(range) {
 export function renderChartLayersDropdown() {
   const hasNotes = (state.importedData.notes || []).length > 0;
   const hasSupps = (state.importedData.supplements || []).length > 0;
-  const hasCycle = state.profileSex === 'female' && state.importedData.menstrualCycle?.periods?.length > 0;
+  const hasRecordedDrawPhase = state.importedData.entries?.some(entry => entry.context?.cyclePhase);
+  const hasCycle = state.profileSex === 'female'
+    && (state.importedData.menstrualCycle?.periods?.length > 0 || hasRecordedDrawPhase);
   if (!hasNotes && !hasSupps && !hasCycle) return '';
   return `<div class="chart-layers-wrapper">
     <button class="view-btn chart-layers-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="chart-layers-dropdown" ${dataActionAttrs('toggle-chart-layers')}>Layers \u25BE</button>
@@ -209,7 +211,7 @@ export function renderChartLayersDropdown() {
       </label>` : ''}
       ${hasCycle ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
         <input type="checkbox" ${state.phaseOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-phase-overlay')}>
-        <span>\uD83D\uDD34 Cycle Phases</span>
+        <span>\uD83D\uDD34 Cycle phase at blood draw</span>
       </label>` : ''}
     </div>
   </div>`;

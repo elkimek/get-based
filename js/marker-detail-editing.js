@@ -74,6 +74,8 @@ export async function saveManualEntry(id, opts = {}) {
   const valueInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-value'));
   const noteField = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('me-note'));
   const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-unit'));
+  const sampleTimeInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-sample-time'));
+  const fastingInput = /** @type {HTMLSelectElement | null} */ (document.getElementById('me-fasting'));
   if (!dateInput || !valueInput) return;
   const date = dateInput.value;
   const value = parseFloat(valueInput.value);
@@ -137,7 +139,19 @@ export async function saveManualEntry(id, opts = {}) {
   const storedValue = usingAltUnit
     ? convertUserInputToSI(dotKey, value, inputUnit)
     : convertDisplayToSI(dotKey, value);
-  await saveManualMarkerValue({ dotKey, date, storedValue, noteText });
+  const fasting = fastingInput?.value === 'fasting' ? true
+    : fastingInput?.value === 'not-fasting' ? false
+      : null;
+  await saveManualMarkerValue({
+    dotKey,
+    date,
+    storedValue,
+    noteText,
+    collectionContext: {
+      sampleTime: sampleTimeInput?.value || null,
+      fasting,
+    },
+  });
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
   buildSidebar();

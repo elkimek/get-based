@@ -270,8 +270,12 @@ export function isChartDateAdapterReady(...args) {
 export function formatChartTickValue(value) {
   const loaded = charts.get();
   if (loaded) return loaded.formatChartTickValue(value);
-  const number = Number(value);
-  return Number.isFinite(number) ? Number(number.toPrecision(4)).toString() : String(value ?? '');
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value ?? '');
+  const magnitude = Math.abs(numeric);
+  const maxFractionDigits = magnitude >= 10 ? 1 : magnitude >= 1 ? 2 : 3;
+  const rounded = Number(numeric.toFixed(maxFractionDigits));
+  return String(Object.is(rounded, -0) ? 0 : rounded);
 }
 
 export function createLineChart(...args) {

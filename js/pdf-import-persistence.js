@@ -49,7 +49,7 @@ export async function removeImportedEntry(date) {
   // Only delete markers NOT tagged with a snapshotId (legacy/manual markers)
   if (removedKeys.length > 0) {
     for (const k of removedKeys) {
-      const result = deleteLabEntryMarker(entry, k, { now, mirrorInsulin: true });
+      const result = deleteLabEntryMarker(entry, k, { now });
       if (result.changed) removedCount++;
     }
   }

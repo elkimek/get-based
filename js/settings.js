@@ -52,7 +52,7 @@ import {
   togglePrivacyConfigure,
   updatePrivacyStatusCard,
 } from './settings-privacy.js';
-import { loadPdfImport } from './import-loader.js';
+import { loadImportUI, loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
 import { getActiveProfileId } from './profile.js';
 import { openChangelog } from './changelog.js';
@@ -278,7 +278,7 @@ async function handleSettingsClick(event) {
   } else if (action === 'review-import') {
     event.preventDefault();
     try {
-      const { openImportReviewFromSnapshot } = await loadPdfImport();
+      const { openImportReviewFromSnapshot } = await loadImportUI();
       closeSettingsModal();
       openImportReviewFromSnapshot(actionEl.dataset.snapId || '');
     } catch (err) {

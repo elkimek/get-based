@@ -58,13 +58,11 @@ state.importedData = {
     date: '2026-05-01',
     updatedAt: 100,
     markers: {
-      'hormones.insulin': 8,
-      'diabetes.insulin_d': 8,
+      'diabetes.insulin': 8,
       'biochemistry.glucose': 4.7,
     },
     markerSources: {
-      'hormones.insulin': { file: 'lab.pdf', at: 100 },
-      'diabetes.insulin_d': { file: 'lab.pdf', at: 100 },
+      'diabetes.insulin': { file: 'lab.pdf', at: 100 },
       'biochemistry.glucose': { file: 'lab.pdf', at: 100 },
     },
     sourceFiles: ['lab.pdf'],
@@ -77,28 +75,23 @@ state.importedData = {
 
 console.log('%c 2. Manual values ', 'font-weight:bold;color:#f59e0b');
 await saveManualMarkerValue({
-  dotKey: 'hormones.insulin',
+  dotKey: 'diabetes.insulin',
   date: '2026-05-01',
   storedValue: 9,
   noteText: 'fasted',
   now: 1_000,
 });
 const entry = state.importedData.entries[0];
-assert('saveManualMarkerValue writes value and insulin mirror',
-  entry.markers['hormones.insulin'] === 9
-    && entry.markers['diabetes.insulin_d'] === 9
-    && entry.markerSources['hormones.insulin'].file === null
-    && entry.markerSources['diabetes.insulin_d'].file === null);
-assert('saveManualMarkerValue records manual originals for both insulin keys',
-  state.importedData.manualValues['hormones.insulin:2026-05-01'] === 8
-    && state.importedData.manualValues['diabetes.insulin_d:2026-05-01'] === 8
-    && getManualOriginalForMarker('diabetes.insulin_d', '2026-05-01') === 8);
-assert('saveManualMarkerValue writes mirrored value notes',
-  state.importedData.markerValueNotes['hormones.insulin:2026-05-01'] === 'fasted'
-    && state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'] === 'fasted');
-assert('hasMarkerValueForDate detects primary and insulin mirror values',
-  hasMarkerValueForDate('hormones.insulin', '2026-05-01')
-    && hasMarkerValueForDate('diabetes.insulin_d', '2026-05-01')
+assert('saveManualMarkerValue writes the canonical insulin value',
+  entry.markers['diabetes.insulin'] === 9
+    && entry.markerSources['diabetes.insulin'].file === null);
+assert('saveManualMarkerValue records the insulin manual original once',
+  state.importedData.manualValues['diabetes.insulin:2026-05-01'] === 8
+    && getManualOriginalForMarker('diabetes.insulin', '2026-05-01') === 8);
+assert('saveManualMarkerValue writes one canonical value note',
+  state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === 'fasted');
+assert('hasMarkerValueForDate detects canonical insulin values',
+  hasMarkerValueForDate('diabetes.insulin', '2026-05-01')
     && !hasMarkerValueForDate('hormones.cortisol', '2026-05-01'));
 
 await editManualMarkerValue({
@@ -119,25 +112,22 @@ assert('revertManualMarkerValue restores original and clears manual map via null
     && state.importedData.manualValues['biochemistry.glucose:2026-05-01'] === null
     && !Object.prototype.hasOwnProperty.call(entry.markerSources || {}, 'biochemistry.glucose'));
 
-await deleteManualMarkerValue('hormones.insulin', '2026-05-01', { now: 1_300 });
-assert('deleteManualMarkerValue removes mirrored insulin values and records marker tombstones',
+await deleteManualMarkerValue('diabetes.insulin', '2026-05-01', { now: 1_300 });
+assert('deleteManualMarkerValue removes canonical insulin and records its tombstone',
   !Object.prototype.hasOwnProperty.call(entry.markers, 'hormones.insulin')
     && !Object.prototype.hasOwnProperty.call(entry.markers, 'diabetes.insulin_d')
-    && entry.deletedMarkers['hormones.insulin'] === 1_300
-    && entry.deletedMarkers['diabetes.insulin_d'] === 1_300);
-assert('deleteManualMarkerValue clears mirrored manual originals',
-  state.importedData.manualValues['hormones.insulin:2026-05-01'] === null
-    && state.importedData.manualValues['diabetes.insulin_d:2026-05-01'] === null);
+    && !Object.prototype.hasOwnProperty.call(entry.markers, 'diabetes.insulin')
+    && entry.deletedMarkers['diabetes.insulin'] === 1_300);
+assert('deleteManualMarkerValue clears the canonical manual original',
+  state.importedData.manualValues['diabetes.insulin:2026-05-01'] === null);
 
 console.log('%c 3. Notes and ranges ', 'font-weight:bold;color:#f59e0b');
-await saveMarkerValueNote('diabetes.insulin_d', '2026-05-01', 'x'.repeat(520));
-assert('saveMarkerValueNote caps and mirrors insulin notes',
-  state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'].length === 500
-    && state.importedData.markerValueNotes['hormones.insulin:2026-05-01'].length === 500);
-await deleteMarkerValueNote('hormones.insulin', '2026-05-01');
-assert('deleteMarkerValueNote nulls both insulin note keys',
-  state.importedData.markerValueNotes['hormones.insulin:2026-05-01'] === null
-    && state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'] === null);
+await saveMarkerValueNote('diabetes.insulin', '2026-05-01', 'x'.repeat(520));
+assert('saveMarkerValueNote caps canonical insulin notes',
+  state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'].length === 500);
+await deleteMarkerValueNote('diabetes.insulin', '2026-05-01');
+assert('deleteMarkerValueNote nulls the canonical insulin note key',
+  state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === null);
 
 state.importedData.refOverrides['biochemistry.alt'] = {
   refMin: 7,

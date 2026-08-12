@@ -172,7 +172,7 @@
   ];
 
   function assertServiceWorkerCache(sw) {
-    assert('SW uses importScripts for version', sw.includes("importScripts('/version.js')"));
+    assert('SW uses importScripts for version', sw.includes("importScripts('/version.js'"));
     assert('SW CACHE_NAME uses semver template', sw.includes('`labcharts-v${self.APP_VERSION}`'));
     assert('SW APP_SHELL includes version.js', sw.includes("'/version.js'"));
     for (const modulePath of serviceWorkerCacheModules) {
@@ -505,7 +505,7 @@
   const emfLegacyGlobals = emfExports.filter(name => !name.startsWith('configureEMF'));
   const emfRuntimeExports = ['configureEMFRuntimeDeps','loadEMFModule','loadEMFStylesheet','openEMFAssessmentEditor','closeEMFInterpretation'];
 
-  // data.js (30 former browser globals plus one test hook, now module-only)
+  // data.js former browser globals plus range helpers and one test hook, now module-only
   const dataExports = [
     'saveImportedData','getFocusCardFingerprint',
     'getActiveData','invalidateActiveDataCache','applyUnitConversion',
@@ -516,7 +516,8 @@
     'countFlagged','getLatestValueIndex','getAllFlaggedMarkers',
     'statusIcon',
     'detectTrendAlerts','getKeyTrendMarkers',
-    'switchUnitSystem','toggleAltUnits','getEffectiveRange','getEffectiveRangeForDate','getPhaseRefEnvelope','switchRangeMode',
+    'switchUnitSystem','toggleAltUnits','getEffectiveRange','getEffectiveRangeForDate','getEffectiveRangeLabelForDate',
+    'getPhaseRefEnvelope','getContextRefEnvelope','switchRangeMode',
     'updateHeaderDates','updateHeaderRangeToggle',
     'registerRefreshCallback','_runRegisteredRefreshCallback'
   ];

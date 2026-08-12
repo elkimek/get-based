@@ -11,9 +11,8 @@ const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
 const PROFILE_ID = `sync-e2e-${Date.now().toString(36)}`;
 const LAB_DATE = '2026-05-01';
-const MARKER_ID = 'hormones_insulin';
-const MARKER_KEY = 'hormones.insulin';
-const MIRROR_MARKER_KEY = 'diabetes.insulin_d';
+const MARKER_ID = 'diabetes_insulin';
+const MARKER_KEY = 'diabetes.insulin';
 const ORIGINAL_MARKER_VALUE = 8;
 const EDITED_MARKER_VALUE = 11;
 const SUN_SESSION_ID = 'sun-e2e-duration';
@@ -32,13 +31,11 @@ function buildImportedData() {
       sourceFile: 'baseline-labs.pdf',
       markers: {
         [MARKER_KEY]: ORIGINAL_MARKER_VALUE,
-        [MIRROR_MARKER_KEY]: ORIGINAL_MARKER_VALUE,
         'biochemistry.glucose': 5,
         'diabetes.homaIR': 1.78,
       },
       markerSources: {
         [MARKER_KEY]: { file: 'baseline-labs.pdf', at: BASE_AT },
-        [MIRROR_MARKER_KEY]: { file: 'baseline-labs.pdf', at: BASE_AT },
         'biochemistry.glucose': { file: 'baseline-labs.pdf', at: BASE_AT },
       },
       updatedAt: BASE_AT,
@@ -249,7 +246,7 @@ async function openMarkerModal(page) {
 }
 
 async function editOpenMarkerValue(page, newValue) {
-  await page.evaluate(async ({ markerId, date, markerKey, mirrorKey, next }) => {
+  await page.evaluate(async ({ markerId, date, markerKey, next }) => {
     const [{ state }, viewsModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/views.js'),
@@ -274,20 +271,18 @@ async function editOpenMarkerValue(page, newValue) {
     await waitFor(() => {
       const entry = state.importedData.entries?.find(e => e.date === date);
       return entry?.markers?.[markerKey] === next
-        && entry?.markers?.[mirrorKey] === next
         && !document.querySelector('#detail-modal input.ref-edit-input');
     });
   }, {
     markerId: MARKER_ID,
     date: LAB_DATE,
     markerKey: MARKER_KEY,
-    mirrorKey: MIRROR_MARKER_KEY,
     next: newValue,
   });
 }
 
 async function clickManualRevertBadge(page) {
-  await page.evaluate(async ({ date, markerKey, mirrorKey, originalValue }) => {
+  await page.evaluate(async ({ date, markerKey, originalValue }) => {
     const { state } = await import('/js/state.js');
     const waitFor = async (fn, timeoutMs = 5000) => {
       const start = Date.now();
@@ -312,22 +307,19 @@ async function clickManualRevertBadge(page) {
     await waitFor(() => {
       const entry = state.importedData.entries?.find(e => e.date === date);
       return entry?.markers?.[markerKey] === originalValue
-        && entry?.markers?.[mirrorKey] === originalValue
         && state.importedData.manualValues?.[`${markerKey}:${date}`] === null
-        && state.importedData.manualValues?.[`${mirrorKey}:${date}`] === null
         && !manualRevertBadge()
         && modalShowsOriginalValue();
     });
   }, {
     date: LAB_DATE,
     markerKey: MARKER_KEY,
-    mirrorKey: MIRROR_MARKER_KEY,
     originalValue: ORIGINAL_MARKER_VALUE,
   });
 }
 
 async function markerModalSnapshot(page) {
-  return page.evaluate(async ({ date, markerKey, mirrorKey }) => {
+  return page.evaluate(async ({ date, markerKey }) => {
     const { state } = await import('/js/state.js');
     const modal = document.getElementById('detail-modal');
     const entry = state.importedData.entries?.find(e => e.date === date);
@@ -337,14 +329,11 @@ async function markerModalSnapshot(page) {
       text: modal?.textContent || '',
       badges: Array.from(modal?.querySelectorAll('.ref-edited-badge') || []).map(el => el.textContent.trim()),
       marker: entry?.markers?.[markerKey],
-      mirror: entry?.markers?.[mirrorKey],
       manualValue: state.importedData.manualValues?.[`${markerKey}:${date}`],
-      mirrorManualValue: state.importedData.manualValues?.[`${mirrorKey}:${date}`],
     };
   }, {
     date: LAB_DATE,
     markerKey: MARKER_KEY,
-    mirrorKey: MIRROR_MARKER_KEY,
   });
 }
 
@@ -643,18 +632,15 @@ async function run(browser, testInfo) {
     await openMarkerModal(pageA);
     await editOpenMarkerValue(pageA, EDITED_MARKER_VALUE);
     let snapA = await markerModalSnapshot(pageA);
-    assert('Device A manual edit updates marker + insulin mirror',
+    assert('Device A manual edit updates canonical insulin',
       snapA.marker === EDITED_MARKER_VALUE
-        && snapA.mirror === EDITED_MARKER_VALUE
-        && snapA.manualValue === ORIGINAL_MARKER_VALUE
-        && snapA.mirrorManualValue === ORIGINAL_MARKER_VALUE,
+        && snapA.manualValue === ORIGINAL_MARKER_VALUE,
       JSON.stringify(snapA));
 
     const stalePull = await pullRemoteImportedData(pageA, staleB);
     snapA = await markerModalSnapshot(pageA);
     assert('Stale pull from B does not clobber A manual edit',
       snapA.marker === EDITED_MARKER_VALUE
-        && snapA.mirror === EDITED_MARKER_VALUE
         && snapA.manualValue === ORIGINAL_MARKER_VALUE
         && stalePull.needsRebroadcast === true,
       JSON.stringify({ snapA, stalePull: { needsRebroadcast: stalePull.needsRebroadcast, remoteBroughtNewRows: stalePull.remoteBroughtNewRows } }));
@@ -665,7 +651,6 @@ async function run(browser, testInfo) {
     assert('Device B open marker modal refreshes to pulled manual value',
       snapB.open
         && snapB.marker === EDITED_MARKER_VALUE
-        && snapB.mirror === EDITED_MARKER_VALUE
         && snapB.badges.some(text => /manual/.test(text) && /\u00d7|x/i.test(text))
         && new RegExp(`\\b${EDITED_MARKER_VALUE}\\b`).test(snapB.text),
       JSON.stringify(snapB));
@@ -674,7 +659,6 @@ async function run(browser, testInfo) {
     snapB = await markerModalSnapshot(pageB);
     assert('Device B manual revert restores imported value locally',
       snapB.marker === ORIGINAL_MARKER_VALUE
-        && snapB.mirror === ORIGINAL_MARKER_VALUE
         && snapB.manualValue === null
         && !snapB.badges.some(text => /manual/.test(text) && /\u00d7|x/i.test(text)),
       JSON.stringify(snapB));
@@ -684,7 +668,6 @@ async function run(browser, testInfo) {
     assert('Device A open marker modal refreshes to pulled manual revert',
       snapA.open
         && snapA.marker === ORIGINAL_MARKER_VALUE
-        && snapA.mirror === ORIGINAL_MARKER_VALUE
         && snapA.manualValue === null
         && !snapA.badges.some(text => /manual/.test(text) && /\u00d7|x/i.test(text))
         && new RegExp(`\\b${ORIGINAL_MARKER_VALUE}\\b`).test(snapA.text),

@@ -1,10 +1,6 @@
 importScripts('/version.js');
 importScripts('/service-worker-runtime.js');
-// Cache key strategy:
-//   Production (app.getbased.health) → labcharts-v${APP_VERSION}
-//   Anywhere else (Vercel previews, local dev) → labcharts-v${APP_VERSION}-${sha8}
-// This way feature-branch deploys auto-bust the SW cache on every commit
-// without burning patch versions, while production stays clean.
+// Production caches use semver; preview/local caches add the deployment SHA.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 let _cacheNamePromise = null;
@@ -19,12 +15,9 @@ async function resolveCacheName() {
   }
   return _cacheNamePromise;
 }
-// Local app shell — pre-cached on install
 const APP_SHELL = [
-  '/version.js',
-  '/service-worker-runtime.js',
-  '/index.html',
-  '/app',
+  '/version.js', '/service-worker-runtime.js',
+  '/index.html', '/app',
   '/styles.css',
   '/css/app-shell.css',
   '/css/import.css',
@@ -150,6 +143,7 @@ const APP_SHELL = [
   '/js/profile-data-migrations.js',
   '/js/profile-fatty-acid-migrations.js',
   '/js/profile-marker-migrations.js',
+  '/js/profile-marker-alias-migrations.js',
   '/js/profile-storage-key.js',
   '/js/profile-storage-cleanup.js',
   '/js/profile-list-store.js',
@@ -158,6 +152,7 @@ const APP_SHELL = [
   '/js/profile-share.js',
   '/js/unique-id.js',
   '/js/data.js',
+  '/js/data-calculated-markers.js',
   '/js/data-view-controls.js',
   '/js/lab-entry.js',
   '/js/lab-entry-mutations.js',
@@ -193,6 +188,7 @@ const APP_SHELL = [
   '/js/cycle-store.js',
   '/js/cycle-summary.js',
   '/js/cycle.js',
+  '/js/cycle-draw-phases.js',
   '/js/cycle-runtime.js',
   '/js/context-cards.js',
   '/js/context-cards-runtime.js',
@@ -227,8 +223,11 @@ const APP_SHELL = [
   '/js/pdf-import-progress.js',
   '/js/pdf-import-ai-utils.js',
   '/js/pdf-import-review.js',
+  '/js/pdf-import-review-formatting.js',
   '/js/pdf-import-review-runtime.js',
   '/js/pdf-import-marker-mapping.js',
+  '/js/pdf-import-ratio-units.js',
+  '/js/pdf-import-unit-conversions.js',
   '/js/pdf-import-marker-normalization.js',
   '/js/pdf-import-persistence.js',
   '/js/export.js',
@@ -382,6 +381,7 @@ const APP_SHELL = [
   '/js/commit-hash.js',
   '/js/marker-detail-modal.js',
   '/js/marker-detail-modal-impl.js',
+  '/js/marker-detail-history.js',
   '/js/marker-detail-content.js',
   '/js/marker-detail-manual-entry.js',
   '/js/marker-detail-custom-markers.js',
@@ -391,6 +391,8 @@ const APP_SHELL = [
   '/js/marker-detail-actions.js',
   '/js/marker-detail-editing.js',
   '/js/marker-detail-store.js',
+  '/js/marker-range-suggestions.js',
+  '/js/marker-context-ranges.js',
   '/js/light-conditions-now.js',
   '/js/light-conditions-interpretation.js',
   '/js/light-conditions-renderer.js',
@@ -418,6 +420,8 @@ const APP_SHELL = [
   '/js/backup.js',
   '/js/backup-chat-storage.js',
   '/js/lab-context.js',
+  '/js/lab-context-collection.js',
+  '/js/lab-context-runtime.js',
   '/js/lab-context-change-timeline.js',
   '/js/lab-context-output.js',
   '/js/lab-context-settings.js',
@@ -532,7 +536,6 @@ const APP_SHELL = [
   '/js/touch-tooltip-runtime.js',
   '/js/touch-tooltip.js',
   '/js/url-safety.js',
-  // Wearables (added v1.22.0)
   '/js/wearable-adapters.js',
   '/js/wearables.js',
   '/js/wearables-strip-actions.js',
@@ -573,7 +576,6 @@ const APP_SHELL = [
   '/js/wearables-manual.js',
   '/js/brand-assets.js',
   '/js/modal-lifecycle.js',
-  // Sun + light modules are statically reachable from the app shell.
   '/js/sun.js',
   '/js/sun-location.js',
   '/js/sun-active-session.js',
@@ -646,8 +648,7 @@ const APP_SHELL = [
   '/js/light-tools-ai-analysis.js',
   '/js/lighting-hardware-caveats.js',
   '/js/silhouette-paths.js',
-  // Dynamically imported — must be precached so a first-launch-offline user
-  // (or PWA install + go-offline) can still open chat / Knowledge Base.
+  // Precache dynamic chat and Knowledge Base modules for first-launch offline use.
   '/js/chat-images.js',
   '/js/chat-threads.js',
   '/js/chat-thread-search.js',
@@ -783,7 +784,6 @@ function shouldUseNetworkOnly(url, sameOrigin) {
   const h = url.hostname;
   return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));
 }
-
 /** @type {ServiceWorkerGlobalScope & typeof globalThis & {
  *   GetBasedServiceWorkerRuntime: {
  *     install: (config: ServiceWorkerRuntimeConfig) => void

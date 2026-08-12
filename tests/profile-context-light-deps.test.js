@@ -73,8 +73,12 @@ describe('profile context light dependencies', () => {
 
     const context = getBiologyProfileContext();
 
-    expect(context.lowMuscleMass).toBe(true);
+    expect(context.lowMuscleMass).toBe(false);
+    expect(context.lowMuscleMassInferred).toBe(true);
     expect(context.lowSunlightExposure).toBe(true);
     expect(context.hormoneTherapy).toBe(true);
+
+    state.importedData.diagnoses = { flags: { lowMuscleMass: true } };
+    expect(getBiologyProfileContext().lowMuscleMass).toBe(true);
   });
 });

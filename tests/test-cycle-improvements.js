@@ -116,7 +116,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   {
     assert('phaseBandPlugin is a module export', typeof phaseBandPlugin === 'object');
     assert('phaseBandPlugin has id phaseBands', phaseBandPlugin?.id === 'phaseBands');
-    assert('phaseBandPlugin has beforeDraw', typeof phaseBandPlugin?.beforeDraw === 'function');
+    assert('phaseBandPlugin annotates measured points after datasets draw', typeof phaseBandPlugin?.afterDatasetsDraw === 'function');
   }
 
   // ── Section 8: createLineChart accepts 5th param ──
@@ -135,7 +135,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('Layers dropdown checks for cycle data', src.includes('hasCycle'));
     assert('Layers dropdown delegates setPhaseOverlay changes',
       src.includes("dataChangeAttrs('set-phase-overlay')") && src.includes('setPhaseOverlay(mode)'));
-    assert('Layers dropdown shows Cycle Phases label', src.includes('Cycle Phases'));
+    assert('Layers dropdown explains phases are tied to blood draws', src.includes('Cycle phase at blood draw'));
   }
 
   // ── Section 10: loadProfile loads phaseOverlay ──
@@ -344,7 +344,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
 
     // Service worker cache version
     const swSrc = read('service-worker.js');
-    assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
+    assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js'"));
     assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
   }
 
@@ -360,7 +360,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   console.log('Section 20: data.js phaseLabels computation');
   {
     const src = read('js/data.js');
-    assert('getActiveData computes data.phaseLabels', src.includes('data.phaseLabels = sortedDates.map'));
+    assert('getActiveData computes data.phaseLabels', src.includes('data.phaseLabels = drawPhases.map'));
     assert('Uses _getCyclePhase for phaseLabels', src.includes('_getCyclePhase(d, mc)'));
   }
 

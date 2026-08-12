@@ -57,6 +57,8 @@ assert('free T3 pg/ml → pmol/L', approx(normalizeToSI('thyroid.ft3', 3.5, 'pg/
 assert('free T3 pg/dl preserves the 100× unit difference', approx(normalizeToSI('thyroid.ft3', 3.5, 'pg/dl'), 0.05374, 0.001));
 assert('calcitriol pg/ml and ng/l convert identically',
   approx(normalizeToSI('vitamins.calcitriol', 60, 'pg/ml'), normalizeToSI('vitamins.calcitriol', 60, 'ng/l'), 0.01));
+assert('prolactin mU/L → µg/L', approx(normalizeToSI('hormones.prolactin', 263.7, 'mU/l'), 12.4387, 0.001));
+assert('prolactin mIU/L alias → µg/L', approx(normalizeToSI('hormones.prolactin', 324, 'mIU/l'), 15.283, 0.001));
 
 // ═══════════════════════════════════════════════
 // 2. SI passthrough

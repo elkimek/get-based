@@ -33,7 +33,8 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       'setDateRange', 'renderChartLayersDropdown', 'toggleChartLayersDropdown', 'setSuppOverlay',
       'setNoteOverlay', 'setPhaseOverlay', 'destroyAllCharts', 'countFlagged', 'getLatestValueIndex',
       'getAllFlaggedMarkers', 'statusIcon', 'detectTrendAlerts', 'getKeyTrendMarkers', 'switchUnitSystem',
-      'toggleAltUnits', 'getEffectiveRange', 'getEffectiveRangeForDate', 'getPhaseRefEnvelope',
+      'toggleAltUnits', 'getEffectiveRange', 'getEffectiveRangeForDate', 'getEffectiveRangeLabelForDate',
+      'getPhaseRefEnvelope', 'getContextRefEnvelope',
       'switchRangeMode', 'updateHeaderDates', 'updateHeaderRangeToggle', 'registerRefreshCallback',
     ];
     outcomes.dataApisStayModuleOnly = formerGlobalNames.every(name =>
@@ -88,14 +89,14 @@ test('data browser coverage exercises display toggles range refresh and helpers'
             date: '2026-01-01',
             markers: {
               'biochemistry.glucose': 5.2,
-              'hormones.insulin': 8,
+              'diabetes.insulin': 8,
             },
           },
           {
             date: '2026-02-01',
             markers: {
               'biochemistry.glucose': 6.4,
-              'hormones.insulin': 9,
+              'diabetes.insulin': 9,
             },
           },
         ],
@@ -141,7 +142,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && stayedOpenAfterLayerClick
         && closed;
 
-      const homaEntry = { markers: { 'biochemistry.glucose': 5, 'hormones.insulin': 8 } };
+      const homaEntry = { markers: { 'biochemistry.glucose': 5, 'diabetes.insulin': 8 } };
       dataMod.recalculateHOMAIR(homaEntry);
       const staleHomaEntry = {
         markers: { 'diabetes.homaIR': 1.2 },
@@ -232,6 +233,122 @@ test('data browser coverage exercises display toggles range refresh and helpers'
     }
 
     return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('data browser coverage applies sourced phase ranges only to predictable natural cycles', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async () => {
+    const [{ state }, dataMod] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const saved = {
+      importedData: clone(state.importedData),
+      profileSex: state.profileSex,
+      unitSystem: state.unitSystem,
+    };
+    const periods = [
+      { startDate: '2025-12-01', endDate: '2025-12-05' },
+      { startDate: '2025-12-29', endDate: '2026-01-02' },
+    ];
+    const cycle = {
+      cycleStatus: 'regular',
+      cycleLength: 28,
+      periodLength: 5,
+      regularity: 'regular',
+      contraceptive: '',
+      periods,
+    };
+
+    try {
+      state.profileSex = 'female';
+      state.unitSystem = 'EU';
+      state.importedData = {
+        ...state.importedData,
+        entries: [
+          {
+            date: '2025-10-01',
+            context: {
+              cycleDay: 10,
+              cyclePhase: 'follicular',
+              cyclePhaseDetail: 'late_follicular',
+              cyclePhaseSource: 'recorded',
+            },
+            markers: { 'hormones.estradiol': 300, 'hormones.progesterone': 0.6 },
+          },
+          { date: '2025-12-05', markers: { 'hormones.estradiol': 200, 'hormones.progesterone': 1.5 } },
+          { date: '2026-01-15', markers: { 'hormones.estradiol': 500, 'hormones.progesterone': 20 } },
+        ],
+        menstrualCycle: cycle,
+      };
+
+      const regular = dataMod.getActiveData();
+      const estradiol = regular.categories.hormones.markers.estradiol;
+      const progesterone = regular.categories.hormones.markers.progesterone;
+      const recordedFollicularE2 = estradiol.phaseRefRanges?.[0];
+      const menstrualE2 = estradiol.phaseRefRanges?.[1];
+      const lutealE2 = estradiol.phaseRefRanges?.[2];
+      const menstrualP4 = progesterone.phaseRefRanges?.[1];
+      const lutealP4 = progesterone.phaseRefRanges?.[2];
+
+      state.unitSystem = 'US';
+      const usMenstrualE2 = dataMod.getActiveData().categories.hormones.markers.estradiol.phaseRefRanges?.[1];
+
+      state.unitSystem = 'EU';
+      state.importedData = {
+        ...state.importedData,
+        menstrualCycle: { ...cycle, regularity: 'irregular' },
+      };
+      const irregular = dataMod.getActiveData().categories.hormones.markers.estradiol;
+
+      state.importedData = {
+        ...state.importedData,
+        menstrualCycle: { ...cycle, cycleStatus: 'perimenopause' },
+      };
+      const perimenopause = dataMod.getActiveData().categories.hormones.markers.estradiol;
+
+      state.importedData = {
+        ...state.importedData,
+        menstrualCycle: { ...cycle, contraceptive: 'combined pill' },
+      };
+      const hormonalContraception = dataMod.getActiveData().categories.hormones.markers.estradiol;
+
+      return {
+        regularRanges: menstrualE2?.min === 46 && menstrualE2?.max === 609
+          && lutealE2?.min === 161 && lutealE2?.max === 775
+          && menstrualP4?.min === 0.32 && menstrualP4?.max === 2.86
+          && lutealP4?.min === 5.72 && lutealP4?.max === 76,
+        regularMetadata: menstrualE2?.label === 'Predicted menstrual range'
+          && menstrualE2?.source === 'Labcorp 004515 (Roche cobas ECLIA)'
+          && dataMod.getEffectiveRangeLabelForDate(estradiol, 1) === 'Predicted menstrual range',
+        recordedDrawContextWinsWithoutHistoricalPeriodCoverage:
+          recordedFollicularE2?.label === 'Follicular range'
+          && recordedFollicularE2?.phaseSource === 'recorded'
+          && estradiol.phaseDisplayLabels?.[0] === 'Late follicular'
+          && estradiol.phaseCycleDays?.[0] === 10
+          && estradiol.phaseSources?.[0] === 'recorded',
+        usConversionPreservesMetadata: usMenstrualE2?.min === Number((46 * 0.2724).toPrecision(4))
+          && usMenstrualE2?.max === Number((609 * 0.2724).toPrecision(4))
+          && usMenstrualE2?.label === menstrualE2?.label
+          && usMenstrualE2?.source === menstrualE2?.source,
+        uncertainCyclesSuppressed: irregular.phaseRefRanges?.[0]?.phaseSource === 'recorded'
+          && irregular.phaseRefRanges.slice(1).every(range => range == null)
+          && !perimenopause.phaseRefRanges
+          && !hormonalContraception.phaseRefRanges,
+      };
+    } finally {
+      state.importedData = saved.importedData;
+      state.profileSex = saved.profileSex;
+      state.unitSystem = saved.unitSystem;
+      dataMod.invalidateActiveDataCache();
+    }
   });
 
   for (const [name, passed] of Object.entries(results)) {

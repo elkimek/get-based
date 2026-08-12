@@ -654,17 +654,17 @@ const _origProfileSex = state ? state.profileSex : null;
       && /Show \$\{showCount\} older/.test(markerDetailSrc)
       && /Show last \$\{MARKER_HISTORY_DEFAULT_CAP\} values/.test(markerDetailSrc));
     assert('marker-detail-modal.js: marker range band uses reference scale instead of full-width optimal green',
-      /const refMin\s*=\s*numericOrNull\(marker\.refMin\)/.test(markerDetailSrc)
+      /const refMin\s*=\s*numericOrNull\(referenceRange\.min\)/.test(markerDetailSrc)
       && /const effMin\s*=\s*numericOrNull\(latestRange\.min\)/.test(markerDetailSrc)
       && /const baseMin\s*=\s*refMin \?\? effMin/.test(markerDetailSrc)
-      && /const usePhaseBand\s*=\s*hasLatestPhaseRange/.test(markerDetailSrc)
-      && /const useOptimalBand\s*=\s*!usePhaseBand && state\.rangeMode !== 'reference'/.test(markerDetailSrc)
-      && /const goodMin\s*=\s*usePhaseBand \? Math\.min\(effMin, effMax\) : useOptimalBand/.test(markerDetailSrc)
+      && /const useDatedBand\s*=\s*\(hasLatestPhaseRange \|\| !!latestContextRange\)/.test(markerDetailSrc)
+      && /const useOptimalBand\s*=\s*!useDatedBand && state\.rangeMode !== 'reference'/.test(markerDetailSrc)
+      && /const goodMin\s*=\s*useDatedBand \? Math\.min\(effMin, effMax\) : useOptimalBand/.test(markerDetailSrc)
       && /const zonePad\s*=\s*goodSpan \* 0\.1/.test(markerDetailSrc)
       && /for \(const value of \[goodMin, goodMax, latestValue\]\)/.test(markerDetailSrc)
       && /if \(latestValue >= max\) max \+= span \* 0\.08/.test(markerDetailSrc)
       && /const referenceDisplay\s*=/.test(markerDetailSrc)
-      && /const referenceMetaLabel\s*=\s*hasReferenceRange \? 'Reference' : 'Range'/.test(markerDetailSrc)
+      && /const referenceMetaLabel\s*=\s*latestPoint \? getEffectiveRangeLabelForDate/.test(markerDetailSrc)
       && /let rangeMainDisplay\s*=\s*'Not set'/.test(markerDetailSrc)
       && /state\.rangeMode === 'optimal'[\s\S]{0,400}else if \(hasReferenceRange\) \{\s*rangeMainDisplay = referenceDisplay/.test(markerDetailSrc));
     assert('marker-detail-modal.js/styles.css: marker range band colors non-optimal zones',

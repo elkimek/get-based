@@ -12,7 +12,8 @@ console.log('=== Lab Entry Mutation Tests ===\n');
 const {
   createLabEntry,
   deleteLabEntryMarker,
-  getInsulinMirrorMarkerKey,
+  normalizeLabSampleTime,
+  setLabEntryCollectionContext,
   setLabEntryMarker,
   syncLabEntryInsulinMirror,
 } = await import('../js/lab-entry.js');
@@ -36,24 +37,24 @@ assert('setLabEntryMarker stamps updatedAt and clears marker tombstone',
   entry.updatedAt === 200
     && !Object.prototype.hasOwnProperty.call(entry.deletedMarkers || {}, 'biochemistry.glucose'));
 
-console.log('%c 2. Insulin mirror ', 'font-weight:bold;color:#f59e0b');
+console.log('%c 2. Canonical insulin ', 'font-weight:bold;color:#f59e0b');
 setLabEntryMarker(entry, 'diabetes.insulin_d', 8, {
   now: 300,
   source: { file: null, at: 300 },
-  mirrorInsulin: true,
 });
 entry.markers['biochemistry.glucose'] = 5;
 syncLabEntryInsulinMirror(entry, { now: 300 });
-assert('insulin mirror works from diabetes to hormones',
-  getInsulinMirrorMarkerKey('diabetes.insulin_d') === 'hormones.insulin'
-    && entry.markers['hormones.insulin'] === 8
-    && entry.markerSources['hormones.insulin'].at === 300);
-assert('insulin mirror recalculates HOMA-IR',
+assert('legacy insulin writes coalesce to the canonical diabetes key',
+  entry.markers['diabetes.insulin'] === 8
+    && !Object.prototype.hasOwnProperty.call(entry.markers, 'diabetes.insulin_d')
+    && !Object.prototype.hasOwnProperty.call(entry.markers, 'hormones.insulin')
+    && entry.markerSources['diabetes.insulin'].at === 300);
+assert('canonical insulin recalculates HOMA-IR',
   entry.markers['diabetes.homaIR'] === Math.round((5 * 8) / 22.5 * 100) / 100);
 setLabEntryMarker(entry, 'biochemistry.glucose', 6, { now: 325 });
 assert('glucose edits recalculate HOMA-IR when insulin is present',
   entry.markers['diabetes.homaIR'] === Math.round((6 * 8) / 22.5 * 100) / 100);
-deleteLabEntryMarker(entry, 'diabetes.insulin_d', { now: 350, mirrorInsulin: true });
+deleteLabEntryMarker(entry, 'diabetes.insulin', { now: 350 });
 assert('insulin delete clears stale HOMA-IR',
   !Object.prototype.hasOwnProperty.call(entry.markers, 'diabetes.homaIR'));
 
@@ -116,6 +117,29 @@ assert('reimport into tombstone-only row clears only the restored marker tombsto
   reimported.markers['biochemistry.alp'] === 1.4
     && reimported.deletedMarkers['biochemistry.glucose'] === 400
     && !Object.prototype.hasOwnProperty.call(reimported.deletedMarkers || {}, 'biochemistry.alp'));
+
+console.log('%c 5. Collection context ', 'font-weight:bold;color:#f59e0b');
+const contextEntry = createLabEntry('2026-08-12', { now: 800 });
+contextEntry.context = { cyclePhase: 'follicular' };
+assert('collection time normalization accepts 24-hour, seconds, and AM/PM forms',
+  normalizeLabSampleTime('8:05') === '08:05'
+    && normalizeLabSampleTime('2026-08-12T08:05:31') === '08:05'
+    && normalizeLabSampleTime('1:20 PM') === '13:20');
+assert('collection time normalization rejects prose and invalid clock values',
+  normalizeLabSampleTime('processed at 08:05') === null
+    && normalizeLabSampleTime('25:00') === null
+    && normalizeLabSampleTime('08:72') === null);
+setLabEntryCollectionContext(contextEntry, { sampleTime: '07:45', fasting: true }, { now: 900 });
+assert('collection context merges with existing draw context and stamps freshness',
+  contextEntry.context.sampleTime === '07:45'
+    && contextEntry.context.fasting === true
+    && contextEntry.context.cyclePhase === 'follicular'
+    && contextEntry.updatedAt === 900);
+setLabEntryCollectionContext(contextEntry, { sampleTime: null, fasting: null }, { now: 950 });
+assert('explicit unknown collection context clears only collection fields',
+  !Object.prototype.hasOwnProperty.call(contextEntry.context, 'sampleTime')
+    && !Object.prototype.hasOwnProperty.call(contextEntry.context, 'fasting')
+    && contextEntry.context.cyclePhase === 'follicular');
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

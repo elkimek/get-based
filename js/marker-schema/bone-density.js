@@ -4,9 +4,9 @@
 export const BONE_DENSITY_CATEGORY = {
   label: "Bone Density", icon: "\uD83D\uDCC9", group: "DEXA",
   markers: {
-    bmdSpine: { name: "BMD Spine L1\u2013L4", unit: "g/cm\u00b2", refMin: null, refMax: null, desc: "Bone mineral density of the lumbar spine; the primary DEXA site for monitoring osteoporosis and fracture risk." },
-    bmdFemurTotal: { name: "BMD Femur Total", unit: "g/cm\u00b2", refMin: null, refMax: null, desc: "Bone mineral density of the total proximal femur; reflects overall hip bone strength." },
-    bmdFemurNeck: { name: "BMD Femur Neck", unit: "g/cm\u00b2", refMin: null, refMax: null, desc: "Bone mineral density of the femoral neck; the most fracture-prone hip region and WHO diagnostic site." },
+    bmdSpine: { name: "BMD Spine L1\u2013L4", unit: "g/cm\u00b2", refMin: null, refMax: null, rangePolicy: "contextual", desc: "Bone mineral density of the lumbar spine. Raw BMD has no universal device-independent interval; interpret it through the report's normative database, T/Z scores, and serial change." },
+    bmdFemurTotal: { name: "BMD Femur Total", unit: "g/cm\u00b2", refMin: null, refMax: null, rangePolicy: "contextual", desc: "Bone mineral density of the total proximal femur. Raw BMD has no universal device-independent interval; interpret it through the report's normative database, T/Z scores, and serial change." },
+    bmdFemurNeck: { name: "BMD Femur Neck", unit: "g/cm\u00b2", refMin: null, refMax: null, rangePolicy: "contextual", desc: "Bone mineral density of the femoral neck. Raw BMD has no universal device-independent interval; interpret it through the report's normative database, T/Z scores, and serial change." },
     tScoreSpine: { name: "T-score Spine", unit: "", refMin: -1.0, refMax: null, desc: "Standard deviations from peak young-adult bone density at the spine; WHO criteria: above \u22121 normal, \u22121 to \u22122.5 osteopenia, below \u22122.5 osteoporosis." },
     tScoreFemurTotal: { name: "T-score Femur Total", unit: "", refMin: -1.0, refMax: null, desc: "Standard deviations from peak young-adult bone density at the total proximal femur; used alongside femoral neck for hip fracture risk assessment." },
     tScoreFemurNeck: { name: "T-score Femur Neck", unit: "", refMin: -1.0, refMax: null, desc: "Standard deviations from peak young-adult bone density at the femoral neck; the WHO-preferred diagnostic site for osteoporosis in postmenopausal women and men over 50." },

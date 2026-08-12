@@ -115,7 +115,7 @@ test('compare dates browser contract renders date controls table and updates sta
         && rows.some(row => row.textContent.includes('Glucose'))
         && rows.some(row => row.textContent.includes('LDL Cholesterol'))
         && !!document.querySelector('[data-glyph="biochemistry"]')
-        && !!document.querySelector('.compare-improved');
+        && !!document.querySelector('.compare-worsened');
 
       select1.value = '2026-02-01';
       select1.dispatchEvent(new Event('change', { bubbles: true }));

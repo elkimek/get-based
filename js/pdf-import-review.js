@@ -14,11 +14,16 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   buildMarkerReference,
   normalizeToSI,
-  getValidUnitsForMarker,
   convertImportValueUnit,
   convertGenericImportValueUnit,
-  GENERIC_IMPORT_UNITS,
 } from './pdf-import-marker-mapping.js';
+import {
+  formatImportLabRange,
+  formatImportNumber,
+  getImportUnitOptions,
+  positionImportUnitMenu,
+  renderUnitSelect,
+} from './pdf-import-review-formatting.js';
 import { openImportMarkerMapModal } from './import-marker-map-modal.js';
 import {
   clearImportReviewDraft, persistImportReviewDraft as saveImportReviewDraft, readImportReviewDraft,
@@ -42,6 +47,7 @@ import {
   takeBatchImportResolve,
 } from './pdf-import-review-runtime.js';
 import { finishImportBenchmark } from './import-benchmarks.js';
+import { normalizeLabFastingStatus, normalizeLabSampleTime } from './lab-entry.js';
 function clearPendingImport() {
   clearPendingImportRuntime();
   clearImportReviewDraft();
@@ -163,6 +169,18 @@ function handleImportReviewChange(event) {
     applyManualImportDate(dateInput.value);
     return;
   }
+  const sampleTimeInput = closestImportReviewElement(event.target, '[data-import-review-action="manual-sample-time"]');
+  if (sampleTimeInput instanceof HTMLInputElement) {
+    applyManualImportCollectionContext({ sampleTime: sampleTimeInput.value || null });
+    return;
+  }
+  const fastingInput = closestImportReviewElement(event.target, '[data-import-review-action="manual-fasting"]');
+  if (fastingInput instanceof HTMLSelectElement) {
+    applyManualImportCollectionContext({
+      fasting: fastingInput.value === 'fasting' ? true : fastingInput.value === 'not-fasting' ? false : null,
+    });
+    return;
+  }
   const mapInput = closestImportReviewElement(event.target, '[data-import-review-action="map-marker"]');
   if (mapInput instanceof HTMLInputElement) mapUnmatchedMarkerInput(mapInput);
   const valueInput = closestImportReviewElement(event.target, '[data-import-review-action="edit-value"]');
@@ -252,36 +270,6 @@ export function resolveImportPreviewBatch(action) {
   return true;
 }
 
-function getImportUnitOptions(marker) {
-  const key = marker.mappedKey || marker.suggestedKey;
-  const validUnits = getValidUnitsForMarker(key);
-  return validUnits.length > 0
-    ? { units: validUnits, schemaBacked: true }
-    : { units: GENERIC_IMPORT_UNITS, schemaBacked: false };
-}
-
-// Render responsive unit controls. Schema-backed markers get a constrained
-// picker; custom markers keep text editing plus the same picker as an assist.
-function renderUnitSelect(marker, idx) {
-  const unitOptions = getImportUnitOptions(marker);
-  const currentUnit = marker.unit || '';
-
-  if (!unitOptions.schemaBacked) {
-    return `<div class="import-unit-combo">
-      <input type="text" class="import-unit-input import-unit-text" data-marker-idx="${idx}" value="${escapeHTML(currentUnit)}" ${importReviewActionAttrs('edit-unit')} aria-label="Unit for ${escapeHTML(marker.rawName)}" autocomplete="off">
-      <button type="button" class="import-unit-picker-btn" data-marker-idx="${idx}" ${importReviewActionAttrs('unit-picker')} aria-haspopup="listbox" aria-expanded="false" title="Choose common unit" aria-label="Choose common unit for ${escapeHTML(marker.rawName)}">
-        <span class="import-unit-button-caret" aria-hidden="true">\u25be</span>
-      </button>
-    </div>`;
-  }
-
-  const displayUnit = currentUnit || unitOptions.units[0] || '';
-  return `<button type="button" class="import-unit-input import-unit-button" data-marker-idx="${idx}" ${importReviewActionAttrs('unit-picker')} aria-haspopup="listbox" aria-expanded="false" title="${escapeHTML(displayUnit)}" aria-label="Unit for ${escapeHTML(marker.rawName)}">
-    <span class="import-unit-button-text">${escapeHTML(displayUnit)}</span>
-    <span class="import-unit-button-caret" aria-hidden="true">\u25be</span>
-  </button>`;
-}
-
 /** @param {KeyboardEvent} event */
 function handleImportReviewKeydown(event) {
   if (event.key !== 'Escape') return;
@@ -343,31 +331,6 @@ function openImportUnitPicker(button) {
  * @param {HTMLElement} button
  * @param {HTMLElement} menu
  */
-function positionImportUnitMenu(button, menu) {
-  const isMobile = matchMedia('(max-width: 768px)').matches;
-  if (isMobile) {
-    menu.classList.add('is-mobile');
-    return;
-  }
-  const rect = button.getBoundingClientRect();
-  const gap = 6;
-  const margin = 12;
-  const viewportWidth = document.documentElement.clientWidth || innerWidth;
-  const viewportHeight = innerHeight || document.documentElement.clientHeight;
-  const width = Math.min(Math.max(rect.width, 220), viewportWidth - margin * 2);
-  const left = Math.min(Math.max(margin, rect.left), viewportWidth - width - margin);
-  let top = rect.bottom + gap;
-  let maxHeight = viewportHeight - top - margin;
-  if (maxHeight < 160 && rect.top > 180) {
-    maxHeight = Math.min(280, rect.top - margin - gap);
-    top = Math.max(margin, rect.top - maxHeight - gap);
-  }
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
-  menu.style.width = `${width}px`;
-  menu.style.maxHeight = `${Math.max(140, Math.min(280, maxHeight))}px`;
-}
-
 /** @param {HTMLElement} optionEl */
 function selectImportUnitOption(optionEl) {
   if (optionEl.hasAttribute('disabled')) return;
@@ -398,14 +361,6 @@ function updateImportUnitControl(idx, unit) {
   if (text) text.textContent = displayUnit;
 }
 
-function formatImportNumber(value) {
-  return value == null || isNaN(value) ? '' : String(value);
-}
-
-function formatImportLabRange(marker) {
-  if (marker.refMin == null && marker.refMax == null) return '';
-  return `${formatImportNumber(marker.refMin) || '?'}\u2013${formatImportNumber(marker.refMax) || '?'}`;
-}
 
 function openImportMarkerMapPicker(controlEl) {
   const result = getPendingImport();
@@ -433,6 +388,10 @@ export function showImportPreview(parseResult) {
   const importCount = matched.length + newMarkers.length;
   const batchCtx = getBatchImportContext();
   const batchLabel = batchCtx ? `File ${batchCtx.current} of ${batchCtx.total}` : 'Lab import';
+  const sampleTime = normalizeLabSampleTime(parseResult.sampleTime) || '';
+  const fasting = normalizeLabFastingStatus(parseResult.fasting);
+  parseResult.sampleTime = sampleTime || null;
+  parseResult.fasting = fasting;
   modal.className = 'modal import-preview-modal';
   let html = `<div class="gb-modal-head import-preview-head">
     <div>
@@ -450,6 +409,19 @@ export function showImportPreview(parseResult) {
       <div class="import-review-file">
         <span class="import-review-label">Collection date</span>
         <input type="date" id="import-manual-date" value="${escapeHTML(date || '')}" ${importReviewActionAttrs('manual-date')} aria-label="Collection date">
+      </div>
+      <div class="import-review-file">
+        <span class="import-review-label">Collection time</span>
+        <input type="time" id="import-sample-time" value="${escapeHTML(sampleTime)}" ${importReviewActionAttrs('manual-sample-time')} aria-label="Blood collection time">
+        <small>Draw time only — not received, processed, or report time.</small>
+      </div>
+      <div class="import-review-file">
+        <span class="import-review-label">Fasting status</span>
+        <select id="import-fasting" ${importReviewActionAttrs('manual-fasting')} aria-label="Fasting status">
+          <option value="unknown"${fasting === null ? ' selected' : ''}>Unknown</option>
+          <option value="fasting"${fasting === true ? ' selected' : ''}>Fasting</option>
+          <option value="not-fasting"${fasting === false ? ' selected' : ''}>Not fasting</option>
+        </select>
       </div>
       <div class="import-review-stats" aria-label="Import mapping summary">
         <span class="import-review-stat import-review-stat-matched"><strong>${matched.length}</strong> matched</span>
@@ -548,9 +520,10 @@ export function showImportPreview(parseResult) {
     }
   }
   if (rangesDiffCount > 0) {
+    const rangeChoiceChecked = parseResult._adoptReferenceRanges !== false ? ' checked' : '';
     html += `<label class="import-range-option">
-      <input type="checkbox" id="import-adopt-ranges">
-      <span><strong>Update reference ranges from this report</strong><small>${rangesDiffCount} marker${rangesDiffCount !== 1 ? 's' : ''} differ from the current ranges. Leave off unless you want this lab's ranges to become the active reference.</small></span></label>`;
+      <input type="checkbox" id="import-adopt-ranges"${rangeChoiceChecked}>
+      <span><strong>Use reference ranges from this report</strong><small>${rangesDiffCount} marker${rangesDiffCount !== 1 ? 's' : ''} differ from the current ranges. Lab-specific intervals are preferred; uncheck to keep the current ranges.</small></span></label>`;
   }
 
   if (parseResult.privacyMethod?.startsWith('ollama')) {
@@ -750,6 +723,23 @@ export function applyManualImportDate(dateStr) {
     btn.disabled = !nextDate;
     btn.style.opacity = '';
     btn.style.cursor = '';
+  }
+  persistCurrentImportReviewDraft();
+}
+
+/** @param {{ sampleTime?: unknown, fasting?: unknown }} patch */
+export function applyManualImportCollectionContext(patch = {}) {
+  const pendingImport = getPendingImport();
+  if (!pendingImport) return;
+  if (Object.prototype.hasOwnProperty.call(patch, 'sampleTime')) {
+    const nextTime = normalizeLabSampleTime(patch.sampleTime);
+    if (pendingImport.sampleTime !== nextTime) pendingImport._benchmarkContextEdited = true;
+    pendingImport.sampleTime = nextTime;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'fasting')) {
+    const nextFasting = normalizeLabFastingStatus(patch.fasting);
+    if (pendingImport.fasting !== nextFasting) pendingImport._benchmarkContextEdited = true;
+    pendingImport.fasting = nextFasting;
   }
   persistCurrentImportReviewDraft();
 }

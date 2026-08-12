@@ -34,11 +34,12 @@ assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedK
 // ─── 2. Manual Entry Provenance ───
 console.log('\n2. Manual Entry Provenance');
 const markerDetailSrc = read('js/marker-detail-modal-impl.js');
+const markerDetailHistorySrc = read('js/marker-detail-history.js');
 const markerDetailEditingSrc = read('js/marker-detail-editing.js');
 const markerDetailStoreSrc = read('js/marker-detail-store.js');
 assert('saveManualEntry inits markerSources', labEntrySrc.includes('function ensureMarkerSources(entry)'));
 assert('saveManualEntry sets file:null',
-  /saveManualEntry[\s\S]{0,5200}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc)
+  /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc)
     && /saveManualMarkerValue[\s\S]{0,1200}source: \{ file: null, at: now \}/.test(markerDetailStoreSrc));
 const editSection = markerDetailEditingSrc.split('function editMarkerValue')[1] || '';
 assert('editMarkerValue sets provenance',
@@ -48,9 +49,9 @@ assert('editMarkerValue sets provenance',
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');
 assert('Detail modal reads markerSources', markerDetailSrc.includes('srcEntry?.markerSources?.[dotKey]'));
-assert('Detail modal has mv-source class', markerDetailSrc.includes('class="mv-source"'));
-assert('Detail modal shows manual entry label', markerDetailSrc.includes('mv-source-manual'));
-assert('Detail modal falls back to sourceFile', markerDetailSrc.includes('srcEntry?.sourceFile'));
+assert('Detail modal has mv-source class', markerDetailHistorySrc.includes('class="mv-source"'));
+assert('Detail modal shows manual entry label', markerDetailHistorySrc.includes('mv-source-manual'));
+assert('Detail modal falls back to sourceFile', markerDetailHistorySrc.includes('entry?.sourceFile'));
 
 // ─── 4. CSS Styles ───
 console.log('\n4. CSS Styles');

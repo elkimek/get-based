@@ -207,7 +207,7 @@ const originalMergeImportedData = state.importedData;
 
 try {
   const profileId = 'sync-merge-profile';
-  const rawKey = 'hormones.insulin:2026-05-01';
+  const rawKey = 'diabetes.insulin:2026-05-01';
   const itemId = rawKey.replace(/_/g, '__').replace(/:/g, '_');
   const rows = [{
     profileId,

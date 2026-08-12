@@ -316,6 +316,14 @@
     },
     {
       "date": "2025-04-10",
+      "context": {
+        "sampleTime": "08:10",
+        "fasting": true,
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded"
+      },
       "markers": {
         "biochemistry.glucose": 4.5,
         "biochemistry.urea": 4.8,
@@ -334,7 +342,6 @@
         "hormones.dheaS": 5.8,
         "hormones.estradiol": 285,
         "hormones.progesterone": 0.35,
-        "hormones.insulin": 6,
         "hormones.lh": 4.8,
         "hormones.fsh": 6.2,
         "hormones.prolactin": 12.5,
@@ -363,7 +370,6 @@
         "thyroid.ft3": 4.8,
         "vitamins.vitaminD": 48,
         "diabetes.hba1c": 29,
-        "diabetes.insulin_d": 6,
         "diabetes.homaIR": 1.2,
         "coagulation.homocysteine": 7.2,
         "hematology.wbc": 5.4,
@@ -390,7 +396,8 @@
         "hormones.dht": 0.44,
         "thyroid.t4total": 86,
         "specialty.glycanAge": 38,
-        "specialty.urinaryIodine": 88
+        "specialty.urinaryIodine": 88,
+        "diabetes.insulin": 6
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -458,10 +465,6 @@
           "at": 1744286400000
         },
         "hormones.progesterone": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
-        },
-        "hormones.insulin": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
         },
@@ -577,10 +580,6 @@
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
         },
-        "diabetes.insulin_d": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
-        },
         "diabetes.homaIR": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
@@ -688,11 +687,23 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1744272000000
+        },
+        "diabetes.insulin": {
+          "file": "Spring 2025 Complete Panel.pdf",
+          "at": 1744286400000
         }
       }
     },
     {
       "date": "2025-08-05",
+      "context": {
+        "sampleTime": "08:25",
+        "fasting": true,
+        "cycleDay": 11,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded"
+      },
       "markers": {
         "biochemistry.glucose": 4.6,
         "biochemistry.urea": 5,
@@ -711,7 +722,6 @@
         "hormones.dheaS": 5.5,
         "hormones.estradiol": 310,
         "hormones.progesterone": 0.6,
-        "hormones.insulin": 5.5,
         "hormones.lh": 8,
         "hormones.fsh": 6.5,
         "hormones.prolactin": 14.2,
@@ -748,7 +758,6 @@
         "vitamins.vitaminD": 55,
         "vitamins.vitaminA": 1.62,
         "diabetes.hba1c": 30,
-        "diabetes.insulin_d": 5.5,
         "diabetes.homaIR": 1.12,
         "coagulation.homocysteine": 7.5,
         "hematology.wbc": 5.2,
@@ -771,7 +780,8 @@
         "differential.lymphocytesPct": 0.323,
         "differential.monocytesPct": 0.067,
         "specialty.glycanAge": 37.2,
-        "specialty.urinaryIodine": 110
+        "specialty.urinaryIodine": 110,
+        "diabetes.insulin": 5.5
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -839,10 +849,6 @@
           "at": 1754395200000
         },
         "hormones.progesterone": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
-        },
-        "hormones.insulin": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1754395200000
         },
@@ -990,10 +996,6 @@
           "file": "Summer 2025 Panel.pdf",
           "at": 1754395200000
         },
-        "diabetes.insulin_d": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
-        },
         "diabetes.homaIR": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1754395200000
@@ -1085,6 +1087,10 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1754380800000
+        },
+        "diabetes.insulin": {
+          "file": "Summer 2025 Panel.pdf",
+          "at": 1754395200000
         }
       }
     },
@@ -1172,6 +1178,14 @@
     },
     {
       "date": "2025-12-15",
+      "context": {
+        "sampleTime": "08:15",
+        "fasting": true,
+        "cycleDay": 27,
+        "cyclePhase": "luteal",
+        "cyclePhaseDetail": "late_luteal",
+        "cyclePhaseSource": "recorded"
+      },
       "markers": {
         "biochemistry.glucose": 4.7,
         "biochemistry.urea": 4.5,
@@ -1190,10 +1204,9 @@
         "hormones.shbg": 65,
         "hormones.dheaS": 5.9,
         "hormones.estradiol": 195,
-        "hormones.progesterone": 0.28,
-        "hormones.insulin": 6.2,
+        "hormones.progesterone": 7,
         "hormones.lh": 5.4,
-        "hormones.fsh": 7.8,
+        "hormones.fsh": 7.4,
         "hormones.prolactin": 11.8,
         "hormones.igf1": 172,
         "electrolytes.sodium": 139,
@@ -1229,7 +1242,6 @@
         "vitamins.vitaminD": 72,
         "vitamins.vitaminD3": 62,
         "diabetes.hba1c": 30,
-        "diabetes.insulin_d": 6.2,
         "diabetes.homaIR": 1.29,
         "coagulation.homocysteine": 6.8,
         "hematology.wbc": 5.6,
@@ -1253,7 +1265,8 @@
         "differential.monocytesPct": 0.068,
         "boneMetabolism.osteocalcin": 25,
         "specialty.glycanAge": 36.5,
-        "specialty.urinaryIodine": 145
+        "specialty.urinaryIodine": 145,
+        "diabetes.insulin": 6.2
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1325,10 +1338,6 @@
           "at": 1765800000000
         },
         "hormones.progesterone": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
-        },
-        "hormones.insulin": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1765800000000
         },
@@ -1477,10 +1486,6 @@
           "at": 1765800000000
         },
         "diabetes.hba1c": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
-        },
-        "diabetes.insulin_d": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1765800000000
         },
@@ -1579,11 +1584,23 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1765785600000
+        },
+        "diabetes.insulin": {
+          "file": "Fall 2025 Panel.pdf",
+          "at": 1765800000000
         }
       }
     },
     {
       "date": "2026-07-18",
+      "context": {
+        "sampleTime": "08:05",
+        "fasting": true,
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded"
+      },
       "markers": {
         "biochemistry.glucose": 5.15,
         "biochemistry.urea": 4.6,
@@ -1605,7 +1622,6 @@
         "hormones.dheaS": 6.1,
         "hormones.estradiol": 425,
         "hormones.progesterone": 0.42,
-        "hormones.insulin": 7.5,
         "hormones.lh": 8.2,
         "hormones.fsh": 9.5,
         "hormones.prolactin": 13,
@@ -1646,7 +1662,6 @@
         "vitamins.vitaminD3": 78,
         "vitamins.vitaminA": 1.75,
         "diabetes.hba1c": 35,
-        "diabetes.insulin_d": 7.5,
         "diabetes.homaIR": 1.16,
         "coagulation.homocysteine": 6.5,
         "hematology.wbc": 5.35,
@@ -1696,7 +1711,8 @@
         "oatMicrobial.hphpa": 45,
         "oatMicrobial.cresol4": 26,
         "oatMicrobial.dArabinitol": 22,
-        "calculatedRatios.nlr": 1.65
+        "calculatedRatios.nlr": 1.65,
+        "diabetes.insulin": 7.5
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1776,10 +1792,6 @@
           "at": 1784376000000
         },
         "hormones.progesterone": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
-        },
-        "hormones.insulin": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1784376000000
         },
@@ -1940,10 +1952,6 @@
           "at": 1784376000000
         },
         "diabetes.hba1c": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
-        },
-        "diabetes.insulin_d": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1784376000000
         },
@@ -2126,6 +2134,10 @@
         "oatMicrobial.dArabinitol": {
           "file": "Demo advanced functional panel",
           "page": 1
+        },
+        "diabetes.insulin": {
+          "file": "Summer 2026 Panel.pdf",
+          "at": 1784376000000
         }
       }
     },
@@ -2223,7 +2235,7 @@
     },
     {
       "date": "2025-12-15",
-      "text": "Late-luteal draw on cycle day 27, three days before the next recorded period. Hemoglobin, ferritin, and transferrin saturation all improved on a consistent 36 mg iron-bisglycinate dose. TSH continues to rise while free T4 trends down, so the GP ordered thyroid antibodies."
+      "text": "Late-luteal draw on cycle day 27, three days before the next recorded period. Progesterone was already at the low end of the luteal range, consistent with the expected premenstrual decline; this is not comparable with a mid-luteal progesterone test. Hemoglobin, ferritin, and transferrin saturation all improved on a consistent 36 mg iron-bisglycinate dose. TSH continues to rise while free T4 trends down, so the GP ordered thyroid antibodies."
     },
     {
       "date": "2026-07-18",
@@ -2694,7 +2706,7 @@
           }
         ],
         "note": "Self-measured with rented meters. Pre-1970 building, renovated 2018. Thick masonry walls provide good shielding on courtyard side. Street side has direct line-of-sight to cell tower. Considering shielding curtains for living room windows.",
-      "interpretation": "## The bedroom is comparatively well controlled\n\n- Bedroom RF measured 8.5 µW/m² and AC magnetic field measured 25 nT, both lower than the street-facing living room in this assessment. The 3.2 V/m AC electric reading is the main bedroom item to recheck after moving the meter and changing breaker states.\n- Existing night routines — WiFi off and phone in airplane mode — should be kept consistent before and during any repeat measurement.\n- The living room has the highest measured RF at 180 µW/m², consistent with the street-facing windows, nearby networks, and reported cell-tower line of sight. Distance from the windows and relocating the router are practical comparison tests.\n\nNo office was measured, and phone exposure was not measured separately, so neither should be treated as a confirmed finding from this assessment.",
+        "interpretation": "## The bedroom is comparatively well controlled\n\n- Bedroom RF measured 8.5 µW/m² and AC magnetic field measured 25 nT, both lower than the street-facing living room in this assessment. The 3.2 V/m AC electric reading is the main bedroom item to recheck after moving the meter and changing breaker states.\n- Existing night routines — WiFi off and phone in airplane mode — should be kept consistent before and during any repeat measurement.\n- The living room has the highest measured RF at 180 µW/m², consistent with the street-facing windows, nearby networks, and reported cell-tower line of sight. Distance from the windows and relocating the router are practical comparison tests.\n\nNo office was measured, and phone exposure was not measured separately, so neither should be treated as a confirmed finding from this assessment.",
         "interpretedAt": 1785141000000
       }
     ]
@@ -2742,7 +2754,7 @@
         "source": "manual"
       },
       {
-      "date": "2026-07-18",
+        "date": "2026-07-18",
         "value": 60,
         "unit": "kg",
         "source": "manual"
@@ -2762,7 +2774,7 @@
         "source": "manual"
       },
       {
-      "date": "2026-07-18",
+        "date": "2026-07-18",
         "sys": 112,
         "dia": 74,
         "source": "manual"
@@ -2780,7 +2792,7 @@
         "source": "manual"
       },
       {
-      "date": "2026-07-18",
+        "date": "2026-07-18",
         "value": 66,
         "source": "manual"
       }

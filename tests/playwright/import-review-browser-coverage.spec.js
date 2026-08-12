@@ -197,6 +197,8 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       state.currentProfile = 'import-review-coverage';
       review.showImportPreview({
         date: '',
+        sampleTime: '09:15:00',
+        fasting: false,
         fileName: '<cbc-review>.pdf',
         markers: baseMarkers.map(marker => ({ ...marker })),
         privacyMethod: 'regex',
@@ -214,12 +216,26 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
         && !!modal.querySelector('.import-review-date-warning')
         && !!modal.querySelector('.import-review-warning:not(.import-review-date-warning)');
       outcomes.missingDateDisablesImport = confirmBtn?.disabled === true;
+      outcomes.collectionContextIsReviewableAndWarnsAgainstProcessingTime =
+        document.getElementById('import-sample-time')?.value === '09:15'
+        && document.getElementById('import-fasting')?.value === 'not-fasting'
+        && modal?.textContent.includes('not received, processed, or report time');
       outcomes.renderedControlsUseDelegatedActions = modal?.querySelectorAll('[onclick],[onchange],[oninput]').length === 0
         && modal?.querySelectorAll('[data-import-review-action]').length >= 13;
 
       const dateInput = document.getElementById('import-manual-date');
       dateInput.value = '2026-06-01';
       dispatchChange(dateInput);
+
+      const sampleTimeInput = document.getElementById('import-sample-time');
+      const fastingInput = document.getElementById('import-fasting');
+      sampleTimeInput.value = '07:40';
+      dispatchChange(sampleTimeInput);
+      fastingInput.value = 'fasting';
+      dispatchChange(fastingInput);
+      outcomes.collectionContextEditsUpdatePendingImport =
+        review.getPendingImport()?.sampleTime === '07:40'
+        && review.getPendingImport()?.fasting === true;
       outcomes.manualDateUpdatesPendingAndButton = review.getPendingImport()?.date === '2026-06-01'
         && confirmBtn?.disabled === false;
       dateInput.value = '';
@@ -649,6 +665,7 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
       outcomes.privacyDetailsButtonDelegatesToViewer = piiDiffArgs?.[0] === 'Patient: Jane Example'
         && piiDiffArgs?.[1] === 'Patient: [NAME]';
       outcomes.rangeAdoptionOptionRendersWhenLabRangesDiffer = modal?.querySelector('#import-adopt-ranges') !== null;
+      outcomes.rangeAdoptionDefaultsToLabRanges = modal?.querySelector('#import-adopt-ranges')?.checked === true;
     } finally {
       window.showPIIDiffViewer = savedPIIDiffViewer;
       for (const key of storageKeys) {

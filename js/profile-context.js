@@ -208,7 +208,11 @@ export function getBiologyProfileContext(options = {}) {
   const genetic = collectGeneticModifiers(data, options);
   const body = collectBodyModifiers(data, options);
   const allText = notes;
-  const lowMuscleMass = !!flags.lowMuscleMass || textMatchesAny(allText, LOW_MUSCLE_TERMS);
+  // Only the explicit Medical History interpretation flag may change
+  // deterministic creatinine scoring. Free-text mentions remain available as
+  // advisory context, but must not silently re-enable a switch the user turned off.
+  const lowMuscleMassInferred = textMatchesAny(allText, LOW_MUSCLE_TERMS);
+  const lowMuscleMass = flags.lowMuscleMass === true;
   const lightContextEnabled = light.includeLight !== false;
   const lowSunlightExposure = lightContextEnabled && (
     !!flags.lowSunlight || textMatchesAny(allText, LOW_SUNLIGHT_TERMS) || !!light.lowLoggedSunlight || !!light.lowVitaminDSynthesis
@@ -220,7 +224,8 @@ export function getBiologyProfileContext(options = {}) {
   const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && isHormonalContraception(mc?.contraceptive));
   return {
     sex, ageYears: getProfileAgeYears(), cycleStatus, menopauseStatus, hormoneTherapy, acuteInflammationContext, recentHardTraining, lowMuscleMass,
-    lowMuscleReason: lowMuscleMass ? 'Profile context suggests low muscle mass / neuromuscular disease, so creatinine-derived markers are treated as context rather than scored signal.' : '',
+    lowMuscleMassInferred,
+    lowMuscleReason: lowMuscleMass ? 'The Medical History low muscle mass interpretation flag is enabled, so creatinine-derived markers are treated as context rather than scored signal.' : '',
     lowSunlightExposure,
     lowSunlightReason: lowSunlightExposure ? (light.lowVitaminDSynthesis || light.lowLoggedSunlight
       ? 'Light context suggests low recent UVB/sunlight exposure. Vitamin D target is raised to 100 nmol/L (40 ng/mL) as a sufficiency floor and inflammation/recovery scores should mention light context.'

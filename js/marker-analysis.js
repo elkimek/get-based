@@ -25,7 +25,38 @@ export function getEffectiveRangeForDate(marker, dateIndex, rangeMode = state.ra
   if (marker.phaseRefRanges && marker.phaseRefRanges[dateIndex]) {
     return marker.phaseRefRanges[dateIndex];
   }
+  if ((rangeMode === 'optimal' || rangeMode === 'both') && marker.contextOptimalRanges?.[dateIndex]) {
+    return marker.contextOptimalRanges[dateIndex];
+  }
+  const hasOptimalRange = marker.optimalMin != null || marker.optimalMax != null;
+  if ((rangeMode === 'optimal' || rangeMode === 'both') && hasOptimalRange) {
+    return getEffectiveRange(marker, rangeMode);
+  }
+  if (marker.contextRefRanges && marker.contextRefRanges[dateIndex]) {
+    return marker.contextRefRanges[dateIndex];
+  }
   return getEffectiveRange(marker, rangeMode);
+}
+
+export function getEffectiveRangeLabelForDate(marker, dateIndex, rangeMode = state.rangeMode) {
+  if (marker.phaseRefRanges && marker.phaseRefRanges[dateIndex]) {
+    if (marker.phaseRefRanges[dateIndex].label) return marker.phaseRefRanges[dateIndex].label;
+    const phaseLabel = marker.phaseLabels?.[dateIndex];
+    if (!phaseLabel) return 'Phase range';
+    const readable = String(phaseLabel).replace(/[_-]+/g, ' ');
+    return `${readable.charAt(0).toUpperCase()}${readable.slice(1)} range`;
+  }
+  if ((rangeMode === 'optimal' || rangeMode === 'both') && marker.contextOptimalRanges?.[dateIndex]) {
+    return marker.contextOptimalRangeLabels?.[dateIndex] || 'Optimal guidance';
+  }
+  const hasOptimalRange = marker.optimalMin != null || marker.optimalMax != null;
+  if ((rangeMode === 'optimal' || rangeMode === 'both') && hasOptimalRange) return 'Optimal';
+  if (marker.contextRefRanges && marker.contextRefRanges[dateIndex]) {
+    return marker.contextRangeLabels?.[dateIndex] || (marker.rangePolicy === 'target' ? 'Target' : 'Reference');
+  }
+  if (marker.referenceRangeSource === 'import') return 'Lab reference';
+  if (marker.referenceRangeSource) return 'Custom range';
+  return marker.rangePolicy === 'target' ? 'Target' : 'Reference';
 }
 
 export function getPhaseRefEnvelope(marker) {
@@ -37,6 +68,28 @@ export function getPhaseRefEnvelope(marker) {
     if (r.max > max) max = r.max;
   }
   return min === Infinity ? null : { min, max };
+}
+
+export function getContextRefEnvelope(marker) {
+  if (!marker.contextRefRanges) return null;
+  let min = Infinity, max = -Infinity;
+  for (const r of marker.contextRefRanges) {
+    if (!r) continue;
+    if (r.min != null && r.min < min) min = r.min;
+    if (r.max != null && r.max > max) max = r.max;
+  }
+  return min === Infinity || max === -Infinity ? null : { min, max };
+}
+
+export function getContextOptimalEnvelope(marker) {
+  if (!marker.contextOptimalRanges) return null;
+  let min = Infinity, max = -Infinity;
+  for (const r of marker.contextOptimalRanges) {
+    if (!r) continue;
+    if (r.min != null && r.min < min) min = r.min;
+    if (r.max != null && r.max > max) max = r.max;
+  }
+  return min === Infinity || max === -Infinity ? null : { min, max };
 }
 
 export function getLatestValueIndex(values) {

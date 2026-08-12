@@ -2,8 +2,15 @@
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { state } from './state.js';
-import { getBiologyProfileContext } from './profile-context.js';
-import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
+import { populateCalculatedMarkers } from './data-calculated-markers.js';
+import {
+  CONTEXT_OPTIMAL_RANGES,
+  CONTEXT_REFERENCE_RANGES,
+  MARKER_SCHEMA,
+  UNIT_CONVERSIONS,
+  OPTIMAL_RANGES,
+  PHASE_RANGES,
+} from './schema.js';
 import { hashString, isDebugMode, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import {
@@ -18,12 +25,21 @@ import {
 } from './marker-analysis.js';
 import { configureDataViewCoreDependencies } from './data-view-controls.js';
 import { applyMarkerPlacements } from './marker-placement.js';
+import {
+  cortisolReferenceForSampleTime,
+  parseSampleHour,
+  resolveAgeSexRange,
+  wholeAgeAtDate,
+} from './marker-context-ranges.js';
 
 export {
   countFlagged,
+  getContextOptimalEnvelope,
   detectTrendAlerts,
+  getContextRefEnvelope,
   getEffectiveRange,
   getEffectiveRangeForDate,
+  getEffectiveRangeLabelForDate,
   getKeyTrendMarkers,
   getLatestValueIndex,
   getPhaseRefEnvelope,
@@ -51,8 +67,6 @@ export {
 
 /**
  * @typedef {import('../types/app-state.js').ProfileData} ImportedDataRecord
- * @typedef {() => Array<number | null | undefined> | undefined} MarkerValueGetter
- * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  */
 
 /** @type {{ invalidateLabContextCache: (() => void) | null }} */
@@ -92,7 +106,53 @@ function _getCyclePhase(dateStr, mc) {
   else if (cycleDay < ovulationDay - 1) { phase = 'follicular'; phaseName = 'Follicular'; }
   else if (cycleDay <= ovulationDay + 1) { phase = 'ovulatory'; phaseName = 'Ovulatory'; }
   else { phase = 'luteal'; phaseName = 'Luteal'; }
-  return { cycleDay, phase, phaseName };
+  return { cycleDay, phase, phaseName, source: 'predicted' };
+}
+
+const CYCLE_PHASE_NAMES = {
+  menstrual: 'Menstrual',
+  follicular: 'Follicular',
+  ovulatory: 'Ovulatory',
+  luteal: 'Luteal',
+};
+
+function _normalizeCyclePhase(value) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (!normalized) return null;
+  if (normalized.includes('menstrual') || normalized === 'menses') return 'menstrual';
+  if (normalized.includes('follicular')) return 'follicular';
+  if (normalized.includes('ovulat')) return 'ovulatory';
+  if (normalized.includes('luteal')) return 'luteal';
+  return null;
+}
+
+function _phaseDetailName(value, fallback) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (!normalized) return fallback;
+  const labels = {
+    early_follicular: 'Early follicular',
+    late_follicular: 'Late follicular',
+    periovulatory: 'Periovulatory',
+    early_luteal: 'Early luteal',
+    mid_luteal: 'Mid-luteal',
+    late_luteal: 'Late luteal',
+  };
+  return labels[normalized] || fallback;
+}
+
+function _getRecordedDrawCyclePhase(context) {
+  const phase = _normalizeCyclePhase(context?.cyclePhase);
+  if (!phase) return null;
+  const cycleDayNumber = Number(context?.cycleDay);
+  const cycleDay = Number.isInteger(cycleDayNumber) && cycleDayNumber > 0 ? cycleDayNumber : null;
+  const phaseName = CYCLE_PHASE_NAMES[phase];
+  return {
+    cycleDay,
+    phase,
+    phaseName,
+    phaseDetailName: _phaseDetailName(context?.cyclePhaseDetail, phaseName),
+    source: String(context?.cyclePhaseSource || '').toLowerCase() === 'predicted' ? 'predicted' : 'recorded',
+  };
 }
 
 // ═══════════════════════════════════════════════
@@ -325,7 +385,8 @@ export function getActiveData() {
   if (state.profileSex === 'female') {
     for (const cat of Object.values(data.categories)) {
       for (const marker of Object.values(cat.markers)) {
-        if (marker.refMin_f !== undefined) { marker.refMin = marker.refMin_f; marker.refMax = marker.refMax_f; }
+        if (marker.refMin_f !== undefined) marker.refMin = marker.refMin_f;
+        if (marker.refMax_f !== undefined) marker.refMax = marker.refMax_f;
       }
     }
   }
@@ -336,13 +397,10 @@ export function getActiveData() {
     const cat = data.categories[catKey];
     if (cat && cat.markers[markerKey]) {
       const marker = cat.markers[markerKey];
-      if (state.profileSex === 'female' && opt.optimalMin_f !== undefined) {
-        marker.optimalMin = opt.optimalMin_f;
-        marker.optimalMax = opt.optimalMax_f;
-      } else {
-        marker.optimalMin = opt.optimalMin;
-        marker.optimalMax = opt.optimalMax;
-      }
+      marker.optimalMin = state.profileSex === 'female' && opt.optimalMin_f !== undefined
+        ? opt.optimalMin_f : opt.optimalMin;
+      marker.optimalMax = state.profileSex === 'female' && opt.optimalMax_f !== undefined
+        ? opt.optimalMax_f : opt.optimalMax;
     }
   }
 
@@ -355,6 +413,7 @@ export function getActiveData() {
       const m = cat.markers[markerKey];
       if ('refMin' in ovr) m.refMin = ovr.refMin;
       if ('refMax' in ovr) m.refMax = ovr.refMax;
+      if ('refMin' in ovr || 'refMax' in ovr) m.referenceRangeSource = ovr.refSource || 'custom';
       if ('optimalMin' in ovr) m.optimalMin = ovr.optimalMin;
       if ('optimalMax' in ovr) m.optimalMax = ovr.optimalMax;
     }
@@ -384,7 +443,7 @@ export function getActiveData() {
   // differ between lab entries for the same profile.
   const entryLookup = {};
   const entryContextByDate = {};
-  const ENTRY_CONTEXT_KEYS = ['sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
+  const ENTRY_CONTEXT_KEYS = ['sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
   for (const entry of entries) {
     if (!entryLookup[entry.date]) entryLookup[entry.date] = {};
     Object.assign(entryLookup[entry.date], entry.markers);
@@ -427,15 +486,23 @@ export function getActiveData() {
   const mc = state.importedData && state.importedData.menstrualCycle;
   const _hormonalContraceptives = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection'];
   const _isHormonalBC = mc?.contraceptive && _hormonalContraceptives.some(h => mc.contraceptive.toLowerCase().includes(h));
-  const _isActiveCycle = !mc?.cycleStatus || mc.cycleStatus === 'regular' || mc.cycleStatus === 'perimenopause';
-  const _hasCyclePhases = isFemale && mc && mc.periods && mc.periods.length > 0 && !_isHormonalBC && _isActiveCycle;
+  const _hasActiveNaturalCycle = isFemale && !_isHormonalBC && (!mc?.cycleStatus || mc.cycleStatus === 'regular');
+  const _hasPredictableCycle = _hasActiveNaturalCycle && mc?.periods?.length > 0
+    && (!mc?.regularity || mc.regularity === 'regular');
+  const drawPhases = sortedDates.map(d => {
+    const recorded = _getRecordedDrawCyclePhase(entryContextByDate[d]);
+    if (recorded && _hasActiveNaturalCycle) return recorded;
+    return _hasPredictableCycle ? _getCyclePhase(d, mc) : null;
+  });
+  const _hasCyclePhases = drawPhases.some(Boolean);
 
-  // Compute top-level phase labels for charts (female + active cycle, no hormonal BC)
+  // Compute top-level draw-phase metadata for charts. A phase recorded with
+  // the lab entry wins over calendar inference from period history.
   if (_hasCyclePhases) {
-    data.phaseLabels = sortedDates.map(d => {
-      const p = _getCyclePhase(d, mc);
-      return p ? p.phase : null;
-    });
+    data.phaseLabels = drawPhases.map(p => p?.phase || null);
+    data.phaseDisplayLabels = drawPhases.map(p => p?.phaseDetailName || p?.phaseName || null);
+    data.phaseCycleDays = drawPhases.map(p => p?.cycleDay || null);
+    data.phaseSources = drawPhases.map(p => p?.source || null);
   }
 
   // Populate values for each category
@@ -484,205 +551,105 @@ export function getActiveData() {
       const [catKey, markerKey] = fullKey.split('.');
       const marker = data.categories[catKey] && data.categories[catKey].markers[markerKey];
       if (!marker) continue;
-      marker.phaseRefRanges = sortedDates.map(d => {
-        const p = _getCyclePhase(d, mc);
-        return p ? (phaseMap[p.phase] || null) : null;
+      marker.phaseRefRanges = drawPhases.map(p => {
+        if (!p) return null;
+        const range = phaseMap[p.phase] || null;
+        if (!range) return null;
+        return {
+          ...range,
+          label: p.source === 'recorded' ? `${p.phaseName} range` : range.label,
+          phaseSource: p.source,
+          cycleDay: p.cycleDay,
+        };
       });
-      marker.phaseLabels = sortedDates.map(d => {
-        const p = _getCyclePhase(d, mc);
-        return p ? p.phaseName : null;
-      });
+      marker.phaseLabels = drawPhases.map(p => p?.phaseName || null);
+      marker.phaseDisplayLabels = drawPhases.map(p => p?.phaseDetailName || p?.phaseName || null);
+      marker.phaseCycleDays = drawPhases.map(p => p?.cycleDay || null);
+      marker.phaseSources = drawPhases.map(p => p?.source || null);
     }
   }
 
-  // Calculate ratios from component markers
-  const ratios = data.categories.calculatedRatios;
-  if (ratios) {
-    const getVals = (catKey, markerKey) => {
-      const cat = data.categories[catKey];
-      return cat && cat.markers[markerKey] ? cat.markers[markerKey].values : null;
-    };
-    const divide = (numVals, denVals) => {
-      if (!numVals || !denVals) return sortedDates.map(() => null);
-      return sortedDates.map((_, i) => {
-        const n = numVals[i], d = denVals[i];
-        return (n != null && d != null && d !== 0) ? Math.round((n / d) * 1000) / 1000 : null;
-      });
-    };
-    const directCholHdlVals = getVals('calculatedRatios', 'cholHdlRatio');
-    ratios.markers.tgHdlRatio.values = divide(getVals('lipids', 'triglycerides'), getVals('lipids', 'hdl'));
-    ratios.markers.ldlHdlRatio.values = divide(getVals('lipids', 'ldl'), getVals('lipids', 'hdl'));
-    const computedCholHdlVals = divide(getVals('lipids', 'cholesterol'), getVals('lipids', 'hdl'));
-    ratios.markers.cholHdlRatio.values = computedCholHdlVals.map((value, i) => value != null ? value : (directCholHdlVals?.[i] ?? null));
-    ratios.markers.apoBapoAIRatio.values = divide(getVals('lipids', 'apoB'), getVals('lipids', 'apoAI'));
-    ratios.markers.nlr.values = divide(getVals('differential', 'neutrophils'), getVals('differential', 'lymphocytes'));
-    ratios.markers.plr.values = divide(getVals('hematology', 'platelets'), getVals('differential', 'lymphocytes'));
-    ratios.markers.deRitisRatio.values = divide(getVals('biochemistry', 'ast'), getVals('biochemistry', 'alt'));
-    ratios.markers.copperZincRatio.values = divide(getVals('electrolytes', 'copper'), getVals('electrolytes', 'zinc'));
-    ratios.markers.ft3ft4Ratio.values = divide(getVals('thyroid', 'ft3'), getVals('thyroid', 'ft4'));
+  // Apply per-draw age, sex, assay, collection-time, and fasting guidance.
+  // Imported/manual lab ranges remain authoritative: their corresponding
+  // contextual defaults are not attached at all.
+  const hasRangeOverride = (dotKey, kind) => {
+    const override = refOverrides[dotKey];
+    if (!override) return false;
+    return kind === 'optimal'
+      ? Object.prototype.hasOwnProperty.call(override, 'optimalMin') || Object.prototype.hasOwnProperty.call(override, 'optimalMax')
+      : Object.prototype.hasOwnProperty.call(override, 'refMin') || Object.prototype.hasOwnProperty.call(override, 'refMax');
+  };
+  const setContextRanges = (dotKey, kind, resolveGuidance) => {
+    if (hasRangeOverride(dotKey, kind)) return;
+    const [catKey, markerKey] = dotKey.split('.');
+    const marker = data.categories[catKey]?.markers?.[markerKey];
+    if (!marker) return;
+    const guidance = sortedDates.map((dateStr, i) => resolveGuidance(dateStr, i, marker));
+    if (!guidance.some(Boolean)) return;
+    if (kind === 'optimal') {
+      marker.contextOptimalRanges = guidance.map(item => item ? { min: item.min ?? null, max: item.max ?? null } : null);
+      marker.contextOptimalRangeLabels = guidance.map(item => item?.label || null);
+    } else {
+      marker.contextRefRanges = guidance.map(item => item ? { min: item.min ?? null, max: item.max ?? null } : null);
+      marker.contextRangeLabels = guidance.map(item => item?.label || null);
+    }
+  };
 
-    // BUN/Creatinine Ratio — computed in US units: (urea×2.801) / (creatinine×0.01131)
-    const ureaVals = getVals('biochemistry', 'urea');
-    const creatVals = getVals('biochemistry', 'creatinine');
-    ratios.markers.bunCreatRatio.values = sortedDates.map((_, i) => {
-      const u = ureaVals?.[i], c = creatVals?.[i];
-      if (u == null || c == null || c === 0) return null;
-      return Math.round((u * 2.801) / (c * 0.01131) * 10) / 10;
-    });
-
-    // Free Water Deficit — TBW × (Na/140 − 1), uses latest weight or 70kg fallback.
-    // Weight now lives in the wearables summary (single source of truth after
-    // the Health Metrics unification; manual entries write kg-canonicalized).
-    // Legacy importedData.biometrics.weight is kept as a backstop for old
-    // profiles that somehow haven't seen the migration run yet.
-    const sodiumVals = getVals('electrolytes', 'sodium');
-    const summaryWeight = state.importedData?.wearableSummary?.metrics?.weight?.latest;
-    const legacyWeightArr = state.importedData?.biometrics?.weight;
-    const legacyWeight = Array.isArray(legacyWeightArr) && legacyWeightArr.length > 0 ? legacyWeightArr[legacyWeightArr.length - 1].value : null;
-    const latestWeight = (typeof summaryWeight === 'number' && isFinite(summaryWeight)) ? summaryWeight : legacyWeight;
-    ratios.markers.freeWaterDeficit.values = sortedDates.map((_, i) => {
-      const na = sodiumVals ? sodiumVals[i] : null;
-      if (na == null || na <= 0) return null;
-      const tbwFactor = state.profileSex === 'female' ? 0.5 : 0.6;
-      const tbw = (latestWeight || 70) * tbwFactor;
-      const fwd = tbw * (na / 140 - 1);
-      return Math.round(fwd * 100) / 100;
-    });
-
-    // hs-CRP/HDL Ratio — inflammation-lipid composite (hs-CRP only, no standard CRP fallback)
-    ratios.markers.crpHdlRatio.values = sortedDates.map((_, i) => {
-      const crp = getVals('proteins', 'hsCRP')?.[i] ?? null; // mg/L — requires hs-CRP
-      const hdl = getVals('lipids', 'hdl')?.[i]; // mmol/L
-      if (crp == null || hdl == null || hdl <= 0) return null;
-      // CRP mg/L ÷ HDL mg/dL — matches NHANES convention used in published cutoffs
-      return Math.round((crp / (hdl * 38.67)) * 10000) / 10000;
-    });
-
-    // Helper: chronological age at blood draw date
-    const _ageAt = (dateStr) => {
-      if (!state.profileDob) return null;
-      const dob = new Date(state.profileDob + 'T00:00:00');
-      const draw = new Date(dateStr + 'T00:00:00');
-      const age = (draw.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      return age > 0 ? age : null;
-    };
-
-    // hs-CRP only — standard CRP is a different assay (different sample,
-    // different detection range, ~10× higher quantification floor) and
-    // substituting silently would corrupt biological-age estimates the user
-    // can't see is contaminated. The detail modal already explains the
-    // hs-CRP requirement. Returns null when hs-CRP is missing → row drops.
-    const _getCRP = (i) => getVals('proteins', 'hsCRP')?.[i] ?? null;
-    const profileContext = getBiologyProfileContext();
-    const creatinineContaminated = !!profileContext.lowMuscleMass;
-
-    // PhenoAge (Levine 2018) — biological age from 9 biomarkers + chronological age
-    ratios.markers.phenoAge.values = sortedDates.map((dateStr, i) => {
-      if (creatinineContaminated) return null;
-      const age = _ageAt(dateStr);
-      if (age == null) return null;
-      const albumin_si   = getVals('proteins', 'albumin')?.[i];        // g/L
-      const creatinine_si = getVals('biochemistry', 'creatinine')?.[i]; // µmol/L
-      const glucose_si   = getVals('biochemistry', 'glucose')?.[i];    // mmol/L
-      const crp          = _getCRP(i);                                  // mg/L
-      const lymphPct_si  = getVals('differential', 'lymphocytesPct')?.[i]; // fraction 0–1
-      const mcv          = getVals('hematology', 'mcv')?.[i];          // fL
-      const rdw          = getVals('hematology', 'rdwcv')?.[i];        // %
-      const alp_si       = getVals('biochemistry', 'alp')?.[i];        // µkat/L
-      const wbc          = getVals('hematology', 'wbc')?.[i];          // 10^9/L
-      if ([albumin_si, creatinine_si, glucose_si, crp, lymphPct_si, mcv, rdw, alp_si, wbc].some(v => v == null)) return null;
-      if (crp <= 0) return null; // ln(CRP) undefined for non-positive
-
-      // Levine 2018 coefficients — calibrated for SI units as stored in the schema
-      const xb = -19.907
-        - 0.0336  * albumin_si
-        + 0.0095  * creatinine_si
-        + 0.1953  * glucose_si
-        + 0.0954  * Math.log(crp)
-        - 0.0120  * lymphPct_si
-        + 0.0268  * mcv
-        + 0.3306  * rdw
-        + 0.00188 * alp_si
-        + 0.0554  * wbc
-        + 0.0804  * age;
-
-      const mortalityScore = 1 - Math.exp(-Math.exp(xb) * (Math.exp(120 * 0.0076927) - 1) / 0.0076927);
-      if (mortalityScore <= 0 || mortalityScore >= 1) return null;
-      const phenoAge = 141.50225 + Math.log(-0.00553 * Math.log(1 - mortalityScore)) / 0.090165;
-      return Math.round(phenoAge * 10) / 10;
-    });
-
-    // Bortz Age (Bortz et al. 2023, Nature Communications)
-    // BAA = 10 × sum((centered - mean) × coeff), biological age = chronological age + BAA
-    // Coefficients and means from longevityworldcup.com (inspired by their open implementation)
-    // Units: all SI as stored in schema, except ALP/GGT/ALT which need µkat/L→U/L (×60)
-    // and lymphocytesPct which needs fraction→% (×100)
-    const _bortzFeatures = /** @type {BortzFeature[]} */ ([
-      // [getValue fn,                                    mean,     coeff,   log, capVal, capMode]
-      ['age',                                             56.049,  -0.026,  false, null,  null],
-      [() => getVals('proteins', 'albumin'),              45.124,  -0.011,  false, 54,    'ceil'],
-      [() => getVals('biochemistry', 'alp'),              82.685,   0.0016, false, null,  null,  60],  // µkat/L→U/L
-      [() => getVals('biochemistry', 'urea'),              5.355,  -0.030,  false, 9.3,   'ceil'],
-      [() => getVals('lipids', 'cholesterol'),              5.618, -0.0806, false, 7.58,  'ceil'],
-      [() => getVals('biochemistry', 'creatinine'),        71.566, -0.0110, false, null,  null],
-      [() => getVals('biochemistry', 'cystatinC'),          0.901,  1.860,  false, 0.38,  'floor'],
-      [() => getVals('diabetes', 'hba1c'),                 35.479,  0.0181, false, 26,    'floor'],
-      ['crp',                                               0.300,  0.0791, true,  null,  null],       // log-transformed
-      [() => getVals('biochemistry', 'ggt'),                3.380,  0.2656, true,  null,  null,  60],  // µkat/L→U/L, log
-      [() => getVals('hematology', 'rbc'),                  4.499, -0.2044, false, 5.77,  'ceil'],
-      [() => getVals('hematology', 'mcv'),                 91.925,  0.0172, false, null,  null],
-      [() => getVals('hematology', 'rdwcv'),               13.434,  0.2020, false, 11.4,  'floor'],
-      [() => getVals('differential', 'monocytes'),          0.475,  0.369,  false, 0.3,   'floor'],
-      [() => getVals('differential', 'neutrophils'),        4.185,  0.0668, false, 2,     'floor'],
-      [() => getVals('differential', 'lymphocytesPct'),    28.582, -0.0108, false, 60,    'ceil', 100], // fraction→%
-      [() => getVals('biochemistry', 'alt'),                3.078, -0.312,  true,  29,    'ceil', 60],  // µkat/L→U/L, log
-      [() => getVals('hormones', 'shbg'),                   3.820,  0.292,  true,  null,  null],        // log
-      [() => getVals('vitamins', 'vitaminD'),               3.605, -0.265,  true,  112.6, 'ceil', 0.4006], // nmol/L→ng/mL, log
-      [() => getVals('biochemistry', 'glucose'),            4.956,  0.0322, false, 4.44,  'floor'],
-      [() => getVals('hematology', 'mch'),                 31.840,  0.0275, false, 25.7,  'floor'],
-      [() => getVals('lipids', 'apoAI'),                    1.524, -0.185,  false, 1.82,  'ceil'],
-    ]);
-
-    ratios.markers.bortzAge.values = sortedDates.map((dateStr, i) => {
-      if (creatinineContaminated) return null;
-      const age = _ageAt(dateStr);
-      if (age == null) return null;
-      const crp = _getCRP(i);
-
-      let baa = 0;
-      for (const feat of _bortzFeatures) {
-        const [src, mean, coeff, useLog, capVal, capMode, scaleFactor] = feat;
-        let val;
-        if (src === 'age') val = age;
-        else if (src === 'crp') val = crp;
-        else val = src()?.[i] ?? null;
-        if (val == null) return null; // all inputs required
-        if (scaleFactor) val *= scaleFactor; // unit conversion (µkat/L→U/L, fraction→%)
-        if (capVal != null) {
-          if (capMode === 'ceil') val = Math.min(val, capVal);
-          else if (capMode === 'floor') val = Math.max(val, capVal);
-        }
-        if (useLog) {
-          if (val <= 0) return null;
-          val = Math.log(val);
-        }
-        baa += (val - mean) * coeff;
-      }
-      const bortzAge = age + 10 * baa;
-      return Math.round(bortzAge * 10) / 10;
-    });
-
-    // Biological Age — combined estimate from PhenoAge and Bortz Age
-    ratios.markers.biologicalAge.values = sortedDates.map((_, i) => {
-      const pheno = ratios.markers.phenoAge.values[i];
-      const bortz = ratios.markers.bortzAge.values[i];
-      if (pheno != null && bortz != null) return Math.round(((pheno + bortz) / 2) * 10) / 10;
-      if (pheno != null) return pheno;
-      if (bortz != null) return bortz;
-      return null;
-    });
+  for (const dotKey of Object.keys(CONTEXT_REFERENCE_RANGES)) {
+    setContextRanges(dotKey, 'reference', (dateStr) => resolveAgeSexRange(
+      CONTEXT_REFERENCE_RANGES,
+      dotKey,
+      wholeAgeAtDate(state.profileDob, dateStr),
+      state.profileSex,
+    ));
+  }
+  for (const dotKey of Object.keys(CONTEXT_OPTIMAL_RANGES)) {
+    setContextRanges(dotKey, 'optimal', (dateStr) => resolveAgeSexRange(
+      CONTEXT_OPTIMAL_RANGES,
+      dotKey,
+      wholeAgeAtDate(state.profileDob, dateStr),
+      state.profileSex,
+    ));
   }
 
+  setContextRanges('hormones.cortisol', 'reference', (dateStr, _i, marker) => {
+    const guidance = cortisolReferenceForSampleTime(entryContextByDate[dateStr]?.sampleTime, marker.unit);
+    return guidance ? { ...guidance.range, label: guidance.label } : null;
+  });
+
+  // WHO/IZiNCG lower serum-zinc cutoffs are population adequacy guidance and
+  // only become meaningful when time of day and fasting status are known.
+  setContextRanges('electrolytes.zinc', 'optimal', (dateStr, _i, marker) => {
+    const context = entryContextByDate[dateStr] || {};
+    const hour = parseSampleHour(context.sampleTime);
+    if (hour == null || typeof context.fasting !== 'boolean') return null;
+    const female = state.profileSex === 'female';
+    if (hour < 12 && context.fasting) {
+      return { min: female ? 10.7 : 11.3, max: marker.refMax, label: 'Morning fasting adequacy guide' };
+    }
+    if (hour < 12 && !context.fasting) {
+      return { min: female ? 10.1 : 10.7, max: marker.refMax, label: 'Morning non-fasting adequacy guide' };
+    }
+    if (hour >= 12 && hour < 18 && !context.fasting) {
+      return { min: female ? 8.6 : 9.3, max: marker.refMax, label: 'Afternoon non-fasting adequacy guide' };
+    }
+    return null;
+  });
+
+  // TyG is defined from fasting triglycerides and glucose. An explicitly
+  // non-fasting draw suppresses both the reference and optional lower-risk
+  // band rather than presenting a falsely actionable status.
+  setContextRanges('calculatedRatios.tygIndex', 'optimal', (dateStr) => {
+    if (entryContextByDate[dateStr]?.fasting !== false) return null;
+    return { min: null, max: null, label: 'Requires fasting sample' };
+  });
+
+  populateCalculatedMarkers({
+    data,
+    sortedDates,
+    entryContextByDate,
+    refOverrides,
+  });
   if (state.unitSystem === 'US') applyUnitConversion(data);
   // Values, calculations, and unit conversions always run against immutable
   // storage dotkeys. Category placement is a final view projection only.
@@ -714,8 +681,25 @@ export function applyUnitConversion(data) {
         if (marker.optimalMax != null) marker.optimalMax = parseFloat((marker.optimalMax * conv.factor).toPrecision(4));
         if (marker.phaseRefRanges) {
           marker.phaseRefRanges = marker.phaseRefRanges.map(r =>
-            r ? { min: parseFloat((r.min * conv.factor).toPrecision(4)),
+            r ? { ...r,
+                  min: parseFloat((r.min * conv.factor).toPrecision(4)),
                   max: parseFloat((r.max * conv.factor).toPrecision(4)) } : null
+          );
+        }
+        if (marker.contextRefRanges) {
+          marker.contextRefRanges = marker.contextRefRanges.map(r =>
+            r ? {
+              min: r.min == null ? null : parseFloat((r.min * conv.factor).toPrecision(4)),
+              max: r.max == null ? null : parseFloat((r.max * conv.factor).toPrecision(4))
+            } : null
+          );
+        }
+        if (marker.contextOptimalRanges) {
+          marker.contextOptimalRanges = marker.contextOptimalRanges.map(r =>
+            r ? {
+              min: r.min == null ? null : parseFloat((r.min * conv.factor).toPrecision(4)),
+              max: r.max == null ? null : parseFloat((r.max * conv.factor).toPrecision(4))
+            } : null
           );
         }
         marker.unit = conv.usUnit;
@@ -752,6 +736,9 @@ export function filterDatesByRange(data, options = {}) {
     dates: indices.map(i => data.dates[i]),
     dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates?.[i] || ''),
     ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
+    ...(data.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => data.phaseDisplayLabels[i]) }),
+    ...(data.phaseCycleDays && { phaseCycleDays: indices.map(i => data.phaseCycleDays[i]) }),
+    ...(data.phaseSources && { phaseSources: indices.map(i => data.phaseSources[i]) }),
     ...(data.entryContextByDate && {
       entryContextByDate: Object.fromEntries(
         Object.entries(data.entryContextByDate).filter(([date]) => filteredDates.has(date))
@@ -776,6 +763,13 @@ export function filterDatesByRange(data, options = {}) {
           values: indices.map(i => marker.values[i]),
           ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges[i]) }),
           ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels[i]) }),
+          ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels[i]) }),
+          ...(marker.phaseCycleDays && { phaseCycleDays: indices.map(i => marker.phaseCycleDays[i]) }),
+          ...(marker.phaseSources && { phaseSources: indices.map(i => marker.phaseSources[i]) }),
+          ...(marker.contextRefRanges && { contextRefRanges: indices.map(i => marker.contextRefRanges[i]) }),
+          ...(marker.contextRangeLabels && { contextRangeLabels: indices.map(i => marker.contextRangeLabels[i]) }),
+          ...(marker.contextOptimalRanges && { contextOptimalRanges: indices.map(i => marker.contextOptimalRanges[i]) }),
+          ...(marker.contextOptimalRangeLabels && { contextOptimalRangeLabels: indices.map(i => marker.contextOptimalRangeLabels[i]) }),
         };
       }
     }

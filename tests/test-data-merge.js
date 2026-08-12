@@ -416,7 +416,7 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
         updatedAt: 300,
         markers: { 'biochemistry.glucose': 5, 'diabetes.homaIR': 2 },
         markerSources: { 'diabetes.homaIR': { file: 'calc.pdf', at: 100 } },
-        deletedMarkers: { 'hormones.insulin': 300, 'diabetes.insulin_d': 300 },
+        deletedMarkers: { 'diabetes.insulin': 300 },
       }],
     },
     {
@@ -425,13 +425,11 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
         updatedAt: 100,
         markers: {
           'biochemistry.glucose': 5,
-          'hormones.insulin': 9,
-          'diabetes.insulin_d': 9,
+          'diabetes.insulin': 9,
           'diabetes.homaIR': 2,
         },
         markerSources: {
-          'hormones.insulin': { file: 'old.pdf', at: 100 },
-          'diabetes.insulin_d': { file: 'old.pdf', at: 100 },
+          'diabetes.insulin': { file: 'old.pdf', at: 100 },
           'diabetes.homaIR': { file: 'old.pdf', at: 100 },
         },
       }],
@@ -440,8 +438,7 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   const insulinDeleteHomaEntry = insulinDeleteHomaMerge.entries.find(e => e.date === '2026-06-03');
   assert('same-date merge clears stale computed HOMA-IR when insulin tombstone wins',
     !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'diabetes.homaIR')
-      && !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'hormones.insulin')
-      && !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'diabetes.insulin_d'));
+      && !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'diabetes.insulin'));
   const editedDeviceSession = {
     deviceSessions: [{
       id: 'devsess_duration_edit',

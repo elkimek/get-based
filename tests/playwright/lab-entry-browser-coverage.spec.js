@@ -14,8 +14,8 @@ async function openBlankPage(page) {
 test('lab entry browser coverage exercises marker helpers and imported-data mutations', async ({ page }) => {
   const expectedOutcomeKeys = [
     'setMarkerClearsTombstoneAndStoresSource',
-    'insulinMirrorMaintainsHomaIrAndSources',
-    'deleteMirrorRecordsTombstonesAndClearsDerivedMarker',
+    'legacyInsulinCanonicalizesAndMaintainsHomaIr',
+    'deleteCanonicalInsulinRecordsTombstoneAndClearsDerivedMarker',
     'renameMarkerMovesValueSourceAndClearsOldTombstone',
     'timestampHelpersNormalizeSourceUpdatedDateAndTombstones',
     'findOrCreateEntryClearsImportTombstone',
@@ -48,28 +48,25 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
     labEntry.setLabEntryMarker(entry, 'diabetes.insulin_d', 8, {
       now: 300,
       source: { file: 'manual-entry', at: 300 },
-      mirrorInsulin: true,
     });
-    outcomes.insulinMirrorMaintainsHomaIrAndSources =
-      labEntry.getInsulinMirrorMarkerKey('diabetes.insulin_d') === 'hormones.insulin'
-      && entry.markers['diabetes.insulin_d'] === 8
-      && entry.markers['hormones.insulin'] === 8
-      && entry.markerSources['hormones.insulin'].file === 'manual-entry'
+    outcomes.legacyInsulinCanonicalizesAndMaintainsHomaIr =
+      entry.markers['diabetes.insulin'] === 8
+      && !hasOwn(entry.markers, 'diabetes.insulin_d')
+      && !hasOwn(entry.markers, 'hormones.insulin')
+      && entry.markerSources['diabetes.insulin'].file === 'manual-entry'
       && entry.markers['diabetes.homaIR'] === Math.round((5.1 * 8) / 22.5 * 100) / 100;
 
-    const deleteMirror = labEntry.deleteLabEntryMarker(entry, 'hormones.insulin', {
+    const deleteInsulin = labEntry.deleteLabEntryMarker(entry, 'diabetes.insulin', {
       now: 350,
-      mirrorInsulin: true,
     });
-    outcomes.deleteMirrorRecordsTombstonesAndClearsDerivedMarker =
-      deleteMirror.changed
-      && deleteMirror.deletedKeys.includes('hormones.insulin')
-      && deleteMirror.deletedKeys.includes('diabetes.insulin_d')
+    outcomes.deleteCanonicalInsulinRecordsTombstoneAndClearsDerivedMarker =
+      deleteInsulin.changed
+      && deleteInsulin.deletedKeys.includes('diabetes.insulin')
       && !hasOwn(entry.markers, 'hormones.insulin')
       && !hasOwn(entry.markers, 'diabetes.insulin_d')
+      && !hasOwn(entry.markers, 'diabetes.insulin')
       && !hasOwn(entry.markers, 'diabetes.homaIR')
-      && entry.deletedMarkers['hormones.insulin'] === 350
-      && entry.deletedMarkers['diabetes.insulin_d'] === 350;
+      && entry.deletedMarkers['diabetes.insulin'] === 350;
 
     const renameEntry = {
       date: '2026-05-03',

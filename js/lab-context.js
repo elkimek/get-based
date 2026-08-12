@@ -7,7 +7,7 @@ import { getStatus, hasCardContent, isDebugMode } from './utils.js';
 import { formatTime } from './theme.js';
 import { getActiveData } from './data.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
-import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
+import { getAllFlaggedMarkers, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfileHeight, getProfileLocation, getLatitudeFromLocation } from './profile.js';
 import {
   detectCycleIronAlertsRuntime as detectCycleIronAlerts,
@@ -40,39 +40,20 @@ import {
 } from './lab-context-settings.js';
 import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
+import { buildLabCollectionContextSection } from './lab-context-collection.js';
+import { labContextDeps } from './lab-context-runtime.js';
+export { configureLabContext } from './lab-context-runtime.js';
 
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
  */
 
-/** @type {{
- *   buildBiologyScoresAIContext: ((data: any, options: { limit: number, ignoreContextToggles?: boolean }) => string) | null,
- *   buildSunContext: ((options: { tier: string, ignoreContextToggles?: boolean }) => string) | null,
- * }} */
-const labContextDeps = {
-  buildBiologyScoresAIContext: null,
-  buildSunContext: null,
-};
 
 function markerNameForStorageDotKey(data, dotKey) {
   const [categoryKey, markerKey] = String(dotKey || '').split('.');
   return resolveActiveMarkerPath(data.categories, categoryKey, markerKey)?.marker?.name || dotKey;
 }
 
-export function configureLabContext(deps = {}) {
-  const previous = { ...labContextDeps };
-  if (Object.prototype.hasOwnProperty.call(deps, 'buildBiologyScoresAIContext')) {
-    labContextDeps.buildBiologyScoresAIContext = typeof deps.buildBiologyScoresAIContext === 'function'
-      ? deps.buildBiologyScoresAIContext
-      : null;
-  }
-  if (Object.prototype.hasOwnProperty.call(deps, 'buildSunContext')) {
-    labContextDeps.buildSunContext = typeof deps.buildSunContext === 'function'
-      ? deps.buildSunContext
-      : null;
-  }
-  return previous;
-}
 
 export {
   buildWearableContext, buildWearableSeriesSection, getAgentWearableSeriesDays,
@@ -177,6 +158,10 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[section:interpretiveLens]\n## Interpretive Lens\n${interpretiveLens.trim()}\n[/section:interpretiveLens]\n\n`;
   }
 
+  if (hasLabData) {
+    ctx += buildLabCollectionContextSection(state.importedData.entries || []);
+  }
+
   // ── 3. Lab values by category ("what do the numbers say?") ──
   if (hasLabData) {
     // Build index of active lab categories
@@ -247,13 +232,28 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
             return `${dateLabel}: ${v} [${phase || '?'}, ref ${rangeStr}, ${s}]`;
           }).filter(Boolean).join(', ');
           ctx += `- ${m.name}: ${parts} ${m.unit}${trajectory}\n`;
+        } else if (m.contextRefRanges || m.contextOptimalRanges) {
+          const parts = m.values.map((v, i) => {
+            if (v === null) return null;
+            const mr = getEffectiveRangeForDate(m, i);
+            const label = getEffectiveRangeLabelForDate(m, i);
+            const s = mr.min != null || mr.max != null ? getStatus(v, mr.min, mr.max) : 'unrated';
+            const rangeStr = mr.min != null || mr.max != null
+              ? `${mr.min ?? '–'}\u2013${mr.max ?? '–'}`
+              : 'not set';
+            return `${data.dates[i]}: ${v} [${label} ${rangeStr}, ${s}]`;
+          }).filter(Boolean).join(', ');
+          ctx += `- ${m.name}: ${parts} ${m.unit}${trajectory}\n`;
         } else {
           const vals = m.singlePoint
             ? m.values.filter(v => v !== null).map(v => `${v}`).join('')
             : m.values.map((v, i) => v !== null ? `${data.dates[i]}: ${v}` : null).filter(Boolean).join(', ');
           const mr = getEffectiveRangeForDate(m, latestIdx);
-          const status = latestIdx !== -1 ? getStatus(m.values[latestIdx], mr.min, mr.max) : 'no data';
-          const refStr = mr.min != null && mr.max != null ? `ref: ${mr.min}\u2013${mr.max}, ` : '';
+          const rangeLabel = getEffectiveRangeLabelForDate(m, latestIdx).toLowerCase();
+          const status = latestIdx !== -1
+            ? (mr.min != null || mr.max != null ? getStatus(m.values[latestIdx], mr.min, mr.max) : 'unrated')
+            : 'no data';
+          const refStr = mr.min != null || mr.max != null ? `${rangeLabel}: ${mr.min ?? '–'}\u2013${mr.max ?? '–'}, ` : '';
           ctx += `- ${m.name}: ${vals} ${m.unit} (${refStr}status: ${status})${trajectory}\n`;
         }
       }
@@ -538,14 +538,17 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const _isHormonalBCCtx = isHormonalContraception(mc.contraceptive);
     if (_isActiveCycleCtx && !_isHormonalBCCtx) {
       if (data.dates.length > 0) {
-        const phases = getBloodDrawPhases(mc, data.dates);
+        const phases = getBloodDrawPhases(mc, data.dates, data.entryContextByDate);
         const phaseDates = Object.entries(phases);
         if (phaseDates.length > 0) {
           ctx += `\nBlood draw cycle context:\n`;
           for (const [date, p] of phaseDates) {
             const basis = p.basedOnStartDate ? `, based on period ${p.basedOnStartDate}` : '';
-            const confidence = p.confidence ? `, confidence ${p.confidence}` : '';
-            ctx += `- ${fmtDate(date)}: day ${p.cycleDay}, ${p.phaseName.toLowerCase()} phase${confidence}${basis}\n`;
+            const confidence = p.source === 'recorded'
+              ? ', recorded with the blood draw'
+              : p.confidence ? `, predicted with ${p.confidence} confidence` : ', predicted';
+            const day = p.cycleDay ? `day ${p.cycleDay}, ` : '';
+            ctx += `- ${fmtDate(date)}: ${day}${(p.phaseDetailName || p.phaseName).toLowerCase()} phase${confidence}${basis}\n`;
           }
         }
       }

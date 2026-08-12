@@ -6,7 +6,7 @@ import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, safeMarkerId 
 import { getChartColors } from './theme.js';
 import { ensureChartJs, formatChartTickValue } from './health-data-loader.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
-import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
+import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 
 const categoryRendererDelegateRoots = new WeakSet();
@@ -74,12 +74,6 @@ function markerValueStatus(value, range) {
   return hasRangeBounds(range) ? getStatus(value, range.min, range.max) : 'unrated';
 }
 
-function formatPhaseRangeLabel(phaseLabel) {
-  if (!phaseLabel) return 'Phase range';
-  const readable = String(phaseLabel).replace(/[_-]+/g, ' ');
-  return `${readable.charAt(0).toUpperCase()}${readable.slice(1)} range`;
-}
-
 function exactObservationLabel(isoDate, fallback, includeYear = true) {
   if (typeof isoDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return fallback;
   const date = new Date(`${isoDate}T00:00:00`);
@@ -101,7 +95,11 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   const latestVal = latestIdx !== -1 ? marker.values[latestIdx] : null;
   const lr = getEffectiveRangeForDate(marker, latestIdx);
   const status = markerValueStatus(latestVal, lr);
-  const statusLabel = status === "normal" ? "Normal" : status === "high" ? "High" : status === "low" ? "Low" : status === 'unrated' ? 'No range' : "N/A";
+  const effectiveRangeLabel = getEffectiveRangeLabelForDate(marker, latestIdx);
+  const statusLabel = status === "normal" ? "Normal"
+    : status === "high" ? "High"
+    : status === "low" ? "Low"
+    : status === 'unrated' ? 'No range' : "N/A";
   const sIcon = statusIcon(status);
 
   const trend = getTrend(marker.values, lr.min, lr.max);
@@ -111,24 +109,33 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   const markerName = marker.name || '';
   const labels = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
   const fmtRange = (min, max) => `${min != null ? formatValue(min) : '–'} – ${max != null ? formatValue(max) : '–'}`;
-  const effectiveRange = getEffectiveRange(marker);
   const latestPhaseRange = latestIdx !== -1 ? marker.phaseRefRanges?.[latestIdx] : null;
+  const latestContextRange = latestIdx !== -1 ? marker.contextRefRanges?.[latestIdx] : null;
+  const latestContextOptimalRange = latestIdx !== -1 ? marker.contextOptimalRanges?.[latestIdx] : null;
+  const referenceRange = latestContextRange || { min: marker.refMin, max: marker.refMax };
+  const optimalRange = latestContextOptimalRange || { min: marker.optimalMin, max: marker.optimalMax };
+  const referenceRangeLabel = getEffectiveRangeLabelForDate(marker, latestIdx, 'reference');
   const rangeRows = [];
   if (hasRangeBounds(latestPhaseRange)) {
     rangeRows.push({
-      label: formatPhaseRangeLabel(marker.phaseLabels?.[latestIdx]),
+      label: getEffectiveRangeLabelForDate(marker, latestIdx, 'reference'),
       value: fmtRange(lr.min, lr.max),
     });
   } else if (state.rangeMode === 'both') {
-    if (marker.refMin != null || marker.refMax != null) {
-      rangeRows.push({ label: 'Reference', value: fmtRange(marker.refMin, marker.refMax) });
+    if (hasRangeBounds(referenceRange)) {
+      rangeRows.push({ label: referenceRangeLabel, value: fmtRange(referenceRange.min, referenceRange.max) });
+    } else if (latestContextRange) {
+      rangeRows.push({ label: referenceRangeLabel, value: 'Not set' });
     }
-    if (marker.optimalMin != null || marker.optimalMax != null) {
-      rangeRows.push({ label: 'Optimal', value: fmtRange(marker.optimalMin, marker.optimalMax) });
+    if (hasRangeBounds(optimalRange)) {
+      rangeRows.push({ label: latestContextOptimalRange ? effectiveRangeLabel : 'Optimal', value: fmtRange(optimalRange.min, optimalRange.max) });
+    } else if (latestContextOptimalRange && !latestContextRange) {
+      rangeRows.push({ label: effectiveRangeLabel, value: 'Not set' });
     }
-  } else if (hasRangeBounds(effectiveRange)) {
-    const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
-    rangeRows.push({ label: rangeLabel, value: fmtRange(effectiveRange.min, effectiveRange.max) });
+  } else if (hasRangeBounds(lr)) {
+    rangeRows.push({ label: effectiveRangeLabel, value: fmtRange(lr.min, lr.max) });
+  } else if (latestContextRange || latestContextOptimalRange) {
+    rangeRows.push({ label: effectiveRangeLabel, value: 'Not set' });
   }
   if (rangeRows.length === 0) rangeRows.push({ label: 'Range', value: 'Not set' });
 

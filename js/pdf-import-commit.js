@@ -9,7 +9,14 @@ import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
-import { deleteLabEntryMarker, setLabEntryMarker, syncLabEntryInsulinMirror } from './lab-entry.js';
+import {
+  deleteLabEntryMarker,
+  normalizeLabFastingStatus,
+  normalizeLabSampleTime,
+  setLabEntryCollectionContext,
+  setLabEntryMarker,
+  syncLabEntryInsulinMirror,
+} from './lab-entry.js';
 import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
 import {
   _cleanImportedMarkerDisplayName,
@@ -29,6 +36,7 @@ import {
 } from './pdf-import-review.js';
 import { markImportBenchmarkConfirmed } from './import-benchmarks.js';
 import { createUniqueId } from './unique-id.js';
+import { annotateImportedRatioUnitConventions } from './pdf-import-ratio-units.js';
 
 const pdfImportCommitDeps = { maybeShowEncryptionNudge };
 
@@ -42,6 +50,164 @@ let _batchMode = false;
 
 export function setPdfImportBatchMode(enabled) {
   _batchMode = !!enabled;
+}
+
+function snapshotOwnsCollectionContextField(snapshot, field) {
+  if (Array.isArray(snapshot?.collectionContextApplied)) {
+    return snapshot.collectionContextApplied.includes(field);
+  }
+  if (!Object.prototype.hasOwnProperty.call(snapshot || {}, field)) return false;
+  return field === 'sampleTime'
+    ? normalizeLabSampleTime(snapshot[field]) != null
+    : normalizeLabFastingStatus(snapshot[field]) != null;
+}
+
+function latestSnapshotForCollectionContext(date, excludedSnapshotId, field) {
+  const snapshots = Array.isArray(state.importedData?.importSnapshots)
+    ? state.importedData.importSnapshots
+    : [];
+  return snapshots
+    .filter(snapshot => snapshot?.id !== excludedSnapshotId
+      && snapshot?.date === date
+      && snapshotOwnsCollectionContextField(snapshot, field))
+    .sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0))[0] || null;
+}
+
+function normalizedCollectionContextValue(field, value) {
+  return field === 'sampleTime' ? normalizeLabSampleTime(value) : normalizeLabFastingStatus(value);
+}
+
+function restoreCollectionContextAfterSnapshotRemoval(entry, snapshot, now = Date.now()) {
+  if (!entry || !snapshot) return;
+  for (const field of ['sampleTime', 'fasting']) {
+    const recordedSource = entry.collectionContextSources?.[field];
+    let ownsCurrentField = recordedSource === snapshot.id;
+    if (!recordedSource && snapshotOwnsCollectionContextField(snapshot, field)) {
+      const latest = latestSnapshotForCollectionContext(snapshot.date, null, field);
+      const currentValue = normalizedCollectionContextValue(field, entry.context?.[field]);
+      const snapshotValue = normalizedCollectionContextValue(field, snapshot[field]);
+      ownsCurrentField = latest?.id === snapshot.id && currentValue === snapshotValue;
+    }
+    if (!ownsCurrentField) continue;
+    const replacement = latestSnapshotForCollectionContext(snapshot.date, snapshot.id, field);
+    setLabEntryCollectionContext(entry, { [field]: replacement?.[field] ?? null }, {
+      now,
+      sourceSnapshotId: replacement?.id || null,
+    });
+  }
+}
+
+function rangeBoundEquals(a, b) {
+  if (a == null || b == null) return a == null && b == null;
+  return Math.abs(a - b) < Math.max(Math.abs(b) * 0.001, 0.001);
+}
+
+function schemaReferenceRange(dotKey) {
+  const [categoryKey, markerKey] = dotKey.split('.');
+  const marker = MARKER_SCHEMA[categoryKey]?.markers?.[markerKey];
+  const female = state.profileSex === 'female';
+  return {
+    min: female && marker?.refMin_f != null ? marker.refMin_f : marker?.refMin,
+    max: female && marker?.refMax_f != null ? marker.refMax_f : marker?.refMax,
+  };
+}
+
+function snapshotRangeMatchesOverride(marker, dotKey, override) {
+  if (!override || (marker?.refMin == null && marker?.refMax == null)) return false;
+  const min = marker.refMin != null ? normalizeToSI(dotKey, marker.refMin, marker.unit, marker) : null;
+  const max = marker.refMax != null ? normalizeToSI(dotKey, marker.refMax, marker.unit, marker) : null;
+  const existingMin = override.refSource === 'manual' ? override.labRefMin : override.refMin;
+  const existingMax = override.refSource === 'manual' ? override.labRefMax : override.refMax;
+  return rangeBoundEquals(min, existingMin) && rangeBoundEquals(max, existingMax);
+}
+
+function findNewestAdoptedLabRange(dotKey) {
+  const snapshots = Array.isArray(state.importedData?.importSnapshots)
+    ? state.importedData.importSnapshots
+    : [];
+  const override = state.importedData?.refOverrides?.[dotKey];
+  const candidates = [];
+
+  for (const snapshot of snapshots) {
+    if (!Array.isArray(snapshot?.markers)) continue;
+    const excluded = new Set(Array.isArray(snapshot.excludedIndices) ? snapshot.excludedIndices : []);
+    for (let i = 0; i < snapshot.markers.length; i++) {
+      if (excluded.has(i)) continue;
+      const marker = snapshot.markers[i];
+      if (marker?.mappedKey !== dotKey) continue;
+      if (marker.refMin == null && marker.refMax == null) continue;
+      // Older snapshots predate the explicit adoption flag. Treat only the
+      // legacy snapshot matching the currently retained lab interval as
+      // adopted, rather than assuming every historical report opted in.
+      const inferredLegacyAdoption = snapshot.adoptReferenceRanges == null
+        && snapshotRangeMatchesOverride(marker, dotKey, override);
+      if (inferredLegacyAdoption) snapshot.adoptReferenceRanges = true;
+      const adopted = snapshot.adoptReferenceRanges === true;
+      if (adopted) candidates.push({ snapshot, marker });
+    }
+  }
+
+  candidates.sort((a, b) => {
+    const byCollectionDate = String(b.snapshot.date || '').localeCompare(String(a.snapshot.date || ''));
+    return byCollectionDate || ((b.snapshot.importedAt || 0) - (a.snapshot.importedAt || 0));
+  });
+  return candidates[0] || null;
+}
+
+function recomputeActiveLabRange(dotKey) {
+  if (!dotKey) return;
+  if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
+  const current = state.importedData.refOverrides[dotKey] || {};
+  const hasManualOverride = current.refSource === 'manual';
+  const candidate = findNewestAdoptedLabRange(dotKey);
+
+  if (!candidate) {
+    delete current.labRefMin;
+    delete current.labRefMax;
+    delete current.labRefDate;
+    delete current.labRefSnapshotId;
+    if (current.refSource === 'import') {
+      delete current.refMin;
+      delete current.refMax;
+      delete current.refSource;
+    }
+  } else {
+    const { snapshot, marker } = candidate;
+    const min = marker.refMin != null ? normalizeToSI(dotKey, marker.refMin, marker.unit, marker) : null;
+    const max = marker.refMax != null ? normalizeToSI(dotKey, marker.refMax, marker.unit, marker) : null;
+    const defaultRange = schemaReferenceRange(dotKey);
+    const matchesDefault = rangeBoundEquals(min, defaultRange.min) && rangeBoundEquals(max, defaultRange.max);
+
+    if (hasManualOverride) {
+      current.labRefMin = min;
+      current.labRefMax = max;
+      current.labRefDate = snapshot.date || null;
+      current.labRefSnapshotId = snapshot.id || null;
+    } else if (matchesDefault) {
+      delete current.refMin;
+      delete current.refMax;
+      delete current.refSource;
+      delete current.labRefMin;
+      delete current.labRefMax;
+      delete current.labRefDate;
+      delete current.labRefSnapshotId;
+    } else {
+      current.refMin = min;
+      current.refMax = max;
+      current.refSource = 'import';
+      delete current.labRefMin;
+      delete current.labRefMax;
+      current.labRefDate = snapshot.date || null;
+      current.labRefSnapshotId = snapshot.id || null;
+    }
+  }
+
+  if (Object.keys(current).length === 0) delete state.importedData.refOverrides[dotKey];
+  else state.importedData.refOverrides[dotKey] = current;
+}
+
+function recomputeActiveLabRanges(dotKeys) {
+  for (const dotKey of dotKeys) recomputeActiveLabRange(dotKey);
 }
 
 function deriveImportType(fileName) {
@@ -67,6 +233,7 @@ export async function confirmImport() {
     return;
   }
   const rollback = snapshotImportedData();
+  annotateImportedRatioUnitConventions(result.markers);
   const excludedIdxs = getExcludedImportIndices();
   const matched = result.markers.filter((m, i) => m.matched && !excludedIdxs.has(i));
   const newMarkers = result.markers.filter((m, i) => !m.matched && m.suggestedKey && !excludedIdxs.has(i));
@@ -80,18 +247,23 @@ export async function confirmImport() {
   const importTs = Date.now();
   const isReReview = !!result._reReviewSnapshotId;
   const snapshotId = isReReview ? result._reReviewSnapshotId : createUniqueId('snap_');
+  const rangeAffectedKeys = new Set();
 
   // Re-review: remove old snapshot markers before re-applying
   if (isReReview) {
     const oldSnapshot = state.importedData.importSnapshots?.find(s => s.id === snapshotId);
     if (oldSnapshot) {
+      for (const marker of oldSnapshot.markers || []) {
+        const dotKey = marker?.mappedKey;
+        if (dotKey) rangeAffectedKeys.add(dotKey);
+      }
       const oldEntry = state.importedData.entries?.find(e => e.date === oldSnapshot.date);
       if (oldEntry?.markers) {
         const removedKeys = [];
         for (const key of Object.keys(oldEntry.markers)) {
           const src = oldEntry.markerSources?.[key];
           if (src?.snapshotId === snapshotId) {
-            deleteLabEntryMarker(oldEntry, key, { now: importTs, mirrorInsulin: true });
+            deleteLabEntryMarker(oldEntry, key, { now: importTs });
             removedKeys.push(key);
           }
         }
@@ -102,6 +274,7 @@ export async function confirmImport() {
           }
         }
         for (const key of removedKeys) restoreLatestSnapshotMarkerForKey(oldEntry, oldSnapshot, key, importTs);
+        restoreCollectionContextAfterSnapshotRemoval(oldEntry, oldSnapshot, importTs);
         if (!oldEntry.markers || Object.keys(oldEntry.markers).length === 0) {
           recordTombstone(state.importedData, 'entries', oldEntry.date);
           deleteImportedArrayItems(state.importedData, 'entries', e => e === oldEntry);
@@ -122,6 +295,19 @@ export async function confirmImport() {
     entry.sourceFile = result.fileName; // backwards compat
   }
   entry.updatedAt = importTs;
+  const collectionContext = /** @type {{ sampleTime?: unknown, fasting?: unknown }} */ ({});
+  const collectionContextApplied = [];
+  if (isReReview || result.sampleTime != null) {
+    collectionContext.sampleTime = result.sampleTime ?? null;
+    collectionContextApplied.push('sampleTime');
+  }
+  if (isReReview || typeof result.fasting === 'boolean') {
+    collectionContext.fasting = typeof result.fasting === 'boolean' ? result.fasting : null;
+    collectionContextApplied.push('fasting');
+  }
+  if (Object.keys(collectionContext).length > 0) {
+    setLabEntryCollectionContext(entry, collectionContext, { now: importTs, sourceSnapshotId: snapshotId });
+  }
   for (const m of matched) {
     setLabEntryMarker(entry, m.mappedKey, normalizeToSI(m.mappedKey, m.value, m.unit, m), {
       now: importTs,
@@ -186,32 +372,12 @@ export async function confirmImport() {
   }
   // Mirror insulin between hormones and diabetes categories (AI may map to either)
   syncLabEntryInsulinMirror(entry, { now: importTs });
-  // Adopt PDF reference ranges if user opted in (skip if range matches schema default)
+  // The report-level choice is persisted with the snapshot. Active lab ranges
+  // are recomputed after the snapshot is stored so collection date, rather
+  // than upload order, determines which eligible interval wins.
   const adoptRanges = /** @type {HTMLInputElement | null} */ (document.getElementById('import-adopt-ranges'));
-  if (adoptRanges && adoptRanges.checked) {
-    if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
-    for (const m of matched) {
-      if (m.refMin == null && m.refMax == null) continue;
-      const ovr = state.importedData.refOverrides[m.mappedKey] || {};
-      // Convert ranges from PDF units to SI (same as marker values)
-      const siMin = m.refMin != null ? normalizeToSI(m.mappedKey, m.refMin, m.unit, m) : null;
-      const siMax = m.refMax != null ? normalizeToSI(m.mappedKey, m.refMax, m.unit, m) : null;
-      // Look up schema default to avoid storing redundant overrides
-      const [ck, mk] = m.mappedKey.split('.');
-      const schemaDef = MARKER_SCHEMA[ck]?.markers?.[mk];
-      const sex = state.profileSex || 'male';
-      const defMin = schemaDef && sex === 'female' && schemaDef.refMin_f != null ? schemaDef.refMin_f : schemaDef?.refMin;
-      const defMax = schemaDef && sex === 'female' && schemaDef.refMax_f != null ? schemaDef.refMax_f : schemaDef?.refMax;
-      const approxEq = (a, b) => a != null && b != null && Math.abs(a - b) < Math.max(Math.abs(b) * 0.001, 0.001);
-      if (approxEq(siMin, defMin) && approxEq(siMax, defMax)) continue; // matches default — skip
-      ovr.refMin = siMin;
-      ovr.refMax = siMax;
-      ovr.refSource = 'import';
-      // Stash lab range so manual edits can revert to it (don't clobber existing stash)
-      if (!('labRefMin' in ovr)) { ovr.labRefMin = siMin; ovr.labRefMax = siMax; }
-      state.importedData.refOverrides[m.mappedKey] = ovr;
-    }
-  }
+  const adoptReferenceRanges = adoptRanges ? adoptRanges.checked : result._adoptReferenceRanges !== false;
+  for (const marker of matched) rangeAffectedKeys.add(marker.mappedKey);
   // Persist import snapshot for later re-review without AI
   const snapshotPayload = (m) => ({
     rawName: m.rawName,
@@ -224,6 +390,7 @@ export async function confirmImport() {
     suggestedName: m.suggestedName || null,
     suggestedCategoryLabel: m.suggestedCategoryLabel || null,
     suggestedGroup: m.suggestedGroup || null,
+    ratioUnitConvention: m.ratioUnitConvention || null,
     matched: !!m.matched,
   });
   const snapshotCostInfo = result.costInfo ? {
@@ -252,6 +419,9 @@ export async function confirmImport() {
   const snapBase = {
     fileName: result.fileName || '',
     date: result.date || '',
+    sampleTime: result.sampleTime || null,
+    fasting: typeof result.fasting === 'boolean' ? result.fasting : null,
+    collectionContextApplied,
     testType: result.testType || null,
     type: deriveImportType(result.fileName),
     markerCount: importCount,
@@ -262,6 +432,7 @@ export async function confirmImport() {
     diagnostics: snapshotDiagnostics,
     importHash: result.importHash || '',
     benchmarkId: result.benchmarkId || null,
+    adoptReferenceRanges,
   };
   if (isReReview) {
     if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];
@@ -294,6 +465,7 @@ export async function confirmImport() {
       importedAt: importTs,
     });
   }
+  recomputeActiveLabRanges(rangeAffectedKeys);
 
   // Finalize the benchmark before the canonical import save so the health-data
   // snapshot and its comparable model run are committed atomically. Previously
@@ -360,6 +532,11 @@ export async function deleteImportSnapshot(snapId) {
   }
   const snapshot = snaps[idx];
   const rollback = snapshotImportedData();
+  const rangeAffectedKeys = new Set();
+  for (const marker of snapshot.markers || []) {
+    const dotKey = marker?.mappedKey;
+    if (dotKey) rangeAffectedKeys.add(dotKey);
+  }
   // Remove markers tagged with this snapshotId from the entry
   const entry = state.importedData.entries?.find(e => e.date === snapshot.date);
   if (entry?.markers) {
@@ -367,7 +544,7 @@ export async function deleteImportSnapshot(snapId) {
     for (const key of Object.keys(entry.markers)) {
       const src = entry.markerSources?.[key];
       if (src?.snapshotId === snapshot.id) {
-        deleteLabEntryMarker(entry, key, { mirrorInsulin: true });
+        deleteLabEntryMarker(entry, key);
         removedKeys.push(key);
       }
     }
@@ -378,6 +555,7 @@ export async function deleteImportSnapshot(snapId) {
       }
     }
     for (const key of removedKeys) restoreLatestSnapshotMarkerForKey(entry, snapshot, key);
+    restoreCollectionContextAfterSnapshotRemoval(entry, snapshot);
     if (!entry.markers || Object.keys(entry.markers).length === 0) {
       recordTombstone(state.importedData, 'entries', snapshot.date);
       deleteImportedArrayItems(state.importedData, 'entries', e => e === entry);
@@ -385,6 +563,7 @@ export async function deleteImportSnapshot(snapId) {
   }
   recordTombstone(state.importedData, 'importSnapshots', snapId);
   deleteImportedArrayItems(state.importedData, 'importSnapshots', s => s.id === snapId);
+  recomputeActiveLabRanges(rangeAffectedKeys);
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {
     restoreImportedDataSnapshot(rollback);
@@ -405,8 +584,15 @@ export function openImportReviewFromSnapshot(snapId) {
     showNotification('This import has no saved marker review data', 'error');
     return;
   }
+  const entryContext = state.importedData?.entries?.find(entry => entry?.date === snapshot.date)?.context || {};
+  const snapshotOwnsSampleTime = snapshotOwnsCollectionContextField(snapshot, 'sampleTime');
+  const snapshotOwnsFasting = snapshotOwnsCollectionContextField(snapshot, 'fasting');
   const result = {
     date: snapshot.date,
+    sampleTime: snapshotOwnsSampleTime ? (snapshot.sampleTime || null) : (entryContext.sampleTime || null),
+    fasting: snapshotOwnsFasting
+      ? snapshot.fasting
+      : typeof entryContext.fasting === 'boolean' ? entryContext.fasting : null,
     fileName: snapshot.fileName,
     testType: snapshot.testType,
     markers: snapshot.markers.map(m => ({ ...m })),
@@ -415,6 +601,7 @@ export function openImportReviewFromSnapshot(snapId) {
     imageMode: snapshot.importMode === 'image',
     diagnostics: snapshot.diagnostics,
     importHash: snapshot.importHash,
+    _adoptReferenceRanges: snapshot.adoptReferenceRanges,
     _reReviewSnapshotId: snapshot.id,
     _excludedImportIndices: snapshot.excludedIndices || [],
   };

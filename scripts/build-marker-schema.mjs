@@ -16,7 +16,7 @@ export function renderMarkerSchema() {
   return `// @ts-check\n`
     + `// Generated from js/marker-schema/index.js. Run npm run marker-schema:build; do not edit.\n\n`
     + `export const MARKER_SCHEMA = ${JSON.stringify(MARKER_SCHEMA)};\n\n`
-    + `/** @type {Record<string, [string, string[]]>} */\n`
+    + `/** @type {Record<string, [string, string[], string[]]>} */\n`
     + `const markerIdentityOverrides = ${JSON.stringify(identityOverrides)};\n`
     + `const markerIdentities = [];\n`
     + `for (const [categoryKey, category] of Object.entries(MARKER_SCHEMA)) {\n`
@@ -27,12 +27,16 @@ export function renderMarkerSchema() {
     + `      id: \`gb:marker:\${override?.[0] || markerKey}\`,\n`
     + `      currentDotKey,\n`
     + `      legacyDotKeys: Object.freeze(override?.[1] || []),\n`
+    + `      legacyIds: Object.freeze(override?.[2] || []),\n`
     + `    }));\n`
     + `  }\n`
     + `}\n`
     + `export const BUILTIN_MARKER_IDENTITIES = Object.freeze(markerIdentities);\n`
     + `/** @type {Map<string, (typeof BUILTIN_MARKER_IDENTITIES)[number]>} */\n`
     + `const builtinMarkerIdentityById = new Map(BUILTIN_MARKER_IDENTITIES.map(identity => [identity.id, identity]));\n`
+    + `for (const identity of BUILTIN_MARKER_IDENTITIES) {\n`
+    + `  for (const legacyId of identity.legacyIds) builtinMarkerIdentityById.set(legacyId, identity);\n`
+    + `}\n`
     + `/** @type {Map<string, string>} */\n`
     + `const builtinMarkerIdByDotKey = new Map(BUILTIN_MARKER_IDENTITIES.map(identity => [identity.currentDotKey, identity.id]));\n`
     + `for (const identity of BUILTIN_MARKER_IDENTITIES) {\n`
@@ -40,6 +44,9 @@ export function renderMarkerSchema() {
     + `}\n`
     + `export const BUILTIN_MARKER_DOT_KEY_ALIASES = Object.freeze(Object.fromEntries(\n`
     + `  BUILTIN_MARKER_IDENTITIES.flatMap(identity => identity.legacyDotKeys.map(dotKey => [dotKey, identity.currentDotKey])),\n`
+    + `));\n\n`
+    + `export const BUILTIN_MARKER_ID_ALIASES = Object.freeze(Object.fromEntries(\n`
+    + `  BUILTIN_MARKER_IDENTITIES.flatMap(identity => identity.legacyIds.map(markerId => [markerId, identity.id])),\n`
     + `));\n\n`
     + `/** @param {unknown} dotKey @returns {string | null} */\n`
     + `export function getBuiltinMarkerId(dotKey) {\n`
@@ -65,13 +72,13 @@ export function renderMarkerSchema() {
 }
 
 function runtimeMarkerIdentityOverrides() {
-  /** @type {Record<string, [string, readonly string[]]>} */
+  /** @type {Record<string, [string, readonly string[], readonly string[]]>} */
   const overrides = {};
   for (const identity of BUILTIN_MARKER_IDENTITY_DEFINITIONS) {
     const identityKey = identity.id.slice('gb:marker:'.length);
     const markerKey = identity.currentDotKey.slice(identity.currentDotKey.indexOf('.') + 1);
-    if (identityKey !== markerKey || identity.legacyDotKeys.length) {
-      overrides[identity.currentDotKey] = [identityKey, identity.legacyDotKeys];
+    if (identityKey !== markerKey || identity.legacyDotKeys.length || identity.legacyIds.length) {
+      overrides[identity.currentDotKey] = [identityKey, identity.legacyDotKeys, identity.legacyIds];
     }
   }
   return overrides;
@@ -84,6 +91,7 @@ function validateMarkerIdentities() {
   const ids = new Set();
   const currentDotKeys = new Set();
   const legacyDotKeys = new Set();
+  const legacyIds = new Set();
 
   for (const identity of BUILTIN_MARKER_IDENTITY_DEFINITIONS) {
     if (!/^gb:marker:[A-Za-z][A-Za-z0-9_]*$/.test(identity.id)) {
@@ -108,6 +116,19 @@ function validateMarkerIdentities() {
       }
       legacyDotKeys.add(legacyDotKey);
     }
+    for (const legacyId of identity.legacyIds) {
+      if (!/^gb:marker:[A-Za-z][A-Za-z0-9_]*$/.test(legacyId)) {
+        throw new Error(`Invalid legacy built-in marker id: ${legacyId}`);
+      }
+      if (legacyId === identity.id || ids.has(legacyId) || legacyIds.has(legacyId)) {
+        throw new Error(`Duplicate legacy built-in marker id: ${legacyId}`);
+      }
+      legacyIds.add(legacyId);
+    }
+  }
+
+  if ([...ids].some(id => legacyIds.has(id))) {
+    throw new Error('A legacy built-in marker id is still current.');
   }
 
   if (currentDotKeys.size !== catalogDotKeySet.size

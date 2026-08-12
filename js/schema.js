@@ -5,7 +5,13 @@ import { MARKER_SCHEMA } from './marker-schema.js';
 import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
 import { state } from './state.js';
 
-export { PHASE_RANGES, SBM_2015_THRESHOLDS, getEMFSeverity } from './schema-environment.js';
+export {
+  CONTEXT_OPTIMAL_RANGES,
+  CONTEXT_REFERENCE_RANGES,
+  PHASE_RANGES,
+  SBM_2015_THRESHOLDS,
+  getEMFSeverity,
+} from './schema-environment.js';
 
 // ═══════════════════════════════════════════════
 // MARKER SCHEMA COMPATIBILITY FACADE
@@ -15,6 +21,7 @@ export { MARKER_SCHEMA };
 export {
   BUILTIN_MARKER_DOT_KEY_ALIASES,
   BUILTIN_MARKER_IDENTITIES,
+  BUILTIN_MARKER_ID_ALIASES,
   CUSTOM_MARKER_ID_PREFIX,
   getBuiltinMarkerDotKey,
   getBuiltinMarkerId,
@@ -31,12 +38,16 @@ export const UNIT_CONVERSIONS = {
   'biochemistry.creatinine': { factor: 0.01131, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.uricAcid': { factor: 0.01681, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.bilirubinTotal': { factor: 0.05848, usUnit: 'mg/dl', type: 'multiply' },
+  'biochemistry.bilirubinDirect': { factor: 0.05848, usUnit: 'mg/dl', type: 'multiply' },
+  'biochemistry.bilirubinIndirect': { factor: 0.05848, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.ast': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.alt': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.alp': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.ggt': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.ldh': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.creatineKinase': { factor: 60, usUnit: 'U/L', type: 'multiply' },
+  'biochemistry.amylase': { factor: 60, usUnit: 'U/L', type: 'multiply' },
+  'biochemistry.lipase': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.egfr': { factor: 60, usUnit: 'mL/min/1.73m²', type: 'multiply' },
   'biochemistry.gfrCystatin': { factor: 60, usUnit: 'mL/min', type: 'multiply' },
   'biochemistry.cystatinC': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
@@ -51,6 +62,9 @@ export const UNIT_CONVERSIONS = {
   'hormones.dht': { factor: 28.818, usUnit: 'ng/dl', type: 'multiply' },
   'hormones.androstenedione': { factor: 28.64, usUnit: 'ng/dl', type: 'multiply' },
   'hormones.cortisol': { factor: 0.03625, usUnit: '\u00b5g/dl', type: 'multiply' },
+  'hormones.acth': { factor: 4.541, usUnit: 'pg/ml', type: 'multiply' },
+  'hormones.aldosterone': { factor: 0.03605, usUnit: 'ng/dl', type: 'multiply' },
+  'hormones.amh': { factor: 0.14, usUnit: 'ng/ml', type: 'multiply' },
   'hormones.igf1': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'hormones.prolactin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'hormones.pth': { factor: 9.43, usUnit: 'pg/ml', type: 'multiply' },
@@ -71,6 +85,8 @@ export const UNIT_CONVERSIONS = {
   'vitamins.vitaminB12': { factor: 1.355, usUnit: 'pg/ml', type: 'multiply' },
   'vitamins.activeB12': { factor: 1, usUnit: 'pmol/l', type: 'multiply' },
   'vitamins.folate': { factor: 0.4413, usUnit: 'ng/ml', type: 'multiply' },
+  'vitamins.vitaminC': { factor: 0.017612, usUnit: 'mg/dl', type: 'multiply' },
+  'vitamins.vitaminE': { factor: 0.043071, usUnit: 'mg/dl', type: 'multiply' },
   'diabetes.cPeptide': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'hematology.hemoglobin': { factor: 0.1, usUnit: 'g/dl', type: 'multiply' },
   // hematocrit: stored as % natively (was fraction before v1.6.1, migrated in profile.js)
@@ -81,16 +97,21 @@ export const UNIT_CONVERSIONS = {
   'differential.eosinophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'differential.basophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'boneMetabolism.osteocalcin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
+  'boneMetabolism.p1np': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
+  'boneMetabolism.ctx': { factor: 1, usUnit: 'pg/ml', type: 'multiply' },
   'tumorMarkers.psa': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'tumorMarkers.afp': { factor: 1.21, usUnit: 'ng/ml', type: 'multiply' },
   'electrolytes.calciumTotal': { factor: 4.008, usUnit: 'mg/dl', type: 'multiply' },
+  'electrolytes.calciumIonized': { factor: 4.008, usUnit: 'mg/dl', type: 'multiply' },
   'electrolytes.phosphorus': { factor: 3.097, usUnit: 'mg/dl', type: 'multiply' },
   'electrolytes.magnesium': { factor: 2.431, usUnit: 'mg/dl', type: 'multiply' },
   'electrolytes.magnesiumRBC': { factor: 2.431, usUnit: 'mg/dl', type: 'multiply' },
   'electrolytes.copper': { factor: 6.355, usUnit: '\u00b5g/dl', type: 'multiply' },
   'electrolytes.zinc': { factor: 6.54, usUnit: '\u00b5g/dl', type: 'multiply' },
+  'electrolytes.selenium': { factor: 7.8971, usUnit: '\u00b5g/dl', type: 'multiply' },
   'proteins.totalProtein': { factor: 0.1, usUnit: 'g/dl', type: 'multiply' },
   'proteins.albumin': { factor: 0.1, usUnit: 'g/dl', type: 'multiply' },
+  'proteins.globulin': { factor: 0.1, usUnit: 'g/dl', type: 'multiply' },
   'proteins.ceruloplasmin': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
   'lipids.apoB': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
   'lipids.apoAI': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
@@ -99,11 +120,17 @@ export const UNIT_CONVERSIONS = {
   'thyroid.ft3': { factor: 0.6513, usUnit: 'pg/ml', type: 'multiply' },
   'thyroid.t4total': { factor: 0.07769, usUnit: '\u00b5g/dl', type: 'multiply' },
   'thyroid.t3total': { factor: 0.6513, usUnit: 'ng/dl', type: 'multiply' },
+  'thyroid.thyroglobulin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'diabetes.hba1c': { type: 'hba1c' },
   'calculatedRatios.tgHdlRatio': { factor: 2.29, usUnit: '', type: 'multiply' },
   'calculatedRatios.ft3ft4Ratio': { factor: 8.3833, usUnit: '', type: 'multiply' },
   'bodyComposition.leanMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' },
   'bodyComposition.fatMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' },
+  'urinalysis.albuminCreatinineRatio': { factor: 8.84, usUnit: 'mg/g', type: 'multiply' },
+  'urinalysis.proteinCreatinineRatio': { factor: 8.84, usUnit: 'mg/g', type: 'multiply' },
+  'urinalysis.albumin': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
+  'urinalysis.creatinine': { factor: 11.312, usUnit: 'mg/dl', type: 'multiply' },
+  'urinalysis.totalProtein': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
   // ── Label-only US conventions (factor: 1) ─────────────────────────────────
   // These markers have *identical numerical values* in EU SI and US conventional
   // units — only the printed label on a US lab report differs. We still expose
@@ -111,8 +138,7 @@ export const UNIT_CONVERSIONS = {
   // app's "5 mU/L" without second-guessing. NOT included: truly universal labels
   // (homocysteine µmol/L, MCV fL, hematocrit %) or labels that match exactly
   // (SHBG nmol/L).
-  'hormones.insulin':         { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
-  'diabetes.insulin_d':       { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
+  'diabetes.insulin':         { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
   'thyroid.tsh':              { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
   'hormones.lh':              { factor: 1, usUnit: 'mIU/mL',       type: 'multiply' },
   'hormones.fsh':             { factor: 1, usUnit: 'mIU/mL',       type: 'multiply' },
@@ -126,7 +152,15 @@ export const UNIT_CONVERSIONS = {
   'differential.lymphocytes': { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
   'differential.monocytes':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
   'differential.eosinophils': { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
-  'differential.basophils':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' }
+  'differential.basophils':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'tumorMarkers.cea':         { factor: 1, usUnit: 'ng/mL',   type: 'multiply' },
+  'tumorMarkers.ca125':       { factor: 1, usUnit: 'U/mL',    type: 'multiply' },
+  'tumorMarkers.ca199':       { factor: 1, usUnit: 'U/mL',    type: 'multiply' },
+  'tumorMarkers.ca153':       { factor: 1, usUnit: 'U/mL',    type: 'multiply' },
+  'cardiac.hsTroponinT':      { factor: 1, usUnit: 'pg/mL',   type: 'multiply' },
+  'cardiac.hsTroponinI':      { factor: 1, usUnit: 'pg/mL',   type: 'multiply' },
+  'cardiac.bnp':              { factor: 1, usUnit: 'pg/mL',   type: 'multiply' },
+  'cardiac.ntProBnp':         { factor: 1, usUnit: 'pg/mL',   type: 'multiply' }
 };
 
 export { SECONDARY_UNIT_CONVERSIONS };
@@ -183,6 +217,13 @@ export function normalizeToSI(key, value, unit, context = null) {
   if (value == null || isNaN(value)) return null;
   // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50).
   if (key === 'hematology.hematocrit' && value < 1.5) return parseFloat((value * 100).toFixed(1));
+  if (context?.ratioUnitConvention === 'si') return value;
+  if (context?.ratioUnitConvention === 'conventional') {
+    const ratioConversion = UNIT_CONVERSIONS[key];
+    if (ratioConversion?.type === 'multiply') {
+      return parseFloat((value / ratioConversion.factor).toPrecision(6));
+    }
+  }
   if (unit) {
     const normalizedUnit = normalizeClinicalUnit(unit);
     const fractionPercentValue = normalizeFractionStoredPercentValue(key, value, normalizedUnit, context);
@@ -304,7 +345,7 @@ export function convertSIToInputUnit(dotKey, siValue, targetUnit) {
 export const CORRELATION_PRESETS = [
   { label: "Testosterone vs SHBG", markers: ["hormones.testosterone", "hormones.shbg"] },
   { label: "LDL vs hs-CRP", markers: ["lipids.ldl", "proteins.hsCRP"] },
-  { label: "HbA1c vs Insulin vs HOMA-IR", markers: ["diabetes.hba1c", "diabetes.insulin_d", "diabetes.homaIR"] },
+  { label: "HbA1c vs Insulin vs HOMA-IR", markers: ["diabetes.hba1c", "diabetes.insulin", "diabetes.homaIR"] },
   { label: "Liver Enzymes", markers: ["biochemistry.ast", "biochemistry.alt", "biochemistry.alp", "biochemistry.ggt"] },
   { label: "Iron Panel", markers: ["iron.iron", "iron.ferritin", "iron.transferrin"] },
   { label: "Lipid Panel", markers: ["lipids.cholesterol", "lipids.hdl", "lipids.ldl", "lipids.triglycerides"] },
@@ -425,8 +466,12 @@ export function resetProfileUsage(profileId) {
   localStorage.removeItem(`labcharts-${profileId || 'default'}-usage`);
 }
 
-// Optimal ranges — evidence-based "ideal" bands from mortality meta-analyses,
-// longevity research (Attia, Patrick, Levine), and functional medicine (Weatherby/OptimalDX).
+// Optimal ranges are curated lower-risk, target, or nutritional-adequacy bands
+// for the optional wellness view; they are not laboratory reference intervals.
+// A marker without a defensible entry intentionally falls back to its reference
+// interval in getEffectiveRange(). Markers with rangePolicy: "guidance" use a
+// representative population or risk band rather than claiming a lab interval;
+// "contextual" markers have no honest universal static interval.
 // Sources: CKD Prognosis Consortium, ASH/Blood 2015, Harris & von Schacky 2004,
 // Lancet non-HDL pooled analysis, PMC8844108 (IGF-1), PMC10324141 (sodium),
 // PMC10866328 (thyroid/CVD), PMC11078084 (albumin), Gilbert syndrome studies.
@@ -445,13 +490,16 @@ export const OPTIMAL_RANGES = {
   'biochemistry.uricAcid': { optimalMin: 200, optimalMax: 350 },
   'biochemistry.cystatinC': { optimalMin: 0.61, optimalMax: 0.82 },
   'biochemistry.gfrCystatin': { optimalMin: 1.50, optimalMax: null },
+  // General-population NHANES lower-risk stratum; PMCID PMC9125743.
+  'biochemistry.bicarbonate': { optimalMin: 22, optimalMax: 26 },
   // Hormones
-  'hormones.insulin': { optimalMin: 2.6, optimalMax: 10.0 },
+  // General adult wellness fallback. Men aged 70–89 use the dated,
+  // observational 9.8–15.8 nmol/L cohort band from CONTEXT_OPTIMAL_RANGES.
   'hormones.testosterone': { optimalMin: 15.0, optimalMax: 25.0, optimalMin_f: 0.5, optimalMax_f: 1.2 },
   'hormones.freeTestosterone': { optimalMin: 70, optimalMax: 130, optimalMin_f: 2.0, optimalMax_f: 7.0 },
-  'hormones.shbg': { optimalMin: 20.0, optimalMax: 40.0 },
-  'hormones.dheaS': { optimalMin: 4.0, optimalMax: 9.0 },
-  'hormones.estradiol': { optimalMin: 70, optimalMax: 130 },
+  // Do not apply male-oriented SHBG/estradiol wellness bands to women.
+  'hormones.shbg': { optimalMin: 20.0, optimalMax: 40.0, optimalMin_f: null, optimalMax_f: null },
+  'hormones.estradiol': { optimalMin: 70, optimalMax: 130, optimalMin_f: null, optimalMax_f: null },
   'hormones.igf1': { optimalMin: 120, optimalMax: 160 },
   'hormones.prolactin': { optimalMin: 4.0, optimalMax: 12.0, optimalMin_f: 4.8, optimalMax_f: 18.0 },
   // Electrolytes & Minerals
@@ -463,6 +511,10 @@ export const OPTIMAL_RANGES = {
   'electrolytes.chloride': { optimalMin: 100, optimalMax: 106 },
   'electrolytes.magnesiumRBC': { optimalMin: 2.00, optimalMax: 2.40 },
   'electrolytes.copper': { optimalMin: 12.6, optimalMax: 18.9 },
+  // NIH ODS considers serum/plasma Se >=80 µg/L (1.01 µmol/L) sufficient
+  // for selenoprotein synthesis. The upper edge remains the schema lab bound,
+  // not a supplementation target.
+  'electrolytes.selenium': { optimalMin: 1.01, optimalMax: 1.65 },
   // Iron
   'iron.iron': { optimalMin: 12.0, optimalMax: 25.0 },
   'iron.ferritin': { optimalMin: 40, optimalMax: 200 },
@@ -500,9 +552,16 @@ export const OPTIMAL_RANGES = {
   'vitamins.activeB12': { optimalMin: 70, optimalMax: 160 },
   'vitamins.methylmalonicAcid': { optimalMin: 0, optimalMax: 270 },
   'vitamins.folate': { optimalMin: 14.0, optimalMax: 36.0 },
+  // EFSA adequacy threshold for plasma PLP is 30 nmol/L (DOI
+  // 10.2903/j.efsa.2016.4485). The upper edge remains the lab reference bound.
+  'vitamins.vitaminB6': { optimalMin: 30, optimalMax: 125 },
+  // Plasma ascorbate >=50 µmol/L is considered adequate; intervention data
+  // show saturation around 65-80 µmol/L (PMCID PMC4924182, PMC7071312).
+  // A value above saturation is not inherently adverse, so retain the lab max.
+  'vitamins.vitaminC': { optimalMin: 50, optimalMax: 114 },
   // Diabetes
   'diabetes.hba1c': { optimalMin: 20.0, optimalMax: 36.0 },
-  'diabetes.insulin_d': { optimalMin: 2.6, optimalMax: 10.0 },
+  'diabetes.insulin': { optimalMin: 2.6, optimalMax: 10.0 },
   'diabetes.homaIR': { optimalMin: 0, optimalMax: 1.5 },
   'diabetes.cPeptide': { optimalMin: 0.8, optimalMax: 2.5 },
   'diabetes.fructosamine': { optimalMin: 205, optimalMax: 250 },
@@ -561,6 +620,12 @@ export const OPTIMAL_RANGES = {
   'calculatedRatios.nlr': { optimalMin: 1.0, optimalMax: 2.5 },
   'calculatedRatios.deRitisRatio': { optimalMin: 0.8, optimalMax: 1.1 },
   'calculatedRatios.bunCreatRatio': { optimalMin: 10, optimalMax: 16 },
-  'calculatedRatios.crpHdlRatio': { optimalMin: 0, optimalMax: 0.24 },
+  'calculatedRatios.atherogenicIndexPlasma': { optimalMin: null, optimalMax: 0.11 },
   'calculatedRatios.ft3ft4Ratio': { optimalMin: 0.286, optimalMax: 0.322 },
+  // Lower-half population band in a longitudinal cohort using hs-CRP mg/L
+  // divided by HDL-C mg/dL; DOI 10.3389/fnut.2025.1580904.
+  'calculatedRatios.crpHdlRatio': { optimalMin: 0, optimalMax: 0.02 },
+  // Dose-response diabetes risk becomes steeper above 8.6 (PMID 34086260).
+  // A known non-fasting sample suppresses this band in data.js.
+  'calculatedRatios.tygIndex': { optimalMin: null, optimalMax: 8.6 },
 };

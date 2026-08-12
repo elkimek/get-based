@@ -508,6 +508,18 @@ const dataModule = await import('../js/data.js');
   const creatFem = femData.categories.biochemistry.markers.creatinine;
   assert('female creatinine refMin = 44', creatFem.refMin === 44, `got ${creatFem.refMin}`);
   assert('female creatinine refMax = 80', creatFem.refMax === 80, `got ${creatFem.refMax}`);
+  const esrFem = femData.categories.proteins.markers.esr;
+  assert('female-only ESR upper bound preserves generic lower bound',
+    esrFem.refMin === 0 && esrFem.refMax === 20,
+    `got ${esrFem.refMin}\u2013${esrFem.refMax}`);
+  const troponinTFem = femData.categories.cardiac.markers.hsTroponinT;
+  assert('female-only hs-troponin T upper bound preserves generic lower bound',
+    troponinTFem.refMin === 0 && troponinTFem.refMax === 10,
+    `got ${troponinTFem.refMin}\u2013${troponinTFem.refMax}`);
+  const apoRatioFem = femData.categories.calculatedRatios.markers.apoBapoAIRatio;
+  assert('female-only ApoB/ApoA-I optimal maximum preserves generic optimal minimum',
+    apoRatioFem.optimalMin === 0 && apoRatioFem.optimalMax === 0.5,
+    `got ${apoRatioFem.optimalMin}\u2013${apoRatioFem.optimalMax}`);
 
   S.profileSex = 'male';
 
@@ -522,7 +534,8 @@ const dataModule = await import('../js/data.js');
     'renderDateRangeFilter', 'setDateRange', 'renderChartLayersDropdown',
     'toggleChartLayersDropdown', 'setSuppOverlay', 'setNoteOverlay', 'setPhaseOverlay',
     'destroyAllCharts', 'detectTrendAlerts', 'getKeyTrendMarkers', 'switchUnitSystem', 'toggleAltUnits',
-    'getEffectiveRange', 'getEffectiveRangeForDate', 'getPhaseRefEnvelope',
+    'getEffectiveRange', 'getEffectiveRangeForDate', 'getEffectiveRangeLabelForDate',
+    'getPhaseRefEnvelope', 'getContextRefEnvelope',
     'switchRangeMode', 'countFlagged', 'getLatestValueIndex',
     'getAllFlaggedMarkers', 'statusIcon', 'updateHeaderDates', 'updateHeaderRangeToggle',
     'registerRefreshCallback',
@@ -569,6 +582,7 @@ const dataModule = await import('../js/data.js');
   console.log('%c 14. Data Source Inspection ', 'font-weight:bold;color:#f59e0b');
 
   const dataJsSrc = (await (await fetch('js/data.js')).text());
+  const calculatedMarkersSrc = (await (await fetch('js/data-calculated-markers.js')).text());
   const markerAnalysisSrc = (await (await fetch('js/marker-analysis.js')).text());
   assert('data.js imports MARKER_SCHEMA', dataJsSrc.includes("import { state } from './state.js'"));
   assert('data.js imports UNIT_CONVERSIONS', dataJsSrc.includes('UNIT_CONVERSIONS'));
@@ -584,17 +598,17 @@ const dataModule = await import('../js/data.js');
     /await encryptedSetItem\(key, value\);\s*\}\s*catch \(e\) \{[\s\S]*?return false;[\s\S]*?\}\s*try \{[\s\S]*?onDataSaved\(options\);[\s\S]*?\}\s*catch \(e\) \{[\s\S]*?Post-save hook failed after data was persisted[\s\S]*?\}\s*return true;/.test(dataJsSrc));
 
   // PhenoAge coefficients present
-  assert('data.js has PhenoAge xb calculation', dataJsSrc.includes('-19.907'));
-  assert('data.js has PhenoAge mortalityScore', dataJsSrc.includes('mortalityScore'));
-  assert('data.js has Bortz Age calculation', dataJsSrc.includes('bortzAge'));
+  assert('calculated marker engine has PhenoAge xb calculation', calculatedMarkersSrc.includes('-19.907'));
+  assert('calculated marker engine has PhenoAge mortalityScore', calculatedMarkersSrc.includes('mortalityScore'));
+  assert('calculated marker engine has Bortz Age calculation', calculatedMarkersSrc.includes('bortzAge'));
 
   // BUN/Creatinine formula present
-  assert('data.js has BUN/Cr formula (urea*2.801)', dataJsSrc.includes('u * 2.801'));
-  assert('data.js has BUN/Cr formula (creat*0.01131)', dataJsSrc.includes('c * 0.01131'));
+  assert('calculated marker engine has BUN/Cr formula (urea*2.801)', calculatedMarkersSrc.includes('u * 2.801'));
+  assert('calculated marker engine has BUN/Cr formula (creat*0.01131)', calculatedMarkersSrc.includes('c * 0.01131'));
 
   // Free Water Deficit formula present
-  assert('data.js has FWD formula (na/140)', dataJsSrc.includes('na / 140'));
-  assert('data.js has FWD TBW factor male 0.6', dataJsSrc.includes('0.6'));
+  assert('calculated marker engine has FWD formula (na/140)', calculatedMarkersSrc.includes('na / 140'));
+  assert('calculated marker engine has FWD TBW factor male 0.6', calculatedMarkersSrc.includes('0.6'));
 
   // ═══════════════════════════════════════════════
   // CLEANUP — restore original state

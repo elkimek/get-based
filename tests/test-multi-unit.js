@@ -44,15 +44,14 @@ for (const [k, factor, unit] of newKeys) {
   }
 }
 
-// ── 16 label-only US-convention entries (factor:1, identical numerical value) ──
+// ── Label-only US-convention entries (factor:1, identical numerical value) ──
 // These exist so a US user can recognize e.g. "5 µIU/mL" on a Quest report as
 // the same value as the app's "5 mU/L". The number doesn't change — only the
 // printed label does. Skipped: true universals (homocysteine, MCV, hematocrit)
 // and labels that match exactly across systems (SHBG nmol/L).
 console.log('\n-- label-only US-convention entries (factor:1) --');
 const labelOnlyKeys = [
-  ['hormones.insulin',         'µIU/mL'],
-  ['diabetes.insulin_d',       'µIU/mL'],
+  ['diabetes.insulin',         'µIU/mL'],
   ['thyroid.tsh',              'µIU/mL'],
   ['hormones.lh',              'mIU/mL'],
   ['hormones.fsh',             'mIU/mL'],

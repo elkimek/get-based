@@ -2,20 +2,19 @@
 // profile-marker-migrations.js - Marker alias, unit-suffix, and specialty import repairs.
 
 import {
-  BUILTIN_MARKER_DOT_KEY_ALIASES,
   MARKER_SCHEMA,
+  normalizeClinicalUnit,
   normalizeToSI,
 } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 import {
-  ensureProductFattyAcidCustomMarker,
-  repairSnapshotBackedProductFattyAcidMetadata,
-} from './profile-fatty-acid-migrations.js';
+  repairCanonicalMarkerAliases,
+  repairNamedStandardMarkerAliases,
+} from './profile-marker-alias-migrations.js';
+import { ensureProductFattyAcidCustomMarker, repairSnapshotBackedProductFattyAcidMetadata } from './profile-fatty-acid-migrations.js';
 
-/**
- * @typedef {Record<string, any>} ProfileData
- */
+/** @typedef {Record<string, any>} ProfileData */
 
 /**
  * @param {string | null | undefined} value
@@ -76,86 +75,84 @@ function _buildProfileStandardMarkerLookup() {
   return lookup;
 }
 
-/**
- * @param {ProfileData} data
- * @returns {void}
- */
-function _repairCanonicalMarkerAliases(data) {
-  if (!data.entries?.length) return;
-  const remapByPrefix = (obj, oldKey, nextKey) => {
-    if (!obj) return;
-    const prefix = oldKey + ':';
-    for (const key of Object.keys(obj)) {
-      if (!key.startsWith(prefix)) continue;
-      const remapped = nextKey + key.slice(oldKey.length);
-      if (obj[remapped] === undefined) obj[remapped] = obj[key];
-      delete obj[key];
-    }
-  };
-  for (const [oldKey, nextKey] of Object.entries(BUILTIN_MARKER_DOT_KEY_ALIASES)) {
-    for (const entry of data.entries) renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false });
-    remapByPrefix(data.manualValues, oldKey, nextKey);
-    remapByPrefix(data.markerValueNotes, oldKey, nextKey);
-    if (data.refOverrides?.[oldKey]) {
-      if (!data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
-      delete data.refOverrides[oldKey];
-    }
-    if (data.markerNotes?.[oldKey] && !data.markerNotes[nextKey]) data.markerNotes[nextKey] = data.markerNotes[oldKey];
-    if (data.markerNotes) delete data.markerNotes[oldKey];
-    if (data.markerLabels?.[oldKey] && !data.markerLabels[nextKey]) data.markerLabels[nextKey] = data.markerLabels[oldKey];
-    if (data.markerLabels) delete data.markerLabels[oldKey];
-    if (data.customMarkers) delete data.customMarkers[oldKey];
-  }
-}
+/** @type {ReadonlyArray<readonly [string, readonly string[]]>} */
+const CALCULATED_RATIO_PROFILE_ALIASES = Object.freeze([
+  ['calculatedRatios.tgHdlRatio', ['tghdl', 'tghdlratio', 'triglyceridehdlratio', 'triglyceridestohdlratio']],
+  ['calculatedRatios.ldlHdlRatio', ['ldlhdl', 'ldlhdlratio', 'ldltohdlratio']],
+  ['calculatedRatios.apoBapoAIRatio', ['apobapoai', 'apobapoairatio', 'apobapoa1', 'apobapoa1ratio']],
+  ['calculatedRatios.cholHdlRatio', ['cholhdl', 'cholhdlratio', 'cholesterolhdlratio', 'totalcholesterolhdlratio']],
+  ['calculatedRatios.nlr', ['nlr', 'neutrophillymphocyteratio', 'neutrophiltolymphocyteratio']],
+  ['calculatedRatios.plr', ['plr', 'plateletlymphocyteratio', 'platelettolymphocyteratio']],
+  ['calculatedRatios.mlr', ['mlr', 'monocytelymphocyteratio', 'monocytetolymphocyteratio']],
+  ['calculatedRatios.deRitisRatio', ['deritis', 'deritisratio', 'astalt', 'astaltratio']],
+  ['calculatedRatios.copperZincRatio', ['copperzincratio', 'cuznratio']],
+  ['calculatedRatios.ft3ft4Ratio', ['freet3freet4ratio', 'ft3ft4ratio']],
+  ['calculatedRatios.bunCreatRatio', ['buncreatinineratio', 'buncreatratio']],
+  ['calculatedRatios.crpHdlRatio', ['hscrphdlratio', 'hscrphdlcratio']],
+  ['calculatedRatios.atherogenicIndexPlasma', ['atherogenicindexofplasma', 'aip']],
+  ['calculatedRatios.tygIndex', ['triglycerideglucoseindex', 'tygindex', 'tyg']],
+  ['calculatedRatios.albuminGlobulinRatio', ['albuminglobulinratio']],
+  ['calculatedRatios.fib4Index', ['fib4', 'fib4index', 'fib4score']],
+  ['calculatedRatios.systemicImmuneInflammationIndex', ['systemicimmuneinflammationindex', 'sii']],
+  ['calculatedRatios.anionGap', ['aniongap']],
+]);
 
 /**
+ * Move lab-reported calculations that predate their schema definitions out of
+ * arbitrary/custom categories and onto the one canonical calculated-ratio key.
+ * Existing canonical values win when both keys occur on the same draw.
+ *
  * @param {ProfileData} data
  * @returns {void}
  */
-function _repairNamedStandardMarkerAliases(data) {
-  if (!data.entries?.length) return;
-  const labelAliases = new Map([
-    ['lpa', 'lipids.lpA'],
-    ['lipoproteina', 'lipids.lpA'],
-    ['lipoproteinapolipoproteina', 'lipids.lpA'],
-    ['totalcholesterol', 'lipids.cholesterol'],
-    ['cholesteroltotal', 'lipids.cholesterol'],
-    ['hdlcholesterol', 'lipids.hdl'],
-    ['cholhdlratio', 'calculatedRatios.cholHdlRatio'],
-    ['totalcholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
-  ]);
-  const remapByPrefix = (obj, oldKey, nextKey) => {
-    if (!obj) return;
-    const prefix = oldKey + ':';
-    for (const key of Object.keys(obj)) {
-      if (!key.startsWith(prefix)) continue;
-      const remapped = nextKey + key.slice(oldKey.length);
-      if (obj[remapped] === undefined) obj[remapped] = obj[key];
-      delete obj[key];
+function _repairCalculatedRatioAliases(data) {
+  const lookup = new Map();
+  for (const [target, aliases] of CALCULATED_RATIO_PROFILE_ALIASES) {
+    const markerKey = target.split('.')[1];
+    const schemaMarker = MARKER_SCHEMA.calculatedRatios?.markers?.[markerKey];
+    for (const label of [markerKey, schemaMarker?.name, ...aliases]) {
+      const normalized = _normalizeProfileMarkerLabel(label);
+      if (normalized && !lookup.has(normalized)) lookup.set(normalized, target);
     }
-  };
+  }
+
   const candidates = new Set(Object.keys(data.customMarkers || {}));
-  for (const entry of data.entries) for (const key of Object.keys(entry.markers || {})) candidates.add(key);
-  for (const fullKey of candidates) {
-    const [catKey, markerKey] = fullKey.split('.');
-    if (!markerKey || SPECIALTY_MARKER_DEFS[fullKey]) continue;
-    if (MARKER_SCHEMA[catKey]?.markers?.[markerKey]) continue;
-    const def = data.customMarkers?.[fullKey] || {};
-    const target = labelAliases.get(_normalizeProfileMarkerLabel(def?.name))
-      || labelAliases.get(_normalizeProfileMarkerLabel(markerKey));
-    if (!target || target === fullKey) continue;
-    for (const entry of data.entries) renameLabEntryMarker(entry, fullKey, target, { stamp: false });
-    remapByPrefix(data.manualValues, fullKey, target);
-    remapByPrefix(data.markerValueNotes, fullKey, target);
-    if (data.refOverrides?.[fullKey]) {
-      if (!data.refOverrides[target]) data.refOverrides[target] = data.refOverrides[fullKey];
-      delete data.refOverrides[fullKey];
+  for (const entry of data.entries || []) {
+    for (const key of Object.keys(entry?.markers || {})) candidates.add(key);
+  }
+  for (const snapshot of data.importSnapshots || []) {
+    for (const marker of snapshot?.markers || []) {
+      if (marker?.mappedKey) candidates.add(marker.mappedKey);
+      if (marker?.suggestedKey) candidates.add(marker.suggestedKey);
     }
-    if (data.markerNotes?.[fullKey] && !data.markerNotes[target]) data.markerNotes[target] = data.markerNotes[fullKey];
-    if (data.markerNotes) delete data.markerNotes[fullKey];
-    if (data.markerLabels?.[fullKey] && !data.markerLabels[target]) data.markerLabels[target] = data.markerLabels[fullKey];
-    if (data.markerLabels) delete data.markerLabels[fullKey];
-    if (data.customMarkers) delete data.customMarkers[fullKey];
+  }
+
+  for (const oldKey of candidates) {
+    const [catKey, markerKey] = oldKey.split('.');
+    if (!markerKey || SPECIALTY_MARKER_DEFS[oldKey]) continue;
+    if (MARKER_SCHEMA[catKey]?.markers?.[markerKey]) continue;
+    const definition = data.customMarkers?.[oldKey] || {};
+    const target = lookup.get(_normalizeProfileMarkerLabel(definition?.name))
+      || lookup.get(_normalizeProfileMarkerLabel(markerKey));
+    if (!target || target === oldKey) continue;
+
+    for (const entry of data.entries || []) {
+      renameLabEntryMarker(entry, oldKey, target, { stamp: false });
+    }
+    for (const snapshot of data.importSnapshots || []) {
+      for (const marker of snapshot?.markers || []) {
+        if (marker?.mappedKey !== oldKey && marker?.suggestedKey !== oldKey) continue;
+        marker.mappedKey = target;
+        marker.suggestedKey = null;
+        marker.matched = true;
+      }
+    }
+
+    _copyDateScopedProfileMarkerData(data, oldKey, target);
+    _copyGlobalProfileMarkerData(data, oldKey, target);
+    _deleteDateScopedProfileMarkerData(data, oldKey);
+    _deleteGlobalProfileMarkerData(data, oldKey);
+    if (data.customMarkers) delete data.customMarkers[oldKey];
   }
 }
 
@@ -464,6 +461,43 @@ function _profileMarkerValuesMatch(a, b) {
 }
 
 /**
+ * Older imports could normalize a marker value while leaving the adopted lab
+ * interval in the report's activity/conventional unit. Saved import snapshots
+ * retain the raw range and unit, so exact snapshot matches can be repaired
+ * without guessing or touching genuinely manual ranges.
+ *
+ * @param {ProfileData} data
+ * @returns {void}
+ */
+function _repairSnapshotBackedReferenceUnits(data) {
+  if (!Array.isArray(data.importSnapshots) || !data.refOverrides) return;
+  for (const snapshot of data.importSnapshots) {
+    if (!Array.isArray(snapshot?.markers)) continue;
+    for (const marker of snapshot.markers) {
+      const key = marker?.mappedKey || marker?.suggestedKey || '';
+      const override = data.refOverrides[key];
+      if (!key || !override || !marker?.unit) continue;
+      const rangeFields = [
+        ['refMin', 'refMin'],
+        ['refMax', 'refMax'],
+        ['labRefMin', 'refMin'],
+        ['labRefMax', 'refMax'],
+      ];
+      for (const [overrideField, markerField] of rangeFields) {
+        const activeReferenceField = overrideField === 'refMin' || overrideField === 'refMax';
+        if (activeReferenceField && override.refSource !== 'import') continue;
+        const rawRange = Number(marker[markerField]);
+        if (!Number.isFinite(rawRange) || !_profileMarkerValuesMatch(override[overrideField], rawRange)) continue;
+        const canonicalRange = normalizeToSI(key, rawRange, marker.unit, marker);
+        if (Number.isFinite(canonicalRange) && !_profileMarkerValuesMatch(canonicalRange, rawRange)) {
+          override[overrideField] = canonicalRange;
+        }
+      }
+    }
+  }
+}
+
+/**
  * @param {any} marker
  * @returns {{ key: string, canonicalValue: number, dividedValue: number | null, wholePercentValue: number | null } | null}
  */
@@ -625,6 +659,26 @@ function _repairNewlyStandardizedImports(data) {
 }
 
 /**
+ * Drop stale custom definitions whose key and unit already exactly match a
+ * current built-in. Values need no rewrite because the dot key is canonical.
+ * A differing unit remains custom unless an import snapshot proves how to
+ * convert it safely.
+ *
+ * @param {ProfileData} data
+ * @returns {void}
+ */
+function _adoptExactStandardCustomMarkers(data) {
+  if (!data.customMarkers || typeof data.customMarkers !== 'object') return;
+  for (const [key, definition] of Object.entries(data.customMarkers)) {
+    const [catKey, markerKey] = key.split('.');
+    const standard = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    if (!standard) continue;
+    if (normalizeClinicalUnit(definition?.unit) !== normalizeClinicalUnit(standard.unit)) continue;
+    delete data.customMarkers[key];
+  }
+}
+
+/**
  * @param {any} entry
  * @param {any} snap
  * @param {string} oldKey
@@ -730,10 +784,13 @@ function _repairSpadiaFattyAcidKeys(data) {
  * @returns {void}
  */
 export function repairProfileMarkerData(data) {
-  _repairCanonicalMarkerAliases(data);
-  _repairNamedStandardMarkerAliases(data);
+  repairCanonicalMarkerAliases(data);
+  repairNamedStandardMarkerAliases(data);
+  _repairCalculatedRatioAliases(data);
   _repairUnitSuffixedStandardMarkers(data);
+  _repairSnapshotBackedReferenceUnits(data);
   _repairNewlyStandardizedImports(data);
+  _adoptExactStandardCustomMarkers(data);
   _repairFractionStoredPercentImports(data);
   repairSnapshotBackedProductFattyAcidMetadata(data);
   _repairSpadiaFattyAcidKeys(data);

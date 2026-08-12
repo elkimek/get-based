@@ -727,6 +727,7 @@ function installMarkerPromptMocks() {
     getActiveData: vi.fn(),
     getEffectiveRange: vi.fn(() => ({ min: 1, max: 5 })),
     getEffectiveRangeForDate: vi.fn(() => ({ min: 10, max: 20 })),
+    getEffectiveRangeLabelForDate: vi.fn(() => 'Luteal range'),
     getLatestValueIndex: vi.fn(values => values.length - 1),
     openChatPanel: vi.fn(async () => {}),
     createNewThread: vi.fn(() => { state.currentThreadId = 'thread-new'; }),
@@ -745,6 +746,7 @@ function installMarkerPromptMocks() {
   vi.doMock('../js/marker-analysis.js', () => ({
     getEffectiveRange: deps.getEffectiveRange,
     getEffectiveRangeForDate: deps.getEffectiveRangeForDate,
+    getEffectiveRangeLabelForDate: deps.getEffectiveRangeLabelForDate,
     getLatestValueIndex: deps.getLatestValueIndex,
   }));
   vi.doMock('../js/chat-panel.js', () => ({ openChatPanel: deps.openChatPanel }));
@@ -793,9 +795,9 @@ describe('chat marker prompt runtime behavior', () => {
     expect(deps.renameThread).toHaveBeenCalledWith('thread-new', 'Ferritin');
     const prompt = deps.openChatPanel.mock.calls[0][0];
     expect(prompt).toContain('Tell me about my Ferritin results.');
-    expect(prompt).toContain('2026-01-01: v100 ng/mL (follicular phase, ref v20–v100)');
-    expect(prompt).toContain('2026-03-01: v150 ng/mL (luteal phase, ref v40–v160)');
-    expect(prompt).toContain('Reference range: 30–200 ng/mL');
+    expect(prompt).toContain('2026-01-01: v100 ng/mL (follicular phase, predicted; ref v20–v100)');
+    expect(prompt).toContain('2026-03-01: v150 ng/mL (luteal phase, predicted; ref v40–v160)');
+    expect(prompt).toContain('Luteal range: 10–20 ng/mL');
     expect(prompt).toContain('Optimal range: 70–120');
     expect(prompt).toContain('Current status: optimal');
     expect(prompt).toContain('Trend: up 50% from previous.');

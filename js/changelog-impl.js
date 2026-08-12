@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.15.1', date: '2026-08-12', title: 'Better lab results and ranges',
+    items: [
+      '<b>More lab results are recognized and organized correctly.</b> Widely used markers and calculated ratios have been added, while ratios already present on a lab report no longer create duplicate results.',
+      '<b>Ranges are more useful without pretending to know more than they do.</b> Your lab\'s range takes priority, broader built-in guidance uses personal context when supported, and you can suggest a correction to a built-in range.',
+      '<b>Hormone results now understand cycle context.</b> When cycle timing is available, each blood draw can use a phase-specific range, while uncertain predictions are clearly labeled or safely left out.',
+      '<b>Charts and calculated results are easier to understand.</b> Cleaner chart labels, clearer statuses and explanations, and better handling of biological age reduce confusing or misleading results.',
+      '<b>Lab imports and demo data are easier to trust.</b> Collection time and fasting status can be extracted and reviewed without guessing, and Sarah\'s demo now has coherent hormone results and cycle timing.',
+    ]
+  },
+  {
     version: '1.15.0', date: '2026-08-10', title: 'A redesigned and expanded Genome',
     items: [
       '<b>Genome is clearer and easier to explore.</b> Findings now use simple risk, protective, trait, and reference associations, with deeper interpretation available only when you want it.',

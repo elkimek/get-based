@@ -7,7 +7,7 @@
 const BUILTIN_MARKER_ID_PREFIX = 'gb:marker:';
 
 /**
- * @typedef {[identityKey: string, currentDotKey: string, legacyDotKeys?: string[]]} MarkerIdentityRow
+ * @typedef {[identityKey: string, currentDotKey: string, legacyDotKeys?: string[], legacyIdentityKeys?: string[]]} MarkerIdentityRow
  */
 
 /** @type {MarkerIdentityRow[]} */
@@ -18,12 +18,18 @@ const IDENTITY_ROWS = [
   ['egfr', 'biochemistry.egfr'],
   ['uricAcid', 'biochemistry.uricAcid'],
   ['bilirubinTotal', 'biochemistry.bilirubinTotal'],
+  ['bilirubinDirect', 'biochemistry.bilirubinDirect'],
+  ['bilirubinIndirect', 'biochemistry.bilirubinIndirect'],
+  ['bicarbonate', 'biochemistry.bicarbonate'],
   ['ast', 'biochemistry.ast'],
   ['alt', 'biochemistry.alt'],
   ['alp', 'biochemistry.alp'],
   ['ggt', 'biochemistry.ggt'],
   ['ldh', 'biochemistry.ldh'],
   ['creatineKinase', 'biochemistry.creatineKinase'],
+  ['amylase', 'biochemistry.amylase'],
+  ['lipase', 'biochemistry.lipase'],
+  ['osmolality', 'biochemistry.osmolality'],
   ['lactate', 'biochemistry.lactate'],
   ['pyruvate', 'biochemistry.pyruvate'],
   ['cystatinC', 'biochemistry.cystatinC'],
@@ -40,8 +46,11 @@ const IDENTITY_ROWS = [
   ['calcitonin', 'hormones.calcitonin'],
   ['dht', 'hormones.dht'],
   ['igf1', 'hormones.igf1'],
-  ['insulin', 'hormones.insulin'],
   ['cortisol', 'hormones.cortisol'],
+  ['acth', 'hormones.acth'],
+  ['aldosterone', 'hormones.aldosterone'],
+  ['renin', 'hormones.renin'],
+  ['amh', 'hormones.amh'],
   ['androstenedione', 'hormones.androstenedione'],
   ['lh', 'hormones.lh'],
   ['fsh', 'hormones.fsh'],
@@ -53,11 +62,13 @@ const IDENTITY_ROWS = [
   ['potassium', 'electrolytes.potassium'],
   ['chloride', 'electrolytes.chloride'],
   ['calciumTotal', 'electrolytes.calciumTotal'],
+  ['calciumIonized', 'electrolytes.calciumIonized'],
   ['phosphorus', 'electrolytes.phosphorus'],
   ['magnesium', 'electrolytes.magnesium'],
   ['magnesiumRBC', 'electrolytes.magnesiumRBC'],
   ['copper', 'electrolytes.copper'],
   ['zinc', 'electrolytes.zinc'],
+  ['selenium', 'electrolytes.selenium'],
   ['cholesterol', 'lipids.cholesterol', [
     'lipids.totalCholesterol',
     'lipids.cholesterolTotal',
@@ -86,6 +97,8 @@ const IDENTITY_ROWS = [
   ['crp', 'proteins.crp'],
   ['totalProtein', 'proteins.totalProtein'],
   ['albumin', 'proteins.albumin'],
+  ['globulin', 'proteins.globulin'],
+  ['esr', 'proteins.esr'],
   ['ceruloplasmin', 'proteins.ceruloplasmin'],
   ['neurofilamentLight', 'proteins.neurofilamentLight'],
   ['tsh', 'thyroid.tsh'],
@@ -96,6 +109,8 @@ const IDENTITY_ROWS = [
   ['reverseT3', 'thyroid.reverseT3'],
   ['tpoAb', 'thyroid.tpoAb'],
   ['tgAb', 'thyroid.tgAb'],
+  ['trab', 'thyroid.trab'],
+  ['thyroglobulin', 'thyroid.thyroglobulin'],
   ['vitaminD', 'vitamins.vitaminD'],
   ['vitaminD3', 'vitamins.vitaminD3'],
   ['calcitriol', 'vitamins.calcitriol'],
@@ -104,14 +119,25 @@ const IDENTITY_ROWS = [
   ['activeB12', 'vitamins.activeB12'],
   ['methylmalonicAcid', 'vitamins.methylmalonicAcid'],
   ['folate', 'vitamins.folate'],
+  ['vitaminB1', 'vitamins.vitaminB1'],
+  ['vitaminB6', 'vitamins.vitaminB6'],
+  ['vitaminC', 'vitamins.vitaminC'],
+  ['vitaminE', 'vitamins.vitaminE'],
   ['hba1c', 'diabetes.hba1c'],
-  ['insulin_d', 'diabetes.insulin_d'],
+  ['insulin', 'diabetes.insulin', ['hormones.insulin', 'diabetes.insulin_d'], ['insulin_d']],
   ['cPeptide', 'diabetes.cPeptide', ['hormones.cPeptide']],
   ['fructosamine', 'diabetes.fructosamine'],
   ['homaIR', 'diabetes.homaIR'],
   ['psa', 'tumorMarkers.psa'],
   ['afp', 'tumorMarkers.afp'],
+  ['cea', 'tumorMarkers.cea'],
+  ['ca125', 'tumorMarkers.ca125'],
+  ['ca199', 'tumorMarkers.ca199'],
+  ['ca153', 'tumorMarkers.ca153'],
   ['homocysteine', 'coagulation.homocysteine'],
+  ['pt', 'coagulation.pt'],
+  ['inr', 'coagulation.inr'],
+  ['aptt', 'coagulation.aptt'],
   ['fibrinogen', 'coagulation.fibrinogen'],
   ['dDimer', 'coagulation.dDimer'],
   ['wbc', 'hematology.wbc'],
@@ -126,6 +152,9 @@ const IDENTITY_ROWS = [
   ['mpv', 'hematology.mpv'],
   ['pdw', 'hematology.pdw'],
   ['pct', 'hematology.pct'],
+  ['reticulocytes', 'hematology.reticulocytes'],
+  ['reticulocytesPct', 'hematology.reticulocytesPct'],
+  ['immatureGranulocytes', 'hematology.immatureGranulocytes'],
   ['neutrophils', 'differential.neutrophils'],
   ['lymphocytes', 'differential.lymphocytes'],
   ['monocytes', 'differential.monocytes'],
@@ -137,8 +166,19 @@ const IDENTITY_ROWS = [
   ['eosinophilsPct', 'differential.eosinophilsPct'],
   ['basophilsPct', 'differential.basophilsPct'],
   ['osteocalcin', 'boneMetabolism.osteocalcin'],
+  ['p1np', 'boneMetabolism.p1np'],
+  ['ctx', 'boneMetabolism.ctx'],
   ['ph', 'urinalysis.ph'],
   ['specificGravity', 'urinalysis.specificGravity'],
+  ['urineAlbumin', 'urinalysis.albumin'],
+  ['urineCreatinine', 'urinalysis.creatinine'],
+  ['albuminCreatinineRatio', 'urinalysis.albuminCreatinineRatio'],
+  ['urineTotalProtein', 'urinalysis.totalProtein'],
+  ['proteinCreatinineRatio', 'urinalysis.proteinCreatinineRatio'],
+  ['hsTroponinT', 'cardiac.hsTroponinT'],
+  ['hsTroponinI', 'cardiac.hsTroponinI'],
+  ['bnp', 'cardiac.bnp'],
+  ['ntProBnp', 'cardiac.ntProBnp'],
   ['bodyFatPct', 'bodyComposition.bodyFatPct'],
   ['leanMass', 'bodyComposition.leanMass'],
   ['fatMass', 'bodyComposition.fatMass'],
@@ -162,12 +202,19 @@ const IDENTITY_ROWS = [
   ['cholHdlRatio', 'calculatedRatios.cholHdlRatio', ['lipids.cholHdlRatio']],
   ['nlr', 'calculatedRatios.nlr'],
   ['plr', 'calculatedRatios.plr'],
+  ['mlr', 'calculatedRatios.mlr'],
   ['deRitisRatio', 'calculatedRatios.deRitisRatio'],
   ['copperZincRatio', 'calculatedRatios.copperZincRatio'],
   ['ft3ft4Ratio', 'calculatedRatios.ft3ft4Ratio'],
   ['bunCreatRatio', 'calculatedRatios.bunCreatRatio'],
   ['freeWaterDeficit', 'calculatedRatios.freeWaterDeficit'],
   ['crpHdlRatio', 'calculatedRatios.crpHdlRatio'],
+  ['atherogenicIndexPlasma', 'calculatedRatios.atherogenicIndexPlasma'],
+  ['tygIndex', 'calculatedRatios.tygIndex'],
+  ['albuminGlobulinRatio', 'calculatedRatios.albuminGlobulinRatio'],
+  ['fib4Index', 'calculatedRatios.fib4Index'],
+  ['systemicImmuneInflammationIndex', 'calculatedRatios.systemicImmuneInflammationIndex'],
+  ['anionGap', 'calculatedRatios.anionGap'],
   ['phenoAge', 'calculatedRatios.phenoAge'],
   ['bortzAge', 'calculatedRatios.bortzAge'],
   ['biologicalAge', 'calculatedRatios.biologicalAge'],
@@ -175,15 +222,17 @@ const IDENTITY_ROWS = [
 
 for (const row of IDENTITY_ROWS) {
   if (row[2]) Object.freeze(row[2]);
+  if (row[3]) Object.freeze(row[3]);
   Object.freeze(row);
 }
 
 const BUILTIN_MARKER_IDENTITY_ROWS = Object.freeze(IDENTITY_ROWS);
 
 export const BUILTIN_MARKER_IDENTITY_DEFINITIONS = Object.freeze(
-  BUILTIN_MARKER_IDENTITY_ROWS.map(([identityKey, currentDotKey, legacyDotKeys = []]) => Object.freeze({
+  BUILTIN_MARKER_IDENTITY_ROWS.map(([identityKey, currentDotKey, legacyDotKeys = [], legacyIdentityKeys = []]) => Object.freeze({
     id: `${BUILTIN_MARKER_ID_PREFIX}${identityKey}`,
     currentDotKey,
     legacyDotKeys: Object.freeze([...legacyDotKeys]),
+    legacyIds: Object.freeze(legacyIdentityKeys.map(key => `${BUILTIN_MARKER_ID_PREFIX}${key}`)),
   })),
 );

@@ -684,7 +684,7 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
         && closeCalls === 1
         && document.getElementById('chat-panel')?.classList.contains('open') === true
         && markerPrompt.includes('Trend: up')
-        && markerPrompt.includes('Optimal range')
+        && markerPrompt.includes('Optimal:')
         && state.chatThreads.some(thread => thread.name === 'Ferritin');
 
       state.selectedCorrelationMarkers = ['iron.ferritin', 'iron.transferrin'];

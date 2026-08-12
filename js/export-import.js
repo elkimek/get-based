@@ -134,7 +134,6 @@ export function importDataJSON(file) {
               : null;
             setLabEntryMarker(existing, key, value, {
               now: importTs,
-              mirrorInsulin: true,
               ...(source ? { source } : {}),
             });
           }

@@ -86,6 +86,10 @@ describe('moved marker editing compatibility', () => {
       date: '2026-08-01',
       storedValue: 5.4,
       noteText: 'fasting',
+      collectionContext: {
+        sampleTime: null,
+        fasting: null,
+      },
     });
   });
 });

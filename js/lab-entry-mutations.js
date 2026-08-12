@@ -74,7 +74,6 @@ export function deleteLabEntryMarkerValues(importedData, dotKey, opts = {}) {
   for (const entry of importedData.entries) {
     const result = deleteLabEntryMarker(entry, dotKey, {
       now,
-      mirrorInsulin: opts.mirrorInsulin,
       recordTombstone: opts.recordTombstone,
       stamp: opts.stamp,
     });

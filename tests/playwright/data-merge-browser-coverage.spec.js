@@ -37,7 +37,7 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
         updatedAt: 100,
         markers: {
           'biochemistry.glucose': 5,
-          'hormones.insulin': 8,
+          'diabetes.insulin': 8,
           'biochemistry.alp': 1.2,
         },
         markerSources: {
@@ -65,7 +65,7 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
     );
     outcomes.labEntryMergeKeepsFreshAndExistingMarkers =
       mergedEntry.markers?.['biochemistry.glucose'] === 5.5
-      && mergedEntry.markers?.['hormones.insulin'] === 8;
+      && mergedEntry.markers?.['diabetes.insulin'] === 8;
     outcomes.labEntryMergeAppliesMarkerTombstone =
       !Object.prototype.hasOwnProperty.call(mergedEntry.markers || {}, 'biochemistry.alp')
       && mergedEntry.deletedMarkers?.['biochemistry.alp'] === 250;

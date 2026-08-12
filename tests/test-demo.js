@@ -165,7 +165,7 @@ function invalidContextOptions(demoJson) {
   // ── 6. Service worker ──
   console.log('\n6. service-worker.js — Cache version');
   const swSrc = read('service-worker.js');
-  assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
+  assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js'"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 
   // ── 7. Demo profile feature coverage ──
@@ -178,8 +178,9 @@ function invalidContextOptions(demoJson) {
     for (const entry of sourceEntries) {
       if (!entry.date || !entry.markers) continue;
       const existing = findOrCreateLabEntry(data, entry.date, { now });
+      if (entry.context) existing.context = { ...(existing.context || {}), ...structuredClone(entry.context) };
       for (const [key, value] of Object.entries(entry.markers)) {
-        setLabEntryMarker(existing, key, value, { now, mirrorInsulin: true });
+        setLabEntryMarker(existing, key, value, { now });
       }
     }
     migrateProfileData(data);
@@ -255,15 +256,14 @@ function invalidContextOptions(demoJson) {
         `latest sun age=${Math.floor((DEMO_REFERENCE_NOW - latestSunAt) / DAY_MS)}d`);
 
       if (demo.sex === 'male') {
-        const metabolicEntries = (demoJson.entries || []).filter(entry => Number.isFinite(entry.markers?.['hormones.insulin']));
+        const metabolicEntries = (demoJson.entries || []).filter(entry => Number.isFinite(entry.markers?.['diabetes.insulin']));
         const badHoma = metabolicEntries.filter(entry => {
           const glucose = entry.markers?.['biochemistry.glucose'];
-          const insulin = entry.markers?.['hormones.insulin'];
-          const duplicateInsulin = entry.markers?.['diabetes.insulin_d'];
+          const insulin = entry.markers?.['diabetes.insulin'];
           const storedHoma = entry.markers?.['diabetes.homaIR'];
-          return insulin !== duplicateInsulin || Math.abs((glucose * insulin / 22.5) - storedHoma) > 0.015;
+          return Math.abs((glucose * insulin / 22.5) - storedHoma) > 0.015;
         });
-        assert('Demo Alex insulin duplicates and HOMA-IR are internally consistent',
+        assert('Demo Alex canonical insulin and HOMA-IR are internally consistent',
           badHoma.length === 0,
           badHoma.map(entry => entry.date).join(', '));
         assert('Demo Alex profile and sun setup use the same real-world location',
@@ -272,6 +272,47 @@ function invalidContextOptions(demoJson) {
             && demoJson.sunDefaults.coords.lat < 41
             && (demoJson.sunSessions || []).every(session => session.location?.label === 'Boulder, CO'));
       } else {
+        const hormoneDraws = Object.fromEntries((demoJson.entries || [])
+          .filter(entry => Number.isFinite(entry.markers?.['hormones.estradiol']))
+          .map(entry => [entry.date, entry]));
+        const expectedDrawContext = {
+          '2025-04-10': { day: 10, phase: 'follicular', detail: 'late_follicular' },
+          '2025-08-05': { day: 11, phase: 'follicular', detail: 'late_follicular' },
+          '2025-12-15': { day: 27, phase: 'luteal', detail: 'late_luteal' },
+          '2026-07-18': { day: 10, phase: 'follicular', detail: 'late_follicular' },
+        };
+        const contextErrors = Object.entries(expectedDrawContext).filter(([date, expected]) => {
+          const context = hormoneDraws[date]?.context;
+          return context?.cycleDay !== expected.day
+            || context?.cyclePhase !== expected.phase
+            || context?.cyclePhaseDetail !== expected.detail
+            || context?.cyclePhaseSource !== 'recorded'
+            || context?.fasting !== true
+            || !/^\d{2}:\d{2}$/.test(context?.sampleTime || '');
+        });
+        assert('Demo Sarah records collection and cycle context on every hormone draw',
+          contextErrors.length === 0,
+          contextErrors.map(([date]) => date).join(', '));
+        const follicularDates = ['2025-04-10', '2025-08-05', '2026-07-18'];
+        const implausibleFollicular = follicularDates.filter(date => {
+          const markers = hormoneDraws[date]?.markers || {};
+          return markers['hormones.estradiol'] < 46 || markers['hormones.estradiol'] > 609
+            || markers['hormones.progesterone'] < 0.32 || markers['hormones.progesterone'] > 2.86
+            || markers['hormones.lh'] < 2.4 || markers['hormones.lh'] > 12.6
+            || markers['hormones.fsh'] < 3.5 || markers['hormones.fsh'] > 12.5;
+        });
+        const lateLutealMarkers = hormoneDraws['2025-12-15']?.markers || {};
+        const lateLutealPlausible = lateLutealMarkers['hormones.estradiol'] >= 161
+          && lateLutealMarkers['hormones.estradiol'] <= 775
+          && lateLutealMarkers['hormones.progesterone'] >= 5.72
+          && lateLutealMarkers['hormones.progesterone'] <= 76
+          && lateLutealMarkers['hormones.lh'] >= 1
+          && lateLutealMarkers['hormones.lh'] <= 11.4
+          && lateLutealMarkers['hormones.fsh'] >= 1.7
+          && lateLutealMarkers['hormones.fsh'] <= 7.7;
+        assert('Demo Sarah hormone values are plausible for each recorded draw phase',
+          implausibleFollicular.length === 0 && lateLutealPlausible,
+          `follicular=${implausibleFollicular.join(', ')}, late luteal=${lateLutealPlausible}`);
         const periods = [...(demoJson.menstrualCycle?.periods || [])].sort((a, b) => a.startDate.localeCompare(b.startDate));
         const cadenceErrors = periods.slice(1).filter((period, index) =>
           (Date.parse(`${period.startDate}T00:00:00Z`) - Date.parse(`${periods[index].startDate}T00:00:00Z`)) / DAY_MS !== 29);
@@ -293,6 +334,17 @@ function invalidContextOptions(demoJson) {
       state.dateRangeFilter = 'all';
       invalidateActiveDataCache();
       const activeData = getActiveData();
+      if (demo.sex === 'female') {
+        const estradiol = activeData.categories.hormones.markers.estradiol;
+        const drawIndexes = activeData.dates
+          .map((date, index) => ['2025-04-10', '2025-08-05', '2025-12-15', '2026-07-18'].includes(date) ? index : -1)
+          .filter(index => index >= 0);
+        assert('Demo Sarah import keeps recorded phases and phase-specific hormone ranges',
+          drawIndexes.length === 4
+            && drawIndexes.every(index => estradiol.phaseSources?.[index] === 'recorded')
+            && drawIndexes.every(index => estradiol.phaseRefRanges?.[index]),
+          `draw indexes=${drawIndexes.join(', ')}, sources=${estradiol.phaseSources}`);
+      }
       const scores = computeBiologyScores(activeData).filter(score => score.id !== 'biologicalCoherence');
       const liveScores = scores.filter(score => score.score != null);
       assert(`${demo.label} computes every Biology Score detail card`,

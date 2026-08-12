@@ -1,6 +1,8 @@
 // @ts-check
 // biology-score-profile-modifiers.js — profile-aware score input modifiers.
 
+import { cortisolReferenceForSampleTime, parseSampleHour } from './marker-context-ranges.js';
+
 const LOW_MUSCLE_CONTEXT_PATHS = new Set(['biochemistry.creatinine', 'biochemistry.egfr', 'biochemistry.eGFR', 'calculatedRatios.bunCreatRatio']);
 const VITAMIN_D_PATHS = new Set(['vitamins.vitaminD', 'vitamins.vitaminD3', 'vitamins.vitaminD2']);
 const METHYLATION_CONTEXT_PATHS = new Set(['coagulation.homocysteine', 'vitamins.vitaminB12', 'vitamins.activeB12', 'vitamins.folate']);
@@ -44,46 +46,6 @@ function isHormonalContraception(value) {
   if (!text) return false;
   if (NON_HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term))) return false;
   return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
-}
-
-function parseSampleHour(value) {
-  if (value == null || value === '') return null;
-  if (typeof value === 'number' && Number.isFinite(value)) return value >= 0 && value < 24 ? value : null;
-  const text = String(value).trim().toLowerCase();
-  if (!text) return null;
-  const hasAm = /(^|[^a-z])a\.?m\.?(?=$|[^a-z])/.test(text);
-  const hasPm = /(^|[^a-z])p\.?m\.?(?=$|[^a-z])/.test(text);
-  if (text.includes('morning') || hasAm) {
-    const m = text.match(/(\d{1,2})(?::(\d{2}))?/);
-    if (m) {
-      let h = Number(m[1]);
-      if (hasPm && h < 12) h += 12;
-      return h >= 0 && h < 24 ? h : null;
-    }
-    return text.includes('morning') ? 8 : null;
-  }
-  if (text.includes('afternoon')) return 14;
-  if (text.includes('evening')) return 20;
-  const m = text.match(/(\d{1,2})(?::(\d{2}))?/);
-  if (!m) return null;
-  let h = Number(m[1]);
-  if (hasPm && h < 12) h += 12;
-  if (hasAm && h === 12) h = 0;
-  return h >= 0 && h < 24 ? h : null;
-}
-
-function cortisolRangeForSampleTime(sampleTime, unit = '') {
-  const hour = parseSampleHour(sampleTime);
-  if (hour == null) return null;
-  const siRange = hour >= 5 && hour < 11
-    ? { min: 140, max: 620 }
-    : hour >= 11 && hour < 17
-      ? { min: 70, max: 300 }
-      : { min: 0, max: 150 };
-  if (String(unit || '').toLowerCase().includes('µg/dl') || String(unit || '').toLowerCase().includes('ug/dl')) {
-    return { min: Number((siRange.min * 0.03625).toPrecision(4)), max: Number((siRange.max * 0.03625).toPrecision(4)) };
-  }
-  return siRange;
 }
 
 function isCyclingFemale(profileContext, entryContext) {
@@ -163,9 +125,9 @@ export function getInputProfileModifier(hit, input, profileContext) {
   }
 
   if (dotKey === 'hormones.cortisol' || dotKey === 'biostarksHormone.cortisol') {
-    const range = cortisolRangeForSampleTime(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime || hit?.sampleTime, hit?.unit);
-    if (!range) return contextOnly(`${hit.label || input.label} needs sample time before a single-point cortisol value can be scored reliably.`, sexScale);
-    return { score: true, flag: `${hit.label || input.label} scored against sample-time range (${entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime}).`, weightScale: sexScale, rangeOverride: range };
+    const guidance = cortisolReferenceForSampleTime(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime || hit?.sampleTime, hit?.unit);
+    if (!guidance) return contextOnly(`${hit.label || input.label} needs sample time before a single-point cortisol value can be scored reliably.`, sexScale);
+    return { score: true, flag: `${hit.label || input.label} scored against sample-time range (${entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime}).`, weightScale: sexScale, rangeOverride: guidance.range };
   }
 
   if (dotKey === 'biochemistry.creatineKinase' && (profileContext?.recentHardTraining || entryContext.recentHardTraining)) {

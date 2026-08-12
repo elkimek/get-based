@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-calculated-markers.js — PhenoAge, Bortz Age, Biological Age, BUN/Creat, Free Water Deficit, hs-CRP/HDL
+// test-calculated-markers.js — biological ages and clinical/wellness derived markers
 //
 // Run: node tests/test-calculated-markers.js  (or via npm test)
 
@@ -40,6 +40,7 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   const origDob = state.profileDob;
   const origUnit = state.unitSystem;
   const origBio = state.importedData.biometrics;
+  const origRefOverrides = state.importedData.refOverrides;
 
   // ═══════════════════════════════════════
   // 1. PhenoAge (Levine 2018)
@@ -72,13 +73,15 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   let data = dataModule.getActiveData();
   let phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
 
-  // Expected: xb = -19.907 - 0.0336*45 + 0.0095*80 + 0.1953*5.5 + 0.0954*ln(1.5)
-  //   - 0.0120*0.30 + 0.0268*90 + 0.3306*13.0 + 0.00188*1.2 + 0.0554*6.5 + 0.0804*45
+  // The published mixed-unit equation receives CRP=0.15 mg/dL,
+  // lymphocytes=30%, and ALP=72 U/L after schema-unit conversion.
+  // Expected: xb = -19.907 - 0.0336*45 + 0.0095*80 + 0.1953*5.5 + 0.0954*ln(0.15)
+  //   - 0.0120*30 + 0.0268*90 + 0.3306*13.0 + 0.00188*72 + 0.0554*6.5 + 0.0804*45
   // mortalityScore = 1 - exp(-exp(xb) * (exp(120*0.0076927)-1) / 0.0076927)
   // phenoAge = 141.50225 + ln(-0.00553 * ln(1-mortalityScore)) / 0.090165
-  // Result: 44.2 years
+  // Result: 39.3 years
   assert('PhenoAge computes with all 9 markers', phenoVal != null, `got ${phenoVal}`);
-  assert('PhenoAge value is 44.2', phenoVal === 44.2, `expected 44.2, got ${phenoVal}`);
+  assert('PhenoAge value is 39.3', phenoVal === 39.3, `expected 39.3, got ${phenoVal}`);
   assert('PhenoAge is younger than chronological age (45)', phenoVal < 45, `${phenoVal} should be < 45`);
 
   // ── PhenoAge: missing one biomarker → null ──
@@ -148,11 +151,14 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   assert('PhenoAge is null when only standard CRP is provided (no fallback)', phenoVal == null, `got ${phenoVal}`);
 
-  // ── PhenoAge: coefficients are SI-calibrated ──
-  // Verify the formula structure by checking source code contains the Levine 2018 coefficients
-  const dataSrc = await fetch('js/data.js').then(r => r.text());
-  assert('PhenoAge uses SI albumin coeff -0.0336', dataSrc.includes('0.0336  * albumin_si'));
-  assert('PhenoAge uses SI creatinine coeff 0.0095', dataSrc.includes('0.0095  * creatinine_si'));
+  // ── PhenoAge: published mixed units are converted from canonical storage ──
+  // Verify the formula structure by checking source code contains the Levine 2018 coefficients and conversions.
+  const dataSrc = await fetch('js/data-calculated-markers.js').then(r => r.text());
+  assert('PhenoAge uses albumin coeff -0.0336', dataSrc.includes('0.0336  * albumin_si'));
+  assert('PhenoAge uses creatinine coeff 0.0095', dataSrc.includes('0.0095  * creatinine_si'));
+  assert('PhenoAge converts hs-CRP mg/L to mg/dL', dataSrc.includes('const crp_mgdl = crp_si / 10'));
+  assert('PhenoAge converts lymphocyte fraction to percent', dataSrc.includes('const lymphPct = lymphPct_si * 100'));
+  assert('PhenoAge converts ALP µkat/L to U/L', dataSrc.includes('const alp_ul = alp_si * 60'));
   assert('PhenoAge uses Levine mortality constant 0.0076927', dataSrc.includes('0.0076927'));
   assert('PhenoAge uses Levine age-to-pheno constant 141.50225', dataSrc.includes('141.50225'));
   assert('PhenoAge uses Levine inverse constant 0.090165', dataSrc.includes('0.090165'));
@@ -279,9 +285,9 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   const phenoCheck = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   const bortzCheck = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
 
-  // biologicalAge = (phenoAge + bortzAge) / 2 = (44.2 + 45.7) / 2 = 45.0
+  // biologicalAge = (phenoAge + bortzAge) / 2 = (39.3 + 45.7) / 2 = 42.5
   assert('Biological Age is average of PhenoAge + Bortz', bioAge != null, `got ${bioAge}`);
-  assert('Biological Age is 45.0', bioAge === 45.0, `expected 45.0, got ${bioAge}`);
+  assert('Biological Age is 42.5', bioAge === 42.5, `expected 42.5, got ${bioAge}`);
   assert('Biological Age equals (PhenoAge + Bortz) / 2',
     bioAge === Math.round(((phenoCheck + bortzCheck) / 2) * 10) / 10,
     `${bioAge} vs (${phenoCheck} + ${bortzCheck}) / 2`);
@@ -390,8 +396,19 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   }];
 
   data = dataModule.getActiveData();
-  const fwd = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
+  const fwdMarker = data.categories.calculatedRatios?.markers?.freeWaterDeficit;
+  const fwd = fwdMarker?.values?.[0];
   assert('FWD computes for male with weight', fwd === 1.71, `expected 1.71, got ${fwd}`);
+  assert('FWD exposes zero as its target instead of remaining unrated',
+    fwdMarker?.rangePolicy === 'target' && fwdMarker.refMin === 0 && fwdMarker.refMax === 0,
+    JSON.stringify(fwdMarker));
+
+  state.importedData.biometrics = { weight: [{ date: '2025-06-01', value: 176.3698, unit: 'lbs' }], bp: [], pulse: [] };
+  data = dataModule.getActiveData();
+  const fwdLegacyPounds = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
+  assert('FWD canonicalizes a legacy pounds weight fallback', fwdLegacyPounds === 1.71,
+    `expected 1.71, got ${fwdLegacyPounds}`);
+  state.importedData.biometrics = { weight: [{ date: '2025-06-01', value: 80, unit: 'kg' }], bp: [], pulse: [] };
 
   // ── FWD: female → uses 0.5 TBW factor ──
   state.profileSex = 'female';
@@ -440,7 +457,7 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   data = dataModule.getActiveData();
   const fwdNeg = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   // 70 × 0.6 × (130/140 - 1) = 42 × (-0.07143) = -3.0
-  assert('FWD is negative for low sodium (overhydration)', fwdNeg < 0, `got ${fwdNeg}`);
+  assert('FWD is negative for low sodium (an algebraic water-excess signal)', fwdNeg < 0, `got ${fwdNeg}`);
   assert('FWD value correct for Na=130', fwdNeg === -3.0, `expected -3.0, got ${fwdNeg}`);
 
   // ═══════════════════════════════════════
@@ -463,18 +480,14 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   // 1.5 / (1.5 × 38.67) = 1.5 / 58.005 = 0.0259
   assert('CRP/HDL ratio computes correctly', crpHdl === 0.0259, `expected 0.0259, got ${crpHdl}`);
 
-  // ── CRP/HDL: optimal threshold < 0.24 ──
-  assert('CRP/HDL 0.0259 is under optimal 0.24', crpHdl < 0.24, `${crpHdl} should be < 0.24`);
-
-  // ── CRP/HDL: ref range from schema ──
+  // The built-in band uses the same unscaled convention as the calculation.
   const crpHdlMarker = data.categories.calculatedRatios?.markers?.crpHdlRatio;
-  assert('CRP/HDL refMax is 0.94', crpHdlMarker?.refMax === 0.94, `got ${crpHdlMarker?.refMax}`);
-
-  // ── CRP/HDL: optimal range from OPTIMAL_RANGES ──
-  // OPTIMAL_RANGES['calculatedRatios.crpHdlRatio'] = { optimalMin: 0, optimalMax: 0.24 }
-  const schemaSrc = await fetch('js/schema.js').then(r => r.text());
-  assert('CRP/HDL optimal max is 0.24 in schema',
-    schemaSrc.includes("'calculatedRatios.crpHdlRatio': { optimalMin: 0, optimalMax: 0.24 }"));
+  assert('CRP/HDL exposes a conservative population baseline in the calculation convention',
+    crpHdlMarker?.rangePolicy === 'guidance'
+      && crpHdlMarker.refMin === 0
+      && crpHdlMarker.refMax === 0.05
+      && OPTIMAL_RANGES['calculatedRatios.crpHdlRatio']?.optimalMin === 0
+      && OPTIMAL_RANGES['calculatedRatios.crpHdlRatio']?.optimalMax === 0.02);
 
   // ── CRP/HDL: HDL = 0 → null ──
   state.importedData.entries = [{
@@ -581,10 +594,11 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   assert('LDL/HDL ratio is 2.0', cr?.ldlHdlRatio?.values?.[0] === 2.0,
     `expected 2.0, got ${cr?.ldlHdlRatio?.values?.[0]}`);
 
-  // Total Chol/HDL = 4.5/1.5 = 3.0; computed component ratio wins over a direct imported ratio.
-  assert('Total Chol/HDL ratio is computed from components when available',
-    cr?.cholHdlRatio?.values?.[0] === 3.0,
-    `expected 3.0, got ${cr?.cholHdlRatio?.values?.[0]}`);
+  // The report's explicit ratio remains authoritative for this draw even when
+  // the app can independently calculate a slightly different value.
+  assert('Lab-reported Total Chol/HDL ratio wins without creating a second ratio',
+    cr?.cholHdlRatio?.values?.[0] === 9.9,
+    `expected 9.9, got ${cr?.cholHdlRatio?.values?.[0]}`);
 
   // ApoB/ApoAI = 1.0/1.5 = 0.667
   assert('ApoB/ApoAI ratio is 0.667', cr?.apoBapoAIRatio?.values?.[0] === 0.667,
@@ -649,6 +663,167 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
     directCholHdl === 3.4, `expected 3.4, got ${directCholHdl}`);
 
   // ═══════════════════════════════════════
+  // 9. Added broadly used calculated markers
+  // ═══════════════════════════════════════
+  console.log('%c 9. Added Calculated Markers ', 'font-weight:bold;color:#f59e0b');
+
+  state.profileDob = '1980-06-15';
+  state.importedData.entries = [{
+    date: '2025-06-15',
+    markers: {
+      'lipids.triglycerides': 1.5,
+      'lipids.hdl': 1.2,
+      'biochemistry.glucose': 5.5,
+      'proteins.albumin': 45,
+      'proteins.globulin': 25,
+      'proteins.totalProtein': 72,
+      'biochemistry.ast': 0.5,
+      'biochemistry.alt': 0.6,
+      'hematology.platelets': 250,
+      'differential.neutrophils': 4,
+      'differential.lymphocytes': 2,
+      'differential.monocytes': 0.5,
+      'electrolytes.sodium': 140,
+      'electrolytes.chloride': 103,
+      'biochemistry.bicarbonate': 25,
+    }
+  }, {
+    date: '2025-07-15',
+    markers: {
+      'biochemistry.ast': 0.5,
+      'biochemistry.alt': 0.6,
+      'hematology.platelets': 250,
+      'calculatedRatios.fib4Index': 9.9,
+    },
+  }];
+
+  data = dataModule.getActiveData();
+  const added = data.categories.calculatedRatios?.markers;
+  assert('AIP uses log10 of the molar TG/HDL ratio',
+    added?.atherogenicIndexPlasma?.values?.[0] === 0.097,
+    `expected 0.097, got ${added?.atherogenicIndexPlasma?.values?.[0]}`);
+  assert('TyG converts canonical SI inputs to the published mg/dL formula',
+    added?.tygIndex?.values?.[0] === 8.792,
+    `expected 8.792, got ${added?.tygIndex?.values?.[0]}`);
+  assert('Albumin/globulin uses measured globulin when available',
+    added?.albuminGlobulinRatio?.values?.[0] === 1.8,
+    `expected 1.8, got ${added?.albuminGlobulinRatio?.values?.[0]}`);
+  assert('FIB-4 converts AST and ALT from µkat/L to U/L',
+    added?.fib4Index?.values?.[0] === 0.9,
+    `expected 0.9, got ${added?.fib4Index?.values?.[0]}`);
+  assert('Lab-reported FIB-4 wins over the independently calculated value on the same draw',
+    added?.fib4Index?.values?.[1] === 9.9,
+    `expected 9.9, got ${added?.fib4Index?.values?.[1]}`);
+  assert('SII is platelets × neutrophils / lymphocytes',
+    added?.systemicImmuneInflammationIndex?.values?.[0] === 500,
+    `expected 500, got ${added?.systemicImmuneInflammationIndex?.values?.[0]}`);
+  assert('MLR is monocytes / lymphocytes and uses a sex-aware population interval',
+    added?.mlr?.values?.[0] === 0.25
+      && MARKER_SCHEMA.calculatedRatios.markers.mlr.refMin === 0.14
+      && MARKER_SCHEMA.calculatedRatios.markers.mlr.refMax === 0.51,
+    JSON.stringify(added?.mlr));
+  assert('Anion gap excludes potassium',
+    added?.anionGap?.values?.[0] === 12,
+    `expected 12, got ${added?.anionGap?.values?.[0]}`);
+  assert('Calculated indices expose evidence-bounded wellness guidance',
+    OPTIMAL_RANGES['calculatedRatios.atherogenicIndexPlasma']?.optimalMax === 0.11
+      && OPTIMAL_RANGES['calculatedRatios.tygIndex']?.optimalMax === 8.6
+      && MARKER_SCHEMA.calculatedRatios.markers.tygIndex.rangePolicy === 'guidance'
+      && MARKER_SCHEMA.calculatedRatios.markers.fib4Index.rangePolicy === 'guidance'
+      && MARKER_SCHEMA.calculatedRatios.markers.systemicImmuneInflammationIndex.rangePolicy === 'guidance'
+      && MARKER_SCHEMA.calculatedRatios.markers.anionGap.refMin === 5
+      && MARKER_SCHEMA.calculatedRatios.markers.anionGap.refMax === 12);
+  assert('Age-aware population guidance is attached to immune ratios',
+    added?.nlr?.contextRefRanges?.[0]?.min === 0.8
+      && added?.nlr?.contextRefRanges?.[0]?.max === 3.44
+      && added?.plr?.contextRefRanges?.[0]?.min === 62
+      && added?.plr?.contextRefRanges?.[0]?.max === 211
+      && added?.systemicImmuneInflammationIndex?.contextRefRanges?.[0]?.min === 189
+      && added?.systemicImmuneInflammationIndex?.contextRefRanges?.[0]?.max === 1063);
+  assert('FIB-4 uses the AASLD age 35–64 threshold at the draw date',
+    dataModule.getEffectiveRangeForDate(added.fib4Index, 0, 'reference').max === 1.3
+      && added.fib4Index.contextRangeLabels?.[0] === 'AASLD threshold (35–64)');
+
+  state.profileDob = '1955-06-15';
+  dataModule.invalidateActiveDataCache();
+  data = dataModule.getActiveData();
+  const olderGuidance = data.categories.calculatedRatios.markers;
+  assert('FIB-4 switches to the age-65+ cutoff at the draw date',
+    dataModule.getEffectiveRangeForDate(olderGuidance.fib4Index, 0, 'reference').max === 2
+      && olderGuidance.fib4Index.contextRangeLabels?.[0] === 'AASLD threshold (65+)');
+  assert('SII switches to the age 65–74 population interval',
+    olderGuidance.systemicImmuneInflammationIndex.contextRefRanges?.[0]?.min === 186
+      && olderGuidance.systemicImmuneInflammationIndex.contextRefRanges?.[0]?.max === 1131);
+
+  state.profileSex = 'female';
+  state.profileDob = '1980-06-15';
+  dataModule.invalidateActiveDataCache();
+  data = dataModule.getActiveData();
+  assert('TyG falls back to sex-aware guidance when fasting is not contradicted',
+    data.categories.calculatedRatios.markers.tygIndex.refMax === 8.6
+      && dataModule.getEffectiveRangeForDate(data.categories.calculatedRatios.markers.tygIndex, 0, 'reference').max === 8.6);
+
+  state.importedData.entries = [{
+    date: '2025-06-15',
+    context: { fasting: false },
+    markers: {
+      'lipids.triglycerides': 1.5,
+      'biochemistry.glucose': 5.5,
+    }
+  }];
+  data = dataModule.getActiveData();
+  const nonFastingTyg = data.categories.calculatedRatios.markers.tygIndex;
+  assert('Known non-fasting TyG remains visible but is not rated against fasting guidance',
+    nonFastingTyg.values?.[0] != null
+      && dataModule.getEffectiveRangeForDate(nonFastingTyg, 0, 'reference').max == null
+      && dataModule.getEffectiveRangeForDate(nonFastingTyg, 0, 'optimal').max == null
+      && nonFastingTyg.contextRangeLabels?.[0] === 'Requires fasting sample');
+
+  state.profileDob = '2000-06-15';
+  state.importedData.entries = [{
+    date: '2025-06-15',
+    markers: { 'calculatedRatios.fib4Index': 1.1 }
+  }];
+  data = dataModule.getActiveData();
+  const youngFib4 = data.categories.calculatedRatios.markers.fib4Index;
+  assert('FIB-4 is not rated below age 35',
+    dataModule.getEffectiveRangeForDate(youngFib4, 0, 'reference').max == null
+      && youngFib4.contextRangeLabels?.[0] === 'Not validated under 35');
+
+  state.profileDob = '1955-06-15';
+  state.importedData.refOverrides = {
+    ...(state.importedData.refOverrides || {}),
+    'calculatedRatios.fib4Index': { refMin: 0, refMax: 9, refSource: 'import' },
+  };
+  dataModule.invalidateActiveDataCache();
+  data = dataModule.getActiveData();
+  const labRangeFib4 = data.categories.calculatedRatios.markers.fib4Index;
+  assert('Report-provided FIB-4 range takes priority over built-in age guidance',
+    !labRangeFib4.contextRefRanges
+      && dataModule.getEffectiveRangeForDate(labRangeFib4, 0, 'reference').max === 9
+      && dataModule.getEffectiveRangeLabelForDate(labRangeFib4, 0, 'reference') === 'Lab reference');
+  delete state.importedData.refOverrides['calculatedRatios.fib4Index'];
+  state.profileSex = 'male';
+  state.profileDob = '1980-06-15';
+
+  state.importedData.entries = [{
+    date: '2025-06-15',
+    markers: {
+      'proteins.albumin': 45,
+      'proteins.totalProtein': 70,
+      'calculatedRatios.fib4Index': 1.7,
+    }
+  }];
+  data = dataModule.getActiveData();
+  const fallback = data.categories.calculatedRatios?.markers;
+  assert('Albumin/globulin derives globulin from total protein when needed',
+    fallback?.albuminGlobulinRatio?.values?.[0] === 1.8,
+    `expected 1.8, got ${fallback?.albuminGlobulinRatio?.values?.[0]}`);
+  assert('Direct reported FIB-4 is retained when components are unavailable',
+    fallback?.fib4Index?.values?.[0] === 1.7,
+    `expected 1.7, got ${fallback?.fib4Index?.values?.[0]}`);
+
+  // ═══════════════════════════════════════
   // Cleanup
   // ═══════════════════════════════════════
   state.importedData.entries = origEntries;
@@ -656,6 +831,7 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   state.profileDob = origDob;
   state.unitSystem = origUnit;
   state.importedData.biometrics = origBio;
+  state.importedData.refOverrides = origRefOverrides;
 
   // ═══════════════════════════════════════
   // Summary

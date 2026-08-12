@@ -2133,7 +2133,7 @@ await import('../js/settings.js');
       synthFn('biochemistry.glucose:2026-05-03') !== synthFn('biochemistry.sodium:2026-05-03'));
     {
       const profileId = 'sync-test-manual-values-null-clear';
-      const rawKey = 'diabetes.insulin_d:2026-05-03';
+      const rawKey = 'diabetes.insulin:2026-05-03';
       const itemId = rawKey.replace(/_/g, '__').replace(/:/g, '_');
       const snapshotKey = `labcharts-${profileId}-delta-manualValues`;
       const metaKey = `${snapshotKey}-meta`;

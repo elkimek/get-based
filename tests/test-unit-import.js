@@ -83,8 +83,8 @@ const importCssSrc = read('css/import.css');
   assert('JSON import preserves markerSources.at instead of stamping wall-clock time',
     /\? \{ \.\.\.entry\.markerSources\[key\] \}/.test(jsonImportBlock)
       && !/\? \{ \.\.\.entry\.markerSources\[key\], at: importTs \}/.test(jsonImportBlock));
-  assert('JSON import mirrors insulin through shared lab entry helper',
-    /setLabEntryMarker\(existing, key, value,[\s\S]{0,180}mirrorInsulin: true/.test(jsonImportBlock));
+  assert('JSON import canonicalizes insulin through the shared lab entry helper',
+    /setLabEntryMarker\(existing, key, value,/.test(jsonImportBlock));
   assert('JSON import implementation loads only on the first import action',
     !exportSrc.includes("from './export-import.js'")
       && exportSrc.includes("import('./export-import.js')")
@@ -112,8 +112,8 @@ const importCssSrc = read('css/import.css');
     /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
   assert('Settings Data rename refreshes only after successful save',
     /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
-  assert('Settings Data Review & Edit lazy-loads pdf-import module before opening snapshot review',
-    /loadPdfImport\(\)[\s\S]{0,160}closeSettingsModal\(\)[\s\S]{0,120}openImportReviewFromSnapshot\(actionEl\.dataset\.snapId/.test(settingsSrc)
+  assert('Settings Data Review & Edit lazy-loads the complete import UI before opening snapshot review',
+    /loadImportUI\(\)[\s\S]{0,160}closeSettingsModal\(\)[\s\S]{0,120}openImportReviewFromSnapshot\(actionEl\.dataset\.snapId/.test(settingsSrc)
       && /data-settings-action=\"review-import\"/.test(settingsDataSrc));
   assert('Settings Data import rows use wrapping metadata layout classes',
     settingsDataSrc.includes('imported-entry-snapshot')
@@ -138,9 +138,9 @@ const importCssSrc = read('css/import.css');
   assert('Settings Data does not classify a date row as legacy only because importedWith is missing',
     !/if \(isFullyManual \|\| !entry\.importedWith\)/.test(settingsDataSrc));
   assert('Re-review tombstones an emptied old snapshot entry before deleting it',
-    /if \(isReReview\)[\s\S]{0,1200}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
+    /if \(isReReview\)[\s\S]{0,1500}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
   assert('Re-review purges manual value overrides for removed old snapshot markers',
-    /if \(isReReview\)[\s\S]{0,700}const manualValues = state\.importedData\.manualValues \|\| \{\}/.test(confirmBlock)
+    /if \(isReReview\)[\s\S]{0,1200}const manualValues = state\.importedData\.manualValues \|\| \{\}/.test(confirmBlock)
       && /k\.endsWith\(':' \+ oldSnapshot\.date\)[\s\S]{0,120}removedKeys\.includes\(k\.split\(':'\)\[0\]\)[\s\S]{0,80}delete manualValues\[k\]/.test(confirmBlock));
   assert('Re-review upserts a snapshot row when the original snapshot was concurrently deleted',
     /if \(isReReview\)[\s\S]{0,260}clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapshotId\)/.test(confirmBlock)
@@ -158,9 +158,9 @@ const importCssSrc = read('css/import.css');
       && /recordTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapId\)/.test(confirmBlock)
       && /deleteImportedArrayItems\(state\.importedData,\s*['"]importSnapshots['"]/.test(confirmBlock));
   assert('Snapshot marker deletes use lab-entry tombstones and HOMA-IR recalculation',
-    /import \{ deleteLabEntryMarker,/.test(commitSrc)
-      && /deleteLabEntryMarker\(oldEntry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
-      && /deleteLabEntryMarker\(entry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
+    /import \{[\s\S]{0,220}deleteLabEntryMarker,[\s\S]{0,220}from ['"]\.\/lab-entry\.js['"]/.test(commitSrc)
+      && /deleteLabEntryMarker\(oldEntry, key, \{ now: importTs \}\)/.test(confirmBlock)
+      && /deleteLabEntryMarker\(entry, key\)/.test(confirmBlock)
       && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock));
   assert('Snapshot delete/re-review restores latest remaining same-date snapshot marker value',
     /function findLatestRestorableSnapshotMarker/.test(confirmBlock)
@@ -173,7 +173,7 @@ const importCssSrc = read('css/import.css');
       && /k\.endsWith\(':' \+ snapshot\.date\)[\s\S]{0,120}removedKeys\.includes\(k\.split\(':'\)\[0\]\)[\s\S]{0,80}delete manualValues\[k\]/.test(confirmBlock));
   assert('Legacy mixed-entry delete uses lab-entry tombstones and HOMA-IR recalculation',
     /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
-      && /deleteLabEntryMarker\(entry, k,[\s\S]{0,80}mirrorInsulin:\s*true/.test(removeBlock)
+      && /deleteLabEntryMarker\(entry, k, \{ now \}\)/.test(removeBlock)
       && !/delete\s+entry\.markers\[k\]/.test(removeBlock));
 
   assert('Review snapshot modal tolerates stored costInfo without a cost field',
@@ -472,8 +472,28 @@ const importCssSrc = read('css/import.css');
   };
   try {
     const markerRef = buildMarkerReference();
-    assert('Import reference exposes canonical calculated Chol/HDL ratio only',
-      markerRef['calculatedRatios.cholHdlRatio'] != null
+    const reportableCalculatedKeys = [
+      'calculatedRatios.tgHdlRatio',
+      'calculatedRatios.ldlHdlRatio',
+      'calculatedRatios.apoBapoAIRatio',
+      'calculatedRatios.cholHdlRatio',
+      'calculatedRatios.nlr',
+      'calculatedRatios.plr',
+      'calculatedRatios.mlr',
+      'calculatedRatios.deRitisRatio',
+      'calculatedRatios.copperZincRatio',
+      'calculatedRatios.ft3ft4Ratio',
+      'calculatedRatios.bunCreatRatio',
+      'calculatedRatios.crpHdlRatio',
+      'calculatedRatios.atherogenicIndexPlasma',
+      'calculatedRatios.tygIndex',
+      'calculatedRatios.albuminGlobulinRatio',
+      'calculatedRatios.fib4Index',
+      'calculatedRatios.systemicImmuneInflammationIndex',
+      'calculatedRatios.anionGap',
+    ];
+    assert('Import reference exposes every reportable calculated ratio under its canonical key',
+      reportableCalculatedKeys.every(key => markerRef[key] != null)
       && markerRef['lipids.cholHdlRatio'] == null);
     const importMarkers = [
       { rawName: 'S Glukóza', value: 4.56, unit: 'mmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.glukoza' },
@@ -514,10 +534,10 @@ const importCssSrc = read('css/import.css');
       importMarkers[5].matched && importMarkers[5].mappedKey === 'urinalysis.ph');
     assert('Serum total protein reconciles to proteins.totalProtein',
       importMarkers[6].matched && importMarkers[6].mappedKey === 'proteins.totalProtein');
-    assert('Urine total protein is demoted instead of overwriting serum total protein',
-      !importMarkers[7].matched
-      && importMarkers[7].mappedKey === null
-      && importMarkers[7].suggestedKey === 'urinalysis.totalProtein');
+    assert('Urine total protein reconciles to the quantitative urinalysis marker',
+      importMarkers[7].matched
+      && importMarkers[7].mappedKey === 'urinalysis.totalProtein'
+      && importMarkers[7].suggestedKey === null);
     assert('Existing product-specific custom key is matched, not new',
       importMarkers[8].matched && importMarkers[8].mappedKey === 'spadiaFA.epaC20_5');
     assert('Unit suffix in marker label does not create duplicate ALP marker',
@@ -547,6 +567,37 @@ const importCssSrc = read('css/import.css');
     assert('Lab-reported total cholesterol/HDL ratio maps to canonical calculated ratio key',
       importMarkers[20].matched && importMarkers[20].mappedKey === 'calculatedRatios.cholHdlRatio',
       JSON.stringify(importMarkers[20]));
+    const calculatedMarkers = [
+      { rawName: 'TG/HDL Ratio', value: 1.2, unit: '', matched: false, mappedKey: null, suggestedKey: 'biochemistry.tgHdl' },
+      { rawName: 'Neutrophil-to-Lymphocyte Ratio', value: 2.1, unit: '', matched: false, mappedKey: null, suggestedKey: 'hematology.nlr' },
+      { rawName: 'AST/ALT Ratio', value: 0.9, unit: '', matched: false, mappedKey: null, suggestedKey: 'biochemistry.astAlt' },
+      { rawName: 'BUN/Creatinine Ratio', value: 17, unit: '', matched: false, mappedKey: null, suggestedKey: 'biochemistry.bunCreat' },
+      { rawName: 'hs-CRP/HDL-C Ratio', value: 0.03, unit: '', matched: false, mappedKey: null, suggestedKey: 'biochemistry.crpHdl' },
+      { rawName: 'Atherogenic Index of Plasma', value: 0.15, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.aip' },
+      { rawName: 'TyG Index', value: 8.7, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.tyg' },
+      { rawName: 'Albumin/Globulin Ratio', value: 1.8, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.agr' },
+      { rawName: 'FIB-4 Index', value: 1.1, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.fib4' },
+      { rawName: 'Systemic Immune-Inflammation Index', value: 450, unit: '10^9/l', matched: false, mappedKey: null, suggestedKey: 'custom.sii' },
+      { rawName: 'Monocyte-to-Lymphocyte Ratio', value: 0.25, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.mlr' },
+      { rawName: 'Anion Gap', value: 11, unit: 'mmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.anionGap' },
+    ];
+    reconcileImportMarkerMappings(calculatedMarkers, { testType: 'blood' });
+    assert('Lab-reported added calculations map to canonical calculated keys',
+      calculatedMarkers.map(marker => marker.mappedKey).join(',') === [
+        'calculatedRatios.tgHdlRatio',
+        'calculatedRatios.nlr',
+        'calculatedRatios.deRitisRatio',
+        'calculatedRatios.bunCreatRatio',
+        'calculatedRatios.crpHdlRatio',
+        'calculatedRatios.atherogenicIndexPlasma',
+        'calculatedRatios.tygIndex',
+        'calculatedRatios.albuminGlobulinRatio',
+        'calculatedRatios.fib4Index',
+        'calculatedRatios.systemicImmuneInflammationIndex',
+        'calculatedRatios.mlr',
+        'calculatedRatios.anionGap',
+      ].join(','),
+      JSON.stringify(calculatedMarkers));
     const gutMarkers = [
       { rawName: 'Fecal Calprotectin', value: 20, unit: 'µg/g', matched: false, mappedKey: null, suggestedKey: 'custom.fecalCalprotectin' },
       { rawName: 'Zonulin', value: 40, unit: 'ng/ml', matched: false, mappedKey: null, suggestedKey: 'custom.zonulin' },
@@ -603,6 +654,42 @@ const importCssSrc = read('css/import.css');
   assert('Profile migration repairs unit-suffixed entry keys even without custom marker definition',
     invisible.entries[0].markers['biochemistry.alt'] === 0.5
     && invisible.entries[0].markers['biochemistry.altUkatL'] === undefined);
+  const legacyProlactinRange = {
+    entries: [{
+      date: '2026-04-01',
+      markers: { 'hormones.prolactin': 12.44 },
+      markerSources: { 'hormones.prolactin': { file: 'hormones.pdf', snapshotId: 'snap_prl' } },
+    }],
+    refOverrides: {
+      'hormones.prolactin': { refMin: 86, refMax: 324, refSource: 'import' },
+    },
+    importSnapshots: [{
+      id: 'snap_prl', date: '2026-04-01', fileName: 'hormones.pdf',
+      markers: [{ mappedKey: 'hormones.prolactin', value: 263.7, unit: 'mIU/l', refMin: 86, refMax: 324 }],
+    }],
+  };
+  migrateProfileData(legacyProlactinRange);
+  assert('Profile migration converts snapshot-backed prolactin lab ranges from mIU/L to µg/L',
+    Math.abs(legacyProlactinRange.refOverrides['hormones.prolactin'].refMin - (86 / 21.2)) < 0.001
+      && Math.abs(legacyProlactinRange.refOverrides['hormones.prolactin'].refMax - (324 / 21.2)) < 0.001
+      && legacyProlactinRange.entries[0].markers['hormones.prolactin'] === 12.44);
+  const manualProlactinRange = {
+    entries: [{ date: '2026-04-01', markers: { 'hormones.prolactin': 12.44 } }],
+    refOverrides: {
+      'hormones.prolactin': {
+        refMin: 5, refMax: 14, refSource: 'manual', labRefMin: 86, labRefMax: 324,
+      },
+    },
+    importSnapshots: legacyProlactinRange.importSnapshots.map(snapshot => ({
+      ...snapshot,
+      markers: snapshot.markers.map(marker => ({ ...marker })),
+    })),
+  };
+  migrateProfileData(manualProlactinRange);
+  assert('Profile migration preserves manual prolactin ranges while repairing the stashed lab interval',
+    manualProlactinRange.refOverrides['hormones.prolactin'].refMin === 5
+      && manualProlactinRange.refOverrides['hormones.prolactin'].refMax === 14
+      && Math.abs(manualProlactinRange.refOverrides['hormones.prolactin'].labRefMax - (324 / 21.2)) < 0.001);
   const urineProtein = {
     entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProtein': 0.142 } }],
     customMarkers: {
@@ -610,10 +697,10 @@ const importCssSrc = read('css/import.css');
     }
   };
   migrateProfileData(urineProtein);
-  assert('Profile migration does not remap deliberate urine total protein to serum total protein',
+  assert('Profile migration adopts the exact urine marker without remapping it to serum total protein',
     urineProtein.entries[0].markers['urinalysis.totalProtein'] === 0.142
     && urineProtein.entries[0].markers['proteins.totalProtein'] === undefined
-    && urineProtein.customMarkers['urinalysis.totalProtein']);
+    && urineProtein.customMarkers['urinalysis.totalProtein'] === undefined);
   const urineProteinUnitDecorated = {
     entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProteinGl': 0.142 } }],
     customMarkers: {
@@ -747,6 +834,59 @@ const importCssSrc = read('css/import.css');
     && lipidAliases.entries[0].markers['lipids.lpa'] === undefined
     && lipidAliases.customMarkers['lipids.lpa'] === undefined
     && lipidAliases.markerValueNotes['lipids.lpA:2026-05-01'] === 'duplicate alias');
+
+  const calculatedRatioAliases = {
+    entries: [{
+      date: '2026-05-01',
+      markers: { 'biochemistry.fib4': 1.14 },
+      markerSources: { 'biochemistry.fib4': { file: 'liver-panel.pdf', snapshotId: 'snap_fib4_old' } },
+    }, {
+      date: '2026-06-01',
+      markers: {
+        'biochemistry.fib4Index': 1.21,
+        'calculatedRatios.fib4Index': 1.23,
+      },
+      markerSources: {
+        'biochemistry.fib4Index': { file: 'old-liver-panel.pdf' },
+        'calculatedRatios.fib4Index': { file: 'new-liver-panel.pdf' },
+      },
+    }],
+    customMarkers: {
+      'biochemistry.fib4': { name: 'FIB-4', unit: '', categoryLabel: 'Biochemistry' },
+      'biochemistry.fib4Index': { name: 'FIB-4 Index', unit: '', categoryLabel: 'Biochemistry' },
+    },
+    importSnapshots: [{
+      id: 'snap_fib4_old',
+      date: '2026-05-01',
+      markers: [{
+        rawName: 'FIB-4', value: 1.14, unit: '', mappedKey: null,
+        suggestedKey: 'biochemistry.fib4', matched: false,
+      }],
+    }],
+    refOverrides: {
+      'biochemistry.fib4': { refMin: 0, refMax: 1.3, refSource: 'import' },
+    },
+    markerNotes: { 'biochemistry.fib4': 'Reported by the lab' },
+    markerValueNotes: { 'biochemistry.fib4:2026-05-01': 'legacy ratio note' },
+  };
+  migrateProfileData(calculatedRatioAliases);
+  assert('Profile migration moves historical FIB-4 values into Calculated Ratios',
+    calculatedRatioAliases.entries[0].markers['calculatedRatios.fib4Index'] === 1.14
+    && calculatedRatioAliases.entries[0].markers['biochemistry.fib4'] === undefined
+    && calculatedRatioAliases.entries[0].markerSources['calculatedRatios.fib4Index']?.snapshotId === 'snap_fib4_old');
+  assert('Existing canonical reported ratio wins when a historical duplicate shares the draw date',
+    calculatedRatioAliases.entries[1].markers['calculatedRatios.fib4Index'] === 1.23
+    && calculatedRatioAliases.entries[1].markers['biochemistry.fib4Index'] === undefined
+    && calculatedRatioAliases.entries[1].markerSources['calculatedRatios.fib4Index']?.file === 'new-liver-panel.pdf');
+  assert('Profile migration removes old ratio cards and canonicalizes their snapshot and metadata',
+    calculatedRatioAliases.customMarkers['biochemistry.fib4'] === undefined
+    && calculatedRatioAliases.customMarkers['biochemistry.fib4Index'] === undefined
+    && calculatedRatioAliases.importSnapshots[0].markers[0].mappedKey === 'calculatedRatios.fib4Index'
+    && calculatedRatioAliases.importSnapshots[0].markers[0].suggestedKey === null
+    && calculatedRatioAliases.importSnapshots[0].markers[0].matched === true
+    && calculatedRatioAliases.refOverrides['calculatedRatios.fib4Index']?.refMax === 1.3
+    && calculatedRatioAliases.markerNotes['calculatedRatios.fib4Index'] === 'Reported by the lab'
+    && calculatedRatioAliases.markerValueNotes['calculatedRatios.fib4Index:2026-05-01'] === 'legacy ratio note');
 
   const lipidNameAlias = {
     entries: [{ date: '2026-05-01', markers: { 'lipids.lipoproteinMarker': 55 } }],

@@ -31,6 +31,14 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'mg/l', factor: 0.5848, type: 'multiply' },
     { unit: 'µmol/l', factor: 1, type: 'multiply' }
   ],
+  'biochemistry.bilirubinDirect': [
+    { unit: 'mg/l', factor: 0.5848, type: 'multiply' },
+    { unit: '\u00b5mol/l', factor: 1, type: 'multiply' }
+  ],
+  'biochemistry.bilirubinIndirect': [
+    { unit: 'mg/l', factor: 0.5848, type: 'multiply' },
+    { unit: '\u00b5mol/l', factor: 1, type: 'multiply' }
+  ],
   'biochemistry.ast': [
     { unit: 'mU/ml', factor: 60, type: 'multiply' },
     { unit: 'U/l', factor: 60, type: 'multiply' },
@@ -60,6 +68,12 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'mU/ml', factor: 60, type: 'multiply' },
     { unit: 'U/l', factor: 60, type: 'multiply' },
     { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.amylase': [
+    { unit: 'U/l', factor: 60, type: 'multiply' }
+  ],
+  'biochemistry.lipase': [
+    { unit: 'U/l', factor: 60, type: 'multiply' }
   ],
   'biochemistry.cystatinC': [
     { unit: 'g/l', factor: 0.001, type: 'multiply' },
@@ -105,15 +119,23 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'µg/l', factor: 1, type: 'multiply' },
     { unit: 'nmol/l', factor: 0.1307, type: 'multiply' }
   ],
+  // WHO 3rd IS 84/500-calibrated assays: 1 µg/L (1 ng/mL) = 21.2 mIU/L.
   'hormones.prolactin': [
     { unit: 'mU/l', factor: 21.2, type: 'multiply' },
-    { unit: 'mU/l', factor: 21.2, type: 'multiply' },
+    { unit: 'mIU/l', factor: 21.2, type: 'multiply' },
     { unit: 'µU/ml', factor: 21.2, type: 'multiply' },
+    { unit: 'µIU/ml', factor: 21.2, type: 'multiply' },
     { unit: 'µg/l', factor: 1, type: 'multiply' }
   ],
-  'hormones.insulin': [
+  'diabetes.insulin': [
     { unit: 'pmol/l', factor: 6.0, type: 'multiply' },
     { unit: 'mU/l', factor: 1, type: 'multiply' }
+  ],
+  'hormones.acth': [
+    { unit: 'pg/ml', factor: 4.541, type: 'multiply' }
+  ],
+  'hormones.aldosterone': [
+    { unit: 'ng/dl', factor: 0.03605, type: 'multiply' }
   ],
   'hormones.lh': [
     { unit: 'U/l', factor: 1, type: 'multiply' }
@@ -151,6 +173,10 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'mEq/l', factor: 2, type: 'multiply' },
     { unit: 'mmol/l', factor: 1, type: 'multiply' }
   ],
+  'electrolytes.calciumIonized': [
+    { unit: 'mg/l', factor: 40.08, type: 'multiply' },
+    { unit: 'mmol/l', factor: 1, type: 'multiply' }
+  ],
   'electrolytes.phosphorus': [
     { unit: 'mg/l', factor: 30.97, type: 'multiply' },
     { unit: 'mmol/l', factor: 1, type: 'multiply' }
@@ -174,6 +200,10 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'µg/l', factor: 65.4, type: 'multiply' },
     { unit: 'mg/l', factor: 0.0654, type: 'multiply' },
     { unit: 'µmol/l', factor: 1, type: 'multiply' }
+  ],
+  'electrolytes.selenium': [
+    { unit: '\u00b5g/l', factor: 78.971, type: 'multiply' },
+    { unit: '\u00b5mol/l', factor: 1, type: 'multiply' }
   ],
 
   // Lipids & Proteins

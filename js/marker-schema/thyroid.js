@@ -11,6 +11,8 @@ export const THYROID_CATEGORY = {
     t3total: { name: "Total T3", unit: "nmol/l", refMin: 1.30, refMax: 3.10, desc: "Total triiodothyronine including bound fraction; useful for diagnosing hyperthyroidism when free T3 is unavailable." },
     reverseT3: { name: "Reverse T3", unit: "nmol/l", refMin: null, refMax: 0.54, desc: "Inactive T3 isomer that can rise with illness, fasting, or stress; optional context for T4-to-T3 conversion." },
     tpoAb: { name: "TPO antibodies", unit: "kU/l", refMin: 0, refMax: 34, desc: "Thyroid peroxidase antibodies; elevated values support autoimmune thyroiditis context." },
-    tgAb: { name: "Thyroglobulin antibodies", unit: "kU/l", refMin: 0, refMax: 115, desc: "Thyroglobulin antibodies; elevated values support autoimmune thyroid context and can interfere with thyroglobulin measurement." }
+    tgAb: { name: "Thyroglobulin antibodies", unit: "kU/l", refMin: 0, refMax: 115, desc: "Thyroglobulin antibodies; elevated values support autoimmune thyroid context and can interfere with thyroglobulin measurement." },
+    trab: { name: "TSH Receptor Antibodies (TRAb)", unit: "IU/l", refMin: 0, refMax: 1.75, desc: "Antibodies targeting the TSH receptor; used mainly in Graves disease assessment, with cutoffs varying by assay." },
+    thyroglobulin: { name: "Thyroglobulin", unit: "\u00b5g/l", refMin: 0, refMax: 33, desc: "Protein produced by thyroid tissue and used chiefly in differentiated thyroid-cancer follow-up. This interval applies only with an intact thyroid; post-thyroidectomy targets depend on residual tissue, TSH, assay, and thyroglobulin antibodies." }
   }
 };

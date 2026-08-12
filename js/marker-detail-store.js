@@ -8,7 +8,7 @@ import {
   findOrCreateLabEntry,
 } from './lab-entry-mutations.js';
 import {
-  getInsulinMirrorMarkerKey,
+  setLabEntryCollectionContext,
   setLabEntryMarker,
 } from './lab-entry.js';
 
@@ -34,17 +34,10 @@ function mapKey(dotKey, date) {
   return dotKey && date ? `${dotKey}:${date}` : null;
 }
 
-function insulinMirrorMapKey(dotKey, date) {
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  return mirror ? mapKey(mirror, date) : null;
-}
-
 function entryMarkerValue(entry, dotKey) {
   const markers = entry?.markers && typeof entry.markers === 'object' ? entry.markers : null;
   if (!markers || !dotKey) return undefined;
   if (Object.prototype.hasOwnProperty.call(markers, dotKey)) return markers[dotKey];
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  if (mirror && Object.prototype.hasOwnProperty.call(markers, mirror)) return markers[mirror];
   return undefined;
 }
 
@@ -52,8 +45,6 @@ function entryHasImportedSource(entry, dotKey) {
   if (!entry) return false;
   const markerSource = entry.markerSources?.[dotKey];
   if (markerSource?.file) return true;
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  if (mirror && entry.markerSources?.[mirror]?.file) return true;
   if (entry.sourceFile) return true;
   return Array.isArray(entry.sourceFiles) && entry.sourceFiles.some(Boolean);
 }
@@ -85,12 +76,7 @@ export function getManualOriginalForMarker(dotKey, date) {
   if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) {
     return map[key];
   }
-  const mirrorKey = insulinMirrorMapKey(dotKey, date);
-  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey) && map[mirrorKey] != null && map[mirrorKey] !== true) {
-    return map[mirrorKey];
-  }
   if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
-  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey)) return map[mirrorKey];
   return undefined;
 }
 
@@ -118,34 +104,23 @@ function writeMarkerValueNote(dotKey, date, noteText) {
   } else {
     changed = clearSyncedMapValue(notes, key);
   }
-  const mirrorKey = insulinMirrorMapKey(dotKey, date);
-  if (mirrorKey) {
-    if (capped) {
-      changed = notes[mirrorKey] !== capped || changed;
-      notes[mirrorKey] = capped;
-    } else {
-      changed = clearSyncedMapValue(notes, mirrorKey) || changed;
-    }
-  }
   return changed;
 }
 
 /**
- * @param {{ dotKey?: string, date?: string, storedValue?: any, noteText?: string, now?: number }} [opts]
+ * @param {{ dotKey?: string, date?: string, storedValue?: any, noteText?: string, collectionContext?: { sampleTime?: unknown, fasting?: unknown }, now?: number }} [opts]
  */
-export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', now = Date.now() } = {}) {
+export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', collectionContext, now = Date.now() } = {}) {
   if (!dotKey || !date) return null;
   const data = ensureImportedData();
   const entry = findOrCreateLabEntry(data, date, { now });
   if (!entry) return null;
   rememberManualOriginal(dotKey, date, entry);
-  const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
-  if (insulinMirror) rememberManualOriginal(insulinMirror, date, entry);
   setLabEntryMarker(entry, dotKey, storedValue, {
     now,
     source: { file: null, at: now },
-    mirrorInsulin: true,
   });
+  if (collectionContext) setLabEntryCollectionContext(entry, collectionContext, { now });
   writeMarkerValueNote(dotKey, date, noteText);
   await saveImportedData();
   return entry;
@@ -158,12 +133,9 @@ export async function editManualMarkerValue({ dotKey, date, storedValue, now = D
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry || !dotKey) return null;
   rememberManualOriginal(dotKey, date, entry);
-  const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
-  if (insulinMirror) rememberManualOriginal(insulinMirror, date, entry);
   setLabEntryMarker(entry, dotKey, storedValue, {
     now,
     source: { file: null, at: now },
-    mirrorInsulin: true,
   });
   await saveImportedData();
   return entry;
@@ -174,7 +146,6 @@ export async function deleteManualMarkerValue(dotKey, date, { now = Date.now() }
   if (!entry || entryMarkerValue(entry, dotKey) === undefined) return null;
   const result = deleteLabEntryMarkerFromImportedData(state.importedData, entry, dotKey, {
     now,
-    mirrorInsulin: true,
   });
   if (!result.changed) return null;
   await saveImportedData();
@@ -189,11 +160,9 @@ export async function revertManualMarkerValue(dotKey, date, { now = Date.now() }
   setLabEntryMarker(entry, dotKey, original, {
     now,
     clearSource: true,
-    mirrorInsulin: true,
   });
   const manualValues = ensureMap('manualValues');
   clearSyncedMapValue(manualValues, mapKey(dotKey, date));
-  clearSyncedMapValue(manualValues, insulinMirrorMapKey(dotKey, date));
   await saveImportedData();
   return entry;
 }
@@ -207,10 +176,8 @@ export async function saveMarkerValueNote(dotKey, date, noteText) {
 export async function deleteMarkerValueNote(dotKey, date) {
   const notes = ensureMap('markerValueNotes');
   const changedPrimary = clearSyncedMapValue(notes, mapKey(dotKey, date));
-  const changedMirror = clearSyncedMapValue(notes, insulinMirrorMapKey(dotKey, date));
-  const changed = changedPrimary || changedMirror;
-  if (changed) await saveImportedData();
-  return changed;
+  if (changedPrimary) await saveImportedData();
+  return changedPrimary;
 }
 
 /**

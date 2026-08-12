@@ -23,7 +23,7 @@ console.log('=== marker-key safety helpers ===\n');
 
 // ── safeMarkerId — accepts ────────────────────────────────────────
 assert('accepts standard schema key', safeMarkerId('biochemistry.glucose') === 'biochemistry.glucose');
-assert('accepts underscore-bearing marker', safeMarkerId('diabetes.insulin_d') === 'diabetes.insulin_d');
+assert('accepts underscore-bearing marker', safeMarkerId('diabetes.insulin_legacy') === 'diabetes.insulin_legacy');
 assert('accepts category_marker form (id)', safeMarkerId('biochemistry_glucose') === 'biochemistry_glucose');
 assert('accepts digit-bearing marker', safeMarkerId('metabolomix.5_h_indoleacetic_acid') === 'metabolomix.5_h_indoleacetic_acid');
 assert('accepts dot-and-underscore mixture', safeMarkerId('lipids.hdl') === 'lipids.hdl');
@@ -58,7 +58,7 @@ assert('accepts non-proto underscore id', safeMarkerId('cat_marker_with_undersco
 assert('clean key passes through', sanitizeMarkerKey('biochemistry.glucose') === 'biochemistry.glucose');
 assert('strips disallowed chars from each part',
   sanitizeMarkerKey("bio'chem.glu cose") === 'biochem.glucose');
-assert('preserves underscore', sanitizeMarkerKey('diabetes.insulin_d') === 'diabetes.insulin_d');
+assert('preserves underscore', sanitizeMarkerKey('diabetes.insulin_legacy') === 'diabetes.insulin_legacy');
 
 // ── sanitizeMarkerKey — rejects ───────────────────────────────────
 assert('null when no dot', sanitizeMarkerKey('biochemistryglucose') === null);

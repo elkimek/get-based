@@ -67,6 +67,11 @@ function renderManualEntryForm(id, prefillDate) {
   const dateValue = typeof prefillDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate)
     ? prefillDate
     : (sessionLast || today);
+  const existingContext = state.importedData?.entries?.find(entry => entry?.date === dateValue)?.context || {};
+  const sampleTimeValue = typeof existingContext.sampleTime === 'string' ? existingContext.sampleTime : '';
+  const fastingValue = existingContext.fasting === true ? 'fasting'
+    : existingContext.fasting === false ? 'not-fasting'
+      : 'unknown';
   const refText = marker.refMin != null || marker.refMax != null
     ? `Reference: ${marker.refMin != null ? marker.refMin : '–'} \u2013 ${marker.refMax != null ? marker.refMax : '–'} ${escapeHTML(marker.unit)}`
     : '';
@@ -121,6 +126,21 @@ function renderManualEntryForm(id, prefillDate) {
         <label for="me-value">Value ${unitPickerHtml}</label>
         <input type="number" id="me-value" step="any" placeholder="${escapeHTML(placeholderHint)}" autofocus>
       </div>
+      <div class="me-context-grid">
+        <div class="me-field">
+          <label for="me-sample-time">Collection time <span class="me-optional">(optional)</span></label>
+          <input type="time" id="me-sample-time" value="${escapeHTML(sampleTimeValue)}">
+          <small>Use the blood draw/collection time, not the lab processing or report time.</small>
+        </div>
+        <div class="me-field">
+          <label for="me-fasting">Fasting status</label>
+          <select id="me-fasting">
+            <option value="unknown"${fastingValue === 'unknown' ? ' selected' : ''}>Unknown</option>
+            <option value="fasting"${fastingValue === 'fasting' ? ' selected' : ''}>Fasting</option>
+            <option value="not-fasting"${fastingValue === 'not-fasting' ? ' selected' : ''}>Not fasting</option>
+          </select>
+        </div>
+      </div>
       <div class="me-field">
         <label for="me-note">Note <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
         <textarea id="me-note" rows="2" placeholder="Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value..."></textarea>
@@ -147,6 +167,14 @@ function renderManualEntryForm(id, prefillDate) {
       }
     };
     valueInput.addEventListener('keydown', onKey);
-    document.getElementById('me-date')?.addEventListener('keydown', onKey);
+    const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-date'));
+    dateInput?.addEventListener('keydown', onKey);
+    dateInput?.addEventListener('change', () => {
+      const context = state.importedData?.entries?.find(entry => entry?.date === dateInput.value)?.context || {};
+      const sampleTime = /** @type {HTMLInputElement | null} */ (document.getElementById('me-sample-time'));
+      const fasting = /** @type {HTMLSelectElement | null} */ (document.getElementById('me-fasting'));
+      if (sampleTime) sampleTime.value = typeof context.sampleTime === 'string' ? context.sampleTime : '';
+      if (fasting) fasting.value = context.fasting === true ? 'fasting' : context.fasting === false ? 'not-fasting' : 'unknown';
+    });
   }, 50);
 }

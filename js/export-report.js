@@ -347,10 +347,19 @@ export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexL
 }
 
 function filterDataByDateIndices(data, indices, cutoffStr) {
+  const selectedDates = new Set(indices.map(i => data.dates[i]));
   const filtered = {
     dates: indices.map(i => data.dates[i]),
     dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates[i]),
     ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
+    ...(data.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => data.phaseDisplayLabels[i]) }),
+    ...(data.phaseCycleDays && { phaseCycleDays: indices.map(i => data.phaseCycleDays[i]) }),
+    ...(data.phaseSources && { phaseSources: indices.map(i => data.phaseSources[i]) }),
+    ...(data.entryContextByDate && {
+      entryContextByDate: Object.fromEntries(
+        Object.entries(data.entryContextByDate).filter(([date]) => selectedDates.has(date))
+      ),
+    }),
     categories: {}
   };
   for (const [catKey, cat] of Object.entries(data.categories || {})) {
@@ -369,6 +378,13 @@ function filterDataByDateIndices(data, indices, cutoffStr) {
           values: indices.map(i => marker.values?.[i] ?? null),
           ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges[i]) }),
           ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels[i]) }),
+          ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels[i]) }),
+          ...(marker.phaseCycleDays && { phaseCycleDays: indices.map(i => marker.phaseCycleDays[i]) }),
+          ...(marker.phaseSources && { phaseSources: indices.map(i => marker.phaseSources[i]) }),
+          ...(marker.contextRefRanges && { contextRefRanges: indices.map(i => marker.contextRefRanges[i]) }),
+          ...(marker.contextRangeLabels && { contextRangeLabels: indices.map(i => marker.contextRangeLabels[i]) }),
+          ...(marker.contextOptimalRanges && { contextOptimalRanges: indices.map(i => marker.contextOptimalRanges[i]) }),
+          ...(marker.contextOptimalRangeLabels && { contextOptimalRangeLabels: indices.map(i => marker.contextOptimalRangeLabels[i]) }),
         };
       }
     }
@@ -496,10 +512,14 @@ function buildReportContextSections(data) {
     let cycleText = `${mc.cycleLength || 28}-day cycle, ${regLabel}, ${mc.flow || 'moderate'} flow`;
     if (mc.contraceptive) cycleText += `. Contraceptive: ${mc.contraceptive}`;
     if (mc.conditions) cycleText += `. Conditions: ${mc.conditions}`;
-    const phases = getBloodDrawPhases(mc, data.dates);
+    const phases = getBloodDrawPhases(mc, data.dates, data.entryContextByDate);
     const phaseDates = Object.entries(phases);
     if (phaseDates.length > 0) {
-      cycleText += '\n\nBlood draw phases:\n' + phaseDates.map(([d, p]) => `${d}: Day ${p.cycleDay} (${p.phaseName})`).join('\n');
+      cycleText += '\n\nBlood draw phases:\n' + phaseDates.map(([d, p]) => {
+        const day = p.cycleDay ? `Day ${p.cycleDay}, ` : '';
+        const source = p.source === 'recorded' ? 'recorded' : 'predicted';
+        return `${d}: ${day}${p.phaseDetailName || p.phaseName} (${source})`;
+      }).join('\n');
     }
     contextSections.push({ title: 'Menstrual Cycle', text: cycleText });
   }

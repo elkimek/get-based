@@ -3,8 +3,14 @@
 GetBased has two distinct marker identifiers:
 
 - `gb:marker:<identityKey>` is the immutable identity of a built-in marker.
-- `category.markerKey` is its current schema location and remains the persisted
-  and exchanged key until a later, explicitly versioned migration.
+- `category.markerKey` is its current schema location and the persisted and
+  exchanged key. Historical locations remain accepted aliases and migrate to
+  the current dotKey when a profile is loaded.
+
+If two historical catalog rows are later found to represent the same analyte,
+one identity may be retained as a legacy id alias of the canonical identity.
+Both ids continue to resolve, while new placement metadata is stored under the
+canonical id.
 
 The identity catalog is authored in
 `js/marker-schema/identities.js` and generated into `js/marker-schema.js`
@@ -21,16 +27,22 @@ generated alias table, so the former location continues to resolve to the new
 one. A move must also include focused round-trip tests for every dotKey-indexed
 profile field affected by persistence, import/export, backup, sync, or sharing.
 
-The initial identity checksum in `tests/marker-identity.test.js` protects the
-149 ids from accidental renaming. It deliberately hashes the sorted ids only:
-moving or reordering a marker should not require changing that checksum.
+When consolidating an accidental duplicate, add the retired id to `legacyIds`
+on the surviving identity. Do not silently discard an id that may already be
+used by marker placements or external references.
+
+The identity checksum in `tests/marker-identity.test.js` protects the active ids
+from accidental renaming. It deliberately hashes the sorted ids only: moving
+or reordering a marker should not require changing that checksum, while an
+intentional catalog expansion must update it in the same reviewed change.
 
 ## Compatibility boundary
 
-Existing users continue to store values and companion metadata under the same
-dotKeys. Consumers can resolve current and historical built-in locations
-through `getBuiltinMarkerId`, `getBuiltinMarkerDotKey`, and
-`resolveBuiltinMarkerDotKey` without changing those storage addresses.
+Existing current dotKeys remain untouched. Historical aliases are re-keyed to
+their current locations across values, sources, tombstones, reference ranges,
+notes, labels, and manual-value metadata. Consumers can resolve current and
+historical built-in locations through `getBuiltinMarkerId`,
+`getBuiltinMarkerDotKey`, and `resolveBuiltinMarkerDotKey`.
 
 Custom markers likewise keep their current dotKeys for values and companion
 maps. Each custom marker definition now carries a `markerId` in the
@@ -38,11 +50,10 @@ maps. Each custom marker definition now carries a `markerId` in the
 and display name. Legacy definitions receive deterministic opaque ids so two
 offline devices upgrading the same profile converge without coordination.
 
-The migration is additive and idempotent: it does not re-key entries,
-reference overrides, notes, labels, manual-value provenance, imports, exports,
-backups, shares, or sync payloads. Unique existing ids are preserved. Invalid
-or duplicated ids are repaired deterministically, and the current dotKey still
-wins all existing conflict behavior.
+Identity and alias migrations are idempotent. Unique existing ids are
+preserved; retired duplicate ids and historical dotKeys converge on their
+canonical identity and location. Invalid or duplicated custom ids are repaired
+deterministically, and the current dotKey wins existing conflict behavior.
 
 ## Profile category placement
 

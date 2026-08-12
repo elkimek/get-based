@@ -8,6 +8,7 @@ import {
 } from './custom-marker-identity.js';
 import {
   BUILTIN_MARKER_IDENTITIES,
+  BUILTIN_MARKER_ID_ALIASES,
   getBuiltinMarkerDotKey,
   getBuiltinMarkerId,
   MARKER_SCHEMA,
@@ -45,6 +46,13 @@ export function migrateMarkerPlacements(data) {
     if (typeof placement === 'string') {
       data.markerPlacements[markerId] = { categoryKey: placement };
     }
+  }
+  for (const [legacyId, currentId] of Object.entries(BUILTIN_MARKER_ID_ALIASES)) {
+    if (!Object.prototype.hasOwnProperty.call(data.markerPlacements, legacyId)) continue;
+    if (!Object.prototype.hasOwnProperty.call(data.markerPlacements, currentId)) {
+      data.markerPlacements[currentId] = data.markerPlacements[legacyId];
+    }
+    delete data.markerPlacements[legacyId];
   }
   return data.markerPlacements;
 }
