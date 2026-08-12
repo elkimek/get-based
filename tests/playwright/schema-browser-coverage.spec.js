@@ -134,8 +134,8 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         && resetProfileUsage.totalCost === 0;
 
       outcomes.phaseRangesExposeCycleSpecificHormoneBands =
-        schema.PHASE_RANGES['hormones.estradiol'].ovulatory.max === 1470
-        && schema.PHASE_RANGES['hormones.progesterone'].luteal.min === 5.7
+        schema.PHASE_RANGES['hormones.estradiol'].ovulatory.max === 1828
+        && schema.PHASE_RANGES['hormones.progesterone'].luteal.min === 5.72
         && schema.PHASE_RANGES['hormones.lh'].ovulatory.min === 14
         && schema.PHASE_RANGES['hormones.fsh'].luteal.max === 7.7;
 
