@@ -17,17 +17,20 @@ function normalizeProfileMarkerLabel(value) {
     .toLowerCase();
 }
 
-export function repairCanonicalMarkerAliases(data) {
-  const remapByPrefix = (obj, oldKey, nextKey) => {
-    if (!obj) return;
-    const prefix = oldKey + ':';
+function remapDateScopedMarkerMetadata(data, oldKey, nextKey) {
+  const prefix = oldKey + ':';
+  for (const obj of [data.manualValues, data.markerValueNotes, data.markerLabels, data.refOverrides]) {
+    if (!obj) continue;
     for (const key of Object.keys(obj)) {
       if (!key.startsWith(prefix)) continue;
       const remapped = nextKey + key.slice(oldKey.length);
       if (obj[remapped] === undefined) obj[remapped] = obj[key];
       delete obj[key];
     }
-  };
+  }
+}
+
+export function repairCanonicalMarkerAliases(data) {
   for (const [oldKey, nextKey] of Object.entries(BUILTIN_MARKER_DOT_KEY_ALIASES)) {
     for (const entry of data.entries || []) {
       const oldTombstone = entry.deletedMarkers?.[oldKey];
@@ -49,8 +52,7 @@ export function repairCanonicalMarkerAliases(data) {
         }
       }
     }
-    remapByPrefix(data.manualValues, oldKey, nextKey);
-    remapByPrefix(data.markerValueNotes, oldKey, nextKey);
+    remapDateScopedMarkerMetadata(data, oldKey, nextKey);
     if (data.refOverrides?.[oldKey]) {
       if (!data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
       delete data.refOverrides[oldKey];
@@ -75,16 +77,6 @@ export function repairNamedStandardMarkerAliases(data) {
     ['cholhdlratio', 'calculatedRatios.cholHdlRatio'],
     ['totalcholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
   ]);
-  const remapByPrefix = (obj, oldKey, nextKey) => {
-    if (!obj) return;
-    const prefix = oldKey + ':';
-    for (const key of Object.keys(obj)) {
-      if (!key.startsWith(prefix)) continue;
-      const remapped = nextKey + key.slice(oldKey.length);
-      if (obj[remapped] === undefined) obj[remapped] = obj[key];
-      delete obj[key];
-    }
-  };
   const candidates = new Set(Object.keys(data.customMarkers || {}));
   for (const entry of data.entries) for (const key of Object.keys(entry.markers || {})) candidates.add(key);
   for (const fullKey of candidates) {
@@ -96,8 +88,7 @@ export function repairNamedStandardMarkerAliases(data) {
       || labelAliases.get(normalizeProfileMarkerLabel(markerKey));
     if (!target || target === fullKey) continue;
     for (const entry of data.entries) renameLabEntryMarker(entry, fullKey, target, { stamp: false });
-    remapByPrefix(data.manualValues, fullKey, target);
-    remapByPrefix(data.markerValueNotes, fullKey, target);
+    remapDateScopedMarkerMetadata(data, fullKey, target);
     if (data.refOverrides?.[fullKey]) {
       if (!data.refOverrides[target]) data.refOverrides[target] = data.refOverrides[fullKey];
       delete data.refOverrides[fullKey];

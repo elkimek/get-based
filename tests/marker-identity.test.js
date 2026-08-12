@@ -121,8 +121,14 @@ describe('stable built-in marker identity contract', () => {
         'lipids.lpa': { name: 'Lp(a)' },
       },
       markerNotes: { 'lipids.lpa': 'Inherited note' },
-      markerLabels: { 'lipids.totalCholesterol': 'Total cholesterol' },
-      refOverrides: { 'lipids.hdlCholesterol': { refMin: 1 } },
+      markerLabels: {
+        'lipids.totalCholesterol': 'Total cholesterol',
+        'hormones.insulin:2026-01-15': 'Fasting insulin',
+      },
+      refOverrides: {
+        'lipids.hdlCholesterol': { refMin: 1 },
+        'hormones.insulin:2026-01-15': { refMin: 2.6, refMax: 24.9, refSource: 'import' },
+      },
       manualValues: { 'hormones.cPeptide:2026-01-15': true },
       markerValueNotes: { 'lipids.cholHdlRatio:2026-01-15': 'Calculated by lab' },
       markerPlacements: { 'gb:marker:insulin_d': { categoryKey: 'biochemistry' } },
@@ -152,7 +158,12 @@ describe('stable built-in marker identity contract', () => {
     expect(migrated.customMarkers['lipids.lpa']).toBeUndefined();
     expect(migrated.markerNotes['lipids.lpA']).toBe('Inherited note');
     expect(migrated.markerLabels['lipids.cholesterol']).toBe('Total cholesterol');
+    expect(migrated.markerLabels['diabetes.insulin:2026-01-15']).toBe('Fasting insulin');
+    expect(migrated.markerLabels['hormones.insulin:2026-01-15']).toBeUndefined();
     expect(migrated.refOverrides['lipids.hdl']).toEqual({ refMin: 1 });
+    expect(migrated.refOverrides['diabetes.insulin:2026-01-15'])
+      .toEqual({ refMin: 2.6, refMax: 24.9, refSource: 'import' });
+    expect(migrated.refOverrides['hormones.insulin:2026-01-15']).toBeUndefined();
     expect(migrated.manualValues['diabetes.cPeptide:2026-01-15']).toBe(true);
     expect(migrated.markerValueNotes['calculatedRatios.cholHdlRatio:2026-01-15'])
       .toBe('Calculated by lab');
