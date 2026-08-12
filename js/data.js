@@ -552,7 +552,8 @@ export function getActiveData() {
       const marker = data.categories[catKey] && data.categories[catKey].markers[markerKey];
       if (!marker) continue;
       marker.phaseRefRanges = drawPhases.map(p => {
-        const range = p ? (phaseMap[p.phase] || null) : null;
+        if (!p) return null;
+        const range = phaseMap[p.phase] || null;
         if (!range) return null;
         return {
           ...range,
