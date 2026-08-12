@@ -10,6 +10,7 @@ import { calculateCycleStats, createCyclePeriod, recentCyclePeriods, upgradeMens
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import-loader.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
+import { getRecordedDrawPhase } from './cycle-draw-phases.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -217,31 +218,9 @@ export function getBloodDrawPhases(mc, dates, entryContextByDate = {}) {
   if (!dates) return {};
   const phases = {};
   for (const d of dates) {
-    const context = entryContextByDate[d];
-    const normalizedPhase = String(context?.cyclePhase || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-    const phase = normalizedPhase.includes('menstrual') || normalizedPhase === 'menses' ? 'menstrual'
-      : normalizedPhase.includes('follicular') ? 'follicular'
-      : normalizedPhase.includes('ovulat') ? 'ovulatory'
-      : normalizedPhase.includes('luteal') ? 'luteal'
-      : null;
-    if (phase) {
-      const phaseNames = { menstrual: 'Menstrual', follicular: 'Follicular', ovulatory: 'Ovulatory', luteal: 'Luteal' };
-      const detailNames = {
-        early_follicular: 'Early follicular', late_follicular: 'Late follicular', periovulatory: 'Periovulatory',
-        early_luteal: 'Early luteal', mid_luteal: 'Mid-luteal', late_luteal: 'Late luteal',
-      };
-      const detail = String(context?.cyclePhaseDetail || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-      const cycleDayNumber = Number(context?.cycleDay);
-      const phaseSource = String(context?.cyclePhaseSource || '').toLowerCase() === 'predicted' ? 'predicted' : 'recorded';
-      phases[d] = {
-        cycleDay: Number.isInteger(cycleDayNumber) && cycleDayNumber > 0 ? cycleDayNumber : null,
-        phase,
-        phaseName: phaseNames[phase],
-        phaseDetailName: detailNames[detail] || phaseNames[phase],
-        confidence: phaseSource === 'recorded' ? 'recorded' : 'medium',
-        basedOnStartDate: null,
-        source: phaseSource,
-      };
+    const recordedPhase = getRecordedDrawPhase(entryContextByDate[d]);
+    if (recordedPhase) {
+      phases[d] = recordedPhase;
       continue;
     }
     const p = mc ? getCyclePhase(d, mc) : null;

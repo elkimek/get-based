@@ -16,8 +16,8 @@ import {
   compactMarkerReference,
   createImportAIProgress,
   getUsageTokens,
-  IMPORT_JSON_SCHEMA,
-  importAIPerfKey,
+  IMPORT_COLLECTION_CONTEXT_PROMPT, IMPORT_JSON_SCHEMA,
+  importAIPerfKey, normalizeImportedCollectionContext,
   saveImportAIPerf,
   tryParseJSON,
 } from './pdf-import-ai-utils.js';
@@ -65,7 +65,6 @@ import {
   handlePDFFileWorkflow,
 } from './pdf-import-file-handlers.js';
 import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
-import { normalizeLabFastingStatus, normalizeLabSampleTime } from './lab-entry.js';
 
 const pdfImportDeps = {
   importDataJSON,
@@ -234,8 +233,7 @@ Don't limit yourself just to the examples and languages provided. Always transla
 Your task:
 1. Find the sample collection date in the text. Return it as YYYY-MM-DD. Look for dates near keywords like "collection", "collected", "date", "odběr", "datum", or similar in any language.
 ${dateHint}
-   - Also return sampleTime as HH:MM (24-hour time) only when the report explicitly labels a collection, draw, or specimen time. Never substitute received, accessioned, processed, analyzed, result, or report time. Return null if the collection time is absent or ambiguous.
-   - Return fasting as true only when the report explicitly says fasting/fasted or uses an explicit fasting-specimen label such as fS-. Return false only when it explicitly says non-fasting. Do not infer fasting from the clock time, the tests ordered, or a glucose result; return null when unknown.
+${IMPORT_COLLECTION_CONTEXT_PROMPT}
 2. For each biomarker result found in the text, extract:
    - rawName: the test name exactly as it appears in the PDF
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
@@ -348,8 +346,7 @@ Return ONLY valid JSON in this exact format, no other text:
   const parsed = tryParseJSON(jsonStr);
   const rawModelResult = options.captureRawModelOutput ? {
     date: parsed.date || null,
-    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
-    fasting: normalizeLabFastingStatus(parsed.fasting),
+    ...normalizeImportedCollectionContext(parsed),
     testType: parsed.testType || 'blood',
     markers: Array.isArray(parsed.markers)
       ? parsed.markers.map(marker => ({ ...marker }))
@@ -366,8 +363,7 @@ Return ONLY valid JSON in this exact format, no other text:
   });
   return {
     date: parsed.date || null,
-    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
-    fasting: normalizeLabFastingStatus(parsed.fasting),
+    ...normalizeImportedCollectionContext(parsed),
     testType,
     markers,
     fileName,
@@ -471,8 +467,7 @@ Don't limit yourself just to the examples and languages provided. Always transla
 Your task:
 1. Read the lab report page images carefully. Find the sample collection date. Return it as YYYY-MM-DD.
 ${dateHint}
-   - Also return sampleTime as HH:MM (24-hour time) only when the report explicitly labels a collection, draw, or specimen time. Never substitute received, accessioned, processed, analyzed, result, or report time. Return null if the collection time is absent or ambiguous.
-   - Return fasting as true only when the report explicitly says fasting/fasted or uses an explicit fasting-specimen label such as fS-. Return false only when it explicitly says non-fasting. Do not infer fasting from the clock time, the tests ordered, or a glucose result; return null when unknown.
+${IMPORT_COLLECTION_CONTEXT_PROMPT}
 2. For each biomarker result found, extract:
    - rawName: the test name exactly as it appears
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
@@ -558,8 +553,7 @@ Return ONLY valid JSON in this exact format:
   });
   return {
     date: parsed.date || null,
-    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
-    fasting: normalizeLabFastingStatus(parsed.fasting),
+    ...normalizeImportedCollectionContext(parsed),
     testType,
     markers,
     fileName,

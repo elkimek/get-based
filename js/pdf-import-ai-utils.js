@@ -3,7 +3,19 @@
 
 import { callClaudeAPI, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { getAIProvider, getOllamaMainModel } from './api-provider-storage.js';
+import { normalizeLabFastingStatus, normalizeLabSampleTime } from './lab-entry.js';
 import { isDebugMode } from './utils.js';
+
+export const IMPORT_COLLECTION_CONTEXT_PROMPT = `   - Also return sampleTime as HH:MM (24-hour time) only when the report explicitly labels a collection, draw, or specimen time. Never substitute received, accessioned, processed, analyzed, result, or report time. Return null if the collection time is absent or ambiguous.
+   - Return fasting as true only when the report explicitly says fasting/fasted or uses an explicit fasting-specimen label such as fS-. Return false only when it explicitly says non-fasting. Do not infer fasting from the clock time, the tests ordered, or a glucose result; return null when unknown.`;
+
+/** @param {Record<string, unknown>} parsed */
+export function normalizeImportedCollectionContext(parsed) {
+  return {
+    sampleTime: normalizeLabSampleTime(parsed.sampleTime),
+    fasting: normalizeLabFastingStatus(parsed.fasting),
+  };
+}
 
 export const IMPORT_JSON_SCHEMA = {
   type: 'object',
