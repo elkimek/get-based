@@ -132,6 +132,24 @@ function _removeLegacyBiometric(metric, date) {
   const field = _legacyBiometricField(metric);
   const biometrics = state.importedData?.biometrics;
   if (!field || !biometrics || !Array.isArray(biometrics[field])) return false;
+  if (field === 'bp') {
+    const component = metric === 'bp_systolic' ? 'systolic' : 'diastolic';
+    let changed = false;
+    const remaining = [];
+    for (const entry of biometrics.bp) {
+      if (!entry || typeof entry !== 'object' || entry.date !== date
+          || !Object.prototype.hasOwnProperty.call(entry, component)) {
+        remaining.push(entry);
+        continue;
+      }
+      const next = { ...entry };
+      delete next[component];
+      changed = true;
+      if (next.systolic != null || next.diastolic != null) remaining.push(next);
+    }
+    biometrics.bp = remaining;
+    return changed;
+  }
   const before = biometrics[field].length;
   biometrics[field] = biometrics[field].filter(entry => entry?.date !== date);
   return biometrics[field].length !== before;
@@ -182,12 +200,31 @@ export async function reconcileManualMetricTombstones(profileId) {
       prunedLegacy += before - biometrics[field].length;
     }
     if (Array.isArray(biometrics.bp)) {
-      const before = biometrics.bp.length;
-      biometrics.bp = biometrics.bp.filter(entry => (
-        !isManualMetricTombstoned('bp_systolic', entry?.date)
-        && !isManualMetricTombstoned('bp_diastolic', entry?.date)
-      ));
-      prunedLegacy += before - biometrics.bp.length;
+      const remaining = [];
+      for (const entry of biometrics.bp) {
+        if (!entry || typeof entry !== 'object') {
+          remaining.push(entry);
+          continue;
+        }
+        const next = { ...entry };
+        let changed = false;
+        if (isManualMetricTombstoned('bp_systolic', entry.date)
+            && Object.prototype.hasOwnProperty.call(next, 'systolic')) {
+          delete next.systolic;
+          changed = true;
+          prunedLegacy++;
+        }
+        if (isManualMetricTombstoned('bp_diastolic', entry.date)
+            && Object.prototype.hasOwnProperty.call(next, 'diastolic')) {
+          delete next.diastolic;
+          changed = true;
+          prunedLegacy++;
+        }
+        if (!changed || next.systolic != null || next.diastolic != null) {
+          remaining.push(changed ? next : entry);
+        }
+      }
+      biometrics.bp = remaining;
     }
   }
   if (prunedLegacy > 0) await saveImportedData();

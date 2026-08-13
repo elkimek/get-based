@@ -3,6 +3,10 @@
 
 import { isChatModuleLoaded, loadChatModule } from './chat-loader.js';
 import { state } from './state.js';
+import {
+  reconcileManualMetricTombstones,
+  refreshManualSummary,
+} from './wearables-manual.js';
 
 /** @type {Record<string, (...args: any[]) => any>} */
 const profileRefreshDeps = {
@@ -78,10 +82,9 @@ export async function refreshProfileWearables(profileId, biometrics) {
 export async function reconcilePulledManualWearables(profileId, merged) {
   if (!profileId || profileId !== state.currentProfile || !merged || typeof merged !== 'object') return false;
   state.importedData = merged;
-  const manual = await import('./wearables-manual.js');
-  const result = await manual.reconcileManualMetricTombstones(profileId);
+  const result = await reconcileManualMetricTombstones(profileId);
   if (!result || ((result.prunedRows || 0) === 0 && (result.prunedLegacy || 0) === 0)) return false;
-  await manual.refreshManualSummary(profileId);
+  await refreshManualSummary(profileId);
   return true;
 }
 

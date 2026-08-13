@@ -9,6 +9,7 @@ import {
   deleteManualMetric,
   isManualMetricTombstoned,
   logManualMetric,
+  migrateBiometricsToManual,
   reconcileManualMetricTombstones,
   refreshManualSummary,
 } from '../js/wearables-manual.js';
@@ -122,6 +123,49 @@ describe('durable manual heart-rate deletion', () => {
     expect(isManualMetricTombstoned('rhr', '2026-08-12')).toBe(false);
     expect(state.importedData.manualMetricTombstones['rhr.2026-08-12']).toBe(0);
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toMatchObject({ rhr: 64 });
+  });
+
+  it('preserves the undeleted legacy BP component for migration', async () => {
+    state.importedData.biometrics.bp = [
+      { date: '2026-08-10', systolic: 120, diastolic: 76 },
+      { date: '2026-08-11', systolic: 118, diastolic: 74 },
+    ];
+    state.importedData.manualMetricTombstones = {
+      'bp_systolic.2026-08-10': Date.now(),
+      'bp_diastolic.2026-08-11': Date.now(),
+    };
+
+    expect(await reconcileManualMetricTombstones(PROFILE_ID)).toEqual({
+      prunedRows: 0,
+      prunedLegacy: 2,
+    });
+    expect(state.importedData.biometrics.bp).toEqual([
+      { date: '2026-08-10', diastolic: 76 },
+      { date: '2026-08-11', systolic: 118 },
+    ]);
+
+    await migrateBiometricsToManual(PROFILE_ID, state.importedData.biometrics);
+
+    expect(await getDaily(PROFILE_ID, 'manual', '2026-08-10')).toMatchObject({
+      bp_diastolic: 76,
+    });
+    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-10')).bp_systolic).toBeUndefined();
+    expect(await getDaily(PROFILE_ID, 'manual', '2026-08-11')).toMatchObject({
+      bp_systolic: 118,
+    });
+    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-11')).bp_diastolic).toBeUndefined();
+  });
+
+  it('deleting one BP metric leaves its legacy counterpart intact', async () => {
+    state.importedData.biometrics.bp = [
+      { date: '2026-08-12', systolic: 121, diastolic: 77 },
+    ];
+
+    await deleteManualMetric(PROFILE_ID, 'bp_systolic', '2026-08-12');
+
+    expect(state.importedData.biometrics.bp).toEqual([
+      { date: '2026-08-12', diastolic: 77 },
+    ]);
   });
 
   it('applies a pulled deletion before rebuilding the receiving device summary', async () => {
