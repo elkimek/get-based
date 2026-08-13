@@ -265,7 +265,6 @@ function hasSupplementsMedsData() {
  * @param {{
  *   key: string,
  *   toggleKey?: string,
- *   kicker: string,
  *   title: string,
  *   description: string,
  *   status: string,
@@ -276,7 +275,7 @@ function hasSupplementsMedsData() {
  *   affects?: string[],
  * }} options
  */
-function renderContextSourceToggle({ key, toggleKey = key, kicker, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [] }) {
+function renderContextSourceToggle({ key, toggleKey = key, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [] }) {
   const id = `context-source-${key}`;
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
@@ -290,7 +289,6 @@ function renderContextSourceToggle({ key, toggleKey = key, kicker, title, descri
     : '';
   return `<div class="context-source-row${checked ? ' active' : ''}${disabled ? ' disabled' : ''}${child ? ' child' : ''}" data-context-source="${escapeAttr(key)}"${extraAttrs}>
     <div class="context-source-copy">
-      <span class="context-source-kicker">${escapeHTML(kicker)}</span>
       <span class="context-source-title" id="${escapeAttr(titleId)}">${escapeHTML(title)}</span>
       <span class="context-source-desc" id="${escapeAttr(descriptionId)}">${escapeHTML(description)}</span>
       ${affectsHtml}
@@ -303,8 +301,8 @@ function renderContextSourceToggle({ key, toggleKey = key, kicker, title, descri
   </div>`;
 }
 
-function renderContextSourceSection(title, subtitle, rows) {
-  return `<section class="context-source-section">
+function renderContextSourceSection(key, title, subtitle, rows, { wide = false } = {}) {
+  return `<section class="context-source-section${wide ? ' context-source-section-wide' : ''}" data-context-section="${escapeAttr(key)}">
     <div class="context-source-section-head">
       <span class="context-source-section-title">${escapeHTML(title)}</span>
       <span class="context-source-section-sub">${escapeHTML(subtitle)}</span>
@@ -313,11 +311,7 @@ function renderContextSourceSection(title, subtitle, rows) {
   </section>`;
 }
 
-function renderContextSummaryChip(label) {
-  return `<span class="context-summary-chip">${escapeHTML(label)}</span>`;
-}
-
-function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn }) {
+function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody }) {
   /** @type {string[]} */
   const included = [];
   /** @type {string[]} */
@@ -331,14 +325,14 @@ function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasS
   if (hasSupplements) {
     if (supplementsOn) included.push('Supplements & Meds');
     else excluded.push('Supplements & Meds');
-  } else if (supplementsOn) inactive.push('Supplements & Meds');
-  else excluded.push('Supplements & Meds');
-  if (labOn && labStats.totalMarkers > 0) included.push('Blood markers');
-  else if (labOn) inactive.push('Blood markers');
-  else excluded.push('Blood markers');
+  } else inactive.push('Supplements & Meds');
+  if (labStats.totalMarkers > 0) {
+    if (labOn) included.push('Blood markers');
+    else excluded.push('Blood markers');
+  } else inactive.push('Blood markers');
   for (const group of labStats.groups) {
     const title = getLabGroupTitle(group);
-    if (!labOn) inactive.push(title);
+    if (!labOn) excluded.push(title);
     else if (isGroupInAIContext(group.name)) included.push(title);
     else excluded.push(title);
   }
@@ -357,16 +351,21 @@ function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasS
   }
   if (lightOn) included.push('Light & Sun');
   else excluded.push('Light & Sun');
-  if (bodyOn) included.push('Wearables');
-  else excluded.push('Wearables');
-  const renderList = (label, items, empty) => `<div class="context-summary-line">
-    <span class="context-summary-label">${escapeHTML(label)}</span>
-    <span class="context-summary-values">${items.length ? items.map(renderContextSummaryChip).join('') : `<span class="context-summary-empty">${escapeHTML(empty)}</span>`}</span>
+  if (hasBody) {
+    if (bodyOn) included.push('Wearables');
+    else excluded.push('Wearables');
+  } else inactive.push('Wearables');
+  const renderMetric = (tone, label, items, detail) => `<div class="context-summary-metric context-summary-${escapeAttr(tone)}" aria-label="${escapeAttr(`${label}: ${items.length ? items.join(', ') : 'none'}`)}">
+    <span class="context-summary-count">${items.length}</span>
+    <span class="context-summary-copy">
+      <span class="context-summary-label">${escapeHTML(label)}</span>
+      <span class="context-summary-detail">${escapeHTML(detail)}</span>
+    </span>
   </div>`;
   return `<div class="context-source-summary" aria-label="Current context source summary">
-    ${renderList('Included now', included, 'Nothing active yet')}
-    ${renderList('Off', excluded, 'Nothing intentionally excluded')}
-    ${renderList('Not imported', inactive, 'All fixed sources have data')}
+    ${renderMetric('included', 'Included', included, 'Can influence results')}
+    ${renderMetric('excluded', 'Off', excluded, 'Explicitly excluded')}
+    ${renderMetric('unavailable', 'No data', inactive, 'Waiting for profile data')}
   </div>`;
 }
 
@@ -389,7 +388,6 @@ function renderContextSourceControls() {
   const insightRows = [
     renderContextSourceToggle({
       key: 'insight-cards',
-      kicker: 'Profile',
       title: 'Insight Context Cards',
       description: 'Health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.',
       status: insightOn
@@ -400,7 +398,6 @@ function renderContextSourceControls() {
     }),
     renderContextSourceToggle({
       key: 'supplements-meds',
-      kicker: 'Profile',
       title: 'Supplements & Medications',
       description: 'Tracked supplements, medications, ingredients, timing, mitochondrial warnings, and supplement-impact context.',
       status: supplementsOn
@@ -414,7 +411,6 @@ function renderContextSourceControls() {
   const labRows = [
     renderContextSourceToggle({
       key: 'lab-markers',
-      kicker: 'Labs',
       title: 'Blood marker results',
       description: 'Imported lab values, ranges, trends, Biology Score context, marker notes, and flagged-result summaries.',
       status: labOn
@@ -426,7 +422,6 @@ function renderContextSourceControls() {
     ...labStats.groups.map((group, index) => renderContextSourceToggle({
       key: `lab-group-${index}-${group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       toggleKey: 'lab-group',
-      kicker: 'Specialty labs',
       title: getLabGroupTitle(group),
       description: getLabGroupDescription(group),
       status: !labOn
@@ -441,7 +436,6 @@ function renderContextSourceControls() {
   const genomeRows = [
     renderContextSourceToggle({
       key: 'genome-summary',
-      kicker: 'Genome',
       title: 'APOE & mtDNA summary',
       description: 'High-level inherited context such as APOE haplotype and mtDNA haplogroup.',
       status: hasGenomeSummary
@@ -453,7 +447,6 @@ function renderContextSourceControls() {
     }),
     renderContextSourceToggle({
       key: 'genome-priority',
-      kicker: 'Genome',
       title: 'Priority SNP findings',
       description: 'Effectful or protective SNPs relevant to interpretation; normal/neutral calls stay out.',
       status: hasGenome
@@ -465,7 +458,6 @@ function renderContextSourceControls() {
     }),
     renderContextSourceToggle({
       key: 'genome-lookup',
-      kicker: 'Genome',
       title: 'Other SNP lookup inventory',
       description: 'All imported SNP calls, including neutral/no-impact calls from the Genome Lens Other SNPs inventory.',
       status: hasGenome
@@ -480,7 +472,6 @@ function renderContextSourceControls() {
   const lightRows = [
     renderContextSourceToggle({
       key: 'light-sun',
-      kicker: 'Light lens',
       title: 'Light & Sun context',
       description: 'Logged sun, light devices, indoor light environment, and light-related score modifiers.',
       status: lightOn
@@ -493,7 +484,6 @@ function renderContextSourceControls() {
   const bodyRows = [
     renderContextSourceToggle({
       key: 'body-wearables',
-      kicker: 'Body lens',
       title: 'Wearable recovery context',
       description: 'HRV, sleep, resting pulse, recovery, body metrics, and wearable trend summaries.',
       status: bodyOn
@@ -508,13 +498,13 @@ function renderContextSourceControls() {
       <span class="context-source-head-title">Data sources</span>
       <span class="context-source-head-sub">Choose exactly which profile data can influence AI answers and score context.</span>
     </div>
-    ${renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn })}
+    ${renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody })}
     <div class="context-source-sections">
-      ${renderContextSourceSection('Profile', 'Personal profile context, with meds and supplements controlled separately.', insightRows)}
-      ${renderContextSourceSection('Labs', 'Blood markers and imported specialty panels.', labRows)}
-      ${renderContextSourceSection('Genome', 'Inherited context split by sensitivity and token cost.', genomeRows)}
-      ${renderContextSourceSection('Light & Sun', 'Light exposure context, logged sessions, and score modifiers.', lightRows)}
-      ${renderContextSourceSection('Body', 'Wearables and recovery signals.', bodyRows)}
+      ${renderContextSourceSection('profile', 'Profile', 'Personal profile context, with meds and supplements controlled separately.', insightRows)}
+      ${renderContextSourceSection('genome', 'Genome', 'Inherited context split by sensitivity and token cost.', genomeRows)}
+      ${renderContextSourceSection('labs', 'Labs', 'Blood markers and imported specialty panels.', labRows, { wide: true })}
+      ${renderContextSourceSection('light-sun', 'Light & Sun', 'Light exposure context, logged sessions, and score modifiers.', lightRows)}
+      ${renderContextSourceSection('body', 'Body', 'Wearables and recovery signals.', bodyRows)}
     </div>
   </div>`;
 }
@@ -660,23 +650,30 @@ export function openContextModal() {
   const kbSet = !!kbSummary?.configured;
   const kbEnabled = !!kbSummary?.enabled;
   const check = '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>';
-  overlay.innerHTML = `<div class="confirm-dialog context-hub-dialog" role="dialog" aria-modal="true" aria-labelledby="context-hub-title" aria-describedby="context-hub-description">
-    <div class="context-hub-header">
+  overlay.innerHTML = `<div class="confirm-dialog gb-form-modal context-hub-dialog" role="dialog" aria-modal="true" aria-labelledby="context-hub-title" aria-describedby="context-hub-description">
+    <div class="gb-modal-head context-hub-header">
       <div class="context-hub-heading">
-        <p class="confirm-message" id="context-hub-title">Context</p>
-        <p class="confirm-subtext context-hub-subtext" id="context-hub-description">Manage which profile data is allowed to influence AI answers, score context, and source-driven warnings.</p>
+        <div class="gb-modal-kicker">Manage</div>
+        <div class="gb-modal-title" id="context-hub-title">Context</div>
+        <p class="context-hub-subtext" id="context-hub-description">Control what can influence AI answers, Biology Scores, and source-driven warnings.</p>
       </div>
-      <button type="button" class="context-hub-close" id="context-hub-close" aria-label="Close Context">&times;</button>
+      <button type="button" class="modal-close context-hub-close" id="context-hub-close" aria-label="Close Context">&times;</button>
     </div>
-    ${renderAnswerGroundingPanel({ lensSet, kbSet, kbEnabled, kbSummary, check })}
-    ${renderContextSourceControls()}
-    <div class="confirm-actions" style="margin-top:6px">
-      <button class="confirm-btn confirm-btn-cancel" id="context-hub-cancel">Close</button>
+    <div class="gb-form-body context-hub-body">
+      <div class="context-hub-scroll">
+        ${renderAnswerGroundingPanel({ lensSet, kbSet, kbEnabled, kbSummary, check })}
+        ${renderContextSourceControls()}
+      </div>
+      <div class="gb-form-actions context-hub-actions">
+        <span class="context-hub-save-note">Changes save automatically.</span>
+        <button type="button" class="import-btn import-btn-primary" id="context-hub-cancel">Done</button>
+      </div>
     </div>
   </div>`;
   openModalOverlay(overlay, {
     initialFocus: '.ai-picker-card,[data-context-toggle],#context-hub-cancel',
     focusDelay: 50,
+    scrollLock: true,
   });
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };

@@ -80,7 +80,10 @@ function renderReportCategoryChecks(categoryOptions, selectedCategoryKeys) {
   }
   return categoryOptions.map(option => {
     const checked = selected.has(option.key);
-    const flagText = option.flaggedCount > 0 ? `${option.flaggedCount} flagged` : `${option.markerCount} markers`;
+    const markerText = `${option.markerCount} marker${option.markerCount === 1 ? '' : 's'}`;
+    const flagText = option.flaggedCount > 0
+      ? `${markerText} · ${option.flaggedCount} flagged`
+      : markerText;
     return `<label class="report-category-row">
       <input type="checkbox" data-report-category="${escapeAttr(option.key)}" data-report-priority="${option.flaggedCount > 0 ? 'true' : 'false'}" ${checked ? 'checked' : ''}>
       <span class="report-category-copy">
@@ -89,6 +92,13 @@ function renderReportCategoryChecks(categoryOptions, selectedCategoryKeys) {
       </span>
     </label>`;
   }).join('');
+}
+
+function formatSelectionCount(selected, total, noun) {
+  const label = total === 1
+    ? noun
+    : (noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s`);
+  return `${selected} of ${total} ${label}`;
 }
 
 function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
@@ -103,19 +113,40 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
     `<option value="${escapeAttr(option.value)}" ${preset.dateRange === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`
   ).join('');
 
+  const selectedSectionCount = preset.sections.length;
+  const selectedCategoryCount = selectedCategoryKeys.length;
+  const priorityAction = categoryOptions.some(option => option.flaggedCount > 0)
+    ? `<button type="button" class="report-mini-btn" aria-label="Select lab categories with flagged results" ${reportBuilderActionAttrs('select-priority-categories')}>Flagged</button>`
+    : '';
+  const categoryActions = categoryOptions.length ? `<div class="report-category-actions">
+    <button type="button" class="report-mini-btn" aria-label="Select all lab categories" ${reportBuilderActionAttrs('select-all-categories')}>All</button>
+    ${priorityAction}
+    <button type="button" class="report-mini-btn" aria-label="Clear selected lab categories" ${reportBuilderActionAttrs('clear-categories')}>Clear</button>
+  </div>` : '';
+
   return `<div class="modal-overlay" id="${REPORT_BUILDER_OVERLAY_ID}" data-report-builder-overlay data-report-preset="${escapeAttr(presetId)}">
     <div class="modal gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
       <div class="gb-modal-head">
         <div>
-          <div class="gb-modal-kicker">Export</div>
-          <div class="gb-modal-title" id="report-builder-title">Reports</div>
+          <div class="gb-modal-kicker">Reports</div>
+          <div class="gb-modal-title" id="report-builder-title">Create a report</div>
         </div>
         <button type="button" class="modal-close" aria-label="Close" ${reportBuilderActionAttrs('close')}>&times;</button>
       </div>
       <div class="gb-form-body report-builder-body">
         <div class="report-builder-scroll">
+        <div class="report-builder-intro">
+          <div>
+            <div class="report-builder-intro-title">Choose what you want to share</div>
+            <div class="report-builder-help">Build a print-ready view of this profile. The preview is created locally in your browser.</div>
+          </div>
+          <span class="report-builder-local-badge">Local preview</span>
+        </div>
         <div class="report-builder-section">
-          <div class="report-builder-label">Report type</div>
+          <div class="report-builder-section-head">
+            <div class="report-builder-section-title">Start with a template</div>
+            <div class="report-builder-help">Templates set the initial range and sections. You can adjust everything below.</div>
+          </div>
           <div class="report-preset-grid">${presetButtons}</div>
         </div>
         <div class="report-builder-section report-builder-two-col">
@@ -124,39 +155,47 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
             <select id="report-date-range" class="report-builder-select">${dateOptions}</select>
           </label>
           <div class="report-builder-field">
-            <span class="report-builder-label">Sections</span>
+            <div class="report-builder-field-head">
+              <span class="report-builder-label">Sections</span>
+              <span class="report-selection-count" data-report-section-count>${escapeHTML(formatSelectionCount(selectedSectionCount, REPORT_SECTION_DEFS.length, 'section'))}</span>
+            </div>
             <div class="report-section-grid">${renderReportSectionChecks(preset)}</div>
           </div>
         </div>
         <div class="report-builder-section">
           <div class="report-builder-row-head">
-            <div class="report-builder-label">Lab categories</div>
-            <div class="report-category-actions">
-              <button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('select-all-categories')}>All</button>
-              <button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('select-priority-categories')}>Priority</button>
-              <button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('clear-categories')}>Clear</button>
+            <div class="report-builder-section-head">
+              <div class="report-builder-field-head">
+                <span class="report-builder-section-title">Lab categories</span>
+                <span class="report-selection-count" data-report-category-count>${categoryOptions.length ? escapeHTML(formatSelectionCount(selectedCategoryCount, categoryOptions.length, 'category')) : 'No lab data'}</span>
+              </div>
+              <div class="report-builder-help">Choose which imported lab groups appear in lab-based sections.</div>
             </div>
+            ${categoryActions}
           </div>
           <div class="report-category-list">${renderReportCategoryChecks(categoryOptions, selectedCategoryKeys)}</div>
         </div>
         <div class="report-builder-section report-ai-builder">
           <div class="report-builder-row-head">
             <div>
-              <div class="report-builder-label">Practitioner overview</div>
-              <div class="report-builder-help">Generate a one-minute clinical picture from the selected report data. Edit it before preview if needed.</div>
+              <div class="report-builder-section-title">Practitioner overview <span class="report-optional-label">Optional</span></div>
+              <div class="report-builder-help">Generating may share the report data selected above with your active AI provider. Preview works without it.</div>
             </div>
             <div class="report-ai-actions">
-              <button type="button" class="report-mini-btn report-ai-generate-btn" ${reportBuilderActionAttrs('generate-ai-summary')}>Generate</button>
+              <button type="button" class="report-mini-btn report-ai-generate-btn" ${reportBuilderActionAttrs('generate-ai-summary')}>Generate overview</button>
               <button type="button" class="report-mini-btn report-ai-clear-btn" hidden ${reportBuilderActionAttrs('clear-ai-summary')}>Clear</button>
             </div>
           </div>
-          <div class="report-ai-status" data-report-ai-status>Not generated.</div>
+          <div class="report-ai-status" data-report-ai-status aria-live="polite">Not generated.</div>
           <textarea id="report-ai-summary-text" class="report-ai-summary-text" aria-label="Editable practitioner overview" hidden></textarea>
         </div>
         </div>
         <div class="gb-form-actions report-builder-actions">
-          <button type="button" class="import-btn import-btn-secondary" ${reportBuilderActionAttrs('close')}>Cancel</button>
-          <button type="button" class="import-btn import-btn-primary report-builder-preview-btn" ${reportBuilderActionAttrs('export')}>Preview PDF</button>
+          <div class="report-builder-selection-summary" id="report-builder-selection-summary" data-report-selection-summary aria-live="polite">${escapeHTML(`${selectedSectionCount} sections${categoryOptions.length ? ` · ${selectedCategoryCount} lab categories` : ' · no lab data'}`)}</div>
+          <div class="report-builder-footer-buttons">
+            <button type="button" class="import-btn import-btn-secondary" ${reportBuilderActionAttrs('close')}>Cancel</button>
+            <button type="button" class="import-btn import-btn-primary report-builder-preview-btn" aria-describedby="report-builder-selection-summary" ${reportBuilderActionAttrs('export')}>Preview PDF</button>
+          </div>
         </div>
       </div>
     </div>
@@ -186,6 +225,16 @@ function collectReportBuilderOptions(overlay) {
   return options;
 }
 
+function getReportBuilderSelectionError(overlay, options) {
+  if (options.sections.length === 0) return 'Choose at least one report section';
+  const hasCategories = overlay.querySelectorAll('input[data-report-category]').length > 0;
+  const hasLabSection = options.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
+  if (hasLabSection && hasCategories && options.categoryKeys.length === 0) {
+    return 'Choose at least one lab category or turn off lab sections';
+  }
+  return '';
+}
+
 function setReportCategoryChecks(overlay, mode) {
   const boxes = Array.from(overlay.querySelectorAll('input[data-report-category]'));
   if (mode === 'clear') {
@@ -198,6 +247,47 @@ function setReportCategoryChecks(overlay, mode) {
     return;
   }
   boxes.forEach(box => { box.checked = true; });
+}
+
+function updateReportBuilderSelectionState(overlay) {
+  const sectionBoxes = Array.from(overlay.querySelectorAll('input[data-report-section]'));
+  const categoryBoxes = Array.from(overlay.querySelectorAll('input[data-report-category]'));
+  const selectedSections = sectionBoxes.filter(box => box.checked).length;
+  const selectedCategories = categoryBoxes.filter(box => box.checked).length;
+  const sectionCount = overlay.querySelector('[data-report-section-count]');
+  const categoryCount = overlay.querySelector('[data-report-category-count]');
+  const summary = overlay.querySelector('[data-report-selection-summary]');
+  if (sectionCount) sectionCount.textContent = formatSelectionCount(selectedSections, sectionBoxes.length, 'section');
+  if (categoryCount) {
+    categoryCount.textContent = categoryBoxes.length
+      ? formatSelectionCount(selectedCategories, categoryBoxes.length, 'category')
+      : 'No lab data';
+  }
+  if (summary) {
+    summary.textContent = `${selectedSections} section${selectedSections === 1 ? '' : 's'}${categoryBoxes.length
+      ? ` · ${selectedCategories} lab categor${selectedCategories === 1 ? 'y' : 'ies'}`
+      : ' · no lab data'}`;
+  }
+}
+
+function applyReportPreset(overlay, presetId) {
+  const normalizedPresetId = REPORT_PRESETS[presetId] ? presetId : DEFAULT_REPORT_PRESET;
+  const preset = getReportPreset(normalizedPresetId);
+  overlay.dataset.reportPreset = normalizedPresetId;
+  overlay.querySelectorAll('[data-report-action="set-preset"]').forEach(button => {
+    const active = button.dataset.reportPreset === normalizedPresetId;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const range = overlay.querySelector('#report-date-range');
+  if (range) range.value = preset.dateRange;
+  const selectedSections = new Set(preset.sections);
+  overlay.querySelectorAll('input[data-report-section]').forEach(box => {
+    box.checked = selectedSections.has(box.dataset.reportSection);
+  });
+  setReportCategoryChecks(overlay, preset.categoryMode === 'priority' ? 'priority' : 'all');
+  clearReportBuilderAISummaryForOptionChange(overlay);
+  updateReportBuilderSelectionState(overlay);
 }
 
 function setReportBuilderAISummary(overlay, summary) {
@@ -242,6 +332,12 @@ async function generateReportBuilderAISummary(overlay, actionEl) {
   if (statusEl) statusEl.textContent = 'Generating practitioner overview...';
   try {
     const options = collectReportBuilderOptions(overlay);
+    const selectionError = getReportBuilderSelectionError(overlay, options);
+    if (selectionError) {
+      if (statusEl) statusEl.textContent = `${selectionError}.`;
+      showNotification(selectionError, 'error');
+      return;
+    }
     delete options.aiSummary;
     const summary = await generateReportAISummary(options);
     if (summary) {
@@ -270,28 +366,28 @@ async function handleReportBuilderClick(event) {
   if (action === 'close') {
     closeReportBuilder();
   } else if (action === 'set-preset') {
-    openReportBuilder(actionEl.dataset.reportPreset || DEFAULT_REPORT_PRESET);
+    applyReportPreset(overlay, actionEl.dataset.reportPreset || DEFAULT_REPORT_PRESET);
   } else if (action === 'select-all-categories') {
     setReportCategoryChecks(overlay, 'all');
     clearReportBuilderAISummaryForOptionChange(overlay);
+    updateReportBuilderSelectionState(overlay);
   } else if (action === 'select-priority-categories') {
     setReportCategoryChecks(overlay, 'priority');
     clearReportBuilderAISummaryForOptionChange(overlay);
+    updateReportBuilderSelectionState(overlay);
   } else if (action === 'clear-categories') {
     setReportCategoryChecks(overlay, 'clear');
     clearReportBuilderAISummaryForOptionChange(overlay);
+    updateReportBuilderSelectionState(overlay);
   } else if (action === 'generate-ai-summary') {
     await generateReportBuilderAISummary(overlay, actionEl);
   } else if (action === 'clear-ai-summary') {
     setReportBuilderAISummary(overlay, null);
   } else if (action === 'export') {
     const options = collectReportBuilderOptions(overlay);
-    const hasCategories = overlay.querySelectorAll('input[data-report-category]').length > 0;
-    const hasLabSection = options.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
-    if (options.sections.length === 0) {
-      showNotification('Choose at least one report section', 'error');
-    } else if (hasLabSection && hasCategories && options.categoryKeys.length === 0) {
-      showNotification('Choose at least one lab category or turn off lab sections', 'error');
+    const selectionError = getReportBuilderSelectionError(overlay, options);
+    if (selectionError) {
+      showNotification(selectionError, 'error');
     } else if (exportPDFReport(options)) {
       closeReportBuilder();
     }
@@ -310,6 +406,7 @@ function handleReportBuilderChange(event) {
     target.matches('input[data-report-category]')
   ) {
     clearReportBuilderAISummaryForOptionChange(overlay);
+    updateReportBuilderSelectionState(overlay);
   }
 }
 
@@ -330,6 +427,7 @@ export function openReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
   const overlay = template.content.firstElementChild;
   if (!(overlay instanceof HTMLElement)) return;
   openAppendedModalOverlay(overlay, closeReportBuilder, { initialFocus: '.report-preset-btn.active', focusDelay: 50 });
+  updateReportBuilderSelectionState(overlay);
 }
 
 export function closeReportBuilder() {
