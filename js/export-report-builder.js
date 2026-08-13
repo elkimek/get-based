@@ -44,7 +44,7 @@ function getReportCategoryOptions(data = getActiveData()) {
       markerCount,
       flaggedCount: flagCounts.get(key) || 0,
     };
-  }).filter(Boolean);
+  }).filter(option => option !== null);
 }
 
 function getDefaultReportCategoryKeys(presetId, categoryOptions) {
