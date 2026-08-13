@@ -520,7 +520,7 @@ export function importDataJSON(file) {
         }
 
         migrateProfileData(state.importedData);
-        saveImportedData(isDemoLoadingProfile(state.currentProfile)
+        await saveImportedData(isDemoLoadingProfile(state.currentProfile)
           ? { skipSync: true, reason: 'demo-import' }
           : {});
         if (json.chat) {

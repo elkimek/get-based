@@ -9,10 +9,11 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
     // point at the same live chat module used by the test.
     const chatLoader = await import('/js/chat-loader.js');
     await chatLoader.loadChatModule();
-    const [{ state }, chatPanel, chatSend] = await Promise.all([
+    const [{ state }, chatPanel, chatSend, tour] = await Promise.all([
       import('/js/state.js'),
       import('/js/chat-panel.js'),
       import('/js/chat-send.js'),
+      import('/js/tour.js'),
     ]);
     const panel = document.getElementById('chat-panel');
     const backdrop = document.getElementById('chat-backdrop');
@@ -41,6 +42,11 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
     });
 
     try {
+      // Escape dismisses the highest-priority overlay first. Remove the
+      // empty-profile tour so this fixture exercises the chat Escape route
+      // deterministically, even when CI reaches the test before onboarding
+      // has settled.
+      tour.endTour({ openEmptyChat: false });
       const liveHistory = [
         { role: 'user', content: 'Explain this result' },
       ];

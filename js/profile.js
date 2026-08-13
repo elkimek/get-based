@@ -110,11 +110,29 @@ async function reloadProfileRuntimeShell(profileId) {
   await profileRuntimeDeps.reloadProfileRuntimeShell?.(profileId);
 }
 
+/** @type {Map<string, Promise<void>>} */
+const pendingProfileWearableRefreshes = new Map();
+
 function refreshProfileWearables(profileId, biometrics) {
+  /** @type {Promise<void>} */
+  let pending;
   try {
-    const pending = profileRuntimeDeps.refreshProfileWearables?.(profileId, biometrics);
-    Promise.resolve(pending).catch(() => {});
-  } catch {}
+    pending = Promise.resolve(
+      profileRuntimeDeps.refreshProfileWearables?.(profileId, biometrics),
+    ).then(() => undefined, () => undefined);
+  } catch {
+    pending = Promise.resolve();
+  }
+  pendingProfileWearableRefreshes.set(profileId, pending);
+  void pending.finally(() => {
+    if (pendingProfileWearableRefreshes.get(profileId) === pending) {
+      pendingProfileWearableRefreshes.delete(profileId);
+    }
+  });
+}
+
+async function waitForProfileWearables(profileId) {
+  await pendingProfileWearableRefreshes.get(profileId);
 }
 
 /**
@@ -471,6 +489,11 @@ export async function switchProfile(profileId) {
   // overwritten when the (delayed) loadProfile finally read the empty
   // localStorage row for the new profile.
   await loadProfile(profileId);
+  // loadProfile keeps the ordinary app-shell refresh non-blocking, but a
+  // caller explicitly awaiting a profile switch needs a stable imported-data
+  // snapshot. Otherwise the old background wearable refresh can finish after
+  // an immediate import and replace its wearable summary.
+  await waitForProfileWearables(profileId);
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   profileDeps.showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');
