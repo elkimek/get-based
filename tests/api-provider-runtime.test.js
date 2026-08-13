@@ -295,6 +295,49 @@ describe('API provider runtime behavior', () => {
     expect(getPpqModel()).toBe('private/glm-5-2');
   });
 
+  it('accepts newly API-listed PPQ private models without a local allowlist', async () => {
+    setAIProvider('ppq');
+    setPpqPrivateMode(true);
+    setPpqModel('private/kimi-k3');
+    fetch.mockResolvedValueOnce(jsonResponse({
+      data: [
+        { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+        {
+          id: 'private/kimi-k3',
+          name: 'Kimi K3 (Private via TEE)',
+          pricing: { input_per_1M_tokens: 4.22, output_per_1M_tokens: 21.1 },
+        },
+        {
+          id: 'private/future-tee-model',
+          name: 'Future TEE Model',
+          pricing: { input_per_1M_tokens: 1.25, output_per_1M_tokens: 2.5 },
+        },
+      ],
+    }));
+
+    const models = await fetchPpqModels('sk-ppq');
+
+    expect(models.map(model => model.id)).toEqual([
+      'private/future-tee-model',
+      'private/kimi-k3',
+    ]);
+    expect(JSON.parse(localStorage.getItem('labcharts-ppq-private-models'))
+      .map(model => model.id)).toEqual([
+      'private/future-tee-model',
+      'private/kimi-k3',
+    ]);
+    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))).toMatchObject({
+      'private/future-tee-model': { input: 1.25, output: 2.5 },
+      'private/kimi-k3': { input: 4.22, output: 21.1 },
+    });
+    expect(JSON.parse(localStorage.getItem('labcharts-ppq-private-vision-models')))
+      .toContain('private/kimi-k3');
+    expect(getPpqModel()).toBe('private/kimi-k3');
+    expect(isRecommendedModel('ppq', 'private/kimi-k3')).toBe(true);
+    expect(isRecommendedModel('ppq', 'private/gpt-oss-120b')).toBe(false);
+    expect(supportsVision()).toBe(true);
+  });
+
   it('proxies Custom API validation for the explicit unsaved remote URL', async () => {
     setAIProvider('openrouter');
     setCustomApiUrl('http://localhost:11434/v1');
