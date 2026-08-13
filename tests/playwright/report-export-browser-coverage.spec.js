@@ -256,9 +256,16 @@ test('report builder modal delegates presets categories AI state and preview exp
 });
 
 test('report lab categories use the modal scroll surface for reliable wheel input', async ({ page }) => {
+  await page.addInitScript(() => {
+    const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
+    localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+  });
   await page.goto('/app', { waitUntil: 'load' });
 
   await page.evaluate(async () => {
+    const { endTour } = await import('/js/tour.js');
+    endTour({ openEmptyChat: false });
     const [demo, dataModule, exportModule] = await Promise.all([
       fetch('/data/demo-male.json').then(response => response.json()),
       import('/js/data.js'),
@@ -274,6 +281,7 @@ test('report lab categories use the modal scroll surface for reliable wheel inpu
   const overlay = page.locator('#report-builder-overlay');
   const modalScroll = overlay.locator('.report-builder-scroll');
   const categoryList = overlay.locator('.report-category-list');
+  await expect(page.locator('#tour-overlay')).toHaveCount(0);
   await expect(overlay).toHaveClass(/show/);
   await expect.poll(() => categoryList.locator('.report-category-row').count()).toBeGreaterThan(4);
   await expect.poll(() => categoryList.evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
