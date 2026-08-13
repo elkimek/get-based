@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { configureProfileRuntimeDeps, loadProfile } from '../js/profile.js';
+import { configureProfileRuntimeDeps, loadProfile, switchProfile } from '../js/profile.js';
 import { state } from '../js/state.js';
 
 const PROFILE_ID = 'injected-wearable-refresh';
@@ -34,6 +34,39 @@ describe('profile wearable refresh dependency', () => {
         PROFILE_ID,
         expect.objectContaining({ weight: 72 })
       );
+    } finally {
+      configureProfileRuntimeDeps(previousDeps);
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+      if (previousActiveProfile == null) localStorage.removeItem('labcharts-active-profile');
+      else localStorage.setItem('labcharts-active-profile', previousActiveProfile);
+    }
+  });
+
+  it('waits for the loaded profile wearable refresh before resolving a switch', async () => {
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const previousActiveProfile = localStorage.getItem('labcharts-active-profile');
+    let finishRefresh;
+    const refreshProfileWearables = vi.fn(() => new Promise(resolve => {
+      finishRefresh = resolve;
+    }));
+    const previousDeps = configureProfileRuntimeDeps({
+      reloadProfileRuntimeShell: async () => {},
+      refreshProfileWearables,
+    });
+    state.currentProfile = `${PROFILE_ID}-previous`;
+
+    try {
+      let switched = false;
+      const switching = switchProfile(PROFILE_ID).then(() => { switched = true; });
+      await vi.waitFor(() => expect(refreshProfileWearables).toHaveBeenCalled());
+      await Promise.resolve();
+      expect(switched).toBe(false);
+
+      finishRefresh();
+      await switching;
+      expect(switched).toBe(true);
     } finally {
       configureProfileRuntimeDeps(previousDeps);
       state.currentProfile = previousProfile;

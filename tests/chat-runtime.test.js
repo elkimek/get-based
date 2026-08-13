@@ -237,7 +237,9 @@ describe('chat presentation stylesheet runtime behavior', () => {
       const chatPanel = await import('../js/chat-panel.js');
       expect(chatPanel.configureChatPanel({})).toEqual({
         restoreDiscussionContinuePrompt: null,
+        isChatStreaming: null,
         refreshMobileDashboardActiveTab: null,
+        restoreChatGenerationUI: null,
         stopVoiceActivity: null,
       });
       expect(chatPanel.isChatThreadInputBlocked()).toBe(false);

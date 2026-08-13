@@ -3,6 +3,10 @@
 
 import { isChatModuleLoaded, loadChatModule } from './chat-loader.js';
 import { state } from './state.js';
+import {
+  reconcileManualMetricTombstones,
+  refreshManualSummary,
+} from './wearables-manual.js';
 
 /** @type {Record<string, (...args: any[]) => any>} */
 const profileRefreshDeps = {
@@ -69,6 +73,19 @@ export async function refreshProfileWearables(profileId, biometrics) {
   try { await profileRefreshDeps.syncWearableSummary(profileId, connect.listConnectedSources()); } catch {}
   if (state.currentProfile !== profileId) return;
   connect.syncStaleWearablesNow?.().catch(() => {});
+}
+
+// Apply newly pulled manual-reading deletion markers before sync-pull renders
+// the active profile. `merged` is the object that pull will persist, so IDB,
+// legacy biometrics, and the derived wearable summary converge atomically
+// from the user's perspective.
+export async function reconcilePulledManualWearables(profileId, merged) {
+  if (!profileId || profileId !== state.currentProfile || !merged || typeof merged !== 'object') return false;
+  state.importedData = merged;
+  const result = await reconcileManualMetricTombstones(profileId);
+  if (!result || ((result.prunedRows || 0) === 0 && (result.prunedLegacy || 0) === 0)) return false;
+  await refreshManualSummary(profileId);
+  return true;
 }
 
 export function refreshProfileButton() {

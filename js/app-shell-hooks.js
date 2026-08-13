@@ -146,6 +146,7 @@ import {
   configureProfileRefreshDeps,
   dispatchProfileSwitched,
   invalidateProfileContextCache,
+  reconcilePulledManualWearables,
   refreshProfileButton,
   refreshProfileWearables,
   reloadProfileRuntimeShell,
@@ -353,7 +354,7 @@ configureStartupUIDeps({
 });
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
-configureSyncPull({ renderProfileButton });
+configureSyncPull({ renderProfileButton, reconcilePulledManualWearables });
 configureSyncPullActiveRefreshDeps({
   buildSidebar,
   ensureActiveThread: ensureActiveThreadIfLoaded,

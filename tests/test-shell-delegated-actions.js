@@ -316,7 +316,8 @@ assert('App shell injects sync pull profile refresh without bridge lookups',
     && syncPullSrc.includes("if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;")
     && syncPullSrc.includes('_renderProfileButton();')
     && appShellHooksSrc.includes("import { configureSyncPull } from './sync-pull.js';")
-    && appShellHooksSrc.includes('configureSyncPull({ renderProfileButton });'));
+    && appShellHooksSrc.includes('reconcilePulledManualWearables,')
+    && appShellHooksSrc.includes('configureSyncPull({ renderProfileButton, reconcilePulledManualWearables });'));
 
 assert('App shell injects PDF import review callbacks without a runtime back-import',
   appShellHooksSrc.includes("const confirmPdfImport = () => import('./pdf-import-commit.js')")

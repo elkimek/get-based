@@ -2100,8 +2100,8 @@ await import('../js/settings.js');
     /_planKeyedMapDelta[\s\S]{0,3500}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,3500}keyIdFn\(rawKey\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta payload preserves the ORIGINAL raw key (not the synth)',
     /payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
-  assert('_planKeyedMapDelta keeps manual value clears as live null rows',
-    /CLEARED_VALUE_MAPS\s*=\s*new Set\(\['manualValues', 'markerValueNotes'\]\)/.test(syncDeltaMapPlannerSrc)
+  assert('_planKeyedMapDelta keeps manual value and tombstone clears as live rows',
+    /CLEARED_VALUE_MAPS\s*=\s*new Set\([\s\S]{0,200}'manualValues'[\s\S]{0,200}'markerValueNotes'[\s\S]{0,200}'manualMetricTombstones'[\s\S]{0,100}\)/.test(syncDeltaMapPlannerSrc)
       && /value === null && !CLEARED_VALUE_MAPS\.has\(mapName\)/.test(syncDeltaMapPlannerSrc));
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(deltaSearchSrc));
@@ -3021,7 +3021,7 @@ await import('../js/settings.js');
     'entries', 'notes', 'supplements', 'healthGoals', 'changeHistory',
     'chatSummaries',
     // Maps
-    'markerNotes', 'customMarkers', 'manualValues', 'refOverrides',
+    'markerNotes', 'customMarkers', 'manualValues', 'manualMetricTombstones', 'refOverrides',
     'categoryLabels', 'categoryIcons', 'markerLabels',
     'wearablePrimaryOverride', 'genetics.snps', 'lightDailyVerdicts',
     'contextSourceSettings',

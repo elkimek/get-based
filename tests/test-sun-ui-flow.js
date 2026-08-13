@@ -23,6 +23,8 @@ return (async function() {
   const { state: S } = await import('/js/state.js');
   const dataModule = await import('/js/data.js');
   const viewsModule = await import('/js/views.js');
+  const { loadLightSunModules } = await import('/js/light-sun-loader.js');
+  await loadLightSunModules();
   const lightDevices = await import('/js/light-devices.js');
   const sun = await import('/js/sun.js');
   const sunSessionUI = await import('/js/sun-session-ui.js');

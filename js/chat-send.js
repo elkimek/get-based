@@ -66,6 +66,9 @@ import { setChatStreamStatus } from './chat-stream-status.js';
 /** @type {AbortController | null} */
 let _chatAbortController = null;
 
+/** @type {{ container: HTMLElement, typingEl: HTMLElement, aiMsgEl: HTMLElement | null, labelEl: HTMLElement | null, personalityName: string } | null} */
+let _activeChatGenerationUI = null;
+
 export function isChatStreaming() {
   return !!_chatAbortController;
 }
@@ -80,6 +83,30 @@ export function setChatAbortController(controller) {
 
 export function stopChatGeneration() {
   _chatAbortController?.abort();
+}
+
+// Closing the panel deliberately does not stop generation. If reopening (or
+// another transcript render) displaced the live placeholder, reconnect the
+// same DOM nodes and restore the Stop affordance without restarting or
+// duplicating the billable request.
+export function restoreChatGenerationUI() {
+  if (!_chatAbortController) return false;
+  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
+  setSendButtonMode(sendBtn, 'streaming');
+
+  const active = _activeChatGenerationUI;
+  if (!active) return true; // Discussion rounds own their live message UI.
+  const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages')) || active.container;
+  active.container = container;
+  if (active.aiMsgEl?.textContent) {
+    if (active.labelEl && !active.labelEl.isConnected) container.appendChild(active.labelEl);
+    if (!active.aiMsgEl.isConnected) container.appendChild(active.aiMsgEl);
+  } else if (!active.typingEl.isConnected) {
+    container.appendChild(active.typingEl);
+  }
+  setChatStreamStatus(`${active.personalityName} is responding.`, { busy: true });
+  notifyChatContentAdded(container);
+  return true;
 }
 
 // ═══════════════════════════════════════════════
@@ -152,6 +179,14 @@ initChatScrollControls();
 // ═══════════════════════════════════════════════
 export function setSendButtonMode(btn, mode) {
   if (!btn) return;
+  // Editing the latest prompt would replace the response that is currently
+  // arriving. Keep the action out of sight until the active request settles,
+  // including after a close/reopen cycle.
+  document.querySelectorAll('.chat-edit-retry-action').forEach(action => {
+    const button = /** @type {HTMLButtonElement} */ (action);
+    button.hidden = mode === 'streaming';
+    button.disabled = mode === 'streaming';
+  });
   if (mode === 'streaming') {
     btn.disabled = false;
     setIconButtonContent(btn, 'stop');
@@ -244,6 +279,13 @@ export async function sendChatMessage() {
 
   // Switch to stop mode
   _chatAbortController = new AbortController();
+  _activeChatGenerationUI = {
+    container,
+    typingEl,
+    aiMsgEl: null,
+    labelEl: null,
+    personalityName: getActivePersonality().name,
+  };
   setSendButtonMode(sendBtn, 'streaming');
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
@@ -304,6 +346,7 @@ export async function sendChatMessage() {
       labelEl.className = 'chat-persona-label';
       labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
       container.appendChild(labelEl);
+      if (_activeChatGenerationUI) _activeChatGenerationUI.labelEl = labelEl;
     }
 
     // Create AI message placeholder
@@ -311,7 +354,9 @@ export async function sendChatMessage() {
     aiMsgEl.className = 'chat-msg chat-ai';
     aiMsgEl.setAttribute('role', 'article');
     aiMsgEl.setAttribute('aria-label', `${personality.name} response`);
+    aiMsgEl.dataset.chatStreaming = 'true';
     aiMsgEl.style.whiteSpace = 'pre-wrap';
+    if (_activeChatGenerationUI) _activeChatGenerationUI.aiMsgEl = aiMsgEl;
 
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
     const typewriter = createTypewriter(aiMsgEl, typingEl, container);
@@ -332,6 +377,7 @@ export async function sendChatMessage() {
     // Final render with full markdown
     typewriter.stop();
     aiMsgEl.style.whiteSpace = '';
+    delete aiMsgEl.dataset.chatStreaming;
     if (typingEl.parentNode) typingEl.remove();
     if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
 
@@ -509,6 +555,7 @@ export async function sendChatMessage() {
   }
 
   _chatAbortController = null;
+  _activeChatGenerationUI = null;
   setSendButtonMode(sendBtn, 'idle');
   updateDiscussButton();
   updateChatHeaderTitle();

@@ -5,7 +5,10 @@ import './chat-window-bindings.js';
 
 export { renderChatMessages } from './chat-render.js';
 export { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
-export { handleChatKeydown, isChatStreaming, sendChatMessage, stopChatGeneration } from './chat-send.js';
+export {
+  handleChatKeydown, isChatStreaming, restoreChatGenerationUI,
+  sendChatMessage, stopChatGeneration,
+} from './chat-send.js';
 export {
   autoResizePersonaTextarea, cancelCustomPersonalityEditor, deleteCustomPersonality, editCustomPersonality,
   generateCustomPersonality, getActivePersonality, getCustomPersonalities,

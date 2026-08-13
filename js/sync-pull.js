@@ -37,6 +37,8 @@ var _pushDirtyProfiles = _pushDirtyProfiles || (async () => ({ total: 0, succeed
 /** @type {(...args: any[]) => Promise<any>} */
 var _pushProfilesById = _pushProfilesById || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
 var _renderProfileButton = _renderProfileButton || (() => {});
+/** @type {(...args: any[]) => Promise<any>} */
+var _reconcilePulledManualWearables = _reconcilePulledManualWearables || (async () => false);
 /** @type {(...args: any[]) => any} */
 var _debug = _debug || (() => {});
 let _pulling = false;
@@ -105,6 +107,7 @@ export function combinePulledAISettings(selection) {
  *   pushDirtyProfiles?: (...args: any[]) => Promise<any>,
  *   pushProfilesById?: (...args: any[]) => Promise<any>,
  *   renderProfileButton?: () => void,
+ *   reconcilePulledManualWearables?: (...args: any[]) => Promise<any>,
  *   debug?: (...args: any[]) => any,
  * }} [deps]
  */
@@ -117,6 +120,7 @@ export function configureSyncPull({
   pushDirtyProfiles,
   pushProfilesById,
   renderProfileButton,
+  reconcilePulledManualWearables,
   debug,
 } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
@@ -127,6 +131,7 @@ export function configureSyncPull({
   if (typeof pushDirtyProfiles === 'function') _pushDirtyProfiles = pushDirtyProfiles;
   if (typeof pushProfilesById === 'function') _pushProfilesById = pushProfilesById;
   if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;
+  if (typeof reconcilePulledManualWearables === 'function') _reconcilePulledManualWearables = reconcilePulledManualWearables;
   if (typeof debug === 'function') _debug = debug;
 }
 
@@ -295,6 +300,11 @@ export async function onSyncReceived() {
         dbg(mergeMsg);
         logSyncEvent('pull', mergeMsg);
 
+        // Raw manual wearable rows are intentionally device-local, while
+        // per-metric/date deletion markers sync. Apply those markers before
+        // persistence/render so an old local row cannot recreate a pulse the
+        // user deleted on another device.
+        await _reconcilePulledManualWearables(profileId, merged);
         await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
         if (restoreJoinApplied) clearRestoreJoinPending();
 

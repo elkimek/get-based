@@ -44,6 +44,11 @@ export const DELTA_MAPS = [
   'customMarkers',
   'markerPlacements',
   'manualValues',
+  // Durable privacy deletions for device-local manual wearable rows. Raw
+  // wearable rows stay per-device, so these per-metric/date markers are what
+  // stop another device (or a legacy biometrics migration) resurrecting a
+  // reading after the user deletes it.
+  'manualMetricTombstones',
   'refOverrides',
   'categoryLabels',
   'categoryIcons',

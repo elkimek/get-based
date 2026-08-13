@@ -334,6 +334,18 @@ export function importDataJSON(file) {
           if (!state.importedData.manualValues) state.importedData.manualValues = {};
           Object.assign(state.importedData.manualValues, json.manualValues);
         }
+        // Manual wearable deletions are privacy state. Merge by the newest
+        // deletion clock so importing an older backup cannot resurrect a
+        // reading that was deleted later on this or another device.
+        if (json.manualMetricTombstones && typeof json.manualMetricTombstones === 'object'
+            && !Array.isArray(json.manualMetricTombstones)) {
+          if (!state.importedData.manualMetricTombstones) state.importedData.manualMetricTombstones = {};
+          for (const [key, deletedAt] of Object.entries(json.manualMetricTombstones)) {
+            const incoming = Number(deletedAt) || 0;
+            const current = Number(state.importedData.manualMetricTombstones[key]) || 0;
+            if (incoming > current) state.importedData.manualMetricTombstones[key] = incoming;
+          }
+        }
         // Import Light & Sun stack (added v1.6.x; was missing from importDataJSON
         // entirely so demo + JSON imports silently dropped sun sessions, devices,
         // rooms, audits, measurements, sunDefaults, lightDailyVerdicts). Merge
@@ -508,7 +520,7 @@ export function importDataJSON(file) {
         }
 
         migrateProfileData(state.importedData);
-        saveImportedData(isDemoLoadingProfile(state.currentProfile)
+        await saveImportedData(isDemoLoadingProfile(state.currentProfile)
           ? { skipSync: true, reason: 'demo-import' }
           : {});
         if (json.chat) {
@@ -663,6 +675,15 @@ async function _importDatabaseBundle(json) {
           for (const [k, v] of Object.entries(importData[field])) {
             if (!current[field][k]) current[field][k] = v;
           }
+        }
+      }
+      if (importData.manualMetricTombstones && typeof importData.manualMetricTombstones === 'object'
+          && !Array.isArray(importData.manualMetricTombstones)) {
+        if (!current.manualMetricTombstones) current.manualMetricTombstones = {};
+        for (const [key, deletedAt] of Object.entries(importData.manualMetricTombstones)) {
+          const incoming = Number(deletedAt) || 0;
+          const existing = Number(current.manualMetricTombstones[key]) || 0;
+          if (incoming > existing) current.manualMetricTombstones[key] = incoming;
         }
       }
       // Save

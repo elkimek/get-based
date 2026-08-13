@@ -49,12 +49,16 @@ let useChatPresentationStylesheetRetryUrl = false;
 
 /** @type {{
  *   restoreDiscussionContinuePrompt: (() => void) | null,
+ *   isChatStreaming: (() => boolean) | null,
  *   refreshMobileDashboardActiveTab: (() => void) | null,
+ *   restoreChatGenerationUI: (() => boolean) | null,
  *   stopVoiceActivity: (() => void) | null,
  * }} */
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
+  isChatStreaming: null,
   refreshMobileDashboardActiveTab: null,
+  restoreChatGenerationUI: null,
   stopVoiceActivity: null,
 };
 let chatThreadInputBlocked = false;
@@ -76,7 +80,7 @@ function updateChatPanelAccessibility(panel, open) {
   setChatBackgroundInert(open && mobile);
 }
 
-/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, refreshMobileDashboardActiveTab?: (() => void) | null, stopVoiceActivity?: (() => void) | null }} [callbacks] */
+/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, isChatStreaming?: (() => boolean) | null, refreshMobileDashboardActiveTab?: (() => void) | null, restoreChatGenerationUI?: (() => boolean) | null, stopVoiceActivity?: (() => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
   const previous = { ...panelCallbacks };
   Object.assign(panelCallbacks, callbacks);
@@ -285,18 +289,28 @@ export async function openChatPanel(prefillMessage) {
   const wsCb = /** @type {HTMLInputElement | null} */ (panel.querySelector('#chat-websearch-checkbox'));
   if (wsCb) wsCb.checked = getChatWebSearchEnabled();
   updateWebSearchToggleVisibility();
+  // An in-flight answer exists only in the live request/typewriter state
+  // until it finishes. Reloading the persisted thread here would erase that
+  // partial response and typing indicator while the request kept running,
+  // making the latest user message look interrupted and retryable.
+  const generationInProgress = panelCallbacks.isChatStreaming?.() === true;
   // Load threads and ensure active thread
-  const threadsLoaded = await loadChatThreads();
-  chatThreadInputBlocked = threadsLoaded === false;
-  if (threadsLoaded !== false) ensureActiveThread();
+  let threadsLoaded = true;
+  if (!generationInProgress) {
+    threadsLoaded = await loadChatThreads();
+    chatThreadInputBlocked = threadsLoaded === false;
+    if (threadsLoaded !== false) ensureActiveThread();
+  }
   restoreRailState();
   renderThreadList();
   renderSavedSummaries();
-  if (threadsLoaded !== false) await loadChatHistory();
-  panelCallbacks.restoreDiscussionContinuePrompt?.();
+  if (!generationInProgress && threadsLoaded !== false) await loadChatHistory();
+  if (!generationInProgress) panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   initChatComposer();
-  if (!chatThreadInputBlocked) {
+  if (generationInProgress) {
+    panelCallbacks.restoreChatGenerationUI?.();
+  } else if (!chatThreadInputBlocked) {
     if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
     else await restoreChatDraft(undefined, { focus: true });
   }
