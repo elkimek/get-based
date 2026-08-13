@@ -45,6 +45,11 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
 });
 
 test('direct Knowledge Base entry does not imply that Context is its parent', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-onboarded', 'profile-set');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
   await page.goto('/app', { waitUntil: 'load' });
 
   const knowledgeBaseNav = page.locator('#sidebar-nav .nav-item[data-category="knowledge-base"]');
