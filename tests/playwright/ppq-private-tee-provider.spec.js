@@ -42,6 +42,7 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
             data: [
               { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', pricing: { input_per_1M_tokens: '3', output_per_1M_tokens: '15' } },
               { id: 'private/glm-5-2', name: 'GLM 5.2 Private', pricing: { input_per_1M_tokens: '1', output_per_1M_tokens: '8' } },
+              { id: 'private/kimi-k3', name: 'Kimi K3 Private', pricing: { input_per_1M_tokens: '4.22', output_per_1M_tokens: '21.1' } },
               { id: 'codex-not-used', name: 'Codex' },
             ],
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -78,9 +79,11 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
         after: {
           hasToggle: !!document.getElementById('ppq-private-toggle'),
           privateCount: JSON.parse(localStorage.getItem('labcharts-ppq-private-models') || '[]').length,
+          privateModels: JSON.parse(localStorage.getItem('labcharts-ppq-private-models') || '[]').map(model => model.id),
           regularCount: JSON.parse(localStorage.getItem('labcharts-ppq-models') || '[]').length,
           privateMode: localStorage.getItem('labcharts-ppq-private-mode'),
           modelSelectValue: document.getElementById('ppq-model-select')?.value || '',
+          modelOptions: Array.from(document.querySelectorAll('#ppq-model-select option')).map(option => option.value),
           indicatorText: document.getElementById('ppq-private-indicator')?.textContent || '',
           balanceText: document.getElementById('ppq-balance')?.textContent || '',
           balanceCalls,
@@ -105,10 +108,12 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
   expect(result.before.hasToggle).toBe(false);
   expect(result.before.privateCount).toBe(0);
   expect(result.after.hasToggle).toBe(true);
-  expect(result.after.privateCount).toBeGreaterThan(0);
+  expect(result.after.privateCount).toBe(2);
+  expect(result.after.privateModels).toContain('private/kimi-k3');
   expect(result.after.regularCount).toBe(1);
   expect(result.after.privateMode).toBe('on');
   expect(result.after.modelSelectValue).toMatch(/^private\//);
+  expect(result.after.modelOptions).toContain('private/kimi-k3');
   expect(result.after.indicatorText).toContain('Prompts are encrypted in your browser');
   expect(result.after.balanceText).toContain('$1.23');
   expect(result.after.balanceCalls).toBeGreaterThanOrEqual(2);

@@ -74,7 +74,7 @@ const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
 const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
-const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k2-6', 'private/glm-5-2', 'private/gpt-oss-120b'];
+const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-2'];
 
 function normalizedModelId(modelId) {
   return String(modelId || '').toLowerCase().replace(/[_.]/g, '-');

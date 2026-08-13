@@ -27,15 +27,19 @@ const apiWindow = /** @type {PpqApiWindow} */ (typeof window !== 'undefined' ? w
 const PPQ_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'moonshotai/kimi-', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
 const PPQ_DEFAULT_CANDIDATES = ['gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
 const PPQ_EXCLUDE = ['codex', 'audio', 'image', 'embed', 'tts', 'whisper', 'video', 'nano-banana'];
-const PPQ_PRIVATE_MODELS = [
-  { id: 'private/kimi-k2-6', name: 'Kimi K2.6 (Private TEE)', input: ['text', 'image'], pricing: { input_per_1M_tokens: '1.58', output_per_1M_tokens: '5.51' } },
-  { id: 'private/gpt-oss-120b', name: 'GPT-OSS 120B (Private TEE)', input: ['text'], pricing: { input_per_1M_tokens: '0.79', output_per_1M_tokens: '1.31' } },
-  { id: 'private/llama3-3-70b', name: 'Llama 3.3 70B (Private TEE)', input: ['text'], pricing: { input_per_1M_tokens: '1.84', output_per_1M_tokens: '2.89' } },
-  { id: 'private/qwen3-vl-30b', name: 'Qwen3-VL 30B (Private TEE)', input: ['text', 'image'], pricing: { input_per_1M_tokens: '1.31', output_per_1M_tokens: '4.20' } },
-  { id: 'private/glm-5-2', name: 'GLM-5.2 (Private TEE)', input: ['text'], pricing: { input_per_1M_tokens: '1.58', output_per_1M_tokens: '5.51' } },
-  { id: 'private/gemma4-31b', name: 'Gemma 4 31B (Private TEE)', input: ['text', 'image'], pricing: { input_per_1M_tokens: '0.47', output_per_1M_tokens: '1.05' } },
-];
-const PPQ_PRIVATE_MODEL_MAP = Object.fromEntries(PPQ_PRIVATE_MODELS.map(m => [m.id, m.id.replace(/^private\//, '')]));
+// The PPQ API is authoritative for private-model availability, names, and
+// pricing. This map only fills capability metadata that the current private
+// catalogue rows omit; it must never act as an availability allowlist.
+/** @type {Record<string, { input: string[] }>} */
+const PPQ_PRIVATE_MODEL_CAPABILITIES = {
+  'private/kimi-k2-6': { input: ['text', 'image'] },
+  'private/gpt-oss-120b': { input: ['text'] },
+  'private/llama3-3-70b': { input: ['text'] },
+  'private/qwen3-vl-30b': { input: ['text', 'image'] },
+  'private/glm-5-2': { input: ['text'] },
+  'private/gemma4-31b': { input: ['text', 'image'] },
+  'private/kimi-k3': { input: ['text', 'image'] },
+};
 
 export async function createPpqAccount() {
   const res = await fetch('https://api.ppq.ai/accounts/create', { method: 'POST' });
@@ -98,11 +102,9 @@ export async function fetchPpqModels(key) {
     if (!res.ok) return [];
     const json = await res.json();
     const rawModels = json.data || [];
-    const privateIds = new Set(PPQ_PRIVATE_MODELS.map(m => m.id));
     const privateFromApi = rawModels.filter(function(m) { return m?.id && m.id.startsWith('private/'); });
     const privateModels = privateFromApi
-      .filter(function(m) { return privateIds.has(m.id); })
-      .map(function(m) { return { ...PPQ_PRIVATE_MODELS.find(p => p.id === m.id), ...m }; })
+      .map(function(m) { return { ...PPQ_PRIVATE_MODEL_CAPABILITIES[m.id], ...m }; })
       .sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const all = rawModels.filter(function(m) {
       if (!m.id || m.id.startsWith('private/')) return false;
@@ -175,7 +177,7 @@ export async function callPpqPrivateAPI(opts) {
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
   if (!crypto?.subtle) throw new Error('PPQ Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
   const modelId = getPpqModel();
-  const enclaveModelId = PPQ_PRIVATE_MODEL_MAP[modelId] || modelId.replace(/^private\//, '');
+  const enclaveModelId = modelId.replace(/^private\//, '');
   const { createPpqPrivateFetch } = await import('../vendor/ppq-private-tee.js');
   let secure;
   try {
