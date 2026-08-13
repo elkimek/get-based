@@ -4,7 +4,8 @@
 import { configureChatThreadDeps } from './chat-threads.js';
 import { renderChatMessages } from './chat-render.js';
 import {
-  createTypewriter, getChatAbortController, sendChatMessage,
+  createTypewriter, getChatAbortController, isChatStreaming,
+  restoreChatGenerationUI, sendChatMessage,
   setChatAbortController, stopChatGeneration,
   setSendButtonMode,
 } from './chat-send.js';
@@ -38,7 +39,11 @@ configureChatOnboarding({
   setChatNudge,
   updateChatNudge,
 });
-configureChatPanel({ restoreDiscussionContinuePrompt });
+configureChatPanel({
+  isChatStreaming,
+  restoreChatGenerationUI,
+  restoreDiscussionContinuePrompt,
+});
 configureChatThreadDeps({
   cleanupDiscussionState,
   deleteAttachmentDraft,

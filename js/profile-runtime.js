@@ -71,6 +71,20 @@ export async function refreshProfileWearables(profileId, biometrics) {
   connect.syncStaleWearablesNow?.().catch(() => {});
 }
 
+// Apply newly pulled manual-reading deletion markers before sync-pull renders
+// the active profile. `merged` is the object that pull will persist, so IDB,
+// legacy biometrics, and the derived wearable summary converge atomically
+// from the user's perspective.
+export async function reconcilePulledManualWearables(profileId, merged) {
+  if (!profileId || profileId !== state.currentProfile || !merged || typeof merged !== 'object') return false;
+  state.importedData = merged;
+  const manual = await import('./wearables-manual.js');
+  const result = await manual.reconcileManualMetricTombstones(profileId);
+  if (!result || ((result.prunedRows || 0) === 0 && (result.prunedLegacy || 0) === 0)) return false;
+  await manual.refreshManualSummary(profileId);
+  return true;
+}
+
 export function refreshProfileButton() {
   profileRefreshDeps.renderProfileButton();
 }

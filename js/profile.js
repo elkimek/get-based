@@ -232,6 +232,7 @@ export function createDefaultProfileData() {
     importSnapshots: [],
     biometrics: null,
     manualValues: {},
+    manualMetricTombstones: {},
     sunSessions: [],
     deviceSessions: [],
     lightDevices: [],

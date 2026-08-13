@@ -98,6 +98,7 @@ describe('JSON restore runtime', () => {
         pulse: [],
         bp: [],
       },
+      manualMetricTombstones: { 'rhr.2026-01-01': 200 },
       sunSessions: [{ id: 'sun-existing' }],
       deviceSessions: [],
       lightDevices: [],
@@ -217,6 +218,10 @@ describe('JSON restore runtime', () => {
       markerNotes: { glucose: 'fasted' },
       markerValueNotes: { 'glucose:2026-01-10': 'morning' },
       manualValues: { 'glucose:2026-01-10': true },
+      manualMetricTombstones: {
+        'rhr.2026-01-01': 100,
+        'rhr.2026-01-10': 300,
+      },
       sunSessions: [
         { id: 'sun-existing' },
         { id: 'sun-new' },
@@ -331,6 +336,10 @@ describe('JSON restore runtime', () => {
     expect(imported.menstrualCycle.periods).toHaveLength(2);
     expect(imported.emfAssessment.assessments).toHaveLength(2);
     expect(imported.biometrics.weight).toHaveLength(2);
+    expect(imported.manualMetricTombstones).toEqual({
+      'rhr.2026-01-01': 200,
+      'rhr.2026-01-10': 300,
+    });
     expect(imported.sunSessions).toEqual([
       { id: 'sun-existing' },
       { id: 'sun-new' },

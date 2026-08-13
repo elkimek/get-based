@@ -25,9 +25,8 @@ import {
 } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
-import { saveImportedData } from './data.js';
-import { clearSource, getDailyRange } from './wearables-store.js';
-import { refreshManualSummary } from './wearables-manual.js';
+import { getDailyRange } from './wearables-store.js';
+import { deleteAllManualMetrics, refreshManualSummary } from './wearables-manual.js';
 import {
   closeWearableSettingsModal,
   confirmWearableSettingsAction,
@@ -545,13 +544,10 @@ async function handleManualDisconnect() {
   )) {
     try {
       const profileId = getActiveProfileId();
-      await clearSource(profileId, 'manual');
-      // Drop the connection record too — the row disappears from the strip
-      // source header and the Settings integrations list.
-      if (state.importedData.wearableConnections) {
-        delete state.importedData.wearableConnections.manual;
-        await saveImportedData();
-      }
+      // Records synced per-field/date deletion markers before clearing L1,
+      // including dates that only survive in the legacy biometrics payload.
+      // A peer can therefore no longer rebuild and republish these readings.
+      await deleteAllManualMetrics(profileId);
       await refreshManualSummary(profileId);
       showNotification?.('All manual entries deleted', 'success');
       refreshSettingsWearables();
@@ -738,7 +734,12 @@ async function handleWearableDisconnect(adapterId) {
 
 function refreshSettingsWearables() {
   const section = document.getElementById('wearables-section');
-  if (section) section.innerHTML = renderWearablesSettingsSection();
+  if (!section) return;
+  section.innerHTML = renderWearablesSettingsSection();
+  // Runtime OAuth configuration can arrive after the initial counts read and
+  // replace the whole section. Rehydrate the async manual counts on the new
+  // DOM instead of leaving the row stuck at "Counting readings…".
+  queueMicrotask(_updateManualCounts);
 }
 
 export const wearableSettingsActionHandlers = Object.freeze({

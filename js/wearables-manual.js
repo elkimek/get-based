@@ -10,7 +10,17 @@
 // migration. The dashboard strip, per-metric source picker, and AI context
 // layer all pick up 'manual' rows via the existing generic summary logic.
 
-import { upsertDaily, upsertDailyBatch, countSource, getDaily, deleteDaily, getMeta, setMeta } from './wearables-store.js';
+import {
+  upsertDaily,
+  upsertDailyBatch,
+  countSource,
+  getDaily,
+  getDailyRange,
+  deleteDaily,
+  clearSource,
+  getMeta,
+  setMeta,
+} from './wearables-store.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { isoDay } from './wearable-adapters.js';
@@ -22,7 +32,15 @@ import { syncWearableSummary } from './wearables-summary.js';
 // loses the morning's BP when the weight upsert overwrites the row.
 async function _mergeManualRow(profileId, date, patch) {
   const existing = await getDaily(profileId, 'manual', date);
-  const merged = { ...(existing || {}), source: 'manual', date, ...patch };
+  const base = { ...(existing || {}) };
+  // A synced deletion can land while this tab is still open. Do not let a
+  // later same-day weight/BP write preserve an already-deleted pulse from the
+  // device-local row. Explicitly re-added fields have their marker cleared
+  // before this helper runs and therefore survive.
+  for (const metric of MANUAL_METRICS) {
+    if (isManualMetricTombstoned(metric, date)) delete base[metric];
+  }
+  const merged = { ...base, source: 'manual', date, ...patch };
   await upsertDaily(profileId, merged);
 }
 
@@ -42,6 +60,139 @@ export const MANUAL_TAGS = ['resting', 'morning-fasted', 'post-workout', 'stress
 
 // One-time migration flag key in the wearables meta store.
 const MIGRATION_FLAG = 'biometrics-migrated-v1';
+const MANUAL_TOMBSTONE_FIELD = 'manualMetricTombstones';
+const MANUAL_HISTORY_START = '1970-01-01';
+const MANUAL_HISTORY_END = '9999-12-31';
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function manualMetricTombstoneKey(metric, date) {
+  if (!MANUAL_METRICS.includes(metric) || typeof date !== 'string'
+      || (date !== 'all' && !ISO_DAY_RE.test(date))) return null;
+  return `${metric}.${date}`;
+}
+
+function _manualMetricTombstones() {
+  const imported = state.importedData;
+  if (!imported || typeof imported !== 'object') return null;
+  const current = imported[MANUAL_TOMBSTONE_FIELD];
+  if (current && typeof current === 'object' && !Array.isArray(current)) return current;
+  imported[MANUAL_TOMBSTONE_FIELD] = {};
+  return imported[MANUAL_TOMBSTONE_FIELD];
+}
+
+export function isManualMetricTombstoned(metric, date) {
+  const key = manualMetricTombstoneKey(metric, date);
+  if (!key) return false;
+  const tombstones = state.importedData?.[MANUAL_TOMBSTONE_FIELD];
+  if (!tombstones || typeof tombstones !== 'object') return false;
+  // An exact zero is an intentional re-add and wins over an earlier
+  // delete-all marker. Otherwise the metric-wide marker protects dates this
+  // device never had locally and therefore could not enumerate at deletion.
+  if (Object.prototype.hasOwnProperty.call(tombstones, key)) {
+    return Number.isFinite(Number(tombstones[key])) && Number(tombstones[key]) > 0;
+  }
+  const allKey = manualMetricTombstoneKey(metric, 'all');
+  const allValue = allKey ? tombstones[allKey] : 0;
+  return Number.isFinite(Number(allValue)) && Number(allValue) > 0;
+}
+
+function _recordManualMetricTombstone(metric, date, deletedAt = Date.now()) {
+  const key = manualMetricTombstoneKey(metric, date);
+  const tombstones = _manualMetricTombstones();
+  if (!key || !tombstones) return false;
+  const timestamp = Number(deletedAt);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return false;
+  tombstones[key] = Math.max(Number(tombstones[key]) || 0, timestamp);
+  return true;
+}
+
+function _clearManualMetricTombstone(metric, date) {
+  const key = manualMetricTombstoneKey(metric, date);
+  const tombstones = state.importedData?.[MANUAL_TOMBSTONE_FIELD];
+  if (!key || !tombstones || typeof tombstones !== 'object') return false;
+  const allKey = manualMetricTombstoneKey(metric, 'all');
+  const hasMetricWideDelete = !!allKey && Number(tombstones[allKey]) > 0;
+  if (!Object.prototype.hasOwnProperty.call(tombstones, key) && !hasMetricWideDelete) return false;
+  // Keep an explicit zero rather than deleting the map key. A device that
+  // first learned about the deletion from pull may not have the key in its
+  // push-side delta snapshot; zero produces an unambiguous row update that
+  // wins over the older positive deletion clock everywhere.
+  tombstones[key] = 0;
+  return true;
+}
+
+function _legacyBiometricField(metric) {
+  if (metric === 'weight') return 'weight';
+  if (metric === 'rhr') return 'pulse';
+  if (metric === 'bp_systolic' || metric === 'bp_diastolic') return 'bp';
+  return null;
+}
+
+function _removeLegacyBiometric(metric, date) {
+  const field = _legacyBiometricField(metric);
+  const biometrics = state.importedData?.biometrics;
+  if (!field || !biometrics || !Array.isArray(biometrics[field])) return false;
+  const before = biometrics[field].length;
+  biometrics[field] = biometrics[field].filter(entry => entry?.date !== date);
+  return biometrics[field].length !== before;
+}
+
+/**
+ * Apply synced deletion markers to both device-local manual rows and the
+ * legacy synced biometrics arrays. This runs before the one-time migration
+ * check: every device must honor a deletion received after it had already
+ * migrated the old pulse locally.
+ */
+export async function reconcileManualMetricTombstones(profileId) {
+  if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' };
+  const tombstones = state.importedData?.[MANUAL_TOMBSTONE_FIELD];
+  if (!tombstones || typeof tombstones !== 'object' || Array.isArray(tombstones)
+      || Object.keys(tombstones).length === 0) {
+    return { prunedRows: 0, prunedLegacy: 0 };
+  }
+
+  let prunedRows = 0;
+  const rows = await getDailyRange(profileId, 'manual', MANUAL_HISTORY_START, MANUAL_HISTORY_END);
+  for (const row of rows) {
+    const next = { ...row };
+    let changed = false;
+    for (const metric of MANUAL_METRICS) {
+      if (isManualMetricTombstoned(metric, row.date) && next[metric] != null) {
+        delete next[metric];
+        changed = true;
+      }
+    }
+    if (!changed) continue;
+    prunedRows++;
+    if (MANUAL_METRICS.some(metric => next[metric] != null)) await upsertDaily(profileId, next);
+    else await deleteDaily(profileId, 'manual', row.date);
+  }
+
+  let prunedLegacy = 0;
+  const biometrics = state.importedData?.biometrics;
+  if (biometrics && typeof biometrics === 'object') {
+    const legacyPairs = [
+      ['weight', 'weight'],
+      ['pulse', 'rhr'],
+    ];
+    for (const [field, metric] of legacyPairs) {
+      if (!Array.isArray(biometrics[field])) continue;
+      const before = biometrics[field].length;
+      biometrics[field] = biometrics[field].filter(entry => !isManualMetricTombstoned(metric, entry?.date));
+      prunedLegacy += before - biometrics[field].length;
+    }
+    if (Array.isArray(biometrics.bp)) {
+      const before = biometrics.bp.length;
+      biometrics.bp = biometrics.bp.filter(entry => (
+        !isManualMetricTombstoned('bp_systolic', entry?.date)
+        && !isManualMetricTombstoned('bp_diastolic', entry?.date)
+      ));
+      prunedLegacy += before - biometrics.bp.length;
+    }
+  }
+  if (prunedLegacy > 0) await saveImportedData();
+  return { prunedRows, prunedLegacy };
+}
 
 /**
  * Ensure `wearableConnections.manual` exists so listConnectedSources() and
@@ -49,8 +200,8 @@ const MIGRATION_FLAG = 'biometrics-migrated-v1';
  * wearables-apple-health uses — no OAuth token, just a connectedAt stamp.
  * Refreshes lastSyncAt + coverageDays on every call.
  */
-export function ensureManualConnection({ coverageDays = 0 } = {}) {
-  if (!state.importedData) return;
+export async function ensureManualConnection({ coverageDays = 0 } = {}) {
+  if (!state.importedData) return false;
   if (!state.importedData.wearableConnections) state.importedData.wearableConnections = {};
   const prev = state.importedData.wearableConnections.manual;
   const nowISO = new Date().toISOString();
@@ -61,7 +212,7 @@ export function ensureManualConnection({ coverageDays = 0 } = {}) {
     coverageDays: Math.max(coverageDays, prev?.coverageDays || 0),
     needsReauth: false,
   };
-  saveImportedData();
+  return saveImportedData();
 }
 
 /**
@@ -81,12 +232,13 @@ export async function logManualMetric(profileId, metric, { date, value, tags, no
     throw new Error('logManualMetric: value must be a finite number');
   }
   const d = date || isoDay();
+  _clearManualMetricTombstone(metric, d);
   const patch = { [metric]: value };
   if (Array.isArray(tags) && tags.length) patch.tags = _sanitizeTags(tags);
   const noteClean = _sanitizeNote(note);
   if (noteClean) patch.note = noteClean;
   await _mergeManualRow(profileId, d, patch);
-  ensureManualConnection();
+  await ensureManualConnection();
 }
 
 /**
@@ -96,9 +248,18 @@ export async function logManualMetric(profileId, metric, { date, value, tags, no
 export async function logManualBP(profileId, { date, systolic, diastolic, pulse, tags, note }) {
   const d = date || isoDay();
   const row = { source: 'manual', date: d };
-  if (systolic != null && isFinite(systolic)) row.bp_systolic = systolic;
-  if (diastolic != null && isFinite(diastolic)) row.bp_diastolic = diastolic;
-  if (pulse != null && isFinite(pulse)) row.rhr = pulse;
+  if (systolic != null && isFinite(systolic)) {
+    _clearManualMetricTombstone('bp_systolic', d);
+    row.bp_systolic = systolic;
+  }
+  if (diastolic != null && isFinite(diastolic)) {
+    _clearManualMetricTombstone('bp_diastolic', d);
+    row.bp_diastolic = diastolic;
+  }
+  if (pulse != null && isFinite(pulse)) {
+    _clearManualMetricTombstone('rhr', d);
+    row.rhr = pulse;
+  }
   if (!row.bp_systolic && !row.bp_diastolic && !row.rhr) return;
   if (Array.isArray(tags) && tags.length) row.tags = _sanitizeTags(tags);
   const noteClean = _sanitizeNote(note);
@@ -106,7 +267,7 @@ export async function logManualBP(profileId, { date, systolic, diastolic, pulse,
   // Merge rather than replace — preserves same-day weight from a prior entry.
   const { source: _s, date: _d, ...patch } = row;
   await _mergeManualRow(profileId, d, patch);
-  ensureManualConnection();
+  await ensureManualConnection();
 }
 
 // Trim + cap so a runaway paste doesn't bloat the row. 500 chars covers
@@ -140,11 +301,12 @@ function _sanitizeTags(tags) {
  * run so re-opening the app doesn't re-insert. Returns a small summary for
  * telemetry / debug output.
  *
- * Does NOT delete the original biometrics data — the Edit Client modal keeps
- * writing there until Commit 4 of the Health Metrics unification.
+ * Legacy biometrics are retained for old backup compatibility, except rows
+ * covered by a durable manualMetricTombstones deletion marker.
  */
 export async function migrateBiometricsToManual(profileId, biometrics) {
   if (!profileId) return { skipped: 'no-profile' };
+  await reconcileManualMetricTombstones(profileId);
   const alreadyRan = await getMeta(profileId, MIGRATION_FLAG);
   if (alreadyRan) return { skipped: 'already-migrated' };
   if (!biometrics) {
@@ -190,7 +352,7 @@ export async function migrateBiometricsToManual(profileId, biometrics) {
     await upsertDailyBatch(profileId, rows);
     // Surface 'manual' as a connected source so the dashboard strip and
     // Settings → Integrations see it. Coverage = distinct dates migrated.
-    ensureManualConnection({ coverageDays: rows.length });
+    await ensureManualConnection({ coverageDays: rows.length });
   }
 
   const counts = { weight: weight.length, bp: bp.length, pulse: pulse.length, rows: rows.length };
@@ -208,8 +370,13 @@ export async function deleteManualMetric(profileId, metric, date) {
   if (!MANUAL_METRICS.includes(metric)) {
     throw new Error(`deleteManualMetric: unknown metric "${metric}"`);
   }
+  _recordManualMetricTombstone(metric, date);
+  _removeLegacyBiometric(metric, date);
   const existing = await getDaily(profileId, 'manual', date);
-  if (!existing) return;
+  if (!existing) {
+    await saveImportedData();
+    return;
+  }
   const { source, date: _d, importedAt, ...rest } = existing;
   delete rest[metric];
   // Any metric field left? If so, write updated row. If nothing measurable
@@ -222,6 +389,51 @@ export async function deleteManualMetric(profileId, metric, date) {
   } else {
     await deleteDaily(profileId, 'manual', date);
   }
+  // Persist the durable delete marker and the legacy biometrics cleanup in
+  // the same profile save that schedules cross-device sync.
+  await saveImportedData();
+}
+
+/**
+ * Remove every device-local manual reading and record per-field tombstones,
+ * including legacy biometrics dates that may not exist in this device's IDB.
+ */
+export async function deleteAllManualMetrics(profileId) {
+  if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' };
+  const deletedAt = Date.now();
+  const rows = await getDailyRange(profileId, 'manual', MANUAL_HISTORY_START, MANUAL_HISTORY_END);
+  let tombstonesRecorded = 0;
+  // Metric-wide markers cover readings that exist only on another device.
+  // Exact per-date markers below remain useful diagnostics and allow older
+  // clients that do not understand the `all` key to honor known deletions.
+  for (const metric of MANUAL_METRICS) {
+    if (_recordManualMetricTombstone(metric, 'all', deletedAt)) tombstonesRecorded++;
+  }
+  for (const row of rows) {
+    for (const metric of MANUAL_METRICS) {
+      if (row[metric] != null && _recordManualMetricTombstone(metric, row.date, deletedAt)) tombstonesRecorded++;
+    }
+  }
+  const biometrics = state.importedData?.biometrics;
+  for (const entry of (Array.isArray(biometrics?.weight) ? biometrics.weight : [])) {
+    if (_recordManualMetricTombstone('weight', entry?.date, deletedAt)) tombstonesRecorded++;
+  }
+  for (const entry of (Array.isArray(biometrics?.pulse) ? biometrics.pulse : [])) {
+    if (_recordManualMetricTombstone('rhr', entry?.date, deletedAt)) tombstonesRecorded++;
+  }
+  for (const entry of (Array.isArray(biometrics?.bp) ? biometrics.bp : [])) {
+    if (_recordManualMetricTombstone('bp_systolic', entry?.date, deletedAt)) tombstonesRecorded++;
+    if (_recordManualMetricTombstone('bp_diastolic', entry?.date, deletedAt)) tombstonesRecorded++;
+  }
+  if (biometrics && typeof biometrics === 'object') {
+    if (Array.isArray(biometrics.weight)) biometrics.weight = [];
+    if (Array.isArray(biometrics.pulse)) biometrics.pulse = [];
+    if (Array.isArray(biometrics.bp)) biometrics.bp = [];
+  }
+  await clearSource(profileId, 'manual');
+  if (state.importedData?.wearableConnections) delete state.importedData.wearableConnections.manual;
+  await saveImportedData();
+  return { deletedRows: rows.length, tombstonesRecorded };
 }
 
 /**
@@ -233,7 +445,7 @@ export async function deleteManualMetric(profileId, metric, date) {
 export async function refreshManualSummary(profileId) {
   try {
     const { listConnectedSources } = await import('./wearables-connect.js');
-    await syncWearableSummary(profileId, listConnectedSources());
+    await syncWearableSummary(profileId, listConnectedSources(), { force: true });
   } catch { /* non-fatal */ }
 }
 

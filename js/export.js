@@ -261,6 +261,7 @@ async function _exportChatData(profileId) {
  * @property {Object.<string, unknown>} markerNotes
  * @property {Object.<string, unknown>} markerValueNotes
  * @property {Object.<string, unknown>} manualValues
+ * @property {Object.<string, number>} manualMetricTombstones
  * @property {Array<unknown>} changeHistory
  * @property {Array<unknown>} chatSummaries
  * @property {unknown} wearableSummary
@@ -327,6 +328,7 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     markerNotes: data.markerNotes || {},
     markerValueNotes: data.markerValueNotes || {},
     manualValues: data.manualValues || {},
+    manualMetricTombstones: data.manualMetricTombstones || {},
     changeHistory: data.changeHistory || [],
     chatSummaries: data.chatSummaries || [],
     // Wearable layer (added v1.27.1). Only the synced surfaces — L2 summary

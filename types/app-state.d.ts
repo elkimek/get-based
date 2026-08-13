@@ -42,6 +42,7 @@ export interface ProfileData {
   changeHistory: any[];
   importSnapshots: any[];
   biometrics?: Record<string, any> | null;
+  manualMetricTombstones?: Record<string, number>;
   manualValues?: Record<string, any>;
   sunSessions?: any[];
   deviceSessions?: any[];

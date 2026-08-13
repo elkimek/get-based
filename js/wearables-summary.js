@@ -321,6 +321,12 @@ export function shouldWriteL2(newSummary, oldSummary) {
       // purpose of this trigger for the users it most needs to help.
       trippedReason = trippedReason || `latest-advanced:${metricId}`;
     }
+    // A deletion can move the latest surviving reading backward. Treat that
+    // as equally significant: otherwise a small/no-value-change deletion can
+    // leave the synced summary pointing at the removed date indefinitely.
+    if (neu.latestDate && old.latestDate && neu.latestDate < old.latestDate) {
+      trippedReason = trippedReason || `latest-regressed:${metricId}`;
+    }
 
     // 1. d7 rolling-mean delta
     const oldD7 = old.rolling?.d7, newD7 = neu.rolling?.d7;
@@ -406,7 +412,23 @@ export function persistWearableSummary(newSummary, anomalyEvents) {
 export async function syncWearableSummary(profileId, connectedSources, { force = false } = {}) {
   if (!profileId || !connectedSources) return { wrote: false, reason: 'noop-inputs' };
   const sourceIds = Object.keys(connectedSources);
-  if (sourceIds.length === 0) return { wrote: false, reason: 'no-sources' };
+  if (sourceIds.length === 0) {
+    if (state.currentProfile !== profileId) return { wrote: false, reason: 'profile-changed' };
+    const old = state.importedData?.wearableSummary || null;
+    const hasStaleSummary = !!old && (
+      Object.keys(old.metrics || {}).length > 0
+      || Object.keys(old.sources || {}).length > 0
+    );
+    if (!force && !hasStaleSummary) return { wrote: false, reason: 'no-sources' };
+    const emptySummary = computeWearableSummary({}, {}, {});
+    persistWearableSummary(emptySummary, []);
+    return {
+      wrote: true,
+      reason: force ? 'force-no-sources' : 'no-sources-cleared',
+      summary: emptySummary,
+      anomalies: [],
+    };
+  }
 
   // Pull last 90 days for vendor sources. Manual entries are sparse, user-
   // authored rows, so read all history; otherwise a single older pulse/BP

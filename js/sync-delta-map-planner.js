@@ -11,7 +11,13 @@ import {
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 
-const CLEARED_VALUE_MAPS = new Set(['manualValues', 'markerValueNotes']);
+const CLEARED_VALUE_MAPS = new Set([
+  'manualValues',
+  'markerValueNotes',
+  // Zero is an explicit resurrection marker: a user intentionally re-added
+  // a manual metric/date that had previously been deleted on another device.
+  'manualMetricTombstones',
+]);
 
 // Keyed-map planner. Same shape as _planArrayDelta but iterates
 // Object.entries() and uses the map key (sanitized) as itemId. Payload
