@@ -60,6 +60,19 @@ function providerOptionsFor(provider, settings) {
   };
 }
 
+function ppqCatalogContext(providerId, settings) {
+  return providerId === 'ppq'
+    ? { generation: ppqCatalogGeneration, language: settings.outputLanguage }
+    : null;
+}
+
+function isPpqCatalogContextCurrent(context) {
+  if (!context) return true;
+  const current = getVoiceSettings();
+  return context.generation === ppqCatalogGeneration
+    && context.language === current.outputLanguage;
+}
+
 function refreshInputLanguageControl(panel, settings) {
   const select = panel.querySelector('[data-voice-setting="inputLanguage"]');
   if (!(select instanceof HTMLSelectElement)) return;
@@ -396,17 +409,20 @@ async function hydrateVeniceVoiceCatalog(panel, { force = false } = {}) {
 
 async function handleTestProvider(panel, button) {
   const providerId = button.dataset.provider || 'browser-local';
+  const settings = getVoiceSettings();
+  const catalogContext = ppqCatalogContext(providerId, settings);
   setActionBusy(button, true, 'Testing…');
   setTestStatus(panel, providerId, 'Connecting…');
   try {
     const provider = await loadVoiceProvider(providerId);
     const result = await provider.testConnection(
-      providerOptionsFor(providerId, getVoiceSettings()),
+      providerOptionsFor(providerId, settings),
     );
     if (
       Array.isArray(result.voices)
       && result.voices.length
       && ['xai', 'elevenlabs', 'openrouter', 'ppq', 'venice'].includes(providerId)
+      && isPpqCatalogContextCurrent(catalogContext)
     ) {
       applyVoiceCatalog(panel, providerId, result.voices, providerId === 'openrouter'
         ? {
@@ -436,6 +452,8 @@ async function handleRefreshVoices(panel, button) {
     );
     return;
   }
+  const settings = getVoiceSettings();
+  const catalogContext = ppqCatalogContext(providerId, settings);
   setActionBusy(button, true, 'Refreshing…');
   try {
     const provider = await loadVoiceProvider(providerId);
@@ -443,8 +461,9 @@ async function handleRefreshVoices(panel, button) {
       throw new Error(`${voiceProviderLabels[providerId] || providerId} does not expose a voice catalogue.`);
     }
     const voices = await provider.listVoices(
-      providerOptionsFor(providerId, getVoiceSettings()),
+      providerOptionsFor(providerId, settings),
     );
+    if (!isPpqCatalogContextCurrent(catalogContext)) return;
     if (!voices.length) throw new Error('The provider returned no voices.');
     applyVoiceCatalog(panel, providerId, voices, providerId === 'openrouter'
       ? {
