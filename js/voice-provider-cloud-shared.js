@@ -3,6 +3,19 @@
 
 import { expectVoiceResponseOk } from './voice-response-utils.js';
 
+const PROVIDER_LABELS = Object.freeze({
+  elevenlabs: 'ElevenLabs',
+  openrouter: 'OpenRouter',
+  ppq: 'PPQ',
+  venice: 'Venice',
+  xai: 'xAI',
+});
+
+function connectionError(provider) {
+  const area = ['openrouter', 'ppq', 'venice'].includes(provider) ? 'AI' : 'Voice';
+  return `Connect ${PROVIDER_LABELS[provider] || provider} in Settings → ${area}.`;
+}
+
 function relayHeaders(provider, apiKey, contentType) {
   const headers = {
     'X-Voice-Provider': provider,
@@ -12,6 +25,17 @@ function relayHeaders(provider, apiKey, contentType) {
   return headers;
 }
 
+function improveOpenRouterError(error) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (/no endpoints available.*(?:guardrail|data policy)/i.test(message)) {
+    return new Error(
+      'OpenRouter blocked this voice model under your privacy or guardrail settings. '
+      + 'Review https://openrouter.ai/settings/privacy.',
+    );
+  }
+  return error;
+}
+
 export async function relayTranscription(provider, {
   audio,
   apiKey,
@@ -19,10 +43,19 @@ export async function relayTranscription(provider, {
   language = 'auto',
   signal,
 }) {
-  if (!apiKey) throw new Error(`Add your ${provider === 'xai' ? 'xAI' : 'ElevenLabs'} API key in Settings → Voice.`);
+  if (!apiKey) throw new Error(connectionError(provider));
   const form = new FormData();
-  if (provider === 'elevenlabs') form.append('model_id', modelId || 'scribe_v2');
-  if (language && language !== 'auto') {
+  if (provider === 'elevenlabs') {
+    form.append('model_id', modelId || 'scribe_v2');
+  } else if (modelId) {
+    form.append('model', modelId);
+  }
+  if (['openrouter', 'ppq', 'venice'].includes(provider)) {
+    form.append('response_format', 'json');
+  }
+  if (provider === 'ppq' && (!language || language === 'auto')) {
+    form.append('language', 'multi');
+  } else if (language && language !== 'auto') {
     if (provider === 'xai') form.append('format', 'true');
     form.append(provider === 'elevenlabs' ? 'language_code' : 'language', language);
   }
@@ -39,7 +72,7 @@ export async function relayTranscription(provider, {
 }
 
 export async function relaySynthesis(provider, payload) {
-  if (!payload.apiKey) throw new Error(`Add your ${provider === 'xai' ? 'xAI' : 'ElevenLabs'} API key in Settings → Voice.`);
+  if (!payload.apiKey) throw new Error(connectionError(provider));
   if (provider === 'elevenlabs' && !String(payload.voiceId || '').trim()) {
     throw new Error('Refresh ElevenLabs voices and choose a voice before using Listen.');
   }
@@ -55,7 +88,11 @@ export async function relaySynthesis(provider, payload) {
     }),
     signal: payload.signal,
   });
-  await expectVoiceResponseOk(response, 'Cloud speech generation failed');
+  try {
+    await expectVoiceResponseOk(response, 'Cloud speech generation failed');
+  } catch (error) {
+    throw provider === 'openrouter' ? improveOpenRouterError(error) : error;
+  }
   const contentType = response.headers.get('content-type') || 'audio/mpeg';
   if (response.body) {
     return {
@@ -71,9 +108,9 @@ export async function relaySynthesis(provider, payload) {
 
 /**
  * @param {string} provider
- * @param {{ apiKey?: string, signal?: AbortSignal }} [options]
+ * @param {{ apiKey?: string, language?: string, signal?: AbortSignal }} [options]
  */
-export async function relayVoices(provider, { apiKey, signal } = {}) {
+export async function relayVoices(provider, { apiKey, language = 'auto', signal } = {}) {
   if (!apiKey) return [];
   const response = await fetch('/api/voice?action=voices', {
     method: 'POST',
@@ -86,7 +123,18 @@ export async function relayVoices(provider, { apiKey, signal } = {}) {
   const rows = provider === 'elevenlabs'
     ? payload?.voices
     : payload?.voices || payload?.data;
-  return (Array.isArray(rows) ? rows : []).map(voice => {
+  const compatibleRows = provider === 'ppq'
+    ? (Array.isArray(rows) ? rows : []).filter(voice => (
+      voice?.model_id === 'deepgram_aura_2'
+      && (
+        !language
+        || language === 'auto'
+        || voice?.language === 'multi'
+        || voice?.language === language
+      )
+    ))
+    : rows;
+  return (Array.isArray(compatibleRows) ? compatibleRows : []).map(voice => {
     const rawDescriptor = String(voice?.gender || voice?.labels?.gender || '').toLowerCase();
     const descriptor = rawDescriptor === 'female'
       ? 'female'

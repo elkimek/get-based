@@ -27,6 +27,11 @@ export const VOICE_SETTINGS_SCHEMA = Object.freeze({
   },
   xaiKey: { key: 'labcharts-xai-voice-key', scope: 'sync', secret: true },
   xaiVoice: { key: 'labcharts-xai-voice', scope: 'sync' },
+  openRouterSttModel: { key: 'labcharts-openrouter-stt-model', scope: 'sync' },
+  openRouterTtsModel: { key: 'labcharts-openrouter-tts-model', scope: 'sync' },
+  openRouterVoice: { key: 'labcharts-openrouter-voice', scope: 'sync' },
+  ppqVoice: { key: 'labcharts-ppq-voice', scope: 'sync' },
+  veniceVoice: { key: 'labcharts-venice-voice', scope: 'sync' },
   elevenlabsKey: {
     key: 'labcharts-elevenlabs-voice-key',
     scope: 'sync',

@@ -16,6 +16,10 @@ import {
   getLocalModel,
 } from './voice-model-catalog.js';
 import {
+  openRouterVoiceCatalogId,
+} from './voice-openrouter-catalog.js';
+import { getAutomaticVoiceStatus, resolveVoiceProviderId } from './voice-ai-provider.js';
+import {
   VOICE_PROVIDERS,
   getSharedVoiceProviders,
   getVoiceProvidersFor,
@@ -35,8 +39,12 @@ function providerOptions(value, kind = 'shared') {
     ? getSharedVoiceProviders()
     : getVoiceProvidersFor(kind);
   return providers.map(provider => {
-    const label = provider.privacy === 'cloud'
-      ? `${provider.label} (cloud)`
+    const label = provider.id === 'auto'
+      ? 'Same as chat (automatic)'
+      : provider.credentialSource === 'ai'
+        ? `${provider.label} (AI connection)`
+        : provider.privacy === 'cloud'
+          ? `${provider.label} (cloud)`
       : provider.id === 'local-server'
         ? 'Local server'
         : provider.label;
@@ -109,7 +117,7 @@ function renderProviderNotice() {
         <div class="settings-action-row">
           <div class="settings-copy">
             <div class="settings-copy-title">Private by default</div>
-            <div class="settings-copy-desc">Choose On this device to keep recordings and messages in this browser. Other services receive only what you ask them to process and use connections you set up below.</div>
+            <div class="settings-copy-desc">Choose On this device to keep recordings and messages in this browser. Automatic follows your AI provider when it supports voice; other services receive only what you ask them to process.</div>
           </div>
         </div>
       </div>
@@ -117,6 +125,7 @@ function renderProviderNotice() {
 }
 
 function renderServiceSection(settings) {
+  const automatic = getAutomaticVoiceStatus();
   return `
     <div class="settings-group-title">Voice service</div>
     <div class="settings-row voice-settings-list">
@@ -131,6 +140,13 @@ function renderServiceSection(settings) {
             ${providerOptions(settings.inputProvider)}
           </select>
         </label>
+      </div>
+      <div class="settings-section voice-setting-row" data-voice-auto-row${settings.inputProvider === 'auto' || settings.outputProvider === 'auto' ? '' : ' hidden'}>
+        <div class="settings-copy">
+          <div class="settings-copy-title">Automatic provider</div>
+          <div class="settings-copy-desc" data-voice-auto-status data-state="${automatic.state}">${escapeHTML(automatic.text)}</div>
+        </div>
+        <button type="button" class="settings-link-btn" data-settings-tab="ai">AI settings</button>
       </div>
       <div class="settings-section">
         <div class="settings-action-row">
@@ -149,8 +165,9 @@ function renderServiceSection(settings) {
 }
 
 function renderInputSection(settings) {
+  const inputProvider = resolveVoiceProviderId('stt', settings.inputProvider);
   const localSttModel = getLocalModel('stt', settings.localSttModel);
-  const locksLanguage = settings.inputProvider === 'browser-local'
+  const locksLanguage = inputProvider === 'browser-local'
     && !localSttModel.multilingual;
   const selectedLanguage = locksLanguage ? 'en' : settings.inputLanguage;
   return `
@@ -194,6 +211,20 @@ function renderInputSection(settings) {
           </select>
         </label>
       </div>
+      <div class="settings-section voice-setting-row" data-voice-visible="input:openrouter">
+        <div class="settings-copy">
+          <div class="settings-copy-title">Transcription model</div>
+          <div class="settings-copy-desc">Accurate multilingual transcription routed through OpenRouter.</div>
+        </div>
+        <span class="voice-control" data-voice-openrouter-model-label="stt">Whisper Large V3</span>
+      </div>
+      <div class="settings-section voice-setting-row" data-voice-visible="input:venice">
+        <div class="settings-copy">
+          <div class="settings-copy-title">Transcription model</div>
+          <div class="settings-copy-desc">Private, zero-retention transcription through Venice's audio API. If latency matters, use different services and choose OpenRouter for dictation.</div>
+        </div>
+        <span class="voice-control">Whisper Large V3</span>
+      </div>
       ${renderSttHardwareRow(settings)}
       <div class="settings-section voice-setting-row" data-voice-visible="input:local-server">
         <div class="settings-copy">
@@ -210,9 +241,14 @@ function renderInputSection(settings) {
 }
 
 function renderOutputSection(settings) {
-  const localOutput = settings.outputProvider === 'browser-local';
+  const outputProvider = resolveVoiceProviderId('tts', settings.outputProvider);
+  const localOutput = outputProvider === 'browser-local';
   const xaiCatalogCount = readVoiceCatalog('xai').length;
+  const ppqCatalogCount = readVoiceCatalog('ppq').length;
   const elevenCatalogCount = readVoiceCatalog('elevenlabs').length;
+  const openRouterCatalogId = openRouterVoiceCatalogId(settings.openRouterTtsModel);
+  const openRouterCatalogCount = readVoiceCatalog(openRouterCatalogId).length;
+  const veniceCatalogCount = readVoiceCatalog('venice').length;
   return `
     <div class="settings-group-title">Voice output</div>
     <div class="settings-row voice-settings-list">
@@ -284,6 +320,37 @@ function renderOutputSection(settings) {
         settings.elevenlabsVoice,
         elevenCatalogCount,
       )}
+      ${renderCloudVoiceRow('ppq', 'PPQ voice', settings.ppqVoice, ppqCatalogCount)}
+      <div class="settings-section voice-setting-row" data-voice-visible="output:openrouter">
+        <div class="settings-copy">
+          <div class="settings-copy-title">Speech model</div>
+          <div class="settings-copy-desc">Reliable cloud speech routed through OpenRouter, without a local model download.</div>
+        </div>
+        <span class="voice-control" data-voice-openrouter-model-label="tts">Kokoro 82M</span>
+      </div>
+      ${renderCloudVoiceRow(
+        'openrouter',
+        'Voice through OpenRouter',
+        settings.openRouterVoice,
+        openRouterCatalogCount,
+        openRouterCatalogId,
+        'Choose a cloud Kokoro voice. The model runs remotely, so no download or local inference is needed.',
+      )}
+      <div class="settings-section voice-setting-row" data-voice-visible="output:venice">
+        <div class="settings-copy">
+          <div class="settings-copy-title">Speech model</div>
+          <div class="settings-copy-desc">Private, zero-retention speech through Venice's audio API, separate from chat E2EE.</div>
+        </div>
+        <span class="voice-control">Kokoro 82M</span>
+      </div>
+      ${renderCloudVoiceRow(
+        'venice',
+        'Venice Kokoro voice',
+        settings.veniceVoice,
+        veniceCatalogCount,
+        'venice',
+        'Choose from the private Kokoro voices available with your Venice connection.',
+      )}
       <div class="settings-section voice-setting-row">
         <div class="settings-copy">
           <div class="settings-copy-title">Speaking speed <output id="voice-rate-value">${settings.rate.toFixed(2).replace(/0$/, '')}×</output></div>
@@ -309,19 +376,33 @@ function renderOutputSection(settings) {
     </div>`;
 }
 
-function renderCloudVoiceRow(provider, title, value, catalogCount) {
+function renderCloudVoiceRow(
+  provider,
+  title,
+  value,
+  catalogCount,
+  catalogId = provider,
+  description = 'Choose from the voices available with your connection.',
+) {
+  const settingNames = {
+    elevenlabs: 'elevenlabsVoice',
+    openrouter: 'openRouterVoice',
+    ppq: 'ppqVoice',
+    venice: 'veniceVoice',
+    xai: 'xaiVoice',
+  };
   return `
     <div class="settings-section voice-setting-row" data-voice-visible="output:${provider}">
       <div class="settings-copy">
         <div class="settings-copy-title">${title}</div>
-        <div class="settings-copy-desc">Choose from the voices available with your connection.</div>
+        <div class="settings-copy-desc">${escapeHTML(description)}</div>
       </div>
       <div class="voice-control-stack">
         <label class="voice-control">
           <span class="sr-only">${title}</span>
           <select class="api-key-input" data-voice-cloud-voices="${provider}"
-            data-voice-setting="${provider === 'xai' ? 'xaiVoice' : 'elevenlabsVoice'}">
-            ${cloudVoiceOptions(provider, value)}
+            data-voice-setting="${settingNames[provider]}">
+            ${cloudVoiceOptions(catalogId, value)}
           </select>
         </label>
         <button type="button" class="settings-link-btn voice-inline-action"
@@ -427,6 +508,15 @@ function renderConnections(settings) {
   return `
     <div class="settings-group-title">Connections</div>
     <div class="settings-row voice-connections">
+      <div class="settings-section">
+        <div class="settings-action-row">
+          <div class="settings-copy">
+            <div class="settings-copy-title">AI provider connections</div>
+            <div class="settings-copy-desc">PPQ, OpenRouter, and Venice reuse the encrypted connection from AI settings. Voice requests pass through the Get Based relay only to reach that provider; keys are never stored or logged there. Routstr voice is not live yet and falls back to this device.</div>
+          </div>
+          <button type="button" class="settings-link-btn" data-settings-tab="ai">Manage</button>
+        </div>
+      </div>
       ${renderConnectionCard(
         'local-server',
         'OpenAI-compatible local server',

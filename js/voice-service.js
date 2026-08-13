@@ -3,11 +3,16 @@
 
 import { getVoiceProviderDefinition } from './voice-provider-catalog.js';
 import { loadVoiceProvider } from './voice-provider-registry.js';
+import {
+  AI_VOICE_DEFAULTS,
+  resolveVoiceProviderId,
+} from './voice-ai-provider.js';
 import { resolveLocalSttLanguage } from './voice-model-catalog.js';
 import { getVoiceProviderKey, getVoiceSettings } from './voice-settings-storage.js';
 
 export function getVoiceProviderId(kind, settings = getVoiceSettings()) {
-  return kind === 'tts' ? settings.outputProvider : settings.inputProvider;
+  const configured = kind === 'tts' ? settings.outputProvider : settings.inputProvider;
+  return resolveVoiceProviderId(kind, configured);
 }
 
 function assertCapability(providerId, provider, kind) {
@@ -43,6 +48,15 @@ function transcriptionOptions(providerId, settings, audio, signal) {
       modelId: settings.localServerSttModel,
     };
   }
+  if (AI_VOICE_DEFAULTS[providerId]) {
+    return {
+      ...common,
+      apiKey: getVoiceProviderKey(providerId),
+      modelId: providerId === 'openrouter'
+        ? settings.openRouterSttModel
+        : AI_VOICE_DEFAULTS[providerId].sttModel,
+    };
+  }
   return {
     ...common,
     apiKey: getVoiceProviderKey(providerId),
@@ -73,6 +87,22 @@ function synthesisOptions(providerId, settings, text, signal) {
       apiKey: getVoiceProviderKey(providerId),
       modelId: settings.localServerTtsModel,
       voiceId: settings.localServerVoice,
+    };
+  }
+  if (AI_VOICE_DEFAULTS[providerId]) {
+    return {
+      ...common,
+      apiKey: getVoiceProviderKey(providerId),
+      modelId: providerId === 'openrouter'
+        ? settings.openRouterTtsModel
+        : AI_VOICE_DEFAULTS[providerId].ttsModel,
+      voiceId: providerId === 'ppq'
+        ? settings.ppqVoice || AI_VOICE_DEFAULTS.ppq.voice
+        : providerId === 'openrouter'
+          ? settings.openRouterVoice || AI_VOICE_DEFAULTS.openrouter.voice
+          : providerId === 'venice'
+            ? settings.veniceVoice || AI_VOICE_DEFAULTS.venice.voice
+            : AI_VOICE_DEFAULTS[providerId].voice,
     };
   }
   return {

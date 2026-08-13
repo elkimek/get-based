@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
+import { clearKeyCache, updateKeyCache } from '../js/crypto-key-cache.js';
 import {
   buildActionBar,
   configureChatMessageActionDeps,
@@ -23,6 +24,7 @@ import {
 import { VoicePlayer, trimPcmEdgeSilence } from '../js/voice-player.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const realFetch = globalThis.fetch;
 
 class FakeMediaRecorder extends EventTarget {
   static isTypeSupported(type) {
@@ -178,6 +180,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  globalThis.fetch = realFetch;
+  clearKeyCache();
   vi.restoreAllMocks();
 });
 
@@ -399,6 +403,215 @@ describe('voice capture and playback primitives', () => {
 });
 
 describe('voice settings and chat controls', () => {
+  it('loads curated OpenRouter models and model-specific voices automatically', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-ai-key');
+    globalThis.fetch = vi.fn().mockImplementation(url => Promise.resolve(new Response(JSON.stringify({
+      data: String(url).includes('transcription')
+        ? [
+            { id: 'openai/whisper-large-v3' },
+            { id: 'openai/whisper-large-v3-turbo' },
+            { id: 'openai/gpt-4o-mini-transcribe' },
+            { id: 'obscure/stt' },
+          ]
+        : [
+            {
+              id: 'x-ai/grok-voice-tts-1.0',
+              supported_voices: ['eve', 'ara', 'rex', 'sal', 'leo'],
+            },
+            {
+              id: 'google/gemini-3.1-flash-tts-preview',
+              supported_voices: ['Zephyr', 'Puck'],
+            },
+            {
+              id: 'hexgrad/kokoro-82m',
+              supported_voices: ['af_heart', 'bm_george'],
+            },
+          ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    const sttModel = document.querySelector('[data-voice-openrouter-model-label="stt"]');
+    const ttsModel = document.querySelector('[data-voice-openrouter-model-label="tts"]');
+    const voice = document.querySelector('[data-voice-cloud-voices="openrouter"]');
+
+    await vi.waitFor(() => expect(voice.options).toHaveLength(2));
+    expect(sttModel.textContent).toBe('Whisper Large V3');
+    expect(ttsModel.textContent).toBe('Kokoro 82M');
+    expect(voice.value).toBe('af_heart');
+    expect(voice.options[0].textContent).toBe('Af Heart · en-US · female');
+    expect(document.body.textContent).not.toContain('Grok Voice via OpenRouter');
+  });
+
+  it('loads PPQ voice choices automatically when PPQ is the active AI provider', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        {
+          id: 'aura-2-thalia-en',
+          name: 'Thalia',
+          model_id: 'deepgram_aura_2',
+          language: 'en',
+          gender: 'female',
+        },
+        {
+          id: 'incompatible-eleven-voice',
+          name: 'Other model',
+          model_id: 'eleven_v3',
+          language: 'multi',
+        },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    const row = document.querySelector('[data-voice-visible="output:ppq"]');
+    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
+
+    await vi.waitFor(() => expect(select.value).toBe('aura-2-thalia-en'));
+    expect(select.options).toHaveLength(1);
+    expect(row.hidden).toBe(false);
+    expect(select.options[0].textContent).toBe('Thalia · en · female');
+    expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-thalia-en');
+  });
+
+  it('does not let an older PPQ language request replace the current voice catalogue', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
+    const pending = [];
+    globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {
+      pending.push({ resolve, signal: options?.signal });
+    }));
+
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+
+    const language = document.querySelector('[data-voice-setting="outputLanguage"]');
+    language.value = 'fr';
+    language.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    expect(pending[0].signal.aborted).toBe(true);
+
+    pending[1].resolve(new Response(JSON.stringify({
+      data: [{
+        id: 'aura-2-agathe-fr',
+        name: 'Agathe',
+        model_id: 'deepgram_aura_2',
+        language: 'fr',
+        gender: 'female',
+      }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
+    await vi.waitFor(() => expect(select.value).toBe('aura-2-agathe-fr'));
+
+    pending[0].resolve(new Response(JSON.stringify({
+      data: [{
+        id: 'aura-2-thalia-en',
+        name: 'Thalia',
+        model_id: 'deepgram_aura_2',
+        language: 'en',
+        gender: 'female',
+      }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(select.value).toBe('aura-2-agathe-fr');
+    expect([...select.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
+    expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-agathe-fr');
+  });
+
+  it.each([
+    ['manual refresh', 'refresh-voices'],
+    ['connection test', 'test-provider'],
+  ])('does not let a stale PPQ %s overwrite a newer language catalogue', async (_label, action) => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
+    const pending = [];
+    globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {
+      pending.push({ resolve, signal: options?.signal });
+    }));
+    const responseFor = (id, name, language) => new Response(JSON.stringify({
+      data: [{
+        id,
+        name,
+        model_id: 'deepgram_aura_2',
+        language,
+        gender: 'female',
+      }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    pending[0].resolve(responseFor('aura-2-thalia-en', 'Thalia', 'en'));
+    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
+    await vi.waitFor(() => expect(select.value).toBe('aura-2-thalia-en'));
+
+    let button = document.querySelector(`[data-voice-action="${action}"][data-provider="ppq"]`);
+    if (!(button instanceof HTMLButtonElement)) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.voiceAction = action;
+      button.dataset.provider = 'ppq';
+      document.querySelector('[data-tab-panel="voice"]').appendChild(button);
+    }
+    button.click();
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+
+    const language = document.querySelector('[data-voice-setting="outputLanguage"]');
+    language.value = 'fr';
+    language.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(pending).toHaveLength(3));
+    pending[2].resolve(responseFor('aura-2-agathe-fr', 'Agathe', 'fr'));
+    await vi.waitFor(() => expect(select.value).toBe('aura-2-agathe-fr'));
+
+    pending[1].resolve(responseFor('aura-2-thalia-en', 'Thalia', 'en'));
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+
+    expect(select.value).toBe('aura-2-agathe-fr');
+    expect([...select.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
+    expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-agathe-fr');
+  });
+
+  it('loads private Venice Kokoro voices automatically and saves the selection', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'venice');
+    updateKeyCache('labcharts-venice-key', 'venice-ai-key');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{
+        id: 'tts-kokoro',
+        type: 'tts',
+        model_spec: {
+          privacy: 'private',
+          default_voice: 'af_sky',
+          voices: ['af_sky', 'bm_george'],
+        },
+      }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    const inputRow = document.querySelector('[data-voice-visible="input:venice"]');
+    const outputRows = document.querySelectorAll('[data-voice-visible="output:venice"]');
+    const select = document.querySelector('[data-voice-cloud-voices="venice"]');
+
+    await vi.waitFor(() => expect(select.options).toHaveLength(2));
+    expect(inputRow.hidden).toBe(false);
+    expect(inputRow.textContent).toContain('Whisper Large V3');
+    expect(inputRow.textContent).toContain('choose OpenRouter for dictation');
+    expect([...outputRows].every(row => !row.hidden)).toBe(true);
+    expect(select.value).toBe('af_sky');
+    expect(select.options[0].textContent).toBe('Af Sky · en-US · female');
+    expect(document.body.textContent).toContain('Private, zero-retention transcription');
+    expect(document.body.textContent).toContain('separate from chat E2EE');
+
+    select.value = 'bm_george';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(localStorage.getItem('labcharts-venice-voice')).toBe('bm_george');
+  });
+
   it('discloses encrypted sync for cloud keys without claiming local-server sync', () => {
     expect(voiceProviderKeyStatus('xai', true)).toContain('included in encrypted sync');
     expect(voiceProviderKeyStatus('elevenlabs', true)).toContain('encrypted in this browser');

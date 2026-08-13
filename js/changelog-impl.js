@@ -11,6 +11,13 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.15.2', date: '2026-08-13', title: 'Voice follows your AI provider',
+    items: [
+      '<b>Voice can now reuse your AI connection.</b> PPQ, OpenRouter, and Venice work automatically for dictation and spoken replies, without a second provider setup.',
+      '<b>Voice choices are clearer.</b> Settings shows the supported models and voices for each service, while still letting you use different services for dictation and listening.',
+    ]
+  },
+  {
     version: '1.15.1', date: '2026-08-12', title: 'Better lab results and ranges',
     items: [
       '<b>More lab results are recognized and organized correctly.</b> Widely used markers and calculated ratios have been added, while ratios already present on a lab report no longer create duplicate results.',

@@ -304,6 +304,7 @@ const APP_SHELL = [
   '/js/settings-sync-panel-render.js',
   '/js/settings-sync-restore-ui.js',
   '/js/settings-tweaks.js',
+  '/js/voice-ai-provider.js',
   '/js/voice-audio.js',
   '/js/voice-catalog-storage.js',
   '/js/voice-capture.js',
@@ -311,7 +312,9 @@ const APP_SHELL = [
   '/js/voice-loader.js',
   '/js/voice-local-engine.js',
   '/js/voice-model-catalog.js',
+  '/js/voice-openrouter-catalog.js',
   '/js/voice-player.js',
+  '/js/voice-provider-ai-cloud.js',
   '/js/voice-provider-catalog.js',
   '/js/voice-provider-browser-local.js',
   '/js/voice-provider-cloud-shared.js',
@@ -772,13 +775,10 @@ const NETWORK_ONLY_HOSTS = new Set([
   'free.evoluhq.com',
 ]);
 function isLocalOrPrivateHost(hostname) {
-  return hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === '[::1]' ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('10.') ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname)
+    || hostname.startsWith('192.168.')
+    || hostname.startsWith('10.')
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 }
 function shouldUseNetworkOnly(url, sameOrigin) {
   const h = url.hostname;

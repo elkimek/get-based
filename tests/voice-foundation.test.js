@@ -4,6 +4,11 @@ import {
   configureApiProviderStorageRuntimeDeps,
 } from '../js/api-provider-storage-runtime.js';
 import { clearKeyCache } from '../js/crypto-key-cache.js';
+import { updateKeyCache } from '../js/crypto-key-cache.js';
+import {
+  getAutomaticVoiceStatus,
+  resolveVoiceProviderId,
+} from '../js/voice-ai-provider.js';
 import {
   VOICE_STORAGE_KEYS,
   getVoiceProviderKey,
@@ -30,26 +35,49 @@ import { normalizeSpeechText, splitSpeechText } from '../js/voice-text.js';
 
 afterEach(() => {
   for (const key of Object.values(VOICE_STORAGE_KEYS)) localStorage.removeItem(key);
+  localStorage.removeItem('labcharts-ai-provider');
   clearKeyCache();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe('voice settings storage', () => {
-  it('defaults to one linked browser-local service for input and output', () => {
+  it('defaults to one linked automatic service for input and output', () => {
     expect(getVoiceSettings()).toMatchObject({
-      inputProvider: 'browser-local',
-      outputProvider: 'browser-local',
+      inputProvider: 'auto',
+      outputProvider: 'auto',
       providersLinked: true,
       inputLanguage: 'auto',
       outputLanguage: 'en',
       localSttBackend: 'auto',
       localTtsBackend: 'auto',
       localVoice: 'af_heart',
+      openRouterSttModel: 'openai/whisper-large-v3',
+      openRouterTtsModel: 'hexgrad/kokoro-82m',
+      openRouterVoice: 'af_heart',
+      veniceVoice: 'af_sky',
       autoRead: false,
       rate: 1,
     });
     expect(getVoiceSettings().localSttModel).toBe('onnx-community/whisper-small');
+  });
+
+  it('reuses supported AI keys automatically and falls back locally otherwise', () => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    expect(resolveVoiceProviderId('stt', 'auto')).toBe('browser-local');
+    expect(getAutomaticVoiceStatus().text).toContain('PPQ is not connected yet');
+
+    updateKeyCache('labcharts-ppq-key', 'ppq-secret');
+    expect(resolveVoiceProviderId('stt', 'auto')).toBe('ppq');
+    expect(resolveVoiceProviderId('tts', 'auto')).toBe('ppq');
+    expect(getAutomaticVoiceStatus()).toMatchObject({
+      providerId: 'ppq',
+      state: 'connected',
+    });
+
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    expect(resolveVoiceProviderId('tts', 'auto')).toBe('browser-local');
+    expect(getAutomaticVoiceStatus().text).toContain('does not offer live voice endpoints');
   });
 
   it('migrates removed legacy Whisper selections to Small', () => {
