@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 654 |
-| Internal import edges | 2739 |
+| Modules | 656 |
+| Internal import edges | 2745 |
 | Dynamic internal edges | 73 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -56,21 +56,21 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 264 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
-| [`js/state.js`](js/state.js) | 183 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/utils.js`](js/utils.js) | 265 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
+| [`js/state.js`](js/state.js) | 184 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/chat-send.js`](js/chat-send.js) | 28 |
 | [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 75 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
-| [`js/api.js`](js/api.js) | 66 | [`js/settings.js`](js/settings.js) | 26 |
+| [`js/api.js`](js/api.js) | 67 | [`js/settings.js`](js/settings.js) | 26 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/wearables-connect.js`](js/wearables-connect.js) | 25 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/views.js`](js/views.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/lab-context.js`](js/lab-context.js) | 21 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/constants.js`](js/constants.js) | 22 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
-| [`js/marker-placement.js`](js/marker-placement.js) | 19 | [`js/export.js`](js/export.js) | 19 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 18 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 19 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
+| [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/export.js`](js/export.js) | 19 |
+| [`js/marker-placement.js`](js/marker-placement.js) | 19 | [`js/app-chat-hooks.js`](js/app-chat-hooks.js) | 17 |
 
 ## Existing cyclic components
 
@@ -270,11 +270,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 51 modules</summary>
+<details><summary><code>chat</code> family — 52 modules</summary>
 
 - [`js/chat-actions.js`](js/chat-actions.js) → [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-attestation.js`](js/chat-attestation.js) → [`js/utils.js`](js/utils.js)
 - [`js/chat-composer.js`](js/chat-composer.js) → [`js/chat-draft-storage.js`](js/chat-draft-storage.js), [`js/state.js`](js/state.js)
+- [`js/chat-context-status.js`](js/chat-context-status.js) → [`js/api.js`](js/api.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lens.js`](js/lens.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-continuation.js`](js/chat-continuation.js) → [`js/api.js`](js/api.js)
 - [`js/chat-discussion-callbacks.js`](js/chat-discussion-callbacks.js) → no in-scope imports
 - [`js/chat-discussion-flow.js`](js/chat-discussion-flow.js) → [`js/chat-discussion-callbacks.js`](js/chat-discussion-callbacks.js), [`js/chat-discussion-lifecycle.js`](js/chat-discussion-lifecycle.js), [`js/chat-discussion-state.js`](js/chat-discussion-state.js), [`js/chat-discussion-turns.js`](js/chat-discussion-turns.js), [`js/chat-discussion-ui.js`](js/chat-discussion-ui.js), [`js/chat-images.js`](js/chat-images.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -302,8 +303,8 @@ Native browser modules shipped with the static application.
 - [`js/chat-nudge.js`](js/chat-nudge.js) → [`js/api.js`](js/api.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
 - [`js/chat-onboarding-host-bindings.js`](js/chat-onboarding-host-bindings.js) → [`js/chat-onboarding.js`](js/chat-onboarding.js)
 - [`js/chat-onboarding.js`](js/chat-onboarding.js) → [`js/api.js`](js/api.js), [`js/constants.js`](js/constants.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/chat-panel.js`](js/chat-panel.js) → [`js/api.js`](js/api.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-mobile-viewport.js`](js/chat-mobile-viewport.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/lens.js`](js/lens.js), [`js/utils.js`](js/utils.js)
-- [`js/chat-personalities.js`](js/chat-personalities.js) → [`js/api.js`](js/api.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-personality-editor.js`](js/chat-personality-editor.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/constants.js`](js/constants.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lens.js`](js/lens.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-panel.js`](js/chat-panel.js) → [`js/api.js`](js/api.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-mobile-viewport.js`](js/chat-mobile-viewport.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-personalities.js`](js/chat-personalities.js) → [`js/api.js`](js/api.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-context-status.js`](js/chat-context-status.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-personality-editor.js`](js/chat-personality-editor.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/constants.js`](js/constants.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-personality-editor.js`](js/chat-personality-editor.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-personality-merge.js`](js/chat-personality-merge.js) → [`js/chat-storage-safety.js`](js/chat-storage-safety.js)
 - [`js/chat-personality-storage.js`](js/chat-personality-storage.js) → [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
@@ -597,18 +598,19 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lens</code> family — 15 modules</summary>
+<details><summary><code>lens</code> family — 16 modules</summary>
 
 - [`js/lens-actions.js`](js/lens-actions.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-cache.js`](js/lens-cache.js) → [`js/utils.js`](js/utils.js)
 - [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-actions.js`](js/lens-actions.js), [`js/lens-library.js`](js/lens-library.js), [`js/lens-local-parsers.js`](js/lens-local-parsers.js) *(dynamic)*, [`js/lens-local.js`](js/lens-local.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-library.js`](js/lens-library.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js) → no in-scope imports
+- [`js/lens-local-ingest.js`](js/lens-local-ingest.js) → [`js/lens-local-utils.js`](js/lens-local-utils.js)
 - [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/unique-id.js`](js/unique-id.js)
 - [`js/lens-local-parsers.js`](js/lens-local-parsers.js) → [`js/pdfjs-loader.js`](js/pdfjs-loader.js), [`js/utils-runtime.js`](js/utils-runtime.js)
 - [`js/lens-local-store.js`](js/lens-local-store.js) → no in-scope imports
 - [`js/lens-local-utils.js`](js/lens-local-utils.js) → no in-scope imports
-- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js), [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/lens-local-utils.js`](js/lens-local-utils.js)
+- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js), [`js/lens-local-ingest.js`](js/lens-local-ingest.js), [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/lens-local-utils.js`](js/lens-local-utils.js)
 - [`js/lens-local.js`](js/lens-local.js) → no in-scope imports
 - [`js/lens-page-shell.js`](js/lens-page-shell.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/lens-pages.js`](js/lens-pages.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile-context.js`](js/profile-context.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)

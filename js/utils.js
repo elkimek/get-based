@@ -599,14 +599,13 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
     }
     overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Prompt">
       <p class="confirm-message">${escapeHTML(message)}</p>
-      <input type="${escapeAttr(inputType)}" id="prompt-dialog-input" class="api-key-input"
+      <input type="${escapeAttr(inputType)}" id="prompt-dialog-input" class="confirm-input"
              value="${escapeAttr(defaultValue)}"
              placeholder="${escapeAttr(placeholder)}"
-             style="width:100%;margin:8px 0 14px;box-sizing:border-box"
              aria-label="${escapeAttr(message)}">
       <div class="confirm-actions">
         <button class="confirm-btn confirm-btn-cancel" id="prompt-cancel">${escapeHTML(cancelLabel)}</button>
-        <button class="confirm-btn confirm-btn-danger" id="prompt-ok" style="background:var(--accent)">${escapeHTML(okLabel)}</button>
+        <button class="confirm-btn confirm-btn-primary" id="prompt-ok">${escapeHTML(okLabel)}</button>
       </div></div>`;
 
     const input = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#prompt-dialog-input'));

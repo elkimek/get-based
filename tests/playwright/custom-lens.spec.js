@@ -1,22 +1,11 @@
 import { expect, test } from './coverage-fixture.js';
 
-test('chat lens indicator hides when no lens is configured', async ({ page }) => {
+test('chat header has one context status surface and no legacy KB pill', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  await expect(page.locator('#chat-lens-indicator')).toHaveCount(1);
-  await expect(page.locator('#chat-lens-dot')).toHaveCount(1);
-
-  const display = await page.evaluate(async () => {
-    const { updateLensIndicator } = await import('/js/lens.js');
-    const { updateKeyCache } = await import('/js/crypto.js');
-    const indicator = document.getElementById('chat-lens-indicator');
-    localStorage.removeItem('labcharts-lens-config');
-    updateKeyCache('labcharts-lens-key', '');
-    updateLensIndicator();
-    return indicator?.style.display || '';
-  });
-
-  expect(display).toBe('none');
+  await expect(page.locator('#chat-lens-indicator')).toHaveCount(0);
+  await expect(page.locator('#chat-lens-dot')).toHaveCount(0);
+  await expect(page.locator('#chat-context-live-status')).toHaveCount(1);
 });
 
 test('knowledge base modal renders lens controls and settings AI does not', async ({ page }) => {
@@ -41,6 +30,7 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
   await expect(page.locator('#lens-key-input')).toHaveCount(1);
   await expect(page.locator('#lens-topk-input')).toHaveCount(1);
   await expect(page.locator('#lens-enabled-toggle')).toHaveCount(1);
+  await expect(page.locator('#kb-modal .context-back-btn')).toHaveCount(1);
   await expect(lensSection.locator('[data-lens-action="save-config"]')).toHaveCount(1);
   expect(await lensSection.evaluate((section) => !section.querySelector('[onclick], [onchange], [oninput]'))).toBe(true);
 
@@ -52,4 +42,16 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
   });
 
   await expect(page.locator('.settings-tab-panel[data-tab-panel="ai"] #custom-lens-section')).toHaveCount(0);
+});
+
+test('direct Knowledge Base entry does not imply that Context is its parent', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const knowledgeBaseNav = page.locator('#sidebar-nav .nav-item[data-category="knowledge-base"]');
+  await expect(knowledgeBaseNav).toHaveText(/Knowledge Base/);
+  await knowledgeBaseNav.click();
+
+  await expect(page.locator('#kb-modal-overlay')).toHaveClass(/\bshow\b/);
+  await expect(page.locator('#kb-modal .gb-modal-title')).toHaveText('Knowledge Base');
+  await expect(page.locator('#kb-modal .context-back-btn')).toHaveCount(0);
 });

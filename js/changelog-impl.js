@@ -15,6 +15,7 @@ const CHANGELOG = [
     items: [
       '<b>Voice can now reuse your AI connection.</b> PPQ, OpenRouter, and Venice work automatically for dictation and spoken replies, without a second provider setup.',
       '<b>Voice choices are clearer.</b> Settings shows the supported models and voices for each service, while still letting you use different services for dictation and listening.',
+      '<b>On-device Knowledge Base is faster and easier to find.</b> It now has its own Manage destination, library setup recommends a balanced search model, large imports show useful progress, updated documents replace old copies, and stopping leaves the library unchanged. Chat shows one AI Context status and flags search problems there.',
     ]
   },
   {

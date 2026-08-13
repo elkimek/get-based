@@ -10,7 +10,6 @@ import {
   loadChatPersonality, loadCustomPersonalities, updateChatHeaderTitle, updatePersonalityBar,
 } from './chat-personalities.js';
 import { renderSavedSummaries } from './chat-summaries.js';
-import { updateLensIndicator } from './lens.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
 import {
   startMobileChatViewportSync,
@@ -283,7 +282,6 @@ export async function openChatPanel(prefillMessage) {
   await loadCustomPersonalities();
   loadChatPersonality();
   updateChatHeaderTitle();
-  updateLensIndicator();
   updatePersonalityBar();
   // Sync web search toggle
   const wsCb = /** @type {HTMLInputElement | null} */ (panel.querySelector('#chat-websearch-checkbox'));

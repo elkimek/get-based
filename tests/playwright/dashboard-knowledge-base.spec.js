@@ -297,12 +297,14 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
+    const { saveLensConfig } = await import('/js/lens.js');
     const { openChatPanel } = await import('/js/chat-panel.js');
     const chat = await import('/js/chat-personalities.js');
     localStorage.removeItem('labcharts-ai-paused');
     localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.removeItem('labcharts-lens-config');
-    localStorage.removeItem('labcharts-lens-local-count');
+    localStorage.setItem('labcharts-lens-local-count', '24');
+    saveLensConfig({ backend: 'in-browser', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true });
     state.importedData.interpretiveLens = 'Functional endocrinology';
     await openChatPanel();
     chat.updateChatHeaderModel();
@@ -310,15 +312,51 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
 
   const chip = page.locator('.chat-context-status');
   await expect(chip).toBeVisible();
-  await expect(chip).toContainText('AI Context: Lens');
+  await expect(chip).toContainText('AI Context: Lens + Research Notes');
   await expect(chip.locator('.chat-context-dot')).toBeVisible();
   await expect(chip).toHaveAttribute('aria-label', /Click to manage Context/);
+  await expect(page.locator('#chat-lens-indicator')).toHaveCount(0);
 
   await chip.evaluate(el => el.click());
   const overlay = page.locator('#context-hub-overlay');
   await expect(overlay).toHaveClass(/show/);
   await expect(overlay).toContainText('Personalize how AI answers');
   await expect(overlay).toContainText('Interpretive Lens is enabled');
+});
+
+test('chat AI Context chip carries the last Knowledge Base search error', async ({ page }) => {
+  await page.route('https://kb-error.example/**', route => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: 'worker unavailable' }),
+  }));
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const { saveLensConfig, queryLens } = await import('/js/lens.js');
+    const { updateKeyCache } = await import('/js/crypto.js');
+    const { openChatPanel } = await import('/js/chat-panel.js');
+    localStorage.removeItem('labcharts-ai-paused');
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
+    saveLensConfig({
+      backend: 'external-server',
+      enabled: true,
+      name: 'Research Notes',
+      url: 'https://kb-error.example/query',
+      topK: 5,
+      multiQuery: false,
+    });
+    updateKeyCache('labcharts-lens-key', 'test-key');
+    await openChatPanel();
+    await queryLens('vitamin D');
+  });
+
+  const chip = page.locator('.chat-context-status');
+  await expect(chip).toBeVisible();
+  await expect(chip).toContainText('AI Context: Research Notes');
+  await expect(chip).toHaveClass(/chat-context-status-error/);
+  await expect(chip).toHaveAttribute('aria-label', /could not be searched.*worker unavailable/i);
+  await expect(page.locator('#chat-context-live-status')).toContainText(/could not be searched/i);
 });
 
 test('chat header shows pending KB state when Knowledge Base is enabled but empty', async ({ page }) => {

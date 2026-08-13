@@ -19,7 +19,7 @@
 // Message protocol (main ↔ worker):
 //   IN:  {type: 'init'}                   → loads model, opens OPFS
 //        {type: 'ingest', files: [{name, text}]}
-//                                         → chunks + embeds + appends
+//                                         → chunks + embeds + replaces by source
 //        {type: 'query', text, topK}      → returns top-K matches
 //        {type: 'stats'}                  → per-source counts
 //        {type: 'delete', source}         → drops one doc
@@ -31,14 +31,15 @@
 //        {type: 'stats_result', ...}
 //        {type: 'error', message}
 //
-// Model: Xenova/all-MiniLM-L6-v2 — 384-dim, ~90 MB quantized, MTEB ~41.
-// Not the strongest embedder but the only one that runs acceptably in
-// pure WASM. Browser caches it after first load.
+// Each library locks one model from lens-local-embedder-config.js. MiniLM
+// remains the compatibility default; new libraries can choose balanced,
+// multilingual, or higher-recall profiles. Browser caches weights after use.
 
 import { getErrorMessage } from './caught-error.js';
 import { BENCHMARK_TEXTS, DEFAULT_MODEL_KEY, MODELS, createMockEmbedding } from './lens-local-embedder-config.js';
+import { buildLocalIngestTransaction } from './lens-local-ingest.js';
 import { LensLocalLibraryRegistry } from './lens-local-library-registry.js';
-import { chunkText, mmrSelect } from './lens-local-utils.js';
+import { mmrSelect } from './lens-local-utils.js';
 import {
   FILE_CHUNKS,
   FILE_MANIFEST,
@@ -62,12 +63,6 @@ function _applyModelSpec(modelKey) {
   DIM = spec.dim;
 }
 
-// Chunk target: 800 chars, overlap 50, min 50 — matches getbased-rag's
-// `packages/rag/src/lens/store.py` defaults so ingest behavior stays
-// consistent across the browser backend and the external-server backend.
-const CHUNK_SIZE = 800;
-const CHUNK_OVERLAP = 50;
-const CHUNK_MIN = 50;
 // Retrieval tunables
 const MMR_LAMBDA = 0.5;            // 0 = max diversity, 1 = pure relevance
 const MMR_OVERSAMPLE_FACTOR = 3;   // multiplier on topK before MMR re-rank
@@ -76,6 +71,7 @@ const MMR_OVERSAMPLE_FLOOR = 30;   // never oversample below this many chunks
 let _embedder = null;
 let _embedderBackend = 'wasm';  // 'webgpu' | 'wasm' — whichever transformers.js actually booted
 let _benchmarkVerdict = null;   // Latest benchmark result for the currently-loaded model; null until first load
+const _benchmarkCache = new Map(); // model/backend → verdict; avoids repeating warmups when switching libraries
 let _transformersModule = null; // Lazy-cached transformers.js module so library swaps don't re-import
 let _abortRequested = false;    // set by 'abort' message, checked between embeds in handleIngest
 let _rootDir = null;            // OPFS FileSystemDirectoryHandle at /lens-local/
@@ -135,8 +131,8 @@ self.addEventListener('message', async (e) => {
         throw new Error(`Unknown message type: ${msg.type}`);
       // Abort is a side-channel signal — skips the serial queue on the
       // main thread so it can interrupt an in-flight ingest. handleIngest
-      // polls _abortRequested between embeds and commits whatever's been
-      // indexed so far.
+      // polls _abortRequested between batches. Ingest is transactional:
+      // stopping discards the pending batch and leaves the library intact.
       case 'abort':             _abortRequested = true; return;
       default:                  throw new Error(`Unknown message type: ${msg.type}`);
     }
@@ -309,7 +305,9 @@ async function _loadEmbedder(modelKey) {
   // main thread can surface a tier recommendation in the library-
   // creation UI (step 3).
   try {
-    _benchmarkVerdict = await _benchmarkEmbedder();
+    const benchmarkKey = `${_modelKey}:${_embedderBackend}`;
+    _benchmarkVerdict = _benchmarkCache.get(benchmarkKey) || await _benchmarkEmbedder();
+    _benchmarkCache.set(benchmarkKey, _benchmarkVerdict);
     console.log(
       `[lens-local] Embedding benchmark: ${_modelKey} on ${_embedderBackend}, ` +
       `${_benchmarkVerdict.msPerEmbed.toFixed(0)} ms/embed median → tier ${_benchmarkVerdict.tier} (${_benchmarkVerdict.tierLabel})`
@@ -321,18 +319,20 @@ async function _loadEmbedder(modelKey) {
   }
 }
 
-// 5 synthetic chunks at ~500-600 char lengths — representative of the
+// Three synthetic chunks at ~500-600 char lengths are enough for a stable
+// median after pipeline initialization and cut repeat model-start latency.
+// The full corpus remains in the config so future calibration can rotate it.
 // text we actually feed the embedder during ingest (see `chunk()` in
 // lens-local-utils.js; target_size defaults to 512 tokens ≈ 2-2.5 KB
 // of prose but real ingested chunks land around this character range).
 // Mixing topics keeps any per-text caching honest.
-/// Measure ms/embed on the currently-loaded embedder. Runs 5 embeds on
+/// Measure ms/embed on the currently-loaded embedder. Runs 3 embeds on
 /// varied realistic text, returns the median. Thresholds pick a tier
 /// target for per-library model selection (step 1 spike — values are
 /// initial guesses to be calibrated against real user hardware).
 async function _benchmarkEmbedder() {
   const timings = [];
-  for (const text of BENCHMARK_TEXTS) {
+  for (const text of BENCHMARK_TEXTS.slice(0, 3)) {
     const t0 = performance.now();
     await _embedder(text, { pooling: 'mean', normalize: true });
     timings.push(performance.now() - t0);
@@ -340,11 +340,9 @@ async function _benchmarkEmbedder() {
   const sorted = timings.slice().sort((a, b) => a - b);
   const msPerEmbed = sorted[Math.floor(sorted.length / 2)];
   let tier, tierLabel;
-  // Tier-3 cutoff lifted from 30ms → 50ms (v1.3.23): the original band only
-  // recommended BGE-base on the fastest 10-15% of devices, but modern
-  // laptops (M-series, Ryzen 7000+, recent Intel) sit comfortably in the
-  // 30-50ms range and run BGE-base without trouble. Recall lift on jargon
-  // / synonym queries is significant; ingest stays sub-second per chunk.
+  // Tiers describe the measured current model. Recommendation policy lives
+  // in lens-library.js and deliberately caps CPU/WASM auto-selection at the
+  // balanced profile; MiniLM speed is not a reliable estimate for BGE-base.
   if (msPerEmbed < 50) {
     tier = 3;
     tierLabel = 'recent HW — larger model viable';
@@ -499,87 +497,35 @@ async function activeLibraryDir() {
 
 async function handleIngest(files) {
   if (!_embedder) throw new Error('Worker not initialized');
-
-  // Fresh run — clear any abort flag left over from a prior run that
-  // raced with completion (the main thread can legitimately fire abort
-  // just as we post ingest_done).
+  _abortRequested = false;
+  const transaction = await buildLocalIngestTransaction({
+    files,
+    embedder: _embedder,
+    backend: _embedderBackend,
+    dim: DIM,
+    current: { vectors: _vectors, chunks: _chunks, manifest: _manifest },
+    postProgress: (progress) => self.postMessage({ type: 'progress', ...progress }),
+    yieldTask: macroYield,
+    isAbortRequested: () => _abortRequested,
+  });
   _abortRequested = false;
 
-  // First pass — chunk every file. We emit a "start" event with total
-  // chunk count so the UI can render a bounded progress bar.
-  const allChunks = [];
-  for (const f of files) {
-    const pieces = chunkText(String(f.text || ''), CHUNK_SIZE, CHUNK_OVERLAP, CHUNK_MIN);
-    for (const piece of pieces) allChunks.push({ source: f.name, text: piece });
-  }
-
-  self.postMessage({ type: 'progress', stage: 'start', total: allChunks.length });
-
-  // Serial per-chunk embedding. Batching was tested and hurt on WASM
-  // (padding every item to the longest sequence in the batch wastes
-  // compute on a backend with no parallelism to exploit). On WebGPU the
-  // GPU handles parallelism internally — still no obvious batch gain.
-  //
-  // Abort is checked before each embed so partial progress is committed
-  // cleanly: whatever chunks were indexed before the flag flipped become
-  // a permanent part of the corpus. Tearing them out would waste the
-  // compute the user already paid for.
-  const newVectors = new Float32Array(allChunks.length * DIM);
-  let indexed = 0;
-  let cancelled = false;
-  for (let i = 0; i < allChunks.length; i++) {
-    // Pump the message queue so an 'abort' can actually land. Without
-    // this the embed loop is a tight chain of microtasks and the abort
-    // message sits forever in the task queue, making cancel a no-op.
-    await macroYield();
-    if (_abortRequested) { cancelled = true; break; }
-    const out = await _embedder(allChunks[i].text, { pooling: 'mean', normalize: true });
-    newVectors.set(out.data, i * DIM);
-    indexed = i + 1;
-    if (i % 5 === 0 || i === allChunks.length - 1) {
-      self.postMessage({
-        type: 'progress', stage: 'embed',
-        index: i + 1, total: allChunks.length, source: allChunks[i].source,
-      });
+  if (transaction.nextState) {
+    const previous = { vectors: _vectors, chunks: _chunks, manifest: _manifest };
+    _vectors = transaction.nextState.vectors;
+    _chunks = transaction.nextState.chunks;
+    _manifest = transaction.nextState.manifest;
+    self.postMessage({ type: 'progress', stage: 'saving', total: transaction.stats.chunks_planned });
+    try {
+      await persistAll();
+    } catch (error) {
+      _vectors = previous.vectors;
+      _chunks = previous.chunks;
+      _manifest = previous.manifest;
+      throw error;
     }
   }
-  _abortRequested = false;
-
-  // Commit only the portion actually indexed — slicing when cancelled
-  // drops the trailing zeros from the pre-allocated newVectors buffer.
-  const commitChunks = cancelled ? allChunks.slice(0, indexed) : allChunks;
-  const commitVectors = cancelled ? newVectors.slice(0, indexed * DIM) : newVectors;
-
-  // Merge into in-memory corpus.
-  const merged = new Float32Array(_vectors.length + commitVectors.length);
-  merged.set(_vectors, 0);
-  merged.set(commitVectors, _vectors.length);
-  _vectors = merged;
-  _chunks.push(...commitChunks);
-
-  // Merge per-doc counts into manifest.
-  const perDocAdded = new Map();
-  for (const c of commitChunks) perDocAdded.set(c.source, (perDocAdded.get(c.source) || 0) + 1);
-  for (const [source, added] of perDocAdded) {
-    const existing = _manifest.docs.find((d) => d.source === source);
-    if (existing) existing.chunks += added;
-    else _manifest.docs.push({ source, chunks: added });
-  }
-  _manifest.numChunks = _chunks.length;
-  _manifest.indexedAt = Date.now();
-
-  await persistAll();
-
-  self.postMessage({
-    type: 'ingest_done',
-    stats: {
-      files_seen: files.length,
-      chunks_indexed: commitChunks.length,
-      chunks_planned: allChunks.length,
-      cancelled,
-      skipped: [],
-    },
-  });
+  self.postMessage({ type: 'ingest_done', stats: transaction.stats });
 }
 
 // ── Query ─────────────────────────────────────────────────────────
@@ -635,10 +581,11 @@ function handleStats() {
   self.postMessage({
     type: 'stats_result',
     total_chunks: _manifest.numChunks,
-    documents: _manifest.docs.slice(),
+    documents: _manifest.docs.map((doc) => ({ source: doc.source, chunks: doc.chunks })),
     dim: DIM,
     model: MODEL_ID,
     backend: _embedderBackend,
+    ms_per_embed: _benchmarkVerdict?.msPerEmbed ?? null,
   });
 }
 

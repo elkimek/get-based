@@ -79,11 +79,17 @@ assert('Genome remains a plain lens navigation row',
     !navSrc.includes('nav-genome-ai-toggle') &&
     !navSrc.includes('toggleGenomeAIContext'));
 
-assert('Manage section exposes Context instead of standalone Knowledge Base',
-  navSrc.includes('data-category="context"') &&
+const manageContextIndex = navSrc.indexOf('data-category="context"');
+const manageKnowledgeBaseIndex = navSrc.indexOf('data-category="knowledge-base"');
+const manageCustomMarkersIndex = navSrc.indexOf('data-category="custom-markers"');
+assert('Manage section exposes Context and Knowledge Base as sibling destinations',
+  manageContextIndex >= 0 &&
+    manageKnowledgeBaseIndex > manageContextIndex &&
+    manageCustomMarkersIndex > manageKnowledgeBaseIndex &&
     navSrc.includes("_navActionAttrs('open-context')") &&
+    navSrc.includes("_navActionAttrs('open-knowledge-base')") &&
     navSrc.includes('<span class="nav-item-label">Context</span>') &&
-    !navSrc.includes('data-category="knowledge"'));
+    navSrc.includes('<span class="nav-item-label">Knowledge Base</span>'));
 
 assert('nav delegates are scoped to sidebar/profile surfaces',
   navSrc.includes("el.closest('#sidebar-nav, #profile-selector')"));

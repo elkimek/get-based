@@ -132,7 +132,7 @@ export async function openLocalLens() {
       },
       // Fire-and-forget side-channel signal. Skips the serial queue so
       // it can interrupt an in-flight ingest; the worker polls the flag
-      // between embeds and commits whatever's been indexed so far.
+      // between batches and discards the pending transaction.
       abort: () => { try { ensureWorker().postMessage({ type: 'abort' }); } catch {} },
       query: (text, topK = 10) => send({ type: 'query', text, topK }).then((r) => r.chunks),
       getStats: async () => {
@@ -144,6 +144,7 @@ export async function openLocalLens() {
           dim: r.dim,
           model: r.model,
           backend: r.backend || 'wasm',
+          ms_per_embed: r.ms_per_embed,
         };
       },
       deleteDocument: async (source) => {

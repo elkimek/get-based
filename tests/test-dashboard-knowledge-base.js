@@ -216,14 +216,15 @@ try {
   // ─── 8. Current-head Greptile regressions ───
   {
     const chatSrc = fs.readFileSync('js/chat-personalities.js', 'utf8');
+    const chatContextStatusSrc = fs.readFileSync('js/chat-context-status.js', 'utf8');
     assert('chat header hides AI Context chip when no provider is configured',
-      /function updateChatContextStatus\(\)[\s\S]*?if \(!hasAIProvider\(\)\) \{[\s\S]*?status\.hidden = true;[\s\S]*?return;[\s\S]*?const contextState/.test(chatSrc));
+      /function updateChatContextStatus\(\)[\s\S]*?const clearStatus = \(\) => \{[\s\S]*?status\.hidden = true;[\s\S]*?if \(!hasAIProvider\(\)\) \{[\s\S]*?clearStatus\(\);[\s\S]*?return;[\s\S]*?const contextState/.test(chatContextStatusSrc));
     assert('chat header clears model before refreshing hidden context state in no-provider path',
       /if \(!hasAIProvider\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
     assert('chat header reads Genome lookup status from Context source registry helper',
-      chatSrc.includes("import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';")
-      && /function isGenomeLookupContextActive\(\) \{[\s\S]{0,160}isContextSourceEnabled\(CONTEXT_SOURCE_IDS\.GENOME_INVENTORY\)/.test(chatSrc)
-      && !chatSrc.includes('labcharts-ai-ctx-genetics-inventory'));
+      chatContextStatusSrc.includes("import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';")
+      && /function isGenomeLookupContextActive\(\) \{[\s\S]{0,160}isContextSourceEnabled\(CONTEXT_SOURCE_IDS\.GENOME_INVENTORY\)/.test(chatContextStatusSrc)
+      && !chatContextStatusSrc.includes('labcharts-ai-ctx-genetics-inventory'));
 
     const appEventsSrc = fs.readFileSync('js/app-event-listeners.js', 'utf8');
     assert('global modal focus trap includes Context hub overlay id',

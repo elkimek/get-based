@@ -267,7 +267,9 @@ test('knowledge base modal covers local document ingest and library controls', a
         'bge-en': { label: 'BGE Small English', tier: 2, language: 'en', downloadMB: 130, dim: 384, notes: 'Best for English health notes.' },
         e5: { label: 'Multilingual E5', tier: 2, language: 'multi', downloadMB: 140, dim: 384, notes: 'Good for multilingual corpora.' },
       },
-      embedder: { tier: 2, msPerEmbed: 16, backend: 'webgpu' },
+      // A very fast CPU benchmark is still capped at the balanced model;
+      // MiniLM timing must not silently auto-select the much heavier base model.
+      embedder: { tier: 3, msPerEmbed: 16, backend: 'wasm' },
     };
     const { FakeWorker } = window.__makeLensFakeWorker({
       state,
@@ -361,6 +363,11 @@ test('knowledge base modal covers local document ingest and library controls', a
 
       document.querySelector('[data-lens-action="new-library"]')?.click();
       await waitFor(() => document.getElementById('lens-library-create-overlay')?.classList.contains('show'));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      const createDismissedOnly = await waitFor(() => !document.getElementById('lens-library-create-overlay')?.classList.contains('show'))
+        && document.getElementById('kb-modal-overlay')?.classList.contains('show');
+      document.querySelector('[data-lens-action="new-library"]')?.click();
+      await waitFor(() => document.getElementById('lens-library-create-overlay')?.classList.contains('show'));
       const recommended = document.querySelector('input[name="lens-create-model"]:checked')?.value;
       document.getElementById('lens-create-name').value = 'Protocols';
       document.getElementById('lens-create-ok')?.click();
@@ -380,7 +387,8 @@ test('knowledge base modal covers local document ingest and library controls', a
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
       const deletedLibraryRendered = await waitFor(() => !document.getElementById('lens-library-select')?.textContent.includes('Renamed Beta'));
-      outcomes.libraryCreateActivateRenameDeleteFlows = recommended === 'bge-en'
+      outcomes.libraryCreateActivateRenameDeleteFlows = createDismissedOnly
+        && recommended === 'bge-en'
         && createdRendered
         && renamedRendered
         && deletedLibraryRendered

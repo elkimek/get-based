@@ -106,6 +106,42 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
         && stats.model === 'Xenova/all-MiniLM-L6-v2'
         && (stats.backend === 'wasm' || stats.backend === 'webgpu'));
 
+      const unchanged = await roundTrip({ type: 'ingest', files }, 'ingest_done', 10000);
+      const afterUnchanged = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('re-import skips documents whose content is unchanged',
+        unchanged.stats?.chunks_indexed === 0
+        && unchanged.stats?.skipped?.length === files.length
+        && afterUnchanged.total_chunks === stats.total_chunks
+        && afterUnchanged.documents.length === stats.documents.length);
+
+      const replacementFile = {
+        name: 'vitamin-d.md',
+        text: 'Updated vitamin D document with dosing, UVB, and circadian evidence. '.repeat(38),
+      };
+      const oldVitaminChunks = stats.documents.find(doc => doc.source === replacementFile.name)?.chunks || 0;
+      const replacement = await roundTrip({ type: 'ingest', files: [replacementFile] }, 'ingest_done', 10000);
+      const afterReplacement = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('re-import transaction replaces an existing document instead of appending duplicates',
+        replacement.stats?.replaced_documents === 1
+        && replacement.stats?.chunks_indexed > 0
+        && afterReplacement.documents.length === stats.documents.length
+        && afterReplacement.documents.filter(doc => doc.source === replacementFile.name).length === 1
+        && afterReplacement.total_chunks === stats.total_chunks - oldVitaminChunks + replacement.stats.chunks_indexed);
+
+      const beforeCancelled = afterReplacement.total_chunks;
+      const cancelling = roundTrip({
+        type: 'ingest',
+        files: [{ name: 'cancelled.md', text: 'Pending indexing transaction. '.repeat(1200) }],
+      }, 'ingest_done', 10000);
+      setTimeout(() => worker.postMessage({ type: 'abort' }), 0);
+      const cancelled = await cancelling;
+      const afterCancelled = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('stopping indexing discards the pending transaction',
+        cancelled.stats?.cancelled === true
+        && cancelled.stats?.chunks_indexed === 0
+        && afterCancelled.total_chunks === beforeCancelled
+        && !afterCancelled.documents.some(doc => doc.source === 'cancelled.md'));
+
       const query = await roundTrip({ type: 'query', text: 'vitamin D light mitochondria', topK: 2 }, 'query_result');
       const firstChunk = query.chunks?.[0];
       check('query returns scored chunk matches',
@@ -124,7 +160,7 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
       const afterDelete = await roundTrip({ type: 'stats' }, 'stats_result');
       check('delete removes source chunks and stats',
         deleted.deleted_chunks > 0
-        && afterDelete.total_chunks === stats.total_chunks - deleted.deleted_chunks
+        && afterDelete.total_chunks === afterReplacement.total_chunks - deleted.deleted_chunks
         && !afterDelete.documents.some(doc => doc.source === 'mitochondria.md'));
 
       await roundTrip({ type: 'clear' }, 'clear_done');

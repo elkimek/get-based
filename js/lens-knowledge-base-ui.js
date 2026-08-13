@@ -7,7 +7,7 @@ import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-
 import { initLensActionDelegates, lensActionAttrs } from './lens-actions.js';
 import { createLensLibraryHandlers } from './lens-library.js';
 
-/** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean }} LensWindow */
+/** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean, _lensIngestStopRequested?: boolean }} LensWindow */
 const lensWindow = /** @type {LensWindow} */ (window);
 
 export function createLensKnowledgeBaseUi(deps) {
@@ -21,7 +21,7 @@ export function createLensKnowledgeBaseUi(deps) {
     clearLensCache,
     getLensStatus,
     updateLensStatus,
-    updateLensIndicator,
+    hasLens,
     isValidLensUrl,
     testLensConnection,
     recordLocalLensStats,
@@ -46,186 +46,189 @@ export function createLensKnowledgeBaseUi(deps) {
     const isExternal = cfg.backend === 'external-server';
 
     const connected = isBrowser || (isExternal && cfg.url && keySet);
+    const usableSource = hasLens();
     const status = getLensStatus();
     const statusChip = !connected
-      ? '<span style="color:var(--text-muted)">Not connected</span>'
+      ? '<span class="kb-status-text">Not connected</span>'
       : status.state === 'error'
-        ? `<span style="color:#fbbf24">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
+        ? `<span class="kb-status-text kb-status-error">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
         : cfg.enabled
-          ? `<span style="color:var(--green)">&#10003; Connected${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-          : `<span style="color:var(--text-muted)">Configured (disabled)</span>`;
+          ? isBrowser && !usableSource
+            ? '<span class="kb-status-text">Enabled · add documents</span>'
+            : `<span class="kb-status-text kb-status-active">&#10003; Active${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
+          : '<span class="kb-status-text">Ready, currently off</span>';
     const lastInfo = status.state === 'error' && status.lastError
-      ? `<div style="font-size:11px;color:#fbbf24;margin-top:4px">Last error: ${escapeHTML(status.lastError)}</div>`
+      ? `<div class="kb-status-detail kb-status-error">Last error: ${escapeHTML(status.lastError)}</div>`
       : connected && status.lastChunkCount
-        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Last query: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
+        ? `<div class="kb-status-detail">Last search: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
         : '';
 
-    // Per-backend field visibility. The radio handler swaps display:none
-    // so we don't have to re-render the whole panel on toggle — preserves
-    // scroll position + focus.
-    const browserFieldsStyle = isBrowser ? '' : 'display:none';
-    const externalFieldsStyle = isExternal ? '' : 'display:none';
+    const backendCopy = isBrowser
+      ? 'Indexing and search run on this device after the first model download. Matching excerpts are shared with your selected AI provider when chat answers.'
+      : 'Connect to a knowledge server on your computer or local network. Best for large document collections.';
 
-    return `<div class="ai-provider-panel">
-      <div class="ai-provider-desc">Optional. A Knowledge Base grounds the AI's answers in documents you provide — research papers, clinical guides, personal notes. Add your documents below and the AI cites them when answering chat questions. <a href="https://docs.getbased.health/guides/interpretive-lens" target="_blank" rel="noopener" style="color:var(--accent)">Learn more →</a></div>
-      <div class="api-key-status" id="lens-status-chip">${statusChip}${lastInfo}</div>
+    const localFields = isBrowser ? `
+      <section class="kb-section" id="lens-library-picker" aria-labelledby="kb-library-heading">
+        <div class="kb-section-head">
+          <div>
+            <h3 id="kb-library-heading">Active library</h3>
+            <p>Keep research, clinical guides, and personal notes in separate collections.</p>
+          </div>
+          <button class="import-btn import-btn-primary kb-new-library-btn" ${lensActionAttrs('new-library')} title="Create a library">+ New library</button>
+        </div>
+        <div class="kb-library-row">
+          <select id="lens-library-select" class="kb-field-control kb-library-select" aria-label="Active library" ${lensActionAttrs('activate-library')}>
+            <option value="">Loading…</option>
+          </select>
+          <div class="kb-library-actions">
+            <button class="import-btn import-btn-secondary kb-small-btn" ${lensActionAttrs('rename-library')} title="Rename active library">Rename</button>
+            <button class="kb-text-btn kb-text-btn-danger" ${lensActionAttrs('delete-library')} title="Delete active library">Delete</button>
+          </div>
+        </div>
+        <p class="kb-field-help">Chat searches only the active library.</p>
+      </section>
 
-      <div style="margin-top:10px">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Where to run it</div>
-        <div class="ctx-btn-group" role="radiogroup" aria-label="Knowledge Base engine">
+      <section class="kb-section" id="lens-local-fields" aria-labelledby="kb-documents-heading">
+        <div class="kb-section-head">
+          <div>
+            <h3 id="kb-documents-heading">Documents</h3>
+            <p>Add files and keep working while indexing runs in the background.</p>
+          </div>
+        </div>
+        <div id="lens-local-stats" class="kb-stats" role="status">Loading your library…</div>
+        <div id="lens-local-drop" class="kb-drop-zone"
+             role="button" tabindex="0"
+             aria-label="Add documents — drop files here or press Enter to open the file picker"
+             ${lensActionAttrs('open-local-filepick')}>
+          <span class="kb-drop-icon" aria-hidden="true">📁</span>
+          <strong>Drop documents here or choose files</strong>
+          <span>PDF · Markdown · Text · Word · JSON · ZIP</span>
+        </div>
+        <input type="file" id="lens-local-filepick" multiple hidden accept=".txt,.md,.markdown,.rst,.json,.csv,.log,.pdf,.docx,.zip">
+        <div id="lens-local-progress-wrap" class="kb-inline-progress" hidden>
+          <progress id="lens-local-progress" value="0" max="100" aria-label="Indexing progress"></progress>
+          <div id="lens-local-progress-text" role="status" aria-live="polite"></div>
+        </div>
+        <div id="lens-local-doc-list" class="kb-document-list"></div>
+      </section>
+    ` : '';
+
+    const externalFields = isExternal ? `
+      <section class="kb-section" id="lens-remote-fields" aria-labelledby="kb-server-heading">
+        <div class="kb-section-head">
+          <div>
+            <h3 id="kb-server-heading">Knowledge server</h3>
+            <p>Connect getbased to a RAG endpoint you control.</p>
+          </div>
+        </div>
+        <details class="kb-setup-details">
+          <summary>Set up the local server on Linux</summary>
+          <div class="kb-setup-body">
+            <p><strong>1. Install and start the agent stack</strong></p>
+            <code class="kb-command">curl -sSL https://getbased.health/install.sh | bash</code>
+            <p><strong>2. Open the dashboard</strong> using the one-click login URL printed by the installer.</p>
+            <p><strong>3. In MCP → Environment, copy <code>LENS_API_KEY</code></strong> and paste it below.</p>
+            <p class="kb-field-help"><strong>Linux only for automatic startup.</strong> On macOS or Windows, follow the <a href="https://docs.getbased.health/guides/knowledge-base" target="_blank" rel="noopener">manual setup guide</a>.</p>
+            <details class="kb-setup-audit">
+              <summary>Review the installer first</summary>
+              <p><a href="https://github.com/elkimek/get-based-site/blob/main/install.sh" target="_blank" rel="noopener">Read install.sh on GitHub →</a></p>
+              <code class="kb-command">curl -sSL https://getbased.health/install.sh.sha256 | sha256sum -c</code>
+            </details>
+          </div>
+        </details>
+        <div class="kb-field-grid">
+          <label class="kb-field" for="lens-name-input">
+            <span>Display name</span>
+            <input type="text" class="kb-field-control" id="lens-name-input" value="${escapeAttr(cfg.name)}" placeholder="e.g. Functional Medicine Library">
+            <small>Shown in chat while this source is grounding an answer.</small>
+          </label>
+          <label class="kb-field" for="lens-url-input">
+            <span>Endpoint URL</span>
+            <input type="url" class="kb-field-control" id="lens-url-input" value="${escapeAttr(cfg.url)}" placeholder="http://127.0.0.1:8322/query">
+            <small>Include the <code>/query</code> path.</small>
+          </label>
+          <label class="kb-field" for="lens-key-input">
+            <span>API key</span>
+            <input type="password" class="kb-field-control" id="lens-key-input" value="${escapeAttr(keySet ? '••••••••' : '')}" placeholder="Bearer token">
+            <small>Encrypted at rest on this device.</small>
+          </label>
+          <label class="kb-field" for="lens-test-probe-input">
+            <span>Connection test query</span>
+            <input type="text" class="kb-field-control" id="lens-test-probe-input" value="${escapeAttr(cfg.testProbe || defaultTestProbe)}" placeholder="${escapeAttr(defaultTestProbe)}">
+            <small>Used once when you choose Save + connect.</small>
+          </label>
+        </div>
+      </section>
+    ` : '';
+
+    return `<div class="kb-panel">
+      <section class="kb-intro">
+        <div class="kb-intro-copy">
+          <strong>Ground AI answers in documents you trust.</strong>
+          <p>Add research papers, clinical guides, or personal notes. getbased searches them before answering and can cite the matching excerpts. <a href="https://docs.getbased.health/guides/knowledge-base" target="_blank" rel="noopener">Learn how it works →</a></p>
+        </div>
+        <div class="kb-status" id="lens-status-chip">${statusChip}${lastInfo}</div>
+      </section>
+
+      <section class="kb-section kb-engine-section" aria-labelledby="kb-engine-heading">
+        <div class="kb-section-head kb-engine-head">
+          <div>
+            <h3 id="kb-engine-heading">Where it runs</h3>
+            <p>${backendCopy}</p>
+          </div>
+          <label class="kb-enable-control" for="lens-enabled-toggle">
+            <span>Use in AI answers</span>
+            <span class="toggle-switch">
+              <input type="checkbox" id="lens-enabled-toggle" ${cfg.enabled ? 'checked' : ''} ${lensActionAttrs('toggle-enabled')}>
+              <span class="toggle-slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="ctx-btn-group kb-engine-picker" role="radiogroup" aria-label="Knowledge Base engine">
           <button type="button" class="ctx-btn-option ${isBrowser ? 'active' : ''}" role="radio" aria-checked="${isBrowser}" ${lensActionAttrs('set-backend', { backend: 'in-browser' })}>On this device</button>
           <button type="button" class="ctx-btn-option ${isExternal ? 'active' : ''}" role="radio" aria-checked="${isExternal}" ${lensActionAttrs('set-backend', { backend: 'external-server' })}>External server</button>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">
-          ${isBrowser
-            ? 'Runs entirely in this browser. No install — first use downloads a small AI model (~100 MB); after that it works offline. Good for a few hundred documents.'
-            : 'Connect to a RAG server on your machine or LAN. Best for large corpora (thousands of files) and hardware-accelerated retrieval.'}
-        </div>
-      </div>
+      </section>
 
-      <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
-        <label class="toggle-switch" for="lens-enabled-toggle">
-          <input type="checkbox" id="lens-enabled-toggle" ${cfg.enabled ? 'checked' : ''} ${lensActionAttrs('toggle-enabled')}>
-          <span class="toggle-slider"></span>
-        </label>
-        <label for="lens-enabled-toggle" style="font-size:13px;cursor:pointer">Enable Knowledge Source</label>
-      </div>
+      ${localFields}
+      ${externalFields}
 
-      ${isBrowser ? `
-      <!-- Library picker — in-browser only. external-server has no library
-           concept; it's a single remote endpoint.
-           The select is populated lazily after mount because the backend
-           is async. -->
-      <div id="lens-library-picker" style="margin-top:12px">
-        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px" for="lens-library-select">Library</label>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <select id="lens-library-select" ${lensActionAttrs('activate-library')}
-                  style="flex:1;min-width:180px;padding:6px 8px;background:var(--select-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:13px">
-            <option value="">Loading…</option>
-          </select>
-          <button class="import-btn import-btn-secondary" ${lensActionAttrs('new-library')} style="font-size:12px;padding:6px 10px" title="New library">+ New</button>
-          <button class="import-btn import-btn-secondary" ${lensActionAttrs('rename-library')} style="font-size:12px;padding:6px 10px" title="Rename active library">Rename</button>
-          <button class="import-btn import-btn-secondary" ${lensActionAttrs('delete-library')} style="font-size:12px;padding:6px 10px" title="Delete active library">Delete</button>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Keep different collections separate — research papers, clinical guides, personal notes. Chat grounds its answers in the active library only.</div>
-      </div>
-      ` : ''}
-
-      <div id="lens-remote-fields" style="${externalFieldsStyle}">
-        <!-- One-command install via curl | bash, served from the landing
-             site's Vercel deploy. Hits the same pipx/uv → agent-stack →
-             systemd-user-services flow a user would do by hand, just
-             scripted. Linux-only for now — the installer degrades on
-             macOS/containers (unit files land but don't activate) but
-             auto-start is a systemd-only feature. Source is public so
-             security-conscious users can audit before running. -->
-        <details class="lens-setup-details" style="margin-top:8px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-muted);line-height:1.6" open>
-          <summary style="cursor:pointer;color:var(--text-primary);font-weight:600;font-size:13px;user-select:none;list-style:none">🚀 New here? One-command setup (Linux)</summary>
-          <div style="margin-top:10px">
-            <div style="margin-bottom:10px"><strong style="color:var(--text-primary)">1. Install the agent stack:</strong></div>
-            <div style="font-family:var(--font-mono,monospace);font-size:11.5px;background:var(--bg-primary);padding:8px 12px;border-radius:4px;color:var(--text-primary);line-height:1.8;overflow-wrap:anywhere">curl -sSL https://getbased.health/install.sh | bash</div>
-            <div style="font-size:11px;margin-top:4px;opacity:0.85">Installs via <code style="font-family:var(--font-mono,monospace);font-size:11px">pipx</code> or <code style="font-family:var(--font-mono,monospace);font-size:11px">uv</code> (auto-detected), starts rag + dashboard as systemd user services. <strong>Linux only</strong> — macOS and Windows aren't supported yet (the script installs but services won't auto-start).</div>
+      <section class="kb-section" aria-labelledby="kb-retrieval-heading">
+        <div class="kb-section-head">
+          <div>
+            <h3 id="kb-retrieval-heading">Search behavior</h3>
+            <p>Control how much supporting context is sent with each question.</p>
           </div>
-          <div style="margin-top:14px">
-            <div style="margin-bottom:10px"><strong style="color:var(--text-primary)">2. Open the dashboard</strong> — the script prints a <a href="https://docs.getbased.health/guides/interpretive-lens#one-click-login" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">one-click login URL</a> at the end.</div>
-            <div style="font-size:12px;line-height:1.7">
-              • <strong>Knowledge</strong> tab — create a library, drop files in, wait for indexing<br>
-              • <strong>MCP</strong> tab → <strong>Environment</strong> panel — copy <code style="font-family:var(--font-mono,monospace);font-size:11px">LENS_API_KEY</code>
-            </div>
-          </div>
-          <div style="margin-top:14px">
-            <div><strong style="color:var(--text-primary)">3. Paste the bearer</strong> into <em>API key</em> below, hit <em>Save + connect</em>.</div>
-          </div>
-          <!-- Audit/verification block — the audience is security-conscious
-               by definition (they care about grounding health data on their
-               own RAG), so curl | bash deserves an honest review-first path
-               rather than pretending HTTPS is all anyone needs. -->
-          <div style="margin-top:14px;font-size:11px;padding-top:10px;border-top:1px dashed var(--border);line-height:1.55">
-            <strong style="color:var(--text-primary)">Cautious?</strong> Read the script first or verify its hash:<br>
-            <code style="font-family:var(--font-mono,monospace);font-size:11px;display:inline-block;margin-top:4px">curl -sSL https://getbased.health/install.sh | less</code><br>
-            <code style="font-family:var(--font-mono,monospace);font-size:11px;display:inline-block;margin-top:2px">curl -sSL https://getbased.health/install.sh.sha256 | sha256sum -c</code><br>
-            <a href="https://github.com/elkimek/get-based-site/blob/main/install.sh" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">Source on GitHub →</a>
-          </div>
-          <div style="margin-top:10px;font-size:11px">Already have a server? Skip this and fill in the fields below.</div>
-        </details>
-        <!-- Display name: only meaningful for external-server, which is a
-             remote endpoint rather than a named library. in-browser derives
-             the chip label from the active library name. -->
-        <div style="margin-top:12px">
-          <label style="font-size:12px;color:var(--text-muted)" for="lens-name-input">Display name</label>
-          <input type="text" class="api-key-input" id="lens-name-input" value="${escapeAttr(cfg.name)}" placeholder="e.g. Functional Medicine Library" style="margin-top:4px">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Shown in the chat-header badge when this source is feeding answers.</div>
         </div>
-        <div style="margin-top:10px">
-          <label style="font-size:12px;color:var(--text-muted)" for="lens-url-input">Endpoint URL</label>
-          <input type="text" class="api-key-input" id="lens-url-input" value="${escapeAttr(cfg.url)}" placeholder="http://127.0.0.1:8322/query" style="margin-top:4px">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Include the <code style="font-family:var(--font-mono,monospace);font-size:11px">/query</code> path — it's the specific endpoint the chat hits, not the server root.</div>
+        <div class="kb-retrieval-grid">
+          <label class="kb-field kb-compact-field" for="lens-topk-input">
+            <span>Excerpts per question</span>
+            <input type="number" class="kb-field-control kb-number-control" id="lens-topk-input" value="${cfg.topK || 5}" min="1" max="10" inputmode="numeric">
+            <small>Usually 3–5 is enough. Higher values add more context to each AI request.</small>
+          </label>
+          <label class="kb-option-card" for="lens-multi-query-checkbox">
+            <input type="checkbox" id="lens-multi-query-checkbox" ${cfg.multiQuery !== false ? 'checked' : ''}>
+            <span>
+              <strong>Improve recall with query rewriting</strong>
+              <small>Your AI provider searches synonyms and related terms. Adds about one second to the first matching question.</small>
+            </span>
+          </label>
         </div>
-        <div style="margin-top:10px">
-          <label style="font-size:12px;color:var(--text-muted)" for="lens-key-input">API key</label>
-          <input type="password" class="api-key-input" id="lens-key-input" value="${escapeAttr(keySet ? '••••••••' : '')}" placeholder="Bearer token" style="margin-top:4px">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Paste from the dashboard's <em>MCP → Environment</em> panel, or run <code style="font-family:var(--font-mono,monospace);font-size:11px">lens key</code> in a terminal on the server. Encrypted at rest on this device; never sent to any third party.</div>
+      </section>
+
+      <div class="kb-footer-actions">
+        <div class="kb-footer-secondary">
+          ${connected ? `<button class="kb-text-btn" ${lensActionAttrs('clear-cache')}>Clear search cache</button>` : ''}
+          ${connected ? `<button class="kb-text-btn kb-text-btn-danger" ${lensActionAttrs('remove-lens')}>Remove knowledge source</button>` : ''}
         </div>
-        <div style="margin-top:10px">
-          <label style="font-size:12px;color:var(--text-muted)" for="lens-test-probe-input">Test query</label>
-          <input type="text" class="api-key-input" id="lens-test-probe-input" value="${escapeAttr(cfg.testProbe || defaultTestProbe)}" placeholder="${escapeAttr(defaultTestProbe)}" style="margin-top:4px">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Sent to your endpoint on <strong>Save + connect</strong> to verify the connection. Pick a query your documents should have good matches for.</div>
-        </div>
-        <!-- Footnote: the panel points at a server; the server's libraries
-             are managed in the dashboard. Integrated flow covers this in
-             step 3, so the once-separate callout is now a terse reminder. -->
-        <div style="margin-top:14px;padding:8px 12px;border-left:3px solid var(--accent);background:var(--bg-secondary);font-size:11.5px;color:var(--text-muted);line-height:1.5">
-          Chat grounds on the server's <strong>active library</strong>. Switch or create libraries from the dashboard — this panel only says which server to talk to.
-        </div>
+        <button class="import-btn import-btn-primary kb-save-btn" ${lensActionAttrs('save-config')}>${isExternal ? 'Save + connect' : 'Save changes'}</button>
       </div>
 
-      <div id="lens-local-fields" style="${browserFieldsStyle}">
-        <div id="lens-local-stats" style="margin-top:10px;padding:10px 14px;background:var(--bg-secondary);border-radius:6px;font-size:13px;color:var(--text-muted)">Loading stats…</div>
-        <div id="lens-local-drop"
-             role="button" tabindex="0"
-             aria-label="Add documents — drop files here or press Enter to open the file picker"
-             style="margin-top:10px;padding:18px;border:2px dashed var(--border);border-radius:8px;text-align:center;font-size:13px;color:var(--text-muted);cursor:pointer;transition:border-color 0.15s"
-             ${lensActionAttrs('open-local-filepick')}>
-          <div style="font-size:20px;pointer-events:none" aria-hidden="true">📁</div>
-          <div style="margin-top:4px;pointer-events:none">Drop documents or click to add</div>
-          <div style="font-size:11px;margin-top:2px;opacity:0.7;pointer-events:none">PDF · Markdown · Text · Word · JSON · ZIP</div>
-        </div>
-        <input type="file" id="lens-local-filepick" multiple style="display:none" accept=".txt,.md,.markdown,.rst,.json,.csv,.log,.pdf,.docx,.zip">
-        <div id="lens-local-progress-wrap" style="display:none;margin-top:8px">
-          <progress id="lens-local-progress" value="0" max="100" style="width:100%;height:8px" aria-label="Indexing progress"></progress>
-          <div id="lens-local-progress-text" role="status" aria-live="polite" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
-        </div>
-        <div id="lens-local-doc-list" style="margin-top:10px"></div>
-      </div>
-
-      <div style="margin-top:10px">
-        <label style="font-size:12px;color:var(--text-muted)" for="lens-topk-input">Excerpts per question</label>
-        <input type="number" class="api-key-input" id="lens-topk-input" value="${cfg.topK || 5}" min="1" max="10" style="margin-top:4px;width:100px">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">How many of the most relevant excerpts the AI sees with each chat question.</div>
-      </div>
-
-      <div style="margin-top:14px">
-        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
-          <input type="checkbox" id="lens-multi-query-checkbox" ${cfg.multiQuery !== false ? 'checked' : ''} style="margin-top:3px">
-          <span style="font-size:12px;color:var(--text-primary)">
-            Improve recall with query rewriting
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4">
-              Before searching, your AI provider rephrases the question to cover Latin names, synonyms, and related terms — so a search for "Black Seed Oil" still finds notes titled "Nigella Sativa". Adds ~1s on the first matching question.
-            </div>
-          </span>
-        </label>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button class="import-btn import-btn-primary" ${lensActionAttrs('save-config')}>${isExternal ? 'Save + connect' : 'Save'}</button>
-        ${connected ? `<button class="import-btn import-btn-secondary" ${lensActionAttrs('clear-cache')}>Clear cache</button>` : ''}
-        ${connected ? `<button class="import-btn import-btn-secondary" ${lensActionAttrs('remove-lens')}>Remove</button>` : ''}
-      </div>
-
-      <div class="api-key-notice" style="margin-top:12px">
-        ${isBrowser
-          ? 'Your documents and questions never leave this device. First use downloads a small AI model (about 100 MB); after that it works offline.'
-          : 'Your questions are sent directly to the server you configure. Only connect to servers you control or trust.'}
+      <div class="kb-privacy-note">
+        <span aria-hidden="true">🔒</span>
+        <span>${isBrowser
+          ? 'Files, embeddings, and searches stay on this device. When chat uses the Knowledge Base, matching excerpts are included in the request to your configured AI provider. Query rewriting also sends the question when enabled.'
+          : 'Questions are sent directly to the server you configure. Only connect to a server you control or trust.'}</span>
       </div>
     </div>`;
   }
@@ -241,7 +244,8 @@ export function createLensKnowledgeBaseUi(deps) {
   // "Connect a knowledge base" CTA opens this directly. Same DOM IDs as
   // the previous in-Settings render path, so handleSaveLensConfig and
   // _loadLocalLensStats keep working without changes.
-  function openKnowledgeBaseModal() {
+  function openKnowledgeBaseModal(options = {}) {
+    const showContextBack = options.source !== 'sidebar';
     let overlay = document.getElementById('kb-modal-overlay');
     let modal = document.getElementById('kb-modal');
     if (!overlay) {
@@ -259,7 +263,7 @@ export function createLensKnowledgeBaseUi(deps) {
     modal.className = 'modal kb-modal settings-modal';
     modal.innerHTML = `
       <div class="gb-modal-head">
-        <button type="button" class="context-back-btn" ${lensActionAttrs('open-context')} aria-label="Back to Context" title="Back to Context"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        ${showContextBack ? `<button type="button" class="context-back-btn" ${lensActionAttrs('open-context')} aria-label="Back to Context" title="Back to Context"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>` : ''}
         <div>
           <div class="gb-modal-kicker">Local context</div>
           <div class="gb-modal-title">Knowledge Base</div>
@@ -289,7 +293,12 @@ export function createLensKnowledgeBaseUi(deps) {
   }
 
   function _kbModalKeydown(e) {
-    if (e.key === 'Escape') closeKnowledgeBaseModal();
+    if (e.key !== 'Escape') return;
+    // A library form, rename prompt, or destructive confirmation owns the
+    // first Escape press. Closing the parent here as well would make a
+    // simple cancel unexpectedly dismiss the whole Knowledge Base.
+    if (document.querySelector('.confirm-overlay.show')) return;
+    closeKnowledgeBaseModal();
   }
 
   // Update only the status chip without blowing away input fields
@@ -300,18 +309,21 @@ export function createLensKnowledgeBaseUi(deps) {
     const keySet = !!getLensKey();
     const isBrowser = cfg.backend === 'in-browser';
     const connected = isBrowser || (cfg.backend === 'external-server' && cfg.url && keySet);
+    const usableSource = hasLens();
     const status = getLensStatus();
     const statusChip = !connected
-      ? '<span style="color:var(--text-muted)">Not connected</span>'
+      ? '<span class="kb-status-text">Not connected</span>'
       : status.state === 'error'
-        ? `<span style="color:#fbbf24">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-        : cfg.enabled
-          ? `<span style="color:var(--green)">&#10003; Connected${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-          : `<span style="color:var(--text-muted)">Configured (disabled)</span>`;
+        ? `<span class="kb-status-text kb-status-error">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
+      : cfg.enabled
+          ? isBrowser && !usableSource
+            ? '<span class="kb-status-text">Enabled · add documents</span>'
+            : `<span class="kb-status-text kb-status-active">&#10003; Active${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
+          : '<span class="kb-status-text">Ready, currently off</span>';
     const lastInfo = status.state === 'error' && status.lastError
-      ? `<div style="font-size:11px;color:#fbbf24;margin-top:4px">Last error: ${escapeHTML(status.lastError)}</div>`
+      ? `<div class="kb-status-detail kb-status-error">Last error: ${escapeHTML(status.lastError)}</div>`
       : connected && status.lastChunkCount
-        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Last query: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
+        ? `<div class="kb-status-detail">Last search: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
         : '';
     chip.innerHTML = statusChip + lastInfo;
   }
@@ -334,7 +346,7 @@ export function createLensKnowledgeBaseUi(deps) {
       saveLensConfig({ enabled, topK, backend, multiQuery });
       _rerenderLensSection();
       _loadLocalLensStats();
-      showNotification('Saved. Your documents stay on this device.', 'success');
+      showNotification('Saved. Indexing and search stay on this device.', 'success');
       return;
     }
 
@@ -379,7 +391,6 @@ export function createLensKnowledgeBaseUi(deps) {
     _rerenderLensSection();
     if (backend === 'in-browser') _loadLocalLensStats();
     _updateLensStatusChip();
-    updateLensIndicator();
   }
 
   /// Populate the local-corpus stats line + doc list + wire the drop handler.
@@ -407,38 +418,46 @@ export function createLensKnowledgeBaseUi(deps) {
       updateLensStatus({});
       if (!stats) return;
       if (s.total_chunks === 0) {
-        stats.innerHTML = '<span style="color:var(--text-muted)">No documents indexed yet.</span>';
+        stats.textContent = 'No documents indexed yet. Add a file to start this library.';
       } else {
         const modelLabel = /minilm/i.test(s.model)
-          ? `MiniLM · ${s.dim}-dim`
-          : /bge-m3/i.test(s.model) ? `BGE-M3 · ${s.dim}-dim` : `${s.model} · ${s.dim}-dim`;
-        // Surface the active transformers.js backend. WebGPU is 3-10× faster
-        // than WASM for embedding inference; showing it makes the speed gap
-        // legible to users debugging "why is my query slow" and advertises
-        // the upgrade path (switch to a modern Chrome for WebGPU).
-        const backendLabel = s.backend === 'webgpu' ? 'WebGPU' : 'WASM';
-        stats.innerHTML = `<span style="color:var(--green)">&#9679;</span> ${s.total_chunks.toLocaleString()} excerpt${s.total_chunks !== 1 ? 's' : ''} from ${s.documents.length} document${s.documents.length !== 1 ? 's' : ''} · <span title="${escapeAttr(s.model)}">${escapeHTML(backendLabel)} · ${escapeHTML(modelLabel)}</span>`;
+          ? 'MiniLM'
+          : /bge-small/i.test(s.model)
+            ? 'BGE-small'
+            : /bge-base/i.test(s.model)
+              ? 'BGE-base'
+              : /multilingual-e5/i.test(s.model)
+                ? 'Multilingual-E5'
+                : s.model;
+        const backendLabel = s.backend === 'webgpu' ? 'WebGPU' : 'CPU';
+        const speed = Number.isFinite(s.ms_per_embed) && s.ms_per_embed > 0
+          ? ` · about ${Math.max(1, Math.round(1000 / s.ms_per_embed))} excerpts/s`
+          : '';
+        stats.innerHTML = `<span class="kb-stats-dot" aria-hidden="true"></span>${s.total_chunks.toLocaleString()} excerpt${s.total_chunks !== 1 ? 's' : ''} from ${s.documents.length} document${s.documents.length !== 1 ? 's' : ''} · <span title="${escapeAttr(s.model)}">${escapeHTML(modelLabel)} on ${escapeHTML(backendLabel)}${speed}</span>`;
+        if (s.backend !== 'webgpu' && /bge-base/i.test(s.model)) {
+          stats.innerHTML += '<div class="kb-performance-note">BGE-base favors retrieval quality over CPU import speed. For faster indexing, create a new library with the Balanced profile.</div>';
+        }
       }
       if (list) list.innerHTML = _renderLocalDocList(s.documents);
       _attachLocalLensDropHandlers();
     } catch (e) {
-      if (stats) stats.innerHTML = `<span style="color:#fbbf24">Failed to load stats: ${escapeHTML(getErrorMessage(e, String(e)))}</span>`;
+      if (stats) stats.innerHTML = `<span class="kb-status-error">Failed to load library: ${escapeHTML(getErrorMessage(e, String(e)))}</span>`;
     }
   }
 
   function _renderLocalDocList(docs) {
     if (!docs || docs.length === 0) return '';
     const rows = docs.map((d) => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px">
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeAttr(d.source)}">${escapeHTML(d.source)}</span>
-        <span style="color:var(--text-muted);margin:0 10px;font-variant-numeric:tabular-nums">${d.chunks}</span>
-        <button class="kb-doc-delete" ${lensActionAttrs('delete-doc', { source: d.source })} aria-label="Delete ${escapeAttr(d.source)}" title="Delete" style="background:transparent;border:0;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px">×</button>
+      <div class="kb-document-row">
+        <span class="kb-document-name" title="${escapeAttr(d.source)}">${escapeHTML(d.source)}</span>
+        <span class="kb-document-count" title="Indexed excerpts">${d.chunks}</span>
+        <button class="kb-doc-delete" ${lensActionAttrs('delete-doc', { source: d.source })} aria-label="Delete ${escapeAttr(d.source)}" title="Remove document">×</button>
       </div>
     `).join('');
     return `
-      <div style="margin-top:4px;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">${rows}</div>
-      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="import-btn import-btn-secondary" ${lensActionAttrs('clear-local')} style="font-size:12px;padding:4px 10px">Clear all</button>
+      <div class="kb-document-table">${rows}</div>
+      <div class="kb-document-actions">
+        <button class="kb-text-btn kb-text-btn-danger" ${lensActionAttrs('clear-local')}>Remove all documents</button>
       </div>
     `;
   }
@@ -449,10 +468,10 @@ export function createLensKnowledgeBaseUi(deps) {
     if (!(drop instanceof HTMLElement) || !(picker instanceof HTMLInputElement)) return;
     if (drop.dataset.wired === '1') return;
     drop.dataset.wired = '1';
-    drop.addEventListener('dragenter', (e) => { e.preventDefault(); drop.style.borderColor = 'var(--accent)'; });
-    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.style.borderColor = 'var(--accent)'; });
-    drop.addEventListener('dragleave', () => { drop.style.borderColor = 'var(--border)'; });
-    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.style.borderColor = 'var(--border)'; _handleLocalLensIngest(e.dataTransfer?.files); });
+    drop.addEventListener('dragenter', (e) => { e.preventDefault(); drop.classList.add('is-dragging'); });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('is-dragging'); });
+    drop.addEventListener('dragleave', () => { drop.classList.remove('is-dragging'); });
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-dragging'); _handleLocalLensIngest(e.dataTransfer?.files); });
     drop.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.click(); }
     });
@@ -471,32 +490,17 @@ export function createLensKnowledgeBaseUi(deps) {
     if (pill) return pill;
     pill = document.createElement('div');
     pill.id = 'lens-ingest-pill';
+    pill.className = 'kb-ingest-pill';
     pill.setAttribute('role', 'status');
     pill.setAttribute('aria-live', 'polite');
-    pill.style.cssText = [
-      'position:fixed',
-      'bottom:88px',
-      'right:20px',
-      'z-index:9999',
-      'min-width:260px',
-      'max-width:360px',
-      'padding:12px 14px',
-      'background:var(--bg-elev, #1e1e1e)',
-      'border:1px solid var(--border, #333)',
-      'border-radius:12px',
-      'box-shadow:var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.4))',
-      'font-size:12px',
-      'color:var(--text-primary, #eee)',
-      'pointer-events:auto',
-    ].join(';');
     pill.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px">
-        <strong style="font-size:11px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-muted,#888)">Indexing knowledge base</strong>
-        <button id="lens-ingest-pill-dismiss" title="Hide (ingest keeps running)" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;padding:0 4px;font-size:16px;line-height:1">&times;</button>
+      <div class="kb-ingest-pill-head">
+        <strong>Indexing knowledge base</strong>
+        <button id="lens-ingest-pill-dismiss" class="kb-ingest-pill-dismiss" title="Hide while indexing continues" aria-label="Hide progress">&times;</button>
       </div>
-      <div id="lens-ingest-pill-text" style="margin-bottom:8px;font-size:12px;color:var(--text-secondary,#bbb);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Preparing…</div>
-      <progress id="lens-ingest-pill-bar" value="0" max="1" style="width:100%;height:6px;margin-bottom:8px"></progress>
-      <button id="lens-ingest-pill-cancel" style="width:100%;padding:6px;background:transparent;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-secondary,#bbb);font-size:11px;cursor:pointer">Cancel</button>
+      <div id="lens-ingest-pill-text" class="kb-ingest-pill-text">Preparing…</div>
+      <progress id="lens-ingest-pill-bar" value="0" max="1"></progress>
+      <button id="lens-ingest-pill-cancel" class="kb-ingest-pill-stop">Stop indexing</button>
     `;
     document.body.appendChild(pill);
     const dismiss = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-dismiss'));
@@ -505,8 +509,9 @@ export function createLensKnowledgeBaseUi(deps) {
       pill.style.display = 'none';
     });
     cancel?.addEventListener('click', async () => {
+      lensWindow._lensIngestStopRequested = true;
       cancel.disabled = true;
-      cancel.textContent = 'Cancelling…';
+      cancel.textContent = 'Stopping…';
       try {
         const lens = await _getLocalLens();
         lens.abort();
@@ -528,83 +533,144 @@ export function createLensKnowledgeBaseUi(deps) {
     // the File handles off the live list; each File itself stays valid.
     const incoming = fileList ? Array.from(fileList) : [];
     if (incoming.length === 0) return;
+    if (lensWindow._lensIngestRunning) {
+      showNotification('Finish or stop the current indexing job before adding more files.', 'info');
+      return;
+    }
 
     const pill = _ensureIngestPill();
     pill.style.display = '';
     const pillText = /** @type {HTMLElement | null} */ (pill.querySelector('#lens-ingest-pill-text'));
     const pillBar = /** @type {HTMLProgressElement | null} */ (pill.querySelector('#lens-ingest-pill-bar'));
-    if (!pillText || !pillBar) return;
-    pillText.textContent = 'Reading files…';
-
-    // Parse main-thread, hand text to worker (see lens-local-parsers.js for
-    // why: module worker can't cleanly import the UMD parser bundles).
-    const { extractFromFile } = await import('./lens-local-parsers.js');
-    const files = [];
-    for (const f of incoming) {
-      try {
-        const extracted = await extractFromFile(f);
-        for (const e of extracted) files.push(e);
-      } catch (err) { console.warn('[lens-local] extract failed:', f.name, err); }
-    }
-    if (files.length === 0) {
-      pillText.textContent = 'No usable files.';
-      setTimeout(() => _removeIngestPill(), 3000);
-      return;
-    }
-
-    const lens = await _getLocalLens();
-    const { subscribeProgress } = await import('./lens-local.js');
+    const pillStop = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-cancel'));
+    if (!pillText || !pillBar || !pillStop) return;
     const t0 = performance.now();
-    const unsub = subscribeProgress((p) => {
-      // Re-query the in-modal elements on every event so a mid-ingest
-      // Settings reopen (which rerenders innerHTML) rebinds cleanly to
-      // the new DOM nodes instead of updating detached ones.
+    let indexT0 = 0;
+    let unsub = () => {};
+    lensWindow._lensIngestStopRequested = false;
+    const updateProgressUi = (message, progress = null) => {
+      pillText.textContent = message;
       const modalBar = /** @type {HTMLProgressElement | null} */ (document.getElementById('lens-local-progress'));
       const modalText = document.getElementById('lens-local-progress-text');
       const modalWrap = /** @type {HTMLElement | null} */ (document.getElementById('lens-local-progress-wrap'));
-      if (modalWrap) modalWrap.style.display = '';
-      if (p.stage === 'start') {
-        pillBar.max = p.total; pillBar.value = 0;
-        pillText.textContent = `Preparing ${p.total} excerpts…`;
-        if (modalBar) modalBar.max = p.total;
-        if (modalText) modalText.textContent = `Preparing ${p.total} excerpts across ${files.length} file${files.length !== 1 ? 's' : ''}…`;
-      } else if (p.stage === 'embed') {
-        const rate = p.index / ((performance.now() - t0) / 1000);
-        pillBar.max = p.total;
-        pillBar.value = p.index;
-        pillText.textContent = `${p.index}/${p.total} · ${rate.toFixed(1)}/s`;
-        // Set max on every tick — when Settings is reopened mid-ingest the
-        // fresh <progress> markup starts at max=100, so without this the
-        // bar jumps to 100% even at small p.index values.
-        if (modalBar) { modalBar.max = p.total; modalBar.value = p.index; }
-        if (modalText) modalText.textContent = `Indexing ${p.index}/${p.total} · ${rate.toFixed(1)}/s · ${p.source}`;
+      if (modalWrap) {
+        modalWrap.hidden = false;
+        modalWrap.style.display = '';
       }
-    });
+      if (modalText) modalText.textContent = message;
+      if (progress) {
+        const max = Math.max(1, progress.max);
+        pillBar.max = max;
+        pillBar.value = Math.min(max, progress.value);
+        if (modalBar) {
+          modalBar.max = max;
+          modalBar.value = Math.min(max, progress.value);
+        }
+      } else {
+        pillBar.removeAttribute('value');
+        modalBar?.removeAttribute('value');
+      }
+    };
+
     lensWindow._lensIngestRunning = true;
+    updateProgressUi(`Reading ${incoming.length} file${incoming.length !== 1 ? 's' : ''}…`);
     try {
+      // Model startup and document parsing are independent, so begin both
+      // together. On a cold library this hides most of the model-load cost
+      // behind PDF/DOCX extraction instead of making the user wait twice.
+      const localModulePromise = import('./lens-local.js');
+      const lensPromise = localModulePromise.then((mod) => mod.openLocalLens());
+      const { extractFromFile } = await import('./lens-local-parsers.js');
+      const files = [];
+      for (let i = 0; i < incoming.length; i++) {
+        const f = incoming[i];
+        updateProgressUi(`Reading ${i + 1}/${incoming.length} · ${f.name}`);
+        try {
+          const extracted = await extractFromFile(f);
+          for (const e of extracted) files.push(e);
+        } catch (err) {
+          console.warn('[lens-local] extract failed:', f.name, err);
+        }
+        if (lensWindow._lensIngestStopRequested) {
+          const stopped = 'Stopped before indexing — no library changes were saved.';
+          updateProgressUi(stopped, { value: 1, max: 1 });
+          showNotification(stopped, 'info');
+          return;
+        }
+      }
+      if (files.length === 0) {
+        updateProgressUi('No usable documents were found.');
+        return;
+      }
+
+      updateProgressUi('Loading the active search model…');
+      const localModule = await localModulePromise;
+      const lens = await lensPromise;
+      if (lensWindow._lensIngestStopRequested) {
+        const stopped = 'Stopped before indexing — no library changes were saved.';
+        updateProgressUi(stopped, { value: 1, max: 1 });
+        showNotification(stopped, 'info');
+        return;
+      }
+      unsub = localModule.subscribeProgress((p) => {
+        if (p.stage === 'start') {
+          indexT0 = performance.now();
+          updateProgressUi(
+            p.total > 0
+              ? `Preparing ${p.total} excerpt${p.total !== 1 ? 's' : ''}…`
+              : 'Checking for document changes…',
+            { value: 0, max: p.total },
+          );
+        } else if (p.stage === 'embed') {
+          const elapsed = Math.max(0.001, (performance.now() - indexT0) / 1000);
+          const rate = p.index / elapsed;
+          const remaining = Math.max(0, p.total - p.index);
+          const eta = rate > 0 && remaining > 0 ? ` · about ${Math.ceil(remaining / rate)}s left` : '';
+          updateProgressUi(
+            `Indexing ${p.index}/${p.total} · ${rate.toFixed(1)}/s${eta} · ${p.source}`,
+            { value: p.index, max: p.total },
+          );
+        } else if (p.stage === 'saving') {
+          pillStop.disabled = true;
+          pillStop.textContent = 'Finishing…';
+          updateProgressUi('Saving the updated library…', { value: p.total, max: p.total });
+        }
+      });
+
+      updateProgressUi('Preparing documents…');
       const stats = await lens.ingest(files);
       const dur = ((performance.now() - t0) / 1000).toFixed(1);
-      const planned = stats.chunks_planned ?? stats.chunks_indexed;
-      const doneMsg = stats.cancelled
-        ? `Cancelled — indexed ${stats.chunks_indexed} of ${planned} excerpts in ${dur}s.`
-        : `Indexed ${stats.chunks_indexed} excerpts from ${stats.files_seen} file${stats.files_seen !== 1 ? 's' : ''} in ${dur}s.`;
-      pillText.textContent = doneMsg;
-      const modalText = document.getElementById('lens-local-progress-text');
-      if (modalText) modalText.textContent = doneMsg;
+      const skippedCount = Array.isArray(stats.skipped) ? stats.skipped.length : 0;
+      let doneMsg;
+      if (stats.cancelled) {
+        doneMsg = `Stopped after ${dur}s — no library changes were saved.`;
+      } else if (stats.chunks_indexed === 0 && skippedCount > 0) {
+        doneMsg = `Already up to date — ${skippedCount} unchanged file${skippedCount !== 1 ? 's' : ''}.`;
+      } else {
+        const replaced = stats.replaced_documents || 0;
+        const replacementCopy = replaced > 0 ? ` · replaced ${replaced} existing document${replaced !== 1 ? 's' : ''}` : '';
+        doneMsg = `Indexed ${stats.chunks_indexed} excerpts from ${stats.files_seen} file${stats.files_seen !== 1 ? 's' : ''} in ${dur}s${replacementCopy}.`;
+      }
+      pillStop.disabled = true;
+      pillStop.textContent = stats.cancelled ? 'Stopped' : 'Done';
+      updateProgressUi(doneMsg, { value: 1, max: 1 });
+      if (!stats.cancelled && stats.chunks_indexed > 0) clearLensCache();
       showNotification(doneMsg, stats.cancelled ? 'info' : 'success');
     } catch (e) {
       const errMsg = `Couldn't index: ${getErrorMessage(e, e)}`;
-      pillText.textContent = errMsg;
-      const modalText = document.getElementById('lens-local-progress-text');
-      if (modalText) modalText.textContent = errMsg;
+      updateProgressUi(errMsg);
       showNotification(errMsg, 'error');
     } finally {
       lensWindow._lensIngestRunning = false;
+      lensWindow._lensIngestStopRequested = false;
       unsub();
       setTimeout(() => {
         _removeIngestPill();
         const modalWrap = document.getElementById('lens-local-progress-wrap');
-        if (modalWrap) modalWrap.style.display = 'none';
+        if (modalWrap) {
+          modalWrap.hidden = true;
+          modalWrap.style.display = 'none';
+        }
       }, 3000);
       await _loadLocalLensStats();
     }
@@ -616,6 +682,7 @@ export function createLensKnowledgeBaseUi(deps) {
       try {
         const lens = await _getLocalLens();
         const deleted = await lens.deleteDocument(source);
+        clearLensCache();
         showNotification(`Removed ${deleted} excerpt${deleted !== 1 ? 's' : ''}.`, 'success');
         await _loadLocalLensStats();
       } catch (e) {
@@ -643,7 +710,6 @@ export function createLensKnowledgeBaseUi(deps) {
     getLocalLens: _getLocalLens,
     clearLensCache,
     saveLensConfig,
-    updateLensIndicator,
     updateLensStatusChip: _updateLensStatusChip,
     loadLocalLensStats: _loadLocalLensStats,
   });
@@ -656,7 +722,6 @@ export function createLensKnowledgeBaseUi(deps) {
   function handleToggleLens(checked) {
     saveLensConfig({ enabled: checked });
     _updateLensStatusChip();
-    updateLensIndicator();
   }
 
   function handleClearLensCache() {

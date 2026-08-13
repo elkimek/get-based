@@ -105,6 +105,11 @@ function main() {
     /export function showPromptDialog/.test(utils));
   assert('showPromptDialog stays module-only',
     !/Object\.assign\(window,[^)]*showPromptDialog/.test(utils));
+  assert('showPromptDialog uses a normal text control',
+    /id="prompt-dialog-input" class="confirm-input"/.test(utils));
+  assert('showPromptDialog uses a primary, non-destructive action',
+    /confirm-btn confirm-btn-primary" id="prompt-ok"/.test(utils)
+      && !/confirm-btn-danger" id="prompt-ok"/.test(utils));
 
   console.log(`\nTotal: ${passed} passed, ${failed} failed.`);
   process.exit(failed > 0 ? 1 : 0);
