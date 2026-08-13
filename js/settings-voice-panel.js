@@ -42,10 +42,14 @@ import {
 export { renderVoiceSettingsPanel };
 
 let installedProgressListener = false;
-let ppqCatalogPromise = null;
+let ppqCatalogGeneration = 0;
+let ppqCatalogRequest = null;
 let openRouterCatalogPromise = null;
 let veniceCatalogPromise = null;
-const openRouterLiveModels = { stt: [], tts: [] };
+const openRouterLiveModels = /** @type {{ stt: Array<any>, tts: Array<any> }} */ ({
+  stt: [],
+  tts: [],
+});
 
 function providerOptionsFor(provider, settings) {
   return {
@@ -318,21 +322,45 @@ async function hydratePpqVoiceCatalog(panel, { force = false } = {}) {
   ) {
     return [];
   }
-  if (ppqCatalogPromise) return ppqCatalogPromise;
+  if (ppqCatalogRequest && !force) return ppqCatalogRequest.promise;
+  if (ppqCatalogRequest) ppqCatalogRequest.controller.abort();
+  const generation = ++ppqCatalogGeneration;
+  const controller = new AbortController();
+  const requestedLanguage = settings.outputLanguage;
   const status = panel.querySelector('[data-voice-catalog-status="ppq"]');
   if (status) status.textContent = 'Loading voices…';
-  ppqCatalogPromise = loadVoiceProvider('ppq')
-    .then(provider => provider.listVoices(providerOptionsFor('ppq', settings)))
+  const promise = loadVoiceProvider('ppq')
+    .then(provider => {
+      if (typeof provider.listVoices !== 'function') {
+        throw new Error('PPQ does not expose a compatible voice catalogue.');
+      }
+      return provider.listVoices({
+        ...providerOptionsFor('ppq', settings),
+        signal: controller.signal,
+      });
+    })
     .then(voices => {
+      const current = getVoiceSettings();
+      if (
+        generation !== ppqCatalogGeneration
+        || resolveVoiceProviderId('tts', current.outputProvider) !== 'ppq'
+        || current.outputLanguage !== requestedLanguage
+      ) {
+        return [];
+      }
       if (!voices.length) throw new Error('PPQ returned no compatible voices.');
       return applyVoiceCatalog(panel, 'ppq', voices);
     })
     .catch(error => {
+      if (generation !== ppqCatalogGeneration || controller.signal.aborted) return [];
       if (status) status.textContent = getErrorMessage(error, 'Could not load PPQ voices');
       return [];
     })
-    .finally(() => { ppqCatalogPromise = null; });
-  return ppqCatalogPromise;
+    .finally(() => {
+      if (ppqCatalogRequest?.generation === generation) ppqCatalogRequest = null;
+    });
+  ppqCatalogRequest = { generation, controller, promise };
+  return promise;
 }
 
 async function hydrateVeniceVoiceCatalog(panel, { force = false } = {}) {
@@ -348,7 +376,12 @@ async function hydrateVeniceVoiceCatalog(panel, { force = false } = {}) {
   const status = panel.querySelector('[data-voice-catalog-status="venice"]');
   if (status) status.textContent = 'Loading private Kokoro voices…';
   veniceCatalogPromise = loadVoiceProvider('venice')
-    .then(provider => provider.listVoices(providerOptionsFor('venice', settings)))
+    .then(provider => {
+      if (typeof provider.listVoices !== 'function') {
+        throw new Error('Venice does not expose a compatible voice catalogue.');
+      }
+      return provider.listVoices(providerOptionsFor('venice', settings));
+    })
     .then(voices => {
       if (!voices.length) throw new Error('Venice returned no Kokoro voices.');
       return applyVoiceCatalog(panel, 'venice', voices, { preferredVoice: 'af_sky' });
@@ -406,6 +439,9 @@ async function handleRefreshVoices(panel, button) {
   setActionBusy(button, true, 'Refreshing…');
   try {
     const provider = await loadVoiceProvider(providerId);
+    if (typeof provider.listVoices !== 'function') {
+      throw new Error(`${voiceProviderLabels[providerId] || providerId} does not expose a voice catalogue.`);
+    }
     const voices = await provider.listVoices(
       providerOptionsFor(providerId, getVoiceSettings()),
     );

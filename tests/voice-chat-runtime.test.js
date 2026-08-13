@@ -477,6 +477,52 @@ describe('voice settings and chat controls', () => {
     expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-thalia-en');
   });
 
+  it('does not let an older PPQ language request replace the current voice catalogue', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
+    const pending = [];
+    globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {
+      pending.push({ resolve, signal: options?.signal });
+    }));
+
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+
+    const language = document.querySelector('[data-voice-setting="outputLanguage"]');
+    language.value = 'fr';
+    language.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    expect(pending[0].signal.aborted).toBe(true);
+
+    pending[1].resolve(new Response(JSON.stringify({
+      data: [{
+        id: 'aura-2-agathe-fr',
+        name: 'Agathe',
+        model_id: 'deepgram_aura_2',
+        language: 'fr',
+        gender: 'female',
+      }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
+    await vi.waitFor(() => expect(select.value).toBe('aura-2-agathe-fr'));
+
+    pending[0].resolve(new Response(JSON.stringify({
+      data: [{
+        id: 'aura-2-thalia-en',
+        name: 'Thalia',
+        model_id: 'deepgram_aura_2',
+        language: 'en',
+        gender: 'female',
+      }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(select.value).toBe('aura-2-agathe-fr');
+    expect([...select.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
+    expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-agathe-fr');
+  });
+
   it('loads private Venice Kokoro voices automatically and saves the selection', async () => {
     localStorage.setItem('labcharts-ai-provider', 'venice');
     updateKeyCache('labcharts-venice-key', 'venice-ai-key');

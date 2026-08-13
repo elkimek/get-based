@@ -72,8 +72,10 @@ export const VOICE_PROVIDERS = Object.freeze([
 ]);
 
 export function getVoiceProviderDefinition(providerId) {
-  return VOICE_PROVIDERS.find(provider => provider.id === providerId)
+  const definition = VOICE_PROVIDERS.find(provider => provider.id === providerId)
     || VOICE_PROVIDERS.find(provider => provider.id === 'browser-local');
+  if (!definition) throw new Error('The built-in voice provider is unavailable.');
+  return definition;
 }
 
 export function getVoiceProvidersFor(kind) {
