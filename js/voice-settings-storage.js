@@ -12,6 +12,11 @@ import {
   LOCAL_TTS_MODELS,
   VOICE_LANGUAGES,
 } from './voice-model-catalog.js';
+import { getAiVoiceProviderKey } from './voice-ai-provider.js';
+import {
+  OPENROUTER_DEFAULT_VOICE,
+  normalizeOpenRouterVoiceModel,
+} from './voice-openrouter-catalog.js';
 import { VOICE_PROVIDERS } from './voice-provider-catalog.js';
 import { VOICE_STORAGE_KEYS } from './voice-settings-schema.js';
 
@@ -92,15 +97,17 @@ export function normalizeLocalVoiceServerUrl(value) {
 
 export function getVoiceSettings() {
   const rate = Number(storageGet(VOICE_STORAGE_KEYS.rate, '1'));
-  const inputProvider = normalizeProvider(storageGet(
-    VOICE_STORAGE_KEYS.inputProvider,
-    'browser-local',
-  ));
-  const outputProvider = normalizeProvider(storageGet(
-    VOICE_STORAGE_KEYS.outputProvider,
-    'browser-local',
-  ));
+  const storedInputProvider = storageGet(VOICE_STORAGE_KEYS.inputProvider);
+  const storedOutputProvider = storageGet(VOICE_STORAGE_KEYS.outputProvider);
+  const inputProvider = storedInputProvider ? normalizeProvider(storedInputProvider) : 'auto';
+  const outputProvider = storedOutputProvider ? normalizeProvider(storedOutputProvider) : 'auto';
   const storedLinked = storageGet(VOICE_STORAGE_KEYS.providersLinked);
+  const storedOpenRouterTtsModel = storageGet(VOICE_STORAGE_KEYS.openRouterTtsModel);
+  const openRouterTtsModel = normalizeOpenRouterVoiceModel('tts', storedOpenRouterTtsModel);
+  const storedOpenRouterVoice = storageGet(VOICE_STORAGE_KEYS.openRouterVoice);
+  const openRouterVoice = storedOpenRouterTtsModel !== openRouterTtsModel && storedOpenRouterVoice
+    ? OPENROUTER_DEFAULT_VOICE
+    : storedOpenRouterVoice || OPENROUTER_DEFAULT_VOICE;
   return {
     inputProvider,
     outputProvider,
@@ -121,6 +128,14 @@ export function getVoiceSettings() {
     localServerTtsModel: storageGet(VOICE_STORAGE_KEYS.localServerTtsModel, 'tts-1'),
     localServerVoice: storageGet(VOICE_STORAGE_KEYS.localServerVoice, 'alloy'),
     xaiVoice: storageGet(VOICE_STORAGE_KEYS.xaiVoice, 'eve'),
+    openRouterSttModel: normalizeOpenRouterVoiceModel(
+      'stt',
+      storageGet(VOICE_STORAGE_KEYS.openRouterSttModel),
+    ),
+    openRouterTtsModel,
+    openRouterVoice,
+    ppqVoice: storageGet(VOICE_STORAGE_KEYS.ppqVoice),
+    veniceVoice: storageGet(VOICE_STORAGE_KEYS.veniceVoice, 'af_sky'),
     elevenlabsVoice: storageGet(VOICE_STORAGE_KEYS.elevenlabsVoice),
     elevenlabsTtsModel: storageGet(VOICE_STORAGE_KEYS.elevenlabsTtsModel, 'eleven_multilingual_v2'),
     rate: Number.isFinite(rate) ? Math.min(2, Math.max(0.5, rate)) : 1,
@@ -137,6 +152,8 @@ export function setVoiceSetting(name, value) {
   if (name === 'inputProvider' || name === 'outputProvider') normalized = normalizeProvider(String(value));
   if (name === 'providersLinked') normalized = value ? 'true' : 'false';
   if (name === 'inputLanguage' || name === 'outputLanguage') normalized = normalizeLanguage(String(value));
+  if (name === 'openRouterSttModel') normalized = normalizeOpenRouterVoiceModel('stt', String(value));
+  if (name === 'openRouterTtsModel') normalized = normalizeOpenRouterVoiceModel('tts', String(value));
   if (name === 'localSttBackend' || name === 'localTtsBackend') normalized = normalizeSttBackend(String(value));
   if (name === 'localServerUrl') normalized = normalizeLocalVoiceServerUrl(value);
   if (name === 'rate') normalized = Math.min(2, Math.max(0.5, Number(value) || 1));
@@ -181,6 +198,8 @@ export function setSharedVoiceProvider(provider) {
 }
 
 export function getVoiceProviderKey(provider) {
+  const aiProviderKey = getAiVoiceProviderKey(provider);
+  if (aiProviderKey) return aiProviderKey;
   const key = provider === 'xai'
     ? VOICE_STORAGE_KEYS.xaiKey
     : provider === 'elevenlabs'

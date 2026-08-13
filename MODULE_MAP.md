@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 651 |
-| Internal import edges | 2726 |
-| Dynamic internal edges | 72 |
+| Modules | 654 |
+| Internal import edges | 2739 |
+| Dynamic internal edges | 73 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -935,8 +935,8 @@ Native browser modules shipped with the static application.
 - [`js/settings-tweaks.js`](js/settings-tweaks.js) → [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js) → [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/utils.js`](js/utils.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
-- [`js/settings-voice-panel.js`](js/settings-voice-panel.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/settings-voice-view.js`](js/settings-voice-view.js), [`js/utils.js`](js/utils.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
-- [`js/settings-voice-view.js`](js/settings-voice-view.js) → [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/utils.js`](js/utils.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/settings-voice-panel.js`](js/settings-voice-panel.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/settings-voice-view.js`](js/settings-voice-view.js), [`js/utils.js`](js/utils.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/settings-voice-view.js`](js/settings-voice-view.js) → [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/utils.js`](js/utils.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
 - [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-display-panel.js`](js/settings-display-panel.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings-tweaks.js`](js/settings-tweaks.js), [`js/settings-voice-panel.js`](js/settings-voice-panel.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
 
 </details>
@@ -1187,8 +1187,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>voice</code> family — 22 modules</summary>
+<details><summary><code>voice</code> family — 25 modules</summary>
 
+- [`js/voice-ai-provider.js`](js/voice-ai-provider.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js)
 - [`js/voice-audio.js`](js/voice-audio.js) → no in-scope imports
 - [`js/voice-capture.js`](js/voice-capture.js) → no in-scope imports
 - [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js) → no in-scope imports
@@ -1198,18 +1199,20 @@ Native browser modules shipped with the static application.
 - [`js/voice-local-stt-worker.js`](js/voice-local-stt-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/voice-local-tts-worker.js`](js/voice-local-tts-worker.js) → [`js/caught-error.js`](js/caught-error.js)
 - [`js/voice-model-catalog.js`](js/voice-model-catalog.js) → no in-scope imports
+- [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js) → no in-scope imports
 - [`js/voice-player.js`](js/voice-player.js) → no in-scope imports
+- [`js/voice-provider-ai-cloud.js`](js/voice-provider-ai-cloud.js) → [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
 - [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) → [`js/voice-audio.js`](js/voice-audio.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js) → no in-scope imports
 - [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
 - [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
 - [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
-- [`js/voice-provider-registry.js`](js/voice-provider-registry.js) → [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) *(dynamic)*, [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) *(dynamic)*, [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) *(dynamic)*, [`js/voice-provider-xai.js`](js/voice-provider-xai.js) *(dynamic)*
+- [`js/voice-provider-registry.js`](js/voice-provider-registry.js) → [`js/voice-provider-ai-cloud.js`](js/voice-provider-ai-cloud.js) *(dynamic)*, [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) *(dynamic)*, [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) *(dynamic)*, [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) *(dynamic)*, [`js/voice-provider-xai.js`](js/voice-provider-xai.js) *(dynamic)*
 - [`js/voice-provider-xai.js`](js/voice-provider-xai.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
 - [`js/voice-response-utils.js`](js/voice-response-utils.js) → no in-scope imports
-- [`js/voice-service.js`](js/voice-service.js) → [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/voice-service.js`](js/voice-service.js) → [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
 - [`js/voice-settings-schema.js`](js/voice-settings-schema.js) → no in-scope imports
-- [`js/voice-settings-storage.js`](js/voice-settings-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
+- [`js/voice-settings-storage.js`](js/voice-settings-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
 - [`js/voice-text.js`](js/voice-text.js) → no in-scope imports
 
 </details>

@@ -13,7 +13,11 @@ import {
   verifyLocalVoiceModelReady,
 } from './voice-local-engine.js';
 import { getVoiceProviderDefinition } from './voice-provider-catalog.js';
-import { createVoiceSynthesizer, transcribeVoice } from './voice-service.js';
+import {
+  createVoiceSynthesizer,
+  getVoiceProviderId,
+  transcribeVoice,
+} from './voice-service.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getVoiceSettings } from './voice-settings-storage.js';
 import { normalizeSpeechText, splitSpeechText } from './voice-text.js';
@@ -146,7 +150,7 @@ async function finishVoiceRecording() {
     });
     insertTranscript(result.text);
     setCaptureUi('idle', '');
-    if (settings.inputProvider === 'browser-local' && Number.isFinite(result.inferenceMs)) {
+    if (result.providerId === 'browser-local' && Number.isFinite(result.inferenceMs)) {
       const execution = result.backend === 'webgpu' ? 'GPU' : 'CPU';
       showNotification(
         `Transcribed in ${(result.inferenceMs / 1000).toFixed(1)}s using ${execution}.`,
@@ -178,13 +182,14 @@ async function startVoiceRecording() {
   const activityEpoch = voiceActivityEpoch;
   stopSpeechPlayback();
   const settings = getVoiceSettings();
-  const inputProvider = getVoiceProviderDefinition(settings.inputProvider);
+  const inputProviderId = getVoiceProviderId('stt', settings);
+  const inputProvider = getVoiceProviderDefinition(inputProviderId);
   capturePrivacyText = inputProvider.privacy === 'local'
     ? 'audio stays on this device'
     : inputProvider.privacy === 'local-network'
       ? `audio goes to ${inputProvider.label}`
       : `audio will be sent to ${inputProvider.label}`;
-  if (settings.inputProvider === 'browser-local') {
+  if (inputProviderId === 'browser-local') {
     let modelReady = isLocalVoiceModelReady(
       'stt',
       settings.localSttModel,
@@ -294,7 +299,8 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
     setCaptureUi('idle', '');
   }
   const settings = getVoiceSettings();
-  if (settings.outputProvider === 'browser-local') {
+  const outputProviderId = getVoiceProviderId('tts', settings);
+  if (outputProviderId === 'browser-local') {
     let modelReady = isLocalVoiceModelReady(
       'tts',
       settings.localTtsModel,
@@ -319,15 +325,17 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
   const text = normalizeSpeechText(message.content);
   const chunks = splitSpeechText(
     text,
-    settings.outputProvider === 'browser-local'
+    outputProviderId === 'browser-local'
       ? BROWSER_LOCAL_SPEECH_CHUNK_CHARACTERS
-      : REMOTE_SPEECH_CHUNK_CHARACTERS,
+      : outputProviderId === 'ppq'
+        ? 1800
+        : REMOTE_SPEECH_CHUNK_CHARACTERS,
   );
   if (!chunks.length) {
     if (!automatic) showNotification('This message has no readable text.', 'info');
     return false;
   }
-  const providerDefinition = getVoiceProviderDefinition(settings.outputProvider);
+  const providerDefinition = getVoiceProviderDefinition(outputProviderId);
   const streamsProgressiveAudio = providerDefinition.execution !== 'browser'
     && providerDefinition.capabilities.streamingTts;
   if (automatic && !voicePlayer.hasPlaybackActivation) {

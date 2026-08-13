@@ -13,6 +13,9 @@ describe('voice relay policy', () => {
   it('only accepts the explicit provider and action allowlists', () => {
     expect(normalizeVoiceProvider('xai')).toBe('xai');
     expect(normalizeVoiceProvider('elevenlabs')).toBe('elevenlabs');
+    expect(normalizeVoiceProvider('openrouter')).toBe('openrouter');
+    expect(normalizeVoiceProvider('ppq')).toBe('ppq');
+    expect(normalizeVoiceProvider('venice')).toBe('venice');
     expect(normalizeVoiceProvider('https://attacker.test')).toBeNull();
     expect(normalizeVoiceAction('stt')).toBe('stt');
     expect(normalizeVoiceAction('tts')).toBe('tts');
@@ -61,6 +64,58 @@ describe('voice relay policy', () => {
       text: 'Hello',
       voiceId: '',
     })).toThrow('An ElevenLabs voice is required.');
+
+    const openRouterPayload = normalizeVoiceTtsPayload('openrouter', {
+      text: 'Hello',
+      modelId: 'hexgrad/kokoro-82m',
+      voiceId: 'af_heart',
+      language: 'cs',
+      rate: 1.25,
+    });
+    const openRouter = voiceUpstream('openrouter', 'tts', 'secret', openRouterPayload);
+    expect(openRouter.url).toBe('https://openrouter.ai/api/v1/audio/speech');
+    expect(JSON.parse(openRouter.body)).toEqual({
+      input: 'Hello',
+      model: 'hexgrad/kokoro-82m',
+      voice: 'af_heart',
+      speed: 1.25,
+      response_format: 'mp3',
+    });
+    expect(openRouter.headers.Accept).toBe('audio/mpeg');
+
+    expect(normalizeVoiceTtsPayload('openrouter', { text: 'Default voice' })).toMatchObject({
+      model: 'hexgrad/kokoro-82m',
+      voice: 'af_heart',
+      response_format: 'mp3',
+    });
+
+    const ppq = voiceUpstream('ppq', 'stt', 'secret');
+    expect(ppq.url).toBe('https://api.ppq.ai/v1/audio/transcriptions');
+    const ppqVoices = voiceUpstream('ppq', 'voices', 'secret');
+    expect(ppqVoices).toMatchObject({
+      url: 'https://api.ppq.ai/v1/audio/voices',
+      method: 'GET',
+    });
+    const ppqSpeech = voiceUpstream('ppq', 'tts', 'secret', normalizeVoiceTtsPayload(
+      'ppq',
+      { text: 'Hello', language: 'en' },
+    ));
+    expect(JSON.parse(ppqSpeech.body)).toEqual({
+      input: 'Hello',
+      model: 'deepgram_aura_2',
+      language: 'en',
+    });
+    const venice = voiceUpstream('venice', 'tts', 'secret', normalizeVoiceTtsPayload(
+      'venice',
+      { text: 'Hello', language: 'en' },
+    ));
+    expect(venice.url).toBe('https://api.venice.ai/api/v1/audio/speech');
+    expect(JSON.parse(venice.body)).toMatchObject({
+      model: 'tts-kokoro',
+      voice: 'af_sky',
+      language: 'en',
+      streaming: true,
+    });
   });
 
   it('caps streamed request bodies before buffering the rest', async () => {

@@ -297,9 +297,12 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
     'Use different services for dictation and listening',
   );
   await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Speaking speed');
-  await expect(page.locator('[data-voice-shared-provider]')).toHaveValue('browser-local');
-  await expect(page.locator('[data-voice-setting="inputProvider"]')).toHaveValue('browser-local');
-  await expect(page.locator('[data-voice-setting="outputProvider"]')).toHaveValue('browser-local');
+  await expect(page.locator('[data-voice-shared-provider]')).toHaveValue('auto');
+  await expect(page.locator('[data-voice-setting="inputProvider"]')).toHaveValue('auto');
+  await expect(page.locator('[data-voice-setting="outputProvider"]')).toHaveValue('auto');
+  await expect(page.locator('[data-voice-auto-status]')).toContainText(
+    'OpenRouter is not connected yet, so voice stays on this device',
+  );
   await expect(page.locator('[data-voice-setting="inputProvider"]')).toBeHidden();
   const separateServicesToggle = page.locator(
     'label.toggle-switch:has([data-voice-setting="providersLinked"])',
@@ -387,6 +390,103 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
     listenLabel: 'Listen',
     trackStops: 1,
   });
+});
+
+test('OpenRouter voice settings expose only curated live models and matching voices', async ({ page }) => {
+  await page.route('https://openrouter.ai/api/v1/models**', async route => {
+    const modality = new URL(route.request().url()).searchParams.get('output_modalities');
+    const data = modality === 'transcription'
+      ? [
+          { id: 'openai/whisper-large-v3' },
+          { id: 'openai/whisper-large-v3-turbo' },
+          { id: 'openai/gpt-4o-mini-transcribe' },
+          { id: 'obscure/transcriber' },
+        ]
+      : [
+          {
+            id: 'x-ai/grok-voice-tts-1.0',
+            supported_voices: ['eve', 'ara', 'rex', 'sal', 'leo'],
+          },
+          {
+            id: 'google/gemini-3.1-flash-tts-preview',
+            supported_voices: ['Zephyr', 'Puck'],
+          },
+          {
+            id: 'hexgrad/kokoro-82m',
+            supported_voices: ['af_heart', 'bm_george'],
+          },
+          { id: 'obscure/expensive-voice', supported_voices: ['costly'] },
+        ];
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data }),
+    });
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    const { updateKeyCache } = await import('/js/crypto-key-cache.js');
+    updateKeyCache('labcharts-openrouter-key', 'or-browser-key');
+  });
+  await openVoiceSettingsFromUi(page);
+
+  const sttModel = page.locator('[data-voice-openrouter-model-label="stt"]');
+  const ttsModel = page.locator('[data-voice-openrouter-model-label="tts"]');
+  const voice = page.locator('[data-voice-cloud-voices="openrouter"]');
+  await expect(sttModel).toBeVisible();
+  await expect(ttsModel).toBeVisible();
+  await expect(sttModel).toHaveText('Whisper Large V3');
+  await expect(ttsModel).toHaveText('Kokoro 82M');
+  await expect(voice.locator('option')).toHaveCount(2);
+  await expect(voice).toHaveValue('af_heart');
+  await expect(voice.locator('option').first()).toHaveText('Af Heart · en-US · female');
+
+  await expect(page.getByText('Grok Voice via OpenRouter')).toHaveCount(0);
+});
+
+test('Venice voice settings load the private Kokoro voices and preserve the choice', async ({ page }) => {
+  await page.route('https://api.venice.ai/api/v1/models?type=tts', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [{
+          id: 'tts-kokoro',
+          type: 'tts',
+          model_spec: {
+            privacy: 'private',
+            default_voice: 'af_sky',
+            voices: ['af_sky', 'bm_george'],
+          },
+        }],
+      }),
+    });
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    localStorage.setItem('labcharts-ai-provider', 'venice');
+    const { updateKeyCache } = await import('/js/crypto-key-cache.js');
+    updateKeyCache('labcharts-venice-key', 'venice-browser-key');
+  });
+  await openVoiceSettingsFromUi(page);
+
+  await expect(page.locator('[data-voice-visible="input:venice"]')).toBeVisible();
+  await expect(page.locator('[data-voice-visible="input:venice"]'))
+    .toContainText('Whisper Large V3');
+  await expect(page.locator('[data-voice-visible="input:venice"]'))
+    .toContainText('choose OpenRouter for dictation');
+  const voice = page.locator('[data-voice-cloud-voices="venice"]');
+  await expect(voice).toBeVisible();
+  await expect(voice.locator('option')).toHaveCount(2);
+  await expect(voice).toHaveValue('af_sky');
+  await expect(voice.locator('option').first()).toHaveText('Af Sky · en-US · female');
+  await voice.selectOption('bm_george');
+  await expect(voice).toHaveValue('bm_george');
+  await expect(page.locator('[data-voice-visible="output:venice"]').first())
+    .toContainText('separate from chat E2EE');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-venice-voice')))
+    .toBe('bm_george');
 });
 
 test('built-in Voice workers complete their mock STT and TTS protocols', async ({ page }) => {
@@ -586,7 +686,7 @@ test('Voice settings use standard responsive Settings rows without horizontal ov
   await page.goto('/app', { waitUntil: 'load' });
   await openVoiceSettingsFromUi(page);
 
-  await expect(page.locator('.voice-settings-list .settings-section')).toHaveCount(17);
+  await expect(page.locator('.voice-settings-list .settings-section')).toHaveCount(25);
   await expect(page.locator('.voice-model-list .settings-section')).toHaveCount(2);
   await expect(page.locator('[data-voice-setting="localVoice"] optgroup')).toHaveCount(2);
   await expect(page.locator('[data-voice-setting="localVoice"] optgroup').first())

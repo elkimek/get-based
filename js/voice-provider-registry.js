@@ -4,6 +4,15 @@
 export { getVoiceProviderDefinition } from './voice-provider-catalog.js';
 
 export async function loadVoiceProvider(providerId) {
+  if (providerId === 'openrouter') {
+    return (await import('./voice-provider-ai-cloud.js')).openRouterVoiceProvider;
+  }
+  if (providerId === 'ppq') {
+    return (await import('./voice-provider-ai-cloud.js')).ppqVoiceProvider;
+  }
+  if (providerId === 'venice') {
+    return (await import('./voice-provider-ai-cloud.js')).veniceVoiceProvider;
+  }
   if (providerId === 'local-server') {
     return (await import('./voice-provider-local-server.js')).localServerVoiceProvider;
   }

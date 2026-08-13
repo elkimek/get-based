@@ -110,6 +110,41 @@ describe('voice relay runtime', () => {
     expect(url).toContain('/v1/text-to-speech/voice-safe/stream');
   });
 
+  it('relays PPQ voice requests to fixed OpenAI-compatible audio endpoints', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([9, 8, 7]), {
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg' },
+    }));
+    const response = await handler(voiceRequest('tts', 'ppq', {
+      text: 'Hello from PPQ',
+      modelId: 'deepgram_aura_2',
+      language: 'en',
+    }));
+    expect(response.status).toBe(200);
+    const [url, init] = globalThis.fetch.mock.calls[0];
+    expect(url).toBe('https://api.ppq.ai/v1/audio/speech');
+    expect(init.headers.Authorization).toBe('Bearer user-provider-key');
+    expect(JSON.parse(init.body)).toMatchObject({
+      input: 'Hello from PPQ',
+      model: 'deepgram_aura_2',
+      language: 'en',
+    });
+    expect(JSON.parse(init.body)).not.toHaveProperty('response_format');
+  });
+
+  it('relays the live PPQ voice catalogue from its fixed endpoint', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      object: 'list',
+      data: [{ id: 'aura-2-thalia-en', model_id: 'deepgram_aura_2' }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const response = await handler(voiceRequest('voices', 'ppq'));
+    expect(response.status).toBe(200);
+    const [url, init] = globalThis.fetch.mock.calls[0];
+    expect(url).toBe('https://api.ppq.ai/v1/audio/voices');
+    expect(init.method).toBe('GET');
+    expect(init.headers.Authorization).toBe('Bearer user-provider-key');
+  });
+
   it('answers preflight without initializing an upstream request', async () => {
     const response = await handler(new Request('https://getbased.health/api/voice', {
       method: 'OPTIONS',

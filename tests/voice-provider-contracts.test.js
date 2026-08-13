@@ -2,22 +2,36 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { localServerVoiceProvider } from '../js/voice-provider-local-server.js';
 import { browserLocalVoiceProvider } from '../js/voice-provider-browser-local.js';
+import { clearKeyCache, updateKeyCache } from '../js/crypto-key-cache.js';
+import {
+  fetchOpenRouterVoiceModels,
+  voicesForOpenRouterModel,
+} from '../js/voice-openrouter-catalog.js';
 import {
   relaySynthesis,
   relayTranscription,
   relayVoices,
 } from '../js/voice-provider-cloud-shared.js';
+import { fetchVeniceKokoroVoices } from '../js/voice-provider-ai-cloud.js';
 import { loadVoiceProvider } from '../js/voice-provider-registry.js';
 import {
   getSharedVoiceProviders,
   getVoiceProviderDefinition,
   getVoiceProvidersFor,
 } from '../js/voice-provider-catalog.js';
+import { createVoiceSynthesizer, transcribeVoice } from '../js/voice-service.js';
+import {
+  VOICE_STORAGE_KEYS,
+  getVoiceSettings,
+  setVoiceSetting,
+} from '../js/voice-settings-storage.js';
 
 const realFetch = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = realFetch;
+  localStorage.clear();
+  clearKeyCache();
   vi.restoreAllMocks();
 });
 
@@ -27,6 +41,9 @@ describe('voice provider registry', () => {
     await expect(loadVoiceProvider('local-server')).resolves.toMatchObject({ id: 'local-server' });
     await expect(loadVoiceProvider('xai')).resolves.toMatchObject({ id: 'xai' });
     await expect(loadVoiceProvider('elevenlabs')).resolves.toMatchObject({ id: 'elevenlabs' });
+    await expect(loadVoiceProvider('openrouter')).resolves.toMatchObject({ id: 'openrouter' });
+    await expect(loadVoiceProvider('ppq')).resolves.toMatchObject({ id: 'ppq' });
+    await expect(loadVoiceProvider('venice')).resolves.toMatchObject({ id: 'venice' });
   });
 
   it('publishes capabilities independently from adapter loading', () => {
@@ -36,6 +53,9 @@ describe('voice provider registry', () => {
     });
     expect(getVoiceProvidersFor('stt').map(provider => provider.id)).toContain('browser-local');
     expect(getVoiceProvidersFor('tts').map(provider => provider.id)).toContain('elevenlabs');
+    expect(getVoiceProvidersFor('stt').map(provider => provider.id)).toEqual(
+      expect.arrayContaining(['auto', 'openrouter', 'ppq', 'venice']),
+    );
     expect(getSharedVoiceProviders().every(provider => (
       provider.capabilities.stt && provider.capabilities.tts
     ))).toBe(true);
@@ -107,6 +127,199 @@ describe('OpenAI-compatible local voice provider', () => {
 });
 
 describe('hosted voice relay client', () => {
+  it('loads only the private Kokoro voice catalogue selected for Venice', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        {
+          id: 'tts-kokoro',
+          type: 'tts',
+          model_spec: {
+            privacy: 'private',
+            default_voice: 'af_sky',
+            voices: ['af_sky', 'bm_george'],
+          },
+        },
+        {
+          id: 'tts-expensive',
+          type: 'tts',
+          model_spec: { privacy: 'anonymized', voices: ['other-voice'] },
+        },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const voices = await fetchVeniceKokoroVoices({ apiKey: 'venice-secret' });
+
+    expect(voices).toEqual([
+      expect.objectContaining({ id: 'af_sky', language: 'en-US', descriptor: 'female' }),
+      expect.objectContaining({ id: 'bm_george', language: 'en-GB', descriptor: 'male' }),
+    ]);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://api.venice.ai/api/v1/models?type=tts',
+      expect.objectContaining({ headers: { Authorization: 'Bearer venice-secret' } }),
+    );
+  });
+
+  it('keeps only the curated live OpenRouter voice models and their advertised voices', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(url => Promise.resolve(new Response(JSON.stringify({
+      data: String(url).includes('transcription')
+        ? [
+            { id: 'openai/gpt-4o-mini-transcribe' },
+            { id: 'obscure/expensive-transcriber' },
+            { id: 'openai/whisper-large-v3-turbo' },
+            { id: 'openai/whisper-large-v3' },
+          ]
+        : [
+            {
+              id: 'x-ai/grok-voice-tts-1.0',
+              supported_voices: ['eve', 'ara', 'rex', 'sal', 'leo'],
+            },
+            {
+              id: 'google/gemini-3.1-flash-tts-preview',
+              supported_voices: ['Zephyr', 'Puck'],
+            },
+            {
+              id: 'hexgrad/kokoro-82m',
+              supported_voices: ['af_heart', 'bm_george'],
+            },
+            { id: 'expensive/voice', supported_voices: ['costly'] },
+          ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    const [sttModels, ttsModels] = await Promise.all([
+      fetchOpenRouterVoiceModels('stt', { apiKey: 'or-secret' }),
+      fetchOpenRouterVoiceModels('tts', { apiKey: 'or-secret' }),
+    ]);
+
+    expect(sttModels.map(model => model.id)).toEqual([
+      'openai/whisper-large-v3',
+    ]);
+    expect(ttsModels.map(model => model.id)).toEqual([
+      'hexgrad/kokoro-82m',
+    ]);
+    expect(voicesForOpenRouterModel(ttsModels[0])).toEqual([
+      expect.objectContaining({ id: 'af_heart', language: 'en-US', descriptor: 'female' }),
+      expect.objectContaining({ id: 'bm_george', language: 'en-GB', descriptor: 'male' }),
+    ]);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/models?output_modalities=speech',
+      expect.objectContaining({ headers: { Authorization: 'Bearer or-secret' } }),
+    );
+  });
+
+  it('normalizes removed OpenRouter voice models to the curated defaults', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-ai-secret');
+    setVoiceSetting('openRouterSttModel', 'openai/whisper-large-v3-turbo');
+    localStorage.setItem(VOICE_STORAGE_KEYS.openRouterTtsModel, 'x-ai/grok-voice-tts-1.0');
+    localStorage.setItem(VOICE_STORAGE_KEYS.openRouterVoice, 'eve');
+    expect(getVoiceSettings()).toMatchObject({
+      openRouterTtsModel: 'hexgrad/kokoro-82m',
+      openRouterVoice: 'af_heart',
+    });
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'OpenRouter transcript' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([4, 6]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }));
+
+    await transcribeVoice(new Blob(['audio'], { type: 'audio/webm' }));
+    const synthesizer = await createVoiceSynthesizer();
+    await synthesizer.synthesize('Ahoj');
+
+    const transcription = globalThis.fetch.mock.calls[0][1];
+    expect(transcription.body.get('model')).toBe('openai/whisper-large-v3');
+    const speech = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
+    expect(speech).toMatchObject({
+      modelId: 'hexgrad/kokoro-82m',
+      voiceId: 'af_heart',
+    });
+  });
+
+  it('automatically reuses the active PPQ AI connection for dictation', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-secret');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      text: 'automatic PPQ transcript',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const result = await transcribeVoice(new Blob(['audio'], { type: 'audio/webm' }), {
+      settings: getVoiceSettings(),
+    });
+
+    expect(result).toMatchObject({
+      text: 'automatic PPQ transcript',
+      providerId: 'ppq',
+    });
+    const [, request] = globalThis.fetch.mock.calls[0];
+    expect(request.headers.Authorization).toBe('Bearer ppq-ai-secret');
+    expect(request.headers['X-Voice-Provider']).toBe('ppq');
+    expect(request.body.get('model')).toBe('nova-3');
+    expect(request.body.get('language')).toBe('multi');
+  });
+
+  it('uses the saved PPQ voice through the automatic AI connection', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-secret');
+    setVoiceSetting('ppqVoice', 'aura-2-thalia-en');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([3, 5]), {
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg' },
+    }));
+
+    const synthesizer = await createVoiceSynthesizer();
+    await synthesizer.synthesize('Hello from PPQ');
+
+    const [, request] = globalThis.fetch.mock.calls[0];
+    expect(request.headers.Authorization).toBe('Bearer ppq-ai-secret');
+    expect(request.headers['X-Voice-Provider']).toBe('ppq');
+    expect(JSON.parse(request.body)).toMatchObject({
+      modelId: 'deepgram_aura_2',
+      voiceId: 'aura-2-thalia-en',
+    });
+  });
+
+  it('uses the saved Venice Kokoro voice through the automatic AI connection', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'venice');
+    updateKeyCache('labcharts-venice-key', 'venice-ai-secret');
+    setVoiceSetting('veniceVoice', 'bm_george');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([7, 9]), {
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg' },
+    }));
+
+    const synthesizer = await createVoiceSynthesizer();
+    await synthesizer.synthesize('Hello from Venice');
+
+    const [, request] = globalThis.fetch.mock.calls[0];
+    expect(request.headers.Authorization).toBe('Bearer venice-ai-secret');
+    expect(request.headers['X-Voice-Provider']).toBe('venice');
+    expect(JSON.parse(request.body)).toMatchObject({
+      modelId: 'tts-kokoro',
+      voiceId: 'bm_george',
+    });
+  });
+
+  it('uses private Whisper Large V3 for automatic Venice dictation', async () => {
+    localStorage.setItem('labcharts-ai-provider', 'venice');
+    updateKeyCache('labcharts-venice-key', 'venice-ai-secret');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      text: 'accurate Venice transcript',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const result = await transcribeVoice(new Blob(['audio'], { type: 'audio/webm' }));
+
+    expect(result).toMatchObject({
+      text: 'accurate Venice transcript',
+      providerId: 'venice',
+    });
+    const [, request] = globalThis.fetch.mock.calls[0];
+    expect(request.body.get('model')).toBe('openai/whisper-large-v3');
+  });
+
   it('keeps API keys in authorization headers and uploads audio as multipart', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       text: 'cloud transcript',
@@ -126,6 +339,56 @@ describe('hosted voice relay client', () => {
     expect(init.headers['X-Voice-Provider']).toBe('elevenlabs');
     expect(init.body.get('model_id')).toBe('scribe_v2');
     expect(init.body.get('language_code')).toBe('cs');
+  });
+
+  it('uses OpenAI-compatible voice contracts for AI-provider connections', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'PPQ transcript' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([7, 8]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }));
+
+    await relayTranscription('ppq', {
+      audio: new Blob(['audio'], { type: 'audio/webm' }),
+      apiKey: 'ppq-secret',
+      modelId: 'nova-3',
+      language: 'auto',
+    });
+    const transcription = globalThis.fetch.mock.calls[0][1];
+    expect(transcription.body.get('model')).toBe('nova-3');
+    expect(transcription.body.get('response_format')).toBe('json');
+    expect(transcription.body.get('language')).toBe('multi');
+
+    await relaySynthesis('openrouter', {
+      apiKey: 'or-secret',
+      text: 'Hello',
+      modelId: 'hexgrad/kokoro-82m',
+      voiceId: 'af_heart',
+    });
+    const speech = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
+    expect(speech).toMatchObject({
+      text: 'Hello',
+      modelId: 'hexgrad/kokoro-82m',
+      voiceId: 'af_heart',
+    });
+  });
+
+  it('explains OpenRouter privacy guardrail failures', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        message: 'No endpoints available matching your guardrail restrictions and data policy.',
+      },
+    }), { status: 404, headers: { 'Content-Type': 'application/json' } }));
+    await expect(relaySynthesis('openrouter', {
+      apiKey: 'or-secret',
+      text: 'Hello',
+      modelId: 'hexgrad/kokoro-82m',
+      voiceId: 'af_heart',
+    })).rejects.toThrow('openrouter.ai/settings/privacy');
   });
 
   it('returns a progressive TTS stream and normalizes provider voice catalogues', async () => {
@@ -157,6 +420,45 @@ describe('hosted voice relay client', () => {
     expect(voices).toEqual([expect.objectContaining({
       id: 'voice-1',
       name: 'Calm',
+      language: 'en',
+      descriptor: 'female',
+    })]);
+  });
+
+  it('loads PPQ Deepgram voices compatible with the selected language', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        {
+          id: 'aura-english',
+          name: 'English Voice',
+          model_id: 'deepgram_aura_2',
+          language: 'en',
+          gender: 'female',
+        },
+        {
+          id: 'aura-french',
+          name: 'French Voice',
+          model_id: 'deepgram_aura_2',
+          language: 'fr',
+          gender: 'male',
+        },
+        {
+          id: 'eleven-english',
+          name: 'Wrong model',
+          model_id: 'eleven_v3',
+          language: 'en',
+        },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const voices = await relayVoices('ppq', {
+      apiKey: 'ppq-secret',
+      language: 'en',
+    });
+
+    expect(voices).toEqual([expect.objectContaining({
+      id: 'aura-english',
+      name: 'English Voice',
       language: 'en',
       descriptor: 'female',
     })]);

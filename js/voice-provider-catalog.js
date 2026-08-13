@@ -3,6 +3,14 @@
 
 export const VOICE_PROVIDERS = Object.freeze([
   {
+    id: 'auto',
+    label: 'Same as chat',
+    privacy: 'automatic',
+    execution: 'automatic',
+    capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
+    description: 'Uses the current AI provider when it supports voice, with an on-device fallback.',
+  },
+  {
     id: 'browser-local',
     label: 'On this device',
     privacy: 'local',
@@ -17,6 +25,33 @@ export const VOICE_PROVIDERS = Object.freeze([
     execution: 'local-server',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
     description: 'Connects directly to an OpenAI-compatible server you control.',
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    privacy: 'cloud',
+    execution: 'cloud',
+    credentialSource: 'ai',
+    capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
+    description: 'Uses the OpenRouter connection already configured for AI.',
+  },
+  {
+    id: 'ppq',
+    label: 'PPQ',
+    privacy: 'cloud',
+    execution: 'cloud',
+    credentialSource: 'ai',
+    capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
+    description: 'Uses the PPQ connection already configured for AI.',
+  },
+  {
+    id: 'venice',
+    label: 'Venice',
+    privacy: 'cloud',
+    execution: 'cloud',
+    credentialSource: 'ai',
+    capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
+    description: 'Uses the Venice connection already configured for AI.',
   },
   {
     id: 'xai',
@@ -37,7 +72,8 @@ export const VOICE_PROVIDERS = Object.freeze([
 ]);
 
 export function getVoiceProviderDefinition(providerId) {
-  return VOICE_PROVIDERS.find(provider => provider.id === providerId) || VOICE_PROVIDERS[0];
+  return VOICE_PROVIDERS.find(provider => provider.id === providerId)
+    || VOICE_PROVIDERS.find(provider => provider.id === 'browser-local');
 }
 
 export function getVoiceProvidersFor(kind) {
