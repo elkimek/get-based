@@ -775,13 +775,10 @@ const NETWORK_ONLY_HOSTS = new Set([
   'free.evoluhq.com',
 ]);
 function isLocalOrPrivateHost(hostname) {
-  return hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === '[::1]' ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('10.') ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname)
+    || hostname.startsWith('192.168.')
+    || hostname.startsWith('10.')
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 }
 function shouldUseNetworkOnly(url, sameOrigin) {
   const h = url.hostname;
