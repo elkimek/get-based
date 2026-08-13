@@ -548,6 +548,10 @@ export function createLensKnowledgeBaseUi(deps) {
     let indexT0 = 0;
     let unsub = () => {};
     lensWindow._lensIngestStopRequested = false;
+    /**
+     * @param {string} message
+     * @param {{ value: number, max: number } | null} [progress]
+     */
     const updateProgressUi = (message, progress = null) => {
       pillText.textContent = message;
       const modalBar = /** @type {HTMLProgressElement | null} */ (document.getElementById('lens-local-progress'));
