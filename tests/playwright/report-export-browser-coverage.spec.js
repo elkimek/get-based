@@ -122,17 +122,25 @@ test('report builder modal delegates presets categories AI state and preview exp
       let overlay = getOverlay();
       outcomes.opensClinicianBuilder = !!overlay
         && overlay.dataset.reportPreset === 'clinician'
+        && overlay.querySelector('#report-builder-title')?.textContent === 'Create a report'
+        && overlay.querySelector('.report-builder-local-badge')?.textContent === 'Local preview'
         && overlay.querySelectorAll('.report-preset-btn').length === 3
         && overlay.querySelectorAll('input[data-report-section]').length >= 6
         && overlay.querySelectorAll('input[data-report-category]').length >= 2
-        && checkedCategories(overlay).includes('biochemistry');
+        && checkedCategories(overlay).includes('biochemistry')
+        && overlay.querySelector('[data-report-section-count]')?.textContent === '6 of 8 sections'
+        && overlay.querySelector('[data-report-category-count]')?.textContent === '1 of 2 categories';
 
+      const presetOverlay = overlay;
       click('[data-report-action="set-preset"][data-report-preset="full"]');
       await wait();
       overlay = getOverlay();
-      outcomes.presetClickRerendersFull = overlay?.dataset.reportPreset === 'full'
+      outcomes.presetClickUpdatesInPlace = overlay === presetOverlay
+        && overlay?.dataset.reportPreset === 'full'
         && overlay.querySelector('.report-preset-btn.active')?.textContent.includes('Full lab report') === true
-        && overlay.querySelector('#report-date-range')?.value === 'all';
+        && overlay.querySelector('#report-date-range')?.value === 'all'
+        && overlay.querySelector('[data-report-section-count]')?.textContent === '8 of 8 sections'
+        && overlay.querySelector('[data-report-category-count]')?.textContent === '2 of 2 categories';
 
       const textEl = overlay.querySelector('#report-ai-summary-text');
       const statusEl = overlay.querySelector('[data-report-ai-status]');
@@ -165,6 +173,9 @@ test('report builder modal delegates presets categories AI state and preview exp
 
       const sectionBoxes = Array.from(overlay.querySelectorAll('input[data-report-section]'));
       sectionBoxes.forEach(box => { box.checked = false; });
+      click('[data-report-action="generate-ai-summary"]');
+      await wait();
+      outcomes.generateRequiresSectionSelection = statusEl.textContent === 'Choose at least one report section.';
       click('[data-report-action="export"]');
       await wait();
       outcomes.exportRequiresSectionSelection = !!getOverlay()
@@ -174,6 +185,8 @@ test('report builder modal delegates presets categories AI state and preview exp
 
       click('[data-report-action="clear-categories"]');
       await wait();
+      outcomes.categoryCountUpdatesAfterClear = overlay.querySelector('[data-report-category-count]')?.textContent === '0 of 2 categories'
+        && overlay.querySelector('[data-report-selection-summary]')?.textContent.includes('0 lab categories');
       click('[data-report-action="export"]');
       await wait();
       outcomes.exportRequiresCategoryForLabSections = !!getOverlay()
@@ -240,6 +253,45 @@ test('report builder modal delegates presets categories AI state and preview exp
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('report lab categories use the modal scroll surface for reliable wheel input', async ({ page }) => {
+  await page.addInitScript(() => {
+    const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
+    localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const { endTour } = await import('/js/tour.js');
+    endTour({ openEmptyChat: false });
+    const [demo, dataModule, exportModule] = await Promise.all([
+      fetch('/data/demo-male.json').then(response => response.json()),
+      import('/js/data.js'),
+      import('/js/export.js'),
+    ]);
+    const { state } = await import('/js/state.js');
+    state.importedData = demo;
+    state.profileSex = 'male';
+    dataModule.invalidateActiveDataCache?.();
+    await exportModule.openReportBuilder('full');
+  });
+
+  const overlay = page.locator('#report-builder-overlay');
+  const modalScroll = overlay.locator('.report-builder-scroll');
+  const categoryList = overlay.locator('.report-category-list');
+  await expect(page.locator('#tour-overlay')).toHaveCount(0);
+  await expect(overlay).toHaveClass(/show/);
+  await expect.poll(() => categoryList.locator('.report-category-row').count()).toBeGreaterThan(4);
+  await expect.poll(() => categoryList.evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+
+  const firstCategory = categoryList.locator('.report-category-row').first();
+  await firstCategory.scrollIntoViewIfNeeded();
+  await firstCategory.hover();
+  const before = await modalScroll.evaluate(element => element.scrollTop);
+  await page.mouse.wheel(0, 640);
+  await expect.poll(() => modalScroll.evaluate(element => element.scrollTop)).toBeGreaterThan(before);
 });
 
 test('report payload and HTML cover filtered context genetics and supplement branches', async ({ page }) => {
@@ -788,6 +840,7 @@ Discussion focus:
         notes: [{ date: '2026-06-02', text: 'Training load increased' }],
         supplements: [{ name: 'Vitamin D', dosage: '2000 IU', type: 'supplement' }],
         contextNotes: 'Prefers concise practitioner reports.',
+        genetics: { apoe: 'ε3/ε4' },
         customMarkers: {},
       };
       dataModule.invalidateActiveDataCache?.();
@@ -804,6 +857,10 @@ Discussion focus:
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'summary-test-model');
       localStorage.setItem('labcharts-ai-paused', 'true');
+      const emptySelection = await report.generateReportAISummary({ dateRange: 'all', sections: [] });
+      outcomes.emptySelectionDoesNotGenerate = emptySelection === null
+        && Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('Choose at least one report section'));
       const unavailable = await report.generateReportAISummary({ dateRange: 'all' });
       outcomes.unavailableAIShowsErrorAndReturnsNull = unavailable === null
         && Array.from(document.querySelectorAll('.notification-toast.error'))
@@ -846,7 +903,24 @@ Discussion focus:
         && request.body.messages.some(message => message.role === 'system' && message.content.includes('You write practitioner-facing patient overviews'))
         && userContext.includes('Profile: Report AI Coverage')
         && userContext.includes('Notable trends:')
-        && userContext.includes('Recent report notes:');
+        && userContext.includes('Recent report notes:')
+        && userContext.includes('Vitamin D')
+        && userContext.includes('Prefers concise practitioner reports.')
+        && !userContext.includes('Genetics: APOE');
+
+      await report.generateReportAISummary({
+        preset: 'personal',
+        dateRange: 'all',
+        sections: ['notes'],
+        categoryKeys: ['biochemistry'],
+      });
+      const notesOnlyContext = requests[1].body.messages.find(message => message.role === 'user')?.content || '';
+      outcomes.summaryHonorsSelectedSections = notesOnlyContext.includes('Recent report notes:')
+        && !notesOnlyContext.includes('Representative latest lab results:')
+        && !notesOnlyContext.includes('Notable trends:')
+        && !notesOnlyContext.includes('Supplements and medications:')
+        && !notesOnlyContext.includes('Profile context:')
+        && !notesOnlyContext.includes('Genetics: APOE');
 
       returnEmpty = true;
       let emptyResponseThrows = false;
@@ -924,7 +998,8 @@ test('report export helpers cover option normalization AI markup and popup block
         && normalized.dateRange === 'current'
         && normalized.sections.join('|') === 'summary|notes'
         && normalized.categoryKeys.join('|') === 'vitamins'
-        && normalized.aiSummary.text.includes('Stable <script>alert(1)</script>');
+        && normalized.aiSummary.text.includes('Stable <script>alert(1)</script>')
+        && report.normalizeReportOptions({ sections: [] }).sections.length === 0;
 
       const aiMarkup = report.renderReportAISummarySection(normalized.aiSummary);
       outcomes.aiSummaryMarkupEscapesAndStructures = aiMarkup.includes('<h2>Practitioner Overview</h2>')

@@ -12,6 +12,7 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
 
   const overlay = page.locator('#context-hub-overlay');
   await expect(overlay).toHaveClass(/show/);
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
   await expect(overlay.locator('.ai-picker-card')).toHaveCount(2);
   await expect(overlay.locator('.context-source-row')).toHaveCount(8);
   await expect(overlay.locator('.context-source-desc')).toHaveCount(8);
@@ -19,8 +20,16 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay.locator('.context-grounding-panel + .context-source-panel')).toHaveCount(1);
   await expect(overlay).toContainText('Context');
   await expect(overlay).toContainText('Data sources');
-  await expect(overlay).toContainText('Included now');
-  await expect(overlay).toContainText('Not imported');
+  await expect(overlay).toContainText('Included');
+  await expect(overlay).toContainText('No data');
+  await expect(overlay.locator('.context-summary-metric')).toHaveCount(3);
+  await expect(overlay.locator('.context-hub-scroll')).toBeVisible();
+  await expect(overlay.locator('.context-hub-actions')).toContainText('Changes save automatically.');
+  await expect(overlay.locator('.context-source-section-wide[data-context-section="labs"]')).toHaveCount(1);
+  const sourceSectionOrder = await overlay.locator('[data-context-section]').evaluateAll(sections =>
+    sections.map(section => section.getAttribute('data-context-section'))
+  );
+  expect(sourceSectionOrder).toEqual(['profile', 'genome', 'labs', 'light-sun', 'body']);
   await expect(overlay).toContainText('Answer grounding');
   await expect(overlay).toContainText('Personalize how AI answers');
   await expect(overlay).toContainText('Interpretive Lens');
@@ -69,8 +78,10 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay).toHaveClass(/show/);
 
   await expect(overlay.locator('#context-hub-cancel')).toBeVisible();
+  await expect(overlay.locator('#context-hub-cancel')).toHaveText('Done');
   await overlay.locator('#context-hub-cancel').click();
   await expect(overlay).not.toHaveClass(/show/);
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('');
 });
 
 test('Context hub data source toggles control prompt and score context', async ({ page }) => {

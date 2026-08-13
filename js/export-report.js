@@ -98,7 +98,7 @@ export function normalizeReportOptions(options = {}) {
   const fallbackPreset = hasExplicitOptions ? DEFAULT_REPORT_PRESET : 'full';
   const presetId = REPORT_PRESETS[options.preset] ? options.preset : fallbackPreset;
   const preset = getReportPreset(presetId);
-  const sectionInput = Array.isArray(options.sections) && options.sections.length > 0
+  const sectionInput = Array.isArray(options.sections)
     ? options.sections
     : preset.sections;
   const sectionSet = new Set(sectionInput);
@@ -594,6 +594,8 @@ function buildReportAITrendLines(data, limit = REPORT_AI_CONTEXT_TREND_LIMIT) {
 
 function buildReportAISummaryContext(payload) {
   const { reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections } = payload;
+  const sections = new Set(reportOptions.sections);
+  const includesLabData = reportOptions.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
   const dateLabels = (data.dates || []).map(formatReportDateLabel).filter(Boolean);
   const dateRange = dateLabels.length
     ? `${dateLabels[0]} to ${dateLabels[dateLabels.length - 1]}`
@@ -628,28 +630,23 @@ function buildReportAISummaryContext(payload) {
     `Age: ${getReportAgeLabel(profile?.dob) || 'not specified'}`,
     `Profile status: ${profile?.status || 'not specified'}`,
     `Report type: ${reportOptions.presetLabel}`,
-    `Selected report window: ${dateRange}`,
-    `Range mode: ${state.rangeMode || 'optimal'}`,
-    `Lab dates in report: ${data.dates?.length || 0}`,
-    `Markers reviewed: ${totalWithData}`,
-    `Markers within selected range: ${totalInRange}`,
-    `Latest markers outside selected range: ${flags.length}`,
   ];
-  if (Array.isArray(profile?.tags) && profile.tags.length > 0) {
+  if (includesLabData) lines.push(`Selected report window: ${dateRange}`, `Range mode: ${state.rangeMode || 'optimal'}`, `Lab dates in report: ${data.dates?.length || 0}`, `Markers reviewed: ${totalWithData}`, `Markers within selected range: ${totalInRange}`, `Latest markers outside selected range: ${flags.length}`);
+  if (sections.has('context') && Array.isArray(profile?.tags) && profile.tags.length > 0) {
     lines.push(`Profile tags: ${profile.tags.slice(0, 8).join(', ')}`);
   }
-  if (profile?.notes) {
+  if (sections.has('context') && profile?.notes) {
     lines.push(`Profile notes: ${String(profile.notes).replace(/\s+/g, ' ').slice(0, 280)}`);
   }
 
-  if (flags.length > 0) {
+  if ((sections.has('flagged') || sections.has('summary')) && flags.length > 0) {
     lines.push('Latest out-of-range markers:');
     for (const flag of flags.slice(0, REPORT_AI_CONTEXT_FLAG_LIMIT)) {
       lines.push(`- ${flag.name}: ${flag.value} ${flag.unit || ''} ${flag.status} (range ${formatReportRange(flag.effectiveMin, flag.effectiveMax)})`);
     }
   }
 
-  if (markerLines.length > 0) {
+  if ((sections.has('categories') || sections.has('summary')) && markerLines.length > 0) {
     lines.push('Representative latest lab results:');
     for (const item of markerLines.slice(0, REPORT_AI_CONTEXT_MARKER_LIMIT)) {
       lines.push(`- ${item.text}`);
@@ -657,12 +654,12 @@ function buildReportAISummaryContext(payload) {
   }
 
   const trendLines = buildReportAITrendLines(data);
-  if (trendLines.length > 0) {
+  if (sections.has('trends') && trendLines.length > 0) {
     lines.push('Notable trends:');
     for (const item of trendLines) lines.push(`- ${item}`);
   }
 
-  if (Array.isArray(supps) && supps.length > 0) {
+  if (sections.has('supplements') && Array.isArray(supps) && supps.length > 0) {
     lines.push('Supplements and medications:');
     for (const supp of supps.slice(0, 12)) {
       const dosage = [supp.dosage, supp.dose, supp.amount, supp.frequency].filter(Boolean).join(', ');
@@ -670,14 +667,14 @@ function buildReportAISummaryContext(payload) {
     }
   }
 
-  if (notes.length > 0) {
+  if (sections.has('notes') && notes.length > 0) {
     lines.push('Recent report notes:');
     for (const note of notes.slice(-5)) {
       lines.push(`- ${note.date || 'undated'}: ${String(note.text || '').slice(0, 220)}`);
     }
   }
 
-  if (contextSections.length > 0) {
+  if (sections.has('context') && contextSections.length > 0) {
     lines.push('Profile context:');
     for (const section of contextSections.slice(0, REPORT_AI_CONTEXT_CONTEXT_LIMIT)) {
       lines.push(`- ${section.title}: ${String(section.text || '').replace(/\s+/g, ' ').slice(0, 280)}`);
@@ -685,12 +682,16 @@ function buildReportAISummaryContext(payload) {
   }
 
   const genetics = state.importedData.genetics;
-  if (genetics?.apoe) lines.push(`Genetics: APOE ${genetics.apoe}`);
+  if (sections.has('genetics') && genetics?.apoe) lines.push(`Genetics: APOE ${genetics.apoe}`);
 
   return lines.join('\n');
 }
 
 export async function generateReportAISummary(options = {}) {
+  if (Array.isArray(options.sections) && options.sections.length === 0) {
+    showNotification('Choose at least one report section', 'error');
+    return null;
+  }
   if (!hasAIProvider()) {
     showNotification('Connect an AI provider before generating a report summary', 'error');
     return null;
