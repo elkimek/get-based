@@ -76,11 +76,12 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ tombstonesUrl }) => {
-    const [tombstones, { state }, blobStorage, profileStore] = await Promise.all([
+    const [tombstones, { state }, blobStorage, profileStore, profileStorageCleanup] = await Promise.all([
       import(tombstonesUrl),
       import('/js/state.js'),
       import('/js/blob-storage.js'),
       import('/js/profile.js'),
+      import('/js/profile-storage-cleanup.js'),
     ]);
     const outcomes = {};
     const profileIds = ['keep', 'wipe', 'batch-a', 'batch-b', 'rejectme', 'lastonly'];
@@ -139,6 +140,13 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
         loadProfile: profileStore.loadProfile,
       });
     };
+    // Dedicated wearable/cycle database deletion is covered by its own specs.
+    // Stub it here so an unrelated app-startup connection cannot make this
+    // tombstone contract test depend on IndexedDB tab-close timing.
+    const previousCleanupDeps = profileStorageCleanup.configureProfileStorageCleanupDeps({
+      deleteWearablesDB: async () => {},
+      deleteCycleDB: async () => {},
+    });
 
     try {
       localStorage.removeItem('labcharts-encryption-enabled');
@@ -257,6 +265,7 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
         && pushed[0]?.data?.entries?.[0]?.id === 1
         && localStorage.getItem(tombKey('rejectme')) === null;
     } finally {
+      profileStorageCleanup.configureProfileStorageCleanupDeps(previousCleanupDeps);
       tombstones.configureSyncTombstones({
         getEvolu: () => null,
         getProfileQuery: () => null,

@@ -62,7 +62,10 @@ return (async function() {
         reject(new Error(`worker did not respond with ${expectedType} within ${timeoutMs} ms`));
       }, timeoutMs);
       const onMsg = (e) => {
-        if (e.data?.type === 'progress') return; // skip progress events
+        if (e.data?.type === 'progress') {
+          if (e.data.stage === 'saving') worker.postMessage({ type: 'commit_ingest' });
+          return;
+        }
         clearTimeout(timer);
         worker.removeEventListener('message', onMsg);
         if (e.data?.type === 'error') reject(new Error(e.data.message));
@@ -295,7 +298,7 @@ return (async function() {
   assert('active library stats unchanged after non-active delete',
     defaultAfterDelete.total_chunks === defaultStats.total_chunks);
 
-  // ─── Phase 15b: abort mid-ingest commits partial progress ───
+  // ─── Phase 15b: abort mid-ingest discards pending progress ───
   console.log('%c[15b] Abort mid-ingest', 'font-weight:bold');
   // Big batch so the embed loop runs long enough to race against the abort
   // message. With the mock embedder each chunk is a microtask, so we need
@@ -331,15 +334,14 @@ return (async function() {
   assert('aborted ingest returns cancelled:true',
     aborted.stats?.cancelled === true,
     `got ${JSON.stringify(aborted.stats)}`);
-  assert('aborted ingest committed < planned',
-    aborted.stats?.chunks_indexed < aborted.stats?.chunks_planned,
+  assert('aborted ingest commits no pending chunks',
+    aborted.stats?.chunks_indexed === 0,
     `indexed=${aborted.stats?.chunks_indexed} planned=${aborted.stats?.chunks_planned}`);
-  assert('aborted ingest still indexed at least the 3 chunks before abort fired',
-    aborted.stats?.chunks_indexed >= 3);
-  // Partial-commit: the chunks that did embed are now in the corpus.
+  assert('aborted ingest reports work completed before Stop',
+    aborted.stats?.chunks_processed >= 3);
   const statsAfterAbort = await roundTrip(worker, { type: 'stats' }, 'stats_result');
-  assert('partial commit persisted to corpus',
-    statsAfterAbort.total_chunks >= aborted.stats.chunks_indexed);
+  assert('aborted ingest leaves the existing corpus unchanged',
+    statsAfterAbort.total_chunks === defaultAfterDelete.total_chunks);
   // Clean up so later phases start from a known state.
   await roundTrip(worker, { type: 'clear' }, 'clear_done');
 

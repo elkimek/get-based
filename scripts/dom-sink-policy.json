@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 635,
+  "scannedFiles": 637,
   "sinkCount": 497,
   "files": {
     "js/backup.js": {
@@ -37,6 +37,13 @@
     "js/changelog-impl.js": {
       "count": 1,
       "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/chat-context-status.js": {
+      "count": 1,
+      "digest": "b4754dc784d565c8d4b2f631d1b51d81ab52806480de27420aad3b64e7064c52",
       "kinds": {
         "innerHTML": 1
       }
@@ -93,10 +100,10 @@
       }
     },
     "js/chat-personalities.js": {
-      "count": 3,
-      "digest": "d3e8bd77cf39bf3e05e7c8ad4492297fa8275e795aac6ec7f13014630f82f072",
+      "count": 2,
+      "digest": "cb1249687da3e435647ed4604fe5d026dff27f1e391c1acd55c095cddea58ec5",
       "kinds": {
-        "innerHTML": 3
+        "innerHTML": 2
       }
     },
     "js/chat-personality-editor.js": {
@@ -372,14 +379,14 @@
     },
     "js/lens-knowledge-base-ui.js": {
       "count": 8,
-      "digest": "655eb3a304f08222d908a5bc58d5a2c1d35ad355063d0e020432d9380b645864",
+      "digest": "31d50d2cec39feb3bddbc41b39bddbb2a01ddf531f795d14b85bcb76614fd564",
       "kinds": {
         "innerHTML": 8
       }
     },
     "js/lens-library.js": {
       "count": 4,
-      "digest": "bc6718bf730bdd72124ea4d5c5c2b6484855fe6fe175f878e000998c1948cb20",
+      "digest": "6b190fac1c7e77d333148f96bdf650975d5a66ec365912ac25743e587c6c4a0c",
       "kinds": {
         "innerHTML": 4
       }
@@ -851,7 +858,7 @@
     },
     "js/utils.js": {
       "count": 3,
-      "digest": "e6a387d50f8f95c106ee819c97c4c48bdafda3010b78e7996396de9f714dee55",
+      "digest": "d25de7babe803fb971b7a207fe00e707718aeb1a1efefb73cbd8d2c7ca1b9f99",
       "kinds": {
         "innerHTML": 3
       }

@@ -1,6 +1,5 @@
 importScripts('/version.js');
-importScripts('/service-worker-runtime.js');
-// Production caches use semver; preview/local caches add the deployment SHA.
+importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 let _cacheNamePromise = null;
@@ -15,7 +14,7 @@ async function resolveCacheName() {
   }
   return _cacheNamePromise;
 }
-const APP_SHELL = [
+const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for first-launch offline use.
   '/version.js', '/service-worker-runtime.js',
   '/index.html', '/app',
   '/styles.css',
@@ -273,6 +272,7 @@ const APP_SHELL = [
   '/js/chat-send-runtime.js',
   '/js/chat-message-action-attrs.js',
   '/js/chat-icons.js',
+  '/js/chat-context-status.js',
   '/js/chat-personalities.js',
   '/js/chat-personality-editor.js',
   '/js/chat-personality-storage.js',
@@ -651,7 +651,6 @@ const APP_SHELL = [
   '/js/light-tools-ai-analysis.js',
   '/js/lighting-hardware-caveats.js',
   '/js/silhouette-paths.js',
-  // Precache dynamic chat and Knowledge Base modules for first-launch offline use.
   '/js/chat-images.js',
   '/js/chat-threads.js',
   '/js/chat-thread-search.js',
@@ -662,6 +661,7 @@ const APP_SHELL = [
   '/js/lens.js',
   '/js/lens-local.js',
   '/js/lens-local-embedder-config.js',
+  '/js/lens-local-ingest.js',
   '/js/lens-local-library-registry.js',
   '/js/lens-local-store.js',
   '/js/lens-local-worker.js',

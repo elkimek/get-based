@@ -133,9 +133,6 @@ function runShellAction(action) {
   } else if (action === 'open-settings') {
     callShellRuntime('openSettingsModal');
     return true;
-  } else if (action === 'open-ai-settings') {
-    callShellRuntime('openSettingsModal', 'ai');
-    return true;
   } else if (action === 'open-feedback') {
     shellFeedbackDeps.openFeedbackModal();
     return true;

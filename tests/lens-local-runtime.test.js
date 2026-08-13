@@ -22,6 +22,7 @@ function makeWorkerHarness(options = {}) {
       this.messages = [];
       this.listeners = { message: new Set(), error: new Set() };
       this.terminated = false;
+      this.pendingIngest = null;
       workers.push(this);
     }
 
@@ -82,13 +83,21 @@ function makeWorkerHarness(options = {}) {
           return;
         case 'ingest':
           this.emitMessage({ type: 'progress', stage: 'embed', index: 1, total: msg.files.length, source: msg.files[0]?.name });
-          state.total += msg.files.length + 1;
-          state.documents = msg.files.map(file => ({ source: file.name, chunks: 1 }));
+          this.pendingIngest = msg;
+          this.emitMessage({ type: 'progress', stage: 'saving', total: msg.files.length + 1 });
+          return;
+        case 'commit_ingest': {
+          const ingest = this.pendingIngest;
+          if (!ingest) return;
+          this.pendingIngest = null;
+          state.total += ingest.files.length + 1;
+          state.documents = ingest.files.map(file => ({ source: file.name, chunks: 1 }));
           this.emitMessage({
             type: 'ingest_done',
-            stats: { files_seen: msg.files.length, chunks_indexed: msg.files.length + 1 },
+            stats: { files_seen: ingest.files.length, chunks_indexed: ingest.files.length + 1 },
           });
           return;
+        }
         case 'query':
           this.emitMessage({
             type: 'query_result',
@@ -226,6 +235,8 @@ describe('lens-local main-thread runtime behavior', () => {
       .resolves.toEqual({ files_seen: 2, chunks_indexed: 3 });
     expect(noisyProgress).toHaveBeenCalledWith(expect.objectContaining({ type: 'progress', source: 'one.md' }));
     expect(progress).toHaveBeenCalledWith(expect.objectContaining({ type: 'progress', source: 'one.md' }));
+    expect(progress).toHaveBeenCalledWith(expect.objectContaining({ type: 'progress', stage: 'saving' }));
+    expect(harness.workers[0].messages).toContainEqual({ type: 'commit_ingest' });
     expect(localStorage.getItem('labcharts-lens-local-count')).toBe('5');
 
     unsubscribeNoisy();

@@ -15,6 +15,7 @@ import {
   modelKeyFromManifest,
   normaliseLibraryRegistry,
   readBinaryFrom,
+  readLatestCorpusManifest,
   readOpfsFileFrom,
   sameLibraryRegistry,
   writeBinaryTo,
@@ -237,7 +238,7 @@ export class LensLocalLibraryRegistry {
 
       let manifest = null;
       try {
-        manifest = JSON.parse(await readOpfsFileFrom(handle, FILE_MANIFEST));
+        manifest = await readLatestCorpusManifest(handle);
       } catch {}
 
       const model = modelKeyFromManifest(manifest, this.models) || this.defaultModelKey;

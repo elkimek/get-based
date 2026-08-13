@@ -268,6 +268,16 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .chat-context-status-pending .chat-context-dot {
   background: var(--yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 20%, transparent);
 }
+.chat-context-status-error {
+  border-color: color-mix(in srgb, var(--red) 55%, var(--border));
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: color-mix(in srgb, var(--red) 78%, var(--text-primary));
+}
+.chat-context-status-error:hover { border-color: var(--red); background: color-mix(in srgb, var(--red) 18%, transparent); }
+.chat-context-status-error:focus-visible { outline-color: var(--red); }
+.chat-context-status-error .chat-context-dot {
+  background: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 18%, transparent);
+}
 .chat-context-dot {
   width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
   background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
@@ -310,23 +320,6 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .chat-websearch-toggle-label input:checked + .chat-toggle-slider::before {
   transform: translateX(12px);
 }
-
-/* Custom Knowledge Source indicator */
-.chat-lens-indicator {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: 12px;
-  background: var(--bg-primary); border: 1px solid var(--border);
-  color: var(--text-muted); font-size: 11px; cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.chat-lens-indicator:hover { background: var(--bg-hover); }
-.chat-lens-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--text-muted);
-  transition: background 0.15s;
-}
-.chat-lens-indicator.active .chat-lens-dot { background: var(--green); }
-.chat-lens-indicator.error .chat-lens-dot { background: var(--yellow); }
 
 /* Local Knowledge Base — per-document row delete button */
 .kb-doc-delete {

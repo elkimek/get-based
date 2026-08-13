@@ -9,7 +9,6 @@ export function createLensLibraryHandlers({
   getLocalLens,
   clearLensCache,
   saveLensConfig,
-  updateLensIndicator,
   updateLensStatusChip,
   loadLocalLensStats,
 }) {
@@ -88,7 +87,6 @@ export function createLensLibraryHandlers({
     try {
       await _libActivate(libraryId);
       clearLensCache();
-      updateLensIndicator();
       showNotification('Switched library.', 'info');
       await _loadLibraryPicker();
       const cfg = getLensConfig();
@@ -107,20 +105,22 @@ export function createLensLibraryHandlers({
     // always create with DEFAULT_MODEL_KEY.
     let embedder = null;
     let models = null;
+    _setNewLibraryBusy(true, 'Preparing…');
     try {
       const lens = await getLocalLens();
       embedder = lens.embedder;
       models = lens.models;
     } catch { /* backend not ready - fall through to plain prompt */ }
+    finally { _setNewLibraryBusy(false); }
 
     const picked = (models && Object.keys(models).length > 0)
       ? await _showLibraryCreateDialog(embedder, models)
       : await _plainNamePrompt();
     if (!picked) return;
+    _setNewLibraryBusy(true, 'Creating…');
     try {
       const created = await _libCreate(picked.name, picked.model);
       clearLensCache();
-      updateLensIndicator();
       showNotification(`Created "${created?.name || picked.name}". Drop documents to index them.`, 'success');
       await _loadLibraryPicker();
       const cfg = getLensConfig();
@@ -128,6 +128,19 @@ export function createLensLibraryHandlers({
       updateLensStatusChip();
     } catch (e) {
       showNotification(`Couldn't create library: ${getErrorMessage(e, e)}.`, 'error');
+    } finally {
+      _setNewLibraryBusy(false);
+    }
+  }
+
+  function _setNewLibraryBusy(busy, label = '') {
+    const buttons = document.querySelectorAll('[data-lens-action="new-library"]');
+    for (const button of buttons) {
+      if (!(button instanceof HTMLButtonElement)) continue;
+      if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent || '+ New library';
+      button.disabled = busy;
+      button.setAttribute('aria-busy', String(busy));
+      button.textContent = busy ? label : button.dataset.idleLabel;
     }
   }
 
@@ -141,21 +154,12 @@ export function createLensLibraryHandlers({
     return name ? { name, model: undefined } : null;
   }
 
-  /// Library-creation modal: name + model picker. Highlights a
-  /// recommended model based on the benchmark verdict (embedder.tier)
-  /// so users with modern hardware default to a stronger model than
-  /// MiniLM. Returns {name, model} or null on cancel.
-  ///
-  /// Mirrors the structure of showPromptDialog in utils.js - same
-  /// overlay + dialog classes so theming and escape-to-cancel come
-  /// for free - but with a radio group of model options inside.
+  /// Library-creation modal: name + user-facing search profile. CPU users
+  /// default to the balanced model even when MiniLM benchmarks extremely
+  /// well; otherwise a fast CPU silently gets "rewarded" with BGE-base and
+  /// sees little wall-clock improvement. BGE-base is automatic only when a
+  /// genuinely fast WebGPU path is active, and remains available manually.
   function _showLibraryCreateDialog(embedder, models) {
-    // Pick the recommended model: highest-tier option that fits within
-    // the detected tier. No benchmark verdict (old browsers, init
-    // hiccup) -> recommend the default (tier-1 MiniLM, universally
-    // works). Within a tier, prefer English BGE over multilingual-E5
-    // for the default highlight - English health research is getbased's
-    // modal case. Users with multilingual corpora can one-click over.
     const detectedTier = embedder?.tier || 1;
     const entries = Object.entries(models); // [[key, spec], ...]
     const byTier = { 1: [], 2: [], 3: [] };
@@ -163,10 +167,11 @@ export function createLensLibraryHandlers({
       const t = spec.tier || 1;
       if (t <= 3) byTier[t]?.push({ key, spec });
     }
-    // Recommended = highest-tier eligible for the device, English
-    // preferred. If nothing at the detected tier, step down.
+    const recommendedTier = embedder?.backend === 'webgpu' && detectedTier >= 3
+      ? 3
+      : detectedTier >= 2 ? 2 : 1;
     let recommendedKey = null;
-    for (let t = detectedTier; t >= 1; t--) {
+    for (let t = recommendedTier; t >= 1; t--) {
       const candidates = byTier[t] || [];
       const english = candidates.find((c) => c.spec.language === 'en');
       const pick = english || candidates[0];
@@ -174,62 +179,79 @@ export function createLensLibraryHandlers({
     }
     if (!recommendedKey) recommendedKey = entries[0]?.[0];
 
-    const tierLine = embedder
-      ? `Your device: ${embedder.msPerEmbed.toFixed(0)} ms/embed on ${embedder.backend} &rarr; tier ${embedder.tier}.`
-      : 'Device not yet benchmarked - recommending the universally-compatible default.';
+    const deviceLine = !embedder
+      ? 'We could not measure this browser yet, so Fast is selected for compatibility.'
+      : embedder.backend === 'webgpu' && recommendedTier === 3
+        ? 'WebGPU acceleration is available, so Best English retrieval should remain responsive.'
+        : recommendedTier === 2
+          ? `This browser is using ${embedder.backend === 'webgpu' ? 'WebGPU acceleration' : 'CPU indexing'}. Balanced keeps imports responsive while improving retrieval.`
+          : 'This browser is using a slower local path, so Fast is selected to keep imports responsive.';
+
+    const profileLabel = (key, spec) => {
+      if (spec.language === 'multi') return 'Multilingual';
+      if (spec.tier >= 3 || /base/i.test(key)) return 'Best recall';
+      if (spec.tier === 2 || /small/i.test(key)) return 'Balanced';
+      return 'Fast';
+    };
 
     return new Promise((resolve) => {
       let overlay = document.getElementById('lens-library-create-overlay');
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'lens-library-create-overlay';
-        overlay.className = 'confirm-overlay';
         document.body.appendChild(overlay);
       }
+      overlay.className = 'confirm-overlay kb-create-overlay';
 
-      // Render radio buttons for each model. Highlight the recommended
-      // one with a badge + default-checked. Each row shows label, size,
-      // dim, and language scope so users can make an informed choice.
       const radiosHtml = entries.map(([key, spec]) => {
         const isRecommended = key === recommendedKey;
-        const border = isRecommended ? 'var(--accent)' : 'var(--border)';
-        const shadow = isRecommended ? 'box-shadow:0 0 0 2px rgba(124,58,237,0.15);' : '';
         const badge = isRecommended
-          ? '<span style="margin-left:8px;padding:2px 6px;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Recommended</span>'
+          ? '<span class="kb-recommended-badge">Recommended</span>'
           : '';
         const langLabel = spec.language === 'multi' ? '100+ languages' : 'English';
-        return `<label style="display:block;padding:10px 12px;margin:6px 0;border:1px solid ${border};border-radius:6px;cursor:pointer;${shadow}">
-          <div style="display:flex;align-items:center">
-            <input type="radio" name="lens-create-model" value="${escapeAttr(key)}" ${isRecommended ? 'checked' : ''} style="margin-right:10px">
-            <strong style="color:var(--text-primary);font-size:13px">${escapeHTML(spec.label)}</strong>
-            ${badge}
-          </div>
-          <div style="margin-top:4px;margin-left:23px;font-size:11px;color:var(--text-muted);line-height:1.5">
-            ${spec.downloadMB}&nbsp;MB download &middot; ${spec.dim}-dim &middot; ${langLabel}<br>
-            ${escapeHTML(spec.notes || '')}
-          </div>
+        return `<label class="kb-model-card">
+          <input type="radio" name="lens-create-model" value="${escapeAttr(key)}" ${isRecommended ? 'checked' : ''}>
+          <span class="kb-model-copy">
+            <span class="kb-model-title"><span class="kb-model-profile">${escapeHTML(profileLabel(key, spec))}</span>${escapeHTML(spec.label)}</span>
+            <span class="kb-model-meta">${spec.downloadMB}&nbsp;MB download &middot; ${langLabel}</span>
+            <span class="kb-model-notes">${escapeHTML(spec.notes || '')}</span>
+          </span>
+          ${badge}
         </label>`;
       }).join('');
 
-      overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="New library" style="max-width:520px">
-        <p class="confirm-message" style="margin-bottom:4px">New library</p>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.4">${tierLine}</div>
-        <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px">Library name</label>
-        <input type="text" id="lens-create-name" class="api-key-input"
-               placeholder="e.g. Research Papers"
-               style="width:100%;margin-bottom:14px;box-sizing:border-box"
-               aria-label="Library name">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Embedding model (locked at creation - switching model later means re-indexing every document)</div>
-        <div style="max-height:320px;overflow-y:auto;margin-bottom:14px">${radiosHtml}</div>
-        <div class="confirm-actions">
-          <button class="confirm-btn confirm-btn-cancel" id="lens-create-cancel">Cancel</button>
-          <button class="confirm-btn confirm-btn-danger" id="lens-create-ok" style="background:var(--accent)">Create</button>
-        </div></div>`;
+      overlay.innerHTML = `<div class="kb-create-dialog" role="dialog" aria-modal="true" aria-labelledby="lens-create-title">
+        <div class="gb-modal-head">
+          <div>
+            <div class="gb-modal-kicker">Local context</div>
+            <div class="gb-modal-title" id="lens-create-title">Create a library</div>
+          </div>
+          <button class="modal-close" id="lens-create-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="kb-create-body">
+          <div class="kb-create-device">${deviceLine}</div>
+          <label class="kb-field" for="lens-create-name">
+            <span>Library name</span>
+            <input type="text" id="lens-create-name" class="kb-field-control" placeholder="e.g. Research Papers" autocomplete="off">
+            <small>Use separate libraries for collections you do not want searched together.</small>
+          </label>
+          <div class="kb-field kb-model-field">
+            <span>Search profile</span>
+            <small>This choice is locked at creation. Changing it later requires indexing the documents again.</small>
+            <div class="kb-model-picker" role="radiogroup" aria-label="Search profile">${radiosHtml}</div>
+          </div>
+          <div class="kb-create-actions">
+            <button class="import-btn import-btn-secondary" id="lens-create-cancel">Cancel</button>
+            <button class="import-btn import-btn-primary" id="lens-create-ok">Create library</button>
+          </div>
+        </div>
+      </div>`;
       openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 });
 
       const nameInput = /** @type {HTMLInputElement} */ (document.getElementById('lens-create-name'));
       const ok = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-ok'));
       const cancel = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-cancel'));
+      const closeButton = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-close'));
 
       const close = (result) => {
         closeModalOverlay(overlay);
@@ -249,6 +271,7 @@ export function createLensLibraryHandlers({
 
       ok.onclick = submit;
       cancel.onclick = () => close(null);
+      closeButton.onclick = () => close(null);
       overlay.onclick = (e) => { if (e.target === overlay) close(null); };
       document.addEventListener('keydown', onKey);
     });
@@ -265,6 +288,10 @@ export function createLensLibraryHandlers({
       });
       if (!next || next === current) return;
       await _libRename(activeId, next);
+      // Cached result envelopes carry the library display name used by chat
+      // citations, so a rename must invalidate them even though vectors stay
+      // unchanged.
+      clearLensCache();
       showNotification(`Renamed to "${next}".`, 'info');
       await _loadLibraryPicker();
       updateLensStatusChip();
@@ -280,7 +307,6 @@ export function createLensLibraryHandlers({
         if (!activeId) return;
         await _libDelete(activeId);
         clearLensCache();
-        updateLensIndicator();
         const remaining = libraries.length - 1;
         showNotification(
           remaining === 0

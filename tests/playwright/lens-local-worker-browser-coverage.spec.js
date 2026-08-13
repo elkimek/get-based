@@ -35,7 +35,7 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
     }
     localStorage.removeItem('labcharts-lens-local-count');
 
-    const worker = new Worker('/js/lens-local-worker.js?mock=1&benchmark=1', { type: 'module' });
+    let worker = new Worker('/js/lens-local-worker.js?mock=1&benchmark=1', { type: 'module' });
     const roundTrip = (msg, expectedType, timeoutMs = 5000) => new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         worker.removeEventListener('message', onMessage);
@@ -44,7 +44,13 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
       const onMessage = (event) => {
         const data = event.data || {};
         events.push(data);
-        if (data.type === 'progress') return;
+        if (data.type === 'progress') {
+          if (data.stage === 'saving') {
+            if (msg.abortAtSaving) worker.postMessage({ type: 'abort' });
+            worker.postMessage({ type: 'commit_ingest' });
+          }
+          return;
+        }
         clearTimeout(timer);
         worker.removeEventListener('message', onMessage);
         if (data.type === 'error') reject(new Error(data.message || 'worker error'));
@@ -96,7 +102,8 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
         && ingest.stats?.chunks_planned >= ingest.stats?.chunks_indexed
         && ingest.stats?.cancelled === false
         && events.some(event => event.type === 'progress' && event.stage === 'start')
-        && events.some(event => event.type === 'progress' && event.stage === 'embed'));
+        && events.some(event => event.type === 'progress' && event.stage === 'embed')
+        && events.some(event => event.type === 'progress' && event.stage === 'saving'));
 
       const stats = await roundTrip({ type: 'stats' }, 'stats_result');
       check('stats reflect ingest and model metadata',
@@ -105,6 +112,75 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
         && stats.dim === 384
         && stats.model === 'Xenova/all-MiniLM-L6-v2'
         && (stats.backend === 'wasm' || stats.backend === 'webgpu'));
+
+      const unchanged = await roundTrip({ type: 'ingest', files }, 'ingest_done', 10000);
+      const afterUnchanged = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('re-import skips documents whose content is unchanged',
+        unchanged.stats?.chunks_indexed === 0
+        && unchanged.stats?.skipped?.length === files.length
+        && afterUnchanged.total_chunks === stats.total_chunks
+        && afterUnchanged.documents.length === stats.documents.length);
+
+      const replacementFile = {
+        name: 'vitamin-d.md',
+        text: 'Updated vitamin D document with dosing, UVB, and circadian evidence. '.repeat(38),
+      };
+      const oldVitaminChunks = stats.documents.find(doc => doc.source === replacementFile.name)?.chunks || 0;
+      const replacement = await roundTrip({ type: 'ingest', files: [replacementFile] }, 'ingest_done', 10000);
+      const afterReplacement = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('re-import transaction replaces an existing document instead of appending duplicates',
+        replacement.stats?.replaced_documents === 1
+        && replacement.stats?.chunks_indexed > 0
+        && afterReplacement.documents.length === stats.documents.length
+        && afterReplacement.documents.filter(doc => doc.source === replacementFile.name).length === 1
+        && afterReplacement.total_chunks === stats.total_chunks - oldVitaminChunks + replacement.stats.chunks_indexed);
+
+      const lateStopped = await roundTrip({
+        type: 'ingest',
+        abortAtSaving: true,
+        files: [{ name: 'late-stop.md', text: 'Stop at the saving boundary. '.repeat(36) }],
+      }, 'ingest_done', 10000);
+      const afterLateStop = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('a Stop queued before the commit acknowledgement cancels the replacement',
+        lateStopped.stats?.cancelled === true
+        && lateStopped.stats?.chunks_indexed === 0
+        && afterLateStop.total_chunks === afterReplacement.total_chunks
+        && !afterLateStop.documents.some(doc => doc.source === 'late-stop.md'));
+
+      await roundTrip({ type: 'test_fail_next_corpus_persist' }, 'test_ack');
+      const failedPersist = await expectWorkerError({
+        type: 'ingest',
+        files: [{ name: 'torn-write.md', text: 'A simulated torn corpus generation. '.repeat(36) }],
+      }, /test corpus persist failure/i);
+      const afterFailedPersist = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('failed generation commit leaves the in-memory corpus unchanged',
+        failedPersist.ok
+        && afterFailedPersist.total_chunks === afterReplacement.total_chunks
+        && !afterFailedPersist.documents.some(doc => doc.source === 'torn-write.md'),
+      failedPersist.message);
+
+      worker.terminate();
+      worker = new Worker('/js/lens-local-worker.js?mock=1&benchmark=1', { type: 'module' });
+      const recovered = await roundTrip({ type: 'init' }, 'ready');
+      const recoveredStats = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('restart ignores a torn inactive generation and loads the prior commit',
+        recovered.numChunks === afterReplacement.total_chunks
+        && recoveredStats.total_chunks === afterReplacement.total_chunks
+        && !recoveredStats.documents.some(doc => doc.source === 'torn-write.md'));
+
+      const beforeCancelled = afterReplacement.total_chunks;
+      const cancelling = roundTrip({
+        type: 'ingest',
+        files: [{ name: 'cancelled.md', text: 'Pending indexing transaction. '.repeat(1200) }],
+      }, 'ingest_done', 10000);
+      setTimeout(() => worker.postMessage({ type: 'abort' }), 0);
+      const cancelled = await cancelling;
+      const afterCancelled = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('stopping indexing discards the pending transaction',
+        cancelled.stats?.cancelled === true
+        && cancelled.stats?.chunks_indexed === 0
+        && afterCancelled.total_chunks === beforeCancelled
+        && !afterCancelled.documents.some(doc => doc.source === 'cancelled.md'));
 
       const query = await roundTrip({ type: 'query', text: 'vitamin D light mitochondria', topK: 2 }, 'query_result');
       const firstChunk = query.chunks?.[0];
@@ -124,7 +200,7 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
       const afterDelete = await roundTrip({ type: 'stats' }, 'stats_result');
       check('delete removes source chunks and stats',
         deleted.deleted_chunks > 0
-        && afterDelete.total_chunks === stats.total_chunks - deleted.deleted_chunks
+        && afterDelete.total_chunks === afterReplacement.total_chunks - deleted.deleted_chunks
         && !afterDelete.documents.some(doc => doc.source === 'mitochondria.md'));
 
       await roundTrip({ type: 'clear' }, 'clear_done');
@@ -218,7 +294,10 @@ test('lens local worker browser coverage exercises production embedder loading w
       }, timeoutMs);
       const onMessage = (event) => {
         const data = event.data || {};
-        if (data.type === 'progress') return;
+        if (data.type === 'progress') {
+          if (data.stage === 'saving') worker.postMessage({ type: 'commit_ingest' });
+          return;
+        }
         clearTimeout(timer);
         worker.removeEventListener('message', onMessage);
         if (data.type === 'error') reject(new Error(data.message || 'worker error'));

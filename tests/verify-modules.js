@@ -343,7 +343,7 @@
     'openKnowledgeBaseModal','closeKnowledgeBaseModal',
     'subscribeLensStatus','getLensStatus','isValidLensUrl',
     'renderCustomLensSection','handleSaveLensConfig','handleToggleLens',
-    'handleClearLensCache','handleRemoveLens','updateLensIndicator',
+    'handleClearLensCache','handleRemoveLens',
     'handleLensBackendChange',
     'handleLocalLensDeleteDoc','handleLocalLensClear',
     'handleLibraryActivate','handleLibraryNew','handleLibraryRename','handleLibraryDelete',

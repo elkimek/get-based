@@ -98,6 +98,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       restoreNavActions = nav.configureNavActions({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
         openClientList: () => calls.push(['open-client-list']),
+        openKnowledgeBase: options => calls.push(['open-knowledge-base', options?.source]),
       });
       restoreContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
         openContextModal: () => calls.push(['open-context']),
@@ -135,6 +136,9 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       document.querySelector('#sidebar-nav .nav-item[data-category="light-env-assessment"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="reports"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="context"]')?.click();
+      const sidebar = document.getElementById('sidebar-nav');
+      sidebar?.classList.add('mobile-open');
+      document.querySelector('#sidebar-nav .nav-item[data-category="knowledge-base"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="custom-markers"]')?.click();
       document.querySelector('#sidebar-nav .sidebar-add-marker')?.click();
       document.querySelector('#profile-selector .profile-compact-btn')?.click();
@@ -149,6 +153,8 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         groupCollapsed,
         groupExpanded,
         noDuplicateAIGroupToggle,
+        knowledgeBaseIsFirstClass: calls.some(c => c[0] === 'open-knowledge-base' && c[1] === 'sidebar')
+          && !sidebar?.classList.contains('mobile-open'),
         utilitiesCallHandlers: calls.some(c => c[0] === 'open-emf')
           && calls.some(c => c[0] === 'open-light-env')
           && calls.some(c => c[0] === 'open-report-builder')

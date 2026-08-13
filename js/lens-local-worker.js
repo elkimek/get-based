@@ -7,9 +7,7 @@
 //
 // Layout on disk (OPFS, origin-scoped, persistent):
 //   /lens-local/_libraries.json — {activeId, libraries:[{id,name,createdAt,model}]}
-//   /lens-local/<libraryId>/manifest.json
-//   /lens-local/<libraryId>/vectors.bin
-//   /lens-local/<libraryId>/chunks.json
+//   /lens-local/<libraryId>/{manifest,vectors,chunks}.{a,b}.{json,bin}
 //
 // Persistence strategy: load the full corpus into RAM on first query for this
 // worker session, then serve every query from memory (cosine over 10k chunks
@@ -19,7 +17,8 @@
 // Message protocol (main ↔ worker):
 //   IN:  {type: 'init'}                   → loads model, opens OPFS
 //        {type: 'ingest', files: [{name, text}]}
-//                                         → chunks + embeds + appends
+//                                         → chunks + embeds + replaces by source
+//        {type: 'commit_ingest'}           → acknowledges the saving boundary
 //        {type: 'query', text, topK}      → returns top-K matches
 //        {type: 'stats'}                  → per-source counts
 //        {type: 'delete', source}         → drops one doc
@@ -31,22 +30,20 @@
 //        {type: 'stats_result', ...}
 //        {type: 'error', message}
 //
-// Model: Xenova/all-MiniLM-L6-v2 — 384-dim, ~90 MB quantized, MTEB ~41.
-// Not the strongest embedder but the only one that runs acceptably in
-// pure WASM. Browser caches it after first load.
+// Each library locks one model from lens-local-embedder-config.js. MiniLM
+// remains the compatibility default; new libraries can choose balanced,
+// multilingual, or higher-recall profiles. Browser caches weights after use.
 
 import { getErrorMessage } from './caught-error.js';
 import { BENCHMARK_TEXTS, DEFAULT_MODEL_KEY, MODELS, createMockEmbedding } from './lens-local-embedder-config.js';
+import { buildLocalIngestTransaction } from './lens-local-ingest.js';
 import { LensLocalLibraryRegistry } from './lens-local-library-registry.js';
-import { chunkText, mmrSelect } from './lens-local-utils.js';
+import { mmrSelect } from './lens-local-utils.js';
 import {
-  FILE_CHUNKS,
-  FILE_MANIFEST,
-  FILE_VECTORS,
   OPFS_SUBDIR,
-  readBinaryFrom,
-  readOpfsFileFrom,
+  readLatestCorpusSnapshot,
   writeBinaryTo,
+  writeCorpusSnapshot,
 } from './lens-local-store.js';
 /// Current model driving the embedder. These are mutable because the
 /// active library dictates which model gets loaded — switching library
@@ -62,12 +59,6 @@ function _applyModelSpec(modelKey) {
   DIM = spec.dim;
 }
 
-// Chunk target: 800 chars, overlap 50, min 50 — matches getbased-rag's
-// `packages/rag/src/lens/store.py` defaults so ingest behavior stays
-// consistent across the browser backend and the external-server backend.
-const CHUNK_SIZE = 800;
-const CHUNK_OVERLAP = 50;
-const CHUNK_MIN = 50;
 // Retrieval tunables
 const MMR_LAMBDA = 0.5;            // 0 = max diversity, 1 = pure relevance
 const MMR_OVERSAMPLE_FACTOR = 3;   // multiplier on topK before MMR re-rank
@@ -76,10 +67,16 @@ const MMR_OVERSAMPLE_FLOOR = 30;   // never oversample below this many chunks
 let _embedder = null;
 let _embedderBackend = 'wasm';  // 'webgpu' | 'wasm' — whichever transformers.js actually booted
 let _benchmarkVerdict = null;   // Latest benchmark result for the currently-loaded model; null until first load
+const _benchmarkCache = new Map(); // model/backend → verdict; avoids repeating warmups when switching libraries
 let _transformersModule = null; // Lazy-cached transformers.js module so library swaps don't re-import
 let _abortRequested = false;    // set by 'abort' message, checked between embeds in handleIngest
 let _rootDir = null;            // OPFS FileSystemDirectoryHandle at /lens-local/
 let _libraryRegistry = null;    // Active library metadata + revisioned registry persistence
+let _corpusSlot = null;         // crash-safe corpus generation slot ('a' | 'b' | legacy null)
+let _corpusRevision = 0;
+/** @type {(() => void) | null} */
+let _ingestCommitResolve = null;
+let _failNextCorpusPersistForTest = false;
 
 // MessageChannel-based macrotask yield. Between embed calls the worker
 // would otherwise only yield to the microtask queue (a chain of awaits
@@ -126,6 +123,12 @@ self.addEventListener('message', async (e) => {
       case 'create_library':    return await handleCreateLibrary(msg.name, msg.model);
       case 'rename_library':    return await handleRenameLibrary(msg.libraryId, msg.name);
       case 'delete_library':    return await handleDeleteLibrary(msg.libraryId);
+      case 'commit_ingest': {
+        const resolve = _ingestCommitResolve;
+        _ingestCommitResolve = null;
+        resolve?.();
+        return;
+      }
       case 'test_fail_next_registry_persist':
         if (isMockMode()) {
           _libraryRegistry.failNextPersist();
@@ -133,10 +136,17 @@ self.addEventListener('message', async (e) => {
           return;
         }
         throw new Error(`Unknown message type: ${msg.type}`);
+      case 'test_fail_next_corpus_persist':
+        if (isMockMode()) {
+          _failNextCorpusPersistForTest = true;
+          self.postMessage({ type: 'test_ack' });
+          return;
+        }
+        throw new Error(`Unknown message type: ${msg.type}`);
       // Abort is a side-channel signal — skips the serial queue on the
       // main thread so it can interrupt an in-flight ingest. handleIngest
-      // polls _abortRequested between embeds and commits whatever's been
-      // indexed so far.
+      // polls _abortRequested between batches. Ingest is transactional:
+      // stopping discards the pending batch and leaves the library intact.
       case 'abort':             _abortRequested = true; return;
       default:                  throw new Error(`Unknown message type: ${msg.type}`);
     }
@@ -185,10 +195,8 @@ async function handleInit() {
   const modelKey = _libraryModelKey(_libraryRegistry.activeId);
   await _loadEmbedder(modelKey);
 
-  // Manifest + corpus load AFTER embedder so MODEL_ID + DIM reflect the
-  // active library's configured model. The manifest.dim/modelId check
-  // in loadActiveManifest compares against these module-level values.
-  await loadActiveManifest();
+  // Corpus load AFTER embedder so MODEL_ID + DIM reflect the active
+  // library's configured model.
   await loadCorpusIntoMemory();
   self.postMessage(readyPayload());
 }
@@ -309,7 +317,9 @@ async function _loadEmbedder(modelKey) {
   // main thread can surface a tier recommendation in the library-
   // creation UI (step 3).
   try {
-    _benchmarkVerdict = await _benchmarkEmbedder();
+    const benchmarkKey = `${_modelKey}:${_embedderBackend}`;
+    _benchmarkVerdict = _benchmarkCache.get(benchmarkKey) || await _benchmarkEmbedder();
+    _benchmarkCache.set(benchmarkKey, _benchmarkVerdict);
     console.log(
       `[lens-local] Embedding benchmark: ${_modelKey} on ${_embedderBackend}, ` +
       `${_benchmarkVerdict.msPerEmbed.toFixed(0)} ms/embed median → tier ${_benchmarkVerdict.tier} (${_benchmarkVerdict.tierLabel})`
@@ -321,18 +331,20 @@ async function _loadEmbedder(modelKey) {
   }
 }
 
-// 5 synthetic chunks at ~500-600 char lengths — representative of the
+// Three synthetic chunks at ~500-600 char lengths are enough for a stable
+// median after pipeline initialization and cut repeat model-start latency.
+// The full corpus remains in the config so future calibration can rotate it.
 // text we actually feed the embedder during ingest (see `chunk()` in
 // lens-local-utils.js; target_size defaults to 512 tokens ≈ 2-2.5 KB
 // of prose but real ingested chunks land around this character range).
 // Mixing topics keeps any per-text caching honest.
-/// Measure ms/embed on the currently-loaded embedder. Runs 5 embeds on
+/// Measure ms/embed on the currently-loaded embedder. Runs 3 embeds on
 /// varied realistic text, returns the median. Thresholds pick a tier
 /// target for per-library model selection (step 1 spike — values are
 /// initial guesses to be calibrated against real user hardware).
 async function _benchmarkEmbedder() {
   const timings = [];
-  for (const text of BENCHMARK_TEXTS) {
+  for (const text of BENCHMARK_TEXTS.slice(0, 3)) {
     const t0 = performance.now();
     await _embedder(text, { pooling: 'mean', normalize: true });
     timings.push(performance.now() - t0);
@@ -340,11 +352,9 @@ async function _benchmarkEmbedder() {
   const sorted = timings.slice().sort((a, b) => a - b);
   const msPerEmbed = sorted[Math.floor(sorted.length / 2)];
   let tier, tierLabel;
-  // Tier-3 cutoff lifted from 30ms → 50ms (v1.3.23): the original band only
-  // recommended BGE-base on the fastest 10-15% of devices, but modern
-  // laptops (M-series, Ryzen 7000+, recent Intel) sit comfortably in the
-  // 30-50ms range and run BGE-base without trouble. Recall lift on jargon
-  // / synonym queries is significant; ingest stays sub-second per chunk.
+  // Tiers describe the measured current model. Recommendation policy lives
+  // in lens-library.js and deliberately caps CPU/WASM auto-selection at the
+  // balanced profile; MiniLM speed is not a reliable estimate for BGE-base.
   if (msPerEmbed < 50) {
     tier = 3;
     tierLabel = 'recent HW — larger model viable';
@@ -423,68 +433,30 @@ async function openOpfs() {
 
   // Load or initialise the library registry. The registry lives at
   // /lens-local/_libraries.json and is the source of truth for which
-  // libraries exist + which is active. Each library's data lives under
-  // /lens-local/<libraryId>/ (manifest.json, vectors.bin, chunks.json).
+  // libraries exist + which is active. Each library's data lives in two
+  // checksummed generations under /lens-local/<libraryId>/.
   await _libraryRegistry.loadOrMigrate();
   console.log('[lens-local] Libraries:', _libraryRegistry.libraries.map((l) => `${l.id}=${l.name}`).join(', '),
               'active:', _libraryRegistry.activeId);
 
-  // Load the active library's manifest. Missing = fresh store for this
-  // library, which is legitimate right after create_library.
-  await loadActiveManifest();
-}
-
-async function loadActiveManifest() {
-  const dir = await activeLibraryDir();
-  let manifest;
-  try {
-    manifest = JSON.parse(await readOpfsFileFrom(dir, FILE_MANIFEST));
-    if (manifest.dim !== DIM || manifest.modelId !== MODEL_ID) {
-      console.warn('[lens-local] Incompatible existing store — wiping.', manifest);
-      manifest = null;
-    }
-  } catch { manifest = null; }
-
-  _manifest = manifest || {
-    numChunks: 0,
-    dim: DIM,
-    modelId: MODEL_ID,
-    indexedAt: null,
-    docs: [],
-  };
 }
 
 async function loadCorpusIntoMemory() {
   const dir = await activeLibraryDir();
-  if (_manifest.numChunks === 0) {
-    _vectors = new Float32Array(0);
-    _chunks = [];
+  const snapshot = await readLatestCorpusSnapshot(dir, { dim: DIM, modelId: MODEL_ID });
+  if (snapshot) {
+    _corpusSlot = snapshot.slot;
+    _corpusRevision = snapshot.revision;
+    _manifest = snapshot.state.manifest;
+    _vectors = snapshot.state.vectors;
+    _chunks = snapshot.state.chunks;
     return;
   }
-  let vecBytes, chunksText;
-  try {
-    vecBytes = await readBinaryFrom(dir, FILE_VECTORS);
-    chunksText = await readOpfsFileFrom(dir, FILE_CHUNKS);
-  } catch (e) {
-    console.warn('[lens-local] Data file missing — resetting to empty.', getErrorMessage(e));
-    _manifest.numChunks = 0;
-    _manifest.docs = [];
-    _vectors = new Float32Array(0);
-    _chunks = [];
-    await persistAll();
-    return;
-  }
-  _vectors = new Float32Array(vecBytes);
-  _chunks = JSON.parse(chunksText);
-  const expected = _manifest.numChunks * DIM;
-  if (_vectors.length !== expected || _chunks.length !== _manifest.numChunks) {
-    console.warn('[lens-local] Manifest/data length mismatch — resetting to empty.');
-    _manifest.numChunks = 0;
-    _manifest.docs = [];
-    _vectors = new Float32Array(0);
-    _chunks = [];
-    await persistAll();
-  }
+  _corpusSlot = null;
+  _corpusRevision = 0;
+  _manifest = emptyManifest();
+  _vectors = new Float32Array(0);
+  _chunks = [];
 }
 
 /// Resolve the active library's directory handle. Creates if missing
@@ -499,87 +471,48 @@ async function activeLibraryDir() {
 
 async function handleIngest(files) {
   if (!_embedder) throw new Error('Worker not initialized');
-
-  // Fresh run — clear any abort flag left over from a prior run that
-  // raced with completion (the main thread can legitimately fire abort
-  // just as we post ingest_done).
   _abortRequested = false;
-
-  // First pass — chunk every file. We emit a "start" event with total
-  // chunk count so the UI can render a bounded progress bar.
-  const allChunks = [];
-  for (const f of files) {
-    const pieces = chunkText(String(f.text || ''), CHUNK_SIZE, CHUNK_OVERLAP, CHUNK_MIN);
-    for (const piece of pieces) allChunks.push({ source: f.name, text: piece });
-  }
-
-  self.postMessage({ type: 'progress', stage: 'start', total: allChunks.length });
-
-  // Serial per-chunk embedding. Batching was tested and hurt on WASM
-  // (padding every item to the longest sequence in the batch wastes
-  // compute on a backend with no parallelism to exploit). On WebGPU the
-  // GPU handles parallelism internally — still no obvious batch gain.
-  //
-  // Abort is checked before each embed so partial progress is committed
-  // cleanly: whatever chunks were indexed before the flag flipped become
-  // a permanent part of the corpus. Tearing them out would waste the
-  // compute the user already paid for.
-  const newVectors = new Float32Array(allChunks.length * DIM);
-  let indexed = 0;
-  let cancelled = false;
-  for (let i = 0; i < allChunks.length; i++) {
-    // Pump the message queue so an 'abort' can actually land. Without
-    // this the embed loop is a tight chain of microtasks and the abort
-    // message sits forever in the task queue, making cancel a no-op.
-    await macroYield();
-    if (_abortRequested) { cancelled = true; break; }
-    const out = await _embedder(allChunks[i].text, { pooling: 'mean', normalize: true });
-    newVectors.set(out.data, i * DIM);
-    indexed = i + 1;
-    if (i % 5 === 0 || i === allChunks.length - 1) {
-      self.postMessage({
-        type: 'progress', stage: 'embed',
-        index: i + 1, total: allChunks.length, source: allChunks[i].source,
-      });
-    }
-  }
-  _abortRequested = false;
-
-  // Commit only the portion actually indexed — slicing when cancelled
-  // drops the trailing zeros from the pre-allocated newVectors buffer.
-  const commitChunks = cancelled ? allChunks.slice(0, indexed) : allChunks;
-  const commitVectors = cancelled ? newVectors.slice(0, indexed * DIM) : newVectors;
-
-  // Merge into in-memory corpus.
-  const merged = new Float32Array(_vectors.length + commitVectors.length);
-  merged.set(_vectors, 0);
-  merged.set(commitVectors, _vectors.length);
-  _vectors = merged;
-  _chunks.push(...commitChunks);
-
-  // Merge per-doc counts into manifest.
-  const perDocAdded = new Map();
-  for (const c of commitChunks) perDocAdded.set(c.source, (perDocAdded.get(c.source) || 0) + 1);
-  for (const [source, added] of perDocAdded) {
-    const existing = _manifest.docs.find((d) => d.source === source);
-    if (existing) existing.chunks += added;
-    else _manifest.docs.push({ source, chunks: added });
-  }
-  _manifest.numChunks = _chunks.length;
-  _manifest.indexedAt = Date.now();
-
-  await persistAll();
-
-  self.postMessage({
-    type: 'ingest_done',
-    stats: {
-      files_seen: files.length,
-      chunks_indexed: commitChunks.length,
-      chunks_planned: allChunks.length,
-      cancelled,
-      skipped: [],
-    },
+  const transaction = await buildLocalIngestTransaction({
+    files,
+    embedder: _embedder,
+    backend: _embedderBackend,
+    dim: DIM,
+    current: { vectors: _vectors, chunks: _chunks, manifest: _manifest },
+    postProgress: (progress) => self.postMessage({ type: 'progress', ...progress }),
+    yieldTask: macroYield,
+    isAbortRequested: () => _abortRequested,
   });
+
+  if (transaction.nextState) {
+    // Establish a message-queue boundary with the main thread: it disables
+    // Stop and acknowledges commit_ingest only after progress subscribers
+    // have processed the saving state. Any earlier Stop message is ordered
+    // before that acknowledgement and is observed here.
+    /** @type {Promise<void>} */
+    const commitReady = new Promise((resolve) => { _ingestCommitResolve = () => resolve(); });
+    self.postMessage({ type: 'progress', stage: 'saving', total: transaction.stats.chunks_planned });
+    await commitReady;
+    if (_abortRequested) {
+      _abortRequested = false;
+      self.postMessage({
+        type: 'ingest_done',
+        stats: {
+          ...transaction.stats,
+          documents_indexed: 0,
+          chunks_indexed: 0,
+          replaced_documents: 0,
+          cancelled: true,
+        },
+      });
+      return;
+    }
+    const committed = await persistCorpusState(transaction.nextState);
+    _vectors = committed.vectors;
+    _chunks = committed.chunks;
+    _manifest = committed.manifest;
+  }
+  _abortRequested = false;
+  self.postMessage({ type: 'ingest_done', stats: transaction.stats });
 }
 
 // ── Query ─────────────────────────────────────────────────────────
@@ -635,10 +568,11 @@ function handleStats() {
   self.postMessage({
     type: 'stats_result',
     total_chunks: _manifest.numChunks,
-    documents: _manifest.docs.slice(),
+    documents: _manifest.docs.map((doc) => ({ source: doc.source, chunks: doc.chunks })),
     dim: DIM,
     model: MODEL_ID,
     backend: _embedderBackend,
+    ms_per_embed: _benchmarkVerdict?.msPerEmbed ?? null,
   });
 }
 
@@ -669,25 +603,30 @@ async function handleDelete(source) {
     newChunks[w] = _chunks[i];
     w += 1;
   }
-  _vectors = newVec;
-  _chunks = newChunks;
-  _manifest.numChunks = newCount;
-  _manifest.docs = _manifest.docs.filter((d) => d.source !== source);
-  await persistAll();
+  const committed = await persistCorpusState({
+    vectors: newVec,
+    chunks: newChunks,
+    manifest: {
+      ..._manifest,
+      numChunks: newCount,
+      docs: _manifest.docs.filter((d) => d.source !== source),
+    },
+  });
+  _vectors = committed.vectors;
+  _chunks = committed.chunks;
+  _manifest = committed.manifest;
   self.postMessage({ type: 'delete_done', deleted_chunks: deleted });
 }
 
 async function handleClear() {
-  _vectors = new Float32Array(0);
-  _chunks = [];
-  _manifest = {
-    numChunks: 0,
-    dim: DIM,
-    modelId: MODEL_ID,
-    indexedAt: null,
-    docs: [],
-  };
-  await persistAll();
+  const committed = await persistCorpusState({
+    vectors: new Float32Array(0),
+    chunks: [],
+    manifest: emptyManifest(),
+  });
+  _vectors = committed.vectors;
+  _chunks = committed.chunks;
+  _manifest = committed.manifest;
   self.postMessage({ type: 'clear_done' });
 }
 
@@ -715,7 +654,6 @@ async function handleActivateLibrary(libraryId) {
 
   await ensureActiveLibraryEmbedderLoaded();
 
-  await loadActiveManifest();
   await loadCorpusIntoMemory();
   self.postMessage(readyPayload());
 }
@@ -768,7 +706,6 @@ async function handleDeleteLibrary(libraryId) {
   const { wasActive } = await _libraryRegistry.delete(libraryId);
   if (wasActive || _libraryRegistry.libraries.length === 1) {
     await ensureActiveLibraryEmbedderLoaded();
-    await loadActiveManifest();
     await loadCorpusIntoMemory();
   }
   self.postMessage({
@@ -789,9 +726,35 @@ async function handleDeleteLibrary(libraryId) {
 // file's contents from Web Workers" and is what the Evolu SQLite WASM
 // worker uses under the hood.
 
-async function persistAll() {
+function emptyManifest() {
+  return {
+    numChunks: 0,
+    dim: DIM,
+    modelId: MODEL_ID,
+    indexedAt: null,
+    docs: [],
+  };
+}
+
+async function persistCorpusState(state) {
   const dir = await activeLibraryDir();
-  await writeBinaryTo(dir, FILE_MANIFEST, new TextEncoder().encode(JSON.stringify(_manifest)));
-  await writeBinaryTo(dir, FILE_VECTORS, new Uint8Array(_vectors.buffer, _vectors.byteOffset, _vectors.byteLength));
-  await writeBinaryTo(dir, FILE_CHUNKS, new TextEncoder().encode(JSON.stringify(_chunks)));
+  /** @type {typeof writeBinaryTo} */
+  let writeBytes = writeBinaryTo;
+  if (_failNextCorpusPersistForTest) {
+    _failNextCorpusPersistForTest = false;
+    let writeCount = 0;
+    writeBytes = async (targetDir, name, bytes) => {
+      writeCount += 1;
+      if (writeCount === 3) throw new Error('Test corpus persist failure');
+      return writeBinaryTo(targetDir, name, bytes);
+    };
+  }
+  const committed = await writeCorpusSnapshot(dir, state, {
+    activeSlot: _corpusSlot,
+    revision: _corpusRevision,
+    writeBytes,
+  });
+  _corpusSlot = committed.slot;
+  _corpusRevision = committed.revision;
+  return committed.state;
 }

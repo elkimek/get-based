@@ -31,6 +31,7 @@ function _iconSvg(name) {
     compare: `<svg ${attrs}><path d="M17 3l4 4-4 4"></path><path d="M3 7h18"></path><path d="M7 21l-4-4 4-4"></path><path d="M21 17H3"></path></svg>`,
     correlations: `<svg ${attrs}><path d="M3 17c3.5-8 7-8 10.5 0s7 8 10.5 0"></path></svg>`,
     recommendations: `<svg ${attrs}><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M4.93 4.93l2.83 2.83"></path><path d="M16.24 16.24l2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="M4.93 19.07l2.83-2.83"></path><path d="M16.24 7.76l2.83-2.83"></path></svg>`,
+    context: `<svg ${attrs}><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path><circle cx="8" cy="6" r="2"></circle><circle cx="16" cy="12" r="2"></circle><circle cx="10" cy="18" r="2"></circle></svg>`,
     knowledge: `<svg ${attrs}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>`,
     report: `<svg ${attrs}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
     plus: `<svg ${attrs}><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`,
@@ -43,6 +44,7 @@ let navDelegatesInstalled = false;
 const navActionDeps = {
   openLightEnvironmentAssessment: () => {},
   openClientList: () => {},
+  openKnowledgeBase: (options) => openKnowledgeBaseModal(options),
 };
 
 export function configureNavActions(deps = {}) {
@@ -95,7 +97,10 @@ function handleNavActionClick(event) {
   } else if (action === 'open-light-assessment') {
     navActionDeps.openLightEnvironmentAssessment();
   } else if (action === 'open-knowledge-base') {
-    openKnowledgeBaseModal();
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) {
+      closeMobileSidebar();
+    }
+    navActionDeps.openKnowledgeBase({ source: 'sidebar' });
   } else if (action === 'open-report-builder') {
     openReportBuilderFromNavRuntime();
   } else if (action === 'open-context') {
@@ -279,7 +284,9 @@ export function buildSidebar(data) {
   html += `<div class="nav-item" data-category="reports" tabindex="0" role="button" ${_navActionAttrs('open-report-builder')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('report')}</span><span class="nav-item-label">Reports</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="context" tabindex="0" role="button" ${_navActionAttrs('open-context')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Context</span><span class="nav-item-dot"></span></div>`;
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('context')}</span><span class="nav-item-label">Context</span><span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="knowledge-base" tabindex="0" role="button" ${_navActionAttrs('open-knowledge-base')}>
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
 
@@ -373,7 +380,7 @@ export function filterSidebar() {
   // When searching: show matching items, expand groups with matches, hide empty groups
   items.forEach(el => {
     const cat = el.dataset.category;
-    if (cat === 'dashboard' || cat === 'labs' || cat === 'biology-scores' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'context' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
+    if (cat === 'dashboard' || cat === 'labs' || cat === 'biology-scores' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'context' || cat === 'knowledge-base' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
     const label = el.textContent.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';

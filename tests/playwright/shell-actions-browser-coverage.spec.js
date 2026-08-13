@@ -77,7 +77,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         <button id="share-profile" data-shell-action="share-profile"></button>
         <button id="open-tweaks" data-shell-action="open-tweaks"></button>
         <button id="open-settings" data-shell-action="open-settings"></button>
-        <button id="open-ai-settings" data-shell-action="open-ai-settings"></button>
         <button id="open-feedback" data-shell-action="open-feedback"></button>
         <button id="import-status" data-shell-action="import-status"></button>
         <button id="unknown-shell" data-shell-action="unknown"></button>
@@ -112,7 +111,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         click('#share-profile'),
         click('#open-tweaks'),
         click('#open-settings'),
-        click('#open-ai-settings'),
         click('#open-feedback'),
         click('#import-status'),
       ];
@@ -126,7 +124,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         && calls.some(call => call[0] === 'openProfileShareModal')
         && calls.some(call => call[0] === 'openTweaksPanel')
         && calls.some(call => call[0] === 'openSettingsModal' && call[1] === undefined)
-        && calls.some(call => call[0] === 'openSettingsModal' && call[1] === 'ai')
         && calls.some(call => call[0] === 'openFeedbackModal')
         && calls.some(call => call[0] === 'handleImportStatusClick');
 

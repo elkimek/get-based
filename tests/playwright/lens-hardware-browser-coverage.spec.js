@@ -325,7 +325,7 @@ test('external lens browser contract covers validation fetch cache save and remo
         && calls.length === beforeSaveCalls + 1
         && calls[calls.length - 1].body.query === 'berberine glucose'
         && calls[calls.length - 1].body.top_k === 10
-        && document.getElementById('custom-lens-section')?.textContent.includes('Connected');
+        && document.getElementById('custom-lens-section')?.textContent.includes('Active · Saved KB');
 
       const removePromise = lens.handleRemoveLens();
       await Promise.resolve();
@@ -336,7 +336,7 @@ test('external lens browser contract covers validation fetch cache save and remo
         && lens.hasLens() === false
         && localStorage.getItem('labcharts-lens-config') === null
         && (localStorage.getItem('labcharts-lens-key') || '') === ''
-        && document.getElementById('custom-lens-section')?.textContent.includes('Configured (disabled)');
+        && document.getElementById('custom-lens-section')?.textContent.includes('Ready, currently off');
     } finally {
       window.fetch = originalFetch;
       lens.closeKnowledgeBaseModal?.();
@@ -416,12 +416,12 @@ test('in-browser lens render covers local panel status and backend switching wit
       outcomes.localRenderShowsLibraryDropAndNoRemoteFields = section.querySelector('#lens-local-fields') !== null
         && section.querySelector('#lens-local-drop') !== null
         && section.querySelector('#lens-library-select') !== null
-        && section.querySelector('#lens-url-input') !== null
-        && remoteFields
-        && getComputedStyle(remoteFields).display === 'none'
+        && section.querySelector('#lens-url-input') === null
+        && remoteFields === null
         && localFields
         && getComputedStyle(localFields).display !== 'none'
-        && section.textContent.includes('Your documents and questions never leave this device')
+        && section.textContent.includes('Files, embeddings, and searches stay on this device')
+        && section.textContent.includes('matching excerpts are included in the request to your configured AI provider')
         && lens.hasLens() === true
         && summary.configured === true
         && summary.backend === 'in-browser'
@@ -439,7 +439,7 @@ test('in-browser lens render covers local panel status and backend switching wit
         enabledToggle.dispatchEvent(new Event('change', { bubbles: true }));
       }
       outcomes.toggleUpdatesConfigAndStatusChipWithoutRerender = lens.getLensConfig().enabled === false
-        && document.getElementById('lens-status-chip')?.textContent.includes('Configured (disabled)');
+        && document.getElementById('lens-status-chip')?.textContent.includes('Ready, currently off');
 
       section.querySelector('[data-lens-action="clear-cache"]')?.click();
       outcomes.clearCacheKeepsStatusCallable = typeof lens.getLensStatus().state === 'string';
@@ -447,15 +447,14 @@ test('in-browser lens render covers local panel status and backend switching wit
       section.querySelector('[data-lens-action="set-backend"][data-lens-backend="external-server"]')?.click();
       const remoteFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-remote-fields'));
       const localFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-local-fields'));
-      outcomes.backendSwitchRerendersRemoteFieldsAndIndicator = lens.getLensConfig().backend === 'external-server'
+      outcomes.backendSwitchRerendersRemoteFieldsAndRemovesLegacyIndicator = lens.getLensConfig().backend === 'external-server'
         && section.querySelector('#lens-remote-fields') !== null
         && section.querySelector('#lens-url-input') !== null
-        && section.querySelector('#lens-local-drop') !== null
+        && section.querySelector('#lens-local-drop') === null
         && remoteFieldsAfterSwitch
         && getComputedStyle(remoteFieldsAfterSwitch).display !== 'none'
-        && localFieldsAfterSwitch
-        && getComputedStyle(localFieldsAfterSwitch).display === 'none'
-        && document.getElementById('chat-lens-indicator')?.style.display === 'none';
+        && localFieldsAfterSwitch === null
+        && document.getElementById('chat-lens-indicator') === null;
     } finally {
       window.requestAnimationFrame = originalRAF;
       section.remove();

@@ -8,6 +8,12 @@ export const FILE_CHUNKS = 'chunks.json';
 export const FILE_LIBRARIES = '_libraries.json';
 export const FILE_LIBRARIES_BACKUP = '_libraries.backup.json';
 export const DEFAULT_LIBRARY_NAME = 'My Library';
+const CORPUS_SNAPSHOT_SCHEMA = 1;
+
+const CORPUS_SLOT_FILES = {
+  a: { manifest: 'manifest.a.json', vectors: 'vectors.a.bin', chunks: 'chunks.a.json' },
+  b: { manifest: 'manifest.b.json', vectors: 'vectors.b.bin', chunks: 'chunks.b.json' },
+};
 
 export function normaliseLibraryRegistry(registry) {
   if (!registry || !Array.isArray(registry.libraries)) return null;
@@ -101,10 +107,9 @@ export async function readBinaryFrom(dir, name) {
   }
 }
 
-/// Write bytes atomically to a specific directory: truncate + write +
-/// flush + close. flush() is what guarantees the data actually hit disk
-/// before we return; without it the browser may coalesce writes and lose
-/// data on reload if the tab closes between write and coalesce.
+/// Write and flush one file in a specific directory. This operation alone is
+/// not a multi-file transaction; writeCorpusSnapshot provides that guarantee
+/// by writing an inactive generation and committing its manifest last.
 export async function writeBinaryTo(dir, name, bytes) {
   const handle = await dir.getFileHandle(name, { create: true });
   const sync = await handle.createSyncAccessHandle();
@@ -115,4 +120,138 @@ export async function writeBinaryTo(dir, name, bytes) {
   } finally {
     sync.close();
   }
+}
+
+function checksumBytes(bytes) {
+  let fnv = 2166136261;
+  let djb = 5381;
+  for (let i = 0; i < bytes.length; i++) {
+    fnv = Math.imul(fnv ^ bytes[i], 16777619);
+    djb = Math.imul(djb, 33) ^ bytes[i];
+  }
+  return `${bytes.length}:${(fnv >>> 0).toString(36)}:${(djb >>> 0).toString(36)}`;
+}
+
+function corpusSlotFiles(slot) {
+  return slot === 'b' ? CORPUS_SLOT_FILES.b : CORPUS_SLOT_FILES.a;
+}
+
+/** @template T @param {T | null} value @returns {value is T} */
+function isPresent(value) {
+  return value !== null;
+}
+
+async function readCorpusSlotManifest(dir, slot) {
+  try {
+    const files = corpusSlotFiles(slot);
+    const manifest = JSON.parse(await readOpfsFileFrom(dir, files.manifest));
+    const storage = manifest?.storage;
+    if (storage?.schemaVersion !== CORPUS_SNAPSHOT_SCHEMA) return null;
+    if (!Number.isInteger(storage.revision) || storage.revision <= 0) return null;
+    if (typeof storage.vectorsChecksum !== 'string' || typeof storage.chunksChecksum !== 'string') return null;
+    return { slot, files, manifest, revision: storage.revision };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Return the newest parseable snapshot manifest, falling back to the legacy
+ * single-manifest layout for registry recovery. Full checksum validation is
+ * performed by readLatestCorpusSnapshot before a corpus is used.
+ */
+export async function readLatestCorpusManifest(dir) {
+  const candidates = (await Promise.all([
+    readCorpusSlotManifest(dir, 'a'),
+    readCorpusSlotManifest(dir, 'b'),
+  ])).filter(isPresent).sort((a, b) => b.revision - a.revision);
+  if (candidates[0]) return candidates[0].manifest;
+  try { return JSON.parse(await readOpfsFileFrom(dir, FILE_MANIFEST)); }
+  catch { return null; }
+}
+
+/**
+ * Read the newest complete corpus generation. Each generation is written to
+ * an inactive slot with vectors and chunks first and its checksummed manifest
+ * last. A torn write therefore invalidates only the inactive slot; the prior
+ * generation remains available.
+ *
+ * @param {FileSystemDirectoryHandle} dir
+ * @param {{ dim?: number, modelId?: string }} [expected]
+ */
+export async function readLatestCorpusSnapshot(dir, expected = {}) {
+  const manifests = (await Promise.all([
+    readCorpusSlotManifest(dir, 'a'),
+    readCorpusSlotManifest(dir, 'b'),
+  ])).filter(isPresent).sort((a, b) => b.revision - a.revision);
+
+  for (const candidate of manifests) {
+    try {
+      const { manifest, files, slot, revision } = candidate;
+      if (expected.dim !== undefined && manifest.dim !== expected.dim) continue;
+      if (expected.modelId !== undefined && manifest.modelId !== expected.modelId) continue;
+      const vectorBuffer = await readBinaryFrom(dir, files.vectors);
+      const chunkBuffer = await readBinaryFrom(dir, files.chunks);
+      const vectorBytes = new Uint8Array(vectorBuffer);
+      const chunkBytes = new Uint8Array(chunkBuffer);
+      if (checksumBytes(vectorBytes) !== manifest.storage.vectorsChecksum) continue;
+      if (checksumBytes(chunkBytes) !== manifest.storage.chunksChecksum) continue;
+      if (vectorBytes.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) continue;
+      const vectors = new Float32Array(vectorBuffer);
+      const chunks = JSON.parse(new TextDecoder().decode(chunkBytes));
+      if (!Array.isArray(chunks) || !Array.isArray(manifest.docs)) continue;
+      if (chunks.length !== manifest.numChunks || vectors.length !== manifest.numChunks * manifest.dim) continue;
+      return { slot, revision, state: { manifest, vectors, chunks }, legacy: false };
+    } catch {
+      // A partially written inactive slot is expected after interruption.
+    }
+  }
+
+  try {
+    const manifest = JSON.parse(await readOpfsFileFrom(dir, FILE_MANIFEST));
+    if (expected.dim !== undefined && manifest.dim !== expected.dim) return null;
+    if (expected.modelId !== undefined && manifest.modelId !== expected.modelId) return null;
+    const vectorBuffer = await readBinaryFrom(dir, FILE_VECTORS);
+    const chunks = JSON.parse(await readOpfsFileFrom(dir, FILE_CHUNKS));
+    const vectors = new Float32Array(vectorBuffer);
+    if (!Array.isArray(chunks) || !Array.isArray(manifest.docs)) return null;
+    if (chunks.length !== manifest.numChunks || vectors.length !== manifest.numChunks * manifest.dim) return null;
+    return { slot: null, revision: 0, state: { manifest, vectors, chunks }, legacy: true };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist a complete corpus to the inactive generation slot. The returned
+ * state becomes canonical only after the manifest commit record is flushed.
+ *
+ * @param {FileSystemDirectoryHandle} dir
+ * @param {{ manifest: any, vectors: Float32Array, chunks: any[] }} state
+ * @param {{ activeSlot?: string | null, revision?: number, writeBytes?: typeof writeBinaryTo }} [options]
+ */
+export async function writeCorpusSnapshot(dir, state, options = {}) {
+  const slot = options.activeSlot === 'a' ? 'b' : 'a';
+  const files = corpusSlotFiles(slot);
+  const revision = Math.max(0, Number(options.revision) || 0) + 1;
+  const writeBytes = options.writeBytes || writeBinaryTo;
+  const vectorBytes = new Uint8Array(state.vectors.buffer, state.vectors.byteOffset, state.vectors.byteLength);
+  const chunkBytes = new TextEncoder().encode(JSON.stringify(state.chunks));
+  const manifest = {
+    ...state.manifest,
+    storage: {
+      schemaVersion: CORPUS_SNAPSHOT_SCHEMA,
+      revision,
+      vectorsChecksum: checksumBytes(vectorBytes),
+      chunksChecksum: checksumBytes(chunkBytes),
+    },
+  };
+
+  // Manifest-last is the commit boundary. If either data write or the final
+  // manifest write is interrupted, startup rejects this slot and uses the
+  // untouched previous generation.
+  await writeBytes(dir, files.vectors, vectorBytes);
+  await writeBytes(dir, files.chunks, chunkBytes);
+  await writeBytes(dir, files.manifest, new TextEncoder().encode(JSON.stringify(manifest)));
+  return { slot, revision, state: { ...state, manifest } };
 }

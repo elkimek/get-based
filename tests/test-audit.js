@@ -128,6 +128,7 @@ assert('SW APP_SHELL includes lens library handlers module', swAuditSrc.includes
 assert('SW APP_SHELL includes lens cache helper module', swAuditSrc.includes("'/js/lens-cache.js'"));
 assert('SW APP_SHELL includes lens URL helper module', swAuditSrc.includes("'/js/lens-url.js'"));
 assert('SW APP_SHELL includes lens local store helper module', swAuditSrc.includes("'/js/lens-local-store.js'"));
+assert('SW APP_SHELL includes unified chat context status module', swAuditSrc.includes("'/js/chat-context-status.js'"));
 assert('SW APP_SHELL includes DNA action delegates module', swAuditSrc.includes("'/js/dna-actions.js'"));
 assert('SW APP_SHELL includes DNA genotype helper module', swAuditSrc.includes("'/js/dna-genotype.js'"));
 assert('SW APP_SHELL includes DNA UI owner module', swAuditSrc.includes("'/js/dna-ui.js'"));

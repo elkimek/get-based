@@ -90,10 +90,13 @@ export function saveLensConfig(partial) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
   const urlChanged = partial.url !== undefined && partial.url !== prev.url;
   const topKChanged = partial.topK !== undefined && partial.topK !== prev.topK;
-  if (urlChanged || topKChanged) clearLensCache();
-  // Ping listeners so the indicator re-evaluates visibility (without clobbering state)
-  updateLensStatus({});
-  updateChatHeaderModelRuntime();
+  const backendChanged = partial.backend !== undefined && partial.backend !== prev.backend;
+  if (urlChanged || topKChanged || backendChanged) clearLensCache();
+  // A different source must not inherit the previous source's last-search
+  // error. Other edits preserve useful search diagnostics in the settings UI.
+  updateLensStatus(urlChanged || backendChanged
+    ? { state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' }
+    : {});
   return next;
 }
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
@@ -112,7 +115,6 @@ export async function removeLens() {
   updateKeyCache(SECRET_KEY, '');
   clearLensCache();
   updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });
-  updateChatHeaderModelRuntime();
 }
 export function hasLens() {
   const cfg = getLensConfig();
@@ -231,6 +233,7 @@ export async function queryLensMulti(queryHint, opts = {}) {
   try {
     variants = await _rewriteQuery(hint, opts.signal);
   } catch (e) {
+    if (getErrorName(e) === 'AbortError') throw e;
     if (isDebugMode?.()) console.warn('[lens] multi-query rewrite failed:', getErrorMessage(e, e));
   }
 
@@ -246,7 +249,10 @@ export async function queryLensMulti(queryHint, opts = {}) {
   // does a per-backend oversample (the in-browser worker does 3× for MMR;
   // external servers handle it server-side).
   const subResults = await Promise.all(queries.map(q =>
-    queryLens(q, { ...opts, topK }).catch(() => null)
+    queryLens(q, { ...opts, topK }).catch((error) => {
+      if (getErrorName(error) === 'AbortError') throw error;
+      return null;
+    })
   ));
 
   // Find a non-null envelope to inherit cache/source metadata from. If
@@ -348,9 +354,13 @@ async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
     updateLensStatus({ state: 'active', lastChunkCount: chunks.length, lastError: null, sourceName });
     return result;
   } catch (e) {
-    const msg = (e && getErrorName(e) === 'AbortError') ? 'timeout' : (getErrorMessage(e)) || 'unknown error';
+    // Stop means stop: callers use AbortError to end the chat generation.
+    // Treating it as a retrieval timeout would make chat continue into the
+    // answer request and leave a false Knowledge Base error behind.
+    if (getErrorName(e) === 'AbortError') throw e;
+    const msg = getErrorMessage(e) || 'unknown error';
     if (isDebugMode()) console.warn('[Lens] query failed:', backendKey, msg);
-    updateLensStatus({ state: 'error', lastError: msg });
+    updateLensStatus({ state: 'error', lastChunkCount: 0, lastError: msg, sourceName });
     return null;
   }
 }
@@ -387,6 +397,12 @@ async function _fetchRemoteChunks(url, key, hint, topK, opts) {
     return Array.isArray(data && data.chunks) ? data.chunks.slice(0, MAX_CHUNKS)
       .map((c) => ({ text: String(c && c.text || '').slice(0, 4000), source: c && c.source ? String(c.source).slice(0, 200) : '' }))
       .filter((c) => c.text) : [];
+  } catch (error) {
+    if (getErrorName(error) === 'AbortError') {
+      if (outerSignal?.aborted) throw error;
+      if (timeoutCtl.signal.aborted) throw new Error('timeout');
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
@@ -439,30 +455,9 @@ export async function testLensConnection() {
   return { ok: true, chunkCount: result.chunks.length, firstSource: result.chunks[0]?.source || '' };
 }
 
-// ═══════════════════════════════════════════════
-// CHAT-HEADER INDICATOR
-// ═══════════════════════════════════════════════
-export function updateLensIndicator() {
-  const btn = document.getElementById('chat-lens-indicator');
-  const live = document.getElementById('chat-lens-status');
-  if (!btn) return;
-  btn.classList.remove('active', 'error');
-  if (!hasLens()) { btn.style.display = 'none'; if (live) live.textContent = ''; return; }
-  btn.style.display = '';
-  const s = getLensStatus();
-  if (s.state === 'active') btn.classList.add('active');
-  else if (s.state === 'error') btn.classList.add('error');
-  const cfg = getLensConfig();
-  const tip = s.state === 'error'
-    ? `Knowledge source error: ${s.lastError || 'unknown'}`
-    : s.state === 'active'
-      ? `Knowledge source active${cfg.name ? ': ' + cfg.name : ''} · ${s.lastChunkCount || 0} excerpts`
-      : `Knowledge source ready${cfg.name ? ': ' + cfg.name : ''}`;
-  btn.title = tip;
-  if (live) live.textContent = tip;
-}
-
-subscribeLensStatus(updateLensIndicator);
+// Retrieval state belongs to the unified AI Context control in the chat
+// header. Keep that control current without mounting Chat when it is closed.
+subscribeLensStatus(() => updateChatHeaderModelRuntime());
 
 // ═══════════════════════════════════════════════
 // KNOWLEDGE BASE SUMMARY + LAZY UI FACADE
@@ -528,7 +523,7 @@ const lensKnowledgeBaseUiDeps = {
   clearLensCache,
   getLensStatus,
   updateLensStatus,
-  updateLensIndicator,
+  hasLens,
   isValidLensUrl,
   testLensConnection,
   recordLocalLensStats,
@@ -608,8 +603,8 @@ export function renderCustomLensSection() {
   return '<div class="settings-loading-placeholder" data-lens-ui-loading>Loading Knowledge Base controls…</div>';
 }
 
-export function openKnowledgeBaseModal() {
-  return runLensKnowledgeBaseUiAction('openKnowledgeBaseModal', []);
+export function openKnowledgeBaseModal(options = {}) {
+  return runLensKnowledgeBaseUiAction('openKnowledgeBaseModal', [options]);
 }
 
 export function closeKnowledgeBaseModal() {
