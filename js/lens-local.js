@@ -34,6 +34,12 @@ function ensureWorker() {
     switch (msg.type) {
       case 'progress':
         for (const fn of _progressSubs) { try { fn(msg); } catch {} }
+        // The worker pauses at the saving boundary. Notify subscribers first
+        // so the UI disables Stop, then acknowledge the commit. Worker message
+        // ordering ensures a Stop already clicked is processed before this.
+        if (msg.stage === 'saving') {
+          try { _worker?.postMessage({ type: 'commit_ingest' }); } catch {}
+        }
         return;
       case 'ready':
       case 'ingest_done':
@@ -199,7 +205,8 @@ export async function openLocalLens() {
 
 /// Subscribe to ingest progress events. Returns an unsubscribe function.
 /// Emits { stage: 'start', total } once, then repeated
-/// { stage: 'embed', index, total, source } during the embed pass.
+/// { stage: 'embed', index, total, source } during the embed pass, then
+/// { stage: 'saving', total } at the final non-cancellable commit boundary.
 export function subscribeProgress(fn) {
   _progressSubs.add(fn);
   return () => _progressSubs.delete(fn);
