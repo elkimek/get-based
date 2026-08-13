@@ -204,6 +204,8 @@ assert('Empty first visit starts empty tour before chat onboarding',
   dashboardPageViewSrc.includes("const shouldAutoStartEmptyTour = !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
   dashboardPageViewSrc.includes('setTimeout(() => startEmptyTour(true), 100)') &&
   dashboardPageViewSrc.includes('if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0)'));
+assert('Cancelled chat onboarding timer cannot reopen a dismissed panel',
+  dashboardPageViewSrc.includes("if (!document.body.classList.contains('chat-autostart-reserved')) return;"));
 const setupIdx = dashboardPageViewSrc.indexOf('setupDropZone()');
 const emptyTourIdx = dashboardPageViewSrc.indexOf('setTimeout(() => startEmptyTour(true), 100)');
 const tourIdx = dashboardPageViewSrc.indexOf('startTour(true)');

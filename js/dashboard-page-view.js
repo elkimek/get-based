@@ -297,6 +297,10 @@ export function createDashboardPageView(deps) {
         }
         setTimeout(() => {
           if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return;
+          // Rendering real data or an explicit chat close removes this
+          // reservation. Treat that as cancellation so a stale onboarding
+          // timer cannot reopen chat after the user has dismissed it.
+          if (!document.body.classList.contains('chat-autostart-reserved')) return;
           const panel = document.getElementById('chat-panel');
           if (state.chatHistory.length > 0 || panel?.classList.contains('open')) {
             document.body.classList.remove('chat-autostart-reserved');
