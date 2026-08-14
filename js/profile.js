@@ -629,10 +629,6 @@ export function getLocationCache() { try { return JSON.parse(localStorage.getIte
  */
 export function setLocationCache(key, value) { var c = getLocationCache(); c[key] = value; try { localStorage.setItem('labcharts-location-cache', JSON.stringify(c)); } catch(e) {} }
 
-/**
- * @param {any} value
- * @returns {number | null}
- */
 function cachedLatitude(value) {
   if (Number.isFinite(value)) return Number(value);
   const latitude = Number(value?.lat ?? value?.latitude);
