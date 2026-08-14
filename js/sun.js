@@ -718,7 +718,7 @@ configureSunSessionUI({
 
 configureAIVerdictRuntimeDeps({ refreshSunSurfaces: _refreshSurfaces });
 configureProfileContextLightDeps({ rollingChannelTotals, rollingVitaminDIU });
-configureSunDefaultsRuntimeDeps({ getSunCoords, requestPreciseLocation });
+configureSunDefaultsRuntimeDeps({ getSunCoords, requestPreciseLocation, clearCurrentLocation });
 
 // Reset all sun.js module-singleton state. Called on profile switch so
 // caches/timers from profile A don't bleed into profile B (e.g. region-

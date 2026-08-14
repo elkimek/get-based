@@ -39,6 +39,7 @@ const ENV_KEYS = [
   'PROXY_RATE_LIMIT_WINDOW_MS',
   'PROXY_RATE_LIMIT_BLOB_TOKEN',
   'PROXY_ALLOW_INSTANCE_RATE_LIMIT',
+  'PROXY_POSTAL_QUEUE_MAX',
   'PROXY_UPSTREAM_TIMEOUT_MS',
   'VERCEL',
   'VERCEL_GIT_COMMIT_SHA',
@@ -1477,6 +1478,37 @@ describe('AI proxy runtime behavior', () => {
     expect(url).toContain('https://nominatim.openstreetmap.org/search?');
     expect(url).toContain('postalcode=110+00');
     expect(init.headers['User-Agent']).toContain('getbased-health-location-proxy');
+  });
+
+  it('bounds the shared postal-geocode queue before admitting more cache misses', async () => {
+    process.env.PROXY_POSTAL_QUEUE_MAX = '1';
+    let releaseFirst;
+    globalThis.fetch = vi.fn(() => new Promise(resolve => { releaseFirst = resolve; }));
+    const first = proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '120 00',
+    }, { clientIp: '203.0.113.93' }));
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1), { timeout: 2_500 });
+    const overflow = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '130 00',
+    }, { clientIp: '203.0.113.94' }));
+    expect(overflow.status).toBe(503);
+    expect(overflow.headers.get('Retry-After')).toBe('10');
+    expect(await responseJson(overflow)).toEqual({ error: 'Location lookup busy. Try again shortly.' });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    releaseFirst(jsonResponse([{
+      lat: '50.0755',
+      lon: '14.4378',
+      name: '120 00',
+      display_name: '120 00, Prague, Czechia',
+      address: { postcode: '120 00' },
+    }]));
+    expect((await first).status).toBe(200);
   });
 
   it('strips the CAMS bearer before following an allowed cross-origin redirect', async () => {

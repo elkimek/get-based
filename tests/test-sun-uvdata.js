@@ -451,8 +451,8 @@ const {
       /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(apiProxySrc));
     assert('Vercel CAMS proxy surfaces missing hosted bearer explicitly',
       /CAMS hosted relay requires UVDATA_BEARER/.test(apiProxySrc));
-    assert('Light explainer says CAMS is the default atmosphere source',
-      /<strong>Atmosphere data\.<\/strong>[\s\S]{0,180}>CAMS<\/a> by default/.test(lightPageViewSrc));
+    assert('Light explainer says CAMS is the default atmosphere source and Open-Meteo is the fallback',
+      /<strong>Weather data\.<\/strong>[\s\S]{0,220}>CAMS<\/a> is the default atmosphere source[\s\S]{0,300}>Open-Meteo<\/a>[\s\S]{0,180}fallback when CAMS is unavailable/.test(lightPageViewSrc));
     assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
       /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
     assert('fetchJson does Content-Length pre-check',

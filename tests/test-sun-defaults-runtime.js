@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import {
+  clearSunSetupCurrentLocationRuntime,
   configureSunDefaultsRuntimeDeps,
   getSunSetupCoords,
   getSunSetupProfileLocation,
@@ -53,6 +54,7 @@ try {
       calls.push(['precise']);
       return Promise.resolve({ lat: 50.1, lon: 14.4 });
     },
+    clearCurrentLocation: () => calls.push(['clear-current']),
     navigate: route => calls.push(['navigate', route]),
     openProfileLocationEditor: () => calls.push(['profile-location']),
     openClientList: () => calls.push(['client-list']),
@@ -76,6 +78,8 @@ try {
   const coords = await requestSunSetupPreciseLocationRuntime();
   assert('requestSunSetupPreciseLocationRuntime delegates to precise requester',
     coords?.lat === 50.1 && calls.some(call => call[0] === 'precise'));
+  assert('clearSunSetupCurrentLocationRuntime delegates to the temporary-location clearer',
+    clearSunSetupCurrentLocationRuntime() === true && calls.some(call => call[0] === 'clear-current'));
 
   navigateSunDefaultsRoute('light');
   assert('navigateSunDefaultsRoute delegates route navigation',
@@ -86,6 +90,7 @@ try {
     getProfileLocation: () => ({ country: '', zip: '' }),
     navigate: null,
     requestPreciseLocation: null,
+    clearCurrentLocation: null,
     openClientList: null,
   });
   assert('missing runtime functions return safe fallbacks',
@@ -93,7 +98,8 @@ try {
     getSunSetupProfileLocation().country === '' &&
     openSunSetupProfileLocationRuntime() === false &&
     hasSunSetupPreciseLocationRequester() === false &&
-    requestSunSetupPreciseLocationRuntime() === null);
+    requestSunSetupPreciseLocationRuntime() === null &&
+    clearSunSetupCurrentLocationRuntime() === false);
 
   delete globalThis.window;
   const beforeNoWindowCalls = calls.length;
@@ -104,6 +110,7 @@ try {
     openSunSetupProfileLocationRuntime() === false &&
     hasSunSetupPreciseLocationRequester() === false &&
     requestSunSetupPreciseLocationRuntime() === null &&
+    clearSunSetupCurrentLocationRuntime() === false &&
     calls.length === beforeNoWindowCalls);
 } finally {
   configureSunDefaultsRuntimeDeps(originalSunDefaultsRuntimeDeps);

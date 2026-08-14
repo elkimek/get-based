@@ -552,8 +552,10 @@ assert('marker history controls keep their styling in the lazy marker-detail bun
   !markerDetailSrc.includes('light-sessions-show-more marker-history-show-more') &&
   markerDetailCssAuditSrc.includes('.marker-detail-modal .marker-history-show-more:hover'));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
-assert('Light channel device names escaped before next-move HTML',
-  /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
+assert('Light channel next-move HTML does not render dynamic device names',
+  lightChannelViewSrc.includes('const showDev = !!matchingDevice;') &&
+    !lightChannelViewSrc.includes('matchingDevice.brand') &&
+    !lightChannelViewSrc.includes('matchingDevice.model'));
 assert('Genome genetics refs keep shared unscoped CSS',
   dnaUiSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(geneticsCssAuditSrc));
 assert('Marker detail bundle does not own shared genetics refs',
@@ -701,6 +703,7 @@ const lightConditionsCss = read('css/light-conditions-now.css');
 const lightSetupCss = read('css/light-setup.css');
 const sunSrc = read('js/sun.js');
 const sunActiveSessionSrc = read('js/sun-active-session.js');
+const sunActiveSessionFormatSrc = read('js/sun-active-session-format.js');
 const modalLifecycleSrc = read('js/modal-lifecycle.js');
 const markerAnalysisSrc = read('js/marker-analysis.js');
 const sunSessionUiSrc = read('js/sun-session-ui.js');
@@ -863,24 +866,25 @@ assert('Light channel pills use redesigned channel tile treatment',
   cssSrc.includes('.light-channels-section .light-pill[data-channel="violet_eye"] { --channel-accent: var(--purple); }'));
 assert('Light channel detail charts inherit activated channel accent',
   lightChannelViewSrc.includes('class="light-channel-detail" data-channel="${escapeAttr(channelKey)}"') &&
-  lightChannelViewSrc.includes("return 'var(--channel-accent, var(--accent))';") &&
+  lightChannelViewSrc.includes('fill="var(--channel-accent, var(--accent))"') &&
   /\.light-channel-detail\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*border:\s*1px solid color-mix\(in srgb, var\(--channel-accent\)/.test(cssSrc) &&
   cssSrc.includes('.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }') &&
   /\.light-channel-weekchart\s*\{[\s\S]*color-mix\(in srgb, var\(--channel-accent\) 8%, transparent\)/.test(cssSrc));
 assert('Light recent session rows and modals use session/channel accents',
-  sunSessionUiSrc.includes('class="sun-session light-session-row light-session-sun"') &&
-  lightSessionsViewSrc.includes('function _renderLightSessionChannelChips') &&
-  lightSessionsViewSrc.includes('${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}') &&
+  sunSessionUiSrc.includes('class="sun-session light-session-row light-session-complete light-session-sun"') &&
+  lightSessionsViewSrc.includes('class="sun-session light-session-row light-session-complete light-session-device"') &&
+  !lightSessionsViewSrc.includes('_renderLightSessionChannelChips') &&
   sunSessionUiSrc.includes('class="modal sun-detail-modal" data-session-kind="sun"') &&
   lightDevicesSrc.includes('class="modal sun-detail-modal" data-session-kind="device"') &&
-  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSessionUiSrc) &&
-  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
+  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{hasSignal \? 2 : 0\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSessionUiSrc) &&
+  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{hasSignal \? 2 : 0\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
   /\.light-session-row\s*\{[\s\S]*--session-accent:\s*var\(--orange\);[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/.test(cssSrc) &&
   /\.sun-detail-channel-row\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*grid-template-columns:[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc));
 assert('Sun session chip legacy vitamin D path applies genetics multiplier',
   sunSessionUiSrc.includes('uiDeps.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null)'));
 assert('Active sun session live and stop vitamin D paths apply genetics multiplier',
-  sunActiveSessionSrc.includes('activeDeps.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null)') &&
+  sunActiveSessionFormatSrc.includes('options.vitaminDIU(vitaminDAu, fitzpatrick, uvIndex, !!session.bodyExposure?.rotatedSides, options.genetics || null)') &&
+  sunActiveSessionSrc.includes('genetics: state.importedData?.genetics') &&
   sunActiveSessionSrc.includes('activeDeps.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null)'));
 assert('Light context setup mirror is not double-framed',
   /\.ctx-lightsetup-mirror\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*padding:\s*0;/.test(cssSrc));

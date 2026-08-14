@@ -17,6 +17,7 @@ import {
   renderSetupLocationStatus,
 } from './sun-defaults-setup-renderer.js';
 import {
+  clearSunSetupCurrentLocationRuntime,
   hasSunSetupPreciseLocationRequester,
   navigateSunDefaultsRoute,
   openSunSetupProfileLocationRuntime,
@@ -63,7 +64,7 @@ function isOnboardingComplete() {
   return !!setupDeps.isOnboardingComplete();
 }
 
-let lightSetupDelegatesInstalled = false;
+const lightSetupDelegateRoots = new WeakSet();
 
 function parseSetupIndex(value) {
   const index = Number.parseInt(String(value ?? ''), 10);
@@ -125,6 +126,10 @@ function handleLightSetupClick(event) {
       event.preventDefault();
       void requestLightSetupPreciseLocation();
       break;
+    case 'clear-current-location':
+      event.preventDefault();
+      clearLightSetupCurrentLocation();
+      break;
   }
 }
 
@@ -155,8 +160,8 @@ function handleLightSetupKeydown(event) {
 export function installLightSetupDelegates(
   root = typeof document !== 'undefined' ? document : null,
 ) {
-  if (!root || lightSetupDelegatesInstalled) return;
-  lightSetupDelegatesInstalled = true;
+  if (!root || lightSetupDelegateRoots.has(root)) return;
+  lightSetupDelegateRoots.add(root);
   root.addEventListener('click', handleLightSetupClick);
   root.addEventListener('input', handleLightSetupInput);
   root.addEventListener('keydown', handleLightSetupKeydown);
@@ -274,6 +279,16 @@ async function requestLightSetupPreciseLocation() {
   const coords = await requestSunSetupPreciseLocationRuntime();
   refreshSetupLocationStatus();
   return coords;
+}
+
+function clearLightSetupCurrentLocation() {
+  if (!clearSunSetupCurrentLocationRuntime()) {
+    showNotification('Current location could not be cleared here.');
+    return false;
+  }
+  refreshSetupLocationStatus();
+  showNotification('Current location cleared — your home or country location is active again.');
+  return true;
 }
 
 function readSetupFieldValue(root, id) {

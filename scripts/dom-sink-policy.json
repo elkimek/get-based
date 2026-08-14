@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 637,
+  "scannedFiles": 641,
   "sinkCount": 497,
   "files": {
     "js/backup.js": {
@@ -153,7 +153,7 @@
     },
     "js/client-list-form.js": {
       "count": 4,
-      "digest": "0fd68fe654295fd82b251b9128699a5691aab1ddc884e7cccbeb558c9f9b5b30",
+      "digest": "1a0c1eb6a111884dc9e88563152a99426fe3317e871f37cd8bf66db9d48ed7ff",
       "kinds": {
         "innerHTML": 4
       }
@@ -414,50 +414,50 @@
     },
     "js/light-conditions-now.js": {
       "count": 5,
-      "digest": "db24351d994d0e119e7e85a7e69a07c05f57d037abb31d82bd238a80b13eb105",
+      "digest": "aeb6494fb78f3b7d75bd49119cb2d6ac6bdc19864b1632d05e614eb945e515d3",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/light-device-session-modal.js": {
       "count": 2,
-      "digest": "d51e2f4ec2079ccd84d2a3dc2c5a15111f13a28ac736a1d9de9f0eacfb97e1f9",
+      "digest": "c78a7ebe23e085478811575305851154e713f8996ee54a57c28ef0ce62d5462d",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-device-setup-modal.js": {
       "count": 2,
-      "digest": "04d98fc2ea9852258192fb701915f5a5c2eb0ce7ee0ab328a4f8fe28ef8f31ff",
+      "digest": "64e4c7a0e0f179b47fb2df86eba0657604bc62c518383cc74039ae3cdcf09b50",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-devices.js": {
       "count": 3,
-      "digest": "9aa17c52093572c4c7f6447576a44fe28e8675d3435a0e5460b71557aafb118d",
+      "digest": "d7e2642d12acb82592fe9be0eb95e4f623c812e70556934d42dc96e8d83d9068",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-env.js": {
       "count": 1,
-      "digest": "67d3347ee936742b172ae4da56672baec1ffebe8f9b6b62c4e5efb6496130d47",
+      "digest": "5a93ca8bb9ce953b2aa4eb85aee75f4f682b959778efcad89da5aa6021291e4e",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/light-page-view.js": {
-      "count": 6,
-      "digest": "37b830e1183b7e33479766352100cf94bf68ae5d6346e17c99883c1e19aa0078",
+      "count": 9,
+      "digest": "194252e50e2477527bfaf17397a6071178ea2734a0af3ab09409c64e2c17b239",
       "kinds": {
         "innerHTML": 3,
-        "outerHTML": 3
+        "outerHTML": 6
       }
     },
     "js/light-sessions-view.js": {
       "count": 1,
-      "digest": "5e4ed3c04f8fb525723b98fbbff3f2dbdecd7a56417d2b9a6cd411281954555e",
+      "digest": "ed332699327a32a715b0d1a98124bc821b3811b2c10cf88359479a2e2729bbce",
       "kinds": {
         "innerHTML": 1
       }
@@ -471,51 +471,51 @@
     },
     "js/light-tool-cct-meter.js": {
       "count": 3,
-      "digest": "8e2fa70a72efdcd7d81b743100eed864384d99f00b9a2aeba6e6bbd55b4bd83a",
+      "digest": "7584eb83e21fa8b6e6ad60026242cc38277f73578dd0be1c7eef84b44eec2ba3",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-tool-darkness-meter.js": {
       "count": 3,
-      "digest": "6ec47183bb8c1a09b397d8117de9bd4478b53e403e769718512ff3cfd7b38154",
+      "digest": "b75a133e5daa5be4241c8d12b9258c7bc4f4eafebb2e5f9cf5a9ad39b30e528d",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-tool-flicker-detector.js": {
       "count": 5,
-      "digest": "7ed978f0d6051bbe5eecbfcb62e4e00633edd880020acdcde2e19d1f1e0afaf9",
+      "digest": "f76c2758ae16e947bc1a51b071c19a59ddfbaa7c080c7179fd3e3ca97ca5d4bb",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/light-tool-glass-transmission.js": {
       "count": 2,
-      "digest": "0023d55bbc0da3c418ceeacc74049cf3ad4dab47240a7dd0998901592307b01d",
+      "digest": "845a2624a2807c44c22b13c9f341ba1183049a95ceae6e4eba08b1334ae44585",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-tool-lux-meter.js": {
-      "count": 7,
-      "digest": "3f7f636414151b5a97fba195d64f4948c23ff2c3a4c1e2fe999cffcb8b2b26c3",
+      "count": 6,
+      "digest": "e3846d7175570c6d0bcc7a63aa840a787616b0eed8a13effb9774de2ef9f7cb4",
       "kinds": {
-        "innerHTML": 7
+        "innerHTML": 6
       }
     },
     "js/light-tool-spectrum-classifier.js": {
       "count": 4,
-      "digest": "909039030ce3fa82f8d15654781da6f8cfab76dee8b29b132b18301a036ee8c2",
+      "digest": "6c064c2db9aed61d71d0307dfa72460ae92ae7e3c1f4009ab921285352af267c",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/light-tools.js": {
-      "count": 5,
-      "digest": "ad5b1c545558fb367db23254318c0b8c72f7bfe5bb79ff0abb3b8e5d14745400",
+      "count": 6,
+      "digest": "13efcbc69f825a1b2a883865e3418fbd01b677052f03ecef9a0b250918a3d551",
       "kinds": {
-        "innerHTML": 5
+        "innerHTML": 6
       }
     },
     "js/marker-detail-custom-markers.js": {
@@ -760,11 +760,11 @@
       }
     },
     "js/sun-active-session.js": {
-      "count": 12,
-      "digest": "faf10cd436b0b99989e71ca1d14bca7f8974f932672cbb1d9182f9b0f9b98ede",
+      "count": 9,
+      "digest": "e9423d16e504fc8c492799d738ae0f84fc7906f2f88cc8b6b5cd96cbad3f36b4",
       "kinds": {
         "innerHTML": 6,
-        "insertAdjacentHTML": 5,
+        "insertAdjacentHTML": 2,
         "outerHTML": 1
       }
     },
@@ -777,7 +777,7 @@
     },
     "js/sun-defaults-setup-ui.js": {
       "count": 3,
-      "digest": "9a8afb674a2b671a343dd76d05d692192f0b92c24d9093990ad201d554fe276b",
+      "digest": "0be68382be6e10b616898e5f4fbf7b47a08757641b4427dcc257fc249a962d75",
       "kinds": {
         "innerHTML": 2,
         "outerHTML": 1
@@ -785,7 +785,7 @@
     },
     "js/sun-session-ui.js": {
       "count": 2,
-      "digest": "caf2e5881f581023b6181d56082c055f77e7fbdc9e8c966aa14eadda2bb3178c",
+      "digest": "1b1ab1709cfe007c2956f7a0bc104261c808ab34b13a691139319720f32161c4",
       "kinds": {
         "innerHTML": 2
       }

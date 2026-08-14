@@ -64,6 +64,10 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         precise = true;
         return { lat: 50.087, lon: 14.421 };
       },
+      clearCurrentLocation: () => {
+        calls.push(['clear-current-location']);
+        precise = false;
+      },
     });
 
     try {
@@ -110,6 +114,14 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       outcomes.preciseLocationRefreshUpdatesStatus =
         calls.some(call => call[0] === 'precise-location')
         && document.querySelector('.light-setup-location-status')?.textContent.includes('today only');
+      document.querySelector('[data-light-setup-action="clear-current-location"]')?.click();
+      await waitUntil(
+        () => document.querySelector('.light-setup-location-status')?.textContent.includes('Profile estimate'),
+        'home location restored',
+      );
+      outcomes.temporaryLocationCanBeClearedBeforeMidnight =
+        calls.some(call => call[0] === 'clear-current-location')
+        && !document.querySelector('[data-light-setup-action="clear-current-location"]');
 
       document.querySelector('.light-setup-save-btn')?.click();
       await wait(0);

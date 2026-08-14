@@ -4,11 +4,26 @@ import { fetchWithValidatedRedirects, readResponseTextWithCap } from '../lib/pro
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const CACHE_MAX = 512;
+const DEFAULT_QUEUE_MAX = 8;
 const cache = new Map();
 let requestQueue = Promise.resolve();
 let lastRequestStartedAt = 0;
+let queuedRequests = 0;
+
+class PostalQueueFullError extends Error {}
+
+function postalQueueMax() {
+  const configured = Number.parseInt(process.env.PROXY_POSTAL_QUEUE_MAX || '', 10);
+  return Number.isFinite(configured) && configured >= 1 && configured <= 64
+    ? configured
+    : DEFAULT_QUEUE_MAX;
+}
 
 function fetchPostalGeocodeUpstream(url, options, signal) {
+  if (queuedRequests >= postalQueueMax()) {
+    throw new PostalQueueFullError('Postal lookup queue is full');
+  }
+  queuedRequests++;
   const run = async () => {
     const waitMs = Math.max(0, 1100 - (Date.now() - lastRequestStartedAt));
     if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
@@ -17,7 +32,7 @@ function fetchPostalGeocodeUpstream(url, options, signal) {
   };
   const pending = requestQueue.then(run, run);
   requestQueue = pending.then(() => undefined, () => undefined);
-  return pending;
+  return pending.finally(() => { queuedRequests--; });
 }
 
 /**
@@ -76,6 +91,12 @@ export async function handlePostalGeocode(payload, req, helpers) {
     while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
     return new Response(JSON.stringify(value), { status: 200, headers: { ...responseHeaders(), 'Cache-Control': 'no-store' } });
   } catch (error) {
+    if (error instanceof PostalQueueFullError) {
+      return new Response(JSON.stringify({ error: 'Location lookup busy. Try again shortly.' }), {
+        status: 503,
+        headers: { ...responseHeaders(), 'Retry-After': '10' },
+      });
+    }
     return helpers.proxyUpstreamErrorResponse(req, error, 'Location lookup unavailable');
   }
 }

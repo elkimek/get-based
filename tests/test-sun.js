@@ -589,7 +589,9 @@ const {
   });
   const rehydrateA = rehydrateStaleSessions();
   const rehydrateB = rehydrateStaleSessions();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  for (let attempt = 0; attempt < 50 && fetchCalls === 0; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
   assert('Concurrent rehydrate batches share one atmosphere fetch per stale session',
     fetchCalls === 1, `fetchCalls=${fetchCalls}`);
   releaseFetch();

@@ -372,6 +372,7 @@ function getSetupLocationStatus() {
       badge: 'today only',
       detail: 'Privacy-rounded in this tab and cleared at local midnight; it is not saved to your profile.',
       preciseLabel: 'Refresh current location',
+      clearLabel: 'Use home instead',
     };
   }
   if (coords?.source === 'profile-precise') {
@@ -381,6 +382,7 @@ function getSetupLocationStatus() {
       badge: 'legacy profile',
       detail: 'Existing saved coordinates drive sun-angle and UV-index math. New device locations are temporary.',
       preciseLabel: 'Use current location today',
+      clearLabel: '',
     };
   }
   if (coords?.source === 'home-postal') {
@@ -390,6 +392,7 @@ function getSetupLocationStatus() {
       badge: 'home context',
       detail: 'A privacy-rounded home area supports circadian, daylight, and UV estimates without tracking travel.',
       preciseLabel: 'Use current location today',
+      clearLabel: '',
     };
   }
   if (coords?.source === 'country-band') {
@@ -399,6 +402,7 @@ function getSetupLocationStatus() {
       badge: 'profile',
       detail: `${country ? `${country} profile location. ` : ''}Add an optional postal code for home context, or use current location for today's conditions.`,
       preciseLabel: 'Use current location today',
+      clearLabel: '',
     };
   }
   return {
@@ -407,6 +411,7 @@ function getSetupLocationStatus() {
     badge: 'optional',
     detail: 'Set a home country in Profile, or explicitly share a privacy-rounded current location for today.',
     preciseLabel: 'Use current location today',
+    clearLabel: '',
   };
 }
 
@@ -424,6 +429,7 @@ export function renderSetupLocationStatus() {
     <div class="light-setup-location-actions">
       <button type="button" class="import-btn import-btn-secondary" ${lightSetupActionAttrs('open-profile-location')}>Edit profile</button>
       <button type="button" class="import-btn import-btn-secondary" ${lightSetupActionAttrs('request-precise-location')}>${escapeHTML(status.preciseLabel)}</button>
+      ${status.clearLabel ? `<button type="button" class="import-btn import-btn-secondary" ${lightSetupActionAttrs('clear-current-location')}>${escapeHTML(status.clearLabel)}</button>` : ''}
     </div>
   </div>`;
 }

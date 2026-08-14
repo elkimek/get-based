@@ -2717,9 +2717,9 @@ await import('../js/settings.js');
   assert('sun-uvdata: lon coerced to Number + clamped to ±180',
     await fetchWithRetry('js/sun-uvdata.js').then(s =>
       /Math\.max\(-180,\s*Math\.min\(180,\s*Number\(lon\)\)\)/.test(s)));
-  assert('sun-uvdata: safe lat/lon used in URL via toFixed(6)',
+  assert('sun-uvdata: safe lat/lon pass through URLSearchParams via toFixed(6)',
     await fetchWithRetry('js/sun-uvdata.js').then(s =>
-      /latitude=\$\{safeLat\.toFixed\(6\)\}&longitude=\$\{safeLon\.toFixed\(6\)\}/.test(s)));
+      /new URLSearchParams\(\{[\s\S]{0,180}latitude:\s*safeLat\.toFixed\(6\),[\s\S]{0,100}longitude:\s*safeLon\.toFixed\(6\)/.test(s)));
 
   // ═══════════════════════════════════════
   // 14h. v1.7.14 PRE-v1.7 AUDIT FIXES
