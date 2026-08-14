@@ -12,6 +12,50 @@ let queuedRequests = 0;
 
 class PostalQueueFullError extends Error {}
 
+function postalAbortReason(signal) {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new DOMException('Postal lookup aborted', 'AbortError');
+}
+
+function waitForPostalThrottle(waitMs, signal) {
+  if (!waitMs) return Promise.resolve();
+  if (signal?.aborted) return Promise.reject(postalAbortReason(signal));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort);
+      resolve();
+    }, waitMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener?.('abort', onAbort);
+      reject(postalAbortReason(signal));
+    };
+    signal?.addEventListener?.('abort', onAbort, { once: true });
+  });
+}
+
+function settlePostalRequestForCaller(pending, signal, releaseSlot) {
+  if (!signal?.addEventListener) return pending.finally(releaseSlot);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', onAbort);
+      releaseSlot();
+      callback(value);
+    };
+    const onAbort = () => finish(reject, postalAbortReason(signal));
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+    pending.then(
+      value => finish(resolve, value),
+      error => finish(reject, error),
+    );
+  });
+}
+
 function postalQueueMax() {
   const configured = Number.parseInt(process.env.PROXY_POSTAL_QUEUE_MAX || '', 10);
   return Number.isFinite(configured) && configured >= 1 && configured <= 64
@@ -20,19 +64,28 @@ function postalQueueMax() {
 }
 
 function fetchPostalGeocodeUpstream(url, options, signal) {
+  if (signal?.aborted) throw postalAbortReason(signal);
   if (queuedRequests >= postalQueueMax()) {
     throw new PostalQueueFullError('Postal lookup queue is full');
   }
   queuedRequests++;
+  let slotReleased = false;
+  const releaseSlot = () => {
+    if (slotReleased) return;
+    slotReleased = true;
+    queuedRequests--;
+  };
   const run = async () => {
+    if (signal?.aborted) throw postalAbortReason(signal);
     const waitMs = Math.max(0, 1100 - (Date.now() - lastRequestStartedAt));
-    if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
+    await waitForPostalThrottle(waitMs, signal);
+    if (signal?.aborted) throw postalAbortReason(signal);
     lastRequestStartedAt = Date.now();
     return fetchWithValidatedRedirects(url, options, { signal });
   };
   const pending = requestQueue.then(run, run);
   requestQueue = pending.then(() => undefined, () => undefined);
-  return pending.finally(() => { queuedRequests--; });
+  return settlePostalRequestForCaller(pending, signal, releaseSlot);
 }
 
 /**

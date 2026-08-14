@@ -78,6 +78,7 @@ function makeProxyRequest(body, {
   rawBody,
   clientIp,
   requestUrl = 'https://getbased.health/api/proxy',
+  signal,
 } = {}) {
   const headers = new Headers();
   if (origin) headers.set('origin', origin);
@@ -87,6 +88,7 @@ function makeProxyRequest(body, {
     method,
     headers,
     body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
 }
 
@@ -1509,6 +1511,46 @@ describe('AI proxy runtime behavior', () => {
       address: { postcode: '120 00' },
     }]));
     expect((await first).status).toBe(200);
+  });
+
+  it('releases postal queue capacity when a throttled request disconnects', async () => {
+    process.env.PROXY_POSTAL_QUEUE_MAX = '1';
+    globalThis.fetch = vi.fn(async url => {
+      const postalCode = new URL(url).searchParams.get('postalcode');
+      return jsonResponse([{
+        lat: '50.0755',
+        lon: '14.4378',
+        name: postalCode,
+        display_name: `${postalCode}, Prague, Czechia`,
+        address: { postcode: postalCode },
+      }]);
+    });
+
+    const warmup = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '140 00',
+    }, { clientIp: '203.0.113.95' }));
+    expect(warmup.status).toBe(200);
+
+    const controller = new AbortController();
+    const disconnected = proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '150 00',
+    }, { clientIp: '203.0.113.96', signal: controller.signal }));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    controller.abort(new DOMException('Client disconnected', 'AbortError'));
+
+    const replacement = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '160 00',
+    }, { clientIp: '203.0.113.97' }));
+    expect(replacement.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect((await disconnected).status).toBe(502);
   });
 
   it('strips the CAMS bearer before following an allowed cross-origin redirect', async () => {
