@@ -29,7 +29,7 @@ function projectSession(sess, fields) {
       sed: s.sed != null ? +s.sed.toFixed(2) : null,
       medFraction: s.medFraction != null ? +s.medFraction.toFixed(2) : null,
       fitzpatrick: s.fitzpatrick || null,
-      retinalUV: s.retinalUV != null ? +s.retinalUV.toFixed(1) : null,
+      ocularActinicUV: (s.ocularActinicUV ?? s.retinalUV) != null ? +(s.ocularActinicUV ?? s.retinalUV).toFixed(1) : null,
     };
   }
   if (fields.includes('atmosphere') && sess.atmosphere) {

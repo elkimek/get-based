@@ -750,13 +750,14 @@ assert('Light page uses full workspace width',
 assert('Light page grid uses zero-min track for mobile',
   /\.light-page\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*min-width:\s*0;/.test(cssSrc) &&
   /\.light-page > \*\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/.test(cssSrc));
-assert('Light page splits conditions, logging, and setup into separate widgets',
+assert('Light page splits conditions, setup, and logging into separate widgets',
   !lightPageViewSrc.includes('class="light-top-grid"') &&
-  lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-session-log'") &&
-  lightPageViewSrc.indexOf("id: 'light-session-log'") < lightPageViewSrc.indexOf("id: 'light-setup'"));
+  lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-setup'") &&
+  lightPageViewSrc.indexOf("id: 'light-setup'") < lightPageViewSrc.indexOf("id: 'light-session-log'"));
 assert('Light dashboard registry exposes only dashboard-safe Light widgets',
   dashboardWidgetsBlock.includes("id: 'light-today'") &&
   dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
+  dashboardWidgetsBlock.includes("id: 'light-live-session'") &&
   dashboardWidgetsBlock.includes("id: 'light-session-log'") &&
   dashboardWidgetsBlock.includes("id: 'light-channels'") &&
   !dashboardWidgetsBlock.includes("id: 'light-setup'") &&
@@ -784,6 +785,7 @@ assert('Dashboard Conditions Now uses the full Light page timeline layout',
 assert('Light page dashboard toggles are explicitly scoped',
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-today' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-conditions-now' }") &&
+  lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-live-session' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-session-log' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-channels' }") &&
   /id: 'light-setup'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
@@ -799,6 +801,17 @@ assert('Light Conditions Now chrome is owned by split CSS',
   !lightSunCss.includes('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap'));
 assert('Light session widget keeps deframed operation surface',
   /\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSunCss));
+assert('Live Light widget uses a shared full-width renderer with wrapping estimates',
+  /id: 'light-live-session'[\s\S]*?size: 'full'[\s\S]*?render: renderers\.renderDashboardLightLiveSessionWidget/.test(dashboardWidgetsBlock) &&
+  lightPageViewSrc.includes('export function renderLightLiveSession') &&
+  dashboardRenderersSrc.includes('return renderLightLiveSession({ includeEmptyState: true });') &&
+  /\.sun-session-live-readouts\s*\{[\s\S]*flex-wrap:\s*wrap;/.test(lightSunCss));
+assert('Active sun card keeps vitamin D visible outside the fixed header',
+  sunSessionUiSrc.includes('class="sun-session-live-readouts"') &&
+  sunSessionUiSrc.includes('☀ Vitamin D estimate') &&
+  sunActiveSessionSrc.includes("else if (live)") &&
+  sunActiveSessionSrc.includes('Number.isFinite(iu) && iu > 0') &&
+  !sunActiveSessionSrc.includes('if (iu >= 50)'));
 assert('Light setup chrome is owned by split CSS',
   /\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSetupCss) &&
   !/\.light-setup-card\s*\{/.test(lightSunCss) &&

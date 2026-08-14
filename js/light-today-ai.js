@@ -9,7 +9,7 @@
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { hasAIProvider } from './api.js';
-import { CHANNEL_DISPLAY, formatChannelUnit, channelTier, rollingChannelTotals, rollingVitaminDIU, tierLabel } from './sun.js';
+import { CHANNEL_DISPLAY, formatChannelUnit, rollingChannelTotals, rollingVitaminDIU } from './sun.js';
 import { rollingDeviceTotals } from './light-devices-store.js';
 import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
@@ -115,11 +115,8 @@ export function computeLightTrends(targetDate = new Date()) {
   if (prev7.length > 0 && last7.length < prev7.length * 0.5) {
     out.signals.push(`Light activity dropped ${Math.round((1 - last7.length / prev7.length) * 100)}% vs prior week (${last7.length} sessions vs ${prev7.length})`);
   }
-  const week = lightTodayDeps.rollingVitaminDIU(7);
-  const target = state.importedData?.sunDefaults?.dailyVitDTargetIU;
-  if (target && week < target * 7 * 0.4) {
-    out.signals.push(`Weekly vit-D synthesis ~${Math.round(week)} IU is well below your daily target × 7 (${target * 7} IU)`);
-  }
+  // Do not compare modeled sunlight IU-equivalents with an oral-intake target.
+  // They are different constructs and neither predicts serum 25(OH)D here.
   return out;
 }
 
@@ -205,33 +202,25 @@ export function buildDayContext(target) {
 
   const sun7 = lightTodayDeps.rollingChannelTotals(7) || {};
   const dev7 = lightTodayDeps.rollingDeviceTotals(7) || {};
-  const merged7 = {};
-  for (const k of new Set([...Object.keys(sun7), ...Object.keys(dev7)])) {
-    merged7[k] = (sun7[k] || 0) + (dev7[k] || 0);
-  }
   const vit7 = lightTodayDeps.rollingVitaminDIU(7);
   lines.push('');
   lines.push('### Last 7 days context');
-  lines.push(`Cumulative vit-D synthesized from sun: ~${Math.round(vit7)} IU`);
-  // Channels surface as tier labels only — the raw scores
-  // (melanopic-lux-min, J/cm², etc.) aren't user-meaningful, and
-  // when the AI quoted them verbatim the verdict read like
-  // "outdoor eye light (774465)". Tier labels (none/low/moderate/
-  // good/strong) carry the same comparative signal without the
-  // numeric noise.
+  lines.push(`Modeled sunlight vitamin-D comparison: ~${Math.round(vit7)} IU-equivalent (wide uncertainty; not measured synthesis or intake)`);
+  // Channel context reports source presence only. It does not merge targeted
+  // devices with sunlight or turn an internal normalization into a grade.
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   for (const k of channelOrder) {
-    const v = merged7[k] || 0;
-    if (v <= 0) continue;
-    const tier = channelTier(v, k);
-    lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${tierLabel(tier)}`);
+    const sun = (sun7[k] || 0) > 0 ? 'sunlight logged' : 'no sunlight log';
+    const device = (dev7[k] || 0) > 0 ? 'device logged separately' : 'no device log';
+    if ((sun7[k] || 0) <= 0 && (dev7[k] || 0) <= 0) continue;
+    lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${sun}; ${device}`);
   }
 
   lines.push('');
   lines.push('### User profile');
   if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
   else if (lc.skinType) lines.push(`Skin type: ${lc.skinType}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
+  if (sd.dailyVitDTargetIU) lines.push(`Separate recorded vitamin-D intake target: ${sd.dailyVitDTargetIU} IU/day (do not compare directly with sunlight IU-equivalent)`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
 
   try {
@@ -252,10 +241,8 @@ export function buildDayContext(target) {
   return lines.join('\n');
 }
 
-// Bumped 2026-05-08: prompt now strips raw channel scores; existing
-// cached verdicts contain user-hostile numbers like "(1202696)" and
-// need to refresh against the tightened prompt.
-const _dayFingerprintSalt = 'v2-tier-labels';
+// Source-aware framing invalidates older verdicts that graded channel tiers.
+const _dayFingerprintSalt = 'v3-source-signals';
 export function getDayFingerprint(target) {
   const targetDate = target?.date || new Date();
   const { sun, dev, measurements } = _collectWindowData(targetDate);
@@ -267,24 +254,27 @@ export function getDayFingerprint(target) {
 }
 
 const SYSTEM_PROMPT = [
-  'You evaluate a single day of a user\'s light exposure. Return one verdict that synthesizes sun + light-therapy + indoor environment + recent trends against the user\'s goals.',
+  'You summarize a single day of a user\'s logged light. Focus on what stands out now: timing, source, indoor environment, explicit safety flags, and one useful next step.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = the day was on-protocol — sufficient outdoor / circadian exposure, safe burn doses, evening light environment supports sleep',
-  '  yellow = mostly OK but one specific gap (e.g., no sunrise + indoor-only screens, evening lights too bright, weekly vit-D under target trending)',
-  '  red = circadian-hostile day or unsafe (over MED + no eye protection, late-evening cool-bright light + no morning anchor, prolonged indoor with no daylight at all)',
+  '  green = a useful timing or source pattern is logged and no supplied deterministic warning is present; never imply biological sufficiency or certify safety',
+  '  yellow = mostly aligned but one specific data-backed gap or caution is present',
+  '  red = a deterministic safety flag or strongly counterproductive timing pattern is recorded (base MED reached, UV device without goggles, or intense late-evening light)',
   '  gray = not enough data (no logged activity)',
   '',
-  'Weight the day relative to the USER\'S GOALS (vit-D restoration vs SAD relief vs sleep optimization vs general health). Reference 25-OH-D when present.',
-  'Trend signals (days since last sunrise, weekly vit-D under target, dropping activity) deserve mention when relevant.',
+  'Use the USER\'S GOALS only to select a relevant observation. Never diagnose a deficiency, prescribe treatment, or infer vitamin-D status from light logs.',
+  'Trend signals (days since last sunrise or dropping activity) deserve mention when relevant. Never compare sunlight IU-equivalents with an oral-intake target or infer serum 25(OH)D.',
+  'Channel lines only say whether sunlight or a device was logged. Never call a channel low, good, strong, complete, deficient, balanced, or a percentage of a target. Missing logs are not missing biology.',
+  'Keep sunlight and devices separate. A targeted device does not recreate full-spectrum outdoor light.',
   'Non-obvious patterns to flag: midday session followed by sleep room with measurable light; sunrise sessions logged only on weekends; long device sessions without paired sunlight; evening device sessions on a SAD lamp doing the OPPOSITE of what the user wants.',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
-  'tip: one sentence, max 18 words. The single highest-leverage observation or fix for this day. Direct.',
-  'detail: 2–4 sentences. Synthesize: what worked + what didn\'t + the highest-leverage tomorrow-action. Recommendations involving fixtures or dimming MUST honor the hardware caveats above.',
-  'NUMBER DISCIPLINE: only quote numbers when they carry user-meaningful units that appear verbatim in the context block — vit-D IU, minutes outdoors, %MED, lux, °elevation. Channel weekly totals are reported as tier labels (none/low/moderate/good/strong); refer to them by tier ("strong body clock this week"), never as raw scores ("body clock 1202696"). Do not invent units that aren\'t in the context.',
+  'The separate deterministic UV-safety panel owns modeled burn-dose guidance. You may acknowledge an explicit supplied warning, but never soften, override, or invent it.',
+  'tip: one sentence, max 18 words. The single clearest observation or fix for this day. Direct.',
+  'detail: 2–4 sentences. Explain what was logged, what remains uncertain, and the highest-leverage today-or-tomorrow action. Recommendations involving fixtures or dimming MUST honor the hardware caveats above.',
+  'NUMBER DISCIPLINE: only quote numbers when they carry user-meaningful units that appear verbatim in the context block — vit-D IU-equivalent, minutes outdoors, %MED, lux, or °elevation. Do not invent channel scores or units.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');
@@ -337,7 +327,7 @@ const _autoFiredKeys = new Set();
 function renderLightTodayQuestion() {
   return `<section class="light-ai-question">
     <div class="light-ai-kicker">Question this AI answers</div>
-    <p>Is today’s light pattern supporting circadian rhythm, sleep, vitamin-D goals, and safe exposure?</p>
+    <p>What stands out in today’s logged light, and is there a useful next step?</p>
     <div class="light-ai-panel-levels">
       <div><span>Minimum useful data</span><strong><span>Sun/device sessions</span><span>Time of day</span><span>Duration</span></strong></div>
       <div><span>Extended confidence data</span><strong><span>UV/MED</span><span>Lux/CCT/flicker</span><span>Sleep room darkness</span><span>7-day trends</span></strong></div>

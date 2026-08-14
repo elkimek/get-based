@@ -338,6 +338,7 @@ assert('dev proxy operation classifier accepts one fixed operation',
   classifyDevProxyOperation({ oura_token_exchange: { code: 'code' } }).operation === 'oura-exchange'
     && classifyDevProxyOperation({ whoop_token_exchange: { code: 'code' } }).operation === 'whoop-exchange'
     && classifyDevProxyOperation({ google_health_token_refresh: { refresh_token: 'token' } }).operation === 'google-health-refresh'
+    && classifyDevProxyOperation({ meteo: 'postal_geocode' }).operation === 'postal-geocode'
     && classifyDevProxyOperation({ url: 'https://example.com' }).operation === 'generic');
 assert('dev proxy operation classifier rejects ambiguous envelopes',
   classifyDevProxyOperation({

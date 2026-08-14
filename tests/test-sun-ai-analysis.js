@@ -66,9 +66,9 @@ const {
   }
 
   const sunAiSource = fs.readFileSync(new URL('../js/sun-ai-analysis.js', import.meta.url), 'utf8');
-  assert('sun AI imports vitamin-D and solar geometry helpers directly',
-    sunAiSource.includes("import { vitaminDIU } from './sun-spectrum.js';") &&
-      sunAiSource.includes("import { solarZenithAngle } from './sun-uvdata.js';"));
+  assert('sun AI imports solar geometry directly and leaves weekly vitamin-D aggregation elsewhere',
+    sunAiSource.includes("import { solarZenithAngle } from './sun-uvdata.js';") &&
+      !sunAiSource.includes('VITD_DAILY_SATURATION_IU'));
   assert('sun AI context builder avoids direct window helper reads',
     !sunAiSource.includes('window.vitaminDIU') &&
       !sunAiSource.includes('window.solarZenithAngle'));
@@ -79,10 +79,12 @@ const {
   reset();
   const a = makeSess();
   const fp1 = getSessionFingerprint(a);
-  const fp2 = getSessionFingerprint(makeSess({ id: 'sun_other', startedAt: a.startedAt - 10000 })); // id+start differ but same body/dose
-  assert('fingerprint stable across id/startedAt change',
+  const fp2 = getSessionFingerprint(makeSess({ id: 'sun_other' }));
+  assert('fingerprint is stable across id change',
     fp1 === fp2,
     `${fp1} vs ${fp2}`);
+  const fpTiming = getSessionFingerprint(makeSess({ startedAt: a.startedAt - 10000 }));
+  assert('fingerprint changes when biologically relevant start time changes', fpTiming !== fp1);
 
   // 25.04 → Math.round(250.4) = 250 → 25.0, same bucket as 25
   const fp3 = getSessionFingerprint(makeSess({ durationMin: 25.04 }));
@@ -157,21 +159,23 @@ const {
   const ctx = buildSingleSessionContext(makeSess());
   assert('context is non-empty', ctx.length > 100, `len=${ctx.length}`);
   assert('context includes Session header', ctx.includes('### Session'));
-  assert('context includes User profile section', ctx.includes('### User profile'));
+  assert('context stays scoped to this session', !ctx.includes('### User profile'));
   assert('context references skin type', /Fitzpatrick II/i.test(ctx));
-  assert('context references vit-D target', ctx.includes('4000 IU'));
-  // Doses go through formatChannelUnit (real-world units, IU/J·cm²/M-EDI lux)
+  assert('context excludes intake targets from per-session interpretation',
+    !ctx.includes('4000 IU/day') && !ctx.includes('do not compare directly'));
+  // Doses go through formatChannelUnit (IU-equivalent/J·cm²/estimated melanopic-equivalent lx)
   // Earlier code passed raw "channelAu" labelled as IU — caused a ~37×
   // under-report. Now matches modal display.
-  assert('context emits "Doses (as displayed to user):" preamble',
-    ctx.includes('Doses (as displayed to user):'));
+  assert('context emits source-neutral modeled signal preamble',
+    ctx.includes('Modeled light signals:'));
   assert('context references human-formatted vit-D (IU output)',
     /Vitamin D:.*IU/i.test(ctx) || /Vitamin D:.*minimal/i.test(ctx) || /Vitamin D:.*below UVI/i.test(ctx),
     ctx);
-  assert('context references MED %', ctx.includes('Burn dose: 42%'));
+  assert('context references base-MED % without claiming a personal threshold',
+    ctx.includes('Modeled burn dose: 42%') && ctx.includes('not a personal threshold'));
   assert('context references body fraction', ctx.includes('45%'));
   assert('context references UV index', ctx.includes('UV index: 6.2'));
-  assert('context references health goals', ctx.includes('Restore vit-D status'));
+  assert('context excludes health goals handled by Today and Weekly Review', !ctx.includes('Restore vit-D status'));
 
   reset({
     sunDefaults: { fitzpatrick: 'III' },
@@ -181,8 +185,8 @@ const {
     ],
   });
   const arrayGoalsCtx = buildSingleSessionContext(makeSess());
-  assert('context references array-shaped health goals',
-    arrayGoalsCtx.includes('Raise 25-OH-D') && arrayGoalsCtx.includes('Reduce winter SAD'),
+  assert('context excludes array-shaped health goals',
+    !arrayGoalsCtx.includes('Raise 25-OH-D') && !arrayGoalsCtx.includes('Reduce winter SAD'),
     arrayGoalsCtx);
 
   // 7-day rollup with prior sessions. Anchor prior endedAt to REF_START
@@ -196,12 +200,9 @@ const {
     ],
   });
   const ctx2 = buildSingleSessionContext(makeSess({ id: 'current' }));
-  assert('rollup section appears with prior sessions', ctx2.includes('### Last 7 days'));
-  // Cumulative IU is now computed via vitaminDIU on each session,
-  // not by summing raw channelAu values. Just assert the line exists with
-  // a non-zero IU number — the exact value depends on the spectrum model.
-  assert('rollup line includes a numeric Vit-D total in IU',
-    /Vit-D total: ~\d+ IU/.test(ctx2),
+  assert('per-session context excludes the Weekly Review rollup', !ctx2.includes('### Last 7 days'));
+  assert('per-session context excludes cross-session vitamin-D aggregation',
+    !/Sunlight vitamin-D comparison/.test(ctx2),
     ctx2);
 
   // ─── 3. Inline render — gating + states ─────────────────────────────
@@ -278,6 +279,8 @@ const {
   const detailIdle = renderSessionAIDetail(makeSess());
   assert('detail render shows idle CTA when uncached',
     detailIdle.includes('sun-detail-ai-idle') && detailIdle.includes('Analyze now'));
+  assert('detail render hides an impossible CTA while modeled data is unavailable',
+    renderSessionAIDetail(makeSess({ doses: null, safety: null, calculationStatus: 'calculation-error' })) === '');
 
   // Same orphaned-legacy recovery as the inline path.
   const detailOrphaned = renderSessionAIDetail(makeSess({

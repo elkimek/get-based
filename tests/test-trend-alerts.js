@@ -732,6 +732,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardDefaultOrderBlock.includes("'correlation'") &&
     !dashboardDefaultOrderBlock.includes("'supplements'") &&
     !dashboardDefaultOrderBlock.includes("'light-conditions-now'") &&
+    !dashboardDefaultOrderBlock.includes("'light-live-session'") &&
     !dashboardDefaultOrderBlock.includes("'light-session-log'") &&
     !dashboardDefaultOrderBlock.includes("'light-channels'"));
   assert('Dashboard exposes Biology Scores as configurable score-level widgets',
@@ -742,6 +743,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardDefaultOrderBlock.includes("'biology-scores'"));
   assert('Dashboard exposes dashboard-safe Light widgets without page-only Light workspaces',
     dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
+    dashboardWidgetsBlock.includes("id: 'light-live-session'") &&
     dashboardWidgetsBlock.includes("id: 'light-session-log'") &&
     dashboardWidgetsBlock.includes("id: 'light-channels'") &&
     !dashboardWidgetsBlock.includes("id: 'light-setup'") &&

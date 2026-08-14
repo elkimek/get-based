@@ -13,6 +13,9 @@ import {
   erythemalSED,
   fractionOfMED,
   retinalUVdose,
+  ocularActinicUVdose,
+  actinicUVAt,
+  erythemalAt,
   SUN_CHANNELS,
   glassTransmission,
   sunscreenTransmission,
@@ -22,6 +25,7 @@ import {
   vitaminDIU,
   vitaminDIUPerSession,
   vitaminDIURaw,
+  pbmJoulesPerCm2,
 } from '../js/sun-spectrum.js';
 
 let pass = 0, fail = 0;
@@ -44,6 +48,17 @@ assert('Irradiance positive at midday', noon.irradiance.some(v => v > 0));
 
 const night = reconstructSpectrum({ zenithDeg: 100, ozoneDU: 300 });
 assert('Sun below horizon → zero irradiance', night.irradiance.every(v => v === 0));
+
+const calibratedUvi = 6.5;
+const calibrated = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, targetUVI: calibratedUvi });
+const calibratedWeightedUv = calibrated.wavelengths.reduce((sum, nm, i) =>
+  sum + (nm <= 400 ? calibrated.irradiance[i] * erythemalAt(nm) * 5 : 0), 0);
+assert('Fetched/manual UVI calibrates the reconstructed CIE-erythemal UV integral',
+  Math.abs(calibratedWeightedUv / 0.025 - calibratedUvi) < 0.01,
+  `integrated UVI=${(calibratedWeightedUv / 0.025).toFixed(3)}`);
+const idx500 = noon.wavelengths.indexOf(500);
+assert('UVI calibration changes UV only, not the modeled visible spectrum',
+  Math.abs(calibrated.irradiance[idx500] - noon.irradiance[idx500]) < 1e-12);
 
 // ─── 2. Atmospheric attenuation ─────────────────────────────────────
 console.log('\n2. Atmospheric attenuation');
@@ -139,6 +154,20 @@ assert('Null eye exposure → zero violet dose', noEye.violet_eye === 0);
 assert('Null eye exposure leaves skin channels intact',
   noEye.vitamin_d === fullExposure.vitamin_d);
 
+const halfTimeEyes = computeChannelDoses({
+  spectrum: noon, durationMin: 10, bodyExposureFraction: 1,
+  eyeExposure: { mode: 'direct', durationSec: 300 },
+});
+const fullTimeEyes = computeChannelDoses({
+  spectrum: noon, durationMin: 10, bodyExposureFraction: 1,
+  eyeExposure: { mode: 'direct', durationSec: 600 },
+});
+assert('Eye channels use logged eye-exposure duration rather than full session time',
+  Math.abs(halfTimeEyes.circadian * 2 - fullTimeEyes.circadian) < 1e-6
+    && Math.abs(halfTimeEyes.violet_eye * 2 - fullTimeEyes.violet_eye) < 1e-6);
+assert('Skin channels remain tied to session duration when eye duration is shorter',
+  Math.abs(halfTimeEyes.vitamin_d - fullTimeEyes.vitamin_d) < 1e-9);
+
 const indoor = computeChannelDoses({
   spectrum: noon, durationMin: 15, bodyExposureFraction: 1,
   eyeExposure: { mode: 'indoor', durationSec: 900 }
@@ -161,6 +190,14 @@ assert('Zero duration → zero doses',
 // ─── 4. Safety counters ─────────────────────────────────────────────
 console.log('\n4. Safety counters');
 
+assert('ICNIRP actinic UV action spectrum peaks at 270 nm',
+  Math.abs(actinicUVAt(270) - 1) < 1e-12);
+assert('ICNIRP actinic UV anchors stay distinct from the erythema curve',
+  Math.abs(actinicUVAt(300) - 0.3) < 0.00002
+    && Math.abs(actinicUVAt(305) - 0.06) < 0.01
+    && Math.abs(actinicUVAt(315) - 0.003) < 0.001
+    && Math.abs(actinicUVAt(400) - 0.00003) < 0.000005);
+
 const sed = erythemalSED({ spectrum: noon, durationMin: 15, bodyExposureFraction: 1 });
 assert('SED is positive number', sed > 0 && Number.isFinite(sed));
 
@@ -175,18 +212,24 @@ assert('Type II skin reaches MED faster than Type VI', medFracII > medFracVI);
 assert('Type VI MED fraction is much smaller', medFracVI < medFracII / 3);
 
 const medFracIIPhoto = fractionOfMED({ sed, fitzpatrick: 'II', photosensitive: true });
-assert('Photosensitive flag raises MED fraction', medFracIIPhoto > medFracII);
-assert('Photosensitive scales MED fraction by ~2.5×',
-  Math.abs(medFracIIPhoto - medFracII * 2.5) < medFracII * 0.05);
+assert('Generic photosensitivity flag is caution-only and does not invent a MED multiplier',
+  medFracIIPhoto === medFracII);
+assert('An explicit calibrated MED scale remains supported',
+  fractionOfMED({ sed, fitzpatrick: 'II', medScale: 0.5 }) === medFracII * 2);
 assert('Photosensitive default false leaves MED fraction unchanged',
   fractionOfMED({ sed, fitzpatrick: 'II' }) === medFracII);
 
 const retDir = retinalUVdose({ spectrum: noon, eyeExposure: { mode: 'direct', durationSec: 60 } });
 const retSun = retinalUVdose({ spectrum: noon, eyeExposure: { mode: 'sunglasses', durationSec: 60 } });
 const retInd = retinalUVdose({ spectrum: noon, eyeExposure: { mode: 'indoor', durationSec: 60 } });
-assert('Direct eye exposure accumulates retinal UV', retDir > 0);
-assert('Sunglasses → zero retinal UV in our model', retSun === 0);
-assert('Indoor → zero retinal UV', retInd === 0);
+const retGlass = retinalUVdose({ spectrum: noon, eyeExposure: { mode: 'glass-window', durationSec: 60 } });
+assert('Direct eye exposure accumulates ocular actinic UV', retDir > 0);
+assert('Ocular actinic API matches the legacy retinalUVdose alias',
+  retDir === ocularActinicUVdose({ spectrum: noon, eyeExposure: { mode: 'direct', durationSec: 60 } }));
+assert('Sunglasses → zero ocular UV in our model', retSun === 0);
+assert('Indoor → zero ocular UV', retInd === 0);
+assert('Generic window glass attenuates rather than falsely zeroing ocular actinic UV',
+  retGlass > 0 && retGlass < retDir);
 
 // ─── 5. Edge cases ──────────────────────────────────────────────────
 console.log('\n5. Edge cases');
@@ -214,8 +257,8 @@ assert('Glass partially passes NIR (850 nm 0.5-0.9)',
   glassTransmission(850) > 0.5 && glassTransmission(850) < 0.9);
 assert('Glass blocks mid-IR (3000 nm → 0)', glassTransmission(3000) === 0);
 
-assert('SPF 50 transmits ~1/50 at UVB peak 297 nm', Math.abs(sunscreenTransmission(297, 50) - 1/50) < 1e-9);
-assert('SPF 30 transmits 1/30 UVB', Math.abs(sunscreenTransmission(300, 30) - 1/30) < 1e-9);
+assert('SPF 50 uses conservative typical-use transmission at UVB peak', Math.abs(sunscreenTransmission(297, 50) - 1/Math.sqrt(50)) < 1e-9);
+assert('SPF 30 typical-use UVB transmission is 1/sqrt(30)', Math.abs(sunscreenTransmission(300, 30) - 1/Math.sqrt(30)) < 1e-9);
 assert('SPF 50 transmits more UVA than UVB (broad-spectrum ratio)',
   sunscreenTransmission(370, 50) > sunscreenTransmission(297, 50));
 assert('Sunscreen leaves visible untouched (550 nm → 1)', sunscreenTransmission(550, 50) === 1);
@@ -254,9 +297,9 @@ const spf50Doses = computeChannelDoses({
   eyeExposure: { mode: 'direct', durationSec: 1800 },
   bodyModifiers: { sunscreenSPF: 50 },
 });
-assert('SPF 50: vitamin_d roughly 1/50 of bare (UVB defines SPF)',
-  spf50Doses.vitamin_d < baseDoses.vitamin_d * 0.05 &&
-  spf50Doses.vitamin_d > baseDoses.vitamin_d * 0.001,
+assert('SPF 50: vitamin_d uses conservative typical-use attenuation',
+  spf50Doses.vitamin_d < baseDoses.vitamin_d * 0.20 &&
+  spf50Doses.vitamin_d > baseDoses.vitamin_d * 0.10,
   `ratio=${(spf50Doses.vitamin_d/baseDoses.vitamin_d).toFixed(5)}`);
 assert('SPF 50: nir_solar untouched (>99% retained)',
   spf50Doses.nir_solar > baseDoses.nir_solar * 0.99);
@@ -267,21 +310,29 @@ assert('SPF 50: no_cv reduced (UVA-driven, broad-spectrum SPF still attenuates)'
   `ratio=${(spf50Doses.no_cv/baseDoses.no_cv).toFixed(4)}`);
 
 const baseSED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1 });
+const faceOnlySED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 0.05 });
+assert('Erythemal SED is local and invariant to exposed body area',
+  Math.abs(faceOnlySED - baseSED) < 1e-9,
+  `full=${baseSED.toFixed(4)} face=${faceOnlySED.toFixed(4)}`);
+const localPbmFull = computeChannelDoses({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1, eyeExposure: null });
+const localPbmPatch = computeChannelDoses({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 0.05, eyeExposure: null });
+assert('PBM/NIR local fluence is invariant to treated body area',
+  Math.abs(pbmJoulesPerCm2(localPbmFull.pbm_red) - pbmJoulesPerCm2(localPbmPatch.pbm_red)) < 1e-9);
 const glassSED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1, bodyModifiers: { glassBetween: true } });
 const spf50SED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1, bodyModifiers: { sunscreenSPF: 50 } });
 assert('Erythemal SED: behind glass strictly less than bare skin',
   glassSED < baseSED,
   `base=${baseSED.toFixed(4)} glass=${glassSED.toFixed(4)} ratio=${(glassSED/baseSED).toFixed(3)}`);
-assert('Erythemal SED: SPF 50 strictly less than bare skin',
-  spf50SED < baseSED && spf50SED > 0,
-  `base=${baseSED.toFixed(4)} spf50=${spf50SED.toFixed(4)} ratio=${(spf50SED/baseSED).toFixed(4)}`);
+assert('Burn-safety SED does not credit entered SPF as guaranteed extra safe time',
+  Math.abs(spf50SED - baseSED) < 1e-9,
+  `base=${baseSED.toFixed(4)} spf50=${spf50SED.toFixed(4)}`);
 
 const stackedSED = erythemalSED({
   spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1,
   bodyModifiers: { glassBetween: true, sunscreenSPF: 50 },
 });
-assert('Glass + SPF stack: even lower than either alone',
-  stackedSED <= glassSED && stackedSED <= spf50SED);
+assert('Glass remains modeled but SPF does not further reduce the burn-safety SED',
+  Math.abs(stackedSED - glassSED) < 1e-9);
 
 // ─── 7. Device spectrum synthesis ───────────────────────────────────
 console.log('\n7. Device spectrum synthesis');
@@ -619,15 +670,15 @@ const lowDoses70 = computeChannelDoses({ spectrum: lowSun70, durationMin: 30, bo
 const lowSed70 = erythemalSED({ spectrum: lowSun70, durationMin: 30, bodyExposureFraction: 1 });
 const lowUVI70 = (lowSed70 * 100 / (30 * 60)) / 0.025;
 const iu_lowSun70 = vitaminDIU(lowDoses70.vitamin_d, 'II', lowUVI70);
-assert('zenith=70° (UVI <2) → near-zero vit D synthesis',
-  iu_lowSun70 < 50, `got ${iu_lowSun70.toFixed(0)} IU at implied UVI ${lowUVI70.toFixed(2)}`);
+assert('zenith=70° low-UVI spectrum → small but non-zero modeled vit-D contribution',
+  iu_lowSun70 > 0 && iu_lowSun70 < 150, `got ${iu_lowSun70.toFixed(0)} IU-eq at implied UVI ${lowUVI70.toFixed(2)}`);
 
-// ─── 13. UVI threshold gate on vit-D synthesis ──────────────────────
-console.log('\n13. UVI threshold gate');
-assert('UVI 1 → 0 IU (below threshold)', vitaminDIU(100, 'II', 1.0) === 0);
-assert('UVI 2 → 0 IU (at threshold)', vitaminDIU(100, 'II', 2.0) === 0);
-assert('UVI 2.5 → ~half yield (linear ramp)',
-  Math.abs(vitaminDIU(100, 'II', 2.5) - vitaminDIU(100, 'II', 4.0) * 0.5) < 1);
+// ─── 13. UVI is calibration input, not a second vit-D gate ──────────
+console.log('\n13. UVI calibration without a synthesis cliff');
+assert('Same action-weighted channel dose is not re-gated by UVI',
+  vitaminDIU(100, 'II', 1.0) === vitaminDIU(100, 'II', 8.0));
+assert('UVI 2.5 does not halve an already-integrated spectral dose',
+  vitaminDIU(100, 'II', 2.5) === vitaminDIU(100, 'II', 4.0));
 assert('UVI 3 → full yield', vitaminDIU(100, 'II', 3.0) === vitaminDIU(100, 'II', 8.0));
 assert('UVI 8 → full yield (above threshold)', vitaminDIU(100, 'II', 8.0) === 6000);
 assert('UVI null → no gating (trust channel-au)',
@@ -637,16 +688,16 @@ assert('Type VI at UVI 6 = 30% of Type II yield',
 assert('UVI 8, Type II, 1000 channel-au → 20k IU saturation cap',
   vitaminDIU(1000, 'II', 8.0) === 20000);
 
-// ─── 14. rotatedSides multiplier ───────────────────────────────────
-console.log('\n14. rotatedSides multiplier');
-assert('rotatedSides=true doubles the IU yield',
-  vitaminDIU(100, 'II', 8.0, true) === 2 * vitaminDIU(100, 'II', 8.0, false));
+// ─── 14. Rotation is a segment boundary, not a multiplier ──────────
+console.log('\n14. Rotation does not double dose');
+assert('rotatedSides=true does not double the same integrated dose',
+  vitaminDIU(100, 'II', 8.0, true) === vitaminDIU(100, 'II', 8.0, false));
 assert('rotatedSides default (no arg) = false (single position)',
   vitaminDIU(100, 'II', 8.0) === vitaminDIU(100, 'II', 8.0, false));
-assert('rotatedSides multiplier respects the 20k saturation cap',
+assert('rotatedSides remains neutral at the reporting cap',
   vitaminDIU(1000, 'II', 8.0, true) === 20000);
-assert('UVI gate applies BEFORE the rotation multiplier',
-  vitaminDIU(100, 'II', 1.0, true) === 0);
+assert('Rotation remains neutral at low UVI too',
+  vitaminDIU(100, 'II', 1.0, true) === vitaminDIU(100, 'II', 8.0, false));
 
 // ─── 15. Per-session body-fraction cap ───────────────────────────────
 console.log('\n15. Per-session body-fraction cap');
@@ -658,8 +709,8 @@ assert('per-session cap with bodyFraction=null falls back to daily cap',
   vitaminDIUPerSession(10000, 'II', 8.0, false, null, null) === 20000);
 assert('per-session cap below ceiling is the raw value',
   vitaminDIUPerSession(10, 'II', 8.0, false, null, 0.37) === Math.round(vitaminDIURaw(10, 'II', 8.0, false, null)));
-assert('per-session cap respects UVI gate (low UVI → 0 regardless of body fraction)',
-  vitaminDIUPerSession(10000, 'II', 1.0, false, null, 1.0) === 0);
+assert('per-session cap does not re-gate an integrated dose by UVI',
+  vitaminDIUPerSession(10000, 'II', 1.0, false, null, 1.0) === 20000);
 assert('per-session cap scales linearly with body fraction',
   vitaminDIUPerSession(10000, 'II', 8.0, false, null, 0.50) === 2 * vitaminDIUPerSession(10000, 'II', 8.0, false, null, 0.25));
 
@@ -687,9 +738,9 @@ assert('FX2 — 30 min · front-only (0.5) · Type III · noon · NOT rotated �
   `got ${iuFrontTypeIII.toFixed(0)} IU at implied UVI ${_uvi30.toFixed(1)}`);
 
 const iuFrontTypeIIIRot = vitaminDIU(fxFrontTypeIII.vitamin_d, 'III', _uvi30, true);
-assert('FX3 — same as FX2 but rotated → exactly 2× FX2 IU',
-  Math.abs(iuFrontTypeIIIRot - 2 * iuFrontTypeIII) < 1,
-  `got ${iuFrontTypeIIIRot.toFixed(0)} vs expected ${(2 * iuFrontTypeIII).toFixed(0)}`);
+assert('FX3 — rotation metadata does not double an already time-integrated dose',
+  Math.abs(iuFrontTypeIIIRot - iuFrontTypeIII) < 1,
+  `got ${iuFrontTypeIIIRot.toFixed(0)} vs expected ${iuFrontTypeIII.toFixed(0)}`);
 
 const iuFullBodyTypeVI = vitaminDIU(fxFullBodyTypeII.vitamin_d, 'VI', _uvi30);
 assert('FX4 — Type VI yield = 30% of Type II at same channel-au',
@@ -703,8 +754,8 @@ const fxLowSun = computeChannelDoses({
   spectrum: _spec70, durationMin: 30, bodyExposureFraction: 1, eyeExposure: null,
 });
 const iuLowSun = vitaminDIU(fxLowSun.vitamin_d, 'II', _uvi70);
-assert('FX5 — 30 min · full body · Type II · zenith 70° (UVI < 2) → < 50 IU (NIWA/Webb)',
-  iuLowSun < 50,
+assert('FX5 — low-sun spectral UVB stays small without a hard zero cliff',
+  iuLowSun > 0 && iuLowSun < 150,
   `got ${iuLowSun.toFixed(0)} IU at implied UVI ${_uvi70.toFixed(2)}`);
 
 const _bigAu = fxFullBodyTypeII.vitamin_d * 4;

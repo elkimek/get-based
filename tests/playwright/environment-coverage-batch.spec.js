@@ -448,8 +448,9 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
         audits.lightEnvAuditActionHandlers.toggleLightAudit('default_dep_audit');
         audits.lightEnvAuditActionHandlers.toggleLightAudit('default_dep_audit');
 
-        outcomes.defaultAuditDepsRenderFallbackSeverity =
-          host.querySelector('.light-env-sev-green') !== null;
+      outcomes.defaultAuditDepsRenderFallbackSeverity =
+          host.querySelector('.light-env-sev-incomplete') !== null
+          && host.textContent.includes('Needs details');
         outcomes.defaultAuditDepsSaveSnapshotsEnvironment =
           defaultSavedAudit?.label === 'Default deps snapshot'
           && defaultSavedAudit?.rooms?.[0]?.id === 'bedroom'
@@ -645,8 +646,8 @@ test('Light audit history covers save expand update compare interpret and delete
       audits.lightEnvAuditActionHandlers.toggleLightAudit('audit_old');
       await waitFor('.light-audit-card[data-id="audit_old"].expanded', 'expanded older audit');
       outcomes.expandedAuditRendersChannelsAndAI =
-        document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent.includes('Melanopic') === true
-        && document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent.includes('Severe') === true
+        document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent.includes('Camera blue proxy') === true
+        && document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent.includes('High signal') === true
         && document.querySelector('.light-audit-card[data-id="audit_old"] .light-audit-ai-block')?.textContent.includes('Baseline') === true;
 
       setAndChange('.light-audit-card[data-id="audit_old"] input[aria-label="Audit label"]', 'Baseline renamed');
@@ -675,7 +676,7 @@ test('Light audit history covers save expand update compare interpret and delete
       await waitFor('.light-audit-compare-rooms', 'audit compare rooms');
       outcomes.compareModeShowsDeltasAndInterpretAction =
         document.querySelector('.light-audit-compare-head')?.textContent.includes('After:') === true
-        && Array.from(document.querySelectorAll('.light-audit-compare-channel')).some(el => el.textContent.includes('Darkness'))
+        && Array.from(document.querySelectorAll('.light-audit-compare-channel')).some(el => el.textContent.includes('Sleep light'))
         && document.querySelector('.light-audit-interpret-btn') !== null;
 
       document.querySelector('.light-audit-interpret-btn')?.click();

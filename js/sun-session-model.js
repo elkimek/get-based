@@ -4,40 +4,41 @@
 // Keep these constants out of UI/store modules so the active-session ticker,
 // persisted session store, and public sun.js facade all use one source.
 
-// Photosensitizing medication scale tiers — used by fractionOfMED() in
-// place of the legacy boolean flag. MED multipliers from AAD/Mayo Clinic
-// guidance: severe drugs (tetracyclines, retinoids systemic, amiodarone)
-// shift erythemal threshold ~4×; moderate (NSAIDs, thiazides, sulfa) ~2.5×;
-// mild (some antihistamines) ~1.5×.
+// Photosensitizing medication flags. Drug, dose, formulation, reaction type,
+// and individual response differ too much for a universal MED multiplier.
+// Tiers control caution prominence only; numeric burn estimates remain the
+// base skin-type estimate and explicitly exclude medication effects.
 export const PHOTOSENSITIVE_MED_TIERS = [
+  { key: 'unknown',  label: 'Not reviewed', medScale: null, examples: 'medicine, supplement, and topical-product warnings have not been reviewed' },
   { key: 'none',     label: 'None',      medScale: 1.0,  examples: '' },
-  { key: 'mild',     label: 'Mild',      medScale: 0.7,  examples: 'antihistamines (most), some NSAIDs' },
-  { key: 'moderate', label: 'Moderate',  medScale: 0.4,  examples: 'NSAIDs, thiazide diuretics, sulfa antibiotics, St. John\'s Wort, topical retinol' },
-  { key: 'severe',   label: 'Severe',    medScale: 0.25, examples: 'tetracyclines (doxycycline), oral retinoids (isotretinoin), amiodarone, citrus essential oils on skin' },
+  { key: 'mild',     label: 'Possible',  medScale: null, examples: 'a medicine or topical product with a possible sunlight warning' },
+  { key: 'moderate', label: 'Known warning', medScale: null, examples: 'a medicine labeled for photosensitivity or sun precautions' },
+  { key: 'severe',   label: 'Prior reaction / strong warning', medScale: null, examples: 'a prior phototoxic/photoallergic reaction or clinician-directed strict avoidance' },
 ];
 
-// Map tier key to multiplier; default to none (no scaling) on unknown.
+// Map tier key to a multiplier. Non-numeric caution tiers intentionally
+// return null so callers keep the base estimate and explain the uncertainty.
 export function photosensitiveMedScale(tier) {
   const t = PHOTOSENSITIVE_MED_TIERS.find(x => x.key === tier);
-  return t ? t.medScale : 1.0;
+  return t ? t.medScale : null;
 }
 
 // Normalize legacy boolean photosensitiveMeds storage into a tier key.
-// boolean true → 'moderate' (the previous fixed-0.4 multiplier semantically
-// matches moderate); boolean false / null / undefined → 'none'.
+// boolean true → 'moderate' for legacy caution display; it no longer implies
+// a universal numeric threshold reduction.
 export function _normalizePSMTier(raw) {
   if (raw === true) return 'moderate';
-  if (raw === false || raw == null) return 'none';
+  if (raw === false) return 'none';
+  if (raw == null || raw === '') return 'unknown';
   if (typeof raw === 'string' && PHOTOSENSITIVE_MED_TIERS.some(t => t.key === raw)) return raw;
-  return 'none';
+  return 'unknown';
 }
 
 // Standard quick-presets for the speed log. Fractions reflect a SINGLE
 // position (front-only OR back-only at any one moment) — capped at the
-// anatomical max of ~0.55. Use the in-session "🔄 Flip" button (or the
-// `rotatedSides` toggle in the start dialog) to log that you exposed
-// both sides over the session; that doubles the effective body dose
-// the same way dminder's "100% naked" assumes alternating sides.
+// anatomical max of ~0.55. Use the in-session Side change button at the
+// moment of turning to record a boundary between timed segments; rotation
+// itself never multiplies a dose.
 //
 // Cite: fractions derive from the Wallace rule of nines + Lund-Browder
 // (1944) chart, then halved (anterior face only). Face + hands ≈ 4.5%

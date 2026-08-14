@@ -138,21 +138,24 @@ test('light environment browser coverage handles summary modal prompt and source
         && lightEnv.nextDefaultRoomName() === 'Living room'
         && localStorage.getItem('labcharts-light-env-active-room') === bedroom.id;
 
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)');
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)', { method: 'camera-rgb-proxy' });
+      const cameraSuggestionWasIgnored = bedroom.primarySource === 'unknown';
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)', { method: 'manual-classification' });
       await waitUntil(() => bedroom.primarySource === 'led-cool', 'spectrum source applied');
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Fluorescent / CFL');
-      await lightEnv.suggestRoomSourceFromSpectrum('missing-room', 'Warm LED (2700-3000K)');
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Unknown spectrum label');
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Fluorescent / CFL', { method: 'manual-classification' });
+      await lightEnv.suggestRoomSourceFromSpectrum('missing-room', 'Warm LED (2700-3000K)', { method: 'manual-classification' });
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Unknown spectrum label', { method: 'manual-classification' });
       outcomes.spectrumSuggestionMapsOnceAndDoesNotOverwrite =
-        bedroom.primarySource === 'led-cool'
+        cameraSuggestionWasIgnored
+        && bedroom.primarySource === 'led-cool'
         && Array.from(document.querySelectorAll('.notification-toast'))
           .some(el => (el.textContent || '').includes('Auto-set Bedroom'));
 
       env().burdenAI = { status: 'ok', dot: 'yellow', text: 'AI says moderate' };
       const mappedSummary = lightEnv.renderEnvironmentAssessmentSummary();
       const mappedSection = lightEnv.renderEnvironmentSection({ embedded: true });
-      outcomes.summaryUsesAIVerdictWhenMapped =
-        mappedSection.includes('Moderate load')
+      outcomes.summaryUsesCurrentDeterministicPictureWhenMapped =
+        mappedSection.includes('Needs details')
         && mappedSummary.includes('Open assessment')
         && mappedSummary.includes('2 active today');
 
@@ -330,12 +333,12 @@ test('light environment browser coverage handles screens tools and confirm delet
         && fallbackCard?.querySelector('[data-light-env-action="set-screen-evening-bucket"][data-light-env-key="gt3"]')?.getAttribute('aria-pressed') === 'true';
       const bedroomCardText = host.querySelector(`.light-env-room-disclosure[data-id="${bedroomId}"]`)?.textContent || '';
       outcomes.measurementReadingsRenderAllToolFormats =
-        bedroomCardText.includes('1,234 lux')
-        && bedroomCardText.includes('moderate flicker')
-        && bedroomCardText.includes('3,000 K')
-        && bedroomCardText.includes('0.50 lux (sleep)')
+        bedroomCardText.includes('1,234 lux (method unknown)')
+        && bedroomCardText.includes('clear banding')
+        && bedroomCardText.includes('~3000 K (camera)')
+        && bedroomCardText.includes('0.50 legacy value (method unknown)')
         && bedroomCardText.includes('Warm spectrum')
-        && bedroomCardText.includes('42% transmits')
+        && bedroomCardText.includes('~42% camera-visible comparison')
         && bedroomCardText.includes('2 room snapshots');
       const wasScreenExpanded = fallbackCard?.classList.contains('expanded') === true;
       actions.toggleLightEnvScreenExpanded(fallbackScreen.id);

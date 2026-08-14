@@ -11,8 +11,10 @@ import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
-import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement, loadLuxCalibration } from './light-tool-camera.js';
+import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement } from './light-tool-camera.js';
 import { createUniqueId } from './unique-id.js';
+import { classifyDayWindow, formatSunClock, normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
+export { normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
 /** @typedef {typeof import('./light-tool-camera-modals.js')} LightToolCameraModals */
 /** @type {Promise<LightToolCameraModals> | null} */ let lightToolCameraModalsPromise = null;
 /** @type {LightToolCameraModals | null} */ let lightToolCameraModals = null;
@@ -116,7 +118,9 @@ export {
   lockCameraForMeasurement,
   cameraLockStatusLine,
   computeRowBanding,
+  clearLuxCalibration,
   dismissAimingGuide,
+  isLuxCalibrationConfirmed,
   loadLuxCalibration,
   saveLuxCalibration,
 } from './light-tool-camera.js';
@@ -244,7 +248,7 @@ export async function saveMeasurement(tool, value, opts = {}) {
   // the classifier knows warm vs cool vs fluorescent. Only fires when
   // a roomId is bound; only updates when source is unset/unknown.
   if (tool === 'spectrum' && opts.roomId) {
-    try { await lightToolsDeps.suggestRoomSourceFromSpectrum(opts.roomId, value); } catch (e) {}
+    try { await lightToolsDeps.suggestRoomSourceFromSpectrum(opts.roomId, value, entry.extra); } catch (e) {}
   }
   refreshLightEnvironmentAssessment();
   // Re-render the Light & Sun page if the user is on it so per-room
@@ -335,91 +339,22 @@ export const closeLuxMeter = closeCameraToolIfLoaded('closeLuxMeter'), closeFlic
 
 // ─── Tool 7: Sunrise / Sunset Logger ──────────────────────────────────
 
-// Compute today's sunrise / sunset (sun at 90.83° zenith — the standard
-// definition accounting for atmospheric refraction at the horizon) for
-// the user's coords. Walks the day in 5-minute steps from the previous
-// midnight; returns null when the sun never rises or never sets at the
-// given latitude on the given date (high-latitude polar day/night).
-function _computeSunriseSunset(coords, date) {
-  const solarZenithAngle = lightToolsDeps.solarZenithAngle;
-  if (!coords || typeof solarZenithAngle !== 'function') return { sunrise: null, sunset: null };
-  const baseDate = date ? new Date(date) : new Date();
-  const day = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
-  const STEP_MIN = 5;
-  let sunrise = null, sunset = null;
-  let prevAbove = null;
-  for (let m = 0; m < 24 * 60; m += STEP_MIN) {
-    const t = new Date(day.getTime() + m * 60_000);
-    const zenith = solarZenithAngle(t, coords.lat, coords.lon);
-    if (!Number.isFinite(zenith)) continue;
-    const above = zenith < 90.83; // sun above horizon (refraction-corrected)
-    if (prevAbove != null && above !== prevAbove) {
-      if (above && !sunrise) sunrise = t;
-      else if (!above && !sunset) sunset = t;
-    }
-    prevAbove = above;
-  }
-  return { sunrise, sunset };
-}
-
-// Window classification from now-vs-sunrise/sunset. Returns:
-//   { kind: 'sunrise'|'sunset'|'midday'|'night'|'pre-sunrise',
-//     label: <human-readable>, sunrise: Date|null, sunset: Date|null }
-// "Golden hour" definitions: sunrise window = 30 min before to 90 min
-// after sunrise; sunset window = 90 min before to 30 min after sunset.
-function _classifyDayWindow(coords, now) {
-  const t = now || new Date();
-  const { sunrise, sunset } = _computeSunriseSunset(coords, t);
-  if (!sunrise || !sunset) {
-    // Polar day/night or no coords — fall back to hour heuristic.
-    const hr = t.getHours();
-    let label = 'Outside golden hour';
-    if (hr >= 5 && hr < 9) label = 'Sunrise window';
-    else if (hr >= 16 && hr < 21) label = 'Sunset window';
-    return { kind: 'unknown', label, sunrise: null, sunset: null };
-  }
-  const ms = t.getTime();
-  const srMs = sunrise.getTime(), ssMs = sunset.getTime();
-  // Sunrise window: 30 min before sunrise → 90 min after sunrise
-  if (ms >= srMs - 30 * 60_000 && ms <= srMs + 90 * 60_000) {
-    return { kind: 'sunrise', label: 'Sunrise window', sunrise, sunset };
-  }
-  // Sunset window: 90 min before sunset → 30 min after sunset
-  if (ms >= ssMs - 90 * 60_000 && ms <= ssMs + 30 * 60_000) {
-    return { kind: 'sunset', label: 'Sunset window', sunrise, sunset };
-  }
-  // Midday vs night
-  if (ms > srMs && ms < ssMs) return { kind: 'midday', label: 'Midday — past sunrise, before sunset', sunrise, sunset };
-  return { kind: 'night', label: 'Night — sun is below horizon', sunrise, sunset };
-}
-
-function _fmtClock(d) {
-  if (!d) return '—';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-export function normalizeGoldenHourMinutes(value) {
-  const parsed = parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return 15;
-  return Math.min(120, Math.max(1, parsed));
-}
-
 export function openSunriseLogger() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
   const coords = getSunCoords();
-  const cls = _classifyDayWindow(coords, new Date());
+  const cls = classifyDayWindow(coords, new Date(), lightToolsDeps.solarZenithAngle);
   const subtitleHtml = cls.kind === 'unknown'
     ? `<span style="color:var(--orange);font-size:11px">No location coords — set country in profile for accurate sunrise/sunset windows.</span>`
     : (cls.sunrise && cls.sunset)
-      ? `<span style="color:var(--text-muted);font-size:11px">today: sunrise ${_fmtClock(cls.sunrise)} · sunset ${_fmtClock(cls.sunset)}</span>`
+      ? `<span style="color:var(--text-muted);font-size:11px">today: sunrise ${formatSunClock(cls.sunrise)} · sunset ${formatSunClock(cls.sunset)}</span>`
       : '';
   // CTA copy adapts to the actual window we're in. Outside golden hour
   // we can still log a session but flag it so the user knows.
   const inGolden = cls.kind === 'sunrise' || cls.kind === 'sunset';
   const headerHint = inGolden
-    ? `Quick log for golden-hour outdoor light. Eye exposure is automatic — circadian channel maxed for the duration.`
-    : `It's <strong>${escapeHTML(cls.label.toLowerCase())}</strong> right now — golden-hour benefits don't apply, but you can still log this as a regular outdoor session.`;
+    ? `Quick log for ambient golden-hour outdoor light. The modeled eye channel uses the logged duration; never look directly at the sun.`
+    : `It's <strong>${escapeHTML(cls.label.toLowerCase())}</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.`;
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Golden hour log">
     <div class="modal-header">
       <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(cls.label)}</span></h3>
@@ -443,6 +378,10 @@ export function openSunriseLogger() {
   queryRequired(overlay, '#sunrise-cancel').addEventListener('click', closeSunriseLogger);
 
   queryRequired(overlay, '#sunrise-save').addEventListener('click', async () => {
+    if (!coords) {
+      showNotification('Set a Light & Sun location before saving so this session can be computed.', 'error', 7000);
+      return;
+    }
     const durationInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#sunrise-duration'));
     const minutes = normalizeGoldenHourMinutes(durationInput.value);
     if (typeof lightToolsDeps.logCompletedSession === 'function') {
@@ -450,13 +389,14 @@ export function openSunriseLogger() {
       const loggedId = await lightToolsDeps.logCompletedSession({
         startedAt: start,
         endedAt: Date.now(),
+        location: { lat: coords.lat, lon: coords.lon, altitudeM: coords.altitudeM || 0, source: coords.source || 'profile' },
         bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [], glassBetween: false },
         eyeExposure: { mode: 'direct', lensTint: 'clear', durationSec: minutes * 60 },
         notes: cls.label,
       });
       const id = loggedId || getSunSessions().slice(-1)[0]?.id;
       if (id) {
-        try { await lightToolsDeps.hydrateSession(id); } catch (e) {}
+        try { await lightToolsDeps.hydrateSession(id, coords); } catch (e) {}
       }
     }
     showNotification(`${cls.label} logged: ${minutes} min`);
@@ -510,7 +450,7 @@ export async function openEyeLevelAudit() {
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
   const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
   const toggleBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#audit-toggle'));
-  /** @type {Array<{ at: number, luma: number, lux: number, label: string }>} */ let pauseDetections = [];
+  /** @type {Array<{ at: number, luma: number, cameraLevel: number, lux: number | null, levelLabel: string, label: string }>} */ let pauseDetections = [];
 
   // Common room labels for one-tap selection. The free-text input is
   // always available; this just removes the typing burden mid-walkthrough.
@@ -522,8 +462,8 @@ export async function openEyeLevelAudit() {
   function renderAuditList() {
     listEl.innerHTML = pauseDetections.map((p, i) => `
       <li style="margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:center">
-        <span style="font-size:12px;color:var(--text-muted);min-width:48px">${Math.round(p.lux)} lux</span>
-        <input type="text" class="audit-room-label-input" aria-label="Label for room ${i + 1} (${Math.round(p.lux)} lux)" data-idx="${i}" placeholder="Room ${i + 1} (tap to label)" value="${escapeAttr(p.label || '')}" list="audit-rooms-${i}" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
+        <span style="font-size:12px;color:var(--text-muted);min-width:92px">${p.lux != null ? `~${Math.round(p.lux)} lux` : escapeHTML(p.levelLabel)}</span>
+        <input type="text" class="audit-room-label-input" aria-label="Label for room ${i + 1} (${p.lux != null ? `about ${Math.round(p.lux)} lux` : p.levelLabel})" data-idx="${i}" placeholder="Room ${i + 1} (tap to label)" value="${escapeAttr(p.label || '')}" list="audit-rooms-${i}" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
         <datalist id="audit-rooms-${i}">${COMMON_ROOMS.map(r => `<option value="${escapeAttr(r)}">`).join('')}</datalist>
       </li>
     `).join('');
@@ -564,7 +504,9 @@ export async function openEyeLevelAudit() {
         // brightness signal, not the camera-corrected one.
         const lock = await lockCameraForMeasurement(stream);
         if (lock.exposure !== 'manual') {
-          statusEl.innerHTML = `Recording… <span style="color:var(--orange);font-size:11px">⚠ camera auto-exposure on — per-room values will be relative, not absolute lux.</span>`;
+          statusEl.innerHTML = `Recording… <span style="color:var(--orange);font-size:11px">⚠ camera auto-exposure is on — room levels are rough comparisons only.</span>`;
+        } else {
+          statusEl.innerHTML = `Recording… <span style="color:var(--text-muted);font-size:11px">Exposure is held so rooms can be compared. The walkthrough saves relative brightness—not lux.</span>`;
         }
         const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 24;
         const ctx = getRequired2DContext(canvas);
@@ -590,8 +532,10 @@ export async function openEyeLevelAudit() {
             if (!pauseStart) pauseStart = t;
             else if (t - pauseStart > 5000) {
               // Mark a pause snapshot
-              const lux = Math.max(0, luma * 40 * loadLuxCalibration());
-              pauseDetections.push({ at: t, luma, lux, label: '' });
+              const cameraLevel = Math.min(100, Math.max(0, luma / 255 * 100));
+              const lux = null;
+              const levelLabel = cameraLevel < 20 ? 'Dimmer' : cameraLevel < 55 ? 'Medium' : 'Brighter';
+              pauseDetections.push({ at: t, luma, cameraLevel, lux, levelLabel, label: '' });
               renderAuditList();
               pauseStart = null;
               waitingForMovement = true;
@@ -624,8 +568,10 @@ export async function openEyeLevelAudit() {
           extra: { rooms: pauseDetections.map((p, i) => ({
             index: i + 1,
             lux: p.lux,
+            cameraLevel: p.cameraLevel,
+            levelLabel: p.levelLabel,
             label: (p.label || '').trim() || `Room ${i + 1}`,
-          })) },
+          })), method: 'relative-camera-walkthrough' },
         });
         // Try to bind each pause to an existing room by name; create
         // one if no match. Startup wiring injects getRooms/addRoom from
@@ -647,18 +593,18 @@ export async function openEyeLevelAudit() {
               if (roomId) byLabel.set(label.toLowerCase(), roomId);
             } catch (e) {}
           }
-          if (roomId && typeof p.lux === 'number') {
-            await saveMeasurement('lux', p.lux, {
+          if (roomId) {
+            await saveMeasurement('brightness-proxy', p.cameraLevel, {
               roomId,
-              confidence: 0.5,
-              extra: { source: 'eye-level-audit', auditPauseIndex: i + 1 },
+              confidence: 0.25,
+              extra: { method: 'relative-camera-walkthrough', levelLabel: p.levelLabel, auditPauseIndex: i + 1 },
             });
             bound++;
           }
         }
         const labeled = pauseDetections.filter(p => (p.label || '').trim()).length;
         const labelNote = labeled > 0
-          ? ` (${labeled}/${pauseDetections.length} labeled, ${bound} written to rooms)`
+          ? ` (${labeled}/${pauseDetections.length} labeled, ${bound} attached to rooms as relative brightness)`
           : '';
         showNotification(`Audit saved · ${pauseDetections.length} room snapshots${labelNote}.`);
       } else {
@@ -684,31 +630,31 @@ export function renderLightTools() {
     spectrum: {
       icon: '🔬',
       name: 'What is this light?',
-      desc: 'Classify LED, fluorescent, daylight, or incandescent and estimate melanopic load.',
-      short: 'Bulb type + spectrum',
+      desc: 'Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.',
+      short: 'Warm / cool pattern',
     },
     lux: {
       icon: '📏',
       name: 'Lux meter',
-      desc: 'Measure room brightness with daylight comparison and per-device calibration.',
+      desc: 'Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.',
       short: 'Brightness baseline',
     },
     cct: {
       icon: '🎨',
       name: 'Color temp',
-      desc: 'Check warm/cool kelvin, solar-time match, and dimming warning signs.',
+      desc: 'Get an approximate warm/cool camera estimate and screen for visible banding.',
       short: 'Warm vs cool',
     },
     flicker: {
       icon: '⚡',
       name: 'Flicker detector',
-      desc: 'Find PWM and rolling-shutter banding up to 25 kHz.',
-      short: 'PWM risk',
+      desc: 'Screen for rolling-shutter banding; absence does not prove flicker-free output.',
+      short: 'Banding screen',
     },
     darkness: {
       icon: '🌙',
       name: 'Sleep darkness',
-      desc: 'Measure mean and peak lux at the pillow.',
+      desc: 'Run a qualitative low-light camera check or enter a meter reading at the pillow.',
       short: 'Bedroom night check',
     },
     glass: {
@@ -720,7 +666,7 @@ export function renderLightTools() {
     audit: {
       icon: '🚶',
       name: 'Home audit',
-      desc: 'Walk through rooms and capture a per-room snapshot in about 10 minutes.',
+      desc: 'Walk through rooms for relative brightness with one held camera exposure.',
       short: 'Room sweep',
     },
     golden: {
@@ -746,8 +692,8 @@ export function renderLightTools() {
 
   const next = [
     { id: 'lux', reason: 'Set brightness baseline', primary: true },
-    { id: 'flicker', reason: 'Rule out PWM risk' },
-    { id: 'spectrum', reason: 'Identify the light source' },
+    { id: 'flicker', reason: 'Screen for visible banding' },
+    { id: 'spectrum', reason: 'Check warm / cool pattern' },
   ];
 
   const statusChips = total > 0

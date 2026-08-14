@@ -38,16 +38,16 @@ test('sun session model browser coverage exercises safety defaults and caveats',
     const outcomes = {};
 
     outcomes.photosensitiveTiersNormalizeLegacyAndUnknownInputs =
-      model.PHOTOSENSITIVE_MED_TIERS.map(tier => tier.key).join(',') === 'none,mild,moderate,severe'
-      && model.photosensitiveMedScale('moderate') === 0.4
-      && model.photosensitiveMedScale('severe') === 0.25
-      && model.photosensitiveMedScale('unknown-tier') === 1
+      model.PHOTOSENSITIVE_MED_TIERS.map(tier => tier.key).join(',') === 'unknown,none,mild,moderate,severe'
+      && model.photosensitiveMedScale('moderate') === null
+      && model.photosensitiveMedScale('severe') === null
+      && model.photosensitiveMedScale('unknown-tier') === null
       && model._normalizePSMTier(true) === 'moderate'
       && model._normalizePSMTier(false) === 'none'
-      && model._normalizePSMTier(null) === 'none'
-      && model._normalizePSMTier(undefined) === 'none'
+      && model._normalizePSMTier(null) === 'unknown'
+      && model._normalizePSMTier(undefined) === 'unknown'
       && model._normalizePSMTier('mild') === 'mild'
-      && model._normalizePSMTier('bad') === 'none';
+      && model._normalizePSMTier('bad') === 'unknown';
 
     outcomes.exposurePostureAndSurfaceOptionsExposeExpectedDefaults =
       model.EXPOSURE_PRESETS.some(preset => preset.key === 'face_hands' && preset.fraction === 0.05)
@@ -66,10 +66,10 @@ test('sun session model browser coverage exercises safety defaults and caveats',
       && caveats.LIGHTING_HARDWARE_CAVEATS.length >= 5
       && caveats.LIGHTING_HARDWARE_CAVEATS.every(entry => typeof entry === 'string' && entry.length > 0)
       && caveats.LIGHTING_HARDWARE_CAVEATS_TEXT === caveats.LIGHTING_HARDWARE_CAVEATS.join('\n')
-      && /PWM flicker/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
+      && /temporal light modulation/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
       && /TRIAC/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
       && /dimmable LED/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
-      && /blackout curtains/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT);
+      && /reducing light leakage/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT);
 
     return outcomes;
   }, {
@@ -228,11 +228,11 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         && sun.tierLabel(99) === 'none'
         && sun.tierDots(3) === '●●●○';
       outcomes.formatChannelUnitsCoverThresholdsAndFallbacks =
-        sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 6, null, true, 0.24).includes('IU')
-        && sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 1, null, false, 0.24) === 'below UVI threshold'
-        && sun.formatChannelUnit('vitamin_d', 12000, 30, 'II', 6, null, true, 0.8).includes('saturated')
+        sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 6, null, true, 0.24).includes('IU-eq')
+        && sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 1, null, false, 0.24).includes('IU-eq')
+        && sun.formatChannelUnit('vitamin_d', 12000, 30, 'II', 6, null, true, 0.8).includes('reporting ceiling')
         && sun.formatChannelUnit('nir_solar', 12400, 20) === '1.2 J/cm²'
-        && sun.formatChannelUnit('circadian', 52000, 10).includes('53.2k M-EDI lux')
+        && sun.formatChannelUnit('circadian', 52000, 10).includes('estimated melanopic-equivalent lx')
         && sun.formatChannelUnit('no_cv', 200, 20) === ''
         && sun.formatChannelUnit('circadian', 200, 1) === 'session too short';
 
@@ -263,7 +263,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         && activeSession.bodyExposure.rotatedSides === true
         && toasts().some(text => text.includes('Session paused'))
         && toasts().some(text => text.includes('Session resumed'))
-        && toasts().some(text => text.includes('Already logged as rotated'));
+        && toasts().some(text => text.includes('Side change already recorded'));
       clearToasts();
 
       const invalidSunscreen = sun.applySunscreenMidSession(activeId);
@@ -323,6 +323,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         },
       });
       const precise = await sun.requestPreciseLocation();
+      sun.clearCurrentLocation();
       delete state.importedData.sunDefaults.coords;
       state.profiles = [{ id: profileId, name: 'Sun Browser', location: { country: '', zip: '' } }];
       localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Sun Browser', location: { country: '', zip: '' } }]));
@@ -333,7 +334,8 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         && precise?.lat === 40.7
         && precise?.lon === -74
         && noCoords === null
-        && toasts().some(text => text.includes('Precise location saved'));
+        && precise?.source === 'current-device'
+        && toasts().some(text => text.includes('Current location is active for today'));
     } finally {
       state.importedData = saved.importedData;
       state.profiles = saved.profilesState;

@@ -144,6 +144,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         markerNotes: {},
         markerValueNotes: {},
         changeHistory: [],
+        sunDefaults: { fitzpatrick: 'III', completedAt: Date.now() },
         lightDevices: [],
         deviceSessions: [],
       };
@@ -231,7 +232,10 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         !store.getDeviceSessions().some(s => s.id === logged.id)
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 2;
 
-      await lightDevices.deleteLightDeviceAndRefresh(customDevice.id);
+      const deleteDevicePromise = lightDevices.deleteLightDeviceAndRefresh(customDevice.id);
+      await waitUntil(() => !!document.getElementById('confirm-ok'), 'delete device confirm open');
+      document.getElementById('confirm-ok')?.click();
+      await deleteDevicePromise;
       outcomes.deleteLightDeviceWrapperRemovesDeviceAndRefreshes =
         !store.getDevices().some(d => d.id === customDevice.id)
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 3;
@@ -361,9 +365,10 @@ test('light device setup browser coverage exercises default dependency fallbacks
       customOverlay.querySelector('#custom-dev-save')?.click();
       await wait(0);
       outcomes.defaultAddCustomDeviceAndRefreshFallbacksAreCallable =
-        !document.body.contains(customOverlay)
+        document.body.contains(customOverlay)
         && Array.from(document.querySelectorAll('.notification-toast'))
-          .some(el => (el.textContent || '').includes('Device added'));
+          .some(el => (el.textContent || '').includes('could not be added'));
+      customOverlay.remove();
 
       setup.configureLightDeviceSetup({
         loadPresets: async () => ({
@@ -386,9 +391,9 @@ test('light device setup browser coverage exercises default dependency fallbacks
       confirm?.click();
       await wait(0);
       outcomes.defaultAddDeviceFromPresetFallbackIsCallable =
-        !document.body.contains(presetOverlay)
+        document.body.contains(presetOverlay)
         && Array.from(document.querySelectorAll('.notification-toast'))
-          .filter(el => (el.textContent || '').includes('Device added')).length >= 2;
+          .filter(el => (el.textContent || '').includes('could not be added')).length >= 2;
     } finally {
       document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());

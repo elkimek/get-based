@@ -10,7 +10,7 @@ export const FITZPATRICK_OPTIONS = [
   { key: 'III', label: 'III — sometimes burns, tans gradually (medium)' },
   { key: 'IV',  label: 'IV — rarely burns, tans easily (olive/Mediterranean)' },
   { key: 'V',   label: 'V — very rarely burns, tans deeply (brown)' },
-  { key: 'VI',  label: 'VI — never burns (deeply pigmented)' },
+  { key: 'VI',  label: 'VI — rarely burns, deeply pigmented (UV damage is still possible)' },
 ];
 
 export const FITZPATRICK_DESCRIPTOR = [
@@ -19,7 +19,7 @@ export const FITZPATRICK_DESCRIPTOR = [
   'sometimes burns, tans gradually',
   'rarely burns, tans easily',
   'very rarely burns, tans deeply',
-  'never burns, deeply pigmented',
+  'rarely burns; UV damage is still possible',
 ];
 
 export const HOME_LIGHT_OPTIONS = [
@@ -42,13 +42,16 @@ export const EYEWEAR_OPTIONS = [
 ];
 
 export const PHOTOSENSITIVE_OPTIONS = [
-  { key: 'none', label: 'None', sub: 'No known photosensitizers' },
-  { key: 'mild', label: 'Mild', sub: 'Antihistamines or light NSAID use' },
-  { key: 'moderate', label: 'Moderate', sub: "NSAIDs, thiazides, sulfa, St. John's Wort, topical retinol" },
-  { key: 'severe', label: 'Severe', sub: 'Tetracyclines, oral retinoids, amiodarone, citrus oils on skin' },
+  { key: 'unknown', label: 'Not reviewed', sub: 'Check medicine, supplement, and topical-product labels' },
+  { key: 'none', label: 'No known warning', sub: 'No sunlight or photosensitivity warning known' },
+  { key: 'mild', label: 'Possible warning', sub: 'A product may increase sunlight sensitivity' },
+  { key: 'moderate', label: 'Known warning', sub: 'A label or clinician advises sun precautions' },
+  { key: 'severe', label: 'Prior reaction', sub: 'Prior phototoxic/photoallergic reaction or strict avoidance advice' },
 ];
 
-// Each "yes" is a documented light-environment gap and adds one burden point.
+// Each "yes" records a timing or spectrum-context pattern. This is an
+// educational context map, not a validated clinical scale: several items have
+// strong circadian support, while the ocular-UV/POMC item remains preclinical.
 // Reference basis for the ten questions:
 //   1. Morning light: Brown et al. 2022 CIE recommendations; Münch et al.
 //      JCEM 2017 — outdoor light within about one hour of waking entrains SCN.
@@ -62,31 +65,32 @@ export const PHOTOSENSITIVE_OPTIONS = [
 //   9. Outdoor sunglasses: Lambert / Hattar on eye-mediated signaling.
 //  10. Outdoor time: Stein et al. on myopia, vitamin D, and circadian amplitude.
 export const OTT_QUESTIONS = [
-  { key: 'morning-light-deficit',    text: 'Do you get less than 5 minutes of outdoor daylight within an hour of waking?',
-    why: 'Morning daylight at the eye sets your central body clock — without it, sleep timing drifts.' },
+  { key: 'morning-light-deficit',    text: 'Do you usually get little or no outdoor daylight in the first 1–2 hours after waking?',
+    why: 'Morning light can help anchor circadian timing; the response depends on timing, intensity, duration, schedule, and individual sensitivity.' },
   { key: 'glass-mediated-daytime',   text: 'Do you spend most of your daytime hours behind window glass (office, home, car)?',
-    why: 'Window glass blocks UVB almost entirely — no vitamin D, no nitric-oxide release through the skin.' },
-  { key: 'dim-workspace',            text: 'Is your daytime workspace below office-bright (under ~500 lux at eye-level)?',
-    why: 'Dim daytime light fails to reinforce the wake signal — the contrast with night collapses.' },
-  { key: 'cool-led-evening',         text: 'Are most of your indoor lights after sunset cool / daylight-white (4000K+)?',
-    why: 'Cool / blue-rich light after sunset suppresses melatonin even at modest indoor intensities.' },
+    why: 'Ordinary glass strongly reduces UVB and alters UVA and visible-light transmission; daylight at the eye is also usually much dimmer indoors than outdoors.' },
+  { key: 'dim-workspace',            text: 'Is your daytime workspace dim, with little daylight, for much of the day?',
+    why: 'Brighter daytime light supports day–night contrast. Ordinary lux and bulb color are only rough proxies for melanopic light at the eye.' },
+  { key: 'cool-led-evening',         text: 'Is your evening light both bright and cool / blue-enriched for long periods?',
+    why: 'Circadian response depends on intensity, spectrum, duration, and timing—not color temperature alone.' },
   { key: 'evening-screens',          text: 'Do you regularly use bright screens (phone, laptop, TV) in the 2 hours before bed?',
-    why: 'Backlit screen reading before bed delays melatonin onset by ~90 minutes (Chang et al. AJCN 2015).' },
-  { key: 'bright-after-sunset',      text: 'Do you keep overhead room lights on at full brightness after sunset?',
-    why: 'Overhead light after sunset shifts your circadian phase and shortens deep sleep.' },
-  { key: 'sleep-not-dark',           text: 'Is your bedroom not fully dark while you sleep (LED indicators, streetlight, partner\'s screen)?',
-    why: 'Even <5 lux at the pillow degrades overnight insulin sensitivity (Cain et al. JCSM 2020).' },
+    why: 'Controlled studies show that prolonged, bright evening screen exposure can delay circadian timing; device, brightness, distance, and duration matter.' },
+  { key: 'bright-after-sunset',      text: 'Do you keep bright room or overhead lights on during the 3 hours before intended sleep?',
+    why: 'Bright evening light can delay biological night. The effect depends on melanopic light at the eye and personal timing.' },
+  { key: 'sleep-not-dark',           text: 'Does light reach your eyes while you sleep (room light, streetlight, or a nearby screen)?',
+    why: 'A dark sleep environment supports biological night; laboratory findings under room light do not mean every tiny indicator light causes metabolic harm.' },
   { key: 'sunscreen-blocks-uvb',     text: 'Do you apply sunscreen on most sun-exposed days, including brief outdoor time?',
-    why: 'Chemical sunscreen above ~SPF 8 blocks the UVB wavelengths required for vitamin D synthesis.' },
+    why: 'Sunscreen deliberately filters UV; spectrum and transmission vary by formulation and application. Record it for skin-dose modeling—not as a reason to extend exposure or remove protection.' },
   { key: 'sunglasses-outside',       text: 'Do you wear sunglasses outdoors more often than not?',
-    why: 'Sunglasses block the eye-mediated α-MSH cascade — your skin and mood lose a key signal.' },
+    why: 'Eyewear changes the spectrum reaching the eye. Ocular-UV activation of POMC / α-MSH has been shown in mice; a human skin-protection effect is unproven, so eye safety takes priority.' },
   { key: 'low-outdoor-time',         text: 'Is your total outdoor time under 30 minutes on a typical day?',
-    why: 'Under 30 min/day outdoors correlates with low vitamin D, myopia, and a blunted circadian amplitude.' },
+    why: 'Outdoor light is usually far brighter than indoor light. This cutoff is a simple habit screen, not a biological threshold or diagnosis.' },
 ];
 
 export function photosensitiveTierOf(raw) {
   if (raw === true) return 'moderate';
-  if (raw === false || raw == null) return 'none';
+  if (raw === false) return 'none';
+  if (raw == null || raw === '') return 'unknown';
   return String(raw);
 }
 
@@ -100,14 +104,15 @@ export function skinTypeToFitzpatrick(skinType) {
   return match ? match[1] : null;
 }
 
-// Higher scores mean more indoor-light burden.
+// Higher scores mean more context patterns selected. The tiers only organize
+// the educational review; they are not a health, risk, or alignment grade.
 export function ottScoreToLabel(score) {
   if (typeof score !== 'number') return { label: '—', tier: 0 };
-  if (score <= 1) return { label: 'well-aligned light environment', tier: 0 };
-  if (score <= 3) return { label: 'mostly aligned, minor gaps', tier: 1 };
-  if (score <= 5) return { label: 'moderate light burden', tier: 2 };
-  if (score <= 7) return { label: 'significant light burden', tier: 3 };
-  return { label: 'severe indoor-light burden', tier: 4 };
+  if (score === 0) return { label: 'no patterns selected', tier: 0 };
+  if (score <= 3) return { label: 'a few patterns to explore', tier: 1 };
+  if (score <= 5) return { label: 'several patterns to explore', tier: 2 };
+  if (score <= 7) return { label: 'many patterns to review', tier: 3 };
+  return { label: 'broad light-context mismatch', tier: 4 };
 }
 
 export const lightBurdenToLabel = ottScoreToLabel;

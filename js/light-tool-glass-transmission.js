@@ -6,7 +6,6 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import {
   aimingGuideHTML,
   getRequired2DContext,
-  loadLuxCalibration,
   lockCameraForMeasurement,
 } from './light-tool-camera.js';
 import {
@@ -107,11 +106,10 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
         await new Promise(resolve => setTimeout(resolve, 125));
       }
       const meanLuma = samples.reduce((sum, value) => sum + value, 0) / samples.length;
-      const luxEstimate = Math.max(0, meanLuma * 40 * loadLuxCalibration());
       if (closed) return;
-      glassReadings[which] = luxEstimate;
+      glassReadings[which] = meanLuma;
       const readingEl = queryOptionalLightToolElement(overlay, `#glass-reading-${which}`);
-      if (readingEl) readingEl.textContent = `${Math.round(luxEstimate)} lux`;
+      if (readingEl) readingEl.textContent = `${Math.round(meanLuma / 255 * 100)}% camera level`;
       computeGlass();
     } catch (error) {
       if (!closed) {
@@ -131,22 +129,23 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
   function computeGlass() {
     if (glassReadings.inside == null || glassReadings.outside == null) return;
     const transmission = Math.min(1, glassReadings.inside / Math.max(glassReadings.outside, 1));
-    const blocked = (1 - transmission) * 100;
     const lockNote = lastGlassLock && lastGlassLock.exposure !== 'manual'
-      ? '<br><small style="color:var(--orange)">⚠ camera auto-exposure was active — re-exposes between samples, the ratio above is approximate. Re-take readings if you need precision.</small>'
+      ? '<br><small style="color:var(--orange)">⚠ Camera auto-exposure was active, so it may have erased part of the difference. Treat this as qualitative.</small>'
       : '';
     queryRequired(overlay, '#glass-result').innerHTML =
-      `<strong>Glass transmits ${(transmission * 100).toFixed(0)}% of visible light</strong>` +
-      `<br><small>Blocks ~${blocked.toFixed(0)}% of broadband visible. <strong>UV transmission cannot be inferred from this measurement</strong> — Low-E and UV-blocking coatings have very different UV/visible ratios. A handheld UV meter is required to verify UV-A or UV-B blocking.</small>${lockNote}`;
+      `<strong>Camera-visible response through glass: about ${(transmission * 100).toFixed(0)}% of the direct comparison</strong>` +
+      `<br><small>This is not a calibrated visible-transmission value. Scene movement, reflections, exposure, and phone spectral response affect it. <strong>UV or infrared transmission cannot be inferred</strong>; those require wavelength-appropriate meters.</small>${lockNote}`;
     const glassSave = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#glass-save'));
     glassSave.disabled = false;
     glassSave.onclick = async () => {
       await saveMeasurement('glass-transmission', transmission, {
-        confidence: lastGlassLock?.exposure === 'manual' ? 0.7 : 0.5,
+        confidence: lastGlassLock?.exposure === 'manual' ? 0.45 : 0.25,
         extra: {
           inside: glassReadings.inside,
           outside: glassReadings.outside,
           lockMode: lastGlassLock?.exposure || 'auto',
+          method: 'two-sample-camera-ratio',
+          unit: 'relative-camera-response',
         },
         roomId,
       });

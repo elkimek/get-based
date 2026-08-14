@@ -10,26 +10,23 @@
 // naturally via the per-row CRDT and the row template can read it
 // without a side-channel cache.
 
-import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
-import { getSessions, formatChannelUnit, CHANNEL_DISPLAY, channelTier, tierLabel } from './sun.js';
-import { vitaminDIU } from './sun-spectrum.js';
+import { getSessions, formatChannelUnit, CHANNEL_DISPLAY } from './sun.js';
 import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
-import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 //
 // Hash of the session fields that, when changed, should invalidate a
-// previously-cached analysis. Deliberately excludes id and startedAt
-// (cosmetic) and includes the dose / safety / coverage / weather snapshot
-// since those are what the verdict actually keys on.
+// previously-cached analysis. Timing and location are biological inputs here,
+// not cosmetic metadata: together they determine solar elevation and phase.
 function getSessionFingerprint(sess) {
   if (!sess) return '';
   const parts = [
+    sess.startedAt || 0,
     sess.endedAt || 0,
     Math.round((sess.durationMin || 0) * 10) / 10,
     sess.bodyExposure?.preset || '',
@@ -40,10 +37,20 @@ function getSessionFingerprint(sess) {
     sess.eyeExposure?.mode || '',
     sess.eyeExposure?.lensTint || '',
     Math.round((sess.eyeExposure?.durationSec || 0) / 30),
+    sess.posture || '',
+    sess.surfaceAlbedo || '',
+    sess.location?.lat != null ? Math.round(sess.location.lat * 10000) : '',
+    sess.location?.lon != null ? Math.round(sess.location.lon * 10000) : '',
     sess.atmosphere?.uvIndex != null ? Math.round(sess.atmosphere.uvIndex * 10) : '',
     sess.atmosphere?.cloudCover != null ? Math.round(sess.atmosphere.cloudCover) : '',
+    sess.atmosphere?.ozoneDU != null ? Math.round(sess.atmosphere.ozoneDU) : '',
+    sess.atmosphere?.source || '',
     sess.safety?.fitzpatrick || '',
     Math.round((sess.safety?.medFraction || 0) * 100),
+    sess.safety?.fitzpatrickAssumed ? 1 : 0,
+    sess.safety?.medicationThresholdUnknown ? 1 : 0,
+    sess.safety?.ocularActinicUV != null ? Math.round(sess.safety.ocularActinicUV * 10) : '',
+    sess.calculationStatus || '',
   ];
   if (sess.doses) {
     for (const k of Object.keys(sess.doses).sort()) {
@@ -59,6 +66,14 @@ export { getSessionFingerprint };
 function _formatNumber(n, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Number(n).toFixed(digits).replace(/\.0$/, '');
+}
+
+function _localDateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 // Tells the AI what part of the solar cycle the session covered.
@@ -89,50 +104,15 @@ function _classifySolarPhase(startElev, endElev) {
   return 'midday peak (near-zenith sun)';
 }
 
-function _sevenDayRollup(currentSess) {
-  const sessions = getSessions().filter(s => s.endedAt && s.id !== currentSess?.id);
-  const cutoff = (currentSess?.endedAt || Date.now()) - 7 * 86400000;
-  const recent = sessions.filter(s => s.endedAt >= cutoff);
-  if (!recent.length) return null;
-  const genetics = state.importedData?.genetics || null;
-  let totalMin = 0, totalVitDIU = 0, maxMed = 0;
-  const daysWithSession = new Set();
-  for (const s of recent) {
-    totalMin += s.durationMin || 0;
-    const rawVitD = s.doses?.vitamin_d || 0;
-    if (rawVitD > 0) {
-      const iu = vitaminDIU(
-        rawVitD,
-        s.safety?.fitzpatrick || 'III',
-        s.atmosphere?.uvIndex ?? null,
-        !!s.bodyExposure?.rotatedSides,
-        genetics,
-      );
-      if (Number.isFinite(iu)) totalVitDIU += iu;
-    }
-    if ((s.safety?.medFraction || 0) > maxMed) maxMed = s.safety.medFraction;
-    daysWithSession.add(new Date(s.endedAt).toISOString().slice(0, 10));
-  }
-  return {
-    sessionCount: recent.length,
-    daysWithSession: daysWithSession.size,
-    totalMin: Math.round(totalMin),
-    totalVitDIU: Math.round(totalVitDIU),
-    maxMedPct: Math.round(maxMed * 100),
-  };
-}
-
 export function buildSingleSessionContext(sess) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
-  const lc = state.importedData?.lightCircadian || {};
-  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const lines = [];
 
   lines.push('### Session');
   const start = new Date(sess.startedAt || Date.now());
   const end = sess.endedAt ? new Date(sess.endedAt) : null;
-  lines.push(`Date: ${start.toISOString().slice(0, 10)}`);
+  lines.push(`Local date: ${_localDateKey(start)}`);
   lines.push(`Time: ${start.toTimeString().slice(0, 5)}${end ? '–' + end.toTimeString().slice(0, 5) : ' (in progress)'}`);
   lines.push(`Duration: ${_formatNumber(sess.durationMin)} min`);
 
@@ -178,45 +158,17 @@ export function buildSingleSessionContext(sess) {
       if (v == null || v === 0) continue;
       const meta = CHANNEL_DISPLAY[k] || { label: k };
       let display = formatChannelUnit(k, v, dur, fitz, uvi, zenith, rotated, sess.bodyExposure?.fraction || null);
-      if (!display) {
-        const t = channelTier(v, k);
-        const tlabel = tierLabel(t);
-        const target = meta.dailyTarget || 0;
-        const pct = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-        display = pct != null ? `${tlabel} (${pct}% of daily target)` : tlabel;
-      }
+      if (!display) display = 'sunlight signal logged';
       parts.push(`${meta.label || k}: ${display}`);
     }
-    if (parts.length) lines.push('Doses (as displayed to user):');
+    if (parts.length) lines.push('Modeled light signals:');
     for (const p of parts) lines.push('  - ' + p);
   }
 
   if (sess.safety) {
-    lines.push(`Burn dose: ${Math.round((sess.safety.medFraction || 0) * 100)}% of MED (Fitzpatrick ${sess.safety.fitzpatrick || sd.fitzpatrick || 'III'})`);
-  }
-
-  lines.push('');
-  lines.push('### User profile');
-  if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
-  else if (lc.skinType) lines.push(`Skin type: ${lc.skinType}`);
-  if (sd.photosensitiveMeds && sd.photosensitiveMeds !== 'none') lines.push(`Photosensitizing meds: ${sd.photosensitiveMeds}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
-  if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
-
-  try {
-    const entries = (state.importedData?.entries || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    for (const e of entries) {
-      const v = e?.values?.hormones?.['25-oh-vitamin-d'] ?? e?.values?.lipids?.['25-oh-vitamin-d'];
-      if (v != null) { lines.push(`Latest 25-OH-D: ${v} (${e.date})`); break; }
-    }
-  } catch (_) {}
-
-  const rollup = _sevenDayRollup(sess);
-  if (rollup) {
-    lines.push('');
-    lines.push('### Last 7 days (excluding this session)');
-    lines.push(`Sessions: ${rollup.sessionCount} across ${rollup.daysWithSession} days · ${rollup.totalMin} min total`);
-    lines.push(`Vit-D total: ~${rollup.totalVitDIU} IU · max burn dose: ${rollup.maxMedPct}%`);
+    lines.push(`Modeled burn dose: ${Math.round((sess.safety.medFraction || 0) * 100)}% of Fitzpatrick ${sess.safety.fitzpatrick || sd.fitzpatrick || 'I'} base MED (not a personal threshold; sunscreen not credited as extra safe time)`);
+    if (sess.safety.fitzpatrickAssumed) lines.push('Skin type status: conservative Fitzpatrick I assumption was used because skin type was unset.');
+    if (sess.safety.medicationThresholdUnknown) lines.push('Medication photosensitivity: caution flag only; no numeric threshold adjustment was invented.');
   }
 
   return lines.join('\n');
@@ -229,17 +181,17 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON with three keys: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = the session was worthwhile relative to the user\'s goals AND stayed safely under burn / eye-strain thresholds',
-  '  yellow = useful but with a caveat (e.g. low yield, near-MED, eye exposure with shaded eyes, or single-side rotation)',
-  '  red = counterproductive (over MED, eye damage risk, or prolonged glass / heavy clothing wasted the session)',
+  '  green = the record is complete and no deterministic warning is present; describe the strongest modeled signals without calling the exposure sufficient, beneficial, or medically safe',
+  '  yellow = a recorded caution or material uncertainty is present (for example near-MED, assumed skin type, medication photosensitivity, or incomplete exposure context); low channel output alone is not a problem',
+  '  red = the supplied deterministic data records base MED reached or exceeded; never invent an ocular limit or other threshold that is not supplied',
   '  gray = not enough info (no doses computed, no weather, no body or eye data)',
   '',
   'Solar phase matters. Different parts of the solar cycle carry distinct biology:',
-  '  • sunrise / civil dawn: blue+violet light pre-horizon clears pineal melatonin and triggers cortisol awakening; the moment the sun crosses the horizon and UVA begins to register (~3° elevation) drives nitric-oxide release from skin/mucosa and is the strongest natural circadian phase-advance signal of the day. Eye exposure during this transition is uniquely valuable and is ~1000× safer than direct gaze later in the arc.',
-  '  • sunset / civil dusk: mirror — phase-delaying signal, melatonin onset preparation. UVA fadeout still gives a final NO/POMC bump.',
+  '  • sunrise / civil dawn: retain the blue/violet circadian and UVA/NO wellness hypotheses, but discuss ambient open-sky light only. Never recommend direct solar gaze at any elevation.',
+  '  • sunset / civil dusk: timing context may support evening phase signaling; describe fading UVA/UVB without claiming an endocrine outcome.',
   '  • midday near-zenith: peak UVB → vitamin D, peak burn risk, weakest circadian phase signal.',
   '',
-  'When "Solar phase" flags a sunrise/sunset transition or twilight window, the verdict MUST address that biology, even if every dose channel shows 0%. Heavy cloud cover dampens the spectral dose model but does NOT erase the value of the session: the visual brightening cue alone entrains the suprachiasmatic master clock, the photic zeitgeber works through retinal melanopsin which saturates at modest illuminance (~100-1000 lux), and being outdoors at this solar phase is qualitatively different from staying indoors. Vitamin-D yield will be near zero (UVB requires elevation > ~10°) and that is NEVER a yellow flag for a sunrise/sunset session — the value lives in circadian + NO + POMC + cortisol awakening, not in UVB-dependent channels. A green verdict is appropriate when the user attended the transition, even with cloud-suppressed doses.',
+  'When "Solar phase" flags sunrise/sunset or twilight, address the timing signal even when UV-weighted channels are small. Treat modeled channels as wellness hypotheses, not proof of an endocrine outcome. Low vitamin-D-effective UV is expected at low solar elevation and is not a reason to extend exposure. Never recommend looking at the sun.',
   '',
   'tip: one sentence, max 14 words. Reference specific numbers + the solar phase when relevant. Direct, no preamble.',
   'detail: 1–2 sentences. Explain the why, naming the specific dose / MED% / channel / solar phase that drove the verdict. No restating the data verbatim.',
@@ -258,8 +210,11 @@ const engine = createAIVerdict({
   buildContext: buildSingleSessionContext,
   systemPrompt: SYSTEM_PROMPT,
   maxTokens: 400,
-  canAnalyze: (s) => !!s?.endedAt,
-  shouldAutoFire: (s) => !!s?.endedAt,
+  canAnalyze: (s) => !!s?.endedAt && !!s?.doses && !!s?.safety && (!s.calculationStatus || s.calculationStatus === 'computed'),
+  // Session interpretation is intentionally on-demand in the detail dialog.
+  // Today and Weekly Review already provide automatic synthesis; auto-firing
+  // here would duplicate them for every saved row.
+  shouldAutoFire: () => false,
   getAllTargets: getSessions,
 });
 
@@ -270,8 +225,15 @@ export const maybeAnalyzeSessionAfterFinish = engine.maybeAfterFinish;
 
 // ─── Render helpers ────────────────────────────────────────────────────
 
+function _hasCompleteModeledSession(sess) {
+  return !!sess?.endedAt
+    && !!sess?.doses
+    && !!sess?.safety
+    && (!sess.calculationStatus || sess.calculationStatus === 'computed');
+}
+
 export function renderSessionAIInline(sess) {
-  if (!sess?.endedAt) return '';
+  if (!_hasCompleteModeledSession(sess)) return '';
   // Render cached verdict even when no provider — pre-populated demos +
   // cross-device-synced verdicts shouldn't disappear just because the
   // current device hasn't configured an AI key. Provider-gate only the
@@ -309,7 +271,7 @@ export function renderSessionAIInline(sess) {
 }
 
 export function renderSessionAIDetail(sess) {
-  if (!sess?.endedAt) return '';
+  if (!_hasCompleteModeledSession(sess)) return '';
   // Render cached verdict even when no provider — pre-populated demos +
   // cross-device-synced verdicts shouldn't disappear just because the
   // current device hasn't configured an AI key. Provider-gate only the

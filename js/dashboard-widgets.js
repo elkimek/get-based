@@ -65,6 +65,7 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     { id: 'correlation', source: 'Tools', title: 'Correlations', description: 'Highest linked marker pairs', size: 'half', render: renderers.renderDashboardCorrelationWidget },
     { id: 'light-today', source: 'Light', title: 'Light Today', description: "Today's light synthesis across sun, devices, and environment", render: renderers.renderDashboardLightTodayWidget },
     { id: 'light-conditions-now', source: 'Light', title: 'Conditions Now', description: 'Current outdoor UV, atmosphere, and air quality', size: 'full', render: renderers.renderDashboardLightConditionsWidget },
+    { id: 'light-live-session', source: 'Light', title: 'Live Light Session', description: 'Running sun or therapy session with live estimates and controls', size: 'full', render: renderers.renderDashboardLightLiveSessionWidget },
     { id: 'light-session-log', source: 'Light', title: 'Log Sessions', description: 'Start sun or therapy sessions quickly', size: 'third', render: renderers.renderDashboardLightSessionLogWidget },
     { id: 'light-channels', source: 'Light', title: 'Light Channels', description: 'Seven-day rhythm across light biology channels', size: 'half', render: renderers.renderDashboardLightChannelsWidget },
     { id: 'profile-context', source: 'Insight', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', render: () => renderProfileContextCards() },

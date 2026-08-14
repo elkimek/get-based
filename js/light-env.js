@@ -1,10 +1,7 @@
 // @ts-check
 // light-env.js — Light Environment module: rooms, screens, indoor light dose.
 //
-// Peer of js/emf.js. Tracks the user's continuous indoor light exposure
-// (dominant for most users — 8–14 hours/day under LEDs, fluorescent, or
-// mixed sources). Feeds the deficit/junk-light axes that complement the
-// episodic Sun Sessions log.
+// Tracks continuous indoor light context alongside episodic Sun Sessions.
 //
 // Schema:
 //   importedData.lightEnvironment = {
@@ -23,6 +20,7 @@ import {
 } from './light-env-store.js';
 import {
   PRIMARY_SOURCES,
+  DAYLIGHT_LEVELS,
   SOURCE_ARCHETYPES,
   HOURS_BUCKETS,
   EVENING_BUCKETS,
@@ -66,6 +64,7 @@ export {
 } from './light-env-store.js';
 export {
   PRIMARY_SOURCES,
+  DAYLIGHT_LEVELS,
   SCREEN_DEVICES,
   SOURCE_ARCHETYPES,
   HOURS_BUCKETS,
@@ -149,6 +148,18 @@ function renderHoursPicker(r) {
   </div>`;
 }
 
+function renderDaylightPicker(r) {
+  const chips = DAYLIGHT_LEVELS.map(level => {
+    const active = r.daylightLevel === level.key;
+    return `<button type="button" class="light-env-chip${active ? ' light-env-chip-active' : ''}" aria-pressed="${active ? 'true' : 'false'}" ${lightEnvActionAttrs('set-room-daylight-level', { id: r.id, key: level.key })}>${escapeHTML(level.label)}</button>`;
+  }).join('');
+  return `<div class="light-env-picker">
+    <span class="light-env-picker-label">Daylight reaching this room</span>
+    <div class="light-env-chip-row">${chips}</div>
+    <span class="light-env-picker-help">Think about the hours you are usually here, not the best moment of the day.</span>
+  </div>`;
+}
+
 function renderEveningPicker(r) {
   const active = activeEveningBucket(r);
   const chips = EVENING_BUCKETS.map(b => {
@@ -163,19 +174,25 @@ function renderEveningPicker(r) {
 
 // Environment-aware wrappers around the deterministic model. The model stays
 // state-free; this module supplies today's skip toggles and room-linked screens.
-export function computeRoomSeverity(room, measurements = []) {
+export function computeRoomSeverity(room, measurements = [], options = {}) {
   return computeRoomSeverityForRoom(room, measurements, {
-    screens: room?.id ? getScreensForRoom(room.id) : [],
-    isActiveToday,
+    screens: options.screens || (room?.id ? getScreensForRoom(room.id) : []),
+    isActiveToday: options.isActiveToday || isActiveToday,
   });
 }
 
 export function computeDeficitAxes() {
-  return computeDeficitAxesForEnvironment(getEnvironment(), { isActiveToday });
+  return computeDeficitAxesForEnvironment(getEnvironment(), {
+    isActiveToday,
+    getMeasurementsForRoom: getMeasurementsFor,
+  });
 }
 
 export function computeIndoorBurden() {
-  return computeIndoorBurdenForEnvironment(getEnvironment(), { isActiveToday });
+  return computeIndoorBurdenForEnvironment(getEnvironment(), {
+    isActiveToday,
+    getMeasurementsForRoom: getMeasurementsFor,
+  });
 }
 
 // ─── UI: Light Environment page (lives at /light-environment route) ───
@@ -197,12 +214,23 @@ function getMeasurementsFor(roomId) {
 }
 
 function fmtMeasureValue(m) {
-  if (m.tool === 'lux') return Math.round(m.value).toLocaleString() + ' lux';
-  if (m.tool === 'flicker') return ['pristine', 'mild', 'moderate', 'severe'][Math.min(m.value || 0, 3)] + ' flicker';
-  if (m.tool === 'cct') return Math.round(m.value).toLocaleString() + ' K';
-  if (m.tool === 'darkness') return (m.value < 1 ? m.value.toFixed(2) : Math.round(m.value)) + ' lux (sleep)';
+  if (m.tool === 'lux') {
+    const value = Math.round(m.value).toLocaleString();
+    if (m.extra?.source === 'camera-estimate') return `~${value} lux (camera estimate)`;
+    if (['AmbientLightSensor', 'manual-entry', 'meter-entry'].includes(m.extra?.source)) return `${value} lux`;
+    return `${value} lux (method unknown)`;
+  }
+  if (m.tool === 'flicker') return ['no banding detected', 'some banding', 'clear banding', 'strong banding'][Math.min(m.value || 0, 3)];
+  if (m.tool === 'cct') return `~${Math.round(m.value / 100) * 100} K (camera)`;
+  if (m.tool === 'darkness') {
+    if (m.extra?.method === 'camera-relative') return `${m.extra?.levelLabel || 'Qualitative'} camera check`;
+    const value = m.value < 1 ? Number(m.value).toFixed(2) : Math.round(m.value);
+    if (m.extra?.method === 'meter-entry' || m.extra?.source === 'meter-entry') return `${value} lux (meter)`;
+    return `${value} legacy value (method unknown)`;
+  }
+  if (m.tool === 'brightness-proxy') return `${m.extra?.levelLabel || 'Relative brightness'} (camera comparison)`;
   if (m.tool === 'spectrum') return String(m.value);
-  if (m.tool === 'glass-transmission') return Math.round((m.value || 0) * 100) + '% transmits';
+  if (m.tool === 'glass-transmission') return `~${Math.round((m.value || 0) * 100)}% camera-visible comparison`;
   if (m.tool === 'audit') {
     const n = Number.isFinite(m.value) ? m.value : (m?.extra?.rooms?.length || 0);
     return `${n} room snapshot${n === 1 ? '' : 's'}`;
@@ -221,15 +249,10 @@ function fmtMeasureTime(ts) {
 
 const TOOL_ICONS = {
   lux: '📏', flicker: '⚡', cct: '🎨', darkness: '🌙', spectrum: '🔬', 'glass-transmission': '🪟',
-  audit: '👁',
+  audit: '👁', 'brightness-proxy': '◐',
 };
 
-// Per-day "in use today / skipped today" toggle. Auto-resets at
-// midnight via the date stamp on the override (todayKey() check).
-// Header-mode is icon-only (a check or slash) with a tooltip — most
-// users never touch this so the verbose pill of the old layout was
-// burning header real estate. `compact: true` collapses to icon;
-// callers in body footers can pass false for the full text label.
+// Per-day use toggle; the stored date makes it reset at midnight.
 function _renderTodayToggle(kind, id, activeToday, opts = {}) {
   const compact = opts.compact !== false;
   const cls = `light-env-today-toggle${activeToday ? ' light-env-today-on' : ' light-env-today-off'}${compact ? ' light-env-today-compact' : ''}`;
@@ -243,9 +266,7 @@ function _renderTodayToggle(kind, id, activeToday, opts = {}) {
   return `<button type="button" class="${cls}" ${lightEnvActionAttrs('set-today-active', { kind, id, active: flipTo })} title="${escapeAttr(tip)}" aria-label="${escapeAttr(label)} — click to flip" aria-pressed="${activeToday}">${inner}</button>`;
 }
 
-// Screen card — disclosure pattern matching rooms + audits + EMF.
-// Collapsed header shows: status dot + device-icon + device-label +
-// one-line summary (hours, evening, blocker) + today-toggle + chevron.
+// Screen disclosure card.
 function renderLightEnvScreenCard(s, rooms) {
   return renderScreenCard(s, {
     expanded: isLightEnvScreenExpanded(s.id),
@@ -309,30 +330,17 @@ const PRIMARY_SOURCE_SHORT = {
 };
 
 function renderEnvironmentLoadSummary() {
-  const env = getEnvironment();
-  const hasMappedExposure = ((env?.rooms || []).length + (env?.screens || []).length) > 0;
   const burden = computeIndoorBurden();
   const interpHTML = (typeof lightEnvDeps.renderBurdenInterp === 'function')
     ? lightEnvDeps.renderBurdenInterp(burden)
     : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
-  // Reconcile the banner label with the AI verdict's dot when one exists.
-  // The deterministic computeIndoorBurden() tier crosses to "Heavy" at
-  // d2 > 8 hr — but the AI looks at the broader picture (sleep-room
-  // contamination, evening blue, room-by-room context) and may legitimately
-  // call it "moderate". Showing "HEAVY LOAD" as a header above an AI body
-  // that says "moderate" was contradictory copy. When the AI verdict is
-  // present + ok, drive the banner label/color from its dot so header +
-  // body agree. Gray / missing AI → fall through to the deterministic
-  // tier (this preserves behaviour for users without an AI provider).
-  // If rooms/screens have been deleted, ignore stale burdenAI entirely.
-  const aiVerdict = env?.burdenAI || null;
-  const aiOk = hasMappedExposure && aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(aiVerdict?.dot);
-  const bannerColor = aiOk ? aiVerdict.dot : burden.color;
-  const bannerLabel = aiOk
-    ? ({ green: 'Light load', yellow: 'Moderate load', red: 'Heavy load' }[aiVerdict.dot])
-    : burden.label;
+  // Keep the deterministic screening header tied to the current inputs.
+  // Cached AI copy may be stale between an edit and the next analysis; it
+  // must not recolor the live assessment during that period.
+  const bannerColor = burden.color;
+  const bannerLabel = burden.label;
   return `<div class="light-env-summary light-env-summary-top light-env-summary-${bannerColor}">
-    <div class="light-env-summary-kicker">Indoor light load</div>
+    <div class="light-env-summary-kicker">Indoor light picture</div>
     <div class="light-env-summary-head">
       <span class="light-env-summary-tier">${escapeHTML(bannerLabel)}</span>
       ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
@@ -385,7 +393,7 @@ export function renderEnvironmentAssessmentSummary() {
     metrics.push({
       label: 'Readings',
       value: String(mappedMeasurements.length),
-      sub: measuredRooms ? `${measuredRooms} room${measuredRooms === 1 ? '' : 's'} measured` : 'Run lux/flicker/CCT',
+      sub: measuredRooms ? `${measuredRooms} room${measuredRooms === 1 ? '' : 's'} checked` : 'Run brightness or banding',
     }, {
       label: 'Audits',
       value: String(audits.length),
@@ -394,7 +402,7 @@ export function renderEnvironmentAssessmentSummary() {
   }
   return `<div class="light-env-assessment-summary light-env-assessment-summary-${escapeAttr(burden.color)}">
     <div class="light-env-assessment-status">
-      <span class="light-env-summary-kicker">Indoor light load</span>
+      <span class="light-env-summary-kicker">Indoor light picture</span>
       <span class="light-env-assessment-tier">${escapeHTML(burden.label)}</span>
       ${burden.parts.length ? `<span class="light-env-assessment-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
     </div>
@@ -440,7 +448,7 @@ function renderLightEnvironmentAssessmentModal() {
     <div class="modal-header">
       <h3 id="light-env-assessment-title">Indoor Light Assessment</h3>
     </div>
-    <p class="light-env-assessment-modal-copy">Map the rooms, screens, and readings that shape your indoor day. Save audit snapshots before and after changes to compare what moved.</p>
+    <p class="light-env-assessment-modal-copy">Map daylight, artificial light, screens, and optional room checks. This is a practical screening picture—not a measured biological dose. Save snapshots before and after changes to compare what moved.</p>
     ${renderEnvironmentSection({ embedded: true })}
   </div>`;
   openModalOverlay(overlay, wasOpen ? {} : { initialFocus: '.modal-close', focusDelay: 50 });
@@ -567,6 +575,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
           ${_renderTodayToggle('room', r.id, _activeToday)}
         </div>
         ${renderSourcePicker(r)}
+        ${renderDaylightPicker(r)}
         ${renderHoursPicker(r)}
         ${renderEveningPicker(r)}
       </div>
@@ -579,11 +588,11 @@ function renderRoomExpandedBody(r, measurements, sev) {
       </div>
       <div class="light-env-room-step-body">
         <div class="light-env-room-tools light-env-measure-toolbar" aria-label="Room measurement tools">
-          <button class="light-env-tool-pill light-env-tool-pill-primary" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'spectrum' })} title="Identify the spectrum (auto-detects warm/cool/fluorescent)">🔬 Spectrum</button>
-          <button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'lux' })} title="Measure lux">📏 Lux</button>
-          <button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'flicker' })} title="Test for flicker">⚡ Flicker</button>
-          <button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'cct' })} title="Color temperature">🎨 CCT</button>
-          ${/bedroom|sleep/i.test(r.name || '') ? `<button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'darkness' })} title="Sleep darkness">🌙 Sleep dark</button>` : ''}
+          <button class="light-env-tool-pill light-env-tool-pill-primary" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'lux' })} title="Eye-level photopic lux from a sensor, meter entry, or calibrated camera">📏 Brightness</button>
+          <button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'flicker' })} title="Screen for camera-visible rolling-shutter banding">⚡ Banding</button>
+          <button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'spectrum' })} title="Qualitative warm, cool, and mixed camera pattern">🔬 Light type</button>
+          <button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'cct' })} title="Approximate warm/cool camera estimate—not a spectrometer">🎨 Warm / cool</button>
+          ${/bedroom|sleep/i.test(r.name || '') ? `<button class="light-env-tool-pill" ${lightEnvActionAttrs('open-tool', { id: r.id, tool: 'darkness' })} title="Qualitative camera darkness check or enter a meter reading">🌙 Sleep light</button>` : ''}
         </div>`;
 
   if (latestByTool.size === 0) {
@@ -619,7 +628,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   let stepHead, emptyCopy, quickPicks;
   if (/bedroom|sleep/.test(roomName)) {
     stepHead = 'Screens used in bed';
-    emptyCopy = 'Phone in bed is the single biggest pull on melatonin most users have. Add it here so the AI weights evening blue accurately.';
+    emptyCopy = 'If a phone or tablet is used near bedtime, add it here. Timing is useful context; brightness and viewing distance are not measured.';
     quickPicks = ['phone', 'tablet', 'tv'];
   } else if (/office|study|desk|work/.test(roomName)) {
     stepHead = 'Screens at this desk';
@@ -627,7 +636,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
     quickPicks = ['laptop', 'monitor', 'phone'];
   } else if (/living|family|den|lounge/.test(roomName)) {
     stepHead = 'Screens in this room';
-    emptyCopy = 'TV after sunset shifts melatonin most when it\'s a wall of cool blue. Worth mapping.';
+    emptyCopy = 'Add a TV or other screen used after sunset so the assessment can include its timing.';
     quickPicks = ['tv', 'phone', 'tablet'];
   } else {
     stepHead = 'Screens used here';
@@ -669,7 +678,7 @@ export function renderEnvironmentSection(options = {}) {
   if (!embedded) {
     html += `<div class="light-env-head">
       <h3 class="light-section-title">Light environment</h3>
-      <p class="light-section-hint">Indoor light is the dominant exposure most days. Map your spaces and screens — the rest of the app uses this to weight your channel pills + interpret your sleep data.</p>
+      <p class="light-section-hint">Map the light that reaches you indoors: daylight access, evening sources, screens, and optional room checks. The rest of Light uses this as context, not as a measured dose.</p>
     </div>`;
   }
   html += renderEnvironmentLoadSummary();
@@ -686,7 +695,7 @@ export function renderEnvironmentSection(options = {}) {
     </div>`;
   if (rooms.length === 0) {
     html += `<div class="light-env-empty light-env-empty-cta">
-      <p><strong>Map your bedroom first.</strong> Sleep-room contamination is the highest-leverage signal in the modern light-environment literature (Brown TM 2022) — even ~1 lux of melanopic-EDI light at night measurably suppresses melatonin. We grade it for melatonin-friendly darkness, flicker, cool-LED contamination, and evening-blue exposure — and feed that grade into your circadian channel.</p>
+      <p><strong>Map your bedroom first.</strong> Record the light used after sunset, screens near bed, and any visible light during sleep. Ordinary lux and phone-camera readings are kept separate from melanopic EDI, so the assessment can guide a better setup without pretending to measure a biological dose.</p>
       ${renderRoomQuickPicks(rooms)}
     </div>`;
   } else {

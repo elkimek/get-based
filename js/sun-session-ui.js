@@ -1,14 +1,12 @@
 // @ts-check
 // sun-session-ui.js — UI rendering/editing for saved sun sessions.
-// Core session storage, dose hydration, and sun math stay in sun.js. This
-// module receives those core operations through configureSunSessionUI() so
-// the UI layer can stay separate without importing sun.js and creating a cycle.
 
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
-import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
+import { BODY_REGIONS } from './sun-body-silhouette.js';
 import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
+import { bindPastSessionDurationHint, bindPastSessionRegionPicker, renderPastSessionLogModal } from './sun-session-log-modal.js';
 
 /**
  * @typedef {object} SunSessionUIDeps
@@ -40,9 +38,9 @@ import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-s
  * @property {() => Promise<any> | any} setOzoneOverrideMidSession
  * @property {(id: any) => Promise<any> | any} forgotStopPrompt
  * @property {(channel: string) => void} openChannelOnLightPage
- * @property {(sess: any) => string} renderSessionAIInline
  * @property {(sess: any) => string} renderSessionAIDetail
  * @property {(route: string, data?: any) => void} navigate
+ * @property {() => void} openLightSetup
  * Runtime math hooks are also configured here; defaults are no-ops.
  */
 
@@ -76,9 +74,9 @@ const uiDeps = {
   setOzoneOverrideMidSession: () => {},
   forgotStopPrompt: () => {},
   openChannelOnLightPage: () => {},
-  renderSessionAIInline: () => '',
   renderSessionAIDetail: () => '',
   navigate: () => {},
+  openLightSetup: () => {},
   solarZenithAngle: null, reconstructSpectrum: null,
   geneticVitaminDMultiplier: () => ({ mult: 1.0, contributors: [] }),
   vitaminDIU: null, vitaminDIUPerSession: null,
@@ -89,6 +87,7 @@ const sunSessionDelegateActions = {
   openSunSessionDetail,
   deleteSunSession,
   editSunSessionDuration,
+  retrySunSessionCalculation,
   quickLogSunSession: () => uiDeps.quickLogSunSession(),
   pauseSunSession: id => uiDeps.pauseSunSession(id),
   resumeSunSession: id => uiDeps.resumeSunSession(id),
@@ -115,29 +114,102 @@ function refreshLightView() {
 
 // ─── UI: Sessions list (used by the dedicated Light & Sun page) ────────
 
-// Render a single sun-session row. Extracted so the unified
-// sun+device sessions list (views.js renderUnifiedSessionsList) can
-// reuse the same rich treatment instead of rebuilding a stripped-down
-// row from scratch — channel chips + burn-risk meta + click-to-open
-// detail modal stay consistent whether the user owns devices or not.
+function resolvedSessionDurationMin(sess) {
+  const stored = sess?.durationMin == null ? Number.NaN : Number(sess.durationMin);
+  if (Number.isFinite(stored) && stored >= 0) return stored;
+  const start = Number(sess?.startedAt);
+  const end = Number(sess?.endedAt);
+  if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+    return (end - start) / 60000;
+  }
+  return null;
+}
+
+function localSessionStamp(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return { date: 'Date unavailable', time: '' };
+  const localKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return {
+    date: formatDate(localKey),
+    time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+  };
+}
+
+function renderCompletedSunSessionRow(sess) {
+  const stamp = localSessionStamp(sess.startedAt);
+  const durationMin = resolvedSessionDurationMin(sess);
+  const dur = durationMin != null ? `${Math.round(durationMin)} min` : 'duration unavailable';
+  const vitaminD = sess.doses?.vitamin_d
+    ? _sessionChipValue('vitamin_d', sess.doses.vitamin_d, sess)
+    : '';
+  const status = sess.calculationStatus;
+  let statusBadge = '';
+  if (status && status !== 'computed') {
+    const statusLabels = {
+      pending: 'Updating estimates…',
+      'needs-location': 'Location needed for estimates',
+      'atmosphere-unavailable': 'Conditions unavailable — retry',
+      'calculation-error': 'Calculation failed — retry',
+    };
+    statusBadge = `<span class="light-session-warning${status === 'calculation-error' ? ' light-session-warning-danger' : ''}">${escapeHTML(statusLabels[status] || 'Estimates unavailable')}</span>`;
+  } else {
+    const med = Number(sess.safety?.medFraction);
+    if (Number.isFinite(med) && med >= 1) {
+      statusBadge = '<span class="light-session-warning light-session-warning-danger">Base burn threshold reached</span>';
+    } else if (Number.isFinite(med) && med >= 0.7) {
+      statusBadge = '<span class="light-session-warning">High modeled burn dose</span>';
+    } else if (sess.safety?.fitzpatrickAssumed || sess.safety?.medicationThresholdUnknown) {
+      statusBadge = '<span class="light-session-warning">Review safety assumptions</span>';
+    }
+  }
+  const ariaLabel = `Open ${stamp.date}${stamp.time ? ` at ${stamp.time}` : ''} outdoor sun session details`;
+  return `<div class="sun-session light-session-row light-session-complete light-session-sun" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" ${sunSessionActionAttrs('open-detail', { id: sess.id })}>
+    <span class="light-session-icon" aria-hidden="true">☀</span>
+    <div class="light-session-summary">
+      <div class="light-session-title"><span class="light-session-kind">Outdoor</span>Sunlight</div>
+      <div class="light-session-meta-line">
+        <span class="sun-session-date">${escapeHTML(stamp.date)}</span>
+        ${stamp.time ? `<span>${escapeHTML(stamp.time)}</span>` : ''}
+        <span class="sun-session-duration">${escapeHTML(dur)}</span>
+        ${vitaminD ? `<span class="light-session-outcome">Vitamin D est. ${escapeHTML(vitaminD)}</span>` : ''}
+      </div>
+    </div>
+    ${statusBadge}
+    <span class="light-session-chevron" aria-hidden="true">›</span>
+  </div>`;
+}
+
 export function renderSunSessionRow(sess) {
-  const eyeLabels = Object.fromEntries(uiDeps.eyeModes.map(e => [e.key, e.label]));
-  const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
   const isActive = !sess.endedAt;
+  if (!isActive) return renderCompletedSunSessionRow(sess);
+  const eyeLabels = Object.fromEntries(uiDeps.eyeModes.map(e => [e.key, e.label]));
+  const start = localSessionStamp(sess.startedAt).date;
+  const now = Date.now();
+  const currentPauseMs = sess.paused && Number.isFinite(sess.pausedAt) ? Math.max(0, now - sess.pausedAt) : 0;
+  const activeElapsedMs = Math.max(0, now - sess.startedAt - (sess.accumulatedPausedMs || 0) - currentPauseMs);
+  const completedDurationMin = resolvedSessionDurationMin(sess);
   const dur = isActive
-    ? uiDeps.formatElapsed(Date.now() - sess.startedAt)
-    : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
+    ? uiDeps.formatElapsed(activeElapsedMs)
+    : (completedDurationMin != null ? `${Math.round(completedDurationMin)} min` : 'duration unavailable');
   const med = sess.safety?.medFraction;
   let medStr = '';
   if (med != null) {
     const pct = Math.round(med * 100);
-    let label = 'safe', cls = '';
+    let label = 'low modeled dose', cls = '';
     if (med >= 1) { label = 'over threshold'; cls = 'over'; }
     else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
     else if (med >= 0.3) { label = 'moderate'; cls = ''; }
-    medStr = `<span class="sun-session-med ${cls}" title="Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn dose: ${escapeHTML(label)}</span>`;
+    const medicationCaution = sess.safety?.medicationThresholdUnknown ? ' Medication effects are not included.' : '';
+    const skinAssumption = sess.safety?.fitzpatrickAssumed ? ' Conservative Type I is assumed because skin type was unset.' : '';
+    medStr = `<span class="sun-session-med ${cls}" title="Base skin-type burn dose: ${pct}% of Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'I')} MED.${escapeAttr(skinAssumption + medicationCaution)}">Base burn dose: ${escapeHTML(label)}${(skinAssumption || medicationCaution) ? ' ⚠' : ''}</span>`;
   }
   const channelChips = renderChannelChips(sess.doses, sess);
+  const liveReadouts = isActive
+    ? `<div class="sun-session-live-readouts" aria-label="Live session estimates">
+        <span class="sun-session-vitd sun-session-vitd-idle"><strong>☀ Vitamin D estimate</strong><span>Calculating…</span></span>
+        ${medStr}
+      </div>`
+    : '';
   // Active-session controls own their delegated actions so tapping them
   // does not fall through to the row-level open-detail action.
   let activeControls = '';
@@ -146,8 +218,8 @@ export function renderSunSessionRow(sess) {
     const pauseAction = isPaused ? 'resume-session' : 'pause-session';
     const isRotated = !!sess.bodyExposure?.rotatedSides;
     const flipBtn = isRotated
-      ? `<button type="button" class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides." aria-label="Rotated"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Rotated ✓</span></button>`
-      : `<button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('flip-sides', { id: sess.id })} title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure." aria-label="Flip front-back"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Flip</span></button>`;
+      ? `<button type="button" class="sun-session-ctl" disabled title="Side-change timing recorded; it does not multiply the dose." aria-label="Side change recorded"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Changed ✓</span></button>`
+      : `<button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('flip-sides', { id: sess.id })} title="Record the time you turn over. This closes the current exposure slice without multiplying dose; use Coverage if different skin becomes exposed." aria-label="Record side change"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Side change</span></button>`;
     activeControls = `<div class="sun-session-active-controls" ${sunSessionActionAttrs('ignore')}>
       <div class="sun-session-ctl-primary">
         <button type="button" class="sun-session-ctl sun-session-ctl-stop" ${sunSessionActionAttrs('quick-log-sun')} title="Stop and save the current session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
@@ -156,12 +228,15 @@ export function renderSunSessionRow(sess) {
       <div class="sun-session-ctl-secondary">
         ${flipBtn}
         <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('change-coverage', { id: sess.id })} title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward" aria-label="Change coverage"><span aria-hidden="true">👕</span> <span class="sun-session-ctl-label">Coverage</span></button>
-        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('apply-sunscreen', { id: sess.id })} title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF" aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span> <span class="sun-session-ctl-label">Sunscreen</span></button>
+        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('apply-sunscreen', { id: sess.id })} title="Record sunscreen reapplication and start a new channel-dose slice. The burn gauge does not credit entered SPF as guaranteed extra safe time." aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span> <span class="sun-session-ctl-label">Sunscreen</span></button>
         <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('override-ozone')} title="Calibrate ozone column from a meter / weather station" aria-label="Override ozone"><span aria-hidden="true">🛰</span> <span class="sun-session-ctl-label">Ozone</span></button>
       </div>
     </div>`;
   }
-  const pausedBadge = isActive && sess.paused ? `<span class="sun-session-paused" title="Dose accrual paused — elapsed time still ticks but channel + burn totals stay frozen.">⏸ paused</span>` : '';
+  const pausedBadge = isActive && sess.paused ? `<span class="sun-session-paused" title="Dose and active-duration accrual are paused.">⏸ paused</span>` : '';
+  const calculationBadge = !isActive && sess.calculationStatus && sess.calculationStatus !== 'computed'
+    ? `<span class="sun-session-paused" title="This session has no computed dose yet.">⚠ ${escapeHTML(sess.calculationStatus === 'needs-location' ? 'location needed' : 'calculation pending')}</span>`
+    : '';
   const forgotBanner = isActive && (Date.now() - sess.startedAt > 12 * 3600 * 1000)
     ? `<div class="sun-session-forgot" ${sunSessionActionAttrs('forgot-stop', { id: sess.id })} role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - sess.startedAt) / 3600000)}h. Tap to end it.</div>`
     : '';
@@ -173,16 +248,17 @@ export function renderSunSessionRow(sess) {
       <span class="sun-session-date">${start}</span>
       <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
       ${pausedBadge}
-      ${medStr}
-      <button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>
+      ${calculationBadge}
+      ${isActive ? '' : medStr}
+      ${isActive ? '' : `<button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>`}
     </div>
     <div class="sun-session-meta">
       ${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
     </div>
+    ${liveReadouts}
     ${forgotBanner}
     ${activeControls}
     ${channelChips}
-    ${uiDeps.renderSessionAIInline(sess)}
   </div>`;
 }
 
@@ -201,10 +277,6 @@ export function renderSessionsList() {
 }
 
 // ─── UI: per-session detail modal ──────────────────────────────────────
-//
-// Click any saved session row to inspect: full duration, regions exposed,
-// eyewear + sunscreen + glass, atmosphere snapshot at session midpoint
-// (UVI / ozone / cloud), and per-channel dose breakdown with tier labels.
 export function openSunSessionDetail(id) {
   const sess = uiDeps.getSessions().find(s => s.id === id);
   if (!sess) return;
@@ -214,7 +286,10 @@ export function openSunSessionDetail(id) {
   // Modal title date: full month + day + year — avoids the "Sun session
   // — Sun, May 3" stutter and gives a clear timestamp at a glance.
   const fmtTitleDate = (d) => d ? d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
-  const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress';
+  const durationMin = resolvedSessionDurationMin(sess);
+  const dur = durationMin != null
+    ? `${Math.round(durationMin)} min`
+    : (end ? 'duration unavailable' : 'in progress');
   // Combined "When" string — a single cell beats three near-redundant ones
   // (Started / Ended / Duration). Renders "10:07–10:32 · 25 min" or
   // "10:07 · started 5 min ago" for in-progress sessions.
@@ -230,7 +305,7 @@ export function openSunSessionDetail(id) {
   const regions = sess.bodyExposure?.regions || [];
   const regionLabels = regions.length
     ? regions.map(k => BODY_REGIONS.find(r => r.key === k)?.label || k).join(', ')
-    : (presetLabels[sess.bodyExposure?.preset] || 'Body unset');
+    : (sess.bodyExposure?.preset === 'covered' ? 'No skin exposed' : (presetLabels[sess.bodyExposure?.preset] || 'Body unset'));
   const fractionPct = Math.round((sess.bodyExposure?.fraction || 0) * 100);
 
   // Burn-risk
@@ -238,7 +313,7 @@ export function openSunSessionDetail(id) {
   let medStr = '—';
   if (med != null) {
     const pct = Math.round(med * 100);
-    let label = 'safe';
+    let label = 'low modeled dose';
     if (med >= 1) label = 'over threshold';
     else if (med >= 0.7) label = 'high';
     else if (med >= 0.3) label = 'moderate';
@@ -246,12 +321,6 @@ export function openSunSessionDetail(id) {
     medStr = `${pct}% · ${label}`;
   }
 
-  // Per-channel breakdown. Real-world units (IU, J/cm², M-EDI lux)
-  // surface where defensible; tier-only for channels without a clean
-  // single SI unit. See sun-spectrum.js {vitaminDIU, pbmJoulesPerCm2,
-  // circadianMelanopicLux} for the conversions and their sources.
-  // Compute zenith at session midpoint once so vit-D's uncertainty band
-  // can tighten when conditions are favorable (high noon clear sky).
   let sessZenith = null;
   try {
     if (sess.startedAt && sess.endedAt && sess.location && uiDeps.solarZenithAngle) {
@@ -263,17 +332,16 @@ export function openSunSessionDetail(id) {
   const channelRows = sess.doses ? channelOrder.map(k => {
     const meta = uiDeps.channelDisplay[k] || {};
     const v = sess.doses[k] || 0;
-    const t = uiDeps.channelTier(v, k);
-    const tlabel = uiDeps.tierLabel(t);
-    const target = meta.dailyTarget || 0;
-    const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-    const unitText = uiDeps.formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
-    const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
-    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" ${sunSessionActionAttrs('open-channel', { channel: k })} role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
+    const unitText = uiDeps.formatChannelUnit(k, v, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
+    const hasSignal = Number.isFinite(v) && v > 0;
+    const valueText = unitText || (hasSignal ? 'Signal logged' : 'Not modeled');
+    const sourceText = hasSignal ? 'Sunlight' : 'No signal';
+    const ariaLabel = `${meta.label || k} — ${valueText}, ${sourceText}. Open channel details.`;
+    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${hasSignal ? 2 : 0}" data-channel="${escapeAttr(k)}" ${sunSessionActionAttrs('open-channel', { channel: k })} role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
-      <span class="sun-detail-channel-value"${pctOfTarget != null && !unitText ? ` title="${escapeAttr(pctOfTarget + '% of typical-active-day target — calibrated to roughly 30-60 min of moderate-body-fraction midday exposure (skin channels) or 10-30 min eye-direct outdoor light (eye channels). Over 100% means you got more than typical, NOT more than safe — burn risk is the % MED chip, not this. Targets are dosing references, not exposure ceilings.')}"` : ''}>${unitText || (pctOfTarget != null ? `${pctOfTarget}%` : '')}</span>
-      <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
+      <span class="sun-detail-channel-value">${escapeHTML(valueText)}</span>
+      <span class="sun-detail-channel-tier">${sourceText}</span>
       <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
     </div>`;
   }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
@@ -303,15 +371,6 @@ export function openSunSessionDetail(id) {
       }
     } catch (e) {}
     const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc.altitudeM)} m` : 'sea level';
-    // UVA / UVB split — reconstruct the actual spectrum at session
-    // midpoint and integrate over each band:
-    //   UVB: 280–320 nm (vit-D synthesis + sunburn)
-    //   UVA: 320–400 nm (NO release, POMC, photoaging)
-    // Surfaces both the absolute irradiance (W/m²) and the percent split
-    // so users can see the real numbers, not a hand-waved fallback. No
-    // more `~5%` placeholder when ozoneDU is missing — Bird-Riordan
-    // already substitutes 300 DU internally so the spectrum is computed
-    // either way.
     let uvSplitStr = '';
     try {
       if (loc && uiDeps.reconstructSpectrum && uiDeps.solarZenithAngle && atm.uvIndex != null) {
@@ -324,6 +383,7 @@ export function openSunSessionDetail(id) {
             altitudeM: loc.altitudeM ?? 0,
             cloudCover: (atm.cloudCover ?? 0) / 100,
             aod: atm?.airQuality?.aod ?? null,
+            targetUVI: atm.uvIndex ?? null,
           });
           const dl = 5;
           let uvb = 0, uva = 0;
@@ -344,10 +404,10 @@ export function openSunSessionDetail(id) {
       }
     } catch (e) {}
     // Source label: pretty-print the raw provider key.
-    const sourceLabels = { open_meteo: 'Open-Meteo', cams: 'CAMS', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
+    const sourceLabels = { open_meteo: 'Open-Meteo', open_meteo_cams: 'Open-Meteo + CAMS context', cams: 'CAMS', cams_satellite: 'CAMS + satellite clouds', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
     const sourceStr = sourceLabels[atm.source] || atm.source || 'unknown';
     atmHtml = `<div class="sun-detail-atm">
-      <div title="WHO UV index at session midpoint${atm._uvOverridden ? ' (manual override active)' : ''}"><span>UVI${atm._uvOverridden ? ' (manual)' : ''}</span><strong>${uvi}</strong></div>
+      <div title="WHO UV index at session midpoint"><span>UVI</span><strong>${uvi}</strong></div>
       <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through. Engine defaults to 300 DU when source doesn't expose it."><span>Ozone</span><strong>${ozoneStr}</strong></div>
       <div title="Cloud-cover modifier on direct beam. Diffuse scatter still passes through."><span>Cloud</span><strong>${cloud}</strong></div>
       <div title="PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering."><span>PM2.5</span><strong>${aqPm25}</strong></div>
@@ -360,7 +420,7 @@ export function openSunSessionDetail(id) {
 
   // Location summary string (uses `loc` declared above).
   const locStr = loc
-    ? `${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}° · ${escapeHTML(loc.source || 'unknown')}`
+    ? `${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}° · ${loc.source || 'unknown'}`
     : 'Location not recorded';
 
   const overlay = document.createElement('div');
@@ -382,6 +442,19 @@ export function openSunSessionDetail(id) {
     const surfLabel = (uiDeps.surfaceOptions.find(s => s.key === sess.surfaceAlbedo) || {}).label;
     if (surfLabel) modifierBits.push(surfLabel.split(' (')[0]); // drop the "(~25%)" suffix
   }
+  const aiDetailHtml = uiDeps.renderSessionAIDetail(sess);
+  const calculationMessages = {
+    pending: 'Estimates are being recalculated. Previous derived values are hidden until the new calculation finishes.',
+    'needs-location': 'A location is needed to reconstruct conditions and calculate this session.',
+    'atmosphere-unavailable': 'Conditions could not be loaded for this session. No dose or burn estimate is being shown.',
+    'calculation-error': 'The session could not be calculated. No stale estimate is being shown.',
+  };
+  const calculationMessage = calculationMessages[sess.calculationStatus] || '';
+  const canRetryCalculation = ['needs-location', 'atmosphere-unavailable', 'calculation-error'].includes(sess.calculationStatus);
+  const calculationStateHtml = calculationMessage ? `<div class="sun-calculation-state${sess.calculationStatus === 'calculation-error' ? ' is-error' : ''}" role="status">
+    <span>${escapeHTML(calculationMessage)}</span>
+    ${canRetryCalculation ? `<button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('retry-calculation', { id: sess.id })}>Retry calculation</button>` : ''}
+  </div>` : '';
 
   overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="sun" role="dialog" aria-label="Sun session details">
     <div class="modal-header">
@@ -389,52 +462,49 @@ export function openSunSessionDetail(id) {
       <button type="button" class="modal-close" ${sunSessionActionAttrs('close-modal')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      ${uiDeps.renderSessionAIDetail(sess)}
       <div class="sun-detail-grid">
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
-        <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
+        <div title="Cumulative erythemal dose compared with a rough Fitzpatrick base MED. This is not a personal threshold; stop before redness and treat medication warnings separately."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
         ${sess.doses?.vitamin_d ? (() => {
           const geneInfo = uiDeps.geneticVitaminDMultiplier(state.importedData?.genetics);
           const geneNote = geneInfo.contributors.length > 0
-            ? ` Genetics applied (${(geneInfo.mult * 100 - 100).toFixed(0)}% net): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype} ×${c.multiplier.toFixed(2)}`).join(', ')}.`
+            ? ` Separate serum-genetics context (not applied to this skin estimate): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype}`).join(', ')}.`
             : '';
-          return `<div title="Approximate vitamin D₃ synthesis (effective serum response). Holick 2008 + Bogh &amp; Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'}${geneNote} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null))}</strong></div>`;
+          return `<div title="Modeled vitamin D IU-equivalent from action-weighted incident UVB, exposed area, and a rough Fitzpatrick ${sess.safety?.fitzpatrick || 'I'} central modifier. It is not measured skin absorption or a predicted blood response. Rotation is preserved in session history but does not double dose.${geneNote} Expect broad multi-fold uncertainty."><span>Vitamin D estimate</span><strong>${escapeHTML(uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null))}</strong></div>`;
         })() : ''}
       </div>
 
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Skin exposed · ${fractionPct}%</div>
-        <div class="sun-detail-section-value">${escapeHTML(regionLabels)}</div>
-      </div>
+      ${calculationStateHtml}
 
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Eyes</div>
-        <div class="sun-detail-section-value">${escapeHTML(eyeMode + lensTintStr)}</div>
-      </div>
-
-      ${modifierBits.length ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Modifiers</div>
-          <div class="sun-detail-section-value">${escapeHTML(modifierBits.join(' · '))}</div>
+        <div class="sun-detail-section-label">Exposure setup</div>
+        <div class="sun-detail-setup-grid">
+          <div><span>Skin · ${fractionPct}%</span><strong>${escapeHTML(regionLabels)}</strong></div>
+          <div><span>Eyes</span><strong>${escapeHTML(eyeMode + lensTintStr)}</strong></div>
+          ${modifierBits.length ? `<div><span>Modifiers</span><strong>${escapeHTML(modifierBits.join(' · '))}</strong></div>` : ''}
         </div>
-      ` : ''}
+      </div>
 
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Per-channel dose</div>
+      ${aiDetailHtml ? `<div class="sun-detail-section">
+        <div class="sun-detail-section-label">Session interpretation</div>
+        ${aiDetailHtml}
+      </div>` : ''}
+
+      <details class="sun-detail-disclosure">
+        <summary>Modeled light signals</summary>
+        <p>Estimated stimulation from this session. These signals are not daily targets or proof of an endocrine outcome.</p>
         <div class="sun-detail-channels">${channelRows}</div>
-      </div>
+      </details>
 
-      ${atmHtml ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Conditions during this session</div>
-          ${atmHtml}
+      <details class="sun-detail-disclosure">
+        <summary>Conditions and model inputs</summary>
+        <p>Technical inputs retained so the estimate can be audited without crowding the session summary.</p>
+        ${atmHtml || '<p class="sun-detail-empty">Conditions were not available for this session.</p>'}
+        <div class="sun-detail-input-location">
+          <span>Approx. model location</span>
+          <strong>${escapeHTML(locStr)}</strong>
         </div>
-      ` : ''}
-
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Location</div>
-        <div class="sun-detail-section-value">${locStr}</div>
-      </div>
+      </details>
 
       ${sess.notes ? `
         <div class="sun-detail-section">
@@ -463,16 +533,14 @@ export function openSunSessionDetail(id) {
 // the chip. Channel-aware so units match what the user expects:
 //   vitamin_d → IU
 //   nir_solar → J/cm²
-//   circadian → ~k M-EDI lux (peak melanopic during the session)
-//   no_cv / pomc / violet_eye → percent of daily target
-// Returns '' when the value is sub-meaningful so chips for low channels
-// stay tight (icon + label only).
+//   circadian → estimated melanopic-equivalent illuminance for modeled SPDs
+//   no_cv / pomc / violet_eye → no invented percentage; label only
+// Returns '' when a compact chip should use its plain signal label.
 function _sessionChipValue(channelKey, channelAu, sess) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
-  const meta = uiDeps.channelDisplay[channelKey] || {};
-  const fitz = sess?.safety?.fitzpatrick || 'III';
+  const fitz = sess?.safety?.fitzpatrick || 'I';
   const uvi = sess?.atmosphere?.uvIndex ?? null;
-  const dur = sess?.durationMin || 0;
+  const dur = resolvedSessionDurationMin(sess) || 0;
   // Mirror formatChannelUnit's too-short gate: short sessions get the
   // icon + label only, no spurious value. Keeps the chip readable
   // without misleading numbers.
@@ -486,8 +554,8 @@ function _sessionChipValue(channelKey, channelAu, sess) {
       ? uiDeps.vitaminDIUPerSession(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
       : uiDeps.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
     if (iu < 30) return '';
-    if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
-    return `~${Math.round(iu / 10) * 10} IU`;
+    if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU-eq`;
+    return `~${Math.round(iu / 10) * 10} IU-eq`;
   }
   if (channelKey === 'nir_solar' && typeof uiDeps.pbmJoulesPerCm2 === 'function') {
     const j = uiDeps.pbmJoulesPerCm2(channelAu);
@@ -498,23 +566,10 @@ function _sessionChipValue(channelKey, channelAu, sess) {
   if (channelKey === 'circadian' && dur > 0 && typeof uiDeps.circadianMelanopicLux === 'function') {
     const lux = uiDeps.circadianMelanopicLux(channelAu, dur);
     if (lux < 100) return '';
-    // Round aggressively at this magnitude — peak M-EDI lux is a big
-    // number and chip-width-readable form beats decimal precision.
-    if (lux >= 10000) return `~${Math.round(lux / 1000)}k lux`;
-    if (lux >= 1000) return `~${(lux / 1000).toFixed(1)}k lux`;
-    return `~${Math.round(lux / 10) * 10} lux`;
-  }
-  // Unitless channels — percent-of-daily-target. Past hit-target the
-  // exact number is noise (the user got more than enough); collapse
-  // anything ≥ 200% to "✓ over" so the chip stays informative without
-  // a 4-digit percentage that adds nothing actionable.
-  const target = meta.dailyTarget || 0;
-  if (target > 0) {
-    const pct = Math.round(100 * channelAu / target);
-    if (pct < 5) return '';
-    if (pct >= 200) return '✓ over';
-    if (pct >= 100) return `✓ ${pct}%`;
-    return `${pct}%`;
+    // Round aggressively at this magnitude; this is an SPD-model estimate.
+    if (lux >= 10000) return `~${Math.round(lux / 1000)}k est. mel lx`;
+    if (lux >= 1000) return `~${(lux / 1000).toFixed(1)}k est. mel lx`;
+    return `~${Math.round(lux / 10) * 10} est. mel lx`;
   }
   return '';
 }
@@ -524,29 +579,35 @@ export function renderChannelChips(doses, sess = null) {
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar'];
   // Top-3 contributing channels for at-a-glance reading. Full grid lives on
   // the Light & Sun page; per-row noise is what the v1.7.0a UX review flagged.
-  const ranked = order
-    .map(key => ({ key, v: doses[key] || 0, tier: uiDeps.channelTier(doses[key] || 0, key) }))
-    .sort((a, b) => b.tier - a.tier || b.v - a.v);
-  const showAll = ranked.filter(r => r.tier > 0).length > 3;
-  const visible = showAll ? ranked.slice(0, 3) : ranked;
+  const logged = order
+    .map(key => ({ key, v: doses[key] || 0 }))
+    .filter(row => Number.isFinite(row.v) && row.v > 0);
+  const showAll = logged.length > 3;
+  const visible = showAll ? logged.slice(0, 3) : logged;
   const chipFor = (r, extraClass = '') => {
     const meta = uiDeps.channelDisplay[r.key];
     const label = meta?.label || r.key.replace('_', ' ');
     const valueStr = _sessionChipValue(r.key, r.v, sess);
     const tip = valueStr
-      ? `${meta?.what || ''} — this session: ${valueStr}`
-      : `${meta?.what || ''} (level: ${uiDeps.tierLabel(r.tier)})`;
-    return `<span class="sun-chip sun-chip-tier-${r.tier}${extraClass}" data-channel="${r.key}" title="${escapeAttr(tip)}">
+      ? `${meta?.what || ''} — this session: ${valueStr}. Open channel details.`
+      : `${meta?.what || ''} — sunlight signal logged. Open channel details.`;
+    const ariaLabel = `${label}${valueStr ? `, this session ${valueStr}` : ', sunlight signal logged'}. Open channel details.`;
+    return `<button type="button" class="sun-chip sun-chip-tier-2${extraClass}" data-channel="${r.key}" ${sunSessionActionAttrs('open-channel', { channel: r.key })} title="${escapeAttr(tip)}" aria-label="${escapeAttr(ariaLabel)}">
       <span class="sun-chip-icon">${meta?.icon || '·'}</span>
       <span class="sun-chip-label">${escapeHTML(label)}</span>
       ${valueStr ? `<span class="sun-chip-value">${escapeHTML(valueStr)}</span>` : ''}
-    </span>`;
+    </button>`;
   };
   let html = `<div class="sun-channel-chips">`;
   for (const r of visible) html += chipFor(r);
   if (showAll) {
-    html += `<button type="button" class="sun-chip-more" ${sunSessionActionAttrs('toggle-chips')}>+ ${ranked.length - 3} more</button>`;
-    for (const r of ranked.slice(3)) html += chipFor(r, ' sun-chip-extra');
+    const hiddenCount = logged.length - 3;
+    const channelWord = hiddenCount === 1 ? 'channel' : 'channels';
+    html += `<button type="button" class="sun-chip-more" ${sunSessionActionAttrs('toggle-chips', { hiddenCount })} aria-expanded="false" aria-label="Show ${hiddenCount} additional light ${channelWord}">
+      <span class="sun-chip-more-collapsed">+ ${hiddenCount} more ${channelWord}</span>
+      <span class="sun-chip-more-expanded">Show fewer</span>
+    </button>`;
+    for (const r of logged.slice(3)) html += chipFor(r, ' sun-chip-extra');
   }
   html += `</div>`;
   return html;
@@ -555,6 +616,16 @@ export function renderChannelChips(doses, sess = null) {
 // ─── UI: detailed session log (anatomical regions + sunscreen + glass) ─
 
 export function openDetailedSessionDialog() {
+  const configuredFitz = state.importedData?.sunDefaults?.fitzpatrick || null;
+  if (!/^(I|II|III|IV|V|VI)$/.test(String(configuredFitz || ''))) {
+    showNotification(
+      'Confirm your Fitzpatrick skin type in Light setup before logging a sun session.',
+      'info',
+      7000,
+    );
+    uiDeps.openLightSetup();
+    return false;
+  }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const lastUsed = uiDeps.getSessions().filter(s => s.endedAt).slice(-1)[0];
@@ -579,122 +650,23 @@ export function openDetailedSessionDialog() {
   // silhouette per the v1.7.0a UX review. Each chip shows the region label
   // and toggles on click. Free-form, accessible, mobile-friendly.
 
-  overlay.innerHTML = `<div class="modal sun-detailed-modal" role="dialog" aria-label="Past session log">
-    <div class="modal-header">
-      <h3>Log a past session</h3>
-      <button type="button" class="modal-close" ${sunSessionActionAttrs('close-modal')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-body-hint">For sessions that already happened. Tap each body region that was uncovered.${lastUsed ? ' Body regions, eyewear, and lens tint default to your last session.' : ''}</p>
-
-      <label class="ctx-label">Body regions exposed</label>
-      <div class="sun-silhouette-wrap" id="sun-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
-      <div class="sun-silhouette-hint" id="sun-silhouette-hint">Tap any body region to toggle whether it was uncovered.</div>
-
-      <div class="sun-detailed-row">
-        <label class="ctx-label">Started at
-          <input type="datetime-local" id="det-started-at" class="ctx-input" value="${escapeAttr(localStartDefault)}" max="${escapeAttr(localNow)}" />
-        </label>
-        <label class="ctx-label">Ended at
-          <input type="datetime-local" id="det-ended-at" class="ctx-input" value="${escapeAttr(localNow)}" max="${escapeAttr(localNow)}" />
-        </label>
-      </div>
-      <div class="sun-silhouette-hint" id="det-duration-hint" style="margin-top:-6px">Duration: 15 min</div>
-
-      <div class="sun-detailed-row">
-        <label class="ctx-label">Sunscreen SPF
-          <input type="number" id="det-spf" class="ctx-input" min="0" max="100" placeholder="none" />
-        </label>
-        <div class="ctx-label sun-detailed-glass" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <span style="flex:1;min-width:0">Behind glass (window / car / sunroom)</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="det-glass" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="sun-detailed-row">
-        <label class="ctx-label">Eyes
-          <select id="det-eye-mode" class="ctx-select">
-            ${uiDeps.eyeModes.map(e => `<option value="${escapeAttr(e.key)}"${e.key === eyeMode ? ' selected' : ''}>${escapeHTML(e.pickerLabel || e.label)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="ctx-label">Lens tint
-          <select id="det-lens-tint" class="ctx-select">
-            ${uiDeps.lensTints.map(l => `<option value="${escapeAttr(l.key)}"${l.key === lensTint ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
-          </select>
-        </label>
-      </div>
-
-      <div class="sun-detailed-row">
-        <label class="ctx-label">Posture
-          <select id="det-posture" class="ctx-select">
-            ${uiDeps.postureOptions.map(o => `<option value="${escapeAttr(o.key)}"${o.key === (lastUsed?.posture || 'standing') ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="ctx-label">Surface
-          <select id="det-surface" class="ctx-select">
-            ${uiDeps.surfaceOptions.map(o => `<option value="${escapeAttr(o.key)}"${o.key === (lastUsed?.surfaceAlbedo || 'grass') ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-          </select>
-        </label>
-      </div>
-
-      <label class="ctx-label">Notes
-        <textarea id="det-notes" class="ctx-input" rows="2" placeholder="Optional"></textarea>
-      </label>
-
-      <div class="modal-actions" style="margin-top:18px">
-        <button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('close-modal')}>Cancel</button>
-        <button type="button" class="import-btn import-btn-primary" id="det-save">Save session</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderPastSessionLogModal({
+    lastUsed,
+    lastRegions,
+    eyeMode,
+    lensTint,
+    localStartDefault,
+    localNow,
+    eyeModes: uiDeps.eyeModes,
+    lensTints: uiDeps.lensTints,
+    postureOptions: uiDeps.postureOptions,
+    surfaceOptions: uiDeps.surfaceOptions,
+  });
   const closeDialog = () => removeModalOverlay(overlay);
   openAppendedModalOverlay(overlay, closeDialog);
 
-  const selected = new Set(lastRegions);
-  const slot = overlay.querySelector('#sun-silhouette-slot');
-  const hint = overlay.querySelector('#sun-silhouette-hint');
-  const updateHint = () => {
-    if (!hint) return;
-    const fraction = Array.from(selected).reduce((sum, key) => {
-      const r = BODY_REGIONS.find(b => b.key === key);
-      return sum + (r?.fraction || 0);
-    }, 0);
-    if (selected.size === 0) {
-      hint.textContent = 'Tap any body region to toggle whether it was uncovered.';
-    } else {
-      const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
-      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
-    }
-  };
-  bindBodySilhouette(slot, selected, updateHint);
-  updateHint();
-
-  // Live "Duration: N min" hint derived from the two timestamps. Doubles
-  // as a validation channel — surfaces "Ended must be after Started"
-  // and "over 4 hours" right under the inputs without a separate error
-  // field. Clamps display only; save handler does the final validation.
-  const startEl = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-started-at'));
-  const endEl = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-ended-at'));
-  const hintEl = /** @type {HTMLElement | null} */ (overlay.querySelector('#det-duration-hint'));
-  const updateDurationHint = () => {
-    if (!startEl || !endEl || !hintEl) return;
-    const sMs = new Date(startEl.value).getTime();
-    const eMs = new Date(endEl.value).getTime();
-    if (!Number.isFinite(sMs) || !Number.isFinite(eMs)) {
-      hintEl.textContent = 'Duration: —';
-      return;
-    }
-    const min = Math.round((eMs - sMs) / 60000);
-    if (min <= 0) hintEl.textContent = `Ended must be after Started (currently ${min} min)`;
-    else if (min > 240) hintEl.textContent = `Duration: ${min} min — over 4 hours, double-check the times`;
-    else hintEl.textContent = `Duration: ${min} min`;
-  };
-  startEl?.addEventListener('input', updateDurationHint);
-  endEl?.addEventListener('input', updateDurationHint);
-  updateDurationHint();
+  const selected = bindPastSessionRegionPicker(overlay, lastRegions);
+  bindPastSessionDurationHint(overlay);
 
   const saveButton = overlay.querySelector('#det-save');
   if (!saveButton) return closeDialog();
@@ -703,6 +675,7 @@ export function openDetailedSessionDialog() {
     const lensTintVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-lens-tint'))?.value || 'clear';
     const spf = parseInt(/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-spf'))?.value || '', 10) || null;
     const glass = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-glass'))?.checked;
+    const modeledEyeMode = glass && eyeModeVal === 'direct' ? 'glass-window' : eyeModeVal;
     const notes = /** @type {HTMLTextAreaElement | null} */ (overlay.querySelector('#det-notes'))?.value || '';
 
     // Resolve the two timestamps. Both fields default to a sensible
@@ -724,7 +697,7 @@ export function openDetailedSessionDialog() {
     }
     const endedAt = Math.min(endedMsRaw, Date.now());
     const start = Math.min(startedMsRaw, endedAt - 60 * 1000);
-    const durationMin = Math.max(1, Math.round((endedAt - start) / 60000));
+    const durationMin = Math.max(1, (endedAt - start) / 60000);
 
     // Compute exposure fraction from selected regions
     const regions = Array.from(selected);
@@ -745,14 +718,14 @@ export function openDetailedSessionDialog() {
       startedAt: start,
       endedAt,
       location,
-      bodyExposure: { preset: regions.length === 0 ? 'face_hands' : 'detailed', fraction: Math.max(0.05, fraction), regions, sunscreenSPF: spf, glassBetween: glass },
-      eyeExposure: { mode: eyeModeVal, lensTint: lensTintVal, durationSec: durationMin * 60 },
+      bodyExposure: { preset: regions.length === 0 ? 'covered' : 'detailed', fraction: regions.length === 0 ? 0 : fraction, regions, sunscreenSPF: spf, glassBetween: glass },
+      eyeExposure: { mode: modeledEyeMode, lensTint: lensTintVal, durationSec: durationMin * 60 },
       posture, surfaceAlbedo,
       notes,
     });
     if (sessId) await uiDeps.hydrateSession(sessId);
     closeDialog();
-    showNotification(`Detailed session saved: ${durationMin} min, ${regions.length} regions.`);
+    showNotification(`Detailed session saved: ${Math.round(durationMin)} min, ${regions.length} regions.`);
     refreshLightView();
   });
 }
@@ -762,6 +735,26 @@ export async function deleteSunSession(id) {
   if (await showConfirmDialog('Delete this sun session?')) {
     await uiDeps.deleteSession(id);
     uiDeps.refreshSurfaces();
+  }
+}
+
+export async function retrySunSessionCalculation(id) {
+  const sess = uiDeps.getSessions().find(s => s.id === id);
+  if (!sess) return;
+  const fallback = uiDeps.getSunCoords?.();
+  const coords = sess.location?.lat != null && sess.location?.lon != null
+    ? { lat: sess.location.lat, lon: sess.location.lon }
+    : fallback;
+  if (!coords || coords.lat == null || coords.lon == null) {
+    showNotification('Add a ZIP code or allow phone location before retrying this calculation.', 'error', 7000);
+    return;
+  }
+  const hydrated = await uiDeps.hydrateSession(id, coords);
+  uiDeps.refreshSurfaces();
+  if (hydrated?.calculationStatus === 'computed') {
+    showNotification('Session estimates recalculated.', 'success');
+  } else {
+    showNotification('Session estimates are still unavailable. Try again when conditions data is reachable.', 'error', 7000);
   }
 }
 
@@ -790,7 +783,13 @@ export async function editSunSessionDuration(id) {
   }
   const next = Math.round(parsed);
   if (next === current) return; // nothing to do
-  await uiDeps.updateSession(id, { durationMin: next });
-  showNotification(`Session duration set to ${next} min. Other devices will pull this on next sync.`, 'success');
+  const updated = await uiDeps.updateSession(id, { durationMin: next });
+  if (updated?.calculationStatus === 'computed') {
+    showNotification(`Session duration set to ${next} min and estimates recalculated.`, 'success');
+  } else if (updated?.calculationStatus === 'needs-location') {
+    showNotification(`Session duration set to ${next} min. Add a ZIP code or allow phone location to recalculate estimates.`, 'info', 7000);
+  } else {
+    showNotification(`Session duration set to ${next} min, but estimates are unavailable. Open the session to retry.`, 'error', 7000);
+  }
   refreshLightView();
 }

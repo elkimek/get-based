@@ -91,9 +91,16 @@ test('profile browser coverage exercises migration height and latitude helpers',
       latDisplay.id = 'loc-lat-display';
       document.body.appendChild(latDisplay);
       previousProfileDeps = profile.configureProfileDeps({
-        callClaudeAPI: async () => {
+        fetchImpl: async () => {
           latitudeCalls += 1;
-          return { text: '-34.6' };
+          return new Response(JSON.stringify({
+            latitude: -34.6,
+            longitude: -58.4,
+            accuracyKm: 11,
+            label: 'C1000, Buenos Aires, Argentina',
+            source: 'postal-area',
+            resolvedAt: Date.now(),
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         },
         isDebugMode: () => false,
       });
@@ -103,7 +110,8 @@ test('profile browser coverage exercises migration height and latitude helpers',
       const cache = profile.getLocationCache();
       outcomes.latitudeDetectionCachesAndRendersResult =
         latitudeCalls === 1
-        && cache['argentina|c1000'] === -34.6
+        && cache['argentina|c1000']?.lat === -34.6
+        && cache['argentina|c1000']?.lon === -58.4
         && /35.*S/.test(latDisplay.textContent || '')
         && latDisplay.style.color === 'var(--green)';
     } finally {

@@ -18,11 +18,14 @@
 //   importedData.lightDevices[]   — user's owned devices
 //   importedData.deviceSessions[] — session log
 
-import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
+import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
+import { state } from './state.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
+import { deviceEmitsUV } from './light-device-session-engine.js';
+import { reopenSunSetup } from './sun-defaults.js';
 import {
   addCustomDevice,
   addDeviceFromPresetRecord,
@@ -33,6 +36,7 @@ import {
   getDevices,
   hydrateDevicesFromPresetRecords,
   logDeviceSession,
+  rehydrateStaleDeviceSessions,
   rollingDeviceTotals,
   startDeviceSession,
   stopDeviceSession,
@@ -55,11 +59,20 @@ import {
   refreshLightDevicesView,
   renderLightDeviceAffiliateRowRuntime,
 } from './light-devices-runtime.js';
+import {
+  deviceBasisLabel as _deviceBasisLabel,
+  formatWavelengthSummary as _formatWavelengthSummary,
+  localDeviceSessionStamp as _localDeviceSessionStamp,
+  relativeTimeShort as _relativeTimeShort,
+  renderDeviceChannelChips,
+  safeHttpUrl as _safeHttpUrl,
+} from './light-device-view-formatters.js';
 
 /** @type {{ renderDeviceSessionAIDetail: (sess: any) => string }} */
 const lightDevicesDeps = {
   renderDeviceSessionAIDetail: () => '',
 };
+const _renderDeviceChannelChips = channelKeys => renderDeviceChannelChips(channelKeys, CHANNEL_DISPLAY);
 
 export function configureLightDevices(deps = {}) {
   Object.assign(lightDevicesDeps, deps);
@@ -77,6 +90,7 @@ export {
   getDeviceSessions,
   getDevices,
   logDeviceSession,
+  rehydrateStaleDeviceSessions,
   rollingDeviceTotals,
   startDeviceSession,
   stopDeviceSession,
@@ -113,6 +127,7 @@ configureLightDeviceModalLoader({
     renderBodySilhouette,
     bindBodySilhouette,
     navigate: navigateLightDevicesRoute,
+    openLightSetup: reopenSunSetup,
   },
 });
 
@@ -168,7 +183,7 @@ export async function editDeviceSessionMode(id) {
     showNotification('Session not found', 'error');
     return;
   }
-  const device = getDevices().find(d => d.id === sess.deviceId);
+  const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
   if (!device || !Array.isArray(device.modes) || device.modes.length === 0) {
     showNotification('This device has no selectable modes.', 'info');
     return;
@@ -208,7 +223,11 @@ export async function editDeviceSessionMode(id) {
     const next = _select(overlay, '#dev-edit-mode')?.value || '';
     closeDialog();
     if (next === sess.mode) return;
-    await updateDeviceSession(id, { mode: next });
+    const updated = await updateDeviceSession(id, { mode: next });
+    if (!updated) {
+      showNotification('The mode could not be updated.', 'error');
+      return;
+    }
     showNotification('Mode updated. Doses recomputed.', 'success');
     refreshLightDevicesView();
   });
@@ -223,7 +242,7 @@ export async function editDeviceSessionDuration(id) {
     showNotification('Session not found', 'error');
     return;
   }
-  const current = Math.max(0, Math.round(sess.durationMin || 0));
+  const current = Math.max(0, Math.round((sess.durationMin || 0) * 10) / 10);
   const raw = await promptLightDeviceSessionDuration(current);
   if (raw === null || raw === undefined) return;
   const parsed = parseFloat(raw);
@@ -231,9 +250,13 @@ export async function editDeviceSessionDuration(id) {
     showNotification('Enter a duration between 0 and 600 minutes.', 'error');
     return;
   }
-  const next = Math.round(parsed);
+  const next = Math.round(parsed * 10) / 10;
   if (next === current) return;
-  await updateDeviceSession(id, { durationMin: next });
+  const updated = await updateDeviceSession(id, { durationMin: next });
+  if (!updated) {
+    showNotification('The duration could not be updated.', 'error');
+    return;
+  }
   showNotification(`Session duration set to ${next} min. Doses recomputed.`, 'success');
   refreshLightDevicesView();
 }
@@ -266,20 +289,22 @@ export function openDeviceSessionDetail(id) {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return;
-  const device = getDevices().find(d => d.id === sess.deviceId) || null;
-  const { channelTier, tierLabel, formatChannelUnit } = getLightDeviceChannelHelpers();
+  const liveDevice = getDevices().find(d => d.id === sess.deviceId) || null;
+  const device = liveDevice || sess.deviceSnapshot || null;
+  const { formatChannelUnit } = getLightDeviceChannelHelpers();
   const channelDisplay = getLightDeviceChannelDisplay(CHANNEL_DISPLAY);
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
 
-  const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
-  const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
-  const devName = device ? `${device.brand} ${device.model}` : 'Removed device';
+  const stamp = _localDeviceSessionStamp(sess.startedAt);
+  const dur = sess.durationMin ? `${Math.round(sess.durationMin * 10) / 10} min` : '—';
+  const devName = device ? `${device.brand} ${device.model}` : 'Device details unavailable';
   const typeLabel = device?.type || '—';
   const peakStr = device?.peakWavelengths?.length
     ? device.peakWavelengths.map(w => `${w} nm`).join(', ') : '—';
   const irradianceStr = device?.mwPerCm2At15cm
     ? `${device.mwPerCm2At15cm} mW/cm² @ ${device?.recommendedDistanceCm || 15} cm`
-    : (device?.lux ? `${device.lux.toLocaleString()} lux` : '—');
+    : (device?.lux ? `${device.lux.toLocaleString()} photopic lux`
+      : (device?.melanopicEdiLux ? `${device.melanopicEdiLux.toLocaleString()} lx melanopic EDI` : '—'));
   const distanceStr = sess.distanceCm ? `${sess.distanceCm} cm` : '—';
   // Prefer the precise bodyAreas[] list when present (sessions from
   // 2026-05-08+); fall back to the legacy broad-zone string for older
@@ -294,7 +319,35 @@ export function openDeviceSessionDetail(id) {
   } else {
     areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
   }
-  const eyesLabel = sess.eyesProtected ? 'Protected (closed / blocked)' : 'Uncovered';
+  const emitsUV = sess.safety?.hasUV ?? deviceEmitsUV(device, sess.mode);
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device?.type) && !emitsUV;
+  const eyesLabel = emitsUV
+    ? (sess.eyesProtected ? 'UV-rated eye protection logged' : '⚠ UV emitted without rated eye protection')
+    : isAmbientEyeDevice
+      ? (sess.eyesProtected ? 'Eyes shielded' : 'Eyes open to ambient light')
+      : (sess.eyesProtected ? 'Eye shielding logged' : 'No eye shielding logged; no eye benefit credited');
+  let deviceSafetyHtml = '';
+  if (sess.safety?.hasUV) {
+    const uvModeled = (sess.safety.uvDoseStatus === 'modeled' || sess.safety.uvDoseStatus == null)
+      && Number.isFinite(sess.safety.erythemalSED);
+    const uvSummary = uvModeled
+      ? `Local erythemal dose: ${Number(sess.safety.erythemalSED).toFixed(2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? ` · ${Math.round(sess.safety.conservativeBaseMedFraction * 100)}% of a conservative Type I base MED` : ''}${Number(sess.safety.ocularActinicUV) > 0 ? ` · ocular actinic UV: ${Number(sess.safety.ocularActinicUV).toFixed(1)} J/m²` : ''}${Number(sess.safety.ocularUvaJPerM2) > 0 ? ` · ocular UVA: ${Number(sess.safety.ocularUvaJPerM2).toFixed(1)} J/m²` : ''}. This is a model, not a personal threshold.`
+      : 'UV was emitted, but the spectral output, band split, or distance basis is insufficient for a defensible number. Burn dose, ocular dose, and vitamin-D output are not calculated.';
+    deviceSafetyHtml = `<div class="light-device-safety ${sess.safety.unsafeEyeExposure ? 'is-over' : ''}">
+      <strong>${sess.safety.unsafeEyeExposure ? '⚠ UV eye protection was not recorded' : (uvModeled ? 'UV dose model' : 'UV dose unavailable')}</strong>
+      <span>${escapeHTML(uvSummary)} Closed eyelids are not UV protection.</span>
+    </div>`;
+  }
+  const modelWarnings = Array.isArray(sess.calculation?.warnings) ? sess.calculation.warnings : [];
+  const modelWarningsHtml = modelWarnings.length
+    ? `<div class="light-device-safety"><strong>Estimate limits</strong><span>${modelWarnings.map(warning => escapeHTML(warning)).join(' ')}</span></div>`
+    : '';
+  const hasPhotopic = Number.isFinite(sess.metrics?.photopicLux);
+  const hasMelanopic = Number.isFinite(sess.metrics?.melanopicEdiLux);
+  const lightMetricHtml = hasPhotopic || hasMelanopic ? `<div class="light-device-safety">
+    <strong>Eye-level light metric</strong>
+    <span>${hasPhotopic ? `${Math.round(sess.metrics.photopicLux).toLocaleString()} photopic lux` : ''}${hasPhotopic && hasMelanopic ? ' · ' : ''}${hasMelanopic ? `${Math.round(sess.metrics.melanopicEdiLux).toLocaleString()} lx melanopic EDI${sess.metrics.melanopicStatus === 'device-der' ? ' estimated from the device DER' : ''}` : 'Melanopic EDI unavailable without a measured spectrum or declared melanopic DER'}.</span>
+  </div>` : '';
   // Mode label resolution — surface the human-readable label whenever
   // the device declares modes. Legacy sessions (no `mode` field) and
   // devices without a `modes` array both fall through to null.
@@ -322,68 +375,76 @@ export function openDeviceSessionDetail(id) {
     .map(k => {
       const meta = channelDisplay[k] || {};
       const v = sess.doses[k] || 0;
-      const t = channelTier(v, k);
-      const tlabel = tierLabel(t);
-      const unitText = formatChannelUnit(k, v, sess.durationMin || 0, 'III', null, null, false, _sessBodyFrac);
-      const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
-      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
+      const hasSignal = Number.isFinite(v) && v > 0;
+      const sessionFitz = sess.fitzpatrick || state.importedData?.sunDefaults?.fitzpatrick || 'III';
+      const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sessionFitz, null, null, false, _sessBodyFrac);
+      const valueText = unitText || (hasSignal ? 'Device signal logged' : 'Not modeled');
+      const sourceText = hasSignal ? 'Device' : 'No signal';
+      const ariaLabel = `${meta.label || k} — ${valueText}, ${sourceText}. Open channel details.`;
+      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${hasSignal ? 2 : 0}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
         <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
         <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
-        <span class="sun-detail-channel-value">${escapeHTML(unitText || '')}</span>
-        <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
+        <span class="sun-detail-channel-value">${escapeHTML(valueText)}</span>
+        <span class="sun-detail-channel-tier">${escapeHTML(sourceText)}</span>
         <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
       </div>`;
     }).join('') : '';
+  const aiDetailHtml = typeof lightDevicesDeps.renderDeviceSessionAIDetail === 'function'
+    ? lightDevicesDeps.renderDeviceSessionAIDetail(sess)
+    : '';
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="device" role="dialog" aria-label="Device session details">
     <div class="modal-header">
-      <h3>Device session — ${escapeHTML(start)}</h3>
+      <h3>Device session — ${escapeHTML(stamp.date)}</h3>
       <button class="modal-close" data-device-session-detail-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      ${typeof lightDevicesDeps.renderDeviceSessionAIDetail === 'function' ? lightDevicesDeps.renderDeviceSessionAIDetail(sess) : ''}
       <div class="sun-detail-grid">
+        <div title="Local session start time"><span>When</span><strong>${escapeHTML(stamp.time || '—')}</strong></div>
         <div title="Total session duration. Edit via the action row below if the timer ran past the actual session."><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
-        <div title="Distance from the panel's emitting surface to your skin. Inverse-square law applies — the model corrects irradiance by (recommendedDistanceCm / actualDistance)²."><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
-        <div title="Exposed skin regions and aggregate fraction of total body surface area (Wallace rule of nines). Drives per-session vit-D synthesis cap (body_fraction × 30,000 IU per Holick 2008 MED-saturation)."><span>Body area</span><strong>${escapeHTML(areaLabel)}</strong></div>
+        <div title="Recorded source"><span>Source</span><strong>${escapeHTML(devName)}</strong></div>
       </div>
+
+      ${deviceSafetyHtml}
+      ${modelWarningsHtml}
 
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Device</div>
-        <div class="sun-detail-section-value">${escapeHTML(devName)}${typeLabel !== '—' ? ` · ${escapeHTML(typeLabel)}` : ''}</div>
+        <div class="sun-detail-section-label">Exposure setup</div>
+        <div class="sun-detail-setup-grid">
+          <div><span>Device</span><strong>${escapeHTML(devName)}${typeLabel !== '—' ? ` · ${escapeHTML(typeLabel)}` : ''}</strong></div>
+          ${modeLabel ? `<div><span>Mode</span><strong>${escapeHTML(modeLabel)}</strong></div>` : ''}
+          <div><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
+          <div><span>Body area</span><strong>${escapeHTML(areaLabel)}</strong></div>
+          <div><span>Eyes</span><strong>${escapeHTML(eyesLabel)}</strong></div>
+        </div>
       </div>
 
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Eyes</div>
-        <div class="sun-detail-section-value">${escapeHTML(eyesLabel)}</div>
-      </div>
+      ${aiDetailHtml ? `<div class="sun-detail-section">
+        <div class="sun-detail-section-label">Session interpretation</div>
+        ${aiDetailHtml}
+      </div>` : ''}
 
-      ${modeLabel ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Mode</div>
-          <div class="sun-detail-section-value" title="The vendor-defined LED-group preset that fired during this session. Affects channel-dose math.">${escapeHTML(modeLabel)}</div>
-        </div>
-      ` : ''}
+      <details class="sun-detail-disclosure">
+        <summary>Modeled light signals</summary>
+        <p>Estimated stimulation from the recorded device setup. These are not universal dose targets.</p>
+        ${lightMetricHtml}
+        ${channelRows ? `<div class="sun-detail-channels">${channelRows}</div>` : '<p class="sun-detail-empty">No modeled light signals are available for this session.</p>'}
+      </details>
 
-      ${device ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Device spec</div>
-          <div class="sun-detail-atm">
-            <div title="Peak emission wavelengths declared by the device — drives which channels the spectrum convolution lights up."><span>Peaks</span><strong>${escapeHTML(peakStr)}</strong></div>
-            <div title="Irradiance at the manufacturer's reference distance. Distance-square correction (recommendedDistanceCm / actual distance)² is applied to your session."><span>Irradiance</span><strong>${escapeHTML(irradianceStr)}</strong></div>
-          </div>
-        </div>
-      ` : ''}
-
-      ${channelRows ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Channels</div>
-          <div class="sun-detail-channels">${channelRows}</div>
-        </div>
-      ` : '<p class="sun-detail-empty">No channel doses computed for this session.</p>'}
+      <details class="sun-detail-disclosure">
+        <summary>Device and model inputs</summary>
+        <p>${liveDevice ? 'Technical source values used to calculate the session.' : 'Saved device details retained with this historical session.'}</p>
+        ${device ? `<div class="sun-detail-atm">
+          <div title="Peak emission wavelengths declared by the device"><span>Peaks</span><strong>${escapeHTML(peakStr)}</strong></div>
+          <div title="Stored output at the device reference distance"><span>Reference output</span><strong>${escapeHTML(irradianceStr)}</strong></div>
+          <div><span>Output basis</span><strong>${escapeHTML(_deviceBasisLabel(device.irradianceBasis))}</strong></div>
+          <div><span>Recorded distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
+          ${modeLabel ? `<div><span>Mode</span><strong>${escapeHTML(modeLabel)}</strong></div>` : ''}
+        </div>${_safeHttpUrl(device.specSourceUrl) ? `<p><a href="${escapeAttr(_safeHttpUrl(device.specSourceUrl))}" target="_blank" rel="noopener noreferrer">Open saved specification source ↗</a></p>` : ''}` : '<p class="sun-detail-empty">The device specification is unavailable.</p>'}
+      </details>
 
       ${sess.notes ? `
         <div class="sun-detail-section">
@@ -465,8 +526,8 @@ function _formatElapsedMs(ms) {
 export function renderActiveDeviceSessionCard() {
   const sess = getActiveDeviceSession();
   if (!sess) return '';
-  const device = getDevices().find(d => d.id === sess.deviceId);
-  const devName = device ? `${device.brand} ${device.model}` : 'Removed device';
+  const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
+  const devName = device ? `${device.brand} ${device.model}` : 'Device details unavailable';
   const labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
   const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
   let areaLine;
@@ -479,7 +540,13 @@ export function renderActiveDeviceSessionCard() {
     areaLine = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '';
   }
   const distLine = sess.distanceCm ? `${sess.distanceCm} cm` : '';
-  const eyesLine = sess.eyesProtected ? 'eyes protected' : 'eyes uncovered';
+  const emitsUV = deviceEmitsUV(device, sess.mode);
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device?.type) && !emitsUV;
+  const eyesLine = emitsUV
+    ? (sess.eyesProtected ? 'UV goggles confirmed · follow the device timer' : 'UV eye protection missing')
+    : isAmbientEyeDevice
+      ? (sess.eyesProtected ? 'eyes shielded' : 'eyes open to ambient light')
+      : (sess.eyesProtected ? 'eye shielding logged' : 'eyes outside the beam');
   const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
   return `<section class="sun-session sun-session-active light-session-device" data-id="${escapeAttr(sess.id)}">
     <div class="sun-session-head">
@@ -557,7 +624,7 @@ export async function renderDevicesSection() {
     </div>`;
 
   if (devices.length === 0) {
-    html += `<p class="light-section-hint">Therapy panels, SAD lamps, dawn simulators — log them here and your sessions feed the same channels as outdoor sun.</p>
+    html += `<p class="light-section-hint">Add therapy panels, SAD lamps, or dawn simulators to see the light signals their measured or stated output can support. Device light stays distinct from full-spectrum sunlight.</p>
     </div>`;
     return html;
   }
@@ -571,9 +638,11 @@ export async function renderDevicesSection() {
     const typeLabel = typeMeta.label || dev.type || 'Device';
     const peaks = Array.isArray(dev.peakWavelengths) ? dev.peakWavelengths : [];
     const wavelengthStr = _formatWavelengthSummary(peaks);
+    const estimatedOutput = ['curated-estimate', 'unknown'].includes(dev.irradianceBasis || 'unknown');
     const intensityStr = dev.mwPerCm2At15cm
-      ? `${dev.mwPerCm2At15cm} mW/cm²`
-      : (dev.lux ? `${dev.lux} lux` : '');
+      ? `${estimatedOutput ? '~' : ''}${dev.mwPerCm2At15cm} mW/cm² @ ${dev.recommendedDistanceCm || 15} cm`
+      : (dev.lux ? `${dev.lux} photopic lux`
+        : (dev.melanopicEdiLux ? `${dev.melanopicEdiLux} lx M-EDI` : ''));
     const channelChips = _renderDeviceChannelChips(dev.channels || []);
     const stats = statsByDevice[dev.id] || { count: 0, lastAt: 0 };
     const statsLine = stats.count === 0
@@ -589,7 +658,7 @@ export async function renderDevicesSection() {
         <button type="button" class="light-device-delete" data-light-devices-action="delete-device" data-light-device-id="${escapeAttr(dev.id)}" title="Remove device" aria-label="Remove device">×</button>
       </div>
       ${channelChips ? `<div class="light-device-feeds">
-        <span class="light-device-feeds-label">Feeds</span>
+        <span class="light-device-feeds-label">Signals</span>
         ${channelChips}
       </div>` : ''}
       <div class="light-device-stats">${escapeHTML(statsLine)}</div>
@@ -609,59 +678,6 @@ export async function renderDevicesSection() {
   return html;
 }
 
-// Compress a peak-wavelength array into a human-friendly summary.
-// 0 peaks → empty. 1-3 peaks → list as comma-separated. 4+ peaks →
-// "min-max nm (N bands)" so a 9-wavelength panel doesn't render as
-// "295/380/480/630/670/760/810/830/850 nm" eyeball-soup.
-function _formatWavelengthSummary(peaks) {
-  if (!Array.isArray(peaks) || peaks.length === 0) return '';
-  const sorted = peaks.slice().sort((a, b) => a - b);
-  if (sorted.length <= 3) return sorted.join(' / ') + ' nm';
-  return `${sorted[0]}–${sorted[sorted.length - 1]} nm (${sorted.length} bands)`;
-}
-
-// Per-device channel-icon strip — same icon set the dashboard pills
-// use, so users see at-a-glance which channels this device feeds. Hover
-// title shows the full channel name for screen readers / tooltips.
-function _renderDeviceChannelChips(channelKeys) {
-  if (!Array.isArray(channelKeys) || channelKeys.length === 0) return '';
-  // Order matches the dashboard pill row so the visual scan is consistent
-  const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
-  const present = new Set(channelKeys);
-  const chips = [];
-  for (const k of order) {
-    if (!present.has(k)) continue;
-    const meta = CHANNEL_DISPLAY[k] || {};
-    chips.push(`<span class="light-device-feed-chip" title="${escapeAttr((meta.label || k) + ' — ' + (meta.what || ''))}">
-      <span class="light-device-feed-icon" aria-hidden="true">${meta.icon || '·'}</span>
-      <span class="light-device-feed-label">${escapeHTML(meta.label || k)}</span>
-    </span>`);
-  }
-  return chips.join('');
-}
-
-// Coarse relative-time formatter — "today" / "yesterday" / "N days ago"
-// / "N weeks ago" / "N months ago". Specifically NOT "X minutes ago"
-// because device sessions are typically minutes-long therapy bouts —
-// the user cares about the day-grain cadence, not freshness.
-function _relativeTimeShort(ts) {
-  if (!ts) return 'never';
-  const days = Math.floor((Date.now() - ts) / (24 * 3600 * 1000));
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) {
-    const w = Math.floor(days / 7);
-    return `${w} week${w !== 1 ? 's' : ''} ago`;
-  }
-  if (days < 365) {
-    const m = Math.floor(days / 30);
-    return `${m} month${m !== 1 ? 's' : ''} ago`;
-  }
-  const y = Math.floor(days / 365);
-  return `${y} year${y !== 1 ? 's' : ''} ago`;
-}
-
 // ─── Quick-log entry point ────────────────────────────────────────────
 // Single entry used by the Light page CTA row, dashboard strip, and
 // drill-down panel suggestions. Behaviour by device count:
@@ -677,9 +693,7 @@ export function quickLogDeviceSession() {
 
 function _openDevicePicker(devices) {
   // Most-recently-added first so the user's primary panel is at the top.
-  // (Devices array order isn't guaranteed chronological — sort by id which
-  // embeds Date.now() base36, monotonically increasing.)
-  const ordered = devices.slice().sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  const ordered = devices.slice().sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
@@ -725,7 +739,24 @@ export async function deleteDeviceSessionWithConfirm(id) {
 // ─── UI wrappers ───────────────────────────────────────────────────────
 
 export async function deleteLightDeviceAndRefresh(id) {
-  await deleteDevice(id);
+  const device = getDevices().find(candidate => candidate.id === id);
+  if (!device) return;
+  const active = getActiveDeviceSession();
+  if (active?.deviceId === id) {
+    showNotification('Stop and save the active session before removing this device.', 'error');
+    return;
+  }
+  const sessionCount = getDeviceSessions().filter(session => session.deviceId === id).length;
+  const historyNote = sessionCount
+    ? ` ${sessionCount} saved session${sessionCount === 1 ? '' : 's'} will keep a copy of these device details.`
+    : '';
+  if (!await showConfirmDialog(`Remove ${device.brand} ${device.model}?${historyNote}`)) return;
+  const deleted = await deleteDevice(id);
+  if (!deleted) {
+    showNotification('The device could not be removed.', 'error');
+    return;
+  }
+  showNotification(sessionCount ? 'Device removed. Saved session history was retained.' : 'Device removed.');
   refreshLightDevicesView();
 }
 

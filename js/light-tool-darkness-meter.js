@@ -7,7 +7,6 @@ import {
   aimingGuideHTML,
   cameraLockStatusLine,
   getRequired2DContext,
-  loadLuxCalibration,
   lockCameraForMeasurement,
 } from './light-tool-camera.js';
 import {
@@ -35,11 +34,22 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('darkness')}
-      <p class="modal-body-hint">Lights as you'll actually sleep — door cracked, hallway light on, etc.</p>
+      <p class="modal-body-hint">Set the room as you actually sleep. The camera check is qualitative; enter a meter reading below for lux.</p>
       <div class="dark-status" id="dark-status">Press Start when ready.</div>
+      <details style="margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
+        <summary style="cursor:pointer;color:var(--text-secondary);font-size:12px">Enter a lux-meter reading instead</summary>
+        <div style="display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap">
+          <label class="ctx-label" style="margin:0;flex:1;min-width:160px">Reading at the pillow (photopic lux)
+            <input type="number" id="dark-meter-input" class="ctx-input" min="0" max="10000" step="0.01" inputmode="decimal" placeholder="e.g. 0.2" />
+          </label>
+          <button class="import-btn import-btn-secondary" id="dark-meter-save">Save meter reading</button>
+        </div>
+        <small style="display:block;margin-top:7px;color:var(--text-muted)">Photopic lux is not melanopic EDI; source spectrum still matters.</small>
+      </details>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-dark')}>Cancel</button>
         <button class="import-btn import-btn-primary" id="dark-start">Start 30-second read</button>
+        <button class="import-btn import-btn-primary" id="dark-save" disabled>Save camera check</button>
       </div>
     </div>
   </div>`;
@@ -62,8 +72,15 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   let result = null;
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#dark-status'));
   const startBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#dark-start'));
+  const saveBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#dark-save'));
 
   startBtn.addEventListener('click', async () => {
+    if (darknessState.stream) {
+      try { darknessState.stream.getTracks().forEach(track => track.stop()); } catch (error) {}
+      darknessState.stream = null;
+    }
+    result = null;
+    saveBtn.disabled = true;
     startBtn.disabled = true;
     statusEl.textContent = 'Reading… leave the phone face-up and don\'t cover the camera.';
     darknessState.running = true;
@@ -111,61 +128,91 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
       if (cancelled || !darknessState.running) return;
+      try { stream.getTracks().forEach(track => track.stop()); } catch (error) {}
+      if (darknessState.stream === stream) darknessState.stream = null;
+      darknessState.running = false;
 
       const meanLuma = lumas.reduce((sum, value) => sum + value, 0) / Math.max(1, lumas.length);
       const sortedPeaks = peaks.slice().sort((left, right) => left - right);
       const peakLuma = sortedPeaks[Math.floor(sortedPeaks.length * 0.95)] || 0;
-      const calFactor = loadLuxCalibration();
-      const noiseFloorLuma = 2;
-      const meanLux = Math.max(0, (meanLuma - noiseFloorLuma) * 0.5 * calFactor);
-      const peakLux = Math.max(0, (peakLuma - noiseFloorLuma) * 0.5 * calFactor);
+      const cameraLevel = Math.min(100, Math.max(0, meanLuma / 255 * 100));
+      const peakLevel = Math.min(100, Math.max(0, peakLuma / 255 * 100));
       let label;
       let className;
-      if (meanLux < 0.3 && peakLux < 1) {
-        label = 'Excellent — true darkness';
+      if (cameraLevel < 3 && peakLevel < 8) {
+        label = 'Very dark camera frame';
         className = 'ok';
-      } else if (meanLux < 1 && peakLux < 5) {
-        label = 'Good — minor leak, melatonin mostly preserved';
+      } else if (cameraLevel < 10 && peakLevel < 25) {
+        label = 'Low light visible to the camera';
         className = 'ok';
-      } else if (meanLux < 5 && peakLux < 20) {
-        label = 'Moderate leak — 20–30% melatonin attenuation likely';
+      } else if (peakLevel >= 45 && cameraLevel < 15) {
+        label = 'Bright points or brief spikes detected';
         className = 'warn';
-      } else if (peakLux >= 20 && meanLux < 5) {
-        label = 'Bright spikes detected — investigate notifications / passing lights';
+      } else if (cameraLevel < 30) {
+        label = 'Room light is clearly visible to the camera';
         className = 'warn';
       } else {
-        label = 'Significant — circadian phase shift likely';
+        label = 'Bright camera frame';
         className = 'over';
       }
       result = {
-        meanLux,
-        peakLux,
+        method: 'camera-relative',
+        cameraLevel,
+        peakCameraLevel: peakLevel,
+        meanLuma,
+        peakLuma,
         lockMode: lock.exposure,
         isoLocked: lock.iso != null,
-        calFactor,
-        label,
+        levelLabel: label,
         cls: className,
       };
-      const calibrationNote = lock.iso != null
-        ? `<small style="color:var(--text-muted)">Locked ISO ${lock.iso}, exposure ${lock.exposure}.</small>`
-        : `<small style="color:var(--orange)">⚠ ISO not lockable on this camera — readings are qualitative (good/moderate/bright), not absolute lux. ${cameraLockStatusLine(lock)}</small>`;
+      const calibrationNote = lock.iso != null && lock.exposure === 'manual'
+        ? `<small style="color:var(--text-muted)">Camera exposure held for this qualitative check. Device-specific low-light response still prevents an absolute lux reading.</small>`
+        : `<small style="color:var(--orange)">Camera exposure could not be fully fixed. Treat this only as a check for obvious light or bright points. ${cameraLockStatusLine(lock)}</small>`;
       statusEl.innerHTML = `<strong class="dark-status-${className}">${escapeHTML(label)}</strong>` +
-        `<br><small style="color:var(--text-muted)">~${meanLux.toFixed(2)} lux average · ~${peakLux.toFixed(2)} lux peak (95th-pctile)</small>` +
+        `<br><small style="color:var(--text-muted)">Camera level ${cameraLevel.toFixed(0)}% · peak ${peakLevel.toFixed(0)}%. Not lux and not a melatonin estimate.</small>` +
         `<br>${calibrationNote}`;
-      startBtn.textContent = 'Save reading';
+      startBtn.textContent = 'Read again';
       startBtn.disabled = false;
-      startBtn.onclick = async () => {
-        await saveMeasurement('darkness', meanLux, {
-          confidence: lock.iso != null ? 0.7 : 0.45,
-          extra: result,
-          roomId,
-        });
-        showNotification('Sleep darkness reading saved.');
-        closeDarknessOverlay();
-      };
+      saveBtn.disabled = false;
     } catch (error) {
-      statusEl.innerHTML = 'Camera access denied — darkness meter unavailable. <br><span style="font-size:11px;color:var(--text-muted)">Open your browser\'s site settings to allow camera access. This tool runs a long-exposure capture to detect ambient light below 1 lux — there\'s no useful manual-entry fallback.</span>';
+      darknessState.running = false;
+      if (darknessState.stream) {
+        try { darknessState.stream.getTracks().forEach(track => track.stop()); } catch (stopError) {}
+        darknessState.stream = null;
+      }
+      statusEl.innerHTML = 'Camera access denied — the qualitative camera check is unavailable. <br><span style="font-size:11px;color:var(--text-muted)">Use the meter-entry option above for a numerical photopic-lux reading.</span>';
       startBtn.disabled = false;
     }
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    if (!result) {
+      showNotification('Run the camera check first.', 'error');
+      return;
+    }
+    await saveMeasurement('darkness', result.cameraLevel, {
+      confidence: result.isoLocked && result.lockMode === 'manual' ? 0.4 : 0.25,
+      extra: result,
+      roomId,
+    });
+    showNotification('Qualitative sleep-light check saved.');
+    closeDarknessOverlay();
+  });
+
+  queryRequired(overlay, '#dark-meter-save').addEventListener('click', async () => {
+    const input = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#dark-meter-input'));
+    const lux = Number(input.value);
+    if (!Number.isFinite(lux) || lux < 0 || lux > 10000) {
+      showNotification('Enter a valid lux-meter reading between 0 and 10,000.', 'error');
+      return;
+    }
+    await saveMeasurement('darkness', lux, {
+      confidence: 0.9,
+      extra: { method: 'meter-entry', source: 'meter-entry', unit: 'photopic-lux', context: 'sleep' },
+      roomId,
+    });
+    showNotification('Sleep-time lux-meter reading saved.');
+    closeDarknessOverlay();
   });
 }

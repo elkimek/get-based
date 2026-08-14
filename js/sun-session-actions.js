@@ -37,6 +37,18 @@ function closeContainingOverlay(actionEl) {
   if (overlay) removeModalOverlay(overlay);
 }
 
+export function setSunChannelChipsExpanded(container, expanded) {
+  if (!(container instanceof Element)) return;
+  container.classList.toggle('sun-chips-expanded', !!expanded);
+  const toggle = /** @type {HTMLElement | null} */ (container.querySelector('[data-sun-session-action="toggle-chips"]'));
+  if (!toggle) return;
+  const hiddenCount = Math.max(0, Number(toggle.dataset.sunSessionHiddenCount) || 0);
+  toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  toggle.setAttribute('aria-label', expanded
+    ? 'Show fewer light channels'
+    : `Show ${hiddenCount} additional light channel${hiddenCount === 1 ? '' : 's'}`);
+}
+
 function handleSunSessionAction(actionEl, actions) {
   const action = actionEl.dataset.sunSessionAction || '';
   const id = actionEl.dataset.sunSessionId || '';
@@ -73,8 +85,11 @@ function handleSunSessionAction(actionEl, actions) {
   } else if (action === 'edit-duration') {
     closeContainingOverlay(actionEl);
     void actions.editSunSessionDuration?.(id);
+  } else if (action === 'retry-calculation') {
+    void actions.retrySunSessionCalculation?.(id);
   } else if (action === 'toggle-chips') {
-    actionEl.closest('.sun-channel-chips')?.classList.toggle('sun-chips-expanded');
+    const container = actionEl.closest('.sun-channel-chips');
+    if (container) setSunChannelChipsExpanded(container, !container.classList.contains('sun-chips-expanded'));
   }
 }
 

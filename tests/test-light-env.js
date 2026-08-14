@@ -38,6 +38,7 @@ const {
   computeRoomSeverityForRoom,
   computeDeficitAxesForEnvironment,
   computeIndoorBurdenForEnvironment,
+  isQuantitativeLuxMeasurement,
 } = model;
 
   const orig = state.importedData;
@@ -174,13 +175,13 @@ const {
   assert('Incandescent + 2 hr → tier 0 (sleep-friendly)',
     friendly.tier === 0 && friendly.color === 'green');
 
-  // Cool LED only → tier 1
+  // Source type alone is context, not a dose.
   const coolLED = computeRoomSeverity({ id: 'r2', name: 'Office', primarySource: 'led-cool', hoursOccupiedPerDay: 8 });
-  assert('Cool LED → tier ≥ 1 (mild)', coolLED.tier >= 1);
+  assert('Cool LED without evening timing is not automatically penalized', coolLED.tier === 0);
 
   // Fluorescent → tier ≥ 2
   const fluo = computeRoomSeverity({ id: 'r3', name: 'Lab', primarySource: 'fluorescent', hoursOccupiedPerDay: 8 });
-  assert('Fluorescent → tier ≥ 2 (moderate)', fluo.tier >= 2);
+  assert('Fluorescent without a banding result or evening timing is not automatically penalized', fluo.tier === 0);
 
   // Cool LED + after-sunset use → escalates to ≥ 2
   const coolEvening = computeRoomSeverity({
@@ -203,23 +204,39 @@ const {
   // Bedroom-specific: light leak measurement bumps severity
   const bedLightLeak = computeRoomSeverity(
     { id: 'r6', name: 'Bedroom', primarySource: 'led-warm', hoursOccupiedPerDay: 8 },
-    [{ tool: 'darkness', value: 5, capturedAt: Date.now() }]
+    [{ tool: 'darkness', value: 5, capturedAt: Date.now(), extra: { method: 'meter-entry', source: 'meter-entry' } }]
   );
-  assert('Bedroom with 5 lux dark reading → tier ≥ 3 (concerning, melatonin-blocking)',
-    bedLightLeak.tier >= 3);
+  assert('Bedroom with a 5 lux meter entry is flagged without claiming melanopic dose',
+    bedLightLeak.tier >= 2 && /spectrum/.test(bedLightLeak.reason));
 
   // Low daytime lux on a long-occupancy room
   const lowLux = computeRoomSeverity(
     { id: 'r7', name: 'Office', primarySource: 'led-warm', hoursOccupiedPerDay: 8 },
-    [{ tool: 'lux', value: 80, capturedAt: Date.now() }]
+    [{ tool: 'lux', value: 80, capturedAt: Date.now(), extra: { source: 'manual-entry', context: 'daytime' } }]
   );
   assert('Office at 80 lux for 8 hr → tier ≥ 1 (lower than office-bright)',
     lowLux.tier >= 1);
+  assert('A one-point-calibrated camera estimate stays out of quantitative scoring',
+    isQuantitativeLuxMeasurement({
+      tool: 'lux', value: 80,
+      extra: { source: 'camera-estimate', calibrationConfirmed: true },
+    }) === false);
+  assert('A meter entry and ambient-light sensor reading remain quantitative spot checks',
+    isQuantitativeLuxMeasurement({ tool: 'lux', value: 80, extra: { source: 'manual-entry' } }) === true
+      && isQuantitativeLuxMeasurement({ tool: 'lux', value: 80, extra: { source: 'AmbientLightSensor' } }) === true);
 
   // Room with no inputs at all returns the defined default (no crash)
   const noInput = computeRoomSeverity(null);
   assert('computeRoomSeverity(null) returns safe default',
     noInput.tier === 0 && typeof noInput.label === 'string');
+
+  const screenOnlyRoom = computeRoomSeverityForRoom(
+    { id: 'screen-only', name: 'Bedroom', primarySource: 'unknown', hoursOccupiedPerDay: 8 },
+    [],
+    { screens: [{ id: 'phone', eveningUseAfterSunset: 4, blueBlockerEnabled: false }] },
+  );
+  assert('A mapped evening screen is enough to make an otherwise-empty room interpretable',
+    screenOnlyRoom.tier === 3 && screenOnlyRoom.label === 'High signal');
 
   reset({
     lightEnvironment: {
@@ -229,7 +246,7 @@ const {
   });
   const screenHeavyRoom = computeRoomSeverity(getEnvironment().rooms[0], []);
   assert('Room severity wrapper includes active screens assigned to that room',
-    screenHeavyRoom.tier >= 3 && /evening screen exposure/.test(screenHeavyRoom.reason));
+    screenHeavyRoom.tier >= 3 && /evening screen use/.test(screenHeavyRoom.reason));
   await setTodayActive('screen', 's-screen', false);
   const skippedScreenRoom = computeRoomSeverity(getEnvironment().rooms[0], []);
   assert('Room severity wrapper ignores screens skipped today',
@@ -243,15 +260,15 @@ const {
 
   assert('Daytime-only screen → green',
     computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 0, blueBlockerEnabled: false }).color === 'green');
-  assert('Blue blocker enabled → green (mitigated, regardless of hours)',
-    computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 5, blueBlockerEnabled: true }).color === 'green');
+  assert('Blue reduction lowers but does not erase a long evening exposure',
+    computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 5, blueBlockerEnabled: true }).tier === 2);
   assert('0.5 hr evening, no blocker → tier 1 yellow',
     computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 0.5 }).tier === 1);
   assert('2 hr evening, no blocker → tier 2 orange',
     computeScreenStatus({ device: 'laptop', eveningUseAfterSunset: 2 }).tier === 2);
   assert('5 hr evening, no blocker → tier 3 red',
     computeScreenStatus({ device: 'tv', eveningUseAfterSunset: 5 }).tier === 3);
-  assert('null screen → safe default', computeScreenStatus(null).color === 'green');
+  assert('null screen → incomplete default', computeScreenStatus(null).color === 'incomplete');
 
   // ─── 7. isActiveToday + setTodayActive auto-reset ────────────────────
   console.log('%c 7. isActiveToday + setTodayActive ', 'font-weight:bold;color:#f59e0b');
@@ -287,15 +304,15 @@ const {
   await addRoom('Office');
   await updateRoom(getEnvironment().rooms[0].id, {
     primarySource: 'led-cool',
+    daylightLevel: 'low',
     hoursOccupiedPerDay: 10,
     eveningHoursAfterSunset: 2,
   });
   axes = computeDeficitAxes();
-  assert('LED-cool room 10hr → d2 includes the 10 indoor hours',
-    axes.d2 === 10);
-  // 10 hr * 0.6 LED penalty + 1 evening bonus = 7
-  assert('LED-cool + evening → d3 ≈ 7 (10*0.6 + 1)',
-    Math.abs(axes.d3 - 7) < 1e-9, `got d3=${axes.d3}`);
+  assert('Daytime score uses stated daylight instead of treating every indoor hour as deficit',
+    Math.abs(axes.d2 - 3.2) < 1e-9);
+  assert('Evening score uses only the reported after-sunset window',
+    Math.abs(axes.d3 - 2) < 1e-9, `got d3=${axes.d3}`);
 
   // Skipped today → not counted
   await setTodayActive('room', getEnvironment().rooms[0].id, false);
@@ -304,7 +321,7 @@ const {
     axes.d2 === 0 && axes.d3 === 0);
   const modelAxes = computeDeficitAxesForEnvironment({
     rooms: [
-      { id: 'active-room', primarySource: 'led-cool', hoursOccupiedPerDay: 10, eveningHoursAfterSunset: 2 },
+      { id: 'active-room', primarySource: 'led-cool', daylightLevel: 'low', hoursOccupiedPerDay: 10, eveningHoursAfterSunset: 2 },
       { id: 'skipped-room', primarySource: 'led-cool', hoursOccupiedPerDay: 10, eveningHoursAfterSunset: 2 },
     ],
     screens: [{ id: 'active-screen', eveningUseAfterSunset: 2, blueBlockerEnabled: false }],
@@ -312,7 +329,7 @@ const {
     isActiveToday: item => item.id !== 'skipped-room',
   });
   assert('Model deficit axes are state-free and accept today filtering',
-    modelAxes.d2 === 10 && Math.abs(modelAxes.d3 - 8) < 1e-9,
+    Math.abs(modelAxes.d2 - 3.2) < 1e-9 && Math.abs(modelAxes.d3 - 4) < 1e-9,
     `got d2=${modelAxes.d2}, d3=${modelAxes.d3}`);
 
   // ─── 9. computeIndoorBurden ──────────────────────────────────────────
@@ -332,10 +349,10 @@ const {
     fingerprint: 'old-env',
   };
   const emptyLoadHtml = renderEnvironmentSection({ embedded: true });
-  assert('Empty environment ignores stale burdenAI and stays Light load',
+  assert('Empty environment ignores stale burdenAI and stays on the deterministic empty state',
     emptyLoadHtml.includes('light-env-summary-green') &&
-    emptyLoadHtml.includes('Light load') &&
-    !emptyLoadHtml.includes('Moderate load') &&
+    emptyLoadHtml.includes('Generally aligned') &&
+    !emptyLoadHtml.includes('Mixed signals') &&
     !emptyLoadHtml.includes('stale moderate verdict'));
   const restoredBurdenRenderer = configureLightEnv({
     renderBurdenInterp: b => `<p class="light-env-summary-interp injected-burden">${b.interp}</p>`,
@@ -387,23 +404,25 @@ const {
   await addRoom('Office');
   await updateRoom(getEnvironment().rooms[0].id, {
     primarySource: 'led-cool',
+    daylightLevel: 'low',
     hoursOccupiedPerDay: 10,
-    eveningHoursAfterSunset: 2,
+    eveningHoursAfterSunset: 4,
   });
   await addRoom('Living');
   await updateRoom(getEnvironment().rooms[1].id, {
     primarySource: 'led-cool',
+    daylightLevel: 'low',
     hoursOccupiedPerDay: 6,
-    eveningHoursAfterSunset: 2,
+    eveningHoursAfterSunset: 4,
   });
   burden = computeIndoorBurden();
-  assert('Two heavy LED rooms → tier 2 (heavy load) red',
+  assert('Two low-daylight rooms with long cool evening use → tier 2 red',
     burden.tier === 2 && burden.color === 'red');
   assert('Burden interp is non-empty advice copy',
     typeof burden.interp === 'string' && burden.interp.length > 20);
-  assert('Burden parts list mentions both indoor + blue-after-sunset',
-    burden.parts.some(p => /indoors/.test(p)) &&
-    burden.parts.some(p => /blue-after-sunset/.test(p)));
+  assert('Burden parts separate daytime signal from evening light',
+    burden.parts.some(p => /Daytime signal/.test(p)) &&
+    burden.parts.some(p => /Evening light/.test(p)));
   const modelBurden = computeIndoorBurdenForEnvironment({ rooms: [], screens: [] });
   assert('Model indoor burden distinguishes empty mapped exposure',
     modelBurden.tier === 0 &&
@@ -420,6 +439,7 @@ const {
   state.importedData.lightMeasurements.push({
     id: 'lm_x', tool: 'lux', value: 200, capturedAt: Date.now(),
     roomId: getEnvironment().rooms[0].id,
+    extra: { source: 'manual-entry', nested: { retained: true } },
   }, {
     id: 'lm_unmapped', tool: 'cct', value: 5000, capturedAt: Date.now(),
     roomId: null,
@@ -430,12 +450,17 @@ const {
   assert('Audit captures label', audit.label === 'Initial baseline');
   assert('Audit snapshots only room-mapped measurements',
     audit.measurements.length === 1 && audit.measurements[0].id === 'lm_x');
+  state.importedData.lightMeasurements[0].extra.nested.retained = false;
+  assert('Audit measurement metadata is an immutable deep snapshot',
+    audit.measurements[0].extra.nested.retained === true);
   assert('Audit appears in getLightAudits',
     getLightAudits().some(a => a.id === audit.id));
 
-  await updateLightAudit(audit.id, { label: 'Renamed' });
+  await updateLightAudit(audit.id, { label: '  Renamed   baseline ', id: 'corrupt-audit-id', rooms: [] });
   assert('updateLightAudit patches label',
-    getLightAudits().find(a => a.id === audit.id).label === 'Renamed');
+    getLightAudits().find(a => a.id === audit.id).label === 'Renamed baseline'
+      && getLightAudits().find(a => a.id === audit.id).id === audit.id
+      && getLightAudits().find(a => a.id === audit.id).rooms.length === 1);
 
   await deleteLightAudit(audit.id);
   assert('deleteLightAudit removes from list',
@@ -451,7 +476,12 @@ const {
       { id: 'a1', date: '2026-05-01', label: 'Oldest hidden', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
       { id: 'a2', date: '2026-05-02', label: 'Older hidden', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
       { id: 'a3', date: '2026-05-03', label: 'Second visible', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
-      { id: 'a4', date: '2026-05-04', label: 'Latest visible', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
+      {
+        id: 'a4', date: '2026-05-04', label: 'Latest visible',
+        rooms: [{ id: 'r1', name: 'Bedroom' }],
+        screens: [{ id: 'snapshot-phone', roomId: 'r1', device: 'phone', eveningUseAfterSunset: 4, blueBlockerEnabled: false }],
+        measurements: [],
+      },
     ],
   });
   const compactAudits = auditModule.renderLightAuditsBlock();
@@ -462,6 +492,11 @@ const {
     !compactAudits.includes('Older hidden') &&
     !compactAudits.includes('Oldest hidden') &&
     compactAudits.includes('Show 2 older audits'));
+  auditModule.toggleLightAudit('a4');
+  const snapshotScreenAudit = auditModule.renderLightAuditsBlock();
+  assert('Audit severity uses screens frozen in the snapshot instead of the live environment',
+    snapshotScreenAudit.includes('High signal') && snapshotScreenAudit.includes('Latest visible'));
+  auditModule.toggleLightAudit('a4');
   auditModule.lightEnvAuditActionHandlers.toggleLightAuditHistory();
   const expandedAudits = auditModule.renderLightAuditsBlock();
   assert('Audit history can expand older snapshots inline',
@@ -583,7 +618,7 @@ const {
   const modelSrc = await fs.readFile(new URL('../js/light-env-model.js', import.meta.url), 'utf8');
   assert('Assessment modal uses user-facing indoor assessment copy',
     envSrc.includes('Indoor Light Assessment') &&
-    envSrc.includes('Save audit snapshots before and after changes') &&
+    envSrc.includes('Save snapshots before and after changes') &&
     !envSrc.includes('The Light page keeps the summary'));
   assert('Light environment deterministic model is isolated from rendering/storage',
     envSrc.includes("from './light-env-model.js'") &&
@@ -878,9 +913,7 @@ const {
   state.importedData = beforeScreenToggleState;
 
   // ─── deleteRoom orphan cleanup ─────────────────────────────────────
-  // Earlier deleteRoom dropped the room but left measurements + screens
-  // pointing at the dead id. Room-bound measurements are now deleted
-  // with the room; screens are kept but become portable.
+  // Deleting a live room must not destroy its historical readings.
   console.log('%c deleteRoom orphan cleanup ', 'font-weight:bold;color:#f59e0b');
   state.importedData = {
     lightEnvironment: {
@@ -895,10 +928,10 @@ const {
   await deleteRoom('r-orphan');
   const measurementsAfter = state.importedData.lightMeasurements;
   const screensAfter = state.importedData.lightEnvironment.screens;
-  assert('deleteRoom removes linked measurements',
-    !measurementsAfter.find(m => m.id === 'm-orphan-1'));
-  assert('deleteRoom tombstones linked measurements for sync',
-    state.importedData._deleted?.lightMeasurements?.includes('m-orphan-1'));
+  assert('deleteRoom preserves linked measurements with a room snapshot',
+    measurementsAfter.find(m => m.id === 'm-orphan-1')?.roomSnapshot?.name === 'Bedroom');
+  assert('deleteRoom does not tombstone preserved historical measurements',
+    !state.importedData._deleted?.lightMeasurements?.includes('m-orphan-1'));
   assert('deleteRoom leaves measurements pointing at OTHER rooms untouched',
     measurementsAfter.find(m => m.id === 'm-orphan-2').roomId === 'other-room');
   assert('deleteRoom nulls roomId on linked screens',
@@ -920,7 +953,7 @@ const {
           { id: 'r2', name: 'Office', eveningHoursAfterSunset: 4, blueBlocker: true },
         ],
         screens: [
-          { id: 's1', device: 'phone', eveningUseAfterSunset: 2, blueBlocker: false },
+          { id: 's1', device: 'phone', eveningUseAfterSunset: 2, blueBlockerEnabled: false },
         ],
       },
       lightAudits: [{ id: 'a1', label: 'Pre', savedAt: Date.now() }],
@@ -938,7 +971,7 @@ const {
     assert('AI context counts screens (1)',
       /Screens tracked: 1/.test(ctx));
     assert('AI context surfaces no-blue-blocker after-sunset screens',
-      /without blue-blocker/.test(ctx));
+      /without a recorded blue-reduction measure/.test(ctx));
     state.importedData = beforeCtx;
   }
 
@@ -966,7 +999,7 @@ const {
       lightAudits: [],
       lightMeasurements: [
         { id: 'm-flicker', tool: 'flicker', value: 3, takenAt: Date.now(), roomId: 'r1' },
-        { id: 'm-darkness', tool: 'darkness', value: 8.5, takenAt: Date.now(), roomId: 'r1' },
+        { id: 'm-darkness', tool: 'darkness', value: 8.5, capturedAt: Date.now(), roomId: 'r1', extra: { method: 'meter-entry', source: 'meter-entry' } },
         // CCT after-sunset hour — set takenAt to 22:00 UTC today
         { id: 'm-cct', tool: 'cct', value: 4500, takenAt: (() => { const d = new Date(); d.setHours(22, 0, 0, 0); return d.getTime(); })(), roomId: 'r1' },
         // CCT before sunset (12:00) — should NOT trigger the warning
@@ -975,11 +1008,11 @@ const {
     };
     const ctx = buildSunContext({ tier: 'always' });
     assert('AI sees flicker score ≥ 2 warning',
-      /flicker score 3/.test(ctx));
-    assert('AI sees bedroom-too-bright warning (>1 lux at the pillow)',
-      /bedroom too bright/.test(ctx) || /melatonin/.test(ctx));
+      /camera banding score 3/.test(ctx));
+    assert('AI sees a sleep-time meter warning without calling it melanopic EDI',
+      /sleep-time meter entry 8.5 photopic lux/.test(ctx) && /melanopic EDI unknown/.test(ctx));
     assert('AI sees after-sunset CCT > 3500K warning',
-      /after-sunset CCT 4500K/.test(ctx));
+      /after-sunset camera warm\/cool estimate ~4500K/.test(ctx));
     assert('AI does NOT flag CCT readings taken before sunset',
       !/CCT 5500K/.test(ctx));
     state.importedData = beforeCtx;

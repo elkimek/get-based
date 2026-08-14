@@ -16,7 +16,7 @@
 //                         J Appl Meteorol 25:87. NREL clear-sky model.
 //   CIE 174:2006 — previtamin-D3 action spectrum (vit-D channel only)
 //   CIE S 007 / ISO 17166:1999 — erythemal action spectrum (McKinlay-Diffey 1987)
-//   CIE S 026:2018 — α-opic action spectra incl. melanopic; K_mel,v ≈ 614 lx/(W/m²)
+//   CIE S 026:2018 — α-opic metrology; D65 melanopic efficacy 1.3262 mW/lm
 //   Bass-Paur 1985 — ozone absorption cross-section (legacy WMO dataset)
 //   Karu 2010 / Hamblin 2018 — CCO red/NIR mechanism (no formal action spectrum)
 //   Liu 2014 — UVA NO release peak ~330-360nm
@@ -25,6 +25,7 @@
 // Output marked with `confidence` matching the underlying UV-data source.
 
 import {
+  actinicUVAt,
   erythemalAt,
   melanopicAt,
   nirSolarAt,
@@ -41,6 +42,7 @@ import {
 } from './sun-spectrum-device.js';
 
 export {
+  actinicUVAt,
   ccoAt,
   erythemalAt,
   melanopicAt,
@@ -83,9 +85,9 @@ const CHANNELS = [
 // Bird-Riordan-derived model — accurate to ~25% relative for our use, which
 // is correlation against biomarkers (relative trends), not radiometry.
 /**
- * @param {{ zenithDeg?: number | null, ozoneDU?: number, altitudeM?: number, cloudCover?: number, aod?: number | null }} [opts]
+ * @param {{ zenithDeg?: number | null, ozoneDU?: number, altitudeM?: number, cloudCover?: number, aod?: number | null, targetUVI?: number | null }} [opts]
  */
-export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0, aod = null } = {}) {
+export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0, aod = null, targetUVI = null } = {}) {
   if (zenithDeg == null || zenithDeg >= 90) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   }
@@ -109,7 +111,7 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   // most in the visible band (~10-20% irradiance shift).
   const beta = (typeof aod === 'number' && Number.isFinite(aod) && aod > 0) ? aod : 0.10;
 
-  const irradiance = WAVELENGTHS.map((nm) => {
+  let irradiance = WAVELENGTHS.map((nm) => {
     // Extraterrestrial spectral irradiance (rough fit to ASTM E490)
     const E0 = extraterrestrialIrradiance(nm);
     // Rayleigh scattering — Bird-Riordan 1986 formulation:
@@ -174,6 +176,20 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
     const surface = directBeam * (1 + diffuseFraction * amScale);
     return Math.max(0, surface);
   });
+  // When a provider or calibrated meter supplies UVI, normalize only the UV
+  // portion of the reconstructed spectrum so its CIE-erythemal irradiance
+  // matches that observation (UVI 1 = 0.025 W/m2). Visible/NIR channels keep
+  // the atmosphere model because UVI contains no information about them.
+  if (Number.isFinite(targetUVI) && targetUVI >= 0) {
+    const dlambda = 5;
+    const modeled = irradiance.reduce((sum, value, index) => {
+      const nm = WAVELENGTHS[index];
+      return nm <= 400 ? sum + value * erythemalAt(nm) * dlambda : sum;
+    }, 0);
+    const target = targetUVI * 0.025;
+    const uvScale = modeled > 0 ? Math.max(0, target / modeled) : 0;
+    irradiance = irradiance.map((value, index) => WAVELENGTHS[index] <= 400 ? value * uvScale : value);
+  }
   return { wavelengths: WAVELENGTHS, irradiance };
 }
 
@@ -298,11 +314,12 @@ function ozoneAbsorption(nm) {
  *   durationMin?: number,
  *   bodyExposureFraction?: number,
  *   eyeExposure?: { mode?: string, durationSec?: number, lensTint?: string } | null,
- *   bodyModifiers?: { glassBetween?: boolean, sunscreenSPF?: number | null } | null
+ *   bodyModifiers?: { glassBetween?: boolean, sunscreenSPF?: number | null } | null,
+ *   skinIrradianceMultiplier?: number
  * }} [opts]
  * @returns {Record<string, number>}
  */
-export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null, bodyModifiers = null } = {}) {
+export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null, bodyModifiers = null, skinIrradianceMultiplier = 1 } = {}) {
   /** @type {Record<string, number>} */
   const result = {};
   if (!spectrum || !Array.isArray(spectrum.irradiance) || durationMin <= 0) {
@@ -313,6 +330,12 @@ export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFra
   const dlambda = 5; // nm
   const glassBetween = !!bodyModifiers?.glassBetween;
   const spf = Number(bodyModifiers?.sunscreenSPF) || 0;
+  const bodyFraction = Math.max(0, Math.min(1, Number(bodyExposureFraction) || 0));
+  const skinFlux = Math.max(0, Math.min(2, Number(skinIrradianceMultiplier) || 0));
+  const loggedEyeSeconds = eyeExposure?.durationSec;
+  const eyeSeconds = typeof loggedEyeSeconds === 'number' && Number.isFinite(loggedEyeSeconds) && loggedEyeSeconds >= 0
+    ? Math.min(seconds, loggedEyeSeconds)
+    : seconds;
   for (const ch of CHANNELS) {
     // Channels gated by body exposure: skin-mediated channels (vit D, POMC, NO, NIR, PBM)
     const isSkinChannel = ['vitamin_d', 'pomc', 'no_cv', 'nir_solar', 'pbm_red', 'pbm_nir'].includes(ch.key);
@@ -332,9 +355,15 @@ export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFra
       sum += E * w * dlambda * bandT;
     }
     let gain = 1;
-    if (isSkinChannel) gain = bodyExposureFraction;
+    if (isSkinChannel) {
+      // Vitamin-D/POMC/NO are whole-body yield proxies, so exposed surface
+      // belongs in those totals. NIR/PBM outputs are local fluence and must
+      // not shrink merely because the treated patch is small.
+      const isWholeBodyYield = ['vitamin_d', 'pomc', 'no_cv'].includes(ch.key);
+      gain = bodyFraction > 0 ? skinFlux * (isWholeBodyYield ? bodyFraction : 1) : 0;
+    }
     if (isEyeChannel) gain = eyeMultiplier(eyeExposure);
-    result[ch.key] = sum * gain * seconds;
+    result[ch.key] = sum * gain * (isEyeChannel ? eyeSeconds : seconds);
   }
   return result;
 }
@@ -371,17 +400,16 @@ const MED_BY_FITZPATRICK = { I: 2, II: 2.5, III: 3, IV: 4.5, V: 6, VI: 10 };
 // Compute erythemal dose in SED for a session.
 // Returns: SED (1 SED = ~1 sunburn unit for type II skin)
 //
-// `bodyModifiers` plumbs glass + sunscreen wavelength-dependent attenuation
-// the same way computeChannelDoses does. A session "behind glass" produces
-// near-zero erythemal dose (glass blocks UVB entirely); a session with
-// SPF 50 produces ~1/50 the erythemal dose of bare skin. Both feed the
-// burn-risk gauge and the % MED indicator on the dashboard.
-export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = /** @type {{ glassBetween?: boolean, sunscreenSPF?: number } | null} */ (null) }) {
-  if (!spectrum || durationMin <= 0) return 0;
+// `bodyModifiers` plumbs glass attenuation. Sunscreen is intentionally not
+// credited in the burn-safety counter: entered SPF does not tell us applied
+// amount, coverage, water/sweat loss, reapplication, or UVA protection. It may
+// still attenuate the wellness channel estimates in computeChannelDoses(), but
+// it must never extend the app's displayed time-to-MED.
+export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = /** @type {{ glassBetween?: boolean, sunscreenSPF?: number } | null} */ (null), skinIrradianceMultiplier = 1 }) {
+  if (!spectrum || durationMin <= 0 || !(Number(bodyExposureFraction) > 0)) return 0;
   const seconds = durationMin * 60;
   const dlambda = 5;
   const glassBetween = !!bodyModifiers?.glassBetween;
-  const spf = Number(bodyModifiers?.sunscreenSPF) || 0;
   let irradiance_E = 0;
   for (let i = 0; i < spectrum.irradiance.length; i++) {
     const nm = spectrum.wavelengths[i];
@@ -390,28 +418,25 @@ export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction =
     if (w <= 0) continue;
     let bandT = 1;
     if (glassBetween) bandT *= glassTransmission(nm);
-    if (spf > 1) bandT *= sunscreenTransmission(nm, spf);
     irradiance_E += E * w * dlambda * bandT; // W/m² CIE-weighted
   }
-  const J_per_m2 = irradiance_E * seconds * bodyExposureFraction;
+  // SED is local radiant exposure on an exposed patch (J/m2), never a
+  // whole-body energy total. Body fraction is therefore only an on/off gate.
+  const skinFlux = Math.max(0, Math.min(2, Number(skinIrradianceMultiplier) || 0));
+  const J_per_m2 = irradiance_E * seconds * skinFlux;
   return J_per_m2 / SED_JOULES_PER_M2;
 }
 
-// Photosensitizing meds lower the burn threshold. Legacy boolean path
-// uses a fixed 0.4 (≈2.5×) per AAD/Mayo Clinic guidance — kept for
-// backward compatibility with callers that haven't migrated to the
-// tier-based scale. New callers pass `medScale` directly (typically
-// from sun.js photosensitiveMedScale(tier) → 1.0/0.7/0.4/0.25 for
-// none/mild/moderate/severe). When medScale is supplied, photosensitive
-// boolean is ignored.
-const PHOTOSENSITIVE_MED_SCALE = 0.4;
-
-export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive = false, medScale }) {
+// Photosensitivity is a caution flag, not a universal numeric multiplier.
+// Drug, dose, timing, wavelength and individual response matter too much to
+// turn a generic medicine tier into a defensible MED reduction. The optional
+// numeric medScale remains for explicit, caller-supplied calibrated inputs;
+// legacy `photosensitive: true` no longer invents a 2.5x multiplier.
+export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive: _photosensitive = false, medScale }) {
   const baseMED = MED_BY_FITZPATRICK[fitzpatrick] ?? MED_BY_FITZPATRICK.III;
-  let scale;
-  if (typeof medScale === 'number') scale = medScale;
-  else if (photosensitive) scale = PHOTOSENSITIVE_MED_SCALE;
-  else scale = 1.0;
+  const scale = typeof medScale === 'number' && Number.isFinite(medScale) && medScale > 0
+    ? medScale
+    : 1.0;
   const med = baseMED * scale;
   return sed / med;
 }
@@ -447,18 +472,13 @@ export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive = false
 //   V    → 0.45
 //   VI   → 0.30  (deeply pigmented; needs ~3× more sun for equivalent D)
 //
-// Saturation: pre-vit-D photoisomerizes back to inactive isomers
-// (lumisterol, tachysterol) at high doses (Holick 2007). Above ~20,000
-// IU the actual yield plateaus regardless of further exposure. We cap
-// the displayed value to keep the UI honest about that ceiling.
+// Skin type is retained as a rough central modifier; adjacent types overlap
+// substantially, so vitaminDIURange() carries a broad uncertainty band.
 const VITD_FITZPATRICK_SCALE = { I: 1.0, II: 1.0, III: 0.85, IV: 0.65, V: 0.45, VI: 0.30 };
-// Bumped 40 → 60 in 2026-05 after a user (UVI 6 / 42 min / Type III /
-// front-only) measured ~2000 IU against dminder's ~6000 IU at the same
-// inputs. The earlier 40 was over-corrected from a high-zenith UVB
-// over-estimation fix; in the UVI 5–7 sweet spot it under-reports by
-// ~3×. 60 brings us into the NIWA / dminder reference band without
-// breaking the low-UVI gate (still 0 below UVI 2).
+// IU-equivalent calibration anchor for the action-weighted UVB integral.
+// This is a wellness comparison scale, not a measured synthesis conversion.
 const VITD_IU_PER_CHANNEL_AU = 60;
+// Reporting ceiling for extreme modeled/device inputs, not a personal limit.
 const VITD_SATURATION_IU = 20000;
 // Per-session ceiling per 100% body — derived from Holick 2008 NEJM
 // "1 MED full-body ≈ 10,000 IU." Once a skin patch absorbs ~1 MED of
@@ -472,27 +492,6 @@ const VITD_SATURATION_IU = 20000;
 // 30k to avoid under-attributing yield for sub-saturating sessions.
 export const VITD_PER_SESSION_BODYFRAC_CAP_IU = 30000;
 
-// UVI threshold gate. Webb 2018, Lehmann 2013, McKenzie 2009 (NIWA):
-// no meaningful vit D synthesis below UVI ~2-3 because the 295-300 nm
-// UVB needed for pre-vit-D photoisomerization is essentially absent at
-// low solar elevations (long ozone path absorbs it). Our spectrum
-// reconstruction over-estimates UVB at high zenith by ~6-10× — fixing
-// that requires a more accurate ozone cross-section table; the
-// clinical threshold gate captures the same reality more conservatively
-// without claiming radiometric precision the simplified Bird-Riordan
-// model can't deliver.
-//
-// Linear ramp 2.0 → 3.0 to avoid a hard cliff. Above UVI 3, full yield.
-// When uvi is unknown (no atmosphere data), apply no gating — trust
-// the channel-au integral and let the user know via the UI tooltip
-// that the value is approximate.
-function _uviThresholdMultiplier(uvi) {
-  if (!Number.isFinite(uvi)) return 1.0;
-  if (uvi <= 2.0) return 0;
-  if (uvi >= 3.0) return 1.0;
-  return uvi - 2.0;
-}
-
 // Heuristic weights for vitamin-D-pathway variants. Most source studies
 // report associations with circulating 25(OH)D, not genotype-specific
 // intervention responses. These conservative multipliers provide context
@@ -502,8 +501,7 @@ function _uviThresholdMultiplier(uvi) {
 // 25(OH)D associations rather than skin synthesis itself. Reporting
 // them as a single IU multiplier still conflates "produced at the
 // keratinocyte" with "available in serum 25-OH-D." The UI therefore says
-// "effective serum response per modeled UV dose" rather than "skin
-// synthesized." See the tooltip in sun.js for the user-facing copy.
+// Genetic context is shown separately and is not applied to skin synthesis.
 //
 // Variants: rs2282679 / rs10741657 / rs12785878 / rs6013897.
 // CYP27B1 rs10877012 and VDR rs2228570 remain informational catalog
@@ -549,19 +547,9 @@ export function geneticVitaminDMultiplier(genetics) {
   return { mult, contributors };
 }
 
-// `rotatedSides` doubles the yield to acknowledge that flipping front↔back
-// during the session lets fresh skin restart vit-D synthesis after the
-// previous side approaches per-area saturation. Matches dminder's
-// "100% naked over the session = both sides exposed" convention. The
-// global VITD_SATURATION_IU cap still applies on top.
-//
-// `genetics` (optional) — the profile's genetics blob (see
-// state.importedData.genetics). When supplied, applies a compound
-// multiplier from `geneticVitaminDMultiplier`. When omitted/null, no
-// genetic adjustment — existing callers see the prior behaviour and
-// no-genotype users see no change. Pass explicitly from the call
-// site since `state` is module-scoped (not on window) and importing
-// it from here would create a circular dependency.
+// `rotatedSides` and `genetics` remain accepted for storage/API compatibility,
+// but are not applied. Rotation is represented by timed exposure segments;
+// serum-associated genetic variants do not establish a skin-synthesis factor.
 export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null)) {
   return Math.min(vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics), VITD_SATURATION_IU);
 }
@@ -586,16 +574,14 @@ export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = /** @
   const perSessionCap = (typeof bodyFraction === 'number' && Number.isFinite(bodyFraction) && bodyFraction > 0)
     ? bodyFraction * VITD_PER_SESSION_BODYFRAC_CAP_IU
     : VITD_SATURATION_IU;
-  // Both caps fire — daily ceiling is still hard biology, per-session
-  // is the local skin-patch saturation. Per-session is the binding
-  // cap for high-output devices; daily is the binding cap for very
-  // long full-body summer sun.
+  // These are conservative display ceilings for extreme modeled inputs, not
+  // individualized biological thresholds or clinical intake advice.
   return Math.min(raw, perSessionCap, VITD_SATURATION_IU);
 }
 
-// Uncapped per-session IU. The 20,000 IU plateau is a DAILY biological
-// ceiling (Holick 2007: above ~20k IU/day pre-vit-D photoisomerizes back
-// to lumisterol/tachysterol). Capping per-session was wrong for multi-
+// Uncapped per-session IU. The 20,000 IU value is a conservative reporting
+// ceiling for extreme modeled inputs, not a personal biological or intake
+// limit. Capping per-session was wrong for multi-
 // session rollups: two same-day 10-min UVB device sessions each capped
 // at 20k summed to 40k in the 7-day total, blowing past the biological
 // ceiling. Rollups should use this raw helper, group by local date, cap
@@ -603,13 +589,15 @@ export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = /** @
 //
 // Single-session render paths still call vitaminDIU() (capped) — for
 // one session the cap is the right ceiling.
-export function vitaminDIURaw(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null)) {
+export function vitaminDIURaw(channelAu, fitzpatrick = 'III', _uvi = /** @type {number | null} */ (null), _rotatedSides = false, _genetics = /** @type {Record<string, any> | null} */ (null)) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
-  const uviMult = _uviThresholdMultiplier(uvi);
-  const rotMult = rotatedSides ? 2.0 : 1.0;
-  const geneMult = geneticVitaminDMultiplier(genetics).mult;
-  return channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult * rotMult * geneMult;
+  // The spectral integral has already accounted for the UVB available at
+  // this time and place. Applying a second UVI cliff creates a non-physical
+  // zero. Rotation likewise changes which patch is exposed, not the area
+  // exposed at each instant. Serum-associated genetics are reported as
+  // context elsewhere and are not skin-synthesis multipliers.
+  return channelAu * VITD_IU_PER_CHANNEL_AU * skinScale;
 }
 
 export const VITD_DAILY_SATURATION_IU = VITD_SATURATION_IU;
@@ -637,16 +625,18 @@ export const VITD_DAILY_SATURATION_IU = VITD_SATURATION_IU;
 export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), zenith = /** @type {number | null} */ (null), rotatedSides = false) {
   const central = vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides);
   if (central === 0) return { central: 0, low: 0, high: 0 };
-  // Per-zenith model uncertainty (multipliers for low/high band):
+  // The returned band includes both optical-model error and the much larger
+  // person-to-person biological conversion uncertainty. It is intentionally
+  // broad: the central value is an IU-equivalent, not a measured synthesis.
   //   high noon (z ≤ 35°)    → ±20%   (model in its sweet spot)
   //   morning/afternoon      → ±30%
   //   low sun (z > 55°)      → ±45%   (Bird-Riordan accuracy degrades)
   //   no zenith supplied     → ±35%   (legacy default — was 0.6/1.5)
-  let lowMul = 0.65, highMul = 1.35;
+  let lowMul = 0.25, highMul = 2.0;
   if (typeof zenith === 'number' && Number.isFinite(zenith)) {
-    if (zenith <= 35) { lowMul = 0.80; highMul = 1.20; }
-    else if (zenith <= 55) { lowMul = 0.70; highMul = 1.30; }
-    else { lowMul = 0.55; highMul = 1.45; }
+    if (zenith <= 35) { lowMul = 0.30; highMul = 1.8; }
+    else if (zenith <= 55) { lowMul = 0.25; highMul = 2.0; }
+    else { lowMul = 0.20; highMul = 2.5; }
   }
   return {
     central: Math.round(central),
@@ -656,7 +646,7 @@ export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type 
 }
 
 // PBM dose (J/cm²) for the red/NIR therapy channels and the wider
-// nir_solar channel. channel-au is J/m² × bodyFraction × actionWeight;
+// nir_solar channel. channel-au is local J/m² × actionWeight;
 // dividing by 10,000 converts m² → cm². Matches the dose unit
 // printed on commercial therapy-panel datasheets (Joovv, Mito Red etc.).
 export function pbmJoulesPerCm2(channelAu) {
@@ -664,29 +654,26 @@ export function pbmJoulesPerCm2(channelAu) {
   return channelAu / 10000;
 }
 
-// Peak melanopic equivalent daylight illuminance (M-EDI lux) for the
+// Estimated melanopic equivalent daylight illuminance for a modeled SPD.
 // `circadian` channel during a session. Channel-au is the time-
 // integrated J/m² × eyeMultiplier under the melanopic action spectrum;
 // to get peak lux we divide by session duration to recover the
-// instantaneous melanopic irradiance, then multiply by the CIE S 026
-// melanopic luminous efficacy K_mel,v (≈ 614 lx/(W/m²) for D65).
+// instantaneous melanopic irradiance, then divide by D65 melanopic radiant
+// efficacy (1.3262 mW/lm). Because melanopicAt() is still a smooth proxy,
+// callers must label this as estimated, not a calibrated CIE measurement.
 export function circadianMelanopicLux(channelAu, durationMin) {
   if (!Number.isFinite(channelAu) || channelAu <= 0 || durationMin <= 0) return 0;
   const seconds = durationMin * 60;
   const melanopic_W_per_m2 = channelAu / seconds; // average over the session
-  return melanopic_W_per_m2 * 614;
+  return melanopic_W_per_m2 / 0.0013262;
 }
 
-// Retinal UV exposure — actinic-weighted dose at the eye (ICNIRP S(λ)
-// approximated by the CIE erythemal action spectrum, which peaks at 297
-// nm and drops to ~0.0001 at 400 nm). This is the right basis for the
-// photokeratitis threshold; integrating *unweighted* UV would overstate
-// the dose 30-100× because UVA (the dominant wavelength of total UV) is
-// only weakly damaging vs UVB.
+// Ocular actinic-UV exposure — ICNIRP S(lambda)-weighted dose incident at
+// the eye. This is an anterior-eye UV hazard proxy; it is not retinal dose
+// and does not model the visible/thermal hazards of staring at the sun.
 //
-// Returns J/m² actinic UV at the eye. ICNIRP daily exposure limit is
-// 30 J/m². Photokeratitis symptoms appear above ~50 J/m². Alert
-// thresholds in sun.js use 15 J/m² (warning) and 30 J/m² (over limit).
+// Returns J/m² actinic UV at the eye. ICNIRP's 8-hour exposure reference is
+// 30 J/m². Alert thresholds use 15 J/m² (warning) and 30 J/m² (reference).
 //
 // `zenithDeg` (optional) gates the dose at very low solar elevation —
 // below ~5° (zenith > 85°) UV-A doesn't meaningfully reach the ground
@@ -697,10 +684,11 @@ export function circadianMelanopicLux(channelAu, durationMin) {
 // accumulate 4-5 J/m² actinic UV. Linear ramp 85° → 80° avoids a
 // hard cliff — full yield once the sun is more than 10° above the
 // horizon. Pass `null` (or omit) to skip the gate.
-export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = /** @type {number | null} */ (null) }) {
+export function ocularActinicUVdose({ spectrum, eyeExposure, zenithDeg = /** @type {number | null} */ (null), glassBetween = false }) {
   if (!spectrum || !eyeExposure) return 0;
   const mode = eyeExposure.mode || 'indoor';
-  if (mode !== 'direct') return 0;
+  if (mode !== 'direct' && mode !== 'glass-window') return 0;
+  const throughGlass = glassBetween || mode === 'glass-window';
   let elevationGate = 1.0;
   if (typeof zenithDeg === 'number' && Number.isFinite(zenithDeg)) {
     const elevation = 90 - zenithDeg;
@@ -714,12 +702,17 @@ export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = /** @type {nu
   for (let i = 0; i < spectrum.irradiance.length; i++) {
     const nm = spectrum.wavelengths[i];
     if (nm > 400) break;
-    const w = erythemalAt(nm); // actinic action spectrum (≈ ICNIRP S(λ))
+    const w = actinicUVAt(nm);
     if (w <= 0) continue;
-    actinic_irradiance += spectrum.irradiance[i] * w * dlambda;
+    const transmission = throughGlass ? glassTransmission(nm) : 1;
+    actinic_irradiance += spectrum.irradiance[i] * w * dlambda * transmission;
   }
   return actinic_irradiance * seconds * elevationGate;
 }
+
+// Backward-compatible export for stored/session callers. New presentation
+// code uses ocularActinicUV terminology; the old name is not a retinal model.
+export const retinalUVdose = ocularActinicUVdose;
 
 // ─── Public exports ────────────────────────────────────────────────────
 

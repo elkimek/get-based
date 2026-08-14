@@ -94,7 +94,8 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
         !maleFixedIds.includes('cycle')
         && femaleFixedIds.includes('cycle')
         && maleFixedIds.includes('focus')
-        && maleFixedIds.includes('wearables');
+        && maleFixedIds.includes('wearables')
+        && maleFixedIds.includes('light-live-session');
 
       const defaultPrefs = registry.getDashboardWidgetPrefs();
       outcomes.defaultPrefsPrioritizeDefaultsAndHideNonDefaults =
@@ -104,6 +105,7 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
         && !defaultPrefs.order.includes('cycle')
         && defaultPrefs.hidden.includes('insights')
         && defaultPrefs.hidden.includes('genome')
+        && defaultPrefs.hidden.includes('light-live-session')
         && !defaultPrefs.hidden.includes('focus')
         && !defaultPrefs.hidden.includes('biology-score-biologicalCoherence');
 
@@ -259,6 +261,7 @@ test('dashboard Light widgets share lazy initialization before rendering', async
       markerHasData: () => false,
       renderDashboardLightChannelPills: () => '<div>channels</div>',
       renderLightConditionsWidgetBody: () => '<div>conditions</div>',
+      renderLightLiveSession: () => '<div>live session</div>',
       renderLightSessionLogActions: () => '<div>sessions</div>',
       getMobileDashboardMarkers: () => [],
       getMobileDashboardInsights: () => [],
@@ -282,9 +285,10 @@ test('dashboard Light widgets share lazy initialization before rendering', async
     const first = renderers.renderDashboardLightConditionsWidget();
     const second = renderers.renderDashboardLightChannelsWidget();
     const third = renderers.renderDashboardLightSessionLogWidget();
+    const fourth = renderers.renderDashboardLightLiveSessionWidget();
     const loadingStateIsShared =
       loadCalls === 1
-      && [first, second, third].every(html => html.includes('Loading Light &amp; Sun'))
+      && [first, second, third, fourth].every(html => html.includes('Loading Light &amp; Sun'))
       && todayBeforeLoad.includes('Loading Light &amp; Sun')
       && heroCalls === 0;
 
@@ -295,12 +299,14 @@ test('dashboard Light widgets share lazy initialization before rendering', async
 
     const readyToday = renderers.renderDashboardLightTodayWidget();
     const readyConditions = renderers.renderDashboardLightConditionsWidget();
+    const readyLiveSession = renderers.renderDashboardLightLiveSessionWidget();
     return {
       visibleLightWidgetsShareOneLazyLoad: loadingStateIsShared && loadCalls === 1,
       successfulLazyLoadRerendersDashboardOnce: rerenderCalls === 1,
       initializedLightWidgetsRenderTheirRealBodies:
         readyToday.includes('today')
         && readyConditions.includes('conditions')
+        && readyLiveSession.includes('live session')
         && heroCalls === 1,
     };
   }, {

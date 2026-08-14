@@ -173,7 +173,7 @@ const {
   document.querySelector('[data-light-setup-input="ott-score"]')?.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
   assert('delegated setup input updates running light score',
     document.getElementById('ott-running-value')?.textContent === '1/10' &&
-    document.getElementById('ott-summary-score')?.textContent === '9/10 aligned');
+    document.getElementById('ott-summary-score')?.textContent === '1/10 selected');
   document.body.innerHTML = '';
   restoreDelegateDomGlobals();
 
@@ -240,17 +240,17 @@ const {
   // ─── 4. ottScoreToLabel boundaries ────────────────────────────────────
   console.log('%c 4. Score → label tier mapping ', 'font-weight:bold;color:#f59e0b');
 
-  // Tier boundaries: <=1=tier0, 2-3=tier1, 4-5=tier2, 6-7=tier3, 8-10=tier4
+  // Tier boundaries: 0=tier0, 1-3=tier1, 4-5=tier2, 6-7=tier3, 8-10=tier4
   const tierCases = [
-    { score: 0,  expected: 0, desc: '0 → well-aligned (tier 0)' },
-    { score: 1,  expected: 0, desc: '1 → still tier 0 (boundary)' },
-    { score: 2,  expected: 1, desc: '2 → minor gaps (tier 1)' },
+    { score: 0,  expected: 0, desc: '0 → no patterns selected (tier 0)' },
+    { score: 1,  expected: 1, desc: '1 → a few patterns (tier 1)' },
+    { score: 2,  expected: 1, desc: '2 → a few patterns (tier 1)' },
     { score: 3,  expected: 1, desc: '3 → still tier 1 (boundary)' },
     { score: 4,  expected: 2, desc: '4 → moderate (tier 2)' },
     { score: 5,  expected: 2, desc: '5 → still tier 2 (boundary)' },
     { score: 6,  expected: 3, desc: '6 → significant (tier 3)' },
     { score: 7,  expected: 3, desc: '7 → still tier 3 (boundary)' },
-    { score: 8,  expected: 4, desc: '8 → severe (tier 4)' },
+    { score: 8,  expected: 4, desc: '8 → broad mismatch (tier 4)' },
     { score: 10, expected: 4, desc: '10 → still tier 4 (max)' },
   ];
   for (const c of tierCases) {

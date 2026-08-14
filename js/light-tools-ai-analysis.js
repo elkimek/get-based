@@ -35,6 +35,7 @@ function getRoomNameFor(m) {
 export function getMeasurementFingerprint(m) {
   if (!m) return '';
   const parts = [
+    'v2-measurement-quality',
     m.tool || '',
     typeof m.value === 'number' ? Math.round(m.value * 1000) / 1000 : String(m.value || ''),
     m.roomId || '',
@@ -52,17 +53,24 @@ export function getMeasurementFingerprint(m) {
 
 const _TOOL_DESCRIPTIONS = {
   lux: 'Illuminance reading (general light level at the user\'s position)',
-  flicker: 'PWM / mains-flicker scan (5 s) — looking for invisible-but-eyestrain pulses',
-  darkness: 'Sleep-darkness long-exposure measurement (30 s mean, peak)',
-  cct: 'Correlated color temperature (Kelvin) — warmth vs coolness of the source',
-  spectrum: 'Spectrum classifier — categorizes the light source by RGB + flicker profile',
-  'glass-transmission': 'Glass transmission ratio — how much visible light passes through a window',
-  audit: 'Eye-level audit — multi-room walkthrough lux snapshot',
+  flicker: 'Rolling-shutter camera screen for visible banding; not a calibrated flicker meter',
+  darkness: 'Qualitative low-light camera check or user-entered photopic lux-meter reading',
+  cct: 'Approximate warm/cool camera estimate; not spectrum or melanopic EDI',
+  spectrum: 'Qualitative camera RGB pattern and banding screen; not a spectrometer',
+  'glass-transmission': 'Two-sample relative camera-visible comparison through a window',
+  audit: 'Eye-level multi-room camera walkthrough for relative brightness; not lux',
 };
 
 function _buildLuxContext(m) {
-  const lines = [`Tool: lux meter`, `Reading: ${Math.round(m.value)} lux`];
+  const cameraEstimate = m.extra?.source === 'camera-estimate';
+  const lines = [
+    'Tool: lux meter',
+    cameraEstimate
+      ? `Reading: ~${Math.round(m.value)} camera-estimated photopic lux; approximate and excluded from indoor scoring`
+      : `Reading: ${Math.round(m.value)} photopic lux`,
+  ];
   if (m.extra?.source) lines.push(`Sensor: ${m.extra.source}`);
+  if (m.extra?.source === 'camera-estimate') lines.push(`Camera calibration confirmed: ${m.extra?.calibrationConfirmed === true ? 'yes' : 'no — do not threshold'}`);
   if (m.extra?.calibrationFactor && m.extra.calibrationFactor !== 1) {
     lines.push(`Calibration factor applied: ×${_formatNumber(m.extra.calibrationFactor, 2)}`);
   }
@@ -71,37 +79,41 @@ function _buildLuxContext(m) {
 
 function _buildFlickerContext(m) {
   const lines = [`Tool: flicker detector`];
-  const SCORE_LABELS = { 0: 'pristine (no detectable flicker)', 1: 'mild', 2: 'moderate', 3: 'severe' };
+  const SCORE_LABELS = { 0: 'no rolling-shutter banding detected', 1: 'some banding', 2: 'clear banding', 3: 'strong banding' };
   const score = Math.round(m.value || 0);
   lines.push(`Flicker score: ${score}/3 — ${SCORE_LABELS[score] || 'unknown'}`);
   if (m.extra?.label) lines.push(`Tool's verdict: ${m.extra.label}`);
   if (m.extra?.peakBanding != null) lines.push(`Peak banding (intra-frame): ${_formatNumber(m.extra.peakBanding, 2)}`);
-  if (m.extra?.stripes != null) lines.push(`PWM stripe count: ${m.extra.stripes}`);
+  if (m.extra?.stripes != null) lines.push(`Rolling-shutter stripe count: ${m.extra.stripes}`);
   if (m.extra?.frameRatio != null) lines.push(`Frame-luma variance: ${_formatNumber(m.extra.frameRatio, 3)}`);
   return lines;
 }
 
 function _buildDarknessContext(m) {
-  const lines = [`Tool: sleep-darkness meter (30 s long exposure)`];
-  lines.push(`Mean lux: ${_formatNumber(m.extra?.meanLux ?? m.value, 2)}`);
-  if (m.extra?.peakLux != null) lines.push(`Peak lux (95th-percentile spike): ${_formatNumber(m.extra.peakLux, 2)}`);
-  if (m.extra?.label) lines.push(`Classifier: ${m.extra.label}`);
-  if (m.extra?.isoLocked) lines.push('Camera ISO was locked (higher confidence)');
+  const lines = [`Tool: sleep-light check`];
+  if (m.extra?.method === 'meter-entry') {
+    lines.push(`Meter entry: ${_formatNumber(m.value, 2)} photopic lux (not melanopic EDI)`);
+  } else {
+    lines.push(`Qualitative camera result: ${m.extra?.levelLabel || 'unknown'}`);
+    lines.push(`Camera level: ${_formatNumber(m.extra?.cameraLevel ?? m.value, 0)}%; not lux and not a hormone estimate`);
+  }
   return lines;
 }
 
 function _buildCCTContext(m) {
-  const lines = [`Tool: CCT meter`, `Color temperature: ${Math.round(m.value)} K`];
-  if (m.extra?.melanopic != null) lines.push(`Melanopic ratio (B/(R+G+B)): ${_formatNumber(m.extra.melanopic, 2)}`);
+  const lines = [`Tool: camera warm/cool estimate`, `Approximate color temperature: ~${Math.round(m.value / 100) * 100} K`];
+  const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
+  if (blueRatio != null) lines.push(`Camera RGB blue-ratio proxy (not melanopic EDI): ${_formatNumber(blueRatio, 2)}`);
   if (m.extra?.temperatureTone) lines.push(`Tone: ${m.extra.temperatureTone}`);
-  if (m.extra?.pwmActive) lines.push('PWM dimming detected during reading');
+  if (m.extra?.bandingDetected || m.extra?.pwmActive) lines.push('Rolling-shutter banding detected during reading; frequency and modulation are unknown');
   return lines;
 }
 
 function _buildSpectrumContext(m) {
   const lines = [`Tool: spectrum classifier`, `Source classification: ${m.value || m.extra?.label || 'unknown'}`];
   if (m.extra?.reason) lines.push(`Tool's reasoning: ${m.extra.reason}`);
-  if (m.extra?.melanopic != null) lines.push(`Melanopic ratio: ${_formatNumber(m.extra.melanopic, 2)}`);
+  const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
+  if (blueRatio != null) lines.push(`Camera RGB blue-ratio proxy (not melanopic EDI): ${_formatNumber(blueRatio, 2)}`);
   if (m.extra?.circadian) lines.push(`Circadian category: ${m.extra.circadian}`);
   if (m.extra?.r != null && m.extra?.g != null && m.extra?.b != null) {
     lines.push(`RGB ratios: R=${_formatNumber(m.extra.r, 2)} G=${_formatNumber(m.extra.g, 2)} B=${_formatNumber(m.extra.b, 2)}`);
@@ -110,12 +122,10 @@ function _buildSpectrumContext(m) {
 }
 
 function _buildGlassContext(m) {
-  const lines = [`Tool: glass transmission test`];
+  const lines = [`Tool: two-sample camera window comparison`];
   const pct = Math.round((m.value || 0) * 100);
-  lines.push(`Transmission ratio: ${pct}% (${pct}% of outdoor light reaches inside)`);
-  if (m.extra?.outside != null) lines.push(`Outdoor lux: ${Math.round(m.extra.outside)}`);
-  if (m.extra?.inside != null) lines.push(`Indoor (through-glass) lux: ${Math.round(m.extra.inside)}`);
-  if (m.extra?.lockMode === 'manual') lines.push('Camera exposure manually locked (higher confidence)');
+  lines.push(`Relative camera-visible response: about ${pct}%; not calibrated visible, UV, or IR transmission`);
+  if (m.extra?.lockMode !== 'manual') lines.push('Camera auto-exposure was active; treat as qualitative only');
   return lines;
 }
 
@@ -124,7 +134,7 @@ function _buildAuditContext(m) {
   const rooms = m.extra?.rooms;
   if (Array.isArray(rooms) && rooms.length) {
     for (const r of rooms.slice(0, 6)) {
-      lines.push(`  - Room ${r.index}${r.label ? ' (' + r.label + ')' : ''}: ${Math.round(r.lux || 0)} lux`);
+      lines.push(`  - Room ${r.index}${r.label ? ' (' + r.label + ')' : ''}: ${r.levelLabel || 'relative'} camera brightness`);
     }
   }
   return lines;
@@ -173,20 +183,20 @@ const SYSTEM_PROMPT = [
   'You interpret a single environmental light measurement (lux / flicker / sleep-darkness / CCT / spectrum / glass-transmission / multi-room audit).',
   'Return ONLY valid JSON with three keys: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
-  'Color thresholds by tool type:',
+  'Interpretation rules by tool type:',
   '',
-  'lux: <50 lux daytime → red (sub-circadian); 50–500 lux daytime → yellow; 500+ lux daytime → green. Evening/night flips: anything >5 lux post-sunset trends yellow→red for melatonin onset; <1 lux green.',
-  'flicker: 0 → green; 1 → yellow; 2 → yellow→red; 3 → red.',
-  'darkness (sleep room, captured at night): <0.1 lux → green; 0.1–1 lux → yellow; 1–10 lux → red (clinically significant melatonin suppression); >10 lux → red.',
-  'CCT: warm (1800–2700 K) → green for evening, yellow daytime; cool (4000+ K) → green daytime, red evening. PWM-active flag → yellow regardless.',
-  'spectrum: incandescent / halogen / full-spectrum LED → green; warm LED with PWM, fluorescent → yellow; cool LED in evening → red.',
-  'glass transmission: standard window blocks ~98% UVB, transmits ~70-85% UVA + visible. Note that no UVB passes through standard glass even at 90% visible transmission.',
+  'lux: ordinary photopic lux is not melanopic EDI. Use sensor or meter-entry values as general brightness spot-checks. All camera estimates, including one-point-calibrated values, stay approximate, excluded from indoor scoring, and gray.',
+  'flicker: score 0 means no camera banding detected, not flicker-free. Scores 1–3 indicate increasing banding strength; no frequency or health effect is measured.',
+  'darkness: meter-entry photopic lux can flag visible sleep-time light but remains spectrum-blind. Camera-relative darkness results are qualitative and must never produce melatonin percentages, phase-shift claims, or lux thresholds.',
+  'CCT: camera estimate is approximate and cannot establish spectral completeness or melanopic content. Time of day changes interpretation, but CCT alone never determines safety.',
+  'spectrum: camera RGB is a warm/cool pattern, not a spectrometer. Never infer full spectrum, UV, infrared, or missing wavelengths.',
+  'glass transmission: result is a two-sample camera-visible ratio. It cannot infer calibrated visible, UVA, UVB, or infrared transmission.',
   'audit (multi-room): look for room-to-room variation. Bedroom + living-room being near-identical lux suggests over-lit bedrooms or under-lit living spaces.',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
   'tip: one sentence, max 14 words. Reference specific number + concrete action when relevant.',
-  'detail: 1–2 sentences. Cite the threshold or biology that drove the verdict. No restating the data verbatim. If the measurement flags flicker (score 1+) or PWM, the recommendation MUST honor the hardware caveats above — never suggest a generic "dimmable LED" or "dim it" as a fix.',
+  'detail: 1–2 sentences. State measurement quality before interpretation. Never convert ordinary lux/CCT/RGB into melanopic dose, hormone suppression, or guaranteed sleep effects. If banding is flagged, honor the hardware caveats and never suggest a generic dimmer.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');
@@ -202,7 +212,7 @@ const engine = createAIVerdict({
   maxTokens: 350,
   // Skip the audit aggregate row — its per-room lux entries get analyzed
   // on their own (saveMeasurement fires once per pause).
-  shouldAutoFire: (m) => m?.tool !== 'audit',
+  shouldAutoFire: (m) => !['audit', 'brightness-proxy'].includes(m?.tool),
   getAllTargets: getMeasurements,
   // Anchor the post-verdict rebuild to the row's room so the user
   // stays put when the verdict lands. Portable readings (no roomId)

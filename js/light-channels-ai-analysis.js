@@ -1,13 +1,7 @@
 // @ts-check
-// light-channels-ai-analysis.js — AI verdict for the "Your light, by
-// what it does" channel-mix section. Replaces the hardcoded
-// renderSuggestion() that picked the single lowest-tier channel and
-// returned a generic per-channel string ("10 minutes of outdoor light
-// before 9 am tends to be..."). The new verdict reasons across all 6
-// channels + 7d/30d trends + user goals + biomarkers, and crucially
-// can recommend a SINGLE action that hits multiple channels at once
-// (a morning walk feeds circadian + violet-eye + NIR + low-dose POMC
-// — much higher leverage than a per-channel nudge).
+// light-channels-ai-analysis.js — seven-day Light review. It compares the
+// most recent seven days with the seven before them, while keeping sunlight
+// and targeted devices separate and never grading biological completion.
 //
 // Storage: singleton at state.importedData.channelMixAI. Trigger is
 // manual — channel totals shift across days as sessions roll into
@@ -15,28 +9,28 @@
 // auto-fire would be wasteful.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
+import { escapeHTML, showNotification } from './utils.js';
 import { hasAIProvider } from './api.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 import { getDeviceSessions, rollingDeviceTotals } from './light-devices-store.js';
-import { rollingChannelTotals, tierLabel, weeklyChannelTier } from './sun.js';
+import { rollingChannelTotals } from './sun.js';
 import { getSessions } from './sun-sessions-store.js';
 
 const lightChannelsAIAnalysisDeps = {
   rollingChannelTotals,
+  rollingDeviceTotals,
   getSessions,
-  weeklyChannelTier,
-  tierLabel,
+  getDeviceSessions,
 };
 
 /**
  * @param {{
  *   rollingChannelTotals?: ((days: number) => Record<string, number>) | null,
+ *   rollingDeviceTotals?: ((days: number) => Record<string, number>) | null,
  *   getSessions?: (() => any[]) | null,
- *   weeklyChannelTier?: ((value: number, channelKey: string) => number) | null,
- *   tierLabel?: ((tier: number) => string) | null,
+ *   getDeviceSessions?: (() => any[]) | null,
  * }} deps
  */
 export function configureLightChannelsAIAnalysisDeps(deps = {}) {
@@ -60,12 +54,12 @@ function _setMix(v) {
 }
 
 const _CHANNEL_DEF = {
-  vitamin_d:  { label: 'Vitamin D synthesis',     biology: 'UVB 290–315 nm on skin → 7-DHC → previtamin D3' },
-  circadian:  { label: 'Body clock / melanopic',  biology: '450–490 nm at the eye → SCN melanopsin → cortisol/melatonin phase' },
-  nir_solar:  { label: 'Cellular repair (solar NIR)', biology: '660–850 nm penetrates deep, supports mitochondria + recovery' },
-  no_cv:      { label: 'Cardiovascular NO',       biology: 'UVA-violet on skin → nitric oxide release → vasodilation, BP' },
-  pomc:       { label: 'Mood / α-MSH',            biology: 'UVA on skin → POMC cleavage → α-MSH, β-endorphin' },
-  violet_eye: { label: 'Violet-eye dopamine',     biology: '360–440 nm at the eye → retinal dopamine, myopia + mood' },
+  vitamin_d:  { label: 'Vitamin D',            biology: 'vitamin-D-effective UVB reaching uncovered skin' },
+  circadian:  { label: 'Body clock',           biology: 'timed ambient light reaching the eyes' },
+  nir_solar:  { label: 'Cell energy and repair', biology: 'red and near-infrared light reaching skin and deeper tissue; systemic effects remain under study' },
+  no_cv:      { label: 'Blood-vessel signal',  biology: 'UVA-related release of nitric oxide stores in skin' },
+  pomc:       { label: 'Skin and mood pathway', biology: 'UV-related POMC signaling in skin; downstream response is not measured' },
+  violet_eye: { label: 'Outdoor eye light',    biology: 'violet/cyan exposure at the eye; human pathway details remain exploratory' },
 };
 
 function _rollingChannelTotals(days) {
@@ -73,115 +67,164 @@ function _rollingChannelTotals(days) {
 }
 
 function _rollingDeviceTotals(days) {
-  return rollingDeviceTotals(days) || {};
+  return lightChannelsAIAnalysisDeps.rollingDeviceTotals(days) || {};
 }
 
 function _getSessions() {
-  return lightChannelsAIAnalysisDeps.getSessions();
+  const sessions = lightChannelsAIAnalysisDeps.getSessions();
+  return Array.isArray(sessions) ? sessions : [];
 }
 
 function _getDeviceSessions() {
-  return getDeviceSessions();
-}
-
-function _weeklyChannelTier(value, channelKey) {
-  return lightChannelsAIAnalysisDeps.weeklyChannelTier(value, channelKey);
-}
-
-function _tierLabel(tier) {
-  return lightChannelsAIAnalysisDeps.tierLabel(tier);
+  const sessions = lightChannelsAIAnalysisDeps.getDeviceSessions();
+  return Array.isArray(sessions) ? sessions : [];
 }
 
 function _channelTotals() {
   const sun7 = _rollingChannelTotals(7);
   const dev7 = _rollingDeviceTotals(7);
-  const sun30 = _rollingChannelTotals(30);
-  const dev30 = _rollingDeviceTotals(30);
-  const merge = (a, b) => {
-    const out = {};
-    for (const k of new Set([...Object.keys(a || {}), ...Object.keys(b || {})])) {
-      out[k] = (a[k] || 0) + (b[k] || 0);
+  return { sun7, dev7 };
+}
+
+const _DAY_MS = 86400000;
+
+function _sessionTime(session) {
+  return Number(session?.endedAt || 0);
+}
+
+function _sessionsInWindow(sessions, start, end) {
+  return (Array.isArray(sessions) ? sessions : []).filter(session => {
+    const timestamp = _sessionTime(session);
+    return timestamp >= start && timestamp < end;
+  });
+}
+
+function _durationMinutes(session) {
+  const recorded = Number(session?.durationMin);
+  if (Number.isFinite(recorded) && recorded >= 0) return recorded;
+  const startedAt = Number(session?.startedAt);
+  const endedAt = Number(session?.endedAt);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt) || endedAt < startedAt) return 0;
+  return (endedAt - startedAt) / 60000;
+}
+
+function _localDayKey(timestamp) {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function _summarizeSessions(sessions) {
+  const days = new Set();
+  const timing = { morning: 0, afternoon: 0, evening: 0 };
+  let durationMin = 0;
+  for (const session of sessions) {
+    const timestamp = Number(session?.startedAt || session?.endedAt || 0);
+    if (timestamp) {
+      days.add(_localDayKey(timestamp));
+      const hour = new Date(timestamp).getHours();
+      if (hour < 12) timing.morning++;
+      else if (hour < 17) timing.afternoon++;
+      else timing.evening++;
     }
-    return out;
+    durationMin += _durationMinutes(session);
+  }
+  return { count: sessions.length, days: days.size, durationMin: Math.round(durationMin), timing };
+}
+
+function _timingText(timing) {
+  return `morning ${timing.morning}; afternoon ${timing.afternoon}; evening ${timing.evening}`;
+}
+
+function _weeklyWindows(now = Date.now()) {
+  const currentStart = now - 7 * _DAY_MS;
+  const previousStart = now - 14 * _DAY_MS;
+  const sun = _getSessions();
+  const device = _getDeviceSessions();
+  return {
+    currentSun: _sessionsInWindow(sun, currentStart, now),
+    currentDevice: _sessionsInWindow(device, currentStart, now),
+    previousSun: _sessionsInWindow(sun, previousStart, currentStart),
+    previousDevice: _sessionsInWindow(device, previousStart, currentStart),
   };
-  return { c7: merge(sun7, dev7), c30: merge(sun30, dev30), sun7, dev7 };
+}
+
+function _hasWeeklyReviewData() {
+  const windows = _weeklyWindows();
+  return windows.currentSun.length + windows.currentDevice.length
+    + windows.previousSun.length + windows.previousDevice.length > 0;
 }
 
 export function getChannelMixFingerprint() {
   const t = _channelTotals();
-  const parts = [];
+  const windows = _weeklyWindows();
+  const parts = ['weekly-light-pattern-v2'];
   for (const k of Object.keys(_CHANNEL_DEF).sort()) {
-    parts.push(`${k}:${_weeklyChannelTier(t.c7[k] || 0, k)}`);
+    parts.push(`${k}:sun${(t.sun7[k] || 0) > 0 ? 1 : 0}:dev${(t.dev7[k] || 0) > 0 ? 1 : 0}`);
   }
-  // Also fingerprint sun/device session count split — a user who shifted
-  // from outdoor to indoor over the week needs a different verdict.
-  const sun7 = _getSessions().filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
-  const dev7 = _getDeviceSessions().filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
-  parts.push(`sun7:${sun7}`, `dev7:${dev7}`);
+  for (const [source, sessions] of Object.entries(windows)) {
+    for (const session of sessions) {
+      parts.push(source, String(session?.id || ''), String(session?.startedAt || 0), String(session?.endedAt || 0), String(Math.round(_durationMinutes(session))));
+    }
+  }
   return hashString(parts.join('|'));
 }
 
 export function buildChannelMixContext() {
   const t = _channelTotals();
+  const windows = _weeklyWindows();
+  const currentSun = _summarizeSessions(windows.currentSun);
+  const currentDevice = _summarizeSessions(windows.currentDevice);
+  const previousSun = _summarizeSessions(windows.previousSun);
+  const previousDevice = _summarizeSessions(windows.previousDevice);
   const lines = [];
 
-  lines.push('### Channel mix — last 7 days');
-  for (const [k, def] of Object.entries(_CHANNEL_DEF)) {
-    const t7 = _weeklyChannelTier(t.c7[k] || 0, k);
-    const t30 = _weeklyChannelTier(t.c30[k] || 0, k);
-    lines.push(`- ${def.label} (${k}): 7d tier "${_tierLabel(t7)}", 30d tier "${_tierLabel(t30)}". Biology: ${def.biology}`);
+  lines.push('### Weekly light review');
+  lines.push('Window: rolling past 7 days, compared with the previous 7 days. These are logged records, not continuous exposure measurements.');
+  lines.push('');
+  lines.push('### Logged sessions — past 7 days');
+  lines.push(`Outdoor sun: ${currentSun.count} session(s) across ${currentSun.days} day(s), ${currentSun.durationMin} total minute(s). Timing: ${_timingText(currentSun.timing)}.`);
+  lines.push(`Light-therapy devices: ${currentDevice.count} session(s) across ${currentDevice.days} day(s), ${currentDevice.durationMin} total minute(s). Timing: ${_timingText(currentDevice.timing)}.`);
+  lines.push('');
+  lines.push('### Comparison — previous 7 days');
+  lines.push(`Outdoor sun: ${previousSun.count} session(s) across ${previousSun.days} day(s), ${previousSun.durationMin} total minute(s). Timing: ${_timingText(previousSun.timing)}.`);
+  lines.push(`Light-therapy devices: ${previousDevice.count} session(s) across ${previousDevice.days} day(s), ${previousDevice.durationMin} total minute(s). Timing: ${_timingText(previousDevice.timing)}.`);
+  if (currentSun.count + currentDevice.count === 0) {
+    lines.push('No sessions were logged in the current period. This is missing log data, not evidence of no real-world light exposure.');
   }
 
-  // Source split — outdoor vs device contribution per channel
-  const sunSessCount = _getSessions().filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
-  const devSessCount = _getDeviceSessions().filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
   lines.push('');
-  lines.push('### Source mix this week');
-  lines.push(`Outdoor sun: ${sunSessCount} session(s)`);
-  lines.push(`Light-therapy devices: ${devSessCount} session(s)`);
+  lines.push('### Light-responsive source signals — past 7 days');
+  for (const [k, def] of Object.entries(_CHANNEL_DEF)) {
+    const sun = (t.sun7[k] || 0) > 0 ? 'logged' : 'not logged';
+    const device = (t.dev7[k] || 0) > 0 ? 'logged separately' : 'not logged';
+    lines.push(`- ${def.label} (${k}): sunlight ${sun}; device ${device}. Model: ${def.biology}`);
+  }
 
-  // User context
-  const sd = state.importedData?.sunDefaults || {};
+  // Goals can make a timing observation more useful, but they never turn
+  // this review into a diagnosis, treatment recommendation, or target score.
   const goals = formatHealthGoalsText(state.importedData?.healthGoals);
-  if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
-
-  // Latest 25-OH-D for context
-  try {
-    const entries = (state.importedData?.entries || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    for (const e of entries) {
-      const v = e?.values?.hormones?.['25-oh-vitamin-d'] ?? e?.values?.lipids?.['25-oh-vitamin-d'];
-      if (v != null) { lines.push(`Latest 25-OH-D: ${v} (${e.date})`); break; }
-    }
-  } catch (_) {}
 
   return lines.join('\n');
 }
 
 const SYSTEM_PROMPT = [
-  'You evaluate a user\'s 7-day light-channel mix — six biological channels driven by light: vitamin D synthesis, circadian/melanopic, cellular repair (NIR), cardiovascular NO, mood/α-MSH (POMC), and violet-eye. The user already sees a per-channel tier dot for each. Your job is to give one synthesis verdict that reasons ACROSS the channels.',
+  'You summarize a user\'s logged light pattern for the past 7 days and compare it with the previous 7 days. Keep sunlight and devices separate. A device may deliver a targeted wavelength, but it is not full-spectrum sunlight.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
+  'Always return "gray" for dot. The UI is a neutral pattern review, not a traffic-light grade.',
   '',
-  'dot:',
-  '  green = at least 4 of 6 channels at "good" or "strong" tier, no critical-channel deficit',
-  '  yellow = 2–3 channels lit, or one critical channel (vit-D in winter, circadian) at sub-tier',
-  '  red = ≤1 channel lit, OR no sun sessions in 7 days, OR vit-D + circadian both at "none"',
-  '  gray = no logged sessions',
+  'Lead with the clearest comparison: source, logged days, timing, or cadence. Say "logged" whenever absence of records could be mistaken for absence of exposure.',
+  'Never say the user received enough, too little, deficient, complete, balanced, low, good, strong, saturated, or a percentage of a biological target. Missing logs are missing data, not missing biology.',
+  'Never infer vitamin-D status or measured synthesis. Do not turn session count or duration into a universal light requirement.',
+  'Morning and evening light may have different timing effects; do not add them into one positive score.',
+  'Do not recommend extra UV, uncovered midday exposure, removing sunglasses, or extending a session to activate a pathway. Never recommend looking at the sun.',
   '',
-  'CRITICAL: pick a tip that hits MULTIPLE channels with one action. Examples of high-leverage cross-channel actions:',
-  '  • Morning outdoor walk (15 min before 9 am) → circadian + violet_eye + low-dose NIR + low POMC ALL at once',
-  '  • Midday outdoor session with arms uncovered → vitamin_d + no_cv + pomc + nir_solar in 15 min',
-  '  • Sunrise watching with eyes-direct → circadian + violet_eye + start-of-day no_cv + cortisol awakening',
-  '  • Late-afternoon walk → no_cv + pomc + nir_solar (skips vitamin_d but UVB has dropped anyway)',
-  'AVOID single-channel nudges like "more outdoor light before 9 am for circadian" — that\'s what the user already sees in the per-channel pill drill-downs. Your value is the SYNTHESIS — name the action that maximizes channels-per-minute-outdoors.',
+  'If only device sessions are logged, explain simply that targeted devices do not recreate the wider spectrum and time-of-day context of outdoor light.',
+  'If no current sessions are logged, say the app cannot tell whether exposure was limited or simply unrecorded. Compare with the previous window only as logging activity.',
+  'If sunlight is logged, acknowledge it without asking the user to collect every pathway. Deterministic UV safety belongs to the Today section, not this review.',
   '',
-  'When the user has logged device sessions but no outdoor sun: the high-leverage call is OUTDOOR — even 10 min outside delivers channels (violet_eye, NIR, no_cv, low POMC) that no panel can fill. Don\'t recommend more device time when outdoors is missing.',
-  'When the user has outdoor sessions but they\'re all at one solar phase (all sunrise, or all midday): the high-leverage move is the OTHER phase — sunrise users already have circadian, need vit-D from midday; midday users have vit-D, need circadian from morning.',
-  'When all 6 channels are lit: green verdict + maintenance copy. Don\'t invent gaps.',
-  '',
-  'tip: one sentence, max 18 words. The single multi-channel action.',
-  'detail: 2–3 sentences. Acknowledge what\'s working (cite specific channels), name the gap with biology, give the concrete cross-channel fix. Reference 25-OH-D if present.',
+  'tip: one sentence, max 18 words. State the clearest change or stable pattern.',
+  'detail: 2–3 short sentences. Explain the comparison, the logging uncertainty, and one safe routine-level option if useful.',
   '',
   'NEVER use jargon acronyms in the user-facing tip or detail. Specifically:',
   '  • Write "red-light therapy" or "near-infrared light" — NOT "PBM" or "photobiomodulation"',
@@ -190,7 +233,7 @@ const SYSTEM_PROMPT = [
   '  • Write "cardiovascular nitric oxide" or "blood-vessel" — NOT "NO" alone',
   'The internal channel keys (vit-D, circadian, no_cv, pomc, etc) are for YOUR reasoning — translate to plain English in the output.',
   '',
-  'No "you should" — be observational. No emoji.',
+  'Use plain language. No "you should". No emoji.',
 ].join('\n');
 
 const SINGLETON = { key: 'default', isChannelMixTarget: true };
@@ -205,15 +248,26 @@ const engine = createAIVerdict({
   systemPrompt: SYSTEM_PROMPT,
   maxTokens: 500,
   canAnalyze: () => {
+    const now = Date.now();
+    const cutoff = now - 14 * _DAY_MS;
     const sun = _getSessions();
     const dev = _getDeviceSessions();
-    return sun.some(s => s.endedAt) || dev.length > 0;
+    return sun.some(s => _sessionTime(s) >= cutoff && _sessionTime(s) < now)
+      || dev.some(s => _sessionTime(s) >= cutoff && _sessionTime(s) < now);
   },
   getAllTargets: () => (state.importedData ? [SINGLETON] : []),
 });
 
 export const analyzeChannelMixAI = (opts) => engine.analyze(SINGLETON, opts);
-export const refreshChannelMixAI = () => engine.refresh('default');
+export async function refreshChannelMixAI() {
+  if (!_hasWeeklyReviewData()) {
+    if (typeof document !== 'undefined') {
+      showNotification('Weekly review needs at least one completed sun or device session from the past 14 days.', 'info', 4500);
+    }
+    return null;
+  }
+  return engine.refresh('default');
+}
 registerAIActionHandler('refresh-channel-mix', refreshChannelMixAI);
 
 // ─── Render ────────────────────────────────────────────────────────────
@@ -222,26 +276,33 @@ registerAIActionHandler('refresh-channel-mix', refreshChannelMixAI);
 // other auto-fire surfaces; prevents tight-loop refire.
 const _autoFiredChannelKeys = new Set();
 
-// Drop-in replacement for renderSuggestion. Returns a verdict block when
-// AI is available + has been triggered; otherwise falls through to the
-// static suggestion (caller still gets non-empty HTML for the empty
-// case, so the layout doesn't shift when AI isn't configured).
+function _renderWeeklyAIReview(analysis, action = '') {
+  return `<div class="light-channel-mix-ai">
+    <section class="light-weekly-ai-review">
+      <div class="light-weekly-ai-head">
+        <div>
+          <div class="light-weekly-period">AI summary · What changed</div>
+          <div class="light-weekly-ai-tip">${escapeHTML(analysis?.tip || '')}</div>
+        </div>
+        ${action}
+      </div>
+      ${analysis?.detail ? `<div class="light-weekly-ai-detail">${escapeHTML(analysis.detail)}</div>` : ''}
+    </section>
+  </div>`;
+}
+
+// Drop-in replacement for renderSuggestion. The AI output is deliberately
+// neutral: safety colors belong to deterministic Today checks, while this
+// block only explains patterns in the two rolling seven-day windows.
 export function renderChannelMixVerdict(staticFallback) {
   if (!hasAIProvider()) {
     // Pre-populated demo or cross-device synced cached verdict still
-    // renders even without a provider — only fresh analyses are gated.
+    // renders even without a provider when it matches the new source-aware
+    // fingerprint. Older target/deficit verdicts must not leak back in.
     const cached = _getMix();
-    if (cached?.status === 'ok' && cached?.dot && cached?.tip) {
-      const dot = cached.dot;
-      return `<div class="light-channel-mix-ai">
-        <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
-          <div class="sun-detail-ai-head">
-            <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-            <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip)}</span>
-          </div>
-          ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
-        </div>
-      </div>`;
+    const currentFp = getChannelMixFingerprint();
+    if (cached?.status === 'ok' && cached?.dot && cached?.tip && cached?.fingerprint === currentFp) {
+      return _renderWeeklyAIReview(cached);
     }
     return staticFallback || '';
   }
@@ -249,57 +310,64 @@ export function renderChannelMixVerdict(staticFallback) {
   const a = _getMix();
   const currentFp = getChannelMixFingerprint();
   const stale = !!(a?.fingerprint && a.fingerprint !== currentFp);
+  const hasReviewData = _hasWeeklyReviewData();
 
-  // Auto-fire on first render when there's actual signal in the mix —
-  // gated on rolling totals having any non-zero channel so a brand-new
-  // user without sessions doesn't burn an API call on an all-zero mix.
-  const _hasSignal = (() => {
-    try {
-      const t = _rollingChannelTotals(7);
-      return Object.values(t).some(v => v > 0);
-    } catch (_) { return false; }
-  })();
+  // A stale cached verdict can survive after its source sessions roll out of
+  // both comparison periods. Do not leave a refresh button that the engine
+  // must reject silently; explain the requirement beside the existing log
+  // action instead. refreshChannelMixAI repeats this guard for old DOM/races.
+  if (!hasReviewData) {
+    return `<div class="light-channel-mix-ai">
+      ${staticFallback || ''}
+      <div class="light-weekly-ai-unavailable" role="status">
+        <strong>AI review needs a little history.</strong>
+        <span>Complete at least one sun or device session; the review will become available here.</span>
+      </div>
+    </div>`;
+  }
+
+  // Auto-fire only when either comparison window contains a completed
+  // session. This still analyzes a current no-log week when the prior week
+  // has records, but does not spend a request on a completely blank profile.
   const _autoKey = currentFp;
-  if (_hasSignal && (status === 'idle' || stale) && !_autoFiredChannelKeys.has(_autoKey)) {
+  if ((status === 'idle' || stale) && !_autoFiredChannelKeys.has(_autoKey)) {
     _autoFiredChannelKeys.add(_autoKey);
     setTimeout(() => engine.analyze(SINGLETON).catch(() => {}), 0);
   }
 
-  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
-  // through to the bottom CTA branch ("Refresh AI verdict (your mix
-  // changed)").
+  // Shimmer ONLY while a request is genuinely in flight. Stale results fall
+  // through to a refresh CTA so an older time window is never presented as
+  // the current comparison.
   if (status === 'analyzing') {
     return `<div class="light-channel-mix-ai">
-      <div class="sun-detail-ai sun-detail-ai-loading">
+      <div class="light-weekly-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-        <span>Analyzing your channel mix…</span>
+        <span>Comparing the past two weeks…</span>
       </div>
     </div>`;
   }
   if (status === 'ok' && !stale) {
-    const dot = a.dot;
-    return `<div class="light-channel-mix-ai light-channel-mix-ai-${dot}">
-      <div class="sun-detail-ai sun-detail-ai-${dot}">
-        <div class="sun-detail-ai-head">
-          <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-          <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-channel-mix')} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
-        </div>
-        ${a.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a.detail)}</div>` : ''}
-      </div>
-    </div>`;
+    const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-channel-mix')} title="Refresh weekly review" aria-label="Refresh weekly light review">↻</button>`;
+    return _renderWeeklyAIReview(a, action);
   }
   if (status === 'error') {
     const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
     return `<div class="light-channel-mix-ai">
       ${staticFallback || ''}
-      <button class="sun-session-ai-refresh light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>${escapeHTML(msg)} — retry</button>
+      <div class="light-weekly-ai-action-row" role="status">
+        <span class="light-weekly-ai-action-status">${escapeHTML(msg)}</span>
+        <button class="dashboard-action-btn light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>Try again</button>
+      </div>
     </div>`;
   }
-  // Idle, OR cached but stale (channels shifted since last run).
-  const ctaLabel = stale ? '✨ Refresh AI verdict (your mix changed)' : '✨ Get AI synthesis of your mix';
+  // Idle, OR cached but stale (the rolling windows shifted since last run).
+  const ctaLabel = stale ? 'Refresh review' : 'Generate weekly review';
+  const helper = stale ? 'Your logs changed since this review was generated.' : 'Compares the past 7 days with the 7 before them.';
   return `<div class="light-channel-mix-ai">
     ${staticFallback || ''}
-    <button class="sun-session-ai-refresh light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>${escapeHTML(ctaLabel)}</button>
+    <div class="light-weekly-ai-action-row">
+      <button class="dashboard-action-btn light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}><span aria-hidden="true">↻</span> ${escapeHTML(ctaLabel)}</button>
+      <span class="light-weekly-ai-action-status">${escapeHTML(helper)}</span>
+    </div>
   </div>`;
 }

@@ -68,11 +68,18 @@ function hydrateUserLightDevicesFromPresets() {
   // / Trinity device records have no `modes` array, so the session-log
   // dialog can't render the mode picker for them. Idempotent - re-runs
   // are no-ops once devices carry the fields.
-  if (!state.importedData?.lightDevices?.length) return;
+  // Sessions keep a device snapshot, so stale history can still be repaired
+  // after the user removes the live device from their library.
+  if (!state.importedData?.lightDevices?.length && !state.importedData?.deviceSessions?.length) return;
   import('./light-devices.js')
-    .then(({ hydrateDevicesFromPresets }) => hydrateDevicesFromPresets())
-    .then(dirty => {
+    .then(async ({ hydrateDevicesFromPresets, rehydrateStaleDeviceSessions }) => {
+      const dirty = await hydrateDevicesFromPresets();
+      const sessions = await rehydrateStaleDeviceSessions();
+      return { dirty, sessions };
+    })
+    .then(({ dirty, sessions }) => {
       if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
+      if (sessions?.rehydrated) logStartupMaintenanceRuntime('[light] self-healed', sessions.rehydrated, 'device session(s)');
     })
     .catch(() => {});
 }

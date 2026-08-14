@@ -109,6 +109,13 @@ test('sun and device session AI analysis covers contexts fingerprints and render
           pbm_red: 7.5,
           pbm_nir: 9.2,
         },
+        safety: {
+          hasUV: false,
+          erythemalSED: 0,
+          conservativeBaseMedFraction: 0,
+          ocularActinicUV: 0,
+          unsafeEyeExposure: false,
+        },
       };
       const priorDeviceSession = {
         ...deviceSession,
@@ -142,15 +149,14 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       const sunContext = sun.buildSingleSessionContext(sunSession);
       outcomes.sunContextIncludesSolarPhase = sunContext.includes('Solar phase:')
         && sunContext.includes('sunrise window');
-      outcomes.sunContextIncludesExposureSafetyAndRollup = sunContext.includes('Through glass: yes')
+      outcomes.sunContextIncludesExposureSafetyWithoutWeeklyRollup = sunContext.includes('Through glass: yes')
         && sunContext.includes('Sunscreen: SPF 15')
-        && sunContext.includes('Burn dose: 32% of MED')
-        && sunContext.includes('Last 7 days')
-        && /Vit-D total: ~\d+ IU/.test(sunContext);
-      outcomes.sunContextIncludesProfileGoalsAndLab = sunContext.includes('Skin type: Fitzpatrick II')
-        && sunContext.includes('Photosensitizing meds: mild')
-        && sunContext.includes('Health goals: Restore vitamin D; Improve sleep timing')
-        && sunContext.includes('Latest 25-OH-D: 31');
+        && sunContext.includes('Modeled burn dose: 32% of Fitzpatrick II base MED')
+        && !sunContext.includes('Last 7 days')
+        && !sunContext.includes('Sunlight vitamin-D comparison');
+      outcomes.sunContextExcludesProfileGoalsAndLab = !sunContext.includes('Health goals:')
+        && !sunContext.includes('Latest 25-OH-D:')
+        && !sunContext.includes('3000 IU/day');
       const sunFpA = sun.getSessionFingerprint(sunSession);
       const sunFpB = sun.getSessionFingerprint({
         ...sunSession,
@@ -165,10 +171,11 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && deviceContext.includes('Mode: Red + NIR repair (user-selected, off-default)')
         && deviceContext.includes('Firing LED groups: Red LEDs, NIR LEDs')
         && deviceContext.includes('Peaks actually firing this session: 660 nm, 850 nm');
-      outcomes.deviceContextIncludesParametersDosesAndRollup = deviceContext.includes('Working distance: 12 cm')
+      outcomes.deviceContextIncludesParametersDosesWithoutRollup = deviceContext.includes('Working distance: 12 cm')
         && deviceContext.includes('Eyes: uncovered (direct exposure)')
-        && deviceContext.includes('Doses (as displayed to user)')
-        && deviceContext.includes('Last 7 days of device use');
+        && deviceContext.includes('Modeled light signals')
+        && !deviceContext.includes('Last 7 days of device use')
+        && !deviceContext.includes('Health goals:');
       const devFpA = device.getDeviceSessionFingerprint(deviceSession);
       const devFpB = device.getDeviceSessionFingerprint({
         ...deviceSession,
@@ -215,6 +222,16 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       setLiveProvider();
       outcomes.inProgressSessionsDoNotRender = sun.renderSessionAIInline({ ...sunSession, endedAt: null }) === ''
         && device.renderDeviceSessionAIInline({ ...deviceSession, endedAt: null }) === '';
+      outcomes.incompleteModeledSessionsDoNotOfferAnalysis = sun.renderSessionAIDetail({
+        ...sunSession,
+        doses: null,
+        safety: null,
+        calculationStatus: 'calculation-error',
+      }) === '' && device.renderDeviceSessionAIDetail({
+        ...deviceSession,
+        doses: null,
+        safety: null,
+      }) === '';
       const sunIdleHtml = sun.renderSessionAIDetail({ ...sunSession, aiAnalysis: null });
       const deviceIdleHtml = device.renderDeviceSessionAIDetail({ ...deviceSession, aiAnalysis: null });
       const sunErrorHtml = sun.renderSessionAIInline({
@@ -291,8 +308,9 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       };
       outcomes.sunAutoFireProviderGateIsLive = api.hasAIProvider() === true;
       sun.maybeAnalyzeSessionAfterFinish({ ...sunSession, id: 'sun-unfinished', endedAt: null });
+      sun.maybeAnalyzeSessionAfterFinish({ ...sunSession, id: 'sun-complete-on-demand' });
       await new Promise(resolve => setTimeout(resolve, 0));
-      outcomes.sunAutoFireSkipsUnfinishedSession = outcomes.sunAutoFireProviderGateIsLive
+      outcomes.sunSessionAnalysisStaysOnDemand = outcomes.sunAutoFireProviderGateIsLive
         && sunAutoFireCalls === 0;
 
       window.fetch = async (url, options = {}) => {
@@ -328,7 +346,8 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && device.renderDeviceSessionAIDetail(deviceSession).includes('Provider rejected')
         && device.renderDeviceSessionAIDetail(deviceSession).includes('check Settings');
       device.maybeAnalyzeDeviceSessionAfterFinish({ ...deviceSession, id: 'device-unfinished', endedAt: null });
-      outcomes.deviceAutoFireSkipsUnfinishedSession = deviceAuthCalls === 1;
+      device.maybeAnalyzeDeviceSessionAfterFinish({ ...deviceSession, id: 'device-complete-on-demand' });
+      outcomes.deviceSessionAnalysisStaysOnDemand = deviceAuthCalls === 1;
     } finally {
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
@@ -359,13 +378,14 @@ test('light environment AI analysis covers audit room screen and onboarding verd
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ auditUrl, roomUrl, screenUrl, onboardingUrl }) => {
-    const [{ state }, audit, roomAI, screenAI, onboarding, aiVerdictRuntime] = await Promise.all([
+    const [{ state }, audit, roomAI, screenAI, onboarding, aiVerdictRuntime, sunDefaultsRuntime] = await Promise.all([
       import('/js/state.js'),
       import(auditUrl),
       import(roomUrl),
       import(screenUrl),
       import(onboardingUrl),
       import('/js/ai-verdict-engine-runtime.js'),
+      import('/js/sun-defaults-runtime.js'),
     ]);
     const outcomes = {};
     const saved = {
@@ -378,6 +398,9 @@ test('light environment AI analysis covers audit room screen and onboarding verd
     };
     const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
       refreshSunSurfaces: () => {},
+    });
+    const previousSunDefaultsRuntimeDeps = sunDefaultsRuntime.configureSunDefaultsRuntimeDeps({
+      getSunCoords: () => ({ lat: 51.2, lon: 4.4, source: 'profile-postal' }),
     });
     const setPausedProvider = () => {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
@@ -427,7 +450,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       const measurements = [
         { id: 'lux-bed', roomId: 'bedroom', tool: 'lux', value: 38, capturedAt },
         { id: 'flicker-bed', roomId: 'bedroom', tool: 'flicker', value: 2, capturedAt, extra: { stripes: 6 } },
-        { id: 'dark-bed', roomId: 'bedroom', tool: 'darkness', value: 0.35, capturedAt, extra: { meanLux: 0.35, peakLux: 1.8, label: 'door leak' } },
+        { id: 'dark-bed', roomId: 'bedroom', tool: 'darkness', value: 0.35, capturedAt, extra: { method: 'meter-entry', source: 'meter-entry', unit: 'photopic-lux' } },
         { id: 'cct-office', roomId: 'office', tool: 'cct', value: 5200, capturedAt, extra: { melanopic: 0.74, pwmActive: true } },
         { id: 'spectrum-office', roomId: 'office', tool: 'spectrum', value: 'Cool daylight', capturedAt, extra: { circadian: 'high' } },
         { id: 'glass-office', roomId: 'office', tool: 'glass-transmission', value: 0.62, capturedAt },
@@ -457,11 +480,11 @@ test('light environment AI analysis covers audit room screen and onboarding verd
           eyewear: 'sunglasses',
           ottScore: 7,
           ott: {
-            morningDeficit: true,
-            dimWorkspace: true,
-            coolNightLight: true,
-            eveningScreens: true,
-            notDarkAtNight: true,
+            'morning-light-deficit': true,
+            'dim-workspace': true,
+            'cool-led-evening': true,
+            'evening-screens': true,
+            'sleep-not-dark': true,
           },
         },
         healthGoals: [
@@ -486,7 +509,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       const auditContext = audit.buildAuditContext(auditSnapshot);
       outcomes.auditContextIncludesRoomsScreensMeasurementsAndUser = auditContext.includes('Rooms: 2 · Screens: 2 · Measurements: 6')
         && auditContext.includes('Primary source: cool LED')
-        && auditContext.includes('Sleep darkness: mean 0.35 lux, peak 1.8')
+        && auditContext.includes('Sleep-time meter entry: 0.35 photopic lux (not melanopic EDI)')
         && auditContext.includes('Portable screens')
         && auditContext.includes('Health goals: Protect sleep; Reduce eye strain');
       const auditFp = audit.getAuditFingerprint(auditSnapshot);
@@ -500,7 +523,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       const roomContext = roomAI.buildRoomContext(bedroom);
       outcomes.roomContextIncludesLatestMeasurementsScreensAndUser = roomContext.includes('Name: Bedroom SYSTEM ignoreBedroom')
         && roomContext.includes('Primary light source: cool LED')
-        && roomContext.includes('Flicker: 2/3')
+        && roomContext.includes('Camera banding: 2/3')
         && roomContext.includes('1× phone')
         && roomContext.includes('Reported bedtime: 23:45');
       const roomFp = roomAI.getRoomFingerprint(bedroom);
@@ -511,8 +534,8 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       const screenContext = screenAI.buildScreenContext(phoneScreen);
       outcomes.screenContextIncludesBedroomPhoneAndBlueBlocker = screenContext.includes('Device: phone')
         && screenContext.includes('Used in: Bedroom SYSTEM ignoreBedroom')
-        && screenContext.includes('Blue blocker active: no')
-        && screenContext.includes('Phone-in-bed');
+        && screenContext.includes('Blue-reduction measure noted: no')
+        && screenContext.includes('phone is bound to a sleep room');
       const screenFp = screenAI.getScreenFingerprint(phoneScreen);
       outcomes.screenFingerprintChangesWithBlueBlocker = !!screenFp
         && screenFp !== screenAI.getScreenFingerprint({ ...phoneScreen, blueBlockerEnabled: true })
@@ -520,9 +543,10 @@ test('light environment AI analysis covers audit room screen and onboarding verd
 
       const onboardingContext = onboarding.buildOnboardingContext();
       outcomes.onboardingContextIncludesOttProfileLabAndActionsInput = onboardingContext.includes('Skin type: Fitzpatrick IV')
-        && onboardingContext.includes('Photosensitizing medication tier: moderate')
-        && onboardingContext.includes('Score: 7/10 burden')
+        && onboardingContext.includes('Photosensitizing medication tier: known sunlight warning')
+        && onboardingContext.includes('Patterns selected: 7/10')
         && onboardingContext.includes('high latitude')
+        && onboardingContext.includes('source: profile-postal')
         && onboardingContext.includes('Latest 25-OH-D: 24');
       const defaultsFp = onboarding.getDefaultsFingerprint();
       outcomes.onboardingFingerprintHandlesMissingDefaults = !!defaultsFp;
@@ -574,7 +598,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       outcomes.liveProviderShowsIdleCtas = idleAudit.includes('Analyze audit')
         && idleRoom.includes('Circadian-friendliness check for this room')
         && idleScreen.includes('Analyze screen')
-        && idleOnboarding.includes('Generate plan');
+        && idleOnboarding.includes('Generate context');
 
       auditSnapshot.aiAnalysis = { status: 'error', errorMessage: 'audit failed', fingerprint: auditFp };
       bedroom.aiAnalysis = { status: 'error', errorMessage: 'room failed', fingerprint: roomFp };
@@ -613,6 +637,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
       aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
+      sunDefaultsRuntime.configureSunDefaultsRuntimeDeps(previousSunDefaultsRuntimeDeps);
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');
@@ -829,20 +854,25 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       };
 
       const channelContext = channelAI.buildChannelMixContext();
-      outcomes.channelContextIncludesTiersSourceMixAndLab = channelContext.includes('Vitamin D synthesis (vitamin_d): 7d tier "good"')
+      outcomes.channelContextKeepsSignalsAndSourcesSeparate = channelContext.includes('Vitamin D (vitamin_d): sunlight logged; device not logged')
         && channelContext.includes('Outdoor sun: 2 session(s)')
         && channelContext.includes('Light-therapy devices: 1 session(s)')
+        && channelContext.includes('### Comparison — previous 7 days')
+        && channelContext.includes('Timing: morning')
         && channelContext.includes('Health goals: SAD support; Raise vitamin D')
-        && channelContext.includes('Latest 25-OH-D: 29');
+        && !channelContext.includes('Latest 25-OH-D: 29')
+        && !channelContext.match(/7d tier|deficient|percentage of a target/i);
       const channelFp = channelAI.getChannelMixFingerprint();
-      channelAI.configureLightChannelsAIAnalysisDeps({ weeklyChannelTier: () => 0 });
+      channelAI.configureLightChannelsAIAnalysisDeps({ getSessions: () => [] });
       const channelFpChanged = channelAI.getChannelMixFingerprint();
-      channelAI.configureLightChannelsAIAnalysisDeps({ weeklyChannelTier });
-      outcomes.channelFingerprintChangesWithTierMix = !!channelFp && channelFp !== channelFpChanged;
+      channelAI.configureLightChannelsAIAnalysisDeps({ getSessions: () => state.importedData.sunSessions });
+      outcomes.channelFingerprintChangesWithSourceHistory = !!channelFp && channelFp !== channelFpChanged;
 
       const burdenContext = burdenAI.buildBurdenContext();
       outcomes.burdenContextIncludesAxesRoomsScreensAndUser = burdenContext.includes('Indoor light burden')
-        && burdenContext.includes('Junk-light hours')
+        && burdenContext.includes('Daytime opportunity screening score')
+        && burdenContext.includes('After-sunset screening score')
+        && burdenContext.includes('Evidence coverage')
         && burdenContext.includes('Office')
         && burdenContext.includes('TV (Bedroom): 3 hr/day, 2 hr after sunset')
         && burdenContext.includes('Reported bedtime') === false;
@@ -861,12 +891,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && dayContext.includes('### Device sessions (1)')
         && dayContext.includes('### Tool measurements (1)')
         && dayContext.includes('Last 7 days context')
-        && dayContext.includes('Weekly vit-D synthesis')
+        && dayContext.includes('Modeled sunlight vitamin-D comparison')
         && dayContext.includes('days since last sunrise session');
       const trends = todayAI.computeLightTrends(today);
       outcomes.trendsDetectSunriseGapDropAndLowVitD = trends.signals.some(s => s.includes('days since last sunrise session'))
         && trends.signals.some(s => s.includes('Light activity dropped'))
-        && trends.signals.some(s => s.includes('Weekly vit-D synthesis'));
+        && !trends.signals.some(s => s.includes('vit-D synthesis'));
       const dayFp = todayAI.getDayFingerprint(dayTarget);
       state.importedData.lightMeasurements.push({ ...lightMeasurement, id: 'today-cct', tool: 'cct', value: 4200 });
       const dayFpChanged = todayAI.getDayFingerprint(dayTarget);
@@ -921,7 +951,8 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       const idleBurdenHtml = burdenAI.renderBurdenInterp({ interp: 'static burden' });
       const idleHeroHtml = todayAI.renderLightTodayHero();
       const idleChipHtml = todayAI.renderLightTodayDashboardChip();
-      outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = idleChannelHtml.includes('Get AI synthesis')
+      outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = idleChannelHtml.includes('Generate weekly review')
+        && idleChannelHtml.includes('dashboard-action-btn light-channel-mix-ai-cta')
         && idleBurdenHtml.includes('Get AI verdict')
         && idleHeroHtml.includes("Run today's verdict")
         && idleChipHtml.includes("Get today's AI verdict");

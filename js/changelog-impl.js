@@ -11,6 +11,19 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.16.0', date: '2026-08-14', title: 'Light & Sun, completely redesigned',
+    items: [
+      '<b>See your light day in one place.</b> Outdoor conditions, sun sessions, light devices, indoor environments, measurement tools, and guidance now work together as one clear experience.',
+      '<b>Understand what light may stimulate.</b> Light channels explain vitamin D, body-clock timing, blood-vessel responses, skin and mood signaling, cellular energy and repair, and outdoor eye light—in plain language and without turning them into daily quotas.',
+      '<b>Get more useful local sun context.</b> Use your home area or optionally share a privacy-rounded current location for today\'s conditions, UV, sun position, and the transition from sunrise into meaningful UVA availability.',
+      '<b>Follow sun sessions more easily.</b> Set up skin type, coverage, glass, and eye conditions before starting. The live session card keeps the vitamin D estimate visible, shows the other light channels on demand, and works consistently on the Light page and dashboard.',
+      '<b>Review patterns without chasing numbers.</b> Light Today explains the current day, while the Weekly Review looks across recent sessions and suggests one practical next step.',
+      '<b>Keep sunlight and light devices distinct.</b> Device sessions reflect their specific spectrum, output, distance, and exposure area. Numerical estimates appear only when the available device information supports them.',
+      '<b>Understand your indoor light environment.</b> Assess rooms, save observations, and use tools for brightness, light color, flicker, spectrum, darkness, and window transmission. Lux measurement prefers the phone\'s light sensor, with camera and manual options when needed.',
+      '<b>Safety and uncertainty stay visible.</b> Sun and device guidance considers burn risk, eye exposure, heat, photosensitivity, glass, and measurement limits while keeping the feature educational and practical.',
+    ]
+  },
+  {
     version: '1.15.2', date: '2026-08-13', title: 'Voice follows your AI provider',
     items: [
       '<b>Voice can now reuse your AI connection.</b> PPQ, OpenRouter, and Venice work automatically for dictation and spoken replies, without a second provider setup.',
@@ -493,7 +506,7 @@ const CHANGELOG = [
   {
     version: '1.6.0', date: '2026-05-04', title: '☀ Light & Sun — the lens for everything sunlight does to you',
     items: [
-      '<b>☀ Light & Sun lens.</b> Sunlight does a lot more than make vitamin D. Track your exposure across six biological channels — Vitamin D, Body clock, Cardiovascular, Mood & hormones, Cellular repair, and Outdoor eye light — and correlate them with your labs and wearable data over time. One-tap session logging: tap when you go outside, tap again when you come back. Plain-English summary on stop with computed vit-D yield and burn-dose status.',
+      '<b>☀ Light & Sun lens.</b> Sunlight does a lot more than make vitamin D. Track your exposure across six biological channels — Vitamin D, Body clock, Cardiovascular, Mood & hormones, Cell energy & repair, and Outdoor eye light — and correlate them with your labs and wearable data over time. One-tap session logging: tap when you go outside, tap again when you come back. Plain-English summary on stop with computed vit-D yield and burn-dose status.',
       '<b>Sun-safety guardrails.</b> Live alert at 70% + 100% of your daily burn dose. A photosensitizing-medication checkbox drops your threshold (tetracyclines, isotretinoin, NSAIDs, St John\'s Wort, others). Cumulative carry-over warning when yesterday + today push you over. High-altitude flag for locations above 1500m.',
       '<b>Light therapy devices, first-class.</b> Pick from a preset library (Joovv panels, Mito Red, Sperti UVB, Verilux dawn simulators, full-spectrum bulbs) or add a custom device. Therapy sessions feed the same channels as outdoor sun.',
       '<b>Indoor light + screens.</b> Map the rooms you spend time in and the screens you stare at. Each audit question carries a one-line photobiology explainer below it. Indoor light deficits feed back into your channel mix.',

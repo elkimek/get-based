@@ -22,7 +22,7 @@ export async function saveSunDefaults(patch) {
 
 export function isOnboardingComplete() {
   const defaults = state.importedData?.sunDefaults;
-  return defaults && defaults.fitzpatrick && defaults.completedAt;
+  return !!(defaults && defaults.fitzpatrick && defaults.completedAt);
 }
 
 function buildDefaultLightCircadianContext() {
@@ -54,6 +54,8 @@ export async function persistSunSetupValues(values, now = Date.now()) {
     ottScore: Number(values.ottScore) || 0,
     completedAt: now,
   });
+  delete defaults.skipped;
+  delete defaults.setupPromptDismissedAt;
   if (!state.importedData.lightCircadian) {
     state.importedData.lightCircadian = buildDefaultLightCircadianContext();
   }

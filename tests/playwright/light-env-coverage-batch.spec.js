@@ -105,7 +105,7 @@ test('Light environment assessment drives delegated room and screen controls', a
       await waitFor('#light-env-assessment-overlay .light-env-assessment-modal', 'assessment modal');
       outcomes.summaryActionOpensModal =
         document.getElementById('light-env-assessment-title')?.textContent.trim() === 'Indoor Light Assessment'
-        && document.querySelector('.light-env-assessment-modal-copy')?.textContent.includes('Save audit snapshots');
+        && document.querySelector('.light-env-assessment-modal-copy')?.textContent.includes('Save snapshots');
 
       await clickAction('add-room-named', { name: 'Bedroom' }, 'bedroom quick pick');
       await waitUntil(() => state.importedData.lightEnvironment.rooms.length === 1, 'bedroom persisted');
@@ -133,18 +133,22 @@ test('Light environment assessment drives delegated room and screen controls', a
 
       await clickAction('set-room-source-archetype', { id: roomId, key: 'cool' }, 'cool source chip');
       await waitUntil(() => room().primarySource === 'led-cool', 'room source update');
+      await clickAction('set-room-daylight-level', { id: roomId, key: 'some' }, 'daylight level chip');
+      await waitUntil(() => room().daylightLevel === 'some', 'room daylight update');
       await clickAction('set-room-hours-bucket', { id: roomId, key: 'lots' }, 'room hours chip');
       await waitUntil(() => room().hoursOccupiedPerDay === 4.5, 'room hours update');
       await clickAction('set-room-evening-bucket', { id: roomId, key: 'gt3' }, 'room evening chip');
       await waitUntil(() => room().eveningHoursAfterSunset === 4, 'room evening update');
       await waitUntil(
         () => document.querySelector(selectorFor('set-room-source-archetype', { id: roomId, key: 'cool' }))?.getAttribute('aria-pressed') === 'true'
+          && document.querySelector(selectorFor('set-room-daylight-level', { id: roomId, key: 'some' }))?.getAttribute('aria-pressed') === 'true'
           && document.querySelector(selectorFor('set-room-hours-bucket', { id: roomId, key: 'lots' }))?.getAttribute('aria-pressed') === 'true'
           && document.querySelector(selectorFor('set-room-evening-bucket', { id: roomId, key: 'gt3' }))?.getAttribute('aria-pressed') === 'true',
         'room active chips render'
       );
       outcomes.roomChipsPersistAndRenderActive =
         document.querySelector(selectorFor('set-room-source-archetype', { id: roomId, key: 'cool' }))?.getAttribute('aria-pressed') === 'true'
+        && document.querySelector(selectorFor('set-room-daylight-level', { id: roomId, key: 'some' }))?.getAttribute('aria-pressed') === 'true'
         && document.querySelector(selectorFor('set-room-hours-bucket', { id: roomId, key: 'lots' }))?.getAttribute('aria-pressed') === 'true'
         && document.querySelector(selectorFor('set-room-evening-bucket', { id: roomId, key: 'gt3' }))?.getAttribute('aria-pressed') === 'true';
 

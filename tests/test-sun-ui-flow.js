@@ -46,6 +46,7 @@ return (async function() {
   // Stash + reset state so we don't pollute the host page
   const orig = JSON.parse(JSON.stringify(S.importedData || {}));
   S.importedData = Object.assign({}, S.importedData || {}, {
+    sunDefaults: { ...(S.importedData?.sunDefaults || {}), fitzpatrick: 'III', completedAt: Date.now() },
     sunSessions: [],
     deviceSessions: [],
     lightDevices: [],
@@ -131,7 +132,7 @@ return (async function() {
   assert('Light page widgets expose reorder controls',
     !!lightWidgetRoute?.querySelector('.dashboard-widget-tool[aria-label="Move page section down"]'));
   const dashboardSafeLightWidgets = ['light-conditions-now', 'light-session-log', 'light-channels'];
-  const optionalDashboardSafeLightWidgets = ['light-today'];
+  const optionalDashboardSafeLightWidgets = ['light-today', 'light-live-session'];
   const pageOnlyLightWidgets = ['light-setup', 'light-guidance', 'light-sessions', 'light-devices', 'light-environment', 'light-tools', 'light-methods'];
   const addableMissing = dashboardSafeLightWidgets.filter(id =>
     !lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`));
@@ -149,19 +150,15 @@ return (async function() {
     main.innerHTML.includes(id) || main.innerHTML.includes('30 min') || main.querySelector('.sun-session-row, .sun-sessions-list'));
   const sunRows = Array.from(main.querySelectorAll('.light-session-sun'));
   const sunRow = sunRows.find(row => row.dataset.id === id) || sunRows[0];
-  const rowDelete = sunRow?.querySelector('.sun-session-delete');
   assert('Sun session row uses delegated open-detail action',
     sunRow?.dataset.sunSessionAction === 'open-detail' &&
       sunRow?.dataset.sunSessionId === id);
-  assert('Sun session delete uses delegated action',
-    rowDelete?.dataset.sunSessionAction === 'delete-session' &&
-      rowDelete?.dataset.sunSessionId === id);
-  assert('Sun session row and delete control have no inline event attributes',
+  assert('Sun session history row leaves deletion to its detail dialog',
+    !sunRow?.querySelector('.sun-session-delete'));
+  assert('Sun session row has no inline event attributes',
     !!sunRow &&
       !sunRow.hasAttribute('onclick') &&
-      !sunRow.hasAttribute('onkeydown') &&
-      !!rowDelete &&
-      !rowDelete.hasAttribute('onclick'));
+      !sunRow.hasAttribute('onkeydown'));
   sunRow?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   await wait(80);
   const delegatedDetailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');

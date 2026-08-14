@@ -108,19 +108,19 @@ test('light sessions view edge coverage handles empty and compact device history
       sessionsView.installLightSessionsActionDelegates(mixedHost);
       const nirRow = mixedHost.querySelector('.light-session-device[data-id="dev-nir"]');
       const removedRow = mixedHost.querySelector('.light-session-device[data-id="dev-removed"]');
-      outcomes.deviceInlineRendersEscapedModeChipsAndFallbacks =
+      outcomes.deviceInlineRendersCompactEscapedModeAndFallbacks =
         mixedHost.querySelectorAll('.sun-session').length === 2
         && mixedHost.querySelector('.light-sessions-list-unified') !== null
         && !mixedHost.querySelector('.light-sessions-show-more')
         && nirRow?.getAttribute('aria-label')?.includes('Panel <Co> Red & NIR mode NIR boost') === true
         && nirRow?.querySelector('.light-session-mode-chip-accent')?.textContent === 'NIR boost'
-        && nirRow?.querySelector('.sun-chip[data-channel="pbm_nir"]')?.getAttribute('title') === 'Near infrared — this session: 4 pbm_nir'
-        && nirRow?.querySelectorAll('.sun-chip').length === 1
-        && removedRow?.textContent.includes('Removed device') === true
-        && removedRow?.textContent.includes('— @ 30cm') === true;
+        && nirRow?.classList.contains('light-session-complete')
+        && nirRow?.querySelectorAll('.sun-chip,.ai-inline,.sun-session-delete').length === 0
+        && removedRow?.textContent.includes('Device details unavailable') === true
+        && !removedRow?.textContent.includes('@ 30cm');
       outcomes.deviceInlineRowsUseDelegatedActions =
         nirRow?.getAttribute('data-light-sessions-action') === 'open-device-session'
-        && nirRow?.querySelector('.sun-session-delete')?.getAttribute('data-light-sessions-action') === 'delete-device-session'
+        && !nirRow?.querySelector('.sun-session-delete')
         && !mixedHost.innerHTML.includes('onclick=')
         && !mixedHost.innerHTML.includes('onkeydown=');
 

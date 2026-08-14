@@ -15,12 +15,7 @@ const lightSessionsActionDelegateRoots = new WeakSet();
  * @property {() => any[]} getDeviceSessions
  * @property {() => any[]} getDevices
  * @property {(sess: any) => string} renderSunSessionRow
- * @property {(sess: any) => string} renderDeviceSessionAIInline
  * @property {(id: string) => void | Promise<any>} openDeviceSessionDetail
- * @property {(id: string) => void | Promise<any>} deleteDeviceSession
- * @property {Record<string, any>} channelDisplay
- * @property {(value: number, key: string) => number} channelTier
- * @property {(key: string, value: number, durationMin?: number, fitzpatrick?: string, uvi?: any, zenith?: any, rotatedSides?: boolean, bodyFraction?: any) => string} formatChannelUnit
  * @property {(type: string, listener: EventListener) => void} addEventListener
  * @property {(type: string, listener: EventListener) => void} removeEventListener
  */
@@ -31,12 +26,7 @@ const viewDeps = {
   getDeviceSessions: () => [],
   getDevices: () => [],
   renderSunSessionRow: () => '',
-  renderDeviceSessionAIInline: () => '',
   openDeviceSessionDetail: () => {},
-  deleteDeviceSession: () => {},
-  channelDisplay: {},
-  channelTier: () => 0,
-  formatChannelUnit: () => '',
   addEventListener: (type, listener) => {
     if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 'function') {
       globalThis.addEventListener(type, listener);
@@ -69,11 +59,6 @@ function handleLightSessionsActionClick(event) {
     event.stopPropagation();
     return;
   }
-  if (action === 'delete-device-session') {
-    event.stopPropagation();
-    if (sessionId) viewDeps.deleteDeviceSession(sessionId);
-    return;
-  }
   if (action === 'show-all') {
     event.stopPropagation();
     _openAllSessionsModal();
@@ -104,8 +89,8 @@ if (typeof document !== 'undefined') installLightSessionsActionDelegates();
 // at-a-glance context ("what did I do recently"); the full history
 // opens in a modal so the rest of the Light & Sun page (Devices,
 // Light Environment, Tools) sits within one scroll-page below.
-// Each row is ~160 px tall (date + duration + channel chips + burn-
-// risk meta + AI verdict chip), so 3 rows ≈ 480 px is a tight default.
+// Rows intentionally stay compact; full setup, signals, safety math and AI
+// interpretation live in the session detail dialog.
 export const SESSIONS_DEFAULT_CAP = 3;
 
 // Build the unified, sorted (newest-first) row list of all completed
@@ -126,30 +111,14 @@ function _collectUnifiedSessionRows() {
   return { rows, hasDeviceRows: devSessions.length > 0 };
 }
 
-function _renderLightSessionChannelChips(doses, durationMin = 0) {
-  if (!doses) return '';
-  const ch = viewDeps.channelDisplay || {};
-  const tier = viewDeps.channelTier;
-  const formatUnit = viewDeps.formatChannelUnit;
-  const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
-  const ranked = order
-    .map(key => ({ key, v: doses[key] || 0, tier: tier(doses[key] || 0, key) }))
-    .filter(r => r.v > 0 && r.tier > 0)
-    .sort((a, b) => b.tier - a.tier || b.v - a.v)
-    .slice(0, 3);
-  if (!ranked.length) return '';
-  const chips = ranked.map(r => {
-    const meta = ch[r.key] || {};
-    const label = meta.label || r.key.replace('_', ' ');
-    const value = formatUnit(r.key, r.v, durationMin, 'III', null, null, false, null);
-    const tip = value ? `${meta.what || ''} — this session: ${value}` : `${meta.what || ''}`;
-    return `<span class="sun-chip sun-chip-tier-${r.tier}" data-channel="${escapeAttr(r.key)}" title="${escapeAttr(tip)}">
-      <span class="sun-chip-icon">${meta.icon || '·'}</span>
-      <span class="sun-chip-label">${escapeHTML(label)}</span>
-      ${value ? `<span class="sun-chip-value">${escapeHTML(value)}</span>` : ''}
-    </span>`;
-  }).join('');
-  return `<div class="sun-channel-chips light-session-device-channels">${chips}</div>`;
+function _localSessionStamp(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return { date: 'Date unavailable', time: '' };
+  const localKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return {
+    date: formatDate(localKey),
+    time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+  };
 }
 
 function _renderSessionRowsHTML(rows) {
@@ -162,11 +131,10 @@ function _renderSessionRowsHTML(rows) {
       html += renderSunRow(row.sess);
     } else if (row.kind === 'device') {
       const sess = row.sess;
-      const dev = deviceById[sess.deviceId];
-      const devName = dev ? `${dev.brand} ${dev.model}` : 'Removed device';
-      const date = formatDate(new Date(row.startedAt).toISOString().slice(0, 10));
-      const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
-      const meta = `${dur} @ ${sess.distanceCm}cm · ${sess.bodyArea || ''}${sess.eyesProtected ? ' · eyes protected' : ''}`;
+      const dev = deviceById[sess.deviceId] || sess.deviceSnapshot || null;
+      const devName = dev ? `${dev.brand} ${dev.model}` : 'Device details unavailable';
+      const stamp = _localSessionStamp(row.startedAt);
+      const dur = sess.durationMin ? `${Math.round(sess.durationMin * 10) / 10} min` : '—';
       // Mode badge — only on rows for devices that declare modes. The
       // resolved mode answers "which LED groups fired" at a glance, key
       // for hybrid panels where the same device can produce different
@@ -184,19 +152,27 @@ function _renderSessionRowsHTML(rows) {
           modeAria = ` mode ${label}`;
         }
       }
-      const devAriaLabel = `Open ${date} device session details — ${devName}${modeAria}`;
-      html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" data-light-sessions-action="open-device-session" data-light-session-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}">
-        <div class="sun-session-head">
-          <span class="light-session-icon" aria-hidden="true">🔴</span>
-          <span class="sun-session-date">${escapeHTML(date)}</span>
-          <span class="sun-session-duration">${escapeHTML(dur)}</span>
-          <span class="light-session-kind">${escapeHTML(devName)}</span>
-          ${modeBadge}
-          <button type="button" class="sun-session-delete" data-light-sessions-action="delete-device-session" data-light-session-id="${escapeAttr(sess.id)}" title="Delete session" aria-label="Delete session">×</button>
+      const unsafeEye = !!sess.safety?.unsafeEyeExposure;
+      const highBurn = Number(sess.safety?.conservativeBaseMedFraction) >= 0.7;
+      const safetyBadge = unsafeEye
+        ? '<span class="light-session-warning light-session-warning-danger">UV eye exposure — review</span>'
+        : (highBurn ? '<span class="light-session-warning">High modeled burn dose</span>'
+          : (sess.safety?.hasUV && sess.safety?.uvDoseStatus && sess.safety.uvDoseStatus !== 'modeled'
+            ? '<span class="light-session-warning">UV dose unavailable</span>' : ''));
+      const devAriaLabel = `Open ${stamp.date}${stamp.time ? ` at ${stamp.time}` : ''} device session details — ${devName}${modeAria}`;
+      html += `<div class="sun-session light-session-row light-session-complete light-session-device" data-id="${escapeAttr(sess.id)}" data-light-sessions-action="open-device-session" data-light-session-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}">
+        <span class="light-session-icon" aria-hidden="true">◉</span>
+        <div class="light-session-summary">
+          <div class="light-session-title"><span class="light-session-kind">Device</span>${escapeHTML(devName)}</div>
+          <div class="light-session-meta-line">
+            <span class="sun-session-date">${escapeHTML(stamp.date)}</span>
+            ${stamp.time ? `<span>${escapeHTML(stamp.time)}</span>` : ''}
+            <span class="sun-session-duration">${escapeHTML(dur)}</span>
+          </div>
         </div>
-        <div class="sun-session-meta">${escapeHTML(meta)}</div>
-        ${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}
-        ${viewDeps.renderDeviceSessionAIInline(sess)}
+        ${modeBadge}
+        ${safetyBadge}
+        <span class="light-session-chevron" aria-hidden="true">›</span>
       </div>`;
     }
   }
@@ -246,24 +222,15 @@ export function _openAllSessionsModal() {
     const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
     const sunCount = rows.filter(row => row.kind === 'sun').length;
     const deviceCount = rows.filter(row => row.kind === 'device').length;
-    const lastLabel = rows[0]?.startedAt
-      ? formatDate(new Date(rows[0].startedAt).toISOString().slice(0, 10))
-      : '—';
     const title = `All sessions (${rows.length})`;
     overlay.innerHTML = `<div class="modal light-sessions-modal" role="dialog" aria-modal="true" aria-labelledby="light-all-sessions-title">
       <header class="light-sessions-modal-head">
         <div>
           <h3 id="light-all-sessions-title">${escapeHTML(title)}</h3>
-          <p>Outdoor sun and therapy device history</p>
+          <p>${sunCount} outdoor · ${deviceCount} device</p>
         </div>
         <button class="modal-close" aria-label="Close" data-light-sessions-close>×</button>
       </header>
-      <div class="light-sessions-modal-summary" aria-label="Session summary">
-        <div><span>Total</span><strong>${rows.length}</strong></div>
-        <div><span>Sun</span><strong>${sunCount}</strong></div>
-        <div><span>Device</span><strong>${deviceCount}</strong></div>
-        <div><span>Latest</span><strong>${escapeHTML(lastLabel)}</strong></div>
-      </div>
       <div class="light-sessions-modal-body">
         ${rows.length
           ? `<div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">${_renderSessionRowsHTML(rows)}</div>`

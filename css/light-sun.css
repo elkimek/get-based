@@ -34,6 +34,30 @@
   gap: 14px;
   min-width: 0;
 }
+.light-device-safety {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--orange) 36%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--orange-bg) 58%, var(--bg-card));
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.light-device-safety strong { color: var(--text-primary); }
+.light-device-safety.is-over {
+  border-color: color-mix(in srgb, var(--red) 55%, var(--border));
+  background: color-mix(in srgb, var(--red-bg) 68%, var(--bg-card));
+}
+
+@media (max-width: 720px) {
+  .light-page { padding-bottom: 88px; }
+  .light-page small,
+  .light-page .dashboard-widget-description,
+  .light-page .light-section-hint,
+  .light-page .dev-session-hint { font-size: 12px; line-height: 1.45; }
+}
 .dashboard-widget[data-widget-id="light-today"] .dashboard-widget-body {
   display: grid;
   gap: 14px;
@@ -50,9 +74,9 @@
   background: transparent;
   box-shadow: none;
 }
-.light-page .dashboard-widget[data-widget-id="light-live-session"] .light-active-session-pinned,
+.dashboard-widget[data-widget-id="light-live-session"] .light-active-session-pinned,
 .light-page .dashboard-widget[data-widget-id="light-sessions"] .sun-sessions-list,
-.light-page .dashboard-widget[data-widget-id="light-guidance"] .light-med-banner {
+.light-page .dashboard-widget[data-widget-id="light-today"] .light-med-banner {
   margin: 0;
 }
 .light-page .dashboard-widget[data-widget-id="light-methods"] .dashboard-widget-body {
@@ -271,8 +295,11 @@
 /* Top-3 chip expand on session card */
 .sun-channel-chips .sun-chip-extra { display: none; }
 .sun-channel-chips.sun-chips-expanded .sun-chip-extra { display: inline-flex; }
-.sun-channel-chips.sun-chips-expanded .sun-chip-more { display: none; }
+.sun-chip-more-expanded { display: none; }
+.sun-channel-chips.sun-chips-expanded .sun-chip-more-collapsed { display: none; }
+.sun-channel-chips.sun-chips-expanded .sun-chip-more-expanded { display: inline; }
 .sun-chip-more {
+  order: 99;
   font-size: 11px; padding: 3px 10px;
   background: transparent; border: 1px dashed var(--border);
   border-radius: 12px; color: var(--text-muted);
@@ -280,11 +307,8 @@
 }
 .sun-chip-more:hover { color: var(--accent); border-color: var(--accent); }
 
-/* Unified sessions list — sun + device sessions interleaved
-   chronologically. Row shape mirrors the sun-only list with an extra
-   leading icon and a "kind" pill so each row is scannable. Falls back
-   to the existing .sun-session styling for the bulk of the chrome. */
-.light-sessions-list-unified .light-session-row { gap: 6px; }
+/* Completed sun + device history uses one compact scan-row. Rich channel,
+   setup, model-input and AI content is intentionally reserved for details. */
 .light-session-row[role="button"] { cursor: pointer; }
 .sun-sessions-list,
 .sun-session {
@@ -299,17 +323,7 @@
   background: color-mix(in srgb, var(--session-accent, var(--accent)) 12%, var(--bg-card));
   border: 1px solid color-mix(in srgb, var(--session-accent, var(--accent)) 28%, transparent);
 }
-.light-session-kind {
-  font-size: 11px; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 2px 8px; border-radius: 10px;
-  background: var(--bg-secondary);
-  margin-left: auto;
-  max-width: min(100%, 42ch);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.light-session-kind { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .light-session-device .light-session-icon { color: var(--accent); }
 .light-session-sun .light-session-icon { color: var(--orange); }
 
@@ -331,6 +345,60 @@
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
+.light-session-complete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--bg-card) 96%, transparent);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  box-shadow: none;
+}
+.light-session-complete:hover {
+  border-color: color-mix(in srgb, var(--session-accent) 32%, var(--border));
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+.light-session-complete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.light-session-summary { flex: 1; min-width: 0; }
+.light-session-title {
+  display: flex; align-items: baseline; gap: 8px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.light-session-meta-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.light-session-meta-line > span + span::before {
+  content: '·';
+  margin-right: 9px;
+  color: var(--border-strong, var(--text-muted));
+}
+.light-session-outcome { color: var(--text-secondary); font-weight: 600; }
+.light-session-warning {
+  max-width: 190px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--orange-bg) 58%, transparent);
+  color: var(--orange);
+  font-size: 10.5px;
+  line-height: 1.25;
+  text-align: center;
+}
+.light-session-warning-danger {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+  background: color-mix(in srgb, var(--red-bg) 65%, transparent);
+  color: var(--red);
+}
+.light-session-chevron { color: var(--text-muted); font-size: 21px; line-height: 1; }
 
 /* Reduced motion — strip transforms + transitions for users with the OS
    preference set. Hover lifts and tier-changed badge flashes feel disorienting
@@ -463,6 +531,71 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .sun-detail-section-value {
   font-size: 13px; color: var(--text-primary); line-height: 1.5;
 }
+.sun-detail-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.sun-detail-setup-grid > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+}
+.sun-detail-setup-grid span,
+.sun-detail-input-location span {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sun-detail-setup-grid strong,
+.sun-detail-input-location strong {
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.sun-calculation-state {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--orange-bg) 52%, var(--bg-card));
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.sun-calculation-state.is-error { border-color: color-mix(in srgb, var(--red) 48%, var(--border)); }
+.sun-calculation-state .import-btn { flex-shrink: 0; }
+.sun-detail-disclosure {
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 48%, transparent);
+  overflow: hidden;
+}
+.sun-detail-disclosure > summary {
+  padding: 11px 13px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style-position: inside;
+}
+.sun-detail-disclosure[open] > summary { border-bottom: 1px solid var(--border); }
+.sun-detail-disclosure > p,
+.sun-detail-disclosure > .sun-detail-channels,
+.sun-detail-disclosure > .sun-detail-atm,
+.sun-detail-disclosure > .sun-detail-input-location,
+.sun-detail-disclosure > .light-device-safety { margin: 10px 12px; }
+.sun-detail-disclosure > p { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.sun-detail-input-location { display: grid; gap: 3px; }
 .sun-detail-channels {
   display: flex; flex-direction: column; gap: 6px;
 }
@@ -972,6 +1105,17 @@ svg.sun-silhouette text.sun-silhouette-label {
 }
 
 /* Burn-risk banner on the Light & Sun page */
+.light-today-uv-safety {
+  display: grid;
+  gap: 7px;
+}
+.light-today-safety-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
 .light-med-banner {
   margin: 16px 0;
   display: flex; align-items: center; gap: 12px;
@@ -982,6 +1126,7 @@ svg.sun-silhouette text.sun-silhouette-label {
 }
 .light-med-banner.light-med-warn { border-color: var(--orange); background: var(--orange-bg); }
 .light-med-banner.light-med-over { border-color: var(--red); background: var(--red-bg); }
+.light-med-banner.light-med-info .light-med-icon { color: var(--text-muted); }
 .light-med-icon { font-size: 20px; }
 .light-med-banner.light-med-ok .light-med-icon { color: var(--green); }
 .light-med-banner.light-med-warn .light-med-icon { color: var(--orange); }
@@ -1074,7 +1219,7 @@ svg.sun-silhouette text.sun-silhouette-label {
   align-items: flex-start;
   gap: 8px;
 }
-.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-kind {
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-row:not(.light-session-complete) .light-session-kind {
   flex: 1 1 100%;
   margin-left: 38px;
   max-width: calc(100% - 38px);
@@ -1082,7 +1227,7 @@ svg.sun-silhouette text.sun-silhouette-label {
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
-.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-mode-chip {
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-row:not(.light-session-complete) .light-session-mode-chip {
   max-width: calc(100% - 38px);
   white-space: normal;
   overflow-wrap: anywhere;
@@ -1094,18 +1239,51 @@ svg.sun-silhouette text.sun-silhouette-label {
 .sun-session-head { display: flex; align-items: center; gap: 12px; }
 .sun-session-date { font-weight: 600; color: var(--text-primary); }
 .sun-session-duration { color: var(--text-secondary); font-size: 13px; }
-/* Live vitamin D synthesis chip — surfaces approximate IU + IU/min on
-   active sessions. Sits next to the burn-dose chip in the session-row
-   header. Color stays neutral (it's a positive signal regardless of
-   tier) to keep the burn-dose chip's color the load-bearing visual. */
+/* Live estimates get their own wrapping row instead of competing with the
+   timer in the fixed session header. Vitamin D is intentionally first and
+   gets the widest track; safety/eye/heat chips remain visible beside it. */
+.sun-session-live-readouts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 7px;
+  min-width: 0;
+  margin-top: 9px;
+}
+.sun-session-live-readouts > span {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sun-session-live-readouts .sun-session-med {
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+}
 .sun-session-vitd {
-  display: inline-flex; align-items: center;
+  display: inline-flex;
+  flex: 1 1 300px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 8px;
   font-size: 11px; font-weight: 500;
-  padding: 2px 8px; border-radius: 10px;
+  padding: 5px 9px; border-radius: 10px;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   color: var(--accent);
-  white-space: nowrap;
+}
+.sun-session-vitd strong {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+.sun-session-vitd span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--text-muted);
+}
+.sun-session-vitd-idle {
+  color: var(--text-secondary);
 }
 .sun-session-med {
   margin-left: auto;
@@ -1348,39 +1526,6 @@ svg.sun-silhouette text.sun-silhouette-label {
   top: 18px;
   right: 22px;
 }
-.light-sessions-modal-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-card) 62%, transparent);
-}
-.light-sessions-modal-summary > div {
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
-}
-.light-sessions-modal-summary span {
-  display: block;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-.light-sessions-modal-summary strong {
-  display: block;
-  margin-top: 3px;
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .light-sessions-modal-body {
   min-height: 0;
   overflow-y: auto;
@@ -1522,7 +1667,13 @@ svg.sun-silhouette text.sun-silhouette-label {
   color: var(--text-secondary);
   border: 1px solid color-mix(in srgb, var(--channel-accent) 18%, var(--border));
   display: inline-flex; align-items: center; gap: 5px;
+  font-family: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+.sun-chip:hover { border-color: color-mix(in srgb, var(--channel-accent) 52%, var(--border)); }
+.sun-chip:focus-visible { outline: 2px solid var(--channel-accent); outline-offset: 2px; }
 .sun-chip[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
 .sun-chip[data-channel="circadian"] { --channel-accent: var(--accent); }
 .sun-chip[data-channel="nir_solar"] { --channel-accent: var(--red); }
@@ -1653,7 +1804,7 @@ svg.sun-silhouette text.sun-silhouette-label {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .light-session-kind {
+  .light-session-row:not(.light-session-complete) .light-session-kind {
     flex: 1 1 100%;
     margin-left: 28px;
     max-width: calc(100% - 28px);
@@ -1661,7 +1812,7 @@ svg.sun-silhouette text.sun-silhouette-label {
     overflow-wrap: anywhere;
     line-height: 1.35;
   }
-  .light-session-mode-chip {
+  .light-session-row:not(.light-session-complete) .light-session-mode-chip {
     max-width: 100%;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -1677,11 +1828,9 @@ svg.sun-silhouette text.sun-silhouette-label {
   .light-sessions-modal-head h3 {
     font-size: 19px;
   }
-  .light-sessions-modal-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 12px;
-    gap: 8px;
-  }
+  .light-session-complete { align-items: flex-start; }
+  .light-session-complete .light-session-warning { max-width: 130px; }
+  .sun-calculation-state { align-items: flex-start; flex-direction: column; }
   .light-sessions-modal-body {
     padding: 12px;
   }

@@ -39,10 +39,8 @@ test('all sessions modal renders scrollable session list', async ({ page }) => {
   await expect(modal).toHaveAttribute('aria-modal', 'true');
   await expect(modal).toHaveAttribute('aria-labelledby', 'light-all-sessions-title');
 
-  const summary = modal.locator('.light-sessions-modal-summary');
-  await expect(summary).toContainText(/Total\s*12/);
-  await expect(summary).toContainText(/Sun\s*12/);
-  await expect(summary).toContainText(/Device\s*0/);
+  await expect(modal.locator('.light-sessions-modal-head')).toContainText('12 outdoor · 0 device');
+  await expect(modal.locator('.light-sessions-modal-summary')).toHaveCount(0);
   await expect(modal.locator('.sun-sessions-list .sun-session')).toHaveCount(SESSION_COUNT);
 
   const scrollTop = await modal.evaluate((modalEl) => {

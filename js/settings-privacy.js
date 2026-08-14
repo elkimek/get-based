@@ -113,12 +113,11 @@ export function renderSunDataSourceSettings() {
   const cfg = getSettingsMeteoConfig();
   return `<div class="local-ai-settings" id="sun-data-source-section">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun data source</h4>
-    <div class="ai-provider-desc" style="margin-bottom:10px">Where the Light &amp; Sun lens fetches UV / ozone / atmosphere data. Lat/lon defaults to your country (no automatic geolocation). Manual entry always works.</div>
+    <div class="ai-provider-desc" style="margin-bottom:10px">Where the Light &amp; Sun lens fetches UV, ozone, clouds, and air-quality model data. It uses your privacy-rounded home postal area or country by default. Current device location is optional, rounded locally, and kept only for today.</div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      ${_renderMeteoModeOption('auto', 'Default — best accuracy', 'Real ozone + aerosols from CAMS, clouds + temperature from Open-Meteo, automatically merged. Falls back to Open-Meteo only if CAMS is unreachable. Pick this unless you have a specific reason not to.')}
-      ${_renderMeteoModeOption('open-meteo', 'Open-Meteo only', 'Skip CAMS. Slightly noisier UV math (no real ozone DU), but only one upstream sees your lat/lon. Faster too.')}
+      ${_renderMeteoModeOption('auto', 'Default — CAMS enhanced', 'Direct CAMS UV plus CAMS ozone and aerosols, with recent satellite cloud correction where coverage exists and Open-Meteo weather context. Falls back to Open-Meteo UVI when CAMS is unavailable.')}
+      ${_renderMeteoModeOption('open-meteo', 'Open-Meteo only', 'Skip the CAMS relay. Uses Open-Meteo model UVI and weather, without CAMS total-column ozone or satellite cloud enhancement.')}
       ${_renderMeteoModeOption('selfhost', 'Self-hosted server', 'You run your own getbased-uvdata box. Lat/lon never leaves your infrastructure. Paste the URL + bearer below.')}
-      ${_renderMeteoModeOption('manual', 'UV meter / manual entry', 'Type the UV index yourself per session — most accurate if you own a UV meter (Solarmeter 6.5R, Hocoma, EMR-Tek). No network calls at all.')}
     </div>
     <div id="meteo-selfhost-fields" style="margin-top:10px;${cfg.mode === 'selfhost' ? '' : 'display:none'}">
       <label style="font-size:12px;color:var(--text-muted)">Server URL</label>

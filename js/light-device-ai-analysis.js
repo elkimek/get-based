@@ -6,14 +6,12 @@
 // (controlled-dose biology, distance, eye protection) and fingerprint
 // (deviceId + distanceCm + bodyArea + eyesProtected).
 
-import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getDevices, getDeviceSessions } from './light-devices-store.js';
-import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit, BODY_REGIONS } from './sun.js';
+import { CHANNEL_DISPLAY, formatChannelUnit, BODY_REGIONS } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
-import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
@@ -21,14 +19,33 @@ import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js
 export function getDeviceSessionFingerprint(sess) {
   if (!sess) return '';
   const parts = [
+    sess.startedAt || 0,
     sess.endedAt || 0,
     Math.round((sess.durationMin || 0) * 10) / 10,
     sess.deviceId || '',
     Math.round(sess.distanceCm || 0),
     sess.bodyArea || '',
+    Array.isArray(sess.bodyAreas) ? [...sess.bodyAreas].sort().join(',') : '',
     sess.eyesProtected ? 1 : 0,
     sess.mode || '',
+    sess.safety?.hasUV ? 1 : 0,
+    sess.safety?.unsafeEyeExposure ? 1 : 0,
+    sess.safety?.erythemalSED != null ? Math.round(sess.safety.erythemalSED * 100) : '',
+    sess.safety?.ocularActinicUV != null ? Math.round(sess.safety.ocularActinicUV * 10) : '',
+    sess.metrics?.photopicLux != null ? Math.round(sess.metrics.photopicLux) : '',
+    sess.metrics?.melanopicEdiLux != null ? Math.round(sess.metrics.melanopicEdiLux) : '',
   ];
+  const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
+  if (device) {
+    parts.push(
+      device.type || '',
+      Array.isArray(device.peakWavelengths) ? device.peakWavelengths.join(',') : '',
+      device.mwPerCm2At15cm || '',
+      device.lux || '',
+      device.melanopicDER || '',
+      device.melanopicEdiLux || '',
+    );
+  }
   if (sess.doses) {
     for (const k of Object.keys(sess.doses).sort()) {
       parts.push(k + ':' + Math.round((sess.doses[k] || 0) * 10) / 10);
@@ -44,6 +61,14 @@ function _formatNumber(n, digits = 1) {
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
+function _localDateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // Cap user-supplied free-text fields fed into prompt context. A device named
 // "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
 function _safeText(s, max = 80) {
@@ -52,7 +77,7 @@ function _safeText(s, max = 80) {
 
 const _DEVICE_TYPE_DESCRIPTIONS = {
   uvb: 'UVB phototherapy panel — vitamin-D synthesis + POMC; eye exposure must be blocked',
-  uva: 'UVA panel — nitric-oxide / cardiovascular benefit; no vitamin D; eye protection recommended',
+  uva: 'UVA panel — modeled nitric-oxide wellness channel; no vitamin D; UV-rated eye protection required',
   combined: 'red + near-IR PBM panel — cellular repair, mitochondrial signaling',
   'pbm-targeted': 'handheld / spot PBM device — close-range targeted dosing',
   sad: 'SAD light box — 10000-lux white light for circadian / mood; requires eye-direct (not blocked) for benefit',
@@ -60,36 +85,16 @@ const _DEVICE_TYPE_DESCRIPTIONS = {
   'full-spectrum': 'full-spectrum bulb — daytime alertness if used at sufficient duration',
 };
 
-function _sevenDayRollup(currentSess) {
-  const sessions = getDeviceSessions().filter(s => s.endedAt && s.id !== currentSess?.id);
-  const cutoff = (currentSess?.endedAt || Date.now()) - 7 * 86400000;
-  const recent = sessions.filter(s => s.endedAt >= cutoff);
-  if (!recent.length) return null;
-  let totalMin = 0;
-  const daysWithSession = new Set();
-  for (const s of recent) {
-    totalMin += s.durationMin || 0;
-    daysWithSession.add(new Date(s.endedAt).toISOString().slice(0, 10));
-  }
-  return {
-    sessionCount: recent.length,
-    daysWithSession: daysWithSession.size,
-    totalMin: Math.round(totalMin),
-  };
-}
-
 export function buildDeviceSessionContext(sess) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
-  const lc = state.importedData?.lightCircadian || {};
-  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
-  const device = getDevices().find(d => d.id === sess.deviceId) || null;
+  const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
   const lines = [];
 
   lines.push('### Session');
   const start = new Date(sess.startedAt || Date.now());
   const end = sess.endedAt ? new Date(sess.endedAt) : null;
-  lines.push(`Date: ${start.toISOString().slice(0, 10)}`);
+  lines.push(`Local date: ${_localDateKey(start)}`);
   lines.push(`Time: ${start.toTimeString().slice(0, 5)}${end ? '–' + end.toTimeString().slice(0, 5) : ' (in progress)'}`);
   lines.push(`Duration: ${_formatNumber(sess.durationMin)} min`);
 
@@ -111,6 +116,7 @@ export function buildDeviceSessionContext(sess) {
       lines.push(`Irradiance: ${device.mwPerCm2At15cm} mW/cm² at ${device.recommendedDistanceCm || 15} cm reference distance`);
     }
     if (device.lux) lines.push(`Eye-channel intensity: ${device.lux.toLocaleString()} lux`);
+    if (device.melanopicEdiLux) lines.push(`Eye-channel melanopic EDI: ${device.melanopicEdiLux.toLocaleString()} lx at ${device.recommendedDistanceCm || 15} cm reference distance`);
     // Mode disclosure for hybrid panels (Maxi UVB / Trinity / etc.) where
     // the user picks an LED-group preset on the touchscreen. Without
     // this, the model sees a UVB-typed device with all-zero vit-D and
@@ -138,17 +144,32 @@ export function buildDeviceSessionContext(sess) {
       }
     }
   } else {
-    lines.push('Device record removed (was deleted from the user\'s catalog).');
+    lines.push('Device specification unavailable.');
   }
 
   lines.push('');
   lines.push('### Session parameters');
   lines.push(`Working distance: ${sess.distanceCm || '—'} cm`);
   lines.push(`Body area: ${sess.bodyArea || '—'}`);
-  lines.push(`Eyes: ${sess.eyesProtected ? 'protected (closed / blocked)' : 'uncovered (direct exposure)'}`);
+  const hasUV = sess.safety?.hasUV === true;
+  lines.push(`Eyes: ${hasUV
+    ? (sess.eyesProtected ? 'UV-rated protection recorded' : 'UV-rated protection NOT recorded')
+    : (sess.eyesProtected ? 'shielding recorded' : 'no shielding recorded')}`);
+  if (sess.safety?.hasUV) {
+    lines.push(`Deterministic UV safety: ${sess.safety.unsafeEyeExposure ? 'UNSAFE EYE EXPOSURE RECORDED' : 'UV-rated eye protection recorded'}`);
+    if ((sess.safety.uvDoseStatus === 'modeled' || sess.safety.uvDoseStatus == null)
+        && Number.isFinite(sess.safety.erythemalSED)) {
+      lines.push(`Local erythemal dose: ${_formatNumber(sess.safety.erythemalSED, 2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? `; ${Math.round(sess.safety.conservativeBaseMedFraction * 100)}% of conservative Type I base MED` : ''}`);
+    } else {
+      lines.push('UV dose: unavailable — the required spectral output, band split, or supported distance basis was not provided; do not infer burn dose or vitamin-D output.');
+    }
+  }
+  if (Array.isArray(sess.calculation?.warnings) && sess.calculation.warnings.length) {
+    lines.push(`Model limits: ${sess.calculation.warnings.map(warning => _safeText(warning, 240)).join(' ')}`);
+  }
 
   if (sess.doses) {
-    const fitz = sd.fitzpatrick || lc.skinType?.match(/^(I{1,3}|IV|VI?)/)?.[1] || 'III';
+    const fitz = sess.fitzpatrick || sd.fitzpatrick || sess.safety?.fitzpatrick || 'III';
     const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
     // Body-fraction for the per-session vit-D cap (Audit P1 #8). Device
     // session schema stores bodyAreas[]; BODY_REGIONS provides the per-
@@ -165,34 +186,14 @@ export function buildDeviceSessionContext(sess) {
       if (v == null || v === 0) continue;
       const meta = CHANNEL_DISPLAY[k] || { label: k };
       let display = formatChannelUnit(k, v, sess.durationMin || 0, fitz, null, null, false, _bf);
-      if (!display) {
-        const t = channelTier(v, k);
-        const tlabel = tierLabel(t);
-        const target = meta.dailyTarget || 0;
-        const pct = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-        display = pct != null ? `${tlabel} (${pct}% of daily target)` : tlabel;
-      }
+      if (!display) display = 'targeted device signal logged';
       parts.push(`${meta.label || k}: ${display}`);
     }
     if (parts.length) {
       lines.push('');
-      lines.push('### Doses (as displayed to user)');
+      lines.push('### Modeled light signals');
       for (const p of parts) lines.push('  - ' + p);
     }
-  }
-
-  lines.push('');
-  lines.push('### User profile');
-  if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
-  else if (lc.skinType) lines.push(`Skin type: ${lc.skinType}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
-  if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
-
-  const rollup = _sevenDayRollup(sess);
-  if (rollup) {
-    lines.push('');
-    lines.push('### Last 7 days of device use (excluding this session)');
-    lines.push(`${rollup.sessionCount} sessions across ${rollup.daysWithSession} days · ${rollup.totalMin} min total`);
   }
 
   return lines.join('\n');
@@ -203,18 +204,18 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON with three keys: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = on-protocol for the device type AND safe (eye protection where required, working distance reasonable, dose adequate)',
-  '  yellow = useful but with a caveat (sub-optimal distance, short duration, eye protection mismatched — e.g. SAD lamp with "eyes protected" zeroes the circadian channel)',
-  '  red = unsafe or counterproductive (UVB/UVA panel without eye protection, handheld PBM at <5 cm, dose model returning zero on a properly logged session)',
+  '  green = the recorded setup is internally consistent and no deterministic safety flag is present; do not claim it matches a medical or vendor protocol unless one is explicitly supplied',
+  '  yellow = a material setup caveat or uncertainty is recorded (for example reference-distance uncertainty or eye-channel mismatch); do not call a short or low-signal session a failure',
+  '  red = a deterministic safety problem is recorded (especially any UV-emitting mode without UV-rated goggles); do not invent a distance cutoff for PBM panels',
   '  gray = not enough info (no doses computed, device record removed, missing parameters)',
   '',
   'Device-class biology:',
-  '  • PBM red+NIR (combined / pbm-targeted): cellular repair via cytochrome c oxidase, ~1–10 J/cm² per session is the typical target range; Vitamin-D yield is zero — irrelevant; do NOT flag.',
-  '  • SAD light box: needs EYE-DIRECT exposure to deliver the 10000-lux circadian dose. "Eyes protected" defeats the purpose; flag yellow with a "remove the eye block to capture the SAD benefit" tip. Skin/UV channels will be zero — irrelevant.',
-  '  • UVB / UVA phototherapy: eye protection MANDATORY (corneal damage). Vitamin-D / NO yield is the value. If eyes uncovered, flag RED.',
-  '  • Dawn simulator: gentle ramp, low total dose; circadian-only. Don\'t flag low-tier numbers; the value is the timing, not the dose.',
+  '  • PBM red+NIR (combined / pbm-targeted): retain the cytochrome-c-oxidase wellness model. Dose ranges are device/target specific; follow the device protocol and flag heat or eye discomfort rather than prescribing a universal target. Vitamin-D yield is zero — irrelevant.',
+  '  • SAD light box: needs eyes open to ambient light without staring at the source. Photopic lux is not M-EDI unless a spectrum or melanopic DER is available. Skin/UV channels will be zero — irrelevant.',
+  '  • UVB / UVA devices: UV-rated eye protection is mandatory. Numeric vitamin-D, NO, burn, or ocular dose requires band-resolved spectral irradiance at a supported distance; when it is unavailable, discuss only the recorded UV presence and setup. If eyes are uncovered, flag RED.',
+  '  • Dawn simulator: gentle ramp, low total dose; circadian-only. Judge the timing and setup, not a completion score.',
   '  • Full-spectrum bulb: daytime alertness; only meaningful at sustained durations (>30 min) and reasonable lux.',
-  'Working distance matters: the dose model already applies an inverse-square correction capped at 3×; below 10 cm on a panel, mention that actual irradiance may be higher than the model captures.',
+  'Working distance matters: the dose model uses measured distance data when available. Otherwise it retains vendor reference irradiance; it applies inverse-square only to devices explicitly declared point sources. UV-specific numbers are withheld outside a measured range or away from an unmodeled reference distance.',
   '',
   'Mode (when the context lists a Mode line):',
   '  • Hybrid panels like Mitochondriak Maxi UVB and Chroma Trinity have named touchscreen modes that gate which LED groups fire. The Mode line tells you what the user DELIBERATELY ran. A UVB-typed panel set to a red/NIR-only mode is a PBM session by intent — judge it as PBM, not as a broken UVB session. Zero vit-D in that case is expected, not a problem.',
@@ -236,8 +237,10 @@ const engine = createAIVerdict({
   buildContext: buildDeviceSessionContext,
   systemPrompt: SYSTEM_PROMPT,
   maxTokens: 400,
-  canAnalyze: (s) => !!s?.endedAt,
-  shouldAutoFire: (s) => !!s?.endedAt,
+  canAnalyze: (s) => !!s?.endedAt && !!s?.doses && !!s?.safety,
+  // Keep per-session interpretation user-requested. Automatic synthesis lives
+  // at Today/Weekly level and should not run again for every history row.
+  shouldAutoFire: () => false,
   getAllTargets: getDeviceSessions,
 });
 
@@ -248,8 +251,14 @@ export const maybeAnalyzeDeviceSessionAfterFinish = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
+function _hasCompleteModeledDeviceSession(sess) {
+  return !!sess?.endedAt
+    && !!sess?.doses
+    && !!sess?.safety;
+}
+
 export function renderDeviceSessionAIInline(sess) {
-  if (!sess?.endedAt) return '';
+  if (!_hasCompleteModeledDeviceSession(sess)) return '';
   if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
@@ -283,7 +292,7 @@ export function renderDeviceSessionAIInline(sess) {
 }
 
 export function renderDeviceSessionAIDetail(sess) {
-  if (!sess?.endedAt) return '';
+  if (!_hasCompleteModeledDeviceSession(sess)) return '';
   if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;

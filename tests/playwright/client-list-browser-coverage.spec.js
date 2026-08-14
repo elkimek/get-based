@@ -569,7 +569,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       document.getElementById('cl-country').value = 'Slovakia';
       document.getElementById('cl-zip').value = '81101';
       document.getElementById('cl-zip').dispatchEvent(new Event('input', { bubbles: true }));
-      outcomes.latitudeHelperUsesCacheAndZipSuffix = document.getElementById('cl-lat-display')?.textContent.includes('ZIP-refined') === true
+      outcomes.latitudeHelperUsesCacheAndZipSuffix = document.getElementById('cl-lat-display')?.textContent.includes('postal area') === true
         && document.getElementById('cl-lat-display')?.textContent.includes('48') === true;
 
       const tagInput = document.getElementById('cl-tag-input');

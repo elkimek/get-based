@@ -22,6 +22,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
     };
+    const hydrateCalls = [];
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const math = {
       solarZenithAngle: () => 100,
       reconstructSpectrum: () => {
@@ -58,8 +60,9 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
         endedAt: Date.UTC(2026, 5, 7, 8, 20),
         bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [] },
         eyeExposure: { mode: 'sunglasses', lensTint: 'amber' },
-        safety: { medFraction: 0.12, fitzpatrick: 'III' },
+        safety: null,
         doses: null,
+        calculationStatus: 'calculation-error',
       },
       {
         id: 'manual-atm',
@@ -87,7 +90,12 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       deleteSession: async () => true,
       updateSession: async () => null,
       logCompletedSession: async () => null,
-      hydrateSession: async () => null,
+      hydrateSession: async (id, coords) => {
+        hydrateCalls.push([id, coords]);
+        const session = sessions.find(item => item.id === id);
+        if (session) session.calculationStatus = 'computed';
+        return session || null;
+      },
       getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'test' }),
       refreshSurfaces: () => {},
       wireBackdropClose: () => {},
@@ -138,23 +146,33 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       sunUI.configureSunSessionUI(baseDeps);
       const sortedHost = document.createElement('div');
       sortedHost.innerHTML = sunUI.renderSessionsList();
-      outcomes.sessionListSortsAndIncludesInlineAI = sortedHost.querySelector('.sun-session')?.dataset.id === 'paused-rotated'
-        && sortedHost.querySelectorAll('.ai-inline-test').length === sessions.length;
+      outcomes.sessionListSortsAndKeepsAIOutOfHistory = sortedHost.querySelector('.sun-session')?.dataset.id === 'paused-rotated'
+        && sortedHost.querySelectorAll('.ai-inline-test').length === 0;
 
       const activeHost = document.createElement('div');
       activeHost.innerHTML = sunUI.renderSunSessionRow(sessions[0]);
       outcomes.pausedRotatedActiveRowShowsControlVariants = !!activeHost.querySelector('.sun-session-paused')
         && !!activeHost.querySelector('[data-sun-session-action="resume-session"]')
-        && !!activeHost.querySelector('button[aria-label="Rotated"][disabled]')
+        && !!activeHost.querySelector('button[aria-label="Side change recorded"][disabled]')
         && !!activeHost.querySelector('[data-sun-session-action="forgot-stop"]')
         && activeHost.textContent.includes('over threshold')
-        && !!activeHost.querySelector('.sun-eye-warn');
+        && !!activeHost.querySelector('.sun-eye-warn')
+        && !!activeHost.querySelector('.sun-session-live-readouts .sun-session-vitd')
+        && !activeHost.querySelector('.sun-session-head .sun-session-med')
+        && !activeHost.querySelector('.sun-session-delete');
+      outcomes.liveChannelOverflowExplainsAndExposesHiddenChannels = activeHost.querySelectorAll('button.sun-chip-extra').length === 1
+        && activeHost.querySelector('.sun-chip-more')?.getAttribute('aria-expanded') === 'false'
+        && activeHost.querySelector('.sun-chip-more-collapsed')?.textContent.includes('1 more channel')
+        && activeHost.querySelector('.sun-chip-more-expanded')?.textContent.includes('Show fewer');
 
       const endedHost = document.createElement('div');
       endedHost.innerHTML = sunUI.renderSunSessionRow(sessions[1]);
-      outcomes.endedRowWithoutDurationFallsBackToInProgress = endedHost.textContent.includes('in progress')
-        && endedHost.textContent.includes('safe')
-        && endedHost.textContent.includes('Sunglasses');
+      outcomes.endedRowWithoutDurationUsesCompactHistoryHierarchy = endedHost.textContent.includes('20 min')
+        && endedHost.textContent.includes('Sunlight')
+        && !!endedHost.querySelector('.light-session-complete')
+        && !endedHost.textContent.includes('low modeled dose')
+        && !endedHost.textContent.includes('Sunglasses')
+        && !endedHost.querySelector('.sun-session-delete,.sun-channel-chips,.ai-inline-test');
 
       outcomes.noDosesRenderNoChips = sunUI.renderChannelChips(null) === '';
 
@@ -167,12 +185,18 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       ].join('');
       const pomcLowHost = document.createElement('div');
       pomcLowHost.innerHTML = sunUI.renderChannelChips({ pomc: 4 }, { durationMin: 15 });
-      outcomes.edgeChipValuesUseExpectedUnitsAndThresholds = edgeChipHost.textContent.includes('~900 IU')
+      outcomes.edgeChipValuesKeepPhysicalUnitsWithoutTargetPercentages = edgeChipHost.textContent.includes('~900 IU')
         && edgeChipHost.textContent.includes('8.4 J/cm')
-        && edgeChipHost.textContent.includes('~5.2k lux')
-        && edgeChipHost.textContent.includes('\u2713 120%')
+        && edgeChipHost.textContent.includes('~5.2k est. mel lx')
+        && !edgeChipHost.querySelector('[data-channel="no_cv"] .sun-chip-value')
+        && !edgeChipHost.textContent.includes('%')
         && pomcLowHost.textContent.includes('POMC')
         && !pomcLowHost.querySelector('[data-channel="pomc"] .sun-chip-value');
+      outcomes.sessionChannelChipsOpenInformationalDetails = Array.from(edgeChipHost.querySelectorAll('.sun-chip')).every(chip =>
+        chip instanceof HTMLButtonElement
+        && chip.dataset.sunSessionAction === 'open-channel'
+        && chip.dataset.sunSessionChannel === chip.dataset.channel
+        && chip.getAttribute('aria-label')?.includes('Open channel details'));
 
       math.vitaminDIUPerSession = () => 1500;
       math.pbmJoulesPerCm2 = () => 12.4;
@@ -191,7 +215,14 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       outcomes.detailHandlesNoDosesLocationAndDefaultBody = emptyText.includes('No channel doses computed')
         && emptyText.includes('Location not recorded')
         && emptyText.includes('Face + hands')
-        && emptyText.includes('Amber');
+        && emptyText.includes('Amber')
+        && emptyDetail?.querySelectorAll('details.sun-detail-disclosure').length === 2;
+      const retryCalculation = emptyDetail?.querySelector('[data-sun-session-action="retry-calculation"]');
+      retryCalculation?.click();
+      await delay(0);
+      outcomes.failedCalculationOffersWorkingRetry = !!retryCalculation
+        && emptyText.includes('No stale estimate is being shown')
+        && hydrateCalls.some(([id, coords]) => id === 'ended-no-duration' && coords?.lat === 50.08);
       emptyDetail?.remove();
 
       sunUI.openSunSessionDetail('paused-rotated');
@@ -204,7 +235,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       sunUI.openSunSessionDetail('manual-atm');
       const manualDetail = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
       const manualText = manualDetail?.textContent || '';
-      outcomes.manualAtmosphereShowsOverrideWithoutUvSplit = manualText.includes('UVI (manual)')
+      outcomes.legacyManualAtmosphereShowsSourceWithoutActiveOverride = manualText.includes('UVI')
+        && !manualText.includes('UVI (manual)')
         && manualText.includes('Manual entry')
         && manualText.includes('sea level')
         && !manualText.includes('UV split');
@@ -264,6 +296,7 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
     const calls = [];
     const saved = {
       currentView: state.currentView,
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
     };
     const sessions = [{
       id: 'editable-session',
@@ -342,7 +375,21 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
 
     try {
       state.currentView = 'dashboard';
-      configure({ getSessions: () => [] });
+      state.importedData = {
+        ...state.importedData,
+        sunDefaults: {},
+      };
+      let setupOpenCount = 0;
+      configure({
+        getSessions: () => [],
+        openLightSetup: () => { setupOpenCount += 1; },
+      });
+      const blockedPastLog = sunUI.openDetailedSessionDialog();
+      outcomes.unconfirmedFitzpatrickBlocksPastSunLog = blockedPastLog === false
+        && setupOpenCount === 1
+        && !document.querySelector('.sun-detailed-modal');
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      state.importedData.sunDefaults = { fitzpatrick: 'III', completedAt: Date.now() };
 
       sunUI.openDetailedSessionDialog();
       const firstOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
@@ -391,8 +438,8 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
       const fallbackCalls = calls.slice(fallbackBefore);
       const logged = fallbackCalls.find(call => call[0] === 'log')?.[1];
       outcomes.emptyTimestampFallbackSavesDefaultExposureWithoutNavigate = !!logged
-        && logged.bodyExposure?.preset === 'face_hands'
-        && logged.bodyExposure?.fraction === 0.05
+        && logged.bodyExposure?.preset === 'covered'
+        && logged.bodyExposure?.fraction === 0
         && Array.isArray(logged.bodyExposure?.regions)
         && logged.bodyExposure.regions.length === 0
         && fallbackCalls.some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback')
@@ -493,6 +540,7 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
         && !successCalls.some(call => call[0] === 'navigate');
     } finally {
       state.currentView = saved.currentView;
+      state.importedData = saved.importedData;
       sunUI.configureSunSessionUI({
         getSessions: () => [],
         deleteSession: async () => false,
@@ -537,6 +585,7 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
     const outcomes = {};
     const saved = {
       currentView: state.currentView,
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
     };
     const windowKeys = [
       'navigate',
@@ -568,6 +617,10 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
 
     try {
       state.currentView = 'dashboard';
+      state.importedData = {
+        ...state.importedData,
+        sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'III', completedAt: Date.now() },
+      };
       window.navigate = route => {
         outcomes.unexpectedNavigate = route;
       };
@@ -589,7 +642,7 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
         && activeHost.textContent.includes('Body unset')
         && activeHost.textContent.includes('Eyes unset')
         && activeHost.textContent.includes('vitamin d')
-        && !!activeHost.querySelector('.sun-chip-tier-0');
+        && !!activeHost.querySelector('.sun-chip-tier-2');
 
       sunUI.configureSunSessionUI({
         getSessions: () => [session],
@@ -600,7 +653,7 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
       const detailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
       outcomes.defaultDetailUsesModalAndChannelDeps = !!detailOverlay
         && detailOverlay.textContent.includes('Sun session')
-        && detailOverlay.textContent.includes('none');
+        && detailOverlay.textContent.includes('Sunlight');
       detailOverlay?.remove();
 
       sunUI.openDetailedSessionDialog();
@@ -642,6 +695,7 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
         && !outcomes.unexpectedNavigate;
     } finally {
       state.currentView = saved.currentView;
+      state.importedData = saved.importedData;
       for (const [key, info] of Object.entries(savedWindow)) {
         if (info.had) window[key] = info.value;
         else delete window[key];

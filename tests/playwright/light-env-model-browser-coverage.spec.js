@@ -75,11 +75,12 @@ test('light environment model browser coverage scores picker room screen and bur
       && emptyRoom.label === 'Needs setup'
       && severeRoom.tier === 4
       && severeRoom.color === 'red'
-      && severeRoom.label === 'Severe'
-      && severeRoom.reason.includes('blue light after sunset')
-      && severeRoom.reason.includes('severe flicker measured')
-      && severeRoom.reason.includes('bedroom not dark enough')
-      && severeRoom.reason.includes('3.0 hr/day evening screen exposure here');
+      && severeRoom.label === 'Strong signal'
+      && severeRoom.reason.includes('2 hr after sunset under a cool-spectrum source')
+      && severeRoom.reason.includes('strong camera banding detected')
+      && !severeRoom.reason.includes('sleep-time light measured')
+      && severeRoom.reason.includes('9.0 hr evening screen use here')
+      && severeRoom.reason.includes('blue reduction noted but not treated as zero exposure');
 
     const screenUnknown = model.computeScreenStatus(null);
     const screenMitigated = model.computeScreenStatus({ eveningUseAfterSunset: 5, blueBlockerEnabled: true });
@@ -89,13 +90,13 @@ test('light environment model browser coverage scores picker room screen and bur
     const screenHeavy = model.computeScreenStatus({ eveningUseAfterSunset: 4, blueBlockerEnabled: false });
     outcomes.screenStatusCoversNullMitigatedDaytimeAndEscalatingEveningUse =
       screenUnknown.label === 'Unknown'
-      && screenMitigated.tier === 0
-      && screenMitigated.label === 'Mitigated'
+      && screenMitigated.tier === 2
+      && screenMitigated.label === 'Moderate'
       && screenDaytime.label === 'Daytime only'
       && screenMild.color === 'yellow'
       && screenModerate.color === 'orange'
       && screenHeavy.color === 'red'
-      && screenHeavy.reason === '4+ evening hours without blocker';
+      && screenHeavy.reason === '4 evening hours';
 
     const environment = {
       rooms: [
@@ -118,20 +119,23 @@ test('light environment model browser coverage scores picker room screen and bur
       screens: [{ id: 'phone', eveningUseAfterSunset: 3, blueBlockerEnabled: false, skipToday: true }],
     }, { isActiveToday });
     const axisOverrideBurden = model.computeIndoorBurdenForEnvironment(environment, {
-      axes: { d2: 3, d3: 3 },
+      axes: { d2: 2, d3: 3, daylightKnown: 1, eveningKnown: 1, missingDaylightRooms: 0 },
     });
     outcomes.environmentAxesAndBurdenRespectSkippedItemsAndInterpretationBranches =
-      axes.d2 === 9
-      && closeTo(axes.d3, 7.8)
+      axes.d2 === 0
+      && closeTo(axes.d3, 10)
+      && axes.missingDaylightRooms === 2
+      && axes.daylightKnown === 0
+      && axes.eveningKnown === 4
       && heavyBurden.tier === 2
       && heavyBurden.color === 'red'
-      && heavyBurden.parts.includes('9 hr indoors')
-      && heavyBurden.parts.includes('8 hr blue-after-sunset')
-      && heavyBurden.interp.includes('Outdoor morning light')
+      && heavyBurden.parts.includes('Evening light: high')
+      && heavyBurden.parts.includes('2 daylight answers missing')
+      && heavyBurden.interp.includes('after-sunset light exposure')
       && emptyBurden.interp.includes('No mapped exposure yet')
-      && skippedBurden.interp.includes('Everything is skipped today')
+      && skippedBurden.interp.includes('Everything mapped is skipped today')
       && axisOverrideBurden.tier === 1
-      && axisOverrideBurden.interp.includes('Evening blue exposure');
+      && axisOverrideBurden.interp.includes('Evening timing');
 
     outcomes.allOutcomesReached = true;
     return outcomes;

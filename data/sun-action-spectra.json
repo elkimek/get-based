@@ -23,7 +23,7 @@
       "label": "POMC / melanocortin",
       "spectrum": "UVB+UVA 280-400nm",
       "ref": "cie_erythemal",
-      "notes": "OPN5 → POMC → α-MSH/ACTH/β-endorphin pathway. Erythemal action spectrum used as proxy."
+      "notes": "UV-responsive POMC and melanocortin signaling. The erythemal action spectrum is only a coarse exposure proxy; downstream response is not measured."
     },
     "no_cv": {
       "id": 3,
@@ -37,21 +37,21 @@
       "label": "Violet / outdoor-eye signal",
       "spectrum": "360-400nm",
       "ref": "opn5_violet",
-      "notes": "OPN5 in skin (melanogenesis kickoff) + retinal OPN5 (axial-length regulation, Tsubota/Torii). Broader than myopia framing."
+      "notes": "Exploratory violet-light/OPN5 hypothesis. Human evidence is stronger for time outdoors than for a wavelength-specific eye dose."
     },
     "circadian": {
       "id": 5,
       "label": "Circadian (melanopic)",
       "spectrum": "460-490nm + broadband CCT",
       "ref": "cie_melanopic",
-      "notes": "Melanopsin ipRGC → SCN. CIE S 026:2018 standard. Effective even at moderate intensities (40 lux + 80min → measurable CAR boost)."
+      "notes": "Melanopsin/ipRGC-related input represented with CIE S 026:2018 sensitivity. This is a modeled signal, not calibrated α-opic metrology or a daily target."
     },
     "nir_solar": {
       "id": 6,
       "label": "Mitochondrial (NIR-solar broadband)",
       "spectrum": "600-1400nm",
       "ref": "cco_pbm",
-      "notes": "Wunsch optical tissue window. Solar IR-A penetrates head-to-knee (Jeffery+Fosbury 2025). Indoor windows with Low-E glass kill this channel."
+      "notes": "Broad red/near-infrared input motivated by published photobiology research. Tissue penetration and window transmission vary; no biological completion target is inferred."
     },
     "pbm_red": {
       "id": 7,
@@ -71,18 +71,18 @@
   "deficit_axes": {
     "d1_sleep_darkness": {
       "label": "Sleep-time darkness",
-      "target": "<0.3 lux at eye during sleep window",
-      "rationale": "Reiter 2020 — melatonin amplitude attenuated even at sub-lux ALAN exposure. Wunsch — full darkness prerequisites for full nocturnal endocrine cascade."
+      "target": "Context only: record qualitative darkness or a calibrated meter reading",
+      "rationale": "Night light can affect sleep and circadian signaling, but a camera estimate is not a hormone measurement and no universal app threshold is inferred."
     },
     "d2_daylight_deficit": {
       "label": "Daytime indoor-light deficit",
-      "target": ">10000 lux for ≥1h within solar day",
-      "rationale": "Ott 1973 — malillumination; Hattar/Huberman — minimum effective AM dose for SCN entrainment."
+      "target": "Context only: record daylight access, timing, and measurement basis",
+      "rationale": "Ordinary lux is not melanopic EDI, and the app does not turn a spot reading into a universal daylight quota."
     },
     "d3_junk_light_contamination": {
-      "label": "Junk-light contamination",
-      "target": "minimize LED-only/flicker/blue-after-sunset hours",
-      "rationale": "Wunsch — spectrum-truncation stress; IEEE PAR1789 — flicker risk thresholds; Reiter — blue-suppression of pre-sleep melatonin."
+      "label": "Spectrum and flicker context",
+      "target": "Context only: note bright, close, flickering, or late-evening sources",
+      "rationale": "Spectrum, brightness, flicker, timing, and distance are separate inputs. A source label alone does not establish harm or a biological dose."
     }
   },
   "_action_spectra_full": "Full per-nm action spectra arrays embedded into js/sun-spectrum.js to keep this JSON small. The references above are the source-of-truth citations; the numeric tables are versioned alongside the model."

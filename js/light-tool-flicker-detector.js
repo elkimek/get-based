@@ -35,7 +35,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('flicker')}
-      <p class="modal-body-hint">Banding stripes indicate PWM flicker.</p>
+      <p class="modal-body-hint">Rolling-shutter bands can reveal some modulated lights. No bands does not prove a light is flicker-free, and this camera cannot report a reliable flicker frequency.</p>
       <video id="flicker-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px"></video>
       <div class="flicker-result" id="flicker-result">Hold camera on a light for 5 seconds…</div>
       <div class="modal-actions" style="margin-top:18px">
@@ -82,7 +82,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     const lockNote = cameraLockStatusLine(lock);
     if (lockNote) resultEl.innerHTML = `Hold camera on a light for 5 seconds…<br>${lockNote}`;
     if (lock.frameRate && lock.frameRate < 60) {
-      resultEl.innerHTML += `<br><small style="color:var(--orange)">⚠ camera running at ${Math.round(lock.frameRate)} fps — PWM above ${Math.round(lock.frameRate / 2)} Hz won't show up. Try a different camera if available.</small>`;
+      resultEl.innerHTML += `<br><small style="color:var(--orange)">⚠ camera running at ${Math.round(lock.frameRate)} fps. Frame rate, rolling-shutter timing, and exposure limit what this screen can detect.</small>`;
     }
 
     const canvas = document.createElement('canvas');
@@ -107,7 +107,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     requestAnimationFrame(tick);
   } catch (error) {
     if (closed) return;
-    resultEl.innerHTML = 'Camera access denied — flicker detector unavailable. <br><span style="font-size:11px;color:var(--text-muted)">This tool needs the camera at 240 fps to detect PWM banding. To re-enable, open your browser\'s site settings and allow camera access.</span>';
+    resultEl.innerHTML = 'Camera access denied — banding screen unavailable. <br><span style="font-size:11px;color:var(--text-muted)">To re-enable this qualitative camera check, open your browser\'s site settings and allow camera access. Use a purpose-built meter for flicker frequency and modulation.</span>';
   }
 
   function renderFlicker(frameSamples, bandingSamples, lock) {
@@ -128,39 +128,41 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     const autoExposureActive = !lock || lock.exposure !== 'manual';
     if (peakBanding > 0.18) {
       score = 3;
-      label = 'Heavy flicker — consider replacing this light';
+      label = 'Strong rolling-shutter banding';
     } else if (peakBanding > 0.10) {
       score = 2;
-      label = 'Visible flicker — eye-strain risk';
+      label = 'Clear rolling-shutter banding';
     } else if (peakBanding > 0.04 || frameRatio > 0.12) {
       score = 1;
-      label = 'Mild flicker, likely OK for most';
+      label = 'Some banding detected';
     } else if (autoExposureActive) {
       score = 0;
-      label = 'Below detection threshold (camera in auto mode)';
+      label = 'No banding detected (camera auto mode)';
     } else {
       score = 0;
-      label = 'Flicker-free (no rolling-shutter banding detected)';
+      label = 'No rolling-shutter banding detected';
     }
 
-    let frequency = '';
-    if (peakStripes >= 2) {
-      frequency = ` · ~${peakStripes * 40} Hz (rolling-shutter banding)`;
-    }
     lastResult = {
       score,
       label,
       bandingRatio: peakBanding,
       stripes: peakStripes,
       frameRatio,
+      method: 'rolling-shutter-camera-screen',
+      exposureLock: lock?.exposure || 'auto',
+      frameRate: lock?.frameRate || null,
     };
-    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong>${escapeHTML(frequency)}<br><small style="color:var(--text-muted)">banding ${peakBanding.toFixed(3)} · frame-luma ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''}</small>`;
+    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong><br><small style="color:var(--text-muted)">banding proxy ${peakBanding.toFixed(3)} · frame change ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''} · no frequency estimate</small>`;
   }
 
   queryRequired(overlay, '#flicker-save').addEventListener('click', async () => {
-    if (!lastResult) return;
+    if (!lastResult) {
+      showNotification('Wait for a camera result before saving.', 'error');
+      return;
+    }
     await saveMeasurement('flicker', lastResult.score, {
-      confidence: 0.7,
+      confidence: lastResult.exposureLock === 'manual' ? 0.55 : 0.35,
       extra: lastResult,
       roomId,
     });

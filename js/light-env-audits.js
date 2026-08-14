@@ -63,8 +63,16 @@ function getEnvironmentSnapshot() {
   return auditDeps.getEnvironment();
 }
 
-function computeRoomSeverity(room, measurements) {
-  return auditDeps.computeRoomSeverity(room, measurements);
+function computeRoomSeverity(room, measurements, options = {}) {
+  return auditDeps.computeRoomSeverity(room, measurements, options);
+}
+
+function computeAuditRoomSeverity(audit, room) {
+  const measurements = (audit?.measurements || []).filter(m => m.roomId === room?.id);
+  const screens = (audit?.screens || []).filter(screen => screen?.roomId === room?.id);
+  // A saved audit must be interpreted from its own frozen snapshot, not
+  // whichever screens happen to be live today.
+  return computeRoomSeverity(room, measurements, { screens, isActiveToday: () => true });
 }
 
 function refreshLightEnvironmentUI(options = {}) {
@@ -131,13 +139,13 @@ export async function saveLightAudit(label = '') {
   const roomIds = new Set((env.rooms || []).map(r => r.id).filter(Boolean));
   const measurements = (state.importedData?.lightMeasurements || [])
     .filter(m => m?.roomId && roomIds.has(m.roomId))
-    .map(m => ({ ...m }));
+    .map(m => JSON.parse(JSON.stringify(m)));
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const audit = {
     id: createUniqueId('la_'),
     date,
-    label: label || `Audit ${audits.length + 1}`,
+    label: String(label || `Audit ${audits.length + 1}`).replace(/\s+/g, ' ').trim().slice(0, 80),
     notes: '',
     rooms: JSON.parse(JSON.stringify(env.rooms || [])),
     screens: JSON.parse(JSON.stringify(env.screens || [])),
@@ -159,7 +167,16 @@ export async function updateLightAudit(id, patch) {
   const audits = getLightAudits();
   const a = audits.find(x => x.id === id);
   if (!a) return;
-  Object.assign(a, patch);
+  if (Object.prototype.hasOwnProperty.call(patch || {}, 'label')) {
+    a.label = String(patch.label || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch || {}, 'notes')) {
+    a.notes = String(patch.notes || '').slice(0, 1000);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch || {}, 'date')) {
+    const date = String(patch.date || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(new Date(`${date}T00:00:00`).getTime())) a.date = date;
+  }
   a.updatedAt = Date.now();
   await saveImportedData();
 }
@@ -172,15 +189,18 @@ export async function deleteLightAudit(id) {
 // Worst-room-tier rolls up to the audit-level severity badge.
 function computeAuditSeverity(audit) {
   const rooms = audit?.rooms || [];
-  const measurements = audit?.measurements || [];
   let worstTier = 0;
+  let hasInterpretableRoom = false;
   for (const r of rooms) {
-    const roomMeas = measurements.filter(m => m.roomId === r.id);
-    const sev = computeRoomSeverity(r, roomMeas);
+    const sev = computeAuditRoomSeverity(audit, r);
+    if (sev.color !== 'incomplete') hasInterpretableRoom = true;
     if (sev.tier > worstTier) worstTier = sev.tier;
   }
+  if (rooms.length === 0 || !hasInterpretableRoom) {
+    return { tier: 0, color: 'incomplete', label: 'Needs details' };
+  }
   const colorMap = ['green', 'yellow', 'orange', 'red', 'red'];
-  const labelMap = ['Good', 'Mild', 'Moderate', 'Concerning', 'Severe'];
+  const labelMap = ['No concern flagged', 'Worth checking', 'Needs attention', 'High signal', 'Strong signal'];
   return { tier: worstTier, color: colorMap[Math.min(worstTier, 4)], label: labelMap[Math.min(worstTier, 4)] };
 }
 
@@ -196,7 +216,20 @@ function fmtAuditDate(d) {
 }
 
 function flickerLabel(score) {
-  return ['Pristine', 'Mild', 'Moderate', 'Severe'][Math.min(3, Math.max(0, Math.round(score)))] || String(score);
+  return ['No banding detected', 'Some banding', 'Clear banding', 'Strong banding'][Math.min(3, Math.max(0, Math.round(score)))] || String(score);
+}
+
+function fmtAuditLux(m) {
+  const value = Math.round(Number(m?.value) || 0);
+  if (m?.extra?.source === 'camera-estimate') return `~${value} lux (camera estimate)`;
+  if (['AmbientLightSensor', 'manual-entry', 'meter-entry'].includes(m?.extra?.source)) return `${value} lux`;
+  return `${value} lux (method unknown)`;
+}
+
+function fmtAuditDarkness(m) {
+  if (m?.extra?.method === 'camera-relative') return `${m.extra?.levelLabel || 'Qualitative'} camera check`;
+  if (m?.extra?.method === 'meter-entry' || m?.extra?.source === 'meter-entry') return `${Number(m?.value || 0).toFixed(2)} lux (meter)`;
+  return `${Number(m?.value || 0).toFixed(2)} legacy value (method unknown)`;
 }
 
 function sortAuditsNewestFirst(audits) {
@@ -244,12 +277,12 @@ function _auditRoomChannels(audit, room) {
   const cct = latestInAudit(audit, 'cct', room.id);
   const spec = latestInAudit(audit, 'spectrum', room.id);
   return [
-    lux ? { key: 'lux', label: 'Lux', text: `${Math.round(lux.value)} lux` } : null,
-    dark ? { key: 'darkness', label: 'Darkness', text: `${(+dark.value).toFixed(2)} lux` } : null,
+    lux ? { key: 'lux', label: 'Brightness', text: fmtAuditLux(lux) } : null,
+    dark ? { key: 'darkness', label: 'Sleep light', text: fmtAuditDarkness(dark) } : null,
     fli ? { key: 'flicker', label: 'Flicker', text: flickerLabel(fli.value) } : null,
-    cct ? { key: 'cct', label: 'CCT', text: `${cct.value} K` } : null,
-    spec?.extra?.melanopic != null
-      ? { key: 'melanopic', label: 'Melanopic', text: `${(spec.extra.melanopic * 100).toFixed(0)}%` }
+    cct ? { key: 'cct', label: 'Warm / cool', text: `~${Math.round(cct.value / 100) * 100} K (camera)` } : null,
+    (spec?.extra?.cameraBlueRatioProxy ?? spec?.extra?.melanopic) != null
+      ? { key: 'camera-blue-proxy', label: 'Camera blue proxy', text: `${((spec.extra.cameraBlueRatioProxy ?? spec.extra.melanopic) * 100).toFixed(0)}%` }
       : null,
   ].filter(ch => ch !== null);
 }
@@ -273,8 +306,7 @@ function renderLightAuditDetail(a) {
   } else {
     html += `<div class="light-audit-rooms">`;
     for (const r of a.rooms) {
-      const roomMeas = (a.measurements || []).filter(m => m.roomId === r.id);
-      const sev = computeRoomSeverity(r, roomMeas);
+      const sev = computeAuditRoomSeverity(a, r);
       const channels = _auditRoomChannels(a, r);
       html += `<div class="light-audit-room-card">
         <div class="light-audit-room-head">
@@ -320,10 +352,10 @@ function _compareArrow(delta, better) {
 // darkness/flicker/melanopic down = better (sleep-safer); lux/CCT depend
 // on time-of-day so neutral arrow color (we still show direction).
 const COMPARE_CHANNELS = [
-  { tool: 'lux',      label: 'Lux',       fmt: v => `${Math.round(v)} lux`,        better: 'depends' },
-  { tool: 'darkness', label: 'Darkness',  fmt: v => `${(+v).toFixed(2)} lux`,      better: 'lower' },
-  { tool: 'flicker',  label: 'Flicker',   fmt: v => flickerLabel(v),               better: 'lower' },
-  { tool: 'cct',      label: 'CCT',       fmt: v => `${v} K`,                      better: 'depends' },
+  { tool: 'lux',      label: 'Brightness', fmt: (_v, m) => fmtAuditLux(m), better: 'depends' },
+  { tool: 'darkness', label: 'Sleep light', fmt: (_v, m) => fmtAuditDarkness(m), better: 'depends' },
+  { tool: 'flicker',  label: 'Banding', fmt: v => flickerLabel(v), better: 'lower' },
+  { tool: 'cct',      label: 'Warm / cool', fmt: v => `~${Math.round(v / 100) * 100} K`, better: 'depends' },
 ];
 
 // Serialize an audit pair into a plain-text comparison the AI can
@@ -346,25 +378,25 @@ function serializeAuditComparison(a1, a2) {
   for (const name of roomNames) {
     const r1 = (a1.rooms || []).find(r => r.name === name);
     const r2 = (a2.rooms || []).find(r => r.name === name);
-    const sev1 = r1 ? computeRoomSeverity(r1, (a1.measurements || []).filter(m => m.roomId === r1.id)) : null;
-    const sev2 = r2 ? computeRoomSeverity(r2, (a2.measurements || []).filter(m => m.roomId === r2.id)) : null;
+    const sev1 = r1 ? computeAuditRoomSeverity(a1, r1) : null;
+    const sev2 = r2 ? computeAuditRoomSeverity(a2, r2) : null;
     const channels = [];
     for (const ch of COMPARE_CHANNELS) {
       const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
       const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
       if (!m1 && !m2) continue;
-      const before = m1 ? ch.fmt(m1.value) : '—';
-      const after = m2 ? ch.fmt(m2.value) : '—';
+      const before = m1 ? ch.fmt(m1.value, m1) : '—';
+      const after = m2 ? ch.fmt(m2.value, m2) : '—';
       channels.push(`  ${ch.label}: ${before} → ${after}`);
     }
     const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
     const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
-    const mel1 = sp1?.extra?.melanopic;
-    const mel2 = sp2?.extra?.melanopic;
+    const mel1 = sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic;
+    const mel2 = sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic;
     if (mel1 != null || mel2 != null) {
       const before = mel1 != null ? `${(mel1 * 100).toFixed(0)}%` : '—';
       const after = mel2 != null ? `${(mel2 * 100).toFixed(0)}%` : '—';
-      channels.push(`  Melanopic ratio: ${before} → ${after}`);
+      channels.push(`  Camera RGB blue-ratio proxy (not melanopic EDI): ${before} → ${after}`);
     }
     if (!channels.length && !(sev1 || sev2)) continue;
     let header = `Room: ${name}`;
@@ -427,8 +459,8 @@ function renderLightAuditCompare(audits) {
     // fall back to before-side, then to a literal "?" so a malformed
     // entry can't crash the loop.
     const name = (r2 && r2.name) || (r1 && r1.name) || '?';
-    const sev1 = r1 ? computeRoomSeverity(r1, (a1.measurements || []).filter(m => m.roomId === r1.id)) : null;
-    const sev2 = r2 ? computeRoomSeverity(r2, (a2.measurements || []).filter(m => m.roomId === r2.id)) : null;
+    const sev1 = r1 ? computeAuditRoomSeverity(a1, r1) : null;
+    const sev2 = r2 ? computeAuditRoomSeverity(a2, r2) : null;
 
     // Build the list of comparable rows — only channels that have data
     // on at least ONE side. A row with both sides null is dropped.
@@ -439,11 +471,12 @@ function renderLightAuditCompare(audits) {
       if (!m1 && !m2) continue;
       rows.push({ ch, m1, m2 });
     }
-    // Melanopic comes from spectrum.extra.
+    // Historical camera readings used `melanopic`; they were normalized RGB
+    // blue ratios, so prefer the explicit proxy key and label both honestly.
     const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
     const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
-    const mel1 = sp1?.extra?.melanopic;
-    const mel2 = sp2?.extra?.melanopic;
+    const mel1 = sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic;
+    const mel2 = sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic;
     const hasMelanopic = mel1 != null || mel2 != null;
 
     // Skip rooms that have no measurements on either side AND no
@@ -473,8 +506,8 @@ function renderLightAuditCompare(audits) {
     if (rows.length || hasMelanopic) {
       html += `<div class="light-audit-compare-channels">`;
       for (const { ch, m1, m2 } of rows) {
-        const before = m1 ? ch.fmt(m1.value) : '—';
-        const after = m2 ? ch.fmt(m2.value) : '—';
+        const before = m1 ? ch.fmt(m1.value, m1) : '—';
+        const after = m2 ? ch.fmt(m2.value, m2) : '—';
         const arrow = (m1 && m2) ? _compareArrow((+m2.value) - (+m1.value), ch.better) : '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
         html += `<div class="light-audit-compare-channel">
           <span class="light-audit-compare-channel-label">${escapeHTML(ch.label)}</span>
@@ -496,7 +529,7 @@ function renderLightAuditCompare(audits) {
           arrow = '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
         }
         html += `<div class="light-audit-compare-channel">
-          <span class="light-audit-compare-channel-label">Melanopic</span>
+          <span class="light-audit-compare-channel-label" title="Normalized phone-camera RGB blue ratio; not CIE melanopic EDI">Camera blue proxy</span>
           <span class="light-audit-compare-channel-before">${escapeHTML(before)}</span>
           ${arrow}
           <span class="light-audit-compare-channel-after">${escapeHTML(after)}</span>

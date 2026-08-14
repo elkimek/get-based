@@ -119,14 +119,18 @@ export function synthesizeDeviceSpectrum(device) {
   return { wavelengths: SPECTRUM_WAVELENGTHS, irradiance };
 }
 
-// Broad-spectrum sunscreen wavelength-dependent transmission. SPF is exact
-// for UVB; broad-spectrum UVA protection is typically weaker.
+// Conservative typical-use sunscreen transmission. Label SPF is measured at
+// a standardized 2 mg/cm2 application; real-world coverage and reapplication
+// vary too much to grant the full laboratory extension in a burn calculator.
+// sqrt(SPF) is used as a bounded effective-protection proxy, with weaker UVA
+// protection. It intentionally errs toward *more* transmitted UV.
 export function sunscreenTransmission(nm, spf) {
   const normalizedSpf = Number(spf) || 0;
   if (normalizedSpf <= 1) return 1.0;
-  if (nm < 320) return 1.0 / normalizedSpf;
-  if (nm < 360) return Math.min(1, 1.4 / normalizedSpf);
-  if (nm < 400) return Math.min(1, 2.0 / normalizedSpf);
+  const typicalUseSpf = Math.sqrt(normalizedSpf);
+  if (nm < 320) return 1.0 / typicalUseSpf;
+  if (nm < 360) return Math.min(1, 1.4 / typicalUseSpf);
+  if (nm < 400) return Math.min(1, 2.0 / typicalUseSpf);
   return 1.0;
 }
 
@@ -151,8 +155,10 @@ export function effectiveDeviceForMode(device, modeId) {
     for (const peak of group.peaks) firingPeakSet.add(peak);
   }
   const allPeaks = device.peakWavelengths;
-  const allShares = Array.isArray(device.peakShares)
+  const declaredPeakShares = Array.isArray(device.peakShares)
       && device.peakShares.length === allPeaks.length
+      && device.peakShares.some(share => Number(share) > 0);
+  const allShares = declaredPeakShares
     ? (() => {
       const sum = device.peakShares.reduce((total, share) => total + share, 0);
       return sum > 0
@@ -179,6 +185,7 @@ export function effectiveDeviceForMode(device, modeId) {
     ...device,
     peakWavelengths: firingPeaks,
     peakShares: firingShares,
+    peakShareBasis: device.peakShareBasis || (declaredPeakShares ? 'declared' : 'heuristic'),
     mwPerCm2At15cm: (Number(device.mwPerCm2At15cm) || 0) * firingFraction,
   };
 }

@@ -61,6 +61,7 @@ const preset = {
   type: 'sad',
   peakWavelengths: [],
   lux: 10000,
+  melanopicDER: 0.8,
   recommendedDistanceCm: 30,
   channels: ['circadian'],
   channelGroups: [{ id: 'white', peaks: [480] }],
@@ -118,6 +119,7 @@ reset({ lightDevices: [{
   peakWavelengths: [],
   mwPerCm2At15cm: null,
   lux: 10000,
+  melanopicDER: 0.8,
   recommendedDistanceCm: 30,
   channels: ['circadian'],
 }] });
@@ -133,7 +135,8 @@ const logged = await logDeviceSession({
 const loggedDevice = getDevices()[0];
 assert('logDeviceSession persists dose, lastSession, updatedAt, and analyzer hook',
   logged?.id?.startsWith('devsess_')
-    && logged.doses.circadian === 10000 * 10 * 60 / 100
+    && logged.doses.circadian > 0
+    && logged.metrics.melanopicEdiLux === 8000
     && logged.notes === 'morning'
     && loggedDevice.lastSession.durationMin === 10
     && Number.isFinite(loggedDevice.updatedAt)
@@ -154,12 +157,13 @@ assert('stopDeviceSession finalizes active session and recomputes dose',
     && getDevices()[0].lastSession.durationMin >= 4.9
     && analysisCalls === 2);
 
+const loggedCircadianDose = logged.doses.circadian;
 const edited = await updateDeviceSession(logged.id, { durationMin: 20, notes: 'edited' });
 assert('updateDeviceSession recomputes duration-derived fields and stamps sync freshness',
   edited?.durationMin === 20
     && edited.notes === 'edited'
     && edited.endedAt === edited.startedAt + 20 * 60 * 1000
-    && edited.doses.circadian === 10000 * 20 * 60 / 100
+    && edited.doses.circadian > loggedCircadianDose
     && Number.isFinite(edited.updatedAt)
     && analysisCalls === 3);
 assert('updateDeviceSession returns null for missing session',
@@ -177,6 +181,23 @@ assert('deleteDevice removes device and records tombstone',
 assert('delete miss paths return false',
   await deleteDevice('missing') === false
     && await deleteDeviceSession('missing') === false);
+
+reset({ lightDevices: [{
+  id: 'uv-1', brand: 'UV', model: '311', type: 'uvb',
+  peakWavelengths: [311], mwPerCm2At15cm: 50, recommendedDistanceCm: 30,
+}] });
+const unsafeHistorical = await logDeviceSession({
+  deviceId: 'uv-1', durationMin: 1, distanceCm: 30, eyesProtected: false,
+});
+assert('Historical UV log is retained but explicitly flagged unsafe for eyes',
+  unsafeHistorical?.safety?.hasUV === true
+    && unsafeHistorical.safety.unsafeEyeExposure === true
+    && unsafeHistorical.safety.ocularActinicUV > 0);
+assert('Store boundary refuses to start a live UV timer without recorded UV eye protection',
+  await startDeviceSession({ deviceId: 'uv-1', distanceCm: 30, eyesProtected: false }) === null);
+const protectedUvId = await startDeviceSession({ deviceId: 'uv-1', distanceCm: 30, eyesProtected: true });
+assert('Store boundary allows a UV timer with recorded eye protection',
+  typeof protectedUvId === 'string' && getActiveDeviceSession()?.id === protectedUvId);
 
 reset({ deviceSessions: [
   { id: 'recent', endedAt: Date.now(), doses: { circadian: 100, pbm_red: 5 } },

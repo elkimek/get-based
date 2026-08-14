@@ -117,26 +117,31 @@ test('light device session engine browser coverage covers mode area distance and
         && fallbackTargetedArea === engine.DEVICE_BODY_AREA_FRACTIONS.targeted
         && engine.bodyFractionForDeviceSession({ bodyArea: 'torso' }) === 0.13
         && engine.bodyFractionForDeviceSession({ bodyArea: 'unknown' }) === 0.10,
-      distanceFactorUsesReferenceDistanceAndCapsCloseRange:
-        engine.deviceDistanceFactor({ recommendedDistanceCm: 20 }, 40) === 0.25
-        && engine.deviceDistanceFactor({ recommendedDistanceCm: 20 }, 10) === 3
+      distanceFactorRequiresMeasuredDataOrAnExplicitPointSourceModel:
+        engine.deviceDistanceFactor({ recommendedDistanceCm: 20 }, 40) === 1
+        && engine.deviceDistanceFactor({ recommendedDistanceCm: 20 }, 10) === 1
+        && engine.deviceDistanceFactor({ recommendedDistanceCm: 20, distanceModel: 'point-source' }, 40) === 0.25
+        && engine.deviceDistanceFactor({ recommendedDistanceCm: 20, distanceModel: 'point-source' }, 10) === 3
         && engine.deviceDistanceFactor({ recommendedDistanceCm: 15 }, Number.NaN) === 1,
       spectrumDosePathScalesIrradianceAndPassesEyeExposure:
         spectrumDose.mode === 'red-only'
         && approx(spectrumDose.bodyExposureFraction, 0.10)
-        && approx(spectrumDose.distanceFactor, 0.25)
-        && spectrumDose.eyeMode === 'direct'
+        && approx(spectrumDose.distanceFactor, 1)
+        && spectrumDose.eyeMode === 'closed-eyes'
         && spectrumDose.durationSec === 300
-        && approx(spectrumDose.doses.pbm_red, 0.25)
+        && approx(spectrumDose.doses.pbm_red, 1)
         && spectrumDose.doses.circadian === 300
         && calls.some(call => call[0] === 'effectiveDeviceForMode' && call[1] === 'red-only')
         && calls.some(call => call[0] === 'synthesizeDeviceSpectrum' && call[1] === 'red-only')
         && calls.some(call => call[0] === 'computeChannelDoses'
-          && JSON.stringify(call[1].irradiance) === JSON.stringify([0.5, 1])
-          && call[1].eyeMode === 'direct'
+          && JSON.stringify(call[1].irradiance) === JSON.stringify([2, 4])
+          && call[1].eyeMode === 'closed-eyes'
           && call[1].durationSec === 300),
-      sadLuxFallbackOnlyCountsUnprotectedEyes:
-        sadDirect.doses.circadian === 60000
+      sadLuxFallbackKeepsPhotopicLuxButDoesNotInventMelanopicDose:
+        sadDirect.doses.circadian === undefined
+        && sadDirect.metrics.photopicLux === 10000
+        && sadDirect.metrics.melanopicEdiLux === null
+        && sadDirect.metrics.melanopicStatus === 'spectrum-required'
         && Object.keys(sadProtected.doses).length === 0
         && sadProtected.eyeMode === 'closed-eyes',
     };

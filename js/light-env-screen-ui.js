@@ -17,7 +17,7 @@ function screenSummary(s) {
   const eve = s.eveningUseAfterSunset;
   if (eve != null && eve > 0) parts.push(`${eve} hr evening`);
   else if (hours > 0) parts.push('daytime only');
-  if (s.blueBlockerEnabled) parts.push('✓ blocker');
+  if (s.blueBlockerEnabled) parts.push('blue reduced');
   return parts.join(' · ');
 }
 
@@ -123,8 +123,8 @@ function renderScreenExpandedBody(s, rooms, opts = {}) {
       <div class="light-env-chip-row">${eveChips}</div>
     </div>
     <div class="light-env-screen-blocker" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
-      <span style="flex:1;min-width:0;font-size:13px;color:var(--text-secondary)">Blue blocker active
-        <span style="display:block;font-size:11px;color:var(--text-muted);margin-top:2px">Glasses, f.lux, Night Shift, amber tint — zeroes the circadian penalty.</span>
+      <span style="flex:1;min-width:0;font-size:13px;color:var(--text-secondary)">Blue reduction active
+        <span style="display:block;font-size:11px;color:var(--text-muted);margin-top:2px">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>
       </span>
       <label class="toggle-switch">
         <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} ${lightEnvActionAttrs('update-screen-blue-blocker', { id: s.id })} />

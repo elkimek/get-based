@@ -1,12 +1,13 @@
 // @ts-check
 // light-conditions-renderer.js — Current-conditions presentation owner.
 
-import { state } from './state.js';
 import { escapeAttr, escapeHTML } from './utils.js';
+import { parseProviderTimeMs } from './sun-uvdata-atmosphere.js';
 import {
   _aggregateAQ,
   _cloudNarrative,
   _computeUvaWindow,
+  _europeanAQCategory,
   _fmtMinutes,
   _fmtTime,
   _humanProviderLabel,
@@ -14,18 +15,29 @@ import {
   _solarZenithAngle,
   _sunPositionLabel,
   _sunPositionSub,
-  _surfaceOzoneCls,
-  _surfaceOzoneLabel,
-  _timeToMed,
-  _vitDLabel,
+  _uviConditionLabel,
   SHADOW_RULE_HINT,
   SMOG_HINT,
-  TANNING_MODIFIERS_NOTE,
 } from './light-conditions-interpretation.js';
 
 function conditionsTooltipAttr(text, opts = {}) {
   if (!text) return '';
   return ` data-conditions-tooltip="${escapeAttr(text)}"${opts.focusable ? ' tabindex="0"' : ''}`;
+}
+
+function sourceAttributionHTML(source, fallbackLabel) {
+  const value = String(source || '');
+  const links = [];
+  if (value.includes('cams')) {
+    links.push('<a class="conditions-now-attribution" href="https://atmosphere.copernicus.eu/" target="_blank" rel="noopener">CAMS</a>');
+  }
+  if (value.includes('open_meteo')) {
+    links.push('<a class="conditions-now-attribution" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>');
+  }
+  if (value.includes('noaa')) {
+    links.push('<a class="conditions-now-attribution" href="https://www.weather.gov/" target="_blank" rel="noopener">NOAA NWS</a>');
+  }
+  return links.length ? links.join(' + ') : escapeHTML(fallbackLabel);
 }
 
 export function renderConditionsHTML(atm, coords, variant, offline = false) {
@@ -37,39 +49,37 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   const ozone = atm.ozoneDU != null ? Math.round(atm.ozoneDU) : null;
   const surfaceOzone = atm.airQuality?.surfaceOzoneUgM3 != null ? Math.round(atm.airQuality.surfaceOzoneUgM3) : null;
   const cloud = atm.cloudCover != null ? Math.round(atm.cloudCover) : null;
-  const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : null;
 
   // Sanity-check the data — UVI shouldn't exist when sun is below horizon,
   // shouldn't exceed ~16 anywhere on Earth, etc. Flag suspicious responses
   // so the user knows when the upstream looks off.
   const sanityWarnings = _sanityCheckAtmosphere(atm, coords);
+  const uviWarnings = sanityWarnings.filter(warning => warning.startsWith('UVI'));
+  const uviReliable = uviWarnings.length === 0;
   const sourceLabel = _humanProviderLabel(atm.source);
+  const validAt = Number.isFinite(atm.validAt) ? atm.validAt : atm.fetchedAt;
+  const validAgoMin = validAt ? Math.max(0, Math.round((Date.now() - validAt) / 60000)) : null;
   const fetchedAgoMin = atm.fetchedAt ? Math.max(0, Math.round((Date.now() - atm.fetchedAt) / 60000)) : null;
-  const freshnessLabel = fetchedAgoMin == null ? 'unknown'
-    : fetchedAgoMin < 1 ? 'just now'
-    : fetchedAgoMin < 60 ? `${fetchedAgoMin} min ago`
-    : `${Math.round(fetchedAgoMin / 60)}h ago`;
+  const elapsedLabel = minutes => minutes == null ? 'unknown'
+    : minutes < 1 ? 'just now'
+    : minutes < 60 ? `${minutes} min ago`
+    : `${Math.round(minutes / 60)}h ago`;
+  const freshnessLabel = elapsedLabel(validAgoMin);
+  const retrievedLabel = elapsedLabel(fetchedAgoMin);
   // Solar zenith angle — degrees from vertical. 0 = sun directly overhead.
   const zenith = _solarZenithAngle(new Date(), coords);
   const sunAngle = zenith != null ? Math.round(90 - zenith) : null;
 
   // UV index color ramp — UVI 0 green → UVI 11+ purple.
   let uviCls = 'low';
-  if (uvi != null) {
+  if (uvi != null && uviReliable) {
     if (uvi >= 11) uviCls = 'extreme';
     else if (uvi >= 8) uviCls = 'very-high';
     else if (uvi >= 6) uviCls = 'high';
     else if (uvi >= 3) uviCls = 'moderate';
   }
 
-  // Resolve user's Fitzpatrick (for time-to-MED). Track whether it's
-  // user-set vs the default III fallback so we can qualify the readout.
-  const userFp = state.importedData?.sunDefaults?.fitzpatrick
-    || (state.importedData?.lightCircadian?.skinType?.match?.(/^(I{1,3}|IV|VI?)\b/) || [])[1];
-  const fp = userFp || 'III';
-  const fpIsDefault = !userFp;
-  const medResult = uvi != null ? _timeToMed(uvi, fp, atm) : null;
-  const vitDLabel = _vitDLabel(uvi);
+  const uviLabel = _uviConditionLabel(uvi);
   const peakAt = atm.daily?.peakAt;
   const peakUvi = atm.daily?.uvIndexMax;
   const peakIsNow = peakAt && uvi != null && peakUvi != null && uvi >= peakUvi - 0.3;
@@ -79,30 +89,37 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   const cloudWord = _cloudNarrative(cloud);
   const cloudChip = cloudWord
     ? (uviClear != null && uvi != null && uviClear > uvi + 0.5
-       ? `${cloudWord} · clear-sky max UVI ${uviClear.toFixed(1)}`
+       ? `${cloudWord} · clear-sky UVI ${uviClear.toFixed(1)}`
        : cloudWord)
     : '';
-  const surfaceOzoneCls = _surfaceOzoneCls(surfaceOzone);
   const eaqi = atm.airQuality?.european_aqi ?? null;
   const aqAgg = _aggregateAQ(atm.airQuality, eaqi);
+  const ozoneEaqi = atm.airQuality?.european_aqi_ozone ?? null;
+  const ozoneCategory = _europeanAQCategory(ozoneEaqi);
 
   // Build today's chronological sun-event rail with a current-time marker.
   const sunrise = atm.daily?.sunrise;
   const sunset = atm.daily?.sunset;
-  const { firstUVA, lastUVA } = _computeUvaWindow(coords, sunrise || new Date());
+  const locationOffsetSeconds = Number(atm.hourly?.utcOffsetSeconds) || 0;
+  const sunriseMs = parseProviderTimeMs(sunrise, locationOffsetSeconds);
+  const sunsetMs = parseProviderTimeMs(sunset, locationOffsetSeconds);
+  const peakAtMs = parseProviderTimeMs(peakAt, locationOffsetSeconds);
+  const uvaAnchor = Number.isFinite(sunriseMs) ? new Date(sunriseMs) : new Date();
+  const { firstUVA, lastUVA } = _computeUvaWindow(coords, uvaAnchor, locationOffsetSeconds);
   const events = [];
   if (sunrise) {
     events.push({
       icon: '🌅',
       label: _fmtTime(sunrise),
-      ts: new Date(sunrise).getTime(),
+      ts: sunriseMs,
       kind: 'sunrise',
-      tooltip: 'Geometric sunrise — sun crosses horizon. UV-A still negligible, eye-light barely above twilight.',
+      tooltip: 'Geometric sunrise — the solar disk crosses the horizon and the direct spectrum begins its transition from twilight.',
     });
   }
   const localHHMM = date => {
     const pad = value => String(value).padStart(2, '0');
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const shifted = new Date(date.getTime() + locationOffsetSeconds * 1000);
+    return `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
   };
   if (firstUVA) {
     events.push({
@@ -111,14 +128,14 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
       ts: firstUVA.getTime(),
       kind: 'first-uva',
       uvaEvent: true,
-      tooltip: 'Sun reaches ~5° elevation — atmospheric path short enough for 320-400 nm UV-A to penetrate. Biological dawn: eye + skin start receiving the violet/UV-A signals that drive circadian entrainment, α-MSH / β-endorphin, and retinal dopamine.',
+      tooltip: 'UV-A transition begins. The sun crosses the model’s ~5° threshold, where surface UV-A becomes a more substantial photobiological input. Photon-driven molecular signaling can be switch-like, while downstream responses depend on wavelength, dose, tissue, and context. Trace diffuse UV-A may be present earlier.',
     });
   }
   if (peakAt) {
     events.push({
       icon: '☀',
       label: `${_fmtTime(peakAt)}${peakUvi != null ? ` · UVI ${peakUvi.toFixed(1)}` : ''}`,
-      ts: new Date(peakAt).getTime(),
+      ts: peakAtMs,
       peak: true,
       kind: 'peak',
       tooltip: 'Solar noon — UVI at its daily maximum.',
@@ -131,16 +148,16 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
       ts: lastUVA.getTime(),
       kind: 'last-uva',
       uvaEvent: true,
-      tooltip: 'Sun drops below ~5° elevation — UV-A fades from the surface. Biological dusk window closes; melatonin synthesis ramps up.',
+      tooltip: 'UV-A transition closes. The sun drops below the same ~5° threshold, so this photobiological input rapidly diminishes. Small direct or diffuse UV-A may persist toward sunset and twilight, and downstream signaling does not stop instantly.',
     });
   }
   if (sunset) {
     events.push({
       icon: '🌇',
       label: _fmtTime(sunset),
-      ts: new Date(sunset).getTime(),
+      ts: sunsetMs,
       kind: 'sunset',
-      tooltip: 'Geometric sunset — sun drops below horizon. UV-A already gone for ~30-60 min.',
+      tooltip: 'Geometric sunset — the solar disk drops below the horizon. Low diffuse twilight, including small UV-A contributions, can persist after this moment.',
     });
   }
   const nowTs = Date.now();
@@ -182,69 +199,66 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   };
   const timelineTip = 'Today\'s sun timeline — left to right is the timeline through your day. Events left of the highlighted now-marker have passed; events to the right are upcoming.';
   const sunEventsLine = events.length ? `<div class="conditions-now-events-wrap"${conditionsTooltipAttr(timelineTip, { focusable: true })}>
-    <div class="conditions-now-events-caption">Today's sun timeline</div>
+    <div class="conditions-now-events-caption">Today's sun timeline <span class="conditions-now-events-scroll-hint" aria-hidden="true">scroll ↔</span></div>
     <div class="conditions-now-events">
       <div class="conditions-now-events-rail" role="list" aria-label="Today's sun timeline" style="--conditions-event-count: ${eventsWithNow.length};">
         <span class="conditions-now-events-track" aria-hidden="true"></span>
-        ${eventsWithNow.map((event, index) => `<span role="listitem" class="conditions-now-event${event.peak ? ' conditions-now-event-peak' : ''}${event.uvaEvent ? ' conditions-now-event-uva' : ''}${event.isNow ? ' conditions-now-event-now' : ''}${event.ts < nowTs ? ' conditions-now-event-past' : ''}" style="grid-column: ${index + 1};"${conditionsTooltipAttr(event.tooltip, { focusable: true })} aria-label="${escapeAttr(`${eventRailLabel(event)}: ${event.label}`)}"><span class="conditions-now-event-dot"><span class="conditions-now-event-icon">${event.icon}</span></span><span class="conditions-now-event-copy"><span class="conditions-now-event-label">${escapeHTML(eventRailLabel(event))}</span><span class="conditions-now-event-time">${escapeHTML(eventRailTime(event))}</span></span></span>`).join('')}
+        ${eventsWithNow.map((event, index) => `<span role="listitem" class="conditions-now-event${event.peak ? ' conditions-now-event-peak' : ''}${event.uvaEvent ? ' conditions-now-event-uva' : ''}${event.isNow ? ' conditions-now-event-now' : ''}${event.ts < nowTs ? ' conditions-now-event-past' : ''}" style="grid-column: ${index + 1};"${conditionsTooltipAttr(event.tooltip)} aria-label="${escapeAttr(`${eventRailLabel(event)}: ${event.label}. ${event.tooltip}`)}"><span class="conditions-now-event-dot"><span class="conditions-now-event-icon">${event.icon}</span></span><span class="conditions-now-event-copy"><span class="conditions-now-event-label">${escapeHTML(eventRailLabel(event))}</span><span class="conditions-now-event-time">${escapeHTML(eventRailTime(event))}</span></span></span>`).join('')}
       </div>
     </div>
   </div>` : '';
 
-  const storedOverride = state.importedData?.sunDefaults?.overrides?.uvIndex;
+  const sourceIsGeometryOffline = atm._offline || /(?:zenith_offline|offline)/.test(String(atm.source || ''));
+  const sourceIsOffline = offline || sourceIsGeometryOffline;
+  const sourceIsStale = !sourceIsOffline && !!atm._stale;
+  const sourceStatusClass = sourceIsOffline ? 'is-offline' : (sourceIsStale ? 'is-stale' : 'is-fresh');
+  const sourceStatusLabel = sourceIsGeometryOffline ? 'offline modeled estimate'
+    : offline ? 'offline · cached model'
+    : sourceIsStale ? 'stale cached model'
+    : 'current model';
+  const sourceHTML = sourceAttributionHTML(atm.source, sourceLabel);
   const trustFooter = `<div class="conditions-now-trust">
-    <span class="conditions-now-source ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}"${conditionsTooltipAttr(`via ${sourceLabel} · ${freshnessLabel} · refreshes every few minutes · works offline once cached`, { focusable: true })}>
+    <span class="conditions-now-source ${sourceStatusClass}"${conditionsTooltipAttr(`Model valid ${freshnessLabel}; retrieved ${retrievedLabel}. Refreshes every few minutes and can use a clearly marked cached or offline estimate.`)}>
       <span class="conditions-now-source-dot"></span>
-      ${offline ? 'offline · cached' : (atm._stale ? 'stale · cached' : 'live')} · via ${escapeHTML(sourceLabel)} · ${escapeHTML(freshnessLabel)}
+      ${sourceStatusLabel} · via ${sourceHTML} · valid ${escapeHTML(freshnessLabel)}
     </span>
     ${sanityWarnings.length ? `<span class="conditions-now-warning"${conditionsTooltipAttr(sanityWarnings.join(' · '), { focusable: true })}>⚠ ${sanityWarnings.length} sanity warning${sanityWarnings.length === 1 ? '' : 's'}</span>` : ''}
-    <span class="conditions-now-override"${conditionsTooltipAttr('Manual UVI override — feeds your own UV-meter reading into the spectrum reconstruction. Leave blank to use the live atmosphere fetch.')}>
-      <label for="manual-uvi-input">Manual UVI:</label>
-      <input type="number" min="0" max="20" step="0.1" inputmode="decimal" id="manual-uvi-input" value="${Number.isFinite(storedOverride) ? storedOverride : ''}" placeholder="${atm.uvIndex != null && !atm._uvOverridden ? atm.uvIndex.toFixed(1) : '—'}">
-      <button type="button" data-light-conditions-action="set-manual-uvi">Apply</button>
-      ${Number.isFinite(storedOverride) ? `<button type="button" data-light-conditions-action="clear-manual-uvi"${conditionsTooltipAttr('Clear the manual override')} aria-label="Clear manual UVI override">×</button>` : ''}
-    </span>
   </div>`;
 
   if (variant === 'compact') {
-    const compactInterpretation = uvi != null ? (() => {
-      let text = vitDLabel;
-      if (medResult?.kind === 'no-uv') text += ' · no burn risk';
-      else if (medResult?.kind === 'safe-til-sunset') text += ' · won\'t burn before sunset';
-      else if (medResult?.kind === 'minutes') text += ` · ~${_fmtMinutes(medResult.value)} to sunburn dose${fpIsDefault ? '*' : ''}`;
-      return text;
-    })() : '';
+    const compactInterpretation = uvi != null
+      ? (uviReliable ? uviLabel : '⚠ UVI data looks inconsistent — see Details')
+      : '';
     return `<div class="conditions-now-row">
-      ${uvi != null ? `<span class="conditions-now-pill conditions-uvi-${uviCls}"${conditionsTooltipAttr('WHO UV index — sunburn intensity', { focusable: true })}>UVI <strong>${uvi}</strong></span>` : ''}
-      ${aqAgg ? `<span class="conditions-now-pill conditions-aq-${aqAgg.cls}"${conditionsTooltipAttr('Air quality — worst-of category across PM2.5, PM10, and NO₂', { focusable: true })}>AQ ${escapeHTML(aqAgg.label)}</span>` : ''}
+      ${uvi != null ? `<span class="conditions-now-pill${uviReliable ? ` conditions-uvi-${uviCls}` : ' is-unreliable'}"${conditionsTooltipAttr('WHO UV index — erythema-weighted UV level', { focusable: true })}>UVI <strong>${uvi}</strong></span>` : ''}
+      ${aqAgg ? `<span class="conditions-now-pill conditions-aq-${aqAgg.cls}"${conditionsTooltipAttr('Provider-computed European Air Quality Index', { focusable: true })}>AQ ${escapeHTML(aqAgg.label)}</span>` : ''}
       ${peakAt && !peakIsNow ? `<span class="conditions-now-pill"${conditionsTooltipAttr(`UV index peaks today at ${_fmtTime(peakAt)} · UVI ${peakUvi != null ? peakUvi.toFixed(1) : '—'}`, { focusable: true })}>peak ${_fmtTime(peakAt)}</span>` : ''}
-      <span class="conditions-now-source-compact ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}"${conditionsTooltipAttr(`via ${sourceLabel} · ${freshnessLabel}${offline ? ' (offline)' : ''}`, { focusable: true })}>
-        <span class="conditions-now-source-dot"></span>${escapeHTML(sourceLabel)}
+      <span class="conditions-now-source-compact ${sourceStatusClass}"${conditionsTooltipAttr(`${sourceStatusLabel}; model valid ${freshnessLabel}`)}>
+        <span class="conditions-now-source-dot"></span>${sourceHTML}
       </span>
     </div>
     ${compactInterpretation ? `<div class="conditions-now-row-interp">${escapeHTML(compactInterpretation)}</div>` : ''}`;
   }
 
-  const uviHeroTip = medResult && medResult.kind === 'minutes'
-    ? TANNING_MODIFIERS_NOTE
-    : 'WHO UV index — sunburn intensity; vitamin-D synthesis rises as UVI climbs.';
-  const fpDefaultTip = 'No skin type set yet — using medium (Fitzpatrick III) as a default. Set your actual skin type in Light setup for a personalized estimate.';
+  const uviHeroTip = 'WHO UV index — an erythema-weighted indicator used for sun-protection decisions. It is not a direct vitamin-D synthesis meter or a personal burn-time guarantee.';
   const sunPositionTip = `${SHADOW_RULE_HINT}\n\nSun elevation: ${sunAngle != null ? sunAngle + '°' : 'unknown'} above horizon.`;
-  const ozoneTip = ozone != null
-    ? 'Total atmospheric ozone column (Dobson Units) — the protective stratospheric layer that blocks UV-B. Lower DU → more UV reaches the surface.'
-    : SMOG_HINT;
-  const airQualityTip = 'Air quality is the worst-of category across PM2.5, PM10, and NO₂ — so a high traffic-pollutant level (NO₂) won\'t hide behind clean PM. EAQI uses the same multi-pollutant logic.';
+  const showSurfaceOzone = surfaceOzone != null;
+  const ozoneTip = showSurfaceOzone
+    ? `${SMOG_HINT}${ozone != null ? ` The ${ozone} DU total-ozone column remains available in Details as a separate UV-model input.` : ''}`
+    : 'Total atmospheric ozone column (Dobson Units) — a neutral UV-model input, not an air-pollution severity category.';
+  const ozoneCls = showSurfaceOzone && ozoneCategory ? `conditions-aq-${ozoneCategory.cls}` : '';
+  const ozoneValue = showSurfaceOzone
+    ? (ozoneCategory?.label || `${surfaceOzone} µg/m³`)
+    : (ozone != null ? String(ozone) : '—');
+  const ozoneSub = showSurfaceOzone
+    ? (ozoneCategory ? `O₃ ${surfaceOzone} µg/m³ · EU index ${Math.round(ozoneEaqi)}` : 'current O₃ concentration')
+    : (ozone != null ? 'DU · UV model input' : '');
+  const airQualityTip = 'Provider-computed European Air Quality Index. The overall category and pollutant components use their specified averaging windows; raw current concentrations are context only.';
   return `<div class="conditions-now-grid">
-    <div class="conditions-now-cell conditions-now-cell-hero ${uvi != null ? `conditions-uvi-${uviCls}` : ''}"${conditionsTooltipAttr(uviHeroTip, { focusable: true })}>
-      <div class="conditions-now-label">UV index${atm._uvOverridden ? ` <span class="conditions-now-override-badge"${conditionsTooltipAttr('Manual UVI override active — clear in Light setup or via the override row below.', { focusable: true })}>manual</span>` : ''}</div>
+    <div class="conditions-now-cell conditions-now-cell-hero ${uvi != null && uviReliable ? `conditions-uvi-${uviCls}` : ''}${uviReliable ? '' : ' is-unreliable'}"${conditionsTooltipAttr(uviHeroTip, { focusable: true })}>
+      <div class="conditions-now-label">UV index</div>
       <div class="conditions-now-value conditions-now-value-hero">${uvi != null ? uvi : '—'}</div>
-      ${uvi != null ? `<div class="conditions-now-interpretation">${escapeHTML(vitDLabel)}${(() => {
-        if (!medResult) return '';
-        if (medResult.kind === 'no-uv') return ' · UV near zero, no burn risk';
-        if (medResult.kind === 'safe-til-sunset') return ' · won\'t burn before sunset';
-        if (medResult.kind === 'minutes') return ` · ~${_fmtMinutes(medResult.value)} to your sunburn dose${fpIsDefault ? '*' : ''}`;
-        return '';
-      })()}${fpIsDefault && medResult?.kind === 'minutes' ? ` <span class="conditions-now-asterisk"${conditionsTooltipAttr(fpDefaultTip, { focusable: true })}>*</span>` : ''}</div>` : ''}
+      ${uvi != null ? `<div class="conditions-now-interpretation">${escapeHTML(uviReliable ? uviLabel : '⚠ UVI data looks inconsistent — see Details')}</div>` : ''}
       ${(cloudChip || peakChip) ? `<div class="conditions-now-chips">
         ${cloudChip ? `<span class="conditions-now-chip">${escapeHTML(cloudChip)}</span>` : ''}
         ${peakChip ? `<span class="conditions-now-chip conditions-now-chip-peak">${escapeHTML(peakChip)}</span>` : ''}
@@ -255,23 +269,17 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
       <div class="conditions-now-value conditions-now-value-aq">${escapeHTML(_sunPositionLabel(sunAngle))}</div>
       <div class="conditions-now-sub">${escapeHTML(_sunPositionSub(sunAngle))}</div>
     </div>
-    <div class="conditions-now-cell ${surfaceOzoneCls ? `conditions-aq-${surfaceOzoneCls}` : ''}"${conditionsTooltipAttr(ozoneTip, { focusable: true })}>
-      <div class="conditions-now-label">${ozone != null ? 'Ozone column' : 'Smog (ground O₃)'}</div>
-      <div class="conditions-now-value conditions-now-value-aq">${ozone != null ? ozone : (surfaceOzone != null ? escapeHTML(_surfaceOzoneLabel(surfaceOzone)?.label || '—') : '—')}</div>
-      <div class="conditions-now-sub">${
-        ozone != null ? 'DU stratospheric'
-          : surfaceOzone != null ? escapeHTML(_surfaceOzoneLabel(surfaceOzone)?.action || `${surfaceOzone} µg/m³`) : ''
-      }</div>
+    <div class="conditions-now-cell ${ozoneCls}"${conditionsTooltipAttr(ozoneTip, { focusable: true })}>
+      <div class="conditions-now-label">${showSurfaceOzone ? 'Ground ozone' : 'Ozone column'}</div>
+      <div class="conditions-now-value conditions-now-value-aq">${escapeHTML(ozoneValue)}</div>
+      <div class="conditions-now-sub">${escapeHTML(ozoneSub)}</div>
     </div>
     <div class="conditions-now-cell ${aqAgg ? `conditions-aq-${aqAgg.cls}` : ''}"${conditionsTooltipAttr(airQualityTip, { focusable: true })}>
       <div class="conditions-now-label">Air quality</div>
       <div class="conditions-now-value conditions-now-value-aq">${aqAgg ? escapeHTML(aqAgg.label) : '—'}</div>
-      <div class="conditions-now-sub">${aqAgg ? (aqAgg.why === 'EAQI' ? 'EU air quality index' : (aqAgg.why ? `worst pollutant: ${aqAgg.why} ${aqAgg.why === 'PM2.5' && aqPm25 != null ? aqPm25 + ' µg/m³' : ''}` : 'worst-of multi-pollutant')) : ''}</div>
+      <div class="conditions-now-sub">${aqAgg ? `EU index ${Math.round(aqAgg.index)}${aqAgg.why !== 'EAQI' ? ` · highest: ${escapeHTML(aqAgg.why)}` : ''}` : ''}</div>
     </div>
   </div>
   ${sunEventsLine}
-  <div class="conditions-now-footnote"${conditionsTooltipAttr(TANNING_MODIFIERS_NOTE, { focusable: true })}>
-    Burn-time estimates are based on Fitzpatrick skin type — actual burn / tan response also depends on <strong>genetics</strong> (e.g. MC1R variants), <strong>diet</strong> (omega-3, antioxidants), <strong>recent sun history</strong>, <strong>circadian state</strong>, sleep, and hydration.
-  </div>
   ${trustFooter}`;
 }

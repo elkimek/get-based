@@ -37,6 +37,7 @@ export function createDashboardWidgetRenderers(deps) {
     markerHasData,
     renderDashboardLightChannelPills,
     renderLightConditionsWidgetBody,
+    renderLightLiveSession = () => '',
     renderLightSessionLogActions,
     getMobileDashboardMarkers,
     getMobileDashboardInsights,
@@ -126,14 +127,19 @@ export function createDashboardWidgetRenderers(deps) {
     return renderLightSessionLogActions();
   }
 
+  function renderDashboardLightLiveSessionWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
+    return renderLightLiveSession({ includeEmptyState: true });
+  }
+
   function renderDashboardLightChannelsWidget() {
     if (!lightSunModulesReady()) return renderLightSunLoadingState();
     const sessions = getDashboardLightSessions();
     const deviceSessionsAll = getDashboardDeviceSessions();
     const totalSessions = sessions.length + deviceSessionsAll.length;
     const lead = totalSessions === 0
-      ? 'No light sessions yet. Start logging sun or device exposure to fill your channel rhythm.'
-      : 'Seven-day channel rhythm from outdoor sun and therapy devices.';
+      ? 'No light sessions yet. Log sunlight or a device session to see which pathways may have received a signal.'
+      : 'Seven-day light rhythm, with sunlight and device signals kept separate.';
     return `<div class="light-channels-section light-channels-section-dashboard">
       <p class="light-section-hint">${lead}</p>
       ${renderDashboardLightChannelPills()}
@@ -628,6 +634,7 @@ export function createDashboardWidgetRenderers(deps) {
     renderDashboardCorrelationWidget,
     renderDashboardLightTodayWidget,
     renderDashboardLightConditionsWidget,
+    renderDashboardLightLiveSessionWidget,
     renderDashboardLightSessionLogWidget,
     renderDashboardLightChannelsWidget,
     renderDashboardKeyTrendsWidget,

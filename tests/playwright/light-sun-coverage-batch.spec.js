@@ -64,6 +64,10 @@ test('sun session UI covers list detail edit delete and past-session save paths'
 
     try {
       state.currentView = 'light';
+      state.importedData = {
+        ...state.importedData,
+        sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'II', completedAt: Date.now() },
+      };
       const solarZenithAngle = () => 42.4;
       const reconstructSpectrum = () => ({
         wavelengths: [280, 300, 320, 340, 360, 380, 400, 420],
@@ -136,9 +140,13 @@ test('sun session UI covers list detail edit delete and past-session save paths'
 
       const listHost = document.createElement('div');
       listHost.innerHTML = sunUI.renderSessionsList();
-      outcomes.sessionListIncludesActiveControls = !!listHost.querySelector('[data-sun-session-action="pause-session"]')
-        && !!listHost.querySelector('[data-sun-session-action="forgot-stop"]')
-        && !!listHost.querySelector('.ai-inline-test');
+      const activeRow = listHost.querySelector('[data-id="sun-active"]');
+      const completedRow = listHost.querySelector('[data-id="sun-ended"]');
+      outcomes.sessionListIncludesActiveControls = !!activeRow?.querySelector('[data-sun-session-action="pause-session"]')
+        && !!activeRow?.querySelector('[data-sun-session-action="forgot-stop"]')
+        && !listHost.querySelector('.ai-inline-test')
+        && completedRow?.classList.contains('light-session-complete')
+        && !completedRow?.querySelector('.sun-channel-chips,.sun-session-delete');
 
       const chipsHost = document.createElement('div');
       chipsHost.innerHTML = sunUI.renderChannelChips(sessions[0].doses, sessions[0]);
@@ -348,6 +356,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         reconstructSpectrum,
         computeChannelDoses,
         erythemalSED,
+        ocularActinicUVdose: () => 0.04,
         fractionOfMED,
         solarZenithAngle,
         interpolateAtmosphere,
@@ -370,17 +379,17 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         overlay.querySelector('#start-posture').value = 'lying';
         overlay.querySelector('#start-surface').value = 'sand';
         overlay.querySelector('#start-glass').checked = true;
-        overlay.querySelector('#start-rotated').checked = true;
         overlay.querySelector('#start-confirm').click();
         await Promise.resolve();
         outcomes.startDialogPassesSelectedDefaults = calls.some(call => call[0] === 'start'
           && call[1].regions.includes('face')
-          && call[1].eyeMode === 'direct'
           && call[1].lensTint === 'amber'
           && call[1].glassBetween === true
           && call[1].posture === 'lying'
           && call[1].surfaceAlbedo === 'sand'
-          && call[1].rotatedSides === true);
+          && call[1].eyeMode === 'glass-window'
+          && call[1].rotatedSides === false
+          && !overlay.querySelector('#start-rotated'));
       }
 
       active.setSunLiveState('active-sun', {
@@ -411,9 +420,12 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         && paused.retinalUV === 2;
       sessions.find(sess => sess.id === 'active-sun').paused = false;
 
-      active.commitSunLiveSlice(sessions.find(sess => sess.id === 'active-sun'));
-      const afterCommit = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
-      outcomes.commitSliceAccumulatesDoses = afterCommit.doses.vitamin_d > live.doses.vitamin_d;
+      const activeSession = sessions.find(sess => sess.id === 'active-sun');
+      const committedSegment = active.commitSunLiveSlice(activeSession);
+      const afterCommit = active.liveDosesFor(activeSession);
+      outcomes.commitSliceAccumulatesDoses = committedSegment?.durationMin > 0
+        && activeSession.exposureSegments?.length === 1
+        && afterCommit.doses.vitamin_d >= live.doses.vitamin_d;
 
       await active.quickLogSunSession();
       outcomes.quickLogStopsActiveSession = calls.some(call => call[0] === 'stop' && call[1] === 'active-sun')
@@ -493,7 +505,7 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
       await modals.openLuxMeter({ roomId: 'bedroom' }, deps);
       const luxInput = document.getElementById('lux-manual-input');
       outcomes.luxDeniedShowsManualInput = !!luxInput
-        && document.getElementById('lux-source-line')?.textContent.includes('Camera access denied');
+        && document.getElementById('lux-source-line')?.textContent.includes('Camera unavailable');
       outcomes.luxManualSavePersistsReading = false;
       if (luxInput) {
         luxInput.value = '420';
@@ -708,7 +720,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
 
       cameraPattern = 'flicker';
       await modals.openFlickerDetector({ roomId: 'bench' }, deps);
-      const flickerReady = await waitFor(() => document.getElementById('flicker-result')?.textContent.includes('flicker'));
+      const flickerReady = await waitFor(() => document.getElementById('flicker-result')?.textContent.includes('banding'));
       document.getElementById('flicker-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'flicker'));
       const flickerSaved = savedReadings.find(item => item.kind === 'flicker');
@@ -720,7 +732,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
 
       cameraPattern = 'cct';
       await modals.openCCTMeter({ roomId: 'bench' }, deps);
-      const cctReady = await waitFor(() => /^\d+ K$/.test(document.getElementById('cct-value')?.textContent || ''));
+      const cctReady = await waitFor(() => /^~\d+ K$/.test(document.getElementById('cct-value')?.textContent || ''));
       document.getElementById('cct-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'cct'));
       const cctSaved = savedReadings.find(item => item.kind === 'cct');
@@ -733,7 +745,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       await modals.openGlassTransmission({ roomId: 'window' }, deps);
       cameraPattern = 'glass-inside';
       document.getElementById('glass-measure-inside')?.click();
-      const insideReady = await waitFor(() => document.getElementById('glass-reading-inside')?.textContent.includes('lux'));
+      const insideReady = await waitFor(() => document.getElementById('glass-reading-inside')?.textContent.includes('camera level'));
       cameraPattern = 'glass-outside';
       document.getElementById('glass-measure-outside')?.click();
       const outsideReady = await waitFor(() => document.getElementById('glass-save')?.disabled === false);
@@ -877,6 +889,7 @@ test('light devices cover session detail edit log active card and rendered list 
       };
       state.importedData = {
         ...state.importedData,
+        sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'III', completedAt: Date.now() },
         lightDevices: [device],
         deviceSessions: [session],
       };

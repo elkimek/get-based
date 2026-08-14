@@ -1444,6 +1444,41 @@ describe('AI proxy runtime behavior', () => {
     expect(await responseJson(oversized)).toEqual({ error: 'Proxy response exceeds size cap' });
   });
 
+  it('resolves a postal area server-side and returns only rounded coordinates', async () => {
+    const missingPostal = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '',
+    }, { clientIp: '203.0.113.91' }));
+    expect(missingPostal.status).toBe(400);
+
+    globalThis.fetch = vi.fn(async (url, init) => jsonResponse([{
+      lat: '50.087451',
+      lon: '14.420671',
+      name: '110 00',
+      display_name: '110 00, Prague, Czechia',
+      address: { postcode: '110 00', country: 'Czechia', country_code: 'cz' },
+    }]));
+    const resolved = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '110 00',
+    }, { clientIp: '203.0.113.92' }));
+
+    expect(resolved.status).toBe(200);
+    expect(await responseJson(resolved)).toMatchObject({
+      latitude: 50.1,
+      longitude: 14.4,
+      accuracyKm: 11,
+      source: 'postal-area',
+      attribution: '© OpenStreetMap contributors',
+    });
+    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    expect(url).toContain('https://nominatim.openstreetmap.org/search?');
+    expect(url).toContain('postalcode=110+00');
+    expect(init.headers['User-Agent']).toContain('getbased-health-location-proxy');
+  });
+
   it('strips the CAMS bearer before following an allowed cross-origin redirect', async () => {
     process.env.UVDATA_UPSTREAM = 'https://uv.example.com';
     process.env.UVDATA_BEARER = 'uv-secret';

@@ -58,6 +58,7 @@ import {
   geneticVitaminDMultiplier,
   pbmJoulesPerCm2,
   reconstructSpectrum,
+  ocularActinicUVdose,
   retinalUVdose,
   vitaminDIU,
   vitaminDIUPerSession,
@@ -102,14 +103,15 @@ import {
   renderLightChannelsLiveRuntime,
   renderLightTodayStripRuntime,
 } from './sun-runtime.js';
-import { getSunCoords, requestPreciseLocation } from './sun-location.js';
+import { clearCurrentLocation, getSunCoords, requestCurrentLocation, requestPreciseLocation } from './sun-location.js';
 import { configureAIVerdictRuntimeDeps } from './ai-verdict-engine-runtime.js';
 import { configureProfileContextLightDeps } from './profile-context.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
+import { reopenSunSetup } from './sun-defaults.js';
 export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette };
 export { renderSessionsList, renderSunSessionRow, openDetailedSessionDialog, openSunSessionDetail };
 export { quickLogSunSession, openStartSunSessionDialog, _wireBackdropClose, trapModalFocus };
-export { getSunCoords, requestPreciseLocation };
+export { clearCurrentLocation, getSunCoords, requestCurrentLocation, requestPreciseLocation };
 export {
   TOO_SHORT_FOR_CHANNEL_VERDICT_MIN,
   formatChannelUnit,
@@ -160,8 +162,8 @@ export {
 // safety state is conveyed by the icon, not a redundant warning string.
 export const EYE_MODES = [
   { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered (never stare at sun)', warn: true },
-  { key: 'sunglasses',     label: 'Sunglasses',         pickerLabel: 'Sunglasses' },
-  { key: 'clear-glasses',  label: 'Clear glasses',      pickerLabel: 'Clear glasses' },
+  { key: 'sunglasses',     label: 'UV-blocking sunglasses', pickerLabel: 'UV-blocking sunglasses' },
+  { key: 'clear-glasses',  label: 'Clear UV-blocking lenses', pickerLabel: 'Clear UV-blocking lenses' },
   { key: 'closed-eyes',    label: 'Closed eyes',        pickerLabel: 'Closed eyes' },
   { key: 'glass-window',   label: 'Through window glass', pickerLabel: 'Through window glass' },
   { key: 'indoor',         label: 'Not eye-exposed',    pickerLabel: 'Not eye-exposed' },
@@ -176,42 +178,30 @@ export const LENS_TINTS = [
 ];
 
 // ─── Channel display metadata ─────────────────────────────────────────
-// Daily targets calibrated against a "good outdoor day" reference: roughly
-// 30-60 minutes of moderate-body-fraction (~30%) midday exposure for
-// skin channels, or 10-30 minutes of eye-direct outdoor light for eye
-// channels. Raw channel-au scales with body fraction × duration × spectral
-// integration — a fully-exposed sunbather will hit several hundred percent
-// of these targets in a long session, which is the correct mathematical
-// outcome (they got a lot of that signal), not a UI bug.
-//
-// Calibration basis per channel noted inline. Targets are "ceiling for a
-// typical active outdoor day", not "minimum for benefit" — most users
-// will see 30-100% on most days.
+// `dailyTarget` is retained as a legacy internal normalization anchor for
+// old correlations and stored analyses. It is not a biological requirement
+// and must not be shown as a progress goal. Channel UI is source-aware and
+// reports whether a modeled signal was logged, not a percent completed.
 export const CHANNEL_DISPLAY = {
-  vitamin_d:  { icon: '☀',  label: 'Vitamin D',          dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
-  // POMC uses the McKinlay-Diffey erythemal action spectrum (CIE S 007 /
-  // ISO 17166:1999, UVB-heavy) — accumulates ~4× slower per minute than
-  // vit-D. ~30 min noon at face+hands ≈ 60 channel-au. Target 80 = strong
-  // daily UVA-UVB exposure.
-  pomc:       { icon: '⚡',  label: 'Mood & hormones',    dailyTarget:     80, what: 'Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good.' },
-  // NO/cardiovascular uses UVA action spectrum (Liu/Oplander 2014).
-  // BP-reducing dose ~30 min midday on 30-50% body ≈ 5000 channel-au.
-  // Set to 5000 — matches the empirical threshold in the literature.
-  no_cv:      { icon: '❤',  label: 'Cardiovascular',     dailyTarget:   5000, what: 'UVA from skin releases nitric oxide — supports blood-vessel function, lowers blood pressure, improves circulation, dampens inflammation.' },
-  // Violet-eye (Opn5 360-440nm at eye). Hattar/Huberman recommend
-  // 10-30 min outdoor morning light for dopamine + eye health. 30 min
-  // morning walk eye-direct ≈ 8000 channel-au; target 8000.
-  violet_eye: { icon: '👁',  label: 'Outdoor eye light',  dailyTarget:   8000, what: 'Outdoor 360–400 nm hits sensors in eye and skin. Linked to eye health and dopamine release — the difference between "outside" and "window light" even when both feel bright.' },
-  // Circadian/melanopic at eye. ~30-60 min outdoor light entrains the
-  // SCN. Per CIE S 026 melanopic luminous efficacy K_mel,v ≈ 614 lx/(W/m²).
-  // 30 min direct outdoor = ~20000 channel-au. Keep target.
-  circadian:  { icon: '🌅', label: 'Body clock',         dailyTarget:  20000, what: 'Bright light at the eye sets your circadian rhythm — earlier bedtime, faster wake-up, deeper sleep. Strongest effect in the first 2 hours after sunrise.' },
-  // NIR-solar broadband (600-1400nm). Wunsch/Jeffery optical tissue
-  // window — solar NIR is ~250-400 W/m² at noon. 60 min @ 30% body =
-  // ~30000 channel-au. Target 30000.
-  nir_solar:  { icon: '🔥', label: 'Cellular repair',    dailyTarget:  30000, what: 'Solar 600–1400 nm penetrates deep into tissue and reaches mitochondria. Supports recovery, raises local melatonin in cells, reduces inflammation. The half of sunlight that windows block.' },
-  pbm_red:    { icon: '🔴', label: 'Red light therapy',  dailyTarget:   8000, what: 'Narrowband red light (660 nm) from a therapy panel. Same target as solar red but more concentrated and indoor.' },
-  pbm_nir:    { icon: '🟣', label: 'Near-IR therapy',    dailyTarget:  10000, what: 'Narrowband near-infrared (810/850 nm) from a therapy panel. Reaches deeper tissue than visible red.' },
+  vitamin_d:  { icon: '☀',  label: 'Vitamin D',          dailyTarget:    300, what: 'UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.' },
+  // POMC uses the McKinlay-Diffey erythemal action spectrum as a coarse
+  // UV-response proxy. The legacy anchor is not a recommended exposure.
+  pomc:       { icon: '⚡',  label: 'Skin & mood',        dailyTarget:     80, what: 'Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.' },
+  // NO/cardiovascular uses a coarse UVA action spectrum informed by
+  // Liu/Oplander. It does not define a blood-pressure treatment dose.
+  no_cv:      { icon: '❤',  label: 'Blood vessels',      dailyTarget:   5000, what: 'UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.' },
+  // Violet-eye is exploratory. Human evidence is stronger for time outdoors
+  // than for any wavelength-specific eye dose, so this remains a log signal.
+  violet_eye: { icon: '👁',  label: 'Outdoor eye light',  dailyTarget:   8000, what: 'Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.' },
+  // Circadian/melanopic proxy at eye. The UI converts modeled channel dose
+  // using the D65 melanopic radiant-efficacy denominator; without a measured
+  // SPD it is an estimate, not CIE-compliant M-EDI metrology.
+  circadian:  { icon: '🌅', label: 'Body clock',         dailyTarget:  20000, what: 'Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.' },
+  // NIR-solar is a broadband modeled input. Published red/NIR work motivates
+  // the channel, but the legacy anchor is not a biological requirement.
+  nir_solar:  { icon: '⚡', label: 'Cell energy & repair', dailyTarget:  30000, what: 'May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.' },
+  pbm_red:    { icon: '🔴', label: 'Red light device',   dailyTarget:   8000, what: 'A device delivers a targeted red-light signal. It is tracked separately from sunlight.' },
+  pbm_nir:    { icon: '🟣', label: 'Near-IR device',     dailyTarget:  10000, what: 'A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.' },
 };
 
 // Map a raw dose value → qualitative tier 0-4 with plain-English labels.
@@ -269,21 +259,19 @@ export async function resumeSunSession(id) {
   _refreshSurfaces();
 }
 
-// Mid-session "I just flipped" hook. Sets rotatedSides=true on the
-// session record so the vit-D IU readout doubles (matches dminder's
-// "100% naked = both sides over the session" convention). Idempotent —
-// tapping again on an already-rotated session is a no-op so users
-// don't accidentally over-multiply.
+// Mid-session side-change hook. It commits the prior timed slice and records
+// a history boundary. Rotation never multiplies a dose; if the exposed body
+// regions also change, the separate Coverage control records that change.
 export async function flipSidesMidSession(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
   if (sess.bodyExposure?.rotatedSides) {
-    showNotification('Already logged as rotated — IU readout already accounts for both sides.', 'success', 3500);
+    showNotification('Side change already recorded. Use Coverage if different skin is exposed now.', 'info', 3500);
     return;
   }
   const updated = await markSessionRotated(id);
   if (!updated) return;
-  showNotification('Logged as rotated — vit-D IU now reflects both sides exposed over the session.', 'success', 3500);
+  showNotification('Side change recorded at this time. Dose was not multiplied; update Coverage if different skin is exposed.', 'success', 5000);
   _refreshSurfaces();
 }
 
@@ -633,6 +621,7 @@ function _refreshSurfaces(scrollAnchor) {
 // "Body unset" fallback that the bare preset-label lookup gives.
 function _summarizeBodyExposure(sess) {
   const presetKey = sess?.bodyExposure?.preset;
+  if (presetKey === 'covered') return 'No skin exposed (0%)';
   const presetLabel = EXPOSURE_PRESETS.find(p => p.key === presetKey)?.label;
   if (presetLabel) return presetLabel;
   const regionCount = (sess?.bodyExposure?.regions || []).length;
@@ -677,6 +666,7 @@ configureSunActiveSession({
   reconstructSpectrum,
   computeChannelDoses,
   erythemalSED,
+  ocularActinicUVdose,
   fractionOfMED,
   solarZenithAngle,
   interpolateAtmosphere,
@@ -684,6 +674,7 @@ configureSunActiveSession({
   vitaminDIUPerSession,
   renderLightChannelsLive: renderLightChannelsLiveRuntime,
   renderLightTodayStrip: renderLightTodayStripRuntime,
+  openLightSetup: reopenSunSetup,
 });
 
 configureSunSessionUI({
@@ -722,6 +713,7 @@ configureSunSessionUI({
   vitaminDIUPerSession,
   pbmJoulesPerCm2,
   circadianMelanopicLux,
+  openLightSetup: reopenSunSetup,
 });
 
 configureAIVerdictRuntimeDeps({ refreshSunSurfaces: _refreshSurfaces });

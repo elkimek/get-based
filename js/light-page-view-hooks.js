@@ -28,7 +28,7 @@ import {
   renderActiveDeviceSessionCard,
   renderDevicesSection,
 } from './light-devices.js';
-import { getDeviceSessions, getDevices, rollingDeviceTotals } from './light-devices-store.js';
+import { getActiveDeviceSession, getDeviceSessions, getDevices, rollingDeviceTotals } from './light-devices-store.js';
 import { openLightEnvironmentAssessment, renderEnvironmentAssessmentSummary } from './light-env.js';
 import { renderLightTools } from './light-tools.js';
 import { renderChannelMixVerdict } from './light-channels-ai-analysis.js';
@@ -42,6 +42,7 @@ configureLightPageView({
   cumulativeMEDToday,
   cumulativeMEDYesterday,
   ensureActiveDeviceTicker,
+  getActiveDeviceSession,
   getActiveSession,
   getDeviceSessions,
   getDevices,

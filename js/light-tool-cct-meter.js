@@ -1,5 +1,5 @@
 // @ts-check
-// Camera-backed color temperature and melanopic-load workflow.
+// Camera-backed warm/cool appearance workflow.
 
 import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -34,7 +34,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('cct')}
-      <p class="modal-body-hint">Reading updates live.</p>
+      <p class="modal-body-hint">Approximate warm/cool camera check. It cannot show spectral completeness, red/infrared content, or melanopic EDI.</p>
       <video id="cct-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
       <div class="cct-result">
         <div class="cct-value" id="cct-value">— K</div>
@@ -66,6 +66,8 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   let currentCCT = null;
   let currentMelanopic = null;
   let currentPWMActive = false;
+  let measurementConfidence = 0.2;
+  let whiteBalanceMode = 'auto';
   const valueEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-value'));
   const toneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-tone'));
   const coherenceEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-coherence'));
@@ -86,6 +88,8 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     if (closed) return;
     const lock = await lockCameraForMeasurement(stream);
     if (closed) return;
+    whiteBalanceMode = lock.whiteBalance;
+    measurementConfidence = lock.whiteBalance === 'manual' ? 0.35 : 0.2;
     if (lock.whiteBalance !== 'manual') {
       coherenceEl.innerHTML = `<span style="color:var(--orange);font-size:11px">⚠ camera auto-white-balance is on — CCT reading is the camera's error, not the source. Try a different browser / phone, or use a meter for accurate readings.</span>`;
     }
@@ -114,7 +118,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       const normalizedRed = red / sum;
       const normalizedBlue = blue / sum;
       const ratio = normalizedBlue / Math.max(normalizedRed, 0.01);
-      const cct = Math.round(1800 + Math.min(5200, ratio * 4500));
+      const cct = Math.round((1800 + Math.min(5200, ratio * 4500)) / 100) * 100;
       const melanopic = normalizedBlue;
       const { bandingRatio, stripes } = computeRowBanding(data, canvas.width, canvas.height);
       bandingPeaks.push(bandingRatio);
@@ -123,18 +127,18 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       currentCCT = cct;
       currentMelanopic = melanopic;
       currentPWMActive = peakBanding > 0.10 && stripes >= 2;
-      valueEl.textContent = `${cct} K`;
+      valueEl.textContent = `~${cct} K`;
       toneEl.textContent = cctTone(cct);
       if (lock.whiteBalance === 'manual') {
         const melanopicNote = melanopic > 0.32
-          ? `<span style="color:var(--orange);font-size:11px">⚠ high melanopic load (${(melanopic * 100).toFixed(0)}%) — daytime use only</span>`
+          ? `<span style="color:var(--orange);font-size:11px">blue-rich camera signal (${(melanopic * 100).toFixed(0)}% RGB-blue proxy) — not M-EDI</span>`
           : melanopic < 0.25
-            ? `<span style="color:var(--green);font-size:11px">✓ sleep-safe melanopic load (${(melanopic * 100).toFixed(0)}%)</span>`
-            : `<span style="color:var(--text-muted);font-size:11px">mixed melanopic load (${(melanopic * 100).toFixed(0)}%)</span>`;
+            ? `<span style="color:var(--text-muted);font-size:11px">blue-poor camera signal (${(melanopic * 100).toFixed(0)}% RGB-blue proxy) — not a sleep-safety determination</span>`
+            : `<span style="color:var(--text-muted);font-size:11px">mixed camera RGB signal (${(melanopic * 100).toFixed(0)}% blue proxy) — not M-EDI</span>`;
         const pwmNote = peakBanding > 0.10 && stripes >= 2
-          ? '<br><span style="color:var(--orange);font-size:11px">⚠ PWM dimming detected — open Flicker Detector for severity</span>'
+          ? '<br><span style="color:var(--orange);font-size:11px">⚠ Rolling-shutter banding detected — use a suitable flicker meter to quantify it</span>'
           : '';
-        coherenceEl.innerHTML = solarCoherence(cct) + `<br>${melanopicNote}${pwmNote}`;
+        coherenceEl.innerHTML = `${melanopicNote}${pwmNote}<br><span style="color:var(--text-muted);font-size:11px">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>`;
       }
       if (cctState.running && !closed) requestAnimationFrame(tick);
     };
@@ -147,8 +151,19 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   queryRequired(overlay, '#cct-save').addEventListener('click', async () => {
     if (currentCCT == null) return;
     await saveMeasurement('cct', currentCCT, {
-      confidence: 0.5,
-      extra: { melanopic: currentMelanopic, pwmActive: currentPWMActive },
+      confidence: measurementConfidence,
+      extra: {
+        // Keep the legacy key so existing exports and older consumers do not
+        // lose the recorded value.  `cameraBlueRatioProxy` + `method` are the
+        // authoritative fields: a phone RGB ratio is not a melanopic metric.
+        cameraBlueRatioProxy: currentMelanopic,
+        melanopic: currentMelanopic,
+        bandingDetected: currentPWMActive,
+        pwmActive: currentPWMActive, // legacy export key; this is camera banding, not a PWM diagnosis
+        method: 'camera-rgb-proxy',
+        whiteBalanceMode,
+        estimateRoundedToK: 100,
+      },
       roomId,
     });
     showNotification(`Color temp saved: ${currentCCT} K`);
@@ -163,17 +178,4 @@ function cctTone(kelvin) {
   if (kelvin < 5000) return 'Cool white / fluorescent';
   if (kelvin < 6000) return 'Daylight';
   return 'Overcast / blue-shifted';
-}
-
-function solarCoherence(kelvin) {
-  const hour = new Date().getHours();
-  let solarKelvin;
-  if (hour < 6 || hour >= 20) solarKelvin = 2000;
-  else if (hour < 8 || hour >= 18) solarKelvin = 3500;
-  else if (hour < 10 || hour >= 16) solarKelvin = 5000;
-  else solarKelvin = 5500;
-  const difference = Math.abs(kelvin - solarKelvin);
-  if (difference < 800) return `<span style="color:var(--green)">✓ matches solar time (~${solarKelvin} K)</span>`;
-  if (difference < 1500) return `<span style="color:var(--text-secondary)">slight mismatch (solar now ~${solarKelvin} K)</span>`;
-  return `<span style="color:var(--orange)">⚠ mismatch — solar is ~${solarKelvin} K right now</span>`;
 }

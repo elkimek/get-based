@@ -31,6 +31,7 @@ const _DEVICE_LABELS = {
 export function getScreenFingerprint(s) {
   if (!s) return '';
   const parts = [
+    'v2-blue-reduction-not-zero',
     s.device || '',
     s.roomId || 'portable',
     Math.round((s.hoursPerDay || 0) * 10) / 10,
@@ -57,12 +58,12 @@ export function buildScreenContext(s) {
     const ev = Number(s.eveningUseAfterSunset);
     lines.push(`Time after sunset: ${ev > 0 ? ev + ' hr' : 'none'}`);
   }
-  lines.push(`Blue blocker active: ${s.blueBlockerEnabled ? 'yes (glasses / f.lux / Night Shift / amber tint)' : 'no'}`);
+  lines.push(`Blue-reduction measure noted: ${s.blueBlockerEnabled ? 'yes (type and attenuation unknown; do not treat exposure as zero)' : 'no'}`);
 
-  // Bedroom-phone signal — the highest-leverage call-out for most users.
+  // Bedroom-phone signal — important timing context, not a measured dose.
   if (s.device === 'phone' && room && /bedroom|sleep/i.test(room.name || '')) {
     lines.push('');
-    lines.push('NOTE: phone is bound to a sleep room. Phone-in-bed is the single largest junk-light vector for most users.');
+    lines.push('NOTE: phone is bound to a sleep room; ask whether it is used near bedtime and at what brightness. Do not infer dose from location alone.');
   }
 
   // User context
@@ -84,22 +85,23 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = use pattern is benign (low daily hours, no evening use, OR blue blocker active during evening hours)',
+  '  green = no after-sunset use is recorded',
   '  yellow = moderate concern (multi-hour evening use without a blue blocker, or screens in sleep-relevant rooms)',
   '  red = high circadian disruption (phone in bed, multi-hour cool-bright evening use, screens visible from sleeping position)',
   '  gray = not enough data (no device set, no hours)',
   '',
   'Biology priors:',
-  '  • Phone-in-bed is the single largest junk-light vector for most users — bright, blue-shifted, eye-direct, often used until sleep onset (Cain & Gradisar 2010, LeBourgeois 2017). When a phone is bound to a sleep room, treat as red unless blue-blocker is active AND evening hours are <1.',
-  '  • TV in living room evening — cool blue light + bright + multi-hour. Distance helps (vs phone), but spectrum + duration usually dominate.',
-  '  • Monitor / laptop work after sunset — same physiology as TV but typically eye-direct + closer + longer-duration. Blue blocker (f.lux / Night Shift / amber glasses) is the cheapest mitigation.',
+  '  • A screen record contains timing, not eye-level light dose. Brightness, viewing distance, content, ambient light, and spectrum are not measured.',
+  '  • Phone use in a sleep room is worth surfacing because it is close and often near bedtime, but do not diagnose disruption from location alone.',
+  '  • TV, monitor, and laptop impact varies substantially with brightness, distance, duration, and surrounding room light.',
+  '  • Night Shift, f.lux, tint, or glasses may reduce short-wavelength exposure. They do not erase it; changing color without lowering brightness may be insufficient.',
   '  • E-reader (e-ink) — backlight off OR warm-tinted = green; cool backlight on at night ≈ tablet impact.',
   '  • Tablet — between phone and laptop in impact. Position-dependent (held close like a phone vs propped on a table like a TV).',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
   'tip: one sentence, max 16 words. The single most-leveraged change for THIS screen.',
-  'detail: 2–3 sentences. Cite specific numbers (hours, evening hours, blue-blocker state, room context) and the biology that drives the verdict. Concrete, observational.',
+  'detail: 2–3 sentences. Cite entered hours and room context, but state that this is a behavior screen rather than a measured dose. Never claim a blue-reduction setting makes evening use harmless.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');

@@ -80,6 +80,8 @@ function handleLightEnvAction(actionEl, event, actions) {
 
   if (action === 'set-room-source-archetype') {
     void actions.setLightEnvRoomSourceArchetype?.(id, key);
+  } else if (action === 'set-room-daylight-level') {
+    void actions.setLightEnvRoomDaylightLevel?.(id, key);
   } else if (action === 'update-room-primary-source') {
     void actions.updateLightEnvRoomAndRender?.(id, { primarySource: actionEl.value });
   } else if (action === 'set-room-hours-bucket') {

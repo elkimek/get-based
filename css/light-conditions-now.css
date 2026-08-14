@@ -24,8 +24,7 @@
 
 @media (pointer: coarse) {
   .conditions-now-refresh,
-  .conditions-now-inspect,
-  .conditions-now-override button {
+  .conditions-now-inspect {
     min-height: 44px;
     min-width: 44px;
     display: inline-flex;
@@ -46,6 +45,32 @@
   container-name: conditions-now;
   min-width: 0;
   max-width: 100%;
+}
+.conditions-now-location-setup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px dashed color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.conditions-now-location-setup .dashboard-action-btn {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .conditions-now-location-setup {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .conditions-now-location-setup .dashboard-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 .light-conditions-now-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -145,6 +170,13 @@
   color: var(--text-muted); font-weight: 600;
   text-align: left;
   margin-bottom: 10px;
+}
+.conditions-now-events-scroll-hint {
+  display: none;
+  float: right;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: none;
 }
 .conditions-now-events {
   min-width: 0;
@@ -302,20 +334,6 @@
   font-weight: 700;
   cursor: help;
   margin-left: 1px;
-}
-
-/* Footnote at the bottom — burn-time estimates depend on more than
-   skin type. Italic muted, soft border above. */
-.conditions-now-footnote {
-  margin-top: 10px; padding: 8px 0;
-  font-size: 11px; color: var(--text-muted);
-  font-style: italic; line-height: 1.5;
-  border-top: 1px solid var(--border);
-}
-.conditions-now-footnote strong {
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-style: normal;
 }
 
 /* App tooltip carriers used by custom data attrs. Legacy `title`
@@ -504,46 +522,6 @@ button[data-app-tooltip] {
 .conditions-now-source.is-fresh   .conditions-now-source-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
 .conditions-now-source.is-stale   .conditions-now-source-dot { background: var(--yellow); }
 .conditions-now-source.is-offline .conditions-now-source-dot { background: var(--orange); }
-.conditions-now-override {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; color: var(--text-muted);
-}
-.conditions-now-override input[type="number"] {
-  width: 56px; padding: 2px 6px;
-  background: var(--bg-secondary); border: 1px solid var(--border);
-  border-radius: 4px; font-size: 11px; color: var(--text-primary);
-  font-family: inherit;
-}
-.conditions-now-override button {
-  background: transparent; border: 1px solid var(--border);
-  border-radius: 4px; padding: 2px 8px; font-size: 11px;
-  color: var(--text-secondary); cursor: pointer; font-family: inherit;
-}
-/* Mobile: stack the manual-UVI row onto its own line and grow input +
-   button so they meet a usable tap target. */
-@media (max-width: 600px) {
-  .conditions-now-override {
-    flex-basis: 100%; width: 100%;
-    margin-top: 4px;
-  }
-  .conditions-now-override label { flex: 0 0 auto; }
-  .conditions-now-override input[type="number"] {
-    flex: 1; min-width: 0; width: auto;
-    padding: 8px 10px; font-size: 14px;
-  }
-  .conditions-now-override button {
-    padding: 8px 14px; font-size: 13px;
-    min-height: 38px;
-  }
-}
-.conditions-now-override button:hover { color: var(--text-primary); border-color: var(--text-secondary); }
-.conditions-now-override-badge {
-  display: inline-block; margin-left: 6px;
-  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 1px 6px; border-radius: 3px;
-  background: var(--accent); color: var(--bg);
-}
 .conditions-now-refresh, .conditions-now-inspect {
   background: color-mix(in srgb, var(--bg-secondary) 64%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
@@ -551,6 +529,7 @@ button[data-app-tooltip] {
   padding: 3px 8px; font-size: 11px;
   color: var(--text-secondary); cursor: pointer;
   font-family: inherit;
+  min-height: 28px;
 }
 .conditions-now-refresh:hover, .conditions-now-inspect:hover {
   background: var(--bg-secondary);
@@ -598,6 +577,22 @@ button[data-app-tooltip] {
   color: var(--orange); font-size: 11px;
   cursor: help;
 }
+.conditions-now-attribution {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 2px;
+}
+.conditions-now-attribution:hover { color: var(--text-primary); }
+.conditions-now-cell.is-unreliable,
+.conditions-now-pill.is-unreliable {
+  border-color: color-mix(in srgb, var(--orange) 48%, var(--border));
+}
+.conditions-now-cell.is-unreliable .conditions-now-value,
+.conditions-now-pill.is-unreliable strong,
+.conditions-now-cell.is-unreliable .conditions-now-interpretation {
+  color: var(--orange);
+}
 
 /* Compact source pill — appears in dashboard Light Today strip */
 .conditions-now-source-compact {
@@ -617,6 +612,7 @@ button[data-app-tooltip] {
 }
 
 @media (max-width: 600px) {
+  .conditions-now-events-scroll-hint { display: inline; }
   /* Conditions-now full variant on the Light page is much taller than
      the compact dashboard variant. On phones, drop to the compact
      style for parity. */

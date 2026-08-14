@@ -44,13 +44,15 @@ function _buildConfigFromParsed(parsed) {
 
 // Apply runtime migrations + selfhost-empty-URL sanity. Returns a possibly-
 // new config plus a flag indicating whether the persisted record needs
-// rewriting (legacy `cams`/`noaa` mode → `auto`).
+// rewriting (legacy `cams`/`noaa`/`manual` mode → `auto`).
 function _applyConfigRuntimeFixups(cfg) {
   let needsPersist = false;
-  // Migration: pre-v1.7.x configs may carry `mode: 'cams'` or `mode: 'noaa'`
-  // — both removed from the picker as confusing / unhelpful (cams-only
-  // breaks clouds/temp; NOAA blocks CORS). Map to 'auto' silently.
-  if (cfg.mode === 'cams' || cfg.mode === 'noaa') {
+  // Migration: older configs may carry removed source modes. Manual UVI was
+  // retired because it was easy to mistake an instrument reading for a full
+  // atmospheric model and could silently disable current-data fetching.
+  // CAMS-only also breaks clouds/temp, while NOAA blocks browser CORS.
+  // Map every removed mode to `auto` silently.
+  if (cfg.mode === 'cams' || cfg.mode === 'noaa' || cfg.mode === 'manual') {
     cfg.mode = 'auto';
     needsPersist = true;
   }
@@ -170,11 +172,10 @@ export function saveMeteoConfig(cfg) {
 
 function defaultConfig() {
   return {
-    // 'auto'       — CAMS for ozone/aerosols + Open-Meteo for clouds/temp (best)
+    // 'auto'       — CAMS direct UV/composition + satellite/Open-Meteo context
     // 'open-meteo' — Open-Meteo only, skip CAMS (privacy from CDS-API)
     // 'selfhost'   — user-run getbased-uvdata server (full privacy)
-    // 'manual'     — UV-meter only, no network
-    // Legacy values 'cams' and 'noaa' migrate to 'auto' on load (see getMeteoConfig).
+    // Legacy values 'cams', 'noaa', and 'manual' migrate to 'auto' on load.
     mode: 'auto',
     selfhostUrl: '',       // user's getbased-uvdata server URL
     selfhostBearer: '',    // optional bearer token for selfhost

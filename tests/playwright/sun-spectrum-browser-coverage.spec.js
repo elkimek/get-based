@@ -187,7 +187,7 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         && sedBare > sedProtected
         && mod.fractionOfMED({ sed: 1, fitzpatrick: 'I' }) > mod.fractionOfMED({ sed: 1, fitzpatrick: 'VI' })
         && mod.fractionOfMED({ sed: 1, fitzpatrick: 'III', photosensitive: true })
-          > mod.fractionOfMED({ sed: 1, fitzpatrick: 'III' })
+          === mod.fractionOfMED({ sed: 1, fitzpatrick: 'III' })
         && mod.fractionOfMED({ sed: 1, fitzpatrick: 'III', medScale: 0.25 })
           > mod.fractionOfMED({ sed: 1, fitzpatrick: 'III', photosensitive: true })
         && Number.isFinite(mod.fractionOfMED({ sed: 1, fitzpatrick: 'unknown' }));
@@ -210,12 +210,12 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         && geneResult.contributors.length === 4;
 
       outcomes.vitaminDConversions = mod.vitaminDIURaw(-1, 'II', 8) === 0
-        && mod.vitaminDIU(100, 'II', 1.5) === 0
-        && mod.vitaminDIU(100, 'II', 2.5) < mod.vitaminDIU(100, 'II', 3)
+        && mod.vitaminDIU(100, 'II', 1.5) === mod.vitaminDIU(100, 'II', 8)
+        && mod.vitaminDIU(100, 'II', 2.5) === mod.vitaminDIU(100, 'II', 3)
         && mod.vitaminDIU(100, 'VI', 8) < mod.vitaminDIU(100, 'II', 8)
-        && mod.vitaminDIU(100, 'II', 8, true) === 2 * mod.vitaminDIU(100, 'II', 8, false)
+        && mod.vitaminDIU(100, 'II', 8, true) === mod.vitaminDIU(100, 'II', 8, false)
         && mod.vitaminDIU(10000, 'II', 8) === mod.VITD_DAILY_SATURATION_IU
-        && mod.vitaminDIURaw(100, 'II', 8, false, genetics) < mod.vitaminDIURaw(100, 'II', 8)
+        && mod.vitaminDIURaw(100, 'II', 8, false, genetics) === mod.vitaminDIURaw(100, 'II', 8)
         && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, 0.37) === Math.round(0.37 * mod.VITD_PER_SESSION_BODYFRAC_CAP_IU)
         && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, null) === mod.VITD_DAILY_SATURATION_IU
         && mod.vitaminDIUPerSession(10, 'II', 8, false, null, 0.37) === mod.vitaminDIURaw(10, 'II', 8);
@@ -237,6 +237,9 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
       outcomes.retinalUVdoseBranches = mod.retinalUVdose({ spectrum: null, eyeExposure: { mode: 'direct', durationSec: 60 } }) === 0
         && mod.retinalUVdose({ spectrum: clear, eyeExposure: null }) === 0
         && mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'sunglasses', durationSec: 60 } }) === 0
+        && mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'glass-window', durationSec: 60 } }) > 0
+        && mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'glass-window', durationSec: 60 } })
+          < mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'direct', durationSec: 60 } })
         && mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'direct', durationSec: 60 }, zenithDeg: 86 }) === 0
         && mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'direct', durationSec: 60 }, zenithDeg: 83 }) > 0
         && mod.retinalUVdose({ spectrum: clear, eyeExposure: { mode: 'direct', durationSec: 60 }, zenithDeg: 70 })

@@ -366,32 +366,38 @@ test('light channel view covers pills detail panels suggestions and light-page r
       host.innerHTML = channel.renderChannelPills(totals7d, totals30d);
       channel.installLightChannelActionDelegates(host);
       const pills = Array.from(host.querySelectorAll('.light-pill'));
-      outcomes.pillsRenderSixSparklinesAndTrendData = pills.length === 6
+      outcomes.pillsRenderSixSourceAwareSparklines = pills.length === 6
         && !!host.querySelector('.light-pill-sparkline')
-        && pills.some(pill => pill.dataset.channel === 'vitamin_d' && pill.dataset.trend === 'up')
-        && pills.some(pill => pill.querySelector('.light-pill-daycount')?.textContent.includes('/7'));
+        && pills.some(pill => pill.dataset.channel === 'vitamin_d' && pill.textContent.includes('days'))
+        && !host.textContent.includes('/7')
+        && !host.textContent.includes('%');
       outcomes.channelPillsUseDelegatedActions = pills.every(pill => pill.getAttribute('data-light-channel-action') === 'toggle-detail')
         && !host.innerHTML.includes('onclick=');
 
       const dayCount = channel._channelDayCount('circadian');
-      outcomes.dayCountUsesThresholdAndConsistentLabel = /^\d\/7$/.test(dayCount.txt)
+      outcomes.dayCountUsesLoggedDaysAndConsistentLabel = /^\d+ days?$/.test(dayCount.txt)
         && Number.isInteger(dayCount.n);
 
       const suggestion = channel.renderSuggestion({ vitamin_d: 0, circadian: 200, nir_solar: 200, no_cv: 200, pomc: 200, violet_eye: 200 });
-      const hiddenSuggestion = channel.renderSuggestion({ vitamin_d: 400, circadian: 400, nir_solar: 400, no_cv: 400, pomc: 400, violet_eye: 400 });
-      outcomes.suggestionPicksLowestTierAndHidesWhenHealthy = suggestion.includes('midday sun')
-        && hiddenSuggestion === '';
+      const sourceSuggestion = channel.renderSuggestion(
+        { vitamin_d: 400, circadian: 400 },
+        { nir_solar: 400 },
+      );
+      outcomes.suggestionDescribesSourcesWithoutTargets = suggestion.includes('pathways')
+        && sourceSuggestion.includes('side by side')
+        && !`${suggestion}${sourceSuggestion}`.match(/target|deficient|strong/i);
 
       pills.find(pill => pill.dataset.channel === 'vitamin_d')?.click();
       await new Promise(resolve => requestAnimationFrame(resolve));
       const detail = host.querySelector('#light-pill-detail-vitamin_d');
-      outcomes.detailPanelShowsHeroMixWeekChartCitationsAndActions = !!detail
+      outcomes.detailPanelShowsSourceHeroWeekChartCitationsAndActions = !!detail
         && detail.textContent.includes('Vitamin D')
-        && detail.textContent.includes('Daily beats banking')
-        && detail.textContent.includes('Action spectrum')
-        && detail.textContent.includes('Next move')
-        && !!detail.querySelector('.light-channel-mix')
+        && detail.textContent.includes('How to read it')
+        && detail.textContent.includes('Spectrum')
+        && detail.textContent.includes('Simple takeaway')
+        && !!detail.querySelector('.light-channel-sources')
         && !!detail.querySelector('.light-channel-weekchart svg')
+        && !detail.textContent.match(/daily target|strong|good|complete/i)
         && host.querySelector('.light-pill[data-channel="vitamin_d"]')?.getAttribute('aria-expanded') === 'true';
       outcomes.detailActionsUseDelegatedActions = !!detail?.querySelector('[data-light-channel-action="quick-log-sun"]')
         && !!detail?.querySelector('[data-light-channel-action="quick-log-device"]')
@@ -462,11 +468,11 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       const samples = [
         { id: 'lux-one', tool: 'lux', value: 350, roomId: 'bedroom', confidence: 0.82, capturedAt, extra: { source: 'manual-entry', calibrationFactor: 1.25 } },
         { id: 'flicker-one', tool: 'flicker', value: 2, confidence: 0.75, extra: { label: 'moderate', peakBanding: 0.42, stripes: 5, frameRatio: 0.018 } },
-        { id: 'dark-one', tool: 'darkness', value: 0.18, confidence: 0.91, extra: { meanLux: 0.18, peakLux: 1.2, label: 'dim leaks', isoLocked: true } },
+        { id: 'dark-one', tool: 'darkness', value: 0.18, confidence: 0.91, extra: { method: 'meter-entry', source: 'meter-entry', unit: 'photopic-lux' } },
         { id: 'cct-one', tool: 'cct', value: 4300, confidence: 0.7, extra: { melanopic: 0.62, temperatureTone: 'cool', pwmActive: true } },
         { id: 'spec-one', tool: 'spectrum', value: 'Warm LED', confidence: 0.64, extra: { reason: 'manual selection', melanopic: 0.21, circadian: 'low', r: 0.7, g: 0.2, b: 0.1 } },
         { id: 'glass-one', tool: 'glass-transmission', value: 0.72, confidence: 0.88, extra: { outside: 10000, inside: 7200, lockMode: 'manual' } },
-        { id: 'audit-one', tool: 'audit', value: 3, confidence: 0.9, extra: { rooms: [{ index: 1, label: 'Office', lux: 120 }, { index: 2, label: 'Bedroom', lux: 4 }] } },
+        { id: 'audit-one', tool: 'audit', value: 3, confidence: 0.5, extra: { rooms: [{ index: 1, label: 'Office', cameraLevel: 70, levelLabel: 'Brighter' }, { index: 2, label: 'Bedroom', cameraLevel: 15, levelLabel: 'Dimmer' }], method: 'relative-camera-walkthrough' } },
         { id: 'unknown-one', tool: 'mystery-tool', value: 'raw', confidence: 0.5 },
       ];
       state.importedData.lightMeasurements = samples;
@@ -478,11 +484,12 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       outcomes.contextUserGoalsIncluded = contexts['lux-one'].includes('User goals: Stabilize sleep timing; Reduce eye strain');
       outcomes.contextSleepScoreIncluded = contexts['lux-one'].includes('Sleep quality score: 72');
       outcomes.contextFlickerBranch = contexts['flicker-one'].includes('Flicker score: 2/3');
-      outcomes.contextDarknessBranch = contexts['dark-one'].includes('Peak lux');
-      outcomes.contextCctPwmBranch = contexts['cct-one'].includes('PWM dimming detected');
+      outcomes.contextDarknessBranch = contexts['dark-one'].includes('Meter entry: 0.18 photopic lux')
+        && contexts['dark-one'].includes('not melanopic EDI');
+      outcomes.contextCctPwmBranch = contexts['cct-one'].includes('Rolling-shutter banding detected');
       outcomes.contextSpectrumRgbBranch = contexts['spec-one'].includes('RGB ratios');
-      outcomes.contextGlassTransmissionBranch = contexts['glass-one'].includes('Transmission ratio: 72%');
-      outcomes.contextAuditRoomsBranch = contexts['audit-one'].includes('Room 1 (Office): 120 lux');
+      outcomes.contextGlassTransmissionBranch = contexts['glass-one'].includes('Relative camera-visible response: about 72%');
+      outcomes.contextAuditRoomsBranch = contexts['audit-one'].includes('Room 1 (Office): Brighter camera brightness');
       outcomes.contextUnknownToolBranch = contexts['unknown-one'].includes('Tool: mystery-tool');
 
       const fpA = analysis.getMeasurementFingerprint(samples[0]);
