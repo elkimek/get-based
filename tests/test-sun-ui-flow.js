@@ -46,7 +46,12 @@ return (async function() {
   // Stash + reset state so we don't pollute the host page
   const orig = JSON.parse(JSON.stringify(S.importedData || {}));
   S.importedData = Object.assign({}, S.importedData || {}, {
-    sunDefaults: { ...(S.importedData?.sunDefaults || {}), fitzpatrick: 'III', completedAt: Date.now() },
+    sunDefaults: {
+      ...(S.importedData?.sunDefaults || {}),
+      fitzpatrick: 'III',
+      coords: { lat: 50.08, lon: 14.42, source: 'profile-precise' },
+      completedAt: Date.now(),
+    },
     sunSessions: [],
     deviceSessions: [],
     lightDevices: [],

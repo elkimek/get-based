@@ -468,7 +468,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       await lifestyle.openLightCircadianEditor();
       outcomes.lightCircadianMirrorRendersSetup = modal.textContent.includes('Mostly LED — warm white')
         && modal.textContent.includes('Sunglasses outdoors')
-        && modal.textContent.includes('moderate light burden');
+        && modal.textContent.includes('several patterns to explore');
       const amLight = setOption('light-am');
       const evening = setTag('light-evening');
       const tech = setTag('light-tech');

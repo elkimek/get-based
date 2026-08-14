@@ -225,6 +225,10 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         window.__startupMaintenanceCalls.push('hydrateDevicesFromPresets');
         return true;
       }
+      export async function rehydrateStaleDeviceSessions() {
+        window.__startupMaintenanceCalls.push('rehydrateStaleDeviceSessions');
+        return { rehydrated: 0 };
+      }
     `,
     '**/js/supplement-warnings.js*': `
       export async function preloadMitoCompoundData() {

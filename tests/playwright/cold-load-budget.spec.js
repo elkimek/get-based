@@ -576,9 +576,9 @@ test('startup loads Light presets only when persisted devices need hydration', a
       coupling: device?.coupling?.length || 0,
     };
   })).toEqual({
-    modes: ['all-on', 'red-nir-only'],
-    channelGroups: ['uv-blue', 'red-nir'],
-    coupling: 1,
+    modes: ['red-nir-only', 'all-on', 'uva-blue-red-nir', 'uvb-red-nir', 'uva-blue-only', 'uvb-only'],
+    channelGroups: ['uvb', 'uva-blue', 'red-nir'],
+    coupling: 0,
   });
   expect(presetRequests).toBe(1);
 });

@@ -172,7 +172,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && deviceContext.includes('Firing LED groups: Red LEDs, NIR LEDs')
         && deviceContext.includes('Peaks actually firing this session: 660 nm, 850 nm');
       outcomes.deviceContextIncludesParametersDosesWithoutRollup = deviceContext.includes('Working distance: 12 cm')
-        && deviceContext.includes('Eyes: uncovered (direct exposure)')
+        && deviceContext.includes('Eyes: no shielding recorded')
         && deviceContext.includes('Modeled light signals')
         && !deviceContext.includes('Last 7 days of device use')
         && !deviceContext.includes('Health goals:');

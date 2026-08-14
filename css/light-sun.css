@@ -1828,8 +1828,33 @@ svg.sun-silhouette text.sun-silhouette-label {
   .light-sessions-modal-head h3 {
     font-size: 19px;
   }
-  .light-session-complete { align-items: flex-start; }
-  .light-session-complete .light-session-warning { max-width: 130px; }
+  .light-session-complete {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 8px;
+  }
+  .light-session-complete .light-session-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .light-session-complete .light-session-summary {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .light-session-complete .light-session-chevron {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .light-session-complete .light-session-mode-chip,
+  .light-session-complete .light-session-warning {
+    grid-column: 2 / -1;
+    justify-self: start;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .sun-calculation-state { align-items: flex-start; flex-direction: column; }
   .light-sessions-modal-body {
     padding: 12px;

@@ -383,8 +383,8 @@ test('light channel view covers pills detail panels suggestions and light-page r
         { vitamin_d: 400, circadian: 400 },
         { nir_solar: 400 },
       );
-      outcomes.suggestionDescribesSourcesWithoutTargets = suggestion.includes('pathways')
-        && sourceSuggestion.includes('side by side')
+      outcomes.suggestionDescribesSourcesWithoutTargets = suggestion.includes('light-responsive pathway')
+        && sourceSuggestion.includes('stay separate')
         && !`${suggestion}${sourceSuggestion}`.match(/target|deficient|strong/i);
 
       pills.find(pill => pill.dataset.channel === 'vitamin_d')?.click();
