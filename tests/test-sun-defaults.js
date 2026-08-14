@@ -80,9 +80,12 @@ const {
   persistSunSetupValues,
   saveSunDefaults,
   isOnboardingComplete,
+  installLightSetupDelegates,
   ottScoreToLabel,
   lightBurdenToLabel,
 } = mod;
+
+installLightSetupDelegates(delegateDom.window.document);
 
   // Stash importedData so we don't pollute the host page.
   const orig = state.importedData;
