@@ -180,7 +180,7 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   // portion of the reconstructed spectrum so its CIE-erythemal irradiance
   // matches that observation (UVI 1 = 0.025 W/m2). Visible/NIR channels keep
   // the atmosphere model because UVI contains no information about them.
-  if (Number.isFinite(targetUVI) && targetUVI >= 0) {
+  if (typeof targetUVI === 'number' && Number.isFinite(targetUVI) && targetUVI >= 0) {
     const dlambda = 5;
     const modeled = irradiance.reduce((sum, value, index) => {
       const nm = WAVELENGTHS[index];

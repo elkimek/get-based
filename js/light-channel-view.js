@@ -558,6 +558,12 @@ export function _toggleChannelDetail(channelKey) {
   }
 }
 
+/**
+ * @param {Array<Record<string, any>> | null | undefined} sessions
+ * @param {number} start
+ * @param {number} end
+ * @returns {{ sessions: number, days: number }}
+ */
 function _weeklySessionSummary(sessions, start, end) {
   const completed = (Array.isArray(sessions) ? sessions : []).filter(session => {
     const timestamp = Number(session?.endedAt || 0);
@@ -579,6 +585,13 @@ function _sessionCountText(count, source) {
 // missing records never become a claim that the person received no light.
 // Session arrays are optional so older consumers that only have channel
 // totals still receive a useful source summary.
+/**
+ * @param {Record<string, any>} [sunTotals7d]
+ * @param {Record<string, any>} [deviceTotals7d]
+ * @param {Array<Record<string, any>> | null} [sunSessions]
+ * @param {Array<Record<string, any>> | null} [deviceSessions]
+ * @returns {string}
+ */
 export function renderSuggestion(sunTotals7d = {}, deviceTotals7d = {}, sunSessions = null, deviceSessions = null) {
   const hasSun = Object.values(sunTotals7d).some(_hasSignal);
   const hasDevice = Object.values(deviceTotals7d).some(_hasSignal);

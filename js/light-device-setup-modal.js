@@ -351,6 +351,12 @@ function _readCustomDeviceForm(overlay) {
   };
 }
 
+/**
+ * @param {Record<string, any> | null | undefined} parsed
+ * @param {HTMLElement} overlay
+ * @param {string | null} [sourceUrl]
+ * @returns {void}
+ */
 function _applyParsedDevice(parsed, overlay, sourceUrl = null) {
   if (!parsed || typeof parsed !== 'object') return;
   const valid = v => v != null && v !== '' && !/not (specified|found|available|provided)/i.test(String(v)) && !/^n\/?a$/i.test(String(v));

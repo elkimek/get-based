@@ -74,6 +74,11 @@ function sanitizeRoomPatch(patch = {}) {
   return next;
 }
 
+/**
+ * @param {Record<string, any>} [patch]
+ * @param {Record<string, any> | null} [env]
+ * @returns {Record<string, any>}
+ */
 function sanitizeScreenPatch(patch = {}, env = null) {
   const next = {};
   for (const key of SCREEN_PATCH_KEYS) {

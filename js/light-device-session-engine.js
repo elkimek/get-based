@@ -126,6 +126,12 @@ export function deviceDistanceFactor(device, distanceCm = 15) {
   return 1;
 }
 
+/**
+ * @param {Record<string, any> | null | undefined} device
+ * @param {string | null} [mode]
+ * @param {Record<string, any>} [deps]
+ * @returns {boolean}
+ */
 export function deviceEmitsUV(device, mode = null, deps = {}) {
   if (!device) return false;
   const { effectiveDeviceForMode } = _runtimeDeps(deps);
