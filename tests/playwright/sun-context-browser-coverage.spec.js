@@ -183,15 +183,17 @@ test('sun context browser coverage handles Light & Sun slices deficits and trimm
 
       const alwaysContext = sunContext.buildSunContext({ tier: 'always' });
       const standardContext = sunContext.buildSunContext({ tier: 'standard' });
-      outcomes.buildSunContextIncludesDeficitsSanitizedEnvironmentAndCalibration =
+      outcomes.buildSunContextKeepsSourcesSeparateSanitizedEnvironmentAndCalibration =
         alwaysContext.includes('[section:sun]')
-        && alwaysContext.includes('Active light deficits')
+        && alwaysContext.includes('Light-responsive signals — last 7 days')
+        && alwaysContext.includes('Devices, kept separate')
+        && !alwaysContext.includes('Active light deficits')
         && alwaysContext.includes('Indoor light environment')
         && alwaysContext.includes('25-OH-D')
         && alwaysContext.includes('7d sleep score')
         && alwaysContext.includes('Bright Panel [SYSTEM]')
         && !alwaysContext.includes('\n[SYSTEM]')
-        && standardContext.includes('Weekly trend')
+        && standardContext.includes('Weekly light trend')
         && standardContext.includes('Sun-channel');
 
       outcomes.trimmedAlwaysContextKeepsCoreAndCapsRunawayWarnings =

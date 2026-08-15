@@ -18,6 +18,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
+import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from './light-env-model.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
@@ -43,7 +44,7 @@ const _SOURCE_LABELS = {
 // Bumped 2026-05-08: synthesis priorities now use Brown 2022 melanopic-
 // EDI thresholds; older cached verdicts used a 100-lux daytime / >1
 // photopic-lux night anchor and need to refresh.
-const _auditFingerprintSalt = 'v2-brown2022-medi';
+const _auditFingerprintSalt = 'v3-measurement-quality';
 export function getAuditFingerprint(a) {
   if (!a) return '';
   const parts = [
@@ -59,10 +60,10 @@ export function getAuditFingerprint(a) {
   // detect a labelled-edit scenario where the user updated a room
   // pre-snapshot.
   for (const r of (a.rooms || [])) {
-    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
+    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.daylightLevel || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
   }
   for (const m of (a.measurements || [])) {
-    parts.push(`m:${m.tool}:${typeof m.value === 'number' ? Math.round(m.value * 100) / 100 : m.value}`);
+    parts.push(`m:${m.tool}:${typeof m.value === 'number' ? Math.round(m.value * 100) / 100 : m.value}:${m.extra?.method || m.extra?.source || ''}`);
   }
   return hashString(parts.join('|'));
 }
@@ -103,6 +104,7 @@ export function buildAuditContext(a) {
     for (const r of rooms) {
       const roomLines = [`- ${_safeText(r.name) || '(unnamed)'}`];
       if (r.primarySource) roomLines.push(`  Primary source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
+      if (r.daylightLevel && r.daylightLevel !== 'unknown') roomLines.push(`  Stated daylight reaching room: ${r.daylightLevel}`);
       if (r.hoursOccupiedPerDay != null) roomLines.push(`  Hours occupied: ${r.hoursOccupiedPerDay}/day`);
       const eveHrs = getRoomEveningHoursAfterSunset(r);
       if (eveHrs > 0) roomLines.push(`  Evening use after sunset: ${eveHrs} hr/day`);
@@ -112,18 +114,23 @@ export function buildAuditContext(a) {
         const m = _latestInAudit(a, t, r.id);
         if (!m) continue;
         switch (t) {
-          case 'lux': roomLines.push(`  Lux: ${Math.round(m.value)} lux`); break;
+          case 'lux': roomLines.push(`  Lux: ${Math.round(m.value)} photopic lux (${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`); break;
           case 'flicker': {
             const score = Math.round(m.value || 0);
             const sLabel = ['pristine', 'mild', 'moderate', 'severe'][score] || 'unknown';
-            roomLines.push(`  Flicker: ${score}/3 (${sLabel})${m.extra?.stripes ? `, ${m.extra.stripes} PWM stripes` : ''}`);
+            roomLines.push(`  Camera banding: ${score}/3 (${sLabel})${m.extra?.stripes ? `, ${m.extra.stripes} rolling-shutter stripe groups` : ''}`);
             break;
           }
           case 'darkness':
-            roomLines.push(`  Sleep darkness: mean ${_formatNumber(m.extra?.meanLux ?? m.value, 2)} lux${m.extra?.peakLux != null ? `, peak ${_formatNumber(m.extra.peakLux, 2)}` : ''}`);
+            roomLines.push(isQuantitativeDarknessMeasurement(m)
+              ? `  Sleep-time meter entry: ${_formatNumber(m.value, 2)} photopic lux (not melanopic EDI)`
+              : `  Sleep-light camera check: ${m.extra?.levelLabel || 'qualitative'} (not lux)`);
             break;
           case 'cct':
-            roomLines.push(`  CCT: ${Math.round(m.value)} K${m.extra?.melanopic != null ? `, melanopic ${_formatNumber(m.extra.melanopic, 2)}` : ''}`);
+            {
+              const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
+              roomLines.push(`  Approximate camera CCT: ~${Math.round(m.value / 100) * 100} K${blueRatio != null ? `, camera RGB blue-ratio proxy ${_formatNumber(blueRatio, 2)} (not melanopic EDI)` : ''}`);
+            }
             break;
           case 'spectrum':
             roomLines.push(`  Spectrum: ${m.value || m.extra?.label}`);
@@ -155,7 +162,7 @@ export function buildAuditContext(a) {
     lines.push('### Portable screens');
     for (const s of portable) {
       const ev = s.eveningUseAfterSunset != null ? Number(s.eveningUseAfterSunset) : 0;
-      lines.push(`- ${_SCREEN_LABELS[s.device] || s.device}: ${s.hoursPerDay || 0} hr/day${ev > 0 ? ', ' + ev + ' hr after sunset' : ''}${s.blueBlockerEnabled ? ', blue blocker on' : ''}`);
+      lines.push(`- ${_SCREEN_LABELS[s.device] || s.device}: ${s.hoursPerDay || 0} hr/day${ev > 0 ? ', ' + ev + ' hr after sunset' : ''}${s.blueBlockerEnabled ? ', blue reduction noted (not zero exposure)' : ''}`);
     }
   }
 
@@ -178,27 +185,27 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = the environment is broadly circadian-aligned (daytime rooms bright + cool, evening rooms dim + warm, sleep rooms dark, no significant flicker, screens managed)',
-  '  yellow = mostly OK with one or two specific systemic issues (one room\'s evening setup, screens unmanaged, single high-flicker fixture)',
-  '  red = circadian-hostile environment overall (multiple rooms hostile, sleep room not dark, phone-in-bed, severe flicker stacking)',
-  '  gray = not enough data (snapshot has no measurements)',
+  '  green = entered timing and trustworthy measurements flag no clear concern',
+  '  yellow = one actionable signal is present or the snapshot relies heavily on proxies',
+  '  red = multiple strong entered or measured signals stack; never from camera proxies alone',
+  '  gray = not enough data or no trustworthy measurement/context',
   '',
   'Synthesis priorities (rank issues by these when picking the verdict + tip):',
-  '  1. Sleep-room contamination: any sleep-room reading meaningfully above the Brown 2022 melanopic-EDI thresholds (<1 m-EDI lux during sleep, <10 in the hour before bed; >1 photopic lux at night is a useful working proxy). Cool CCT in evening hours, phone bound to a sleep room. This dominates everything else for most users.',
-  '  2. Severe flicker (score 2+) anywhere the user spends >2 evening hours.',
-  '  3. Daytime rooms below ~250 m-EDI lux at the eye (Brown 2022 consensus; ≈ 500 photopic lux for typical mixed-spectrum sources, easier in daylit rooms) — under-lit entrainment is a slow-burn issue but real.',
-  '  4. Evening cool LED (>4000K) + high evening occupancy in living spaces.',
-  '  5. Phone-in-bed without blue blocker — single largest junk-light vector for most users.',
+  '  1. Measurement quality. Brown 2022 uses eye-level melanopic EDI (≥250 lx daytime, ≤10 lx evening, ≤1 lx during sleep). Ordinary photopic lux and camera RGB/CCT are not equivalent.',
+  '  2. Repeated after-sunset timing under bright/close/cool sources, while noting brightness is not measured by a room-source answer.',
+  '  3. Trustworthy low daytime photopic-lux spot-checks or explicitly little daylight in frequently used rooms.',
+  '  4. Strong rolling-shutter banding where the user spends substantial time; no-band result does not prove flicker-free output.',
+  '  5. Screens near bedtime. Blue-reduction settings may help but never erase brightness and duration.',
   '',
   'Specific patterns to flag:',
-  '  • Bedroom dark but living room overhead is cool LED + 4 hr evening = melatonin onset is being suppressed BEFORE the user reaches the dark bedroom — the bedroom dark doesn\'t save you.',
-  '  • Office is properly bright daytime + dark sleep room + bedroom phone = the daytime / sleep envelope is good but the in-between hour is leaking blue light.',
-  '  • All rooms low-lux and warm = the user is in a "cave" environment, sleep may be fine but daytime entrainment is failing.',
+  '  • A qualitative camera darkness result cannot support melatonin percentages or sleep-safety claims.',
+  '  • Approximate CCT cannot establish a complete or natural spectrum.',
+  '  • A window camera ratio cannot establish visible, UV, or infrared transmission.',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
   'tip: one sentence, max 18 words. The single highest-leverage fix for THIS environment overall.',
-  'detail: 3–4 sentences. Acknowledge what\'s working, name the 1–2 highest-priority issues with specific room + reading citations, and the most-leveraged fix. Concrete, observational.',
+  'detail: 3–4 sentences. Separate entered context, trustworthy measurements, and camera proxies. Never diagnose circadian disruption or estimate hormones from these data.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');

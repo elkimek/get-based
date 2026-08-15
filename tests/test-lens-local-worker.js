@@ -241,8 +241,8 @@ return (async function() {
 
   // ─── Phase 13: rename ───
   console.log('%c[13] Multi-library: rename', 'font-weight:bold');
-  const renamed = await roundTrip(worker, { type: 'rename_library', libraryId: created.id, name: 'Kruse Research' }, 'library_renamed');
-  assert('library_renamed returns new name', renamed.name === 'Kruse Research');
+  const renamed = await roundTrip(worker, { type: 'rename_library', libraryId: created.id, name: 'Secondary Research' }, 'library_renamed');
+  assert('library_renamed returns new name', renamed.name === 'Secondary Research');
 
   // ─── Phase 13b: registry recovery across update/reload ───
   console.log('%c[13b] Multi-library: registry recovery', 'font-weight:bold');
@@ -252,7 +252,7 @@ return (async function() {
   const backupRecovered = await roundTrip(worker, { type: 'init' }, 'ready');
   const backupRecoveredLib = backupRecovered.libraries.find((l) => l.id === created.id);
   assert('missing primary registry recovers library metadata from backup',
-    backupRecoveredLib?.name === 'Kruse Research');
+    backupRecoveredLib?.name === 'Secondary Research');
   assert('backup registry recovery preserves explicit library model',
     backupRecoveredLib?.model === 'bge-small-en' && backupRecovered.activeModel === 'bge-small-en',
     `got ${JSON.stringify({ libModel: backupRecoveredLib?.model, activeModel: backupRecovered.activeModel })}`);
@@ -288,7 +288,7 @@ return (async function() {
 
   // ─── Phase 14: delete a non-active library ───
   console.log('%c[14] Multi-library: delete non-active', 'font-weight:bold');
-  // Activate default, then delete Kruse Research. Active corpus must be unaffected.
+  // Activate default, then delete the secondary library. Active corpus must be unaffected.
   await roundTrip(worker, { type: 'activate_library', libraryId: 'default' }, 'ready');
   const defaultStats = await roundTrip(worker, { type: 'stats' }, 'stats_result');
   const deleted = await roundTrip(worker, { type: 'delete_library', libraryId: created.id }, 'library_deleted');

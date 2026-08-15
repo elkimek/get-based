@@ -17,6 +17,7 @@ import {
   renderSetupLocationStatus,
 } from './sun-defaults-setup-renderer.js';
 import {
+  clearSunSetupCurrentLocationRuntime,
   hasSunSetupPreciseLocationRequester,
   navigateSunDefaultsRoute,
   openSunSetupProfileLocationRuntime,
@@ -63,7 +64,7 @@ function isOnboardingComplete() {
   return !!setupDeps.isOnboardingComplete();
 }
 
-let lightSetupDelegatesInstalled = false;
+const lightSetupDelegateRoots = new WeakSet();
 
 function parseSetupIndex(value) {
   const index = Number.parseInt(String(value ?? ''), 10);
@@ -125,6 +126,10 @@ function handleLightSetupClick(event) {
       event.preventDefault();
       void requestLightSetupPreciseLocation();
       break;
+    case 'clear-current-location':
+      event.preventDefault();
+      clearLightSetupCurrentLocation();
+      break;
   }
 }
 
@@ -155,8 +160,8 @@ function handleLightSetupKeydown(event) {
 export function installLightSetupDelegates(
   root = typeof document !== 'undefined' ? document : null,
 ) {
-  if (!root || lightSetupDelegatesInstalled) return;
-  lightSetupDelegatesInstalled = true;
+  if (!root || lightSetupDelegateRoots.has(root)) return;
+  lightSetupDelegateRoots.add(root);
   root.addEventListener('click', handleLightSetupClick);
   root.addEventListener('input', handleLightSetupInput);
   root.addEventListener('keydown', handleLightSetupKeydown);
@@ -181,9 +186,9 @@ function openSunSetupOverlay() {
   overlay.innerHTML = `<div class="modal light-setup-focus-modal" data-setup-step="core" role="dialog" aria-modal="true" aria-labelledby="light-setup-focus-title">
     <header class="light-setup-focus-head">
       <div>
-        <div class="gb-modal-kicker">Light lens setup</div>
-        <h3 id="light-setup-focus-title">Light setup</h3>
-        <p>Calibrate burn math, indoor-light context, and circadian assumptions for this profile.</p>
+        <div class="gb-modal-kicker">Light baseline</div>
+        <h3 id="light-setup-focus-title">Personalize Light</h3>
+        <p>Connect skin, location, indoor lighting, eyewear, and daily spectrum patterns to your Light context.</p>
       </div>
       <button type="button" class="modal-close" aria-label="Close light setup" data-light-setup-close>&times;</button>
     </header>
@@ -276,6 +281,16 @@ async function requestLightSetupPreciseLocation() {
   return coords;
 }
 
+function clearLightSetupCurrentLocation() {
+  if (!clearSunSetupCurrentLocationRuntime()) {
+    showNotification('Current location could not be cleared here.');
+    return false;
+  }
+  refreshSetupLocationStatus();
+  showNotification('Current location cleared — your home or country location is active again.');
+  return true;
+}
+
 function readSetupFieldValue(root, id) {
   const element = root?.querySelector?.(`#${id}`);
   if (!element || !('value' in element)) return null;
@@ -285,10 +300,10 @@ function readSetupFieldValue(root, id) {
 
 function readSetupPhotosensitiveValue(root) {
   const element = root?.querySelector?.('#setup-photosensitive');
-  if (!element) return 'none';
+  if (!element) return 'unknown';
   const type = 'type' in element ? String(element.type || '') : '';
   if (type === 'checkbox') return element.checked ? 'moderate' : 'none';
-  return readSetupFieldValue(root, 'setup-photosensitive') || 'none';
+  return readSetupFieldValue(root, 'setup-photosensitive') || 'unknown';
 }
 
 export function collectSunSetupValues(root) {
@@ -343,7 +358,7 @@ async function saveSunSetup() {
   if (!values) return false;
   await setupDeps.persistSunSetupValues(values);
   closeSunSetupOverlay();
-  showNotification(`Setup saved · light burden ${values.ottScore}/10`);
+  showNotification(`Light setup saved · ${values.ottScore}/10 context patterns selected`);
   maybeAnalyzeOnboardingAfterSave();
   navigateSunDefaultsRoute('light');
   return true;
@@ -360,7 +375,6 @@ function updateOttRunningScore() {
       ?.classList.toggle('is-flagged', input.checked);
     if (input.checked) score++;
   });
-  const aligned = 10 - score;
   const value = root.querySelector('#ott-running-value');
   const alignedValue = root.querySelector('#ott-running-aligned');
   const label = /** @type {HTMLElement | null} */ (
@@ -375,9 +389,9 @@ function updateOttRunningScore() {
   );
   const meta = ottScoreToLabel(score);
   if (value) value.textContent = `${score}/10`;
-  if (alignedValue) alignedValue.textContent = `${aligned}/10`;
+  if (alignedValue) alignedValue.textContent = `${score}/10`;
   if (meter) meter.dataset.tier = String(meta.tier);
-  if (fill) fill.style.width = `${aligned * 10}%`;
+  if (fill) fill.style.width = `${score * 10}%`;
   if (label) {
     const previousTier = label.dataset.tier;
     const nextTier = String(meta.tier);
@@ -389,7 +403,7 @@ function updateOttRunningScore() {
       setTimeout(() => label.classList.remove('tier-changed'), 600);
     }
   }
-  if (summary) summary.textContent = `${aligned}/10 aligned`;
+  if (summary) summary.textContent = `${score}/10 selected`;
 }
 
 function updateSetupSkinSlider(value) {
@@ -471,9 +485,8 @@ function refreshSetupProgress() {
 
 async function dismissSunSetup() {
   await setupDeps.saveSunDefaults({
-    fitzpatrick: 'III',
     skipped: true,
-    completedAt: Date.now(),
+    setupPromptDismissedAt: Date.now(),
   });
   closeSunSetupOverlay();
   navigateSunDefaultsRoute('light');

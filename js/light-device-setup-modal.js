@@ -154,7 +154,11 @@ export async function openAddDeviceDialog() {
   addBtn?.addEventListener('click', async () => {
     const presetId = selectedPresetId;
     if (!presetId) return;
-    await setupDeps.addDeviceFromPreset(presetId);
+    const added = await setupDeps.addDeviceFromPreset(presetId);
+    if (!added) {
+      showNotification('The device could not be added.', 'error');
+      return;
+    }
     closeDialog();
     showNotification('Device added.');
     setupDeps.refreshLightView();
@@ -170,6 +174,8 @@ function _formatPresetMeta(p) {
     parts.push(`${p.mwPerCm2At15cm} mW/cm²`);
   } else if (Number.isFinite(Number(p.lux)) && Number(p.lux) > 0) {
     parts.push(`${Number(p.lux).toLocaleString()} lux`);
+  } else if (Number.isFinite(Number(p.melanopicEdiLux)) && Number(p.melanopicEdiLux) > 0) {
+    parts.push(`${Number(p.melanopicEdiLux).toLocaleString()} lx M-EDI`);
   }
   if (Number.isFinite(Number(p.recommendedDistanceCm)) && Number(p.recommendedDistanceCm) > 0) {
     parts.push(`${p.recommendedDistanceCm} cm`);
@@ -193,7 +199,7 @@ export async function openCustomDeviceDialog() {
     </div>
     <div class="modal-body">
       ${hasAI ? `
-      <p class="modal-body-hint">Paste a product page URL or scan the label — AI will extract the device specs. You can edit any field before saving.</p>
+      <p class="modal-body-hint">Paste a product page URL or scan the label. AI fills the main fields and keeps any stated mode or measurement details. Verify them against the product page before saving.</p>
       <div class="custom-device-ai-row">
         <input type="url" id="custom-dev-url" class="ctx-input" placeholder="https://..." style="flex:1" />
         <button type="button" class="import-btn import-btn-secondary custom-dev-fetch" id="custom-dev-fetch">Fetch &amp; analyse</button>
@@ -245,7 +251,15 @@ export async function openCustomDeviceDialog() {
         <label class="ctx-label">Lux at the eye (for SAD / dawn lamps)
           <input type="number" id="custom-dev-lux" class="ctx-input" min="0" step="any" placeholder="e.g. 10000" />
         </label>
+        <label class="ctx-label">Melanopic EDI at the eye (lx, if the source states it)
+          <input type="number" id="custom-dev-medi" class="ctx-input" min="0" step="any" placeholder="Leave blank unless explicitly measured or stated" />
+        </label>
+        <input type="hidden" id="custom-dev-advanced" value="" />
       </div>
+      <details id="custom-dev-extracted-details" class="sun-detail-disclosure" hidden>
+        <summary>Review extracted mode and measurement details</summary>
+        <pre id="custom-dev-extracted-json" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px"></pre>
+      </details>
       <div class="modal-actions" style="margin-top:18px">
         <button type="button" class="import-btn import-btn-secondary" data-light-device-custom-close>Cancel</button>
         <button type="button" class="import-btn import-btn-primary" id="custom-dev-save">Add device</button>
@@ -295,7 +309,11 @@ export async function openCustomDeviceDialog() {
       showNotification('Brand and model are required.', 'error');
       return;
     }
-    await setupDeps.addCustomDevice(spec);
+    const added = await setupDeps.addCustomDevice(spec);
+    if (!added) {
+      showNotification('The device could not be added. Check the entered specifications.', 'error');
+      return;
+    }
     closeDialog();
     showNotification('Device added.');
     setupDeps.refreshLightView();
@@ -315,7 +333,13 @@ function _readCustomDeviceForm(overlay) {
     ? (distUnit === 'in' ? parseFloat(distRaw) * 2.54 : parseFloat(distRaw))
     : null;
   const luxRaw = _input(overlay, '#custom-dev-lux')?.value.trim() || '';
+  const mediRaw = _input(overlay, '#custom-dev-medi')?.value.trim() || '';
+  let advanced = {};
+  try {
+    advanced = JSON.parse(_input(overlay, '#custom-dev-advanced')?.value || '{}');
+  } catch (_) {}
   return {
+    ...advanced,
     brand: _input(overlay, '#custom-dev-brand')?.value.trim() || '',
     model: _input(overlay, '#custom-dev-model')?.value.trim() || '',
     type: _select(overlay, '#custom-dev-type')?.value || 'combined',
@@ -323,10 +347,17 @@ function _readCustomDeviceForm(overlay) {
     mwPerCm2At15cm: irrRaw ? parseFloat(irrRaw) : null,
     recommendedDistanceCm: distCm,
     lux: luxRaw ? parseFloat(luxRaw) : null,
+    melanopicEdiLux: mediRaw ? parseFloat(mediRaw) : null,
   };
 }
 
-function _applyParsedDevice(parsed, overlay) {
+/**
+ * @param {Record<string, any> | null | undefined} parsed
+ * @param {HTMLElement} overlay
+ * @param {string | null} [sourceUrl]
+ * @returns {void}
+ */
+function _applyParsedDevice(parsed, overlay, sourceUrl = null) {
   if (!parsed || typeof parsed !== 'object') return;
   const valid = v => v != null && v !== '' && !/not (specified|found|available|provided)/i.test(String(v)) && !/^n\/?a$/i.test(String(v));
   const set = (id, val) => {
@@ -360,6 +391,25 @@ function _applyParsedDevice(parsed, overlay) {
     }
   }
   set('#custom-dev-lux', parsed.lux);
+  set('#custom-dev-medi', parsed.melanopicEdiLux);
+  const advancedKeys = [
+    'peakShares', 'peakShareBasis', 'irradianceBasis',
+    'irradianceByDistanceCm', 'distanceModel', 'melanopicDER',
+    'melanopicBasis',
+    'channelGroups', 'modes', 'coupling', 'notes',
+  ];
+  const advanced = {};
+  for (const key of advancedKeys) {
+    if (parsed[key] != null) advanced[key] = parsed[key];
+  }
+  if (sourceUrl) advanced.specSourceUrl = sourceUrl;
+  const advancedInput = _input(overlay, '#custom-dev-advanced');
+  if (advancedInput) advancedInput.value = JSON.stringify(advanced);
+  const review = overlay.querySelector('#custom-dev-extracted-details');
+  const reviewJson = overlay.querySelector('#custom-dev-extracted-json');
+  const hasAdvanced = Object.keys(advanced).some(key => !['specSourceUrl'].includes(key));
+  if (review instanceof HTMLElement) review.hidden = !hasAdvanced;
+  if (reviewJson) reviewJson.textContent = JSON.stringify(advanced, null, 2);
   showNotification('Specs extracted — review and save.', 'success');
 }
 
@@ -371,6 +421,14 @@ const _CUSTOM_DEVICE_PROMPT = `Extract light therapy device specs from this prod
   "peakWavelengths": [numbers in nm e.g. 660, 850],
   "mwPerCm2At15cm": number or null (the irradiance value; field is legacy-named — store the vendor's reading at whatever distance they publish),
   "recommendedDistanceCm": number or null (the distance at which the manufacturer measured the irradiance above — typically 15-30 cm; some COB devices recommend 50+ cm. Convert inches to cm: 6 in ≈ 15 cm, 12 in ≈ 30 cm, 20 in ≈ 50 cm),
+  "irradianceBasis": "vendor-claim|measured-radiometer|measured-spectrometer|unknown",
+  "irradianceByDistanceCm": null OR [{"distanceCm": number, "mwPerCm2": number}, ...] (only readings explicitly stated by the source),
+  "distanceModel": "point-source" only if the source explicitly describes point-source/inverse-square behavior, otherwise "reference-only",
+  "peakShares": null OR [fractions matching peakWavelengths] (only when the source gives a per-band power split; never infer a UV share from total panel irradiance),
+  "peakShareBasis": "vendor-band-split|measured-band-split" or null,
+  "melanopicDER": number or null (only when explicitly stated),
+  "melanopicEdiLux": number or null (direct eye-level melanopic EDI in lux, only when explicitly stated),
+  "melanopicBasis": "vendor-claim|measured-spectrum" or null,
   "lux": number or null (only for SAD / dawn lamps),
   "channelGroups": null OR [{"id": "kebab-case-id", "label": "human label", "peaks": [subset of peakWavelengths]}, ...],
   "modes": null OR [{"id": "kebab-case-id", "label": "human label", "groups": [groupIds], "default": true on the most common preset}, ...],
@@ -389,10 +447,10 @@ Type guide:
 
 channelGroups / modes / coupling guide (set ALL THREE to null if the product page describes a single-channel device with no mode-selector):
 - channelGroups: only fill in when the panel has independently-controllable LED groups (e.g. a touchscreen toggle for "UV" vs "red/NIR", or named modes like "Ironforge / Lux Vital / D-Light"). Each group lists which peakWavelengths are wired to its dimmer/switch.
-- modes: only fill in if the device has named touchscreen presets / mode buttons. Each mode lists which channelGroup ids fire when selected. Always include an "all-on" mode that fires every group, marked default:true unless the vendor states otherwise. If the vendor only describes one operating mode, set modes to null.
+- modes: only fill in modes the source actually describes. Each mode lists which channelGroup ids fire. Mark default:true only when the source identifies a default or always-on base. Do not invent an all-on mode.
 - coupling: only fill in when the vendor explicitly states an LED group cannot run without another (e.g. "UV must run with red/NIR" — common safety design on hybrid UVB+red panels). Quote the rationale in "reason". Don't infer coupling from omission.
 
-Use null for fields not found. Do NOT invent modes the vendor doesn't describe. No other text.`;
+Use null for fields not found. A total irradiance for a hybrid UV + visible/red/NIR panel is NOT a UV irradiance: leave peakShares null unless a band split is stated. Do NOT invent modes, coupling, measurements, or spectral shares. No other text.`;
 
 /**
  * @param {HTMLElement} overlay
@@ -449,7 +507,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
     if (!overlay.isConnected) return;
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse device specs from page', 'error'); return; }
-    _applyParsedDevice(JSON.parse(jsonMatch[0]), overlay);
+    _applyParsedDevice(JSON.parse(jsonMatch[0]), overlay, url);
   } catch (e) {
     if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[fetchCustomDevice]', e);

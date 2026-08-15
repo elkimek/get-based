@@ -17,6 +17,7 @@ import {
   readResponseTextWithCap,
 } from '../lib/proxy-upstream.js';
 import { errorCode } from '../lib/error-utils.js';
+import { handlePostalGeocode } from './postal-geocode.js';
 
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 /** @type {Promise<typeof import('../lib/proxy-rate-limit.js')> | null} */
@@ -213,6 +214,9 @@ export async function handler(req) {
   // Source mode (URL + bearer entered in Settings → Light & Sun).
   if (payload.meteo === 'cams') {
     return handleCamsRelay(payload, req);
+  }
+  if (payload.meteo === 'postal_geocode') {
+    return handlePostalGeocode(payload, req, { corsHeaders, proxyUpstreamErrorResponse });
   }
 
   const { url, headers, body, method: upstreamMethod } = payload;

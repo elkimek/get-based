@@ -59,7 +59,8 @@ assert('sun-session-actions keyboard delegate supports role-button rows and igno
     actionSrc.includes("'open-channel'") &&
     actionSrc.includes("event.target?.closest?.('button, a, input, textarea, select')"));
 assert('sun-session-actions expands chips via the owning chips container',
-  actionSrc.includes("actionEl.closest('.sun-channel-chips')?.classList.toggle('sun-chips-expanded')") &&
+  actionSrc.includes("const container = actionEl.closest('.sun-channel-chips')") &&
+    actionSrc.includes('setSunChannelChipsExpanded(container, !container.classList.contains(\'sun-chips-expanded\'))') &&
     !actionSrc.includes("actionEl.parentElement?.classList.toggle('sun-chips-expanded')"));
 assert('sun-session-actions closes overlays through the shared lifecycle removal helper',
   actionSrc.includes("import { removeModalOverlay } from './modal-lifecycle.js';") &&
@@ -84,10 +85,9 @@ assert('sun-session-ui direct module actions no longer route through window glob
     !uiSrc.includes('window.renderSessionAIDetail') &&
     !uiSrc.includes('window.navigate'));
 assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
-  uiSrc.includes('renderSessionAIInline: () =>') &&
-    uiSrc.includes('renderSessionAIDetail: () =>') &&
+  uiSrc.includes('renderSessionAIDetail: () =>') &&
     uiSrc.includes('navigate: () =>') &&
-    uiSrc.includes('uiDeps.renderSessionAIInline(sess)') &&
+    !uiSrc.includes('uiDeps.renderSessionAIInline(sess)') &&
     uiSrc.includes('uiDeps.renderSessionAIDetail(sess)') &&
     uiSrc.includes('function refreshLightView()') &&
     sunAiSrc.includes('registerAIActionHandler') &&
@@ -97,8 +97,8 @@ assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
     !sunAiSrc.includes('window.maybeAnalyzeSessionAfterFinish') &&
     !sunAiSrc.includes('window.renderSessionAIInline') &&
     !sunAiSrc.includes('window.renderSessionAIDetail') &&
-    aiHookSrc.includes("import { renderSessionAIDetail, renderSessionAIInline } from './sun-ai-analysis.js';") &&
-    aiHookSrc.includes('configureSunSessionUI({ renderSessionAIDetail, renderSessionAIInline })') &&
+    aiHookSrc.includes("import { renderSessionAIDetail } from './sun-ai-analysis.js';") &&
+    aiHookSrc.includes('configureSunSessionUI({ renderSessionAIDetail })') &&
     lightSunAiHooksSrc.includes("import { maybeAnalyzeSessionAfterFinish } from './sun-ai-analysis.js';") &&
     lightSunAiHooksSrc.includes('configureSunSessionsStore({ maybeAnalyzeSessionAfterFinish })') &&
     uiHookSrc.includes("import { navigate } from './views.js';") &&
@@ -135,6 +135,7 @@ assert('sun.js configures active sun-session delegated actions',
   'open-channel',
   'close-modal',
   'edit-duration',
+  'retry-calculation',
   'toggle-chips',
 ].forEach(action => {
   assert(`sun session action ${action} is handled`,
@@ -152,8 +153,9 @@ assert('sun.js configures active sun-session delegated actions',
   "sunSessionActionAttrs('forgot-stop', { id: sess.id })",
   "sunSessionActionAttrs('open-channel', { channel: k })",
   "sunSessionActionAttrs('edit-duration', { id: sess.id })",
+  "sunSessionActionAttrs('retry-calculation', { id: sess.id })",
   "sunSessionActionAttrs('delete-session', { id: sess.id, closeModal: true })",
-  "sunSessionActionAttrs('toggle-chips')",
+  "sunSessionActionAttrs('toggle-chips', { hiddenCount })",
 ].forEach(renderedAction => {
   assert(`sun-session-ui renders ${renderedAction}`,
     uiSrc.includes(renderedAction));

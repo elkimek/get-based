@@ -43,13 +43,13 @@ try {
   assert('missing getMeteoConfig returns defaults',
     getSettingsMeteoConfig().mode === 'auto');
   assert('missing saveMeteoConfig reports unavailable',
-    saveSettingsMeteoConfig({ mode: 'manual' }) === false);
+    saveSettingsMeteoConfig({ mode: 'open-meteo' }) === false);
 
   configureSettingsRuntimeDeps({
-    getMeteoConfig: () => ({ mode: 'manual', privacyRounding: 0 }),
+    getMeteoConfig: () => ({ mode: 'open-meteo', privacyRounding: 0 }),
   });
   assert('runtime getMeteoConfig is delegated',
-    getSettingsMeteoConfig().mode === 'manual' &&
+    getSettingsMeteoConfig().mode === 'open-meteo' &&
       getSettingsMeteoConfig().privacyRounding === 0);
 
   configureSettingsRuntimeDeps({

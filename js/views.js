@@ -141,8 +141,6 @@ export {
   renderConditionsNow,
   _refreshConditionsNow,
   _inspectConditionsNow,
-  _setManualUvi,
-  _clearManualUvi,
   moveLensPageWidget,
   fetchCustomMarkerDescription,
   showDetailModal,
@@ -242,14 +240,6 @@ function _refreshConditionsNow() {
 
 function _inspectConditionsNow() {
   return loadLightSunUI().then(module => module._inspectConditionsNow());
-}
-
-function _setManualUvi() {
-  return loadLightSunUI().then(module => module._setManualUvi());
-}
-
-function _clearManualUvi() {
-  return loadLightSunUI().then(module => module._clearManualUvi());
 }
 
 function renderDeferredRouteStatus(content, message, { busy = false, error = false } = {}) {

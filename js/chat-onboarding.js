@@ -10,7 +10,7 @@ import {
   deleteImportedArrayItem,
 } from './data-merge.js';
 import {
-  detectLatitudeWithAI, getLatitudeFromLocation, getLocationCache,
+  getLatitudeFromLocation, getLocationCache,
   latitudeToBand, renameProfile, setProfileDob, setProfileLocation,
   setProfileSex,
 } from './profile.js';
@@ -316,10 +316,12 @@ export async function saveChatLocation() {
   if (!el) return true;
   if (!country) { el.textContent = ''; return true; }
 
-  // Check AI cache first
+  // Check the legacy/coarse cache first. Country-only onboarding does not
+  // send anything to a geocoder; postal refinement happens in Profile.
   const cacheKey = (country + '|').toLowerCase();
-  const cached = getLocationCache()[cacheKey];
-  if (cached !== undefined) {
+  const rawCached = getLocationCache()[cacheKey];
+  const cached = Number.isFinite(rawCached) ? Number(rawCached) : Number(rawCached?.lat ?? rawCached?.latitude);
+  if (Number.isFinite(cached)) {
     const band = latitudeToBand(cached);
     el.style.color = 'var(--green)';
     el.textContent = '\u2713 ' + Math.abs(Math.round(cached)) + '\u00b0' + (cached >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band];
@@ -330,27 +332,12 @@ export async function saveChatLocation() {
   if (latStr) {
     el.style.color = 'var(--green)';
     el.textContent = '\u2713 ' + latStr;
-  } else if (hasAIProvider()) {
-    el.style.color = 'var(--text-muted)';
-    el.textContent = 'Detecting\u2026';
   } else {
     el.textContent = '';
   }
-  // Debounced AI refinement
+  // No country-only network lookup: a country band is sufficient here,
+  // and Profile can resolve an optional postal area later.
   if (_chatLocTimer) clearTimeout(_chatLocTimer);
-  if (hasAIProvider()) {
-    _chatLocTimer = setTimeout(async () => {
-      await detectLatitudeWithAI(country, '');
-      // Re-read cache after AI detection
-      const lat = getLocationCache()[(country + '|').toLowerCase()];
-      const latEl = document.getElementById('chat-onboard-lat');
-      if (lat !== undefined && latEl) {
-        const band = latitudeToBand(lat);
-        latEl.style.color = 'var(--green)';
-        latEl.textContent = '\u2713 ' + Math.abs(Math.round(lat)) + '\u00b0' + (lat >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band];
-      }
-    }, 1500);
-  }
   return true;
 }
 

@@ -24,6 +24,7 @@
 .light-env-assessment-summary-green { border-left-color: var(--green); }
 .light-env-assessment-summary-orange { border-left-color: var(--orange); }
 .light-env-assessment-summary-red { border-left-color: var(--red); }
+.light-env-assessment-summary-incomplete { border-left-color: var(--text-muted); }
 .light-env-assessment-status {
   display: flex;
   align-items: center;
@@ -248,6 +249,14 @@
 .light-env-summary-interp {
   margin: 0; font-size: 13px; line-height: 1.5;
   color: var(--text-secondary);
+}
+.light-env-summary-incomplete { border-left-color: var(--text-muted); }
+.light-env-picker-help {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
 }
 /* Legacy classes used elsewhere — kept for back-compat */
 .light-env-summary strong { color: var(--text-primary); }

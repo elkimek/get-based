@@ -2,10 +2,11 @@
 // light-device-session-modal.js — Log/start light therapy device sessions.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
+import { deviceEmitsUV } from './light-device-session-engine.js';
 
 /**
  * @param {Record<string, any>} [deps]
@@ -18,6 +19,7 @@ function _resolveSessionDialogDeps(deps = {}) {
     renderBodySilhouette: deps.renderBodySilhouette || renderBodySilhouette,
     bindBodySilhouette: deps.bindBodySilhouette || bindBodySilhouette,
     navigate: deps.navigate || null,
+    openLightSetup: deps.openLightSetup || null,
   };
 }
 
@@ -103,22 +105,32 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     renderBodySilhouette,
     bindBodySilhouette,
     navigate,
+    openLightSetup,
   } = resolvedDeps;
+
+  const configuredFitz = state.importedData?.sunDefaults?.fitzpatrick || null;
+  if (!/^(I|II|III|IV|V|VI)$/.test(String(configuredFitz || ''))) {
+    showNotification(
+      'Confirm your Fitzpatrick skin type in Light setup before starting or logging a light-device session.',
+      'info',
+      7000,
+    );
+    openLightSetup?.();
+    return false;
+  }
 
   // Lazy hydrate covers page-opened-mid-init / cold preset cache cases so
   // the dialog renders with the latest mode/coupling schema.
   await hydrateDevicesFromPresets?.().catch(() => {});
   const device = getDevices?.()?.find(d => d.id === deviceId);
-  if (!device) return;
+  if (!device) return false;
 
   // Prefill from the user's last logged session on this device. First-time
   // logs fall through to vendor reference distance + sensible defaults.
   const last = device.lastSession || {};
-  const defaultDuration = Number.isFinite(last.durationMin) && last.durationMin > 0 ? last.durationMin : 10;
   const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm > 0
     ? last.distanceCm
     : (device.recommendedDistanceCm || 15);
-  const defaultEyesProtected = last.eyesProtected !== false;
   const defaultRegions = _defaultRegionsForLastSession(last);
 
   // Mode picker renders only for devices with multiple valid modes.
@@ -131,6 +143,17 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     const lastModeValid = last.mode && validModes.some(m => m.id === last.mode);
     defaultMode = lastModeValid ? last.mode : (validModes.find(m => m.default) || validModes[0])?.id || null;
   }
+  const initialMode = showModePicker ? defaultMode : (last.mode || null);
+  const isUVDevice = deviceEmitsUV(device, initialMode);
+  // Never prefill a first UV session with the generic ten-minute PBM default.
+  // Thirty seconds is only a neutral input starting point, not guidance.
+  const defaultDuration = Number.isFinite(last.durationMin) && last.durationMin > 0
+    ? last.durationMin
+    : (isUVDevice ? 0.5 : 10);
+  const isEyeLightDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device.type) && !isUVDevice;
+  const defaultEyeControlChecked = isEyeLightDevice
+    ? last.eyesProtected !== true
+    : last.eyesProtected !== false;
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -151,7 +174,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
         </div>
       ` : ''}
       <label class="ctx-label">Duration (minutes)
-        <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="${defaultDuration}" />
+        <input type="number" id="dev-session-duration" class="ctx-input" min="0.1" max="600" step="0.1" value="${defaultDuration}" />
+        <span class="dev-session-hint">Record the time actually used. This is not a suggested exposure time; follow the device timer and instructions.</span>
       </label>
       ${(() => {
         const useUS = state.unitSystem === 'US';
@@ -170,7 +194,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
               <button type="button" class="dev-unit-btn${startUnit === 'in' ? ' active' : ''}" data-unit="in" role="tab" aria-selected="${startUnit === 'in'}">in</button>
             </div>
           </div>
-          <span class="dev-session-hint">Vendor reference: ${fmt(refCm, 'cm')} cm (${fmt(refCm, 'in')} in).${overrideHint} The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
+          <span class="dev-session-hint">Vendor reference: ${fmt(refCm, 'cm')} cm (${fmt(refCm, 'in')} in).${overrideHint} ${Array.isArray(device.irradianceByDistanceCm) && device.irradianceByDistanceCm.length >= 2 ? 'Dose uses the device\'s measured distance table.' : device.distanceModel === 'point-source' ? 'Dose uses point-source inverse-square scaling declared for this device.' : 'No unverified distance correction is applied; use the vendor reference distance or enter measured irradiance data.'}</span>
         </label>`;
       })()}
       <div class="ctx-label" style="display:block">
@@ -182,9 +206,9 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
         </div>
       </div>
       <div class="ctx-label" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <span style="flex:1;min-width:0">Eyes protected (goggles or closed)</span>
+        <span style="flex:1;min-width:0" id="dev-session-eye-label">${isUVDevice ? 'UV-rated goggles worn (closed eyelids are not protection)' : isEyeLightDevice ? 'Eyes open to receive ambient light (never stare at lamp)' : 'Device-appropriate eye protection worn'}</span>
         <label class="toggle-switch">
-          <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
+          <input type="checkbox" id="dev-session-eyes"${defaultEyeControlChecked ? ' checked' : ''} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -201,6 +225,33 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     btn.addEventListener('click', closeDialog);
   });
 
+  const ambientEyeTypes = ['sad', 'dawn-sim', 'full-spectrum'];
+  const durationInput = _input(overlay, '#dev-session-duration');
+  let durationEdited = false;
+  durationInput?.addEventListener('input', () => { durationEdited = true; });
+  let eyeControlKind = isUVDevice ? 'uv' : isEyeLightDevice ? 'ambient' : 'protection';
+  const syncEyeControlForMode = (mode, { initial = false } = {}) => {
+    const emitsUV = deviceEmitsUV(device, mode);
+    const kind = emitsUV ? 'uv' : ambientEyeTypes.includes(device.type) ? 'ambient' : 'protection';
+    const eyeInput = _input(overlay, '#dev-session-eyes');
+    const eyeLabel = overlay.querySelector('#dev-session-eye-label');
+    // A checkbox from a non-UV mode cannot be treated as confirmation that
+    // UV-rated goggles are worn. Require a fresh, explicit confirmation.
+    if (!initial && kind === 'uv' && eyeControlKind !== 'uv') {
+      if (eyeInput) eyeInput.checked = false;
+      if (!durationEdited && durationInput) durationInput.value = '0.5';
+    }
+    if (eyeLabel) {
+      eyeLabel.textContent = kind === 'uv'
+        ? 'UV-rated goggles worn (closed eyelids are not protection)'
+        : kind === 'ambient'
+          ? 'Eyes open to receive ambient light (never stare at lamp)'
+          : 'Device-appropriate eye protection worn';
+    }
+    eyeControlKind = kind;
+  };
+  syncEyeControlForMode(initialMode, { initial: true });
+
   let lastModePointerActivation = 0;
   /**
    * @param {HTMLElement} btn
@@ -214,6 +265,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       b.classList.toggle('active', active);
       b.setAttribute('aria-checked', active ? 'true' : 'false');
     }
+    syncEyeControlForMode(mode);
   };
   for (const rawBtn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
     const btn = /** @type {HTMLElement} */ (rawBtn);
@@ -292,17 +344,32 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   }
 
   _button(overlay, '#dev-session-save')?.addEventListener('click', async () => {
-    const durationMin = parseInt(_input(overlay, '#dev-session-duration')?.value || '', 10) || 10;
+    const durationMin = parseFloat(_input(overlay, '#dev-session-duration')?.value || '');
+    if (!Number.isFinite(durationMin) || durationMin <= 0 || durationMin > 600) {
+      showNotification('Enter the actual duration between 0.1 and 600 minutes.', 'error');
+      return;
+    }
     const distanceCm = _readDistanceCm(overlay, device.recommendedDistanceCm || 15);
     const bodyAreas = Array.from(selectedRegions);
     if (bodyAreas.length === 0) {
       _showEmptyRegionError(updateAreaHint, selectedRegions, hint);
       return;
     }
-    const bodyArea = _broadAreaForRegions(bodyAreas);
-    const eyesProtected = !!_input(overlay, '#dev-session-eyes')?.checked;
     const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
-    await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
+    const bodyArea = _broadAreaForRegions(bodyAreas);
+    const emitsUV = deviceEmitsUV(device, mode);
+    const eyeChecked = !!_input(overlay, '#dev-session-eyes')?.checked;
+    const eyeLightForMode = ambientEyeTypes.includes(device.type) && !emitsUV;
+    const eyesProtected = eyeLightForMode ? !eyeChecked : eyeChecked;
+    if (emitsUV && !eyesProtected) {
+      const saveUnsafe = await showConfirmDialog('This records UV exposure without UV-rated goggles. Save it as an unsafe past exposure?');
+      if (!saveUnsafe) return;
+    }
+    const saved = await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
+    if (!saved) {
+      showNotification('The session could not be saved. Check the duration and distance.', 'error');
+      return;
+    }
     closeDialog();
     showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
     navigate?.('light');
@@ -319,15 +386,27 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       _showEmptyRegionError(updateAreaHint, selectedRegions, hint);
       return;
     }
-    const bodyArea = _broadAreaForRegions(bodyAreas);
-    const eyesProtected = !!_input(overlay, '#dev-session-eyes')?.checked;
     const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
-    await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
+    const bodyArea = _broadAreaForRegions(bodyAreas);
+    const emitsUV = deviceEmitsUV(device, mode);
+    const eyeChecked = !!_input(overlay, '#dev-session-eyes')?.checked;
+    const eyeLightForMode = ambientEyeTypes.includes(device.type) && !emitsUV;
+    const eyesProtected = eyeLightForMode ? !eyeChecked : eyeChecked;
+    if (emitsUV && !eyesProtected) {
+      showNotification('UV sessions require UV-rated goggles. Closed eyelids are not sufficient protection.', 'error', 8000);
+      return;
+    }
+    const startedId = await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
+    if (!startedId) {
+      showNotification('The timer could not start. Check that no other session is active.', 'error');
+      return;
+    }
     closeDialog();
     showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);
     ensureActiveDeviceTicker();
     navigate?.('light');
   });
+  return true;
 }
 
 export {

@@ -50,10 +50,10 @@ test('light tools browser coverage exercises storage render and modal flows', as
     let testSolarZenithAngle = null;
     let testSessions = [];
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, timeoutMs = 1000) => {
+    const waitUntil = async (predicate, timeoutMs = 1000, label = 'browser coverage condition') => {
       const started = Date.now();
       while (!predicate()) {
-        if (Date.now() - started > timeoutMs) throw new Error('Timed out waiting for browser coverage condition');
+        if (Date.now() - started > timeoutMs) throw new Error(`Timed out waiting for ${label}`);
         await wait(10);
       }
     };
@@ -146,7 +146,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       modalBlocker.remove();
       await lightTools.saveMeasurement('darkness', 0.2, { roomId: 'room-2' });
       await waitUntil(() => navigateCalls.some(call => call[0] === 'light'
-        && call[1]?.scrollAnchor === '[data-id="room-2"]'), 2500);
+        && call[1]?.scrollAnchor === '[data-id="room-2"]'), 2500, 'room-scoped light navigation');
       results.navigateUsesRoomScrollAnchor = navigateCalls.some(call => call[0] === 'light'
         && call[1]?.scrollAnchor === '[data-id="room-2"]');
 
@@ -191,6 +191,20 @@ test('light tools browser coverage exercises storage render and modal flows', as
       testSunCoords = null;
       testSolarZenithAngle = null;
       testSessions = [{ id: 'session-one' }];
+      lightTools.openSunriseLogger();
+      const noLocationOverlay = document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay');
+      document.getElementById('sunrise-save')?.click();
+      await wait(30);
+      results.sunriseLoggerBlocksSaveWithoutLocation =
+        loggedSessions.length === 0
+        && !!document.querySelector('[aria-label="Golden hour log"]');
+      noLocationOverlay?.remove();
+
+      testSunCoords = { lat: 50.08, lon: 14.43, source: 'profile' };
+      testSolarZenithAngle = date => {
+        const hour = date.getHours() + date.getMinutes() / 60;
+        return hour >= 6 && hour < 18 ? 80 : 100;
+      };
       const sunriseNavigateStart = navigateCalls.length;
       lightTools.openSunriseLogger();
       const sunriseOverlay = document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay');
@@ -198,7 +212,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       if (durationInput) durationInput.value = '500';
       document.getElementById('sunrise-save')?.click();
       await waitUntil(() => navigateCalls.slice(sunriseNavigateStart)
-        .some(call => call[0] === 'light' && !call[1]), 2500);
+        .some(call => call[0] === 'light' && !call[1]), 2500, 'sunrise log navigation');
       results.sunriseLoggerSavesClampedSession = !document.querySelector('[aria-label="Golden hour log"]')
         && loggedSessions[0]?.eyeExposure?.durationSec === 120 * 60
         && loggedSessions[0]?.bodyExposure?.preset === 'face_hands'
@@ -207,11 +221,6 @@ test('light tools browser coverage exercises storage render and modal flows', as
         .some(call => call[0] === 'light' && !call[1]);
       sunriseOverlay?.remove();
 
-      testSunCoords = { lat: 50.08, lon: 14.43 };
-      testSolarZenithAngle = date => {
-        const hour = date.getHours() + date.getMinutes() / 60;
-        return hour >= 6 && hour < 18 ? 80 : 100;
-      };
       lightTools.openSunriseLogger();
       const timedSunriseText = document.querySelector('[aria-label="Golden hour log"]')?.textContent || '';
       results.sunriseLoggerWithCoordsShowsClockTimes =
@@ -302,7 +311,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
       window.setTimeout = (callback, _delay, ...args) => saved.setTimeout.call(window, callback, 0, ...args);
       await lightTools.openDarknessMeter({ roomId: 'room-2' });
       document.getElementById('dark-start')?.click();
-      await waitUntil(() => document.getElementById('dark-start')?.textContent === 'Save reading');
+      await waitUntil(() => document.getElementById('dark-start')?.textContent === 'Read again'
+        && document.getElementById('dark-save')?.disabled === false, 1000, 'qualitative darkness result');
       results.openDarknessFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Sleep darkness meter"]');
       lightTools.closeDarknessMeter();
@@ -328,7 +338,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       lightTools.closeSpectrumClassifier();
       await lightTools.openGlassTransmission({ roomId: 'room-2' });
       document.getElementById('glass-measure-inside')?.click();
-      await waitUntil(() => (document.getElementById('glass-reading-inside')?.textContent || '').includes('lux'), 2500);
+      await waitUntil(() => (document.getElementById('glass-reading-inside')?.textContent || '').includes('camera level'), 2500, 'glass camera-level reading');
       results.openGlassFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Glass transmission test"]');
       lightTools.closeGlassTransmission();
@@ -343,7 +353,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await lightTools.openEyeLevelAudit();
       document.getElementById('audit-toggle')?.click();
       await waitUntil(() => (document.getElementById('audit-status')?.textContent || '')
-        .includes('Camera processing is unavailable'));
+        .includes('Camera processing is unavailable'), 1000, 'audit missing-canvas message');
       results.auditMissingCanvasStopsStreamAndShowsMessage =
         streamStops.length === streamStopsBeforeMissingCanvas + 1;
       lightTools.closeEyeLevelAudit();

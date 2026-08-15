@@ -357,24 +357,24 @@ function buildLightEnvironment(sex) {
     {
       id: 'room_demo_bedroom',
       name: 'Bedroom',
-      primarySource: 'led_warm',
+      primarySource: 'led-warm',
+      daylightLevel: 'low',
       cct: 2700,
       flickerScore: 1,
       hoursOccupiedPerDay: 9,
-      eveningHoursAfterSunset: '1-3hr',
-      eveningUseAfterSunset: true,
+      eveningHoursAfterSunset: 2,
       notes: 'Switched to amber bulbs for evening + blackout curtains installed mid-March.',
       updatedAt: base + 30 * DAY_MS,
     },
     {
       id: 'room_demo_office',
       name: 'Office',
-      primarySource: 'led_cool',
+      primarySource: 'led-cool',
+      daylightLevel: 'strong',
       cct: 5000,
       flickerScore: 2,
       hoursOccupiedPerDay: 7,
-      eveningHoursAfterSunset: '<1hr',
-      eveningUseAfterSunset: false,
+      eveningHoursAfterSunset: 0.5,
       notes: 'Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.',
       updatedAt: base + 12 * DAY_MS,
     },
@@ -382,11 +382,11 @@ function buildLightEnvironment(sex) {
       id: 'room_demo_kitchen',
       name: 'Kitchen',
       primarySource: 'mixed',
+      daylightLevel: 'some',
       cct: 3500,
       flickerScore: 0,
       hoursOccupiedPerDay: 3,
-      eveningHoursAfterSunset: '1-3hr',
-      eveningUseAfterSunset: true,
+      eveningHoursAfterSunset: 2,
       notes: '',
       updatedAt: base,
     },
@@ -396,8 +396,8 @@ function buildLightEnvironment(sex) {
       id: 'scr_demo_laptop',
       device: 'laptop',
       roomId: 'room_demo_office',
-      hoursPerDay: '6+hr',
-      eveningUseAfterSunset: '<1hr',
+      hoursPerDay: 7,
+      eveningUseAfterSunset: 0.5,
       blueBlockerEnabled: true,
       flickerScore: 1,
       updatedAt: base + 5 * DAY_MS,
@@ -406,8 +406,8 @@ function buildLightEnvironment(sex) {
       id: 'scr_demo_phone',
       device: 'phone',
       roomId: 'room_demo_bedroom',
-      hoursPerDay: '3-6hr',
-      eveningUseAfterSunset: '1-3hr',
+      hoursPerDay: 4.5,
+      eveningUseAfterSunset: 2,
       blueBlockerEnabled: false,
       flickerScore: 1,
       updatedAt: base + 5 * DAY_MS,
@@ -420,7 +420,7 @@ function buildLightEnvironment(sex) {
       status: 'ok',
       dot: 'yellow',
       tip: 'Indoor light load is moderate — bedroom evening use is the main lever.',
-      detail: 'Daytime exposure is good (window-side office, kitchen mixed). Evening bedroom is the weak spot: 1–3hr screen + warm-LED is ok for sleep but 1+ unblocked hr of phone reduces melatonin onset by ~30 min on average. Consider blue-blockers on phone after 9pm OR cutting evening phone use to <1hr.',
+      detail: 'The office has strong stated daylight, while the bedroom has repeated evening screen use. Try lower screen brightness, more distance, or less time close to bed; a warmer screen setting can help but does not erase the effect of brightness and duration.',
       generatedAt: NOW_MS - 4 * DAY_MS,
     },
   };
@@ -434,7 +434,7 @@ function buildLightAudits(env) {
     label: 'Baseline — pre-bedroom upgrade',
     notes: 'Before swapping bedroom bulbs to amber + installing blackout curtains.',
     rooms: env.rooms.map(r => r.id === 'room_demo_bedroom'
-      ? { ...r, primarySource: 'led_cool', cct: 4000, flickerScore: 2, notes: 'Cool-white overhead LED', updatedAt: Date.parse('2026-03-20T08:00:00Z') }
+      ? { ...r, primarySource: 'led-cool', cct: 4000, flickerScore: 2, notes: 'Cool-white overhead LED', updatedAt: Date.parse('2026-03-20T08:00:00Z') }
       : { ...r }),
     screens: env.screens.map(s => ({ ...s })),
     measurements: [],
@@ -442,8 +442,8 @@ function buildLightAudits(env) {
     aiAnalysis: {
       status: 'ok',
       dot: 'red',
-      tip: 'Cool-white bedroom overhead is the main melatonin suppressor.',
-      detail: '4000K bedroom lighting at evening use breaks the sleep-onset signal. Pair this with 1–3hr unblocked phone time and you get measurable phase delay. Highest-leverage fix is bulb swap to <2700K + blackout for the sleep window.',
+      tip: 'Bedroom evening light is the clearest signal to review.',
+      detail: 'The room used a cool-looking overhead source and a phone for about two hours after sunset. Brightness and spectrum were not measured, so start by lowering eye-level brightness and checking light leaks rather than treating CCT as a dose.',
       generatedAt: Date.parse('2026-03-20T08:30:00Z'),
     },
   };
@@ -459,8 +459,8 @@ function buildLightAudits(env) {
     aiAnalysis: {
       status: 'ok',
       dot: 'green',
-      tip: 'Bedroom melatonin signal restored. Evening phone is now the next lever.',
-      detail: 'Amber bedroom lighting + blackout brings the bedroom into the green band for melanopic-EDI. Remaining lever is evening phone use (1–3hr unblocked) — adding a screen-level blue-block schedule would close the loop.',
+      tip: 'The room changes look useful; evening phone use is still worth reviewing.',
+      detail: 'Warmer, lower room light and blackout curtains may reduce evening and sleep-time light. This snapshot does not contain a melanopic-EDI measurement, so it cannot confirm a biological response.',
       generatedAt: Date.parse('2026-04-25T08:30:00Z'),
     },
   };
@@ -471,14 +471,14 @@ function buildLightMeasurements() {
   // 8 measurements across the 4 most-used tools.
   const base = NOW_MS - 30 * DAY_MS;
   return [
-    { id: 'm_lux_1',  tool: 'lux',     value: 320,   roomId: 'room_demo_office',  capturedAt: base + 2 * DAY_MS,  extra: { device: 'phone-camera' }, notes: 'Daytime overhead LED, no daylight' },
-    { id: 'm_lux_2',  tool: 'lux',     value: 18000, roomId: 'room_demo_office',  capturedAt: base + 5 * DAY_MS,  extra: { device: 'phone-camera' }, notes: 'Window-adjacent at 11am, sunny' },
-    { id: 'm_lux_3',  tool: 'lux',     value: 6,     roomId: 'room_demo_bedroom', capturedAt: base + 10 * DAY_MS, extra: { device: 'phone-camera', label: 'Light-tight' }, notes: 'Sleep darkness — post-blackout install' },
-    { id: 'm_cct_1',  tool: 'cct',     value: 2700,  roomId: 'room_demo_bedroom', capturedAt: base + 12 * DAY_MS, extra: { device: 'phone-camera' }, notes: 'New amber bulb measured' },
-    { id: 'm_cct_2',  tool: 'cct',     value: 4900,  roomId: 'room_demo_office',  capturedAt: base + 14 * DAY_MS, extra: { device: 'phone-camera' }, notes: 'Office overhead LED' },
-    { id: 'm_flick_1',tool: 'flicker', value: 1,     roomId: 'room_demo_office',  capturedAt: base + 15 * DAY_MS, extra: { strobeHz: 240, label: 'Mild' }, notes: 'Detectable at 240 Hz, low severity' },
-    { id: 'm_spec_1', tool: 'spectrum',value: 'warm-incandescent', roomId: 'room_demo_bedroom', capturedAt: base + 17 * DAY_MS, extra: { label: 'Warm — incandescent-like' }, notes: '' },
-    { id: 'm_dark_1', tool: 'darkness',value: 0.2,   roomId: 'room_demo_bedroom', capturedAt: base + 18 * DAY_MS, extra: { label: 'Sleep-spec ✓', mean: 0.2, max: 1.4 }, notes: 'Mean 0.2 lux post-blackout, brief 1.4 peak from streetlight' },
+    { id: 'm_lux_1',  tool: 'lux',     value: 320,   roomId: 'room_demo_office',  capturedAt: base + 2 * DAY_MS,  confidence: 0.8, extra: { source: 'AmbientLightSensor', measurementKind: 'photopic-illuminance', context: 'daytime' }, notes: 'Daytime overhead light, away from the window' },
+    { id: 'm_lux_2',  tool: 'lux',     value: 18000, roomId: 'room_demo_office',  capturedAt: base + 5 * DAY_MS,  confidence: 0.8, extra: { source: 'AmbientLightSensor', measurementKind: 'photopic-illuminance', context: 'daytime' }, notes: 'Window-adjacent at 11am, sunny' },
+    { id: 'm_lux_3',  tool: 'lux',     value: 60,    roomId: 'room_demo_bedroom', capturedAt: base + 10 * DAY_MS, confidence: 0.9, extra: { source: 'meter-entry', measurementKind: 'photopic-illuminance', context: 'evening' }, notes: 'Eye-level meter reading before bed' },
+    { id: 'm_cct_1',  tool: 'cct',     value: 2700,  roomId: 'room_demo_bedroom', capturedAt: base + 12 * DAY_MS, confidence: 0.35, extra: { method: 'camera-rgb-estimate' }, notes: 'Warm-looking source; camera estimate only' },
+    { id: 'm_cct_2',  tool: 'cct',     value: 4900,  roomId: 'room_demo_office',  capturedAt: base + 14 * DAY_MS, confidence: 0.35, extra: { method: 'camera-rgb-estimate' }, notes: 'Cool-looking source; camera estimate only' },
+    { id: 'm_flick_1',tool: 'flicker', value: 1,     roomId: 'room_demo_office',  capturedAt: base + 15 * DAY_MS, confidence: 0.4, extra: { method: 'camera-rolling-shutter', label: 'Some banding' }, notes: 'Some repeatable rolling-shutter banding; frequency not measured' },
+    { id: 'm_spec_1', tool: 'spectrum',value: 'Warm-looking camera RGB', roomId: 'room_demo_bedroom', capturedAt: base + 17 * DAY_MS, confidence: 0.3, extra: { method: 'camera-rgb', label: 'Warm-looking — source unknown' }, notes: '' },
+    { id: 'm_dark_1', tool: 'darkness',value: 0.2,   roomId: 'room_demo_bedroom', capturedAt: base + 18 * DAY_MS, confidence: 0.9, extra: { method: 'meter-entry', source: 'meter-entry', unit: 'photopic-lux', context: 'sleep' }, notes: '0.2 photopic lux at the pillow; spectrum not measured' },
   ];
 }
 
@@ -687,19 +687,19 @@ function attachMockAIVerdicts(data, sex) {
   // ── Rooms — primary source + evening use
   for (const r of (data.lightEnvironment?.rooms || [])) {
     let dot, tip, detail;
-    const evening = r.eveningUseAfterSunset;
-    if (r.primarySource === 'led_cool' && evening) {
-      dot = 'red';
-      tip = 'Cool-white LED + evening use → suppresses melatonin';
-      detail = 'Blue-rich 4000K+ light after sunset blocks the natural melatonin rise. Either swap to <3000K bulbs for evening, or limit time in this room after dark.';
-    } else if (r.primarySource === 'led_warm' && evening) {
+    const evening = Number(r.eveningHoursAfterSunset) || 0;
+    if (r.primarySource === 'led-cool' && evening > 0) {
+      dot = 'yellow';
+      tip = 'Cool-looking source used after sunset — check brightness';
+      detail = 'CCT and source type do not establish melanopic exposure. Lower eye-level brightness, duration, and direct glare first; use a spectral meter if you need melanopic EDI.';
+    } else if (r.primarySource === 'led-warm' && evening > 0) {
       dot = 'green';
-      tip = 'Warm bedroom light + evening use — good evening config';
-      detail = `2700K amber bulbs + ${r.eveningHoursAfterSunset || ''} of post-sunset use. Melanopic load stays low, sleep onset uninterrupted.`;
-    } else if (r.primarySource === 'led_cool' && !evening) {
+      tip = 'Warm-looking bedroom light; brightness still matters';
+      detail = `About ${evening} hour${evening === 1 ? '' : 's'} of post-sunset use is reported. A warm appearance may help, but it does not prove low melanopic EDI or an uninterrupted sleep response.`;
+    } else if (r.primarySource === 'led-cool' && evening === 0) {
       dot = 'green';
-      tip = 'Cool-white workspace, daytime-only — appropriate for office';
-      detail = `5000K + ${r.hoursOccupiedPerDay || 0}h/day during productive hours feeds the daytime alertness signal. Window-adjacent is even better — natural light dominates 9am-4pm.`;
+      tip = 'Cool-looking workspace used mainly in daytime';
+      detail = `${r.hoursOccupiedPerDay || 0} hours/day are reported with strong daylight access. Use an eye-level meter if you need to know whether the daytime signal is actually bright enough.`;
     } else {
       dot = 'gray';
       tip = `${r.hoursOccupiedPerDay || 0} h/day — light-burden moderate`;
@@ -710,18 +710,18 @@ function attachMockAIVerdicts(data, sex) {
   // ── Screens — blue blocker + evening hours
   for (const s of (data.lightEnvironment?.screens || [])) {
     let dot, tip, detail;
-    if (s.blueBlockerEnabled && s.eveningUseAfterSunset === '<1hr') {
+    if (s.blueBlockerEnabled && Number(s.eveningUseAfterSunset) < 1) {
       dot = 'green';
-      tip = 'Blue blocker + minimal evening use — well managed';
-      detail = `${s.device} with active blue-light filter + ${s.eveningUseAfterSunset} after sunset. This is the ideal screen profile.`;
-    } else if (!s.blueBlockerEnabled && /1-3hr|3\+hr/.test(s.eveningUseAfterSunset || '')) {
+      tip = 'Short evening use with blue reduction enabled';
+      detail = `${s.device} use after sunset is under an hour. The warmer setting may reduce short-wavelength output, while brightness, distance, and duration still matter.`;
+    } else if (!s.blueBlockerEnabled && Number(s.eveningUseAfterSunset) >= 1) {
       dot = 'yellow';
-      tip = `Unblocked ${s.device} + ${s.eveningUseAfterSunset} after sunset`;
-      detail = `Phone/tablet display peaks at ~440nm — same wavelength your circadian system reads as "morning sun". A schedule-based blue-blocker (Night Shift / f.lux) cuts the melatonin-suppression effect ~40% without changing your usage habits.`;
+      tip = `${s.device} used ${s.eveningUseAfterSunset} hours after sunset`;
+      detail = 'Try lower brightness, more viewing distance, or less time near bed. A warmer display setting can reduce short-wavelength output, but it is not a fixed percentage reduction in biological effect.';
     } else {
       dot = 'gray';
       tip = `Low-impact screen profile`;
-      detail = `${s.device} screen in this room — current usage pattern doesn't significantly load the circadian channel.`;
+      detail = `${s.device} screen is mapped, but brightness, distance, and spectrum are not measured. Treat this as timing context, not a dose conclusion.`;
     }
     s.aiAnalysis = _verdict(dot, tip, detail, `demo-screen-${s.id}`, s.updatedAt || base);
   }
@@ -729,25 +729,23 @@ function attachMockAIVerdicts(data, sex) {
   for (const m of (data.lightMeasurements || [])) {
     let dot, tip, detail;
     if (m.tool === 'lux') {
-      if (m.value < 50) { dot = 'green'; tip = `${m.value} lux — sleep-spec dark`; detail = 'Below 50 lux is the ICNIRP-friendly sleep range. Melatonin uninhibited.'; }
-      else if (m.value < 500) { dot = 'yellow'; tip = `${m.value} lux — daytime-low for an office`; detail = 'Reasonable but below the 500-lux office baseline. Adding window-side time or a daytime-bright lamp would help alertness.'; }
-      else { dot = 'green'; tip = `${m.value} lux — strong daytime signal`; detail = 'Plenty of light for the circadian pathway during productive hours.'; }
+      if (m.extra?.context === 'evening') { dot = 'gray'; tip = `${m.value} photopic lux — evening spot check`; detail = 'Photopic lux does not provide melanopic EDI. Use it to compare brightness at the same position and source, not to claim a biological dose.'; }
+      else if (m.value < 250) { dot = 'yellow'; tip = `${m.value} photopic lux — modest daytime spot check`; detail = 'This eye-level reading may indicate a weak daytime opportunity, but spectrum-weighted light is unknown.'; }
+      else { dot = 'green'; tip = `${m.value} photopic lux — useful daytime brightness`; detail = 'This is a useful brightness spot check. It is not a melanopic-EDI or circadian-response measurement.'; }
     } else if (m.tool === 'cct') {
-      if (m.value <= 3000) { dot = 'green'; tip = `${m.value}K — warm, evening-appropriate`; detail = 'Below 3000K means low blue content. Good for sleep prep.'; }
-      else if (m.value < 5000) { dot = 'yellow'; tip = `${m.value}K — neutral, room-by-room call`; detail = 'Mid-CCT works for daytime task lighting; in evening rooms it accelerates melatonin suppression.'; }
-      else { dot = 'gray'; tip = `${m.value}K — cool/daytime CCT`; detail = 'High blue content suits productive daytime hours, less so for evening rooms.'; }
+      dot = 'gray'; tip = `About ${m.value}K — camera colour estimate`; detail = 'CCT describes appearance, not spectrum or melanopic EDI. Camera white balance can also shift the estimate.';
     } else if (m.tool === 'flicker') {
-      dot = m.value <= 1 ? 'green' : (m.value === 2 ? 'yellow' : 'red');
-      tip = `Flicker score ${m.value} — ${['pristine', 'mild', 'noticeable', 'severe'][m.value] || 'noticeable'}`;
-      detail = `${m.extra?.strobeHz ? `Detected at ${m.extra.strobeHz} Hz. ` : ''}Below 200 Hz is correlated with eye strain + headache susceptibility in flicker-sensitive subjects (Wilkins 2018).`;
+      dot = m.value <= 1 ? 'gray' : (m.value === 2 ? 'yellow' : 'red');
+      tip = `Camera banding score ${m.value}`;
+      detail = 'Rolling-shutter banding was screened, but frequency and modulation depth were not measured. Confirm a repeatable pattern with a purpose-built meter before drawing a health conclusion.';
     } else if (m.tool === 'darkness') {
-      dot = m.value < 1 ? 'green' : (m.value < 5 ? 'yellow' : 'red');
-      tip = `${m.extra?.label || ''} mean ${m.value} lux at the pillow`;
-      detail = `Sleep darkness goal is <1 lux mean. Brief streetlight peaks (max ${m.extra?.max || ''} lux) are tolerable; constant exposure isn't.`;
+      dot = m.value <= 1 ? 'green' : (m.value <= 5 ? 'yellow' : 'red');
+      tip = `${m.value} photopic lux at the pillow`;
+      detail = 'This meter entry can reveal visible sleep-time light, but photopic lux is not melanopic EDI and does not prove a melatonin response.';
     } else if (m.tool === 'spectrum') {
-      dot = 'green';
+      dot = 'gray';
       tip = `${m.extra?.label || m.value}`;
-      detail = 'Warm-spectrum lighting in evening rooms minimizes melanopic load.';
+      detail = 'Phone-camera RGB can describe a warm or cool appearance, but it cannot identify the source technology or reconstruct its spectrum.';
     } else { dot = 'gray'; tip = `${m.tool} measurement logged`; detail = ''; }
     m.aiAnalysis = _verdict(dot, tip, detail, `demo-tool-${m.id}`, m.capturedAt || base);
   }

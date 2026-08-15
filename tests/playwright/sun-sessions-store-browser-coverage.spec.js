@@ -40,6 +40,8 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
     let fetchCalls = 0;
     let lastSpectrumArgs = null;
     let lastDoseArgs = null;
+    let holdAtmosphereFetch = false;
+    let releaseAtmosphereFetch = null;
 
     try {
       state.currentProfile = 'sun-sessions-store-coverage';
@@ -89,6 +91,9 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
 
       const fetchAtmosphere = async () => {
         fetchCalls += 1;
+        if (holdAtmosphereFetch) {
+          await new Promise(resolve => { releaseAtmosphereFetch = resolve; });
+        }
         return {
           uvIndex: 5,
           cloudCover: 20,
@@ -132,7 +137,8 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       results.startSessionUsesDetailedRegionsAndActiveLookup = active?.id === activeId
         && active.bodyExposure?.preset === 'detailed'
         && active.bodyExposure?.regions?.join(',') === 'face,arms-front'
-        && active.bodyExposure?.fraction > 0.08;
+        && active.bodyExposure?.fraction > 0.08
+        && active.eyeExposure?.mode === 'glass-window';
 
       const paused = await store.pauseSession(activeId);
       const pausedState = paused?.paused === true;
@@ -161,14 +167,18 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       elapsed.dataset.liveElapsedFor = activeId;
       document.body.appendChild(elapsed);
       const stopped = await store.stopSession(activeId);
-      results.stopSessionFreezesLiveElapsedAndTriggersAi = stopped?.endedAt
+      results.stopSessionFreezesLiveElapsedWithoutPrematureAi = stopped?.endedAt
         && stopped.durationMin > 1
         && stopped.eyeExposure?.durationSec > 60
         && !elapsed.hasAttribute('data-live-elapsed-for')
         && elapsed.textContent.startsWith('elapsed:')
         && depCalls.some(call => call[0] === 'clear' && call[1] === activeId)
-        && aiCalls.includes(activeId);
+        && !aiCalls.includes(activeId)
+        && stopped.calculationStatus === 'pending';
       elapsed.remove();
+      await store.hydrateSession(activeId, { lat: 50.1, lon: 14.4 });
+      results.completedHydrationTriggersSessionAnalysis = aiCalls.includes(activeId)
+        && store.getSessions().find(sess => sess.id === activeId)?.calculationStatus === 'computed';
 
       const loggedId = await store.logCompletedSession({
         startedAt: Date.now() - 60 * 60000,
@@ -189,25 +199,43 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         notes: 'initial logged note',
       });
       const logged = store.getSessions().find(sess => sess.id === loggedId);
-      results.logCompletedSessionAddsDurationAndAiHook = !!logged
+      results.logCompletedSessionAddsDurationWithoutPrematureAi = !!logged
         && logged.durationMin > 20
-        && aiCalls.includes(loggedId);
+        && !aiCalls.includes(loggedId)
+        && logged.calculationStatus === 'pending';
 
-      await store.updateSession(loggedId, { durationMin: 20, notes: 'updated note' });
+      logged.doses = { vitamin_d: 999 };
+      logged.safety = { medFraction: 0.99 };
+      logged.calculationStatus = 'computed';
+      holdAtmosphereFetch = true;
+      const updatePromise = store.updateSession(loggedId, { durationMin: 20, notes: 'updated note' });
+      await waitFor(() => typeof releaseAtmosphereFetch === 'function', 'duration edit pending fetch');
+      const pendingEdit = store.getSessions().find(sess => sess.id === loggedId);
+      results.durationEditHidesStaleDerivedValuesWhilePending = pendingEdit?.calculationStatus === 'pending'
+        && pendingEdit.doses == null
+        && pendingEdit.safety == null
+        && pendingEdit.atmosphere == null;
+      holdAtmosphereFetch = false;
+      releaseAtmosphereFetch?.();
+      releaseAtmosphereFetch = null;
+      await updatePromise;
       await waitFor(() => store.getSessions().find(sess => sess.id === loggedId)?.engineVersion === store.SUN_ENGINE_VERSION, 'duration edit hydration');
       const hydrated = store.getSessions().find(sess => sess.id === loggedId);
-      results.updateSessionQueuesHydrationAndAppliesOverrides = hydrated?.notes === 'updated note'
+      results.updateSessionAwaitsHydrationAndAppliesAllowedOverrides = hydrated?.notes === 'updated note'
         && hydrated?.durationMin === 20
         && hydrated?.doses?.vitamin_d === 66
         && hydrated?.safety?.medFraction === 0.25
-        && hydrated?.atmosphere?.uvIndex === 7
+        && hydrated?.atmosphere?.uvIndex === 5
         && hydrated?.atmosphere?.cloudCover === 40
         && hydrated?.atmosphere?.ozoneDU === 310
         && hydrated?.atmosphere?._uvOverridden == null
         && lastSpectrumArgs?.zenithDeg === 35
         && lastSpectrumArgs?.ozoneDU === 310
         && lastDoseArgs?.durationMin === 20
-        && lastDoseArgs?.bodyExposureFraction > 0.12;
+        && lastDoseArgs?.bodyExposureFraction === 0.12
+        && lastDoseArgs?.skinIrradianceMultiplier > 1
+        && lastDoseArgs?.eyeExposure?.mode === 'glass-window'
+        && aiCalls.includes(loggedId);
 
       const staleId = await store.logCompletedSession({
         startedAt: Date.now() - 120 * 60000,
@@ -226,6 +254,25 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         && freshRehydrateResult.rehydrated === 0
         && fetchCalls > beforeRehydrateFetches;
 
+      const failedId = await store.logCompletedSession({
+        startedAt: Date.now() - 50 * 60000,
+        endedAt: Date.now() - 30 * 60000,
+        location: { lat: 50.1, lon: 14.4 },
+        bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [] },
+        eyeExposure: { mode: 'indirect', lensTint: 'clear', durationSec: 1200 },
+      });
+      store.configureSunSessionsStore({ fetchAtmosphere: async () => { throw new Error('expected atmosphere failure'); } });
+      const failedHydration = await store.hydrateSession(failedId, { lat: 50.1, lon: 14.4 });
+      const failedSession = store.getSessions().find(sess => sess.id === failedId);
+      results.hydrationFailurePersistsExplicitErrorWithoutDerivedValues = failedHydration === null
+        && failedSession?.calculationStatus === 'calculation-error'
+        && failedSession.doses == null
+        && failedSession.safety == null
+        && failedSession.atmosphere == null
+        && !aiCalls.includes(failedId)
+        && warnings.some(message => message.includes('hydrateSession failed'));
+      store.configureSunSessionsStore({ fetchAtmosphere });
+
       const deleted = await store.deleteSession(loggedId);
       const deletedAgain = await store.deleteSession('missing-session-id');
       store.resetSunSessionsStoreState();
@@ -233,7 +280,6 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         && deletedAgain === false
         && !store.getSessions().some(sess => sess.id === loggedId)
         && depCalls.some(call => call[0] === 'clear' && call[1] === loggedId);
-      results.hydrationWarningsWereNotEmitted = warnings.length === 0;
     } finally {
       document.querySelectorAll('[data-live-elapsed-for]').forEach(el => el.remove());
       store.configureSunSessionsStore({

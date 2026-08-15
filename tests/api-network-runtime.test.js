@@ -39,6 +39,7 @@ const ENV_KEYS = [
   'PROXY_RATE_LIMIT_WINDOW_MS',
   'PROXY_RATE_LIMIT_BLOB_TOKEN',
   'PROXY_ALLOW_INSTANCE_RATE_LIMIT',
+  'PROXY_POSTAL_QUEUE_MAX',
   'PROXY_UPSTREAM_TIMEOUT_MS',
   'VERCEL',
   'VERCEL_GIT_COMMIT_SHA',
@@ -77,6 +78,7 @@ function makeProxyRequest(body, {
   rawBody,
   clientIp,
   requestUrl = 'https://getbased.health/api/proxy',
+  signal,
 } = {}) {
   const headers = new Headers();
   if (origin) headers.set('origin', origin);
@@ -86,6 +88,7 @@ function makeProxyRequest(body, {
     method,
     headers,
     body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
 }
 
@@ -1442,6 +1445,112 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(oversized.status).toBe(502);
     expect(await responseJson(oversized)).toEqual({ error: 'Proxy response exceeds size cap' });
+  });
+
+  it('resolves a postal area server-side and returns only rounded coordinates', async () => {
+    const missingPostal = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '',
+    }, { clientIp: '203.0.113.91' }));
+    expect(missingPostal.status).toBe(400);
+
+    globalThis.fetch = vi.fn(async (url, init) => jsonResponse([{
+      lat: '50.087451',
+      lon: '14.420671',
+      name: '110 00',
+      display_name: '110 00, Prague, Czechia',
+      address: { postcode: '110 00', country: 'Czechia', country_code: 'cz' },
+    }]));
+    const resolved = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '110 00',
+    }, { clientIp: '203.0.113.92' }));
+
+    expect(resolved.status).toBe(200);
+    expect(await responseJson(resolved)).toMatchObject({
+      latitude: 50.1,
+      longitude: 14.4,
+      accuracyKm: 11,
+      source: 'postal-area',
+      attribution: '© OpenStreetMap contributors',
+    });
+    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    expect(url).toContain('https://nominatim.openstreetmap.org/search?');
+    expect(url).toContain('postalcode=110+00');
+    expect(init.headers['User-Agent']).toContain('getbased-health-location-proxy');
+  });
+
+  it('bounds the shared postal-geocode queue before admitting more cache misses', async () => {
+    process.env.PROXY_POSTAL_QUEUE_MAX = '1';
+    let releaseFirst;
+    globalThis.fetch = vi.fn(() => new Promise(resolve => { releaseFirst = resolve; }));
+    const first = proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '120 00',
+    }, { clientIp: '203.0.113.93' }));
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1), { timeout: 2_500 });
+    const overflow = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '130 00',
+    }, { clientIp: '203.0.113.94' }));
+    expect(overflow.status).toBe(503);
+    expect(overflow.headers.get('Retry-After')).toBe('10');
+    expect(await responseJson(overflow)).toEqual({ error: 'Location lookup busy. Try again shortly.' });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    releaseFirst(jsonResponse([{
+      lat: '50.0755',
+      lon: '14.4378',
+      name: '120 00',
+      display_name: '120 00, Prague, Czechia',
+      address: { postcode: '120 00' },
+    }]));
+    expect((await first).status).toBe(200);
+  });
+
+  it('releases postal queue capacity when a throttled request disconnects', async () => {
+    process.env.PROXY_POSTAL_QUEUE_MAX = '1';
+    globalThis.fetch = vi.fn(async url => {
+      const postalCode = new URL(url).searchParams.get('postalcode');
+      return jsonResponse([{
+        lat: '50.0755',
+        lon: '14.4378',
+        name: postalCode,
+        display_name: `${postalCode}, Prague, Czechia`,
+        address: { postcode: postalCode },
+      }]);
+    });
+
+    const warmup = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '140 00',
+    }, { clientIp: '203.0.113.95' }));
+    expect(warmup.status).toBe(200);
+
+    const controller = new AbortController();
+    const disconnected = proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '150 00',
+    }, { clientIp: '203.0.113.96', signal: controller.signal }));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    controller.abort(new DOMException('Client disconnected', 'AbortError'));
+
+    const replacement = await proxyHandler(makeProxyRequest({
+      meteo: 'postal_geocode',
+      country: 'Czechia',
+      postalCode: '160 00',
+    }, { clientIp: '203.0.113.97' }));
+    expect(replacement.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect((await disconnected).status).toBe(502);
   });
 
   it('strips the CAMS bearer before following an allowed cross-origin redirect', async () => {

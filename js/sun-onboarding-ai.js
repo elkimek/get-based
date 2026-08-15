@@ -1,6 +1,6 @@
 // @ts-check
 // sun-onboarding-ai.js — AI verdict for the Light & Sun onboarding
-// completion. Synthesizes the user's setup answers + Ott burden + sleep
+// completion. Synthesizes the user's setup answers + light patterns + sleep
 // complaints + goals into a personalized starting plan.
 //
 // Thin wrapper around ai-verdict-engine. Single-target shape (the
@@ -14,20 +14,21 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { getSunSetupCoords } from './sun-defaults-runtime.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
 
 const _OTT_LABELS = {
-  morningDeficit: 'No bright light within 1 hr of waking',
-  glassMediated: 'Most daytime hours behind glass',
-  dimWorkspace: 'Workspace under 200 lux',
-  coolNightLight: 'Cool-toned LEDs after sunset',
-  eveningScreens: 'Heavy screen use in evening',
-  brightAfterSunset: 'Bright overhead lights after sunset',
-  notDarkAtNight: 'Sleep room not fully dark',
-  sunscreenAlways: 'Sunscreen even before sun comes up',
-  sunglassesOutdoors: 'Sunglasses worn most outdoor time',
-  noSunlight: 'Less than 30 min outdoor / day',
+  'morning-light-deficit': 'Little or no outdoor daylight in the first 1–2 hours after waking',
+  'glass-mediated-daytime': 'Most daytime hours behind glass',
+  'dim-workspace': 'Dim daytime workspace with little daylight',
+  'cool-led-evening': 'Bright, cool or blue-enriched evening light',
+  'evening-screens': 'Bright screens during the 2 hours before bed',
+  'bright-after-sunset': 'Bright room or overhead light before sleep',
+  'sleep-not-dark': 'Light reaches the eyes during sleep',
+  'sunscreen-blocks-uvb': 'Sunscreen used on most sun-exposed days',
+  'sunglasses-outside': 'Sunglasses worn most outdoor time',
+  'low-outdoor-time': 'Less than 30 minutes outdoors on a typical day',
 };
 
 const _HOME_LIGHT_LABELS = {
@@ -39,33 +40,21 @@ const _HOME_LIGHT_LABELS = {
 
 const _EYEWEAR_LABELS = {
   'none': 'no eyewear outdoors', 'sunglasses': 'sunglasses',
-  'clear-prescription': 'clear prescription', 'both': 'sunglasses + prescription combinations',
+  'clear-glasses': 'clear prescription glasses', 'both': 'sunglasses + prescription combinations',
   'contacts-uv': 'UV-blocking contacts',
 };
 
 const _PSM_LABELS = {
-  none: 'none',
-  mild: 'mild (e.g., antihistamines)',
-  moderate: 'moderate (e.g., NSAIDs, thiazide diuretics, sulfa, retinols)',
-  severe: 'severe (e.g., tetracyclines, oral retinoids, amiodarone)',
+  unknown: 'not reviewed',
+  none: 'no known warning',
+  mild: 'possible sunlight warning',
+  moderate: 'known sunlight warning',
+  severe: 'prior reaction or strict avoidance warning',
 };
 
 export function getDefaultsFingerprint() {
-  const d = _getDefaults();
-  if (!d) return '';
-  const parts = [
-    d.fitzpatrick || '',
-    d.photosensitiveMeds || 'none',
-    d.homeLight || '',
-    d.eyewear || '',
-    d.ottScore != null ? d.ottScore : '',
-  ];
-  if (d.ott && typeof d.ott === 'object') {
-    for (const k of Object.keys(d.ott).sort()) {
-      parts.push(`${k}:${d.ott[k] ? 1 : 0}`);
-    }
-  }
-  return hashString(parts.join('|'));
+  if (!_getDefaults()) return '';
+  return hashString(buildOnboardingContext());
 }
 
 export function buildOnboardingContext() {
@@ -84,12 +73,12 @@ export function buildOnboardingContext() {
     const flagged = Object.keys(d.ott).filter(k => d.ott[k]);
     if (flagged.length) {
       lines.push('');
-      lines.push(`### Indoor-light burden audit (10-question Ott)`);
-      lines.push(`Score: ${d.ottScore}/10 burden (${10 - d.ottScore}/10 aligned)`);
-      lines.push('Flagged signals:');
+      lines.push('### Light timing and spectrum context (10-question map)');
+      lines.push(`Patterns selected: ${d.ottScore}/10 (educational context, not a clinical score)`);
+      lines.push('Selected patterns:');
       for (const k of flagged) lines.push(`  - ${_OTT_LABELS[k] || k}`);
     } else if (d.ottScore === 0) {
-      lines.push('Indoor-light burden audit: zero flags (perfectly aligned).');
+      lines.push('Light timing and spectrum context: no patterns selected. Do not infer perfect alignment from this alone.');
     }
   }
 
@@ -104,14 +93,15 @@ export function buildOnboardingContext() {
     if (sleep?.wakeup) lines.push(`Reported wake time: ${sleep.wakeup}`);
   }
 
-  const profileLoc = state.importedData?.profile?.location;
-  if (profileLoc?.lat != null) {
-    const absLat = Math.abs(profileLoc.lat);
+  const resolvedCoords = getSunSetupCoords();
+  if (resolvedCoords?.lat != null) {
+    const latitude = Number(resolvedCoords.lat);
+    const absLat = Math.abs(latitude);
     let latNote = '';
-    if (absLat > 50) latNote = ' (high latitude — winter UVB <2 for ~4 months/year)';
-    else if (absLat > 35) latNote = ' (mid latitude — winter UVB diminished)';
-    else if (absLat < 23) latNote = ' (tropical — year-round UVB available)';
-    lines.push(`Profile latitude: ${profileLoc.lat}°${latNote}`);
+    if (absLat > 50) latNote = ' (high latitude — strong seasonal change in day length and UVB availability)';
+    else if (absLat > 35) latNote = ' (mid latitude — meaningful seasonal change in day length and UVB availability)';
+    else if (absLat < 23) latNote = ' (low latitude — smaller seasonal solar-angle change)';
+    lines.push(`Resolved latitude: ${latitude.toFixed(2)}°${latNote}; source: ${resolvedCoords.source || 'unknown'}`);
   }
 
   try {
@@ -130,12 +120,13 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string","actions":["string","string","string"]}.',
   '',
   'dot:',
-  '  green = setup is well-aligned (low Ott burden, eyewear/clothing protocol matches goals, lighting environment supports circadian rhythm)',
-  '  yellow = mostly OK but specific gaps to address (1–3 Ott flags + minor home lighting issue)',
-  '  red = high indoor-light burden / circadian-hostile environment (Ott score 6+, cool LED at night, no morning anchor, sleep room not dark)',
+  '  green = available context suggests supportive day–night timing, without claiming a health grade',
+  '  yellow = one or more practical timing or light-environment patterns merit attention',
+  '  red = use only for a clear, high-priority pattern supported by the answers; never derive it from sunscreen or eyewear alone',
   '  gray = not enough data (defaults missing)',
   '',
-  'Weigh signals together — a Fitzpatrick I user with sunglasses-always at high latitude has a vitamin-D risk that a Fitzpatrick V user at low latitude doesn\'t. Photosensitizing meds shrink the safe-dose window dramatically (severe = 4× faster burn). Cool LEDs in evening + sleep-room not dark is a stacked melatonin attack.',
+  'Treat Fitzpatrick type as a rough UV-model reference, not a diagnosis or safe-time guarantee. A photosensitivity flag adds uncertainty and caution; never invent a numeric burn multiplier.',
+  'Treat sunscreen and eyewear as spectrum and dose-context modifiers, not proof of harm. Do not advise stopping prescribed protection, looking at the sun, exposing eyes to UV, or extending exposure. Ocular UVB activation of POMC / α-MSH has been shown in mice, but a human skin-protection effect from removing sunglasses is unproven.',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
@@ -234,7 +225,7 @@ export function renderOnboardingAIBlock() {
     <div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Get a contextual read on your skin type, lighting environment, and goals.</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')}>Generate plan</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')}>Generate context</button>
     </div>
   </div>`;
 }

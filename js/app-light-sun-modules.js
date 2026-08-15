@@ -38,15 +38,14 @@ import {
   _expandLightToolsSection,
   renderDashboardLightChannelPills,
   renderLightChannelsLive,
+  renderLightLiveSession,
   renderLightSessionLogActions,
   renderLightTodayStrip,
   showLight,
 } from './light-page-view.js';
 import {
-  _clearManualUvi,
   _inspectConditionsNow,
   _refreshConditionsNow,
-  _setManualUvi,
   renderConditionsNow,
   renderLightConditionsWidgetBody,
 } from './light-conditions-now.js';
@@ -59,12 +58,10 @@ import { configureSunRuntimeDeps } from './sun-runtime.js';
 
 export {
   _expandLightToolsSection,
-  _clearManualUvi,
   _inspectConditionsNow,
   _openAllSessionsModal,
   _openChannelOnLightPage,
   _refreshConditionsNow,
-  _setManualUvi,
   _toggleChannelDetail,
   configureLightEnv,
   ensureActiveDeviceTicker,
@@ -73,6 +70,7 @@ export {
   renderDashboardLightChannelPills,
   renderLightChannelsLive,
   renderLightConditionsWidgetBody,
+  renderLightLiveSession,
   renderLightSessionLogActions,
   renderLightTodayHero,
   renderLightTodayStrip,

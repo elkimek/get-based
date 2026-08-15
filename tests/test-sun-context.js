@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // test-sun-context.js — buildSunContext({tier}) AI prompt assembly.
-// Always / standard / deep tier shaping, deficit detection citations,
+// Always / standard / deep tier shaping, source separation,
 // section markers, token-budget guards.
 //
 // Run: node tests/test-sun-context.js  (or via npm test)
@@ -76,18 +76,22 @@ labCtxMod.setLightSunContextEnabled(true);
     /Outdoor sessions: 2/.test(always));
   assert('Always tier surfaces the active session warning',
     /ACTIVE SESSION in progress/.test(always));
-  assert('Always tier surfaces 7-day rollup header with tier-dot legend',
-    /7-day rollup \(sun \+ devices combined;.*hit weekly target.*moderate.*low.*none/.test(always));
-  // 30-day breakdown was dropped from always-tier in v1.7.18 (token compression).
-  // It still backs deficit detection internally; the surface moved to standard tier.
+  assert('Always tier surfaces source-aware 7-day light signals',
+    /Light-responsive signals — last 7 days/.test(always)
+      && /Sunlight:/.test(always)
+      && /Devices, kept separate:/.test(always));
+  assert('Always tier does not grade light with targets or deficit language',
+    !/hit weekly target|Active light deficits/.test(always));
+  // The standard tier carries longer-term trend shape; the always tier stays
+  // short and source-aware.
   assert('Always tier omits 30-day totals header (compressed in v1.7.18)',
     !/30-day per-channel dose totals/.test(always));
   assert('Always tier serializes Fitzpatrick III from sunDefaults',
     /Fitzpatrick III/.test(always));
   assert('Always tier surfaces Ott self-survey score when ottScore set',
     /Ott self-survey: 6\/10 aligned/.test(always));
-  assert('Always tier reports MED',
-    /Today's cumulative MED:/.test(always));
+  assert('Always tier reports modeled base MED without a personal-threshold claim',
+    /Today's modeled erythemal dose:/.test(always) && /not a personal threshold/.test(always));
 
   // Token budget — always tier should stay roughly under ~1400 chars
   // (~520 tok) for the canonical small-state user. Hard cap = 4000 chars
@@ -95,13 +99,11 @@ labCtxMod.setLightSunContextEnabled(true);
   assert('Always tier stays under 4000 chars (token-budget guard)',
     always.length < 4000, `len=${always.length}`);
 
-  // ─── 3. Deficit detection ────────────────────────────────────────────
-  console.log('%c 3. Active deficit citations ', 'font-weight:bold;color:#f59e0b');
+  // ─── 3. Missing logs are not deficits ────────────────────────────────
+  console.log('%c 3. Missing logs stay neutral ', 'font-weight:bold;color:#f59e0b');
 
-  // 7 sessions to satisfy the v1.7.18 baseline-window gate (deficits only
-  // fire once the user has logged ≥7 events of any kind — otherwise we
-  // can't distinguish "user doesn't expose" from "user hasn't logged
-  // yet"). All carry only vitamin_d → circadian, nir_solar, no_cv all 0.
+  // Even a long history with one modeled pathway must not turn unlogged
+  // pathways into biological deficiencies.
   const partialSessions = [];
   for (let i = 0; i < 7; i++) {
     partialSessions.push({
@@ -117,20 +119,12 @@ labCtxMod.setLightSunContextEnabled(true);
   }
   reset({ sunSessions: partialSessions });
   const def = buildSunContext({ tier: 'always' });
-  assert('Deficit block surfaces the "Active light deficits" header',
-    /Active light deficits/.test(def));
-  assert('Circadian deficit cites Hattar / Huberman literature',
-    /Hattar|Huberman/.test(def));
-  assert('NIR-solar deficit cites Wunsch / Jeffery literature',
-    /Wunsch|Jeffery/.test(def));
-  assert('NO/cardiovascular deficit cites Liu / Oplander pathway',
-    /Liu|Oplander|Opländer/.test(def));
-  assert('Vit-D deficit absent when vitamin_d > 0',
-    !/Channel 1 \(vit D\)/.test(def));
+  assert('Recorded sunlight pathway is described as logged',
+    /Sunlight: Vit-D synthesis logged/.test(def));
+  assert('Unlogged pathways never create an active-deficit block',
+    !/Active light deficits|likely deficient|pathway not engaged/.test(def));
 
-  // Baseline-window gate (v1.7.18) — under 7 logged events the deficit
-  // block must NOT fire. Brand-new users get a measurement gap, not 6
-  // simultaneous false-positive deficits.
+  // Brand-new users get the same neutral wording.
   reset({
     sunSessions: [{
       id: 'lone',
@@ -142,8 +136,8 @@ labCtxMod.setLightSunContextEnabled(true);
     }],
   });
   const sparse = buildSunContext({ tier: 'always' });
-  assert('Deficit block suppressed when fewer than 7 events logged',
-    !/Active light deficits/.test(sparse));
+  assert('Sparse history also avoids deficit language',
+    !/Active light deficits|likely deficient/.test(sparse));
 
   // ─── 4. Standard tier (+1200 tok) ────────────────────────────────────
   console.log('%c 4. Standard tier extra block ', 'font-weight:bold;color:#f59e0b');
@@ -171,10 +165,10 @@ labCtxMod.setLightSunContextEnabled(true);
   // ~120 chars). New shape (matches buildWearableContext): per-channel
   // 6-week trend lines instead of per-event detail. Per-session forensics
   // moved to the getSunSessionsSlice / getSunSessionDetail tool-call APIs.
-  assert('Standard tier emits "Weekly trend (last 6w" header (wearables-style)',
-    /### Weekly trend \(last 6w/.test(standard));
+  assert('Standard tier emits source-separated weekly light trend',
+    /### Weekly light trend \(last 6w/.test(standard) && /Sunlight:/.test(standard));
   assert('Standard tier emits at least one channel weekly-trend line',
-    /(Vit-D|Body clock|Cellular repair|Cardiovascular|Mood\/hormones)/.test(standard));
+    /(Vit-D|Body clock|Cell energy & repair|Cardiovascular|Mood\/hormones)/.test(standard));
   assert('Standard tier emits "Session cadence" line (last 7d vs prior 7d)',
     /### Session cadence/.test(standard));
   assert('Standard tier no longer renders per-session sun table',
@@ -400,8 +394,8 @@ labCtxMod.setLightSunContextEnabled(true);
   const withRubric = buildSunContext({ tier: 'always' });
   assert('Burden line names the qualitative tier',
     /tier 2\/2/.test(withRubric) && /Heavy load/.test(withRubric));
-  assert('Burden line carries inline 0=light … 2=heavy rubric',
-    /0=light, 2=heavy/.test(withRubric));
+  assert('Indoor screening line stays qualitative and disclaims measured dose',
+    /heuristic context, not measured dose/.test(withRubric));
   configureSunContext(restoreBurdenDeps);
 
   // ─── 10. Room-name resolution in tool warnings ───────────────────────
@@ -429,7 +423,7 @@ labCtxMod.setLightSunContextEnabled(true);
   // The keyword-based intent detector was removed 2026-05-08; lab-context
   // now mirrors every other section's "if-data-exists" pattern. Verify
   // by checking that buildLabContext output contains the standard-tier
-  // session table whenever sun sessions are present.
+  // source-aware trend whenever sun sessions are present.
   console.log('%c 11. Sun standard-tier always included when data exists ', 'font-weight:bold;color:#f59e0b');
 
   const labCtx = labCtxMod.buildLabContext({});
@@ -437,8 +431,8 @@ labCtxMod.setLightSunContextEnabled(true);
   if (completedSessions.length > 0) {
     assert('Lab context always carries [section:sun] when sessions exist',
       /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));
-    assert('Lab context always includes weekly-trend (standard tier) when sessions exist',
-      /### Weekly trend \(last 6w/.test(labCtx));
+    assert('Lab context always includes source-aware weekly trend when sessions exist',
+      /### Weekly light trend \(last 6w/.test(labCtx));
   } else {
     assert('Lab context skips [section:sun] when no sessions',
       !/\[section:sun\]/.test(labCtx));
@@ -533,7 +527,7 @@ labCtxMod.setLightSunContextEnabled(true);
   assert('Populated standard tier keeps the audit baseline annotation',
     /baseline — no prior audit to compare/.test(populatedStandard));
   assert('Populated standard tier emits weekly-trend (per-channel last 6w shape)',
-    /### Weekly trend \(last 6w/.test(populatedStandard));
+    /### Weekly light trend \(last 6w/.test(populatedStandard));
   assert('Populated standard tier emits session cadence line',
     /### Session cadence/.test(populatedStandard));
   assert('Populated standard tier points to tool calls for per-session forensics',

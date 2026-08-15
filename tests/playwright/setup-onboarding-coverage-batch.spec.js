@@ -56,13 +56,17 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       openProfileLocationEditor: () => calls.push(['profile-location']),
       openClientList: () => calls.push(['client-list']),
       getSunCoords: () => precise
-        ? { source: 'profile-precise', lat: 50.087 }
+        ? { source: 'current-device', lat: 50.1 }
         : { source: 'country-band', lat: 49.2 },
       requestPreciseLocation: async () => {
         calls.push(['precise-location']);
         await wait(0);
         precise = true;
         return { lat: 50.087, lon: 14.421 };
+      },
+      clearCurrentLocation: () => {
+        calls.push(['clear-current-location']);
+        precise = false;
       },
     });
 
@@ -89,7 +93,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       promptHost.innerHTML = sunDefaults.renderSetupCard();
       document.body.appendChild(promptHost);
       outcomes.initialSetupPromptRendersActions =
-        promptHost.querySelector('.light-setup-prompt')?.textContent.includes('Set up your light assumptions')
+        promptHost.querySelector('.light-setup-prompt')?.textContent.includes('Make light part of your health picture')
         && !!promptHost.querySelector('.light-widget-prompt-cta')
         && !!promptHost.querySelector('.dashboard-action-btn');
       outcomes.sunDefaultsRuntimeUsesInjectedNavigation =
@@ -104,12 +108,20 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
 
       document.querySelector('.light-setup-location-actions button:nth-child(2)')?.click();
       await waitUntil(
-        () => document.querySelector('.light-setup-location-status')?.textContent.includes('Precise location saved'),
+        () => document.querySelector('.light-setup-location-status')?.textContent.includes('Current location'),
         'precise location status'
       );
       outcomes.preciseLocationRefreshUpdatesStatus =
         calls.some(call => call[0] === 'precise-location')
-        && document.querySelector('.light-setup-location-status')?.textContent.includes('highest accuracy');
+        && document.querySelector('.light-setup-location-status')?.textContent.includes('today only');
+      document.querySelector('[data-light-setup-action="clear-current-location"]')?.click();
+      await waitUntil(
+        () => document.querySelector('.light-setup-location-status')?.textContent.includes('Profile estimate'),
+        'home location restored',
+      );
+      outcomes.temporaryLocationCanBeClearedBeforeMidnight =
+        calls.some(call => call[0] === 'clear-current-location')
+        && !document.querySelector('[data-light-setup-action="clear-current-location"]');
 
       document.querySelector('.light-setup-save-btn')?.click();
       await wait(0);
@@ -145,7 +157,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       await wait(0);
       outcomes.scoreMeterUpdatesFromCheckedCards =
         document.getElementById('ott-running-value')?.textContent.trim() === '2/10'
-        && document.getElementById('ott-summary-score')?.textContent.trim() === '8/10 aligned'
+        && document.getElementById('ott-summary-score')?.textContent.trim() === '2/10 selected'
         && document.querySelector('input[data-ott="dim-workspace"]')?.closest('.light-setup-ott-card')?.classList.contains('is-flagged');
 
       document.querySelector('.light-setup-save-btn')?.click();
@@ -167,7 +179,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       document.body.appendChild(host);
       outcomes.savedSummaryIncludesBannerAndAiBlock =
         host.querySelector('.light-setup-summary')?.textContent.includes('Your light setup')
-        && host.querySelector('.light-setup-photo-banner')?.textContent.includes('Severe photosensitizer')
+        && host.querySelector('.light-setup-photo-banner')?.textContent.includes('Prior reaction or strict sun warning recorded')
         && !!host.querySelector('#setup-ai-block');
 
       host.querySelector('.light-setup-summary-edit')?.click();
@@ -191,9 +203,12 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       await waitFor('#light-setup-focus-overlay');
       document.querySelector('.light-setup-skip-btn')?.click();
       await waitUntil(() => !document.getElementById('light-setup-focus-overlay'), 'skip overlay close');
-      outcomes.skipPersistsDefaultAndNavigatesLight =
-        state.importedData.sunDefaults.fitzpatrick === 'III'
+      outcomes.skipDefersWithoutInventingSkinType =
+        state.importedData.sunDefaults.fitzpatrick == null
+        && state.importedData.sunDefaults.completedAt == null
         && state.importedData.sunDefaults.skipped === true
+        && Number.isFinite(state.importedData.sunDefaults.setupPromptDismissedAt)
+        && sunDefaults.isOnboardingComplete() === false
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 2;
     } finally {
       document.getElementById('light-setup-focus-overlay')?.remove();

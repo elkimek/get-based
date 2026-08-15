@@ -9,6 +9,7 @@ import {
   computeUVConfidence,
   interpolateAtmosphere,
   nearestHourIndex,
+  parseProviderTimeMs,
   shapeCamsResponse,
   shapeNoaaResponse,
   shapeOpenMeteoResponse,
@@ -21,19 +22,18 @@ export {
   computeUVConfidence,
   interpolateAtmosphere,
   nearestHourIndex,
+  parseProviderTimeMs,
   solarZenithAngle,
 };
 
 // Provider priority (each falls through on error):
 //   1. User-configured self-host (CAMS-mirrored or own data)
-//   2. CAMS direct (default — KNMI-validated, 5nm 280-340nm, satellite-assimilated ozone)
+//   2. CAMS relay (default — direct UVBED + CAMS composition, with recent
+//      satellite cloud correction where coverage is available)
 //   3. NOAA NWS (US users only — official US National Weather Service UV)
 //   4. Open-Meteo (degraded fallback — GFS-based simplified approximation)
 //   5. Local zenith-angle clear-sky calc (offline)
-//   6. Manual entry — always available, highest confidence weight
-//
 // Each session record stores `uvSource` + a confidence weight; AI sees the source.
-// Manual UV-meter entries weighted highest (1.0). Estimated fallbacks discounted.
 //
 // Privacy: lat/lon may be rounded to 0.1° (~11km grid) before any network call.
 // Self-hosters configure the data source on the Light & Sun page itself
@@ -42,11 +42,10 @@ export {
 // privacy posture.
 
 let _warnedAboutRejectedSelfhostUrl = false;
-// v2: invalidates old entries that baked sunrise/sunset/uvIndexMax from
-// daily.sunrise[0] (which was 2-day-old data under past_days=2). Bump
-// again any time the cached payload shape changes meaning.
-const CACHE_PREFIX = 'meteo:v2:';
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+// v4 invalidates reconstructed CAMS peaks and the old whole-response source
+// label. Current conditions use a five-minute TTL; historical requests can
+// remain cached longer because their underlying forecast snapshot is stable.
+const CACHE_PREFIX = 'meteo:v4:';
 const NETWORK_TIMEOUT_MS = 8000;
 const HOSTED_CAMS_PROXY_URL = 'https://app.getbased.health/api/proxy';
 const HOSTED_CAMS_LOCAL_ORIGINS = new Set([
@@ -75,12 +74,19 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   const { rLat, rLon } = roundCoords(lat, lon, cfg.privacyRounding);
   const time = isoTime || new Date().toISOString();
   const cacheKey = makeCacheKey(rLat, rLon, time);
+  const withRequestMeta = result => result ? Object.assign({}, result, {
+    _requestCoords: {
+      lat: rLat,
+      lon: rLon,
+      privacyRounded: Number(cfg.privacyRounding) > 0,
+    },
+  }) : result;
 
   // Fresh cache hit (within TTL) — fast path, no network. Skipped on
   // noCache so user-triggered "force refresh" always reaches the provider.
   if (!noCache) {
-    const cached = readCache(cacheKey);
-    if (cached && cacheMatchesConfig(cached, cfg)) return cached;
+    const cached = readCache(cacheKey, time);
+    if (cached && cacheMatchesConfig(cached, cfg)) return withRequestMeta(cached);
   }
 
   // Provider order based on config
@@ -114,14 +120,16 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
                   confidence: Math.min(result.confidence ?? 1, fallback.confidence ?? 1),
                   fetchedAt: Date.now(),
                 });
-                writeCache(cacheKey, merged);
-                return merged;
+                const annotated = withRequestMeta(merged);
+                writeCache(cacheKey, annotated);
+                return annotated;
               }
             } catch (e) { /* fall through to next */ }
           }
         }
-        writeCache(cacheKey, result);
-        return result;
+        const annotated = withRequestMeta(result);
+        writeCache(cacheKey, annotated);
+        return annotated;
       }
     } catch {
       // continue to next provider
@@ -136,30 +144,13 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   if (!noCache) {
     const stale = readStaleCache(rLat, rLon);
     if (stale) {
-      return Object.assign({}, stale, { _stale: true, source: stale.source + '_stale' });
+      return withRequestMeta(Object.assign({}, stale, { _stale: true, source: stale.source + '_stale' }));
     }
   }
 
   // Final fallback: offline zenith-angle estimate
   const offline = zenithOfflineEstimate({ lat: rLat, lon: rLon, isoTime: time });
-  return offline;
-}
-
-// Manual UV index entry — bypasses network entirely.
-// Source confidence depends on whether user has a UV meter configured.
-export function manualAtmosphere({ uvIndex, ozoneDU = null, hasMeter = false, notes = '' }) {
-  return {
-    uvIndex,
-    uvClearSky: uvIndex,
-    ozoneDU,
-    cloudCover: null,
-    temperatureC: null,
-    airQuality: null,
-    source: hasMeter ? 'manual_meter' : 'manual_entry',
-    confidence: hasMeter ? UV_SOURCE_CONFIDENCE.manual_meter : UV_SOURCE_CONFIDENCE.manual_entry,
-    fetchedAt: Date.now(),
-    notes,
-  };
+  return withRequestMeta(offline);
 }
 
 // ─── Providers ─────────────────────────────────────────────────────────
@@ -227,7 +218,13 @@ const PROVIDERS = {
       // URL. Coerce explicitly + clamp to valid earth coordinates.
       const safeLat = Math.max(-90, Math.min(90, Number(lat))) || 0;
       const safeLon = Math.max(-180, Math.min(180, Number(lon))) || 0;
-      const url = `${cfg.selfhostUrl.replace(/\/$/, '')}/v1/forecast?latitude=${safeLat.toFixed(6)}&longitude=${safeLon.toFixed(6)}&hourly=uv_index,uv_index_clear_sky,ozone,cloud_cover,temperature_2m`;
+      const params = new URLSearchParams({
+        latitude: safeLat.toFixed(6),
+        longitude: safeLon.toFixed(6),
+        time: isoTime,
+        hourly: 'uv_index,uv_index_clear_sky,ozone,cloud_cover,temperature_2m',
+      });
+      const url = `${cfg.selfhostUrl.replace(/\/$/, '')}/uv?${params.toString()}`;
       const headers = {};
       if (cfg.selfhostBearer) headers.Authorization = `Bearer ${cfg.selfhostBearer}`;
       const json = await fetchJson(url, { headers });
@@ -240,7 +237,9 @@ const PROVIDERS = {
       }
       // Selfhost is expected to return Open-Meteo-shaped JSON. No air-quality
       // companion endpoint contract yet — pass null and the shaper handles it.
-      return shapeOpenMeteoResponse(json, null, isoTime, 'selfhost');
+      return json._camsMeta || json._fieldSources
+        ? shapeCamsResponse(json, isoTime, 'selfhost')
+        : shapeOpenMeteoResponse(json, null, isoTime, 'selfhost');
     },
   },
   cams: {
@@ -287,20 +286,53 @@ const PROVIDERS = {
     name: 'open_meteo',
     available: () => true,
     fetch: async ({ lat, lon, isoTime }) => {
-      // Forecast API — UV/clouds/temp + daily sunrise/sunset for today and
-      // hourly UVI across the day (for peak-finder). Open-Meteo's forecast
-      // endpoint does not return total-column ozone (despite older docs);
-      // ozone lives on the air-quality endpoint as `ozone` (µg/m³, NOT DU).
-      // past_days=7 covers a typical week of retro-logging; without it
-      // hydrating a session 3+ days old snaps to today's first available
-      // hour (UVI 0) and the persisted atmosphere reads as wrong-day data.
-      // Sessions older than 7 days fall through `_validateAtmCovers` below.
-      const fcUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,cloud_cover,temperature_2m&daily=sunrise,sunset,uv_index_max&timezone=auto&past_days=7&forecast_days=1`;
-      // Air-quality API — PM2.5, PM10, AOD, NO2, total-column ozone (DU
-      // conversion handled in shape function — ~2.144 µg/m³ ≈ 1 DU at
-      // standard atmosphere). Same past_days widening so hydrating past
-      // sessions gets matching air-quality samples.
-      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,nitrogen_dioxide,aerosol_optical_depth,ozone&current=pm2_5,pm10,european_aqi&past_days=7`;
+      // Current and retro-session requests need different endpoints. Asking
+      // the live endpoint for a fixed seven-day tail made older sessions snap
+      // to whatever boundary hour happened to be returned. Use a bounded
+      // date window, and the historical-forecast endpoint for older dates.
+      const requestMs = Date.parse(isoTime || '');
+      const targetMs = Number.isFinite(requestMs) ? requestMs : Date.now();
+      const ageMs = Date.now() - targetMs;
+      const liveRequest = Math.abs(ageMs) <= 2 * 24 * 60 * 60 * 1000;
+      const historicalRequest = ageMs > 5 * 24 * 60 * 60 * 1000;
+      const startDate = new Date(targetMs - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const endDate = new Date(targetMs + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const fcParams = new URLSearchParams({
+        latitude: String(lat),
+        longitude: String(lon),
+        hourly: 'uv_index,uv_index_clear_sky,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,temperature_2m,shortwave_radiation_instant,direct_radiation_instant,diffuse_radiation_instant',
+        daily: 'sunrise,sunset,uv_index_max,uv_index_clear_sky_max',
+        timezone: 'auto',
+      });
+      if (liveRequest) {
+        fcParams.set('current', 'uv_index,uv_index_clear_sky,cloud_cover,temperature_2m,shortwave_radiation_instant');
+        fcParams.set('past_days', '2');
+        fcParams.set('forecast_days', '2');
+      } else {
+        fcParams.set('start_date', startDate);
+        fcParams.set('end_date', endDate);
+      }
+      const fcBase = historicalRequest
+        ? 'https://historical-forecast-api.open-meteo.com/v1/forecast'
+        : 'https://api.open-meteo.com/v1/forecast';
+      const fcUrl = `${fcBase}?${fcParams.toString()}`;
+      // Air-quality API — raw concentrations remain useful context, while
+      // provider-computed European AQI component indices supply the correctly
+      // averaged classifications used by Conditions Now.
+      const aqFields = 'pm10,pm2_5,nitrogen_dioxide,sulphur_dioxide,aerosol_optical_depth,ozone,european_aqi,european_aqi_pm2_5,european_aqi_pm10,european_aqi_nitrogen_dioxide,european_aqi_ozone,european_aqi_sulphur_dioxide';
+      const aqParams = new URLSearchParams({
+        latitude: String(lat),
+        longitude: String(lon),
+        hourly: aqFields,
+      });
+      if (liveRequest) {
+        aqParams.set('current', aqFields);
+        aqParams.set('past_days', '2');
+      } else {
+        aqParams.set('start_date', startDate);
+        aqParams.set('end_date', endDate);
+      }
+      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?${aqParams.toString()}`;
       // Fire both in parallel; tolerate AQ failure (stratospheric ozone is
       // nice-to-have, not critical for sunburn-dose math).
       const [fcJson, aqJson] = await Promise.allSettled([
@@ -355,7 +387,6 @@ function providerOrder(cfg, coords = {}) {
   // whether the upstream is wired by setting UVDATA_UPSTREAM env; when
   // it isn't, CAMS returns 503 and the auto-fallback chain reaches
   // Open-Meteo so the user still gets data.
-  if (cfg.mode === 'manual') return [];
   if (cfg.mode === 'selfhost') return availableProviders([PROVIDERS.selfhost, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'cams') return availableProviders([PROVIDERS.cams, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'noaa') return availableProviders([PROVIDERS.noaa, PROVIDERS.openMeteo], ctx);
@@ -389,13 +420,22 @@ function makeCacheKey(lat, lon, isoTime) {
   return `${CACHE_PREFIX}${lat.toFixed(2)}_${lon.toFixed(2)}_${hourBucket}`;
 }
 
-function readCache(key) {
+function cacheTtlMs(isoTime) {
+  const requestMs = Date.parse(isoTime || '');
+  if (!Number.isFinite(requestMs)) return 5 * 60 * 1000;
+  const ageMs = Date.now() - requestMs;
+  if (Math.abs(ageMs) <= 2 * 60 * 60 * 1000) return 5 * 60 * 1000;
+  if (ageMs > 5 * 24 * 60 * 60 * 1000) return 24 * 60 * 60 * 1000;
+  return 60 * 60 * 1000;
+}
+
+function readCache(key, isoTime) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const obj = JSON.parse(raw);
     if (!obj || !obj.fetchedAt) return null;
-    if (Date.now() - obj.fetchedAt > CACHE_TTL_MS) return null;
+    if (Date.now() - obj.fetchedAt > cacheTtlMs(isoTime)) return null;
     return obj;
   } catch (e) { return null; }
 }
@@ -404,12 +444,11 @@ function cacheMatchesConfig(cached, cfg) {
   const source = String(cached?.source || '');
   if (!source) return true;
   if (cfg.mode === 'open-meteo') return source.startsWith('open_meteo');
-  if (cfg.mode === 'manual') return false;
   if (cfg.mode === 'selfhost' && cfg.selfhostUrl) {
     return source.startsWith('selfhost');
   }
   if (cfg.mode === 'auto') {
-    return source.startsWith('selfhost') || source.startsWith('cams') || source.startsWith('manual');
+    return source.startsWith('selfhost') || source.startsWith('cams') || source.startsWith('open_meteo_cams');
   }
   return true;
 }
@@ -444,21 +483,21 @@ function readStaleCache(rLat, rLon) {
   }
 }
 
-// One-time sweep of pre-v2 cache entries on first import. Idempotent —
+// One-time sweep of pre-v4 cache entries on first import. Idempotent —
 // the marker key is only written once, so subsequent loads are no-ops.
 try {
-  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v2-purged')) {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v4-purged')) {
     const stale = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v2:')) stale.push(k);
+      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v4:')) stale.push(k);
     }
     for (const k of stale) localStorage.removeItem(k);
-    localStorage.setItem('meteo-cache-v2-purged', '1');
+    localStorage.setItem('meteo-cache-v4-purged', '1');
   }
 } catch (e) {
   if (isSunDebugRuntime()) {
-    console.warn('[sun-uvdata] pre-v2 cache sweep failed', getErrorName(e) || e);
+    console.warn('[sun-uvdata] pre-v4 cache sweep failed', getErrorName(e) || e);
   }
 }
 
@@ -475,7 +514,7 @@ function writeCache(key, value) {
   }
 }
 
-// Wipe every meteo:v2:* entry from localStorage. Wired into the user-
+// Wipe every current-version meteo cache entry from localStorage. Wired into the user-
 // triggered "Refresh" button so a device that latched onto a degraded
 // provider (e.g. cached an Open-Meteo-only response while CAMS was
 // unreachable during a relay-side outage) can force a clean fetch

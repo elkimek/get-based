@@ -197,7 +197,11 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
 
     try {
       state.currentView = 'light';
-      state.importedData = { ...state.importedData, genetics: { snps: [] } };
+      state.importedData = {
+        ...state.importedData,
+        genetics: { snps: [] },
+        sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'II', completedAt: Date.now() },
+      };
       const vitaminDIU = () => 900;
       const vitaminDIUPerSession = () => 1550;
       const pbmJoulesPerCm2 = () => 12.4;
@@ -257,8 +261,9 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
         bodyExposure: { fraction: 0.22, rotatedSides: true },
       });
       outcomes.channelChipsRenderRealUnitValues = chipHost.textContent.includes('~1.6k IU')
-        && chipHost.textContent.includes('~13k lux')
-        && chipHost.textContent.includes('over')
+        && chipHost.textContent.includes('~13k est. mel lx')
+        && !chipHost.querySelector('[data-channel="no_cv"] .sun-chip-value')
+        && !chipHost.textContent.includes('%')
         && !!chipHost.querySelector('.sun-chip-more');
 
       const shortHost = document.createElement('div');
@@ -336,6 +341,7 @@ test('device session dialog covers validation unit mode start and save paths', a
     const calls = [];
     const saved = {
       unitSystem: state.unitSystem,
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
     };
     let activeSession = null;
     const devices = [{
@@ -372,6 +378,10 @@ test('device session dialog covers validation unit mode start and save paths', a
 
     try {
       state.unitSystem = 'US';
+      state.importedData = {
+        ...state.importedData,
+        sunDefaults: {},
+      };
       const validateModeCoupling = (_device, mode) => ({ ok: mode !== 'blocked' });
       const renderBodySilhouette = selected => `
         <button type="button" class="body-region-test" data-region="legs-front" aria-pressed="${selected.has('legs-front')}">Legs front</button>
@@ -395,19 +405,29 @@ test('device session dialog covers validation unit mode start and save paths', a
         logDeviceSession: async payload => {
           await delay(0);
           calls.push(['log', payload]);
+          return { id: 'saved-device-session' };
         },
         getActiveDeviceSession: () => activeSession,
         startDeviceSession: async payload => {
           await delay(0);
           calls.push(['start', payload]);
           activeSession = { id: 'active-device' };
+          return 'active-device';
         },
         ensureActiveDeviceTicker: () => calls.push(['ticker']),
         validateModeCoupling,
         renderBodySilhouette,
         bindBodySilhouette,
         navigate: route => calls.push(['navigate', route]),
+        openLightSetup: () => calls.push(['open-light-setup']),
       };
+
+      const blockedDeviceDialog = await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
+      outcomes.unconfirmedFitzpatrickBlocksDeviceSession = blockedDeviceDialog === false
+        && calls.some(call => call[0] === 'open-light-setup')
+        && !calls.some(call => call[0] === 'hydrate-devices')
+        && !document.querySelector('[aria-label="Log device session"]');
+      state.importedData.sunDefaults = { fitzpatrick: 'III', completedAt: Date.now() };
 
       await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
       let overlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
@@ -479,6 +499,7 @@ test('device session dialog covers validation unit mode start and save paths', a
       outcomes.hydratesDevicesOnEachOpen = calls.filter(call => call[0] === 'hydrate-devices').length === 3;
     } finally {
       state.unitSystem = saved.unitSystem;
+      state.importedData = saved.importedData;
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 
@@ -564,15 +585,14 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
       let overlay = document.querySelector('.light-sessions-modal-overlay');
       if (overlay) sessionsView.installLightSessionsActionDelegates(overlay);
       outcomes.modalSummaryCountsBothKinds = overlay?.textContent.includes('All sessions (4)') === true
-        && overlay?.textContent.includes('Sun') === true
-        && overlay?.textContent.includes('Device') === true
+        && overlay?.textContent.includes('2 outdoor · 2 device') === true
         && overlay?.querySelectorAll('.sun-session').length === 4;
 
       const devADelete = overlay?.querySelector('.light-session-device[data-id="dev-a"] .sun-session-delete');
       devADelete?.click();
-      outcomes.deleteButtonTargetsDevAAndDoesNotCloseModal = !!devADelete
+      outcomes.historyRowsLeaveDeletionToDetail = !devADelete
         && document.body.contains(overlay)
-        && calls.some(call => call[0] === 'delete' && call[1] === 'dev-a');
+        && !calls.some(call => call[0] === 'delete');
 
       deviceSessions = [
         ...deviceSessions,

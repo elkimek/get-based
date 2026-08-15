@@ -23,6 +23,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
     const savedSetTimeout = window.setTimeout;
     const savedClearTimeout = window.clearTimeout;
     const savedLuxCalibration = localStorage.getItem('labcharts-lux-calibration');
+    const savedLuxCalibrationConfirmed = localStorage.getItem('labcharts-lux-calibration-confirmed');
     const hadAmbientLightSensor = Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor');
     const savedAmbientLightSensor = window.AmbientLightSensor;
     const stoppedTracks = [];
@@ -172,20 +173,28 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       );
       document.getElementById('lux-cal-reset')?.click();
       await waitFor(
-        () => document.getElementById('lux-cal-current')?.textContent === '1.00x'
-          || document.getElementById('lux-cal-current')?.textContent === '1.00\u00d7',
+        () => document.getElementById('lux-cal-current')?.textContent === 'not calibrated'
+          && localStorage.getItem('labcharts-lux-calibration-confirmed') == null,
         'lux calibration reset'
+      );
+      if (calInput) calInput.value = '800';
+      document.getElementById('lux-cal-apply')?.click();
+      await waitFor(
+        () => document.getElementById('lux-cal-current')?.textContent === '2.00x'
+          || document.getElementById('lux-cal-current')?.textContent === '2.00\u00d7',
+        'lux recalibration apply'
       );
       document.getElementById('lux-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'lux' && item.meta.roomId === 'camera-room'), 'camera lux save');
       const cameraLux = savedReadings.find(item => item.kind === 'lux' && item.meta.roomId === 'camera-room');
       check('Lux camera fallback calibrates resets and saves',
-        cameraLuxLine.includes('Camera estimate')
+        cameraLuxLine.includes('Camera brightness proxy only')
         && !!cameraLux
-        && cameraLux.value >= 390
-        && cameraLux.value <= 410
+        && cameraLux.value === 800
         && cameraLux.meta.extra.source === 'camera-estimate'
-        && cameraLux.meta.extra.calibrationFactor === 1);
+        && Math.abs(cameraLux.meta.extra.calibrationFactor - 2) < 0.0001
+        && cameraLux.meta.extra.calibrationConfirmed === true,
+        JSON.stringify({ cameraLuxLine, cameraLux }));
 
       mode = 'lux-manual';
       await modals.openLuxMeter({ roomId: 'manual-room' }, deps);
@@ -200,7 +209,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       check('Lux manual fallback saves entered reading',
         !!manualLux
         && manualLux.value === 55
-        && manualLux.meta.confidence === 0.9
+        && manualLux.meta.confidence === 0.85
         && manualLux.meta.extra.source === 'manual-entry');
 
       mode = 'flicker';
@@ -225,22 +234,23 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       mode = 'cct';
       await modals.openCCTMeter({ roomId: 'cct-room' }, deps);
       recordDelegatedClose('cct modal', 'close-cct');
-      await waitFor(() => /\d+\s*K$/.test(document.getElementById('cct-value')?.textContent || ''), 'cct result');
+      await waitFor(() => /^~\d+\s*K$/.test(document.getElementById('cct-value')?.textContent || ''), 'cct result');
       document.getElementById('cct-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'cct'), 'cct save');
       const cct = savedReadings.find(item => item.kind === 'cct');
-      check('CCT meter reads cool high-melanopic frame and saves',
+      check('CCT meter saves a rounded cool camera-RGB estimate',
         !!cct
         && cct.value >= 6500
         && cct.meta.roomId === 'cct-room'
-        && cct.meta.extra.melanopic > 0.3
+        && cct.meta.extra.cameraBlueRatioProxy > 0.3
+        && cct.meta.extra.method === 'camera-rgb-proxy'
         && cct.meta.extra.pwmActive === false);
 
       mode = 'spectrum-camera';
       await modals.openSpectrumClassifier({ roomId: 'spectrum-camera-room' }, deps);
       recordDelegatedClose('spectrum camera modal', 'close-spec');
       await waitFor(
-        () => /Fluorescent|confidence/i.test(document.getElementById('spec-result')?.textContent || ''),
+        () => /Green-biased|confidence/i.test(document.getElementById('spec-result')?.textContent || ''),
         'spectrum camera classification'
       );
       document.getElementById('spec-save')?.click();
@@ -249,11 +259,11 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
         'spectrum camera save'
       );
       const spectrumCamera = savedReadings.find(item => item.kind === 'spectrum' && item.meta.roomId === 'spectrum-camera-room');
-      check('Spectrum classifier live camera path classifies PWM fluorescent source',
+      check('Spectrum classifier keeps camera RGB broad and source-agnostic',
         !!spectrumCamera
-        && spectrumCamera.value === 'Fluorescent / CFL'
-        && spectrumCamera.meta.extra.reason.includes('fluorescent signature')
-        && spectrumCamera.meta.extra.melanopic > 0);
+        && spectrumCamera.value === 'Green-biased source with banding'
+        && spectrumCamera.meta.extra.reason.includes('source technology is not identified')
+        && spectrumCamera.meta.extra.method === 'camera-rgb-proxy');
 
       mode = 'spectrum-manual';
       await modals.openSpectrumClassifier({ roomId: 'spectrum-room' }, deps);
@@ -273,7 +283,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       await modals.openGlassTransmission({ roomId: 'glass-room' }, deps);
       recordDelegatedClose('glass modal', 'close-glass');
       document.getElementById('glass-measure-inside')?.click();
-      await waitFor(() => /lux/.test(document.getElementById('glass-reading-inside')?.textContent || ''), 'glass inside reading');
+      await waitFor(() => /camera level/.test(document.getElementById('glass-reading-inside')?.textContent || ''), 'glass inside reading');
       document.getElementById('glass-measure-outside')?.click();
       await waitFor(() => !(document.getElementById('glass-save')?.disabled), 'glass result');
       document.getElementById('glass-save')?.click();
@@ -283,7 +293,8 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
         !!glass
         && Math.abs(glass.value - 0.5) < 0.01
         && glass.meta.roomId === 'glass-room'
-        && glass.meta.confidence === 0.7
+        && glass.meta.confidence === 0.45
+        && glass.meta.extra.method === 'two-sample-camera-ratio'
         && glass.meta.extra.inside < glass.meta.extra.outside);
       const failedDelegatedChecks = delegatedModalChecks.filter(item => !item.ok);
       check('Camera tool modals render delegated close controls without inline handlers',
@@ -304,6 +315,8 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       else delete window.AmbientLightSensor;
       if (savedLuxCalibration == null) localStorage.removeItem('labcharts-lux-calibration');
       else localStorage.setItem('labcharts-lux-calibration', savedLuxCalibration);
+      if (savedLuxCalibrationConfirmed == null) localStorage.removeItem('labcharts-lux-calibration-confirmed');
+      else localStorage.setItem('labcharts-lux-calibration-confirmed', savedLuxCalibrationConfirmed);
       [
         modals.closeLuxMeter,
         modals.closeFlickerDetector,

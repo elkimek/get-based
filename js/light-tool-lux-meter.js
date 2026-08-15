@@ -6,7 +6,9 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import {
   aimingGuideHTML,
   cameraLockStatusLine,
+  clearLuxCalibration,
   getRequired2DContext,
+  isLuxCalibrationConfirmed,
   loadLuxCalibration,
   lockCameraForMeasurement,
   saveLuxCalibration,
@@ -22,9 +24,9 @@ import {
 } from './light-tool-camera-modal-runtime.js';
 
 const LUX_ZONES = [
-  { max: 10, label: 'Darkness', color: 'var(--text-muted)' },
-  { max: 100, label: 'Low indoor', color: 'var(--text-secondary)' },
-  { max: 500, label: 'Office', color: 'var(--text-primary)' },
+  { max: 10, label: 'Very dim', color: 'var(--text-muted)' },
+  { max: 100, label: 'Dim indoor', color: 'var(--text-secondary)' },
+  { max: 500, label: 'Typical indoor', color: 'var(--text-primary)' },
   { max: 1000, label: 'Bright indoor', color: 'var(--accent)' },
   { max: 10000, label: 'Overcast outdoor', color: 'var(--green)' },
   { max: 100000, label: 'Outdoor daylight', color: 'var(--orange)' },
@@ -36,12 +38,13 @@ function luxZone(lux) {
   return LUX_ZONES[LUX_ZONES.length - 1];
 }
 
-let luxState = /** @type {{ running: boolean, sensor: { stop: () => void } | null, stream: MediaStream | null, video: HTMLVideoElement | null, calibration: number }} */ ({
+let luxState = /** @type {{ running: boolean, sensor: { stop: () => void } | null, stream: MediaStream | null, video: HTMLVideoElement | null, calibration: number, calibrationConfirmed: boolean }} */ ({
   running: false,
   sensor: null,
   stream: null,
   video: null,
   calibration: 1,
+  calibrationConfirmed: false,
 });
 
 export async function openLuxMeter(opts = {}, deps = {}) {
@@ -56,11 +59,30 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('lux')}
+      <div class="lux-source-picker" id="lux-source-picker" role="group" aria-label="Lux measurement source">
+        <span class="lux-source-picker-label">Measure with</span>
+        <button type="button" class="lux-source-option" id="lux-source-als" aria-pressed="false">
+          <span>Phone light sensor</span>
+          <small id="lux-source-als-detail">Preferred</small>
+        </button>
+        <button type="button" class="lux-source-option" id="lux-source-camera" aria-pressed="false">
+          <span>Camera</span>
+          <small id="lux-source-camera-detail">Approximate fallback</small>
+        </button>
+      </div>
       <p class="modal-body-hint" id="lux-source-line">Initializing…</p>
-      <div class="lux-dial">
+      <div class="lux-dial" id="lux-live-dial">
         <div class="lux-dial-value" id="lux-value">—</div>
-        <div class="lux-dial-unit">lux</div>
+        <div class="lux-dial-unit" id="lux-unit">lux</div>
         <div class="lux-dial-zone" id="lux-zone">—</div>
+      </div>
+      <div class="lux-manual-entry" id="lux-manual-entry" hidden>
+        <label for="lux-manual-input">Enter a reading from a lux meter</label>
+        <div class="lux-manual-entry-row">
+          <input type="number" id="lux-manual-input" class="ctx-input" min="0" max="200000" step="1" placeholder="e.g. 400" inputmode="decimal" />
+          <span>lux</span>
+        </div>
+        <div class="lux-dial-zone" id="lux-manual-zone">—</div>
       </div>
       <div class="lux-zones">
         ${LUX_ZONES.slice(0, 6).map(zone => `<div class="lux-zone-marker">≤ ${zone.max} <span>${zone.label}</span></div>`).join('')}
@@ -68,7 +90,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       <details id="lux-calibration-panel" style="margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0">
         <summary style="padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text-secondary);user-select:none">⚙ Calibrate against a known reference</summary>
         <div style="padding:0 12px 12px 12px;font-size:12px;color:var(--text-muted)">
-          <p style="margin:4px 0 8px 0">Aim the camera at a light source whose lux you know — from a real meter, a second phone with an ambient-light sensor, or an indoor reading you trust. Enter the reference value below; we'll compute the factor that maps the camera's raw luma to that lux value and save it for future readings.</p>
+          <p style="margin:4px 0 8px 0">Place a real lux meter beside this phone, aim both in the same direction, and enter the reference. Camera lux is withheld until this device has been calibrated.</p>
           <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
             <label for="lux-cal-reference" style="font-size:12px;color:var(--text-muted)">Known reading (lux)</label>
             <input type="number" id="lux-cal-reference" class="ctx-input" min="0" step="any" placeholder="e.g. 400" style="flex:1;max-width:140px">
@@ -111,45 +133,102 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   let currentLux = null;
   let currentRawLuma = null;
   const valueEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-value'));
+  const unitEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-unit'));
   const zoneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-zone'));
   const sourceLine = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-line'));
+  const liveDial = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-live-dial'));
+  const manualEntry = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-manual-entry'));
+  const manualInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#lux-manual-input'));
+  const manualZoneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-manual-zone'));
+  const alsButton = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#lux-source-als'));
+  const cameraButton = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#lux-source-camera'));
+  const alsDetail = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-als-detail'));
+  const cameraDetail = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-camera-detail'));
   const calCurrentEl = /** @type {HTMLElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-current'));
   luxState.running = true;
   luxState.calibration = loadLuxCalibration();
-  if (calCurrentEl) calCurrentEl.textContent = `${luxState.calibration.toFixed(2)}×`;
+  luxState.calibrationConfirmed = isLuxCalibrationConfirmed();
+  if (calCurrentEl) calCurrentEl.textContent = luxState.calibrationConfirmed ? `${luxState.calibration.toFixed(2)}×` : 'not calibrated';
 
-  let usingALS = false;
-  let usingManualEntry = false;
+  let activeSource = /** @type {'als' | 'camera' | 'manual' | null} */ (null);
   let cameraFallbackStarted = false;
+  let cameraRun = 0;
+  let cameraExposureHeld = false;
   const calibrationPanel = /** @type {HTMLElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-calibration-panel'));
+
+  const setActiveSource = (source) => {
+    activeSource = source;
+    const alsActive = source === 'als';
+    const cameraActive = source === 'camera';
+    alsButton.classList.toggle('active', alsActive);
+    cameraButton.classList.toggle('active', cameraActive);
+    alsButton.setAttribute('aria-pressed', String(alsActive));
+    cameraButton.setAttribute('aria-pressed', String(cameraActive));
+    liveDial.hidden = source === 'manual';
+    manualEntry.hidden = source !== 'manual';
+    if (calibrationPanel) calibrationPanel.style.display = source === 'camera' ? '' : 'none';
+  };
+
+  const stopAmbientSensor = () => {
+    if (!luxState.sensor) return;
+    try { luxState.sensor.stop(); } catch (error) {}
+    luxState.sensor = null;
+  };
+
+  const stopCamera = () => {
+    cameraRun += 1;
+    cameraFallbackStarted = false;
+    cameraExposureHeld = false;
+    if (luxState.stream) {
+      try { luxState.stream.getTracks().forEach(track => track.stop()); } catch (error) {}
+      luxState.stream = null;
+    }
+    luxState.video = null;
+  };
+
+  const resetReading = () => {
+    currentLux = null;
+    currentRawLuma = null;
+    renderLux(null);
+    manualInput.value = '';
+    manualZoneEl.textContent = '—';
+    manualZoneEl.style.color = '';
+  };
+
   const startCameraFallback = async (introHTML = '') => {
     if (closed || cameraFallbackStarted) return;
+    stopAmbientSensor();
+    resetReading();
+    setActiveSource('camera');
     cameraFallbackStarted = true;
-    usingALS = false;
+    const thisCameraRun = ++cameraRun;
     try {
-      if (introHTML) sourceLine.innerHTML = introHTML;
+      sourceLine.innerHTML = introHTML || 'Starting the camera fallback…';
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 320, height: 240 } });
-      if (closed) {
+      if (closed || activeSource !== 'camera' || thisCameraRun !== cameraRun) {
         try { stream.getTracks().forEach(track => track.stop()); } catch (error) {}
         return;
       }
       luxState.stream = stream;
       const lock = await lockCameraForMeasurement(stream);
-      if (closed) return;
-      sourceLine.innerHTML = `Camera estimate (calibration ${luxState.calibration.toFixed(2)}×, ±30%). ${cameraLockStatusLine(lock)}`;
+      cameraExposureHeld = lock.exposure === 'manual';
+      if (closed || activeSource !== 'camera' || thisCameraRun !== cameraRun) return;
+      sourceLine.innerHTML = luxState.calibrationConfirmed && cameraExposureHeld
+        ? `Device-calibrated camera estimate. Repeatable on this phone, but not meter-grade. ${cameraLockStatusLine(lock)}`
+        : `<b>Camera brightness proxy only.</b> ${cameraExposureHeld ? 'Calibrate beside a lux meter before saving an approximate lux value.' : 'This browser could not hold exposure, so camera lux is unavailable.'} ${cameraLockStatusLine(lock)}`;
       const video = document.createElement('video');
       video.srcObject = stream;
       video.muted = true;
       video.playsInline = true;
       await video.play();
-      if (closed) return;
+      if (closed || activeSource !== 'camera' || thisCameraRun !== cameraRun) return;
       luxState.video = video;
       const canvas = document.createElement('canvas');
       canvas.width = 64;
       canvas.height = 48;
       const context = getRequired2DContext(canvas);
       const tick = () => {
-        if (!luxState.running || closed) return;
+        if (!luxState.running || closed || activeSource !== 'camera' || thisCameraRun !== cameraRun) return;
         try {
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
           const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -159,76 +238,103 @@ export async function openLuxMeter(opts = {}, deps = {}) {
           }
           const meanLuma = sum / (data.length / 4);
           currentRawLuma = meanLuma;
-          currentLux = Math.max(0, meanLuma * 40 * luxState.calibration);
-          renderLux(currentLux);
+          if (luxState.calibrationConfirmed && cameraExposureHeld) {
+            currentLux = Math.max(0, meanLuma * 40 * luxState.calibration);
+            renderLux(currentLux);
+          } else {
+            currentLux = null;
+            renderCameraProxy(meanLuma);
+          }
         } catch (error) {
           // The video may not have produced a frame yet.
         }
-        if (luxState.running && !closed) requestAnimationFrame(tick);
+        if (luxState.running && !closed && activeSource === 'camera' && thisCameraRun === cameraRun) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     } catch (error) {
-      if (closed) return;
-      usingManualEntry = true;
-      sourceLine.innerHTML = '<b>Camera access denied.</b> Enter a lux value manually below — read it from a real meter, a second phone with an ambient-light sensor, or pick the closest zone from the scale.';
-      const dial = /** @type {HTMLElement | null} */ (queryOptionalLightToolElement(overlay, '.lux-dial'));
-      if (dial) {
-        dial.innerHTML = `
-          <div style="display:flex;align-items:baseline;justify-content:center;gap:8px;padding:8px 0">
-            <input type="number" id="lux-manual-input" class="ctx-input" min="0" max="200000" step="1" placeholder="e.g. 400" inputmode="numeric" style="width:140px;font-size:20px;text-align:center;padding:8px 10px" />
-            <span style="color:var(--text-muted);font-size:14px">lux</span>
-          </div>
-          <div class="lux-dial-zone" id="lux-zone" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:4px">—</div>`;
-        const manualInput = /** @type {HTMLInputElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-manual-input'));
-        const newZoneEl = /** @type {HTMLElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-zone'));
-        manualInput?.addEventListener('input', () => {
-          const value = parseFloat(manualInput.value);
-          if (Number.isFinite(value) && value >= 0) {
-            currentLux = value;
-            const zone = luxZone(value);
-            if (newZoneEl) {
-              newZoneEl.textContent = zone.label;
-              newZoneEl.style.color = zone.color;
-            }
-          } else {
-            currentLux = null;
-            if (newZoneEl) {
-              newZoneEl.textContent = '—';
-              newZoneEl.style.color = '';
-            }
-          }
-        });
-      }
-      if (calibrationPanel) calibrationPanel.style.display = 'none';
+      if (closed || activeSource !== 'camera' || thisCameraRun !== cameraRun) return;
+      cameraFallbackStarted = false;
+      cameraButton.disabled = true;
+      cameraButton.title = 'The browser blocked or could not start the camera';
+      cameraDetail.textContent = 'Unavailable here';
+      setActiveSource('manual');
+      sourceLine.innerHTML = '<b>Camera unavailable.</b> Enter a reading from a real lux meter or a trusted meter app. Do not estimate it from the scale.';
     }
   };
 
   const AmbientLightSensorCtor = getUtilsRuntimeValue('AmbientLightSensor');
-  if (typeof AmbientLightSensorCtor === 'function') {
+  const ambientSensorSupported = typeof AmbientLightSensorCtor === 'function';
+  if (!ambientSensorSupported) {
+    alsButton.disabled = true;
+    alsButton.title = 'This browser does not expose the phone light sensor';
+    alsDetail.textContent = 'Unavailable here';
+  }
+
+  const startAmbientSensor = () => {
+    if (closed || !ambientSensorSupported) return false;
+    stopCamera();
+    stopAmbientSensor();
+    resetReading();
+    setActiveSource('als');
     try {
       const sensor = new AmbientLightSensorCtor({ frequency: 4 });
       sensor.addEventListener('reading', () => {
-        currentLux = sensor.illuminance;
+        if (closed || activeSource !== 'als' || luxState.sensor !== sensor) return;
+        const illuminance = Number(sensor.illuminance);
+        currentLux = Number.isFinite(illuminance) && illuminance >= 0 ? illuminance : null;
         renderLux(currentLux);
       });
       sensor.addEventListener('error', () => {
+        if (closed || activeSource !== 'als' || luxState.sensor !== sensor) return;
         try { sensor.stop(); } catch (error) {}
         luxState.sensor = null;
+        alsButton.disabled = true;
+        alsButton.title = 'The browser blocked or could not read this sensor';
+        alsDetail.textContent = 'Unavailable here';
         currentLux = null;
         renderLux(null);
-        void startCameraFallback('<b>Ambient light sensor blocked</b> by browser permissions. Retrying with camera estimate…');
+        void startCameraFallback('<b>Phone light sensor unavailable.</b> Using the camera fallback instead.');
       });
-      sensor.start();
       luxState.sensor = sensor;
-      usingALS = true;
-      sourceLine.textContent = 'Reading from your phone\'s ambient light sensor.';
-      if (calibrationPanel) calibrationPanel.style.display = 'none';
+      sensor.start();
+      sourceLine.textContent = 'Reading lux from your phone\'s light sensor. Keep it uncovered; readings can vary between phone models.';
+      return true;
     } catch (error) {
-      // Synchronous construction failure falls through to the camera.
+      stopAmbientSensor();
+      alsButton.disabled = true;
+      alsButton.title = 'The browser blocked or could not start this sensor';
+      alsDetail.textContent = 'Unavailable here';
+      return false;
     }
-  }
+  };
 
-  if (!usingALS) await startCameraFallback();
+  alsButton.addEventListener('click', () => {
+    if (activeSource === 'als') return;
+    if (!startAmbientSensor()) {
+      void startCameraFallback('<b>Phone light sensor unavailable.</b> Using the camera fallback instead.');
+    }
+  });
+  cameraButton.addEventListener('click', () => {
+    if (activeSource === 'camera' || activeSource === 'manual') return;
+    void startCameraFallback();
+  });
+
+  manualInput.addEventListener('input', () => {
+    if (activeSource !== 'manual') return;
+    const value = parseFloat(manualInput.value);
+    if (Number.isFinite(value) && value >= 0) {
+      currentLux = value;
+      const zone = luxZone(value);
+      manualZoneEl.textContent = zone.label;
+      manualZoneEl.style.color = zone.color;
+    } else {
+      currentLux = null;
+      manualZoneEl.textContent = '—';
+      manualZoneEl.style.color = '';
+    }
+  });
+
+  if (!startAmbientSensor()) await startCameraFallback();
 
   function renderLux(value) {
     if (value == null) {
@@ -236,16 +342,29 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       zoneEl.textContent = '—';
       return;
     }
+    unitEl.textContent = 'lux';
     valueEl.textContent = value < 100 ? value.toFixed(0) : Math.round(value).toLocaleString();
     const zone = luxZone(value);
     zoneEl.textContent = zone.label;
     zoneEl.style.color = zone.color;
   }
 
+  function renderCameraProxy(rawLuma) {
+    valueEl.textContent = `${Math.round(Math.min(100, Math.max(0, rawLuma / 255 * 100)))}%`;
+    unitEl.textContent = 'camera level';
+    zoneEl.textContent = 'Calibration required for lux';
+    zoneEl.style.color = 'var(--text-muted)';
+  }
+
   const calApplyBtn = /** @type {HTMLButtonElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-apply'));
   const calResetBtn = /** @type {HTMLButtonElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-reset'));
   const calRefInput = /** @type {HTMLInputElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-reference'));
   calApplyBtn?.addEventListener('click', () => {
+    if (activeSource !== 'camera') return;
+    if (!cameraExposureHeld) {
+      showNotification('This camera cannot hold exposure in this browser, so a reusable lux calibration would be misleading.', 'error', 7000);
+      return;
+    }
     if (currentRawLuma == null || currentRawLuma < 0.5) {
       showNotification('Camera not reading yet — wait a moment, then try again.', 'error');
       return;
@@ -259,28 +378,45 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     const clamped = Math.min(10, Math.max(0.1, newFactor));
     luxState.calibration = clamped;
     saveLuxCalibration(clamped);
+    luxState.calibrationConfirmed = true;
+    currentLux = refLux;
+    renderLux(currentLux);
     if (calCurrentEl) calCurrentEl.textContent = `${clamped.toFixed(2)}×`;
-    sourceLine.innerHTML = `Camera estimate (calibration ${clamped.toFixed(2)}×, ±30%). Calibrated against ${refLux} lux reference.`;
+    sourceLine.innerHTML = `Device-calibrated camera estimate using a ${refLux} lux reference. Approximate only; it stays outside biological scoring.`;
     showNotification(`Lux meter calibrated · factor ${clamped.toFixed(2)}×`);
   });
   calResetBtn?.addEventListener('click', () => {
+    if (activeSource !== 'camera') return;
     luxState.calibration = 1;
-    saveLuxCalibration(1);
-    if (calCurrentEl) calCurrentEl.textContent = '1.00×';
-    sourceLine.innerHTML = 'Camera estimate (calibration 1.00×, ±30%). Reset to default.';
+    luxState.calibrationConfirmed = false;
+    clearLuxCalibration();
+    currentLux = null;
+    if (calCurrentEl) calCurrentEl.textContent = 'not calibrated';
+    sourceLine.innerHTML = 'Camera calibration removed. Lux values are withheld until this phone is calibrated again.';
     showNotification('Lux calibration reset to 1.00×');
   });
 
   queryRequired(overlay, '#lux-save').addEventListener('click', async () => {
     if (currentLux == null) {
-      if (usingManualEntry) showNotification('Enter a lux value first.', 'error');
+      const message = activeSource === 'manual'
+        ? 'Enter a lux value first.'
+        : activeSource === 'als'
+          ? 'Waiting for the phone light sensor to report a reading.'
+          : 'Calibrate this camera beside a lux meter before saving.';
+      showNotification(message, 'error', 7000);
       return;
     }
-    const source = usingALS ? 'AmbientLightSensor' : usingManualEntry ? 'manual-entry' : 'camera-estimate';
-    const confidence = usingALS ? 0.85 : usingManualEntry ? 0.9 : 0.55;
+    const source = activeSource === 'als' ? 'AmbientLightSensor' : activeSource === 'manual' ? 'manual-entry' : 'camera-estimate';
+    const confidence = activeSource === 'als' ? 0.8 : activeSource === 'manual' ? 0.85 : 0.55;
     await saveMeasurement('lux', currentLux, {
       confidence,
-      extra: { source, calibrationFactor: luxState.calibration },
+      extra: {
+        source,
+        calibrationFactor: luxState.calibration,
+        calibrationConfirmed: source === 'camera-estimate' ? luxState.calibrationConfirmed : undefined,
+        measurementKind: 'photopic-illuminance',
+        context: opts.context || null,
+      },
       roomId,
     });
     showNotification(`Lux reading saved: ${Math.round(currentLux)}`);

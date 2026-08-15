@@ -90,15 +90,27 @@ async function seedDemoData(page) {
         ozoneDU: 310,
         cloudCover: 18,
         temperatureC: 22,
-        airQuality: { pm25: 6, pm10: 11, no2: 18, surfaceOzoneUgM3: 72, european_aqi: 1 },
+        airQuality: {
+          pm25: 6,
+          pm10: 11,
+          no2: 18,
+          surfaceOzoneUgM3: 72,
+          european_aqi: 18,
+          european_aqi_pm2_5: 8,
+          european_aqi_pm10: 10,
+          european_aqi_nitrogen_dioxide: 12,
+          european_aqi_ozone: 18,
+        },
         daily: {
           sunrise: new Date(now - 5 * 3600000).toISOString(),
           sunset: new Date(now + 6 * 3600000).toISOString(),
           uvIndexMax: 7.2,
           peakAt: new Date(now + 90 * 60000).toISOString(),
         },
-        source: 'manual_entry',
-        confidence: 1,
+        hourly: { utcOffsetSeconds: 0 },
+        source: 'open_meteo',
+        confidence: 0.65,
+        validAt: now,
         fetchedAt: now,
       };
     };
@@ -1057,6 +1069,8 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
           && !!document.querySelector('.dashboard-widget[data-widget-id="light-setup"]'),
         lightDashboardToggles: ['light-conditions-now', 'light-session-log', 'light-channels'].every(id =>
           !!lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`)) &&
+          (!lightWidgetRoute?.querySelector('.dashboard-widget[data-widget-id="light-live-session"]')
+            || !!lightWidgetRoute.querySelector('.dashboard-widget[data-widget-id="light-live-session"] .lens-widget-dashboard-toggle')) &&
           ['light-setup', 'light-guidance', 'light-sessions', 'light-devices', 'light-environment', 'light-tools', 'light-methods'].every(id =>
             !lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`)),
         lightSessionRows: sessionRows.length,

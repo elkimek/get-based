@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "description": "Preset library — curated to the brands getbased has direct context on (Mitochondriak, Chroma, EMR-Tek). Anything not on this list goes through the AI-powered custom-add flow (paste URL or scan label) which extracts specs via the user's Claude provider. Each preset maps to a channel-specific dose profile so deviceSessions feed the same accumulators as outdoor solar sessions. catalogSlug links to data/recommendations.json `_internal.lightDevices` for the affiliate-link surface on each device card. recommendedDistanceCm is the vendor's reference distance for the published irradiance — also used as the default working distance in the session-log dialog so dose math at default == manufacturer's spec, sidestepping the inverse-square pitfall at close ranges.",
+  "version": 4,
+  "description": "Preset library for supported light devices. Device sessions retain their source spectrum and remain distinct from full-spectrum sunlight. recommendedDistanceCm is the reference distance for a stored output and the default session distance. Off-reference dose is adjusted only when measured distance data or an explicitly declared point-source model exists; UV estimates require band-resolved output.",
   "presets": [
     {
       "id": "mitochondriak-pulse",
@@ -8,11 +8,24 @@
       "model": "Pulse",
       "type": "pbm-targeted",
       "peakWavelengths": [460, 630, 670, 850, 900],
-      "mwPerCm2At15cm": 50,
-      "recommendedDistanceCm": 15,
+      "mwPerCm2At15cm": 230,
+      "recommendedDistanceCm": 2,
+      "irradianceBasis": "measured-spectrometer",
+      "specSourceUrl": "https://www.mitochondriak.com/laser-torch-mitochondriak-pulse/",
       "channels": ["pbm_red", "pbm_nir"],
+      "channelGroups": [
+        { "id": "blue", "label": "Blue", "peaks": [460] },
+        { "id": "red", "label": "Red", "peaks": [630, 670] },
+        { "id": "nir", "label": "Near-infrared", "peaks": [850, 900] }
+      ],
+      "modes": [
+        { "id": "red", "label": "Red", "groups": ["red"], "default": true },
+        { "id": "nir", "label": "Near-infrared", "groups": ["nir"] },
+        { "id": "blue", "label": "Blue", "groups": ["blue"] },
+        { "id": "all-on", "label": "All bands", "groups": ["blue", "red", "nir"] }
+      ],
       "catalogSlug": "mitochondriak-pulse",
-      "notes": "Handheld torch (12.5 cm wand). 5 wavelengths incl. blue 460 nm. Manufacturer quotes >230 mW/cm² @ 1 cm; ~50 at 15 cm working distance. Targeted PBM — small illuminated area."
+      "notes": "Handheld targeted torch. The vendor reports about 230 mW/cm² by spectrometer at 2 cm and a built-in five-minute shutoff. Red is the first mode; red, NIR, blue, and combined selections are available."
     },
     {
       "id": "mitochondriak-bulb",
@@ -20,23 +33,27 @@
       "model": "LED RED + NIR bulb",
       "type": "pbm-targeted",
       "peakWavelengths": [630, 670, 760, 810, 830, 850],
-      "mwPerCm2At15cm": 120,
+      "mwPerCm2At15cm": 100,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "measured-spectrometer",
+      "specSourceUrl": "https://www.mitochondriak.com/led-bulb-mitochondriak/",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-bulb",
-      "notes": "Screw-in 12×12 cm bulb with holder. 56 W. Targeted PBM — small illuminated area."
+      "notes": "Screw-in 12×12 cm targeted bulb. The vendor reports about 100 mW/cm² by spectrometer at 15 cm."
     },
     {
       "id": "mitochondriak-mini",
       "brand": "Mitochondriak",
       "model": "Mini",
       "type": "combined",
-      "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
-      "mwPerCm2At15cm": 136,
+      "peakWavelengths": [630, 670, 760, 810, 830, 850],
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
+      "specSourceUrl": "https://www.mitochondriak.com/infrapanel-mitochondriak-mini/",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-mini",
-      "notes": "32×22 cm portable panel — quarter-body coverage. 210 W. Includes long-NIR 940 nm."
+      "notes": "Small battery-powered targeted panel. The current vendor page reports 31 mW/cm² by spectrometer but does not tie it to a measurement distance, so numerical fluence is withheld."
     },
     {
       "id": "mitochondriak-office-upgraded",
@@ -44,23 +61,36 @@
       "model": "Office Upgraded",
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
-      "mwPerCm2At15cm": 120,
+      "mwPerCm2At15cm": 85,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "measured-spectrometer",
+      "specSourceUrl": "https://www.mitochondriak.com/mitochondriak-office/",
       "channels": ["pbm_red", "pbm_nir"],
+      "channelGroups": [
+        { "id": "red", "label": "Red", "peaks": [630, 670] },
+        { "id": "nir", "label": "Near-infrared", "peaks": [760, 810, 830, 850, 940] }
+      ],
+      "modes": [
+        { "id": "red-nir", "label": "Red + NIR", "groups": ["red", "nir"], "default": true },
+        { "id": "red", "label": "Red only", "groups": ["red"] },
+        { "id": "nir", "label": "NIR only", "groups": ["nir"] }
+      ],
       "catalogSlug": "mitochondriak-office-upgraded",
-      "notes": "Stationary quarter-body panel for desk/office use. 310 W. Manufacturer quotes >60 mW/cm² @ 30 cm; ~120 at 15 cm (near-field 2×)."
+      "notes": "Compact office panel. The vendor reports 85 mW/cm² by spectrometer at 15 cm, with independent red/NIR intensity and pulsation controls."
     },
     {
       "id": "mitochondriak-uv-portable",
       "brand": "Mitochondriak",
       "model": "UV portable",
       "type": "uva",
-      "peakWavelengths": [360, 366, 630, 670, 760, 810, 830, 850],
-      "mwPerCm2At15cm": 24,
-      "recommendedDistanceCm": 15,
-      "channels": ["no_cv", "violet_eye", "pbm_red", "pbm_nir"],
+      "peakWavelengths": [336, 360, 630, 670, 760, 810, 850, 900],
+      "mwPerCm2At15cm": 10,
+      "recommendedDistanceCm": 30,
+      "irradianceBasis": "measured-total-spectrometer",
+      "specSourceUrl": "https://www.mitochondriak.com/mitochondriak-uv-portable/",
+      "channels": ["pomc", "no_cv", "pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-uv-portable",
-      "notes": "15×23 cm portable panel with UVA 360/366 nm on top of red+NIR. No UVB. 36 W. Manufacturer quotes >12 mW/cm² @ 30 cm; ~24 at 15 cm (near-field 2×)."
+      "notes": "Portable UVA + red/NIR panel. The vendor reports about 10 mW/cm² total spectrometer irradiance at 30 cm, but no per-band split; UVA dose is therefore not numerically inferred."
     },
     {
       "id": "mitochondriak-maxi-upgraded",
@@ -68,11 +98,22 @@
       "model": "Maxi Upgraded",
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
-      "mwPerCm2At15cm": 210,
-      "recommendedDistanceCm": 15,
+      "mwPerCm2At15cm": 60,
+      "recommendedDistanceCm": 30,
+      "irradianceBasis": "measured-spectrometer",
+      "specSourceUrl": "https://www.mitochondriak.com/mitochondriak-maxi/",
       "channels": ["pbm_red", "pbm_nir"],
+      "channelGroups": [
+        { "id": "red", "label": "Red", "peaks": [630, 670] },
+        { "id": "nir", "label": "Near-infrared", "peaks": [760, 810, 830, 850, 940] }
+      ],
+      "modes": [
+        { "id": "red-nir", "label": "Red + NIR", "groups": ["red", "nir"], "default": true },
+        { "id": "red", "label": "Red only", "groups": ["red"] },
+        { "id": "nir", "label": "NIR only", "groups": ["nir"] }
+      ],
       "catalogSlug": "mitochondriak-maxi-upgraded",
-      "notes": "90×30 cm half-body panel. 900 W. Same form factor as the Maxi UVB but red+NIR only — no UV. Manufacturer quotes >105 mW/cm² @ 30 cm; ~210 at 15 cm (near-field 2×)."
+      "notes": "90×30 cm half-body red/NIR panel. The vendor reports more than 60 mW/cm² by spectrometer at 30 cm, with independent red/NIR intensity and pulsation controls."
     },
     {
       "id": "mitochondriak-maxi-uvb",
@@ -80,22 +121,32 @@
       "model": "Maxi UVB",
       "type": "uvb",
       "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
-      "mwPerCm2At15cm": 120,
-      "recommendedDistanceCm": 15,
-      "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "mwPerCm2At15cm": 57.5,
+      "recommendedDistanceCm": 30,
+      "irradianceByDistanceCm": [
+        { "distanceCm": 30, "mwPerCm2": 57.5 },
+        { "distanceCm": 70, "mwPerCm2": 34.61 }
+      ],
+      "peakShares": [0.004045, 0.009621, 0.012712, 0.221737, 0.221737, 0.132537, 0.132537, 0.132537, 0.132537],
+      "peakShareBasis": "measured-band-split",
+      "irradianceBasis": "measured-spectrometer",
+      "specSourceUrl": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/",
+      "channels": ["vitamin_d", "pomc", "no_cv", "pbm_red", "pbm_nir"],
       "channelGroups": [
-        { "id": "uv-blue", "label": "UV + blue", "peaks": [295, 380, 480] },
+        { "id": "uvb", "label": "UVB 295 nm", "peaks": [295] },
+        { "id": "uva-blue", "label": "UVA + blue", "peaks": [380, 480] },
         { "id": "red-nir", "label": "Red + NIR",  "peaks": [630, 670, 760, 810, 830, 850] }
       ],
       "modes": [
-        { "id": "all-on",       "label": "Full spectrum (UV + red/NIR)", "groups": ["uv-blue", "red-nir"], "default": true },
-        { "id": "red-nir-only", "label": "Red/NIR only",                  "groups": ["red-nir"] }
-      ],
-      "coupling": [
-        { "if": "uv-blue", "requires": ["red-nir"], "reason": "Vendor design: UV must always run with red/NIR for repair coverage. UV-only mode is intentionally unavailable." }
+        { "id": "red-nir-only", "label": "Red/NIR only", "groups": ["red-nir"], "default": true },
+        { "id": "all-on", "label": "All bands (UV + blue + red/NIR)", "groups": ["uvb", "uva-blue", "red-nir"] },
+        { "id": "uva-blue-red-nir", "label": "UVA + blue + red/NIR", "groups": ["uva-blue", "red-nir"] },
+        { "id": "uvb-red-nir", "label": "UVB + red/NIR", "groups": ["uvb", "red-nir"] },
+        { "id": "uva-blue-only", "label": "UVA + blue only", "groups": ["uva-blue"] },
+        { "id": "uvb-only", "label": "UVB only (isolated)", "groups": ["uvb"] }
       ],
       "catalogSlug": "mitochondriak-maxi-uvb",
-      "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Touchscreen modes: full-spectrum (UV + red/NIR) or red/NIR only — UV cannot run without red/NIR by vendor design. Half-body coverage."
+      "notes": "Half-body hybrid panel. Current vendor spectrometer data reports 57.5 mW/cm² total at 30 cm and a 70 cm band split of UVB 0.140, UVA 0.333, blue 0.440, red 15.350, and NIR 18.350 mW/cm². UV groups can be controlled independently; the vendor recommends pairing UV with red/NIR."
     },
     {
       "id": "chroma-trinity",
@@ -103,22 +154,28 @@
       "model": "Trinity",
       "type": "uvb",
       "peakWavelengths": [297, 385, 405, 485, 630, 670, 760, 810, 850, 935, 1050],
-      "mwPerCm2At15cm": 200,
-      "recommendedDistanceCm": 20,
-      "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "mwPerCm2At15cm": null,
+      "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
+      "specSourceUrl": "https://getchroma.co/products/trinity",
+      "channels": ["vitamin_d", "pomc", "no_cv", "pbm_red", "pbm_nir"],
       "channelGroups": [
         { "id": "ironforge", "label": "Ironforge (red + NIR)",                    "peaks": [630, 670, 760, 810, 850] },
         { "id": "lux-vital", "label": "Lux Vital (cyan + violet + UVA + ext NIR)", "peaks": [385, 405, 485, 935, 1050] },
         { "id": "d-light",   "label": "D-Light (UVB)",                              "peaks": [297] }
       ],
       "modes": [
-        { "id": "all-on",    "label": "All modes combined",          "groups": ["ironforge", "lux-vital", "d-light"], "default": true },
-        { "id": "ironforge", "label": "Ironforge only",              "groups": ["ironforge"] },
-        { "id": "lux-vital", "label": "Lux Vital only",              "groups": ["lux-vital"] },
-        { "id": "d-light",   "label": "D-Light only (UVB)",          "groups": ["d-light"] }
+        { "id": "ironforge", "label": "Ironforge (red/NIR)", "groups": ["ironforge"], "default": true },
+        { "id": "ironforge-lux", "label": "Ironforge + Lux Vital", "groups": ["ironforge", "lux-vital"] },
+        { "id": "ironforge-d-light", "label": "Ironforge + D-Light UVB", "groups": ["ironforge", "d-light"] },
+        { "id": "all-on", "label": "All modes combined", "groups": ["ironforge", "lux-vital", "d-light"] }
+      ],
+      "coupling": [
+        { "if": "lux-vital", "requires": ["ironforge"], "reason": "Vendor operation: Ironforge remains on when Lux Vital is enabled." },
+        { "if": "d-light", "requires": ["ironforge"], "reason": "Vendor operation: Ironforge remains on when D-Light is enabled." }
       ],
       "catalogSlug": "chroma-trinity",
-      "notes": "Three modular modes that fire independently — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Pick the mode you actually ran for accurate dose accounting. Handheld, ~310 W combined. Vendor measures @ 8 inches (~20 cm)."
+      "notes": "Handheld three-group device. Ironforge is the always-on red/NIR base; Lux Vital and D-Light add UVA/visible/NIR or narrowband UVB. The vendor gives power allocation and usage distance, but no mode-specific spectral irradiance suitable for UV dosimetry, so numerical UV and vitamin-D estimates are withheld."
     },
     {
       "id": "chroma-ironforge",
@@ -126,11 +183,13 @@
       "model": "Ironforge",
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 850],
-      "mwPerCm2At15cm": 250,
+      "mwPerCm2At15cm": 148,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "measured-radiometer",
+      "specSourceUrl": "https://getchroma.co/products/ironforge",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-ironforge",
-      "notes": "5-wavelength PBM handheld. 850/810/760/670/630 nm. 200 W. 148 mW/cm² @ 6 inches; ~250 at 15 cm. 850-nm-dominant (50% of output) for deep tissue."
+      "notes": "Five-wavelength PBM handheld. Chroma reports third-party verification of 148 mW/cm² at 6 inches (about 15 cm), with roughly three quarters of output allocated across the NIR bands."
     },
     {
       "id": "chroma-ironforge-mini",
@@ -138,11 +197,13 @@
       "model": "Ironforge Mini",
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 850],
-      "mwPerCm2At15cm": 250,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
+      "specSourceUrl": "https://getchroma.co/products/ironforge-mini",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-ironforge-mini",
-      "notes": "Yoga-block-sized handheld. Same 5-wavelength split as Ironforge (850-dominant). 200 W. 148 mW/cm² @ 6 inches; ~250 at 15 cm."
+      "notes": "Yoga-block-sized handheld with the Ironforge wavelength set. The current product page does not provide a reference-distance irradiance suitable for fluence calculation."
     },
     {
       "id": "chroma-radiance",
@@ -150,11 +211,13 @@
       "model": "Radiance",
       "type": "combined",
       "peakWavelengths": [405, 630, 660, 810],
-      "mwPerCm2At15cm": 80,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
-      "channels": ["violet_eye", "pbm_red", "pbm_nir"],
+      "irradianceBasis": "unknown",
+      "specSourceUrl": "https://getchroma.co/products/radiance",
+      "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-radiance",
-      "notes": "Compact 4-band handheld with violet 405 nm on top of red + near-IR. 50 W, 28 oz. Violet adds eye/skin OPN5 effects beyond pure PBM."
+      "notes": "Compact handheld with 405 nm violet plus red and NIR. The violet band is kept as skin-spectrum context; this app does not credit an eye-channel benefit from looking at a therapy device."
     },
     {
       "id": "chroma-red-portal",
@@ -162,8 +225,9 @@
       "model": "Red Portal",
       "type": "combined",
       "peakWavelengths": [670, 810],
-      "mwPerCm2At15cm": 50,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 50,
+      "irradianceBasis": "unknown",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-red-portal",
       "notes": "Desk / wall ambient PBM lamp. 670 + 810 nm. 40 W. Workspace-grade — designed for ~50 cm desk distance, all-day exposure model."
@@ -174,11 +238,15 @@
       "model": "Sky Portal 2.1",
       "type": "sad",
       "peakWavelengths": [415, 480, 660],
-      "lux": 10000,
+      "lux": null,
+      "melanopicEdiLux": 10000,
+      "melanopicBasis": "vendor-claim",
       "recommendedDistanceCm": 25,
+      "irradianceBasis": "vendor-claim",
+      "specSourceUrl": "https://getchroma.co/products/sky-portal",
       "channels": ["circadian", "violet_eye"],
       "catalogSlug": "chroma-sky-portal",
-      "notes": "Circadian desk lamp. Day mode: violet 415 + cyan 480 + balanced NIR (>10,000 melanopic lux @ 10 inches ≈ 25 cm). Night mode: deep red 660 + 1300 K warm glow. Eye-channel device — no PBM dose."
+      "notes": "Circadian desk lamp. The vendor states more than 10,000 melanopic lux in daytime white mode at 10 inches (about 25 cm); its public page does not provide the underlying CIE measurement file. Night mode is a low-melanopic amber/red setting and is not modeled by this preset."
     },
     {
       "id": "chroma-chromatorch",
@@ -186,11 +254,12 @@
       "model": "Chromatorch",
       "type": "pbm-targeted",
       "peakWavelengths": [670, 810, 850],
-      "mwPerCm2At15cm": 40,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-chromatorch",
-      "notes": "Pocket torch (226 g). Three-band split (~33% each at 670 / 810 / 850). 85 mW/cm² at faceplate; ~40 at 15 cm working distance. 800+ hr battery."
+      "notes": "Pocket torch (226 g) with 670/810/850 nm output. The vendor states about 85 mW/cm² at the faceplate but no working-distance measurement, so numerical fluence is withheld."
     },
     {
       "id": "emr-tek-inferno",
@@ -198,11 +267,17 @@
       "model": "Inferno",
       "type": "combined",
       "peakWavelengths": [630, 670, 830],
-      "mwPerCm2At15cm": 150,
+      "mwPerCm2At15cm": 200,
       "recommendedDistanceCm": 15,
+      "irradianceByDistanceCm": [
+        { "distanceCm": 15, "mwPerCm2": 200 },
+        { "distanceCm": 30, "mwPerCm2": 70 }
+      ],
+      "irradianceBasis": "measured-radiometer",
+      "specSourceUrl": "https://emr-tek.com/products/inferno",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-inferno",
-      "notes": "Full-body red + near-IR therapy panel. 1400 W from 132 LEDs + 5 COB modules. >200 mW/cm² @ 6 inches; ~150 at 15 cm."
+      "notes": "Full-body red + near-IR therapy panel. 1400 W from 132 LEDs + 5 COB modules. Vendor states more than 200 mW/cm² at 6 inches (about 15 cm)."
     },
     {
       "id": "emr-tek-firedragon",
@@ -210,11 +285,12 @@
       "model": "Firedragon",
       "type": "combined",
       "peakWavelengths": [630, 660, 670, 810, 830, 850],
-      "mwPerCm2At15cm": 120,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firedragon",
-      "notes": "Desktop / mid-size 6-wavelength panel. 504 W. COB architecture, adjustable stand, LCD timer. Irradiance not published; ~120 at 15 cm based on wattage / form factor."
+      "notes": "Desktop / mid-size multi-wavelength panel. A usable reference-distance irradiance is not stored, so numerical fluence is withheld."
     },
     {
       "id": "emr-tek-firewave-compact",
@@ -222,11 +298,12 @@
       "model": "Firewave Compact",
       "type": "combined",
       "peakWavelengths": [630, 670, 830],
-      "mwPerCm2At15cm": 250,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 50,
+      "irradianceBasis": "unknown",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firewave-compact",
-      "notes": "Desktop COB device. 200 W focused chip-on-board. Manufacturer recommends 20 inches (~50 cm) working distance — at that range output matches a standard panel at 6 inches. Closer use risks over-dosing; default keyed to vendor's recommended distance."
+      "notes": "Desktop COB device with a 20-inch (about 50 cm) stored working distance. A usable irradiance measurement at that distance is not stored, so numerical fluence is withheld."
     },
     {
       "id": "emr-tek-firewave-pro",
@@ -234,11 +311,12 @@
       "model": "Firewave Pro",
       "type": "combined",
       "peakWavelengths": [630, 670, 830],
-      "mwPerCm2At15cm": 200,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firewave-pro",
-      "notes": "Desktop 350 W panel. 3 wavelengths. Irradiance not published; ~200 at 15 cm extrapolated from power."
+      "notes": "Desktop three-wavelength panel. Irradiance was not verified at the stored reference distance, so numerical fluence is withheld."
     },
     {
       "id": "emr-tek-firefly",
@@ -246,11 +324,12 @@
       "model": "Firefly Portable",
       "type": "pbm-targeted",
       "peakWavelengths": [630, 670, 830],
-      "mwPerCm2At15cm": 50,
+      "mwPerCm2At15cm": null,
       "recommendedDistanceCm": 15,
+      "irradianceBasis": "unknown",
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firefly",
-      "notes": "USB-C battery-powered handheld. 1.5 hr runtime per charge. 'Panel-grade output' (exact wattage not disclosed) — handheld dose profile, treat as targeted PBM."
+      "notes": "USB-C battery-powered handheld. A usable reference-distance irradiance is not published, so numerical fluence is withheld."
     }
   ],
   "_types": {

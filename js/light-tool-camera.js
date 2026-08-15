@@ -16,33 +16,33 @@ export function getRequired2DContext(canvas) {
 // spectrum, glass transmission) is the difference between a useful
 // reading and a misleading one — and there's no way to recover from a
 // fixed user-facing webcam (skin tones bias spectrum classifier toward
-// "warm LED" regardless of actual ceiling source; PWM stripes attenuate
+// "warm" regardless of actual ceiling source; rolling-shutter bands attenuate
 // when reflected; "bedroom" measurements done from a desk webcam are
 // actually office measurements with a bedroom label).
 const _AIMING_GUIDES = {
   lux: {
-    mode: 'FROM your position',
-    body: 'Hold the camera at <b>eye height</b>, facing the room as you\'d normally sit, work, or read. The reading captures light reaching your eye, not the bulb\'s raw output.',
-    webcam: 'A laptop / monitor webcam pointed at you is acceptable for this — it sees roughly the same light field hitting your face.',
+    mode: 'AT the point you want to check',
+    body: 'Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.',
+    webcam: 'A laptop may not expose a light sensor. Its camera can make a relative estimate, but a phone light sensor or real lux meter is preferable.',
   },
   flicker: {
     mode: 'AT the source',
-    body: 'Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. PWM stripes are subtle when reflected off walls or skin.',
+    body: 'Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. Rolling-shutter bands are harder to see after light reflects off walls or skin.',
     webcam: '⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.',
   },
   cct: {
     mode: 'AT the source',
     body: 'Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.',
-    webcam: '⚠ A user-facing webcam reads warm — skin tones in the frame skew the integration. Cool sources can under-read by 1000–2000 K.',
+    webcam: '⚠ A user-facing webcam can be skewed by skin, clothing, automatic white balance, and the display. Use a phone aimed at a neutral surface when possible.',
   },
   spectrum: {
     mode: 'AT the source',
     body: 'Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.',
-    webcam: '⚠ A user-facing webcam will almost always classify "warm LED" because skin + clothing fills the frame, regardless of the actual ceiling source. Use a phone.',
+    webcam: '⚠ A user-facing webcam mostly sees the person and display, so its RGB balance may not represent the room source. Use a phone aimed at the source when possible.',
   },
   darkness: {
     mode: 'FROM your sleeping position',
-    body: 'Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Capture the actual light hitting your closed eyelids during sleep, with the room lit as you\'ll sleep (door cracked, hallway light on, alarm clock visible — whatever\'s normal).',
+    body: 'Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Check the light field at your sleeping position with the room set as you normally sleep (door, hallway light, alarm clock, and curtains included).',
     webcam: '⚠ A monitor webcam in a different room can\'t measure your bedroom darkness. This one needs to be physically on the bed.',
   },
   'glass-transmission': {
@@ -153,8 +153,8 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
     advanced.push({ exposureMode: 'manual' });
     if (Number.isFinite(caps.exposureCompensation?.min)) advanced.push({ exposureCompensation: 0 });
     // Pin shutter to a usable value for flicker detection — short enough
-    // that PWM banding at 100 Hz+ shows up as visible stripes (not blurred
-    // by a long shutter), but long enough that ambient indoor light gives
+    // that some temporal modulation can show as rolling-shutter stripes
+    // rather than being blurred by a long shutter, while still giving
     // signal. 1/120s = 8.33ms is a reasonable middle ground if the camera
     // exposes `exposureTime` (units: 100 µs in the WICG spec).
     if (opts.shortExposure && Number.isFinite(caps.exposureTime?.min)) {
@@ -240,17 +240,18 @@ export function cameraLockStatusLine(lock) {
 // ─── Shared row-banding analyzer ───────────────────────────────────────
 //
 // The intra-frame rolling-shutter banding signal: a CMOS sensor reads out
-// rows top-to-bottom over ~15-33 ms. A PWM light source modulates during
+// rows top-to-bottom over ~15-33 ms. A temporally modulated source can vary during
 // that readout, painting horizontal stripes. Detecting variance ROW-WISE
-// (per-row mean luma, then stddev across rows) reveals PWM at 100 Hz –
-// 25 kHz that frame-rate sampling literally cannot see.
+// (per-row mean luma, then stddev across rows) can reveal modulation that
+// frame-to-frame sampling misses. Camera readout timing is device-specific,
+// so stripe count is not converted into a frequency.
 //
 // Returns:
 //   frameMean   — mean luma across the whole frame (0–255 scale)
 //   frameMax    — max single-pixel luma (catches bright spikes)
-//   bandingRatio — stddev of row means / frame mean (PWM banding strength)
-//   stripes     — zero-crossings of detrended row signal across the frame
-//                 (rough N stripes / 25ms readout = N × 40 Hz PWM frequency)
+//   bandingRatio — stddev of row means / frame mean (camera banding strength)
+//   stripes     — zero-crossings of detrended row signal across the frame;
+//                 useful as a banding-strength feature, not frequency
 //   rowMeans    — Float32Array of per-row mean luma (debugging / future use)
 //
 // Used by flicker, spectrum, CCT, and (peripherally) sleep-darkness tools.
@@ -289,13 +290,30 @@ export function computeRowBanding(data, W, H) {
 }
 
 
-// Shared lux calibration used by Lux, Darkness, Glass Transmission, and Eye-Level Audit.
+// Device-local, one-point camera calibration used only to display an
+// approximate camera lux estimate. It is not meter calibration and camera
+// values remain excluded from biological screening calculations.
 export function loadLuxCalibration() {
   try { return parseFloat(localStorage.getItem('labcharts-lux-calibration') || '') || 1.0; }
   catch (e) { return 1.0; }
 }
 
 export function saveLuxCalibration(factor) {
-  try { localStorage.setItem('labcharts-lux-calibration', String(factor)); }
+  try {
+    localStorage.setItem('labcharts-lux-calibration', String(factor));
+    localStorage.setItem('labcharts-lux-calibration-confirmed', 'true');
+  }
   catch (e) {}
+}
+
+export function isLuxCalibrationConfirmed() {
+  try { return localStorage.getItem('labcharts-lux-calibration-confirmed') === 'true'; }
+  catch (e) { return false; }
+}
+
+export function clearLuxCalibration() {
+  try {
+    localStorage.removeItem('labcharts-lux-calibration');
+    localStorage.removeItem('labcharts-lux-calibration-confirmed');
+  } catch (e) {}
 }

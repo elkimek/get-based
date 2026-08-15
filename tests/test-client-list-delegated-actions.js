@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const clientListImplSrc = fs.readFileSync(path.join(root, 'js/client-list-impl.js'), 'utf8');
 const clientListFormSrc = fs.readFileSync(path.join(root, 'js/client-list-form.js'), 'utf8');
 const clientListSrc = `${clientListImplSrc}\n${clientListFormSrc}`;
+const profileSrc = fs.readFileSync(path.join(root, 'js/profile.js'), 'utf8');
 const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);
 const clientListClosesOverlay = /closeModalOverlay\s*\(\s*['"]client-list-overlay['"]\s*\)/.test(clientListSrc);
 
@@ -77,10 +78,10 @@ assert('height display rounds cm to whole numbers and inches to one decimal',
   clientListSrc.includes("unit === 'in' ? (heightCm / 2.54).toFixed(1) : String(Math.round(heightCm))") &&
     clientListSrc.includes("next === 'in' ? '0.1' : '1'") &&
     clientListSrc.includes("heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : Math.round(heightRaw)"));
-assert('latitude AI refinement rechecks provider availability inside debounce',
-  clientListSrc.includes('const hasAIProvider = hasClientListAIProvider();') &&
-    clientListSrc.includes('if (!hasClientListAIProvider()) return;') &&
-    /latitudeTimer\s*=\s*setTimeout/.test(clientListSrc));
+assert('postal-area refinement stays ZIP-gated inside the debounce',
+  /latitudeTimer\s*=\s*setTimeout\(\(\) => \{[\s\S]{0,100}if \(!zip\) return;[\s\S]{0,100}detectLatitudeWithAI\(country, zip\)/.test(clientListFormSrc) &&
+    profileSrc.includes("meteo: 'postal_geocode'") &&
+    profileSrc.includes('postalCode: String(zip).trim()'));
 
 [
   'close',

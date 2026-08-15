@@ -391,12 +391,12 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // own aria-label. Hidden text in .sr-only carries the qualitative tier
   // for screen readers since the dots are aria-hidden.
   assert('pill is a <button> with aria-expanded + aria-controls',
-    /class="light-pill light-pill-tier-\$\{t7\} light-pill-interactive"[\s\S]{0,300}aria-expanded="false"[\s\S]{0,300}aria-controls="\$\{detailId\}"/.test(lightChannelViewSrc));
+    /<button type="button" class="light-pill light-pill-tier-\$\{active \? 2 : 0\}[\s\S]{0,400}aria-expanded="false" aria-controls="\$\{detailId\}"/.test(lightChannelViewSrc));
   assert('pill sparkline is aria-hidden (qualitative info already in sr-only span)',
     lightChannelViewSrc.includes('class="light-pill-sparkline"') &&
     /<svg class="light-pill-sparkline"[^>]*aria-hidden="true"/.test(lightChannelViewSrc));
   assert('pill carries sr-only tier + day-count label for assistive tech',
-    /class="sr-only">\$\{tlabel\(t7\)\}, \$\{dc\.n\} of 7 days hit target/.test(lightChannelViewSrc));
+    /class="sr-only">\$\{escapeHTML\(sourceLabel\)\}\$\{dc\.n \? ` on \$\{dc\.n\} day/.test(lightChannelViewSrc));
   assert('detail panel is role=region with aria-label',
     /class="light-channel-detail"[\s\S]{0,200}role="region" aria-label="\$\{escapeHTML\(meta\.label/.test(lightChannelViewSrc));
   assert('detail close button has aria-label',

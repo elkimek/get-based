@@ -172,15 +172,17 @@ test('light environment store browser coverage persists room screen and tombston
       ];
       const deleteRoomResult = await store.deleteRoom(roomId);
       const missingRoomDelete = await store.deleteRoom('missing-room');
-      outcomes.deleteRoomCascadesMeasurementsScreensAndTombstones =
+      outcomes.deleteRoomPreservesMeasurementsUnlinksScreensAndTombstonesRoom =
         deleteRoomResult === true
         && missingRoomDelete === false
         && !env.rooms.some(r => r.id === roomId)
-        && !state.importedData.lightMeasurements.some(m => m.id === 'linked-measure')
+        && state.importedData.lightMeasurements.some(m => m.id === 'linked-measure')
         && state.importedData.lightMeasurements.some(m => m.id === 'kept-measure')
+        && state.importedData.lightMeasurements.find(m => m.id === 'linked-measure')?.roomSnapshot?.id === roomId
+        && state.importedData.lightMeasurements.find(m => m.id === 'linked-measure')?.roomSnapshot?.name === 'Bedroom'
         && env.screens.find(s => s.id === roomScreenId)?.roomId === null
         && state.importedData._deleted['lightEnvironment.rooms'].includes(roomId)
-        && state.importedData._deleted.lightMeasurements.includes('linked-measure');
+        && !(state.importedData._deleted.lightMeasurements || []).includes('linked-measure');
     } finally {
       await encryptedRemoveItem(importedKey).catch(() => {});
       state.importedData = saved.importedData;

@@ -12,6 +12,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
+import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from './light-env-model.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
@@ -26,7 +27,7 @@ function _getScreensForRoom(roomId) {
 // Bumped 2026-05-08: prompt biology priors tightened to Brown 2022
 // melanopic-EDI thresholds. Existing cached verdicts may carry the
 // older 100-lux daytime / >1-photopic-lux night anchors — invalidate.
-const _roomFingerprintSalt = 'v2-brown2022-medi';
+const _roomFingerprintSalt = 'v3-measurement-quality';
 export function getRoomFingerprint(r) {
   if (!r) return '';
   const measurements = _getMeasurementsForRoom(r.id);
@@ -35,6 +36,7 @@ export function getRoomFingerprint(r) {
     _roomFingerprintSalt,
     r.name || '',
     r.primarySource || '',
+    r.daylightLevel || '',
     r.hoursOccupiedPerDay || 0,
     getRoomEveningHoursAfterSunset(r),
   ];
@@ -43,9 +45,9 @@ export function getRoomFingerprint(r) {
     if (!byTool.has(m.tool)) byTool.set(m.tool, m);
   }
   for (const [tool, m] of [...byTool.entries()].sort()) {
-    parts.push(`${tool}:${typeof m.value === 'number' ? Math.round(m.value * 100) / 100 : m.value}`);
+    parts.push(`${tool}:${typeof m.value === 'number' ? Math.round(m.value * 100) / 100 : m.value}:${m.extra?.method || m.extra?.source || ''}`);
   }
-  parts.push(`screens:${screens.map(s => s.type).sort().join(',')}`);
+  parts.push(`screens:${screens.map(s => `${s.device}:${s.eveningUseAfterSunset ?? ''}:${s.blueBlockerEnabled ? 1 : 0}`).sort().join(',')}`);
   return hashString(parts.join('|'));
 }
 
@@ -84,6 +86,7 @@ export function buildRoomContext(r) {
   lines.push(`### Room`);
   lines.push(`Name: ${_safeText(r.name) || '(unnamed)'}`);
   if (r.primarySource) lines.push(`Primary light source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
+  if (r.daylightLevel && r.daylightLevel !== 'unknown') lines.push(`Daylight reaching room during usual use: ${r.daylightLevel}`);
   if (r.hoursOccupiedPerDay != null) lines.push(`Hours occupied per day: ${r.hoursOccupiedPerDay}`);
   const eveningHrs = getRoomEveningHoursAfterSunset(r);
   lines.push(eveningHrs > 0
@@ -100,19 +103,26 @@ export function buildRoomContext(r) {
     for (const [tool, m] of byTool) {
       switch (tool) {
         case 'lux':
-          lines.push(`Lux: ${Math.round(m.value)} lux`);
+          lines.push(`Lux: ${Math.round(m.value)} photopic lux (${m.extra?.source || 'legacy/unknown source'}; ${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`);
           break;
         case 'flicker': {
           const score = Math.round(m.value || 0);
           const sLabel = ['pristine', 'mild', 'moderate', 'severe'][score] || 'unknown';
-          lines.push(`Flicker: ${score}/3 (${sLabel})${m.extra?.stripes ? `, ${m.extra.stripes} PWM stripes` : ''}`);
+          lines.push(`Camera banding: ${score}/3 (${sLabel})${m.extra?.stripes ? `, ${m.extra.stripes} rolling-shutter stripe groups` : ''}`);
           break;
         }
         case 'darkness':
-          lines.push(`Sleep darkness: mean ${_formatNumber(m.extra?.meanLux ?? m.value, 2)} lux, peak ${_formatNumber(m.extra?.peakLux, 2)} lux${m.extra?.label ? ' (' + m.extra.label + ')' : ''}`);
+          if (isQuantitativeDarknessMeasurement(m)) {
+            lines.push(`Sleep-time meter entry: ${_formatNumber(m.value, 2)} photopic lux (not melanopic EDI)`);
+          } else {
+            lines.push(`Sleep-light camera check: ${m.extra?.levelLabel || 'qualitative'} (not lux; do not infer melatonin suppression)`);
+          }
           break;
         case 'cct':
-          lines.push(`CCT: ${Math.round(m.value)} K${m.extra?.melanopic != null ? `, melanopic ratio ${_formatNumber(m.extra.melanopic, 2)}` : ''}${m.extra?.pwmActive ? ', PWM detected' : ''}`);
+          {
+            const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
+            lines.push(`Approximate camera CCT: ~${Math.round(m.value / 100) * 100} K${blueRatio != null ? `, camera RGB blue-ratio proxy ${_formatNumber(blueRatio, 2)} (not melanopic EDI)` : ''}${m.extra?.bandingDetected || m.extra?.pwmActive ? ', camera banding also detected' : ''}`);
+          }
           break;
         case 'spectrum':
           lines.push(`Spectrum: ${m.value || m.extra?.label}${m.extra?.circadian ? ` (${m.extra.circadian})` : ''}`);
@@ -132,7 +142,7 @@ export function buildRoomContext(r) {
     lines.push('### Screens used in this room');
     const typeCounts = {};
     for (const s of screens) {
-      const t = _SCREEN_TYPE_LABELS[s.type] || s.type;
+      const t = _SCREEN_TYPE_LABELS[s.device] || s.device;
       typeCounts[t] = (typeCounts[t] || 0) + 1;
     }
     for (const [t, n] of Object.entries(typeCounts)) {
@@ -156,22 +166,23 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON with three keys: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = circadian-aligned (daytime rooms get bright + cool-toned light, evening rooms stay dim + warm-toned, sleep rooms are dark + flicker-free)',
-  '  yellow = mostly OK with one or two specific issues (one too-cool fixture in evening, modest flicker, sleep room not dark enough)',
-  '  red = circadian-hostile (bright cool light in evening, severe flicker, bright sleep room, phone-in-bed unmitigated)',
-  '  gray = not enough data to judge (room has only a name)',
+  '  green = the entered timing and trustworthy measurements flag no clear concern',
+  '  yellow = one actionable screening signal is present or important measurement quality is limited',
+  '  red = multiple strong entered signals stack (for example long bright evening use plus clear banding)',
+  '  gray = not enough data or only uncalibrated camera proxies',
   '',
   'Biology priors:',
-  '  • Sleep rooms: per Brown TM 2022 (PLOS Biol 20:e3001571) the modern melanopic-EDI consensus is <1 melanopic lux during sleep, <10 in the hour before bed. Even ~40 photopic lux from a bedside lamp or TV measurably impairs sleep architecture (Cho 2013, Sleep Med 14:1422). Cool-toned (>4000K) light within 2 hours of bedtime delays sleep onset; phone in bed is the largest junk-light vector for most users.',
-  '  • Daytime rooms: per Brown 2022, target ≥250 melanopic-EDI lux at the eye during the day. With typical mixed-spectrum indoor lighting that\'s roughly ≥500 photopic lux; bright daylit / north-window setups hit it more easily. Below ~50 photopic lux for hours at a stretch is flat-out under-lit regardless of source.',
-  '  • Evening living spaces: warm (≤2700K) + dim (≤200 lux) is melatonin-friendly; bright cool overhead lights with TV blue light is not.',
-  '  • Flicker score 2+ correlates with eyestrain + headaches in sensitive populations regardless of brightness.',
+  '  • Brown 2022 recommendations are eye-level melanopic EDI: ≥250 lx during daytime, ≤10 lx in the evening, and ≤1 lx during sleep. Ordinary photopic lux and camera RGB are not interchangeable with melanopic EDI.',
+  '  • A trustworthy eye-level photopic-lux spot-check can describe general brightness, but source spectrum and exposure duration remain unknown.',
+  '  • Camera CCT and RGB results are warm/cool proxies only. CCT cannot establish spectral completeness or melanopic content.',
+  '  • A camera banding score detects some rolling-shutter patterns; no banding does not prove flicker-free output and stripe count is not frequency.',
+  '  • Screen tint / Night Shift / glasses may reduce short-wavelength exposure but never count as zero; brightness, distance, and duration remain relevant.',
   '  • A high evening-hours-after-sunset count amplifies the cost of a hostile spectrum in that room — flag harder when the user spends multiple evening hours there.',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
-  'tip: one sentence, max 16 words. Pick the SINGLE most-leveraged fix, with concrete action language.',
-  'detail: 2–3 sentences. List up to 2 specific issues + the corresponding biology, then the highest-priority fix. If the room\'s flicker score is 1+, the recommendation MUST NOT introduce a dimmer; cite the hardware caveats above.',
+  'tip: one sentence, max 16 words. Pick the single most useful next measurement or change.',
+  'detail: 2–3 sentences. Separate entered facts, calibrated measurements, and camera proxies. Never estimate hormone suppression, phase shift, or melanopic dose from ordinary lux/CCT/RGB. If flicker is flagged, the recommendation MUST NOT introduce a generic dimmer.',
   '',
   'No "you should" — be observational and direct. No emoji.',
 ].join('\n');

@@ -73,7 +73,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
         <button id="delete-close" ${actionsModule.sunSessionActionAttrs('delete-session', { id: 'sun-3', closeModal: true })}>Delete close</button>
       </div>
       <div id="chips" class="sun-channel-chips">
-        <button id="toggle-chips" ${actionsModule.sunSessionActionAttrs('toggle-chips')}>More</button>
+        <button id="toggle-chips" ${actionsModule.sunSessionActionAttrs('toggle-chips', { hiddenCount: 3 })} aria-expanded="false">More</button>
       </div>
       <div id="other-chips" class="sun-channel-chips"></div>
       <div id="ignore" ${actionsModule.sunSessionActionAttrs('ignore')}>
@@ -153,12 +153,16 @@ test('sun session action delegates route clicks keyboard and modal actions in br
 
     click('toggle-chips');
     const expandedOnce = byId('chips').classList.contains('sun-chips-expanded');
+    const expandedAria = byId('toggle-chips').getAttribute('aria-expanded') === 'true'
+      && byId('toggle-chips').getAttribute('aria-label') === 'Show fewer light channels';
     const otherExpandedOnce = byId('other-chips').classList.contains('sun-chips-expanded');
     click('toggle-chips');
     const collapsedAgain = !byId('chips').classList.contains('sun-chips-expanded');
+    const collapsedAria = byId('toggle-chips').getAttribute('aria-expanded') === 'false'
+      && byId('toggle-chips').getAttribute('aria-label') === 'Show 3 additional light channels';
     const otherCollapsedAgain = !byId('other-chips').classList.contains('sun-chips-expanded');
     outcomes.toggleChipsOnlyChangesOwningChipContainer =
-      expandedOnce && !otherExpandedOnce && collapsedAgain && otherCollapsedAgain;
+      expandedOnce && expandedAria && !otherExpandedOnce && collapsedAgain && collapsedAria && otherCollapsedAgain;
 
     const beforeIgnore = calls.length;
     const ignoreAllowed = click('ignored-button');

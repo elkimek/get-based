@@ -195,6 +195,84 @@
   min-height: 1.35em;
 }
 
+.lux-source-picker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  margin: 12px 0 8px;
+}
+.lux-source-picker-label {
+  align-self: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.lux-source-option {
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+.lux-source-option span,
+.lux-source-option small {
+  display: block;
+}
+.lux-source-option span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.lux-source-option small {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.lux-source-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.lux-source-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.lux-manual-entry {
+  min-height: 132px;
+  padding: 18px 0;
+  text-align: center;
+  box-sizing: border-box;
+}
+.lux-dial[hidden],
+.lux-manual-entry[hidden] {
+  display: none;
+}
+.lux-manual-entry label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.lux-manual-entry-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+.lux-manual-entry-row input {
+  width: 140px;
+  padding: 8px 10px;
+  font-size: 20px;
+  text-align: center;
+}
+.lux-manual-entry-row span {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
 .lux-dial {
   text-align: center; padding: 24px 0;
   min-height: 132px;
@@ -226,6 +304,15 @@
   margin-top: 8px;
 }
 .lux-zone-marker span { color: var(--text-secondary); margin-left: 2px; }
+
+@media (max-width: 430px) {
+  .lux-source-picker {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lux-source-picker-label {
+    grid-column: 1 / -1;
+  }
+}
 
 /* Flicker detector + dark meter result lines */
 .flicker-result, .dark-status {

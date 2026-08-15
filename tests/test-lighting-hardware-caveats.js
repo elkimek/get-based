@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // test-lighting-hardware-caveats.js — Guards against the load-bearing
-// PWM/TRIAC caveat block being silently dropped from any AI-analysis
-// surface. Without these caveats the model recommends "dimmable LED"
-// as a flicker fix — which is the #1 cause of household PWM flicker.
+// flicker/TRIAC caveat block being silently dropped from any AI-analysis
+// surface. Without these caveats the model may overstate what a camera
+// check or a fixture label can establish.
 //
 // Two layers:
 //   1. Content — the constant itself contains the canonical strings.
@@ -38,14 +38,14 @@ assert('LIGHTING_HARDWARE_CAVEATS_TEXT is the joined string',
 // load-bearing ones — if any disappears, the prompt loses a guarantee
 // the model relies on.
 const canonical = [
-  { name: 'mentions PWM',                   needle: /\bPWM\b/ },
+  { name: 'mentions temporal light modulation', needle: /temporal light modulation/i },
   { name: 'mentions TRIAC',                 needle: /\bTRIAC\b/ },
-  { name: 'flags dimmable LED as #1 PWM',   needle: /dimmable LEDs? .*#?1.*(PWM|flicker)/i },
+  { name: 'does not assume dimmable LEDs are flicker-free', needle: /Do not assume that every dimmable LED[\s\S]*flicker-free/i },
   { name: 'mentions flicker scoring',       needle: /flicker/i },
   { name: 'mentions non-dimming alternatives (incandescent OR halogen)',
                                             needle: /\b(incandescent|halogen)\b/i },
-  { name: 'mentions blackout / light-blocking for sleep rooms',
-                                            needle: /\b(blackout|light-blocking|tap(e|ing))\b/i },
+  { name: 'mentions reducing evening light leakage',
+                                            needle: /reducing light leakage/i },
 ];
 for (const c of canonical) {
   assert(`Caveat block ${c.name}`, c.needle.test(LIGHTING_HARDWARE_CAVEATS_TEXT));

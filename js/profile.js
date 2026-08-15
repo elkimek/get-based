@@ -3,7 +3,6 @@
 
 import { state } from './state.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
-import { callClaudeAPI } from './api.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, isUnlocked } from './crypto.js';
 import { migrateProfileData } from './profile-data-migrations.js';
@@ -22,8 +21,8 @@ export { migrateProfileData, profileStorageKey };
 
 /** @type {Record<string, (...args: any[]) => any>} */
 const profileDeps = {
-  callClaudeAPI,
   deleteProfileFromRelay: async () => {},
+  fetchImpl: (input, init) => fetch(input, init),
   isDebugMode,
   onProfileSaved: async () => {},
   pushContextToGateway: async () => {},
@@ -34,8 +33,8 @@ const profileDeps = {
 export function configureProfileDeps(deps = {}) {
   const previous = { ...profileDeps };
   const previousStoreDeps = configureProfileListStoreDeps(deps);
-  if (typeof deps.callClaudeAPI === 'function') profileDeps.callClaudeAPI = deps.callClaudeAPI;
   if (typeof deps.deleteProfileFromRelay === 'function') profileDeps.deleteProfileFromRelay = deps.deleteProfileFromRelay;
+  if (typeof deps.fetchImpl === 'function') profileDeps.fetchImpl = deps.fetchImpl;
   if (typeof deps.isDebugMode === 'function') profileDeps.isDebugMode = deps.isDebugMode;
   if (typeof deps.onProfileSaved === 'function') profileDeps.onProfileSaved = deps.onProfileSaved;
   if (typeof deps.pushContextToGateway === 'function') profileDeps.pushContextToGateway = deps.pushContextToGateway;
@@ -618,17 +617,48 @@ export async function setProfileHeight(profileId, height, unit) {
   return changed;
 }
 
-// AI-powered latitude detection with hardcoded fallback
+// Privacy-rounded home-area resolution; the legacy export name is retained.
 /**
- * @returns {Record<string, number>}
+ * @returns {Record<string, any>}
  */
 export function getLocationCache() { try { return JSON.parse(localStorage.getItem('labcharts-location-cache') || '{}'); } catch(e) { return {}; } }
 /**
  * @param {string} key
- * @param {number} lat
+ * @param {any} value
  * @returns {void}
  */
-export function setLocationCache(key, lat) { var c = getLocationCache(); c[key] = lat; try { localStorage.setItem('labcharts-location-cache', JSON.stringify(c)); } catch(e) {} }
+export function setLocationCache(key, value) { var c = getLocationCache(); c[key] = value; try { localStorage.setItem('labcharts-location-cache', JSON.stringify(c)); } catch(e) {} }
+
+function cachedLatitude(value) {
+  if (Number.isFinite(value)) return Number(value);
+  const latitude = Number(value?.lat ?? value?.latitude);
+  return Number.isFinite(latitude) ? latitude : null;
+}
+
+/**
+ * @param {string} [optCountry]
+ * @param {string} [optZip]
+ * @returns {{ lat: number, lon: number, accuracyKm: number | null, timezone: string | null, label: string, resolvedAt: number | null, source: string } | null}
+ */
+export function getResolvedProfileCoords(optCountry, optZip) {
+  const loc = getProfileLocation();
+  const country = (optCountry !== undefined ? optCountry : loc.country || '').trim();
+  const zip = (optZip !== undefined ? optZip : loc.zip || '').trim();
+  if (!country || !zip) return null;
+  const cached = getLocationCache()[`${country}|${zip}`.toLowerCase()];
+  const lat = cachedLatitude(cached);
+  const lon = Number(cached?.lon ?? cached?.longitude);
+  if (lat == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return {
+    lat,
+    lon,
+    accuracyKm: Number.isFinite(Number(cached?.accuracyKm)) ? Number(cached.accuracyKm) : null,
+    timezone: typeof cached?.timezone === 'string' ? cached.timezone : null,
+    label: typeof cached?.label === 'string' ? cached.label : '',
+    resolvedAt: Number.isFinite(Number(cached?.resolvedAt)) ? Number(cached.resolvedAt) : null,
+    source: 'home-postal',
+  };
+}
 /**
  * @param {number} lat
  * @returns {number}
@@ -642,17 +672,35 @@ export function latitudeToBand(lat) { var a = Math.abs(lat); if (a < 25) return 
  */
 export async function detectLatitudeWithAI(country, zip) {
   var cacheKey = (country + '|' + zip).toLowerCase();
-  if (getLocationCache()[cacheKey] !== undefined) return;
+  const cached = getLocationCache()[cacheKey];
+  if (cached && typeof cached === 'object'
+      && Number.isFinite(Number(cached.lat ?? cached.latitude))
+      && Number.isFinite(Number(cached.lon ?? cached.longitude))) return;
+  if (!String(country || '').trim() || !String(zip || '').trim()) return;
   try {
-    var locationStr = zip ? country + ' ' + zip : country;
-    var { text: response } = await profileDeps.callClaudeAPI({
-      system: 'You are a geography assistant. Reply with ONLY a number \u2014 the approximate latitude in decimal degrees (positive for North, negative for South). No text, no degree symbol, just the number.',
-      messages: [{ role: 'user', content: 'Latitude of: ' + locationStr }],
-      maxTokens: 10
+    const response = await profileDeps.fetchImpl('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meteo: 'postal_geocode',
+        country: String(country).trim(),
+        postalCode: String(zip).trim(),
+      }),
     });
-    var lat = parseFloat((response || '').trim());
-    if (!isNaN(lat) && lat >= -90 && lat <= 90) {
-      setLocationCache(cacheKey, lat);
+    if (!response.ok) return;
+    const resolved = await response.json();
+    const lat = Number(resolved?.latitude);
+    const lon = Number(resolved?.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      setLocationCache(cacheKey, {
+        lat,
+        lon,
+        accuracyKm: Number.isFinite(Number(resolved?.accuracyKm)) ? Number(resolved.accuracyKm) : 11,
+        timezone: typeof resolved?.timezone === 'string' ? resolved.timezone : null,
+        label: typeof resolved?.label === 'string' ? resolved.label : '',
+        source: 'postal-area',
+        resolvedAt: Number.isFinite(Number(resolved?.resolvedAt)) ? Number(resolved.resolvedAt) : Date.now(),
+      });
       var el = document.getElementById('loc-lat-display');
       if (el) {
         var band = latitudeToBand(lat);
@@ -661,7 +709,7 @@ export async function detectLatitudeWithAI(country, zip) {
       }
     }
   } catch(e) {
-    if (profileDeps.isDebugMode()) console.warn('[Location] AI detection failed:', e);
+    if (profileDeps.isDebugMode()) console.warn('[Location] postal-area resolution failed:', e);
   }
 }
 
@@ -677,13 +725,11 @@ export function getLatitudeFromLocation(optCountry, optZip) {
   const c = country.toLowerCase().trim();
   const zip = (optZip !== undefined ? optZip : loc.zip || '').trim();
 
-  // AI cache (most accurate — covers any country/ZIP worldwide)
   var cacheKey = (c + '|' + zip).toLowerCase();
-  var aiCached = getLocationCache()[cacheKey];
-  if (aiCached !== undefined) return LATITUDE_BANDS[latitudeToBand(aiCached)];
+  var aiCached = cachedLatitude(getLocationCache()[cacheKey]);
+  if (aiCached !== null) return LATITUDE_BANDS[latitudeToBand(aiCached)];
 
   var zn = zip.replace(/\s/g, '');
-  // ZIP refinement for USA (first digit = region, special prefixes for HI/AK/PR)
   if (zn && (c === 'usa' || c === 'us' || c === 'united states' || c === 'america')) {
     var p3 = zn.substring(0, 3);
     if (p3 >= '006' && p3 <= '009') return LATITUDE_BANDS[0]; // PR/VI → tropical
@@ -694,53 +740,43 @@ export function getLatitudeFromLocation(optCountry, optZip) {
     if (usb[d] !== undefined) return LATITUDE_BANDS[usb[d]];
   }
 
-  // ZIP refinement for Canada (first letter = province/territory)
   if (zn && (c === 'canada' || c === 'ca')) {
     var letter = zn.charAt(0).toUpperCase();
     var cab = { 'A':3,'B':2,'C':2,'E':2, 'G':2,'H':2,'J':2,'K':2,'L':2,'M':2,'N':2, 'P':3,'R':3,'S':3,'T':3, 'V':2, 'X':4,'Y':4 };
     if (cab[letter] !== undefined) return LATITUDE_BANDS[cab[letter]];
   }
 
-  // ZIP refinement for European countries
   var zd = zn.charAt(0);
-  // Norway (4-digit): 0-5 southern ~58-60°N → northern, 6-9 central/north ~62-71°N → subarctic
   if (zn && (c === 'norway' || c === 'norge')) {
     if (zd >= '0' && zd <= '5') return LATITUDE_BANDS[3];
     return LATITUDE_BANDS[4];
   }
-  // Sweden (5-digit): 1-6 southern/central ~55-60°N → northern, 7-9 north ~62-69°N → subarctic
   if (zn && (c === 'sweden' || c === 'sverige')) {
     if (zd >= '1' && zd <= '6') return LATITUDE_BANDS[3];
     if (zd >= '7') return LATITUDE_BANDS[4];
   }
-  // Finland (5-digit): 00-39 southern ~60°N → northern, 40-99 central/north ~62-70°N → subarctic
   if (zn && (c === 'finland' || c === 'suomi')) {
     var f2 = parseInt(zn.substring(0, 2));
     if (!isNaN(f2)) return LATITUDE_BANDS[f2 < 40 ? 3 : 4];
   }
-  // Germany (5-digit): 0-6 northern/central ~50-54°N → northern, 7-9 southern ~48-50°N → temperate
   if (zn && (c === 'germany' || c === 'deutschland')) {
     if (zd >= '7') return LATITUDE_BANDS[2];
     return LATITUDE_BANDS[3];
   }
-  // Italy (5-digit): 00-79 central/north ~41-47°N → temperate, 80-98 south/islands ~36-41°N → subtropical
   if (zn && (c === 'italy' || c === 'italia')) {
     var i2 = parseInt(zn.substring(0, 2));
     if (!isNaN(i2)) return LATITUDE_BANDS[i2 >= 80 ? 1 : 2];
   }
-  // Spain (5-digit): northern provinces ~43°N → temperate, rest → subtropical
   if (zn && (c === 'spain' || c === 'españa' || c === 'espana')) {
     var s2 = parseInt(zn.substring(0, 2));
     if (!isNaN(s2) && (s2 >= 15 && s2 <= 16 || s2 >= 20 && s2 <= 24 || s2 >= 26 && s2 <= 28 || s2 >= 31 && s2 <= 34 || s2 >= 39 && s2 <= 50)) return LATITUDE_BANDS[2];
     return LATITUDE_BANDS[1];
   }
-  // France (5-digit): mostly temperate, northern departments ~50°N → borderline northern
   if (zn && (c === 'france')) {
     var fr2 = parseInt(zn.substring(0, 2));
     if (!isNaN(fr2) && (fr2 >= 59 && fr2 <= 62 || fr2 === 80 || fr2 === 2)) return LATITUDE_BANDS[3];
     return LATITUDE_BANDS[2];
   }
-  // Russia (6-digit): default northern, 350-385 south → temperate, 163/183-184 Murmansk → subarctic
   if (zn && (c === 'russia' || c === 'россия' || c === 'rossiya')) {
     var r3 = parseInt(zn.substring(0, 3));
     if (!isNaN(r3)) {
@@ -750,7 +786,6 @@ export function getLatitudeFromLocation(optCountry, optZip) {
     return LATITUDE_BANDS[3];
   }
 
-  // Country-level lookup
   const band = COUNTRY_LATITUDES[c];
   if (band !== undefined) return LATITUDE_BANDS[band];
   for (const [key, val] of Object.entries(COUNTRY_LATITUDES)) {

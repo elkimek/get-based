@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-sun-uvdata.js — Multi-source UV/ozone client: SSRF guard, manual entry,
+// test-sun-uvdata.js — Multi-source UV/ozone client: SSRF guard,
 // provider routing, solar-zenith math, privacy rounding, US-coords window.
 //
 // Run: node tests/test-sun-uvdata.js  (or via npm test)
@@ -16,11 +16,12 @@ console.log('=== Sun UV-Data Tests ===\n');
 
 await import('../js/state.js');
 const mod = await import('../js/sun-uvdata.js');
+const { shapeOpenMeteoResponse } = await import('../js/sun-uvdata-atmosphere.js');
+const conditionsInterpretation = await import('../js/light-conditions-interpretation.js');
 const {
   UV_SOURCE_CONFIDENCE,
   getMeteoConfig,
   saveMeteoConfig,
-  manualAtmosphere,
   fetchAtmosphere,
   solarZenithAngle,
   nearestHourIndex,
@@ -29,39 +30,19 @@ const {
   // ─── 1. UV_SOURCE_CONFIDENCE shape ─────────────────────────────────────
   console.log('%c 1. Source confidence weights ', 'font-weight:bold;color:#f59e0b');
 
-  assert('manual_meter is the highest-confidence source',
-    UV_SOURCE_CONFIDENCE.manual_meter === 1.0,
-    `got ${UV_SOURCE_CONFIDENCE.manual_meter}`);
   assert('zenith_offline is the lowest-confidence source',
     UV_SOURCE_CONFIDENCE.zenith_offline < UV_SOURCE_CONFIDENCE.open_meteo,
     `zenith=${UV_SOURCE_CONFIDENCE.zenith_offline} vs open_meteo=${UV_SOURCE_CONFIDENCE.open_meteo}`);
   assert('CAMS / selfhost outrank Open-Meteo (per audit ranking)',
     UV_SOURCE_CONFIDENCE.cams > UV_SOURCE_CONFIDENCE.open_meteo &&
     UV_SOURCE_CONFIDENCE.selfhost > UV_SOURCE_CONFIDENCE.open_meteo);
-  assert('manual_entry < manual_meter (calibrated meter wins)',
-    UV_SOURCE_CONFIDENCE.manual_entry < UV_SOURCE_CONFIDENCE.manual_meter);
-  for (const k of ['manual_meter','manual_entry','selfhost','cams','noaa_nws','open_meteo','zenith_offline']) {
+  for (const k of ['selfhost','cams','noaa_nws','open_meteo','zenith_offline']) {
     assert(`Confidence weight for ${k} in [0,1]`,
       UV_SOURCE_CONFIDENCE[k] >= 0 && UV_SOURCE_CONFIDENCE[k] <= 1,
       `${k}=${UV_SOURCE_CONFIDENCE[k]}`);
   }
 
-  // ─── 2. manualAtmosphere ───────────────────────────────────────────────
-  console.log('%c 2. manualAtmosphere ', 'font-weight:bold;color:#f59e0b');
-
-  const meterRow = manualAtmosphere({ uvIndex: 5, ozoneDU: 320, hasMeter: true, notes: 'midday SBE' });
-  assert('Meter entry tagged manual_meter', meterRow.source === 'manual_meter');
-  assert('Meter entry confidence === manual_meter weight (1.0)', meterRow.confidence === 1.0);
-  assert('Meter entry preserves uvIndex', meterRow.uvIndex === 5);
-  assert('Meter entry preserves ozoneDU', meterRow.ozoneDU === 320);
-  assert('Meter entry preserves notes', meterRow.notes === 'midday SBE');
-  assert('Meter entry uvClearSky mirrors uvIndex (no atmosphere model)', meterRow.uvClearSky === meterRow.uvIndex);
-  assert('Meter entry has fetchedAt timestamp', typeof meterRow.fetchedAt === 'number' && meterRow.fetchedAt > 0);
-
-  const eyeballRow = manualAtmosphere({ uvIndex: 3 });
-  assert('No-meter entry tagged manual_entry', eyeballRow.source === 'manual_entry');
-  assert('No-meter entry confidence === manual_entry weight (0.85)', eyeballRow.confidence === 0.85);
-  assert('No-meter ozoneDU defaults to null', eyeballRow.ozoneDU === null);
+  assert('manual UVI constructor is no longer exported', !('manualAtmosphere' in mod));
 
   // ─── 3. SSRF guard via fetchAtmosphere with selfhost mode ──────────────
   // _isValidSelfhostUrl is module-private — exercise it through the
@@ -176,10 +157,7 @@ const {
 
   // privacyRounding is exercised through the cache: at 0.1° rounding,
   // adjacent call sites within the bucket must reuse the same cache row.
-  saveMeteoConfig({ ...origCfg, mode: 'manual', privacyRounding: 0.1 });
-  // mode=manual returns null without writing cache, but that's fine —
-  // we're checking the rounding contract, not network behaviour.
-  // Direct cache-key shape check via reading localStorage after a manual entry.
+  saveMeteoConfig({ ...origCfg, mode: 'auto', privacyRounding: 0.1 });
   const isoTime = new Date().toISOString();
 
   // Shape-test: roundCoords behaviour by writing a synthetic cache entry
@@ -247,12 +225,94 @@ const {
   assert('nearestHourIndex tracks target across hours',
     nearestHourIndex(pragueHourly, '2026-05-01T13:00:00.000Z', pragueOffset) === 5);
 
+  // Current Conditions must use the provider's current block, while a
+  // retro-session request must continue to use its nearest hourly sample.
+  const nowMs = Date.now();
+  const offsetSeconds = 7200;
+  const naiveAt = ms => new Date(ms + offsetSeconds * 1000).toISOString().slice(0, 16);
+  const currentFc = {
+    utc_offset_seconds: offsetSeconds,
+    current: {
+      time: naiveAt(nowMs - 5 * 60_000),
+      uv_index: 7.7,
+      uv_index_clear_sky: 8.4,
+      cloud_cover: 24,
+      temperature_2m: 21,
+    },
+    hourly: {
+      time: [naiveAt(nowMs - 2 * 86400_000), naiveAt(nowMs)],
+      uv_index: [2.2, 3.3],
+      uv_index_clear_sky: [2.8, 4.1],
+      cloud_cover: [70, 45],
+      temperature_2m: [15, 19],
+    },
+    daily: { time: [], sunrise: [], sunset: [], uv_index_max: [] },
+  };
+  const currentAq = {
+    utc_offset_seconds: 0,
+    current: {
+      time: new Date(nowMs - 3 * 60_000).toISOString().slice(0, 16),
+      pm2_5: 6,
+      ozone: 74,
+      european_aqi: 32,
+      european_aqi_pm2_5: 14,
+      european_aqi_ozone: 32,
+    },
+    hourly: {
+      time: [new Date(nowMs - 2 * 86400_000).toISOString().slice(0, 16), new Date(nowMs).toISOString().slice(0, 16)],
+      pm2_5: [22, 18],
+      ozone: [91, 86],
+      european_aqi: [55, 48],
+      european_aqi_pm2_5: [55, 48],
+      european_aqi_ozone: [40, 38],
+    },
+  };
+  const currentShape = shapeOpenMeteoResponse(currentFc, currentAq, new Date(nowMs).toISOString(), 'open_meteo');
+  const retroShape = shapeOpenMeteoResponse(currentFc, currentAq, new Date(nowMs - 2 * 86400_000).toISOString(), 'open_meteo');
+  assert('current shaper prefers provider current UV and AQ blocks',
+    currentShape?.uvIndex === 7.7
+      && currentShape?.airQuality?.european_aqi === 32
+      && currentShape?.airQuality?.european_aqi_ozone === 32);
+  assert('current shaper records model validAt separately from retrieval',
+    Number.isFinite(currentShape?.validAt)
+      && Math.abs(currentShape.validAt - (nowMs - 5 * 60_000)) < 61_000
+      && currentShape.fetchedAt >= currentShape.validAt);
+  assert('retro shaper uses hourly values instead of current blocks',
+    retroShape?.uvIndex === 2.2 && retroShape?.airQuality?.european_aqi === 55);
+
+  const trustedAq = conditionsInterpretation._aggregateAQ({
+    european_aqi: 18,
+    european_aqi_nitrogen_dioxide: 70,
+    no2: 240,
+    pm25: 180,
+  }, null);
+  assert('AQ classification trusts consolidated EAQI instead of raw instantaneous concentrations',
+    trustedAq?.label === 'Good' && trustedAq?.index === 18 && trustedAq?.why === 'NO₂');
+  assert('WHO UVI condition labels do not infer vitamin D or personal burn time',
+    conditionsInterpretation._uviConditionLabel(6.5) === 'High UV · protection needed');
+
+  const priorInterpretationDeps = conditionsInterpretation.configureLightConditionsInterpretation({
+    solarZenithAngle: date => {
+      const minuteUtc = date.getUTCHours() * 60 + date.getUTCMinutes();
+      return minuteUtc >= 4 * 60 && minuteUtc < 16 * 60 ? 84 : 90;
+    },
+  });
+  const uvaWindow = conditionsInterpretation._computeUvaWindow(
+    { lat: 50, lon: 14 },
+    new Date('2026-06-01T12:00:00Z'),
+    2 * 3600
+  );
+  conditionsInterpretation.configureLightConditionsInterpretation(priorInterpretationDeps);
+  assert('UV-A transition window follows the location-local day, not device timezone',
+    uvaWindow.firstUVA?.toISOString() === '2026-06-01T04:00:00.000Z'
+      && uvaWindow.lastUVA?.toISOString() === '2026-06-01T15:59:00.000Z');
+
   // ─── 7. Confidence values exist for every named source ────────────────
   console.log('%c 7. Source coverage ', 'font-weight:bold;color:#f59e0b');
 
   // Every source label that the response shapers produce must have a
   // matching confidence weight, otherwise the AI tier loses provenance.
-  const requiredKeys = ['manual_meter','manual_entry','selfhost','cams','noaa_nws','open_meteo','zenith_offline'];
+  const requiredKeys = ['selfhost','cams','cams_satellite','open_meteo_cams','noaa_nws','open_meteo','zenith_offline'];
   for (const k of requiredKeys) {
     assert(`UV_SOURCE_CONFIDENCE has key '${k}'`, typeof UV_SOURCE_CONFIDENCE[k] === 'number');
   }
@@ -271,22 +331,22 @@ const {
   const approx = (a, b, tol = 0.005) => Math.abs(a - b) < tol;
 
   // Best case — fresh CAMS, clear sky, sun overhead, UVI in sweet spot.
-  assert('CAMS · fresh · clear · noon · UVI 8 → 0.95 (no discounts)',
+  assert('CAMS · fresh · clear · noon · UVI 8 → 0.80 (no discounts)',
     approx(computeUVConfidence({
       source: 'cams', snapshotAgeSec: 1800, cloudCover: 0, zenithDeg: 30, uvIndex: 8,
-    }), 0.95));
+    }), 0.80));
 
   // Stale grid (>24h) halves CAMS confidence.
-  assert('CAMS · 30h-stale · clear · noon · UVI 8 → 0.475',
+  assert('CAMS · 30h-stale · clear · noon · UVI 8 → 0.40',
     approx(computeUVConfidence({
       source: 'cams', snapshotAgeSec: 30 * 3600, cloudCover: 0, zenithDeg: 30, uvIndex: 8,
-    }), 0.475));
+    }), 0.40));
 
   // Heavy cloud + low sun stacks two penalties on CAMS.
   assert('CAMS · fresh · 90% cloud · zenith 82° · UVI 4 → ~0.39',
     approx(computeUVConfidence({
       source: 'cams', snapshotAgeSec: 600, cloudCover: 0.9, zenithDeg: 82, uvIndex: 4,
-    }), 0.95 * 0.75 * 0.55));
+    }), 0.80 * 0.75 * 0.55));
 
   // Below-threshold UVI — model error dominates regardless of source.
   assert('Open-Meteo · clear · noon · UVI 0.4 → 0.65 × 0.40 = 0.26',
@@ -294,17 +354,10 @@ const {
       source: 'open_meteo', cloudCover: 0, zenithDeg: 30, uvIndex: 0.4,
     }), 0.65 * 0.40));
 
-  // Manual-meter source always 1.0 (user typed a measured value).
-  assert('manual_meter ignores all penalties',
-    computeUVConfidence({
-      source: 'manual_meter', snapshotAgeSec: 999999, cloudCover: 1, zenithDeg: 89, uvIndex: 0,
-    }) === 1.0);
-
-  // Manual override flag locks to 1.0 on any source (user typed UVI).
-  assert('manualOverridden=true forces 1.0 on Open-Meteo',
-    computeUVConfidence({
+  assert('legacy manualOverridden flag cannot force perfect confidence',
+    approx(computeUVConfidence({
       source: 'open_meteo', uvIndex: 5, manualOverridden: true,
-    }) === 1.0);
+    }), UV_SOURCE_CONFIDENCE.open_meteo));
 
   // Floor at 0.05 — never returns 0 even under stacked worst-case.
   assert('floor at 0.05 with all penalties stacked',
@@ -320,10 +373,10 @@ const {
     ));
 
   // Server-side stale flag halves confidence (mirrors the >24h penalty).
-  assert('isStale=true × CAMS-fresh-clear-noon-UVI8 → 0.475',
+  assert('isStale=true × CAMS-fresh-clear-noon-UVI8 → 0.40',
     approx(computeUVConfidence({
       source: 'cams', snapshotAgeSec: 600, cloudCover: 0, zenithDeg: 30, uvIndex: 8, isStale: true,
-    }), 0.475));
+    }), 0.40));
 
   // Cap at 0.99 — even baseline 1.0 source gets clamped (so user knows
   // there's always *some* model uncertainty unless they typed a meter).
@@ -398,8 +451,8 @@ const {
       /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(apiProxySrc));
     assert('Vercel CAMS proxy surfaces missing hosted bearer explicitly',
       /CAMS hosted relay requires UVDATA_BEARER/.test(apiProxySrc));
-    assert('Light explainer says CAMS is the default atmosphere source',
-      /<strong>Atmosphere data\.<\/strong> CAMS by default/.test(lightPageViewSrc));
+    assert('Light explainer says CAMS is the default atmosphere source and Open-Meteo is the fallback',
+      /<strong>Weather data\.<\/strong>[\s\S]{0,220}>CAMS<\/a> is the default atmosphere source[\s\S]{0,300}>Open-Meteo<\/a>[\s\S]{0,180}fallback when CAMS is unavailable/.test(lightPageViewSrc));
     assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
       /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
     assert('fetchJson does Content-Length pre-check',

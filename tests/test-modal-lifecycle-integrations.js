@@ -347,9 +347,9 @@ assert('light sessions view runtime dependencies are startup-wired',
     !lightDeviceAiSrc.includes('window.renderDeviceSessionAIDetail') &&
     !lightDeviceAiSrc.includes('window.renderDeviceSessionAIInline') &&
     lightDevicesSrc.includes('export async function deleteDeviceSessionWithConfirm') &&
-    lightSessionsViewHooksSrc.includes("import { CHANNEL_DISPLAY, channelTier, formatChannelUnit, getSessions } from './sun.js';") &&
-    lightSessionsViewHooksSrc.includes("import { configureLightDevices, deleteDeviceSessionWithConfirm, openDeviceSessionDetail } from './light-devices.js';") &&
-    lightSessionsViewHooksSrc.includes("import { renderDeviceSessionAIDetail, renderDeviceSessionAIInline } from './light-device-ai-analysis.js';") &&
+    lightSessionsViewHooksSrc.includes("import { getSessions } from './sun.js';") &&
+    lightSessionsViewHooksSrc.includes("import { configureLightDevices, openDeviceSessionDetail } from './light-devices.js';") &&
+    lightSessionsViewHooksSrc.includes("import { renderDeviceSessionAIDetail } from './light-device-ai-analysis.js';") &&
     lightSessionsViewHooksSrc.includes('configureLightDevices({ renderDeviceSessionAIDetail });') &&
     lightSessionsViewHooksSrc.includes('configureLightSessionsView({') &&
     appLightSunModulesSrc.includes("import './light-sessions-view-hooks.js';") &&

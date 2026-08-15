@@ -13,6 +13,7 @@ import {
   updateScreen,
 } from './light-env-store.js';
 import {
+  DAYLIGHT_LEVELS,
   EVENING_BUCKETS,
   HOURS_BUCKETS,
   SCREEN_DEVICES,
@@ -183,21 +184,33 @@ async function setLightEnvRoomHoursBucket(id, bucketKey) {
   refreshUI();
 }
 
+async function setLightEnvRoomDaylightLevel(id, levelKey) {
+  if (!DAYLIGHT_LEVELS.some(item => item.key === levelKey)) return;
+  await updateRoom(id, { daylightLevel: levelKey });
+  refreshUI();
+}
+
 // Auto-fill a room's primarySource from the Spectrum tool's classification
 // only while the source remains unknown.
-export async function suggestRoomSourceFromSpectrum(roomId, spectrumLabel) {
+export async function suggestRoomSourceFromSpectrum(roomId, spectrumLabel, metadata = {}) {
   const env = getEnvironment();
   const room = (env?.rooms || []).find(item => item.id === roomId);
   if (!room) return;
   if (room.primarySource && room.primarySource !== 'unknown') return;
+  // Camera RGB cannot reliably identify LED construction, daylight, or a
+  // full spectrum. Only a user's explicit manual classification can fill
+  // the room field automatically.
+  if (metadata?.method !== 'manual-classification') return;
   const spectrumToSource = {
     'Fluorescent / CFL': 'fluorescent',
+    'Fluorescent': 'fluorescent',
     'Incandescent / halogen': 'incandescent',
     'Cool LED (4000K+)': 'led-cool',
     'Cool LED with PWM dimming': 'led-cool',
     'Warm LED (2700–3000K)': 'led-warm',
     'Warm LED with PWM dimming': 'led-warm',
     'Daylight or full-spectrum': 'natural-only',
+    'Daylight': 'natural-only',
     'Mixed / unclassified': 'mixed',
   };
   const mapped = spectrumToSource[spectrumLabel];
@@ -225,7 +238,7 @@ async function deleteLightEnvRoom(id) {
 }
 
 async function deleteLightEnvRoomConfirm(id) {
-  if (await showConfirmDialog('Delete this room? Room-linked readings will be removed.')) {
+  if (await showConfirmDialog('Delete this room? Its saved readings and audit snapshots will remain available as historical data.')) {
     await deleteRoom(id);
     if (readActiveRoomId() === id) writeActiveRoomId(null);
     refreshUI();
@@ -329,6 +342,7 @@ export const lightEnvEditorActionHandlers = Object.freeze({
   toggleLightEnvRoomExpanded,
   updateLightEnvRoom,
   setLightEnvRoomSourceArchetype,
+  setLightEnvRoomDaylightLevel,
   setLightEnvRoomHoursBucket,
   setLightEnvRoomEveningBucket,
   updateLightEnvRoomAndRender,

@@ -68,7 +68,13 @@ const { state } = await import('../js/state.js');
   console.log('%c 1. Device session render ', 'font-weight:bold;color:#0ea5e9');
   {
     const mod = await import('../js/light-device-ai-analysis.js');
-    const sess = { id: 's1', endedAt: Date.now() - 60000, durationMin: 20, doses: { vitamin_d: 0 } };
+    const sess = {
+      id: 's1',
+      endedAt: Date.now() - 60000,
+      durationMin: 20,
+      doses: { vitamin_d: 0 },
+      safety: { hasUV: false, unsafeEyeExposure: false },
+    };
 
     reset({
       healthGoals: [
@@ -76,8 +82,8 @@ const { state } = await import('../js/state.js');
       ],
     });
     const deviceCtx = mod.buildDeviceSessionContext(sess);
-    assert('device session context references array-shaped health goals',
-      deviceCtx.includes('Improve winter energy'),
+    assert('device session context excludes goals handled by Today and Weekly Review',
+      !deviceCtx.includes('Improve winter energy'),
       deviceCtx);
 
     withoutProvider();
@@ -315,15 +321,58 @@ const { state } = await import('../js/state.js');
 
     withProvider();
     const idle = mod.renderChannelMixVerdict(fallback);
-    assert('channel-mix render shows CTA + fallback when no verdict',
-      idle.includes('Get AI synthesis') && idle.includes('static-fallback'));
+    assert('weekly review explains why AI is unavailable instead of rendering a dead refresh CTA',
+      idle.includes('AI review needs a little history')
+        && idle.includes('static-fallback')
+        && !idle.includes('data-ai-action="refresh-channel-mix"'));
 
-    state.importedData.channelMixAI = okVerdict('green');
+    state.importedData.sunSessions = [{
+      id: 'weekly-render-sun',
+      startedAt: Date.now() - 3600000,
+      endedAt: Date.now() - 1800000,
+      durationMin: 30,
+    }];
+    state.importedData.channelMixAI = { ...okVerdict('green'), fingerprint: 'stale-weekly-fingerprint' };
+    window.DISABLE_AI_VERDICTS = true;
+    const stale = mod.renderChannelMixVerdict(fallback);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    window.DISABLE_AI_VERDICTS = false;
+    assert('stale weekly review uses the standard compact action design',
+      stale.includes('dashboard-action-btn light-channel-mix-ai-cta')
+        && stale.includes('Refresh review')
+        && stale.includes('Your logs changed'));
+
     const currentFp = mod.getChannelMixFingerprint();
     state.importedData.channelMixAI.fingerprint = currentFp;
     const ok = mod.renderChannelMixVerdict(fallback);
-    assert('channel-mix render shows verdict on fingerprint match',
-      ok.includes('sun-session-ai-dot-green'));
+    assert('weekly review renders a neutral AI summary on fingerprint match',
+      ok.includes('light-weekly-ai-review') && ok.includes('tip-text') && !ok.includes('sun-session-ai-dot-green'));
+
+    reset();
+    withoutProvider();
+    const { renderSuggestion } = await import('../js/light-channel-view.js');
+    const noLogs = renderSuggestion({}, {}, [], []);
+    assert('weekly fallback distinguishes missing logs from missing exposure',
+      noLogs.includes('We can’t tell whether you received little light or simply didn’t record it')
+        && noLogs.includes('Log outdoor exposure'));
+
+    const now = Date.now();
+    reset({
+      sunSessions: [
+        { id: 'sun-current', startedAt: now - 2 * 86400000, endedAt: now - 2 * 86400000 + 20 * 60000, durationMin: 20 },
+        { id: 'sun-previous', startedAt: now - 10 * 86400000, endedAt: now - 10 * 86400000 + 15 * 60000, durationMin: 15 },
+      ],
+      deviceSessions: [
+        { id: 'device-current', startedAt: now - 86400000, endedAt: now - 86400000 + 10 * 60000, durationMin: 10 },
+      ],
+    });
+    const weeklyContext = mod.buildChannelMixContext();
+    assert('weekly context compares current and previous windows with timing and duration',
+      weeklyContext.includes('### Logged sessions — past 7 days')
+        && weeklyContext.includes('### Comparison — previous 7 days')
+        && weeklyContext.includes('20 total minute(s)')
+        && weeklyContext.includes('15 total minute(s)')
+        && weeklyContext.includes('Timing: morning'));
   }
 
   // ─── 9. Onboarding plan ────────────────────────────────────────────
@@ -349,7 +398,7 @@ const { state } = await import('../js/state.js');
     withProvider();
     const idle = mod.renderOnboardingAIBlock();
     assert('onboarding block renders idle CTA',
-      idle.includes('Generate plan'));
+      idle.includes('Generate context'));
 
     // Test the actions[] custom field via parseExtraFields
     state.importedData.sunDefaults.aiAnalysis = Object.assign(okVerdict('yellow'), {

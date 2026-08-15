@@ -18,7 +18,6 @@ import { LATITUDE_BANDS } from './constants.js';
 import { getAvatarColor } from './nav.js';
 import {
   getClientHaplogroupList,
-  hasClientListAIProvider,
   navigateClientListRoute,
   refreshClientProfileButton,
   setClientManualHaplogroup,
@@ -218,7 +217,7 @@ export function openClientForm(profileId) {
       <section class="cl-form-section">
         <div class="cl-section-title">Region</div>
         <div class="cl-form-row">
-          <label class="cl-form-label" for="cl-country">Location <span class="cl-label-detail">drives regional recommendations and affiliate URLs</span></label>
+          <label class="cl-form-label" for="cl-country">Home location <span class="cl-label-detail">circadian, seasonal, and regional context</span></label>
           <div class="cl-form-row-split">
             <div class="cl-form-col">
               <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" ${_clInputAttrs('update-lat')} list="cl-country-list" autocomplete="country-name">
@@ -250,6 +249,7 @@ export function openClientForm(profileId) {
             </div>
           </div>
           <div id="cl-lat-display" class="cl-lat-display"></div>
+          <div class="cl-form-help">Postal codes are optional. When entered, the getbased proxy asks OpenStreetMap for the postal area and returns only privacy-rounded coordinates (~11 km); current phone location remains a separate opt-in. © OpenStreetMap contributors.</div>
         </div>
       </section>
 
@@ -446,6 +446,12 @@ function _clShowLat(element, latitude, suffix) {
   element.textContent = '\u2713 ' + Math.abs(Math.round(latitude)) + '\u00b0' + (latitude >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band] + (suffix || '');
 }
 
+function _clCachedLatitude(value) {
+  if (Number.isFinite(value)) return Number(value);
+  const latitude = Number(value?.lat ?? value?.latitude);
+  return Number.isFinite(latitude) ? latitude : null;
+}
+
 function _clUpdateLat() {
   const country = (_clInput('cl-country')?.value || '').trim();
   const zip = (_clInput('cl-zip')?.value || '').trim();
@@ -459,27 +465,27 @@ function _clUpdateLat() {
   const cache = getLocationCache();
   const cacheKey = (country + '|' + zip).toLowerCase();
   const cached = cache[cacheKey];
-  const hasAIProvider = hasClientListAIProvider();
+  const cachedLatitude = _clCachedLatitude(cached);
 
-  if (cached !== undefined) {
-    const countryLatitude = zip ? cache[(country + '|').toLowerCase()] : undefined;
+  if (cachedLatitude !== null) {
+    const countryLatitude = zip ? _clCachedLatitude(cache[(country + '|').toLowerCase()]) : null;
     let zipSuffix = '';
-    if (zip && countryLatitude !== undefined) zipSuffix = Math.round(cached) !== Math.round(countryLatitude) ? ' (ZIP-refined)' : ' (ZIP \u2014 same area)';
-    _clShowLat(element, cached, zipSuffix);
+    if (zip) zipSuffix = countryLatitude !== null && Math.round(cachedLatitude) === Math.round(countryLatitude) ? ' (home area)' : ' (postal area)';
+    _clShowLat(element, cachedLatitude, zipSuffix);
     return;
   }
 
-  const countryOnly = zip ? cache[(country + '|').toLowerCase()] : undefined;
-  if (countryOnly !== undefined) {
+  const countryOnly = zip ? _clCachedLatitude(cache[(country + '|').toLowerCase()]) : null;
+  if (countryOnly !== null) {
     _clShowLat(element, countryOnly, ' \u2014 refining with ZIP\u2026');
   } else {
     const bandLabel = getLatitudeFromLocation(country, zip);
     if (bandLabel) {
       element.style.color = 'var(--green)';
-      element.textContent = '\u2713 ' + bandLabel + (hasAIProvider ? ' \u2014 refining\u2026' : '');
-    } else if (hasAIProvider) {
+      element.textContent = '\u2713 ' + bandLabel + (zip ? ' \u2014 resolving postal area\u2026' : '');
+    } else if (zip) {
       element.style.color = 'var(--text-muted)';
-      element.textContent = 'Detecting\u2026';
+      element.textContent = 'Resolving postal area\u2026';
     } else {
       element.style.color = 'var(--text-muted)';
       element.textContent = 'Country not recognized \u2014 try the full name';
@@ -488,16 +494,13 @@ function _clUpdateLat() {
 
   if (latitudeTimer) clearTimeout(latitudeTimer);
   latitudeTimer = setTimeout(() => {
-    if (!hasClientListAIProvider()) return;
+    if (!zip) return;
     detectLatitudeWithAI(country, zip).then(() => {
       const freshCache = getLocationCache();
-      const updated = freshCache[(country + '|' + zip).toLowerCase()];
-      if (updated === undefined) return;
-      const countryLatitude = zip ? freshCache[(country + '|').toLowerCase()] : undefined;
-      let zipSuffix = '';
-      if (zip && countryLatitude !== undefined) zipSuffix = Math.round(updated) !== Math.round(countryLatitude) ? ' (ZIP-refined)' : ' (ZIP \u2014 same area)';
+      const updated = _clCachedLatitude(freshCache[(country + '|' + zip).toLowerCase()]);
+      if (updated === null) return;
       const display = document.getElementById('cl-lat-display');
-      if (display) _clShowLat(display, updated, zipSuffix);
+      if (display) _clShowLat(display, updated, ' (postal area)');
     });
   }, 1500);
 }

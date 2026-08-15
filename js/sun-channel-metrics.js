@@ -75,15 +75,15 @@ export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatric
     const central = useSessionCap
       ? vitaminDIUPerSession(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null, bodyFraction)
       : vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null);
-    if (central === 0) return 'below UVI threshold';
+    if (central === 0) return 'negligible modeled UVB';
     const fmt = (n) => {
       if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
       if (n >= 1000) return Math.round(n / 100) * 100;
       if (n >= 100) return Math.round(n / 10) * 10;
       return Math.round(n);
     };
-    if (central >= VITD_SAT_FLAG) return `~${fmt(central)} IU (saturated)`;
-    return `~${fmt(central)} IU`;
+    if (central >= VITD_SAT_FLAG) return `~${fmt(central)} IU-eq (reporting ceiling)`;
+    return `~${fmt(central)} IU-eq`;
   }
   if (channelKey === 'nir_solar' || channelKey === 'pbm_red' || channelKey === 'pbm_nir') {
     const j = pbmJoulesPerCm2(channelAu);
@@ -93,9 +93,9 @@ export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatric
   }
   if (channelKey === 'circadian' && durationMin > 0) {
     const lux = circadianMelanopicLux(channelAu, durationMin);
-    if (lux >= 1000) return '~' + (lux / 1000).toFixed(1).replace(/\.0$/, '') + 'k M-EDI lux';
-    if (lux >= 100) return '~' + Math.round(lux / 10) * 10 + ' M-EDI lux';
-    return '~' + Math.round(lux) + ' M-EDI lux';
+    if (lux >= 1000) return '~' + (lux / 1000).toFixed(1).replace(/\.0$/, '') + 'k estimated melanopic-equivalent lx';
+    if (lux >= 100) return '~' + Math.round(lux / 10) * 10 + ' estimated melanopic-equivalent lx';
+    return '~' + Math.round(lux) + ' estimated melanopic-equivalent lx';
   }
   return '';
 }
@@ -260,12 +260,18 @@ function dailySupplementVitaminDIU() {
 export function vitaminDBudgetStatus() {
   const supplementIU = dailySupplementVitaminDIU();
   const sunIU = cumulativeVitaminDIUToday();
-  const total = supplementIU + sunIU;
   const supplementUL = 4000;
   return {
     supplementIU,
+    // This optical model's sunlight IU-equivalent is a comparison aid, not
+    // ingested vitamin D. It must never be added to oral intake or tested
+    // against a dietary tolerable upper intake level.
     sunIU,
-    total,
+    sunIUEquivalent: sunIU,
+    totalIntakeIU: supplementIU,
+    // Backward-compatible field: now intentionally means modeled oral
+    // supplement intake only instead of an invalid oral+sunlight sum.
+    total: supplementIU,
     supplementUL,
     exceedsSupplementUL: supplementIU > supplementUL,
   };

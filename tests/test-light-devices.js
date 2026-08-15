@@ -48,6 +48,7 @@ const {
   DEVICE_TYPE_CHANNELS,
   bodyFractionForDeviceSession,
   computeDeviceSessionDoses,
+  deviceEmitsUV,
   deviceDistanceFactor,
   resolveDeviceMode,
 } = sessionEngine;
@@ -88,16 +89,48 @@ const {
     ) - 0.18) < 1e-9);
   assert('bodyFractionForDeviceSession falls back to legacy broad area',
     Math.abs(bodyFractionForDeviceSession({ bodyArea: 'legs' }) - 0.30) < 1e-9);
-  assert('deviceDistanceFactor applies capped inverse-square scaling',
-    deviceDistanceFactor({ recommendedDistanceCm: 30 }, 15) === 3);
+  assert('deviceDistanceFactor does not assume extended panels are point sources',
+    deviceDistanceFactor({ recommendedDistanceCm: 30 }, 15) === 1);
+  assert('deviceDistanceFactor supports explicitly declared point sources',
+    deviceDistanceFactor({ recommendedDistanceCm: 30, distanceModel: 'point-source' }, 15) === 3);
+  assert('deviceDistanceFactor interpolates an explicit measured irradiance table',
+    Math.abs(deviceDistanceFactor({
+      recommendedDistanceCm: 30,
+      irradianceByDistanceCm: [
+        { distanceCm: 15, mwPerCm2: 80 },
+        { distanceCm: 30, mwPerCm2: 20 },
+      ],
+    }, 22.5) - 2.5) < 1e-9);
   const sadDose = computeDeviceSessionDoses({
     device: { lux: 10000, recommendedDistanceCm: 30, peakWavelengths: [], mwPerCm2At15cm: null },
     durationMin: 10,
     distanceCm: 30,
     eyesProtected: false,
   });
-  assert('computeDeviceSessionDoses handles lux-only SAD fallback',
-    sadDose.doses.circadian === 10000 * 600 / 100);
+  assert('lux-only SAD keeps photopic lux but withholds M-EDI without spectrum/DER',
+    sadDose.doses.circadian === undefined && sadDose.metrics.photopicLux === 10000 && sadDose.metrics.melanopicEdiLux === null);
+  const sadWithDer = computeDeviceSessionDoses({
+    device: { lux: 10000, melanopicDER: 0.8, recommendedDistanceCm: 30, peakWavelengths: [], mwPerCm2At15cm: null },
+    durationMin: 10,
+    distanceCm: 30,
+    eyesProtected: false,
+  });
+  assert('Declared melanopic DER enables a labeled M-EDI estimate',
+    sadWithDer.metrics.melanopicEdiLux === 8000
+      && sadWithDer.metrics.melanopicStatus === 'device-der'
+      && sadWithDer.doses.circadian > 0);
+  const sadWithDirectMedi = computeDeviceSessionDoses({
+    device: {
+      type: 'sad', melanopicEdiLux: 10000, melanopicBasis: 'vendor-claim',
+      recommendedDistanceCm: 25,
+    },
+    durationMin: 10, distanceCm: 25, eyesProtected: false,
+  });
+  assert('A direct eye-level M-EDI stays distinct from photopic lux',
+    sadWithDirectMedi.metrics.photopicLux === null
+      && sadWithDirectMedi.metrics.melanopicEdiLux === 10000
+      && sadWithDirectMedi.metrics.melanopicStatus === 'device-medi'
+      && sadWithDirectMedi.doses.circadian > 0);
   const sadProtected = computeDeviceSessionDoses({
     device: { lux: 10000, recommendedDistanceCm: 30, peakWavelengths: [], mwPerCm2At15cm: null },
     durationMin: 10,
@@ -106,6 +139,84 @@ const {
   });
   assert('computeDeviceSessionDoses blocks SAD eye dose when eyes protected',
     sadProtected.doses.circadian === undefined);
+  const uvDevice = { type: 'uvb', peakWavelengths: [311], mwPerCm2At15cm: 50, recommendedDistanceCm: 30 };
+  const uvUnprotected = computeDeviceSessionDoses({
+    device: uvDevice, durationMin: 1, distanceCm: 30, bodyArea: 'face', eyesProtected: false,
+  });
+  const uvProtected = computeDeviceSessionDoses({
+    device: uvDevice, durationMin: 1, distanceCm: 30, bodyArea: 'face', eyesProtected: true,
+  });
+  assert('UV devices are detected and compute deterministic skin/eye safety doses',
+    deviceEmitsUV(uvDevice)
+      && uvUnprotected.safety.hasUV
+      && uvUnprotected.safety.erythemalSED > 0
+      && uvUnprotected.safety.conservativeBaseMedFraction === uvUnprotected.safety.erythemalSED / 2
+      && uvUnprotected.safety.ocularActinicUV > 0
+      && uvUnprotected.safety.unsafeEyeExposure === true);
+  assert('Recorded UV-rated eye protection removes modeled ocular UV and unsafe flag',
+    uvProtected.safety.ocularActinicUV === 0 && uvProtected.safety.unsafeEyeExposure === false);
+  const unresolvedHybrid = computeDeviceSessionDoses({
+    device: {
+      type: 'uvb', peakWavelengths: [297, 660, 850],
+      mwPerCm2At15cm: 100, recommendedDistanceCm: 30,
+      irradianceBasis: 'vendor-claim',
+    },
+    durationMin: 10, distanceCm: 30, bodyArea: 'torso', eyesProtected: true,
+  });
+  assert('Hybrid total irradiance never manufactures a UVB dose or vitamin-D estimate',
+    unresolvedHybrid.safety.hasUV === true
+      && unresolvedHybrid.safety.uvDoseStatus === 'unavailable'
+      && unresolvedHybrid.safety.erythemalSED === null
+      && unresolvedHybrid.doses.vitamin_d === undefined
+      && unresolvedHybrid.doses.pbm_red > 0
+      && unresolvedHybrid.model.warnings.some(warning => warning.includes('band split')));
+  const resolvedHybrid = computeDeviceSessionDoses({
+    device: {
+      type: 'uvb', peakWavelengths: [297, 660, 850], peakShares: [0.002, 0.499, 0.499],
+      peakShareBasis: 'measured-band-split', mwPerCm2At15cm: 100,
+      recommendedDistanceCm: 30, irradianceBasis: 'measured-spectrometer',
+    },
+    durationMin: 1, distanceCm: 30, bodyArea: 'torso', eyesProtected: false,
+  });
+  assert('Band-resolved hybrid output enables UV skin and actinic eye safety math',
+    resolvedHybrid.safety.uvDoseStatus === 'modeled'
+      && resolvedHybrid.safety.erythemalSED > 0
+      && resolvedHybrid.safety.ocularActinicUV > 0);
+  assert('Declared UV type remains a conservative eye-safety gate when wavelengths are missing',
+    deviceEmitsUV({ type: 'uva', peakWavelengths: [] }) === true);
+  const pureUva = computeDeviceSessionDoses({
+    device: { type: 'uva', peakWavelengths: [365], mwPerCm2At15cm: 1, recommendedDistanceCm: 30 },
+    durationMin: 1, distanceCm: 30, eyesProtected: false,
+  });
+  assert('Pure UVA devices record the separate unweighted ocular UVA dose',
+    pureUva.safety.uvDoseStatus === 'modeled' && pureUva.safety.ocularUvaJPerM2 > 0);
+  const uvOutsideMeasuredDistance = computeDeviceSessionDoses({
+    device: {
+      type: 'uvb', peakWavelengths: [311], mwPerCm2At15cm: 20,
+      recommendedDistanceCm: 30,
+      irradianceByDistanceCm: [
+        { distanceCm: 15, mwPerCm2: 20 },
+        { distanceCm: 30, mwPerCm2: 8 },
+      ],
+    },
+    durationMin: 1, distanceCm: 8, bodyArea: 'face', eyesProtected: false,
+  });
+  assert('UV estimates are withheld outside a measured distance range',
+    uvOutsideMeasuredDistance.safety.uvDoseStatus === 'unavailable'
+      && uvOutsideMeasuredDistance.safety.erythemalSED === null
+      && uvOutsideMeasuredDistance.safety.ocularActinicUV === null
+      && uvOutsideMeasuredDistance.doses.vitamin_d === undefined
+      && uvOutsideMeasuredDistance.doses.pomc === undefined
+      && uvOutsideMeasuredDistance.model.status === 'partial'
+      && uvOutsideMeasuredDistance.model.warnings.some(warning => warning.includes('recorded distance')));
+  const uvOffReferenceDistance = computeDeviceSessionDoses({
+    device: { type: 'uvb', peakWavelengths: [311], mwPerCm2At15cm: 20, recommendedDistanceCm: 30 },
+    durationMin: 1, distanceCm: 15, bodyArea: 'face', eyesProtected: true,
+  });
+  assert('UV estimates are withheld when a panel has no distance model away from its reference',
+    uvOffReferenceDistance.safety.uvDoseStatus === 'unavailable'
+      && uvOffReferenceDistance.doses.vitamin_d === undefined
+      && uvOffReferenceDistance.model.distanceBasis === 'reference-only');
   const emptyDose = computeDeviceSessionDoses();
   assert('computeDeviceSessionDoses defaults an omitted duration to a zero-length session',
     emptyDose.durationSec === 0 && Object.keys(emptyDose.doses).length === 0);
@@ -128,13 +239,13 @@ const {
       return { pbm_red: args.spectrum.irradiance[0], body: args.bodyExposureFraction, eyeSec: args.eyeExposure.durationSec };
     },
   });
-  assert('computeDeviceSessionDoses uses resolved mode and scaled spectrum path',
+  assert('computeDeviceSessionDoses uses resolved mode and reference-only spectrum path',
     spectrumArgs[0] === 'red-only' &&
-    spectrumDose.doses.pbm_red === 6 &&
+    spectrumDose.doses.pbm_red === 2 &&
     spectrumDose.doses.body > 0 &&
     spectrumDose.doses.eyeSec === 300);
-  assert('DEVICE_TYPE_CHANNELS keeps UVB default channels',
-    DEVICE_TYPE_CHANNELS.uvb.includes('vitamin_d') && DEVICE_TYPE_CHANNELS.uvb.includes('pbm_nir'));
+  assert('DEVICE_TYPE_CHANNELS keeps type-only UVB defaults narrow',
+    DEVICE_TYPE_CHANNELS.uvb.includes('vitamin_d') && !DEVICE_TYPE_CHANNELS.uvb.includes('pbm_nir'));
 
   // ─── 2. addDeviceFromPreset ──────────────────────────────────────────
   console.log('%c 2. addDeviceFromPreset ', 'font-weight:bold;color:#f59e0b');
@@ -150,7 +261,7 @@ const {
   assert('Preset peakWavelengths copied',
     Array.isArray(dPulse.peakWavelengths) && dPulse.peakWavelengths.length > 0);
   assert('Preset irradiance copied',
-    dPulse.mwPerCm2At15cm === 50);
+    dPulse.mwPerCm2At15cm === 230 && dPulse.recommendedDistanceCm === 2);
   assert('catalogSlug preserved for affiliate-link surface',
     dPulse.catalogSlug === 'mitochondriak-pulse');
   assert('Device shows up in getDevices',
@@ -227,9 +338,9 @@ const {
   });
   assert('logDeviceSession returns a stamped session',
     sLux && sLux.id && sLux.id.startsWith('devsess_'));
-  assert('SAD lux fallback assigns circadian dose (lux × seconds / 100)',
-    Math.abs(sLux.doses.circadian - (10000 * 30 * 60 / 100)) < 1e-6,
-    `got ${sLux.doses.circadian}`);
+  assert('SAD lux fallback stores photopic lux and does not invent melanopic dose',
+    sLux.doses.circadian === undefined && sLux.metrics.photopicLux === 10000 && sLux.metrics.melanopicEdiLux === null,
+    `got ${JSON.stringify(sLux.metrics)}`);
   assert('Session carries duration + distance + bodyArea + eyesProtected',
     sLux.durationMin === 30 && sLux.distanceCm === 30 &&
     sLux.bodyArea === 'face' && sLux.eyesProtected === false);
@@ -402,8 +513,8 @@ const {
 
   // ─── deleteDevice + orphaned-session render ────────────────────────
   // Sessions logged on a device deleted later must remain renderable
-  // (the user's history shouldn't vanish), surfacing a "Removed device"
-  // label rather than a stale brand reference. Pin the contract.
+  // (the user's history shouldn't vanish). A session-level device snapshot
+  // preserves the source inputs after the library record is removed.
   console.log('%c deleteDevice + orphan session contract ', 'font-weight:bold;color:#f59e0b');
   {
     const ephemeral = {
@@ -423,6 +534,8 @@ const {
       stillThere && stillThere.id === sessId);
     assert('Session retains its dangling deviceId for historical reference',
       stillThere.deviceId === 'D-ephemeral');
+    assert('Session retains a device snapshot for historical rendering and recompute',
+      stillThere.deviceSnapshot?.brand === 'Test' && stillThere.deviceSnapshot?.peakWavelengths?.[0] === 660);
     // Tombstone recorded so cross-device sync drops the device on peers.
     const tombs = state.importedData?._deleted?.lightDevices || [];
     assert('deleteDevice records tombstone for cross-device sync',
@@ -443,7 +556,7 @@ const {
   //      future edits stay deterministic.
   //   3. Recompute on a moded session that changes mode (all-on →
   //      red-nir-only) zeroes vitamin_d but preserves pbm_red.
-  //   4. Devices without `modes` (Pulse, Ironforge etc.) recompute
+  //   4. Devices without `modes` recompute
   //      identically to pre-Round-7 — no behavior change.
   // Recompute path depends on getSunCoords/profile state — covered by
   // Playwright end-to-end; gating off in Node keeps the other 80+
@@ -572,8 +685,8 @@ const {
       Array.isArray(hydrated.modes) && hydrated.modes.some(m => m.id === 'all-on'));
     assert('Hydration backfills `channelGroups`',
       Array.isArray(hydrated.channelGroups) && hydrated.channelGroups.length >= 2);
-    assert('Hydration backfills `coupling`',
-      Array.isArray(hydrated.coupling) && hydrated.coupling.length >= 1);
+    assert('Hydration syncs the current independent-control `coupling` schema',
+      hydrated.coupling === null);
     // Second run is a no-op — fields already present.
     const dirty2 = await hydrateDevicesFromPresets();
     assert('hydrateDevicesFromPresets is idempotent (second run = no-op)',
@@ -603,13 +716,13 @@ const {
       Array.isArray(fresh.modes) && fresh.modes.length >= 2);
     assert('Fresh-add: device carries `channelGroups` immediately',
       Array.isArray(fresh.channelGroups));
-    assert('Fresh-add: device carries `coupling` immediately',
-      Array.isArray(fresh.coupling));
-    // Non-moded preset (Pulse) → fields stay null
-    await addDeviceFromPreset('mitochondriak-pulse');
-    const pulse = state.importedData.lightDevices.find(d => d.presetId === 'mitochondriak-pulse');
-    assert('Fresh-add: non-moded preset (Pulse) has null modes',
-      pulse.modes === null);
+    assert('Fresh-add: independent Maxi controls do not invent coupling',
+      fresh.coupling === null);
+    // Non-moded preset (bulb) → fields stay null
+    await addDeviceFromPreset('mitochondriak-bulb');
+    const bulb = state.importedData.lightDevices.find(d => d.presetId === 'mitochondriak-bulb');
+    assert('Fresh-add: non-moded bulb preset has null modes',
+      bulb.modes === null);
     state.importedData = orig;
   }
 

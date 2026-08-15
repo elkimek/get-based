@@ -8,7 +8,6 @@
 import {
   getRoomEveningHoursAfterSunset,
   hasRoomEveningAnswer,
-  roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
 
 export const PRIMARY_SOURCES = [
@@ -30,6 +29,12 @@ export const SCREEN_DEVICES = [
   { key: 'monitor', label: 'External monitor' },
   { key: 'tablet',  label: 'Tablet' },
   { key: 'tv',      label: 'TV' },
+];
+
+export const DAYLIGHT_LEVELS = [
+  { key: 'low', label: 'Little' },
+  { key: 'some', label: 'Some' },
+  { key: 'strong', label: 'Strong' },
 ];
 
 // 4 archetypes the user can pick from a glance, mapped to canonical
@@ -100,103 +105,125 @@ export function defaultHoursForName(name) {
 }
 
 // True when the room has nothing graders can use — no source picked
-// (or "I don't know"), no occupancy answer, no measurements, no
-// evening-hours answer. The severity helper returns an "incomplete"
+// (or "I don't know"), no daylight answer, no measurements, and no
+// evening-hours answer. Occupancy alone cannot grade light. The helper returns an "incomplete"
 // gray-dot in that case so users don't read the default green dot
 // as "we verified you're good" when really it means "we know nothing
 // about this room yet."
-function _hasAnyRoomSignal(room, measurements) {
+function _hasAnyRoomSignal(room, measurements, screens = []) {
   if (!room) return false;
   const hasSource = room.primarySource && room.primarySource !== 'unknown';
-  const hasHours = (+room.hoursOccupiedPerDay) > 0;
+  const hasDaylight = room.daylightLevel && room.daylightLevel !== 'unknown';
   const hasEvening = hasRoomEveningAnswer(room);
   const hasMeas = (measurements || []).length > 0;
-  return hasSource || hasHours || hasEvening || hasMeas;
+  const hasScreen = (screens || []).length > 0;
+  return hasSource || hasDaylight || hasEvening || hasMeas || hasScreen;
+}
+
+function _latestMeasurement(measurements, tool) {
+  return (measurements || [])
+    .filter(m => m?.tool === tool)
+    .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0] || null;
+}
+
+export function isQuantitativeLuxMeasurement(measurement) {
+  if (!measurement || measurement.tool !== 'lux' || !Number.isFinite(Number(measurement.value))) return false;
+  const source = measurement.extra?.source;
+  // A phone camera remains an approximate brightness proxy even after a
+  // one-point calibration: exposure pipelines, lenses, and spectral
+  // response vary by device and light source. Keep camera estimates useful
+  // in the UI, but do not let them drive the screening calculation.
+  return source === 'AmbientLightSensor' || source === 'manual-entry' || source === 'meter-entry';
+}
+
+export function isQuantitativeDarknessMeasurement(measurement) {
+  if (!measurement || measurement.tool !== 'darkness' || !Number.isFinite(Number(measurement.value))) return false;
+  return measurement.extra?.method === 'meter-entry' || measurement.extra?.source === 'meter-entry';
+}
+
+function _isLikelyDaytimeMeasurement(measurement) {
+  if (!measurement) return false;
+  if (measurement.extra?.context === 'daytime') return true;
+  if (measurement.extra?.context === 'evening' || measurement.extra?.context === 'sleep') return false;
+  if (!measurement.capturedAt) return false;
+  const hour = new Date(measurement.capturedAt).getHours();
+  return hour >= 7 && hour < 19;
 }
 
 export function computeRoomSeverityForRoom(room, measurements = [], options = {}) {
-  if (!room) return { tier: 0, color: 'green', label: 'Unknown', reason: 'No data yet' };
+  if (!room) return { tier: 0, color: 'incomplete', label: 'Unknown', reason: 'No data yet' };
+  const isActiveToday = options.isActiveToday || (() => true);
+  const screensHere = (options.screens || []).filter(s => s && isActiveToday(s));
 
   // Gray-dot incomplete state for empty rooms — distinct from "Good".
-  if (!_hasAnyRoomSignal(room, measurements)) {
+  if (!_hasAnyRoomSignal(room, measurements, screensHere)) {
     return { tier: 0, color: 'incomplete', label: 'Needs setup', reason: 'No signals yet — pick a light source, hours, or run a measurement.' };
   }
 
   let tier = 0;
   const reasons = [];
 
-  // Source-based bias
+  // Source type alone is context, not a dose. Treat it as a concern only
+  // when after-sunset use is also reported.
   const src = room.primarySource;
-  if (src === 'fluorescent') {
-    tier = Math.max(tier, 2);
-    reasons.push('fluorescent / CFL primary');
-  } else if (src === 'led-cool' || src === 'led-tunable') {
+  const eveningHours = getRoomEveningHoursAfterSunset(room);
+  if (eveningHours > 0 && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
+    tier = Math.max(tier, eveningHours >= 3 ? 2 : 1);
+    reasons.push(`${eveningHours} hr after sunset under a cool-spectrum source; brightness is unknown`);
+  } else if (eveningHours >= 3 && src === 'mixed') {
     tier = Math.max(tier, 1);
-    reasons.push('cool LED primary');
-  } else if (src === 'natural-only' || src === 'incandescent' || src === 'halogen' || src === 'candle') {
-    // friendly sources stay at 0 unless other signals pull them up
+    reasons.push('long evening use under mixed lighting; brightness is unknown');
   }
 
-  // After-sunset blue-light contamination.
-  if (roomUsesEveningAfterSunset(room) && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
-    tier = Math.max(tier, 2);
-    reasons.push('blue light after sunset');
+  const flicker = _latestMeasurement(measurements, 'flicker');
+  if (flicker) {
+    const score = Number(flicker.value);
+    if (score >= 3) { tier = Math.max(tier, 4); reasons.push('strong camera banding detected'); }
+    else if (score >= 2) { tier = Math.max(tier, 3); reasons.push('clear camera banding detected'); }
+    else if (score >= 1) { tier = Math.max(tier, 1); reasons.push('some camera banding detected'); }
   }
 
-  // Latest flicker measurement (use most recent — flicker doesn't decay)
-  const flickers = measurements.filter(m => m.tool === 'flicker').sort((a, b) => b.capturedAt - a.capturedAt);
-  if (flickers.length) {
-    const score = flickers[0].value;
-    // saveMeasurement stores 0–3 for { Pristine, Mild, Moderate, Severe }
-    if (score >= 3) { tier = Math.max(tier, 4); reasons.push('severe flicker measured'); }
-    else if (score >= 2) { tier = Math.max(tier, 3); reasons.push('moderate flicker measured'); }
-    else if (score >= 1) { tier = Math.max(tier, 1); reasons.push('mild flicker measured'); }
-  }
-
-  // Daytime lux (low → yellow). Treat any reading < 100 lux as low-indoor.
-  const luxes = measurements.filter(m => m.tool === 'lux').sort((a, b) => b.capturedAt - a.capturedAt);
-  if (luxes.length) {
-    const lux = luxes[0].value;
+  // Grade photopic lux only when it came from a sensor or meter/manual
+  // entry. Camera estimates stay contextual. Never call it melanopic EDI.
+  const luxReading = _latestMeasurement(measurements, 'lux');
+  if (isQuantitativeLuxMeasurement(luxReading) && _isLikelyDaytimeMeasurement(luxReading)) {
+    const lux = Number(luxReading.value);
     if (lux < 50 && (room.hoursOccupiedPerDay || 0) >= 2) {
       tier = Math.max(tier, 2);
-      reasons.push('very low daytime lux for hours occupied');
+      reasons.push('very dim daytime spot check for a frequently used room');
     } else if (lux < 200 && (room.hoursOccupiedPerDay || 0) >= 4) {
       tier = Math.max(tier, 1);
-      reasons.push('lower than office-bright for prolonged hours');
+      reasons.push('dim daytime spot check; spectrum-weighted light is unknown');
     }
   }
 
-  // Bedroom-specific: any sleep-darkness reading tells a story
-  const dark = measurements.filter(m => m.tool === 'darkness').sort((a, b) => b.capturedAt - a.capturedAt);
-  if (dark.length && /bedroom|sleep/i.test(room.name || '')) {
-    const lux = dark[0].value;
-    if (lux > 1) { tier = Math.max(tier, 3); reasons.push('bedroom not dark enough for melatonin'); }
-    else if (lux > 0.1) { tier = Math.max(tier, 2); reasons.push('measurable light leak in bedroom'); }
+  // A camera darkness check stays qualitative. Only a user-entered meter
+  // reading gets numerical grading, and photopic lux is still a rough
+  // screen because the source spectrum is unknown.
+  const dark = _latestMeasurement(measurements, 'darkness');
+  if (isQuantitativeDarknessMeasurement(dark) && /bedroom|sleep/i.test(room.name || '')) {
+    const lux = Number(dark.value);
+    if (lux > 5) { tier = Math.max(tier, 3); reasons.push('sleep-time light measured; spectrum-weighted level is unknown'); }
+    else if (lux > 1) { tier = Math.max(tier, 2); reasons.push('sleep-time light measured; check the source and spectrum'); }
+    else if (lux > 0.1) { tier = Math.max(tier, 1); reasons.push('small sleep-time light leak measured'); }
   }
 
-  // Screens-in-this-room contribution: heavy evening blue exposure from
-  // a screen in this room rolls into the room's severity. Compounds
-  // multiplicatively with after-sunset use of cool-LED room lighting —
-  // a bedroom with cool LED + a phone for 3 evening hours is worse
-  // than either signal alone. Screens skipped today don't count.
-  const isActiveToday = options.isActiveToday || (() => true);
-  const screensHere = (options.screens || []).filter(s => s && isActiveToday(s));
-  let unblockedEveHours = 0;
+  // Screens-in-this-room contribution: reported evening screen use rolls
+  // into the room's screening tier. Screens skipped today don't count.
+  let screenTier = 0;
+  let screenHours = 0;
   for (const s of screensHere) {
-    if (!s.blueBlockerEnabled && (s.eveningUseAfterSunset || 0) > 0) {
-      unblockedEveHours += s.eveningUseAfterSunset;
-    }
+    const status = computeScreenStatus(s);
+    screenTier = Math.max(screenTier, status.tier || 0);
+    screenHours += Math.max(0, Number(s.eveningUseAfterSunset) || 0);
   }
-  if (unblockedEveHours >= 3) {
-    tier = Math.max(tier, 3);
-    reasons.push(`${unblockedEveHours.toFixed(1)} hr/day evening screen exposure here`);
-  } else if (unblockedEveHours >= 1) {
-    tier = Math.max(tier, 2);
-    reasons.push(`${unblockedEveHours.toFixed(1)} hr/day evening screen exposure here`);
+  if (screenTier > 0) {
+    tier = Math.max(tier, screenTier);
+    reasons.push(`${screenHours.toFixed(1)} hr evening screen use here${screensHere.some(s => s.blueBlockerEnabled) ? '; blue reduction noted but not treated as zero exposure' : ''}`);
   }
 
   const colorMap = ['green', 'yellow', 'orange', 'red', 'red'];
-  const labelMap = ['Sleep-friendly', 'Mild', 'Moderate', 'Concerning', 'Severe'];
+  const labelMap = ['No concern flagged', 'Worth checking', 'Needs attention', 'High signal', 'Strong signal'];
   return {
     tier,
     color: colorMap[Math.min(tier, 4)],
@@ -205,49 +232,92 @@ export function computeRoomSeverityForRoom(room, measurements = [], options = {}
   };
 }
 
-// Evening blue exposure is the dominant junk-light vector for screens.
-// Blocking the blue end (via blue-blocker glasses, software like
-// f.lux/Night Shift, or amber-tinted filters) effectively zeroes the
-// circadian penalty even at long evening hours. Without that, exposure
-// scales with hours after sunset.
 export function computeScreenStatus(screen) {
-  if (!screen) return { tier: 0, color: 'green', label: 'Unknown', reason: 'no data' };
-  const eveHours = screen.eveningUseAfterSunset || 0;
+  if (!screen) return { tier: 0, color: 'incomplete', label: 'Unknown', reason: 'no data' };
+  if (screen.eveningUseAfterSunset == null) {
+    return { tier: 0, color: 'incomplete', label: 'Needs timing', reason: 'set time used after sunset' };
+  }
+  const eveHours = Math.max(0, Number(screen.eveningUseAfterSunset) || 0);
   const blocker = !!screen.blueBlockerEnabled;
-  if (blocker) return { tier: 0, color: 'green', label: 'Mitigated', reason: 'blue blocker enabled' };
-  if (eveHours <= 0) return { tier: 0, color: 'green', label: 'Daytime only', reason: 'no evening exposure' };
-  if (eveHours < 1) return { tier: 1, color: 'yellow', label: 'Mild', reason: '< 1 evening hour' };
-  if (eveHours < 3) return { tier: 2, color: 'orange', label: 'Moderate', reason: `${eveHours} evening hours without blocker` };
-  return { tier: 3, color: 'red', label: 'Heavy', reason: `${eveHours}+ evening hours without blocker` };
+  if (eveHours <= 0) return { tier: 0, color: 'green', label: 'Daytime only', reason: 'no use after sunset recorded' };
+  let tier = eveHours < 1 ? 1 : eveHours < 3 ? 2 : 3;
+  if (blocker) tier = Math.max(1, tier - 1);
+  const colors = ['green', 'yellow', 'orange', 'red'];
+  const labels = ['Daytime only', 'Low', 'Moderate', 'High'];
+  return {
+    tier,
+    color: colors[tier],
+    label: labels[tier],
+    reason: `${eveHours} evening hour${eveHours === 1 ? '' : 's'}${blocker ? '; blue reduction may help, but brightness and duration still matter' : ''}`,
+  };
 }
 
-// Returns { d2: hours, d3: hours, junkLightHours }
-// d2: estimated daytime indoor-light deficit (low-lux hours during the solar day)
-// d3: junk-light contamination (LED-only / blue-after-sunset hours)
+// Two bounded screening scores, not doses or literal hours.
+// d2: possible daytime-light opportunity gap, based on stated daylight or
+//     a trustworthy daytime lux spot-check.
+// d3: after-sunset exposure screen, based on reported hours and broad source.
 export function computeDeficitAxesForEnvironment(env, options = {}) {
-  if (!env) return { d2: 0, d3: 0 };
+  if (!env) return { d2: 0, d3: 0, daylightKnown: 0, eveningKnown: 0, missingDaylightRooms: 0 };
   const isActiveToday = options.isActiveToday || (() => true);
+  const getMeasurementsForRoom = options.getMeasurementsForRoom || (() => []);
   let d2 = 0, d3 = 0;
+  let daylightKnown = 0, eveningKnown = 0, missingDaylightRooms = 0;
   for (const r of env.rooms || []) {
     if (!r || !isActiveToday(r)) continue;
-    const hours = r.hoursOccupiedPerDay || 0;
+    const hours = Math.min(24, Math.max(0, Number(r.hoursOccupiedPerDay) || 0));
     if (hours <= 0) continue;
-    // d2: any indoor hour without daylight contribution counts toward deficit
-    d2 += hours;
-    // d3: LED/fluorescent contamination
-    if (['led-cool', 'led-warm', 'led-tunable', 'fluorescent'].includes(r.primarySource)) {
-      d3 += hours * 0.6;
+
+    const measurements = getMeasurementsForRoom(r.id) || [];
+    const lux = _latestMeasurement(measurements, 'lux');
+    let daytimeFactor = null;
+    if (isQuantitativeLuxMeasurement(lux) && _isLikelyDaytimeMeasurement(lux)) {
+      const value = Number(lux.value);
+      daytimeFactor = value < 50 ? 1 : value < 200 ? 0.7 : value < 500 ? 0.3 : 0;
+    } else if (r.primarySource === 'natural-only' || r.daylightLevel === 'strong') {
+      daytimeFactor = 0;
+    } else if (r.daylightLevel === 'some') {
+      daytimeFactor = 0.4;
+    } else if (r.daylightLevel === 'low') {
+      daytimeFactor = 0.8;
     }
-    if (roomUsesEveningAfterSunset(r) && ['led-cool', 'led-tunable', 'fluorescent'].includes(r.primarySource)) {
-      d3 += 1; // bonus penalty for blue-after-sunset
+    if (daytimeFactor == null) missingDaylightRooms++;
+    else {
+      daylightKnown++;
+      d2 += Math.min(4, hours / 2) * daytimeFactor;
+    }
+
+    if (hasRoomEveningAnswer(r)) {
+      eveningKnown++;
+      const evening = Math.min(6, getRoomEveningHoursAfterSunset(r));
+      const sourceWeight = {
+        'natural-only': 0,
+        candle: 0.1,
+        incandescent: 0.25,
+        halogen: 0.3,
+        'led-warm': 0.45,
+        mixed: 0.65,
+        'led-tunable': 0.75,
+        'led-cool': 1,
+        fluorescent: 1,
+        unknown: 0.6,
+      }[r.primarySource] ?? 0.6;
+      d3 += evening * sourceWeight;
     }
   }
   for (const s of env.screens || []) {
     if (!s || !isActiveToday(s)) continue;
-    const eveningHours = s.eveningUseAfterSunset || 0;
-    if (eveningHours > 0 && !s.blueBlockerEnabled) d3 += eveningHours * 0.5;
+    if (s.eveningUseAfterSunset == null) continue;
+    eveningKnown++;
+    const eveningHours = Math.min(6, Math.max(0, Number(s.eveningUseAfterSunset) || 0));
+    d3 += eveningHours * (s.blueBlockerEnabled ? 0.6 : 1);
   }
-  return { d2, d3 };
+  return {
+    d2: Math.min(10, d2),
+    d3: Math.min(10, d3),
+    daylightKnown,
+    eveningKnown,
+    missingDaylightRooms,
+  };
 }
 
 // Aggregate the deficit numbers into a plain-English burden tier.
@@ -262,38 +332,49 @@ export function computeDeficitAxesForEnvironment(env, options = {}) {
 //   which most users already understand.
 export function computeIndoorBurdenForEnvironment(env, options = {}) {
   const isActiveToday = options.isActiveToday || (() => true);
-  const { d2, d3 } = options.axes || computeDeficitAxesForEnvironment(env, { isActiveToday });
-  // Tiers: 0 light, 1 moderate, 2 heavy
-  let tier = 0, parts = [];
-  // Round to integers — these are estimates, sub-hour precision is
-  // false confidence ("8.2 hr/day" reads more rigorous than it is).
-  if (d2 > 8) { tier = Math.max(tier, 2); parts.push(`${Math.round(d2)} hr indoors`); }
-  else if (d2 > 4) { tier = Math.max(tier, 1); parts.push(`${Math.round(d2)} hr indoors`); }
-  else if (d2 > 0) parts.push(`${Math.round(d2)} hr indoors`);
-  if (d3 > 4) { tier = Math.max(tier, 2); parts.push(`${Math.round(d3)} hr blue-after-sunset`); }
-  else if (d3 > 2) { tier = Math.max(tier, 1); parts.push(`${Math.round(d3)} hr blue-after-sunset`); }
-  else if (d3 > 0) parts.push(`${Math.round(d3)} hr blue-after-sunset`);
-  const labelMap = ['Light load', 'Moderate load', 'Heavy load'];
+  const axes = options.axes || computeDeficitAxesForEnvironment(env, {
+    isActiveToday,
+    getMeasurementsForRoom: options.getMeasurementsForRoom,
+  });
+  const { d2, d3 } = axes;
+  let tier = 0;
+  if (d2 > 5 || d3 > 5) tier = 2;
+  else if (d2 > 2 || d3 > 2) tier = 1;
+  const totalItems = (env?.rooms?.length || 0) + (env?.screens?.length || 0);
+  const activeItems = [...(env?.rooms || []), ...(env?.screens || [])].filter(item => item && isActiveToday(item)).length;
+  const allSkipped = totalItems > 0 && activeItems === 0;
+  const knownSignals = (axes.daylightKnown || 0) + (axes.eveningKnown || 0);
+  const incomplete = !allSkipped && totalItems > 0 && knownSignals === 0;
+  const parts = [];
+  if (axes.daylightKnown > 0) parts.push(`Daytime signal: ${d2 > 5 ? 'low' : d2 > 2 ? 'mixed' : 'supported'}`);
+  if (axes.eveningKnown > 0) parts.push(`Evening light: ${d3 > 5 ? 'high' : d3 > 2 ? 'moderate' : 'lower'}`);
+  if (axes.missingDaylightRooms > 0) parts.push(`${axes.missingDaylightRooms} daylight answer${axes.missingDaylightRooms === 1 ? '' : 's'} missing`);
+  const labelMap = ['Generally aligned', 'Mixed signals', 'Needs attention'];
   const colorMap = ['green', 'orange', 'red'];
   let interp = '';
   if (d2 + d3 === 0) {
-    // Distinguish "nothing mapped yet" from "everything skipped today."
-    const totalItems = (env?.rooms?.length || 0) + (env?.screens?.length || 0);
     interp = totalItems === 0
       ? 'No mapped exposure yet — add a room or screen to start.'
-      : 'Everything is skipped today — looks like a mostly-outdoor day.';
+      : allSkipped
+        ? 'Everything mapped is skipped today, so no current indoor-light screen is calculated.'
+      : incomplete
+        ? 'The rooms are mapped, but daylight and evening timing are still missing. Add those two signals before reading this as a verdict.'
+        : 'No concern is flagged by the information entered. A room reading can make the picture more useful.';
   }
-  else if (tier === 0) interp = 'Mostly daylight-aligned with friendly indoor sources. Keep doing what you\'re doing.';
-  else if (tier === 1 && d3 > d2 / 2) interp = 'Evening blue exposure is the bigger pull right now. Warmer bulbs after sunset or a blue blocker on screens would move the needle most.';
-  else if (tier === 1) interp = 'Plenty of indoor daytime hours. More outdoor light — especially before 10am — is the highest-leverage fix.';
-  else if (tier === 2 && d3 >= d2) interp = 'Long indoor hours AND heavy evening blue. Evening sources are dragging melatonin — fix those first, then add outdoor morning light.';
-  else interp = 'Long daytime hours indoors plus meaningful evening contamination. Outdoor morning light + warmer evening bulbs would help.';
+  else if (tier === 0) interp = 'The mapped pattern looks broadly day-and-evening aligned. This is a screening result, not a measured light dose.';
+  else if (tier === 1 && d3 > d2) interp = 'Evening timing is the clearest opportunity. Lower brightness and warmer, less eye-direct light matter alongside any screen tint.';
+  else if (tier === 1) interp = 'The daytime signal may be weak in one or more frequently used rooms. Confirm it with an eye-level reading or stronger daylight access.';
+  else if (d3 >= d2) interp = 'The strongest signal is repeated after-sunset light exposure. Start with the brightest, closest source used near bedtime.';
+  else interp = 'The strongest signal is a possible daytime-light gap. Confirm it before treating the screening score as a dose.';
   return {
     tier,
-    color: colorMap[tier],
-    label: labelMap[tier],
+    color: incomplete || allSkipped ? 'incomplete' : colorMap[tier],
+    label: allSkipped ? 'Skipped today' : incomplete ? 'Needs details' : labelMap[tier],
     parts,
     interp,
     d2, d3,
+    daylightKnown: axes.daylightKnown || 0,
+    eveningKnown: axes.eveningKnown || 0,
+    missingDaylightRooms: axes.missingDaylightRooms || 0,
   };
 }

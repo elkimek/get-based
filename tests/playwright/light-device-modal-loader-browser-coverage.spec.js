@@ -28,17 +28,31 @@ test('Light device form modals stay cold, load independently, and single-flight'
   await openCoveragePage(page);
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
+    const [loader, { state }] = await Promise.all([
+      import(url),
+      import('/js/state.js'),
+    ]);
+    state.importedData = {
+      ...(state.importedData || {}),
+      sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'III', completedAt: Date.now() },
+    };
     const calls = [];
     const device = {
       id: 'device-7',
       brand: 'CoverageLight',
       model: 'Panel',
+      type: 'uvb',
+      peakWavelengths: [311, 660],
+      mwPerCm2At15cm: 10,
       recommendedDistanceCm: 15,
-      lastSession: { bodyAreas: ['breast-chest'], durationMin: 8 },
+      lastSession: { bodyAreas: ['breast-chest'], durationMin: 8, mode: 'red', eyesProtected: false },
+      channelGroups: [
+        { id: 'uv', label: 'UV', peaks: [311] },
+        { id: 'red', label: 'Red', peaks: [660] },
+      ],
       modes: [
-        { id: 'all', label: 'All on', default: true },
-        { id: 'red', label: 'Red only' },
+        { id: 'all', label: 'All on', groups: ['uv', 'red'], default: true },
+        { id: 'red', label: 'Red only', groups: ['red'] },
       ],
     };
     loader.configureLightDeviceModalLoader({
@@ -64,7 +78,7 @@ test('Light device form modals stay cold, load independently, and single-flight'
           calls.push(['get-devices']);
           return [device];
         },
-        logDeviceSession: async payload => calls.push(['log', payload.deviceId, payload.durationMin]),
+        logDeviceSession: async payload => calls.push(['log', payload.deviceId, payload.durationMin, payload.eyesProtected, payload.mode]),
         getActiveDeviceSession: () => null,
         startDeviceSession: async payload => calls.push(['start', payload.deviceId]),
         ensureActiveDeviceTicker: () => calls.push(['ticker']),
@@ -101,6 +115,12 @@ test('Light device form modals stay cold, load independently, and single-flight'
     await Promise.all([firstSessionLoad, secondSessionLoad]);
     await loader.openDeviceSessionDialog('device-7');
     const sessionOverlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+    const startsAsNonUvMode = sessionOverlay?.querySelector('#dev-session-eye-label')?.textContent.includes('Device-appropriate') === true;
+    sessionOverlay?.querySelector('[data-mode="all"]')?.click();
+    const uvModeRequiresFreshGoggleConfirmation =
+      sessionOverlay?.querySelector('#dev-session-eye-label')?.textContent.includes('UV-rated goggles') === true
+      && sessionOverlay?.querySelector('#dev-session-eyes')?.checked === false;
+    if (sessionOverlay?.querySelector('#dev-session-eyes')) sessionOverlay.querySelector('#dev-session-eyes').checked = true;
     sessionOverlay?.querySelector('#dev-session-save')?.click();
     await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -113,6 +133,7 @@ test('Light device form modals stay cold, load independently, and single-flight'
       addDialogOpened: !!addOverlay,
       customDialogOpened: !!customOverlay,
       sessionDialogOpened: !!sessionOverlay,
+      modeSafetyCopyUpdated: startsAsNonUvMode && uvModeRequiresFreshGoggleConfirmation,
       depsDelegated: {
         preset: calls.some(call => call[0] === 'add-preset' && call[1] === 'preset-7'),
         custom: calls.some(call => (
@@ -120,7 +141,8 @@ test('Light device form modals stay cold, load independently, and single-flight'
         )),
         refreshes: calls.filter(call => call[0] === 'refresh').length,
         session: calls.some(call => (
-          call[0] === 'log' && call[1] === 'device-7' && call[2] === 8
+          call[0] === 'log' && call[1] === 'device-7' && call[2] === 0.5
+          && call[3] === true && call[4] === 'all'
         )),
         hydrated: calls.some(call => call[0] === 'hydrate'),
         navigated: calls.some(call => call[0] === 'navigate' && call[1] === 'light'),
@@ -139,6 +161,7 @@ test('Light device form modals stay cold, load independently, and single-flight'
     addDialogOpened: true,
     customDialogOpened: true,
     sessionDialogOpened: true,
+    modeSafetyCopyUpdated: true,
     depsDelegated: {
       preset: true,
       custom: true,

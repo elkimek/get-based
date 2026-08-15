@@ -38,9 +38,35 @@ test('sun active session covers default dependencies and live ticker card branch
     try {
       state.importedData = {
         ...state.importedData,
+        sunDefaults: {},
+      };
+      let setupOpenCount = 0;
+      active.configureSunActiveSession({
+        openLightSetup: () => { setupOpenCount += 1; },
+      });
+      const blockedStart = await active.openStartSunSessionDialog();
+      outcomes.unconfirmedFitzpatrickBlocksNewSunSession = blockedStart === false
+        && setupOpenCount === 1
+        && !document.querySelector('.sun-start-modal')
+        && toasts().some(text => text.includes('Confirm your Fitzpatrick skin type'));
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+
+      state.importedData = {
+        ...state.importedData,
         genetics: { snps: [] },
         sunDefaults: { fitzpatrick: 'I', photosensitiveMeds: 'severe' },
       };
+      active.configureSunActiveSession({
+        getSunCoords: () => ({ lat: 49.8, lon: 15.5, source: 'country-band' }),
+      });
+      const broadLocationStart = await active.openStartSunSessionDialog();
+      outcomes.countryLevelLocationCannotMasqueradeAsLiveUvSafety = broadLocationStart === false
+        && setupOpenCount === 2
+        && toasts().some(text => text.includes('country-level location is too broad'));
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      active.configureSunActiveSession({
+        getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'home-postal' }),
+      });
 
       await active.quickLogSunSession();
       const defaultOverlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
@@ -60,7 +86,7 @@ test('sun active session covers default dependencies and live ticker card branch
       startOverlay?.querySelector('#start-confirm')?.click();
       await waitFor(() => !document.body.contains(startOverlay));
       outcomes.defaultStartSessionUsesPreflightAndStartFallbacks = preflightText.includes('Very high UV')
-        && toasts().some(text => text.includes('high UV 9.1') && text.includes('severe photosensitizer'));
+        && toasts().some(text => text.includes('high UV 9.1') && text.includes('severe photosensitivity caution'));
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       active.resetSunActiveSessionState();
 
@@ -82,7 +108,7 @@ test('sun active session covers default dependencies and live ticker card branch
       });
       await active.quickLogSunSession();
       outcomes.defaultStopPathUsesStopSaveHydrateAndRefreshFallbacks = stoppingSession.location?.source === 'profile'
-        && toasts().some(text => text.includes('no vitamin D') && text.includes('glass blocks UVB'));
+        && toasts().some(text => text.includes('negligible modeled vitamin-D-effective UVB') && text.includes('generic glass model'));
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       active.resetSunActiveSessionState();
 
@@ -120,19 +146,24 @@ test('sun active session covers default dependencies and live ticker card branch
       localStorage.removeItem('gb_jargon_seen_med');
       const card = document.createElement('div');
       card.dataset.id = tickerSession.id;
-      card.innerHTML = '<div class="sun-session-head"><span class="sun-session-duration">old</span></div><div class="sun-channel-chips"><span>old chips</span></div>';
+      card.innerHTML = '<div class="sun-session-head"><span class="sun-session-duration">old</span></div><div class="sun-channel-chips sun-chips-expanded"><span>old chips</span></div>';
       const elapsed = document.createElement('span');
       elapsed.dataset.liveElapsedFor = tickerSession.id;
       elapsed.textContent = 'old elapsed';
       document.body.append(card, elapsed);
       active.ensureActiveTicker();
-      await waitFor(() => card.textContent.includes('burn dose') && card.textContent.includes('vit D'));
-      outcomes.liveTickerPatchesActiveCardsAndJargonAlerts = card.textContent.includes('110% burn dose')
-        && card.textContent.includes('vit D')
-        && card.textContent.includes('take a break')
-        && card.textContent.includes('eye UV')
+      await waitFor(() => card.textContent.includes('burn dose') && card.textContent.includes('Vitamin D estimate'));
+      outcomes.liveTickerPatchesActiveCardsAndJargonAlerts = card.textContent.includes('110% base burn dose')
+        && card.textContent.includes('Vitamin D estimate')
+        && card.textContent.includes('IU-eq/min')
+        && !!card.querySelector('.sun-session-live-readouts > .sun-session-vitd:first-child')
+        && !card.querySelector('.sun-session-head .sun-session-vitd')
+        && card.querySelector('.sun-channel-chips')?.classList.contains('sun-chips-expanded')
+        && card.textContent.includes('cool down')
+        && card.textContent.includes('ocular actinic UV')
         && elapsed.textContent !== 'old elapsed'
-        && toasts().some(text => text.includes('MED ='));
+        && toasts().some(text => text.includes('MED ='))
+        && toasts().some(text => text.includes('Ocular actinic UV'));
       outcomes.liveChannelRefreshCalled = outcomes.liveChannelRefreshCalled === true;
     } finally {
       state.importedData = saved.importedData;
@@ -166,6 +197,7 @@ test('sun active session covers default dependencies and live ticker card branch
         skinTypeToFitzpatrick: skinType => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
         renderLightChannelsLive: () => {},
         renderLightTodayStrip: () => '',
+        openLightSetup: () => {},
       });
       document.querySelectorAll('.modal-overlay,.notification-container,.notification-toast,[data-id="ticker-session"],[data-live-elapsed-for="ticker-session"]').forEach(el => el.remove());
     }

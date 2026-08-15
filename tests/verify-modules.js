@@ -782,8 +782,8 @@
     'discussRecommendation','saveRecommendation','dismissRecommendation','showLight',
     '_expandLightToolsSection','_toggleChannelDetail','_openChannelOnLightPage',
     '_openAllSessionsModal','renderLightTodayStrip','renderLightChannelsLive',
-    'renderConditionsNow','_refreshConditionsNow','_inspectConditionsNow','_setManualUvi',
-    '_clearManualUvi','renderFocusCard','buildFocusContext','loadFocusCard','refreshFocusCard',
+    'renderConditionsNow','_refreshConditionsNow','_inspectConditionsNow',
+    'renderFocusCard','buildFocusContext','loadFocusCard','refreshFocusCard',
     'renderOnboardingBanner','renderAIConnectionReminder','dismissAIReminder',
     'openChatProviderQuiz','setOnboardingFocus','completeOnboardingSex',
     'completeOnboardingProfile','dismissOnboarding','showCategory','renameCategory',
@@ -971,7 +971,6 @@
   ].every(name => !(name in window)));
   assert('sun UV data helpers stay module-only', [
     'fetchAtmosphere',
-    'manualAtmosphere',
     'interpolateAtmosphere',
     'getMeteoConfig',
     'saveMeteoConfig',

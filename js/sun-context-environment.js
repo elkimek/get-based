@@ -6,6 +6,7 @@ import {
   getRoomEveningHoursAfterSunset,
   roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
+import { isQuantitativeDarknessMeasurement } from './light-env-model.js';
 import {
   sunContextDeps,
   _debugWarn,
@@ -29,8 +30,6 @@ export function lightEnvironmentBlock() {
     if (eveningRooms.length > 0) {
       s += `; ${eveningRooms.length} used after sunset`;
     }
-    const blueBlocked = rooms.filter(r => r.blueBlocker).length;
-    if (blueBlocked > 0) s += `; ${blueBlocked} with blue-blocker`;
     s += '\n';
     // Per-room one-liner: name, primary source, hours/day, severity.
     for (const r of rooms) {
@@ -39,23 +38,24 @@ export function lightEnvironmentBlock() {
       const evHr = getRoomEveningHoursAfterSunset(r);
       const evening = evHr ? `${evHr}h after sunset` : '';
       const severity = r.aiAnalysis?.dot ? ` · AI verdict: ${r.aiAnalysis.dot}` : '';
-      const parts = [src, hrs, evening].filter(Boolean).join(', ');
+      const daylight = r.daylightLevel && r.daylightLevel !== 'unknown' ? `${r.daylightLevel} daylight` : '';
+      const parts = [src, daylight, hrs, evening].filter(Boolean).join(', ');
       s += `  - ${_safeText(r.name) || 'Room'} (${parts})${severity}\n`;
     }
   }
   if (screens.length > 0) {
     const evening = screens.filter(sc => sc.eveningUseAfterSunset).length;
-    const blueOff = screens.filter(sc => sc.eveningUseAfterSunset && !sc.blueBlocker).length;
+    const blueOff = screens.filter(sc => sc.eveningUseAfterSunset && !sc.blueBlockerEnabled).length;
     s += `- Screens tracked: ${screens.length}`;
     if (evening > 0) s += `; ${evening} used after sunset`;
-    if (blueOff > 0) s += ` (${blueOff} without blue-blocker — direct retinal melatonin suppression)`;
+    if (blueOff > 0) s += `; ${blueOff} without a recorded blue-reduction measure`;
     s += '\n';
     // Per-screen one-liner: device type, hours, evening use, blocker status.
     for (const sc of screens) {
       const hours = sc.hoursPerDay ? `${sc.hoursPerDay}h/day` : '';
       const eveHr = sc.eveningUseAfterSunset || 0;
       const eve = eveHr > 0 ? `${eveHr}h after sunset` : 'daytime only';
-      const blocker = sc.blueBlockerEnabled ? '✓ blocker' : '✗ no blocker';
+      const blocker = sc.blueBlockerEnabled ? 'blue reduction noted (not zero exposure)' : 'no blue reduction noted';
       const parts = [hours, eve, blocker].filter(Boolean).join(', ');
       s += `  - ${sc.device || 'screen'} (${parts})\n`;
     }
@@ -106,29 +106,32 @@ export function lightEnvironmentBlock() {
         const prior = priorByRoom[roomId] || {};
         const lux = formatMetric(
           byTool.lux?.value, prior.lux?.value,
-          value => `${Math.round(value)} lux`,
+          value => `${Math.round(value)} photopic lux`,
           (current, previous) => {
             const delta = Math.round(current - previous);
             return (delta > 0 ? '+' : '') + delta + ' lux';
           });
         const cct = formatMetric(
           byTool.cct?.value, prior.cct?.value,
-          value => `${Math.round(value)}K`,
+          value => `~${Math.round(value / 100) * 100}K camera estimate`,
           (current, previous) => {
             const delta = Math.round(current - previous);
             return (delta > 0 ? '+' : '') + delta + 'K';
           });
         const flicker = formatMetric(
           byTool.flicker?.value, prior.flicker?.value,
-          value => `flicker ${Math.round(value)}`,
+          value => `camera banding score ${Math.round(value)}`,
           (current, previous) => {
             const delta = Math.round(current - previous);
             return (delta > 0 ? '+' : '') + delta;
           });
         const darkness = formatMetric(
           byTool.darkness?.value, prior.darkness?.value,
-          value => `darkness ${Number(value).toFixed(1)} lux`,
+          value => byTool.darkness?.extra?.method === 'camera-relative'
+            ? `sleep-light camera check ${byTool.darkness.extra?.levelLabel || 'qualitative'}`
+            : `sleep-time meter ${Number(value).toFixed(1)} photopic lux`,
           (current, previous) => {
+            if (byTool.darkness?.extra?.method === 'camera-relative' || prior.darkness?.extra?.method === 'camera-relative') return null;
             const delta = Number((current - previous).toFixed(1));
             return (delta > 0 ? '+' : '') + delta + ' lux';
           });
@@ -152,13 +155,13 @@ export function lightEnvironmentBlock() {
     try {
       const burden = sunContextDeps.computeIndoorBurden();
       if (burden && typeof burden === 'object') {
-        const burdenLabel = burden.label || ['Light load', 'Moderate load', 'Heavy load'][burden.tier] || 'unknown';
-        let line = `- Indoor light burden: ${burdenLabel} (tier ${burden.tier}/2 · 0=light, 2=heavy across screens/sleep/daylight)`;
+        const burdenLabel = burden.label || ['Generally aligned', 'Mixed signals', 'Needs attention'][burden.tier] || 'unknown';
+        let line = `- Indoor light screening picture: ${burdenLabel} (tier ${burden.tier}/2; heuristic context, not measured dose)`;
         if (typeof sunContextDeps.computeDeficitAxes === 'function') {
           try {
             const axes = sunContextDeps.computeDeficitAxes();
             if (axes && (axes.d2 != null || axes.d3 != null)) {
-              line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap, 0=no gap, 5+=severe) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue, 0=clean, 3+=heavy)`;
+              line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} and d3=${(axes.d3 ?? 0).toFixed(2)} (bounded 0–10 screening scores, not hours/dose) · daylight evidence ${axes.daylightKnown || 0}, evening evidence ${axes.eveningKnown || 0}`;
             }
           } catch (e) {
             _debugWarn('[sun-context] computeDeficitAxes failed', e);
@@ -184,13 +187,14 @@ export function lightEnvironmentBlock() {
   const warnings = [];
   for (const measurement of recent) {
     if (measurement.tool === 'flicker' && Number.isFinite(measurement.value) && measurement.value >= 2) {
-      warnings.push(`flicker score ${measurement.value} (visible PWM)${roomTag(measurement.roomId)}`);
-    } else if (measurement.tool === 'darkness' && Number.isFinite(measurement.value) && measurement.value > 1) {
-      warnings.push(`bedroom too bright at the pillow (${measurement.value.toFixed(1)} lux; WHO threshold for full melatonin = <1 lux)${roomTag(measurement.roomId)}`);
+      warnings.push(`camera banding score ${measurement.value} (rolling-shutter pattern; no frequency inferred)${roomTag(measurement.roomId)}`);
+    } else if (isQuantitativeDarknessMeasurement(measurement) && measurement.value > 1) {
+      warnings.push(`sleep-time meter entry ${measurement.value.toFixed(1)} photopic lux (spectrum and melanopic EDI unknown)${roomTag(measurement.roomId)}`);
     } else if (measurement.tool === 'cct' && Number.isFinite(measurement.value) && measurement.value > 3500) {
-      const hour = measurement.takenAt ? new Date(measurement.takenAt).getHours() : null;
+      const capturedAt = measurement.capturedAt || measurement.takenAt;
+      const hour = capturedAt ? new Date(capturedAt).getHours() : null;
       if (hour != null && hour >= 19) {
-        warnings.push(`after-sunset CCT ${measurement.value}K (>3500K = still cool/blue when sun has set)${roomTag(measurement.roomId)}`);
+        warnings.push(`after-sunset camera warm/cool estimate ~${Math.round(measurement.value / 100) * 100}K (not spectrum or melanopic EDI)${roomTag(measurement.roomId)}`);
       }
     }
   }

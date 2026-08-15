@@ -224,11 +224,11 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
         listed.libraries.length >= 4
         && listed.libraries.every(lib => typeof lib.model === 'string'));
 
-      const renamed = await roundTrip({ type: 'rename_library', libraryId: bge.id, name: 'Kruse Research' }, 'library_renamed');
+      const renamed = await roundTrip({ type: 'rename_library', libraryId: bge.id, name: 'Secondary Research' }, 'library_renamed');
       const activeBge = await roundTrip({ type: 'activate_library', libraryId: bge.id }, 'ready');
       const sameActive = await roundTrip({ type: 'activate_library', libraryId: bge.id }, 'ready');
       check('rename and activate library update active context',
-        renamed.name === 'Kruse Research'
+        renamed.name === 'Secondary Research'
         && activeBge.activeId === bge.id
         && activeBge.activeModel === 'bge-small-en'
         && sameActive.activeId === bge.id);

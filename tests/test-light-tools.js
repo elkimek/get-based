@@ -23,7 +23,8 @@ const tools = await import('../js/light-tools.js');
     cameraLockStatusLine,
     configureLightTools,
     getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
-    loadLuxCalibration, lockCameraForMeasurement, normalizeGoldenHourMinutes, saveLuxCalibration,
+    clearLuxCalibration, isLuxCalibrationConfirmed, loadLuxCalibration, lockCameraForMeasurement,
+    normalizeGoldenHourMinutes, saveLuxCalibration,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
     const lightAiSaveHooksSrc = fs.readFileSync(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
@@ -167,14 +168,23 @@ const tools = await import('../js/light-tools.js');
     && rejectedCameraLock.exposureTime === null && rejectedCameraLock.frameRate === 120);
 
   const savedCalibration = localStorage.getItem('labcharts-lux-calibration');
+  const savedCalibrationConfirmation = localStorage.getItem('labcharts-lux-calibration-confirmed');
   localStorage.removeItem('labcharts-lux-calibration');
+  localStorage.removeItem('labcharts-lux-calibration-confirmed');
   assert('Missing lux calibration defaults to 1', loadLuxCalibration() === 1);
+  assert('Missing lux calibration is not marked as confirmed', isLuxCalibrationConfirmed() === false);
   saveLuxCalibration(1.25);
-  assert('Saved lux calibration round-trips as a number', loadLuxCalibration() === 1.25);
+  assert('Saved lux calibration round-trips and records explicit confirmation',
+    loadLuxCalibration() === 1.25 && isLuxCalibrationConfirmed() === true);
+  clearLuxCalibration();
+  assert('Clearing lux calibration removes factor and confirmation',
+    loadLuxCalibration() === 1 && isLuxCalibrationConfirmed() === false);
   localStorage.setItem('labcharts-lux-calibration', 'invalid');
   assert('Invalid lux calibration defaults to 1', loadLuxCalibration() === 1);
   if (savedCalibration == null) localStorage.removeItem('labcharts-lux-calibration');
   else localStorage.setItem('labcharts-lux-calibration', savedCalibration);
+  if (savedCalibrationConfirmation == null) localStorage.removeItem('labcharts-lux-calibration-confirmed');
+  else localStorage.setItem('labcharts-lux-calibration-confirmed', savedCalibrationConfirmation);
 
   // ─── 5. getMeasurements lazy init + saveMeasurement ─────────────────
   console.log('%c 5. Measurement persistence ', 'font-weight:bold;color:#f59e0b');
@@ -352,6 +362,12 @@ const tools = await import('../js/light-tools.js');
       appearsBefore(lightToolCameraModalsSrc, 'const closeLuxMeterOverlay =', 'await startCameraFallback();'));
     assert('Lux AmbientLightSensor error retries the camera fallback',
       /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolCameraModalsSrc));
+    assert('Lux prefers the phone light sensor and exposes a camera source switch',
+      lightToolCameraModalsSrc.includes('id="lux-source-als"') &&
+      lightToolCameraModalsSrc.includes('id="lux-source-camera"') &&
+      appearsBefore(lightToolCameraModalsSrc, 'if (!startAmbientSensor())', 'await startCameraFallback();') &&
+      lightToolCameraModalsSrc.includes("cameraButton.addEventListener('click'") &&
+      lightToolCameraModalsSrc.includes("alsButton.addEventListener('click'"));
       assert('Flicker assigns close handler before getUserMedia await',
         appearsBefore(lightToolCameraModalsSrc, 'const closeFlickerOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openFlickerDetector')));
       assert('Darkness stops late camera stream if closed after getUserMedia',

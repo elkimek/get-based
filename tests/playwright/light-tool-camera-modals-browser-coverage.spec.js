@@ -65,14 +65,35 @@ test('light tool camera modals cover ambient sensor lux and darkness success pat
       }
       FakeAmbientLightSensor.instances = [];
 
+      const luxCameraStops = [];
+      const luxCameraTrack = {
+        stop: () => luxCameraStops.push('camera'),
+        getSettings: () => ({
+          frameRate: 30,
+          exposureMode: 'manual',
+          whiteBalanceMode: 'manual',
+          focusMode: 'manual',
+        }),
+        getCapabilities: () => ({
+          exposureMode: ['manual'],
+          whiteBalanceMode: ['manual'],
+          focusMode: ['manual'],
+        }),
+        applyConstraints: async () => {},
+      };
+      const luxCameraStream = new MediaStream();
+      Object.defineProperty(luxCameraStream, 'getTracks', { configurable: true, value: () => [luxCameraTrack] });
+      Object.defineProperty(luxCameraStream, 'getVideoTracks', { configurable: true, value: () => [luxCameraTrack] });
+
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: {
-          getUserMedia: async () => {
-            throw new Error('camera should not be used when AmbientLightSensor succeeds');
-          },
+          getUserMedia: async () => luxCameraStream,
         },
       });
+      HTMLMediaElement.prototype.play = async function play() {
+        return undefined;
+      };
       window.AmbientLightSensor = FakeAmbientLightSensor;
 
       await modals.openLuxMeter({ roomId: 'office' }, deps);
@@ -80,10 +101,31 @@ test('light tool camera modals cover ambient sensor lux and darkness success pat
       const luxPanel = document.getElementById('lux-calibration-panel');
       check('AmbientLightSensor lux path renders live reading',
         luxReady
-        && document.getElementById('lux-source-line')?.textContent.includes('ambient light sensor')
+        && document.getElementById('lux-source-line')?.textContent.includes('phone\'s light sensor')
+        && document.getElementById('lux-source-als')?.getAttribute('aria-pressed') === 'true'
         && document.getElementById('lux-zone')?.textContent === 'Bright indoor');
       check('AmbientLightSensor hides camera calibration controls',
         luxPanel instanceof HTMLElement && luxPanel.style.display === 'none');
+
+      document.getElementById('lux-source-camera')?.click();
+      const cameraSelected = await waitFor(() => document.getElementById('lux-source-camera')?.getAttribute('aria-pressed') === 'true'
+        && document.getElementById('lux-source-line')?.textContent.includes('camera'));
+      check('Lux source control can switch from sensor to camera',
+        cameraSelected
+        && FakeAmbientLightSensor.instances[0]?.stopped === true
+        && luxPanel instanceof HTMLElement
+        && luxPanel.style.display !== 'none');
+
+      document.getElementById('lux-source-als')?.click();
+      const sensorReselected = await waitFor(() => FakeAmbientLightSensor.instances.length === 2
+        && readDisplayedNumber('#lux-value') === 750
+        && document.getElementById('lux-source-als')?.getAttribute('aria-pressed') === 'true');
+      check('Lux source control can return to the preferred sensor',
+        sensorReselected
+        && luxCameraStops.length === 1
+        && luxPanel instanceof HTMLElement
+        && luxPanel.style.display === 'none');
+
       document.getElementById('lux-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'lux'));
       const luxSaved = savedReadings.find(item => item.kind === 'lux');
@@ -91,10 +133,10 @@ test('light tool camera modals cover ambient sensor lux and darkness success pat
         !!luxSaved
         && luxSaved.value === 750
         && luxSaved.meta.roomId === 'office'
-        && luxSaved.meta.confidence === 0.85
+        && luxSaved.meta.confidence === 0.8
         && luxSaved.meta.extra.source === 'AmbientLightSensor');
       check('AmbientLightSensor is stopped on close',
-        FakeAmbientLightSensor.instances[0]?.stopped === true
+        FakeAmbientLightSensor.instances.every(sensor => sensor.stopped === true)
         && !document.querySelector('[aria-label="Lux meter"]'));
 
       const makeTrack = () => ({
@@ -164,27 +206,31 @@ test('light tool camera modals cover ambient sensor lux and darkness success pat
 
       await modals.openDarknessMeter({ roomId: 'bedroom' }, deps);
       document.getElementById('dark-start')?.click();
-      const darknessReady = await waitFor(() => document.getElementById('dark-start')?.textContent === 'Save reading');
+      const darknessReady = await waitFor(() => document.getElementById('dark-start')?.textContent === 'Read again'
+        && document.getElementById('dark-save')?.disabled === false);
       const darkStatus = document.getElementById('dark-status')?.textContent || '';
       check('Darkness meter computes long-exposure result',
         darknessReady
-        && darkStatus.includes('lux average')
-        && darkStatus.includes('Locked ISO'));
+        && darkStatus.includes('Camera level')
+        && darkStatus.includes('Not lux')
+        && darkStatus.includes('Camera exposure held'));
       check('Darkness meter requests long-exposure camera lock',
         lockRequests.some(req => Array.isArray(req?.advanced)
           && req.advanced.some(entry => entry.exposureTime === 333)
           && req.advanced.some(entry => entry.iso === 400)));
-      document.getElementById('dark-start')?.onclick?.();
+      document.getElementById('dark-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'darkness'));
       const darkSaved = savedReadings.find(item => item.kind === 'darkness');
-      check('Darkness save persists result with room and calibration metadata',
+      check('Darkness save persists a qualitative camera result',
         !!darkSaved
-        && darkSaved.value > 9
+        && darkSaved.value > 6
+        && darkSaved.value < 7
         && darkSaved.meta.roomId === 'bedroom'
-        && darkSaved.meta.confidence === 0.7
-        && darkSaved.meta.extra.peakLux > 9
+        && darkSaved.meta.confidence === 0.4
+        && darkSaved.meta.extra.method === 'camera-relative'
+        && darkSaved.meta.extra.peakCameraLevel > 6
         && darkSaved.meta.extra.isoLocked === true
-        && darkSaved.meta.extra.calFactor === 1.5);
+        && darkSaved.meta.extra.levelLabel.includes('Low light'));
       const darknessClosed = await waitFor(() => streamStops.length === 1
         && !document.querySelector('[aria-label="Sleep darkness meter"]'));
       check('Darkness close stops stream and removes modal',

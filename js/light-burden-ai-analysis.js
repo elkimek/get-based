@@ -49,13 +49,18 @@ export function getBurdenFingerprint() {
   if (!env) return '';
   const burden = computeIndoorBurden();
   const parts = /** @type {Array<string|number>} */ ([
+    'v2-screening-not-dose',
     burden.tier,
     Math.round(burden.d2 * 10) / 10,
     Math.round(burden.d3 * 10) / 10,
   ]);
   for (const r of env.rooms || []) {
     if (!isActiveToday(r)) continue;
-    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
+    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.daylightLevel || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
+    const latestLux = (state.importedData?.lightMeasurements || [])
+      .filter(m => m?.roomId === r.id && m.tool === 'lux')
+      .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0];
+    if (latestLux) parts.push(`lux:${r.id}:${Math.round(Number(latestLux.value) || 0)}:${latestLux.extra?.source || ''}:${latestLux.extra?.calibrationConfirmed ? 1 : 0}`);
   }
   for (const s of env.screens || []) {
     if (!isActiveToday(s)) continue;
@@ -70,9 +75,10 @@ export function buildBurdenContext() {
   const burden = computeIndoorBurden();
   const lines = [];
   lines.push('### Indoor light burden — live snapshot of the user\'s active environment');
-  lines.push(`Tier: ${burden.label} (0=light / 1=moderate / 2=heavy)`);
-  lines.push(`Daytime indoor hours (d2): ${burden.d2.toFixed(1)}`);
-  lines.push(`Junk-light hours (d3 — LED-only / blue-after-sunset weighted): ${burden.d3.toFixed(1)}`);
+  lines.push(`Tier: ${burden.label} (0=generally aligned / 1=mixed signals / 2=needs attention)`);
+  lines.push(`Daytime opportunity screening score (d2, 0–10; not hours or dose): ${burden.d2.toFixed(1)}`);
+  lines.push(`After-sunset screening score (d3, 0–10; not hours or dose): ${burden.d3.toFixed(1)}`);
+  lines.push(`Evidence coverage: ${burden.daylightKnown} daylight signal(s), ${burden.eveningKnown} evening timing signal(s), ${burden.missingDaylightRooms} room daylight answer(s) missing.`);
   lines.push(`Hardcoded heuristic interp this user is ABOUT to see: "${burden.interp}"`);
   lines.push('Your job: write something more specific that references their actual rooms / screens, not just the tier label.');
 
@@ -83,7 +89,7 @@ export function buildBurdenContext() {
     for (const r of rooms) {
       const ev = getRoomEveningHoursAfterSunset(r);
       const safeName = String(r.name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-      lines.push(`- ${safeName}: source=${_SOURCE_LABELS[r.primarySource] || r.primarySource || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
+      lines.push(`- ${safeName}: source=${_SOURCE_LABELS[r.primarySource] || r.primarySource || 'unknown'}, daylight=${r.daylightLevel || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
     }
   }
 
@@ -94,7 +100,7 @@ export function buildBurdenContext() {
     for (const s of screens) {
       const ev = s.eveningUseAfterSunset != null ? Number(s.eveningUseAfterSunset) : 0;
       const room = s.roomId ? (env.rooms.find(r => r.id === s.roomId)?.name || 'a room') : 'portable';
-      lines.push(`- ${_SCREEN_LABELS[s.device] || s.device} (${room}): ${s.hoursPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}${s.blueBlockerEnabled ? ', blue blocker on' : ''}`);
+      lines.push(`- ${_SCREEN_LABELS[s.device] || s.device} (${room}): ${s.hoursPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}${s.blueBlockerEnabled ? ', blue reduction noted (not zero exposure)' : ''}`);
     }
   }
 
@@ -113,23 +119,23 @@ export function buildBurdenContext() {
 }
 
 const SYSTEM_PROMPT = [
-  'You evaluate a user\'s LIVE indoor-light burden — the right-now snapshot of which rooms + screens they actively use, weighted by hours and source spectrum.',
+  'You evaluate a user\'s LIVE indoor-light screening picture: rooms, stated daylight, after-sunset timing, screens, and measurement quality.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = burden is light (d2 ≤ 4 AND d3 ≤ 2 AND no sleep-room contamination)',
-  '  yellow = moderate burden in one axis (long indoor hours OR meaningful evening blue, not both)',
-  '  red = heavy burden in both axes OR sleep-room contamination present',
-  '  gray = no rooms / screens mapped yet',
+  '  green = entered information flags no clear concern and evidence coverage is adequate',
+  '  yellow = a meaningful screening signal exists or evidence is incomplete',
+  '  red = several strong entered signals stack; never assign red from uncalibrated camera proxies alone',
+  '  gray = no mapped exposure or insufficient evidence',
   '',
-  'You\'re replacing a hardcoded 5-branch heuristic that says generic things like "Plenty of indoor daytime hours. More outdoor light — especially before 10am — is the highest-leverage fix." Your job is to do better than that by NAMING the specific rooms / screens that are driving the burden, and picking a fix that is genuinely the highest-leverage move for THIS user, not a generic talking point.',
+  'The d2/d3 values are bounded heuristic screening scores. They are not hours, photon dose, melanopic EDI, or hormone effects. Name the specific entered room/screen signals and identify missing evidence before recommending a change.',
   '',
   'Concrete patterns to call out when present:',
-  '  • A specific room dominating d2 (e.g. "Office at 8 hr/day under cool LED is the bulk of d2")',
-  '  • A specific screen dominating d3 (e.g. "TV at 4 hr after sunset accounts for most of the evening blue load")',
+  '  • A room with little stated daylight or a trustworthy low daytime lux spot-check',
+  '  • A specific screen or room with long after-sunset use',
   '  • Phone-in-bed if a phone is bound to a sleep-coded room',
-  '  • Daytime cave: all daytime rooms low-lux + warm = sleep is OK but daytime entrainment is failing',
-  '  • Mismatch: light load but a single hostile evening fixture undoes the rest',
+  '  • Missing daylight answers or only camera proxies: recommend a better measurement before a biological conclusion',
+  '  • Screen tint/blue reduction: acknowledge it may help, but never subtract the exposure to zero',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
@@ -191,7 +197,7 @@ export function renderBurdenInterp(burden) {
   // otherwise fall back to the static heuristic interp text.
   if (!hasAIProvider()) {
     const cached = env?.burdenAI;
-    if (cached?.status === 'ok' && cached?.dot && cached?.tip) {
+    if (cached?.status === 'ok' && cached?.dot && cached?.tip && cached.fingerprint === getBurdenFingerprint()) {
       const dot = cached.dot;
       return `<div class="light-env-summary-ai">
         <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">

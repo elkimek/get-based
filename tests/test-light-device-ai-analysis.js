@@ -46,6 +46,7 @@ const {
       eyesProtected: true,
       mode: 'UVB+NIR',
       doses: { vitamin_d: 6366, nir_solar: 1.4, no_cv: 0.05 },
+      safety: { hasUV: true, unsafeEyeExposure: false, erythemalSED: 0.2, conservativeBaseMedFraction: 0.15 },
     }, overrides);
   }
 
@@ -73,9 +74,11 @@ const {
   reset();
   const a = makeSess();
   const fp1 = getDeviceSessionFingerprint(a);
-  const fp2 = getDeviceSessionFingerprint(makeSess({ id: 'dev_other', startedAt: a.startedAt - 10000 }));
-  assert('fingerprint stable across id/startedAt drift',
+  const fp2 = getDeviceSessionFingerprint(makeSess({ id: 'dev_other' }));
+  assert('fingerprint is stable across id change',
     fp1 === fp2, `${fp1} vs ${fp2}`);
+  assert('fingerprint changes when session timing changes',
+    getDeviceSessionFingerprint(makeSess({ startedAt: a.startedAt - 10000 })) !== fp1);
 
   const fp3 = getDeviceSessionFingerprint(makeSess({ durationMin: 12.04 }));
   assert('fingerprint quantizes durationMin to 0.1 (12.04 ≡ 12)',
@@ -120,7 +123,9 @@ const {
     }],
   });
 
-  const ctx = buildDeviceSessionContext(makeSess());
+  const ctx = buildDeviceSessionContext(makeSess({
+    safety: { hasUV: true, unsafeEyeExposure: false, erythemalSED: 0.24, conservativeBaseMedFraction: 0.18 },
+  }));
   assert('context contains Session header', ctx.includes('### Session'));
   assert('context contains Device header', ctx.includes('### Device'));
   assert('context emits brand · model line', ctx.includes('Mitochondriak Maxi UVB'));
@@ -132,6 +137,8 @@ const {
     ctx.includes('mW/cm²') && ctx.includes('4.2'));
   assert('context emits duration',
     /Duration:\s*12\s*min/.test(ctx));
+  assert('context includes explicit deterministic UV safety data',
+    ctx.includes('UV-rated eye protection recorded') && ctx.includes('0.24 SED'));
 
   // Mode line only emits when the device record carries a modes catalog
   // matching sess.mode — adding one here to exercise the resolved-mode
@@ -191,7 +198,7 @@ const {
     !ctxLong.includes('A'.repeat(120)),
     ctxLong.slice(0, 200));
 
-  // 7-day rollup — seed prior sessions so _sevenDayRollup fires
+  // Weekly history is handled by Weekly Review, not a single-session prompt.
   reset({
     lightDevices: [{ id: 'dev-mitochondriak-maxi-uvb', brand: 'Mito', model: 'Maxi UVB', type: 'uvb' }],
     deviceSessions: [
@@ -201,8 +208,8 @@ const {
     ],
   });
   const ctxRoll = buildDeviceSessionContext(makeSess());
-  assert('context includes 7-day rollup when prior sessions exist',
-    /7-day|7 day|sessions/i.test(ctxRoll),
+  assert('context excludes 7-day rollup when prior sessions exist',
+    !/Last 7 days|7-day rollup/i.test(ctxRoll),
     ctxRoll.slice(0, 600));
 
   // Missing device record (deleted) → context still produces output
@@ -300,6 +307,8 @@ const {
   const detailIdle = renderDeviceSessionAIDetail(makeSess());
   assert('detail shows idle CTA when uncached',
     detailIdle.includes('sun-detail-ai-idle') && detailIdle.includes('Analyze now'));
+  assert('detail hides an impossible CTA when modeled data is incomplete',
+    renderDeviceSessionAIDetail(makeSess({ doses: null, safety: null })) === '');
 
   const detailOrphan = renderDeviceSessionAIDetail(makeSess({
     aiAnalysis: { status: 'analyzing', fingerprint: 'x' },

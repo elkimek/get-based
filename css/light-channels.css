@@ -20,7 +20,7 @@
   justify-self: start;
 }
 
-/* Channel pill row — qualitative tier indicator */
+/* Channel pill row — source-aware exposure state, not a progress meter. */
 .light-pills-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .light-pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -32,11 +32,8 @@
 }
 .light-pill-icon { font-size: 13px; }
 .light-pill-label { font-weight: 500; }
-/* 7-day sparkline embedded in the pill — replaces the prior dot
-   metaphor which implied a fillable container. Bars show daily rhythm
-   (today = rightmost), color-coded green when day hit target / accent
-   when meaningful / faint stub when negligible. Reinforces the
-   daily-beats-banking framing with a real-data visualization. */
+/* Seven-day sparkline embedded in the pill. Solid bars are sunlight and
+   faded bars are devices; height is relative to this user's own week. */
 .light-pill-sparkline {
   display: inline-block;
   flex: 0 0 auto;
@@ -48,6 +45,7 @@
   font-variant-numeric: tabular-nums;
   color: inherit; opacity: 0.9;
   min-width: 24px; text-align: right;
+  white-space: nowrap;
 }
 /* Legacy class kept in case anything still references it; renders
    as zero-width so older cached templates don't blow out the layout. */
@@ -67,6 +65,8 @@
 .light-pill-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }
 .light-pill-tier-3 { color: var(--accent); border-color: var(--accent); }
 .light-pill-tier-4 { color: var(--green); border-color: var(--green); }
+.light-pill-signal-logged { color: var(--text-primary); }
+.light-pill-signal-empty { color: var(--text-muted); }
 
 .light-channels-section {
   margin-top: 0;
@@ -143,7 +143,7 @@
 }
 .light-channels-section .light-pill-daycount {
   grid-area: count;
-  min-width: 34px;
+  min-width: 0;
   padding: 3px 7px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--channel-accent) 12%, transparent);
@@ -171,6 +171,9 @@
 .light-channels-section .light-pill-tier-3,
 .light-channels-section .light-pill-tier-4 {
   border-color: color-mix(in srgb, var(--channel-accent) 48%, var(--border));
+}
+.light-channels-section .light-pill-signal-logged {
+  border-color: color-mix(in srgb, var(--channel-accent) 32%, var(--border));
 }
 .light-pills-interactive .light-pill-interactive,
 .light-pill-dashboard {
@@ -251,8 +254,8 @@
   font-size: 13px; line-height: 1.5; color: var(--text-secondary);
   margin: 0;
 }
-/* Tier pill in the channel-detail hero — state belongs with the weekly
-   numbers, while the header stays reserved for channel identity. */
+/* Legacy tier-pill styling retained for cached/older markup. The current
+   source-aware view uses neutral logged/empty states instead. */
 .light-channel-detail-tierpill {
   margin-left: auto;
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
@@ -260,16 +263,8 @@
   border: 1px solid var(--border); background: var(--bg-secondary);
   color: var(--text-muted);
 }
-/* Tier color scheme aligns with the chart's hit-target semantics
-   (chart bars: gray <5%, faint accent <30%, accent 30-100%, GREEN at
-   target, GREEN above target). The header tier pill should match:
-   - tier 0: muted gray (no exposure)
-   - tier 1: low / accent muted
-   - tier 2: moderate / accent
-   - tier 3: good / accent (approaching hit-target)
-   - tier 4: strong / GREEN (hit target across the week)
-   Previously tier 4 was RED which conflicted with the chart's
-   green-for-hit-target visual: same channel, opposite signal. */
+/* These colors no longer communicate biological sufficiency. New cards use
+   tier 0 for no log and tier 2 as a compatibility class for signal logged. */
 .light-channel-detail-tierpill.tier1 { color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary); }
 .light-channel-detail-tierpill.tier2 {
   color: var(--accent);
@@ -287,9 +282,7 @@
   background: color-mix(in srgb, var(--green) 12%, transparent);
 }
 
-/* Hero stat block — the big number you actually want to see (e.g. "~1.8k IU
-   vitamin D this week"). Lives directly under the header so the eye lands
-   on it before the prose. */
+/* Hero block leads with a plain source state rather than a score. */
 .light-channel-hero {
   display: flex; flex-direction: column; gap: 2px;
   padding: 10px 14px; border-radius: var(--radius-sm);
@@ -305,9 +298,8 @@
   min-width: 0;
 }
 .light-channel-hero-primary {
-  font-size: 24px; font-weight: 700; line-height: 1.1;
+  font-size: 18px; font-weight: 700; line-height: 1.2;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
 }
 .light-channel-hero-sub {
   font-size: 12px; color: var(--text-secondary); line-height: 1.4;
@@ -320,8 +312,29 @@
 .light-channel-hero-trend.down { color: var(--orange); }
 .light-channel-hero-trend.flat { color: var(--text-muted); }
 
-/* Sun/device source-mix bar — slim 6px stacked bar + legend below.
-   Hidden when one source is essentially 100% (no useful "mix"). */
+/* Source labels deliberately avoid a percentage mix: a targeted device is
+   not presented as a fraction of a sunlight-equivalent biological score. */
+.light-channel-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.light-channel-source {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+}
+.light-channel-source.is-empty { color: var(--text-muted); opacity: 0.7; }
+.light-channel-sources small {
+  flex: 1 1 100%;
+  color: var(--text-muted);
+}
 .light-channel-mix {
   display: flex; flex-direction: column; gap: 4px;
 }
@@ -365,10 +378,7 @@
   display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px;
 }
 
-/* "Daily beats banking" caption — channel-specific reason daily exposure
-   matters more than one big day. Sits between the chart and Next-move
-   so the user reads "what counted as a real day this week" → "here's why
-   that framing is the one that matches biology" → "what to do next."  */
+/* Quiet reading note beneath the chart. */
 .light-channel-banking-note {
   margin: 0;
   padding: 8px 12px;
@@ -462,19 +472,116 @@
 }
 .light-channel-mix-ai .sun-detail-ai { margin-bottom: 0; }
 .light-channel-mix-ai-cta {
-  display: block;
-  margin-top: 8px;
-  padding: 6px 14px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
-  color: var(--accent);
-  font-size: 12.5px;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
 }
-.light-channel-mix-ai-cta:hover {
-  border-color: var(--accent);
-  border-style: solid;
+.light-weekly-ai-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+.light-weekly-ai-action-status {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.light-weekly-ai-unavailable {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.light-weekly-ai-unavailable strong {
+  color: var(--text-primary);
+}
+
+/* Seven-day comparison. This surface stays neutral: warning colors belong
+   to the deterministic UV-safety block in Today's Light. */
+.light-weekly-fallback {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+}
+.light-weekly-period {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.light-weekly-summary-text,
+.light-weekly-comparison,
+.light-weekly-next-step,
+.light-weekly-disclaimer {
+  margin: 0;
+  line-height: 1.5;
+}
+.light-weekly-summary-text {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+.light-weekly-comparison,
+.light-weekly-next-step {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+.light-weekly-log-cta {
+  justify-self: start;
+  margin-top: 3px;
+}
+.light-weekly-disclaimer {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.light-weekly-ai-review {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+}
+.light-weekly-ai-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.light-weekly-ai-tip {
+  margin-top: 5px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.light-weekly-ai-detail {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.light-weekly-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {

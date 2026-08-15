@@ -35,7 +35,7 @@ const {
   getSessions, getActiveSession,
   startSession, stopSession, logCompletedSession, deleteSession, pauseSession, resumeSession,
   markSessionRotated, setSessionSunscreen, setSessionCoverage, updateSession,
-  rehydrateStaleSessions,
+  hydrateSession, rehydrateStaleSessions,
   rollingChannelTotals, dailyChannelBreakdown, dailyVitaminDIUBreakdown, rollingVitaminDIU,
   cumulativeVitaminDIUToday, vitaminDBudgetStatus,
   cumulativeMEDToday, cumulativeMEDYesterday,
@@ -165,6 +165,8 @@ const {
   assert('Session is persisted into importedData.sunSessions',
     getSessions().length === 1 && getSessions()[0].id === id1);
   assert('Session has no endedAt (in progress)', getSessions()[0].endedAt === null);
+  assert('Active session is marked pending until its dose slices are finalized',
+    getSessions()[0].calculationStatus === 'pending');
   assert('getActiveSession finds the in-progress one',
     getActiveSession() && getActiveSession().id === id1);
   assert('Body fraction matches preset (tshirt = 0.20)',
@@ -187,9 +189,10 @@ const {
   const sess2 = getSessions().find(s => s.id === id2);
   assert('startSession accepts regions array',
     Array.isArray(sess2.bodyExposure.regions) && sess2.bodyExposure.regions.length === 2);
-  // face=0.04 + arms-front=0.05 = 0.09, but min is 0.05
-  assert('Region fraction sums + clamped to >=0.05',
-    sess2.bodyExposure.fraction >= 0.05 && sess2.bodyExposure.fraction <= 0.10);
+  // face=0.04 + arms-front=0.05 = 0.09 exactly; local-dose calculations
+  // must not inflate small selected areas to a hidden 5% floor.
+  assert('Region fraction sums exact selected anatomical areas',
+    Math.abs(sess2.bodyExposure.fraction - 0.09) < 1e-9);
   assert('Region path marks preset === "detailed"',
     sess2.bodyExposure.preset === 'detailed');
 
@@ -236,7 +239,7 @@ const {
     Array.isArray(sess2.bodyExposure.regions)
       && sess2.bodyExposure.regions.length === 0
       && sess2.bodyExposure.fraction === 0
-      && sess2.bodyExposure.preset === 'face_hands');
+      && sess2.bodyExposure.preset === 'covered');
 
   // delete one
   await stopSession(id2);
@@ -245,6 +248,21 @@ const {
   assert('deleteSession returns true on hit', removed === true);
   assert('deleteSession removes from array', getSessions().length === sessCountBefore - 1);
   assert('deleteSession on unknown id returns false', (await deleteSession('sun_nope')) === false);
+
+  // Paused wall-clock time must not leak into duration or eye exposure.
+  reset();
+  const pausedId = await startSession({ exposurePreset: 'tshirt', eyeMode: 'direct' });
+  const pausedSess = getSessions().find(s => s.id === pausedId);
+  pausedSess.startedAt = Date.now() - 10 * 60000;
+  await pauseSession(pausedId);
+  pausedSess.pausedAt = Date.now() - 5 * 60000;
+  await stopSession(pausedId);
+  assert('stopSession excludes paused wall-clock time from saved duration',
+    pausedSess.durationMin > 4.9 && pausedSess.durationMin < 5.1,
+    `duration=${pausedSess.durationMin}`);
+  assert('Eye exposure duration also excludes paused wall-clock time',
+    pausedSess.eyeExposure.durationSec >= 294 && pausedSess.eyeExposure.durationSec <= 306,
+    `eye seconds=${pausedSess.eyeExposure.durationSec}`);
 
   // ─── 4. logCompletedSession (after-the-fact entry) ────────────────────
   console.log('%c 4. logCompletedSession ', 'font-weight:bold;color:#f59e0b');
@@ -407,6 +425,19 @@ const {
     });
     assert('cumulativeVitaminDIUToday counts same-day sun-session buckets',
       cumulativeVitaminDIUToday() > 0);
+    state.importedData.supplements = [{
+      name: 'D3',
+      startDate: `${new Date(todayStart).getFullYear()}-${String(new Date(todayStart).getMonth() + 1).padStart(2, '0')}-${String(new Date(todayStart).getDate()).padStart(2, '0')}`,
+      ingredients: [{ name: 'Vitamin D3', amount: '25 mcg', timesPerDay: 1 }],
+    }];
+    const separatedBudget = vitaminDBudgetStatus();
+    assert('vitamin-D budget never adds sunlight IU-equivalent to oral intake',
+      separatedBudget.supplementIU === 1000
+      && separatedBudget.sunIU > 0
+      && separatedBudget.sunIUEquivalent === separatedBudget.sunIU
+      && separatedBudget.totalIntakeIU === 1000
+      && separatedBudget.total === 1000,
+      JSON.stringify(separatedBudget));
     reset();
     const beforeMidnight = todayStart - 10 * 60 * 1000;
     const afterMidnight = todayStart + 60 * 1000;
@@ -508,10 +539,10 @@ const {
     overrides: { uvIndex: 9, cloudCover: 50, ozoneDU: 250 },
   };
   const overridden = _applyAtmOverrides(baseAtm);
-  assert('Override replaces uvIndex (9 vs 5)', overridden.uvIndex === 9);
+  assert('Legacy UVI override is ignored', overridden.uvIndex === 5);
   assert('Override replaces cloudCover (50 vs 30)', overridden.cloudCover === 50);
   assert('Override replaces ozoneDU (250 vs 300)', overridden.ozoneDU === 250);
-  assert('Override sets _uvOverridden marker', overridden._uvOverridden === true);
+  assert('Legacy _uvOverridden marker is absent', overridden._uvOverridden == null);
 
   // null/non-finite override is ignored, not blindly applied
   state.importedData.sunDefaults = {
@@ -558,7 +589,9 @@ const {
   });
   const rehydrateA = rehydrateStaleSessions();
   const rehydrateB = rehydrateStaleSessions();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  for (let attempt = 0; attempt < 50 && fetchCalls === 0; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
   assert('Concurrent rehydrate batches share one atmosphere fetch per stale session',
     fetchCalls === 1, `fetchCalls=${fetchCalls}`);
   releaseFetch();
@@ -571,6 +604,47 @@ const {
     staleSess.engineVersion === SUN_ENGINE_VERSION &&
     staleSess.doses?.vitamin_d === 42 &&
     staleSess.safety?.medFraction === 0.2);
+
+  const fetchCallsBeforeSegmentFinalize = fetchCalls;
+  const segmentedId = await logCompletedSession({
+    startedAt: Date.now() - 12 * 60000,
+    endedAt: Date.now(),
+    exposureSegments: [
+      {
+        startedAt: Date.now() - 12 * 60000,
+        endedAt: Date.now() - 9 * 60000,
+        durationMin: 3,
+        doses: { vitamin_d: 10, circadian: 5 },
+        sed: 0.4,
+        ocularActinicUV: 1.5,
+        atmosphere: { uvIndex: 4 },
+      },
+      {
+        startedAt: Date.now() - 4 * 60000,
+        endedAt: Date.now() - 2 * 60000,
+        durationMin: 2,
+        doses: { vitamin_d: 7, no_cv: 3 },
+        sed: 0.6,
+        ocularActinicUV: 2.5,
+        atmosphere: { uvIndex: 7 },
+      },
+    ],
+  });
+  const segmentedSess = await hydrateSession(segmentedId);
+  assert('Persisted exposure segments finalize without location or a replacement atmosphere fetch',
+    segmentedSess?.calculationStatus === 'computed'
+      && fetchCalls === fetchCallsBeforeSegmentFinalize
+      && segmentedSess.durationMin === 5);
+  assert('Segment finalization preserves and sums dose, SED, and ocular actinic UV slices',
+    segmentedSess.doses.vitamin_d === 17
+      && segmentedSess.doses.circadian === 5
+      && segmentedSess.doses.no_cv === 3
+      && segmentedSess.safety.sed === 1
+      && segmentedSess.safety.ocularActinicUV === 4
+      && segmentedSess.atmosphere.uvIndex === 7);
+  assert('Unset skin type is explicitly persisted as a conservative Type I assumption',
+    segmentedSess.safety.fitzpatrick === 'I'
+      && segmentedSess.safety.fitzpatrickAssumed === true);
 
   // ─── 13. Source split guardrails ─────────────────────────────────────
   console.log('%c 13. Sun session module boundaries ', 'font-weight:bold;color:#f59e0b');
@@ -629,7 +703,7 @@ const {
     swSrc.includes("'/js/sun-runtime.js'"));
   assert('Sun coordinate policy and precise-location upgrade have one owner',
     sunSrc.includes("from './sun-location.js'") &&
-    sunSrc.includes('export { getSunCoords, requestPreciseLocation };') &&
+    sunSrc.includes('export { clearCurrentLocation, getSunCoords, requestCurrentLocation, requestPreciseLocation };') &&
     locationSrc.includes('export function getSunCoords()') &&
     locationSrc.includes('export async function requestPreciseLocation()') &&
     locationSrc.includes('COUNTRY_CENTROIDS') &&

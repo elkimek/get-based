@@ -59,12 +59,28 @@ assert('addRoom persists defaults and returns id',
     && room.id === roomId
     && room.name === 'Bedroom'
     && room.primarySource === 'led-warm'
+    && room.daylightLevel === 'unknown'
     && room.hoursOccupiedPerDay === 8
     && room.eveningHoursAfterSunset === null);
 
-await updateRoom(roomId, { primarySource: 'fluorescent', eveningUseAfterSunset: true });
-assert('updateRoom normalizes legacy evening patch and stamps freshness',
-  room.primarySource === 'fluorescent'
+await updateRoom(roomId, {
+  name: '  Bedroom   workspace  ',
+  primarySource: 'fluorescent',
+  daylightLevel: 'some',
+  hoursOccupiedPerDay: 99,
+  cct: 99999,
+  id: 'corrupt-id',
+  unexpected: 'discard me',
+  eveningUseAfterSunset: true,
+});
+assert('updateRoom normalizes and bounds persisted room fields',
+  room.name === 'Bedroom workspace'
+    && room.id === roomId
+    && !('unexpected' in room)
+    && room.primarySource === 'fluorescent'
+    && room.daylightLevel === 'some'
+    && room.hoursOccupiedPerDay === 24
+    && room.cct === 40000
     && room.eveningHoursAfterSunset === 2
     && !('eveningUseAfterSunset' in room)
     && Number.isFinite(room.updatedAt));
@@ -97,6 +113,14 @@ assert('updateScreen patches fields and stamps freshness',
 assert('updateScreen returns null for missing screen',
   await updateScreen('missing-screen', { hoursPerDay: 1 }) === null);
 
+await updateScreen(portable.id, { device: 'made-up-device', roomId: 'missing-room', hoursPerDay: -3, id: 'corrupt-screen', unexpected: true });
+assert('updateScreen rejects unknown devices and room links and bounds hours',
+  portable.device === 'phone'
+    && portable.id !== 'corrupt-screen'
+    && !('unexpected' in portable)
+    && portable.roomId === null
+    && portable.hoursPerDay === 0);
+
 assert('deleteScreen removes screen and records tombstone',
   await deleteScreen(portable.id) === true
     && !getEnvironment().screens.some(s => s.id === portable.id)
@@ -104,20 +128,22 @@ assert('deleteScreen removes screen and records tombstone',
 assert('deleteScreen missing path returns false',
   await deleteScreen('missing-screen') === false);
 
-console.log('%c 3. Room delete cleanup ', 'font-weight:bold;color:#f59e0b');
+console.log('%c 3. Room deletion preserves history ', 'font-weight:bold;color:#f59e0b');
 state.importedData.lightMeasurements = [
   { id: 'lm-room', roomId, tool: 'lux', value: 100, capturedAt: Date.now() },
   { id: 'lm-other', roomId: 'other-room', tool: 'lux', value: 200, capturedAt: Date.now() },
 ];
-assert('deleteRoom removes room, linked measurements, and nulls linked screen roomId',
+assert('deleteRoom removes the live room, preserves linked measurements, and makes screens portable',
   await deleteRoom(roomId) === true
     && !getEnvironment().rooms.some(r => r.id === roomId)
-    && !state.importedData.lightMeasurements.some(m => m.id === 'lm-room')
+    && state.importedData.lightMeasurements.some(m => m.id === 'lm-room')
     && state.importedData.lightMeasurements.some(m => m.id === 'lm-other')
     && getEnvironment().screens.find(s => s.id === roomScreenId)?.roomId === null);
-assert('deleteRoom tombstones room and linked measurements',
+assert('deleteRoom snapshots the room name and tombstones only the removed room',
   state.importedData._deleted['lightEnvironment.rooms'].includes(roomId)
-    && state.importedData._deleted.lightMeasurements.includes('lm-room'));
+    && state.importedData.lightMeasurements.find(m => m.id === 'lm-room')?.roomSnapshot?.id === roomId
+    && state.importedData.lightMeasurements.find(m => m.id === 'lm-room')?.roomSnapshot?.name === 'Bedroom workspace'
+    && !(state.importedData._deleted.lightMeasurements || []).includes('lm-room'));
 assert('deleteRoom missing path returns false',
   await deleteRoom('missing-room') === false);
 
@@ -133,8 +159,7 @@ assert('light-env no longer persists room/screen mutations directly',
 assert('light-env-store owns synced persistence for rooms and screens',
   /saveImportedData\(/.test(storeSrc)
     && /deleteImportedArrayItems\(state\.importedData, 'lightEnvironment\.rooms'/.test(storeSrc)
-    && /deleteImportedArrayItems\(state\.importedData, 'lightEnvironment\.screens'/.test(storeSrc)
-    && /deleteImportedArrayItems\(state\.importedData, 'lightMeasurements'/.test(storeSrc));
+    && /deleteImportedArrayItems\(state\.importedData, 'lightEnvironment\.screens'/.test(storeSrc));
 
 state.importedData = originalImportedData;
 state.currentProfile = originalCurrentProfile;

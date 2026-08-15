@@ -90,7 +90,7 @@ test('Light & Sun module loader caches background initialization without loading
       }],
     };
     const endedAt = Date.now();
-    const sunId = await sunStore.logCompletedSession({
+    await sunStore.logCompletedSession({
       startedAt: endedAt - 10 * 60 * 1000,
       endedAt,
       doses: { circadian: 10 },
@@ -117,9 +117,8 @@ test('Light & Sun module loader caches background initialization without loading
         && first.marker === 'light-sun-ready',
       lightEnvironmentDepsAppliedOnLazyLoad:
         globalThis.__lightEnvironmentLoaderDepKeys?.join(',') === 'getMeasurementsForRoom,navigate',
-      deferredSunCompletionAnalyzedOnce:
-        globalThis.__deferredSunAnalysisIds?.length === 1
-        && globalThis.__deferredSunAnalysisIds[0] === sunId,
+      incompleteSunRecordDoesNotRequestAnalysis:
+        !globalThis.__deferredSunAnalysisIds?.length,
       deferredDeviceCompletionAnalyzedOnce:
         globalThis.__deferredDeviceAnalysisIds?.length === 1
         && globalThis.__deferredDeviceAnalysisIds[0] === deviceSession?.id,

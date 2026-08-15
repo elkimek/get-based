@@ -2,7 +2,6 @@
 // light-conditions-now.js — Current outdoor conditions widget for Light & Sun
 
 import { getErrorMessage } from './caught-error.js';
-import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
@@ -25,7 +24,6 @@ const lightConditionsDeps = {
   getSunCoords: () => null,
   isDebugMode: () => false,
   purgeMeteoCache: () => {},
-  saveImportedData: null,
   showNotification: null,
   solarZenithAngle: null,
 };
@@ -93,15 +91,6 @@ function handleLightConditionsActionClick(event) {
     event.stopPropagation();
     return;
   }
-  if (action === 'set-manual-uvi') {
-    _setManualUvi();
-    event.stopPropagation();
-    return;
-  }
-  if (action === 'clear-manual-uvi') {
-    _clearManualUvi();
-    event.stopPropagation();
-  }
 }
 
 export function installLightConditionsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
@@ -116,6 +105,10 @@ if (typeof document !== 'undefined') installLightConditionsActionDelegates();
 export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' } = {}) {
   const conditionsOpts = { variant };
   if (slotId) conditionsOpts.slotId = slotId;
+  const locationSetup = _getSunCoords() ? '' : `<div class="conditions-now-location-setup">
+      <span>To see local conditions, set your country in the profile editor or use your phone location for this session.</span>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-light-page-action="request-precise-location">Use phone location</button>
+    </div>`;
   return `<div class="light-conditions-now-wrap">
       <div class="light-conditions-now-head">
         <span class="light-conditions-now-title">Conditions now</span>
@@ -124,6 +117,7 @@ export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' 
           <button type="button" class="conditions-now-inspect light-widget-mini-btn" data-light-conditions-action="inspect" aria-label="Show raw conditions response, source, cache, and sanity check"${_conditionsTooltipAttr('See raw response, source, cache age, and sanity checks')}>Details</button>
         </span>
       </div>
+      ${locationSetup}
       ${renderConditionsNow(conditionsOpts)}
   </div>`;
 }
@@ -138,9 +132,8 @@ export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' 
 // after first paint so dashboard render isn't blocked by network I/O.
 //
 // Cache is coords-keyed so a profile swap (different country → different
-// coords) doesn't serve the previous profile's UVI/AQ/etc. Key is rounded
-// to 0.5° (~55 km) — much coarser than the network privacy rounding so
-// near-by points share a cache entry, but cross-country swaps don't.
+// coords) doesn't serve another profile/location's UVI/AQ/etc. Provider-side
+// caching still uses the configured privacy-rounded request coordinates.
 let _conditionsCache = null; // { coordKey, atm, fetchedAt }
 let _conditionsFetchInFlight = false;
 // Per-slot 5min refresh intervals — keyed by deterministic slotId
@@ -155,9 +148,7 @@ function _conditionsTooltipAttr(text, opts = {}) {
 
 function _coordKey(coords) {
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return null;
-  const f = 2; // 0.5° rounding → coarse enough to share within a metro, fine enough to distinguish countries
-  const k = (n) => (Math.round(n * f) / f).toFixed(1);
-  return `${k(coords.lat)}_${k(coords.lon)}`;
+  return `${coords.lat.toFixed(4)}_${coords.lon.toFixed(4)}`;
 }
 
 export function getCachedConditionsAtmosphere() {
@@ -286,7 +277,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
         isoTime: new Date().toISOString(),
         noCache: !!opts.force, // user-triggered refresh skips both fresh + stale cache
       });
-      if (atm?._stale) online = false;
+      if (atm?._stale || atm?._offline || /(?:zenith_offline|offline)/.test(String(atm?.source || ''))) online = false;
       if (atm && typeof lightConditionsDeps.applyAtmOverrides === 'function') {
         atm = lightConditionsDeps.applyAtmOverrides(atm);
       }
@@ -306,7 +297,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
       slot.innerHTML = `<div class="conditions-now-msg">Conditions data unavailable offline. Reconnect once and we'll cache it.${fetchError ? ` <small>(${escapeHTML(fetchError)})</small>` : ''}</div>`;
       return;
     }
-    _conditionsCache = { coordKey: key, atm, fetchedAt: now };
+    _conditionsCache = { coordKey: key, atm, fetchedAt: Date.now() };
     slot.setAttribute('aria-busy', 'false');
     slot.innerHTML = renderConditionsHTML(atm, coords, variant, !online);
     _centerConditionsNowMarker(slot);
@@ -329,7 +320,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
 // User-triggered: force a re-fetch of conditions, bypassing all caches.
 // Re-renders every conditions-now slot on the page (dashboard + Light page
 // can both have one mounted at the same time). Also wipes the localStorage
-// meteo:v2:* cache so a device that latched onto a degraded provider
+// meteo cache so a device that latched onto a degraded provider
 // (e.g. an Open-Meteo-only response cached while CAMS was unreachable
 // during a relay-side outage) can recover without tab-killing — the
 // next fetch hits the provider chain fresh.
@@ -343,38 +334,6 @@ export function _refreshConditionsNow() {
     const variant = slot.dataset.variant || 'full';
     if (id) _refreshConditions(id, variant, { force: true });
   });
-}
-
-export async function _setManualUvi() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-uvi-input'));
-  if (!input) return;
-  const v = parseFloat(input.value);
-  if (!Number.isFinite(v) || v < 0 || v > 20) {
-    _notify('UVI must be between 0 and 20', 'error');
-    return;
-  }
-  const data = state.importedData;
-  if (!data) return;
-  if (!data.sunDefaults) data.sunDefaults = {};
-  if (!data.sunDefaults.overrides) data.sunDefaults.overrides = {};
-  data.sunDefaults.overrides.uvIndex = v;
-  if (typeof lightConditionsDeps.saveImportedData === 'function') await lightConditionsDeps.saveImportedData();
-  // Bust the in-memory conditions cache so the next render re-renders with
-  // the override applied. Fetch isn't re-issued — the override is applied
-  // to whatever atm we have cached.
-  _conditionsCache = null;
-  _notify(`Manual UVI ${v.toFixed(1)} applied — used for burn-time + vit-D-threshold math until cleared. (Spectrum stays driven by ozone + zenith + cloud cover.)`, 'success', 5000);
-  _refreshConditionsNow();
-}
-
-export async function _clearManualUvi() {
-  const data = state.importedData;
-  if (!data?.sunDefaults?.overrides) return;
-  delete data.sunDefaults.overrides.uvIndex;
-  if (typeof lightConditionsDeps.saveImportedData === 'function') await lightConditionsDeps.saveImportedData();
-  _conditionsCache = null;
-  _notify('Manual UVI cleared — back to live atmosphere data.');
-  _refreshConditionsNow();
 }
 
 // User-triggered: open a modal showing the raw atmosphere response so the
@@ -408,12 +367,20 @@ export function _inspectConditionsNow() {
         <div class="sun-detail-section-value">${atm?.source ? escapeHTML(atm.source) : '—'}</div>
       </div>
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Fetched at</div>
+        <div class="sun-detail-section-label">Valid at</div>
+        <div class="sun-detail-section-value">${atm?.validAt ? escapeHTML(new Date(atm.validAt).toLocaleString()) : '—'}</div>
+      </div>
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Retrieved at</div>
         <div class="sun-detail-section-value">${atm?.fetchedAt ? escapeHTML(new Date(atm.fetchedAt).toLocaleString()) : '—'}</div>
       </div>
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Coords used</div>
+        <div class="sun-detail-section-label">Profile location (local)</div>
         <div class="sun-detail-section-value">${coords ? `${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}° (${escapeHTML(coords.source || 'unknown')})` : '—'}</div>
+      </div>
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Location sent to provider</div>
+        <div class="sun-detail-section-value">${Number.isFinite(atm?._requestCoords?.lat) && Number.isFinite(atm?._requestCoords?.lon) ? `${atm._requestCoords.lat.toFixed(2)}°, ${atm._requestCoords.lon.toFixed(2)}°${atm._requestCoords.privacyRounded ? ' (privacy-rounded)' : ''}` : '—'}</div>
       </div>
       <div class="sun-detail-section">
         <div class="sun-detail-section-label">Confidence</div>
@@ -425,34 +392,31 @@ export function _inspectConditionsNow() {
             source: atm?.source,
             snapshotAgeSec: atm?._camsMeta?.ageSec ?? null,
             cloudCover: atm?.cloudCover ?? null,
-            zenithDeg: coords && atm?.fetchedAt ? _solarZenithAngle(new Date(atm.fetchedAt), coords) : null,
+            zenithDeg: coords && (atm?.validAt || atm?.fetchedAt) ? _solarZenithAngle(new Date(atm.validAt || atm.fetchedAt), coords) : null,
             uvIndex: atm?.uvIndex ?? null,
             isStale: !!atm?._stale,
-            manualOverridden: !!atm?._uvOverridden,
           }) : (atm?.confidence ?? null);
           if (computed == null) return '—';
           const pct = Math.round(computed * 100);
           // Tooltip lists the active discounts so the user can see WHY
           // confidence dropped — turns a single number into honest reasoning.
           const factors = [];
-          if (atm?._uvOverridden) factors.push('manual UVI override');
-          else {
-            const age = atm?._camsMeta?.ageSec;
-            if (Number.isFinite(age)) {
-              if (age > 86400) factors.push(`stale grid (${Math.round(age/3600)}h old)`);
-              else if (age > 43200) factors.push(`grid ${Math.round(age/3600)}h old`);
-              else if (age > 21600) factors.push(`grid ${Math.round(age/3600)}h old`);
-            }
-            const cc = atm?.cloudCover;
-            const ccNorm = cc != null && cc > 1 ? cc / 100 : cc;
-            if (Number.isFinite(ccNorm)) {
-              if (ccNorm > 0.8) factors.push(`heavy cloud (${Math.round(ccNorm*100)}%)`);
-              else if (ccNorm > 0.5) factors.push(`moderate cloud (${Math.round(ccNorm*100)}%)`);
-            }
-            if (atm?._stale) factors.push('upstream marked stale');
-            const u = atm?.uvIndex;
-            if (Number.isFinite(u) && u < 2) factors.push(`low UVI (${u.toFixed(1)} — model band noisy below 2)`);
+          const age = atm?._camsMeta?.ageSec;
+          if (Number.isFinite(age)) {
+            if (age > 86400) factors.push(`stale grid (${Math.round(age/3600)}h old)`);
+            else if (age > 43200) factors.push(`grid ${Math.round(age/3600)}h old`);
+            else if (age > 21600) factors.push(`grid ${Math.round(age/3600)}h old`);
           }
+          const cc = atm?.cloudCover;
+          const ccNorm = cc != null && cc > 1 ? cc / 100 : cc;
+          if (Number.isFinite(ccNorm)) {
+            if (ccNorm > 0.8) factors.push(`heavy cloud (${Math.round(ccNorm*100)}%)`);
+            else if (ccNorm > 0.5) factors.push(`moderate cloud (${Math.round(ccNorm*100)}%)`);
+          }
+          if (atm?._stale) factors.push('upstream marked stale');
+          if (atm?._offline) factors.push('offline geometry-only estimate');
+          const u = atm?.uvIndex;
+          if (Number.isFinite(u) && u < 2) factors.push(`low UVI (${u.toFixed(1)} — model band noisy below 2)`);
           const tip = factors.length ? `Discounted by: ${factors.join('; ')}` : 'No active discounts; baseline source confidence.';
           return `<span title="${escapeAttr(tip)}">${pct}%</span>`;
         })()}</div>

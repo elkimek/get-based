@@ -482,7 +482,7 @@ const _origProfileSex = state ? state.profileSex : null;
       /const recent\s*=\s*state\.importedData\?\.lightMeasurements/.test(environmentCtxSrc));
     assert('sun-context environment owner still emits flicker / darkness / cct warnings',
       /measurement\.tool\s*===\s*'flicker'/.test(environmentCtxSrc)
-      && /measurement\.tool\s*===\s*'darkness'/.test(environmentCtxSrc)
+      && /isQuantitativeDarknessMeasurement\(measurement\)/.test(environmentCtxSrc)
       && /measurement\.tool\s*===\s*'cct'/.test(environmentCtxSrc));
   }
 
@@ -520,12 +520,13 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('styles.css: app tooltip overlay is fixed and unclipped',
       /\.app-tooltip\s*\{[\s\S]{0,160}position:\s*fixed/.test(cssSrc)
       && /\.app-tooltip\.is-visible/.test(cssSrc));
-    assert('light-conditions-renderer.js: EAQI label rendered as "EU air quality index"',
-      /EU air quality index/.test(conditionsRendererSrc));
-    assert('light-conditions-renderer.js: cloud chip uses "clear-sky max UVI"',
-      /clear-sky max UVI/.test(conditionsRendererSrc));
-    assert('light-channel-view.js: zero-hit channel pill shows 0/7 not em-dash',
-      /return \{ txt: `\$\{n\}\/7`/.test(lightChannelViewSrc));
+    assert('light-conditions-renderer.js: EAQI label includes its numeric EU index',
+      /EU index/.test(conditionsRendererSrc));
+    assert('light-conditions-renderer.js: cloud chip identifies current clear-sky UVI',
+      /clear-sky UVI/.test(conditionsRendererSrc));
+    assert('light-channel-view.js: zero-hit channel pill names missing logs without grading biology',
+      /return \{ txt: n \? `\$\{n\} day/.test(lightChannelViewSrc)
+      && /: 'Not logged', n, sun, device \}/.test(lightChannelViewSrc));
     const sunSrc = fetchSrc('js/sun.js');
     assert('sun.js: Eyes-mode option shortened ("never stare at sun")',
       /Eyes uncovered \(never stare at sun\)/.test(sunSrc));
@@ -697,9 +698,9 @@ const _origProfileSex = state ? state.profileSex : null;
       !/photosensitizer active/.test(startHandler));
     assert('sun-active-session.js: start flow no longer emits eyes-uncovered warning toast',
       !/Eyes-uncovered mode/.test(startHandler));
-    assert('sun-active-session.js: retinal toasts have a start grace period',
-      /RETINAL_ALERT_GRACE_MS\s*=\s*10\s*\*\s*60\s*\*\s*1000/.test(sunActiveSrc)
-      && /elapsedMs\s*<\s*RETINAL_ALERT_GRACE_MS/.test(sunActiveSrc));
+    assert('sun-active-session.js: ocular threshold warnings are never suppressed by a start grace period',
+      !/RETINAL_ALERT_GRACE_MS/.test(sunActiveSrc)
+      && !/elapsedMs\s*<\s*RETINAL_ALERT_GRACE_MS/.test(sunActiveSrc));
     assert('sun-active-session.js: retinal over-limit toast also marks the half-limit alert handled',
       /ruv >= 30 && !cur\.alertedRetinalOver[\s\S]{0,180}alertedRetinalOver:\s*true,\s*alertedRetinal500:\s*true/.test(sunActiveSrc));
     assert('sun-active-session.js: retinal threshold toasts use calm user copy',

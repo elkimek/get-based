@@ -10,7 +10,7 @@ function expectAll(outcomes) {
   }
 }
 
-test('conditions now browser coverage covers refresh cache manual override and inspect paths', async ({ page }) => {
+test('conditions now browser coverage covers current semantics, refresh cache, and inspect paths', async ({ page }) => {
   test.setTimeout(30_000);
   await page.goto('/app', { waitUntil: 'load' });
 
@@ -48,6 +48,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
       cloudCover: 72,
       source: 'open_meteo_cams',
       confidence: 0.91,
+      validAt: Date.now() - 7 * 60000,
       fetchedAt: Date.now() - 5 * 60000,
       daily: {
         sunrise: isoAt(-240),
@@ -57,6 +58,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
       },
       hourly: {
         time: [isoAt(0), isoAt(60), isoAt(120), isoAt(180), isoAt(240)],
+        utcOffsetSeconds: 0,
         uv_index: [6.4, 7.1, 5.0, 2.0, 0.3],
       },
       airQuality: {
@@ -65,7 +67,12 @@ test('conditions now browser coverage covers refresh cache manual override and i
         no2: 140,
         surfaceOzoneUgM3: 185,
         european_aqi: 75,
+        european_aqi_pm2_5: 30,
+        european_aqi_pm10: 40,
+        european_aqi_nitrogen_dioxide: 75,
+        european_aqi_ozone: 65,
       },
+      _requestCoords: { lat: 50.1, lon: 14.4, privacyRounded: true },
       ...overrides,
     });
     const slotText = id => document.getElementById(id)?.textContent || '';
@@ -84,7 +91,6 @@ test('conditions now browser coverage covers refresh cache manual override and i
         },
         purgeMeteoCache: () => calls.push(['purge']),
         showNotification: (message, tone) => calls.push(['notification', message, tone]),
-        saveImportedData: async () => calls.push(['save']),
         applyAtmOverrides: atm => ({ ...atm, _appliedByTest: true }),
         fetchAtmosphere: async opts => {
           calls.push(['fetch', opts]);
@@ -112,6 +118,18 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.fullRenderShowsTimeline = slotText('cond-now-coverage-full').includes("Today's sun timeline");
       outcomes.fullRenderShowsAirQuality = slotText('cond-now-coverage-full').includes('Air quality');
       outcomes.fullRenderShowsSource = slotText('cond-now-coverage-full').includes('Open-Meteo');
+      outcomes.fullRenderLabelsModeledFreshnessWithoutLiveClaim = slotText('cond-now-coverage-full').includes('current model')
+        && !slotText('cond-now-coverage-full').includes('live');
+      outcomes.fullRenderPrioritizesGroundOzoneOverColumnSeverity = slotText('cond-now-coverage-full').includes('Ground ozone')
+        && !slotText('cond-now-coverage-full').includes('Ozone column');
+      outcomes.fullRenderPreservesUvaTransitionsWithPreciseTooltips = slotText('cond-now-coverage-full').includes('UV-A on')
+        && slotText('cond-now-coverage-full').includes('UV-A off')
+        && Array.from(host.querySelectorAll('.conditions-now-event-uva')).some(el => el.getAttribute('data-conditions-tooltip')?.includes('switch-like'))
+        && Array.from(host.querySelectorAll('.conditions-now-event-uva')).some(el => el.getAttribute('data-conditions-tooltip')?.includes('does not stop instantly'));
+      outcomes.fullRenderOmitsPersistentMethodCaveat = host.querySelector('.conditions-now-footnote') === null;
+      outcomes.fullRenderOmitsManualModelControl = host.querySelector('#manual-uvi-input') === null;
+      outcomes.fullRenderOmitsBurnAndVitaminDClaims = !slotText('cond-now-coverage-full').includes('burn')
+        && !slotText('cond-now-coverage-full').includes('vit-D');
       outcomes.cachedAtmosphereAvailable = conditions.getCachedConditionsAtmosphere()?._appliedByTest === true;
 
       const compactHtml = conditions.renderConditionsNow({ variant: 'compact', slotId: 'cond-now-coverage-full' });
@@ -126,26 +144,12 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.inspectModalShowsComputedConfidence = modal?.textContent.includes('73%') === true;
       outcomes.inspectModalShowsRawPayload = modal?.textContent.includes('"uvIndex": 6.4') === true;
       outcomes.inspectModalListsCacheState = modal?.textContent.includes('localStorage cache') === true;
+      outcomes.inspectModalSeparatesValidAndRetrievedTimes = modal?.textContent.includes('Valid at') === true
+        && modal?.textContent.includes('Retrieved at') === true;
+      outcomes.inspectModalShowsProviderCoordinates = modal?.textContent.includes('privacy-rounded') === true;
       modal?.closest('.modal-overlay')?.remove();
-
-      const manualInput = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-uvi-input'));
-      if (manualInput) manualInput.value = '22';
-      await conditions._setManualUvi();
-      outcomes.invalidManualUviNotifiesError = calls.some(call => call[0] === 'notification' && String(call[1]).includes('between 0 and 20'));
-      calls.length = 0;
-      if (manualInput) manualInput.value = '5.5';
-      await conditions._setManualUvi();
-      outcomes.validManualUviPersistsOverride = state.importedData.sunDefaults.overrides.uvIndex === 5.5;
-      outcomes.validManualUviSavesData = calls.some(call => call[0] === 'save');
-      outcomes.validManualUviForcesRefresh = calls.some(call => call[0] === 'fetch' && call[1].noCache === true);
-      await waitForFullSlotIdle('manual UVI refresh settle');
-      calls.length = 0;
-      await conditions._clearManualUvi();
-      outcomes.clearManualUviRemovesOverride = !('uvIndex' in (state.importedData.sunDefaults.overrides || {}));
-      outcomes.clearManualUviSavesData = calls.some(call => call[0] === 'save');
-      outcomes.clearManualUviForcesRefresh = calls.some(call => call[0] === 'fetch' && call[1].noCache === true);
-
-      await waitForFullSlotIdle('clear manual UVI refresh settle');
+      outcomes.manualUviActionsAreNotExported = !('_setManualUvi' in conditions)
+        && !('_clearManualUvi' in conditions);
       localStorage.setItem('meteo:coverage-stale', 'cached');
       calls.length = 0;
       conditions._refreshConditionsNow();
@@ -161,7 +165,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
       } });
       conditions._refreshConditionsNow();
       await waitUntil(() => slotText('cond-now-coverage-full').includes('offline') || slotText('cond-now-coverage-full').includes('cached'), 'offline cached render');
-      outcomes.offlineRefreshFallsBackToCache = slotText('cond-now-coverage-full').includes('cached');
+      outcomes.offlineRefreshFallsBackToClearlyMarkedData = slotText('cond-now-coverage-full').includes('offline');
       outcomes.offlineRefreshCallsFetch = calls.some(call => call[0] === 'fetch-error');
 
       const warningCoords = { lat: 51.08, lon: 15.43, source: 'profile-precise' };
@@ -172,7 +176,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
           uvIndex: 17,
           cloudCover: 130,
           ozoneDU: 50,
-          source: 'manual_override',
+          source: 'open_meteo',
           daily: { sunrise: isoAt(-240), sunset: isoAt(240), peakAt: isoAt(20), uvIndexMax: 10 },
           airQuality: {
             pm25: -2,
@@ -186,7 +190,8 @@ test('conditions now browser coverage covers refresh cache manual override and i
       host.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-coverage-warning' });
       await waitUntil(() => document.getElementById('cond-now-coverage-warning')?.getAttribute('aria-busy') === 'false', 'warning render');
       outcomes.sanityWarningsRender = slotText('cond-now-coverage-warning').includes('sanity warning');
-      outcomes.warningRenderUsesManualProviderLabel = slotText('cond-now-coverage-warning').includes('manual entry');
+      outcomes.uviWarningIsVisibleInHero = slotText('cond-now-coverage-warning').includes('UVI data looks inconsistent');
+      outcomes.uviWarningSuppressesProtectionInference = !slotText('cond-now-coverage-warning').includes('avoid unprotected exposure');
 
       const surfaceOzoneCoords = { lat: 52.08, lon: 16.43, source: 'profile-precise' };
       conditions.configureLightConditionsNow({
@@ -200,13 +205,17 @@ test('conditions now browser coverage covers refresh cache manual override and i
             no2: 20,
             surfaceOzoneUgM3: 245,
             european_aqi: 18,
+            european_aqi_pm2_5: 10,
+            european_aqi_pm10: 12,
+            european_aqi_nitrogen_dioxide: 8,
+            european_aqi_ozone: 120,
           },
         }),
       });
       host.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-coverage-surface-ozone' });
       await waitUntil(() => document.getElementById('cond-now-coverage-surface-ozone')?.getAttribute('aria-busy') === 'false', 'surface ozone render');
-      outcomes.surfaceOzoneFallbackShowsHazardLabel = slotText('cond-now-coverage-surface-ozone').includes('Hazardous');
-      outcomes.surfaceOzoneFallbackShowsAction = slotText('cond-now-coverage-surface-ozone').includes('avoid outdoor exercise');
+      outcomes.surfaceOzoneUsesProviderEuropeanIndex = slotText('cond-now-coverage-surface-ozone').includes('Extremely poor')
+        && slotText('cond-now-coverage-surface-ozone').includes('EU index 120');
 
       conditions.configureLightConditionsNow({ getSunCoords: () => null });
       host.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-coverage-no-coords' });

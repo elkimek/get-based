@@ -128,6 +128,9 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog presents the Light & Sun overhaul with a real ampersand',
+  /version:\s*'1\.16\.0'[\s\S]{0,160}title:\s*'Light & Sun, completely redesigned'/.test(changelogSrc)
+    && !/title:\s*'Light &amp; Sun/.test(changelogSrc));
 assert('latest changelog gives a simple user-readable overview of automatic voice providers',
   /version:\s*'1\.15\.2'[\s\S]{0,500}Voice follows your AI provider/.test(changelogSrc)
     && /version:\s*'1\.15\.2'[\s\S]{0,1200}Voice can now reuse your AI connection/.test(changelogSrc)

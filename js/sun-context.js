@@ -2,7 +2,7 @@
 // sun-context.js — buildSunContext({ tier }) for AI integration.
 // Two-tier prompt blob; per-session detail moved to a tool-call API.
 //
-//   tier: 'always'   ~520 tok — Lifelight summary + 7d rolling + active deficits
+//   tier: 'always'   ~520 tok — Lifelight summary + 7d source signals
 //                              + indoor environment (every chat)
 //   tier: 'standard' +1200 tok — + 30-day session table + biomarker correlations
 //                              (auto-escalated when chat keywords trigger)
@@ -22,8 +22,6 @@ import {
 } from './sun-context-runtime.js';
 import { lightEnvironmentBlock } from './sun-context-environment.js';
 import { isLightSunContextEnabled } from './lab-context.js';
-
-const DEFAULT_TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
 
 export { configureSunContext } from './sun-context-runtime.js';
 export { getSunSessionsSlice, getSunSessionDetail } from './sun-context-session-tools.js';
@@ -180,14 +178,10 @@ function _trimToBudget(ctx, budget, aggressive = false) {
 // ─── Tier: always (~520 tok) ───────────────────────────────────────────
 
 function alwaysTierBlock(sessions) {
-  // Combine outdoor sun + indoor device contributions — channels reflect the
-  // full biological state, not just one source class.
+  // Keep sunlight and devices separate. These totals describe recorded light
+  // inputs, not biological completion or a single combined light score.
   const sunTot7 = (typeof sunContextDeps.rollingChannelTotals === 'function' ? sunContextDeps.rollingChannelTotals(7) : null) || {};
-  const sunTot30 = (typeof sunContextDeps.rollingChannelTotals === 'function' ? sunContextDeps.rollingChannelTotals(30) : null) || {};
   const devTot7 = (typeof sunContextDeps.rollingDeviceTotals === 'function' ? sunContextDeps.rollingDeviceTotals(7) : null) || {};
-  const devTot30 = (typeof sunContextDeps.rollingDeviceTotals === 'function' ? sunContextDeps.rollingDeviceTotals(30) : null) || {};
-  const totals7d = mergeTotalsCtx(sunTot7, devTot7);
-  const totals30d = mergeTotalsCtx(sunTot30, devTot30);
   const medToday = typeof sunContextDeps.cumulativeMEDToday === 'function' ? sunContextDeps.cumulativeMEDToday() : 0;
   const lastSession = sessions.filter(s => s.endedAt).slice(-1)[0];
   const activeSession = sessions.find(s => !s.endedAt);
@@ -239,34 +233,19 @@ function alwaysTierBlock(sessions) {
       }).join('\n')
     : '';
 
-  // Active session + most-recent session lines drop when null. Verbose
-  // 30-day channel totals were dropped from always-tier output — they're
-  // computed for deficit detection but the 7-day totals are the
-  // recency-relevant signal in chat. Standard tier reintroduces the
-  // 30-day breakdown.
+  // Active session + most-recent session lines drop when null. The short
+  // source summary deliberately avoids grades and targets; missing logs are
+  // a measurement gap, not proof of missing biology.
   let block = `### Lifelight summary
 - Outdoor sessions: ${sessions.length} · device sessions: ${devSessions.length} · devices in library: ${devices.length}${baselineLine}${deviceListLine}
-- Today's cumulative MED: ${(medToday * 100).toFixed(0)}% (% of personal daily Min Erythemal Dose)${medToday > 1 ? ' (over MED — exposure risk)' : ''}
+- Today's modeled erythemal dose: ${(medToday * 100).toFixed(0)}% of a Fitzpatrick base MED reference (not a personal threshold; sunscreen is not credited as extra safe time)${medToday > 1 ? ' (base MED reached — stop UV exposure)' : ''}
 ${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})\n` : ''}${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)\n` : ''}
-### 7-day rollup (sun + devices combined; ●●●●=hit weekly target, ●●●○=good, ●●○○=moderate, ●○○○=low, ○○○○=none)
-${formatChannelTotals(totals7d)}
+### Light-responsive signals — last 7 days
+- Sunlight: ${formatLoggedSignals(sunTot7)}
+- Devices, kept separate: ${formatLoggedSignals(devTot7)}
+- These are recorded light inputs, not daily requirements or measured body responses.
 
 `;
-
-  // Deficit detection — flag channels at <10% of literature reference (rough
-  // heuristic). Gated behind a real baseline window so a brand-new user with
-  // zero exposure logs isn't told they have 6 simultaneous deficits — that's
-  // a measurement gap, not a signal. Once they've logged ≥7 events of any
-  // kind we have enough to distinguish "user doesn't expose" from "user
-  // hasn't logged yet."
-  const baselineCount = sessions.length + devSessions.length;
-  const deficits = baselineCount >= 7 ? detectDeficits(totals30d) : [];
-  if (deficits.length > 0) {
-    block += `### Active light deficits
-${deficits.map(d => `- ${d.label}: ${d.note}`).join('\n')}
-
-`;
-  }
 
   // Indoor light environment — rooms, screens, audits. Most users
   // spend 8-14 h/day under indoor lights, so the AI needs the picture
@@ -333,30 +312,6 @@ function calibrationLine() {
   return `\n### Calibration anchor (model vs ground truth)\n- ${parts.join(' · ')}\n\n`;
 }
 
-function detectDeficits(totals30d) {
-  const out = [];
-  // Empty channels = clear deficit signal
-  if ((totals30d.vitamin_d || 0) === 0) {
-    out.push({ label: 'Channel 1 (vit D)', note: 'no UVB exposure logged in 30d — supplement-only path or geographic UVB unavailability' });
-  }
-  if ((totals30d.circadian || 0) === 0) {
-    out.push({ label: 'Channel 5 (circadian)', note: 'no eye-exposure outdoor light logged in 30d — SCN entrainment likely deficient (Hattar/Huberman literature suggests minimum AM dose)' });
-  }
-  if ((totals30d.nir_solar || 0) === 0) {
-    out.push({ label: 'Channel 6 (NIR-solar)', note: 'no broadband NIR logged in 30d — Wunsch/Jeffery optical-tissue-window not active; consider solar exposure or PBM panel' });
-  }
-  if ((totals30d.no_cv || 0) === 0) {
-    out.push({ label: 'Channel 3 (NO/cardiovascular)', note: 'no UVA exposure logged in 30d — Liu/Oplander photolabile NO release pathway not engaged' });
-  }
-  if ((totals30d.pbm_red || 0) === 0) {
-    out.push({ label: 'Channel 7 (PBM red 660nm)', note: 'no narrowband red-light therapy logged in 30d — Hamblin PBM cytochrome-c-oxidase + ATP-cascade pathway not engaged from device sources' });
-  }
-  if ((totals30d.pbm_nir || 0) === 0) {
-    out.push({ label: 'Channel 8 (PBM NIR 810/850nm)', note: 'no narrowband near-IR therapy logged in 30d — deeper-tissue Hamblin PBM not engaged from device sources' });
-  }
-  return out;
-}
-
 // ─── Tier: standard ────────────────────────────────────────────────────
 //
 // Pre-2026-05-10: emitted per-session tables for outdoor sun (last 30) +
@@ -383,15 +338,14 @@ function standardTierBlock(sessions) {
     return _correlationsBlock();
   }
 
-  // 6-week trend per channel. Bucket by 7-day windows ending now;
-  // bucket[5] = last 7d, bucket[0] = 35–42d ago. Sum channel-au across
-  // both sun + device sessions per bucket so the AI sees the combined
-  // shape, then convert to user-facing units (IU / lux·h / J/cm²).
+  // 6-week trend per channel. Keep outdoor and device records in separate
+  // buckets so a targeted device never reads as full-spectrum sunlight.
   const WEEKS = 6;
   const now = Date.now();
-  const all = [...sun, ...dev];
   const channels = ['vitamin_d', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir', 'no_cv', 'pomc'];
-  const buckets = Object.fromEntries(channels.map(k => [k, new Array(WEEKS).fill(0)]));
+  const makeBuckets = () => Object.fromEntries(channels.map(k => [k, new Array(WEEKS).fill(0)]));
+  const sunBuckets = makeBuckets();
+  const deviceBuckets = makeBuckets();
   // Same per-session cap path the always-tier 7d rollup uses, so the
   // weekly trend integrates correctly for high-output device sessions
   // (without this, raw channel-au sums to nonsense for vit-D).
@@ -406,29 +360,28 @@ function standardTierBlock(sessions) {
     }
     return s.bodyArea ? (_broadFracs[s.bodyArea] ?? null) : null;
   };
-  for (const s of all) {
-    const weekIdx = Math.floor((now - s.endedAt) / (7 * 86400 * 1000));
-    if (weekIdx < 0 || weekIdx >= WEEKS) continue;
-    const slot = WEEKS - 1 - weekIdx;
-    const isSun = !!s.location || s.atmosphere || s.bodyExposure;
-    const fitz = isSun ? (s.safety?.fitzpatrick || 'III') : _fitzForDevice;
-    const uvi = isSun ? s.atmosphere?.uvIndex : null;
-    const rotated = !!s.bodyExposure?.rotatedSides;
-    const bf = isSun ? s.bodyExposure?.fraction : _devBodyFrac(s);
-    for (const k of channels) {
-      const au = s.doses?.[k];
-      if (!Number.isFinite(au) || au <= 0) continue;
-      // Vit-D goes through the cap; everything else is raw channel-au
-      // (correctly, per sun-spectrum.js — only vit-D has biological
-      // saturation; circadian / NIR / PBM / NO / POMC accumulate
-      // linearly in their respective windows).
-      if (k === 'vitamin_d' && _perSession) {
-        buckets[k][slot] += _perSession(au, fitz, uvi, rotated, _genetics, bf);
-      } else {
-        buckets[k][slot] += au;
+  const addSessions = (sourceSessions, buckets, isSun) => {
+    for (const s of sourceSessions) {
+      const weekIdx = Math.floor((now - s.endedAt) / (7 * 86400 * 1000));
+      if (weekIdx < 0 || weekIdx >= WEEKS) continue;
+      const slot = WEEKS - 1 - weekIdx;
+      const fitz = isSun ? (s.safety?.fitzpatrick || 'III') : _fitzForDevice;
+      const uvi = isSun ? s.atmosphere?.uvIndex : null;
+      const rotated = isSun && !!s.bodyExposure?.rotatedSides;
+      const bf = isSun ? s.bodyExposure?.fraction : _devBodyFrac(s);
+      for (const k of channels) {
+        const au = s.doses?.[k];
+        if (!Number.isFinite(au) || au <= 0) continue;
+        if (k === 'vitamin_d' && _perSession) {
+          buckets[k][slot] += _perSession(au, fitz, uvi, rotated, _genetics, bf);
+        } else {
+          buckets[k][slot] += au;
+        }
       }
     }
-  }
+  };
+  addSessions(sun, sunBuckets, true);
+  addSessions(dev, deviceBuckets, false);
 
   // Render: only emit channels with non-zero buckets so empty channels
   // don't bloat the block. Format depends on channel: IU for vit-D,
@@ -452,40 +405,44 @@ function standardTierBlock(sessions) {
   const labels = {
     vitamin_d: 'Vit-D (IU)',
     circadian: 'Body clock (lux·h)',
-    nir_solar: 'Cellular repair (J/cm²)',
+    nir_solar: 'Cell energy & repair (J/cm²)',
     pbm_red: 'Red 660nm (J/cm²)',
     pbm_nir: 'NIR 810/850 (J/cm²)',
     no_cv: 'Cardiovascular (au)',
     pomc: 'Mood/hormones (au)',
   };
-  const lines = [];
-  for (const k of channels) {
-    const b = buckets[k];
-    if (b.every(v => v === 0)) continue;
-    let formatted;
-    if (k === 'vitamin_d') {
-      formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
-    } else if (k === 'circadian') {
-      formatted = b.map(v => v > 0 ? fmtIUCompact(_luxHFromAu(v)) : '0').join('→');
-    } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
-      formatted = b.map(v => {
-        if (v <= 0) return '0';
-        const j = typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(v) : v / 10000;
-        return fmtJ(j);
-      }).join('→');
-    } else {
-      // no_cv / pomc — raw channel-au, compact
-      formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
+  const renderBucketLines = (buckets) => {
+    const lines = [];
+    for (const k of channels) {
+      const b = buckets[k];
+      if (b.every(v => v === 0)) continue;
+      let formatted;
+      if (k === 'vitamin_d') {
+        formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
+      } else if (k === 'circadian') {
+        formatted = b.map(v => v > 0 ? fmtIUCompact(_luxHFromAu(v)) : '0').join('→');
+      } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
+        formatted = b.map(v => {
+          if (v <= 0) return '0';
+          const j = typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(v) : v / 10000;
+          return fmtJ(j);
+        }).join('→');
+      } else {
+        formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
+      }
+      lines.push(`  ${labels[k]}: ${formatted}`);
     }
-    lines.push(`  ${labels[k]}: ${formatted}`);
-  }
+    return lines;
+  };
+  const sunLines = renderBucketLines(sunBuckets);
+  const deviceLines = renderBucketLines(deviceBuckets);
 
   let block = '';
-  if (lines.length > 0) {
-    // Header parallels buildWearableContext's "Weekly trend (last 6w)"
-    // exactly so an agent reading both sections sees the same shape
-    // language for both lenses.
-    block += `### Weekly trend (last 6w, oldest→newest)\n${lines.join('\n')}\n\n`;
+  if (sunLines.length > 0 || deviceLines.length > 0) {
+    block += '### Weekly light trend (last 6w, oldest→newest; sources kept separate)\n';
+    if (sunLines.length > 0) block += `Sunlight:\n${sunLines.join('\n')}\n`;
+    if (deviceLines.length > 0) block += `Devices:\n${deviceLines.join('\n')}\n`;
+    block += '\n';
   }
 
   // Session counts — the only per-event detail the always-on payload
@@ -531,151 +488,17 @@ const CHANNEL_LABELS = {
   no_cv:      'NO/cardiovascular',
   violet_eye: 'Violet/outdoor-eye',
   circadian:  'Circadian (melanopic)',
-  nir_solar:  'NIR-solar broadband',
+  nir_solar:  'Cell energy & repair',
   pbm_red:    'PBM red',
   pbm_nir:    'PBM near-IR',
 };
 
-// 7-day rollup in user-meaningful units rather than opaque channel-au.
-// `channel-au` is fine for correlations + tier math, but the AI was
-// reporting raw numbers ("Vit-D synthesis: 104", "Circadian: 1,005,928")
-// that don't ground to anything users can act on. This translates each
-// channel to its native unit + a tier label (none/low/moderate/good/strong)
-// against the literature-derived weekly target (= 7 × dailyTarget).
-//
-// Conventions per channel:
-//   vitamin_d: sum of per-session IU equivalents (Holick + Fitzpatrick gating)
-//   circadian: sum of melanopic lux·hours at the eye
-//   nir_solar / pbm_red / pbm_nir: sum of J/cm²
-//   pomc / no_cv / violet_eye: tier label only (no defensible single SI unit)
-//
-// `totals` carries the channel-au sums for tier classification; per-unit
-// rollups walk `sessions` directly so UVI gating + Fitzpatrick scaling +
-// saturation caps apply per-session (they're non-linear, can't post-hoc).
-function formatChannelTotals(totals) {
-  // Targets are daily; rolling window is 7d, so weekly target is ×7. Use
-  // the canonical weeklyChannelTier so the AI rollup, the dashboard
-  // strip, and the per-channel drill-down all agree.
-  const tierLabel = typeof sunContextDeps.tierLabel === 'function'
-    ? sunContextDeps.tierLabel
-    : (t) => DEFAULT_TIER_LABELS[t] || 'none';
-  const channelTier = typeof sunContextDeps.weeklyChannelTier === 'function'
-    ? sunContextDeps.weeklyChannelTier
-    : ((v, k) => {
-      const meta = (sunContextDeps.channelDisplay || {})[k];
-      if (!meta || !meta.dailyTarget) return 0;
-      const target = meta.dailyTarget * 7;
-      if (!Number.isFinite(v) || v <= 0) return 0;
-      const r = v / target;
-      if (r < 0.20) return 1;
-      if (r < 0.55) return 2;
-      if (r < 1.00) return 3;
-      return 4;
-    });
-
-  // Per-unit rollup helpers. Walk recent sessions/devices so
-  // per-session conversions (UVI gate, Fitzpatrick, IU saturation) apply
-  // correctly. Sum afterwards rather than scaling the channel-au total.
-  const cutoff = Date.now() - 7 * 86400 * 1000;
-  const sunSessions = (state.importedData?.sunSessions || []).filter(s => s.endedAt && s.endedAt >= cutoff);
-  const deviceSessions = (state.importedData?.deviceSessions || []).filter(s => s.endedAt && s.endedAt >= cutoff);
-
-  // Three-cap rollup (matches rollingVitaminDIU in sun.js): per-session
-  // body-fraction cap → per-day saturation cap → sum capped days. Both
-  // functions are user-visible 7-day totals and must agree.
-  const _gx = state.importedData?.genetics || null;
-  const _perSession = typeof sunContextDeps.vitaminDIUPerSession === 'function' ? sunContextDeps.vitaminDIUPerSession : null;
-  const _cap = Number.isFinite(sunContextDeps.vitaminDDailySaturationIU) ? sunContextDeps.vitaminDDailySaturationIU : 20000;
-  const _localDayKey = (ts) => {
-    const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
-  const _dayTotals = {};
-  const _add = (key, iu) => { _dayTotals[key] = (_dayTotals[key] || 0) + iu; };
-  for (const s of sunSessions) {
-    const au = s.doses?.vitamin_d;
-    if (!Number.isFinite(au) || au <= 0) continue;
-    const _bodyFrac = s.bodyExposure?.fraction;
-    if (_perSession) {
-      _add(_localDayKey(s.endedAt), _perSession(au, s.safety?.fitzpatrick || 'III', s.atmosphere?.uvIndex, !!s.bodyExposure?.rotatedSides, _gx, _bodyFrac));
-    } else {
-      _add(_localDayKey(s.endedAt), au * 60);
-    }
+function formatLoggedSignals(totals) {
+  const labels = [];
+  for (const [key, label] of Object.entries(CHANNEL_LABELS)) {
+    if (Number.isFinite(totals?.[key]) && totals[key] > 0) labels.push(label);
   }
-  // UVB device sessions. uvi=null (device IS the UVB source);
-  // rotatedSides=false (devices track skin% on bodyAreas, not anatomical sides).
-  const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-  const _fracByKey = _bodyRegionFractionByKey();
-  const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
-  for (const s of deviceSessions) {
-    const au = s.doses?.vitamin_d;
-    if (!Number.isFinite(au) || au <= 0) continue;
-    let _bodyFrac = null;
-    if (Array.isArray(s.bodyAreas) && s.bodyAreas.length > 0) {
-      _bodyFrac = s.bodyAreas.reduce((acc, k) => acc + (_fracByKey[k] || 0), 0);
-    } else if (s.bodyArea) {
-      _bodyFrac = _broadFracs[s.bodyArea] ?? null;
-    }
-    if (_perSession) {
-      _add(_localDayKey(s.endedAt), _perSession(au, _fitzForDevice, null, false, _gx, _bodyFrac));
-    } else {
-      _add(_localDayKey(s.endedAt), au * 60);
-    }
-  }
-  let totalIU = 0;
-  for (const iu of Object.values(_dayTotals)) totalIU += Math.min(iu, _cap);
-
-  let totalLuxHours = 0;
-  for (const s of [...sunSessions, ...deviceSessions]) {
-    const au = s.doses?.circadian;
-    const dur = s.durationMin || 0;
-    if (!Number.isFinite(au) || au <= 0 || dur <= 0) continue;
-    if (typeof sunContextDeps.circadianMelanopicLux === 'function') {
-      const lux = sunContextDeps.circadianMelanopicLux(au, dur);
-      totalLuxHours += lux * (dur / 60);
-    }
-  }
-
-  const pbmJ = (k) => {
-    let j = 0;
-    for (const s of [...sunSessions, ...deviceSessions]) {
-      const au = s.doses?.[k];
-      if (!Number.isFinite(au) || au <= 0) continue;
-      j += typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(au) : au / 10000;
-    }
-    return j;
-  };
-  const totalNirJ = pbmJ('nir_solar');
-  const totalRedJ = pbmJ('pbm_red');
-  const totalNirPbmJ = pbmJ('pbm_nir');
-
-  const fmtIU = (n) => n >= 1000 ? `~${(Math.round(n / 100) * 100).toLocaleString()} IU` : `~${Math.round(n / 10) * 10} IU`;
-  const fmtLuxH = (n) => n >= 1000 ? `~${(Math.round(n / 100) * 100).toLocaleString()} lux·h` : `~${Math.round(n)} lux·h`;
-  const fmtJ = (n) => n >= 10 ? `${Math.round(n)} J/cm²` : n >= 1 ? `${n.toFixed(1)} J/cm²` : `${n.toFixed(2)} J/cm²`;
-  const tier = (k) => {
-    const t = channelTier(totals[k] || 0, k);
-    return `${tierLabel(t)}`;
-  };
-  const dot = (k) => {
-    const t = channelTier(totals[k] || 0, k);
-    return ['○○○○','●○○○','●●○○','●●●○','●●●●'][t] || '○○○○';
-  };
-
-  // Channel labels are source-agnostic. `pbm_red` and `pbm_nir`
-  // accumulate from both sun (broadband solar contains red + near-IR)
-  // and therapy panels — calling them "therapy" was misleading when
-  // the user has logged sun but no devices.
-  const rows = [
-    `- Vitamin D synthesis: ${tier('vitamin_d')} ${dot('vitamin_d')} (${totalIU > 0 ? fmtIU(totalIU) : 'none'})`,
-    `- Mood & hormones (POMC / β-endorphin): ${tier('pomc')} ${dot('pomc')}`,
-    `- Cardiovascular (UVA / nitric oxide): ${tier('no_cv')} ${dot('no_cv')}`,
-    `- Outdoor eye light (violet / UV-A at the eye): ${tier('violet_eye')} ${dot('violet_eye')}`,
-    `- Body clock (melanopic light at the eye): ${tier('circadian')} ${dot('circadian')} (${totalLuxHours > 0 ? fmtLuxH(totalLuxHours) : 'none'})`,
-    `- Cellular repair (broadband near-IR, 600-1400nm): ${tier('nir_solar')} ${dot('nir_solar')} (${totalNirJ > 0 ? fmtJ(totalNirJ) : 'none'})`,
-    `- Red wavelengths (~660nm, sun + any panels): ${tier('pbm_red')} ${dot('pbm_red')} (${totalRedJ > 0 ? fmtJ(totalRedJ) : 'none'})`,
-    `- Near-IR wavelengths (~810/850nm, sun + any panels): ${tier('pbm_nir')} ${dot('pbm_nir')} (${totalNirPbmJ > 0 ? fmtJ(totalNirPbmJ) : 'none'})`,
-  ];
-  return rows.join('\n');
+  return labels.length > 0 ? `${labels.join(', ')} logged` : 'no signals logged';
 }
 
 function formatCorrelations(pairs) {
@@ -688,12 +511,6 @@ function formatCorrelations(pairs) {
     lines.push(`| ${CHANNEL_LABELS[p.channel] || p.channel} | ${p.biomarker} | ${p.r.toFixed(2)} | ${p.n} | ${p.lag || 0}d |`);
   }
   return lines.join('\n');
-}
-
-function mergeTotalsCtx(a, b) {
-  const out = { ...a };
-  for (const [k, v] of Object.entries(b || {})) out[k] = (out[k] || 0) + v;
-  return out;
 }
 
 function formatRelative(ts) {

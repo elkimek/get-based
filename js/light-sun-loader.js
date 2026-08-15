@@ -109,6 +109,10 @@ export function renderLoadedLightSessionLogActions() {
   return _lightSunModules?.renderLightSessionLogActions?.() || '';
 }
 
+export function renderLoadedLightLiveSession(options) {
+  return _lightSunModules?.renderLightLiveSession?.(options) || '';
+}
+
 export function ensureLoadedActiveDeviceTicker() {
   if (_lightSunModules) return _lightSunModules.ensureActiveDeviceTicker?.();
   const hasActiveDeviceSession = state.importedData?.deviceSessions

@@ -2,7 +2,7 @@
 // test-sun-uvdata-flow.js — Behavioral coverage for js/sun-uvdata.js exports
 // that aren't already exercised by test-sun-uvdata.js. The existing test
 // focuses on SSRF + solarZenithAngle math; this one drives the cache, the
-// provider chain (manual / open-meteo / selfhost fall-throughs), and the
+// provider chain (open-meteo / selfhost fall-throughs), and the
 // interpolation helpers that get triggered when fetchAtmosphere returns
 // hourly data.
 //
@@ -26,7 +26,7 @@ await import('../js/state.js');
 const mod = await import('../js/sun-uvdata.js');
 const {
   initMeteoConfigCache, getMeteoConfig, saveMeteoConfig,
-  fetchAtmosphere, manualAtmosphere, purgeMeteoCache,
+  fetchAtmosphere, purgeMeteoCache,
   nearestHourIndex, interpolateAtmosphere,
 } = mod;
 
@@ -38,12 +38,8 @@ const {
   assert('getMeteoConfig returns object', typeof origCfg === 'object' && origCfg !== null);
 
   saveMeteoConfig({ ...origCfg, mode: 'manual' });
-  assert('saveMeteoConfig accepts mode=manual', getMeteoConfig().mode === 'manual');
-
-  // manualAtmosphere = pure shape constructor; covers the "user-typed UVI"
-  // branch the existing test exercises but only for the no-meter path.
-  const m = manualAtmosphere({ uvIndex: 6.5, ozoneDU: 310, hasMeter: true, notes: 'probe' });
-  assert('manualAtmosphere returns object with uvIndex', m && m.uvIndex === 6.5);
+  assert('legacy mode=manual migrates to auto', getMeteoConfig().mode === 'auto');
+  assert('manualAtmosphere is not exported', !('manualAtmosphere' in mod));
 
   purgeMeteoCache();
   assert('purgeMeteoCache ran', true);

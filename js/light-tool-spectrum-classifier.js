@@ -1,5 +1,5 @@
 // @ts-check
-// Camera-backed RGB, melanopic-load, and PWM spectrum classification.
+// Camera-backed RGB pattern and rolling-shutter banding screen.
 
 import { escapeHTML, queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -35,7 +35,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('spectrum')}
-      <p class="modal-body-hint">We classify by RGB pattern and flicker.</p>
+      <p class="modal-body-hint">Qualitative warm/cool RGB pattern and rolling-shutter banding screen. This cannot identify a full spectrum, UV, infrared, melanopic EDI, or sleep safety.</p>
       <video id="spec-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
       <div class="spec-result" id="spec-result">Reading…</div>
       <div class="modal-actions" style="margin-top:14px">
@@ -115,12 +115,12 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
           reason: result.reason + ' (camera auto-WB → low confidence)',
         };
       }
-      const circadianBadge = result.circadian === 'sleep-safe'
-        ? '<span style="color:var(--green);font-size:11px">✓ sleep-safe spectrum</span>'
-        : result.circadian === 'day-only'
-          ? '<span style="color:var(--orange);font-size:11px">⚠ day-only — high melanopic load</span>'
-          : '<span style="color:var(--text-muted);font-size:11px">mixed melanopic load</span>';
-      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· melanopic ratio ${(result.melanopic * 100).toFixed(0)}%</span>`;
+      const circadianBadge = result.circadian === 'blue-poor'
+        ? '<span style="color:var(--text-muted);font-size:11px">blue-poor camera-RGB pattern</span>'
+        : result.circadian === 'blue-rich'
+          ? '<span style="color:var(--orange);font-size:11px">blue-rich camera-RGB pattern</span>'
+          : '<span style="color:var(--text-muted);font-size:11px">mixed camera-RGB pattern</span>';
+      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· camera blue ratio ${(result.melanopic * 100).toFixed(0)}% · not a spectrum or M-EDI</span>`;
       if (spectrumState.running && !closed) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -163,7 +163,13 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     }
     await saveMeasurement('spectrum', result.label, {
       confidence: result.confidence,
-      extra: result,
+      extra: {
+        ...result,
+        // Preserve `melanopic` for old exports/readers without pretending it
+        // is CIE melanopic EDI. New code should prefer the explicit proxy.
+        cameraBlueRatioProxy: result.melanopic,
+        method: result.melanopic == null ? 'manual-classification' : 'camera-rgb-proxy',
+      },
       roomId,
     });
     showNotification(`Light type saved: ${result.label}`);
@@ -177,29 +183,29 @@ function classifyLight({ r, g, b, peakBanding, stripes }) {
   const normalizedGreen = g / sum;
   const normalizedBlue = b / sum;
   const melanopic = normalizedBlue;
-  const circadian = melanopic < 0.25 ? 'sleep-safe' : melanopic > 0.32 ? 'day-only' : 'mixed';
-  const heavyPWM = peakBanding > 0.10 && stripes >= 2;
+  const circadian = melanopic < 0.25 ? 'blue-poor' : melanopic > 0.32 ? 'blue-rich' : 'mixed';
+  const hasBanding = peakBanding > 0.10 && stripes >= 2;
 
-  if (heavyPWM && normalizedGreen > 0.36) {
-    return { label: 'Fluorescent / CFL', confidence: 0.75, reason: 'PWM banding + green spike — fluorescent signature.', melanopic, circadian };
+  if (hasBanding && normalizedGreen > 0.36) {
+    return { label: 'Green-biased source with banding', confidence: 0.55, reason: 'Camera RGB is green-biased and rolling-shutter bands are visible; source technology is not identified.', melanopic, circadian };
   }
   if (normalizedRed > 0.40 && normalizedBlue < 0.20) {
-    return { label: 'Incandescent / halogen', confidence: 0.8, reason: 'Red-rich, low blue — filament-style emitter, sleep-safe.', melanopic, circadian };
+    return { label: 'Very warm-looking source', confidence: 0.55, reason: 'Red-rich, low-blue camera pattern; construction and missing wavelengths remain unknown.', melanopic, circadian };
   }
-  if (normalizedBlue > 0.36 && !heavyPWM) {
-    return { label: 'Cool LED (4000K+)', confidence: 0.75, reason: 'Blue-rich, near-flicker-free — daytime / focus light.', melanopic, circadian };
+  if (normalizedBlue > 0.36 && !hasBanding) {
+    return { label: 'Cool-looking source', confidence: 0.5, reason: 'Blue-rich camera pattern with no rolling-shutter bands detected.', melanopic, circadian };
   }
-  if (normalizedBlue > 0.36 && heavyPWM) {
-    return { label: 'Cool LED with PWM dimming', confidence: 0.75, reason: 'Blue-rich + visible PWM stripes — eye-strain risk on dim setting.', melanopic, circadian };
+  if (normalizedBlue > 0.36 && hasBanding) {
+    return { label: 'Cool-looking source with banding', confidence: 0.55, reason: 'Blue-rich camera pattern plus rolling-shutter bands; modulation method is not identified.', melanopic, circadian };
   }
-  if (normalizedRed > 0.32 && normalizedBlue < 0.30 && !heavyPWM) {
-    return { label: 'Warm LED (2700–3000K)', confidence: 0.75, reason: 'Slight red lift, near-flicker-free — evening-friendly.', melanopic, circadian };
+  if (normalizedRed > 0.32 && normalizedBlue < 0.30 && !hasBanding) {
+    return { label: 'Warm-looking source', confidence: 0.5, reason: 'Warm camera-RGB pattern with no rolling-shutter bands detected.', melanopic, circadian };
   }
-  if (normalizedRed > 0.32 && normalizedBlue < 0.30 && heavyPWM) {
-    return { label: 'Warm LED with PWM dimming', confidence: 0.7, reason: 'Warm + PWM stripes — replace with flicker-free for evening rooms.', melanopic, circadian };
+  if (normalizedRed > 0.32 && normalizedBlue < 0.30 && hasBanding) {
+    return { label: 'Warm-looking source with banding', confidence: 0.55, reason: 'Warm camera-RGB pattern plus rolling-shutter bands; source technology is not identified.', melanopic, circadian };
   }
   if (Math.abs(normalizedRed - 0.33) < 0.05 && Math.abs(normalizedBlue - 0.33) < 0.05) {
-    return { label: 'Daylight or full-spectrum', confidence: 0.65, reason: 'Balanced RGB — natural or full-spectrum source.', melanopic, circadian };
+    return { label: 'Balanced camera RGB — source unknown', confidence: 0.35, reason: 'Balanced phone RGB cannot distinguish daylight, white LEDs, or a full spectrum.', melanopic, circadian };
   }
-  return { label: 'Mixed / unclassified', confidence: 0.4, reason: 'Pattern doesn\'t match a known signature.', melanopic, circadian };
+  return { label: 'Mixed / unclassified', confidence: 0.3, reason: 'Camera pattern does not support a more specific description.', melanopic, circadian };
 }

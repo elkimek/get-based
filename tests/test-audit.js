@@ -552,8 +552,10 @@ assert('marker history controls keep their styling in the lazy marker-detail bun
   !markerDetailSrc.includes('light-sessions-show-more marker-history-show-more') &&
   markerDetailCssAuditSrc.includes('.marker-detail-modal .marker-history-show-more:hover'));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
-assert('Light channel device names escaped before next-move HTML',
-  /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
+assert('Light channel next-move HTML does not render dynamic device names',
+  lightChannelViewSrc.includes('const showDev = !!matchingDevice;') &&
+    !lightChannelViewSrc.includes('matchingDevice.brand') &&
+    !lightChannelViewSrc.includes('matchingDevice.model'));
 assert('Genome genetics refs keep shared unscoped CSS',
   dnaUiSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(geneticsCssAuditSrc));
 assert('Marker detail bundle does not own shared genetics refs',
@@ -701,6 +703,7 @@ const lightConditionsCss = read('css/light-conditions-now.css');
 const lightSetupCss = read('css/light-setup.css');
 const sunSrc = read('js/sun.js');
 const sunActiveSessionSrc = read('js/sun-active-session.js');
+const sunActiveSessionFormatSrc = read('js/sun-active-session-format.js');
 const modalLifecycleSrc = read('js/modal-lifecycle.js');
 const markerAnalysisSrc = read('js/marker-analysis.js');
 const sunSessionUiSrc = read('js/sun-session-ui.js');
@@ -750,13 +753,14 @@ assert('Light page uses full workspace width',
 assert('Light page grid uses zero-min track for mobile',
   /\.light-page\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*min-width:\s*0;/.test(cssSrc) &&
   /\.light-page > \*\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/.test(cssSrc));
-assert('Light page splits conditions, logging, and setup into separate widgets',
+assert('Light page splits conditions, setup, and logging into separate widgets',
   !lightPageViewSrc.includes('class="light-top-grid"') &&
-  lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-session-log'") &&
-  lightPageViewSrc.indexOf("id: 'light-session-log'") < lightPageViewSrc.indexOf("id: 'light-setup'"));
+  lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-setup'") &&
+  lightPageViewSrc.indexOf("id: 'light-setup'") < lightPageViewSrc.indexOf("id: 'light-session-log'"));
 assert('Light dashboard registry exposes only dashboard-safe Light widgets',
   dashboardWidgetsBlock.includes("id: 'light-today'") &&
   dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
+  dashboardWidgetsBlock.includes("id: 'light-live-session'") &&
   dashboardWidgetsBlock.includes("id: 'light-session-log'") &&
   dashboardWidgetsBlock.includes("id: 'light-channels'") &&
   !dashboardWidgetsBlock.includes("id: 'light-setup'") &&
@@ -784,6 +788,7 @@ assert('Dashboard Conditions Now uses the full Light page timeline layout',
 assert('Light page dashboard toggles are explicitly scoped',
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-today' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-conditions-now' }") &&
+  lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-live-session' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-session-log' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-channels' }") &&
   /id: 'light-setup'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
@@ -799,6 +804,17 @@ assert('Light Conditions Now chrome is owned by split CSS',
   !lightSunCss.includes('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap'));
 assert('Light session widget keeps deframed operation surface',
   /\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSunCss));
+assert('Live Light widget uses a shared full-width renderer with wrapping estimates',
+  /id: 'light-live-session'[\s\S]*?size: 'full'[\s\S]*?render: renderers\.renderDashboardLightLiveSessionWidget/.test(dashboardWidgetsBlock) &&
+  lightPageViewSrc.includes('export function renderLightLiveSession') &&
+  dashboardRenderersSrc.includes('return renderLightLiveSession({ includeEmptyState: true });') &&
+  /\.sun-session-live-readouts\s*\{[\s\S]*flex-wrap:\s*wrap;/.test(lightSunCss));
+assert('Active sun card keeps vitamin D visible outside the fixed header',
+  sunSessionUiSrc.includes('class="sun-session-live-readouts"') &&
+  sunSessionUiSrc.includes('☀ Vitamin D estimate') &&
+  sunActiveSessionSrc.includes("else if (live)") &&
+  sunActiveSessionSrc.includes('Number.isFinite(iu) && iu > 0') &&
+  !sunActiveSessionSrc.includes('if (iu >= 50)'));
 assert('Light setup chrome is owned by split CSS',
   /\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSetupCss) &&
   !/\.light-setup-card\s*\{/.test(lightSunCss) &&
@@ -850,24 +866,25 @@ assert('Light channel pills use redesigned channel tile treatment',
   cssSrc.includes('.light-channels-section .light-pill[data-channel="violet_eye"] { --channel-accent: var(--purple); }'));
 assert('Light channel detail charts inherit activated channel accent',
   lightChannelViewSrc.includes('class="light-channel-detail" data-channel="${escapeAttr(channelKey)}"') &&
-  lightChannelViewSrc.includes("return 'var(--channel-accent, var(--accent))';") &&
+  lightChannelViewSrc.includes('fill="var(--channel-accent, var(--accent))"') &&
   /\.light-channel-detail\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*border:\s*1px solid color-mix\(in srgb, var\(--channel-accent\)/.test(cssSrc) &&
   cssSrc.includes('.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }') &&
   /\.light-channel-weekchart\s*\{[\s\S]*color-mix\(in srgb, var\(--channel-accent\) 8%, transparent\)/.test(cssSrc));
 assert('Light recent session rows and modals use session/channel accents',
-  sunSessionUiSrc.includes('class="sun-session light-session-row light-session-sun"') &&
-  lightSessionsViewSrc.includes('function _renderLightSessionChannelChips') &&
-  lightSessionsViewSrc.includes('${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}') &&
+  sunSessionUiSrc.includes('class="sun-session light-session-row light-session-complete light-session-sun"') &&
+  lightSessionsViewSrc.includes('class="sun-session light-session-row light-session-complete light-session-device"') &&
+  !lightSessionsViewSrc.includes('_renderLightSessionChannelChips') &&
   sunSessionUiSrc.includes('class="modal sun-detail-modal" data-session-kind="sun"') &&
   lightDevicesSrc.includes('class="modal sun-detail-modal" data-session-kind="device"') &&
-  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSessionUiSrc) &&
-  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
+  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{hasSignal \? 2 : 0\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSessionUiSrc) &&
+  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{hasSignal \? 2 : 0\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
   /\.light-session-row\s*\{[\s\S]*--session-accent:\s*var\(--orange\);[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/.test(cssSrc) &&
   /\.sun-detail-channel-row\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*grid-template-columns:[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc));
 assert('Sun session chip legacy vitamin D path applies genetics multiplier',
   sunSessionUiSrc.includes('uiDeps.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null)'));
 assert('Active sun session live and stop vitamin D paths apply genetics multiplier',
-  sunActiveSessionSrc.includes('activeDeps.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null)') &&
+  sunActiveSessionFormatSrc.includes('options.vitaminDIU(vitaminDAu, fitzpatrick, uvIndex, !!session.bodyExposure?.rotatedSides, options.genetics || null)') &&
+  sunActiveSessionSrc.includes('genetics: state.importedData?.genetics') &&
   sunActiveSessionSrc.includes('activeDeps.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null)'));
 assert('Light context setup mirror is not double-framed',
   /\.ctx-lightsetup-mirror\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*padding:\s*0;/.test(cssSrc));
