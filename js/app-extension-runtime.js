@@ -23,6 +23,7 @@
  *   onCredentialChanged?: (context: Record<string, any>) => void | Promise<void>,
  *   hasModelSurface?: (provider: string) => boolean,
  *   onModelsLoaded?: (context: Record<string, any>) => void | Promise<void>,
+ *   getInsufficientBalanceView?: (context: Record<string, any>) => Record<string, any> | null | undefined,
  * }} AppExtensionAI
  *
  * @typedef {{
@@ -212,6 +213,12 @@ export function notifyAppExtensionAIModelsLoaded(context) {
   const notify = activeExtension()?.ai?.onModelsLoaded;
   if (typeof notify !== 'function') return;
   Promise.resolve(notify(context)).catch(error => console.warn('[extension] model update failed', error));
+}
+
+/** @param {Record<string, any>} context */
+export function getAppExtensionAIInsufficientBalanceView(context) {
+  const view = activeExtension()?.ai?.getInsufficientBalanceView?.(context);
+  return view && typeof view === 'object' ? view : null;
 }
 
 /** @param {Record<string, any>} context */

@@ -4,6 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
+  getAppExtensionAIInsufficientBalanceView,
   hasAppExtensionAIModelSurface,
   notifyAppExtensionAIModelsLoaded,
 } from './app-extension-runtime.js';
@@ -523,13 +524,18 @@ export function showInsufficientBalanceDialog() {
     overlay.className = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="OpenRouter balance empty" style="max-width:480px">' +
-    '<p class="confirm-message"><strong>Your OpenRouter balance is empty</strong></p>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Add credits at OpenRouter to keep using AI. $10 covers weeks of typical use — chat, lab interpretation, and PDF imports.</p>' +
+  const extensionView = getAppExtensionAIInsufficientBalanceView({ provider: 'openrouter' });
+  const title = extensionView?.title || 'Your OpenRouter balance is empty';
+  const description = extensionView?.description || 'Add credits at OpenRouter to keep using AI. $10 covers weeks of typical use — chat, lab interpretation, and PDF imports.';
+  const primaryLabel = extensionView?.primaryLabel || 'Add credits at openrouter.ai';
+  const primaryDescription = extensionView?.primaryDescription || 'Opens in a new tab. Come back to getbased when done — the page picks up automatically.';
+  overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="' + escapeAttr(extensionView?.ariaLabel || 'OpenRouter balance empty') + '" style="max-width:480px">' +
+    '<p class="confirm-message"><strong>' + escapeHTML(title) + '</strong></p>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">' + escapeHTML(description) + '</p>' +
     '<button class="chat-quiz-option chat-quiz-recommended" id="or-add-credits" style="margin-bottom:8px">' +
       '<span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>' +
-      '<span class="chat-quiz-body"><strong>Add credits at openrouter.ai</strong>' +
-      '<span>Opens in a new tab. Come back to getbased when done — the page picks up automatically.</span></span>' +
+      '<span class="chat-quiz-body"><strong>' + escapeHTML(primaryLabel) + '</strong>' +
+      '<span>' + escapeHTML(primaryDescription) + '</span></span>' +
       '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
     '</button>' +
     '<div style="text-align:right;margin-top:14px">' +
@@ -546,7 +552,8 @@ export function showInsufficientBalanceDialog() {
   }
   addCredits.onclick = function() {
     close();
-    providerPanelDeps.openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
+    if (typeof extensionView?.onPrimary === 'function') extensionView.onPrimary();
+    else providerPanelDeps.openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
   };
   cancel.onclick = close;
   overlay.onclick = function(e) { if (e.target === overlay) close(); };
