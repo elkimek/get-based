@@ -3,6 +3,12 @@
 
 import { encryptedSetItem, encryptedGetItem, updateKeyCache } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
+import {
+  getAppExtensionSyncEncryptedStorageKeys,
+  getAppExtensionSyncEncryptedStoragePrefixes,
+  getAppExtensionSyncStorageKeys,
+  getAppExtensionSyncStoragePrefixes,
+} from './app-extension-runtime.js';
 import { refreshSyncedAIProviderUiRuntime, refreshSyncedRoutstrBalanceRuntime } from './sync-runtime.js';
 import { VOICE_ENCRYPTED_SYNC_KEYS } from './voice-settings-schema.js';
 
@@ -62,6 +68,10 @@ export async function applyAISettings(settings, options = {}) {
   if (!settings) return;
   let changed = false;
   let routstrSessionChanged = false;
+  const extensionKeys = new Set(getAppExtensionSyncStorageKeys());
+  const extensionPrefixes = getAppExtensionSyncStoragePrefixes();
+  const extensionEncryptedKeys = new Set(getAppExtensionSyncEncryptedStorageKeys());
+  const extensionEncryptedPrefixes = getAppExtensionSyncEncryptedStoragePrefixes();
   const remoteRoutstrUpdatedAt = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
   const localRoutstrUpdatedAt = Number(localStorage.getItem(ROUTSTR_SESSION_UPDATED_AT_KEY) || 0);
   const remoteRoutstrIsNewer = Number.isFinite(remoteRoutstrUpdatedAt)
@@ -69,8 +79,14 @@ export async function applyAISettings(settings, options = {}) {
   const localRoutstrIsNewer = Number.isFinite(localRoutstrUpdatedAt)
     && localRoutstrUpdatedAt > remoteRoutstrUpdatedAt;
   for (const [key, val] of Object.entries(settings)) {
-    if (!AI_SETTINGS_KEYS.includes(key)) continue;
+    const coreSetting = AI_SETTINGS_KEYS.includes(key);
+    const extensionSetting = extensionKeys.has(key)
+      || extensionPrefixes.some(prefix => key.startsWith(prefix));
+    if (!coreSetting && !extensionSetting) continue;
     if (val !== null && (typeof val !== 'string' || val.length > 10000)) continue; // sanity check
+    const encryptedSetting = ENCRYPTED_AI_KEYS.includes(key)
+      || extensionEncryptedKeys.has(key)
+      || extensionEncryptedPrefixes.some(prefix => key.startsWith(prefix));
     const routstrSessionKey = ROUTSTR_SESSION_KEYS.has(key) || key === ROUTSTR_SESSION_UPDATED_AT_KEY;
     // AI settings are global but are carried in every profile row. Once a
     // clocked Routstr session lands, an older profile row with no clock (0)
@@ -84,13 +100,13 @@ export async function applyAISettings(settings, options = {}) {
     if (val === null) {
       // Keep an empty stored value so subsequent pushes preserve the deletion
       // tombstone instead of allowing an older peer to resurrect the key.
-      if (ENCRYPTED_AI_KEYS.includes(key)) {
+      if (encryptedSetting) {
         await encryptedSetItem(key, '');
         updateKeyCache(key, '');
       } else {
         localStorage.setItem(key, '');
       }
-    } else if (ENCRYPTED_AI_KEYS.includes(key)) {
+    } else if (encryptedSetting) {
       await encryptedSetItem(key, val);
       // Provider accessors are synchronous and read the decrypted in-memory
       // cache. A key pulled after startup must update that cache immediately;

@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   _setTestSessionKey,
+  encryptedGetItem,
   getCachedKey,
   updateKeyCache,
 } from '../js/crypto.js';
+import { configureAppExtension } from '../js/app-extension-runtime.js';
 import { _djb2 } from '../js/sync-delta-registry.js';
 import { applyAISettings, applyDisplayPrefs } from '../js/sync-apply.js';
 import {
@@ -152,6 +154,7 @@ function configureRuntimeDeps(fake) {
 }
 
 beforeEach(() => {
+  configureAppExtension(null);
   _resetAgentAccessMigrationStateForTesting();
   localStorage.clear();
   sessionStorage.clear();
@@ -185,6 +188,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  configureAppExtension(null);
   configureSyncRuntimeCallbacks(previousSyncRuntimeCallbacks);
   configureChatRuntimeCallbacks(previousChatRuntimeCallbacks);
   vi.useRealTimers();
@@ -273,6 +277,52 @@ describe('sync apply runtime behavior', () => {
     localStorage.setItem('labcharts-routstr-key', '');
     settings = await collectAISettings();
     expect(settings['labcharts-routstr-key']).toBeNull();
+  });
+
+  it('collects and restores extension-owned settings with declared encryption', async () => {
+    window.__WEARABLES_TEST = true;
+    localStorage.setItem('labcharts-encryption-enabled', 'true');
+    await _setTestSessionKey('SyncExtensionPass1!');
+    configureAppExtension({
+      id: 'sync-test-edition',
+      isAvailable: () => true,
+      sync: {
+        storageKeys: ['edition-key'],
+        storagePrefixes: ['edition-profile-', 'edition-secret-'],
+        encryptedStoragePrefixes: ['edition-secret-'],
+      },
+    });
+
+    try {
+      localStorage.setItem('edition-key', 'plain-value');
+      localStorage.setItem('edition-profile-a', 'profile-value');
+      localStorage.setItem('edition-secret-a', 'secret-value');
+      localStorage.setItem('edition-ignored', 'ignored-value');
+      const settings = await collectAISettings();
+
+      expect(settings).toMatchObject({
+        'edition-key': 'plain-value',
+        'edition-profile-a': 'profile-value',
+        'edition-secret-a': 'secret-value',
+      });
+      expect(settings).not.toHaveProperty('edition-ignored');
+
+      localStorage.removeItem('edition-key');
+      localStorage.removeItem('edition-profile-a');
+      localStorage.removeItem('edition-secret-a');
+      updateKeyCache('edition-secret-a', '');
+      await applyAISettings(settings);
+
+      expect(localStorage.getItem('edition-key')).toBe('plain-value');
+      expect(localStorage.getItem('edition-profile-a')).toBe('profile-value');
+      expect(localStorage.getItem('edition-secret-a')).toMatch(/^v1:/);
+      await expect(encryptedGetItem('edition-secret-a')).resolves.toBe('secret-value');
+    } finally {
+      updateKeyCache('edition-secret-a', '');
+      await _setTestSessionKey(null);
+      delete window.__WEARABLES_TEST;
+      localStorage.removeItem('labcharts-encryption-enabled');
+    }
   });
 
   it('applies only newer Routstr sessions through a local settings lock and refreshes balance', async () => {

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 663 |
-| Internal import edges | 2773 |
+| Internal import edges | 2775 |
 | Dynamic internal edges | 73 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -387,7 +387,7 @@ Native browser modules shipped with the static application.
 
 - [`js/crypto-key-cache.js`](js/crypto-key-cache.js) → no in-scope imports
 - [`js/crypto-ui.js`](js/crypto-ui.js) → [`js/backup.js`](js/backup.js), [`js/caught-error.js`](js/caught-error.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
-- [`js/crypto.js`](js/crypto.js) → [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 
@@ -1041,7 +1041,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>sync</code> family — 73 modules</summary>
 
 - [`js/sync-actions.js`](js/sync-actions.js) → [`js/state.js`](js/state.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/utils.js`](js/utils.js)
-- [`js/sync-apply.js`](js/sync-apply.js) → [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
+- [`js/sync-apply.js`](js/sync-apply.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
 - [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js) → [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js)
 - [`js/sync-chat-apply.js`](js/sync-chat-apply.js) → [`js/chat-personality-merge.js`](js/chat-personality-merge.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-configure.js`](js/sync-configure.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)

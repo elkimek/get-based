@@ -33,6 +33,8 @@
  * @typedef {{
  *   storageKeys?: string[] | (() => string[]),
  *   storagePrefixes?: string[] | (() => string[]),
+ *   encryptedStorageKeys?: string[] | (() => string[]),
+ *   encryptedStoragePrefixes?: string[] | (() => string[]),
  * }} AppExtensionSync
  *
  * @typedef {{
@@ -181,9 +183,11 @@ export async function refreshAppExtensionAI(context = {}) {
 
 /** @param {Record<string, any>} context */
 export async function authorizeAppExtensionAIRequest(context) {
-  const authorize = activeExtension()?.ai?.authorizeRequest;
-  if (typeof authorize !== 'function') return true;
-  return await authorize(context) !== false;
+  const extension = activeExtension();
+  if (!extension) return true;
+  const authorize = extension.ai?.authorizeRequest;
+  if (typeof authorize !== 'function') return false;
+  return await authorize(context) === true;
 }
 
 /** @param {Record<string, any>} context */
@@ -223,12 +227,14 @@ export function getAppExtensionAIInsufficientBalanceView(context) {
 
 /** @param {Record<string, any>} context */
 export async function authorizeAppExtensionVoiceRequest(context) {
-  const authorize = activeExtension()?.voice?.authorizeRequest;
-  if (typeof authorize !== 'function') return true;
-  return await authorize(context) !== false;
+  const extension = activeExtension();
+  if (!extension) return true;
+  const authorize = extension.voice?.authorizeRequest;
+  if (typeof authorize !== 'function') return false;
+  return await authorize(context) === true;
 }
 
-/** @param {'storageKeys' | 'storagePrefixes'} field */
+/** @param {'storageKeys' | 'storagePrefixes' | 'encryptedStorageKeys' | 'encryptedStoragePrefixes'} field */
 function extensionSyncValues(field) {
   const value = activeExtension()?.sync?.[field];
   const values = typeof value === 'function' ? value() : value;
@@ -242,6 +248,20 @@ export function getAppExtensionSyncStorageKeys() {
 
 export function getAppExtensionSyncStoragePrefixes() {
   return extensionSyncValues('storagePrefixes');
+}
+
+export function getAppExtensionSyncEncryptedStorageKeys() {
+  return extensionSyncValues('encryptedStorageKeys');
+}
+
+export function getAppExtensionSyncEncryptedStoragePrefixes() {
+  return extensionSyncValues('encryptedStoragePrefixes');
+}
+
+/** @param {string} key */
+export function isAppExtensionSyncEncryptedStorageKey(key) {
+  return getAppExtensionSyncEncryptedStorageKeys().includes(key)
+    || getAppExtensionSyncEncryptedStoragePrefixes().some(prefix => key.startsWith(prefix));
 }
 
 /** @param {Record<string, any>} [context] */

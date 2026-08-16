@@ -2,6 +2,7 @@
 // crypto.js — Encryption at rest, backup/restore, cross-tab sync
 
 import { getErrorMessage } from './caught-error.js';
+import { isAppExtensionSyncEncryptedStorageKey } from './app-extension-runtime.js';
 import { state } from './state.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
@@ -123,7 +124,8 @@ const SENSITIVE_PATTERNS = [
 ];
 
 export function isSensitiveKey(key) {
-  return SENSITIVE_PATTERNS.some(p => p.test(key));
+  return SENSITIVE_PATTERNS.some(p => p.test(key))
+    || isAppExtensionSyncEncryptedStorageKey(key);
 }
 
 // ═══════════════════════════════════════════════

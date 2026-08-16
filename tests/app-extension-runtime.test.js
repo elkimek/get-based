@@ -6,6 +6,8 @@ import {
   configureAppExtension,
   getAppExtensionAIModelPolicy,
   getAppExtensionSettingsPolicy,
+  getAppExtensionSyncEncryptedStorageKeys,
+  getAppExtensionSyncEncryptedStoragePrefixes,
   getAppExtensionSyncStorageKeys,
   getAppExtensionSyncStoragePrefixes,
   handleAppExtensionOnboardingAction,
@@ -13,6 +15,7 @@ import {
   isAppExtensionAICredentialOwned,
   isAppExtensionAIProviderActive,
   isAppExtensionAvailable,
+  isAppExtensionSyncEncryptedStorageKey,
   renderAppExtensionOnboardingSlot,
   renderAppExtensionSettingsSlot,
   runAppExtensionStartup,
@@ -30,6 +33,9 @@ describe('app extension runtime', () => {
     expect(getAppExtensionAIModelPolicy({ provider: 'openrouter' })).toBeNull();
     expect(getAppExtensionSyncStorageKeys()).toEqual([]);
     expect(getAppExtensionSyncStoragePrefixes()).toEqual([]);
+    expect(getAppExtensionSyncEncryptedStorageKeys()).toEqual([]);
+    expect(getAppExtensionSyncEncryptedStoragePrefixes()).toEqual([]);
+    expect(isAppExtensionSyncEncryptedStorageKey('edition-secret')).toBe(false);
     expect(isAppExtensionAIProviderActive('openrouter')).toBe(false);
     expect(isAppExtensionAICredentialOwned('openrouter')).toBe(false);
     expect(shouldHideAppExtensionAIUsage('openrouter')).toBe(false);
@@ -68,6 +74,8 @@ describe('app extension runtime', () => {
       sync: {
         storageKeys: ['edition-key', 'edition-key'],
         storagePrefixes: () => ['edition-profile-'],
+        encryptedStorageKeys: ['edition-secret', 'edition-secret'],
+        encryptedStoragePrefixes: () => ['edition-encrypted-profile-'],
       },
       onStartup: startup,
     });
@@ -85,6 +93,11 @@ describe('app extension runtime', () => {
     });
     expect(getAppExtensionSyncStorageKeys()).toEqual(['edition-key']);
     expect(getAppExtensionSyncStoragePrefixes()).toEqual(['edition-profile-']);
+    expect(getAppExtensionSyncEncryptedStorageKeys()).toEqual(['edition-secret']);
+    expect(getAppExtensionSyncEncryptedStoragePrefixes()).toEqual(['edition-encrypted-profile-']);
+    expect(isAppExtensionSyncEncryptedStorageKey('edition-secret')).toBe(true);
+    expect(isAppExtensionSyncEncryptedStorageKey('edition-encrypted-profile-a')).toBe(true);
+    expect(isAppExtensionSyncEncryptedStorageKey('edition-profile-a')).toBe(false);
     await expect(handleAppExtensionSettingsAction({ action: 'hosted-action' })).resolves.toBe(true);
     await expect(handleAppExtensionOnboardingAction({ action: 'hosted-onboarding' })).resolves.toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'reviewed/model' })).resolves.toBe(true);
@@ -94,6 +107,18 @@ describe('app extension runtime', () => {
 
     runAppExtensionStartup({ reason: 'test' });
     await vi.waitFor(() => expect(startup).toHaveBeenCalledWith({ reason: 'test' }));
+  });
+
+  it('fails closed when an active adapter omits request authorization hooks', async () => {
+    configureAppExtension({
+      id: 'incomplete-edition',
+      isAvailable: () => true,
+      ai: { isCredentialOwned: () => true },
+      voice: {},
+    });
+
+    await expect(authorizeAppExtensionAIRequest({ provider: 'openrouter' })).resolves.toBe(false);
+    await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter' })).resolves.toBe(false);
   });
 
   it('does not activate an adapter when its origin policy rejects the runtime', () => {
