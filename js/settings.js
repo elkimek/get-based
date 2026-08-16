@@ -80,6 +80,12 @@ import {
   installVoiceSettingsPanel,
   renderVoiceSettingsPanel,
 } from './settings-voice-panel.js';
+import {
+  getAppExtensionSettingsPolicy,
+  handleAppExtensionSettingsAction,
+  notifyAppExtensionSettings,
+  renderAppExtensionSettingsSlot,
+} from './app-extension-runtime.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
@@ -226,6 +232,19 @@ async function handleSettingsClick(event) {
   const action = actionEl.dataset.settingsAction;
   if (!action) return;
 
+  if (await handleAppExtensionSettingsAction({
+    action,
+    actionEl,
+    activeTab: _activeSettingsTab,
+    openSettingsModal,
+    refreshSettings: () => openSettingsModal(_activeSettingsTab),
+    switchAIProvider: switchAIProviderBridge,
+    switchSettingsTab,
+  })) {
+    event.preventDefault();
+    return;
+  }
+
   if (action === 'close') {
     event.preventDefault();
     closeSettingsModal();
@@ -367,6 +386,12 @@ export function openSettingsModal(tab) {
   }
   if (tab) _activeSettingsTab = tab;
 
+  const extensionContext = { activeTab: _activeSettingsTab, provider };
+  const extensionPolicy = getAppExtensionSettingsPolicy(extensionContext);
+  const extensionTabs = renderAppExtensionSettingsSlot('tabs', extensionContext);
+  const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
+  const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
+
   modal.className = 'modal settings-modal';
   modal.innerHTML = `
     <div class="gb-modal-head settings-modal-head">
@@ -391,6 +416,7 @@ export function openSettingsModal(tab) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
         Voice
       </button>
+      ${extensionTabs}
       <button role="tab" aria-selected="${_activeSettingsTab === 'privacy'}" aria-controls="settings-tab-privacy" tabindex="${_activeSettingsTab === 'privacy' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" data-settings-tab="privacy">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Privacy
@@ -414,8 +440,7 @@ export function openSettingsModal(tab) {
 
     <!-- AI Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab-panel="ai">
-      <div class="settings-group-title">Provider</div>
-
+      ${extensionAI}
       <div class="settings-section">
         <div class="settings-action-row" style="margin-bottom:12px">
           <div class="settings-copy">
@@ -426,6 +451,12 @@ export function openSettingsModal(tab) {
             <span class="toggle-slider"></span>
           </label>
         </div>
+      </div>
+
+      <div id="ai-provider-settings"${extensionPolicy.hideProviderSettings ? ' hidden' : ''}>
+      <div class="settings-group-title">Provider</div>
+
+      <div class="settings-section">
         <div class="ai-model-tip">Use a state-of-the-art model (Claude, GPT, Gemini) for medical data.<br>Stick with the same model across imports to keep marker keys consistent.</div>
         <div class="ai-provider-toggle">
           <button class="ai-provider-btn${provider === 'ppq' ? ' active' : ''}" data-provider="ppq" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-3.2 0-7-2.4-7-7 0-3.1 2.1-5.7 4-7.6.3-.3.8-.1.8.4v2.5c0 .2.2.3.3.2C12 9.6 13.5 5.3 13.6 2.2c0-.3.4-.5.6-.2C17.3 5.7 21 10.3 21 14.5 21 19.6 17 23 12 23z"/></svg> PPQ</button>
@@ -437,6 +468,7 @@ export function openSettingsModal(tab) {
         </div>
         <div id="ai-provider-panel">${renderAIProviderPanelBridge()}</div>
       </div>
+      </div>
 
       <div class="settings-group-title">Import Benchmarks</div>
 
@@ -444,14 +476,16 @@ export function openSettingsModal(tab) {
         ${renderImportBenchmarksEntrySection()}
       </div>
 
-      <div class="settings-group-title">AI Usage</div>
+      ${extensionPolicy.hideUsage ? '' : `<div class="settings-group-title">AI Usage</div>
 
       <div class="settings-section" id="ai-usage-section">
         ${renderAIUsageSection()}
-      </div>
+      </div>`}
     </div>
 
     ${renderVoiceSettingsPanel(_activeSettingsTab === 'voice')}
+
+    ${extensionPanels}
 
     <!-- Privacy Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy">
@@ -521,6 +555,12 @@ export function openSettingsModal(tab) {
   // (whether the user lands on the Integrations tab or switches into it).
   document.dispatchEvent(new CustomEvent('settings:wearables-rendered'));
   scrollActiveSettingsTabIntoView();
+  notifyAppExtensionSettings('onOpen', {
+    ...extensionContext,
+    openSettingsModal,
+    switchAIProvider: switchAIProviderBridge,
+    switchSettingsTab,
+  });
 }
 
 function scrollActiveSettingsTabIntoView() {
@@ -620,6 +660,13 @@ export function switchSettingsTab(tabId) {
     // counts on first paint, not just on details-toggle.
     document.dispatchEvent(new CustomEvent('settings:wearables-rendered'));
   }
+  notifyAppExtensionSettings('onTabChange', {
+    activeTab: tabId,
+    provider: getAIProvider(),
+    openSettingsModal,
+    switchAIProvider: switchAIProviderBridge,
+    switchSettingsTab,
+  });
 }
 
 export function updateSettingsUI() {
@@ -630,6 +677,7 @@ export function closeSettingsModal() {
   closeModalOverlay('settings-modal-overlay');
   updateChatNudgeRuntime();
   settingsRuntime.refreshMobileDashboardActiveTab();
+  notifyAppExtensionSettings('onClose', { activeTab: _activeSettingsTab, provider: getAIProvider() });
 }
 
 configureSettingsTweaksRuntime({

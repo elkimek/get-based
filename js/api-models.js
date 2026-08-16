@@ -28,6 +28,10 @@ import {
   getCustomApiModel,
   getCustomApiModelDisplay,
 } from './api-provider-storage.js';
+import {
+  getAppExtensionAIModelPolicy,
+  refreshAppExtensionAI,
+} from './app-extension-runtime.js';
 
 export function deduplicateModels(models, familyFn) {
   const seen = {};
@@ -165,7 +169,18 @@ const OPENROUTER_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'code
 
 export async function fetchOpenRouterModels(key) {
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/models', {
+    let extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
+    if (extensionPolicy?.enforced && !Array.isArray(extensionPolicy.allowlist)) return [];
+    if (extensionPolicy?.enforced && extensionPolicy.allowlist.length === 0) {
+      await refreshAppExtensionAI({ reason: 'model-policy', provider: 'openrouter' });
+      extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
+    }
+    const allowlist = extensionPolicy?.enforced ? extensionPolicy.allowlist : null;
+    if (extensionPolicy?.enforced && (!Array.isArray(allowlist) || allowlist.length === 0)) return [];
+    const endpoint = extensionPolicy?.zdrOnly
+      ? 'https://openrouter.ai/api/v1/models?zdr=true'
+      : 'https://openrouter.ai/api/v1/models';
+    const res = await fetch(endpoint, {
       headers: { 'Authorization': 'Bearer ' + (key || getOpenRouterKey()) }
     });
     if (!res.ok) return [];
@@ -173,17 +188,20 @@ export async function fetchOpenRouterModels(key) {
     const all = (json.data || []).filter(function(m) {
       if (!m.id) return false;
       if (OPENROUTER_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
+      if (allowlist) return allowlist.includes(m.id);
       return OPENROUTER_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
     }).sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const models = deduplicateModels(all, function(id) {
       return id.replace(/:\d{4}-\d{2}-\d{2}$/, '').replace(/-\d{8}$/, '');
     });
-    models.sort(function(a, b) {
-      const aRec = isRecommendedModel('openrouter', a.id);
-      const bRec = isRecommendedModel('openrouter', b.id);
-      if (aRec !== bRec) return aRec ? -1 : 1;
-      return (a.name || a.id).localeCompare(b.name || b.id);
-    });
+    models.sort(allowlist
+      ? function(a, b) { return allowlist.indexOf(a.id) - allowlist.indexOf(b.id); }
+      : function(a, b) {
+          const aRec = isRecommendedModel('openrouter', a.id);
+          const bRec = isRecommendedModel('openrouter', b.id);
+          if (aRec !== bRec) return aRec ? -1 : 1;
+          return (a.name || a.id).localeCompare(b.name || b.id);
+        });
     const pricingCache = {};
     for (const m of models) {
       if (m.pricing && m.pricing.prompt && m.pricing.completion) {
@@ -201,9 +219,10 @@ export async function fetchOpenRouterModels(key) {
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
-    if (!localStorage.getItem('labcharts-openrouter-model') && models.length) {
-      const claude = findPreferredModel(models, OPENROUTER_DEFAULT_CANDIDATES);
-      if (claude) setOpenRouterModel(claude.id);
+    const selectedModel = localStorage.getItem('labcharts-openrouter-model') || '';
+    if (models.length && (!selectedModel || (allowlist && !models.some(model => model.id === selectedModel)))) {
+      const preferred = findPreferredModel(models, [extensionPolicy?.defaultModel, ...OPENROUTER_DEFAULT_CANDIDATES].filter(Boolean)) || models[0];
+      if (preferred) setOpenRouterModel(preferred.id);
     }
     return models;
   } catch (e) { return []; }
@@ -321,7 +340,10 @@ export function supportsWebSearch(provider = getAIProvider()) {
   if (provider === 'routstr') return false;
   if (provider === 'ppq') return !isPpqPrivateModeActive();
   if (provider === 'custom') return false;
-  return provider === 'openrouter';
+  if (provider === 'openrouter') {
+    return getAppExtensionAIModelPolicy({ provider })?.allowWebSearch !== false;
+  }
+  return false;
 }
 
 export function supportsVision() {

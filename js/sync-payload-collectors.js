@@ -3,6 +3,10 @@
 
 import { encryptedGetItem } from './crypto.js';
 import { VOICE_SYNC_KEYS } from './voice-settings-schema.js';
+import {
+  getAppExtensionSyncStorageKeys,
+  getAppExtensionSyncStoragePrefixes,
+} from './app-extension-runtime.js';
 
 // AI settings keys to sync (global, not per-profile)
 export const AI_SETTINGS_KEYS = [
@@ -70,7 +74,17 @@ function parseCustomPersonalities(raw) {
 
 export async function collectAISettings() {
   const settings = {};
-  for (const key of AI_SETTINGS_KEYS) {
+  const keys = new Set([...AI_SETTINGS_KEYS, ...getAppExtensionSyncStorageKeys()]);
+  const prefixes = getAppExtensionSyncStoragePrefixes();
+  if (prefixes.length) {
+    try {
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key && prefixes.some(prefix => key.startsWith(prefix))) keys.add(key);
+      }
+    } catch {}
+  }
+  for (const key of keys) {
     const val = await encryptedGetItem(key);
     if (val) settings[key] = val;
     // An explicitly stored empty value is a durable null tombstone. Missing

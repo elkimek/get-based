@@ -4,6 +4,10 @@
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
+  hasAppExtensionAIModelSurface,
+  notifyAppExtensionAIModelsLoaded,
+} from './app-extension-runtime.js';
+import {
   getVeniceKey, saveVeniceKey, getOpenRouterKey, saveOpenRouterKey, getAIProvider, setAIProvider,
   validateVeniceKey, validateOpenRouterKey, fetchVeniceModels, fetchOpenRouterModels,
   getOpenRouterBalance, getVeniceBalance,
@@ -213,8 +217,12 @@ export function switchAIProvider(provider) {
 // ═══════════════════════════════════════════════
 export function initSettingsModelFetch() {
   const orKey = getOpenRouterKey();
-  if (orKey && document.getElementById('openrouter-model-area')) {
-    fetchOpenRouterModels(orKey).then(function(models) { if (models.length) renderOpenRouterModelDropdown(models); });
+  const openRouterModelArea = document.getElementById('openrouter-model-area');
+  if (orKey && (openRouterModelArea || hasAppExtensionAIModelSurface('openrouter'))) {
+    fetchOpenRouterModels(orKey).then(function(models) {
+      if (models.length && openRouterModelArea) renderOpenRouterModelDropdown(models);
+      notifyAppExtensionAIModelsLoaded({ provider: 'openrouter', models });
+    });
     getOpenRouterBalance().then(function(b) {
       const el = document.getElementById('or-balance');
       if (el && b) el.innerHTML = _orBalanceHtml(b.remaining);

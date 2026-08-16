@@ -8,6 +8,7 @@ import {
   refreshAIProviderSelectionRuntime,
   touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
+import { notifyAppExtensionAICredentialChanged } from './app-extension-runtime.js';
 
 function notifyAISelectionChanged() {
   refreshAIProviderSelectionRuntime();
@@ -240,7 +241,12 @@ export function isVeniceE2EEActive() {
 }
 
 export function getOpenRouterKey() { return getCachedKey('labcharts-openrouter-key') || ''; }
-export async function saveOpenRouterKey(key) { await encryptedSetProviderItemRuntime('labcharts-openrouter-key', key); updateKeyCache('labcharts-openrouter-key', key); markAISettingsLocal(); }
+export async function saveOpenRouterKey(key) {
+  await encryptedSetProviderItemRuntime('labcharts-openrouter-key', key);
+  updateKeyCache('labcharts-openrouter-key', key);
+  markAISettingsLocal();
+  await notifyAppExtensionAICredentialChanged({ provider: 'openrouter', source: 'user', hasCredential: Boolean(key) });
+}
 export function hasOpenRouterKey() { return !!getOpenRouterKey(); }
 export function getOpenRouterModel() {
   let m = localStorage.getItem('labcharts-openrouter-model');

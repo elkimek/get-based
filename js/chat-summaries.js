@@ -5,6 +5,7 @@ import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
 import { bindModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
+import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import { saveImportedData } from './data.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
@@ -280,7 +281,7 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
 
   let costLine = '';
   const ui = usageInfo || thread?.summaryCost;
-  if (ui && ui.modelDisplay) {
+  if (ui && ui.modelDisplay && !shouldHideAppExtensionAIUsage(ui.provider)) {
     const cost = calculateCost(ui.provider, ui.modelId, ui.inputTokens, ui.outputTokens);
     const totalTokens = (ui.inputTokens || 0) + (ui.outputTokens || 0);
     costLine = ` \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens`;

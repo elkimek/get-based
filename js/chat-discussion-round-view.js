@@ -7,6 +7,7 @@ import { renderMarkdown } from './markdown.js';
 import { responseLimitNote } from './chat-continuation.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
 import { isRoundThreadActive } from './chat-discussion-round-state.js';
+import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 
 export function createDiscussionTypingIndicator() {
   const typingEl = document.createElement('div');
@@ -53,7 +54,8 @@ export function renderFinalDiscussionMessage({
 export function appendDiscussionUsageFootnote({
   threadId, aiMsgEl, provider, modelId, modelDisplay, usage, webSearch, e2ee, attestation,
 }) {
-  if (!isRoundThreadActive(threadId) || !usage || !(usage.inputTokens || usage.outputTokens)) {
+  if (!isRoundThreadActive(threadId) || !usage || !(usage.inputTokens || usage.outputTokens)
+    || shouldHideAppExtensionAIUsage(provider)) {
     return false;
   }
 

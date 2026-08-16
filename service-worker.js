@@ -67,6 +67,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   // PRODUCTION_BUNDLE_ASSETS_START
   // PRODUCTION_BUNDLE_ASSETS_END
   '/js/shell-actions.js',
+  '/js/app-extension-bootstrap.js',
+  '/js/app-extension-runtime.js',
   '/js/app-feature-modules.js',
   '/js/app-foundation-modules.js',
   '/js/app-health-data-modules.js',
