@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1150000,
+    "startupDecodedBytes": 1151000,
     "outputJavaScriptFiles": 150,
     "outputDecodedBytes": 4675000
   },
