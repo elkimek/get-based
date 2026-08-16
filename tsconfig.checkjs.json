@@ -24,6 +24,8 @@
     "js/tinfoil-secure-fetch.js",
     "js/api-ppq.js",
     "js/api-custom.js",
+    "js/app-extension-bootstrap.js",
+    "js/app-extension-runtime.js",
     "js/app-chat-hooks.js",
     "js/app-ai-interaction-modules.js",
     "js/profile-share-loader.js",
