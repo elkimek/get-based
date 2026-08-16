@@ -81,7 +81,9 @@ export async function applyAISettings(settings, options = {}) {
   for (const [key, val] of Object.entries(settings)) {
     const coreSetting = AI_SETTINGS_KEYS.includes(key);
     const extensionSetting = extensionKeys.has(key)
-      || extensionPrefixes.some(prefix => key.startsWith(prefix));
+      || extensionPrefixes.some(prefix => key.startsWith(prefix))
+      || extensionEncryptedKeys.has(key)
+      || extensionEncryptedPrefixes.some(prefix => key.startsWith(prefix));
     if (!coreSetting && !extensionSetting) continue;
     if (val !== null && (typeof val !== 'string' || val.length > 10000)) continue; // sanity check
     const encryptedSetting = ENCRYPTED_AI_KEYS.includes(key)

@@ -27,6 +27,7 @@
  * }} AppExtensionAI
  *
  * @typedef {{
+ *   isRequestOwned?: (context: Record<string, any>) => boolean,
  *   authorizeRequest?: (context: Record<string, any>) => boolean | Promise<boolean>,
  * }} AppExtensionVoice
  *
@@ -229,6 +230,7 @@ export function getAppExtensionAIInsufficientBalanceView(context) {
 export async function authorizeAppExtensionVoiceRequest(context) {
   const extension = activeExtension();
   if (!extension) return true;
+  if (extension.voice?.isRequestOwned?.(context) !== true) return true;
   const authorize = extension.voice?.authorizeRequest;
   if (typeof authorize !== 'function') return false;
   return await authorize(context) === true;

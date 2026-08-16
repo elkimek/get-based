@@ -69,6 +69,7 @@ describe('app extension runtime', () => {
         authorizeRequest: async ({ model }) => model === 'reviewed/model',
       },
       voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
         authorizeRequest: ({ modelId }) => modelId === 'reviewed/voice',
       },
       sync: {
@@ -102,8 +103,9 @@ describe('app extension runtime', () => {
     await expect(handleAppExtensionOnboardingAction({ action: 'hosted-onboarding' })).resolves.toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'reviewed/model' })).resolves.toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'other/model' })).resolves.toBe(false);
-    await expect(authorizeAppExtensionVoiceRequest({ modelId: 'reviewed/voice' })).resolves.toBe(true);
-    await expect(authorizeAppExtensionVoiceRequest({ modelId: 'other/voice' })).resolves.toBe(false);
+    await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'reviewed/voice' })).resolves.toBe(true);
+    await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'other/voice' })).resolves.toBe(false);
+    await expect(authorizeAppExtensionVoiceRequest({ providerId: 'browser-local', modelId: 'other/voice' })).resolves.toBe(true);
 
     runAppExtensionStartup({ reason: 'test' });
     await vi.waitFor(() => expect(startup).toHaveBeenCalledWith({ reason: 'test' }));
@@ -114,7 +116,7 @@ describe('app extension runtime', () => {
       id: 'incomplete-edition',
       isAvailable: () => true,
       ai: { isCredentialOwned: () => true },
-      voice: {},
+      voice: { isRequestOwned: () => true },
     });
 
     await expect(authorizeAppExtensionAIRequest({ provider: 'openrouter' })).resolves.toBe(false);

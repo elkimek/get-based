@@ -4,6 +4,8 @@
 import { encryptedGetItem } from './crypto.js';
 import { VOICE_SYNC_KEYS } from './voice-settings-schema.js';
 import {
+  getAppExtensionSyncEncryptedStorageKeys,
+  getAppExtensionSyncEncryptedStoragePrefixes,
   getAppExtensionSyncStorageKeys,
   getAppExtensionSyncStoragePrefixes,
 } from './app-extension-runtime.js';
@@ -74,8 +76,15 @@ function parseCustomPersonalities(raw) {
 
 export async function collectAISettings() {
   const settings = {};
-  const keys = new Set([...AI_SETTINGS_KEYS, ...getAppExtensionSyncStorageKeys()]);
-  const prefixes = getAppExtensionSyncStoragePrefixes();
+  const keys = new Set([
+    ...AI_SETTINGS_KEYS,
+    ...getAppExtensionSyncStorageKeys(),
+    ...getAppExtensionSyncEncryptedStorageKeys(),
+  ]);
+  const prefixes = [...new Set([
+    ...getAppExtensionSyncStoragePrefixes(),
+    ...getAppExtensionSyncEncryptedStoragePrefixes(),
+  ])];
   if (prefixes.length) {
     try {
       for (let index = 0; index < localStorage.length; index++) {

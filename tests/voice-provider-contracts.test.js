@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { localServerVoiceProvider } from '../js/voice-provider-local-server.js';
 import { browserLocalVoiceProvider } from '../js/voice-provider-browser-local.js';
 import { clearKeyCache, updateKeyCache } from '../js/crypto-key-cache.js';
+import { configureAppExtension } from '../js/app-extension-runtime.js';
 import {
   fetchOpenRouterVoiceModels,
   voicesForOpenRouterModel,
@@ -29,6 +30,7 @@ import {
 const realFetch = globalThis.fetch;
 
 afterEach(() => {
+  configureAppExtension(null);
   globalThis.fetch = realFetch;
   localStorage.clear();
   clearKeyCache();
@@ -127,6 +129,26 @@ describe('OpenAI-compatible local voice provider', () => {
 });
 
 describe('hosted voice relay client', () => {
+  it('does not subject user-owned voice providers to hosted authorization hooks', async () => {
+    configureAppExtension({
+      id: 'voice-scope-test',
+      isAvailable: () => true,
+      voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-secret');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      text: 'user-owned transcript',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    await expect(transcribeVoice(new Blob(['audio'], { type: 'audio/webm' }))).resolves.toMatchObject({
+      text: 'user-owned transcript',
+      providerId: 'ppq',
+    });
+  });
+
   it('loads only the private Kokoro voice catalogue selected for Venice', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: [

@@ -288,7 +288,7 @@ describe('sync apply runtime behavior', () => {
       isAvailable: () => true,
       sync: {
         storageKeys: ['edition-key'],
-        storagePrefixes: ['edition-profile-', 'edition-secret-'],
+        storagePrefixes: ['edition-profile-'],
         encryptedStoragePrefixes: ['edition-secret-'],
       },
     });
