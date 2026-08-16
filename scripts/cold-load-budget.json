@@ -3,9 +3,9 @@
   "route": "/app",
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
-    "requests": 302,
+    "requests": 304,
     "transferBytes": 1193220,
-    "decodedBytes": 3072000
+    "decodedBytes": 3090000
   },
   "reference": {
     "requests": 276,

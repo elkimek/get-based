@@ -41,8 +41,8 @@ describe('app extension runtime', () => {
     expect(shouldHideAppExtensionAIUsage('openrouter')).toBe(false);
     await expect(authorizeAppExtensionAIRequest({ provider: 'openrouter' })).resolves.toBe(true);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter' })).resolves.toBe(true);
-    await expect(handleAppExtensionSettingsAction({ action: 'anything' })).resolves.toBe(false);
-    await expect(handleAppExtensionOnboardingAction({ action: 'anything' })).resolves.toBe(false);
+    expect(handleAppExtensionSettingsAction({ action: 'anything' })).toBe(false);
+    expect(handleAppExtensionOnboardingAction({ action: 'anything' })).toBe(false);
   });
 
   it('exposes one available build-time adapter through neutral hooks', async () => {
@@ -100,7 +100,7 @@ describe('app extension runtime', () => {
     expect(isAppExtensionSyncEncryptedStorageKey('edition-encrypted-profile-a')).toBe(true);
     expect(isAppExtensionSyncEncryptedStorageKey('edition-profile-a')).toBe(false);
     await expect(handleAppExtensionSettingsAction({ action: 'hosted-action' })).resolves.toBe(true);
-    await expect(handleAppExtensionOnboardingAction({ action: 'hosted-onboarding' })).resolves.toBe(true);
+    expect(handleAppExtensionOnboardingAction({ action: 'hosted-onboarding' })).toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'reviewed/model' })).resolves.toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'other/model' })).resolves.toBe(false);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'reviewed/voice' })).resolves.toBe(true);

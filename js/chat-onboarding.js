@@ -98,14 +98,16 @@ async function handleChatOnboardingClick(event) {
   const action = actionEl.dataset.chatOnboardingAction || '';
   event.preventDefault();
 
-  if (await handleAppExtensionOnboardingAction({
+  const extensionHandled = handleAppExtensionOnboardingAction({
     action,
     actionEl,
     currentProfile: state.currentProfile,
     openSettingsModal,
     renderChatMessages,
     setProviderQuizBranch,
-  })) return;
+  });
+  if (extensionHandled === true
+    || (extensionHandled instanceof Promise && await extensionHandled)) return;
 
   if (action === 'back-to-provider-quiz') {
     backToProviderQuiz();

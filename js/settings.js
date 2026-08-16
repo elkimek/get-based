@@ -232,7 +232,7 @@ async function handleSettingsClick(event) {
   const action = actionEl.dataset.settingsAction;
   if (!action) return;
 
-  if (await handleAppExtensionSettingsAction({
+  const extensionHandled = handleAppExtensionSettingsAction({
     action,
     actionEl,
     activeTab: _activeSettingsTab,
@@ -240,7 +240,9 @@ async function handleSettingsClick(event) {
     refreshSettings: () => openSettingsModal(_activeSettingsTab),
     switchAIProvider: switchAIProviderBridge,
     switchSettingsTab,
-  })) {
+  });
+  if (extensionHandled === true
+    || (extensionHandled instanceof Promise && await extensionHandled)) {
     event.preventDefault();
     return;
   }

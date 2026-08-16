@@ -124,10 +124,14 @@ export function getAppExtensionSettingsPolicy(context = {}) {
   }
 }
 
-/** @param {Record<string, any>} context */
-export async function handleAppExtensionSettingsAction(context) {
+/** @param {Record<string, any>} context @returns {boolean | Promise<boolean>} */
+export function handleAppExtensionSettingsAction(context) {
   const handle = activeExtension()?.settings?.handleAction;
-  return typeof handle === 'function' && await handle(context) === true;
+  if (typeof handle !== 'function') return false;
+  const result = handle(context);
+  return result instanceof Promise
+    ? result.then(value => value === true)
+    : result === true;
 }
 
 /** @param {'onOpen' | 'onTabChange' | 'onClose'} hook @param {Record<string, any>} [context] */
@@ -149,10 +153,14 @@ export function renderAppExtensionOnboardingSlot(slot, context = {}) {
   }
 }
 
-/** @param {Record<string, any>} context */
-export async function handleAppExtensionOnboardingAction(context) {
+/** @param {Record<string, any>} context @returns {boolean | Promise<boolean>} */
+export function handleAppExtensionOnboardingAction(context) {
   const handle = activeExtension()?.onboarding?.handleAction;
-  return typeof handle === 'function' && await handle(context) === true;
+  if (typeof handle !== 'function') return false;
+  const result = handle(context);
+  return result instanceof Promise
+    ? result.then(value => value === true)
+    : result === true;
 }
 
 /** @param {string} provider */
