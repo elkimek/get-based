@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 663 |
-| Internal import edges | 2775 |
-| Dynamic internal edges | 73 |
+| Internal import edges | 2776 |
+| Dynamic internal edges | 74 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -1097,7 +1097,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js) → no in-scope imports
 - [`js/sync-pull-merge.js`](js/sync-pull-merge.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-profile-fields.js`](js/sync-profile-fields.js)
 - [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js) → [`js/state.js`](js/state.js), [`js/sync-state.js`](js/sync-state.js)
-- [`js/sync-pull.js`](js/sync-pull.js) → [`js/sync-apply.js`](js/sync-apply.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-tombstones.js`](js/sync-tombstones.js)
+- [`js/sync-pull.js`](js/sync-pull.js) → [`js/sync-apply.js`](js/sync-apply.js) *(dynamic)*, [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-tombstones.js`](js/sync-tombstones.js)
 - [`js/sync-push-deltas.js`](js/sync-push-deltas.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta.js`](js/sync-delta.js)
 - [`js/sync-push.js`](js/sync-push.js) → [`js/caught-error.js`](js/caught-error.js), [`js/profile.js`](js/profile.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-push-deltas.js`](js/sync-push-deltas.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-state.js`](js/sync-state.js)
 - [`js/sync-reconcile.js`](js/sync-reconcile.js) → [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-state.js`](js/sync-state.js)
@@ -1201,7 +1201,7 @@ Native browser modules shipped with the static application.
 - [`js/voice-audio.js`](js/voice-audio.js) → no in-scope imports
 - [`js/voice-capture.js`](js/voice-capture.js) → no in-scope imports
 - [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js) → no in-scope imports
-- [`js/voice-controller.js`](js/voice-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-capture.js`](js/voice-capture.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-service.js`](js/voice-service.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js), [`js/voice-text.js`](js/voice-text.js)
+- [`js/voice-controller.js`](js/voice-controller.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-capture.js`](js/voice-capture.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-service.js`](js/voice-service.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js), [`js/voice-text.js`](js/voice-text.js)
 - [`js/voice-loader.js`](js/voice-loader.js) → [`js/state.js`](js/state.js), [`js/voice-controller.js`](js/voice-controller.js) *(dynamic)*
 - [`js/voice-local-engine.js`](js/voice-local-engine.js) → [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/voice-local-stt-worker.js`](js/voice-local-stt-worker.js) → [`js/caught-error.js`](js/caught-error.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)

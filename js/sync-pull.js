@@ -2,9 +2,6 @@
 // sync-pull.js - inbound Evolu rows -> localStorage merge path.
 
 import { parseSyncPayload } from './sync-payload.js';
-import {
-  applyAISettings, applyDisplayPrefs,
-} from './sync-apply.js';
 import { applyChatData, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
 import { clearStaleSyncHashKeysOnce } from './sync-pull-maintenance.js';
@@ -37,6 +34,12 @@ var _pushDirtyProfiles = _pushDirtyProfiles || (async () => ({ total: 0, succeed
 /** @type {(...args: any[]) => Promise<any>} */
 var _pushProfilesById = _pushProfilesById || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
 var _renderProfileButton = _renderProfileButton || (() => {});
+let syncApplyPromise;
+
+function loadSyncApply() {
+  syncApplyPromise ||= import('./sync-apply.js');
+  return syncApplyPromise;
+}
 /** @type {(...args: any[]) => Promise<any>} */
 var _reconcilePulledManualWearables = _reconcilePulledManualWearables || (async () => false);
 /** @type {(...args: any[]) => any} */
@@ -318,7 +321,7 @@ export async function onSyncReceived() {
         if (chatData && !chatApplied) {
           scheduleChatPullRetry(profileId, getChatDataLocalLockRemainingMs(profileId));
         }
-        if (displayPrefs) applyDisplayPrefs(profileId, displayPrefs);
+        if (displayPrefs) (await loadSyncApply()).applyDisplayPrefs(profileId, displayPrefs);
 
         if (!refreshActiveProfileAfterPull({
           profileId,
@@ -347,7 +350,11 @@ export async function onSyncReceived() {
     // Apply general settings from the newest row, but choose Routstr's global
     // session by its own clock across every profile row.
     const selectedAiSettings = combinePulledAISettings(aiSettingsSelection);
-    if (selectedAiSettings) await applyAISettings(selectedAiSettings, { preferRemote: preferRemoteAiSettings });
+    if (selectedAiSettings) {
+      await (await loadSyncApply()).applyAISettings(selectedAiSettings, {
+        preferRemote: preferRemoteAiSettings,
+      });
+    }
 
     // Rebuild profile dropdown if profiles changed
     if (profilesChanged) {

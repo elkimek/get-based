@@ -6,6 +6,7 @@ import {
   configureAppExtension,
   getAppExtensionAIModelPolicy,
   getAppExtensionSettingsPolicy,
+  getAppExtensionVoicePlaybackPolicy,
   getAppExtensionSyncConflictResolution,
   getAppExtensionSyncEncryptedStorageKeys,
   getAppExtensionSyncEncryptedStoragePrefixes,
@@ -54,6 +55,7 @@ describe('app extension runtime', () => {
     expect(shouldHideAppExtensionAIUsage('openrouter')).toBe(false);
     await expect(authorizeAppExtensionAIRequest({ provider: 'openrouter' })).resolves.toBe(true);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter' })).resolves.toBe(true);
+    expect(getAppExtensionVoicePlaybackPolicy({ providerId: 'openrouter' })).toEqual({});
     expect(handleAppExtensionSettingsAction({ action: 'anything' })).toBe(false);
     expect(handleAppExtensionOnboardingAction({ action: 'anything' })).toBe(false);
   });
@@ -85,6 +87,9 @@ describe('app extension runtime', () => {
       voice: {
         isRequestOwned: ({ providerId }) => providerId === 'openrouter',
         authorizeRequest: ({ modelId }) => modelId === 'reviewed/voice',
+        getPlaybackPolicy: ({ providerId }) => providerId === 'openrouter'
+          ? { progressive: false }
+          : {},
       },
       sync: {
         storageKeys: ['edition-key', 'edition-key'],
@@ -132,6 +137,8 @@ describe('app extension runtime', () => {
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'reviewed/voice' })).resolves.toBe(true);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'other/voice' })).resolves.toBe(false);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'browser-local', modelId: 'other/voice' })).resolves.toBe(true);
+    expect(getAppExtensionVoicePlaybackPolicy({ providerId: 'openrouter' })).toEqual({ progressive: false });
+    expect(getAppExtensionVoicePlaybackPolicy({ providerId: 'browser-local' })).toEqual({});
 
     notifyAppExtensionSyncSettingsApplied({ settings: { 'edition-key': 'remote' }, changedKeys: ['edition-key'] });
     await vi.waitFor(() => expect(syncApplied).toHaveBeenCalledWith({

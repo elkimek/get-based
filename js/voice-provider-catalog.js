@@ -32,10 +32,7 @@ export const VOICE_PROVIDERS = Object.freeze([
     privacy: 'cloud',
     execution: 'cloud',
     credentialSource: 'ai',
-    // OpenRouter returns a raw MP3 response stream. Buffer it before playback
-    // because Chromium can accept audio/mpeg in MediaSource and still reject
-    // this response with MEDIA_ERR_SRC_NOT_SUPPORTED.
-    capabilities: Object.freeze({ stt: true, tts: true, streamingTts: false }),
+    capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
     description: 'Uses the OpenRouter connection already configured for AI.',
   },
   {

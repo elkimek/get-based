@@ -22,6 +22,7 @@ import {
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getVoiceSettings } from './voice-settings-storage.js';
 import { normalizeSpeechText, splitSpeechText } from './voice-text.js';
+import { getAppExtensionVoicePlaybackPolicy } from './app-extension-runtime.js';
 
 const MAX_RECORDING_MS = 5 * 60 * 1000;
 // Kokoro's own TextSplitterStream emits sentence-sized audio progressively.
@@ -348,8 +349,14 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
     return false;
   }
   const providerDefinition = getVoiceProviderDefinition(outputProviderId);
+  const playbackPolicy = getAppExtensionVoicePlaybackPolicy({
+    kind: 'tts',
+    providerId: outputProviderId,
+    settings,
+  });
   const streamsProgressiveAudio = providerDefinition.execution !== 'browser'
-    && providerDefinition.capabilities.streamingTts;
+    && providerDefinition.capabilities.streamingTts
+    && playbackPolicy.progressive !== false;
   if (automatic && !voicePlayer.hasPlaybackActivation) {
     if (!autoReadActivationNoticeShown) {
       autoReadActivationNoticeShown = true;

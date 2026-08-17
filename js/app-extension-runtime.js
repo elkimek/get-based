@@ -29,6 +29,7 @@
  * @typedef {{
  *   isRequestOwned?: (context: Record<string, any>) => boolean,
  *   authorizeRequest?: (context: Record<string, any>) => boolean | Promise<boolean>,
+ *   getPlaybackPolicy?: (context: Record<string, any>) => Record<string, any> | null | undefined,
  * }} AppExtensionVoice
  *
  * @typedef {{
@@ -244,6 +245,12 @@ export async function authorizeAppExtensionVoiceRequest(context) {
   const authorize = extension.voice?.authorizeRequest;
   if (typeof authorize !== 'function') return false;
   return await authorize(context) === true;
+}
+
+/** @param {Record<string, any>} context */
+export function getAppExtensionVoicePlaybackPolicy(context) {
+  const policy = activeExtension()?.voice?.getPlaybackPolicy?.(context);
+  return policy && typeof policy === 'object' ? policy : {};
 }
 
 /** @param {'storageKeys' | 'storagePrefixes' | 'encryptedStorageKeys' | 'encryptedStoragePrefixes'} field */

@@ -197,7 +197,7 @@ test('denied hosted dictation never requests microphone access', async ({ page }
   await expect(page.locator('#chat-voice-status')).toContainText('No audio was sent');
 });
 
-test('OpenRouter spoken replies buffer raw MP3 before browser playback', async ({ page }) => {
+test('an edition can buffer managed OpenRouter speech before browser playback', async ({ page }) => {
   await installVoiceBrowserFakes(page);
   let requestPayload;
   await page.route('**/api/voice?action=tts', async route => {
@@ -211,11 +211,20 @@ test('OpenRouter spoken replies buffer raw MP3 before browser playback', async (
   await page.goto('/app', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {
-    const [{ state }, { updateKeyCache }, controller] = await Promise.all([
+    const [{ state }, { configureAppExtension }, { updateKeyCache }, controller] = await Promise.all([
       import('/js/state.js'),
+      import('/js/app-extension-runtime.js'),
       import('/js/crypto-key-cache.js'),
       import('/js/voice-controller.js'),
     ]);
+    configureAppExtension({
+      id: 'managed-openrouter-playback-test',
+      voice: {
+        getPlaybackPolicy: ({ providerId }) => providerId === 'openrouter'
+          ? { progressive: false }
+          : {},
+      },
+    });
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
     updateKeyCache('labcharts-openrouter-key', 'or-browser-tts-test');
     state.currentThreadId = 'openrouter-tts-browser-test';
