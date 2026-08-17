@@ -200,6 +200,17 @@ describe('sync lifecycle runtime behavior', () => {
     expect(deps.showNotification).toHaveBeenCalledWith('Sync resumed', 'success');
   });
 
+  it('pulls on resume without republishing clean cached profile rows', async () => {
+    const deps = installLifecycleMocks({ isSyncPaused: vi.fn(() => true) });
+    const { enableSync } = await loadLifecycle();
+
+    await expect(enableSync()).resolves.toBe(true);
+
+    expect(deps.forcePull).toHaveBeenCalledOnce();
+    expect(deps.pushAllProfiles).not.toHaveBeenCalled();
+    expect(deps.showNotification).toHaveBeenCalledWith('Sync resumed', 'success');
+  });
+
   it('disables sync, clears timers and snapshots, resets Evolu, and schedules reload', async () => {
     const resetAppOwner = vi.fn(async () => {});
     const deps = installLifecycleMocks({

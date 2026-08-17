@@ -325,6 +325,47 @@ describe('sync apply runtime behavior', () => {
     }
   });
 
+  it('keeps extension settings atomic under the local AI lock and lets coherent remote transitions override it', async () => {
+    const applied = vi.fn();
+    configureAppExtension({
+      id: 'sync-atomic-edition',
+      isAvailable: () => true,
+      sync: {
+        storageKeys: ['edition-key-source'],
+        encryptedStoragePrefixes: ['edition-profile-'],
+        resolveConflicts: ({ settings }) => settings['edition-key-source'] === 'remote-transition'
+          ? { preferRemoteKeys: ['edition-key-source', 'edition-profile-a'] }
+          : { keepLocalKeys: ['edition-key-source', 'edition-profile-a'] },
+        onApplied: applied,
+      },
+    });
+    localStorage.setItem('edition-key-source', 'local-source');
+    localStorage.setItem('edition-profile-a', 'local-meta');
+
+    await applyAISettings({
+      'edition-key-source': 'ordinary-remote',
+      'edition-profile-a': 'ordinary-remote-meta',
+    });
+    expect(localStorage.getItem('edition-key-source')).toBe('local-source');
+    expect(localStorage.getItem('edition-profile-a')).toBe('local-meta');
+    expect(applied).not.toHaveBeenCalled();
+
+    sessionStorage.setItem('labcharts-ai-settings-local-lock-until', String(Date.now() + 60_000));
+    await applyAISettings({
+      'edition-key-source': 'remote-transition',
+      'edition-profile-a': 'transition-meta',
+    });
+    expect(localStorage.getItem('edition-key-source')).toBe('remote-transition');
+    expect(localStorage.getItem('edition-profile-a')).toBe('transition-meta');
+    await vi.waitFor(() => expect(applied).toHaveBeenCalledWith({
+      settings: {
+        'edition-key-source': 'remote-transition',
+        'edition-profile-a': 'transition-meta',
+      },
+      changedKeys: ['edition-key-source', 'edition-profile-a'],
+    }));
+  });
+
   it('applies only newer Routstr sessions through a local settings lock and refreshes balance', async () => {
     localStorage.setItem('labcharts-routstr-key', 'sk-local-zero');
     localStorage.setItem('labcharts-routstr-node', 'https://node.local.test');

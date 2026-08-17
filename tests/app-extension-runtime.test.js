@@ -6,6 +6,7 @@ import {
   configureAppExtension,
   getAppExtensionAIModelPolicy,
   getAppExtensionSettingsPolicy,
+  getAppExtensionSyncConflictResolution,
   getAppExtensionSyncEncryptedStorageKeys,
   getAppExtensionSyncEncryptedStoragePrefixes,
   getAppExtensionSyncStorageKeys,
@@ -16,6 +17,7 @@ import {
   isAppExtensionAIProviderActive,
   isAppExtensionAvailable,
   isAppExtensionSyncEncryptedStorageKey,
+  notifyAppExtensionSyncSettingsApplied,
   renderAppExtensionOnboardingSlot,
   renderAppExtensionSettingsSlot,
   runAppExtensionStartup,
@@ -43,6 +45,10 @@ describe('app extension runtime', () => {
     expect(getAppExtensionSyncEncryptedStorageKeys()).toEqual([]);
     expect(getAppExtensionSyncEncryptedStoragePrefixes()).toEqual([]);
     expect(isAppExtensionSyncEncryptedStorageKey('edition-secret')).toBe(false);
+    expect(getAppExtensionSyncConflictResolution({ 'edition-key': 'remote' })).toEqual({
+      preferRemoteKeys: [],
+      keepLocalKeys: [],
+    });
     expect(isAppExtensionAIProviderActive('openrouter')).toBe(false);
     expect(isAppExtensionAICredentialOwned('openrouter')).toBe(false);
     expect(shouldHideAppExtensionAIUsage('openrouter')).toBe(false);
@@ -56,6 +62,7 @@ describe('app extension runtime', () => {
     const startup = vi.fn();
     const settingsAction = vi.fn(async ({ action }) => action === 'hosted-action');
     const onboardingAction = vi.fn(({ action }) => action === 'hosted-onboarding');
+    const syncApplied = vi.fn();
     configureAppExtension({
       id: 'test-edition',
       isAvailable: () => true,
@@ -84,6 +91,10 @@ describe('app extension runtime', () => {
         storagePrefixes: () => ['edition-profile-'],
         encryptedStorageKeys: ['edition-secret', 'edition-secret'],
         encryptedStoragePrefixes: () => ['edition-encrypted-profile-'],
+        resolveConflicts: ({ settings }) => settings['edition-key'] === 'prefer-remote'
+          ? { preferRemoteKeys: ['edition-key', 'edition-key'] }
+          : { keepLocalKeys: ['edition-key'] },
+        onApplied: syncApplied,
       },
       onStartup: startup,
     });
@@ -106,6 +117,14 @@ describe('app extension runtime', () => {
     expect(isAppExtensionSyncEncryptedStorageKey('edition-secret')).toBe(true);
     expect(isAppExtensionSyncEncryptedStorageKey('edition-encrypted-profile-a')).toBe(true);
     expect(isAppExtensionSyncEncryptedStorageKey('edition-profile-a')).toBe(false);
+    expect(getAppExtensionSyncConflictResolution({ 'edition-key': 'prefer-remote' })).toEqual({
+      preferRemoteKeys: ['edition-key'],
+      keepLocalKeys: [],
+    });
+    expect(getAppExtensionSyncConflictResolution({ 'edition-key': 'keep-local' })).toEqual({
+      preferRemoteKeys: [],
+      keepLocalKeys: ['edition-key'],
+    });
     await expect(handleAppExtensionSettingsAction({ action: 'hosted-action' })).resolves.toBe(true);
     expect(handleAppExtensionOnboardingAction({ action: 'hosted-onboarding' })).toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'reviewed/model' })).resolves.toBe(true);
@@ -113,6 +132,12 @@ describe('app extension runtime', () => {
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'reviewed/voice' })).resolves.toBe(true);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'other/voice' })).resolves.toBe(false);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'browser-local', modelId: 'other/voice' })).resolves.toBe(true);
+
+    notifyAppExtensionSyncSettingsApplied({ settings: { 'edition-key': 'remote' }, changedKeys: ['edition-key'] });
+    await vi.waitFor(() => expect(syncApplied).toHaveBeenCalledWith({
+      settings: { 'edition-key': 'remote' },
+      changedKeys: ['edition-key'],
+    }));
 
     runAppExtensionStartup({ reason: 'test' });
     await vi.waitFor(() => expect(startup).toHaveBeenCalledWith({ reason: 'test' }));

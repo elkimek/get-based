@@ -1517,7 +1517,9 @@ await import('../js/settings.js');
       && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.navigate?.(route, options)'));
   assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
   assert('enableSync pulls before first enable push to avoid publishing stale local state',
-    /await forcePull\(\)[\s\S]{0,300}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
+    /await forcePull\(\)[\s\S]{0,900}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
+  assert('resume does not republish clean cached rows before the relay delivers paused-device updates',
+    /if \(!resuming\) \{[\s\S]{0,180}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
   assert('pushAllProfiles pushes all profiles after first enable pull',
     syncLifecycleSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
   assert('pushAllProfiles forwards force/seed options to profile pushes',

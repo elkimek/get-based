@@ -36,6 +36,8 @@
  *   storagePrefixes?: string[] | (() => string[]),
  *   encryptedStorageKeys?: string[] | (() => string[]),
  *   encryptedStoragePrefixes?: string[] | (() => string[]),
+ *   resolveConflicts?: (context: { settings: Record<string, any> }) => { preferRemoteKeys?: string[], keepLocalKeys?: string[] },
+ *   onApplied?: (context: { settings: Record<string, any>, changedKeys: string[] }) => void | Promise<void>,
  * }} AppExtensionSync
  *
  * @typedef {{
@@ -272,6 +274,32 @@ export function getAppExtensionSyncEncryptedStoragePrefixes() {
 export function isAppExtensionSyncEncryptedStorageKey(key) {
   return getAppExtensionSyncEncryptedStorageKeys().includes(key)
     || getAppExtensionSyncEncryptedStoragePrefixes().some(prefix => key.startsWith(prefix));
+}
+
+/** @param {Record<string, any>} settings */
+export function getAppExtensionSyncConflictResolution(settings) {
+  const resolve = activeExtension()?.sync?.resolveConflicts;
+  if (typeof resolve !== 'function') return { preferRemoteKeys: [], keepLocalKeys: [] };
+  try {
+    const resolution = resolve({ settings });
+    const clean = (keys) => Array.isArray(keys)
+      ? [...new Set(keys.map(key => String(key || '').trim()).filter(Boolean))]
+      : [];
+    return {
+      preferRemoteKeys: clean(resolution?.preferRemoteKeys),
+      keepLocalKeys: clean(resolution?.keepLocalKeys),
+    };
+  } catch (error) {
+    console.warn('[extension] sync conflict policy failed', error);
+    return { preferRemoteKeys: [], keepLocalKeys: [] };
+  }
+}
+
+/** @param {{ settings: Record<string, any>, changedKeys: string[] }} context */
+export function notifyAppExtensionSyncSettingsApplied(context) {
+  const notify = activeExtension()?.sync?.onApplied;
+  if (typeof notify !== 'function') return;
+  Promise.resolve(notify(context)).catch(error => console.warn('[extension] synced settings refresh failed', error));
 }
 
 /** @param {Record<string, any>} [context] */
