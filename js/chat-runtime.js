@@ -3,7 +3,7 @@
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
-/** @type {Record<'closeModal' | 'isChatStreaming' | 'onChatSaved' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
+/** @type {Record<'closeModal' | 'isChatStreaming' | 'onChatSaved' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateAttachButtonVisibility' | 'updateChatHeaderModel' | 'updateChatInputState' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
 const chatRuntimeCallbacks = {
   closeModal: null,
   isChatStreaming: null,
@@ -12,7 +12,9 @@ const chatRuntimeCallbacks = {
   renderChatMessages: null,
   resumeAI: null,
   sendChatMessage: null,
+  updateAttachButtonVisibility: null,
   updateChatHeaderModel: null,
+  updateChatInputState: null,
   updateChatNudge: null,
   updateDiscussButton: null,
 };
@@ -69,8 +71,16 @@ export function refreshChatWebSearchToggleRuntime() {
   return callChatRuntimeCallback('refreshWebSearchToggle');
 }
 
+export function updateChatAttachmentControlsRuntime() {
+  return callChatRuntimeCallback('updateAttachButtonVisibility');
+}
+
 export function updateChatHeaderModelRuntime() {
   return callChatRuntimeCallback('updateChatHeaderModel');
+}
+
+export function updateChatInputStateRuntime() {
+  return callChatRuntimeCallback('updateChatInputState');
 }
 
 export function updateChatNudgeRuntime() {

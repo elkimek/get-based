@@ -76,8 +76,10 @@ export function configureAppChatHooks(deps = {}) {
     renderChatMessages,
     resumeAI,
     sendChatMessage,
+    updateAttachButtonVisibility,
     updateDiscussButton,
     updateChatHeaderModel,
+    updateChatInputState,
     updateChatNudge,
   });
   configureChatMessageEditDeps({ renderChatMessages, sendChatMessage, updateChatInputState });

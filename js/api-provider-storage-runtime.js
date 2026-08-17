@@ -3,7 +3,9 @@
 
 import {
   refreshChatWebSearchToggleRuntime,
+  updateChatAttachmentControlsRuntime,
   updateChatHeaderModelRuntime,
+  updateChatInputStateRuntime,
 } from './chat-runtime.js';
 
 async function rejectUnconfiguredProviderWrite() {
@@ -37,7 +39,10 @@ function getApiProviderStorageRuntime() {
 
 export function refreshAIProviderSelectionRuntime() {
   const headerRefreshed = updateChatHeaderModelRuntime();
-  return refreshChatWebSearchToggleRuntime() || headerRefreshed;
+  const attachmentsRefreshed = updateChatAttachmentControlsRuntime();
+  const inputRefreshed = updateChatInputStateRuntime();
+  const searchRefreshed = refreshChatWebSearchToggleRuntime();
+  return searchRefreshed || inputRefreshed || attachmentsRefreshed || headerRefreshed;
 }
 
 export function dispatchAISettingsLocalChangedRuntime() {
