@@ -152,9 +152,15 @@ const API_KEY_LS_KEYS = [
   'labcharts-cashu-wallet-mnemonic',
 ];
 
+function shouldCacheDecryptedKey(storageKey) {
+  return API_KEY_LS_KEYS.includes(storageKey)
+    || isAppExtensionSyncEncryptedStorageKey(storageKey);
+}
+
 export async function decryptKeyCache() {
   clearKeyCache();
-  for (const lsKey of API_KEY_LS_KEYS) {
+  const extensionKeys = Object.keys(localStorage).filter(isAppExtensionSyncEncryptedStorageKey);
+  for (const lsKey of new Set([...API_KEY_LS_KEYS, ...extensionKeys])) {
     const raw = localStorage.getItem(lsKey);
     if (!raw) continue;
     if (isEncryptedValue(raw) && _sessionKey) {
@@ -350,6 +356,7 @@ export async function encryptedSetItem(key, value) {
   } else {
     localStorage.setItem(key, stored);
   }
+  if (shouldCacheDecryptedKey(key)) updateKeyCache(key, value);
 }
 
 export async function encryptedGetItem(key) {
@@ -405,6 +412,7 @@ export async function encryptedRemoveItem(key, options = {}) {
     }
   }
   try { localStorage.removeItem(key); } catch {}
+  if (shouldCacheDecryptedKey(key)) updateKeyCache(key, null);
 }
 
 // ═══════════════════════════════════════════════
