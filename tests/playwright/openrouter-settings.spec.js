@@ -18,6 +18,11 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
 
   const providerButtons = page.locator('.ai-provider-btn');
   await expect(providerButtons).toHaveCount(6);
+  const providerSection = page.locator('#ai-provider-advanced-section');
+  await expect(providerSection).toBeVisible();
+  await expect(providerSection).toContainText('Bring your own key / local AI');
+  await expect(providerSection.locator('summary')).toHaveCount(0);
+  expect(await providerSection.evaluate(section => section.tagName)).toBe('DIV');
 
   const providerValues = await providerButtons.evaluateAll((buttons) => buttons.map((button) => button.dataset.provider));
   expect(providerValues).toContain('ppq');
