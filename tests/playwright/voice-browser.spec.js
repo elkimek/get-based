@@ -162,6 +162,35 @@ test('browser-local voice routes first use to an explicit model download', async
   );
 });
 
+test('denied hosted dictation never requests microphone access', async ({ page }) => {
+  await installVoiceBrowserFakes(page);
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const started = await page.evaluate(async () => {
+    const [{ configureAppExtension }, { updateKeyCache }, settings, controller] = await Promise.all([
+      import('/js/app-extension-runtime.js'),
+      import('/js/crypto-key-cache.js'),
+      import('/js/voice-settings-storage.js'),
+      import('/js/voice-controller.js'),
+    ]);
+    configureAppExtension({
+      id: 'voice-browser-privacy-test',
+      voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
+        authorizeRequest: () => false,
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-browser-privacy-test');
+    settings.setVoiceSetting('inputProvider', 'openrouter');
+    return controller.toggleVoiceRecording();
+  });
+
+  expect(started).toBe(false);
+  expect(await page.evaluate(() => window.__voiceGetUserMediaCalls)).toBe(0);
+  await expect(page.locator('#chat-voice-status')).toContainText('No audio was sent');
+});
+
 test('pending first-use auto-read stays bound to its open panel and thread', async ({ page }) => {
   let releaseController;
   let markControllerRequested;

@@ -78,21 +78,12 @@ describe('api provider storage runtime adapter', () => {
 
   it('delegates provider UI refresh hooks', () => {
     const updateChatHeaderModel = vi.fn();
-    const updateAttachButtonVisibility = vi.fn();
-    const updateChatInputState = vi.fn();
     const refreshWebSearchToggle = vi.fn();
-    const previous = configureChatRuntimeCallbacks({
-      updateAttachButtonVisibility,
-      updateChatHeaderModel,
-      updateChatInputState,
-      refreshWebSearchToggle,
-    });
+    const previous = configureChatRuntimeCallbacks({ updateChatHeaderModel, refreshWebSearchToggle });
 
     try {
       expect(refreshAIProviderSelectionRuntime()).toBe(true);
       expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
-      expect(updateAttachButtonVisibility).toHaveBeenCalledTimes(1);
-      expect(updateChatInputState).toHaveBeenCalledTimes(1);
       expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);
     } finally {
       configureChatRuntimeCallbacks(previous);
@@ -115,9 +106,7 @@ describe('api provider storage runtime adapter', () => {
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
     const previous = configureChatRuntimeCallbacks({
       refreshWebSearchToggle: null,
-      updateAttachButtonVisibility: null,
       updateChatHeaderModel: null,
-      updateChatInputState: null,
     });
     delete globalThis.window;
 

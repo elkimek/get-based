@@ -408,7 +408,7 @@ export async function encryptedRemoveItem(key, options = {}) {
     }
   }
   try { localStorage.removeItem(key); } catch {}
-  if (isAppExtensionSyncEncryptedStorageKey(key)) updateKeyCache(key, null);
+  if (isSensitiveKey(key)) updateKeyCache(key, null);
 }
 
 // ═══════════════════════════════════════════════

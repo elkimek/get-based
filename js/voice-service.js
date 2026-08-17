@@ -115,6 +115,31 @@ function synthesisOptions(providerId, settings, text, signal) {
 }
 
 /**
+ * Authorize a hosted voice operation before microphone capture or playback
+ * setup begins. The request itself rechecks authorization immediately before
+ * any audio or text is sent.
+ *
+ * @param {'stt' | 'tts'} kind
+ * @param {string} providerId
+ * @param {ReturnType<typeof getVoiceSettings>} [settings]
+ */
+export async function ensureVoiceRequestPrivacy(kind, providerId, settings = getVoiceSettings()) {
+  const requestOptions = kind === 'tts'
+    ? synthesisOptions(providerId, settings, '', undefined)
+    : transcriptionOptions(providerId, settings, null, undefined);
+  const authorized = await authorizeAppExtensionVoiceRequest({
+    kind,
+    providerId,
+    modelId: requestOptions.modelId,
+    settings,
+  });
+  if (!authorized) {
+    throw new Error(`This hosted voice request is not authorized. No ${kind === 'stt' ? 'audio' : 'text'} was sent.`);
+  }
+  return true;
+}
+
+/**
  * @param {Blob | Float32Array} audio
  * @param {{ settings?: ReturnType<typeof getVoiceSettings>, signal?: AbortSignal }} [options]
  */
@@ -124,13 +149,7 @@ export async function transcribeVoice(audio, {
 } = {}) {
   const providerId = getVoiceProviderId('stt', settings);
   const requestOptions = transcriptionOptions(providerId, settings, audio, signal);
-  const authorized = await authorizeAppExtensionVoiceRequest({
-    kind: 'stt',
-    providerId,
-    modelId: requestOptions.modelId,
-    settings,
-  });
-  if (!authorized) throw new Error('This hosted voice request is not authorized. No audio was sent.');
+  await ensureVoiceRequestPrivacy('stt', providerId, settings);
   const provider = await loadVoiceProvider(providerId);
   const definition = assertCapability(providerId, provider, 'stt');
   const result = /** @type {any} */ (await provider.transcribe(requestOptions));
@@ -152,13 +171,7 @@ export async function createVoiceSynthesizer({
     definition,
     async synthesize(text) {
       const requestOptions = synthesisOptions(providerId, settings, text, signal);
-      const authorized = await authorizeAppExtensionVoiceRequest({
-        kind: 'tts',
-        providerId,
-        modelId: requestOptions.modelId,
-        settings,
-      });
-      if (!authorized) throw new Error('This hosted voice request is not authorized. No text was sent.');
+      await ensureVoiceRequestPrivacy('tts', providerId, settings);
       return provider.synthesize(requestOptions);
     },
   };

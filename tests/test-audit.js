@@ -505,6 +505,9 @@ assert('marker detail presentation no longer depends on deferred Chat composer C
 assert('Umami analytics bootstrap is external and self-hosted',
   indexSrc.includes('src="js/analytics-bootstrap.js"')
   && analyticsBootstrapSrc.includes('umami-iota-olive.vercel.app/script.js'));
+assert('Umami analytics executable is integrity-pinned and anonymous-CORS fetched',
+  analyticsBootstrapSrc.includes("script.integrity = 'sha384-")
+  && analyticsBootstrapSrc.includes("script.crossOrigin = 'anonymous'"));
 assert('Umami blocked on file:// protocol',
   /location\.protocol\s*!==\s*['"]file:['"]/.test(analyticsBootstrapSrc));
 assert('Umami waits for offline PWA relaunches to reconnect',

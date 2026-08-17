@@ -20,7 +20,7 @@ import {
   getVoiceProviderDefinition,
   getVoiceProvidersFor,
 } from '../js/voice-provider-catalog.js';
-import { createVoiceSynthesizer, transcribeVoice } from '../js/voice-service.js';
+import { createVoiceSynthesizer, ensureVoiceRequestPrivacy, transcribeVoice } from '../js/voice-service.js';
 import {
   VOICE_STORAGE_KEYS,
   getVoiceSettings,
@@ -129,6 +129,29 @@ describe('OpenAI-compatible local voice provider', () => {
 });
 
 describe('hosted voice relay client', () => {
+  it('authorizes hosted dictation before microphone capture can begin', async () => {
+    const authorizeRequest = vi.fn(() => false);
+    configureAppExtension({
+      id: 'voice-preflight-test',
+      isAvailable: () => true,
+      voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
+        authorizeRequest,
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-ai-secret');
+    const settings = getVoiceSettings();
+
+    await expect(ensureVoiceRequestPrivacy('stt', 'openrouter', settings))
+      .rejects.toThrow('No audio was sent');
+    expect(authorizeRequest).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'stt',
+      providerId: 'openrouter',
+      modelId: settings.openRouterSttModel,
+    }));
+  });
+
   it('does not subject user-owned voice providers to hosted authorization hooks', async () => {
     configureAppExtension({
       id: 'voice-scope-test',

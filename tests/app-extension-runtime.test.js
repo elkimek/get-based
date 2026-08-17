@@ -139,6 +139,17 @@ describe('app extension runtime', () => {
     expect(getCachedKey(storageKey)).toBeNull();
   });
 
+  it('invalidates a removed provider credential in the synchronous cache', async () => {
+    const storageKey = 'labcharts-openrouter-key';
+    localStorage.setItem(storageKey, 'stored-provider-key');
+    updateKeyCache(storageKey, 'cached-provider-key');
+
+    await encryptedRemoveItem(storageKey);
+
+    expect(localStorage.getItem(storageKey)).toBeNull();
+    expect(getCachedKey(storageKey)).toBeNull();
+  });
+
   it('fails closed when an active adapter omits request authorization hooks', async () => {
     configureAppExtension({
       id: 'incomplete-edition',

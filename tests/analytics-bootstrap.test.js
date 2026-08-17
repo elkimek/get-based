@@ -57,10 +57,19 @@ describe('analytics bootstrap', () => {
     expect(script).toMatchObject({
       defer: true,
       src: 'https://umami-iota-olive.vercel.app/script.js',
+      integrity: 'sha384-6PHtXKae10+dZuA/fcmjkSTDco+NPBE5fZ4eS/Em2lVIsS6FdDZIgs06MBJLEcSW',
+      crossOrigin: 'anonymous',
       dataset: {
         websiteId: '6272072c-97a9-47b0-99e7-c52e7a4ca481',
       },
     });
+  });
+
+  it('pins the executable analytics response so an upstream change fails closed', () => {
+    const { appended: [script] } = runBootstrap();
+
+    expect(script.integrity).toMatch(/^sha384-[A-Za-z0-9+/]{64}$/);
+    expect(script.crossOrigin).toBe('anonymous');
   });
 
   it.each([

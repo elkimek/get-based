@@ -17,6 +17,8 @@
     const script = document.createElement('script');
     script.defer = true;
     script.src = 'https://umami-iota-olive.vercel.app/script.js';
+    script.integrity = 'sha384-6PHtXKae10+dZuA/fcmjkSTDco+NPBE5fZ4eS/Em2lVIsS6FdDZIgs06MBJLEcSW';
+    script.crossOrigin = 'anonymous';
     script.dataset.websiteId = '6272072c-97a9-47b0-99e7-c52e7a4ca481';
     document.head.appendChild(script);
     scriptAdded = true;

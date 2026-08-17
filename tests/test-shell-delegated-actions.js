@@ -148,7 +148,9 @@ assert('App shell wires Chat UI refreshes without window globals',
     && appChatHooksSrc.includes("import { configureChatRuntimeCallbacks } from './chat-runtime.js'")
     && appChatHooksSrc.includes('configureChatRuntimeCallbacks({')
     && appChatHooksSrc.includes('closeModal: deps.closeModal,')
-    && appChatHooksSrc.includes('refreshWebSearchToggle,')
+    && appChatHooksSrc.includes('refreshWebSearchToggle: () => {')
+    && appChatHooksSrc.includes('updateAttachButtonVisibility();')
+    && appChatHooksSrc.includes('updateChatInputState();')
     && appChatHooksSrc.includes('resumeAI,')
     && appChatHooksSrc.includes('sendChatMessage,'));
 

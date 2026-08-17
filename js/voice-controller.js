@@ -15,6 +15,7 @@ import {
 import { getVoiceProviderDefinition } from './voice-provider-catalog.js';
 import {
   createVoiceSynthesizer,
+  ensureVoiceRequestPrivacy,
   getVoiceProviderId,
   transcribeVoice,
 } from './voice-service.js';
@@ -204,6 +205,17 @@ async function startVoiceRecording() {
     }
     if (activityEpoch !== voiceActivityEpoch) return false;
     if (!modelReady) return guideToLocalModelDownload('stt', settings.localSttModel);
+  }
+  try {
+    await ensureVoiceRequestPrivacy('stt', inputProviderId, settings);
+  } catch (error) {
+    const message = getErrorMessage(error, 'Subscription voice privacy could not be verified');
+    setCaptureUi('error', message);
+    showNotification(message, 'error', 7000);
+    setTimeout(() => {
+      if (captureState === 'error') setCaptureUi('idle', '');
+    }, 5000);
+    return false;
   }
   setCaptureUi('requesting', 'Requesting microphone access…');
   const session = new VoiceCaptureSession({
