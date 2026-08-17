@@ -415,7 +415,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
             contentType: result.contentType,
             signal: controller.signal,
             rate: 1,
-            progressive: !automatic,
+            progressive: streamsProgressiveAudio && !automatic,
           });
         } else {
           await voicePlayer.play(/** @type {Blob} */ (result.audio), {

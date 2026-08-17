@@ -4,6 +4,7 @@ async function installVoiceBrowserFakes(page) {
   await page.addInitScript(() => {
     window.__voiceTrackStops = 0;
     window.__voiceGetUserMediaCalls = 0;
+    window.__voiceObjectUrlKinds = [];
     class FakeMediaRecorder extends EventTarget {
       static isTypeSupported(type) {
         return type === 'audio/webm;codecs=opus';
@@ -89,7 +90,12 @@ async function installVoiceBrowserFakes(page) {
     });
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
-      value: () => 'blob:voice-browser-fixture',
+      value: source => {
+        window.__voiceObjectUrlKinds.push(source instanceof Blob
+          ? `blob:${source.type}:${source.size}`
+          : 'media-source');
+        return 'blob:voice-browser-fixture';
+      },
     });
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
@@ -189,6 +195,42 @@ test('denied hosted dictation never requests microphone access', async ({ page }
   expect(started).toBe(false);
   expect(await page.evaluate(() => window.__voiceGetUserMediaCalls)).toBe(0);
   await expect(page.locator('#chat-voice-status')).toContainText('No audio was sent');
+});
+
+test('OpenRouter spoken replies buffer raw MP3 before browser playback', async ({ page }) => {
+  await installVoiceBrowserFakes(page);
+  let requestPayload;
+  await page.route('**/api/voice?action=tts', async route => {
+    requestPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg' },
+      body: 'mock openrouter mp3 bytes',
+    });
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const [{ state }, { updateKeyCache }, controller] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/crypto-key-cache.js'),
+      import('/js/voice-controller.js'),
+    ]);
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-browser-tts-test');
+    state.currentThreadId = 'openrouter-tts-browser-test';
+    state.chatHistory = [{ role: 'assistant', content: 'Read this subscription reply.' }];
+    return controller.readAssistantMessage(0);
+  });
+
+  expect(result).toBe(true);
+  expect(requestPayload).toMatchObject({
+    modelId: 'hexgrad/kokoro-82m',
+    voiceId: 'af_heart',
+  });
+  expect(await page.evaluate(() => window.__voiceObjectUrlKinds)).toEqual([
+    'blob:audio/mpeg:25',
+  ]);
 });
 
 test('pending first-use auto-read stays bound to its open panel and thread', async ({ page }) => {

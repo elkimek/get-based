@@ -444,6 +444,41 @@ describe('voice settings and chat controls', () => {
     expect(document.body.textContent).not.toContain('Grok Voice via OpenRouter');
   });
 
+  it('buffers OpenRouter TTS before playback instead of using MediaSource', async () => {
+    const originalHistory = state.chatHistory;
+    const originalThreadId = state.currentThreadId;
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-managed-voice-key');
+    state.currentThreadId = 'openrouter-tts-buffer-test';
+    state.chatHistory = [{ role: 'assistant', content: 'A spoken subscription reply.' }];
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg' },
+    }));
+    const unlock = vi.spyOn(VoicePlayer.prototype, 'unlock').mockReturnValue(true);
+    const prime = vi.spyOn(VoicePlayer.prototype, 'primeStreamPlayback').mockReturnValue(true);
+    const playStream = vi.spyOn(VoicePlayer.prototype, 'playStream').mockResolvedValue(true);
+
+    try {
+      const { readAssistantMessage } = await import('../js/voice-controller.js');
+      await expect(readAssistantMessage(0)).resolves.toBe(true);
+
+      expect(unlock).toHaveBeenCalled();
+      expect(prime).not.toHaveBeenCalled();
+      expect(playStream).toHaveBeenCalledWith(expect.any(ReadableStream), expect.objectContaining({
+        contentType: 'audio/mpeg',
+        progressive: false,
+      }));
+      expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toMatchObject({
+        modelId: 'hexgrad/kokoro-82m',
+        voiceId: 'af_heart',
+      });
+    } finally {
+      state.chatHistory = originalHistory;
+      state.currentThreadId = originalThreadId;
+    }
+  });
+
   it('loads PPQ voice choices automatically when PPQ is the active AI provider', async () => {
     localStorage.setItem('labcharts-ai-provider', 'ppq');
     updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');

@@ -53,6 +53,10 @@ describe('voice provider registry', () => {
       execution: 'cloud',
       capabilities: { stt: true, tts: true, streamingTts: true },
     });
+    expect(getVoiceProviderDefinition('openrouter')).toMatchObject({
+      execution: 'cloud',
+      capabilities: { stt: true, tts: true, streamingTts: false },
+    });
     expect(getVoiceProvidersFor('stt').map(provider => provider.id)).toContain('browser-local');
     expect(getVoiceProvidersFor('tts').map(provider => provider.id)).toContain('elevenlabs');
     expect(getVoiceProvidersFor('stt').map(provider => provider.id)).toEqual(
