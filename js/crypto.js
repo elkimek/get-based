@@ -152,26 +152,22 @@ const API_KEY_LS_KEYS = [
   'labcharts-cashu-wallet-mnemonic',
 ];
 
-function shouldCacheDecryptedKey(storageKey) {
-  return API_KEY_LS_KEYS.includes(storageKey)
-    || isAppExtensionSyncEncryptedStorageKey(storageKey);
-}
-
 export async function decryptKeyCache() {
   clearKeyCache();
-  const extensionKeys = Object.keys(localStorage).filter(isAppExtensionSyncEncryptedStorageKey);
-  for (const lsKey of new Set([...API_KEY_LS_KEYS, ...extensionKeys])) {
-    const raw = localStorage.getItem(lsKey);
-    if (!raw) continue;
-    if (isEncryptedValue(raw) && _sessionKey) {
-      const parsed = parseEncryptedValue(raw);
-      if (!parsed) continue;
-      try {
-        const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
-        updateKeyCache(lsKey, plaintext);
-      } catch { /* skip if can't decrypt */ }
-    } else if (!isEncryptedValue(raw)) {
-      updateKeyCache(lsKey, raw);
+  for (const lsKey of Object.keys(localStorage)) {
+    if (API_KEY_LS_KEYS.includes(lsKey) || isAppExtensionSyncEncryptedStorageKey(lsKey)) {
+      const raw = localStorage[lsKey];
+      if (!raw) continue;
+      if (isEncryptedValue(raw) && _sessionKey) {
+        const parsed = parseEncryptedValue(raw);
+        if (!parsed) continue;
+        try {
+          const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+          updateKeyCache(lsKey, plaintext);
+        } catch { /* skip if can't decrypt */ }
+      } else if (!isEncryptedValue(raw)) {
+        updateKeyCache(lsKey, raw);
+      }
     }
   }
 }
@@ -356,7 +352,7 @@ export async function encryptedSetItem(key, value) {
   } else {
     localStorage.setItem(key, stored);
   }
-  if (shouldCacheDecryptedKey(key)) updateKeyCache(key, value);
+  if (isAppExtensionSyncEncryptedStorageKey(key)) updateKeyCache(key, value);
 }
 
 export async function encryptedGetItem(key) {
@@ -412,7 +408,7 @@ export async function encryptedRemoveItem(key, options = {}) {
     }
   }
   try { localStorage.removeItem(key); } catch {}
-  if (shouldCacheDecryptedKey(key)) updateKeyCache(key, null);
+  if (isAppExtensionSyncEncryptedStorageKey(key)) updateKeyCache(key, null);
 }
 
 // ═══════════════════════════════════════════════
