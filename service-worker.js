@@ -7,13 +7,7 @@ async function resolveCacheName() {
   if (!_cacheNamePromise) {
     _cacheNamePromise = fetch('/api/commit', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const requestedRevision = j?.cacheKey || j?.sha || '';
-        const revision = String(requestedRevision)
-          .replace(/[^a-z0-9_-]/gi, '')
-          .slice(0, j?.cacheKey ? 32 : 8);
-        return revision ? `${base}-${revision}` : base;
-      })
+      .then((j) => { const requestedRevision = j?.cacheKey || j?.sha || ''; const revision = String(requestedRevision).replace(/[^a-z0-9_-]/gi, '').slice(0, j?.cacheKey ? 32 : 8); return revision ? `${base}-${revision}` : base; })
       .catch(() => base);
   }
   return _cacheNamePromise;
