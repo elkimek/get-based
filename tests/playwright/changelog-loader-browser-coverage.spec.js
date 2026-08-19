@@ -38,7 +38,7 @@ test('changelog archive stays cold for first visits and ordinary patch updates, 
   });
 
   const outcomes = await page.evaluate(async url => {
-    window.APP_VERSION = '1.16.2';
+    window.APP_VERSION = '1.17.1';
     const facade = await import(url);
     localStorage.removeItem('labcharts-changelog-seen');
     const firstVisitResult = facade.maybeShowChangelog();
@@ -68,10 +68,10 @@ test('changelog archive stays cold for first visits and ordinary patch updates, 
   expect(implementationRequests).toHaveLength(1);
   expect(outcomes).toEqual({
     firstVisitResult: undefined,
-    firstVisitSeen: '1.16.2',
+    firstVisitSeen: '1.17.1',
     patchResult: undefined,
     cold: true,
-    coldCloseSeen: '1.16.2',
+    coldCloseSeen: '1.17.1',
     sharedPromise: true,
     loaded: true,
     opened: 'opened:true',
