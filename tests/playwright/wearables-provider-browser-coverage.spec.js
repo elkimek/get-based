@@ -24,8 +24,11 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
       headers: { 'Content-Type': 'application/json' },
     });
     const installFetch = (handler) => {
-      window.fetch = async (_url, options = {}) => {
-        const proxy = JSON.parse(String(options.body || '{}'));
+      window.fetch = async (url, options = {}) => {
+        const rawBody = String(options.body || '');
+        const proxy = rawBody
+          ? JSON.parse(rawBody)
+          : { url: String(url), method: options.method || 'GET', headers: options.headers || {} };
         requests.push(proxy);
         const reply = await handler(proxy);
         if (reply instanceof Response) return reply;

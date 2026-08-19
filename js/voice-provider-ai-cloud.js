@@ -1,5 +1,5 @@
 // @ts-check
-// voice-provider-ai-cloud.js — PPQ, OpenRouter, and Venice voice adapters.
+// voice-provider-ai-cloud.js — direct-browser AI account and xAI voice adapters.
 
 import { AI_VOICE_DEFAULTS } from './voice-ai-provider.js';
 import {
@@ -8,9 +8,10 @@ import {
   voicesForOpenRouterModel,
 } from './voice-openrouter-catalog.js';
 import {
-  relaySynthesis,
-  relayTranscription,
-  relayVoices,
+  directSynthesis,
+  directTranscription,
+  directVoices,
+  testDirectProvider,
 } from './voice-provider-cloud-shared.js';
 
 function createProvider(providerId) {
@@ -18,13 +19,13 @@ function createProvider(providerId) {
   return {
     id: providerId,
     transcribe(options) {
-      return relayTranscription(providerId, {
+      return directTranscription(providerId, {
         ...options,
         modelId: options.modelId || defaults.sttModel,
       });
     },
     synthesize(options) {
-      return relaySynthesis(providerId, {
+      return directSynthesis(providerId, {
         ...options,
         modelId: options.modelId || defaults.ttsModel,
         voiceId: options.voiceId ?? defaults.voice,
@@ -36,7 +37,7 @@ function createProvider(providerId) {
     },
     async testConnection(options) {
       if (!options?.apiKey) throw new Error(`Connect ${defaults.label} in Settings → AI.`);
-      const voices = providerId === 'ppq' ? await relayVoices(providerId, options) : [];
+      const voices = providerId === 'ppq' ? await directVoices(providerId, options) : [];
       return {
         ok: true,
         message: voices.length
@@ -47,7 +48,7 @@ function createProvider(providerId) {
     },
     ...(providerId === 'ppq' ? {
       listVoices(options) {
-        return relayVoices(providerId, options);
+        return directVoices(providerId, options);
       },
     } : {}),
   };
@@ -119,5 +120,24 @@ export const veniceVoiceProvider = Object.freeze({
       message: `Connected. ${voices.length} private Kokoro voices available.`,
       voices,
     };
+  },
+});
+
+export const xaiVoiceProvider = Object.freeze({
+  id: 'xai',
+  transcribe(options) {
+    return directTranscription('xai', options);
+  },
+  synthesize(options) {
+    return directSynthesis('xai', options);
+  },
+  listVoices(options) {
+    return directVoices('xai', options);
+  },
+  listModels() {
+    return Promise.resolve([]);
+  },
+  testConnection(options) {
+    return testDirectProvider('xai', options);
   },
 });

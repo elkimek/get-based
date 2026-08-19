@@ -16,6 +16,7 @@ import {
 } from './profile.js';
 import { LATITUDE_BANDS } from './constants.js';
 import { getAvatarColor } from './nav.js';
+import { isOfficialGetbasedHost } from './url-safety.js';
 import {
   getClientHaplogroupList,
   navigateClientListRoute,
@@ -249,7 +250,9 @@ export function openClientForm(profileId) {
             </div>
           </div>
           <div id="cl-lat-display" class="cl-lat-display"></div>
-          <div class="cl-form-help">Postal codes are optional. When entered, the getbased proxy asks OpenStreetMap for the postal area and returns only privacy-rounded coordinates (~11 km); current phone location remains a separate opt-in. © OpenStreetMap contributors.</div>
+          <div class="cl-form-help">${isOfficialGetbasedHost()
+            ? 'Postal codes are optional and stay in this browser. The hosted app uses country-level latitude rather than sending your postal code through getbased or Vercel; current phone location remains a separate opt-in.'
+            : 'Postal codes are optional. This self-hosted deployment may ask OpenStreetMap for a privacy-rounded postal area (~11 km); current phone location remains a separate opt-in. © OpenStreetMap contributors.'}</div>
         </div>
       </section>
 
@@ -476,6 +479,17 @@ function _clUpdateLat() {
   }
 
   const countryOnly = zip ? _clCachedLatitude(cache[(country + '|').toLowerCase()]) : null;
+  if (isOfficialGetbasedHost()) {
+    const bandLabel = getLatitudeFromLocation(country, '');
+    if (bandLabel) {
+      element.style.color = 'var(--green)';
+      element.textContent = `✓ ${bandLabel}${zip ? ' — postal code stays local' : ''}`;
+    } else {
+      element.style.color = 'var(--text-muted)';
+      element.textContent = 'Country not recognized — try the full name';
+    }
+    return;
+  }
   if (countryOnly !== null) {
     _clShowLat(element, countryOnly, ' \u2014 refining with ZIP\u2026');
   } else {

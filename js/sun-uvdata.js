@@ -1,6 +1,7 @@
 // @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
-import { getErrorMessage, getErrorName } from './caught-error.js';
+import { getErrorName } from './caught-error.js';
+import { isOfficialGetbasedHost } from './url-safety.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { isSunDebugRuntime } from './sun-runtime.js';
 import { initMeteoConfigCache, getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
@@ -28,14 +29,14 @@ export {
 
 // Provider priority (each falls through on error):
 //   1. User-configured self-host (CAMS-mirrored or own data)
-//   2. CAMS relay (default — direct UVBED + CAMS composition, with recent
-//      satellite cloud correction where coverage is available)
+//   2. Deployment CAMS relay (fixed private route on official hosts)
 //   3. NOAA NWS (US users only — official US National Weather Service UV)
-//   4. Open-Meteo (degraded fallback — GFS-based simplified approximation)
+//   4. Open-Meteo (browser-direct default — GFS-based approximation)
 //   5. Local zenith-angle clear-sky calc (offline)
 // Each session record stores `uvSource` + a confidence weight; AI sees the source.
 //
-// Privacy: lat/lon may be rounded to 0.1° (~11km grid) before any network call.
+// Privacy: official hosts always round lat/lon to 0.1° (~11km grid) before
+// any network call. Self-hosters can choose the same default or opt out.
 // Self-hosters configure the data source on the Light & Sun page itself
 // (☀ Sun data source & privacy details panel) — moved out of Settings →
 // Privacy in v1.7.x because URL/bearer/mode are feature config, not
@@ -47,11 +48,6 @@ let _warnedAboutRejectedSelfhostUrl = false;
 // remain cached longer because their underlying forecast snapshot is stable.
 const CACHE_PREFIX = 'meteo:v4:';
 const NETWORK_TIMEOUT_MS = 8000;
-const HOSTED_CAMS_PROXY_URL = 'https://app.getbased.health/api/proxy';
-const HOSTED_CAMS_LOCAL_ORIGINS = new Set([
-  'http://localhost:8000',
-  'http://127.0.0.1:8000',
-]);
 
 // ─── Public API ────────────────────────────────────────────────────────
 
@@ -71,14 +67,15 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
     throw new Error('fetchAtmosphere requires { lat, lon }');
   }
   const cfg = getMeteoConfig();
-  const { rLat, rLon } = roundCoords(lat, lon, cfg.privacyRounding);
+  const effectiveRounding = isOfficialGetbasedHost() ? 0.1 : cfg.privacyRounding;
+  const { rLat, rLon } = roundCoords(lat, lon, effectiveRounding);
   const time = isoTime || new Date().toISOString();
   const cacheKey = makeCacheKey(rLat, rLon, time);
   const withRequestMeta = result => result ? Object.assign({}, result, {
     _requestCoords: {
       lat: rLat,
       lon: rLon,
-      privacyRounded: Number(cfg.privacyRounding) > 0,
+      privacyRounded: Number(effectiveRounding) > 0,
     },
   }) : result;
 
@@ -246,29 +243,15 @@ const PROVIDERS = {
     name: 'cams',
     available: () => true,
     fetch: async ({ lat, lon, isoTime }) => {
-      // Hosted CAMS relay → /api/proxy POSTs to the maintainer's
-      // getbased-uvdata instance, which fronts the CDS-API and merges
-      // Open-Meteo's hourly clouds/temp/UVI into the response. The
-      // bearer for getbased-uvdata is injected server-side so the
-      // token never reaches the browser. Self-hosters bypass this and
-      // use the `selfhost` provider directly.
+      // Official hosts accept only this fixed operation, re-round coordinates
+      // server-side, and POST them to the CAMS-only private relay route.
+      // Self-hosted deployments can instead wire their own compatible relay.
       const options = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meteo: 'cams', latitude: lat, longitude: lon, time: isoTime }),
       };
-      let json;
-      try {
-        json = await fetchJson('/api/proxy', options);
-      } catch (error) {
-        // The checked-in local environment cannot contain Vercel's
-        // UVDATA_BEARER. The production relay explicitly allows the
-        // documented localhost origins, so local development can retry there
-        // without copying the server credential into the browser or repo.
-        const origin = typeof location !== 'undefined' ? location.origin : '';
-        if (getErrorMessage(error) !== 'HTTP 503' || !HOSTED_CAMS_LOCAL_ORIGINS.has(origin)) throw error;
-        json = await fetchJson(HOSTED_CAMS_PROXY_URL, options);
-      }
+      const json = await fetchJson('/api/proxy', options);
       return shapeCamsResponse(json, isoTime, 'cams');
     },
   },
@@ -381,21 +364,16 @@ function availableProviders(candidates, ctx) {
 
 function providerOrder(cfg, coords = {}) {
   const ctx = Object.assign({}, cfg, coords);
-  // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only
-  // useful for non-browser callers. CAMS now runs through the
-  // getbased-uvdata relay (api/proxy?meteo=cams) — the deploy decides
-  // whether the upstream is wired by setting UVDATA_UPSTREAM env; when
-  // it isn't, CAMS returns 503 and the auto-fallback chain reaches
-  // Open-Meteo so the user still gets data.
+  // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only useful
+  // for non-browser callers. CAMS runs through the deployment-owned fixed
+  // operation; failure falls through to browser-direct Open-Meteo.
   if (cfg.mode === 'selfhost') return availableProviders([PROVIDERS.selfhost, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'cams') return availableProviders([PROVIDERS.cams, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'noaa') return availableProviders([PROVIDERS.noaa, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'open-meteo') return availableProviders([PROVIDERS.openMeteo], ctx);
-  // 'auto' — selfhost (if configured) → CAMS hosted relay → Open-Meteo.
-  // CAMS goes ahead of Open-Meteo because the deploy controls whether
-  // the upstream is reachable; if it isn't, it 503s fast and the chain
-  // moves on. Per-coord CAMS calls are server-side cached by the
-  // getbased-uvdata grid index, so the cost is one HTTPS round trip.
+  // Auto: an explicit user server first, then the deployment CAMS operation,
+  // then browser-direct Open-Meteo. On official hosts the CAMS operation is
+  // pinned to the getbased relay and forced to the privacy grid server-side.
   const order = [];
   if (cfg.selfhostUrl) order.push(PROVIDERS.selfhost);
   order.push(PROVIDERS.cams);

@@ -96,7 +96,7 @@ function makeMockRequest(origin = LOOPBACK_ORIGIN) {
 
 console.log('\n── parseEnvLocal ──');
 
-assert('CAMS dev proxy defaults to hosted getbased-uvdata',
+assert('CAMS dev proxy recognizes the fixed upstream without selecting it implicitly',
   DEFAULT_UVDATA_UPSTREAM === 'https://uvdata.getbased.health');
 
 // Basic key=value
@@ -393,6 +393,22 @@ assert('dev proxy operation classifier rejects ambiguous envelopes',
   req.emit('end');
   assert('extracted dev proxy rejects malformed JSON',
     res.status === 400 && res.text().includes('Invalid JSON'));
+}
+{
+  const req = new EventEmitter();
+  req.method = 'POST';
+  req.headers = {};
+  req.destroy = () => {};
+  const res = makeMockResponse();
+  handleDevApiProxy(req, res, {
+    corsHeaders: () => ({}),
+    env: { UVDATA_BEARER: 'operator-token-without-upstream' },
+  });
+  req.emit('data', Buffer.from('{"meteo":"cams","latitude":50.1,"longitude":14.4}'));
+  req.emit('end');
+  assert('dev proxy never selects the Company CAMS service from a bearer alone',
+    res.status === 503 && res.text().includes('CAMS relay upstream is empty'),
+    `${res.status} ${res.text()}`);
 }
 {
   const upstream = new EventEmitter();

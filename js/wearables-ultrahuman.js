@@ -13,7 +13,6 @@ import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 
 const UH_API = 'https://partner.ultrahuman.com';
-const PROXY_URL = '/api/proxy';
 
 /**
  * @typedef {{
@@ -44,14 +43,15 @@ const PROXY_URL = '/api/proxy';
 async function uhGET(path, accessToken, params = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${UH_API}/${path.replace(/^\//, '')}${qs ? '?' + qs : ''}`;
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      url,
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    }),
+  // Ultrahuman permits credentialed browser CORS for these resource
+  // endpoints. Keep health-data responses between the browser and provider;
+  // only confidential OAuth exchange/refresh uses the self-hoster's server.
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
   });
   if (!res.ok) {
     let err;

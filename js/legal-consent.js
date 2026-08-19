@@ -5,8 +5,8 @@ import { dispatchUtilsRuntimeEvent, getAppVersionRuntime } from './utils-runtime
 import { showNotification } from './utils.js';
 
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
-export const TERMS_VERSION = '2026-06-22';
-export const PRIVACY_VERSION = '2026-06-22';
+export const TERMS_VERSION = '2026-08-19';
+export const PRIVACY_VERSION = '2026-08-19';
 
 const LEGAL_ACTION_ATTR = 'data-legal-consent-action';
 let bootstrapNotificationBound = false;
@@ -75,7 +75,8 @@ function renderLegalConsentModal({ update = false } = {}) {
       <ul class="legal-consent-points">
         <li>getbased is a wellness, self-tracking, and educational tool — not medical advice or a medical device.</li>
         <li>Your health data is stored locally by default; optional network features are described in the Privacy Policy.</li>
-        <li>Anonymous, cookieless usage analytics may run on the hosted app and can be turned off in Settings → Privacy.</li>
+        <li>Cloud AI requires a separate, provider-specific approval before the first request sends sensitive data.</li>
+        <li>Cookieless product analytics may run on the hosted app and can be turned off in Settings → Privacy; the analytics service does not store the raw IP address, while ordinary hosting metadata is described in the Privacy Policy.</li>
       </ul>
       <label class="legal-consent-check">
         <input type="checkbox" id="legal-consent-checkbox">

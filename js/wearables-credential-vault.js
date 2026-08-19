@@ -1,10 +1,9 @@
 // @ts-check
 // wearables-credential-vault.js — always-encrypted, device-local OAuth secrets
 //
-// Google Health scopes are restricted and its policy requires credentials to
-// be encrypted at rest. The normal wearable connection record lives inside
-// importedData, so it is deliberately metadata-only for adapters using this
-// vault. Access and refresh tokens are encrypted with a non-extractable
+// Every wearable connection is treated as sensitive. The normal wearable
+// connection record lives inside importedData, so it is deliberately
+// metadata-only. Access and refresh tokens are encrypted with a non-extractable
 // AES-GCM CryptoKey stored in the profile's existing wearable IndexedDB.
 //
 // Neither the key nor the encrypted token envelope is included in profile
@@ -23,6 +22,21 @@ const RECORD_PREFIX = 'credential-vault-record:v1:';
 const GENERATION_PREFIX = 'credential-vault-generation:v1:';
 const LOCAL_MARKER_PREFIX = 'labcharts-wearable-credential-local:';
 const LOCAL_GENERATION_PREFIX = 'labcharts-wearable-credential-generation:';
+
+export const VAULTED_CREDENTIAL_ADAPTERS = new Set([
+  'oura', 'whoop', 'withings', 'ultrahuman', 'fitbit', 'google_health', 'polar',
+]);
+
+export function usesWearableCredentialVault(adapterId) {
+  return VAULTED_CREDENTIAL_ADAPTERS.has(adapterId);
+}
+
+export function wearableCredentialDisconnectedError(displayName = 'Wearable') {
+  /** @type {Error & { code?: string }} */
+  const error = new Error(`${displayName} is disconnected.`);
+  error.code = 'disconnected';
+  return error;
+}
 
 function recordKey(adapterId) {
   return `${RECORD_PREFIX}${adapterId}`;

@@ -3,7 +3,13 @@
 
 import { getOllamaPIIApiKey, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, checkOllamaPII } from './pii.js';
-import { escapeAttr, isPIIReviewEnabled, isAnalyticsEnabled, showNotification } from './utils.js';
+import {
+  CLOUD_AI_CONSENT_VERSION,
+  getCloudAIConsentRecord,
+  withdrawCloudAIConsent,
+} from './cloud-ai-consent.js';
+import { escapeAttr, escapeHTML, isPIIReviewEnabled, isAnalyticsEnabled, showNotification } from './utils.js';
+import { isOfficialGetbasedHost } from './url-safety.js';
 import {
   getSettingsMeteoConfig,
   saveSettingsMeteoConfig,
@@ -75,14 +81,43 @@ export function renderPrivacySection() {
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div id="cloud-ai-consent-controls">
+      ${renderCloudAIConsentControls()}
+    </div>
   `;
+}
+
+export function renderCloudAIConsentControls() {
+  const record = getCloudAIConsentRecord();
+  const approvals = record?.version === CLOUD_AI_CONSENT_VERSION
+    ? Object.values(record.approvals || {}).filter(approval => approval?.accepted === true)
+    : [];
+  const recipients = approvals
+    .map(approval => escapeHTML(String(approval.recipient || approval.provider || 'cloud provider')))
+    .join(', ');
+  return `<div class="settings-action-row privacy-setting-row">
+    <div class="settings-copy">
+      <div class="settings-copy-title">Cloud AI sensitive-data approval</div>
+      <div class="settings-copy-desc">${approvals.length
+        ? `Approved on this browser for: ${recipients}. Withdrawing stops future cloud AI and cloud voice requests until you explicitly approve again.`
+        : 'No current approval is stored. Before the first request to each cloud provider, getbased asks separately before sending health or other sensitive data.'}</div>
+    </div>
+    <button type="button" class="import-btn import-btn-secondary" data-settings-action="withdraw-cloud-ai-consent" ${approvals.length ? '' : 'disabled'}>Withdraw</button>
+  </div>`;
+}
+
+export function withdrawCloudAIConsentFromSettings() {
+  withdrawCloudAIConsent();
+  const controls = document.getElementById('cloud-ai-consent-controls');
+  if (controls) controls.innerHTML = renderCloudAIConsentControls();
+  showNotification('Cloud AI consent withdrawn. No future cloud AI request will be sent until you approve again.', 'success', 5000);
 }
 
 export function renderPrivacyAnalyticsSection() {
   return `<div class="settings-action-row">
     <div class="settings-copy">
-      <div class="settings-copy-title">Send anonymous usage stats</div>
-      <div class="settings-copy-desc">I track cookieless pageviews and outbound affiliate clicks only. No health data, viewed records, user identity, or health context is sent.</div>
+      <div class="settings-copy-title">Send optional cookieless usage stats</div>
+      <div class="settings-copy-desc">getbased sends pageviews and limited product events to its Umami analytics service. URL query strings and fragments are excluded. No health records, viewed values, chat content, uploaded files, profile context, or provider credentials are sent. The request IP and user agent are used transiently for coarse location and a daily session identifier; the raw IP is not stored.</div>
       <div class="privacy-setting-note">Takes effect on next launch.</div>
     </div>
     <label class="toggle-switch">
@@ -111,12 +146,15 @@ function _renderMeteoModeOption(mode, label, desc) {
 // privacy-flavored but stays here for cohesion.
 export function renderSunDataSourceSettings() {
   const cfg = getSettingsMeteoConfig();
+  const officialHost = isOfficialGetbasedHost();
   return `<div class="local-ai-settings" id="sun-data-source-section">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun data source</h4>
     <div class="ai-provider-desc" style="margin-bottom:10px">Where the Light &amp; Sun lens fetches UV, ozone, clouds, and air-quality model data. It uses your privacy-rounded home postal area or country by default. Current device location is optional, rounded locally, and kept only for today.</div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      ${_renderMeteoModeOption('auto', 'Default — CAMS enhanced', 'Direct CAMS UV plus CAMS ozone and aerosols, with recent satellite cloud correction where coverage exists and Open-Meteo weather context. Falls back to Open-Meteo UVI when CAMS is unavailable.')}
-      ${_renderMeteoModeOption('open-meteo', 'Open-Meteo only', 'Skip the CAMS relay. Uses Open-Meteo model UVI and weather, without CAMS total-column ozone or satellite cloud enhancement.')}
+      ${_renderMeteoModeOption('auto', officialHost ? 'Private CAMS relay + fallback' : 'Deployment CAMS relay', officialHost
+        ? 'Sends only ~11 km rounded coordinates and time through the fixed getbased CAMS route; falls back browser-direct to Open-Meteo.'
+        : 'Uses this self-hosted deployment\'s CAMS relay, then falls back to browser-direct Open-Meteo.')}
+      ${_renderMeteoModeOption('open-meteo', 'Browser-direct Open-Meteo', 'Your browser sends privacy-rounded coordinates directly to Open-Meteo. getbased and Vercel do not receive them.')}
       ${_renderMeteoModeOption('selfhost', 'Self-hosted server', 'You run your own getbased-uvdata box. Lat/lon never leaves your infrastructure. Paste the URL + bearer below.')}
     </div>
     <div id="meteo-selfhost-fields" style="margin-top:10px;${cfg.mode === 'selfhost' ? '' : 'display:none'}">
@@ -125,13 +163,15 @@ export function renderSunDataSourceSettings() {
       <label style="font-size:12px;color:var(--text-muted);margin-top:8px;display:block">Bearer token (optional)</label>
       <input type="password" class="api-key-input" id="meteo-selfhost-bearer" value="${escapeAttr(cfg.selfhostBearer || '')}" placeholder="••••••••" style="width:100%;margin-top:4px" data-sun-source-action="save-meteo-selfhost" autocomplete="new-password">
     </div>
-    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px">
-      <span style="font-size:13px">Round location to ~11 km grid before sending<br><span style="font-size:11px;color:var(--text-muted)">Default ON. Stops the data source from seeing your exact address. Disable for slightly sharper UV math.</span></span>
-      <label class="toggle-switch" style="margin-top:2px">
-        <input type="checkbox" id="meteo-privacy-rounding" ${(cfg.privacyRounding ?? 0.1) > 0 ? 'checked' : ''} data-sun-source-action="toggle-meteo-rounding">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
+    ${officialHost
+      ? '<div style="font-size:12px;color:var(--text-muted);margin-top:14px"><strong>Hosted privacy boundary:</strong> location is always rounded to a ~11 km grid before CAMS or Open-Meteo requests. Exact coordinates cannot be enabled on this deployment.</div>'
+      : `<div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px">
+          <span style="font-size:13px">Round location to ~11 km grid before sending<br><span style="font-size:11px;color:var(--text-muted)">Default ON. Stops the data source from seeing your exact address. Disable for slightly sharper UV math.</span></span>
+          <label class="toggle-switch" style="margin-top:2px">
+            <input type="checkbox" id="meteo-privacy-rounding" ${(cfg.privacyRounding ?? 0.1) > 0 ? 'checked' : ''} data-sun-source-action="toggle-meteo-rounding">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`}
   </div>`;
 }
 

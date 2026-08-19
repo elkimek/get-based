@@ -228,6 +228,15 @@ export async function sendChatMessage() {
   const hasImages = !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
 
+  // Ask before mutating the conversation or preparing any provider request.
+  // Consent is provider-scoped, so switching cloud providers requires a new
+  // express choice while Local AI remains available without this gate.
+  const _msgProvider = getAIProvider();
+  if (_msgProvider !== 'ollama') {
+    const { requestCloudAIConsent } = await import('./cloud-ai-consent.js');
+    if (!await requestCloudAIConsent(_msgProvider, { kind: 'text' })) return;
+  }
+
   // Capture attachments before clearing (they're ephemeral)
   const attachments = hasImages ? [...getPendingAttachments()] : [];
 
@@ -292,7 +301,6 @@ export async function sendChatMessage() {
 
   // Snapshot context areas before sending
   const contextSnapshot = getContextSummary();
-  const _msgProvider = getAIProvider();
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
   const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive())

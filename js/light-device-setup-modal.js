@@ -463,8 +463,9 @@ async function _fetchCustomDeviceFromURL(overlay) {
   const btn = _button(overlay, '#custom-dev-fetch');
   if (btn) { btn.textContent = 'Fetching...'; btn.disabled = true; }
   try {
-    // Same fetch path supplements.js uses — /api/fetch-page on localhost,
-    // POST /api/proxy on hosted. Reuses the existing trusted-host gates.
+    // Local development can use /api/fetch-page. Hosted/self-hosted builds use
+    // the same-origin proxy, whose operated-host policy permits only a public
+    // GET with no credentials or request body for this branch.
     const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
     let html;
     if (isLocal) {
@@ -475,7 +476,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
     } else {
       const res = await fetch('/api/proxy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, method: 'GET', headers: {} })
+        body: JSON.stringify({ proxy_purpose: 'public-page', url, method: 'GET', headers: {} })
       });
       if (!res.ok) throw new Error(`Proxy error ${res.status}`);
       html = await res.text();

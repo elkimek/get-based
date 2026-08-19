@@ -9,8 +9,8 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('labcharts-default-tour', 'completed');
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-06-22',
-      privacyVersion: '2026-06-22',
+      termsVersion: '2026-08-19',
+      privacyVersion: '2026-08-19',
       acceptedAt: '2026-08-08T00:00:00.000Z',
       appVersion: 'chat-composer-test',
       location: 'chat-composer-test',

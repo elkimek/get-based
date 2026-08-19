@@ -380,8 +380,9 @@ export function isDebugMode() { return localStorage.getItem('labcharts-debug') =
 export function setDebugMode(on) { localStorage.setItem('labcharts-debug', on ? 'true' : 'false'); }
 export function isPIIReviewEnabled() { return localStorage.getItem('labcharts-pii-review') !== 'false'; }
 export function setPIIReviewEnabled(on) { localStorage.setItem('labcharts-pii-review', on ? 'true' : 'false'); }
-// Analytics: opt-out, default ON. Setting `analytics-disabled=true` suppresses
-// the Umami snippet on next page load. Cookieless, no personal data, no IP.
+// Analytics is cookieless and enabled by default. The historical storage key
+// remains an explicit opt-out: `analytics-disabled=true` suppresses Umami on
+// the next page load.
 const ANALYTICS_CONSENT_ACTION_ATTR = 'data-analytics-consent-action';
 /** @type {ReturnType<typeof setTimeout> | null} */
 let analyticsConsentRetryTimer = null;
@@ -442,10 +443,9 @@ function handleAnalyticsConsentActionClick(event) {
   }
 }
 
-// One-time transparency banner shown to first-time users. Default state is
-// analytics-on (preserves the maintainer's product signal) but the user is
-// explicitly told upfront with a one-click disable. Better than silent
-// opt-out (transparency), more pragmatic than buried opt-in (data signal).
+// One-time transparency banner shown to first-time users. Analytics starts on,
+// while the banner provides an immediate opt-out and points to the persistent
+// Settings control.
 export function maybeShowAnalyticsConsent() {
   if (hasSeenAnalyticsConsent()) return;
   // Skip on offline/Tor where Umami doesn't load anyway
@@ -468,8 +468,8 @@ export function maybeShowAnalyticsConsent() {
   banner.innerHTML = `
     <div class="analytics-consent-body">
       <span aria-hidden="true">📊</span>
-      <span class="analytics-consent-copy analytics-consent-copy-long">Anonymous usage stats are <strong>on</strong> to help me improve getbased — counts only, no IP, no health data, cookieless.</span>
-      <span class="analytics-consent-copy analytics-consent-copy-short">Anonymous, cookieless stats are <strong>on</strong>. No health data.</span>
+      <span class="analytics-consent-copy analytics-consent-copy-long">Cookieless usage stats are <strong>on</strong> to help improve getbased. Health records, chat content, uploaded files, and provider credentials are not included.</span>
+      <span class="analytics-consent-copy analytics-consent-copy-short">Cookieless usage stats are <strong>on</strong>. No health data.</span>
     </div>
     <div class="analytics-consent-actions">
       <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" ${ANALYTICS_CONSENT_ACTION_ATTR}="dismiss">Got it</button>
@@ -493,7 +493,7 @@ export function dismissAnalyticsConsentAndDisable() {
   markAnalyticsConsentSeen();
   document.getElementById('analytics-consent-banner')?.remove();
   document.body.classList.remove('analytics-consent-visible');
-  showNotification('Anonymous usage stats turned off. You can change this anytime in Settings → Privacy.', 'info', 4000);
+  showNotification('Cookieless usage stats turned off. You can change this anytime in Settings → Privacy.', 'info', 4000);
 }
 
 export function showNotification(message, type, duration) {

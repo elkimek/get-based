@@ -135,7 +135,7 @@ if (exists('dev-server.js')) {
   const proxyUpstreamSrc = read('lib/proxy-upstream.js');
   const proxyRateLimitSrc = read('lib/proxy-rate-limit.js');
   assert('api/proxy.js rejects disallowed callers server-side',
-    edgeProxySrc.includes('if (!isAllowedCallerOrigin(req))')
+    edgeProxySrc.includes('if (!isAllowedProxyCallerOrigin(req))')
       && edgeProxySrc.includes("error: 'Origin not allowed.'"));
   assert('proxy upstream runtime manually validates every redirect destination',
     proxyUpstreamSrc.includes("redirect: 'manual'")
@@ -144,7 +144,8 @@ if (exists('dev-server.js')) {
       && proxyUpstreamSrc.includes('Cross-origin proxy redirects with a request body are not allowed'));
   assert('proxy runtime bounds upstream lifetimes and applies a distributed abuse brake',
     proxyUpstreamSrc.includes('PROXY_UPSTREAM_TIMEOUT_MS')
-      && edgeProxySrc.includes('await enforceProxyRateLimit(req)')
+      && edgeProxySrc.includes('await loadProxyRateLimit()')
+      && edgeProxySrc.includes('await enforceProxyRateLimit(req, { allowInstanceFallback: !operatedHost })')
       && proxyRateLimitSrc.includes("from '@vercel/blob'")
       && proxyRateLimitSrc.includes('allowOverwrite: false')
       && edgeProxySrc.includes("'Retry-After'"));

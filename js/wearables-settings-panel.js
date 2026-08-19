@@ -11,7 +11,9 @@ import {
   visibleAdapters,
   getOAuthClientId,
   isOAuthAdapterConfigured,
+  isWearableRelayUnavailable,
 } from './wearable-adapters.js';
+import { SELF_HOSTED_WEARABLE_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
 import { brandMarkMono } from './brand-assets.js';
 import { groupWearableAdapters } from './wearables-settings-groups.js';
 import {
@@ -37,11 +39,23 @@ let wearableSettingsDelegatesInstalled = false;
 
 export const GOOGLE_HEALTH_CONNECT_DISCLOSURE = `Google Health will let getbased read three categories from your Google account: activity and fitness; health metrics and measurements; and sleep. No write access is requested.
 
-getbased uses this data to show daily Body metrics, personal baselines, trends, and comparisons. OAuth tokens and imported daily rows are AES-GCM encrypted on this device. Token refreshes and Google API requests transit this deployment's Vercel proxy without intentional storage.
+getbased uses this data to show daily Body metrics, personal baselines, trends, and comparisons. OAuth tokens and imported daily rows are AES-GCM encrypted on this device. Google Health is self-host only: OAuth exchanges and Google API requests use infrastructure controlled by that deployment.
 
 If you enable cross-device sync, a compact derived summary is sent through the end-to-end-encrypted relay. If you use a cloud AI or agent while Wearables context is enabled, that summary may be sent to the provider you selected. You can disable Wearables context before using those features.
 
 Disconnecting deletes this device's Google Health credentials, imported rows, and derived source data. Revoke getbased in your Google Account to stop access on every device.`;
+
+const HOSTED_WEARABLE_RELAY_ADAPTERS = new Set(['oura', 'withings', 'polar', 'fitbit']);
+
+export function requiresHostedWearableRelayConsent(adapterId, locationLike = globalThis.location) {
+  return isOfficialGetbasedHost(locationLike) && HOSTED_WEARABLE_RELAY_ADAPTERS.has(adapterId);
+}
+
+export function hostedWearableRelayDisclosure(providerName) {
+  return `Connecting ${providerName} authorizes getbased s.r.o. to relay the OAuth exchange and the ${providerName} health data you ask to import through its fixed hosted endpoint. The relay can read those values while forwarding them, does not intentionally persist request or response bodies, and permits only this integration's fixed destinations.
+
+Choose “I consent & continue” only if you explicitly consent to this health-data processing. You can disconnect and delete this device's imported data at any time, and you can revoke access in your ${providerName} account.`;
+}
 
 function wearableSettingsActionAttrs(action, data = {}, opts = {}) {
   const attrs = [`data-wearable-settings-action="${escapeAttr(action)}"`];
@@ -221,7 +235,7 @@ export function renderWearablesSettingsSection() {
   </div>
   <div class="settings-section-header" style="display:block">
     <div class="settings-section-title" style="display:block;margin-bottom:4px">Health data sources</div>
-    <div class="settings-section-hint" style="display:block">Connected sources appear first; other providers are grouped by setup path. Imported history is stored on this device, while connecting a cloud provider contacts that provider's API. All integrations are <em>beta</em> — please report issues.</div>
+      <div class="settings-section-hint" style="display:block">Connected sources appear first; other providers are grouped by setup path. OAuth tokens are always device-key encrypted. Imported history stays on this device; Google Health rows are always device-key encrypted, while other rows are encrypted when passphrase protection is enabled. On the hosted app, supported wearable OAuth and API calls use the tightly scoped getbased relay; experimental providers marked self-host only use infrastructure controlled by the deployment owner. All integrations are <em>beta</em> — please report issues.</div>
   </div>
   <div class="wearables-adapter-groups">${groupMarkup}</div>`;
 }
@@ -230,6 +244,7 @@ function connectedAdapterNeedsAttention(adapter) {
   const connection = getConnection(adapter.id);
   return adapter.legacyMigrationOnly
     || connection?.needsReauth
+    || isWearableRelayUnavailable(adapter)
     || (adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter));
 }
 
@@ -252,7 +267,8 @@ function renderAdapterGroup(group, connected) {
 function renderAdapterRow(adapter, isConnected) {
   const conn = isConnected ? getConnection(adapter.id) : null;
   const isOAuth = adapter.authType === 'oauth2';
-  const isHostUnavailable = adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter);
+  const isRelayUnavailable = isWearableRelayUnavailable(adapter);
+  const isHostUnavailable = isRelayUnavailable || (adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter));
   const isPendingClient = isOAuth
     && !isHostUnavailable
     && (getOAuthClientId(adapter) || '').startsWith('REPLACE_WITH_');
@@ -488,7 +504,9 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostU
     const docs = setupDocsUrl
       ? ` <a class="wearable-row-link" href="${escapeAttr(setupDocsUrl)}" target="_blank" rel="noopener">Setup docs&nbsp;↗</a>`
       : '';
-    const explanation = adapter.id === 'google_health'
+    const explanation = isWearableRelayUnavailable(adapter)
+      ? `${SELF_HOSTED_WEARABLE_MESSAGE} ${adapter.displayName} remains available when you run getbased on infrastructure you control.`
+      : adapter.id === 'google_health'
       ? 'Google Health is not offered by this hosted deployment. Self-host getbased and configure your own Google Cloud OAuth client ID and secret to enable it.'
       : `${adapter.displayName} is an experimental self-host integration. Enable it with this deployment's own developer client ID and secret; it is hidden on unconfigured hosted deployments.`;
     return `<p class="wearable-adapter-hint">${escapeHTML(explanation)}${docs}</p>`;
@@ -620,6 +638,11 @@ async function handleWearableConnect(adapterId) {
   try {
     await loadWearableRuntimeConfig({ waitForFetch: true });
     const adapter = adapterById(adapterId);
+    if (!adapter) throw new Error('Unknown wearable provider.');
+    if (isWearableRelayUnavailable(adapter)) {
+      showNotification?.(SELF_HOSTED_WEARABLE_MESSAGE, 'info', 7000);
+      return;
+    }
     if (adapter?.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter)) {
       const message = adapter.id === 'google_health'
         ? 'Google Health is self-host only on this deployment. Configure your own Google Cloud OAuth project to enable it.'
@@ -633,6 +656,16 @@ async function handleWearableConnect(adapterId) {
         tone: 'primary',
         ariaLabel: 'Google Health data access consent',
       });
+      if (!consented) return;
+    } else if (requiresHostedWearableRelayConsent(adapterId)) {
+      const consented = await confirmWearableSettingsAction(
+        hostedWearableRelayDisclosure(adapter.displayName),
+        {
+          confirmLabel: 'I consent & continue',
+          tone: 'primary',
+          ariaLabel: `${adapter.displayName} hosted health data consent`,
+        },
+      );
       if (!consented) return;
     } else if (adapter?.experimentalSelfHost) {
       const consented = await confirmWearableSettingsAction(

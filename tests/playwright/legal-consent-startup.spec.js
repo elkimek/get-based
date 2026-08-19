@@ -2,8 +2,8 @@ import { expect, test } from './coverage-fixture.js';
 
 const CURRENT_ACCEPTANCE = {
   accepted: true,
-  termsVersion: '2026-06-22',
-  privacyVersion: '2026-06-22',
+  termsVersion: '2026-08-19',
+  privacyVersion: '2026-08-19',
   acceptedAt: '2026-07-26T00:00:00.000Z',
   appVersion: 'playwright',
   location: 'playwright',
@@ -34,6 +34,8 @@ test('fresh visitor can accept the prerendered legal gate before the main module
   await expect(overlay).toBeVisible();
   await expect(overlay).toHaveAttribute('data-legal-consent-bootstrap-bound', 'true');
   await expect(page.locator('#legal-consent-title')).toHaveText('Accept Terms & Privacy');
+  await expect(page.locator('[data-legal-path="/terms"]')).toHaveAttribute('href', '/terms');
+  await expect(page.locator('[data-legal-path="/privacy"]')).toHaveAttribute('href', '/privacy');
 
   const acceptButton = page.locator('[data-legal-consent-action="accept"]');
   await expect(acceptButton).toBeDisabled();

@@ -9,22 +9,26 @@ import {
   setCustomApiModel,
 } from './api-provider-storage.js';
 import { findPreferredModel } from './api-models.js';
-import {
-  callOpenAICompatibleAPI,
-  shouldProxyCustomApiUrl,
-} from './api-openai-compatible.js';
+import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
 
 function _customApiFetchModels(url, key) {
-  if (shouldProxyCustomApiUrl(url)) {
-    return fetch('/api/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, method: 'GET', headers: { 'Authorization': 'Bearer ' + key } }),
-    });
-  }
-  return fetch(url, { headers: { 'Authorization': 'Bearer ' + key } });
+  return fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + key },
+    credentials: 'omit',
+  });
+}
+
+function customBrowserConnectionError(error) {
+  const detail = getErrorMessage(error);
+  return new Error(
+    'This Custom API could not be reached directly from your browser. '
+    + 'The provider may not support browser-based inference. Ask the provider to allow browser access for getbased, '
+    + 'or use a self-hosted OpenAI-compatible endpoint that allows browser connections. '
+    + 'getbased did not retry the request through its servers.'
+    + (detail && !/failed to fetch|load failed|networkerror/i.test(detail) ? ` (${detail})` : ''),
+  );
 }
 
 export async function fetchCustomApiModels(baseUrl, key) {
@@ -63,18 +67,14 @@ export async function validateCustomApiKey(baseUrl, key) {
     else if (!res.ok) return { valid: false, error: 'Server returned status ' + res.status };
     if (res.ok || noModels) {
       const probeBody = JSON.stringify({ model: 'x', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 });
+      /** @type {RequestInit} */
       const probeOpts = {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-        body: probeBody
+        body: probeBody,
+        credentials: 'omit',
       };
-      const probe = shouldProxyCustomApiUrl(url)
-        ? await fetch('/api/proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url + '/chat/completions', headers: { 'Authorization': 'Bearer ' + key }, body: probeBody })
-        })
-        : await fetch(url + '/chat/completions', probeOpts);
+      const probe = await fetch(url + '/chat/completions', probeOpts);
       if (probe.status === 401 || probe.status === 403) {
         try {
           const errBody = await probe.json();
@@ -85,7 +85,7 @@ export async function validateCustomApiKey(baseUrl, key) {
     }
     return noModels ? { valid: true, noModels: true } : { valid: true };
   } catch (e) {
-    return { valid: false, error: 'Cannot reach endpoint: ' + getErrorMessage(e) };
+    return { valid: false, error: customBrowserConnectionError(e).message };
   }
 }
 
@@ -94,12 +94,20 @@ export async function callCustomAPI(opts) {
   const key = getCustomApiKey();
   if (!baseUrl) throw new Error('No Custom API URL configured. Set it in Settings.');
   if (!key) throw new Error('No Custom API key configured. Add your key in Settings.');
-  return callOpenAICompatibleAPI(
-    baseUrl + '/chat/completions',
-    key,
-    getCustomApiModel(),
-    'Custom',
-    opts,
-    {}
-  );
+  try {
+    return await callOpenAICompatibleAPI(
+      baseUrl + '/chat/completions',
+      key,
+      getCustomApiModel(),
+      'Custom',
+      opts,
+      {},
+      { useProxy: false },
+    );
+  } catch (error) {
+    if (/Cannot reach Custom API/i.test(getErrorMessage(error))) {
+      throw customBrowserConnectionError(error);
+    }
+    throw error;
+  }
 }

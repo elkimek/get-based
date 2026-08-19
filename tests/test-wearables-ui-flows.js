@@ -128,7 +128,12 @@ return (async function() {
   // 4. Old manual readings stay manageable
   // ═══════════════════════════════════════
   console.log('%c 4. Old Manual Reading ', 'font-weight:bold;color:#f59e0b');
-  const oldManualDate = '2025-05-01';
+  const oldManualAt = new Date();
+  oldManualAt.setUTCFullYear(oldManualAt.getUTCFullYear() - 1);
+  const oldManualDate = oldManualAt.toISOString().slice(0, 10);
+  const newerOuraAt = new Date();
+  newerOuraAt.setUTCDate(newerOuraAt.getUTCDate() - 5);
+  const newerOuraDate = newerOuraAt.toISOString().slice(0, 10);
   await manual.logManualMetric(TEST_PROFILE_ID, 'rhr', { date: oldManualDate, value: 57, tags: ['resting'] });
   state.importedData.wearableConnections.oura = {
     source: 'oura', connectedAt: new Date().toISOString(),
@@ -138,7 +143,7 @@ return (async function() {
   };
   await store.upsertDaily(TEST_PROFILE_ID, {
     source: 'oura',
-    date: '2026-05-20',
+    date: newerOuraDate,
     rhr: 61,
   });
   await manual.refreshManualSummary(TEST_PROFILE_ID);
@@ -158,7 +163,7 @@ return (async function() {
   const manualOverlay = chartDatasets.find(ds => ds.label === 'Manual');
   const ouraLine = chartDatasets.find(ds => ds.label === 'Oura');
   assert('All-range chart keeps the Oura line and overlays old manual RHR readings',
-    !!ouraLine?.data?.some(p => p.x === '2026-05-20' && p.y === 61) &&
+    !!ouraLine?.data?.some(p => p.x === newerOuraDate && p.y === 61) &&
     !!manualOverlay?.data?.some(p => p.x === oldManualDate && p.y === 57),
     JSON.stringify(state.chartInstances?.modal?.data?.datasets?.map(ds => ({ label: ds.label, n: ds.data?.length }))));
   views.closeModal();

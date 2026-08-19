@@ -44,6 +44,7 @@ const ENV_KEYS = [
   'VERCEL',
   'VERCEL_GIT_COMMIT_SHA',
   'VERCEL_GIT_COMMIT_REF',
+  'VERCEL_PROJECT_PRODUCTION_URL',
 ];
 
 let savedEnv;
@@ -77,7 +78,7 @@ function makeProxyRequest(body, {
   origin = 'https://app.getbased.health',
   rawBody,
   clientIp,
-  requestUrl = 'https://getbased.health/api/proxy',
+  requestUrl = 'https://health.example.net/api/proxy',
   signal,
 } = {}) {
   const headers = new Headers();
@@ -767,6 +768,15 @@ describe('AI proxy runtime behavior', () => {
       error: 'Method not allowed. Use POST with {url, headers, body?, method?}',
     });
 
+    const hostedRuntime = await proxyHandler(makeProxyRequest({ wearable_runtime_config: true }, {
+      requestUrl: 'https://app.getbased.health/api/proxy',
+    }));
+    expect(hostedRuntime.status).toBe(200);
+    expect(await responseJson(hostedRuntime)).toEqual({
+      overrides: {},
+      configured: { google_health: false, ultrahuman: false, whoop: false },
+    });
+
     const badJson = await proxyHandler(makeProxyRequest(undefined, { rawBody: '{' }));
     expect(badJson.status).toBe(400);
     expect(await responseJson(badJson)).toEqual({ error: 'Invalid JSON body' });
@@ -813,13 +823,148 @@ describe('AI proxy runtime behavior', () => {
 
     const response = await proxyHandler(makeProxyRequest({
       wearable_runtime_config: true,
-    }, { clientIp: '203.0.113.79' }));
+    }, {
+      clientIp: '203.0.113.79',
+      requestUrl: 'https://app.getbased.health/api/proxy',
+    }));
 
     expect(response.status).toBe(503);
     expect(response.headers.get('Retry-After')).toBe('60');
     expect(await responseJson(response)).toEqual({
       error: 'Proxy rate limit is not configured for this hosted deployment.',
     });
+  });
+
+  it('keeps a user-owned Vercel deployment functional with its bounded instance limiter', async () => {
+    process.env.VERCEL = '1';
+    const response = await proxyHandler(makeProxyRequest({
+      wearable_runtime_config: true,
+    }, {
+      origin: 'https://health.example.net',
+      requestUrl: 'https://health.example.net/api/proxy',
+      clientIp: '203.0.113.80',
+    }));
+    expect(response.status).toBe(200);
+    expect(await responseJson(response)).toEqual({
+      overrides: {},
+      configured: { google_health: false, ultrahuman: false, whoop: false },
+    });
+  });
+
+  it('enforces the operated-host provider boundary before contacting upstreams', async () => {
+    globalThis.fetch = vi.fn(async url => {
+      if (String(url).includes('shop.example')) {
+        return new Response('<html><body>product</body></html>', {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+      return jsonResponse({ ok: true });
+    });
+    const hosted = { requestUrl: 'https://app.getbased.health/api/proxy' };
+
+    const oura = await proxyHandler(makeProxyRequest({
+      url: 'https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=2026-08-01&end_date=2026-08-02',
+      method: 'GET',
+      headers: { Authorization: 'Bearer oura-token' },
+    }, hosted));
+    expect(oura.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    for (const payload of [
+      {
+        url: 'https://api.prod.whoop.com/developer/v1/recovery',
+        method: 'GET',
+        headers: { Authorization: 'Bearer whoop-token' },
+      },
+      { whoop_token_refresh: { refresh_token: 'refresh', client_id: 'client' } },
+      {
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        method: 'POST',
+        headers: { Authorization: 'Bearer ai-key' },
+        body: '{"messages":[]}',
+      },
+      { meteo: 'postal_geocode', country: 'CZ', postalCode: '110 00' },
+    ]) {
+      const response = await proxyHandler(makeProxyRequest(payload, hosted));
+      expect(response.status).toBe(403);
+    }
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    const wrongOauth = await proxyHandler(makeProxyRequest({
+      oura_token_exchange: {
+        code: 'code',
+        redirect_uri: 'https://attacker.example/callback',
+        client_id: 'attacker-client',
+      },
+    }, hosted));
+    expect(wrongOauth.status).toBe(400);
+    expect(await responseJson(wrongOauth)).toMatchObject({ code: 'HOSTED_OAUTH_REQUEST_BLOCKED' });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    const publicPage = await proxyHandler(makeProxyRequest({
+      proxy_purpose: 'public-page',
+      url: 'https://shop.example/product',
+      method: 'GET',
+      headers: { Accept: 'text/html' },
+    }, hosted));
+    expect(publicPage.status).toBe(200);
+    expect(await publicPage.text()).toContain('product');
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('pins hosted CAMS to the authenticated private route and rounds again server-side', async () => {
+    const hosted = {
+      clientIp: '203.0.113.210',
+      requestUrl: 'https://app.getbased.health/api/proxy',
+    };
+    globalThis.fetch = vi.fn(async () => jsonResponse({ uv: 4.2 }));
+
+    const unconfigured = await proxyHandler(makeProxyRequest({
+      meteo: 'cams', latitude: 50.0755, longitude: 14.4378,
+    }, hosted));
+    expect(unconfigured.status).toBe(503);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    process.env.UVDATA_BEARER = 'uv-secret';
+    process.env.UVDATA_UPSTREAM = 'https://attacker.example/ignored';
+    const relayed = await proxyHandler(makeProxyRequest({
+      meteo: 'cams',
+      latitude: 50.0755,
+      longitude: 14.4378,
+      time: '2026-06-06T12:00:00Z',
+    }, hosted));
+    expect(relayed.status).toBe(200);
+    expect(await responseJson(relayed)).toEqual({ uv: 4.2 });
+
+    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    expect(String(url)).toBe('https://uvdata.getbased.health/v1/uv');
+    expect(init.method).toBe('POST');
+    expect(init.headers.Authorization).toBe('Bearer uv-secret');
+    expect(JSON.parse(init.body)).toEqual({
+      latitude: 50.1,
+      longitude: 14.4,
+      time: '2026-06-06T12:00:00Z',
+    });
+
+    globalThis.fetch = vi.fn(async () => new Response(null, {
+      status: 307,
+      headers: { Location: 'https://uvdata.getbased.health/other' },
+    }));
+    const redirected = await proxyHandler(makeProxyRequest({
+      meteo: 'cams', latitude: 50.1, longitude: 14.4,
+    }, { ...hosted, clientIp: '203.0.113.212' }));
+    expect(redirected.status).toBe(502);
+    expect(await responseJson(redirected)).toEqual({
+      error: 'CAMS redirects are not allowed',
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    globalThis.fetch = vi.fn();
+    const extraField = await proxyHandler(makeProxyRequest({
+      meteo: 'cams', latitude: 50.1, longitude: 14.4, url: 'https://example.com',
+    }, { ...hosted, clientIp: '203.0.113.211' }));
+    expect(extraField.status).toBe(400);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('blocks SSRF targets and forwards allowed custom HTTPS endpoints', async () => {
@@ -1398,14 +1543,14 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('validates and relays CAMS atmosphere requests without exposing the bearer token to callers', async () => {
-    const hostedWithoutBearer = await proxyHandler(makeProxyRequest({
+    const unconfiguredSelfHost = await proxyHandler(makeProxyRequest({
       meteo: 'cams',
       latitude: 50.1,
       longitude: 14.4,
     }));
-    expect(hostedWithoutBearer.status).toBe(503);
-    expect(await responseJson(hostedWithoutBearer)).toMatchObject({
-      error: expect.stringContaining('CAMS hosted relay requires UVDATA_BEARER'),
+    expect(unconfiguredSelfHost.status).toBe(503);
+    expect(await responseJson(unconfiguredSelfHost)).toMatchObject({
+      error: expect.stringContaining('CAMS relay upstream is empty'),
     });
 
     process.env.UVDATA_UPSTREAM = 'https://uv.example.com/base/';
@@ -1444,7 +1589,7 @@ describe('AI proxy runtime behavior', () => {
       longitude: 14.4,
     }));
     expect(oversized.status).toBe(502);
-    expect(await responseJson(oversized)).toEqual({ error: 'Proxy response exceeds size cap' });
+    expect(await responseJson(oversized)).toEqual({ error: 'CAMS response exceeds size cap' });
   });
 
   it('resolves a postal area server-side and returns only rounded coordinates', async () => {
