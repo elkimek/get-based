@@ -33,7 +33,7 @@ export const VOICE_PROVIDERS = Object.freeze([
     execution: 'cloud',
     credentialSource: 'ai',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
-    description: 'Uses the OpenRouter connection already configured for AI.',
+    description: 'Connects directly from your browser using the OpenRouter account already configured for AI.',
   },
   {
     id: 'ppq',
@@ -42,7 +42,7 @@ export const VOICE_PROVIDERS = Object.freeze([
     execution: 'cloud',
     credentialSource: 'ai',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
-    description: 'Uses the PPQ connection already configured for AI.',
+    description: 'Connects directly from your browser using the PPQ account already configured for AI.',
   },
   {
     id: 'venice',
@@ -51,7 +51,7 @@ export const VOICE_PROVIDERS = Object.freeze([
     execution: 'cloud',
     credentialSource: 'ai',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
-    description: 'Uses the Venice connection already configured for AI.',
+    description: 'Connects directly from your browser using the Venice account already configured for AI.',
   },
   {
     id: 'xai',
@@ -59,7 +59,7 @@ export const VOICE_PROVIDERS = Object.freeze([
     privacy: 'cloud',
     execution: 'cloud',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
-    description: 'Sends audio or message text to xAI using your API key.',
+    description: 'Sends audio or message text directly from your browser to xAI using your API key.',
   },
   {
     id: 'elevenlabs',
@@ -67,7 +67,7 @@ export const VOICE_PROVIDERS = Object.freeze([
     privacy: 'cloud',
     execution: 'cloud',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
-    description: 'Sends audio or message text to ElevenLabs using your API key.',
+    description: 'Sends audio or message text directly from your browser to ElevenLabs using your API key.',
   },
 ]);
 

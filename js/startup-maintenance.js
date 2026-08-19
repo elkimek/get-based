@@ -29,7 +29,8 @@ function preloadTrackedSupplementWarnings() {
 
 function hasConnectedOAuthWearable() {
   return Object.values(state.importedData?.wearableConnections || {})
-    .some(connection => Boolean(connection?.accessToken));
+    .some(connection => Boolean(connection?.connectedAt
+      && (connection?.accessToken || connection?.refreshToken || connection?.hasStoredCredentials)));
 }
 
 export async function startConnectedWearableServices() {

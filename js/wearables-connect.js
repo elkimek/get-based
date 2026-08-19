@@ -8,7 +8,8 @@
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
-import { adapterById, applyOAuthConfigured, applyOAuthOverrides, getOAuthClientId, isOAuthAdapterConfigured } from './wearable-adapters.js';
+import { adapterById, applyOAuthConfigured, applyOAuthOverrides, getOAuthClientId, isOAuthAdapterConfigured, isWearableRelayUnavailable } from './wearable-adapters.js';
+import { SELF_HOSTED_WEARABLE_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
 import { upsertDailyBatch, clearSource, setMeta, setMetaVersioned, getMeta, deleteMeta, countSource } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { fetchOuraDailyRange, fetchOuraPersonalInfo, daysAgoIso, isoDay } from './wearables-oura.js';
@@ -24,8 +25,8 @@ import { beginOAuth as beginWithingsOAuth, completeOAuthCallback as completeWith
 import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commitPolarTransactions } from './wearables-polar.js';
 import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCallback, isPolarCallback, withFreshToken as polarWithFreshToken, DEFAULT_POLAR_SCOPES } from './wearables-polar-auth.js';
 import { fetchGoogleHealthDailyRange, fetchGoogleHealthPersonalInfo } from './wearables-google-health.js';
-import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthLifecycleLock, withGoogleHealthRefreshLock, googleHealthDisconnectedError, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
-import { clearLocalWearableCredential, deleteWearableCredentials, hasLocalWearableCredential, loadWearableCredentials, markLocalWearableCredential, saveWearableCredentials, wearableCredentialGenerationKey } from './wearables-credential-vault.js';
+import { beginOAuth as beginGoogleHealthOAuth, completeOAuthCallback as completeGoogleHealthCallback, isGoogleHealthCallback, withFreshToken as googleHealthWithFreshToken, withGoogleHealthLifecycleLock, withGoogleHealthRefreshLock, DEFAULT_GOOGLE_HEALTH_SCOPES } from './wearables-google-health-auth.js';
+import { clearLocalWearableCredential, deleteWearableCredentials, hasLocalWearableCredential, loadWearableCredentials, markLocalWearableCredential, saveWearableCredentials, usesWearableCredentialVault, wearableCredentialDisconnectedError, wearableCredentialGenerationKey } from './wearables-credential-vault.js';
 import { applyWearableDisconnectToProfile, clearPendingWearableDisconnect, pendingWearableDisconnectMetaKey } from './wearables-disconnect-recovery.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
@@ -55,22 +56,16 @@ function _scrubError(msg) {
 // ─────────────────────────────────────────────────────────
 // importedData.wearableConnections read/write
 // ─────────────────────────────────────────────────────────
-// Most existing providers still store credentials in importedData. Google
-// Health is deliberately different: only non-secret connection metadata is
-// kept here, while tokens live in the encrypted, device-local credential vault.
-
-const VAULTED_CREDENTIAL_ADAPTERS = new Set(['google_health']);
 const credentialCache = new Map();
 
 function credentialCacheKey(profileId, adapterId) {
   return `${profileId}:${adapterId}`;
 }
 
-function usesCredentialVault(adapterId) {
-  return VAULTED_CREDENTIAL_ADAPTERS.has(adapterId);
-}
+const usesCredentialVault = usesWearableCredentialVault;
 
 function connectionHasCredentials(adapterId, connection, profileId = getActiveProfileId()) {
+  if (connection?.accessToken || connection?.refreshToken) return true;
   return usesCredentialVault(adapterId)
     ? Boolean(connection?.hasStoredCredentials && hasLocalWearableCredential(
       profileId,
@@ -142,7 +137,7 @@ async function saveConnectionWithCredentials(adapterId, connection, profileId = 
     connection = { ...connection, credentialGeneration: generation };
     credentials.credentialGeneration = generation;
     try {
-      if (!markLocalWearableCredential(profileId, adapterId, generation)) throw googleHealthDisconnectedError();
+      if (!markLocalWearableCredential(profileId, adapterId, generation)) throw wearableCredentialDisconnectedError(adapterById(adapterId)?.displayName || adapterId);
     } catch (error) {
       await deleteWearableCredentials(profileId, adapterId).catch(() => {});
       throw error;
@@ -160,13 +155,18 @@ async function hydratedConnection(adapterId) {
   if (!connection || !usesCredentialVault(adapterId)) return connection;
   const profileId = getActiveProfileId();
   const key = credentialCacheKey(profileId, adapterId);
+  if (connection.accessToken || connection.refreshToken) {
+    await saveConnectionWithCredentials(adapterId, connection, profileId);
+    return { ...getConnection(adapterId), ...credentialCache.get(key) };
+  }
   const credentials = await loadWearableCredentials(profileId, adapterId);
   if (credentials) credentialCache.set(key, credentials);
   else credentialCache.delete(key);
   if (!credentials && connection?.hasStoredCredentials) {
     try { clearLocalWearableCredential(profileId, adapterId, connection.credentialGeneration); } catch {}
+    const displayName = adapterById(adapterId)?.displayName || adapterId;
     /** @type {Error & { code?: string }} */
-    const error = new Error('Google Health must be connected separately on this device.');
+    const error = new Error(`${displayName} must be connected separately on this device.`);
     error.code = 'needs-device-connect';
     throw error;
   }
@@ -176,7 +176,7 @@ async function hydratedConnection(adapterId) {
 function latestHydratedConnection(adapterId, fallback, profileId = getActiveProfileId()) {
   if (profileId !== getActiveProfileId()) return fallback;
   const metadata = getConnection(adapterId);
-  if (usesCredentialVault(adapterId) && (!metadata || !connectionHasCredentials(adapterId, metadata, profileId))) throw googleHealthDisconnectedError();
+  if (usesCredentialVault(adapterId) && (!metadata || !connectionHasCredentials(adapterId, metadata, profileId))) throw wearableCredentialDisconnectedError(adapterById(adapterId)?.displayName || adapterId);
   if (!metadata || !usesCredentialVault(adapterId)) return metadata || fallback;
   const credentials = credentialCache.get(credentialCacheKey(profileId, adapterId));
   return credentials ? { ...metadata, ...credentials } : fallback;
@@ -198,6 +198,7 @@ export function beginConnectOAuth(adapterId) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
+  if (isWearableRelayUnavailable(adapter)) throw new Error(SELF_HOSTED_WEARABLE_MESSAGE);
   const oauth = adapter.oauth;
   if (!oauth) throw new Error(`Adapter ${adapterId} is missing OAuth configuration`);
   if (adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter)) {
@@ -295,6 +296,11 @@ export async function handleOAuthCallbackOnLoad() {
   if (!adapterId) return false;
 
   const disp = OAUTH_DISPATCH[adapterId];
+  if (isWearableRelayUnavailable(adapterId)) {
+    clearWearableOAuthCallbackRuntime();
+    showNotification?.(`${disp.displayName} connection was not completed. ${SELF_HOSTED_WEARABLE_MESSAGE}`, 'error', 7000);
+    return true;
+  }
   const result = await disp.complete(urlParams);
   clearWearableOAuthCallbackRuntime();
 
@@ -409,6 +415,9 @@ export async function handleOAuthCallbackOnLoad() {
 // forced refresh — guards against the case where the access token expired
 // between our clock check and the actual API call.
 async function callWithRefresh(adapter, fetcher) {
+  if (isWearableRelayUnavailable(adapter)) {
+    throw Object.assign(new Error(SELF_HOSTED_WEARABLE_MESSAGE), { code: 'hosted-relay-disabled' });
+  }
   if (adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter)) {
     throw Object.assign(new Error(`${adapter.displayName} is unavailable on this deployment.`), { code: 'deployment-unavailable' });
   }
@@ -494,17 +503,17 @@ export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
 async function persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate) {
   const persist = async () => {
     const live = getConnection(adapterId);
-    const isGoogleHealth = adapterId === 'google_health';
-    if (isGoogleHealth && (getActiveProfileId() !== profileId || !connectionHasCredentials(adapterId, live, profileId))) return false;
+    const isVaulted = usesCredentialVault(adapterId);
+    if (isVaulted && (getActiveProfileId() !== profileId || !connectionHasCredentials(adapterId, live, profileId))) return false;
     const expectedVersion = Number.isSafeInteger(conn?.credentialGeneration) ? conn.credentialGeneration : 0;
     const versionKey = wearableCredentialGenerationKey(adapterId);
     if (rows.length > 0) {
-      const written = await upsertDailyBatch(profileId, rows, isGoogleHealth ? { versionKey, expectedVersion } : null);
-      if (isGoogleHealth && !written) return false;
+      const written = await upsertDailyBatch(profileId, rows, isVaulted ? { versionKey, expectedVersion } : null);
+      if (isVaulted && !written) return false;
     }
     await commitAfterWriteIfAny(adapterId, rows, conn);
     const lastSync = { at: Date.now(), rows: rows.length, startDate, endDate };
-    if (isGoogleHealth) {
+    if (isVaulted) {
       const result = await setMetaVersioned(profileId, `last-sync:${adapterId}`, lastSync, versionKey, expectedVersion);
       if (!result.saved) return false;
     } else {
@@ -530,7 +539,7 @@ async function commitAfterWriteIfAny(adapterId, rows, connSnapshot) {
   try {
     // Prefer the snapshot when present; fall back to live read for callers
     // that haven't been migrated yet.
-    const conn = connSnapshot || getConnection(adapterId);
+    const conn = connSnapshot?.accessToken ? connSnapshot : await hydratedConnection(adapterId);
     if (conn?.accessToken) await disp.commitAfterWrite(conn.accessToken, pending);
   } catch (e) { if (isDebugMode?.()) console.warn(`[wearables] ${adapterId} commit failed:`, e); }
 }
@@ -713,6 +722,7 @@ async function maybeSyncStaleSources() {
   for (const [sid, conn] of Object.entries(sources)) {
     if (!connectionHasCredentials(sid, conn)) continue;
     const adapter = adapterById(sid);
+    if (isWearableRelayUnavailable(adapter)) continue;
     if (adapter?.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter)) continue;
     if (conn.needsReauth) continue;
     const last = conn.lastSyncAt || 0;
@@ -753,6 +763,7 @@ const RUNTIME_CONFIG_TIMEOUT_MS = 1500, RUNTIME_CONFIG_FETCH_TIMEOUT_MS = 10000;
 /** @type {Promise<void> | null} */ let _runtimeConfigPromise = null;
 /** @param {{ waitForFetch?: boolean }} [options] @returns {Promise<void>} */
 export function loadWearableRuntimeConfig(options = {}) {
+  if (isOfficialGetbasedHost()) return Promise.resolve();
   if (!_runtimeConfigFetchPromise) {
     let loaded = false;
     const controller = new AbortController();

@@ -3,6 +3,7 @@
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { isDebugMode } from './utils.js';
+import { HOSTED_PLAINTEXT_RELAY_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
 
 // Mid-stream stall timeout. Streaming SSE / NDJSON readers can hang
 // indefinitely on `reader.read()` if the network drops between chunks
@@ -41,6 +42,7 @@ export const AI_IMPORT_REQUEST_TIMEOUT_MS = 180000;
 export function createProxyFetch(shouldUseProxy) {
   return function proxyFetch(url, options) {
     if (!shouldUseProxy()) return fetch(url, options);
+    if (isOfficialGetbasedHost()) return Promise.reject(new Error(HOSTED_PLAINTEXT_RELAY_MESSAGE));
     // Extract headers (minus Content-Type which the proxy sets) and body.
     const { 'Content-Type': _ct, ...fwdHeaders } = options.headers || {};
     const proxyBody = {

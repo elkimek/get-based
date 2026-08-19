@@ -172,8 +172,8 @@ export function saveMeteoConfig(cfg) {
 
 function defaultConfig() {
   return {
-    // 'auto'       — CAMS direct UV/composition + satellite/Open-Meteo context
-    // 'open-meteo' — Open-Meteo only, skip CAMS (privacy from CDS-API)
+    // 'auto'       — narrow CAMS relay + browser-direct Open-Meteo fallback
+    // 'open-meteo' — browser-direct Open-Meteo
     // 'selfhost'   — user-run getbased-uvdata server (full privacy)
     // Legacy values 'cams', 'noaa', and 'manual' migrate to 'auto' on load.
     mode: 'auto',

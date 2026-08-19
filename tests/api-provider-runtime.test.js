@@ -338,7 +338,7 @@ describe('API provider runtime behavior', () => {
     expect(supportsVision()).toBe(true);
   });
 
-  it('proxies Custom API validation for the explicit unsaved remote URL', async () => {
+  it('validates an explicit unsaved remote Custom API URL directly', async () => {
     setAIProvider('openrouter');
     setCustomApiUrl('http://localhost:11434/v1');
     fetch
@@ -347,19 +347,27 @@ describe('API provider runtime behavior', () => {
 
     await expect(validateCustomApiKey('https://remote.example/v1', 'sk-custom')).resolves.toEqual({ valid: true });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/api/proxy', expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining('"url":"https://remote.example/v1/models"'),
-    }));
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
-      url: 'https://remote.example/v1/models',
-      method: 'GET',
+    expect(fetch).toHaveBeenNthCalledWith(1, 'https://remote.example/v1/models', expect.objectContaining({
+      credentials: 'omit',
       headers: { Authorization: 'Bearer sk-custom' },
-    });
-    expect(fetch).toHaveBeenNthCalledWith(2, '/api/proxy', expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining('"url":"https://remote.example/v1/chat/completions"'),
     }));
+    expect(fetch).toHaveBeenNthCalledWith(2, 'https://remote.example/v1/chat/completions', expect.objectContaining({
+      method: 'POST',
+      credentials: 'omit',
+    }));
+  });
+
+  it('explains when a Custom API does not allow browser-based inference', async () => {
+    fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    await expect(validateCustomApiKey('https://blocked.example/v1', 'sk-custom')).resolves.toEqual({
+      valid: false,
+      error: expect.stringContaining('may not support browser-based inference'),
+    });
+    expect(fetch).toHaveBeenCalledWith('https://blocked.example/v1/models', expect.objectContaining({
+      credentials: 'omit',
+    }));
+    expect(fetch).not.toHaveBeenCalledWith('/api/proxy', expect.anything());
   });
 
   it('validates provider keys and reads balance endpoints defensively', async () => {

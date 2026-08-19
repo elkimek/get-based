@@ -379,7 +379,7 @@ function renderCustomProviderPanel() {
       ${connected ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-custom-api">Remove</button>' : ''}
     </div>
     ${modelHtml}
-    <div class="api-key-notice">Your key is stored locally and sent directly to the endpoint you configure.</div>
+    <div class="api-key-notice">Direct browser connection only. Your key and requests go to the endpoint you configure, never through getbased. The endpoint must allow browser-based inference; if it does not, connection validation will explain how to fix it.</div>
   </form>`;
 }
 

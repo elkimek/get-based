@@ -12,8 +12,9 @@
 //   Scopes:    profile ring_data cgm_data   (space-separated)
 //   TTLs:      access_token 3600s, refresh_token 86399s
 //
-// Token exchange goes through /api/proxy so ULTRAHUMAN_CLIENT_SECRET never
-// reaches the browser. Same server-side-flow pattern as Oura + Withings.
+// On a user-owned deployment, token exchange goes through its /api/proxy so
+// ULTRAHUMAN_CLIENT_SECRET never reaches the browser. The official hosted app
+// disables this relay-dependent connection.
 
 import { isDebugMode } from './utils.js';
 import {

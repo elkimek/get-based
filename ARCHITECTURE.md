@@ -26,8 +26,10 @@ file covers code ownership and dependency rules that must change with the app.
 getbased is a static browser application. Local development loads
 `js/main.js` and its native ES-module graph directly. Hosted deployments run
 the Rolldown production build, which collapses the static startup graph into a
-hashed entry bundle and preserves lazy feature chunks. Small Vercel functions
-handle operations that cannot run directly in the browser.
+hashed entry bundle and preserves lazy feature chunks. Official Vercel
+functions are limited to encrypted operations, public deployment metadata, and
+an explicit allowlist of compatibility operations. AI and voice provider
+payloads use browser-direct routes.
 
 ```mermaid
 flowchart TD
@@ -38,14 +40,43 @@ flowchart TD
   Startup --> Features[feature workflows and UI]
   Features --> Foundation[state, profile, data, crypto, storage]
   Foundation --> BrowserStorage[localStorage, IndexedDB, OPFS]
-  Features --> Hosted[/api/* hosted boundary]
-  Hosted --> ServerShared[lib/* server policy and transport]
-  ServerShared --> Upstreams[approved external services]
+  Features --> Direct[chosen browser-direct AI and voice providers]
+  Features --> Hosted[scoped /api operations]
+  Hosted --> Ciphertext[encrypted share and relay storage]
+  Hosted --> Wearables[fixed hosted wearable APIs]
+  Hosted --> Attestation[fixed NVIDIA attestation]
+  Hosted --> Cams[rounded CAMS local-grid lookup]
+  Features --> SelfHost[user-owned compatibility services]
+  SelfHost --> Upstreams[self-hoster-selected upstreams]
 ```
 
-The browser remains the authority for health data. Hosted functions relay
-explicit requests, encrypted share envelopes, OAuth exchanges, or catalog
-operations; they must not become an implicit health-data store.
+The browser remains the authority for stored health data. AI, voice, and custom
+provider payloads go directly from the browser to the selected provider; the
+getbased-operated proxy rejects arbitrary authenticated or body-bearing
+forwarding. Its compatibility allowlist contains only the Oura, Withings,
+Polar, and legacy Fitbit requests used by the app, the exact NVIDIA NRAS GPU
+attestation endpoint, a privacy-rounded CAMS lookup pinned to the Company-run
+service, credential-free public-page reads explicitly marked by
+the client, and dedicated configuration/environment helpers. The Vercel
+function can read allowed plaintext credentials and provider responses while
+relaying them, but the application does not intentionally log or persist those
+payloads. Encrypted share/sync envelopes remain opaque to the operator. WHOOP,
+Ultrahuman, and Google Health are self-host-only and use the deployment owner's
+OAuth application. Confidential token exchange and refresh use its same-origin
+proxy; WHOOP and Google Health resource requests also transit it, while
+Ultrahuman resource data is fetched browser-direct. No client path falls back
+to getbased infrastructure.
+
+The hosted CAMS operation is the only plaintext location route. The browser
+rounds to 0.1° and the hosted function repeats that rounding before an
+authenticated POST to the fixed `/v1/uv` service. That service performs an
+in-memory lookup against its scheduled configured CAMS grid without per-request
+Open-Meteo enrichment or coordinate caching. If it fails or returns sparse
+fields, the browser contacts Open-Meteo directly with the rounded coordinates.
+Self-hosted deployments do not inherit the Company upstream: they must set
+`UVDATA_UPSTREAM`. Local development selects the fixed Company service only
+when its operator explicitly supplies both that exact URL and
+`UVDATA_BEARER`.
 
 ## Enforced source boundaries
 
@@ -248,19 +279,23 @@ provider catalog; the provider-neutral Voice service resolves settings into
 adapter operations without exposing provider branches to Chat. Browser-local
 Whisper and Kokoro run in dedicated module workers and download model assets
 only after explicit installation. The local-server adapter calls an
-OpenAI-compatible endpoint directly, while xAI and ElevenLabs use the bounded
-same-origin `/api/voice` relay because browser CORS cannot safely carry those
-BYOK credentials to every provider.
-
-The relay accepts only fixed provider/action combinations, caps request and
-response bodies, uses the shared DNS-pinned proxy transport and abuse control,
-and never persists or logs provider keys. Microphone blobs remain ephemeral;
-dictation only edits the composer, and chat panel/thread lifecycle callbacks
-stop tracks, synthesis, and playback. Portable Voice preferences and cloud keys
-follow the existing encrypted settings/sync path. Provider selection, local
-model/hardware choices, a local voice server URL, and its optional key remain
-device-local, while full backups include them. One Voice settings schema owns
-these scopes so backup and sync allowlists cannot drift independently.
+OpenAI-compatible endpoint directly. BYOK cloud adapters also call their fixed
+provider endpoints directly from the browser, sending the configured provider
+key while omitting browser ambient credentials. As a result, getbased and its
+Vercel deployment do not receive provider keys, microphone audio, or speech
+text. Custom OpenAI-compatible endpoints use the same browser-direct boundary;
+there is no hosted compatibility fallback, and endpoints that do not allow
+browser inference fail with a user-facing configuration explanation. A
+provider-scoped explicit consent gate runs before the
+first cloud transcription, synthesis, or text inference request and can be
+withdrawn in Settings. Microphone blobs remain ephemeral; dictation only edits
+the composer, and chat panel/thread lifecycle callbacks stop tracks, synthesis,
+and playback. Portable Voice preferences and cloud keys follow the existing
+encrypted settings/sync path, but consent records remain browser-local.
+Provider selection, local model/hardware choices, a local voice server URL, and
+its optional key remain device-local, while full backups include them. One
+Voice settings schema owns these scopes so backup and sync allowlists cannot
+drift independently.
 The service worker precaches worker source but deliberately does not precache
 large remote model assets.
 

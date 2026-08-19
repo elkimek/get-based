@@ -85,7 +85,7 @@ async function getOrCreateDeviceLocalKey(profileId) {
 }
 
 // Always-on, device-local encryption used for restricted Google Health data
-// and credentials. The non-extractable key remains in this profile's
+// and all wearable credentials. The non-extractable key remains in this profile's
 // wearable IndexedDB and is deliberately excluded from backup/sync paths.
 export async function encryptWearableDeviceLocalValue(profileId, value) {
   const key = await getOrCreateDeviceLocalKey(profileId);
@@ -205,6 +205,9 @@ async function _prepareRowForStorage(profileId, row) {
   let prepared = row;
   if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row?.source) && !row?._devicePayload) {
     const { source, date, _payload, ...rest } = row;
+    // A user-passphrase envelope is already encrypted. Preserve it when it
+    // arrives through restore; it can be converted to a device envelope after
+    // the user unlocks it, without ever landing plaintext in IndexedDB.
     if (_payload) return row;
     prepared = {
       source,
@@ -332,8 +335,8 @@ export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
     towrite.push(await _prepareRowForStorage(profileId, merged));
   }
 
-  // Phase 2 — write all merged rows in a single fresh tx, no awaits. Google
-  // Health supplies a generation guard so disconnect and stale cross-tab
+  // Phase 2 — write all merged rows in a single fresh tx, no awaits. OAuth
+  // adapters may supply a generation guard so disconnect and stale cross-tab
   // writes are ordered atomically even without Web Locks.
   const stores = versionGuard ? [STORE_DAILY, STORE_META] : STORE_DAILY;
   const tx = db.transaction(stores, 'readwrite');
@@ -400,10 +403,8 @@ export async function getAllDailyRaw(profileId) {
 }
 
 // Raw write — accepts rows AS-IS without re-encrypting. Used by the
-// backup-restore path so wrapped rows go back into IDB untouched. Plain
-// rows that come from a non-encrypted backup land in a possibly-encrypted
-// destination IDB still as plaintext — they'll be re-encrypted on next
-// mutation via the normal upsertDaily path (write-on-touch).
+// backup-restore path so wrapped rows go back into IDB untouched. Google
+// Health is excluded because its device key never leaves the source device.
 export async function upsertDailyBatchRaw(profileId, rows) {
   if (!rows || rows.length === 0) return;
   const db = await openWearablesDB(profileId);
@@ -411,9 +412,6 @@ export async function upsertDailyBatchRaw(profileId, rows) {
   const store = tx.objectStore(STORE_DAILY);
   for (const row of rows) {
     if (!row || !row.source || !row.date) continue;
-    // Google Health rows cannot be restored as plaintext. Device-encrypted
-    // rows are not exported by our backup path because their non-extractable
-    // key intentionally stays on the originating device.
     if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row.source) && !row._devicePayload && !row._payload) continue;
     store.put(row);
   }

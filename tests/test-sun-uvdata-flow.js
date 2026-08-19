@@ -171,10 +171,7 @@ const {
   assert('Auto mode did not need Open-Meteo fallback when CAMS succeeded',
     !openMeteoAfterAuto);
 
-  // ── 6. Local dev CAMS retries through the hosted credential boundary ──
-  // Local checkouts intentionally do not contain Vercel's CAMS bearer. The
-  // documented localhost origin may use the deployed relay, which injects
-  // the credential server-side without exposing it to the browser or repo.
+  // ── 6. Local dev CAMS never falls through to getbased infrastructure ──
   purgeMeteoCache();
   const savedLocation = globalThis.location;
   globalThis.location = { origin: 'http://localhost:8000' };
@@ -183,24 +180,14 @@ const {
     const url = String(u);
     localFallbackCalls.push(url);
     if (url === '/api/proxy') {
-      return new Response('{"error":"CAMS hosted relay requires UVDATA_BEARER"}', {
+      return new Response('{"error":"CAMS relay upstream is empty"}', {
         status: 503,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (url === 'https://app.getbased.health/api/proxy') {
-      return responseJson({
-        ...omForecast,
-        hourly: {
-          ...omForecast.hourly,
-          ozone_du: [314],
-          aod: [0.06],
-        },
-        airQuality: omAirQuality,
-        _camsMeta: { ageSec: 120 },
-      });
-    }
-    throw new Error(`Unexpected local CAMS fallback URL: ${url}`);
+    if (url.includes('air-quality')) return responseJson(omAirQuality);
+    if (url.includes('open-meteo')) return responseJson(omForecast);
+    throw new Error(`Unexpected local UV URL: ${url}`);
   };
   saveMeteoConfig({ ...origCfg, mode: 'cams' });
   const localCams = await fetchAtmosphere({
@@ -212,14 +199,46 @@ const {
   assert('Local CAMS first tries the same-origin dev proxy',
     localFallbackCalls[0] === '/api/proxy',
     JSON.stringify(localFallbackCalls));
-  assert('Local CAMS retries through the deployed credential boundary after 503',
-    localFallbackCalls[1] === 'https://app.getbased.health/api/proxy',
+  assert('Local CAMS does not retry through the deployed getbased boundary',
+    !localFallbackCalls.includes('https://app.getbased.health/api/proxy'),
     JSON.stringify(localFallbackCalls));
-  assert('Local CAMS hosted retry returns CAMS data',
-    localCams?.source === 'cams' && localCams.ozoneDU === 314,
+  assert('Local CAMS failure falls back browser-direct to Open-Meteo',
+    localCams?.source === 'open_meteo',
     JSON.stringify(localCams));
   if (savedLocation === undefined) delete globalThis.location;
   else globalThis.location = savedLocation;
+
+  // ── 6b. Official hosts force the privacy grid in the browser ─────────
+  purgeMeteoCache();
+  const officialSavedLocation = globalThis.location;
+  globalThis.location = { hostname: 'app.getbased.health', origin: 'https://app.getbased.health' };
+  let hostedCamsBody = null;
+  window.fetch = async (u, init = {}) => {
+    if (String(u) !== '/api/proxy') throw new Error(`Unexpected hosted UV URL: ${u}`);
+    hostedCamsBody = JSON.parse(String(init.body || '{}'));
+    return responseJson({
+      ...omForecast,
+      hourly: { ...omForecast.hourly, ozone_du: [312], aod: [0.07] },
+      _camsMeta: { ageSec: 600 },
+    });
+  };
+  saveMeteoConfig({ ...origCfg, mode: 'auto', privacyRounding: 0 });
+  const hostedCams = await fetchAtmosphere({
+    lat: 50.0755,
+    lon: 14.4378,
+    isoTime: cacheIso,
+    noCache: true,
+  });
+  assert('Official browser forces 0.1-degree CAMS coordinates even if stored rounding is off',
+    hostedCamsBody?.latitude === 50.1 && hostedCamsBody?.longitude === 14.4,
+    JSON.stringify(hostedCamsBody));
+  assert('Official result metadata reports the rounded request boundary',
+    hostedCams?._requestCoords?.privacyRounded === true
+      && hostedCams?._requestCoords?.lat === 50.1
+      && hostedCams?._requestCoords?.lon === 14.4,
+    JSON.stringify(hostedCams?._requestCoords));
+  if (officialSavedLocation === undefined) delete globalThis.location;
+  else globalThis.location = officialSavedLocation;
 
   // ── 7. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
   // The selfhost provider validates that the upstream response matches

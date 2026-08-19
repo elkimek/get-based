@@ -11,6 +11,21 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.16.1', date: '2026-08-19', title: 'Clearer cloud AI consent and direct voice privacy',
+    forceShow: true,
+    items: [
+      '<b>Cloud AI asks before sensitive data leaves your browser.</b> The first request to each cloud provider requires a separate unchecked approval that identifies the recipient and route. Refusing keeps your draft and data on this device.',
+      '<b>Voice now follows the direct BYOK connection.</b> Dictation and spoken replies go from your browser to the selected supported provider instead of passing through a getbased voice relay.',
+      '<b>The official proxy now has a narrow job.</b> It accepts only the exact supported wearable, NVIDIA attestation, privacy-rounded CAMS, and credential-free public-page operations; generic AI, voice, and custom-provider forwarding is rejected.',
+      '<b>CAMS weather context is restored with less location exposure.</b> Hosted requests are forced to a ~11 km grid and use a fixed authenticated local-grid lookup that does not forward individual coordinates to Copernicus or Open-Meteo. Missing fields fall back browser-direct.',
+      '<b>Wearable credentials are device-encrypted.</b> Oura, Withings, Polar, and existing legacy Fitbit connections keep their hosted compatibility path. WHOOP, Ultrahuman, and Google Health remain self-host only and use the deployment owner\'s OAuth application; Ultrahuman resource data is browser-direct.',
+      '<b>Hosted wearable connections explain the relay before OAuth.</b> The supported provider\'s Connect flow names the transient readable processing and asks you to consent before leaving for the vendor.',
+      '<b>Analytics and website network calls are clearer.</b> Cookieless app analytics remain on by default with a first-run notice and one-click opt-out; the public site no longer auto-loads analytics, Google Fonts, or GitHub API counters.',
+      '<b>Approval stays under your control.</b> Settings → Privacy shows which cloud providers are approved and lets you withdraw all cloud AI approval in one action.',
+      '<b>Terms and Privacy identify getbased s.r.o.</b> The updated documents also describe direct AI and voice data flows, analytics, provider responsibilities, and consent withdrawal more precisely.',
+    ]
+  },
+  {
     version: '1.16.0', date: '2026-08-14', title: 'Light & Sun, completely redesigned',
     items: [
       '<b>See your light day in one place.</b> Outdoor conditions, sun sessions, light devices, indoor environments, measurement tools, and guidance now work together as one clear experience.',
@@ -566,7 +581,7 @@ const CHANGELOG = [
     version: '1.3.20', date: '2026-04-27', title: 'Region-aware recommendations + clearer privacy',
     items: [
       '<b>Set your country in the profile editor</b> and recommendations now show products and URLs available in your market — Czech users land on Czech storefronts, US users on .com sites, etc. Each rec section\'s footer reads "Showing for {country} · change" so you always know what\'s being filtered.',
-      '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a transparency banner on first launch — counts only, no IP, no health data, cookieless. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
+      '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a cookieless transparency banner on first launch — no health records or chat content, and raw IP is not stored. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
       '<b>EMF assessment</b> now also surfaces recommended meters (empty state) and mitigation products (after interpretation), tied to the issues actually flagged. Toggle Settings → Display → "Show product recommendations" off if you don\'t want them. Affiliate disclosure is built in; brands cannot pay for placement.',
     ]
   },

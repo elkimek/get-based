@@ -62,7 +62,9 @@ assert('callClaudeAPI handles custom', apiSrc.includes("provider === 'custom') r
 assert('supportsWebSearch false for custom', apiModelsSrc.includes("provider === 'custom') return false"));
 assert('supportsVision true for custom', apiModelsSrc.includes("provider === 'custom') return true"));
 assert('callCustomAPI routes through shared provider transport',
-  apiCustomSrc.includes("'Custom',\n    opts,\n    {}"));
+  apiCustomSrc.includes('return await callOpenAICompatibleAPI(')
+    && apiCustomSrc.includes("'Custom',")
+    && apiCustomSrc.includes('{ useProxy: false }'));
 assert('saveCustomApiKey uses encrypted provider storage runtime', apiProviderStorageSrc.includes("encryptedSetProviderItemRuntime('labcharts-custom-key'"));
 assert('getCustomApiKey uses getCachedKey', apiProviderStorageSrc.includes("getCachedKey('labcharts-custom-key')"));
 
@@ -284,9 +286,15 @@ assert('proxy defaults to POST through shared method policy',
   proxySrc.includes('normalizeProxyMethod(upstreamMethod)')
   && proxyPolicySrc.includes("String(method || 'POST')"));
 assert('proxy skips body for GET', proxySrc.includes("fetchMethod !== 'GET'"));
-assert('_customApiFetchModels uses proxy', apiCustomSrc.includes('function _customApiFetchModels('));
-assert('_customApiFetchModels bases proxy decision on explicit URL', apiCustomSrc.includes('shouldProxyCustomApiUrl(url)'));
-assert('_customApiFetchModels sends method GET via proxy', apiCustomSrc.includes("method: 'GET'"));
+assert('_customApiFetchModels uses a direct browser request',
+  apiCustomSrc.includes('function _customApiFetchModels(')
+    && apiCustomSrc.includes("credentials: 'omit'"));
+assert('Custom API never calls the hosted compatibility proxy',
+  !apiCustomSrc.includes("fetch('/api/proxy'")
+    && apiCustomSrc.includes("{ useProxy: false }"));
+assert('Custom API explains browser inference compatibility failures',
+  apiCustomSrc.includes('may not support browser-based inference')
+    && apiCustomSrc.includes('did not retry the request through its servers'));
 
 // ─── 18. needsMaxCompletionTokens — GPT-5 / o-series detection (#114) ───
 console.log('\n18. needsMaxCompletionTokens (#114)');

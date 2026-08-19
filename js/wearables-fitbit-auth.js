@@ -2,8 +2,8 @@
 // wearables-fitbit-auth.js — Fitbit OAuth 2.0 PKCE flow
 //
 // Fitbit supports PKCE out of the box — public client, no client_secret
-// needed. Entire token exchange stays in the browser via /api/proxy (proxy
-// just forwards; no secret injection).
+// needed. The same-origin compatibility proxy handles browser CORS but does
+// not add a server-side Fitbit secret.
 //
 // Authorize: https://www.fitbit.com/oauth2/authorize
 // Token:     https://api.fitbit.com/oauth2/token

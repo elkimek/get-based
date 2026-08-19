@@ -11,10 +11,6 @@
     "api/proxy.js": {
       "maxDuration": 190,
       "supportsCancellation": true
-    },
-    "api/voice.js": {
-      "maxDuration": 190,
-      "supportsCancellation": true
     }
   },
   "routes": [

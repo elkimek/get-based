@@ -33,11 +33,5 @@ export function loadCommitHash() {
       const e = document.getElementById('app-commit-hash');
       if (e) cacheAndRenderCommitHash(e, sha);
     })
-    .catch(() => fetch('https://api.github.com/repos/elkimek/get-based/commits/main', { headers: { Accept: 'application/vnd.github.sha' } })
-      .then(r => r.ok ? r.text() : Promise.reject())
-      .then(sha => {
-        const e = document.getElementById('app-commit-hash');
-        if (e) cacheAndRenderCommitHash(e, sha);
-      })
-      .catch(() => {}));
+    .catch(() => {});
 }

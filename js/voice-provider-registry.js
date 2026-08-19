@@ -17,7 +17,7 @@ export async function loadVoiceProvider(providerId) {
     return (await import('./voice-provider-local-server.js')).localServerVoiceProvider;
   }
   if (providerId === 'xai') {
-    return (await import('./voice-provider-xai.js')).xaiVoiceProvider;
+    return (await import('./voice-provider-ai-cloud.js')).xaiVoiceProvider;
   }
   if (providerId === 'elevenlabs') {
     return (await import('./voice-provider-elevenlabs.js')).elevenLabsVoiceProvider;

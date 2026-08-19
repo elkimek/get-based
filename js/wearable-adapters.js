@@ -12,12 +12,15 @@
 // metric nobody else exposes, add it to CANONICAL_METRICS — the strip will
 // pick it up automatically.
 //
+import { isOfficialGetbasedHost } from './url-safety.js';
+
 // Shape — adapter:
 //   id              stable lowercase slug; persisted in L1 rows, L2 sources
 //   displayName     human label ("Oura", "WHOOP", "Apple Health")
 //   authType        'pat' | 'oauth' | 'file-import'
 //   authDocsUrl     optional — where the user creates the credential
-//   apiHost         optional — for 'pat'/'oauth' adapters; routed via /api/proxy allowlist
+//   apiHost         optional — vendor API host; browser-direct where supported,
+//                   otherwise available only through a self-hosted deployment
 //   metrics         { canonicalId: { endpoint, field, transform? } }
 //   accountInfo     optional — endpoint + field to verify credential + show identity
 //
@@ -217,6 +220,7 @@ export const ADAPTERS = [
     id: 'ultrahuman',
     displayName: 'Ultrahuman',
     authType: 'oauth2',
+    selfHostOnly: true,
     authDocsUrl: 'https://vision.ultrahuman.com/developer-docs?type=oauth',
     selfHostDocsUrl: 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps',
     beta: true,
@@ -260,6 +264,7 @@ export const ADAPTERS = [
     id: 'whoop',
     displayName: 'WHOOP',
     authType: 'oauth2',
+    selfHostOnly: true,
     authDocsUrl: 'https://developer.whoop.com/docs/developing/oauth',
     selfHostDocsUrl: 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps',
     beta: true,
@@ -341,6 +346,7 @@ export const ADAPTERS = [
     id: 'google_health',
     displayName: 'Google Health',
     authType: 'oauth2',
+    selfHostOnly: true,
     integrationKind: 'aggregator',
     authDocsUrl: 'https://developers.google.com/health/setup',
     selfHostDocsUrl: 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps',
@@ -602,6 +608,11 @@ export function isOAuthAdapterConfigured(adapterOrId) {
   // client. Secrets remain server-side; only this boolean reaches the browser.
   if (adapter.hostConfiguredOnly) return _oauthConfigured[adapter.id] === true;
   return true;
+}
+
+export function isWearableRelayUnavailable(adapterOrId, locationLike = globalThis.location) {
+  const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
+  return Boolean(adapter?.selfHostOnly && isOfficialGetbasedHost(locationLike));
 }
 
 // Test/debug surface — never relied on by production code paths.

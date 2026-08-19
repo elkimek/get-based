@@ -1,5 +1,4 @@
-importScripts('/version.js');
-importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
+importScripts('/version.js', '/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 let _cacheNamePromise = null;
@@ -84,6 +83,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/context-card-dashboard-ai-runtime.js',
   '/js/startup-orchestrator.js',
   '/js/legal-consent.js',
+  '/js/cloud-ai-consent.js',
   '/js/schema.js',
   '/js/marker-schema.js',
   '/js/custom-marker-identity.js',
@@ -321,7 +321,6 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/voice-provider-elevenlabs.js',
   '/js/voice-provider-local-server.js',
   '/js/voice-provider-registry.js',
-  '/js/voice-provider-xai.js',
   '/js/voice-response-utils.js',
   '/js/voice-service.js',
   '/js/voice-settings-schema.js',

@@ -584,9 +584,8 @@ test('built-in Voice workers complete their mock STT and TTS protocols', async (
 
 test('cloud connection controls preserve masked keys, labels, and provider errors', async ({ page }) => {
   let elevenMode = 'error';
-  await page.route('**/api/voice?action=voices', async route => {
-    const provider = await route.request().headerValue('x-voice-provider');
-    if (provider === 'xai') {
+  await page.route(/https:\/\/(?:api\.x\.ai\/v1\/tts\/voices|api\.elevenlabs\.io\/v2\/voices.*)/, async route => {
+    if (route.request().url().includes('api.x.ai')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

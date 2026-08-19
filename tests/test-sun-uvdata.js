@@ -446,13 +446,17 @@ const {
     const fs = (await import('node:fs')).default;
     const uvSrc = fs.readFileSync(new URL('../js/sun-uvdata.js', import.meta.url), 'utf-8');
     const apiProxySrc = fs.readFileSync(new URL('../api/proxy.js', import.meta.url), 'utf-8');
+    const camsRelaySrc = fs.readFileSync(new URL('../api/cams-relay.js', import.meta.url), 'utf-8');
     const lightPageViewSrc = fs.readFileSync(new URL('../js/light-page-view.js', import.meta.url), 'utf-8');
-    assert('Vercel CAMS proxy defaults to hosted getbased-uvdata',
-      /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(apiProxySrc));
-    assert('Vercel CAMS proxy surfaces missing hosted bearer explicitly',
-      /CAMS hosted relay requires UVDATA_BEARER/.test(apiProxySrc));
-    assert('Light explainer says CAMS is the default atmosphere source and Open-Meteo is the fallback',
-      /<strong>Weather data\.<\/strong>[\s\S]{0,220}>CAMS<\/a> is the default atmosphere source[\s\S]{0,300}>Open-Meteo<\/a>[\s\S]{0,180}fallback when CAMS is unavailable/.test(lightPageViewSrc));
+    assert('Hosted CAMS proxy pins the private getbased route',
+      /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(camsRelaySrc)
+        && /\$\{upstream\}\/v1\/uv/.test(camsRelaySrc));
+    assert('Self-hosted CAMS still requires an operator-selected upstream',
+      /CAMS relay upstream is empty\. Set UVDATA_UPSTREAM/.test(camsRelaySrc));
+    assert('CAMS operation is split from the generic proxy entrypoint',
+      /import \{ handleCamsRelay \} from '\.\/cams-relay\.js';/.test(apiProxySrc));
+    assert('Light explainer discloses fixed CAMS relay and browser-direct fallback',
+      /<strong>Weather data\.<\/strong>[\s\S]{0,500}fixed private relay[\s\S]{0,650}does not forward your coordinates[\s\S]{0,500}Open-Meteo<\/a> directly/.test(lightPageViewSrc));
     assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
       /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
     assert('fetchJson does Content-Length pre-check',

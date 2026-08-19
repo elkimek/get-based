@@ -96,13 +96,13 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && changelogSrc.includes('openModalOverlay(')
       && changelogSrc.includes('closeModalOverlay('));
 
-  // ─── 4. Brand-voice "we/us" eliminated from key sites ───
+  // ─── 4. Hosted-product copy avoids personal-maintainer framing ───
   const utilsSrc = read('/js/utils.js');
-  assert('utils.js analytics consent uses "me" not "us"',
-    !utilsSrc.includes('help us improve getbased') && utilsSrc.includes('help me improve getbased'));
+  assert('utils.js analytics consent uses product-level wording',
+    !utilsSrc.includes('help me improve getbased') && utilsSrc.includes('help improve getbased'));
   const settingsSrc = `${read('/js/settings.js')}\n${read('/js/settings-privacy.js')}`;
-  assert('settings.js privacy copy uses "I" not "we"',
-    !settingsSrc.includes('We track cookieless') && settingsSrc.includes('I track cookieless'));
+  assert('settings.js privacy copy identifies Umami without personal framing',
+    !settingsSrc.includes('I track cookieless') && settingsSrc.includes('Umami analytics service'));
   assert('onboarding-view.js drops "us show" framing',
     !onboardingViewSrc.includes('help us show the right reference ranges'));
   const importSrc = read('/js/pdf-import.js');
