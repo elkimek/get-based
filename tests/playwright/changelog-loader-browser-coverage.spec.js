@@ -43,7 +43,7 @@ test('changelog archive stays cold for first visits and ordinary patch updates, 
     localStorage.removeItem('labcharts-changelog-seen');
     const firstVisitResult = facade.maybeShowChangelog();
     const firstVisitSeen = localStorage.getItem('labcharts-changelog-seen');
-    localStorage.setItem('labcharts-changelog-seen', '1.16.1');
+    localStorage.setItem('labcharts-changelog-seen', '1.17.0');
     const patchResult = facade.maybeShowChangelog();
     const cold = !facade.isChangelogModuleLoaded();
     facade.closeChangelog();

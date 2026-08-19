@@ -15,7 +15,6 @@ let useChangelogRetryUrl = false;
 // Keep this compact gate metadata aligned with forceShow entries in the lazy
 // archive. Source tests enforce exact coverage in both directions.
 const FORCE_SHOW_VERSIONS = [
-  '1.16.1',
   '1.13.1',
   '1.11.1',
   '1.10.177',
