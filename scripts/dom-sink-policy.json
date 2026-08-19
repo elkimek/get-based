@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 642,
+  "scannedFiles": 641,
   "sinkCount": 499,
   "files": {
     "js/backup.js": {
@@ -153,7 +153,7 @@
     },
     "js/client-list-form.js": {
       "count": 4,
-      "digest": "1a0c1eb6a111884dc9e88563152a99426fe3317e871f37cd8bf66db9d48ed7ff",
+      "digest": "5476094af1f2a25885b9c13286246f562ffd909a4770f53b37f3e1410fc6cf79",
       "kinds": {
         "innerHTML": 4
       }
@@ -865,7 +865,7 @@
     },
     "js/utils.js": {
       "count": 3,
-      "digest": "74f3e2e0e55c726096d6853ac44057120ec2ec95e32fe41b2b0bbb491d1a9631",
+      "digest": "12339abd23e39ae4a07be9721a7648acdd39b5c49668a8ccb8be4e3a2ac9f82e",
       "kinds": {
         "innerHTML": 3
       }

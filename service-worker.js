@@ -1,4 +1,5 @@
-importScripts('/version.js', '/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
+importScripts('/version.js'); // Production uses semver; previews add the deployment SHA.
+importScripts('/service-worker-runtime.js');
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 let _cacheNamePromise = null;
