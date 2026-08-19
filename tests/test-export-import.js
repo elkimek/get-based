@@ -14,6 +14,7 @@ return (async function() {
   const exportModule = await import('/js/export.js');
   const contextCards = await import('/js/context-cards.js');
   const contextHealth = await import('/js/context-card-health-dots.js');
+  const cloudConsent = await import('/js/cloud-ai-consent.js');
   const cryptoStore = await import('/js/crypto.js');
   const profile = await import('/js/profile.js');
   const views = await import('/js/views.js');
@@ -1115,6 +1116,7 @@ return (async function() {
     const origAIPaused = localStorage.getItem('labcharts-ai-paused');
     const origOpenRouterModel = localStorage.getItem('labcharts-openrouter-model');
     const origOpenRouterKeyCache = cryptoStore.getCachedKey('labcharts-openrouter-key');
+    const origCloudAIConsent = localStorage.getItem('labcharts-cloud-ai-consent');
     let aiCallCount = 0;
     const aiCallUrls = [];
     window.fetch = function(url, opts) {
@@ -1245,6 +1247,10 @@ return (async function() {
           && paidOffHtml.includes('Enable live AI')
           && !paidOffHtml.includes('refresh-all-health-dots')
           && document.getElementById('ctx-ai-stress')?.textContent.includes('not recalculated'));
+      localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+        version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+        approvals: { openrouter: { accepted: true } },
+      }));
       contextHealth.enableDemoContextLiveAI();
       await contextCards.loadContextHealthDots();
       const paidLiveHtml = contextCards.renderProfileContextCards();
@@ -1289,6 +1295,8 @@ return (async function() {
       else localStorage.setItem('labcharts-ai-paused', origAIPaused);
       if (origOpenRouterModel == null) localStorage.removeItem('labcharts-openrouter-model');
       else localStorage.setItem('labcharts-openrouter-model', origOpenRouterModel);
+      if (origCloudAIConsent == null) localStorage.removeItem('labcharts-cloud-ai-consent');
+      else localStorage.setItem('labcharts-cloud-ai-consent', origCloudAIConsent);
       cryptoStore.updateKeyCache('labcharts-openrouter-key', origOpenRouterKeyCache);
       // Restore prior state so subsequent tests aren't disturbed.
       S.importedData = snapshot2;

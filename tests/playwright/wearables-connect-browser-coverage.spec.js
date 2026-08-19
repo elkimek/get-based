@@ -34,6 +34,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
     const { state } = await import('/js/state.js');
     const connect = await import(connectUrl);
     const connectRuntime = await import('/js/wearables-connect-runtime.js');
+    const credentialVault = await import('/js/wearables-credential-vault.js');
     const store = await import(storeUrl);
     await import('/js/wearable-adapters.js');
 
@@ -187,15 +188,22 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
       await wait(250);
 
       const conn = connect.getConnection('oura');
+      const callbackCredentials = await credentialVault.loadWearableCredentials(profileId, 'oura');
       const l1Rows = await store.getDailyRange(profileId, 'oura', sleepDay, sleepDay);
-      check('handleOAuthCallbackOnLoad handles Oura callback', handled === true && conn?.accessToken === 'oura-access-token' && conn.account?.email === 'oura@example.test');
+      check('handleOAuthCallbackOnLoad handles Oura callback', handled === true
+        && conn?.accessToken == null
+        && conn?.hasStoredCredentials === true
+        && callbackCredentials?.accessToken === 'oura-access-token'
+        && conn.account?.email === 'oura@example.test');
       check('callback cleans URL and navigates dashboard', window.location.search === '' && navigations.includes('dashboard'));
       check('background backfill writes Oura L1 rows', l1Rows.some(row => row.date === sleepDay && row.hrv_rmssd === 41 && row.rhr === 52 && row.sleep_score === 88));
       check('listConnectedSources exposes connected Oura source', connect.listConnectedSources().oura?.connectedSince === conn.connectedAt);
 
       state.importedData.wearableConnections.oura.expiresAt = 0;
       await connect.incrementalSyncWearable('oura', { force: true });
-      check('incremental sync refreshes expired token', refreshCount >= 1 && connect.getConnection('oura')?.accessToken.startsWith('oura-refreshed-'));
+      const refreshedCredentials = await credentialVault.loadWearableCredentials(profileId, 'oura');
+      check('incremental sync refreshes expired token', refreshCount >= 1
+        && refreshedCredentials?.accessToken?.startsWith('oura-refreshed-'));
 
       const syncResult = await connect.syncNow('oura', { force: true });
       check('syncNow completes source and summary refresh', syncResult.rows >= 1 && state.importedData.wearableSummary?.sources?.oura?.coverageDays >= 1);

@@ -981,6 +981,7 @@ test('reference model tests use deterministic prompts and explicit protocol iden
     const { state } = await import('/js/state.js');
     const { setAIProvider, setOpenRouterModel } = await import('/js/api.js');
     const { updateKeyCache } = await import('/js/crypto.js');
+    const cloudConsent = await import('/js/cloud-ai-consent.js');
     const { parseLabPDFWithAI } = await import('/js/pdf-import.js');
     const { importBenchmarksUseSameInput } = await import('/js/settings-data.js');
     state.currentProfile = 'deterministic-benchmark-profile';
@@ -1004,6 +1005,10 @@ test('reference model tests use deterministic prompts and explicit protocol iden
     setAIProvider('openrouter');
     setOpenRouterModel('openai/gpt-4o');
     updateKeyCache('labcharts-openrouter-key', 'benchmark-test-key');
+    localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+      approvals: { openrouter: { accepted: true } },
+    }));
     const requestBodies = [];
     const originalFetch = window.fetch;
     window.fetch = async (_url, init = {}) => {

@@ -138,12 +138,13 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       return false;
     };
 
-    const [{ state }, settings, store, settingsBridge, settingsRuntime] = await Promise.all([
+    const [{ state }, settings, store, settingsBridge, settingsRuntime, credentialVault] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-settings-panel.js'),
       import('/js/wearables-store.js'),
       import('/js/settings-runtime-bridge.js'),
       import('/js/wearables-settings-runtime.js'),
+      import('/js/wearables-credential-vault.js'),
     ]);
 
     const profileId = `wearables-settings-render-${Date.now()}`;
@@ -192,11 +193,15 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
           oura: {
             connectedAt: Date.now() - 10 * 60 * 1000,
             lastSyncAt: Date.now() - 5 * 60 * 1000,
+            hasStoredCredentials: true,
+            credentialGeneration: 1,
             account: { email: 'oura@example.test' },
           },
           fitbit: {
             connectedAt: Date.now() - 60 * 60 * 1000,
             lastSyncAt: Date.now() - 60 * 60 * 1000,
+            hasStoredCredentials: true,
+            credentialGeneration: 1,
             needsReauth: true,
           },
           manual: {
@@ -216,6 +221,8 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         markerValueNotes: {},
         changeHistory: [],
       };
+      credentialVault.markLocalWearableCredential(profileId, 'oura', 1);
+      credentialVault.markLocalWearableCredential(profileId, 'fitbit', 1);
 
       await store.clearSource(profileId, 'manual').catch(() => {});
       await store.upsertDailyBatch(profileId, [
@@ -318,6 +325,8 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       document.getElementById('wearables-section')?.remove();
       document.getElementById('wearable-strip')?.remove();
       await store.clearSource(profileId, 'manual').catch(() => {});
+      credentialVault.clearLocalWearableCredential(profileId, 'oura', 1);
+      credentialVault.clearLocalWearableCredential(profileId, 'fitbit', 1);
       if (oldActiveProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', oldActiveProfile);
       if (oldHiddenValue == null) localStorage.removeItem(hiddenKey);
