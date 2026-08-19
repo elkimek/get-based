@@ -638,6 +638,7 @@ async function handleWearableConnect(adapterId) {
   try {
     await loadWearableRuntimeConfig({ waitForFetch: true });
     const adapter = adapterById(adapterId);
+    if (!adapter) throw new Error('Unknown wearable provider.');
     if (isWearableRelayUnavailable(adapter)) {
       showNotification?.(SELF_HOSTED_WEARABLE_MESSAGE, 'info', 7000);
       return;

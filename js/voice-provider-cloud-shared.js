@@ -23,9 +23,10 @@ function connectionError(provider) {
 }
 
 function providerHeaders(provider, apiKey, contentType = '') {
-  const headers = provider === 'elevenlabs'
-    ? { 'xi-api-key': apiKey }
-    : { Authorization: `Bearer ${apiKey}` };
+  /** @type {Record<string, string>} */
+  const headers = {};
+  if (provider === 'elevenlabs') headers['xi-api-key'] = String(apiKey);
+  else headers.Authorization = `Bearer ${apiKey}`;
   if (contentType) headers['Content-Type'] = contentType;
   return headers;
 }
