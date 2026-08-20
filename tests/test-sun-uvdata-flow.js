@@ -124,6 +124,11 @@ const {
       nitrogen_dioxide: [14],
       aerosol_optical_depth: [0.08],
       ozone: [70],
+      european_aqi: [18],
+      european_aqi_pm2_5: [10],
+      european_aqi_pm10: [12],
+      european_aqi_nitrogen_dioxide: [8],
+      european_aqi_ozone: [16],
     },
     current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
   };
@@ -170,6 +175,73 @@ const {
     JSON.stringify(autoAtm));
   assert('Auto mode did not need Open-Meteo fallback when CAMS succeeded',
     !openMeteoAfterAuto);
+
+  // Production CAMS can return a valid direct UV sample while its companion
+  // weather/daylight fields are null and its AQ block contains concentrations
+  // but no provider-computed European AQI. That response used to short-circuit
+  // the provider chain, leaving Conditions Now with only UV-A on/off events
+  // and an empty air-quality card. Supplement the missing context without
+  // replacing CAMS UV, ozone column, aerosol, or raw particle readings.
+  const contextCalls = [];
+  window.fetch = async (u) => {
+    const url = String(u);
+    contextCalls.push(url);
+    if (url === '/api/proxy') {
+      return responseJson({
+        latitude: 51.2,
+        longitude: 14.6,
+        timezone: 'GMT',
+        utc_offset_seconds: 0,
+        hourly: {
+          time: ['2026-05-12T12:00'],
+          uv_index: [5.2],
+          uv_index_clear_sky: [5.8],
+          uv_index_cams_total_sky: [5.2],
+          uv_index_cams_clear_sky: [5.8],
+          uv_index_source: ['cams_uvbed'],
+          cloud_cover: [null],
+          temperature_2m: [null],
+          ozone_du: [306],
+          aod: [0.12],
+          pm2_5: [2.4],
+          pm10: [3.1],
+        },
+        daily: {
+          time: ['2026-05-12'],
+          sunrise: [null],
+          sunset: [null],
+          uv_index_max: [null],
+        },
+        _camsMeta: { ageSec: 600, directUv: true },
+        _fieldSources: { uvIndex: 'cams_uvbed', ozoneDU: 'cams_global_forecast' },
+      });
+    }
+    if (url.includes('air-quality')) return responseJson(omAirQuality);
+    return responseJson(omForecast);
+  };
+  const contextMerged = await fetchAtmosphere({
+    lat: 51.23,
+    lon: 14.56,
+    isoTime: cacheIso,
+    noCache: true,
+  });
+  assert('CAMS direct UV supplements missing sunrise, sunset, peak, and AQ context',
+    contextMerged?.source === 'cams+open_meteo'
+      && contextMerged.uvIndex === 5.2
+      && contextMerged.ozoneDU === 306
+      && contextMerged.cloudCover === 18
+      && contextMerged.temperatureC === 20
+      && contextMerged.daily?.sunrise === '2026-05-12T05:10'
+      && contextMerged.daily?.sunset === '2026-05-12T20:35'
+      && contextMerged.daily?.peakAt === '2026-05-12T12:00'
+      && contextMerged.airQuality?.european_aqi === 18
+      && contextMerged.airQuality?.pm25 === 2.4
+      && contextMerged.airQuality?.aod === 0.12
+      && contextMerged.hourly?.uv_index?.[0] === 5.2
+      && contextMerged.hourly?.cloud_cover?.[0] === 18
+      && contextCalls.some(url => url.includes('api.open-meteo.com'))
+      && contextCalls.some(url => url.includes('air-quality-api.open-meteo.com')),
+    JSON.stringify(contextMerged));
 
   // ── 6. Local dev CAMS never falls through to getbased infrastructure ──
   purgeMeteoCache();

@@ -43,10 +43,11 @@ export {
 // privacy posture.
 
 let _warnedAboutRejectedSelfhostUrl = false;
-// v4 invalidates reconstructed CAMS peaks and the old whole-response source
-// label. Current conditions use a five-minute TTL; historical requests can
-// remain cached longer because their underlying forecast snapshot is stable.
-const CACHE_PREFIX = 'meteo:v4:';
+// v5 invalidates CAMS-only rows that could contain direct UV while omitting
+// sunrise/sunset/peak and provider-computed AQI context. Current conditions
+// use a five-minute TTL; historical requests can remain cached longer because
+// their underlying forecast snapshot is stable.
+const CACHE_PREFIX = 'meteo:v5:';
 const NETWORK_TIMEOUT_MS = 8000;
 
 // ─── Public API ────────────────────────────────────────────────────────
@@ -94,29 +95,21 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
     try {
       const result = await provider.fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
       if (result) {
-        // CAMS sometimes returns a structurally valid response with
-        // sparse hourly fields (uvIndex/cloudCover/temperatureC all null
-        // — only DU and AQI populated). The "Conditions now" widget then
-        // renders a dash for UV even though Open-Meteo would have served
-        // a real number. When that happens AND we have a downstream
-        // provider, fetch it too and merge the missing primary fields,
-        // keeping CAMS's superior DU/AOD overlay.
-        const sparseUv = result.uvIndex == null && result.cloudCover == null;
+        // The CAMS relay can legitimately return a direct UV value while its
+        // companion context is unavailable (sunrise/sunset/peak, clouds,
+        // temperature, or provider-computed European AQI). Accepting that
+        // response as complete left Conditions Now with only the geometry-
+        // derived UV-A transitions and an empty air-quality card. When any of
+        // that context is missing, supplement it from the next provider while
+        // retaining CAMS UV, ozone-column, aerosol, and provenance fields.
+        const needsContextFallback = atmosphereNeedsContextFallback(result);
         const hasFallback = i + 1 < order.length;
-        if (sparseUv && hasFallback) {
+        if (needsContextFallback && hasFallback) {
           for (let j = i + 1; j < order.length; j++) {
             try {
               const fallback = await order[j].fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
-              if (fallback && fallback.uvIndex != null) {
-                const merged = Object.assign({}, fallback, {
-                  // Preserve CAMS strengths over Open-Meteo where present.
-                  ozoneDU: result.ozoneDU ?? fallback.ozoneDU,
-                  airQuality: result.airQuality || fallback.airQuality,
-                  // Annotate the merge for the inspector.
-                  source: `${result.source}+${fallback.source}`,
-                  confidence: Math.min(result.confidence ?? 1, fallback.confidence ?? 1),
-                  fetchedAt: Date.now(),
-                });
+              if (fallback) {
+                const merged = mergeAtmosphereContext(result, fallback);
                 const annotated = withRequestMeta(merged);
                 writeCache(cacheKey, annotated);
                 return annotated;
@@ -362,6 +355,95 @@ function availableProviders(candidates, ctx) {
   return candidates.filter(provider => providerIsAvailable(provider, ctx));
 }
 
+function hasUsefulProviderValue(value) {
+  if (value == null) return false;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(hasUsefulProviderValue);
+  return true;
+}
+
+function mergeUsefulFields(fallback, primary) {
+  const merged = { ...(fallback || {}) };
+  for (const [key, value] of Object.entries(primary || {})) {
+    if (hasUsefulProviderValue(value)) merged[key] = value;
+  }
+  return Object.keys(merged).length ? merged : null;
+}
+
+// Use the fallback's complete hourly clock as the output grid, then overlay
+// every meaningful primary sample at its matching instant. The live CAMS
+// relay commonly returns one UTC hour while Open-Meteo returns a multi-day
+// location-local grid; copying arrays wholesale would mismatch timestamps.
+function mergeHourlyContext(primary, fallback) {
+  if (!Array.isArray(fallback?.time) || fallback.time.length === 0) return primary || fallback || null;
+  if (!Array.isArray(primary?.time) || primary.time.length === 0) return fallback;
+
+  const fallbackOffset = Number(fallback.utcOffsetSeconds) || 0;
+  const primaryOffset = Number(primary.utcOffsetSeconds) || 0;
+  const merged = {};
+  for (const [key, value] of Object.entries(fallback)) {
+    merged[key] = Array.isArray(value) ? value.slice() : value;
+  }
+
+  for (const [key, values] of Object.entries(primary)) {
+    if (key === 'time' || key === 'utcOffsetSeconds' || !Array.isArray(values)) continue;
+    for (let i = 0; i < values.length; i++) {
+      const value = values[i];
+      if (!hasUsefulProviderValue(value)) continue;
+      const primaryMs = parseProviderTimeMs(primary.time[i], primaryOffset);
+      if (!Number.isFinite(primaryMs)) continue;
+      const fallbackIndex = nearestHourIndex(
+        fallback.time,
+        new Date(primaryMs).toISOString(),
+        fallbackOffset
+      );
+      if (fallbackIndex < 0) continue;
+      const fallbackMs = parseProviderTimeMs(fallback.time[fallbackIndex], fallbackOffset);
+      if (!Number.isFinite(fallbackMs) || Math.abs(fallbackMs - primaryMs) > 90 * 60 * 1000) continue;
+      if (!Array.isArray(merged[key])) merged[key] = Array(fallback.time.length).fill(null);
+      merged[key][fallbackIndex] = value;
+    }
+  }
+  merged.time = fallback.time.slice();
+  merged.utcOffsetSeconds = fallbackOffset;
+  return merged;
+}
+
+function atmosphereNeedsContextFallback(result) {
+  if (!String(result?.source || '').includes('cams')) return false;
+  const daily = result?.daily || {};
+  return result?.uvIndex == null
+    || result?.cloudCover == null
+    || result?.temperatureC == null
+    || !hasUsefulProviderValue(daily.sunrise)
+    || !hasUsefulProviderValue(daily.sunset)
+    || !hasUsefulProviderValue(daily.peakAt)
+    || !Number.isFinite(result?.airQuality?.european_aqi);
+}
+
+function mergeAtmosphereContext(primary, fallback) {
+  const sources = [];
+  for (const source of [primary?.source, fallback?.source]) {
+    for (const part of String(source || '').split('+')) {
+      if (part && !sources.includes(part)) sources.push(part);
+    }
+  }
+  return Object.assign({}, fallback, primary, {
+    uvIndex: primary?.uvIndex ?? fallback?.uvIndex ?? null,
+    uvClearSky: primary?.uvClearSky ?? fallback?.uvClearSky ?? null,
+    ozoneDU: primary?.ozoneDU ?? fallback?.ozoneDU ?? null,
+    cloudCover: primary?.cloudCover ?? fallback?.cloudCover ?? null,
+    temperatureC: primary?.temperatureC ?? fallback?.temperatureC ?? null,
+    airQuality: mergeUsefulFields(fallback?.airQuality, primary?.airQuality),
+    daily: mergeUsefulFields(fallback?.daily, primary?.daily),
+    hourly: mergeHourlyContext(primary?.hourly, fallback?.hourly),
+    source: sources.join('+'),
+    confidence: Math.min(primary?.confidence ?? 1, fallback?.confidence ?? 1),
+    fetchedAt: Date.now(),
+  });
+}
+
 function providerOrder(cfg, coords = {}) {
   const ctx = Object.assign({}, cfg, coords);
   // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only useful
@@ -461,21 +543,21 @@ function readStaleCache(rLat, rLon) {
   }
 }
 
-// One-time sweep of pre-v4 cache entries on first import. Idempotent —
+// One-time sweep of pre-v5 cache entries on first import. Idempotent —
 // the marker key is only written once, so subsequent loads are no-ops.
 try {
-  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v4-purged')) {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v5-purged')) {
     const stale = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v4:')) stale.push(k);
+      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v5:')) stale.push(k);
     }
     for (const k of stale) localStorage.removeItem(k);
-    localStorage.setItem('meteo-cache-v4-purged', '1');
+    localStorage.setItem('meteo-cache-v5-purged', '1');
   }
 } catch (e) {
   if (isSunDebugRuntime()) {
-    console.warn('[sun-uvdata] pre-v4 cache sweep failed', getErrorName(e) || e);
+    console.warn('[sun-uvdata] pre-v5 cache sweep failed', getErrorName(e) || e);
   }
 }
 
