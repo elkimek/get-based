@@ -43,10 +43,8 @@ export {
 // privacy posture.
 
 let _warnedAboutRejectedSelfhostUrl = false;
-// v5 invalidates CAMS-only rows that could contain direct UV while omitting
-// sunrise/sunset/peak and provider-computed AQI context. Current conditions
-// use a five-minute TTL; historical requests can remain cached longer because
-// their underlying forecast snapshot is stable.
+// v5 invalidates CAMS rows missing daily or AQI context. Live conditions use
+// a five-minute TTL; historical forecasts remain cached longer.
 const CACHE_PREFIX = 'meteo:v5:';
 const NETWORK_TIMEOUT_MS = 8000;
 
@@ -95,13 +93,8 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
     try {
       const result = await provider.fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
       if (result) {
-        // The CAMS relay can legitimately return a direct UV value while its
-        // companion context is unavailable (sunrise/sunset/peak, clouds,
-        // temperature, or provider-computed European AQI). Accepting that
-        // response as complete left Conditions Now with only the geometry-
-        // derived UV-A transitions and an empty air-quality card. When any of
-        // that context is missing, supplement it from the next provider while
-        // retaining CAMS UV, ozone-column, aerosol, and provenance fields.
+        // Direct CAMS UV can arrive without daily, weather, or AQI context.
+        // Fill those gaps from the next provider while retaining CAMS data.
         const needsContextFallback = atmosphereNeedsContextFallback(result);
         const hasFallback = i + 1 < order.length;
         if (needsContextFallback && hasFallback) {
@@ -356,11 +349,10 @@ function availableProviders(candidates, ctx) {
 }
 
 function hasUsefulProviderValue(value) {
-  if (value == null) return false;
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (typeof value === 'string') return value.trim().length > 0;
   if (Array.isArray(value)) return value.some(hasUsefulProviderValue);
-  return true;
+  return value != null
+    && (typeof value !== 'number' || Number.isFinite(value))
+    && (typeof value !== 'string' || value.trim().length > 0);
 }
 
 function mergeUsefulFields(fallback, primary) {
@@ -371,74 +363,52 @@ function mergeUsefulFields(fallback, primary) {
   return Object.keys(merged).length ? merged : null;
 }
 
-// Use the fallback's complete hourly clock as the output grid, then overlay
-// every meaningful primary sample at its matching instant. The live CAMS
-// relay commonly returns one UTC hour while Open-Meteo returns a multi-day
-// location-local grid; copying arrays wholesale would mismatch timestamps.
+// Overlay CAMS samples on the fallback's complete, location-local time grid.
 function mergeHourlyContext(primary, fallback) {
-  if (!Array.isArray(fallback?.time) || fallback.time.length === 0) return primary || fallback || null;
-  if (!Array.isArray(primary?.time) || primary.time.length === 0) return fallback;
-
+  const fallbackTimes = fallback?.time;
+  const primaryTimes = primary?.time;
+  if (!Array.isArray(fallbackTimes) || !fallbackTimes.length) return primary || fallback || null;
+  if (!Array.isArray(primaryTimes) || !primaryTimes.length) return fallback;
   const fallbackOffset = Number(fallback.utcOffsetSeconds) || 0;
   const primaryOffset = Number(primary.utcOffsetSeconds) || 0;
-  const merged = {};
-  for (const [key, value] of Object.entries(fallback)) {
-    merged[key] = Array.isArray(value) ? value.slice() : value;
-  }
-
+  const merged = { ...fallback };
   for (const [key, values] of Object.entries(primary)) {
     if (key === 'time' || key === 'utcOffsetSeconds' || !Array.isArray(values)) continue;
+    const output = Array.isArray(merged[key])
+      ? merged[key].slice() : Array(fallbackTimes.length).fill(null);
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
       if (!hasUsefulProviderValue(value)) continue;
-      const primaryMs = parseProviderTimeMs(primary.time[i], primaryOffset);
+      const primaryMs = parseProviderTimeMs(primaryTimes[i], primaryOffset);
       if (!Number.isFinite(primaryMs)) continue;
-      const fallbackIndex = nearestHourIndex(
-        fallback.time,
-        new Date(primaryMs).toISOString(),
-        fallbackOffset
-      );
+      const fallbackIndex = nearestHourIndex(fallbackTimes, new Date(primaryMs).toISOString(), fallbackOffset);
       if (fallbackIndex < 0) continue;
-      const fallbackMs = parseProviderTimeMs(fallback.time[fallbackIndex], fallbackOffset);
+      const fallbackMs = parseProviderTimeMs(fallbackTimes[fallbackIndex], fallbackOffset);
       if (!Number.isFinite(fallbackMs) || Math.abs(fallbackMs - primaryMs) > 90 * 60 * 1000) continue;
-      if (!Array.isArray(merged[key])) merged[key] = Array(fallback.time.length).fill(null);
-      merged[key][fallbackIndex] = value;
+      output[fallbackIndex] = value;
     }
+    merged[key] = output;
   }
-  merged.time = fallback.time.slice();
-  merged.utcOffsetSeconds = fallbackOffset;
-  return merged;
+  return { ...merged, time: fallbackTimes.slice(), utcOffsetSeconds: fallbackOffset };
 }
 
 function atmosphereNeedsContextFallback(result) {
-  if (!String(result?.source || '').includes('cams')) return false;
   const daily = result?.daily || {};
-  return result?.uvIndex == null
-    || result?.cloudCover == null
-    || result?.temperatureC == null
-    || !hasUsefulProviderValue(daily.sunrise)
-    || !hasUsefulProviderValue(daily.sunset)
-    || !hasUsefulProviderValue(daily.peakAt)
-    || !Number.isFinite(result?.airQuality?.european_aqi);
+  return String(result?.source || '').includes('cams')
+    && [result?.uvIndex, result?.cloudCover, result?.temperatureC,
+      daily.sunrise, daily.sunset, daily.peakAt,
+      result?.airQuality?.european_aqi].some(value => !hasUsefulProviderValue(value));
 }
 
 function mergeAtmosphereContext(primary, fallback) {
-  const sources = [];
-  for (const source of [primary?.source, fallback?.source]) {
-    for (const part of String(source || '').split('+')) {
-      if (part && !sources.includes(part)) sources.push(part);
-    }
-  }
-  return Object.assign({}, fallback, primary, {
-    uvIndex: primary?.uvIndex ?? fallback?.uvIndex ?? null,
-    uvClearSky: primary?.uvClearSky ?? fallback?.uvClearSky ?? null,
-    ozoneDU: primary?.ozoneDU ?? fallback?.ozoneDU ?? null,
-    cloudCover: primary?.cloudCover ?? fallback?.cloudCover ?? null,
-    temperatureC: primary?.temperatureC ?? fallback?.temperatureC ?? null,
+  const merged = mergeUsefulFields(fallback, primary) || {};
+  const source = [...new Set(`${primary?.source || ''}+${fallback?.source || ''}`
+    .split('+').filter(Boolean))].join('+');
+  return Object.assign(merged, {
     airQuality: mergeUsefulFields(fallback?.airQuality, primary?.airQuality),
     daily: mergeUsefulFields(fallback?.daily, primary?.daily),
     hourly: mergeHourlyContext(primary?.hourly, fallback?.hourly),
-    source: sources.join('+'),
+    source,
     confidence: Math.min(primary?.confidence ?? 1, fallback?.confidence ?? 1),
     fetchedAt: Date.now(),
   });
