@@ -63,8 +63,8 @@ describe('proxy production entrypoint', () => {
       'utf8',
     ));
 
-    expect(packageJson.dependencies['@vercel/blob']).toBe('2.4.0');
-    expect(packageLock.packages['node_modules/@vercel/blob'].version).toBe('2.4.0');
+    expect(packageJson.dependencies['@vercel/blob']).toBe('2.8.0');
+    expect(packageLock.packages['node_modules/@vercel/blob'].version).toBe('2.8.0');
     expect(packageLock.packages['node_modules/@vercel/blob/node_modules/undici'].version)
       .toBe('6.28.0');
   });
