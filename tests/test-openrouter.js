@@ -239,11 +239,13 @@ assert('providerPanels.handleRemoveOpenRouterKey is function', typeof providerPa
 assert('providerPanels.renderOpenRouterModelDropdown is function', typeof providerPanels.renderOpenRouterModelDropdown === 'function');
 assert('providerPanels.updateOpenRouterModelPricing is function', typeof providerPanels.updateOpenRouterModelPricing === 'function');
 
-// ─── 8. Key/model management (localStorage) ───
+// ─── 8. Key/model management (encrypted localStorage) ───
 console.log('\n8. Key/model management');
 const oldKey = localStorage.getItem('labcharts-openrouter-key');
 await api.saveOpenRouterKey('test-key-123');
-assert('saveOpenRouterKey stores to localStorage', localStorage.getItem('labcharts-openrouter-key') === 'test-key-123');
+const storedOpenRouterKey = localStorage.getItem('labcharts-openrouter-key');
+assert('saveOpenRouterKey encrypts the localStorage value', storedOpenRouterKey?.startsWith('d1:') && storedOpenRouterKey !== 'test-key-123');
+assert('encryptedGetItem decrypts the saved key', await cryptoModule.encryptedGetItem('labcharts-openrouter-key') === 'test-key-123');
 assert('getOpenRouterKey returns saved key', api.getOpenRouterKey() === 'test-key-123');
 assert('hasOpenRouterKey returns true with key', api.hasOpenRouterKey() === true);
 localStorage.removeItem('labcharts-openrouter-key');
