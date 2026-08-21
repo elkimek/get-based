@@ -9,6 +9,7 @@ import { getApiLocationOriginRuntime } from './api-runtime.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 import {
   authorizeAppExtensionAIRequest,
+  callAppExtensionAIProvider,
   getAppExtensionAIRequestOptions,
   isAppExtensionAICredentialOwned,
   mapAppExtensionAIProviderError,
@@ -37,7 +38,6 @@ export async function getOpenRouterBalance() {
 
 export async function callOpenRouterAPI(opts) {
   const key = getOpenRouterKey();
-  if (!key) throw new Error('No OpenRouter API key configured. Add your key in Settings.');
   if (isAppExtensionAICredentialOwned('openrouter')) {
     const authorized = await authorizeAppExtensionAIRequest({
       provider: 'openrouter',
@@ -57,6 +57,14 @@ export async function callOpenRouterAPI(opts) {
     ...(opts.webSearch ? { plugins: [{ id: 'web' }] } : {}),
   };
   try {
+    const extensionCall = await callAppExtensionAIProvider({
+      provider: 'openrouter',
+      credential: key,
+      model: getOpenRouterModel(),
+      request: opts,
+    });
+    if (extensionCall.handled) return extensionCall.result;
+    if (!key) throw new Error('No OpenRouter API key configured. Add your key in Settings.');
     return await callOpenAICompatibleAPI(
       'https://openrouter.ai/api/v1/chat/completions',
       key,

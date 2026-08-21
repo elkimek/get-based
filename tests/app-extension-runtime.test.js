@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  callAppExtensionAIProvider,
   authorizeAppExtensionAIRequest,
   authorizeAppExtensionVoiceRequest,
   configureAppExtension,
@@ -53,6 +54,10 @@ describe('app extension runtime', () => {
     expect(isAppExtensionAIProviderActive('openrouter')).toBe(false);
     expect(isAppExtensionAICredentialOwned('openrouter')).toBe(false);
     expect(shouldHideAppExtensionAIUsage('openrouter')).toBe(false);
+    await expect(callAppExtensionAIProvider({ provider: 'openrouter' })).resolves.toEqual({
+      handled: false,
+      result: undefined,
+    });
     await expect(authorizeAppExtensionAIRequest({ provider: 'openrouter' })).resolves.toBe(true);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter' })).resolves.toBe(true);
     expect(getAppExtensionVoicePlaybackPolicy({ providerId: 'openrouter' })).toEqual({});
@@ -83,6 +88,8 @@ describe('app extension runtime', () => {
         shouldHideUsage: provider => provider === 'openrouter',
         getModelPolicy: () => ({ enforced: true, allowlist: ['reviewed/model'] }),
         authorizeRequest: async ({ model }) => model === 'reviewed/model',
+        isProviderCallOwned: ({ model }) => model === 'reviewed/model',
+        callProvider: async ({ model }) => ({ text: `edition:${model}` }),
       },
       voice: {
         isRequestOwned: ({ providerId }) => providerId === 'openrouter',
@@ -134,6 +141,14 @@ describe('app extension runtime', () => {
     expect(handleAppExtensionOnboardingAction({ action: 'hosted-onboarding' })).toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'reviewed/model' })).resolves.toBe(true);
     await expect(authorizeAppExtensionAIRequest({ model: 'other/model' })).resolves.toBe(false);
+    await expect(callAppExtensionAIProvider({ model: 'reviewed/model' })).resolves.toEqual({
+      handled: true,
+      result: { text: 'edition:reviewed/model' },
+    });
+    await expect(callAppExtensionAIProvider({ model: 'other/model' })).resolves.toEqual({
+      handled: false,
+      result: undefined,
+    });
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'reviewed/voice' })).resolves.toBe(true);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'openrouter', modelId: 'other/voice' })).resolves.toBe(false);
     await expect(authorizeAppExtensionVoiceRequest({ providerId: 'browser-local', modelId: 'other/voice' })).resolves.toBe(true);

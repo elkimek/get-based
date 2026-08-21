@@ -18,6 +18,8 @@
  *   getModelPolicy?: (context: Record<string, any>) => Record<string, any> | null | undefined,
  *   refresh?: (context?: Record<string, any>) => any | Promise<any>,
  *   authorizeRequest?: (context: Record<string, any>) => boolean | Promise<boolean>,
+ *   isProviderCallOwned?: (context: Record<string, any>) => boolean,
+ *   callProvider?: (context: Record<string, any>) => any | Promise<any>,
  *   getRequestOptions?: (context: Record<string, any>) => Record<string, any> | null | undefined,
  *   mapProviderError?: (context: Record<string, any>) => Error | string | null | undefined,
  *   onCredentialChanged?: (context: Record<string, any>) => void | Promise<void>,
@@ -200,6 +202,24 @@ export async function authorizeAppExtensionAIRequest(context) {
   const authorize = extension.ai?.authorizeRequest;
   if (typeof authorize !== 'function') return false;
   return await authorize(context) === true;
+}
+
+/**
+ * Let a trusted edition replace a built-in provider's transport while keeping
+ * the public provider UI and request contract. The explicit handled envelope
+ * distinguishes an absent hook from a valid undefined provider result.
+ * @param {Record<string, any>} context
+ */
+export async function callAppExtensionAIProvider(context) {
+  const ai = activeExtension()?.ai;
+  const callProvider = ai?.callProvider;
+  if (typeof callProvider !== 'function' || ai?.isProviderCallOwned?.(context) !== true) {
+    return { handled: false, result: undefined };
+  }
+  if (typeof ai.authorizeRequest !== 'function' || await ai.authorizeRequest(context) !== true) {
+    throw new Error('This hosted AI request is not authorized. No data was sent.');
+  }
+  return { handled: true, result: await callProvider(context) };
 }
 
 /** @param {Record<string, any>} context */

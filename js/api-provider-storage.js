@@ -8,7 +8,10 @@ import {
   refreshAIProviderSelectionRuntime,
   touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
-import { notifyAppExtensionAICredentialChanged } from './app-extension-runtime.js';
+import {
+  isAppExtensionAIProviderActive,
+  notifyAppExtensionAICredentialChanged,
+} from './app-extension-runtime.js';
 
 function notifyAISelectionChanged() {
   refreshAIProviderSelectionRuntime();
@@ -35,6 +38,7 @@ export function markAISettingsLocal() {
 export function hasAIProvider() {
   if (isAIPaused()) return false;
   const provider = getAIProvider();
+  if (isAppExtensionAIProviderActive(provider)) return true;
   if (provider === 'venice') return hasVeniceKey();
   if (provider === 'openrouter') return hasOpenRouterKey();
   if (provider === 'routstr') return hasRoutstrKey();
