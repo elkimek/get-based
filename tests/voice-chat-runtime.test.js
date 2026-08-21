@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import { configureAppExtension } from '../js/app-extension-runtime.js';
+import {
+  CLOUD_AI_CONSENT_KEY,
+  CLOUD_AI_CONSENT_VERSION,
+} from '../js/cloud-ai-consent.js';
 import { clearKeyCache, updateKeyCache } from '../js/crypto-key-cache.js';
 import {
   buildActionBar,
@@ -26,6 +30,13 @@ import { VoicePlayer, trimPcmEdgeSilence } from '../js/voice-player.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const realFetch = globalThis.fetch;
+
+function approveCloudAIProvider(provider) {
+  localStorage.setItem(CLOUD_AI_CONSENT_KEY, JSON.stringify({
+    version: CLOUD_AI_CONSENT_VERSION,
+    approvals: { [provider]: { accepted: true, provider } },
+  }));
+}
 
 class FakeMediaRecorder extends EventTarget {
   static isTypeSupported(type) {
@@ -450,6 +461,7 @@ describe('voice settings and chat controls', () => {
     const originalHistory = state.chatHistory;
     const originalThreadId = state.currentThreadId;
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    approveCloudAIProvider('openrouter');
     updateKeyCache('labcharts-openrouter-key', 'or-byok-voice-key');
     state.currentThreadId = 'openrouter-tts-progressive-test';
     state.chatHistory = [{ role: 'assistant', content: 'A spoken BYOK reply.' }];
@@ -489,6 +501,7 @@ describe('voice settings and chat controls', () => {
       },
     });
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    approveCloudAIProvider('openrouter');
     updateKeyCache('labcharts-openrouter-key', 'or-managed-voice-key');
     state.currentThreadId = 'openrouter-tts-buffer-test';
     state.chatHistory = [{ role: 'assistant', content: 'A spoken subscription reply.' }];
@@ -511,8 +524,8 @@ describe('voice settings and chat controls', () => {
         progressive: false,
       }));
       expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toMatchObject({
-        modelId: 'hexgrad/kokoro-82m',
-        voiceId: 'af_heart',
+        model: 'hexgrad/kokoro-82m',
+        voice: 'af_heart',
       });
     } finally {
       state.chatHistory = originalHistory;
