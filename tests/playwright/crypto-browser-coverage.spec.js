@@ -64,6 +64,26 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         && cryptoStore.isEncryptedValue('v1:a:b') === true
         && cryptoStore.isEncryptedValue('plain') === false;
 
+      const wearablesStore = await import('/js/wearables-store.js');
+      const originalIndexedDbOpen = indexedDB.open;
+      localStorage.setItem('labcharts-api-key', 'volatile-legacy-secret');
+      cryptoStore.updateKeyCache('labcharts-api-key', null);
+      wearablesStore.resetWearablesDB('credential-vault');
+      let startupSurvivedVaultFailure = false;
+      try {
+        indexedDB.open = () => { throw new Error('simulated credential vault failure'); };
+        await cryptoStore.initEncryption();
+        startupSurvivedVaultFailure = true;
+      } finally {
+        indexedDB.open = originalIndexedDbOpen;
+        wearablesStore.resetWearablesDB('credential-vault');
+      }
+      outcomes.startupSurvivesVaultFailureWithoutPlaintext =
+        startupSurvivedVaultFailure
+        && localStorage.getItem('labcharts-api-key') === null
+        && cryptoStore.getCachedKey('labcharts-api-key') === 'volatile-legacy-secret';
+      await cryptoStore.encryptedRemoveItem('labcharts-api-key');
+
       localStorage.setItem('labcharts-openrouter-key', 'legacy-plaintext-secret');
       cryptoStore.updateKeyCache('labcharts-openrouter-key', null);
       await cryptoStore.initEncryption();

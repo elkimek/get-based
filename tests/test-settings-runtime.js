@@ -43,7 +43,7 @@ try {
   assert('missing getMeteoConfig returns defaults',
     getSettingsMeteoConfig().mode === 'auto');
   assert('missing saveMeteoConfig reports unavailable',
-    saveSettingsMeteoConfig({ mode: 'open-meteo' }) === false);
+    await saveSettingsMeteoConfig({ mode: 'open-meteo' }) === false);
 
   configureSettingsRuntimeDeps({
     getMeteoConfig: () => ({ mode: 'open-meteo', privacyRounding: 0 }),
@@ -67,8 +67,14 @@ try {
     },
   });
   assert('runtime saveMeteoConfig reports success',
-    saveSettingsMeteoConfig({ mode: 'selfhost' }) === true &&
+    await saveSettingsMeteoConfig({ mode: 'selfhost' }) === true &&
       savedConfig?.mode === 'selfhost');
+
+  configureSettingsRuntimeDeps({
+    saveMeteoConfig: async () => false,
+  });
+  assert('async saveMeteoConfig failures report unavailable',
+    await saveSettingsMeteoConfig({ mode: 'selfhost' }) === false);
 
   configureSettingsRuntimeDeps({
     saveMeteoConfig: () => {
@@ -76,7 +82,7 @@ try {
     },
   });
   assert('thrown saveMeteoConfig reports unavailable',
-    saveSettingsMeteoConfig({ mode: 'open-meteo' }) === false);
+    await saveSettingsMeteoConfig({ mode: 'open-meteo' }) === false);
 } finally {
   configureSettingsRuntimeDeps(originalSettingsRuntimeDeps);
 }

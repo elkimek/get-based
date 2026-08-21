@@ -25,6 +25,11 @@ let _warnedAboutEmptySelfhost = false;
 // keep calling getMeteoConfig() synchronously even though the at-rest
 // representation is AES-GCM-encrypted via encryptedGetItem.
 let _meteoConfigCache = null;
+// Serialize encrypted writes so rapid settings changes cannot finish out of
+// order. The previous durable envelope remains in place until its replacement
+// has been encrypted successfully.
+let _meteoPersistTail = Promise.resolve();
+let _meteoPendingSaves = 0;
 
 // Build a sanitized config from a parsed JSON value. Allowlist-style — only
 // the four known fields, type-checked. Defence-in-depth against a stored
@@ -97,7 +102,7 @@ export async function initMeteoConfigCache() {
     if (needsPersist) {
       // Persist via saveMeteoConfig so legacy plaintext lands in the
       // encrypted envelope on its first migration save.
-      saveMeteoConfig(cfg);
+      await saveMeteoConfig(cfg);
     }
   } catch (e) {
     _meteoConfigCache = defaultConfig();
@@ -105,6 +110,12 @@ export async function initMeteoConfigCache() {
 }
 
 export function getMeteoConfig() {
+  // While a queued secure write is pending, the cache is the newest value;
+  // localStorage intentionally still contains the previous durable record.
+  if (_meteoPendingSaves > 0 && _meteoConfigCache) {
+    const { cfg } = _applyConfigRuntimeFixups(Object.assign({}, _meteoConfigCache));
+    return cfg;
+  }
   // Read localStorage every call so direct writes (tests, cross-tab)
   // are observed without cache invalidation gymnastics. Only the
   // encrypted-envelope path needs the cache (decryption is async; the
@@ -150,15 +161,21 @@ export function saveMeteoConfig(cfg) {
   // Cache update first — keeps the synchronous getMeteoConfig contract
   // working immediately while the encrypted write completes.
   _meteoConfigCache = _buildConfigFromParsed(cfg);
-  const json = JSON.stringify(cfg);
-  // Remove any legacy/plain previous value before starting the asynchronous
-  // device/passphrase encryption. Synchronous readers use the cache above
-  // during this short gap, so the public API remains synchronous without a
-  // momentary clear-text write.
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
-  void encryptedSetCredentialItem(STORAGE_KEY, json).catch(error => {
-    console.warn('[meteo] secure config persistence failed', error);
-  });
+  const json = JSON.stringify(_meteoConfigCache);
+  _meteoPendingSaves += 1;
+  const write = _meteoPersistTail.then(() => encryptedSetCredentialItem(STORAGE_KEY, json));
+  const result = write.then(
+    () => true,
+    error => {
+      console.warn('[meteo] secure config persistence failed', error);
+      return false;
+    },
+  ).finally(() => { _meteoPendingSaves -= 1; });
+  // Keep the queue live after a failed write so a later settings change can
+  // retry. `result` always resolves and therefore is also safe to ignore at
+  // legacy synchronous call sites.
+  _meteoPersistTail = result.then(() => undefined);
+  return result;
 }
 
 function defaultConfig() {

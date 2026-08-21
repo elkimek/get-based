@@ -206,10 +206,10 @@ assert('Sun data-source delegate is installed on document change',
 assert('Sun data-source delegate is scoped to its section',
   /function closestSunDataSourceControl[\s\S]*closest\('#sun-data-source-section'\)/.test(privacySrc));
 assert('Sun data-source save handlers surface unavailable runtime saves',
-  /function notifyMeteoSaveUnavailable\(\)[\s\S]*Sun data-source settings are still loading/.test(privacySrc) &&
-    /function setMeteoMode\(mode\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*return;[\s\S]*\}/.test(privacySrc) &&
-    /function saveMeteoSelfhost\(\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(privacySrc) &&
-    /function toggleMeteoRounding\(enabled\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(privacySrc));
+  /function notifyMeteoSaveUnavailable\(\)[\s\S]*could not be saved securely/.test(privacySrc) &&
+    /async function setMeteoMode\(mode\)[\s\S]*if \(!await saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*return;[\s\S]*\}/.test(privacySrc) &&
+    /async function saveMeteoSelfhost\(\)[\s\S]*if \(!await saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(privacySrc) &&
+    /async function toggleMeteoRounding\(enabled\)[\s\S]*if \(!await saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(privacySrc));
 assert('Legacy Sun data-source window handlers are removed',
   !src.includes('window._setMeteoMode')
     && !src.includes('window._saveMeteoSelfhost')

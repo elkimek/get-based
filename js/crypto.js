@@ -181,8 +181,12 @@ export async function decryptKeyCache() {
     const raw = localStorage.getItem(lsKey);
     if (raw === null) continue;
     if (isDeviceCredentialValue(raw)) {
-      const plaintext = await decryptDeviceCredential(lsKey, raw);
-      if (plaintext !== null) updateKeyCache(lsKey, plaintext);
+      try {
+        const plaintext = await decryptDeviceCredential(lsKey, raw);
+        if (plaintext !== null) updateKeyCache(lsKey, plaintext);
+      } catch (error) {
+        console.warn(`[crypto] device credential ${lsKey} could not be loaded`, error);
+      }
     } else if (isEncryptedValue(raw) && _sessionKey) {
       const parsed = parseEncryptedValue(raw);
       if (!parsed) continue;
@@ -461,8 +465,9 @@ export async function encryptedRemoveItem(key, options = {}) {
 // ═══════════════════════════════════════════════
 export async function initEncryption() {
   if (!getEncryptionEnabled()) {
-    await migrateDeviceProtectedKeys();
+    const volatileCredentials = await migrateDeviceProtectedKeys();
     await decryptKeyCache();
+    for (const [key, value] of volatileCredentials) updateKeyCache(key, value);
     return;
   }
   if (needsDataProtectionStylesheet()) await loadDataProtectionStylesheetForAction();
@@ -558,14 +563,25 @@ async function decryptAllSensitiveKeys() {
 }
 
 async function migrateDeviceProtectedKeys() {
-  for (let index = 0; index < localStorage.length; index++) {
-    const key = localStorage.key(index);
+  const volatileCredentials = new Map();
+  const storageKeys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+  for (const key of storageKeys) {
     if (!key || !isCredentialKey(key)) continue;
     const raw = localStorage.getItem(key);
     if (raw === null || isDeviceCredentialValue(raw) || isEncryptedValue(raw)) continue;
-    localStorage.setItem(key, await encryptDeviceCredential(key, raw));
-    updateKeyCache(key, raw);
+    try {
+      localStorage.setItem(key, await encryptDeviceCredential(key, raw));
+      updateKeyCache(key, raw);
+    } catch (error) {
+      // A blocked/evicted IndexedDB vault must not abort the rest of startup
+      // or leave a legacy credential in clear text. Keep it usable in memory
+      // for this session; the provider will ask for it again after reload.
+      volatileCredentials.set(key, raw);
+      try { localStorage.removeItem(key); } catch {}
+      console.warn(`[crypto] device protection unavailable for ${key}; keeping it in memory only`, error);
+    }
   }
+  return volatileCredentials;
 }
 
 async function transformPayloadRows(rows, keyFields, mode) {
