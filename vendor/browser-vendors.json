@@ -3,13 +3,13 @@
   "runtimes": [
     {
       "package": "@cashu/cashu-ts",
-      "version": "4.7.2",
-      "integrity": "sha512-rNfArnXhaoUCi7crcLFwayHFQ9ek9VUI0EemBbleC9dNEhrJDGBdyqkFH7b6ubmA2Pej0DskUfiLRx0fCp0ebQ==",
+      "version": "4.9.0",
+      "integrity": "sha512-cFJj4Pr4v0HVnh5vSRO4uzx4ts57NmvMV+XfziR0pBowcRlsqOpbas9K21XIqClqZw1ODFrGsWy5pL1iBHBFhw==",
       "entry": "scripts/vendor-entries/cashu.js",
       "output": "vendor/cashu-ts.js",
       "format": "iife",
       "minified": true,
-      "sha256": "1ba8de2ba77ea4b50d88a14885464b22c1e8e276f5ec1ada5546a462319a48d4"
+      "sha256": "cb04ee53cde3743f17506aea1ae4b2875daeee65deccf9ce8270fc682d1735f1"
     },
     {
       "package": "tinfoil",

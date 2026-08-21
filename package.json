@@ -37,7 +37,7 @@
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
   },
   "devDependencies": {
-    "@cashu/cashu-ts": "4.7.2",
+    "@cashu/cashu-ts": "4.9.0",
     "@noble/curves": "2.2.0",
     "@phala/dcap-qvl": "0.6.1",
     "@playwright/test": "^1.62.1",
