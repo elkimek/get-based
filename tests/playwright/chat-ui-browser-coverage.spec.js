@@ -484,6 +484,7 @@ test('mobile chat panel behaves as a modal and restores the page on close', asyn
       const opensAsModal = panel?.getAttribute('role') === 'dialog'
         && panel?.getAttribute('aria-modal') === 'true'
         && panel?.getAttribute('aria-hidden') === 'false'
+        && panel?.inert === false
         && main?.inert === true
         && sidebar?.inert === true;
 
@@ -491,6 +492,7 @@ test('mobile chat panel behaves as a modal and restores the page on close', asyn
       return {
         opensAsModal,
         closeHidesMobileDialog: panel?.getAttribute('aria-hidden') === 'true'
+          && panel?.inert === true
           && !panel?.hasAttribute('aria-modal'),
         closeRestoresBackground: main?.inert === false && sidebar?.inert === false,
         closeRestoresTriggerFocus: document.activeElement === trigger,
