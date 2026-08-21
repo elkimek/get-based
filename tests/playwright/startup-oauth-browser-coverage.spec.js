@@ -162,7 +162,10 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
         && authRequest.body?.code === 'live-code'
         && authRequest.body?.code_verifier === 'verifier-ok'
         && authRequest.body?.code_challenge_method === 'S256';
-      outcomes.successSavesKeyProviderAndClearsSession = localStorage.getItem('labcharts-openrouter-key') === 'or-live-key'
+      const storedOpenRouterKey = localStorage.getItem('labcharts-openrouter-key');
+      outcomes.successSavesKeyProviderAndClearsSession = storedOpenRouterKey?.startsWith('d1:') === true
+        && !storedOpenRouterKey.includes('or-live-key')
+        && await cryptoStore.encryptedGetItem('labcharts-openrouter-key') === 'or-live-key'
         && localStorage.getItem('labcharts-ai-provider') === 'openrouter'
         && sessionStorage.getItem('or_pkce_verifier') === null
         && sessionStorage.getItem('or_oauth_state') === null

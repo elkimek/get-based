@@ -209,6 +209,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       const selfhostRadio = sunSection.querySelector('input[value="selfhost"]');
       selfhostRadio.checked = true;
       selfhostRadio.dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(0);
       results.setMeteoMode = meteoConfig.mode === 'selfhost'
         && document.getElementById('meteo-selfhost-fields').style.display === '';
 
@@ -216,12 +217,14 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       document.getElementById('meteo-selfhost-url').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('meteo-selfhost-bearer').value = ' token-123 ';
       document.getElementById('meteo-selfhost-bearer').dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(0);
       results.saveMeteoSelfhost = meteoConfig.selfhostUrl === 'https://meteo.example.test'
         && meteoConfig.selfhostBearer === 'token-123';
 
       const roundingToggle = document.getElementById('meteo-privacy-rounding');
       roundingToggle.checked = false;
       roundingToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(0);
       results.toggleMeteoRounding = meteoConfig.privacyRounding === 0
         && savedMeteoConfigs.some(cfg => cfg.privacyRounding === 0);
 
