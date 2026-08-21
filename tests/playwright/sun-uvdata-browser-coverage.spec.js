@@ -18,6 +18,8 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
     const outcomes = {};
     const storageKey = 'labcharts-meteo-config';
     const originalConfig = localStorage.getItem(storageKey);
+    const originalEncryptionEnabled = localStorage.getItem('labcharts-encryption-enabled');
+    const originalWearablesTest = window.__WEARABLES_TEST;
     const originalWarn = console.warn;
     const cleanup = () => {
       const keys = [];
@@ -47,6 +49,15 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       localStorage.setItem('meteo:v5:keep-a', 'fresh-cache');
 
       const mod = await import(sunUrl);
+      const cryptoStore = await import('/js/crypto.js');
+      const waitForSecureConfig = async () => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const raw = localStorage.getItem(storageKey);
+          if (raw?.startsWith('d1:') || raw?.startsWith('v1:')) return raw;
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        return null;
+      };
 
       outcomes.importSweepsOnlyLegacyMeteoCache =
         localStorage.getItem('meteo:legacy-a') === null
@@ -84,17 +95,21 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         extra: 'ignored',
       }));
       const migrated = mod.getMeteoConfig();
-      const persistedMigration = JSON.parse(localStorage.getItem(storageKey));
+      const migratedEnvelope = await waitForSecureConfig();
+      const persistedMigration = JSON.parse(await cryptoStore.encryptedGetItem(storageKey));
       outcomes.legacyModeMigratesAndSanitizesStoredConfig =
         migrated.mode === 'auto'
         && migrated.selfhostUrl === 'https://legacy.example/uv'
         && migrated.selfhostBearer === ''
         && migrated.privacyRounding === 0.25
+        && migratedEnvelope?.startsWith('d1:')
+        && !migratedEnvelope.includes('legacy.example')
         && persistedMigration.mode === 'auto'
         && persistedMigration.extra === undefined;
 
       localStorage.setItem(storageKey, JSON.stringify({ mode: 'manual', privacyRounding: 0.1 }));
       outcomes.legacyManualModeMigratesToAuto = mod.getMeteoConfig().mode === 'auto';
+      await waitForSecureConfig();
 
       const warnings = [];
       console.warn = (...args) => warnings.push(args.join(' '));
@@ -118,6 +133,7 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         selfhostBearer: 'secret-token',
         privacyRounding: 0.25,
       });
+      await waitForSecureConfig();
       localStorage.setItem(storageKey, 'v1:opaque-encrypted-envelope');
       const encryptedFallback = mod.getMeteoConfig();
       outcomes.encryptedEnvelopeUsesCachedDecryptedConfig =
@@ -125,6 +141,44 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         && encryptedFallback.selfhostUrl === 'https://uv.example'
         && encryptedFallback.selfhostBearer === 'secret-token'
         && encryptedFallback.privacyRounding === 0.25;
+
+      localStorage.removeItem('labcharts-encryption-enabled');
+      const firstSave = mod.saveMeteoConfig({
+        mode: 'selfhost',
+        selfhostUrl: 'https://first.example',
+        selfhostBearer: 'first-token',
+        privacyRounding: 0.1,
+      });
+      const latestSave = mod.saveMeteoConfig({
+        mode: 'selfhost',
+        selfhostUrl: 'https://latest.example',
+        selfhostBearer: 'latest-token',
+        privacyRounding: 0.5,
+      });
+      const orderedSaveResults = await Promise.all([firstSave, latestSave]);
+      const latestDurableRaw = localStorage.getItem(storageKey);
+      const latestDurableConfig = JSON.parse(await cryptoStore.encryptedGetItem(storageKey));
+
+      window.__WEARABLES_TEST = true;
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      await cryptoStore._setTestSessionKey(null);
+      const failedSaveResult = await mod.saveMeteoConfig({
+        mode: 'open-meteo',
+        selfhostUrl: 'https://unsaved.example',
+        selfhostBearer: 'unsaved-token',
+        privacyRounding: 0,
+      });
+      const durableRawAfterFailure = localStorage.getItem(storageKey);
+      localStorage.removeItem('labcharts-encryption-enabled');
+      await mod.initMeteoConfigCache();
+      outcomes.secureConfigSavesAreOrderedAndPreserveLastDurableValue =
+        orderedSaveResults.every(Boolean)
+        && latestDurableRaw?.startsWith('d1:') === true
+        && !latestDurableRaw.includes('latest-token')
+        && latestDurableConfig.selfhostUrl === 'https://latest.example'
+        && failedSaveResult === false
+        && durableRawAfterFailure === latestDurableRaw
+        && mod.getMeteoConfig().selfhostUrl === 'https://latest.example';
 
       localStorage.setItem('meteo:v1:keep-a', '{}');
       localStorage.setItem('meteo:v5:purge-a', '{}');
@@ -158,6 +212,10 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       cleanup();
       if (originalConfig == null) localStorage.removeItem(storageKey);
       else localStorage.setItem(storageKey, originalConfig);
+      if (originalEncryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
+      else localStorage.setItem('labcharts-encryption-enabled', originalEncryptionEnabled);
+      if (originalWearablesTest === undefined) delete window.__WEARABLES_TEST;
+      else window.__WEARABLES_TEST = originalWearablesTest;
     }
 
     return outcomes;

@@ -76,7 +76,7 @@ await profileModule.initProfilesCache();
 console.log('1. Module exports');
 const cryptoExports = [
   'initEncryption', 'initBroadcastChannel', 'getEncryptionEnabled', 'isUnlocked',
-  'encryptedSetItem', 'encryptedGetItem', 'showEnableEncryptionModal',
+  'encryptedSetItem', 'encryptedSetCredentialItem', 'encryptedGetItem', 'showEnableEncryptionModal',
   'maybeShowEncryptionNudge', 'maybeShowBackupNudge', 'disableEncryption',
   'changePassphrase', 'broadcastDataChanged', 'renderEncryptionSection',
   'renderBackupSection', 'isSensitiveKey', 'getCachedKey', 'updateKeyCache',
@@ -216,6 +216,30 @@ try {
   localStorage.removeItem(testKey);
 } catch (e) {
   assert('Non-sensitive key plaintext storage', false, e.message);
+}
+
+// ═══════════════════════════════════════════════
+// 5b. Credentials use always-on device encryption
+// ═══════════════════════════════════════════════
+console.log('5b. Device-encrypted credentials');
+try {
+  const credentialKey = 'labcharts-api-key';
+  localStorage.removeItem('labcharts-encryption-enabled');
+  await cryptoModule.encryptedSetItem(credentialKey, 'device-secret-123');
+  const stored = localStorage.getItem(credentialKey);
+  assert('Credential is device-encrypted when profile encryption is off',
+    stored?.startsWith('d1:') === true && !stored.includes('device-secret-123'));
+  assert('Device-encrypted credential decrypts through the storage wrapper',
+    await cryptoModule.encryptedGetItem(credentialKey) === 'device-secret-123');
+  assert('Device-encrypted credential remains synchronously cached',
+    cryptoModule.getCachedKey(credentialKey) === 'device-secret-123');
+  localStorage.setItem('labcharts-venice-key', stored);
+  assert('Device credential envelopes cannot be substituted under another key',
+    await cryptoModule.encryptedGetItem('labcharts-venice-key') === null);
+  await cryptoModule.encryptedRemoveItem('labcharts-venice-key');
+  await cryptoModule.encryptedRemoveItem(credentialKey);
+} catch (e) {
+  assert('Device-encrypted credential storage', false, e.message);
 }
 
 // ═══════════════════════════════════════════════
@@ -726,6 +750,15 @@ try {
     const firstProfile = snapshot.profiles[0];
     assert('buildBackupSnapshot profile has keys', typeof firstProfile.keys === 'object');
   }
+  await cryptoModule.encryptedSetItem('labcharts-venice-key', 'portable-backup-secret');
+  const rawCredential = localStorage.getItem('labcharts-venice-key');
+  const fullSnapshot = await backupModule.buildFullBackupSnapshot();
+  assert('Unencrypted full backup omits device-encrypted credentials',
+    !Object.hasOwn(fullSnapshot.settings, 'labcharts-venice-key'));
+  assert('Building an unencrypted backup leaves the local credential device-encrypted',
+    rawCredential?.startsWith('d1:') === true
+      && localStorage.getItem('labcharts-venice-key') === rawCredential);
+  await cryptoModule.encryptedRemoveItem('labcharts-venice-key');
 } catch (e) {
   assert('buildBackupSnapshot', false, e.message);
 }

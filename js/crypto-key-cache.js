@@ -9,9 +9,10 @@ export function clearKeyCache() {
 
 export function getCachedKey(storageKey) {
   if (keyCache.has(storageKey)) return keyCache.get(storageKey);
-  // Fallback: raw localStorage when encryption is off or the cache has not
-  // been populated yet.
-  return localStorage.getItem(storageKey);
+  // Legacy plaintext values remain readable until startup migrates them.
+  // Never expose an at-rest envelope as though it were a usable credential.
+  const raw = localStorage.getItem(storageKey);
+  return raw?.startsWith('v1:') || raw?.startsWith('d1:') ? null : raw;
 }
 
 export function updateKeyCache(storageKey, value) {

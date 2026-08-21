@@ -175,10 +175,10 @@ export function renderSunDataSourceSettings() {
   </div>`;
 }
 
-function setMeteoMode(mode) {
+async function setMeteoMode(mode) {
   const cfg = getSettingsMeteoConfig();
   cfg.mode = mode;
-  if (!saveSettingsMeteoConfig(cfg)) {
+  if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();
     return;
   }
@@ -187,24 +187,24 @@ function setMeteoMode(mode) {
 }
 
 function notifyMeteoSaveUnavailable() {
-  showNotification('Sun data-source settings are still loading. Try again in a moment.', 'warning');
+  showNotification('Sun data-source settings could not be saved securely. Try again in a moment.', 'warning');
 }
 
-function saveMeteoSelfhost() {
+async function saveMeteoSelfhost() {
   const cfg = getSettingsMeteoConfig();
   const url = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-url'))?.value?.trim() || '';
   const bearer = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-bearer'))?.value?.trim() || '';
   cfg.selfhostUrl = url;
   cfg.selfhostBearer = bearer;
-  if (!saveSettingsMeteoConfig(cfg)) {
+  if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();
   }
 }
 
-function toggleMeteoRounding(enabled) {
+async function toggleMeteoRounding(enabled) {
   const cfg = getSettingsMeteoConfig();
   cfg.privacyRounding = enabled ? 0.1 : 0;
-  if (!saveSettingsMeteoConfig(cfg)) {
+  if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();
   }
 }
@@ -218,17 +218,17 @@ function closestSunDataSourceControl(event) {
   return el instanceof HTMLElement && el.closest('#sun-data-source-section') ? el : null;
 }
 
-function handleSunDataSourceChange(event) {
+async function handleSunDataSourceChange(event) {
   const el = closestSunDataSourceControl(event);
   if (!el) return;
   const action = el.dataset.sunSourceAction;
   if (action === 'set-meteo-mode') {
     const mode = (el instanceof HTMLSelectElement || el instanceof HTMLInputElement) ? el.value || 'auto' : 'auto';
-    setMeteoMode(mode);
+    await setMeteoMode(mode);
   } else if (action === 'save-meteo-selfhost') {
-    saveMeteoSelfhost();
+    await saveMeteoSelfhost();
   } else if (action === 'toggle-meteo-rounding') {
-    toggleMeteoRounding(el instanceof HTMLInputElement && el.checked);
+    await toggleMeteoRounding(el instanceof HTMLInputElement && el.checked);
   }
 }
 

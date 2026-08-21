@@ -131,7 +131,7 @@ describe('api provider storage runtime adapter', () => {
     expect(cryptoSrc).toContain("from './crypto-key-cache.js'");
     expect(cryptoSrc).toContain("export { getCachedKey, updateKeyCache } from './crypto-key-cache.js'");
     expect(appShellHooksSrc).toContain("from './api-provider-storage-runtime.js'");
-    expect(appShellHooksSrc).toContain('configureApiProviderStorageRuntimeDeps({ encryptedSetItem })');
+    expect(appShellHooksSrc).toContain('configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem })');
     expect(/\bwindow(?:\.|\s*\[)/.test(storageSrc)).toBe(false);
     expect(/\bwindow(?:\.|\s*\[)/.test(runtimeSrc)).toBe(false);
     expect(swSrc).toContain("'/js/api-provider-storage-runtime.js'");

@@ -27,11 +27,9 @@ function loadBackupCycleModule() {
 
 // Crypto imports this module for backup UI helpers, so inject the two crypto
 // operations backup needs instead of coupling the modules through globals.
-const appWindow = /** @type {Window & typeof globalThis & {
-  showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<any>,
-}} */ (typeof window !== 'undefined' ? window : {});
+const appWindow = /** @type {Window & typeof globalThis & { showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<any> }} */ (typeof window !== 'undefined' ? window : {});
 
-/** @typedef {{ encryptedGetItem: (key: string) => Promise<string | null>, getEncryptionEnabled: () => boolean }} BackupRuntimeDeps */
+/** @typedef {{ encryptedGetItem: (key: string) => Promise<string | null>, encryptedSetItem: (key: string, value: string) => Promise<void>, getEncryptionEnabled: () => boolean, isCredentialKey: (key: string) => boolean }} BackupRuntimeDeps */
 // `var` is intentional: the profile → crypto cycle can configure backup
 // while this module is still initializing, before lexical bindings are ready.
 /** @type {BackupRuntimeDeps | undefined} */
@@ -39,10 +37,8 @@ var backupRuntimeDeps;
 
 function getBackupRuntimeDeps() {
   if (!backupRuntimeDeps) {
-    backupRuntimeDeps = {
-      encryptedGetItem: async () => null,
-      getEncryptionEnabled: () => false,
-    };
+    backupRuntimeDeps = { encryptedGetItem: async () => null, getEncryptionEnabled: () => false, isCredentialKey: () => false,
+      encryptedSetItem: async () => { throw new Error('Credential storage is not configured.'); } };
   }
   return backupRuntimeDeps;
 }
@@ -51,10 +47,11 @@ export function configureBackupRuntimeDeps(deps = {}) {
   const runtimeDeps = getBackupRuntimeDeps();
   const previous = { ...runtimeDeps };
   if (typeof deps.encryptedGetItem === 'function') runtimeDeps.encryptedGetItem = deps.encryptedGetItem;
+  if (typeof deps.encryptedSetItem === 'function') runtimeDeps.encryptedSetItem = deps.encryptedSetItem;
   if (typeof deps.getEncryptionEnabled === 'function') runtimeDeps.getEncryptionEnabled = deps.getEncryptionEnabled;
+  if (typeof deps.isCredentialKey === 'function') runtimeDeps.isCredentialKey = deps.isCredentialKey;
   return previous;
 }
-
 const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
 const backupActionDelegateRoots = new WeakSet();
@@ -141,6 +138,16 @@ const PER_PROFILE_PREF_SUFFIXES = [
   'units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay',
   'chatPersonality', 'chatPersonalityCustom', 'chatPersonalityDeleted', 'chatRailOpen'
 ];
+
+async function restoreBackupSettings(backup) {
+  if (!backup.settings || typeof backup.settings !== 'object') return;
+  const deps = getBackupRuntimeDeps();
+  for (const [key, value] of Object.entries(backup.settings)) {
+    // Re-wrap credentials from legacy unencrypted backups before local storage.
+    if (!backup.encrypted && deps.isCredentialKey(key)) await deps.encryptedSetItem(key, String(value));
+    else localStorage.setItem(key, String(value));
+  }
+}
 
 // Wearable L1 IndexedDB lives outside localStorage (per-profile DB
 // `labcharts-wearables-${profileId}`) — read raw daily rows for every
@@ -262,6 +269,8 @@ export function buildBackupSnapshot() {
 
   const settings = {};
   for (const k of GLOBAL_SETTINGS_KEYS) {
+    // Device-key envelopes are not portable; only passphrase-encrypted backups include credentials.
+    if (!getEncryptionEnabled() && getBackupRuntimeDeps().isCredentialKey(k)) continue;
     const v = localStorage.getItem(k);
     if (v !== null) settings[k] = v;
   }
@@ -399,11 +408,7 @@ export function importEncryptedBackup(file) {
           localStorage.removeItem('labcharts-encryption-salt');
         }
 
-        if (backup.settings && typeof backup.settings === 'object') {
-          for (const [k, v] of Object.entries(backup.settings)) {
-            localStorage.setItem(k, v);
-          }
-        }
+        await restoreBackupSettings(backup);
 
         localStorage.setItem('labcharts-profiles', backup.profileList);
 
@@ -555,11 +560,7 @@ export async function restoreAutoBackup(id) {
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-salt');
     }
-    if (backup.settings && typeof backup.settings === 'object') {
-      for (const [k, v] of Object.entries(backup.settings)) {
-        localStorage.setItem(k, v);
-      }
-    }
+    await restoreBackupSettings(backup);
     localStorage.setItem('labcharts-profiles', backup.profileList);
     if (backup.profiles) {
       for (const p of backup.profiles) {

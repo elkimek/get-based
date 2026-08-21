@@ -21,9 +21,20 @@ function assert(name, condition, detail) {
 console.log('=== PII Obfuscation Tests ===\n');
 
 const piiModule = await import('../js/pii.js');
-const { obfuscatePDFText, buildPIIDiffHTML } = piiModule;
+const { obfuscatePDFText, buildPIIDiffHTML, secureRandomInt } = piiModule;
 const piiSrc = read('js/pii.js');
 const piiReviewSrc = read('js/pii-review.js');
+
+const secureSamples = Array.from({ length: 128 }, () => secureRandomInt(7));
+assert('PII random integers stay inside the requested range',
+  secureSamples.every(value => Number.isInteger(value) && value >= 0 && value < 7));
+assert('PII generators do not use Math.random', !piiSrc.includes('Math.random'));
+try {
+  secureRandomInt(0);
+  assert('secureRandomInt rejects an empty range', false, 'did not throw');
+} catch (error) {
+  assert('secureRandomInt rejects an empty range', error instanceof RangeError);
+}
 
   // Extract the function and test it by running obfuscation with known names
   // Czech format

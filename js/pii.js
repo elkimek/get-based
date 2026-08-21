@@ -49,20 +49,32 @@ export const FAKE_DOCTORS = [
   'MUDr. Šimková', 'MUDr. Veselý', 'MUDr. Kopecký', 'MUDr. Marková'
 ];
 
-export function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-export function randomDigits(n) { let s = ''; for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 10); return s; }
+const UINT32_RANGE = 0x100000000;
+
+export function secureRandomInt(maxExclusive) {
+  if (!Number.isSafeInteger(maxExclusive) || maxExclusive < 1 || maxExclusive > UINT32_RANGE) {
+    throw new RangeError('secureRandomInt requires an integer between 1 and 2^32');
+  }
+  const unbiasedLimit = Math.floor(UINT32_RANGE / maxExclusive) * maxExclusive;
+  const sample = new Uint32Array(1);
+  do crypto.getRandomValues(sample); while (sample[0] >= unbiasedLimit);
+  return sample[0] % maxExclusive;
+}
+
+export function randomPick(arr) { return arr.length ? arr[secureRandomInt(arr.length)] : undefined; }
+export function randomDigits(n) { let s = ''; for (let i = 0; i < n; i++) s += secureRandomInt(10); return s; }
 export function fakeBirthNumber() {
-  const y = 50 + Math.floor(Math.random() * 50);
-  const m = 1 + Math.floor(Math.random() * 12);
-  const d = 1 + Math.floor(Math.random() * 28);
+  const y = 50 + secureRandomInt(50);
+  const m = 1 + secureRandomInt(12);
+  const d = 1 + secureRandomInt(28);
   return `${String(y).padStart(2,'0')}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}/${randomDigits(4)}`;
 }
 export function fakePhone() { return `+420 7${randomDigits(2)} ${randomDigits(3)} ${randomDigits(3)}`; }
 export function fakeEmail() { return `user${randomDigits(4)}@mail.com`; }
 export function fakeDate() {
-  const y = 1960 + Math.floor(Math.random() * 40);
-  const m = 1 + Math.floor(Math.random() * 12);
-  const d = 1 + Math.floor(Math.random() * 28);
+  const y = 1960 + secureRandomInt(40);
+  const m = 1 + secureRandomInt(12);
+  const d = 1 + secureRandomInt(28);
   return `${String(d).padStart(2,'0')}.${String(m).padStart(2,'0')}.${y}`;
 }
 export function fakePatientId() { return randomDigits(10); }
@@ -443,7 +455,7 @@ export function obfuscatePDFText(pdfText) {
     { pattern: /^(.*?\b(?:[cč][ií]slo\s*(?:poji[sš]t[eě]n|insurance)|insurance\s*(?:no|number|id)|poji[sš][tť]ovna|member\s*id|group\s*(?:no|number|id)|policy)\b[:\s]+)(.+)$/gim, gen: () => randomDigits(10) },
     { pattern: /^(.*?\b(?:id\s*pacienta|patient\s*id|[cč][ií]slo\s*pacienta|account\s*(?:no|number)|acct|MRN|medical\s*record)\b[:\s]+)(.+)$/gim, gen: () => fakePatientId() },
     { pattern: /^(.*?\b(?:specimen\s*(?:id|no|number)|accession\s*(?:no|number)|control\s*(?:id|no|number)|requisition)\b[:\s]+)(.+)$/gim, gen: () => randomDigits(10) },
-    { pattern: /^(.*?\b(?:age|v[eě]k)\b[:\s]+)(\d{1,3}\b.*)$/gim, gen: () => `${20 + Math.floor(Math.random() * 50)}` },
+    { pattern: /^(.*?\b(?:age|v[eě]k)\b[:\s]+)(\d{1,3}\b.*)$/gim, gen: () => `${20 + secureRandomInt(50)}` },
   ];
 
   for (const { pattern, gen } of labelReplacements) {

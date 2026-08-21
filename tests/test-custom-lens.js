@@ -71,7 +71,8 @@ assert('request body includes query field', lensSrc.includes('query: hint'));
 assert('request body includes top_k field', lensSrc.includes('top_k: topK'));
 assert('sends Bearer auth header', lensSrc.includes('`Bearer ${key}`'));
 assert('cache key includes profileId', lensSrc.includes('profileId'));
-assert('saveLensKey uses encryptedSetItem', lensSrc.includes("encryptedSetItem('labcharts-lens-key'") || lensSrc.includes('encryptedSetItem(SECRET_KEY'));
+assert('saveLensKey uses dedicated credential storage', lensSrc.includes('encryptedSetCredentialItem(SECRET_KEY'));
+assert('removeLens deletes the encrypted credential', lensSrc.includes('encryptedRemoveItem(SECRET_KEY)'));
 assert('getLensKey uses getCachedKey', lensSrc.includes('getCachedKey(SECRET_KEY)') || lensSrc.includes("getCachedKey('labcharts-lens-key')"));
 // testProbe — configurable test query, replaces hardcoded probe.
 assert('DEFAULT_TEST_PROBE constant defined', lensSrc.includes('DEFAULT_TEST_PROBE ='));

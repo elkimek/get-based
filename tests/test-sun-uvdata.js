@@ -383,6 +383,10 @@ const {
   assert('non-meter source capped at 0.99',
     computeUVConfidence({ source: 'selfhost', snapshotAgeSec: 0, cloudCover: 0, zenithDeg: 30, uvIndex: 8 }) <= 0.99);
 
+  // Drain earlier fire-and-forget callers before exercising direct
+  // localStorage writes that stand in for cross-tab updates.
+  await saveMeteoConfig(origCfg);
+
   // ─── 9. getMeteoConfig — selfhost-with-empty-URL sanity fallback ─────
   // Regression: a config with mode=selfhost but selfhostUrl='' silently
   // fell through to Open-Meteo every request. Picker still showed

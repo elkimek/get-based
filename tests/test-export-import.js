@@ -523,7 +523,7 @@ return (async function() {
   assert('Bundle export always includes chat', exportSrc.includes('if (chat) entry.chat = chat'));
 
   // ═══════════════════════════════════════
-  // 13b. Backup includes Custom API settings (regression: #116)
+  // 13b. Backup includes portable Custom API settings (regression: #116)
   // ═══════════════════════════════════════
   console.log('%c 13b. Backup includes Custom API settings (#116) ', 'font-weight:bold;color:#f59e0b');
 
@@ -533,7 +533,9 @@ return (async function() {
   assert('GLOBAL_SETTINGS_KEYS includes labcharts-custom-model', backupSrc.includes("'labcharts-custom-model'"));
   assert('GLOBAL_SETTINGS_KEYS includes labcharts-custom-models', backupSrc.includes("'labcharts-custom-models'"));
 
-  // Functional roundtrip: seed Custom API settings → snapshot → wipe → restore
+  // Unencrypted backups retain portable provider configuration but omit the
+  // device-bound credential. Passphrase-encrypted backups cover credential
+  // portability in the dedicated backup tests.
   const _origCustomKey = localStorage.getItem('labcharts-custom-key');
   const _origCustomUrl = localStorage.getItem('labcharts-custom-url');
   const _origCustomModel = localStorage.getItem('labcharts-custom-model');
@@ -545,7 +547,7 @@ return (async function() {
   assert('buildBackupSnapshot module export works', !!snap);
   assert('buildBackupSnapshot stays off window', !('buildBackupSnapshot' in window));
   if (snap) {
-    assert('snapshot.settings carries custom-key', snap.settings['labcharts-custom-key'] === 'sk-roundtrip-test');
+    assert('unencrypted snapshot omits custom-key', !('labcharts-custom-key' in snap.settings));
     assert('snapshot.settings carries custom-url', snap.settings['labcharts-custom-url'] === 'https://api.example.com/v1');
     assert('snapshot.settings carries custom-model', snap.settings['labcharts-custom-model'] === 'gpt-test');
   }

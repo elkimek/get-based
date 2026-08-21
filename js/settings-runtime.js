@@ -11,6 +11,10 @@ const DEFAULT_METEO_CONFIG = Object.freeze({
   privacyRounding: 0.1,
 });
 
+/** @type {{
+ *   getMeteoConfig: (() => Record<string, any>) | null,
+ *   saveMeteoConfig: ((config: Record<string, any>) => boolean | void | Promise<boolean | void>) | null,
+ * }} */
 const settingsRuntimeDeps = {
   getMeteoConfig: /** @type {null | typeof getMeteoConfig} */ (getMeteoConfig),
   saveMeteoConfig: /** @type {null | typeof saveMeteoConfig} */ (saveMeteoConfig),
@@ -19,7 +23,7 @@ const settingsRuntimeDeps = {
 /**
  * @param {{
  *   getMeteoConfig?: (() => Record<string, any>) | null,
- *   saveMeteoConfig?: ((config: Record<string, any>) => void) | null,
+ *   saveMeteoConfig?: ((config: Record<string, any>) => boolean | void | Promise<boolean | void>) | null,
  * }} [deps]
  */
 export function configureSettingsRuntimeDeps(deps = {}) {
@@ -116,14 +120,13 @@ export function getSettingsMeteoConfig() {
 
 /**
  * @param {Record<string, any>} config
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-export function saveSettingsMeteoConfig(config) {
+export async function saveSettingsMeteoConfig(config) {
   const writeMeteoConfig = settingsRuntimeDeps.saveMeteoConfig;
   if (!writeMeteoConfig) return false;
   try {
-    writeMeteoConfig(config);
-    return true;
+    return await writeMeteoConfig(config) !== false;
   } catch {
     return false;
   }

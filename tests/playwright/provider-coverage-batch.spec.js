@@ -602,8 +602,11 @@ test('provider panels cover provider switching key saves balances custom API and
       `;
       await panels.handleSaveRoutstrKey();
       await wait(0);
+      const storedRoutstrKey = localStorage.getItem('labcharts-routstr-key');
       const routstrSaveRendersModels = document.getElementById('routstr-key-status')?.textContent.includes('Connected')
-        && localStorage.getItem('labcharts-routstr-key') === 'sk-routstr-good'
+        && storedRoutstrKey?.startsWith('d1:') === true
+        && !storedRoutstrKey.includes('sk-routstr-good')
+        && await cryptoStore.encryptedGetItem('labcharts-routstr-key') === 'sk-routstr-good'
         && document.getElementById('routstr-model-select')?.value === 'claude-sonnet-5'
         && JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]').includes('claude-sonnet-4.6');
 

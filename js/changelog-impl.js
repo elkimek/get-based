@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.17.2', date: '2026-08-21', title: 'Credentials stay protected on this device',
+    items: [
+      '<b>Saved provider credentials are now encrypted even when profile encryption is off.</b> Existing keys migrate automatically, unencrypted backups omit credentials, and generated privacy replacements now use secure browser randomness.',
+    ]
+  },
+  {
     version: '1.17.1', date: '2026-08-21', title: 'Weight units stay accurate',
     items: [
       '<b>US weight entries now stay in pounds everywhere.</b> Manual entries, dashboards, charts, reports, and BMI calculations consistently convert between pounds and kilograms.',

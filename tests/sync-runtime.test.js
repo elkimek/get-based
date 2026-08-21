@@ -356,7 +356,8 @@ describe('sync apply runtime behavior', () => {
       'edition-profile-a': 'transition-meta',
     });
     expect(localStorage.getItem('edition-key-source')).toBe('remote-transition');
-    expect(localStorage.getItem('edition-profile-a')).toBe('transition-meta');
+    expect(localStorage.getItem('edition-profile-a')).toMatch(/^d1:/);
+    await expect(encryptedGetItem('edition-profile-a')).resolves.toBe('transition-meta');
     await vi.waitFor(() => expect(applied).toHaveBeenCalledWith({
       settings: {
         'edition-key-source': 'remote-transition',
@@ -416,7 +417,8 @@ describe('sync apply runtime behavior', () => {
     });
 
     expect(localStorage.getItem('labcharts-ai-provider')).toBe('openrouter');
-    expect(localStorage.getItem('labcharts-openrouter-key')).toBe('sk-remote');
+    expect(localStorage.getItem('labcharts-openrouter-key')).toMatch(/^d1:/);
+    await expect(encryptedGetItem('labcharts-openrouter-key')).resolves.toBe('sk-remote');
     expect(localStorage.getItem('labcharts-custom-url')).toBeNull();
     expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
     expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);

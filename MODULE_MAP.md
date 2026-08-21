@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 660 |
-| Internal import edges | 2789 |
-| Dynamic internal edges | 74 |
+| Internal import edges | 2790 |
+| Dynamic internal edges | 75 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -392,7 +392,7 @@ Native browser modules shipped with the static application.
 
 - [`js/crypto-key-cache.js`](js/crypto-key-cache.js) → no in-scope imports
 - [`js/crypto-ui.js`](js/crypto-ui.js) → [`js/backup.js`](js/backup.js), [`js/caught-error.js`](js/caught-error.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
-- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js)
 
 </details>
 

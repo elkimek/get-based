@@ -1,5 +1,5 @@
 // @ts-check
-// wearables-credential-vault.js — always-encrypted, device-local OAuth secrets
+// wearables-credential-vault.js — always-encrypted, device-local app secrets
 //
 // Every wearable connection is treated as sensitive. The normal wearable
 // connection record lives inside importedData, so it is deliberately
@@ -22,6 +22,7 @@ const RECORD_PREFIX = 'credential-vault-record:v1:';
 const GENERATION_PREFIX = 'credential-vault-generation:v1:';
 const LOCAL_MARKER_PREFIX = 'labcharts-wearable-credential-local:';
 const LOCAL_GENERATION_PREFIX = 'labcharts-wearable-credential-generation:';
+const APP_CREDENTIAL_PROFILE_ID = 'credential-vault';
 
 export const VAULTED_CREDENTIAL_ADAPTERS = new Set([
   'oura', 'whoop', 'withings', 'ultrahuman', 'fitbit', 'google_health', 'polar',
@@ -29,6 +30,48 @@ export const VAULTED_CREDENTIAL_ADAPTERS = new Set([
 
 export function usesWearableCredentialVault(adapterId) {
   return VAULTED_CREDENTIAL_ADAPTERS.has(adapterId);
+}
+
+function vaultBytesToBase64(bytes) {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function vaultBytesFromBase64(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+// General app credentials share the proven non-extractable wearable vault
+// primitive but use a dedicated device-local profile database. Including the
+// storage key inside the authenticated payload prevents envelope substitution.
+export async function encryptDeviceCredential(storageKey, plaintext) {
+  const envelope = await encryptWearableDeviceLocalValue(APP_CREDENTIAL_PROFILE_ID, {
+    storageKey,
+    plaintext: String(plaintext),
+  });
+  return `d1:${vaultBytesToBase64(envelope.iv)}:${vaultBytesToBase64(new Uint8Array(envelope.ciphertext))}`;
+}
+
+export async function decryptDeviceCredential(storageKey, value) {
+  if (typeof value !== 'string' || !value.startsWith('d1:')) return null;
+  const parts = value.split(':');
+  if (parts.length !== 3) return null;
+  try {
+    const decrypted = await decryptWearableDeviceLocalValue(APP_CREDENTIAL_PROFILE_ID, {
+      version: 1,
+      iv: vaultBytesFromBase64(parts[1]),
+      ciphertext: vaultBytesFromBase64(parts[2]),
+    });
+    return decrypted?.storageKey === storageKey && typeof decrypted.plaintext === 'string'
+      ? decrypted.plaintext
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function wearableCredentialDisconnectedError(displayName = 'Wearable') {

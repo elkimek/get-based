@@ -42,6 +42,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       'labcharts-encryption-salt',
       'labcharts-api-key',
       'labcharts-venice-key',
+      'labcharts-openrouter-key',
       importedKey,
       customPersonaKey,
     ];
@@ -62,6 +63,46 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         && cryptoStore.getEncryptionEnabled() === false
         && cryptoStore.isEncryptedValue('v1:a:b') === true
         && cryptoStore.isEncryptedValue('plain') === false;
+
+      const wearablesStore = await import('/js/wearables-store.js');
+      const originalIndexedDbOpen = indexedDB.open;
+      localStorage.setItem('labcharts-api-key', 'volatile-legacy-secret');
+      cryptoStore.updateKeyCache('labcharts-api-key', null);
+      wearablesStore.resetWearablesDB('credential-vault');
+      let startupSurvivedVaultFailure = false;
+      try {
+        indexedDB.open = () => { throw new Error('simulated credential vault failure'); };
+        await cryptoStore.initEncryption();
+        startupSurvivedVaultFailure = true;
+      } finally {
+        indexedDB.open = originalIndexedDbOpen;
+        wearablesStore.resetWearablesDB('credential-vault');
+      }
+      outcomes.startupSurvivesVaultFailureWithoutPlaintext =
+        startupSurvivedVaultFailure
+        && localStorage.getItem('labcharts-api-key') === null
+        && cryptoStore.getCachedKey('labcharts-api-key') === 'volatile-legacy-secret';
+      await cryptoStore.encryptedRemoveItem('labcharts-api-key');
+
+      localStorage.setItem('labcharts-openrouter-key', 'legacy-plaintext-secret');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', null);
+      await cryptoStore.initEncryption();
+      const migratedLegacyCredential = localStorage.getItem('labcharts-openrouter-key');
+      outcomes.startupMigratesLegacyPlaintextCredentials =
+        migratedLegacyCredential?.startsWith('d1:') === true
+        && !migratedLegacyCredential.includes('legacy-plaintext-secret')
+        && await cryptoStore.encryptedGetItem('labcharts-openrouter-key') === 'legacy-plaintext-secret'
+        && cryptoStore.getCachedKey('labcharts-openrouter-key') === 'legacy-plaintext-secret';
+      await cryptoStore.encryptedRemoveItem('labcharts-openrouter-key');
+
+      await cryptoStore.encryptedSetItem('labcharts-api-key', 'device-protected-secret');
+      const deviceProtectedRaw = localStorage.getItem('labcharts-api-key');
+      outcomes.credentialsUseDeviceEncryptionWhenProfileEncryptionIsOff =
+        deviceProtectedRaw?.startsWith('d1:') === true
+        && !deviceProtectedRaw.includes('device-protected-secret')
+        && await cryptoStore.encryptedGetItem('labcharts-api-key') === 'device-protected-secret'
+        && cryptoStore.getCachedKey('labcharts-api-key') === 'device-protected-secret';
+      await cryptoStore.encryptedRemoveItem('labcharts-api-key');
 
       localStorage.setItem(importedKey, JSON.stringify({ entries: [{ date: '2026-06-09' }] }));
       const migratedBlobValue = await cryptoStore.encryptedGetItem(importedKey);
@@ -98,7 +139,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         cryptoStore.isEncryptedObject(envelope) === true
         && plainEnvelope.score === 42
         && wrongKeyValue === null
-        && cryptoStore.getCachedKey('labcharts-api-key') === rawApiKey;
+        && cryptoStore.getCachedKey('labcharts-api-key') === null;
 
       const clearedSessionKey = await cryptoStore._setTestSessionKey(null);
       outcomes.sessionKeyClearReturnsNull = clearedSessionKey === null;
@@ -156,11 +197,14 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       await waitFor(() => !!document.getElementById('confirm-ok'), 'disable confirmation');
       click('#confirm-ok');
       await disablePromise;
+      const deviceEncryptedVenice = localStorage.getItem('labcharts-venice-key');
       outcomes.disableDecryptsAndClearsSession =
         cryptoStore.getEncryptionEnabled() === false
         && cryptoStore.isUnlocked() === false
         && localStorage.getItem('labcharts-encryption-salt') === null
-        && localStorage.getItem('labcharts-venice-key') === 'plain-venice-key'
+        && deviceEncryptedVenice?.startsWith('d1:') === true
+        && !deviceEncryptedVenice.includes('plain-venice-key')
+        && await cryptoStore.encryptedGetItem('labcharts-venice-key') === 'plain-venice-key'
         && JSON.parse(localStorage.getItem(customPersonaKey) || '[]')[0]?.id === 'custom_existing'
         && document.getElementById('encryption-section')?.textContent.includes('Encryption is OFF') === true
         && document.getElementById('notification-container')?.textContent.includes('Encryption disabled') === true;
