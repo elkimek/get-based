@@ -49,6 +49,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
     const originalProfiles = state.profiles;
     const originalImportedData = state.importedData;
     const originalReorderMode = state._wearableReorderMode;
+    const originalUnitSystem = state.unitSystem;
     const host = document.createElement('section');
     const navigations = [];
 
@@ -71,6 +72,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       localStorage.removeItem(hiddenKey);
       localStorage.removeItem(stubDismissedKey);
       state.currentProfile = profileId;
+      state.unitSystem = 'US';
       state.profiles = [{
         id: profileId,
         name: 'Wearables strip action coverage',
@@ -175,15 +177,17 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       wearables.openManualLogForm('weight');
       check('openManualLogForm renders weight form in empty card',
         !!host.querySelector('#wl-weight-val')
+        && host.querySelector('#wl-weight-val')?.getAttribute('placeholder') === 'lb'
         && !!host.querySelector('#wl-weight-date')
         && !!host.querySelector('#wl-weight-note'));
-      host.querySelector('#wl-weight-val').value = '73.5';
+      host.querySelector('#wl-weight-val').value = '180';
       host.querySelector('#wl-weight-date').value = '2026-06-10';
       host.querySelector('#wl-weight-note').value = 'coverage strip action';
       await wearables.saveManualLog('weight');
       const saved = await waitFor(async () => {
         const row = await store.getDaily(profileId, 'manual', '2026-06-10');
-        return row?.weight === 73.5 && row?.note === 'coverage strip action';
+        return Math.abs((row?.weight || 0) - 81.6466) < 0.01
+          && row?.note === 'coverage strip action';
       }, 'manual weight row to save');
       check('saveManualLog stores weight row note and refreshes manual connection',
         saved
@@ -210,6 +214,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       state.profiles = originalProfiles;
       state.importedData = originalImportedData;
       state._wearableReorderMode = originalReorderMode;
+      state.unitSystem = originalUnitSystem;
       wearablesRuntime.configureWearablesRuntime(previousWearablesRuntime);
     }
 

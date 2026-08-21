@@ -7,6 +7,10 @@ import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
+import {
+  formatWearableMetricValue,
+  wearableDisplayUnit,
+} from './wearables-formatters.js';
 import { loadContextHealthDots } from './health-data-loader.js';
 import {
   addMobileDashboardBreakpointListener,
@@ -354,6 +358,10 @@ export function formatMobileWearableValue(metricId, metric, summary) {
   if (metricId === 'steps' && Math.abs(value) >= 1000) {
     return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1).replace(/\.0$/, '')}k`;
   }
+  if (metricId === 'weight') {
+    const canonicalUnit = canonicalMetric(metricId)?.unit || '';
+    return formatWearableMetricValue(metricId, value, canonicalUnit, state.unitSystem);
+  }
   return formatValue(value);
 }
 
@@ -396,7 +404,9 @@ export function getMobileWearableTiles() {
       id: metricId,
       label: canon.label,
       value: formatMobileWearableValue(metricId, metric, summary),
-      unit: metricId === 'bp_systolic' ? 'mmHg' : (canon.unit || canon.sub || ''),
+      unit: metricId === 'bp_systolic'
+        ? 'mmHg'
+        : (wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
       change: formatMobileWearableDelta(metricId, metric, canon),
     });
     if (tiles.length >= 4) break;

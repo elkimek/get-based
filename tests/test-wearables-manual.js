@@ -154,6 +154,15 @@ try {
   assert('manual connection has connectedAt',
     !!state.importedData.wearableConnections.manual.connectedAt);
 
+  await manual.logManualMetric(TEST_PROFILE, 'weight', {
+    date: '2026-04-26',
+    value: 180,
+    unit: 'lb',
+  });
+  const poundsRow = await store.getDaily(TEST_PROFILE, 'manual', '2026-04-26');
+  assert('explicit pound input is canonicalized before the manual row is stored',
+    Math.abs((poundsRow?.weight || 0) - (180 / 2.2046226218)) < 0.01);
+
   // ═══════════════════════════════════════
   // 4. logManualBP writes combined row
   // ═══════════════════════════════════════
@@ -329,7 +338,7 @@ try {
   const manualLibSrc = await fetch('js/wearables-manual.js').then(r => r.text());
 
   assert('logManualMetric signature accepts note param',
-    /export async function logManualMetric\(profileId, metric, \{ date, value, tags, note \}\)/.test(manualLibSrc));
+    /export async function logManualMetric\(profileId, metric, \{ date, value, unit = 'kg', tags, note \}\)/.test(manualLibSrc));
   assert('logManualBP signature accepts note param',
     /export async function logManualBP\(profileId, \{ date, systolic, diastolic, pulse, tags, note \}\)/.test(manualLibSrc));
   assert('Both helpers write the note onto the row patch via _sanitizeNote',

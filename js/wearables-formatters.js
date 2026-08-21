@@ -1,6 +1,34 @@
 // @ts-check
 import { isoDay } from './wearable-adapters.js';
 
+const LB_PER_KG = 2.2046226218;
+
+/**
+ * @param {number} value
+ * @param {string} [unit]
+ */
+export function weightToKilograms(value, unit = 'kg') {
+  return /^lbs?$/i.test(unit) ? value / LB_PER_KG : value;
+}
+
+/**
+ * @param {string} metricId
+ * @param {string} canonicalUnit
+ * @param {string} unitSystem
+ */
+export function wearableDisplayUnit(metricId, canonicalUnit, unitSystem) {
+  return metricId === 'weight' ? (unitSystem === 'US' ? 'lb' : 'kg') : canonicalUnit;
+}
+
+/**
+ * @param {string} metricId
+ * @param {number} value
+ * @param {string} unitSystem
+ */
+export function wearableDisplayValue(metricId, value, unitSystem) {
+  return metricId === 'weight' && unitSystem === 'US' ? value * LB_PER_KG : value;
+}
+
 // Single formatter used by the strip cards and detail modals so a number
 // renders identically everywhere.
 export function formatValue(latest, unit) {
@@ -8,6 +36,19 @@ export function formatValue(latest, unit) {
   const intUnits = ['ms', 'bpm', '%', 'min', ''];
   if (intUnits.includes(unit) || Number.isInteger(latest)) return String(Math.round(latest));
   return latest.toFixed(1);
+}
+
+/**
+ * @param {string} metricId
+ * @param {number | null | undefined} value
+ * @param {string} canonicalUnit
+ * @param {string} unitSystem
+ */
+export function formatWearableMetricValue(metricId, value, canonicalUnit, unitSystem) {
+  return formatValue(
+    value == null ? value : wearableDisplayValue(metricId, value, unitSystem),
+    wearableDisplayUnit(metricId, canonicalUnit, unitSystem),
+  );
 }
 
 // Format an ISO date (YYYY-MM-DD) as "Apr 24" for compact display next to a

@@ -321,9 +321,10 @@ test('dashboard Light widgets share lazy initialization before rendering', async
 test('dashboard widget renderers browser coverage uses default wearable priority fallback', async ({ page }) => {
   await openBlankPage(page);
 
-  const results = await page.evaluate(async ({ renderersUrl, profileUrl, stateUrl }) => {
-    const [renderersModule, profileModule, stateModule] = await Promise.all([
+  const results = await page.evaluate(async ({ renderersUrl, mobileUrl, profileUrl, stateUrl }) => {
+    const [renderersModule, mobileModule, profileModule, stateModule] = await Promise.all([
       import(renderersUrl),
+      import(mobileUrl),
       import(profileUrl),
       import(stateUrl),
     ]);
@@ -331,17 +332,20 @@ test('dashboard widget renderers browser coverage uses default wearable priority
     const outcomes = {};
     const originalProfile = state.currentProfile;
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const originalUnitSystem = state.unitSystem;
     const profileId = 'dashboardRendererPriorityCoverage';
     const selectionKey = profileModule.profileStorageKey(profileId, 'dashboardBiometricMetricsV1');
 
     try {
       state.currentProfile = profileId;
+      state.unitSystem = 'US';
       state.importedData = {
         wearableSummary: {
           sources: { oura: { source: 'oura' } },
           metrics: {
             hrv_rmssd: { latest: 54, baseline: 48 },
             steps: { latest: 9200, baseline: 7000 },
+            weight: { latest: 180 / 2.2046226218, baseline: 180 / 2.2046226218 },
           },
         },
         wearableConnections: {},
@@ -356,8 +360,8 @@ test('dashboard widget renderers browser coverage uses default wearable priority
         getMobileDashboardMarkers: () => [],
         getMobileDashboardInsights: () => [],
         getMobileWearableTiles: () => [],
-        formatMobileWearableValue: (_metricId, metric) => String(metric.latest),
-        formatMobileWearableDelta: () => 'latest',
+        formatMobileWearableValue: mobileModule.formatMobileWearableValue,
+        formatMobileWearableDelta: mobileModule.formatMobileWearableDelta,
         rerenderDashboardFromWidgetChange: () => {},
         showRecommendations: () => {},
       });
@@ -372,6 +376,13 @@ test('dashboard widget renderers browser coverage uses default wearable priority
       outcomes.emptyMobileTilesFallBackToManualDefaultSelection =
         renderers.getDashboardBiometricSelection().join('|') === 'weight|bp_systolic|rhr';
 
+      renderers.saveDashboardBiometricSelection(['weight']);
+      const weightHtml = renderers.renderDashboardWearableTilesWidget();
+      outcomes.usWeightTileDisplaysPounds =
+        weightHtml.includes('<strong>180</strong>')
+        && weightHtml.includes('<small>lb</small>')
+        && !weightHtml.includes('<small>kg</small>');
+
       renderers.saveDashboardBiometricSelection(['hrv_rmssd', 'steps', 'bp_systolic']);
       const html = renderers.renderDashboardWearableTilesWidget();
       outcomes.savedSelectionRendersDataAndEmptyManualTiles =
@@ -383,11 +394,13 @@ test('dashboard widget renderers browser coverage uses default wearable priority
       localStorage.removeItem(selectionKey);
       state.currentProfile = originalProfile;
       state.importedData = originalImported;
+      state.unitSystem = originalUnitSystem;
     }
 
     return outcomes;
   }, {
     renderersUrl: moduleUrl('/js/dashboard-widget-renderers.js'),
+    mobileUrl: moduleUrl('/js/mobile-dashboard.js'),
     profileUrl: '/js/profile.js',
     stateUrl: '/js/state.js',
   });
@@ -395,6 +408,7 @@ test('dashboard widget renderers browser coverage uses default wearable priority
   const expectedOutcomeKeys = [
     'defaultPriorityFallsBackToRegistryAndCanonicalMetrics',
     'emptyMobileTilesFallBackToManualDefaultSelection',
+    'usWeightTileDisplaysPounds',
     'savedSelectionRendersDataAndEmptyManualTiles',
   ];
   expect(Object.keys(results)).toEqual(expectedOutcomeKeys);

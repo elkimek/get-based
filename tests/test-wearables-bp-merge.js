@@ -60,7 +60,7 @@ assert('Sub-label suppressed for paired BP card (no "sys" badge)',
 assert('Value renders as sys/dia when paired',
   /const valueRead = isBPCard \? `\$\{sysRead\}\/\$\{diaRead \|\| '—'\}` : sysRead/.test(wearablesSrc));
 assert('Baseline renders as sys/dia when paired',
-  /const baselineRead = isBPCard\s*\?\s*`\$\{metric\.baseline \?\? '—'\}\/\$\{pairedMetric\.baseline \?\? '—'\}`/.test(wearablesSrc));
+  /const baselineRead = isBPCard\s*\?\s*`\$\{formatBaselineValue\(metric\.baseline\)\}\/\$\{formatBaselineValue\(pairedMetric\.baseline\)\}`/.test(wearablesSrc));
 assert("Aria-label uses 'Blood pressure' for the paired card",
   /const canonRead = isBPCard\s*\?\s*'Blood pressure'/.test(wearablesSrc));
 

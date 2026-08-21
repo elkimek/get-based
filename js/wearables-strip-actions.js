@@ -4,6 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { state } from './state.js';
+import { weightToKilograms } from './wearables-formatters.js';
 import {
   ADAPTERS,
   adapterById,
@@ -365,8 +366,12 @@ export async function saveManualLog(kind, event) {
       const val = parseFloat(inputValueById('wl-weight-val'));
       const date = inputValueById('wl-weight-date');
       if (!val || val <= 0 || !date) { showNotification?.('Enter a weight and date', 'error'); return; }
-      if (val > 500) { showNotification?.('Weight over 500 kg seems unlikely', 'error'); return; }
-      await logManualMetric(profileId, 'weight', { date, value: val, tags, note });
+      const unit = state.unitSystem === 'US' ? 'lb' : 'kg';
+      if (weightToKilograms(val, unit) > 500) {
+        showNotification?.(`Weight over ${unit === 'lb' ? '1,100 lb' : '500 kg'} seems unlikely`, 'error');
+        return;
+      }
+      await logManualMetric(profileId, 'weight', { date, value: val, unit, tags, note });
     } else if (kind === 'rhr') {
       const val = parseInt(inputValueById('wl-rhr-val'), 10);
       const date = inputValueById('wl-rhr-date');
