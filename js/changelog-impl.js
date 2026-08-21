@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.17.3', date: '2026-08-21', title: 'Height and BMI stay accurate in reports',
+    items: [
+      '<b>Reports now interpret saved height consistently.</b> Heights entered in inches display correctly in feet and inches, and BMI continues to use the canonical metric value.',
+    ]
+  },
+  {
     version: '1.17.2', date: '2026-08-21', title: 'Credentials stay protected on this device',
     items: [
       '<b>Saved provider credentials are now encrypted even when profile encryption is off.</b> Existing keys migrate automatically, unencrypted backups omit credentials, and generated privacy replacements now use secure browser randomness.',

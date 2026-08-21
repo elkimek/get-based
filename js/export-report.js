@@ -221,9 +221,8 @@ function getReportHeightInfo(profile) {
 
 function getReportHeightMeters(heightInfo) {
   if (!heightInfo?.height) return null;
-  const unit = String(heightInfo.unit || 'cm').toLowerCase();
-  if (unit === 'in' || unit === 'inch' || unit === 'inches') return heightInfo.height * 0.0254;
-  if (unit === 'm' || unit === 'meter' || unit === 'meters') return heightInfo.height;
+  // Profile height is stored canonically in centimeters. The saved unit is
+  // only the user's display preference.
   return heightInfo.height / 100;
 }
 
@@ -231,12 +230,12 @@ function formatReportHeightLabel(heightInfo) {
   if (!heightInfo?.height) return '';
   const unit = String(heightInfo.unit || 'cm').toLowerCase();
   if (unit === 'in' || unit === 'inch' || unit === 'inches') {
-    const totalInches = Math.round(heightInfo.height);
+    const totalInches = Math.round(heightInfo.height / 2.54);
     const feet = Math.floor(totalInches / 12);
     const inches = totalInches % 12;
     return `${feet} ft ${inches} in`;
   }
-  if (unit === 'm' || unit === 'meter' || unit === 'meters') return `${formatValue(heightInfo.height)} m`;
+  if (unit === 'm' || unit === 'meter' || unit === 'meters') return `${formatValue(heightInfo.height / 100)} m`;
   return `${formatValue(heightInfo.height)} cm`;
 }
 
