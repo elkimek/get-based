@@ -13,13 +13,13 @@
     },
     {
       "package": "tinfoil",
-      "version": "1.1.12",
-      "integrity": "sha512-fBNAKvGS9zTbzOicCm5Bv1UfICB4vWHza0S4FavvhtIU7I8KhUa1407CqFDTKTYdJUjHH8fAPMbdvkaW1bFecA==",
+      "version": "1.2.1",
+      "integrity": "sha512-goql//0KY6nViV96wBdmIT6ZZ7rYy9yEhJrtIPdg9YHw3vyDsyNsuXNq/sZgu0Bu+sm5crxQObxrMGwgN572OQ==",
       "entry": "scripts/vendor-entries/tinfoil.js",
       "output": "vendor/tinfoil-browser.js",
       "format": "es",
       "minified": true,
-      "sha256": "e2a9e195a1f802663004e93d54d6893af3545e099c50f6865a3e9b93a5482c7a"
+      "sha256": "1dac04528df40a87e01caa1d59501e9a3e10eb3322ae59f2b5cbea3b3b33460b"
     },
     {
       "package": "ehbp",

@@ -457,7 +457,7 @@ assert('Routstr private requests bound temporary reservations and refresh their 
     && apiRoutstrSrc.includes('notifyRoutstrRequestSettled({ failed, modelId })'));
 assert('Browser security vendor manifest records locked Tinfoil and EHBP runtimes',
   vendorManifest.schemaVersion === 2
-    && vendorManifest.runtimes.some(runtime => runtime.package === 'tinfoil' && runtime.version === '1.1.12')
+    && vendorManifest.runtimes.some(runtime => runtime.package === 'tinfoil' && runtime.version === '1.2.1')
     && vendorManifest.runtimes.some(runtime => runtime.package === 'ehbp' && runtime.version === '0.3.2'));
 
 // ═══════════════════════════════════════
