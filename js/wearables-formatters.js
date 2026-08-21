@@ -1,41 +1,32 @@
 // @ts-check
 import { isoDay } from './wearable-adapters.js';
 
-export const POUNDS_PER_KILOGRAM = 2.2046226218;
-
-/** @param {unknown} unit */
-function isPoundUnit(unit) {
-  return /^lbs?$/i.test(String(unit || '').trim());
-}
+const LB_PER_KG = 2.2046226218;
 
 /**
- * Convert a weight at an input/import boundary into the kilograms used by the
- * wearable store and summary pipeline.
  * @param {number} value
  * @param {string} [unit]
  */
 export function weightToKilograms(value, unit = 'kg') {
-  return isPoundUnit(unit) ? value / POUNDS_PER_KILOGRAM : value;
+  return /^lbs?$/i.test(unit) ? value / LB_PER_KG : value;
 }
 
 /**
- * Resolve a canonical wearable metric's user-facing unit.
  * @param {string} metricId
  * @param {string} canonicalUnit
- * @param {string} [unitSystem]
+ * @param {string} unitSystem
  */
-export function wearableDisplayUnit(metricId, canonicalUnit, unitSystem = 'EU') {
+export function wearableDisplayUnit(metricId, canonicalUnit, unitSystem) {
   return metricId === 'weight' ? (unitSystem === 'US' ? 'lb' : 'kg') : canonicalUnit;
 }
 
 /**
- * Resolve a canonical wearable metric's user-facing value.
  * @param {string} metricId
  * @param {number} value
- * @param {string} [unitSystem]
+ * @param {string} unitSystem
  */
-export function wearableDisplayValue(metricId, value, unitSystem = 'EU') {
-  return metricId === 'weight' && unitSystem === 'US' ? value * POUNDS_PER_KILOGRAM : value;
+export function wearableDisplayValue(metricId, value, unitSystem) {
+  return metricId === 'weight' && unitSystem === 'US' ? value * LB_PER_KG : value;
 }
 
 // Single formatter used by the strip cards and detail modals so a number
@@ -48,16 +39,16 @@ export function formatValue(latest, unit) {
 }
 
 /**
- * Format a wearable value after applying the selected display unit system.
  * @param {string} metricId
  * @param {number | null | undefined} value
  * @param {string} canonicalUnit
- * @param {string} [unitSystem]
+ * @param {string} unitSystem
  */
-export function formatWearableMetricValue(metricId, value, canonicalUnit, unitSystem = 'EU') {
-  const displayUnit = wearableDisplayUnit(metricId, canonicalUnit, unitSystem);
-  const displayValue = value == null ? value : wearableDisplayValue(metricId, value, unitSystem);
-  return formatValue(displayValue, displayUnit);
+export function formatWearableMetricValue(metricId, value, canonicalUnit, unitSystem) {
+  return formatValue(
+    value == null ? value : wearableDisplayValue(metricId, value, unitSystem),
+    wearableDisplayUnit(metricId, canonicalUnit, unitSystem),
+  );
 }
 
 // Format an ISO date (YYYY-MM-DD) as "Apr 24" for compact display next to a
