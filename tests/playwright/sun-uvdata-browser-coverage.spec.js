@@ -24,12 +24,13 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
         if (
-          key === 'meteo-cache-v4-purged' ||
+          key === 'meteo-cache-v5-purged' ||
           key === 'meteo:legacy-a' ||
           key === 'meteo:v1:keep-a' ||
           key?.startsWith('meteo:v2:') ||
           key?.startsWith('meteo:v3:') ||
-          key?.startsWith('meteo:v4:')
+          key?.startsWith('meteo:v4:') ||
+          key?.startsWith('meteo:v5:')
         ) {
           keys.push(key);
         }
@@ -39,10 +40,11 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
 
     try {
       cleanup();
-      localStorage.removeItem('meteo-cache-v4-purged');
+      localStorage.removeItem('meteo-cache-v5-purged');
       localStorage.setItem('meteo:legacy-a', 'old-cache');
       localStorage.setItem('meteo:v2:old-a', 'old-version-cache');
-      localStorage.setItem('meteo:v4:keep-a', 'fresh-cache');
+      localStorage.setItem('meteo:v4:old-a', 'old-version-cache');
+      localStorage.setItem('meteo:v5:keep-a', 'fresh-cache');
 
       const mod = await import(sunUrl);
 
@@ -50,8 +52,9 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         localStorage.getItem('meteo:legacy-a') === null
         && localStorage.getItem('meteo:v2:old-a') === null
         && localStorage.getItem('meteo:v3:keep-a') === null
-        && localStorage.getItem('meteo:v4:keep-a') === 'fresh-cache'
-        && localStorage.getItem('meteo-cache-v4-purged') === '1';
+        && localStorage.getItem('meteo:v4:old-a') === null
+        && localStorage.getItem('meteo:v5:keep-a') === 'fresh-cache'
+        && localStorage.getItem('meteo-cache-v5-purged') === '1';
 
       outcomes.uvdataExportsStayModuleOnly = [
         'fetchAtmosphere',
@@ -124,14 +127,14 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         && encryptedFallback.privacyRounding === 0.25;
 
       localStorage.setItem('meteo:v1:keep-a', '{}');
-      localStorage.setItem('meteo:v4:purge-a', '{}');
-      localStorage.setItem('meteo:v4:purge-b', '{}');
+      localStorage.setItem('meteo:v5:purge-a', '{}');
+      localStorage.setItem('meteo:v5:purge-b', '{}');
       const beforePurge = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
-        .filter(key => key?.startsWith('meteo:v4:')).length;
+        .filter(key => key?.startsWith('meteo:v5:')).length;
       const removed = mod.purgeMeteoCache();
       const afterPurge = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
-        .filter(key => key?.startsWith('meteo:v4:')).length;
-      outcomes.purgeMeteoCacheCountsAndRemovesOnlyV3Entries =
+        .filter(key => key?.startsWith('meteo:v5:')).length;
+      outcomes.purgeMeteoCacheCountsAndRemovesOnlyCurrentEntries =
         beforePurge === 3
         && removed === beforePurge
         && afterPurge === 0
@@ -209,6 +212,11 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         nitrogen_dioxide: [14],
         aerosol_optical_depth: [0.08],
         ozone: [70],
+        european_aqi: [18],
+        european_aqi_pm2_5: [10],
+        european_aqi_pm10: [12],
+        european_aqi_nitrogen_dioxide: [8],
+        european_aqi_ozone: [16],
       },
       current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
     };
@@ -222,7 +230,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
       const keys = [];
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
-        if (key?.startsWith('meteo:v4:')) keys.push(key);
+        if (key?.startsWith('meteo:v5:')) keys.push(key);
       }
       keys.forEach(key => localStorage.removeItem(key));
     };
@@ -390,7 +398,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         const href = String(url);
         legacyNoaaCalls.push(href);
         if (href.includes('air-quality')) return jsonResponse(airQuality);
-        return jsonResponse(forecast(2.8));
+        return jsonResponse(forecast(2.8, { root: { airQuality } }));
       };
       const legacyNoaa = await mod.fetchAtmosphere({
         lat: 40,
@@ -435,7 +443,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && cacheFetches === 4;
 
       cleanupCache();
-      localStorage.setItem('meteo:v4:50.00_14.00_2026-06-01T08', JSON.stringify({
+      localStorage.setItem('meteo:v5:50.00_14.00_2026-06-01T08', JSON.stringify({
         uvIndex: 2.2,
         uvClearSky: 3.0,
         ozoneDU: 300,
@@ -498,7 +506,7 @@ test('sun uvdata browser coverage handles response caps shapers and interpolatio
       const keys = [];
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
-        if (key?.startsWith('meteo:v4:')) keys.push(key);
+        if (key?.startsWith('meteo:v5:')) keys.push(key);
       }
       keys.forEach(key => localStorage.removeItem(key));
     };

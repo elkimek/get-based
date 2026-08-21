@@ -17,6 +17,14 @@ const MOCKED_MODULES = [
 
 function credentialVaultModule(overrides = {}) {
   return {
+    usesWearableCredentialVault: vi.fn(adapterId => [
+      'oura', 'whoop', 'withings', 'ultrahuman', 'fitbit', 'google_health', 'polar',
+    ].includes(adapterId)),
+    wearableCredentialDisconnectedError: vi.fn((displayName = 'Wearable') => {
+      const error = new Error(`${displayName} is disconnected.`);
+      error.code = 'disconnected';
+      return error;
+    }),
     clearLocalWearableCredential: vi.fn((profileId, adapterId, generation = 0) => {
       localStorage.setItem(`labcharts-wearable-credential-generation:${profileId}:${adapterId}`, String(generation || 0));
       localStorage.removeItem(`labcharts-wearable-credential-local:${profileId}:${adapterId}`);

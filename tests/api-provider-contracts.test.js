@@ -63,6 +63,7 @@ import { LOCAL_AI_PROVIDER_ADAPTERS, getLocalAiProviderCapabilities } from '../j
 import { inferWithLMStudioNativeProvider, loadLMStudioModelWithContext } from '../js/local-ai-provider-lmstudio.js';
 import { inferWithOllamaNativeProvider } from '../js/local-ai-provider-ollama.js';
 import { getLocalAiExecutionLocation, isLocalAiLoopbackUrl } from '../js/local-ai-provider-shared.js';
+import { CLOUD_AI_CONSENT_KEY, CLOUD_AI_CONSENT_VERSION } from '../js/cloud-ai-consent.js';
 import {
   clearLocalAiRuntimeUse,
   getLocalAiReleasePlan,
@@ -178,6 +179,13 @@ beforeEach(() => {
   configureAppExtension(null);
   localStorage.clear();
   sessionStorage.clear();
+  localStorage.setItem(CLOUD_AI_CONSENT_KEY, JSON.stringify({
+    version: CLOUD_AI_CONSENT_VERSION,
+    approvals: Object.fromEntries(
+      ['openrouter', 'ppq', 'routstr', 'venice', 'custom:unconfigured', 'custom:https://custom.example']
+        .map(scope => [scope, { accepted: true, acceptedAt: '2026-08-19T00:00:00.000Z' }]),
+    ),
+  }));
   clearProviderKeyCaches();
   clearLocalAiDiscovery();
   clearLocalAiRuntimeUse();
@@ -343,10 +351,13 @@ const providerContracts = [
       setCustomApiModel('custom-model');
     },
     assertRequest(request) {
-      expect(request.proxied).toBe(true);
+      expect(request.proxied).toBe(false);
       expect(request.url).toBe('https://custom.example/v1/chat/completions');
-      expect(request.headers).toEqual({ Authorization: `Bearer ${this.key}` });
-      expect(request.proxyEnvelope).not.toHaveProperty('method');
+      expect(request.headers).toMatchObject({
+        Authorization: `Bearer ${this.key}`,
+        'Content-Type': 'application/json',
+      });
+      expect(request).not.toHaveProperty('proxyEnvelope');
       expect(request.body).toMatchObject({
         model: 'custom-model',
         max_tokens: 32,

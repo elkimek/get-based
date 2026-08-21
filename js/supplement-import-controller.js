@@ -378,7 +378,7 @@ export async function fetchSupplementFromURL() {
     } else {
       const response = await fetch('/api/proxy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, method: 'GET', headers: { Accept: 'text/html,application/xhtml+xml' } }),
+        body: JSON.stringify({ proxy_purpose: 'public-page', url, method: 'GET', headers: { Accept: 'text/html,application/xhtml+xml' } }),
       });
       const responseText = await response.text();
       if (!response.ok) {

@@ -2,22 +2,22 @@
 // voice-provider-elevenlabs.js — ElevenLabs Scribe/TTS adapter.
 
 import {
-  relaySynthesis,
-  relayTranscription,
-  relayVoices,
-  testRelayProvider,
+  directSynthesis,
+  directTranscription,
+  directVoices,
+  testDirectProvider,
 } from './voice-provider-cloud-shared.js';
 
 export const elevenLabsVoiceProvider = {
   id: 'elevenlabs',
   transcribe(options) {
-    return relayTranscription('elevenlabs', options);
+    return directTranscription('elevenlabs', options);
   },
   synthesize(options) {
-    return relaySynthesis('elevenlabs', options);
+    return directSynthesis('elevenlabs', options);
   },
   listVoices(options) {
-    return relayVoices('elevenlabs', options);
+    return directVoices('elevenlabs', options);
   },
   listModels(kind) {
     return Promise.resolve(kind === 'stt'
@@ -25,7 +25,7 @@ export const elevenLabsVoiceProvider = {
       : [{ id: 'eleven_multilingual_v2', label: 'Multilingual v2' }]);
   },
   testConnection(options) {
-    return testRelayProvider('elevenlabs', options);
+    return testDirectProvider('elevenlabs', options);
   },
 };
 

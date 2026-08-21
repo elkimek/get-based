@@ -626,7 +626,7 @@ test('context health dots and focus card cover cache fallback and empty states',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ healthUrl, focusUrl }) => {
-    const [{ state }, health, focus, summaries, profile, data, labContext, cryptoStore] = await Promise.all([
+    const [{ state }, health, focus, summaries, profile, data, labContext, cryptoStore, cloudConsent] = await Promise.all([
       import('/js/state.js'),
       import(healthUrl),
       import(focusUrl),
@@ -635,6 +635,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       import('/js/data.js'),
       import('/js/lab-context.js'),
       import('/js/crypto.js'),
+      import('/js/cloud-ai-consent.js'),
     ]);
     const outcomes = {};
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -653,6 +654,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       ollamaConfig: localStorage.getItem('labcharts-ollama'),
       ollamaConfigCache: cryptoStore.getCachedKey('labcharts-ollama'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
+      cloudAIConsent: localStorage.getItem('labcharts-cloud-ai-consent'),
       fetch: window.fetch,
     };
     const originalHealthDotDeps = health.configureContextCardHealthDots();
@@ -734,6 +736,10 @@ test('context health dots and focus card cover cache fallback and empty states',
         && document.getElementById('ctx-dot-diet')?.classList.contains('ctx-health-dot-gray') === true
         && document.getElementById('ctx-summary-diet')?.textContent === 'diet local fallback'
         && document.getElementById('ctx-ai-diet')?.textContent.includes('not recalculated');
+      localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+        version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+        approvals: { openrouter: { accepted: true } },
+      }));
       health.enableDemoContextLiveAI();
       await health.loadContextHealthDots();
       const liveDemoCache = JSON.parse(localStorage.getItem(healthCacheKey) || '{}');
@@ -981,6 +987,8 @@ test('context health dots and focus card cover cache fallback and empty states',
       else localStorage.setItem('labcharts-ollama', saved.ollamaConfig);
       if (saved.ollamaModel == null) localStorage.removeItem('labcharts-ollama-model');
       else localStorage.setItem('labcharts-ollama-model', saved.ollamaModel);
+      if (saved.cloudAIConsent == null) localStorage.removeItem('labcharts-cloud-ai-consent');
+      else localStorage.setItem('labcharts-cloud-ai-consent', saved.cloudAIConsent);
       if (saved.activeProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', saved.activeProfile);
       cryptoStore.updateKeyCache('labcharts-ollama', saved.ollamaConfigCache);

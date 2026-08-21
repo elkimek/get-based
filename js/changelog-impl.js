@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.17.0', date: '2026-08-19', title: 'More control over cloud connections',
+    items: [
+      '<b>You approve each cloud AI provider before first use.</b> getbased names the provider and asks once on this browser before sending sensitive data. If you decline, that request and its sensitive data stay on your device; you can review or withdraw approvals in Settings → Privacy.',
+      '<b>Voice still uses your selected AI provider, now directly.</b> Dictation and spoken replies connect from your browser to supported providers instead of passing through a getbased voice relay, with no extra voice setup.',
+      '<b>Custom AI providers connect from your browser.</b> If a provider does not allow browser connections, getbased now explains why it cannot connect and what the provider needs to support.',
+      '<b>Weather and supported wearables keep working with clearer privacy controls.</b> Weather uses a privacy-rounded location, and hosted wearable connections explain any getbased relay and ask before provider sign-in.',
+      '<b>Analytics and privacy information are clearer.</b> Cookieless app analytics still starts on by default with a first-run notice and one-click opt-out. Updated Terms and Privacy explain the company and the services involved.',
+    ]
+  },
+  {
     version: '1.16.0', date: '2026-08-14', title: 'Light & Sun, completely redesigned',
     items: [
       '<b>See your light day in one place.</b> Outdoor conditions, sun sessions, light devices, indoor environments, measurement tools, and guidance now work together as one clear experience.',
@@ -566,7 +576,7 @@ const CHANGELOG = [
     version: '1.3.20', date: '2026-04-27', title: 'Region-aware recommendations + clearer privacy',
     items: [
       '<b>Set your country in the profile editor</b> and recommendations now show products and URLs available in your market — Czech users land on Czech storefronts, US users on .com sites, etc. Each rec section\'s footer reads "Showing for {country} · change" so you always know what\'s being filtered.',
-      '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a transparency banner on first launch — counts only, no IP, no health data, cookieless. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
+      '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a cookieless transparency banner on first launch — no health records or chat content, and raw IP is not stored. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
       '<b>EMF assessment</b> now also surfaces recommended meters (empty state) and mitigation products (after interpretation), tied to the issues actually flagged. Toggle Settings → Display → "Show product recommendations" off if you don\'t want them. Affiliate disclosure is built in; brands cannot pay for placement.',
     ]
   },

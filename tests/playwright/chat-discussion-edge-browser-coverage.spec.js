@@ -81,10 +81,11 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
   await page.waitForSelector('#chat-send-btn');
 
   const results = await page.evaluate(async ({ turnsUrl }) => {
-    const [{ state }, callbacks, turns] = await Promise.all([
+    const [{ state }, callbacks, turns, cloudConsent] = await Promise.all([
       import('/js/state.js'),
       import('/js/chat-discussion-callbacks.js'),
       import(turnsUrl),
+      import('/js/cloud-ai-consent.js'),
     ]);
     const outcomes = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
@@ -120,6 +121,10 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
       if (messages) messages.innerHTML = '';
       localStorage.setItem('labcharts-ai-provider', 'coverage-unknown');
       localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+        version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+        approvals: { 'coverage-unknown': { accepted: true } },
+      }));
 
       callbacks.configureChatDiscussion({
         getChatAbortController: () => currentController,

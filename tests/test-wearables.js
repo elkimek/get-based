@@ -657,6 +657,17 @@ assert('wearable settings renderer is a module export',
 assert('wearable settings actions are module exports',
   typeof wearableSettings.wearableSettingsActionHandlers.handleWearableConnect === 'function'
   && typeof wearableSettings.wearableSettingsActionHandlers.handleWearableDisconnect === 'function');
+assert('hosted wearable relay consent is limited to fixed hosted integrations',
+  wearableSettings.requiresHostedWearableRelayConsent('oura', { hostname: 'getbased.health' }) === true
+  && wearableSettings.requiresHostedWearableRelayConsent('withings', { hostname: 'app.getbased.health' }) === true
+  && wearableSettings.requiresHostedWearableRelayConsent('polar', { hostname: 'get-based.vercel.app' }) === true
+  && wearableSettings.requiresHostedWearableRelayConsent('fitbit', { hostname: 'getbased.health' }) === true
+  && wearableSettings.requiresHostedWearableRelayConsent('whoop', { hostname: 'getbased.health' }) === false
+  && wearableSettings.requiresHostedWearableRelayConsent('oura', { hostname: 'localhost' }) === false);
+assert('hosted wearable disclosure explicitly identifies readable transit processing',
+  wearableSettings.hostedWearableRelayDisclosure('Oura').includes('getbased s.r.o.')
+  && wearableSettings.hostedWearableRelayDisclosure('Oura').includes('can read those values while forwarding')
+  && wearableSettings.hostedWearableRelayDisclosure('Oura').includes('explicitly consent'));
 const wearableSettingsLegacyGlobals = [
   'setWearableStripHidden',
   'isWearableStripHidden',
@@ -1673,6 +1684,15 @@ assert('Google Health rows use an always-on device-local encryption envelope',
 assert('Google Health raw rows are excluded from profile backups with their device key',
   /Google Health raw rows use an always-on device key/.test(backupSrc31)
   && !/const KNOWN_SOURCES = \[[^\]]*google_health/.test(backupSrc31));
+const credentialVaultSrc = await fetch('/js/wearables-credential-vault.js').then(r => r.text());
+assert('Every OAuth wearable stores tokens in the device-local credential vault',
+  /VAULTED_CREDENTIAL_ADAPTERS\s*=\s*new Set\(\[[\s\S]*?'oura'[\s\S]*?'whoop'[\s\S]*?'withings'[\s\S]*?'ultrahuman'[\s\S]*?'fitbit'[\s\S]*?'google_health'[\s\S]*?'polar'/.test(credentialVaultSrc));
+const wearableSettingsPanelSrc = await fetch('/js/wearables-settings-panel.js').then(r => r.text());
+assert('Wearable settings distinguish always-encrypted tokens from conditionally encrypted non-Google history',
+  wearableSettingsPanelSrc.includes('OAuth tokens are always device-key encrypted.')
+    && wearableSettingsPanelSrc.includes('Google Health rows are always device-key encrypted')
+    && wearableSettingsPanelSrc.includes('other rows are encrypted when passphrase protection is enabled')
+    && !wearableSettingsPanelSrc.includes('Tokens and imported history are always encrypted'));
 
 // ═══════════════════════════════════════
 // 17v. Test isolation regression guard (v1.28.1)

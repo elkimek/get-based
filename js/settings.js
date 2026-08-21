@@ -51,6 +51,7 @@ import {
   toggleOllamaPII,
   togglePrivacyConfigure,
   updatePrivacyStatusCard,
+  withdrawCloudAIConsentFromSettings,
 } from './settings-privacy.js';
 import { loadImportUI, loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
@@ -290,6 +291,9 @@ async function handleSettingsClick(event) {
   } else if (action === 'test-pii-ollama') {
     event.preventDefault();
     void testPIIOllamaConnectionBridge();
+  } else if (action === 'withdraw-cloud-ai-consent') {
+    event.preventDefault();
+    withdrawCloudAIConsentFromSettings();
   } else if (action === 'rename-imported-entry') {
     event.preventDefault();
     void renameImportedEntryDateFromSettings(actionEl.dataset.entryDate || '');
@@ -612,15 +616,12 @@ function loadSettingsCommitHash() {
       e.appendChild(suffix);
     }
   };
-  // Prefer the deployed SHA from Vercel (truthful on previews). Fall back to
-  // main HEAD via GitHub when /api/commit isn't available (local dev, etc).
+  // Use only the deployment's same-origin public receipt. Do not make an
+  // automatic GitHub request from the user's browser when it is unavailable.
   fetch('/api/commit')
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(({ sha, ref }) => render(sha, ref))
-    .catch(() => fetch('https://api.github.com/repos/elkimek/get-based/commits/main', { headers: { Accept: 'application/vnd.github.sha' } })
-      .then(r => r.ok ? r.text() : Promise.reject())
-      .then(sha => render(sha, 'main'))
-      .catch(() => { const e = document.getElementById('settings-commit-hash'); if (e) e.textContent = ''; }));
+    .catch(() => { const e = document.getElementById('settings-commit-hash'); if (e) e.textContent = ''; });
 }
 
 export function switchSettingsTab(tabId) {

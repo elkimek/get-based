@@ -53,7 +53,6 @@ function clearPendingImport() {
   clearPendingImportRuntime();
   clearImportReviewDraft();
 }
-
 function restoreDropZoneVisibility() {
   const dropZone = document.getElementById('drop-zone');
   if (dropZone) dropZone.style.display = '';

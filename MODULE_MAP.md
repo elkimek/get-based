@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 663 |
-| Internal import edges | 2776 |
+| Modules | 660 |
+| Internal import edges | 2782 |
 | Dynamic internal edges | 74 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -45,7 +45,6 @@ These implementation modules may only be imported by their public facade.
 - [`js/main.js`](js/main.js)
 - [`api/commit.js`](api/commit.js)
 - [`api/proxy.js`](api/proxy.js)
-- [`api/voice.js`](api/voice.js)
 - [`api/share.js`](api/share.js)
 - [`dev-server.js`](dev-server.js)
 - [`service-worker.js`](service-worker.js)
@@ -58,11 +57,11 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 267 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 74 |
 | [`js/state.js`](js/state.js) | 182 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/chat-send.js`](js/chat-send.js) | 29 |
+| [`js/caught-error.js`](js/caught-error.js) | 83 | [`js/chat-send.js`](js/chat-send.js) | 30 |
 | [`js/data.js`](js/data.js) | 75 | [`js/settings.js`](js/settings.js) | 27 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 75 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 66 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
-| [`js/profile.js`](js/profile.js) | 48 | [`js/wearables-connect.js`](js/wearables-connect.js) | 25 |
+| [`js/profile.js`](js/profile.js) | 48 | [`js/wearables-connect.js`](js/wearables-connect.js) | 26 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/views.js`](js/views.js) | 22 |
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/lab-context.js`](js/lab-context.js) | 21 |
 | [`js/data-merge.js`](js/data-merge.js) | 30 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
@@ -123,9 +122,9 @@ Native browser modules shipped with the static application.
 - [`js/api-provider-storage.js`](js/api-provider-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js)
 - [`js/api-routstr.js`](js/api-routstr.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
 - [`js/api-runtime.js`](js/api-runtime.js) → no in-scope imports
-- [`js/api-transport.js`](js/api-transport.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
+- [`js/api-transport.js`](js/api-transport.js) → [`js/caught-error.js`](js/caught-error.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/api-venice.js`](js/api-venice.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-transport.js`](js/api-transport.js), [`js/caught-error.js`](js/caught-error.js)
-- [`js/api.js`](js/api.js) → [`js/api-custom.js`](js/api-custom.js) *(dynamic)*, [`js/api-local.js`](js/api-local.js) *(dynamic)*, [`js/api-models.js`](js/api-models.js), [`js/api-openrouter-oauth.js`](js/api-openrouter-oauth.js), [`js/api-openrouter.js`](js/api-openrouter.js) *(dynamic)*, [`js/api-ppq.js`](js/api-ppq.js) *(dynamic)*, [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-routstr.js`](js/api-routstr.js) *(dynamic)*, [`js/api-transport.js`](js/api-transport.js), [`js/api-venice.js`](js/api-venice.js) *(dynamic)*
+- [`js/api.js`](js/api.js) → [`js/api-custom.js`](js/api-custom.js) *(dynamic)*, [`js/api-local.js`](js/api-local.js) *(dynamic)*, [`js/api-models.js`](js/api-models.js), [`js/api-openrouter-oauth.js`](js/api-openrouter-oauth.js), [`js/api-openrouter.js`](js/api-openrouter.js) *(dynamic)*, [`js/api-ppq.js`](js/api-ppq.js) *(dynamic)*, [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-routstr.js`](js/api-routstr.js) *(dynamic)*, [`js/api-transport.js`](js/api-transport.js), [`js/api-venice.js`](js/api-venice.js) *(dynamic)*, [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*
 
 </details>
 
@@ -318,7 +317,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-runtime.js`](js/chat-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js)
 - [`js/chat-scroll.js`](js/chat-scroll.js) → no in-scope imports
 - [`js/chat-send-runtime.js`](js/chat-send-runtime.js) → [`js/recommendations-runtime.js`](js/recommendations-runtime.js)
-- [`js/chat-send.js`](js/chat-send.js) → [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-edit.js`](js/chat-message-edit.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-prompt-context.js`](js/chat-prompt-context.js), [`js/chat-recommendation-disclosure.js`](js/chat-recommendation-disclosure.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-scroll.js`](js/chat-scroll.js), [`js/chat-send-runtime.js`](js/chat-send-runtime.js), [`js/chat-stream-status.js`](js/chat-stream-status.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/constants.js`](js/constants.js), [`js/image-utils.js`](js/image-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-loader.js`](js/voice-loader.js)
+- [`js/chat-send.js`](js/chat-send.js) → [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-edit.js`](js/chat-message-edit.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-prompt-context.js`](js/chat-prompt-context.js), [`js/chat-recommendation-disclosure.js`](js/chat-recommendation-disclosure.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-scroll.js`](js/chat-scroll.js), [`js/chat-send-runtime.js`](js/chat-send-runtime.js), [`js/chat-stream-status.js`](js/chat-stream-status.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/constants.js`](js/constants.js), [`js/image-utils.js`](js/image-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-loader.js`](js/voice-loader.js)
 - [`js/chat-storage-safety.js`](js/chat-storage-safety.js) → no in-scope imports
 - [`js/chat-stream-status.js`](js/chat-stream-status.js) → no in-scope imports
 - [`js/chat-summaries.js`](js/chat-summaries.js) → [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/markdown.js`](js/markdown.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
@@ -331,10 +330,16 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>client</code> family — 4 modules</summary>
 
-- [`js/client-list-form.js`](js/client-list-form.js) → [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/constants.js`](js/constants.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/client-list-form.js`](js/client-list-form.js) → [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/constants.js`](js/constants.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/client-list-impl.js`](js/client-list-impl.js) → [`js/client-list-form.js`](js/client-list-form.js), [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/client-list-runtime.js`](js/client-list-runtime.js) → [`js/api.js`](js/api.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/client-list.js`](js/client-list.js) → [`js/client-list-impl.js`](js/client-list-impl.js) *(dynamic)*, [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js)
+
+</details>
+
+<details><summary><code>cloud</code> family — 1 module</summary>
+
+- [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js)
 
 </details>
 
@@ -850,7 +855,7 @@ Native browser modules shipped with the static application.
 - [`js/profile-share.js`](js/profile-share.js) → [`js/caught-error.js`](js/caught-error.js), [`js/export.js`](js/export.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/profile-storage-key.js`](js/profile-storage-key.js) → no in-scope imports
-- [`js/profile.js`](js/profile.js) → [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+- [`js/profile.js`](js/profile.js) → [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -930,7 +935,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-event-target.js`](js/settings-event-target.js) → no in-scope imports
 - [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-data.js`](js/settings-data.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-loader.js`](js/settings-loader.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings.js`](js/settings.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
-- [`js/settings-privacy.js`](js/settings-privacy.js) → [`js/api.js`](js/api.js), [`js/pii.js`](js/pii.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-privacy.js`](js/settings-privacy.js) → [`js/api.js`](js/api.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/pii.js`](js/pii.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js) → [`js/api.js`](js/api.js), [`js/provider-panels.js`](js/provider-panels.js) *(dynamic)*
 - [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js) → no in-scope imports
 - [`js/settings-runtime.js`](js/settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js)
@@ -1195,7 +1200,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>voice</code> family — 25 modules</summary>
+<details><summary><code>voice</code> family — 24 modules</summary>
 
 - [`js/voice-ai-provider.js`](js/voice-ai-provider.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js)
 - [`js/voice-audio.js`](js/voice-audio.js) → no in-scope imports
@@ -1212,11 +1217,10 @@ Native browser modules shipped with the static application.
 - [`js/voice-provider-ai-cloud.js`](js/voice-provider-ai-cloud.js) → [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
 - [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) → [`js/voice-audio.js`](js/voice-audio.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js) → no in-scope imports
-- [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
+- [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js) → [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/voice-response-utils.js`](js/voice-response-utils.js)
 - [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
 - [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
-- [`js/voice-provider-registry.js`](js/voice-provider-registry.js) → [`js/voice-provider-ai-cloud.js`](js/voice-provider-ai-cloud.js) *(dynamic)*, [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) *(dynamic)*, [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) *(dynamic)*, [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) *(dynamic)*, [`js/voice-provider-xai.js`](js/voice-provider-xai.js) *(dynamic)*
-- [`js/voice-provider-xai.js`](js/voice-provider-xai.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
+- [`js/voice-provider-registry.js`](js/voice-provider-registry.js) → [`js/voice-provider-ai-cloud.js`](js/voice-provider-ai-cloud.js) *(dynamic)*, [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) *(dynamic)*, [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) *(dynamic)*, [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) *(dynamic)*
 - [`js/voice-response-utils.js`](js/voice-response-utils.js) → no in-scope imports
 - [`js/voice-service.js`](js/voice-service.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
 - [`js/voice-settings-schema.js`](js/voice-settings-schema.js) → no in-scope imports
@@ -1227,7 +1231,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>wearable</code> family — 1 module</summary>
 
-- [`js/wearable-adapters.js`](js/wearable-adapters.js) → no in-scope imports
+- [`js/wearable-adapters.js`](js/wearable-adapters.js) → [`js/url-safety.js`](js/url-safety.js)
 
 </details>
 
@@ -1239,7 +1243,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/charts.js`](js/charts.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js) → [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*
 - [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js) → no in-scope imports
-- [`js/wearables-connect.js`](js/wearables-connect.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js), [`js/wearables-disconnect-recovery.js`](js/wearables-disconnect-recovery.js), [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js), [`js/wearables-fitbit.js`](js/wearables-fitbit.js), [`js/wearables-google-health-auth.js`](js/wearables-google-health-auth.js), [`js/wearables-google-health.js`](js/wearables-google-health.js), [`js/wearables-oura-auth.js`](js/wearables-oura-auth.js), [`js/wearables-oura.js`](js/wearables-oura.js), [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js), [`js/wearables-polar.js`](js/wearables-polar.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables-ultrahuman-auth.js`](js/wearables-ultrahuman-auth.js), [`js/wearables-ultrahuman.js`](js/wearables-ultrahuman.js), [`js/wearables-whoop-auth.js`](js/wearables-whoop-auth.js), [`js/wearables-whoop.js`](js/wearables-whoop.js), [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js), [`js/wearables-withings.js`](js/wearables-withings.js)
+- [`js/wearables-connect.js`](js/wearables-connect.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect-runtime.js`](js/wearables-connect-runtime.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js), [`js/wearables-disconnect-recovery.js`](js/wearables-disconnect-recovery.js), [`js/wearables-fitbit-auth.js`](js/wearables-fitbit-auth.js), [`js/wearables-fitbit.js`](js/wearables-fitbit.js), [`js/wearables-google-health-auth.js`](js/wearables-google-health-auth.js), [`js/wearables-google-health.js`](js/wearables-google-health.js), [`js/wearables-oura-auth.js`](js/wearables-oura-auth.js), [`js/wearables-oura.js`](js/wearables-oura.js), [`js/wearables-polar-auth.js`](js/wearables-polar-auth.js), [`js/wearables-polar.js`](js/wearables-polar.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js), [`js/wearables-ultrahuman-auth.js`](js/wearables-ultrahuman-auth.js), [`js/wearables-ultrahuman.js`](js/wearables-ultrahuman.js), [`js/wearables-whoop-auth.js`](js/wearables-whoop-auth.js), [`js/wearables-whoop.js`](js/wearables-whoop.js), [`js/wearables-withings-auth.js`](js/wearables-withings-auth.js), [`js/wearables-withings.js`](js/wearables-withings.js)
 - [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js) → [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js) → [`js/caught-error.js`](js/caught-error.js), [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-bp-detail-chart.js`](js/wearables-bp-detail-chart.js), [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-manual-detail.js`](js/wearables-manual-detail.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/wearables-detail-runtime.js`](js/wearables-detail-runtime.js) → [`js/utils.js`](js/utils.js)
@@ -1258,7 +1262,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-polar.js`](js/wearables-polar.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-runtime.js`](js/wearables-runtime.js) → [`js/emf-runtime.js`](js/emf-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-settings-groups.js`](js/wearables-settings-groups.js) → no in-scope imports
-- [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-settings-groups.js`](js/wearables-settings-groups.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+- [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-settings-groups.js`](js/wearables-settings-groups.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-store.js`](js/wearables-store.js) → no in-scope imports
 - [`js/wearables-strip-actions.js`](js/wearables-strip-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-summary.js`](js/wearables-summary.js)
@@ -1277,6 +1281,12 @@ Native browser modules shipped with the static application.
 
 Vercel request handlers and hosted API entry points.
 
+<details><summary><code>cams</code> family — 1 module</summary>
+
+- [`api/cams-relay.js`](api/cams-relay.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+
+</details>
+
 <details><summary><code>commit</code> family — 1 module</summary>
 
 - [`api/commit.js`](api/commit.js) → no in-scope imports
@@ -1291,7 +1301,7 @@ Vercel request handlers and hosted API entry points.
 
 <details><summary><code>proxy</code> family — 1 module</summary>
 
-- [`api/proxy.js`](api/proxy.js) → [`api/postal-geocode.js`](api/postal-geocode.js), [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) *(dynamic)*, [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`api/proxy.js`](api/proxy.js) → [`api/cams-relay.js`](api/cams-relay.js), [`api/postal-geocode.js`](api/postal-geocode.js), [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) *(dynamic)*, [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
 
 </details>
 
@@ -1301,22 +1311,15 @@ Vercel request handlers and hosted API entry points.
 
 </details>
 
-<details><summary><code>voice</code> family — 1 module</summary>
-
-- [`api/voice.js`](api/voice.js) → [`lib/voice-relay-handler.js`](lib/voice-relay-handler.js)
-
-</details>
-
 ## server-shared modules
 
 Node-only policy and transport code shared by hosted runtimes.
 
-<details><summary><code>dev</code> family — 4 modules</summary>
+<details><summary><code>dev</code> family — 3 modules</summary>
 
 - [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js) → [`lib/proxy-policy.js`](lib/proxy-policy.js)
 - [`lib/dev-catalog.js`](lib/dev-catalog.js) → no in-scope imports
 - [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
-- [`lib/dev-voice-relay.js`](lib/dev-voice-relay.js) → [`lib/voice-relay-handler.js`](lib/voice-relay-handler.js)
 
 </details>
 
@@ -1341,20 +1344,13 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
-<details><summary><code>voice</code> family — 2 modules</summary>
-
-- [`lib/voice-relay-handler.js`](lib/voice-relay-handler.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) *(dynamic)*, [`lib/proxy-upstream.js`](lib/proxy-upstream.js), [`lib/voice-relay-policy.js`](lib/voice-relay-policy.js)
-- [`lib/voice-relay-policy.js`](lib/voice-relay-policy.js) → [`lib/error-utils.js`](lib/error-utils.js)
-
-</details>
-
 ## local-server modules
 
 Local development server entry point.
 
 <details><summary><code>dev</code> family — 1 module</summary>
 
-- [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/dev-voice-relay.js`](lib/dev-voice-relay.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+- [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
 
 </details>
 

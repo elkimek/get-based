@@ -11,7 +11,7 @@ async function openBlankPage(page) {
   await page.goto('/commit-hash-browser-coverage', { waitUntil: 'load' });
 }
 
-test('commit hash browser coverage hydrates footer version commit fetch fallback and cache', async ({ page }) => {
+test('commit hash browser coverage hydrates the same-origin deployment receipt and cache', async ({ page }) => {
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ commitHashUrl }) => {
@@ -78,31 +78,6 @@ test('commit hash browser coverage hydrates footer version commit fetch fallback
         && document.getElementById('app-version-text')?.textContent === 'v-browser-commit';
 
       resetFooter();
-      const fallbackCalls = [];
-      window.fetch = async (url, options = {}) => {
-        const headers = options.headers || {};
-        fallbackCalls.push({
-          url: String(url),
-          accept: headers.Accept || (typeof headers.get === 'function' ? headers.get('Accept') : undefined) || '',
-        });
-        if (String(url).endsWith('/api/commit')) return new Response('', { status: 503 });
-        if (String(url).includes('api.github.com/repos/elkimek/get-based/commits/main')) {
-          return new Response('feedfacecafebeef', { status: 200, headers: { 'content-type': 'text/plain' } });
-        }
-        return new Response('', { status: 404 });
-      };
-      const fallbackModule = await importCommitHash('github-fallback');
-      fallbackModule.loadCommitHash();
-      const fallbackRendered = await waitFor(() => document.querySelector('#app-commit-hash a')?.textContent === 'feedfac');
-      const fallbackAnchor = document.querySelector('#app-commit-hash a');
-      outcomes.githubFallbackUsesShaEndpointAndRendersShortCommit =
-        fallbackRendered
-        && fallbackCalls.length === 2
-        && fallbackCalls[0].url.endsWith('/api/commit')
-        && fallbackCalls[1].url === 'https://api.github.com/repos/elkimek/get-based/commits/main'
-        && fallbackCalls[1].accept === 'application/vnd.github.sha'
-        && fallbackAnchor?.getAttribute('href') === 'https://github.com/elkimek/get-based/commit/feedfacecafebeef';
-
       document.body.innerHTML = '<span id="app-version-text"></span>';
       let missingCommitFetchCalls = 0;
       window.fetch = async () => {
@@ -124,11 +99,10 @@ test('commit hash browser coverage hydrates footer version commit fetch fallback
       };
       const failureModule = await importCommitHash('fetch-failure');
       failureModule.loadCommitHash();
-      await waitFor(() => failureCalls.length === 2);
+      await waitFor(() => failureCalls.length === 1);
       outcomes.fetchFailuresLeaveExistingCommitTextUnchanged =
-        failureCalls.length === 2
+        failureCalls.length === 1
         && failureCalls[0].endsWith('/api/commit')
-        && failureCalls[1] === 'https://api.github.com/repos/elkimek/get-based/commits/main'
         && document.getElementById('app-commit-hash')?.textContent === 'pending';
     } finally {
       window.fetch = originalFetch;
@@ -144,7 +118,6 @@ test('commit hash browser coverage hydrates footer version commit fetch fallback
   const expectedOutcomeKeys = [
     'apiCommitHydratesVersionAndEscapesSha',
     'cachedCommitRerendersWithoutRefetch',
-    'githubFallbackUsesShaEndpointAndRendersShortCommit',
     'missingCommitElementSetsVersionAndSkipsFetch',
     'fetchFailuresLeaveExistingCommitTextUnchanged',
   ];

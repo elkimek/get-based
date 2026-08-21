@@ -12,6 +12,19 @@
 // legitimately need a local target (lens external-server, Ollama custom
 // provider) pass { allowLocalhost: true } and accept that risk explicitly.
 
+export function isOfficialGetbasedHost(locationLike = globalThis.location) {
+  const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
+  return hostname === 'getbased.health'
+    || hostname.endsWith('.getbased.health')
+    || hostname === 'get-based.vercel.app';
+}
+
+export const HOSTED_PLAINTEXT_RELAY_MESSAGE =
+  'This provider cannot run browser-direct. The hosted getbased app does not provide a generic AI or custom-provider relay; use a browser-compatible provider or a self-hosted deployment you control.';
+
+export const SELF_HOSTED_WEARABLE_MESSAGE =
+  'This experimental wearable integration requires a user-controlled deployment with its own OAuth application and same-origin proxy.';
+
 export function isValidExternalUrl(raw, { requireHttps = true, allowLocalhost = false } = {}) {
   let u;
   try { u = new URL(raw); } catch { return false; }

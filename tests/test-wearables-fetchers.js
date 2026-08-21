@@ -24,19 +24,23 @@ const polar      = await import('../js/wearables-polar.js');
   // ─────────────────────────────────────────────────────────
   // Mock-fetch harness
   // ─────────────────────────────────────────────────────────
-  // Adapters all funnel through POST /api/proxy with the upstream URL inside
-  // the body. Match on `body.url` substring → return a Response-shaped object.
+  // Relay-only adapters use /api/proxy on self-hosted deployments; providers
+  // with browser CORS call their upstream directly. Normalize both shapes.
   const realFetch = window.fetch;
   let routes = []; // [{matcher: regex|string, status, body, count}, ...]
   let calls = [];  // recorded POST bodies for assertions
   function mockFetch(input, init) {
     const url = (typeof input === 'string') ? input : input?.url;
-    if (url !== '/api/proxy') {
-      // Non-proxy fetches (e.g. fixture XML) — pass through.
+    if (url !== '/api/proxy' && !/^https?:/i.test(url || '')) {
+      // Non-network fixture reads — pass through.
       return realFetch.call(window, input, init);
     }
     let body = {};
-    try { body = JSON.parse(init?.body || '{}'); } catch {}
+    if (url === '/api/proxy') {
+      try { body = JSON.parse(init?.body || '{}'); } catch {}
+    } else {
+      body = { url, method: init?.method || 'GET', headers: init?.headers || {}, body: init?.body };
+    }
     calls.push({ url: body.url, method: body.method, headers: body.headers, body: body.body });
     for (const r of routes) {
       const ok = (typeof r.matcher === 'string') ? body.url?.includes(r.matcher) : r.matcher.test(body.url || '');
@@ -455,6 +459,8 @@ const polar      = await import('../js/wearables-polar.js');
     assert('Ultrahuman steps from steps.total', r?.steps === 9100);
     assert('Ultrahuman body_temp_delta from temperature.deviation', r?.body_temp_delta === -0.2);
     assert('Ultrahuman glucose_avg from glucose.avg (cgm scope)', r?.glucose_avg === 92);
+    assert('Ultrahuman health data is fetched browser-direct, not through /api/proxy',
+      calls.some(c => c.url?.startsWith('https://partner.ultrahuman.com/api/partners/v1/user_data/metrics')));
   } finally { restoreFetch(); }
 
   // ═══════════════════════════════════════

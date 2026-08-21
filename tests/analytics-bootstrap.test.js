@@ -51,7 +51,7 @@ function runBootstrap({
 }
 
 describe('analytics bootstrap', () => {
-  it('loads the self-hosted script on an online production page', () => {
+  it('loads the self-hosted script on an online production page by default', () => {
     const { appended: [script] } = runBootstrap();
 
     expect(script).toMatchObject({
@@ -61,6 +61,8 @@ describe('analytics bootstrap', () => {
       crossOrigin: 'anonymous',
       dataset: {
         websiteId: '6272072c-97a9-47b0-99e7-c52e7a4ca481',
+        excludeSearch: 'true',
+        excludeHash: 'true',
       },
     });
   });

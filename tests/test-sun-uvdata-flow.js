@@ -124,6 +124,11 @@ const {
       nitrogen_dioxide: [14],
       aerosol_optical_depth: [0.08],
       ozone: [70],
+      european_aqi: [18],
+      european_aqi_pm2_5: [10],
+      european_aqi_pm10: [12],
+      european_aqi_nitrogen_dioxide: [8],
+      european_aqi_ozone: [16],
     },
     current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
   };
@@ -171,10 +176,74 @@ const {
   assert('Auto mode did not need Open-Meteo fallback when CAMS succeeded',
     !openMeteoAfterAuto);
 
-  // ── 6. Local dev CAMS retries through the hosted credential boundary ──
-  // Local checkouts intentionally do not contain Vercel's CAMS bearer. The
-  // documented localhost origin may use the deployed relay, which injects
-  // the credential server-side without exposing it to the browser or repo.
+  // Production CAMS can return a valid direct UV sample while its companion
+  // weather/daylight fields are null and its AQ block contains concentrations
+  // but no provider-computed European AQI. That response used to short-circuit
+  // the provider chain, leaving Conditions Now with only UV-A on/off events
+  // and an empty air-quality card. Supplement the missing context without
+  // replacing CAMS UV, ozone column, aerosol, or raw particle readings.
+  const contextCalls = [];
+  window.fetch = async (u) => {
+    const url = String(u);
+    contextCalls.push(url);
+    if (url === '/api/proxy') {
+      return responseJson({
+        latitude: 51.2,
+        longitude: 14.6,
+        timezone: 'GMT',
+        utc_offset_seconds: 0,
+        hourly: {
+          time: ['2026-05-12T12:00'],
+          uv_index: [5.2],
+          uv_index_clear_sky: [5.8],
+          uv_index_cams_total_sky: [5.2],
+          uv_index_cams_clear_sky: [5.8],
+          uv_index_source: ['cams_uvbed'],
+          cloud_cover: [null],
+          temperature_2m: [null],
+          ozone_du: [306],
+          aod: [0.12],
+          pm2_5: [2.4],
+          pm10: [3.1],
+        },
+        daily: {
+          time: ['2026-05-12'],
+          sunrise: [null],
+          sunset: [null],
+          uv_index_max: [null],
+        },
+        _camsMeta: { ageSec: 600, directUv: true },
+        _fieldSources: { uvIndex: 'cams_uvbed', ozoneDU: 'cams_global_forecast' },
+      });
+    }
+    if (url.includes('air-quality')) return responseJson(omAirQuality);
+    return responseJson(omForecast);
+  };
+  const contextMerged = await fetchAtmosphere({
+    lat: 51.23,
+    lon: 14.56,
+    isoTime: cacheIso,
+    noCache: true,
+  });
+  assert('CAMS direct UV supplements missing sunrise, sunset, peak, and AQ context',
+    contextMerged?.source === 'cams+open_meteo'
+      && contextMerged.uvIndex === 5.2
+      && contextMerged.ozoneDU === 306
+      && contextMerged.cloudCover === 18
+      && contextMerged.temperatureC === 20
+      && contextMerged.daily?.sunrise === '2026-05-12T05:10'
+      && contextMerged.daily?.sunset === '2026-05-12T20:35'
+      && contextMerged.daily?.peakAt === '2026-05-12T12:00'
+      && contextMerged.airQuality?.european_aqi === 18
+      && contextMerged.airQuality?.pm25 === 2.4
+      && contextMerged.airQuality?.aod === 0.12
+      && contextMerged.hourly?.uv_index?.[0] === 5.2
+      && contextMerged.hourly?.cloud_cover?.[0] === 18
+      && contextCalls.some(url => url.includes('api.open-meteo.com'))
+      && contextCalls.some(url => url.includes('air-quality-api.open-meteo.com')),
+    JSON.stringify(contextMerged));
+
+  // ── 6. Local dev CAMS never falls through to getbased infrastructure ──
   purgeMeteoCache();
   const savedLocation = globalThis.location;
   globalThis.location = { origin: 'http://localhost:8000' };
@@ -183,24 +252,14 @@ const {
     const url = String(u);
     localFallbackCalls.push(url);
     if (url === '/api/proxy') {
-      return new Response('{"error":"CAMS hosted relay requires UVDATA_BEARER"}', {
+      return new Response('{"error":"CAMS relay upstream is empty"}', {
         status: 503,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (url === 'https://app.getbased.health/api/proxy') {
-      return responseJson({
-        ...omForecast,
-        hourly: {
-          ...omForecast.hourly,
-          ozone_du: [314],
-          aod: [0.06],
-        },
-        airQuality: omAirQuality,
-        _camsMeta: { ageSec: 120 },
-      });
-    }
-    throw new Error(`Unexpected local CAMS fallback URL: ${url}`);
+    if (url.includes('air-quality')) return responseJson(omAirQuality);
+    if (url.includes('open-meteo')) return responseJson(omForecast);
+    throw new Error(`Unexpected local UV URL: ${url}`);
   };
   saveMeteoConfig({ ...origCfg, mode: 'cams' });
   const localCams = await fetchAtmosphere({
@@ -212,14 +271,46 @@ const {
   assert('Local CAMS first tries the same-origin dev proxy',
     localFallbackCalls[0] === '/api/proxy',
     JSON.stringify(localFallbackCalls));
-  assert('Local CAMS retries through the deployed credential boundary after 503',
-    localFallbackCalls[1] === 'https://app.getbased.health/api/proxy',
+  assert('Local CAMS does not retry through the deployed getbased boundary',
+    !localFallbackCalls.includes('https://app.getbased.health/api/proxy'),
     JSON.stringify(localFallbackCalls));
-  assert('Local CAMS hosted retry returns CAMS data',
-    localCams?.source === 'cams' && localCams.ozoneDU === 314,
+  assert('Local CAMS failure falls back browser-direct to Open-Meteo',
+    localCams?.source === 'open_meteo',
     JSON.stringify(localCams));
   if (savedLocation === undefined) delete globalThis.location;
   else globalThis.location = savedLocation;
+
+  // ── 6b. Official hosts force the privacy grid in the browser ─────────
+  purgeMeteoCache();
+  const officialSavedLocation = globalThis.location;
+  globalThis.location = { hostname: 'app.getbased.health', origin: 'https://app.getbased.health' };
+  let hostedCamsBody = null;
+  window.fetch = async (u, init = {}) => {
+    if (String(u) !== '/api/proxy') throw new Error(`Unexpected hosted UV URL: ${u}`);
+    hostedCamsBody = JSON.parse(String(init.body || '{}'));
+    return responseJson({
+      ...omForecast,
+      hourly: { ...omForecast.hourly, ozone_du: [312], aod: [0.07] },
+      _camsMeta: { ageSec: 600 },
+    });
+  };
+  saveMeteoConfig({ ...origCfg, mode: 'auto', privacyRounding: 0 });
+  const hostedCams = await fetchAtmosphere({
+    lat: 50.0755,
+    lon: 14.4378,
+    isoTime: cacheIso,
+    noCache: true,
+  });
+  assert('Official browser forces 0.1-degree CAMS coordinates even if stored rounding is off',
+    hostedCamsBody?.latitude === 50.1 && hostedCamsBody?.longitude === 14.4,
+    JSON.stringify(hostedCamsBody));
+  assert('Official result metadata reports the rounded request boundary',
+    hostedCams?._requestCoords?.privacyRounded === true
+      && hostedCams?._requestCoords?.lat === 50.1
+      && hostedCams?._requestCoords?.lon === 14.4,
+    JSON.stringify(hostedCams?._requestCoords));
+  if (officialSavedLocation === undefined) delete globalThis.location;
+  else globalThis.location = officialSavedLocation;
 
   // ── 7. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
   // The selfhost provider validates that the upstream response matches

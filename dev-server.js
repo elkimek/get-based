@@ -33,7 +33,6 @@ import {
   handleCatalogDeployRequest,
 } from './lib/dev-catalog.js';
 import { handleDevFetchPage } from './lib/dev-url-fetch.js';
-import { handleDevVoiceRelay } from './lib/dev-voice-relay.js';
 
 export {
   DEFAULT_UVDATA_UPSTREAM,
@@ -602,9 +601,6 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-
-  // API: voice relay — mirrors the Vercel Function for local development.
-  if (pathname === '/api/voice' && handleDevVoiceRelay(req, res)) return;
 
   // API: AI proxy — mirrors the Vercel Function for local CORS bypass.
   if (pathname === '/api/proxy' && handleDevApiProxy(req, res, { corsHeaders })) return;

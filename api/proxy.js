@@ -1,13 +1,18 @@
-// Vercel Node.js Function — AI API proxy
-// Eliminates CORS restrictions for all AI providers.
-// Keys pass through from the client, never stored server-side.
+// Privacy-scoped compatibility proxy. A getbased-operated deployment accepts
+// only the fixed product operations classified below. User-owned deployments
+// retain the generic same-origin path for integrations they operate themselves.
 
 import {
   PROXY_MAX_REQUEST_BYTES,
   PROXY_MAX_RESPONSE_BYTES,
+  classifyHostedProxyRequest,
+  isAllowedProxyCallerOrigin,
   isAllowedProxyUrl,
+  isGetbasedOperatedRelayHost,
   normalizeProxyMethod,
+  proxyCorsHeaders as corsHeaders,
   sanitizeProxyHeaders,
+  validateOperatedOAuthPayload,
 } from '../lib/proxy-policy.js';
 import {
   PROXY_MAX_CREDENTIAL_RESPONSE_BYTES,
@@ -18,8 +23,9 @@ import {
 } from '../lib/proxy-upstream.js';
 import { errorCode } from '../lib/error-utils.js';
 import { handlePostalGeocode } from './postal-geocode.js';
+import { handleCamsRelay } from './cams-relay.js';
 
-const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
+const HOSTED_PUBLIC_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 /** @type {Promise<typeof import('../lib/proxy-rate-limit.js')> | null} */
 let proxyRateLimitModulePromise = null;
 
@@ -33,12 +39,13 @@ function loadProxyRateLimit() {
 }
 
 export async function handler(req) {
+  const operatedHost = isGetbasedOperatedRelayHost(req);
   // Treat Origin as a server-side browser boundary, not merely a response
   // decoration. It prevents another website from driving this credentialed
   // relay. Non-browser clients can forge Origin, so the rate limit below and
   // deployment-level firewall controls remain important defence in depth.
   if (req.method === 'OPTIONS') {
-    if (!isAllowedCallerOrigin(req)) {
+    if (!isAllowedProxyCallerOrigin(req)) {
       return new Response(null, { status: 403, headers: { 'Vary': 'Origin' } });
     }
     return new Response(null, {
@@ -47,7 +54,7 @@ export async function handler(req) {
     });
   }
 
-  if (!isAllowedCallerOrigin(req)) {
+  if (!isAllowedProxyCallerOrigin(req)) {
     return new Response(JSON.stringify({ error: 'Origin not allowed.' }), {
       status: 403,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
@@ -64,7 +71,7 @@ export async function handler(req) {
   let rateLimit;
   try {
     const { enforceProxyRateLimit } = await loadProxyRateLimit();
-    rateLimit = await enforceProxyRateLimit(req);
+    rateLimit = await enforceProxyRateLimit(req, { allowInstanceFallback: !operatedHost });
   } catch {
     return new Response(JSON.stringify({
       error: 'Proxy rate limit is temporarily unavailable.',
@@ -126,6 +133,68 @@ export async function handler(req) {
     });
   }
 
+  const selectedOperations = [
+    payload.wearable_runtime_config === true,
+    Boolean(payload.oura_token_exchange),
+    Boolean(payload.oura_token_refresh),
+    Boolean(payload.withings_token_exchange),
+    Boolean(payload.withings_token_refresh),
+    Boolean(payload.ultrahuman_token_exchange),
+    Boolean(payload.ultrahuman_token_refresh),
+    Boolean(payload.whoop_token_exchange),
+    Boolean(payload.whoop_token_refresh),
+    Boolean(payload.polar_token_exchange),
+    Boolean(payload.polar_token_refresh),
+    Boolean(payload.google_health_token_exchange),
+    Boolean(payload.google_health_token_refresh),
+    payload.meteo === 'cams',
+    payload.meteo === 'postal_geocode',
+    Object.prototype.hasOwnProperty.call(payload, 'url'),
+  ].filter(Boolean).length;
+  if (selectedOperations !== 1) {
+    return new Response(JSON.stringify({ error: 'Proxy request must select exactly one operation' }), {
+      status: 400,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (operatedHost && payload.meteo === 'postal_geocode') {
+    return new Response(JSON.stringify({
+      code: 'HOSTED_LOCATION_RELAY_DISABLED',
+      error: 'The hosted app does not accept plaintext location relay requests.',
+    }), {
+      status: 403,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+  const selfHostOnlyOperation = [
+    'ultrahuman_token_exchange',
+    'ultrahuman_token_refresh',
+    'whoop_token_exchange',
+    'whoop_token_refresh',
+    'google_health_token_exchange',
+    'google_health_token_refresh',
+  ].find(field => payload[field]);
+  if (operatedHost && selfHostOnlyOperation) {
+    return new Response(JSON.stringify({
+      code: 'SELF_HOST_ONLY_PROVIDER',
+      error: 'This provider is available only on a user-controlled deployment configured with its own OAuth application.',
+    }), {
+      status: 403,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+  const operatedOAuthError = operatedHost ? validateOperatedOAuthPayload(payload) : '';
+  if (operatedOAuthError) {
+    return new Response(JSON.stringify({
+      code: 'HOSTED_OAUTH_REQUEST_BLOCKED',
+      error: operatedOAuthError,
+    }), {
+      status: 400,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+
   // ─── Self-host OAuth client_id overrides ───────────────────────
   // Surfaces *_CLIENT_ID env vars to the browser so self-hosters can run
   // their own OAuth apps without patching js/wearable-adapters.js. Google
@@ -144,16 +213,17 @@ export async function handler(req) {
       ['FITBIT_CLIENT_ID', 'fitbit'],
       ['GOOGLE_HEALTH_CLIENT_ID', 'google_health'],
     ]) {
+      if (operatedHost && ['ultrahuman', 'whoop', 'google_health'].includes(id)) continue;
       const v = env[key];
       if (typeof v === 'string' && v.trim()) overrides[id] = v.trim();
     }
     const hasEnv = key => typeof env[key] === 'string' && env[key].trim();
     const configured = {
-      google_health: env.GOOGLE_HEALTH_ENABLED === 'true'
+      google_health: !operatedHost && env.GOOGLE_HEALTH_ENABLED === 'true'
         && Boolean(hasEnv('GOOGLE_HEALTH_CLIENT_ID') && hasEnv('GOOGLE_HEALTH_CLIENT_SECRET')),
-      ultrahuman: env.ULTRAHUMAN_ENABLED === 'true'
+      ultrahuman: !operatedHost && env.ULTRAHUMAN_ENABLED === 'true'
         && Boolean(hasEnv('ULTRAHUMAN_CLIENT_ID') && hasEnv('ULTRAHUMAN_CLIENT_SECRET')),
-      whoop: env.WHOOP_ENABLED === 'true'
+      whoop: !operatedHost && env.WHOOP_ENABLED === 'true'
         && Boolean(hasEnv('WHOOP_CLIENT_ID') && hasEnv('WHOOP_CLIENT_SECRET')),
     };
     return new Response(JSON.stringify({ overrides, configured }), {
@@ -213,7 +283,7 @@ export async function handler(req) {
   // Self-hosters bypass this entirely via the `selfhost` Sun Data
   // Source mode (URL + bearer entered in Settings → Light & Sun).
   if (payload.meteo === 'cams') {
-    return handleCamsRelay(payload, req);
+    return handleCamsRelay(payload, req, { operatedHost });
   }
   if (payload.meteo === 'postal_geocode') {
     return handlePostalGeocode(payload, req, { corsHeaders, proxyUpstreamErrorResponse });
@@ -241,6 +311,26 @@ export async function handler(req) {
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
+  let hostedOperation = '';
+  if (operatedHost) {
+    const hostedRequest = classifyHostedProxyRequest({
+      url,
+      method: fetchMethod,
+      headers: safeHeaders.headers,
+      body,
+      purpose: payload.proxy_purpose,
+    });
+    if (!hostedRequest.ok) {
+      return new Response(JSON.stringify({
+        code: 'HOSTED_PROXY_OPERATION_BLOCKED',
+        error: hostedRequest.error,
+      }), {
+        status: 403,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    hostedOperation = hostedRequest.operation;
+  }
 
   try {
     const reqHeaders = { ...safeHeaders.headers };
@@ -259,8 +349,20 @@ export async function handler(req) {
     const contentType = upstreamRes.headers.get('content-type') || '';
     const isStream = contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson');
 
+    if (hostedOperation === 'public-page'
+        && !/^(?:text\/(?:html|plain)|application\/(?:xhtml\+xml|json))(?:;|$)/i.test(contentType)) {
+      try { await upstreamRes.body?.cancel?.(); } catch {}
+      return new Response(JSON.stringify({ error: 'Product URL did not return a readable public page' }), {
+        status: 415,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+
     if (!isStream) {
-      const responseBody = await readResponseTextWithCap(upstreamRes, PROXY_MAX_RESPONSE_BYTES);
+      const responseBody = await readResponseTextWithCap(
+        upstreamRes,
+        hostedOperation === 'public-page' ? HOSTED_PUBLIC_PAGE_MAX_BYTES : PROXY_MAX_RESPONSE_BYTES,
+      );
       return new Response(responseBody, {
         status: upstreamRes.status,
         headers: {
@@ -290,43 +392,6 @@ export async function handler(req) {
 // it returns a Web Response instead of ending the legacy response, the
 // platform can leave the invocation open until timeout.
 export default { fetch: handler };
-
-// Origins permitted to call /api/proxy. Same-origin requests support self-hosted
-// deployments; explicit production surfaces cover app.getbased.health calling
-// the apex API. Localhost:8000 remains available for the documented dev server.
-const ALLOWED_CALLER_ORIGINS = [
-  'https://app.getbased.health',
-  'https://getbased.health',
-  'https://www.getbased.health',
-  'https://get-based.vercel.app',
-  'http://localhost:8000',
-  'http://127.0.0.1:8000',
-];
-
-function isAllowedCallerOrigin(req) {
-  const origin = req?.headers?.get?.('origin') || '';
-  if (!origin) return false;
-  try {
-    const caller = new URL(origin);
-    const requestUrl = new URL(req.url);
-    return caller.origin === requestUrl.origin || ALLOWED_CALLER_ORIGINS.includes(caller.origin);
-  } catch {
-    return false;
-  }
-}
-
-function corsHeaders(req) {
-  const origin = req?.headers?.get?.('origin') || '';
-  const allow = isAllowedCallerOrigin(req) ? origin : '';
-  const h = {
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Cache-Control': 'no-store',
-    'Vary': 'Origin',
-  };
-  if (allow) h['Access-Control-Allow-Origin'] = allow;
-  return h;
-}
 
 function proxyUpstreamErrorResponse(req, error, fallback = 'Upstream request failed') {
   const code = error?.code;
@@ -666,75 +731,4 @@ async function handleGoogleHealthTokenRequest(payload, req) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: form.toString(),
   }, req, 'Google OAuth token endpoint unavailable');
-}
-
-// CAMS atmosphere relay → getbased-uvdata. Defaults to the maintainer-run
-// instance so Sun Data Source `auto` is genuinely CAMS-first out of the box.
-// UVDATA_UPSTREAM can override the upstream, and UVDATA_BEARER is injected
-// server-side when configured so the token never reaches the browser.
-// Self-host users can also go straight via the `selfhost` Sun Data Source
-// mode instead.
-//
-// env:
-//   UVDATA_UPSTREAM — optional base URL override, e.g. https://your-uvdata.example.com
-//   UVDATA_BEARER   — token to send on Authorization header
-async function handleCamsRelay(payload, req) {
-  const configuredUpstream = (typeof process !== 'undefined' && process.env?.UVDATA_UPSTREAM)
-    ? process.env.UVDATA_UPSTREAM.replace(/\/+$/, '')
-    : '';
-  const upstream = configuredUpstream || DEFAULT_UVDATA_UPSTREAM;
-  const bearer = (typeof process !== 'undefined' && process.env?.UVDATA_BEARER) ? process.env.UVDATA_BEARER : '';
-  if (!upstream) {
-    return new Response(JSON.stringify({
-      error: 'CAMS relay upstream is empty. Set UVDATA_UPSTREAM or switch Sun Data Source to Open-Meteo/manual.',
-    }), {
-      status: 503,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
-  if (!configuredUpstream && !bearer) {
-    return new Response(JSON.stringify({
-      error: 'CAMS hosted relay requires UVDATA_BEARER. Set UVDATA_BEARER for the hosted default, set UVDATA_UPSTREAM for your own relay, or switch Sun Data Source to Open-Meteo/manual.',
-    }), {
-      status: 503,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
-  const lat = Number(payload.latitude);
-  const lon = Number(payload.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-    return new Response(JSON.stringify({ error: 'Invalid latitude/longitude' }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
-  }
-  const time = typeof payload.time === 'string' ? payload.time : '';
-  const qs = new URLSearchParams({ latitude: String(lat), longitude: String(lon) });
-  if (time) qs.set('time', time);
-  const url = `${upstream}/uv?${qs.toString()}`;
-  const headers = { 'Accept': 'application/json' };
-  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
-  try {
-    const res = await fetchWithValidatedRedirects(url, { headers }, { signal: req.signal });
-    // Cap upstream response so a misbehaving / compromised CAMS relay
-    // can't blow up the function's memory. Real CAMS UV payloads sit
-    // around 5-10 KB; 256 KB leaves generous headroom while bounding
-    // the worst case. Greptile PR #175 review caught this.
-    const body = await readResponseTextWithCap(
-      res,
-      PROXY_MAX_CREDENTIAL_RESPONSE_BYTES,
-    );
-    return new Response(body, {
-      status: res.status,
-      headers: {
-        ...corsHeaders(req),
-        'Content-Type': res.headers.get('content-type') || 'application/json',
-      },
-    });
-  } catch (error) {
-    const fallback = errorCode(error) === 'PROXY_RESPONSE_TOO_LARGE'
-      ? 'CAMS response exceeds size cap'
-      : 'CAMS upstream unavailable';
-    return proxyUpstreamErrorResponse(req, error, fallback);
-  }
 }

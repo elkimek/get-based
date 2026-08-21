@@ -17,7 +17,7 @@ You can use it with no account. Most data lives in your browser by default. Heal
 - **Use calculated markers without duplicates** — supported lab-reported ratios and indices take priority, while deterministic fallbacks cover lipid/metabolic ratios, NLR/PLR/MLR/SII, FIB-4, anion gap, free water deficit, and biological age when their inputs are available.
 - **Read biology as patterns, not isolated numbers** — Biology Scores summarize deterministic marker patterns such as metabolism, thyroid, cardiovascular health, inflammation, methylation, iron/blood, hormones, stress resilience, cellular energy, gut-immune terrain, and Biological Coherence. They are pattern summaries, not diagnoses.
 - **Bring in DNA context** — raw DNA imports from common consumer and clinical formats, with curated SNP interpretation, APOE haplotype support, mtDNA haplogroups, and DNA-aware AI context.
-- **Connect wearables and body metrics** — first-class direct connections for Oura, Withings, and Polar; local Apple Health file import; and manual weight, blood pressure, and resting pulse. Self-hosters can experimentally enable WHOOP and Ultrahuman with their own developer credentials, while unconfigured hosted deployments hide them. Google Health support for Fitbit, Pixel Watch, and optional aggregation is also self-host only and requires the operator's Google Cloud OAuth project. Existing legacy Fitbit connections remain only as a migration bridge through September 2026.
+- **Connect wearables and body metrics** — the official app supports Oura, Withings, Polar, existing legacy Fitbit connections, local Apple Health file import, and manual weight, blood pressure, and resting pulse. The hosted cloud integrations use narrowly scoped provider relays; WHOOP, Ultrahuman, and Google Health remain self-host only and use infrastructure controlled by that deployment. Every stored OAuth token is device-key encrypted.
 - **Track light and environment** — sun sessions, UV/atmospheric context, indoor light setup, devices, measurements, EMF assessment, and daily light analysis.
 - **Keep a complete therapy history** — track current, scheduled, paused, cycled, and ended supplements or medications with dose periods, structured units, active and other ingredients, reviewed product-label imports, and source quality evidence.
 - **Add the missing human context** — medical history, family history, diet/digestion, sleep, exercise, stress, light/circadian habits, environment, EMF, health goals, and freeform notes. Cycle tracking can label individual blood draws and apply phase-specific estradiol, progesterone, LH, and FSH ranges only when context is reliable.
@@ -49,8 +49,9 @@ getbased is private by default, not magic. The boundary depends on which feature
 - **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads. Pausing one browser keeps its identity and queues local edits; disconnect/reset is a separate Advanced action.
 - **Optional sharing.** Profile sharing creates an encrypted, password-protected copy for someone else.
 - **Optional Agent Access.** External agents receive only the context you enable, via an encrypted relay flow and a local decryption key.
-- **Optional wearable clouds.** Independent direct providers are separate opt-in connections. Google Health is available only when a self-hosted deployment supplies its own Google Cloud OAuth client; it is disabled on the official hosted app. When enabled, it never silently backs up a direct connection. Its OAuth tokens and imported daily rows are encrypted with a device-local key and excluded from raw-data backups, while token refreshes and Google API requests transit that deployment's proxy. Each browser must be connected separately; only the compact derived summary participates in optional profile backup/sync or user-enabled AI/agent context.
-- **Anonymous hosted-app usage stats.** Cookieless pageview and outbound affiliate-click counts are enabled by default. No health data, viewed records, identity, or health context is sent, and analytics can be disabled in **Settings → Privacy**.
+- **Optional wearable clouds.** Every connection is user-initiated. On the official app, fixed Oura, Withings, Polar, and legacy Fitbit OAuth/API calls transit the getbased Vercel function without intentional payload logging or storage; the function can nevertheless read those credentials and provider responses while relaying them. WHOOP, Ultrahuman, and Google Health are code-enforced self-host-only integrations and use that deployment's OAuth application. Confidential token exchange and refresh use its same-origin proxy; WHOOP and Google Health data also transit that proxy, while Ultrahuman data is fetched browser-direct because its resource API permits browser CORS. OAuth credentials are encrypted with a non-exportable device key; Google Health daily rows use the same device-only protection and are excluded from raw-data backups. Each browser must be connected separately; only the compact derived summary participates in optional profile backup/sync or user-enabled AI/agent context.
+- **Minimised Sun/UV relay.** On the official app, CAMS requests are forced to a 0.1° grid in the browser and again in the Vercel function, then sent by authenticated POST to a fixed Company-operated local-grid lookup. The route does not forward or cache individual coordinates at Copernicus or Open-Meteo. Missing weather fields fall back browser-direct to Open-Meteo with the same rounded location. This is limited plaintext processing, not end-to-end encryption.
+- **Hosted-app usage stats.** Cookieless pageview and outbound affiliate-click counts are enabled by default with a first-run transparency banner and can be disabled immediately or later in **Settings → Privacy**. Health data, viewed records, identity, and health context are not analytics payloads.
 
 If you want the strictest setup, use an AI server on the same device, disable analytics, and leave sync, sharing, Agent Access, connected wearable integrations, external Knowledge Bases, and other remote data sources off.
 
@@ -70,8 +71,10 @@ All normal tracking works without AI. AI features can use:
 Switch providers in Settings. Provider keys are stored locally in the browser.
 
 Venice encrypted mode fails closed unless both the Intel TDX quote and NVIDIA
-GPU evidence verify. NVIDIA does not allow browser POSTs to NRAS, so the GPU
-evidence transits the deployment's same-origin proxy; signed NRAS tokens are
+GPU evidence verify. NVIDIA does not allow browser POSTs to NRAS, so the fixed
+GPU-attestation request transits the deployment's same-origin proxy. The
+official proxy permits only NVIDIA's exact NRAS endpoint for this operation; it
+does not receive the encrypted inference messages. Signed NRAS tokens are
 then verified in the browser against NVIDIA's published keys. Message content
 is not included in that evidence. The shared nonce does not prove that the GPU
 and TDX workload are co-located.
@@ -174,7 +177,7 @@ Default to tests related to the current change. GitHub Actions runs the exhausti
 - transformers.js + OPFS for the in-browser Knowledge Base.
 - transformers.js, quantized Whisper Large v3 Turbo/Small, and Kokoro for optional in-browser voice.
 - Evolu for optional encrypted CRDT sync.
-- Vercel serverless endpoints for provider proxying, OAuth callbacks, profile sharing, and related hosted edges.
+- Official Vercel endpoints for encrypted profile sharing and public deployment metadata, plus a narrowly scoped compatibility proxy for supported wearable providers, NVIDIA attestation, the fixed privacy-rounded CAMS lookup, and credential-free public-page imports. Generic AI, voice, and custom-provider forwarding is rejected on getbased-operated hosts. Self-host-only providers use the deployment owner's OAuth credentials and, only where required, its same-origin proxy.
 - Vitest, TypeScript checkers, quality guardrails, and Playwright for verification.
 - PWA install support; core local tracking and cached app data work offline. Integrations, synchronization, sharing, remote Knowledge Bases, and live environmental data require connectivity.
 

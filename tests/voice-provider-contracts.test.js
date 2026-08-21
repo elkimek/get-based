@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { localServerVoiceProvider } from '../js/voice-provider-local-server.js';
 import { browserLocalVoiceProvider } from '../js/voice-provider-browser-local.js';
@@ -9,10 +9,14 @@ import {
   voicesForOpenRouterModel,
 } from '../js/voice-openrouter-catalog.js';
 import {
-  relaySynthesis,
-  relayTranscription,
-  relayVoices,
+  directSynthesis,
+  directTranscription,
+  directVoices,
 } from '../js/voice-provider-cloud-shared.js';
+import {
+  CLOUD_AI_CONSENT_KEY,
+  CLOUD_AI_CONSENT_VERSION,
+} from '../js/cloud-ai-consent.js';
 import { fetchVeniceKokoroVoices } from '../js/voice-provider-ai-cloud.js';
 import { loadVoiceProvider } from '../js/voice-provider-registry.js';
 import {
@@ -28,6 +32,19 @@ import {
 } from '../js/voice-settings-storage.js';
 
 const realFetch = globalThis.fetch;
+
+beforeEach(() => {
+  const approvals = Object.fromEntries(
+    ['openrouter', 'ppq', 'venice', 'xai', 'elevenlabs'].map(provider => [provider, {
+      accepted: true,
+      provider,
+    }]),
+  );
+  localStorage.setItem(CLOUD_AI_CONSENT_KEY, JSON.stringify({
+    version: CLOUD_AI_CONSENT_VERSION,
+    approvals,
+  }));
+});
 
 afterEach(() => {
   configureAppExtension(null);
@@ -175,7 +192,9 @@ describe('hosted voice relay client', () => {
       providerId: 'ppq',
     });
   });
+});
 
+describe('direct browser cloud voice client', () => {
   it('loads only the private Kokoro voice catalogue selected for Venice', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: [
@@ -283,8 +302,8 @@ describe('hosted voice relay client', () => {
     expect(transcription.body.get('model')).toBe('openai/whisper-large-v3');
     const speech = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
     expect(speech).toMatchObject({
-      modelId: 'hexgrad/kokoro-82m',
-      voiceId: 'af_heart',
+      model: 'hexgrad/kokoro-82m',
+      voice: 'af_heart',
     });
   });
 
@@ -303,9 +322,9 @@ describe('hosted voice relay client', () => {
       text: 'automatic PPQ transcript',
       providerId: 'ppq',
     });
-    const [, request] = globalThis.fetch.mock.calls[0];
+    const [url, request] = globalThis.fetch.mock.calls[0];
+    expect(url).toBe('https://api.ppq.ai/v1/audio/transcriptions');
     expect(request.headers.Authorization).toBe('Bearer ppq-ai-secret');
-    expect(request.headers['X-Voice-Provider']).toBe('ppq');
     expect(request.body.get('model')).toBe('nova-3');
     expect(request.body.get('language')).toBe('multi');
   });
@@ -322,12 +341,12 @@ describe('hosted voice relay client', () => {
     const synthesizer = await createVoiceSynthesizer();
     await synthesizer.synthesize('Hello from PPQ');
 
-    const [, request] = globalThis.fetch.mock.calls[0];
+    const [url, request] = globalThis.fetch.mock.calls[0];
+    expect(url).toBe('https://api.ppq.ai/v1/audio/speech');
     expect(request.headers.Authorization).toBe('Bearer ppq-ai-secret');
-    expect(request.headers['X-Voice-Provider']).toBe('ppq');
     expect(JSON.parse(request.body)).toMatchObject({
-      modelId: 'deepgram_aura_2',
-      voiceId: 'aura-2-thalia-en',
+      model: 'deepgram_aura_2',
+      voice: 'aura-2-thalia-en',
     });
   });
 
@@ -343,12 +362,12 @@ describe('hosted voice relay client', () => {
     const synthesizer = await createVoiceSynthesizer();
     await synthesizer.synthesize('Hello from Venice');
 
-    const [, request] = globalThis.fetch.mock.calls[0];
+    const [url, request] = globalThis.fetch.mock.calls[0];
+    expect(url).toBe('https://api.venice.ai/api/v1/audio/speech');
     expect(request.headers.Authorization).toBe('Bearer venice-ai-secret');
-    expect(request.headers['X-Voice-Provider']).toBe('venice');
     expect(JSON.parse(request.body)).toMatchObject({
-      modelId: 'tts-kokoro',
-      voiceId: 'bm_george',
+      model: 'tts-kokoro',
+      voice: 'bm_george',
     });
   });
 
@@ -374,7 +393,7 @@ describe('hosted voice relay client', () => {
       text: 'cloud transcript',
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
-    const result = await relayTranscription('elevenlabs', {
+    const result = await directTranscription('elevenlabs', {
       audio: new Blob(['audio'], { type: 'audio/webm' }),
       apiKey: 'xi-secret',
       modelId: 'scribe_v2',
@@ -383,9 +402,9 @@ describe('hosted voice relay client', () => {
 
     expect(result.text).toBe('cloud transcript');
     const [url, init] = globalThis.fetch.mock.calls[0];
-    expect(url).toBe('/api/voice?action=stt');
-    expect(init.headers.Authorization).toBe('Bearer xi-secret');
-    expect(init.headers['X-Voice-Provider']).toBe('elevenlabs');
+    expect(url).toBe('https://api.elevenlabs.io/v1/speech-to-text');
+    expect(init.headers['xi-api-key']).toBe('xi-secret');
+    expect(init.credentials).toBe('omit');
     expect(init.body.get('model_id')).toBe('scribe_v2');
     expect(init.body.get('language_code')).toBe('cs');
   });
@@ -401,7 +420,7 @@ describe('hosted voice relay client', () => {
         headers: { 'Content-Type': 'audio/mpeg' },
       }));
 
-    await relayTranscription('ppq', {
+    await directTranscription('ppq', {
       audio: new Blob(['audio'], { type: 'audio/webm' }),
       apiKey: 'ppq-secret',
       modelId: 'nova-3',
@@ -412,7 +431,7 @@ describe('hosted voice relay client', () => {
     expect(transcription.body.get('response_format')).toBe('json');
     expect(transcription.body.get('language')).toBe('multi');
 
-    await relaySynthesis('openrouter', {
+    await directSynthesis('openrouter', {
       apiKey: 'or-secret',
       text: 'Hello',
       modelId: 'hexgrad/kokoro-82m',
@@ -420,9 +439,9 @@ describe('hosted voice relay client', () => {
     });
     const speech = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
     expect(speech).toMatchObject({
-      text: 'Hello',
-      modelId: 'hexgrad/kokoro-82m',
-      voiceId: 'af_heart',
+      input: 'Hello',
+      model: 'hexgrad/kokoro-82m',
+      voice: 'af_heart',
     });
   });
 
@@ -432,7 +451,7 @@ describe('hosted voice relay client', () => {
         message: 'No endpoints available matching your guardrail restrictions and data policy.',
       },
     }), { status: 404, headers: { 'Content-Type': 'application/json' } }));
-    await expect(relaySynthesis('openrouter', {
+    await expect(directSynthesis('openrouter', {
       apiKey: 'or-secret',
       text: 'Hello',
       modelId: 'hexgrad/kokoro-82m',
@@ -454,7 +473,7 @@ describe('hosted voice relay client', () => {
         }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
-    const speech = await relaySynthesis('elevenlabs', {
+    const speech = await directSynthesis('elevenlabs', {
       apiKey: 'xi-secret',
       text: 'Hello',
       voiceId: 'voice-1',
@@ -465,7 +484,7 @@ describe('hosted voice relay client', () => {
     await expect(new Response(speech.stream).arrayBuffer())
       .resolves.toEqual(new Uint8Array([4, 5]).buffer);
 
-    const voices = await relayVoices('elevenlabs', { apiKey: 'xi-secret' });
+    const voices = await directVoices('elevenlabs', { apiKey: 'xi-secret' });
     expect(voices).toEqual([expect.objectContaining({
       id: 'voice-1',
       name: 'Calm',
@@ -500,7 +519,7 @@ describe('hosted voice relay client', () => {
       ],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
-    const voices = await relayVoices('ppq', {
+    const voices = await directVoices('ppq', {
       apiKey: 'ppq-secret',
       language: 'en',
     });
@@ -521,13 +540,13 @@ describe('hosted voice relay client', () => {
       },
     }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
 
-    await expect(relayVoices('elevenlabs', { apiKey: 'bad-key' }))
+    await expect(directVoices('elevenlabs', { apiKey: 'bad-key' }))
       .rejects.toThrow('The ElevenLabs API key is invalid.');
   });
 
   it('does not send ElevenLabs speech without an explicit voice selection', async () => {
     globalThis.fetch = vi.fn();
-    await expect(relaySynthesis('elevenlabs', {
+    await expect(directSynthesis('elevenlabs', {
       apiKey: 'xi-secret',
       text: 'Hello',
       voiceId: '',

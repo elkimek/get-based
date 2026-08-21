@@ -6,19 +6,30 @@ import proxyEntrypoint, { handler as proxyHandler } from '../api/proxy.js';
 
 const ENV_KEYS = [
   'BLOB_READ_WRITE_TOKEN',
+  'OURA_CLIENT_ID',
+  'WITHINGS_CLIENT_ID',
+  'ULTRAHUMAN_CLIENT_ID',
+  'POLAR_CLIENT_ID',
+  'WHOOP_CLIENT_ID',
+  'FITBIT_CLIENT_ID',
+  'GOOGLE_HEALTH_CLIENT_ID',
+  'ULTRAHUMAN_ENABLED',
+  'WHOOP_ENABLED',
+  'GOOGLE_HEALTH_ENABLED',
   'PROXY_ALLOW_INSTANCE_RATE_LIMIT',
   'PROXY_RATE_LIMIT_BLOB_TOKEN',
   'UVDATA_BEARER',
   'UVDATA_UPSTREAM',
   'VERCEL',
+  'VERCEL_PROJECT_PRODUCTION_URL',
 ];
 let savedEnv;
 
 function proxyRequest(method, body) {
-  return new Request('https://getbased.health/api/proxy', {
+  return new Request('https://health.example.net/api/proxy', {
     method,
     headers: {
-      origin: 'https://getbased.health',
+      origin: 'https://health.example.net',
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -64,13 +75,56 @@ describe('proxy production entrypoint', () => {
     const preflight = await proxyHandler(proxyRequest('OPTIONS'));
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get('access-control-allow-origin'))
-      .toBe('https://getbased.health');
+      .toBe('https://health.example.net');
 
     const methodProbe = await proxyHandler(proxyRequest('GET'));
     expect(methodProbe.status).toBe(405);
   });
 
-  it('loads the real limiter boundary and reaches CAMS validation', async () => {
+  it('serves fixed hosted operations but rejects generic authenticated forwarding', async () => {
+    const request = new Request('https://app.getbased.health/api/proxy', {
+      method: 'POST',
+      headers: { origin: 'https://app.getbased.health', 'content-type': 'application/json' },
+      body: JSON.stringify({ wearable_runtime_config: true }),
+    });
+    const response = await proxyHandler(request);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      overrides: {},
+      configured: { google_health: false, ultrahuman: false, whoop: false },
+    });
+
+    const generic = new Request('https://app.getbased.health/api/proxy', {
+      method: 'POST',
+      headers: { origin: 'https://app.getbased.health', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        headers: { Authorization: 'Bearer user-key' },
+        body: '{"messages":[]}',
+      }),
+    });
+    const blocked = await proxyHandler(generic);
+    expect(blocked.status).toBe(403);
+    await expect(blocked.json()).resolves.toMatchObject({ code: 'HOSTED_PROXY_OPERATION_BLOCKED' });
+  });
+
+  it('uses the Vercel project identity for official Preview URLs without capturing other Vercel self-hosters', async () => {
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'get-based.vercel.app';
+    const previewRequest = new Request('https://random-preview-owner.vercel.app/api/proxy', {
+      method: 'POST',
+      headers: { origin: 'https://random-preview-owner.vercel.app', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        url: 'https://customer.example/chat',
+        headers: { Authorization: 'Bearer key' },
+        body: '{}',
+      }),
+    });
+    const response = await proxyHandler(previewRequest);
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ code: 'HOSTED_PROXY_OPERATION_BLOCKED' });
+  });
+
+  it('loads the real limiter boundary and requires a self-hosted CAMS upstream', async () => {
     process.env.VERCEL = '1';
     process.env.PROXY_ALLOW_INSTANCE_RATE_LIMIT = '1';
 
@@ -82,7 +136,7 @@ describe('proxy production entrypoint', () => {
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({
-      error: expect.stringContaining('CAMS hosted relay requires UVDATA_BEARER'),
+      error: expect.stringContaining('CAMS relay upstream is empty'),
     });
   });
 });

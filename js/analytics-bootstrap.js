@@ -20,6 +20,10 @@
     script.integrity = 'sha384-6PHtXKae10+dZuA/fcmjkSTDco+NPBE5fZ4eS/Em2lVIsS6FdDZIgs06MBJLEcSW';
     script.crossOrigin = 'anonymous';
     script.dataset.websiteId = '6272072c-97a9-47b0-99e7-c52e7a4ca481';
+    // OAuth callbacks and future link fragments can contain transient secrets.
+    // Pageview counts do not need either part of the URL.
+    script.dataset.excludeSearch = 'true';
+    script.dataset.excludeHash = 'true';
     document.head.appendChild(script);
     scriptAdded = true;
   }

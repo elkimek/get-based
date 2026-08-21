@@ -136,8 +136,7 @@ export function withingsErrorMessage(code) {
 
 async function withingsPOST(action, accessToken, params = {}) {
   // Withings accepts either x-www-form-urlencoded body OR query string. Form
-  // body is the documented path; we route through our generic proxy (which
-  // forwards the body verbatim).
+  // body is the documented path; the deployment proxy forwards it verbatim.
   const form = new URLSearchParams({ action, ...params });
   const url = `${WITHINGS_API}/${normalisePath(action)}`;
   const res = await fetch(PROXY_URL, {

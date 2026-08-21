@@ -1,6 +1,7 @@
 // @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
-import { getErrorMessage, getErrorName } from './caught-error.js';
+import { getErrorName } from './caught-error.js';
+import { isOfficialGetbasedHost } from './url-safety.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { isSunDebugRuntime } from './sun-runtime.js';
 import { initMeteoConfigCache, getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
@@ -28,30 +29,24 @@ export {
 
 // Provider priority (each falls through on error):
 //   1. User-configured self-host (CAMS-mirrored or own data)
-//   2. CAMS relay (default — direct UVBED + CAMS composition, with recent
-//      satellite cloud correction where coverage is available)
+//   2. Deployment CAMS relay (fixed private route on official hosts)
 //   3. NOAA NWS (US users only — official US National Weather Service UV)
-//   4. Open-Meteo (degraded fallback — GFS-based simplified approximation)
+//   4. Open-Meteo (browser-direct default — GFS-based approximation)
 //   5. Local zenith-angle clear-sky calc (offline)
 // Each session record stores `uvSource` + a confidence weight; AI sees the source.
 //
-// Privacy: lat/lon may be rounded to 0.1° (~11km grid) before any network call.
+// Privacy: official hosts always round lat/lon to 0.1° (~11km grid) before
+// any network call. Self-hosters can choose the same default or opt out.
 // Self-hosters configure the data source on the Light & Sun page itself
 // (☀ Sun data source & privacy details panel) — moved out of Settings →
 // Privacy in v1.7.x because URL/bearer/mode are feature config, not
 // privacy posture.
 
 let _warnedAboutRejectedSelfhostUrl = false;
-// v4 invalidates reconstructed CAMS peaks and the old whole-response source
-// label. Current conditions use a five-minute TTL; historical requests can
-// remain cached longer because their underlying forecast snapshot is stable.
-const CACHE_PREFIX = 'meteo:v4:';
+// v5 invalidates CAMS rows missing daily or AQI context. Live conditions use
+// a five-minute TTL; historical forecasts remain cached longer.
+const CACHE_PREFIX = 'meteo:v5:';
 const NETWORK_TIMEOUT_MS = 8000;
-const HOSTED_CAMS_PROXY_URL = 'https://app.getbased.health/api/proxy';
-const HOSTED_CAMS_LOCAL_ORIGINS = new Set([
-  'http://localhost:8000',
-  'http://127.0.0.1:8000',
-]);
 
 // ─── Public API ────────────────────────────────────────────────────────
 
@@ -71,14 +66,15 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
     throw new Error('fetchAtmosphere requires { lat, lon }');
   }
   const cfg = getMeteoConfig();
-  const { rLat, rLon } = roundCoords(lat, lon, cfg.privacyRounding);
+  const effectiveRounding = isOfficialGetbasedHost() ? 0.1 : cfg.privacyRounding;
+  const { rLat, rLon } = roundCoords(lat, lon, effectiveRounding);
   const time = isoTime || new Date().toISOString();
   const cacheKey = makeCacheKey(rLat, rLon, time);
   const withRequestMeta = result => result ? Object.assign({}, result, {
     _requestCoords: {
       lat: rLat,
       lon: rLon,
-      privacyRounded: Number(cfg.privacyRounding) > 0,
+      privacyRounded: Number(effectiveRounding) > 0,
     },
   }) : result;
 
@@ -97,29 +93,16 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
     try {
       const result = await provider.fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
       if (result) {
-        // CAMS sometimes returns a structurally valid response with
-        // sparse hourly fields (uvIndex/cloudCover/temperatureC all null
-        // — only DU and AQI populated). The "Conditions now" widget then
-        // renders a dash for UV even though Open-Meteo would have served
-        // a real number. When that happens AND we have a downstream
-        // provider, fetch it too and merge the missing primary fields,
-        // keeping CAMS's superior DU/AOD overlay.
-        const sparseUv = result.uvIndex == null && result.cloudCover == null;
+        // Direct CAMS UV can arrive without daily, weather, or AQI context.
+        // Fill those gaps from the next provider while retaining CAMS data.
+        const needsContextFallback = atmosphereNeedsContextFallback(result);
         const hasFallback = i + 1 < order.length;
-        if (sparseUv && hasFallback) {
+        if (needsContextFallback && hasFallback) {
           for (let j = i + 1; j < order.length; j++) {
             try {
               const fallback = await order[j].fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
-              if (fallback && fallback.uvIndex != null) {
-                const merged = Object.assign({}, fallback, {
-                  // Preserve CAMS strengths over Open-Meteo where present.
-                  ozoneDU: result.ozoneDU ?? fallback.ozoneDU,
-                  airQuality: result.airQuality || fallback.airQuality,
-                  // Annotate the merge for the inspector.
-                  source: `${result.source}+${fallback.source}`,
-                  confidence: Math.min(result.confidence ?? 1, fallback.confidence ?? 1),
-                  fetchedAt: Date.now(),
-                });
+              if (fallback) {
+                const merged = mergeAtmosphereContext(result, fallback);
                 const annotated = withRequestMeta(merged);
                 writeCache(cacheKey, annotated);
                 return annotated;
@@ -246,29 +229,15 @@ const PROVIDERS = {
     name: 'cams',
     available: () => true,
     fetch: async ({ lat, lon, isoTime }) => {
-      // Hosted CAMS relay → /api/proxy POSTs to the maintainer's
-      // getbased-uvdata instance, which fronts the CDS-API and merges
-      // Open-Meteo's hourly clouds/temp/UVI into the response. The
-      // bearer for getbased-uvdata is injected server-side so the
-      // token never reaches the browser. Self-hosters bypass this and
-      // use the `selfhost` provider directly.
+      // Official hosts accept only this fixed operation, re-round coordinates
+      // server-side, and POST them to the CAMS-only private relay route.
+      // Self-hosted deployments can instead wire their own compatible relay.
       const options = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meteo: 'cams', latitude: lat, longitude: lon, time: isoTime }),
       };
-      let json;
-      try {
-        json = await fetchJson('/api/proxy', options);
-      } catch (error) {
-        // The checked-in local environment cannot contain Vercel's
-        // UVDATA_BEARER. The production relay explicitly allows the
-        // documented localhost origins, so local development can retry there
-        // without copying the server credential into the browser or repo.
-        const origin = typeof location !== 'undefined' ? location.origin : '';
-        if (getErrorMessage(error) !== 'HTTP 503' || !HOSTED_CAMS_LOCAL_ORIGINS.has(origin)) throw error;
-        json = await fetchJson(HOSTED_CAMS_PROXY_URL, options);
-      }
+      const json = await fetchJson('/api/proxy', options);
       return shapeCamsResponse(json, isoTime, 'cams');
     },
   },
@@ -379,23 +348,84 @@ function availableProviders(candidates, ctx) {
   return candidates.filter(provider => providerIsAvailable(provider, ctx));
 }
 
+function hasUsefulProviderValue(value) {
+  if (Array.isArray(value)) return value.some(hasUsefulProviderValue);
+  return value != null
+    && (typeof value !== 'number' || Number.isFinite(value))
+    && (typeof value !== 'string' || value.trim().length > 0);
+}
+
+function mergeUsefulFields(fallback, primary) {
+  const merged = { ...(fallback || {}) };
+  for (const [key, value] of Object.entries(primary || {})) {
+    if (hasUsefulProviderValue(value)) merged[key] = value;
+  }
+  return Object.keys(merged).length ? merged : null;
+}
+
+// Overlay CAMS samples on the fallback's complete, location-local time grid.
+function mergeHourlyContext(primary, fallback) {
+  const fallbackTimes = fallback?.time;
+  const primaryTimes = primary?.time;
+  if (!Array.isArray(fallbackTimes) || !fallbackTimes.length) return primary || fallback || null;
+  if (!Array.isArray(primaryTimes) || !primaryTimes.length) return fallback;
+  const fallbackOffset = Number(fallback.utcOffsetSeconds) || 0;
+  const primaryOffset = Number(primary.utcOffsetSeconds) || 0;
+  const merged = { ...fallback };
+  for (const [key, values] of Object.entries(primary)) {
+    if (key === 'time' || key === 'utcOffsetSeconds' || !Array.isArray(values)) continue;
+    const output = Array.isArray(merged[key])
+      ? merged[key].slice() : Array(fallbackTimes.length).fill(null);
+    for (let i = 0; i < values.length; i++) {
+      const value = values[i];
+      if (!hasUsefulProviderValue(value)) continue;
+      const primaryMs = parseProviderTimeMs(primaryTimes[i], primaryOffset);
+      if (!Number.isFinite(primaryMs)) continue;
+      const fallbackIndex = nearestHourIndex(fallbackTimes, new Date(primaryMs).toISOString(), fallbackOffset);
+      if (fallbackIndex < 0) continue;
+      const fallbackMs = parseProviderTimeMs(fallbackTimes[fallbackIndex], fallbackOffset);
+      if (!Number.isFinite(fallbackMs) || Math.abs(fallbackMs - primaryMs) > 90 * 60 * 1000) continue;
+      output[fallbackIndex] = value;
+    }
+    merged[key] = output;
+  }
+  return { ...merged, time: fallbackTimes.slice(), utcOffsetSeconds: fallbackOffset };
+}
+
+function atmosphereNeedsContextFallback(result) {
+  const daily = result?.daily || {};
+  return String(result?.source || '').includes('cams')
+    && [result?.uvIndex, result?.cloudCover, result?.temperatureC,
+      daily.sunrise, daily.sunset, daily.peakAt,
+      result?.airQuality?.european_aqi].some(value => !hasUsefulProviderValue(value));
+}
+
+function mergeAtmosphereContext(primary, fallback) {
+  const merged = mergeUsefulFields(fallback, primary) || {};
+  const source = [...new Set(`${primary?.source || ''}+${fallback?.source || ''}`
+    .split('+').filter(Boolean))].join('+');
+  return Object.assign(merged, {
+    airQuality: mergeUsefulFields(fallback?.airQuality, primary?.airQuality),
+    daily: mergeUsefulFields(fallback?.daily, primary?.daily),
+    hourly: mergeHourlyContext(primary?.hourly, fallback?.hourly),
+    source,
+    confidence: Math.min(primary?.confidence ?? 1, fallback?.confidence ?? 1),
+    fetchedAt: Date.now(),
+  });
+}
+
 function providerOrder(cfg, coords = {}) {
   const ctx = Object.assign({}, cfg, coords);
-  // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only
-  // useful for non-browser callers. CAMS now runs through the
-  // getbased-uvdata relay (api/proxy?meteo=cams) — the deploy decides
-  // whether the upstream is wired by setting UVDATA_UPSTREAM env; when
-  // it isn't, CAMS returns 503 and the auto-fallback chain reaches
-  // Open-Meteo so the user still gets data.
+  // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only useful
+  // for non-browser callers. CAMS runs through the deployment-owned fixed
+  // operation; failure falls through to browser-direct Open-Meteo.
   if (cfg.mode === 'selfhost') return availableProviders([PROVIDERS.selfhost, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'cams') return availableProviders([PROVIDERS.cams, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'noaa') return availableProviders([PROVIDERS.noaa, PROVIDERS.openMeteo], ctx);
   if (cfg.mode === 'open-meteo') return availableProviders([PROVIDERS.openMeteo], ctx);
-  // 'auto' — selfhost (if configured) → CAMS hosted relay → Open-Meteo.
-  // CAMS goes ahead of Open-Meteo because the deploy controls whether
-  // the upstream is reachable; if it isn't, it 503s fast and the chain
-  // moves on. Per-coord CAMS calls are server-side cached by the
-  // getbased-uvdata grid index, so the cost is one HTTPS round trip.
+  // Auto: an explicit user server first, then the deployment CAMS operation,
+  // then browser-direct Open-Meteo. On official hosts the CAMS operation is
+  // pinned to the getbased relay and forced to the privacy grid server-side.
   const order = [];
   if (cfg.selfhostUrl) order.push(PROVIDERS.selfhost);
   order.push(PROVIDERS.cams);
@@ -483,21 +513,21 @@ function readStaleCache(rLat, rLon) {
   }
 }
 
-// One-time sweep of pre-v4 cache entries on first import. Idempotent —
+// One-time sweep of pre-v5 cache entries on first import. Idempotent —
 // the marker key is only written once, so subsequent loads are no-ops.
 try {
-  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v4-purged')) {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v5-purged')) {
     const stale = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v4:')) stale.push(k);
+      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v5:')) stale.push(k);
     }
     for (const k of stale) localStorage.removeItem(k);
-    localStorage.setItem('meteo-cache-v4-purged', '1');
+    localStorage.setItem('meteo-cache-v5-purged', '1');
   }
 } catch (e) {
   if (isSunDebugRuntime()) {
-    console.warn('[sun-uvdata] pre-v4 cache sweep failed', getErrorName(e) || e);
+    console.warn('[sun-uvdata] pre-v5 cache sweep failed', getErrorName(e) || e);
   }
 }
 
