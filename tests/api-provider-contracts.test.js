@@ -56,6 +56,7 @@ vi.mock('../vendor/venice-nvidia.js', () => ({
 }));
 
 import { updateKeyCache } from '../js/crypto.js';
+import { configureAppExtension } from '../js/app-extension-runtime.js';
 import { checkOpenAICompatible, clearLocalAiDiscovery, discoverLocalAI } from '../js/local-ai-discovery.js';
 import { estimateLocalAiPromptTokens } from '../js/api-local.js';
 import { LOCAL_AI_PROVIDER_ADAPTERS, getLocalAiProviderCapabilities } from '../js/local-ai-provider-registry.js';
@@ -73,7 +74,9 @@ import {
 import {
   callClaudeAPI,
   fetchRoutstrModels,
+  hasAIProvider,
   isRoutstrPrivateModeActive,
+  setAIPaused,
   setAIProvider,
   setCustomApiModel,
   setCustomApiUrl,
@@ -173,6 +176,7 @@ function baseChatOptions(overrides = {}) {
 }
 
 beforeEach(() => {
+  configureAppExtension(null);
   localStorage.clear();
   sessionStorage.clear();
   localStorage.setItem(CLOUD_AI_CONSENT_KEY, JSON.stringify({
@@ -228,6 +232,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  configureAppExtension(null);
   globalThis.fetch = realFetch;
   if (realLocationDescriptor) Object.defineProperty(globalThis, 'location', realLocationDescriptor);
   else delete globalThis.location;
@@ -390,6 +395,21 @@ const providerContracts = [
 ];
 
 describe('AI provider request contracts', () => {
+  it('lets a trusted extension report a credentialless built-in provider as connected', () => {
+    setAIProvider('openrouter');
+    updateKeyCache('labcharts-openrouter-key', '');
+    expect(hasAIProvider()).toBe(false);
+
+    configureAppExtension({
+      id: 'credentialless-provider-readiness-test',
+      ai: { isProviderActive: provider => provider === 'openrouter' },
+    });
+    expect(hasAIProvider()).toBe(true);
+
+    setAIPaused(true);
+    expect(hasAIProvider()).toBe(false);
+  });
+
   it('registers cohesive local provider adapters with normalized capabilities', () => {
     expect(LOCAL_AI_PROVIDER_ADAPTERS.map(adapter => adapter.id)).toEqual([
       'lmstudio',
@@ -1734,5 +1754,81 @@ describe('AI provider request contracts', () => {
     expect(caught.message).not.toContain(secret);
     const request = providerRequestFromFetchCall();
     expect(request.headers.Authorization).toBe(`Bearer ${secret}`);
+  });
+
+  it('lets a trusted edition replace the OpenRouter transport after authorization', async () => {
+    const secret = 'sk-managed-transport-contract';
+    const callProvider = vi.fn(async () => ({
+      text: 'edition transport',
+      usage: { inputTokens: 2, outputTokens: 3 },
+      finishReason: 'stop',
+      truncated: false,
+    }));
+    configureAppExtension({
+      id: 'managed-transport-test',
+      ai: {
+        isCredentialOwned: provider => provider === 'openrouter',
+        authorizeRequest: async () => true,
+        isProviderCallOwned: ({ provider }) => provider === 'openrouter',
+        callProvider,
+      },
+    });
+    setAIProvider('openrouter');
+    setOpenRouterModel('reviewed/model');
+    updateKeyCache('labcharts-openrouter-key', secret);
+
+    await expect(callClaudeAPI(baseChatOptions())).resolves.toMatchObject({ text: 'edition transport' });
+    expect(callProvider).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'openrouter',
+      credential: secret,
+      model: 'reviewed/model',
+    }));
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('lets a trusted edition own an OpenRouter-shaped call without a browser credential', async () => {
+    const callProvider = vi.fn(async ({ credential }) => ({
+      text: credential ? 'unexpected credential' : 'credentialless edition transport',
+      usage: { inputTokens: 2, outputTokens: 3 },
+      finishReason: 'stop',
+      truncated: false,
+    }));
+    configureAppExtension({
+      id: 'credentialless-managed-transport-test',
+      ai: {
+        isCredentialOwned: provider => provider === 'openrouter',
+        authorizeRequest: async () => true,
+        isProviderCallOwned: ({ provider }) => provider === 'openrouter',
+        callProvider,
+      },
+    });
+    setAIProvider('openrouter');
+    setOpenRouterModel('reviewed/model');
+
+    await expect(callClaudeAPI(baseChatOptions())).resolves.toMatchObject({ text: 'credentialless edition transport' });
+    expect(callProvider).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'openrouter',
+      credential: '',
+      model: 'reviewed/model',
+    }));
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke an edition-owned transport when extension authorization fails', async () => {
+    const callProvider = vi.fn();
+    configureAppExtension({
+      id: 'denied-managed-transport-test',
+      ai: {
+        authorizeRequest: async () => false,
+        isProviderCallOwned: ({ provider }) => provider === 'openrouter',
+        callProvider,
+      },
+    });
+    setAIProvider('openrouter');
+    setOpenRouterModel('reviewed/model');
+
+    await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(/not authorized/i);
+    expect(callProvider).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

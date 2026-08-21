@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
 import { escapeAttr, escapeHTML } from './utils.js';
+import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import {
   getAIProvider, getActiveModelDisplay, getActiveModelId,
 } from './api.js';
@@ -130,9 +131,10 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
     if (msg.role === 'user') html += buildUserActionBar(i);
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
-      if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
+      const usageProvider = msg.provider || (msg.modelId ? (msg.modelId.includes('/') ? 'openrouter' : getAIProvider()) : getAIProvider());
+      if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens) && !shouldHideAppExtensionAIUsage(usageProvider)) {
         const mId = msg.modelId || getActiveModelId();
-        const mProvider = msg.provider || (msg.modelId ? (msg.modelId.includes('/') ? 'openrouter' : getAIProvider()) : getAIProvider());
+        const mProvider = usageProvider;
         const cost = calculateCost(mProvider, mId, msg.usage.inputTokens, msg.usage.outputTokens);
         const totalTokens = Math.max(0, Number(msg.usage.inputTokens) || 0)
           + Math.max(0, Number(msg.usage.outputTokens) || 0);

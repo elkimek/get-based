@@ -12,6 +12,7 @@ import { restorePendingImportReviewDraft } from './import-loader.js';
 import { configureSyncLifecycleDeps } from './sync.js';
 import { configureSyncModules } from './sync-configure.js';
 import { disableSync, enableSync, pauseSync } from './sync-lifecycle.js';
+import { runAppExtensionStartup } from './app-extension-runtime.js';
 
 let appStarted = false;
 
@@ -25,6 +26,10 @@ async function runStartupSequence() {
   await handleStartupOAuthCallbacks();
 
   renderStartupUI();
+
+  // Edition-specific maintenance runs after the public shell is usable and
+  // never delays core startup. The public build has a safe no-op adapter.
+  runAppExtensionStartup();
 
   await restorePendingImportReviewDraft();
 }

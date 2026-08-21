@@ -72,7 +72,11 @@ export function configureAppChatHooks(deps = {}) {
   configureChatRuntimeCallbacks({
     closeModal: deps.closeModal,
     isChatStreaming,
-    refreshWebSearchToggle,
+    refreshWebSearchToggle: () => {
+      refreshWebSearchToggle();
+      updateAttachButtonVisibility();
+      updateChatInputState();
+    },
     renderChatMessages,
     resumeAI,
     sendChatMessage,

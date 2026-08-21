@@ -186,6 +186,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
 
 test('chat onboarding walks connected and disconnected funnels coherently', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async () => {
     const [

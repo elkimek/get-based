@@ -46,6 +46,13 @@ describe('production startup build', () => {
     expect(summary.lazyJavaScriptFiles).toBeGreaterThan(100);
   });
 
+  it('keeps inbound sync reconciliation out of the startup bundle', async () => {
+    const generatedFiles = await fs.readdir(path.join(outputRoot, 'js'));
+
+    expect(generatedFiles.some(fileName =>
+      /^bundle-sync-reconciliation-.*\.js$/.test(fileName))).toBe(true);
+  });
+
   it('points production HTML at the hashed entry while preserving the early welcome paint', async () => {
     const index = await fs.readFile(path.join(outputRoot, 'index.html'), 'utf8');
     expect(index).toContain(`<script type="module" src="js/${summary.entryFile}"></script>`);

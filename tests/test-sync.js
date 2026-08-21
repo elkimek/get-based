@@ -285,8 +285,8 @@ await import('../js/settings.js');
       && syncInitSrc.includes('createSyncQueries(evolu)'));
   assert('service worker precaches sync-schema.js',
     serviceWorkerSrc.includes("'/js/sync-schema.js'"));
-  assert('sync-apply.js owns inbound AI/display apply helpers and chat compatibility exports',
-    syncPullSrc.includes("from './sync-apply.js'")
+  assert('sync-apply.js lazily owns inbound AI/display apply helpers and chat compatibility exports',
+    syncPullSrc.includes("import('./sync-apply.js')")
       && syncApplySrc.includes('export async function applyAISettings')
       && syncApplySrc.includes('export function applyDisplayPrefs')
       && syncApplySrc.includes("from './sync-chat-apply.js'"));
@@ -1356,7 +1356,7 @@ await import('../js/settings.js');
   assert('Restored owner provider settings override stale local edit locks',
     syncApplySrc.includes('options.preferRemote === true')
       && syncPullSrc.includes('const preferRemoteAiSettings = isRestoreJoinPending()')
-      && syncPullSrc.includes('{ preferRemote: preferRemoteAiSettings }')
+      && syncPullSrc.includes('preferRemote: preferRemoteAiSettings')
       && syncIdentitySrc.includes("sessionStorage.removeItem('labcharts-ai-settings-local-lock-until')")
       && syncIdentitySrc.includes("sessionStorage.removeItem('or_oauth_local_settings_lock_until')"));
   assert('applyAISettings refreshes chat provider UI through sync runtime hooks',
@@ -1517,7 +1517,9 @@ await import('../js/settings.js');
       && syncPullActiveRefreshRuntimeSrc.includes('syncPullActiveRefreshDeps.navigate?.(route, options)'));
   assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
   assert('enableSync pulls before first enable push to avoid publishing stale local state',
-    /await forcePull\(\)[\s\S]{0,300}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
+    /await forcePull\(\)[\s\S]{0,900}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
+  assert('resume does not republish clean cached rows before the relay delivers paused-device updates',
+    /if \(!resuming\) \{[\s\S]{0,180}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
   assert('pushAllProfiles pushes all profiles after first enable pull',
     syncLifecycleSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
   assert('pushAllProfiles forwards force/seed options to profile pushes',

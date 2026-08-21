@@ -33,6 +33,10 @@ const PRODUCTION_RAW_JS_ASSETS = new Set([
   '/js/lens-local-store.js',
 ]);
 const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
+const LAZY_SYNC_CHUNK_MODULES = new Set([
+  path.join(ROOT, 'js', 'routstr-balance-settlement.js'),
+  path.join(ROOT, 'js', 'sync-apply.js'),
+]);
 
 export function handleBuildLog(level, log, defaultHandler) {
   if (FATAL_BUILD_WARNINGS.has(log?.code)) {
@@ -175,6 +179,7 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
       chunkFileNames: 'bundle-[name]-[hash].js',
       assetFileNames: 'bundle-[name]-[hash][extname]',
       manualChunks(id) {
+        if (LAZY_SYNC_CHUNK_MODULES.has(stripRetryQuery(id))) return 'sync-reconciliation';
         return initialModules.has(id) ? 'startup' : undefined;
       },
     },

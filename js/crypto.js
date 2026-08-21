@@ -2,6 +2,7 @@
 // crypto.js — Encryption at rest, backup/restore, cross-tab sync
 
 import { getErrorMessage } from './caught-error.js';
+import { isAppExtensionSyncEncryptedStorageKey } from './app-extension-runtime.js';
 import { state } from './state.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
@@ -123,7 +124,8 @@ const SENSITIVE_PATTERNS = [
 ];
 
 export function isSensitiveKey(key) {
-  return SENSITIVE_PATTERNS.some(p => p.test(key));
+  return SENSITIVE_PATTERNS.some(p => p.test(key))
+    || isAppExtensionSyncEncryptedStorageKey(key);
 }
 
 // ═══════════════════════════════════════════════
@@ -152,18 +154,20 @@ const API_KEY_LS_KEYS = [
 
 export async function decryptKeyCache() {
   clearKeyCache();
-  for (const lsKey of API_KEY_LS_KEYS) {
-    const raw = localStorage.getItem(lsKey);
-    if (!raw) continue;
-    if (isEncryptedValue(raw) && _sessionKey) {
-      const parsed = parseEncryptedValue(raw);
-      if (!parsed) continue;
-      try {
-        const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
-        updateKeyCache(lsKey, plaintext);
-      } catch { /* skip if can't decrypt */ }
-    } else if (!isEncryptedValue(raw)) {
-      updateKeyCache(lsKey, raw);
+  for (const lsKey of Object.keys(localStorage)) {
+    if (API_KEY_LS_KEYS.includes(lsKey) || isAppExtensionSyncEncryptedStorageKey(lsKey)) {
+      const raw = localStorage[lsKey];
+      if (!raw) continue;
+      if (isEncryptedValue(raw) && _sessionKey) {
+        const parsed = parseEncryptedValue(raw);
+        if (!parsed) continue;
+        try {
+          const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+          updateKeyCache(lsKey, plaintext);
+        } catch { /* skip if can't decrypt */ }
+      } else if (!isEncryptedValue(raw)) {
+        updateKeyCache(lsKey, raw);
+      }
     }
   }
 }
@@ -348,6 +352,7 @@ export async function encryptedSetItem(key, value) {
   } else {
     localStorage.setItem(key, stored);
   }
+  if (isAppExtensionSyncEncryptedStorageKey(key)) updateKeyCache(key, value);
 }
 
 export async function encryptedGetItem(key) {
@@ -403,6 +408,7 @@ export async function encryptedRemoveItem(key, options = {}) {
     }
   }
   try { localStorage.removeItem(key); } catch {}
+  if (isSensitiveKey(key)) updateKeyCache(key, null);
 }
 
 // ═══════════════════════════════════════════════

@@ -1,7 +1,5 @@
-importScripts('/version.js'); // Production uses semver; previews add the deployment SHA.
-importScripts('/service-worker-runtime.js');
-const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
-const IS_PROD = PROD_HOSTS.has(self.location.hostname);
+importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
+const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 let _cacheNamePromise = null;
 async function resolveCacheName() {
   const base = `labcharts-v${self.APP_VERSION}`;
@@ -9,7 +7,7 @@ async function resolveCacheName() {
   if (!_cacheNamePromise) {
     _cacheNamePromise = fetch('/api/commit', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => (j && j.sha ? `${base}-${j.sha.slice(0, 8)}` : base))
+      .then((j) => { const requestedRevision = j?.cacheKey || j?.sha || ''; const revision = String(requestedRevision).replace(/[^a-z0-9_-]/gi, '').slice(0, j?.cacheKey ? 32 : 8); return revision ? `${base}-${revision}` : base; })
       .catch(() => base);
   }
   return _cacheNamePromise;
@@ -67,6 +65,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   // PRODUCTION_BUNDLE_ASSETS_START
   // PRODUCTION_BUNDLE_ASSETS_END
   '/js/shell-actions.js',
+  '/js/app-extension-bootstrap.js',
+  '/js/app-extension-runtime.js',
   '/js/app-feature-modules.js',
   '/js/app-foundation-modules.js',
   '/js/app-health-data-modules.js',

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { localServerVoiceProvider } from '../js/voice-provider-local-server.js';
 import { browserLocalVoiceProvider } from '../js/voice-provider-browser-local.js';
 import { clearKeyCache, updateKeyCache } from '../js/crypto-key-cache.js';
+import { configureAppExtension } from '../js/app-extension-runtime.js';
 import {
   fetchOpenRouterVoiceModels,
   voicesForOpenRouterModel,
@@ -23,7 +24,7 @@ import {
   getVoiceProviderDefinition,
   getVoiceProvidersFor,
 } from '../js/voice-provider-catalog.js';
-import { createVoiceSynthesizer, transcribeVoice } from '../js/voice-service.js';
+import { createVoiceSynthesizer, ensureVoiceRequestPrivacy, transcribeVoice } from '../js/voice-service.js';
 import {
   VOICE_STORAGE_KEYS,
   getVoiceSettings,
@@ -46,6 +47,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  configureAppExtension(null);
   globalThis.fetch = realFetch;
   localStorage.clear();
   clearKeyCache();
@@ -65,6 +67,10 @@ describe('voice provider registry', () => {
 
   it('publishes capabilities independently from adapter loading', () => {
     expect(getVoiceProviderDefinition('xai')).toMatchObject({
+      execution: 'cloud',
+      capabilities: { stt: true, tts: true, streamingTts: true },
+    });
+    expect(getVoiceProviderDefinition('openrouter')).toMatchObject({
       execution: 'cloud',
       capabilities: { stt: true, tts: true, streamingTts: true },
     });
@@ -139,6 +145,51 @@ describe('OpenAI-compatible local voice provider', () => {
       model: 'kokoro',
       voice: 'af_heart',
       speed: 1.2,
+    });
+  });
+});
+
+describe('hosted voice relay client', () => {
+  it('authorizes hosted dictation before microphone capture can begin', async () => {
+    const authorizeRequest = vi.fn(() => false);
+    configureAppExtension({
+      id: 'voice-preflight-test',
+      isAvailable: () => true,
+      voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
+        authorizeRequest,
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-ai-secret');
+    const settings = getVoiceSettings();
+
+    await expect(ensureVoiceRequestPrivacy('stt', 'openrouter', settings))
+      .rejects.toThrow('No audio was sent');
+    expect(authorizeRequest).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'stt',
+      providerId: 'openrouter',
+      modelId: settings.openRouterSttModel,
+    }));
+  });
+
+  it('does not subject user-owned voice providers to hosted authorization hooks', async () => {
+    configureAppExtension({
+      id: 'voice-scope-test',
+      isAvailable: () => true,
+      voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-ai-secret');
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      text: 'user-owned transcript',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    await expect(transcribeVoice(new Blob(['audio'], { type: 'audio/webm' }))).resolves.toMatchObject({
+      text: 'user-owned transcript',
+      providerId: 'ppq',
     });
   });
 });

@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { CHAT_SYSTEM_PROMPT } from './constants.js';
 import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML, showNotification } from './utils.js';
+import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import {
   getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
@@ -392,7 +393,7 @@ export async function sendChatMessage() {
     aiMsgEl.innerHTML = renderMarkdown(fullText);
     if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
     // Cost footnote
-    if (usage && (usage.inputTokens || usage.outputTokens)) {
+    if (usage && (usage.inputTokens || usage.outputTokens) && !shouldHideAppExtensionAIUsage(_msgProvider)) {
       const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
       const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
       const webTag = webSearchEnabled ? ' \u00b7 \ud83c\udf10 web' : '';

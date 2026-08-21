@@ -3,6 +3,14 @@
 
 import { encryptedSetItem, encryptedGetItem, updateKeyCache } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
+import {
+  getAppExtensionSyncEncryptedStorageKeys,
+  getAppExtensionSyncEncryptedStoragePrefixes,
+  getAppExtensionSyncConflictResolution,
+  getAppExtensionSyncStorageKeys,
+  getAppExtensionSyncStoragePrefixes,
+  notifyAppExtensionSyncSettingsApplied,
+} from './app-extension-runtime.js';
 import { refreshSyncedAIProviderUiRuntime, refreshSyncedRoutstrBalanceRuntime } from './sync-runtime.js';
 import { VOICE_ENCRYPTED_SYNC_KEYS } from './voice-settings-schema.js';
 
@@ -36,11 +44,11 @@ function shouldKeepLocalOpenRouterOAuthSetting(key) {
   }
 }
 
-/** @param {string} key */
-function shouldKeepLocalAISetting(key, preferRemote = false) {
+/** @param {string} key @param {boolean} recognizedSetting */
+function shouldKeepLocalAISetting(key, recognizedSetting, preferRemote = false) {
   if (preferRemote) return false;
   return shouldKeepLocalOpenRouterOAuthSetting(key)
-    || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
+    || (recognizedSetting && hasLocalAISettingsLock());
 }
 
 const ENCRYPTED_AI_KEYS = [
@@ -61,7 +69,20 @@ const ENCRYPTED_AI_KEYS = [
 export async function applyAISettings(settings, options = {}) {
   if (!settings) return;
   let changed = false;
+  const changedKeys = [];
   let routstrSessionChanged = false;
+  const extensionKeys = new Set(getAppExtensionSyncStorageKeys());
+  const extensionPrefixes = getAppExtensionSyncStoragePrefixes();
+  const extensionEncryptedKeys = new Set(getAppExtensionSyncEncryptedStorageKeys());
+  const extensionEncryptedPrefixes = getAppExtensionSyncEncryptedStoragePrefixes();
+  // An edition can identify the keys in a coherent remote access transition
+  // (for example, first subscription activation, withdrawal, or managed-key
+  // rotation). That tuple must cross the short local-edit lock together;
+  // applying only metadata/source while retaining a local BYOK key would
+  // misclassify ownership. Unrelated provider/voice settings stay protected.
+  const extensionConflictResolution = getAppExtensionSyncConflictResolution(settings);
+  const extensionPreferRemoteKeys = new Set(extensionConflictResolution.preferRemoteKeys);
+  const extensionKeepLocalKeys = new Set(extensionConflictResolution.keepLocalKeys);
   const remoteRoutstrUpdatedAt = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
   const localRoutstrUpdatedAt = Number(localStorage.getItem(ROUTSTR_SESSION_UPDATED_AT_KEY) || 0);
   const remoteRoutstrIsNewer = Number.isFinite(remoteRoutstrUpdatedAt)
@@ -69,28 +90,39 @@ export async function applyAISettings(settings, options = {}) {
   const localRoutstrIsNewer = Number.isFinite(localRoutstrUpdatedAt)
     && localRoutstrUpdatedAt > remoteRoutstrUpdatedAt;
   for (const [key, val] of Object.entries(settings)) {
-    if (!AI_SETTINGS_KEYS.includes(key)) continue;
+    const coreSetting = AI_SETTINGS_KEYS.includes(key);
+    const extensionSetting = extensionKeys.has(key)
+      || extensionPrefixes.some(prefix => key.startsWith(prefix))
+      || extensionEncryptedKeys.has(key)
+      || extensionEncryptedPrefixes.some(prefix => key.startsWith(prefix));
+    if (!coreSetting && !extensionSetting) continue;
     if (val !== null && (typeof val !== 'string' || val.length > 10000)) continue; // sanity check
+    if (extensionKeepLocalKeys.has(key)) continue;
+    const encryptedSetting = ENCRYPTED_AI_KEYS.includes(key)
+      || extensionEncryptedKeys.has(key)
+      || extensionEncryptedPrefixes.some(prefix => key.startsWith(prefix));
     const routstrSessionKey = ROUTSTR_SESSION_KEYS.has(key) || key === ROUTSTR_SESSION_UPDATED_AT_KEY;
     // AI settings are global but are carried in every profile row. Once a
     // clocked Routstr session lands, an older profile row with no clock (0)
     // must not overwrite it with a legacy/stale key.
     if (routstrSessionKey && localRoutstrIsNewer && options.preferRemote !== true) continue;
-    const preferRemoteSetting = options.preferRemote === true || (routstrSessionKey && remoteRoutstrIsNewer);
-    if (shouldKeepLocalAISetting(key, preferRemoteSetting)) continue;
+    const preferRemoteSetting = options.preferRemote === true
+      || extensionPreferRemoteKeys.has(key)
+      || (routstrSessionKey && remoteRoutstrIsNewer);
+    if (shouldKeepLocalAISetting(key, coreSetting || extensionSetting, preferRemoteSetting)) continue;
     const before = await encryptedGetItem(key);
     const hasStoredValue = localStorage.getItem(key) !== null;
     if (val === null ? before === '' && hasStoredValue : before === val) continue;
     if (val === null) {
       // Keep an empty stored value so subsequent pushes preserve the deletion
       // tombstone instead of allowing an older peer to resurrect the key.
-      if (ENCRYPTED_AI_KEYS.includes(key)) {
+      if (encryptedSetting) {
         await encryptedSetItem(key, '');
         updateKeyCache(key, '');
       } else {
         localStorage.setItem(key, '');
       }
-    } else if (ENCRYPTED_AI_KEYS.includes(key)) {
+    } else if (encryptedSetting) {
       await encryptedSetItem(key, val);
       // Provider accessors are synchronous and read the decrypted in-memory
       // cache. A key pulled after startup must update that cache immediately;
@@ -101,10 +133,12 @@ export async function applyAISettings(settings, options = {}) {
       localStorage.setItem(key, val);
     }
     changed = true;
+    changedKeys.push(key);
     if (routstrSessionKey) routstrSessionChanged = true;
   }
   if (changed) {
     refreshSyncedAIProviderUiRuntime();
+    notifyAppExtensionSyncSettingsApplied({ settings, changedKeys });
   }
   if (routstrSessionChanged) refreshSyncedRoutstrBalanceRuntime();
 }

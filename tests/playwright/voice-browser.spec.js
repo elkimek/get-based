@@ -4,6 +4,7 @@ async function installVoiceBrowserFakes(page) {
   await page.addInitScript(() => {
     window.__voiceTrackStops = 0;
     window.__voiceGetUserMediaCalls = 0;
+    window.__voiceObjectUrlKinds = [];
     class FakeMediaRecorder extends EventTarget {
       static isTypeSupported(type) {
         return type === 'audio/webm;codecs=opus';
@@ -89,7 +90,12 @@ async function installVoiceBrowserFakes(page) {
     });
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
-      value: () => 'blob:voice-browser-fixture',
+      value: source => {
+        window.__voiceObjectUrlKinds.push(source instanceof Blob
+          ? `blob:${source.type}:${source.size}`
+          : 'media-source');
+        return 'blob:voice-browser-fixture';
+      },
     });
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
@@ -160,6 +166,85 @@ test('browser-local voice routes first use to an explicit model download', async
   await expect(page.locator('.voice-model-footnote')).toContainText(
     'never start a model download automatically',
   );
+});
+
+test('denied hosted dictation never requests microphone access', async ({ page }) => {
+  await installVoiceBrowserFakes(page);
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const started = await page.evaluate(async () => {
+    const [{ configureAppExtension }, { updateKeyCache }, settings, controller] = await Promise.all([
+      import('/js/app-extension-runtime.js'),
+      import('/js/crypto-key-cache.js'),
+      import('/js/voice-settings-storage.js'),
+      import('/js/voice-controller.js'),
+    ]);
+    configureAppExtension({
+      id: 'voice-browser-privacy-test',
+      voice: {
+        isRequestOwned: ({ providerId }) => providerId === 'openrouter',
+        authorizeRequest: () => false,
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-browser-privacy-test');
+    settings.setVoiceSetting('inputProvider', 'openrouter');
+    return controller.toggleVoiceRecording();
+  });
+
+  expect(started).toBe(false);
+  expect(await page.evaluate(() => window.__voiceGetUserMediaCalls)).toBe(0);
+  await expect(page.locator('#chat-voice-status')).toContainText('No audio was sent');
+});
+
+test('an edition can buffer managed OpenRouter speech before browser playback', async ({ page }) => {
+  await installVoiceBrowserFakes(page);
+  let requestPayload;
+  await page.route('https://openrouter.ai/api/v1/audio/speech', async route => {
+    requestPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg' },
+      body: 'mock openrouter mp3 bytes',
+    });
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const [{ state }, { configureAppExtension }, { updateKeyCache }, cloudConsent, controller] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/app-extension-runtime.js'),
+      import('/js/crypto-key-cache.js'),
+      import('/js/cloud-ai-consent.js'),
+      import('/js/voice-controller.js'),
+    ]);
+    configureAppExtension({
+      id: 'managed-openrouter-playback-test',
+      voice: {
+        getPlaybackPolicy: ({ providerId }) => providerId === 'openrouter'
+          ? { progressive: false }
+          : {},
+      },
+    });
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+      approvals: { openrouter: { accepted: true, provider: 'openrouter' } },
+    }));
+    updateKeyCache('labcharts-openrouter-key', 'or-browser-tts-test');
+    state.currentThreadId = 'openrouter-tts-browser-test';
+    state.chatHistory = [{ role: 'assistant', content: 'Read this subscription reply.' }];
+    return controller.readAssistantMessage(0);
+  });
+
+  expect(result).toBe(true);
+  expect(requestPayload).toMatchObject({
+    model: 'hexgrad/kokoro-82m',
+    voice: 'af_heart',
+  });
+  expect(await page.evaluate(() => window.__voiceObjectUrlKinds)).toEqual([
+    'blob:audio/mpeg:25',
+  ]);
 });
 
 test('pending first-use auto-read stays bound to its open panel and thread', async ({ page }) => {

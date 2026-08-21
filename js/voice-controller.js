@@ -15,12 +15,14 @@ import {
 import { getVoiceProviderDefinition } from './voice-provider-catalog.js';
 import {
   createVoiceSynthesizer,
+  ensureVoiceRequestPrivacy,
   getVoiceProviderId,
   transcribeVoice,
 } from './voice-service.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getVoiceSettings } from './voice-settings-storage.js';
 import { normalizeSpeechText, splitSpeechText } from './voice-text.js';
+import { getAppExtensionVoicePlaybackPolicy } from './app-extension-runtime.js';
 
 const MAX_RECORDING_MS = 5 * 60 * 1000;
 // Kokoro's own TextSplitterStream emits sentence-sized audio progressively.
@@ -205,6 +207,17 @@ async function startVoiceRecording() {
     if (activityEpoch !== voiceActivityEpoch) return false;
     if (!modelReady) return guideToLocalModelDownload('stt', settings.localSttModel);
   }
+  try {
+    await ensureVoiceRequestPrivacy('stt', inputProviderId, settings);
+  } catch (error) {
+    const message = getErrorMessage(error, 'Subscription voice privacy could not be verified');
+    setCaptureUi('error', message);
+    showNotification(message, 'error', 7000);
+    setTimeout(() => {
+      if (captureState === 'error') setCaptureUi('idle', '');
+    }, 5000);
+    return false;
+  }
   setCaptureUi('requesting', 'Requesting microphone access…');
   const session = new VoiceCaptureSession({
     maxDurationMs: MAX_RECORDING_MS,
@@ -336,8 +349,14 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
     return false;
   }
   const providerDefinition = getVoiceProviderDefinition(outputProviderId);
+  const playbackPolicy = getAppExtensionVoicePlaybackPolicy({
+    kind: 'tts',
+    providerId: outputProviderId,
+    settings,
+  });
   const streamsProgressiveAudio = providerDefinition.execution !== 'browser'
-    && providerDefinition.capabilities.streamingTts;
+    && providerDefinition.capabilities.streamingTts
+    && playbackPolicy.progressive !== false;
   if (automatic && !voicePlayer.hasPlaybackActivation) {
     if (!autoReadActivationNoticeShown) {
       autoReadActivationNoticeShown = true;
@@ -403,7 +422,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
             contentType: result.contentType,
             signal: controller.signal,
             rate: 1,
-            progressive: !automatic,
+            progressive: streamsProgressiveAudio && !automatic,
           });
         } else {
           await voicePlayer.play(/** @type {Blob} */ (result.audio), {

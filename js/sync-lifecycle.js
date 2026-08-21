@@ -61,7 +61,15 @@ export async function enableSync({ skipPush = false, persist = true } = {}) {
   }
   if (!skipPush) {
     try { await forcePull(); } catch (e) { console.warn('[sync] initial pull failed:', e); }
-    try { await pushAllProfiles(); } catch (e) { console.warn('[sync] initial push failed:', e); }
+    // A resumed runtime already has an Evolu row cache which may still be the
+    // paused, pre-relay snapshot. Republishing every profile immediately can
+    // race the first remote delivery and overwrite changes made on another
+    // device while this one was paused. onSyncReceived flushes only durable
+    // dirty profiles before merging; clean profiles should wait for the bound
+    // relay subscriptions instead of being needlessly rewritten.
+    if (!resuming) {
+      try { await pushAllProfiles(); } catch (e) { console.warn('[sync] initial push failed:', e); }
+    }
   }
   if (persist) {
     showNotification(resuming ? 'Sync resumed' : 'Sync enabled', 'success');

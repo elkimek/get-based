@@ -661,6 +661,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
 
 test('light aggregate AI analysis covers channel burden and daily verdicts', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.clock.setFixedTime(new Date('2026-06-10T14:00:00Z'));
 
   const results = await page.evaluate(async ({ channelUrl, burdenUrl, todayUrl }) => {
     const [{ state }, channelAI, burdenAI, todayAI, aiVerdictRuntime] = await Promise.all([

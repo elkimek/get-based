@@ -15,6 +15,10 @@ import {
   setProfileSex,
 } from './profile.js';
 import { hasAIProvider, isAIPaused } from './api.js';
+import {
+  handleAppExtensionOnboardingAction,
+  renderAppExtensionOnboardingSlot,
+} from './app-extension-runtime.js';
 
 /** @type {{
  *   closeChatPanel: () => void,
@@ -86,13 +90,24 @@ function openAiProviderSettings(provider) {
   }, 300);
 }
 
-function handleChatOnboardingClick(event) {
+async function handleChatOnboardingClick(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
   const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-chat-onboarding-action]'));
   if (!actionEl || !isChatOnboardingActionScope(actionEl)) return;
   const action = actionEl.dataset.chatOnboardingAction || '';
   event.preventDefault();
+
+  const extensionHandled = handleAppExtensionOnboardingAction({
+    action,
+    actionEl,
+    currentProfile: state.currentProfile,
+    openSettingsModal,
+    renderChatMessages,
+    setProviderQuizBranch,
+  });
+  if (extensionHandled === true
+    || (extensionHandled instanceof Promise && await extensionHandled)) return;
 
   if (action === 'back-to-provider-quiz') {
     backToProviderQuiz();
@@ -585,6 +600,12 @@ export function _renderOnboardCrumbs(currentStep) {
 // session starts fresh).
 export function _renderProviderQuiz(branch, name) {
   const safeName = escapeHTML(name);
+  const extensionQuiz = renderAppExtensionOnboardingSlot('provider-quiz', {
+    actionAttrs: chatOnboardingActionAttrs,
+    branch,
+    name,
+  });
+  if (extensionQuiz) return extensionQuiz;
   if (branch === 'card') {
     return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
       <p><strong>Pay with a card &rarr; OpenRouter</strong></p>

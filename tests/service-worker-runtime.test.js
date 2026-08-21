@@ -158,6 +158,21 @@ describe('service worker runtime cache behavior', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/commit', { cache: 'no-store' });
   });
 
+  it('prefers a composed-edition cache key over the public commit SHA', async () => {
+    const fetchImpl = vi.fn(async (request) => {
+      const href = typeof request === 'string' ? request : request.url;
+      if (href === '/api/commit') return jsonResponse({ sha: 'publiccore', cacheKey: 'core1234-hosted5678' });
+      return new Response(`network:${href}`, { status: 200 });
+    });
+    const { caches, listeners } = await loadServiceWorker({ fetchImpl });
+
+    const install = makeWaitEvent();
+    listeners.get('install')(install);
+    await install.done();
+
+    expect(caches.open).toHaveBeenCalledWith('labcharts-v9.9.9-core1234-hosted5678');
+  });
+
   it('resumes partial app-shell caches and retries transient entry failures', async () => {
     let mainAttempts = 0;
     const fetchImpl = vi.fn(async (request) => {

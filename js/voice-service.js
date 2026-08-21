@@ -9,6 +9,7 @@ import {
 } from './voice-ai-provider.js';
 import { resolveLocalSttLanguage } from './voice-model-catalog.js';
 import { getVoiceProviderKey, getVoiceSettings } from './voice-settings-storage.js';
+import { authorizeAppExtensionVoiceRequest } from './app-extension-runtime.js';
 
 export function getVoiceProviderId(kind, settings = getVoiceSettings()) {
   const configured = kind === 'tts' ? settings.outputProvider : settings.inputProvider;
@@ -114,6 +115,31 @@ function synthesisOptions(providerId, settings, text, signal) {
 }
 
 /**
+ * Authorize a hosted voice operation before microphone capture or playback
+ * setup begins. The request itself rechecks authorization immediately before
+ * any audio or text is sent.
+ *
+ * @param {'stt' | 'tts'} kind
+ * @param {string} providerId
+ * @param {ReturnType<typeof getVoiceSettings>} [settings]
+ */
+export async function ensureVoiceRequestPrivacy(kind, providerId, settings = getVoiceSettings()) {
+  const requestOptions = kind === 'tts'
+    ? synthesisOptions(providerId, settings, '', undefined)
+    : transcriptionOptions(providerId, settings, null, undefined);
+  const authorized = await authorizeAppExtensionVoiceRequest({
+    kind,
+    providerId,
+    modelId: requestOptions.modelId,
+    settings,
+  });
+  if (!authorized) {
+    throw new Error(`This hosted voice request is not authorized. No ${kind === 'stt' ? 'audio' : 'text'} was sent.`);
+  }
+  return true;
+}
+
+/**
  * @param {Blob | Float32Array} audio
  * @param {{ settings?: ReturnType<typeof getVoiceSettings>, signal?: AbortSignal }} [options]
  */
@@ -122,11 +148,11 @@ export async function transcribeVoice(audio, {
   signal,
 } = {}) {
   const providerId = getVoiceProviderId('stt', settings);
+  const requestOptions = transcriptionOptions(providerId, settings, audio, signal);
+  await ensureVoiceRequestPrivacy('stt', providerId, settings);
   const provider = await loadVoiceProvider(providerId);
   const definition = assertCapability(providerId, provider, 'stt');
-  const result = /** @type {any} */ (await provider.transcribe(
-    transcriptionOptions(providerId, settings, audio, signal),
-  ));
+  const result = /** @type {any} */ (await provider.transcribe(requestOptions));
   return { ...result, providerId, definition };
 }
 
@@ -143,8 +169,10 @@ export async function createVoiceSynthesizer({
   return {
     providerId,
     definition,
-    synthesize(text) {
-      return provider.synthesize(synthesisOptions(providerId, settings, text, signal));
+    async synthesize(text) {
+      const requestOptions = synthesisOptions(providerId, settings, text, signal);
+      await ensureVoiceRequestPrivacy('tts', providerId, settings);
+      return provider.synthesize(requestOptions);
     },
   };
 }
