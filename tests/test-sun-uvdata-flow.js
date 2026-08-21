@@ -23,6 +23,7 @@ const withTimeout = (fn, ms = 1500) => Promise.race([
 console.log('=== Sun UV-data Flow ===\n');
 
 await import('../js/state.js');
+const { HOSTED_PROXY_API_URL } = await import('../js/proxy-runtime.js');
 const mod = await import('../js/sun-uvdata.js');
 const {
   initMeteoConfigCache, getMeteoConfig, saveMeteoConfig,
@@ -286,7 +287,7 @@ const {
   globalThis.location = { hostname: 'app.getbased.health', origin: 'https://app.getbased.health' };
   let hostedCamsBody = null;
   window.fetch = async (u, init = {}) => {
-    if (String(u) !== '/api/proxy') throw new Error(`Unexpected hosted UV URL: ${u}`);
+    if (String(u) !== HOSTED_PROXY_API_URL) throw new Error(`Unexpected hosted UV URL: ${u}`);
     hostedCamsBody = JSON.parse(String(init.body || '{}'));
     return responseJson({
       ...omForecast,

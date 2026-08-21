@@ -13,6 +13,7 @@ import {
   veniceModelsCacheStale,
 } from './api-provider-storage.js';
 import { fetchVeniceModels } from './api-models.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   callOpenAICompatibleAPI,
   fetchWithApiRetry,
@@ -46,7 +47,7 @@ function fetchVeniceNrasAttestation(url, options = {}) {
       || typeof options.body !== 'string') {
     return Promise.reject(new Error('Blocked unexpected NVIDIA NRAS proxy request'));
   }
-  return fetch('/api/proxy', {
+  return fetch(getProxyApiUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

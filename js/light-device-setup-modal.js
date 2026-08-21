@@ -12,6 +12,7 @@ import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 
 /**
  * @param {ParentNode} root
@@ -474,7 +475,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
       const json = await res.json();
       html = json.html;
     } else {
-      const res = await fetch('/api/proxy', {
+      const res = await fetch(getProxyApiUrl(), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proxy_purpose: 'public-page', url, method: 'GET', headers: {} })
       });

@@ -11,6 +11,7 @@
 // Docs:      https://dev.fitbit.com/build/reference/web-api/
 
 import { isDebugMode } from './utils.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
@@ -19,7 +20,7 @@ import {
 
 const AUTHORIZE_URL = 'https://www.fitbit.com/oauth2/authorize';
 const TOKEN_URL     = 'https://api.fitbit.com/oauth2/token';
-const PROXY_URL     = '/api/proxy';
+const PROXY_URL     = getProxyApiUrl();
 const STATE_KEY     = 'fitbit-oauth-pending';
 const REFRESH_LEAD_MS  = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'fitbit-oauth-refresh';

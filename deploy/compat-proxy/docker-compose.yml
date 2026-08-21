@@ -1,0 +1,38 @@
+services:
+  compatibility-proxy:
+    build:
+      context: ../..
+      dockerfile: deploy/compat-proxy/Dockerfile
+    image: getbased/compatibility-proxy:local
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - "127.0.0.1:8787:8787"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - COMPAT_PROXY_BIND=0.0.0.0
+      - COMPAT_PROXY_PORT=8787
+      - PROXY_RATE_LIMIT_MAX=300
+      - PROXY_RATE_LIMIT_WINDOW_MS=60000
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

@@ -6,6 +6,7 @@
 // the deployment's WHOOP_CLIENT_SECRET so it never reaches browser storage.
 
 import { isDebugMode } from './utils.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
@@ -13,7 +14,7 @@ import {
 } from './wearables-auth-runtime.js';
 
 const AUTHORIZE_URL = 'https://api.prod.whoop.com/oauth/oauth2/auth';
-const PROXY_URL     = '/api/proxy';
+const PROXY_URL     = getProxyApiUrl();
 const STATE_KEY     = 'whoop-oauth-pending';       // sessionStorage
 const REFRESH_LEAD_MS = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'whoop-oauth-refresh';

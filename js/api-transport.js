@@ -2,6 +2,7 @@
 // api-transport.js - Shared AI API fetch retry and stream timeout helpers
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 import { HOSTED_PLAINTEXT_RELAY_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
 
@@ -50,7 +51,7 @@ export function createProxyFetch(shouldUseProxy) {
       headers: fwdHeaders,
       body: options.body, // already JSON string
     };
-    return fetch('/api/proxy', {
+    return fetch(getProxyApiUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(proxyBody),

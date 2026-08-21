@@ -6,10 +6,11 @@
 // available and are not routed through Google Health.
 
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
 const GOOGLE_HEALTH_API = 'https://health.googleapis.com/v4/users/me';
-const PROXY_URL = '/api/proxy';
+const PROXY_URL = getProxyApiUrl();
 const SOURCE = 'google_health';
 const DEFAULT_SOURCE_FAMILY = 'all-sources';
 

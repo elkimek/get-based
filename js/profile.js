@@ -9,6 +9,7 @@ import { migrateProfileData } from './profile-data-migrations.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { clearProfileStorage } from './profile-storage-cleanup.js';
 import { createUniqueId } from './unique-id.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isOfficialGetbasedHost } from './url-safety.js';
 import {
   configureProfileListStoreDeps,
@@ -680,7 +681,7 @@ export async function detectLatitudeWithAI(country, zip) {
   if (!String(country || '').trim() || !String(zip || '').trim()) return;
   if (isOfficialGetbasedHost()) return;
   try {
-    const response = await profileDeps.fetchImpl('/api/proxy', {
+    const response = await profileDeps.fetchImpl(getProxyApiUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

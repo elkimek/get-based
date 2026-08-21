@@ -20,10 +20,11 @@
 //      call on subsequent connects); POST to /v3/users again returns 409.
 
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
 const POLAR_API   = 'https://www.polaraccesslink.com';
-const PROXY_URL   = '/api/proxy';
+const PROXY_URL   = getProxyApiUrl();
 
 async function polarGET(url, accessToken) {
   const res = await fetch(PROXY_URL, {

@@ -27,9 +27,10 @@ getbased is a static browser application. Local development loads
 `js/main.js` and its native ES-module graph directly. Hosted deployments run
 the Rolldown production build, which collapses the static startup graph into a
 hashed entry bundle and preserves lazy feature chunks. Official Vercel
-functions are limited to encrypted operations, public deployment metadata, and
-an explicit allowlist of compatibility operations. AI and voice provider
-payloads use browser-direct routes.
+functions are limited to encrypted operations and public deployment metadata.
+An independently deployed Node compatibility relay owns the explicit
+plaintext-operation allowlist. AI and voice provider payloads use
+browser-direct routes.
 
 ```mermaid
 flowchart TD
@@ -41,11 +42,12 @@ flowchart TD
   Features --> Foundation[state, profile, data, crypto, storage]
   Foundation --> BrowserStorage[localStorage, IndexedDB, OPFS]
   Features --> Direct[chosen browser-direct AI and voice providers]
-  Features --> Hosted[scoped /api operations]
-  Hosted --> Ciphertext[encrypted share and relay storage]
-  Hosted --> Wearables[fixed hosted wearable APIs]
-  Hosted --> Attestation[fixed NVIDIA attestation]
-  Hosted --> Cams[rounded CAMS local-grid lookup]
+  Features --> Vercel[encrypted/static-host API operations]
+  Vercel --> Ciphertext[encrypted share storage]
+  Features --> Compatibility[separate compatibility relay]
+  Compatibility --> Wearables[fixed hosted wearable APIs]
+  Compatibility --> Attestation[fixed NVIDIA attestation]
+  Compatibility --> Cams[rounded CAMS local-grid lookup]
   Features --> SelfHost[user-owned compatibility services]
   SelfHost --> Upstreams[self-hoster-selected upstreams]
 ```
@@ -57,10 +59,11 @@ forwarding. Its compatibility allowlist contains only the Oura, Withings,
 Polar, and legacy Fitbit requests used by the app, the exact NVIDIA NRAS GPU
 attestation endpoint, a privacy-rounded CAMS lookup pinned to the Company-run
 service, credential-free public-page reads explicitly marked by
-the client, and dedicated configuration/environment helpers. The Vercel
-function can read allowed plaintext credentials and provider responses while
-relaying them, but the application does not intentionally log or persist those
-payloads. Encrypted share/sync envelopes remain opaque to the operator. WHOOP,
+the client, and dedicated configuration/environment helpers. The separate
+compatibility relay can read allowed plaintext credentials and provider
+responses while relaying them, but does not intentionally log or persist those
+payloads. The static Vercel host does not receive these requests. Encrypted
+share/sync envelopes remain opaque to the operator. WHOOP,
 Ultrahuman, and Google Health are self-host-only and use the deployment owner's
 OAuth application. Confidential token exchange and refresh use its same-origin
 proxy; WHOOP and Google Health resource requests also transit it, while
@@ -68,7 +71,7 @@ Ultrahuman resource data is fetched browser-direct. No client path falls back
 to getbased infrastructure.
 
 The hosted CAMS operation is the only plaintext location route. The browser
-rounds to 0.1° and the hosted function repeats that rounding before an
+rounds to 0.1° and the compatibility relay repeats that rounding before an
 authenticated POST to the fixed `/v1/uv` service. That service performs an
 in-memory lookup against its scheduled configured CAMS grid without per-request
 Open-Meteo enrichment or coordinate caching. If it fails or returns sparse
@@ -85,8 +88,9 @@ The architecture checker currently enforces these coarse runtime boundaries:
 | Source group | Owns | May import |
 | --- | --- | --- |
 | `js/` browser | Native browser application | `js/` browser modules |
-| `api/` serverless | Hosted request entry points | `api/` and `lib/` |
+| `api/` hosted API | Hosted request handlers shared by deployment entry points | `api/` and `lib/` |
 | `lib/` server-shared | Node-only policy and transport | `lib/` |
+| `server/` compatibility server | Standalone Node compatibility-relay entry point | `api/` |
 | `dev-server.js` local-server | Local development entry point | `lib/` |
 | `service-worker*.js` | Offline manifest and cache-routing runtime | service-worker scripts |
 

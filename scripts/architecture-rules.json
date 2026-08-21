@@ -9,9 +9,15 @@
     },
     {
       "name": "serverless",
-      "description": "Vercel request handlers and hosted API entry points.",
+      "description": "Hosted request handlers shared by Vercel and Node deployment entry points.",
       "roots": ["api"],
       "mayImport": ["serverless", "server-shared"]
+    },
+    {
+      "name": "compat-server",
+      "description": "Standalone Node compatibility-relay entry point.",
+      "roots": ["server"],
+      "mayImport": ["serverless"]
     },
     {
       "name": "server-shared",
@@ -63,6 +69,7 @@
     "api/commit.js",
     "api/proxy.js",
     "api/share.js",
+    "server/compat-proxy-server.js",
     "dev-server.js",
     "service-worker.js"
   ],
