@@ -54,7 +54,7 @@
   "dependencies": {
     "@vercel/blob": "2.4.0",
     "ehbp": "0.3.2",
-    "tinfoil": "^1.1.12",
+    "tinfoil": "^1.2.1",
     "undici": "8.10.0"
   },
   "overrides": {

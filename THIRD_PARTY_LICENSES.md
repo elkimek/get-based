@@ -16,7 +16,7 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 | `chartjs-adapter-native.js` | Custom (in-house Chart.js date adapter) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `venice-e2ee.js`, `venice-nvidia.js` | [venice-e2ee](https://github.com/elkimek/venice-e2ee) (the main bundle includes `@noble/secp256k1` and `@noble/hashes`) | 0.5.3 | GPL-3.0-only; bundled noble libraries MIT | https://github.com/elkimek/venice-e2ee/blob/v0.5.3/LICENSE |
 | `ppq-private-tee.js` | Custom (in-house PPQ adapter for Tinfoil's SecureClient) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
-| `tinfoil-browser.js` | [Tinfoil JS](https://github.com/tinfoilsh/tinfoil-js) browser SecureClient bundle for PPQ and Routstr Private TEE modes | 1.1.12 | AGPL-3.0-or-later | https://github.com/tinfoilsh/tinfoil-js/blob/main/LICENSE |
+| `tinfoil-browser.js` | [Tinfoil JS](https://github.com/tinfoilsh/tinfoil-js) browser SecureClient bundle for PPQ and Routstr Private TEE modes | 1.2.1 | Apache-2.0 | https://github.com/tinfoilsh/tinfoil-js/blob/v1.2.1/LICENSE |
 | `ehbp-browser.js` | [EHBP](https://github.com/tinfoilsh/encrypted-http-body-protocol) encrypted HTTP transport used by Tinfoil | 0.3.2 | MIT | https://github.com/tinfoilsh/encrypted-http-body-protocol/blob/main/LICENSE |
 | `evolu/evolu-bundle.js`, `evolu/Db.worker.js` | [Evolu](https://github.com/evoluhq/evolu) (`@evolu/common`) | 7.4.1 | MIT | https://github.com/evoluhq/evolu/blob/main/LICENSE |
 | `evolu/sqlite3.wasm`, `evolu/sqlite3-*` | [SQLite](https://www.sqlite.org/copyright.html) | 3.50.4 | Public Domain | https://www.sqlite.org/copyright.html |
