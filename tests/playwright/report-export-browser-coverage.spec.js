@@ -481,6 +481,44 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         && factMap['Resting pulse'].includes('58 bpm')
         && factMap['Body fat'].includes('18.5%');
 
+      state.importedData.biometrics.weight = [];
+      state.importedData.wearableSummary.metrics.weight = {
+        latest: 180 / 2.2046226218,
+        latestDate: recentDate,
+        primarySource: 'manual',
+      };
+      const wearableWeightFacts = Object.fromEntries(report.buildReportHeaderFacts({
+        profile: headerProfile,
+        reportOptions: payload.reportOptions,
+        dateRange: 'Recent window',
+        sexLabel: payload.sexLabel,
+        unitLabel: 'US (conventional)',
+      }).map(fact => [fact.label, fact.value]));
+      const wearableWeightPayload = report.buildPreparedReportPayload({
+        preset: 'full',
+        dateRange: '3m',
+        sections: ['context'],
+      });
+      const wearableContext = wearableWeightPayload.contextSections
+        .find(section => section.title === 'Biometrics')?.text || '';
+      outcomes.wearableSummaryWeightUsesUSUnitsAndCanonicalBmi =
+        wearableWeightFacts.Weight.includes('180 lb')
+        && wearableWeightFacts.BMI.includes('30.0')
+        && wearableContext.includes('Latest weight: 180 lb');
+
+      state.unitSystem = 'EU';
+      const euWeightFacts = Object.fromEntries(report.buildReportHeaderFacts({
+        profile: headerProfile,
+        reportOptions: payload.reportOptions,
+        dateRange: 'Recent window',
+        sexLabel: payload.sexLabel,
+        unitLabel: 'SI',
+      }).map(fact => [fact.label, fact.value]));
+      outcomes.wearableSummaryWeightUsesEuUnitsWithoutChangingBmi =
+        euWeightFacts.Weight.includes('81.6 kg')
+        && euWeightFacts.BMI.includes('30.0');
+      state.unitSystem = 'US';
+
       const reportHtml = html.buildReportHTML(
         payload.profileName,
         payload.sexLabel,

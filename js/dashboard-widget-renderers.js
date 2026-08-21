@@ -17,6 +17,7 @@ import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotyp
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
 import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
+import { wearableDisplayUnit } from './wearables-formatters.js';
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 
@@ -256,7 +257,9 @@ export function createDashboardWidgetRenderers(deps) {
         id: metricId,
         label: metricId === 'bp_systolic' ? 'Blood pressure' : canon.label,
         value: '\u2014',
-        unit: metricId === 'bp_systolic' ? 'mmHg' : (canon.unit || canon.sub || ''),
+        unit: metricId === 'bp_systolic'
+          ? 'mmHg'
+          : (wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
         change: '+ Log',
         empty: true,
       };
@@ -265,7 +268,9 @@ export function createDashboardWidgetRenderers(deps) {
       id: metricId,
       label: metricId === 'bp_systolic' && summary?.metrics?.bp_diastolic ? 'Blood pressure' : canon.label,
       value: formatMobileWearableValue(metricId, metric, summary),
-      unit: metricId === 'bp_systolic' ? 'mmHg' : (canon.unit || canon.sub || ''),
+      unit: metricId === 'bp_systolic'
+        ? 'mmHg'
+        : (wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
       change: formatMobileWearableDelta(metricId, metric, canon) || 'latest',
       empty: false,
     };

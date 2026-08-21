@@ -15,7 +15,11 @@ import { getDailyRange } from './wearables-store.js';
 import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs, formatChartTickValue, isChartDateAdapterReady } from './charts.js';
-import { formatValue, shortDate } from './wearables-formatters.js';
+import {
+  formatWearableMetricValue,
+  shortDate,
+  wearableDisplayUnit,
+} from './wearables-formatters.js';
 import { renderBloodPressureChart } from './wearables-bp-detail-chart.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
@@ -259,16 +263,21 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
   }
 
   const canon = canonicalMetric(metricId);
-  const unit = canon?.unit || '';
+  const canonicalUnit = canon?.unit || '';
+  const unit = wearableDisplayUnit(metricId, canonicalUnit, state.unitSystem);
   const metricLabel = canon?.label || metricId;
   const isBloodPressure = metricId === 'bp_systolic';
   const formatEntryValue = (e) => {
     if (isBloodPressure) {
-      const sys = isMetricValueMeaningful('bp_systolic', e.v) ? formatValue(e.v, unit) : '—';
-      const dia = isMetricValueMeaningful('bp_diastolic', e.pairedV) ? formatValue(e.pairedV, unit) : '—';
+      const sys = isMetricValueMeaningful('bp_systolic', e.v)
+        ? formatWearableMetricValue(metricId, e.v, canonicalUnit, state.unitSystem)
+        : '—';
+      const dia = isMetricValueMeaningful('bp_diastolic', e.pairedV)
+        ? formatWearableMetricValue(metricId, e.pairedV, canonicalUnit, state.unitSystem)
+        : '—';
       return `${sys}/${dia}`;
     }
-    return formatValue(e.v, unit);
+    return formatWearableMetricValue(metricId, e.v, canonicalUnit, state.unitSystem);
   };
   const formatSpokenDate = (iso) => {
     try {
@@ -308,10 +317,11 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
 function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [], opts = {}) {
   const adapter = adapterById(m.primarySource);
   const sourceName = adapter?.displayName || m.primarySource;
-  const unit = canon.unit || '';
+  const canonicalUnit = canon.unit || '';
+  const unit = wearableDisplayUnit(metricId, canonicalUnit, state.unitSystem);
   const unitSpaced = unit ? ' ' + escapeHTML(unit) : '';
   const subLabel = canon.sub ? ` <span style="opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal">${escapeHTML(canon.sub)}</span>` : '';
-  const formatV = v => formatValue(v, unit);
+  const formatV = v => formatWearableMetricValue(metricId, v, canonicalUnit, state.unitSystem);
 
   const trendWord = m.trend30d === 'declining' ? 'declining'
                    : m.trend30d === 'rising' ? 'rising'
@@ -545,8 +555,9 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
   const ymax = Math.max(...yValues);
   const pad = Math.max((ymax - ymin) * 0.08, 0.5);
 
-  const unit = canon.unit || '';
-  const formatV = v => formatValue(v, unit);
+  const canonicalUnit = canon.unit || '';
+  const unit = wearableDisplayUnit(canon.id, canonicalUnit, state.unitSystem);
+  const formatV = v => formatWearableMetricValue(canon.id, v, canonicalUnit, state.unitSystem);
   const titleForPoint = (items) => {
     const rawX = items?.[0]?.raw?.x;
     if (typeof rawX === 'string') return shortDate(rawX);
@@ -634,7 +645,13 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
         },
         y: {
           min: ymin - pad, max: ymax + pad,
-          ticks: { color: tc.tickColor, font: { size: 10 }, callback: formatChartTickValue },
+          ticks: {
+            color: tc.tickColor,
+            font: { size: 10 },
+            callback: canon.id === 'weight'
+              ? value => formatV(Number(value))
+              : formatChartTickValue,
+          },
           grid: { color: tc.gridColor },
         },
       },

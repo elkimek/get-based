@@ -6,6 +6,7 @@ import { state } from './state.js';
 import { canonicalMetric, isoDay } from './wearable-adapters.js';
 import { getActiveProfileId } from './profile.js';
 import { escapeAttr, showNotification } from './utils.js';
+import { weightToKilograms } from './wearables-formatters.js';
 import {
   deleteManualMetric,
   logManualBP,
@@ -117,8 +118,11 @@ export async function saveManualEntryFromDetail(metricId, kind) {
     if (kind === 'weight') {
       const value = parseFloat(inputValueById('wlad-val'));
       if (!value || value <= 0) return showNotification('Enter a weight', 'error');
-      if (value > 500) return showNotification('Weight over 500 kg seems unlikely', 'error');
-      await logManualMetric(profileId, 'weight', { date, value, tags, note });
+      const unit = state.unitSystem === 'US' ? 'lb' : 'kg';
+      if (weightToKilograms(value, unit) > 500) {
+        return showNotification(`Weight over ${unit === 'lb' ? '1,100 lb' : '500 kg'} seems unlikely`, 'error');
+      }
+      await logManualMetric(profileId, 'weight', { date, value, unit, tags, note });
     } else if (kind === 'rhr') {
       const value = parseInt(inputValueById('wlad-val'), 10);
       if (!value || value <= 0) return showNotification('Enter a pulse', 'error');

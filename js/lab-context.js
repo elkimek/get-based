@@ -42,6 +42,7 @@ import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildLabCollectionContextSection } from './lab-context-collection.js';
 import { labContextDeps } from './lab-context-runtime.js';
+import { weightToKilograms } from './wearables-formatters.js';
 export { configureLabContext } from './lab-context-runtime.js';
 
 /**
@@ -408,11 +409,14 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (bio?.weight?.length) {
       const sorted = [...bio.weight].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       const latest = sorted[0];
-      const latestKg = latest.unit === 'lbs' ? latest.value / 2.205 : latest.value;
+      const latestKg = weightToKilograms(latest.value, latest.unit || 'kg');
       ctx += `Weight (latest ${latest.date}): ${latest.value} ${latest.unit}`;
       if (sorted.length > 1) {
         const recent = sorted.slice(0, 6);
-        const avgKg = recent.reduce((s, e) => s + (e.unit === 'lbs' ? e.value / 2.205 : e.value), 0) / recent.length;
+        const avgKg = recent.reduce(
+          (sum, entry) => sum + weightToKilograms(entry.value, entry.unit || 'kg'),
+          0,
+        ) / recent.length;
         ctx += ` (avg last ${recent.length}: ${avgKg.toFixed(1)} kg)`;
       }
       ctx += '\n';

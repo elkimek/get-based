@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.17.1', date: '2026-08-21', title: 'Weight units stay accurate',
+    items: [
+      '<b>US weight entries now stay in pounds everywhere.</b> Manual entries, dashboards, charts, reports, and BMI calculations consistently convert between pounds and kilograms.',
+    ]
+  },
+  {
     version: '1.17.0', date: '2026-08-19', title: 'More control over cloud connections',
     items: [
       '<b>You approve each cloud AI provider before first use.</b> getbased names the provider and asks once on this browser before sending sensitive data. If you decline, that request and its sensitive data stay on your device; you can review or withdraw approvals in Settings → Privacy.',

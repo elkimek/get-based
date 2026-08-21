@@ -24,6 +24,7 @@ import {
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { isoDay } from './wearable-adapters.js';
+import { weightToKilograms } from './wearables-formatters.js';
 import { syncWearableSummary } from './wearables-summary.js';
 
 // Merge helper — read the existing manual row for `date` (if any), shallow-merge
@@ -256,12 +257,12 @@ export async function ensureManualConnection({ coverageDays = 0 } = {}) {
  * Log a single manual measurement.
  *   metric: one of MANUAL_METRICS
  *   date:   'YYYY-MM-DD' — defaults to today
- *   value:  number (unit is always SI — kg, mmHg, bpm)
+ *   value:  number (kg by default; weight accepts an explicit input unit)
  *
  * Rows are upserted on the [source, date] compound key. Logging weight
  * twice on the same day overwrites — same behaviour as a wearable sync.
  */
-export async function logManualMetric(profileId, metric, { date, value, tags, note }) {
+export async function logManualMetric(profileId, metric, { date, value, unit = 'kg', tags, note }) {
   if (!MANUAL_METRICS.includes(metric)) {
     throw new Error(`logManualMetric: unknown metric "${metric}"`);
   }
@@ -270,7 +271,8 @@ export async function logManualMetric(profileId, metric, { date, value, tags, no
   }
   const d = date || isoDay();
   _clearManualMetricTombstone(metric, d);
-  const patch = { [metric]: value };
+  const canonicalValue = metric === 'weight' ? weightToKilograms(value, unit) : value;
+  const patch = { [metric]: canonicalValue };
   if (Array.isArray(tags) && tags.length) patch.tags = _sanitizeTags(tags);
   const noteClean = _sanitizeNote(note);
   if (noteClean) patch.note = noteClean;

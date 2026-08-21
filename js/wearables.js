@@ -20,7 +20,11 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { state } from './state.js';
 import { ADAPTERS, adapterById, canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { isWearableStripHidden } from './wearables-settings-panel.js';
-import { formatValue, shortDate } from './wearables-formatters.js';
+import {
+  formatWearableMetricValue,
+  shortDate,
+  wearableDisplayUnit,
+} from './wearables-formatters.js';
 import { toggleManualLogChip } from './wearables-manual-form-ui.js';
 import {
   _uninstallWearableModalFocusTrap,
@@ -397,10 +401,17 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
   const subLabel = cardSub ? ` <span class="wearable-metric-sub">${escapeHTML(cardSub)}</span>` : '';
   // Units starting with "/" (e.g. "/5" for resilience level) read tighter
   // without a separator between value and unit — render "1/5", not "1 /5".
-  const unitTight = canon.unit?.startsWith('/');
-  const unitLabel = canon.unit ? `<span class="wearable-unit${unitTight ? ' wearable-unit-tight' : ''}">${escapeHTML(canon.unit)}</span>` : '';
-  const baselineUnit = canon.unit
-    ? (unitTight ? escapeHTML(canon.unit) : ' ' + escapeHTML(canon.unit))
+  const displayUnit = wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem);
+  const formatDisplayValue = value => formatWearableMetricValue(
+    metricId,
+    value,
+    canon.unit || '',
+    state.unitSystem,
+  );
+  const unitTight = displayUnit.startsWith('/');
+  const unitLabel = displayUnit ? `<span class="wearable-unit${unitTight ? ' wearable-unit-tight' : ''}">${escapeHTML(displayUnit)}</span>` : '';
+  const baselineUnit = displayUnit
+    ? (unitTight ? escapeHTML(displayUnit) : ' ' + escapeHTML(displayUnit))
     : '';
   const trendCls = trendClassFor(metric.trend30d, canon.worseWhen);
   // Per-metric staleness: when this metric's latest sample is older than
@@ -422,12 +433,15 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
     ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Click to switch source for this metric">via ${escapeHTML(adapter.displayName)}</button>` : '';
   // Build a meaningful aria-label: value + unit + trend direction + metric
   // name so screen readers can read the card at a glance without entering it.
-  const sysRead = formatValue(metric.latest, canon.unit);
-  const diaRead = isBPCard ? formatValue(pairedMetric.latest, canon.unit) : null;
+  const sysRead = formatDisplayValue(metric.latest);
+  const diaRead = isBPCard ? formatDisplayValue(pairedMetric.latest) : null;
   const valueRead = isBPCard ? `${sysRead}/${diaRead || '—'}` : sysRead;
+  const formatBaselineValue = value => metricId === 'weight'
+    ? formatDisplayValue(value)
+    : String(value ?? '—');
   const baselineRead = isBPCard
-    ? `${metric.baseline ?? '—'}/${pairedMetric.baseline ?? '—'}`
-    : String(metric.baseline);
+    ? `${formatBaselineValue(metric.baseline)}/${formatBaselineValue(pairedMetric.baseline)}`
+    : formatBaselineValue(metric.baseline);
   const trendRead = trendLabel(metric.trend30d);
   // Glyph subs (🌙/☀️) don't speak well; map to words for screen readers.
   // English word subs (e.g. "SDNN") read fine as-is. Some metrics override
@@ -443,7 +457,7 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
   const deltaRead = deltaText
     ? `${deltaText.replace('↑', 'up').replace('↓', 'down').replace('→', 'flat at')} vs baseline, `
     : '';
-  const ariaLabel = `${canonRead} ${valueRead}${canon.unit ? ' ' + canon.unit : ''}, ${deltaRead}${trendRead} — open detail`;
+  const ariaLabel = `${canonRead} ${valueRead}${displayUnit ? ' ' + displayUnit : ''}, ${deltaRead}${trendRead} — open detail`;
   const actionAttrs = interactive
     ? ` ${wearableActionAttrs('open-detail', { metric: metricId })} role="button" tabindex="0"`
     : '';

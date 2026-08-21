@@ -9,6 +9,11 @@ import { getProfiles, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { trackUsage } from './schema.js';
+import {
+  wearableDisplayValue,
+  weightToKilograms,
+  weightUnitForSystem,
+} from './wearables-formatters.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -247,22 +252,38 @@ function getLatestReportWeight() {
   if (Array.isArray(biometrics?.weight)) {
     for (const entry of biometrics.weight) {
       if (Number.isFinite(Number(entry.value))) {
-        candidates.push({ value: Number(entry.value), unit: entry.unit || 'kg', date: entry.date || '', source: entry.source || 'manual' });
+        candidates.push({
+          valueKg: weightToKilograms(Number(entry.value), entry.unit || 'kg'),
+          date: entry.date || '',
+          source: entry.source || 'manual',
+        });
       }
     }
   }
   const wearableWeight = state.importedData?.wearableSummary?.metrics?.weight;
   if (Number.isFinite(wearableWeight?.latest)) {
-    candidates.push({ value: wearableWeight.latest, unit: 'kg', date: wearableWeight.latestDate || '', source: wearableWeight.primarySource || 'wearable' });
+    candidates.push({
+      valueKg: wearableWeight.latest,
+      date: wearableWeight.latestDate || '',
+      source: wearableWeight.primarySource || 'wearable',
+    });
   }
-  return getLatestReportCandidate(candidates);
+  const latest = getLatestReportCandidate(candidates.map(candidate => ({
+    ...candidate,
+    value: candidate.valueKg,
+  })));
+  if (!latest) return null;
+  return {
+    ...latest,
+    value: wearableDisplayValue('weight', latest.valueKg, state.unitSystem),
+    unit: weightUnitForSystem(state.unitSystem),
+  };
 }
 
 function getWeightKg(weight) {
   if (!weight) return null;
-  const unit = String(weight.unit || 'kg').toLowerCase();
-  if (unit === 'lb' || unit === 'lbs' || unit === 'pound' || unit === 'pounds') return weight.value / 2.2046226218;
-  return weight.value;
+  if (Number.isFinite(weight.valueKg)) return weight.valueKg;
+  return weightToKilograms(weight.value, weight.unit || 'kg');
 }
 
 function getLatestReportBloodPressure() {
@@ -532,11 +553,9 @@ function buildReportContextSections(data) {
   if (pBio || pHeight?.height || wm) {
     let bioText = '';
     if (pHeight?.height) bioText += `Height: ${formatReportHeightLabel({ height: pHeight.height, unit: pHeight.unit || 'cm' })}\n`;
-    if (pBio?.weight?.length) {
-      const latest = [...pBio.weight].sort((a, b) => b.date.localeCompare(a.date))[0];
-      bioText += `Latest weight: ${latest.value} ${latest.unit} (${latest.date})\n`;
-    } else if (typeof wm?.weight?.latest === 'number') {
-      bioText += `Latest weight: ${wm.weight.latest} kg (${wm.weight.latestDate || '-'})\n`;
+    const latestWeight = getLatestReportWeight();
+    if (latestWeight) {
+      bioText += `Latest weight: ${formatValue(latestWeight.value)} ${latestWeight.unit} (${latestWeight.date || '-'})\n`;
     }
     if (pBio?.bp?.length) {
       const latest = [...pBio.bp].sort((a, b) => b.date.localeCompare(a.date))[0];

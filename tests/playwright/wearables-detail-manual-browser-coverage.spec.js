@@ -23,6 +23,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
     const originalActiveProfile = localStorage.getItem('labcharts-active-profile');
     const originalCurrentProfile = state.currentProfile;
     const originalImported = state.importedData;
+    const originalUnitSystem = state.unitSystem;
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
     const originalRange = localStorage.getItem('wearable-detail-range');
@@ -69,6 +70,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       localStorage.setItem('labcharts-active-profile', profileId);
       localStorage.setItem('wearable-detail-range', 'all');
       state.currentProfile = profileId;
+      state.unitSystem = 'US';
       state.importedData = {
         entries: [],
         wearableConnections: {},
@@ -116,20 +118,23 @@ test('wearables detail modal covers manual migration delegated add save and canc
         form?.dataset.wearableForm === 'detail-manual-add'
         && form?.dataset.wearableMetric === 'weight'
         && form?.dataset.wearableKind === 'weight'
-        && !!form.querySelector('#wlad-val')
+        && form.querySelector('#wlad-val')?.getAttribute('placeholder') === 'lb'
         && !!form.querySelector('#wlad-note'));
-      form.querySelector('#wlad-val').value = '501';
+      form.querySelector('#wlad-val').value = '1103';
       form.querySelector('#wlad-date').value = '2026-06-02';
       form.querySelector('.wearable-log-save')?.click();
       await delay(40);
       const overweightRow = await store.getDaily(profileId, 'manual', '2026-06-02');
       check('weight validation blocks unlikely values', !overweightRow?.weight);
       form = await openAddForm('weight');
-      form.querySelector('#wlad-val').value = '82.4';
+      form.querySelector('#wlad-val').value = '181.7';
       form.querySelector('#wlad-date').value = '2026-06-02';
       form.querySelector('#wlad-note').value = 'evening detail add';
       form.querySelector('.wearable-log-save')?.click();
-      const weightSaved = await waitFor(async () => (await store.getDaily(profileId, 'manual', '2026-06-02'))?.weight === 82.4);
+      const weightSaved = await waitFor(async () => {
+        const savedWeight = (await store.getDaily(profileId, 'manual', '2026-06-02'))?.weight;
+        return Math.abs((savedWeight || 0) - 82.417) < 0.01;
+      });
       const weightDetailIdle = await waitForDetailIdle('weight');
       const weightRow = await store.getDaily(profileId, 'manual', '2026-06-02');
       check('weight detail submit saves row note and navigates',
@@ -137,6 +142,10 @@ test('wearables detail modal covers manual migration delegated add save and canc
         && weightDetailIdle
         && weightRow?.note === 'evening detail add'
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
+      const weightDetailText = document.getElementById('detail-modal')?.textContent || '';
+      check('US weight detail displays pounds after canonical storage',
+        weightDetailText.includes('181.7 lb')
+        && !weightDetailText.includes('181.7 kg'));
       check('weight detail submit settles rerender before next metric',
         weightDetailIdle);
 
@@ -225,6 +234,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       if (originalRange) localStorage.setItem('wearable-detail-range', originalRange);
       else localStorage.removeItem('wearable-detail-range');
       state.currentProfile = originalCurrentProfile;
+      state.unitSystem = originalUnitSystem;
       state.importedData = originalImported;
       wearableDetailRuntime.configureWearableDetailRuntimeDeps(previousWearableDetailRuntime);
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
