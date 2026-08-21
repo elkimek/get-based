@@ -10,9 +10,9 @@ import { getBloodDrawPhases } from './cycle.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { trackUsage } from './schema.js';
 import {
+  wearableDisplayUnit,
   wearableDisplayValue,
   weightToKilograms,
-  weightUnitForSystem,
 } from './wearables-formatters.js';
 
 // ═══════════════════════════════════════════════
@@ -276,7 +276,7 @@ function getLatestReportWeight() {
   return {
     ...latest,
     value: wearableDisplayValue('weight', latest.valueKg, state.unitSystem),
-    unit: weightUnitForSystem(state.unitSystem),
+    unit: wearableDisplayUnit('weight', 'kg', state.unitSystem),
   };
 }
 

@@ -5,7 +5,7 @@ export const POUNDS_PER_KILOGRAM = 2.2046226218;
 
 /** @param {unknown} unit */
 function isPoundUnit(unit) {
-  return ['lb', 'lbs', 'pound', 'pounds'].includes(String(unit || '').trim().toLowerCase());
+  return /^lbs?$/i.test(String(unit || '').trim());
 }
 
 /**
@@ -19,27 +19,13 @@ export function weightToKilograms(value, unit = 'kg') {
 }
 
 /**
- * Convert a canonical kilogram value for the selected display system.
- * @param {number} valueKg
- * @param {string} [unitSystem]
- */
-export function weightFromKilograms(valueKg, unitSystem = 'EU') {
-  return unitSystem === 'US' ? valueKg * POUNDS_PER_KILOGRAM : valueKg;
-}
-
-/** @param {string} [unitSystem] */
-export function weightUnitForSystem(unitSystem = 'EU') {
-  return unitSystem === 'US' ? 'lb' : 'kg';
-}
-
-/**
  * Resolve a canonical wearable metric's user-facing unit.
  * @param {string} metricId
  * @param {string} canonicalUnit
  * @param {string} [unitSystem]
  */
 export function wearableDisplayUnit(metricId, canonicalUnit, unitSystem = 'EU') {
-  return metricId === 'weight' ? weightUnitForSystem(unitSystem) : canonicalUnit;
+  return metricId === 'weight' ? (unitSystem === 'US' ? 'lb' : 'kg') : canonicalUnit;
 }
 
 /**
@@ -49,7 +35,7 @@ export function wearableDisplayUnit(metricId, canonicalUnit, unitSystem = 'EU') 
  * @param {string} [unitSystem]
  */
 export function wearableDisplayValue(metricId, value, unitSystem = 'EU') {
-  return metricId === 'weight' ? weightFromKilograms(value, unitSystem) : value;
+  return metricId === 'weight' && unitSystem === 'US' ? value * POUNDS_PER_KILOGRAM : value;
 }
 
 // Single formatter used by the strip cards and detail modals so a number

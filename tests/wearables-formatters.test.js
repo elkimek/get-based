@@ -4,9 +4,7 @@ import {
   formatWearableMetricValue,
   wearableDisplayUnit,
   wearableDisplayValue,
-  weightFromKilograms,
   weightToKilograms,
-  weightUnitForSystem,
 } from '../js/wearables-formatters.js';
 
 describe('wearable weight units', () => {
@@ -19,8 +17,6 @@ describe('wearable weight units', () => {
   it('converts only weight for US display', () => {
     const kg = weightToKilograms(180, 'lb');
 
-    expect(weightFromKilograms(kg, 'US')).toBeCloseTo(180, 8);
-    expect(weightUnitForSystem('US')).toBe('lb');
     expect(wearableDisplayValue('weight', kg, 'US')).toBeCloseTo(180, 8);
     expect(wearableDisplayUnit('weight', 'kg', 'US')).toBe('lb');
     expect(wearableDisplayValue('rhr', 62, 'US')).toBe(62);
