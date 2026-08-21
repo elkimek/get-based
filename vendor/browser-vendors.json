@@ -9,7 +9,7 @@
       "output": "vendor/cashu-ts.js",
       "format": "iife",
       "minified": true,
-      "sha256": "cb04ee53cde3743f17506aea1ae4b2875daeee65deccf9ce8270fc682d1735f1"
+      "sha256": "7ebefdf78c1121da1133f701d7958ca12cf9bd1d6c45420fbe83c7826e6966e0"
     },
     {
       "package": "tinfoil",
@@ -19,7 +19,7 @@
       "output": "vendor/tinfoil-browser.js",
       "format": "es",
       "minified": true,
-      "sha256": "1dac04528df40a87e01caa1d59501e9a3e10eb3322ae59f2b5cbea3b3b33460b"
+      "sha256": "eedea2235ab1bd5d5e31267c17859ec0cc814597d8b78b6668109d0f746a3c6a"
     },
     {
       "package": "ehbp",
@@ -39,7 +39,7 @@
       "output": "vendor/venice-dcap.js",
       "format": "es",
       "minified": true,
-      "sha256": "6fc3091ea805be2b0528020b5badde14e6feabdec7a64f0bcb837812ad6ee7da"
+      "sha256": "d7142051c252f063c57b4eb4903761a611137fb2e65032a22374b931800024b2"
     },
     {
       "package": "venice-e2ee",
@@ -64,7 +64,7 @@
   ],
   "bundler": {
     "package": "rolldown",
-    "version": "1.2.2",
-    "integrity": "sha512-opwpo1tQBAcpSUJDt94B7hhLNGOKjCdE//XXjeLrnx9b83bjnw45tXdg1b09yEw/VLFBJGZpwRULMmOZo7ol+A=="
+    "version": "1.2.4",
+    "integrity": "sha512-rSr7irW0K7QRWzjdJXqZowkcRdDtjRduh43rBltnVKd0VFq839l1lJoDvGJb6gl7+4rTTCrPWu+YfujUL8Ug7w=="
   }
 }
