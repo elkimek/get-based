@@ -2054,7 +2054,8 @@ assert('restoreWearableIDB iterates per-source and upsertDailyBatchRaw (preserve
 // P0-C: PDF report falls back to wearableSummary.metrics for biometrics.
 const reportSrc2 = await fetch('/js/export-report.js').then(r => r.text());
 assert('PDF report Biometrics section reads wearableSummary.metrics.weight.latest as fallback',
-  /wm\?\.weight\?\.latest/.test(reportSrc2));
+  /const wearableWeight = state\.importedData\?\.wearableSummary\?\.metrics\?\.weight/.test(reportSrc2)
+  && /valueKg: wearableWeight\.latest/.test(reportSrc2));
 assert('PDF report Biometrics section reads wearableSummary.metrics.bp_systolic + bp_diastolic',
   /wm\?\.bp_systolic\?\.latest/.test(reportSrc2) && /wm\?\.bp_diastolic\?\.latest/.test(reportSrc2));
 assert('PDF report Biometrics section reads wearableSummary.metrics.rhr.latest as pulse fallback',
