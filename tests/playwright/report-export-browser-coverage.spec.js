@@ -437,7 +437,9 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         tags: ['coverage', 'reports'],
         notes: 'Profile notes for report context',
         location: { city: 'Prague', country: 'CZ', zip: '11000' },
-        height: 65,
+        // Profile heights are stored canonically in centimeters even when
+        // inches are the selected display unit.
+        height: 65 * 2.54,
         heightUnit: 'in',
       }]);
 
@@ -462,6 +464,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         && contextByTitle['Diet & Digestion']?.includes('avoid <wheat>') === true
         && contextByTitle['Health Goals']?.includes('[high] Improve glucose variability') === true
         && contextByTitle['Menstrual Cycle']?.includes('very irregular') === true
+        && contextByTitle.Biometrics?.includes('Height: 5 ft 5 in') === true
         && contextByTitle.Biometrics?.includes('Latest weight: 180 lb') === true;
 
       const headerProfile = report.getReportHeaderProfile('Fallback Profile');
@@ -476,7 +479,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       outcomes.headerFactsIncludeProfileAndBiometricDetails = factMap.Location === 'Prague, CZ, 11000'
         && factMap.Height === '5 ft 5 in'
         && factMap.Weight.includes('180 lb')
-        && factMap.BMI
+        && factMap.BMI.includes('30.0')
         && factMap['Blood pressure'].includes('116/74')
         && factMap['Resting pulse'].includes('58 bpm')
         && factMap['Body fat'].includes('18.5%');
