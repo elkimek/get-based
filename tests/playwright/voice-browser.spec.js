@@ -200,7 +200,7 @@ test('denied hosted dictation never requests microphone access', async ({ page }
 test('an edition can buffer managed OpenRouter speech before browser playback', async ({ page }) => {
   await installVoiceBrowserFakes(page);
   let requestPayload;
-  await page.route('**/api/voice?action=tts', async route => {
+  await page.route('https://openrouter.ai/api/v1/audio/speech', async route => {
     requestPayload = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
@@ -211,10 +211,11 @@ test('an edition can buffer managed OpenRouter speech before browser playback', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {
-    const [{ state }, { configureAppExtension }, { updateKeyCache }, controller] = await Promise.all([
+    const [{ state }, { configureAppExtension }, { updateKeyCache }, cloudConsent, controller] = await Promise.all([
       import('/js/state.js'),
       import('/js/app-extension-runtime.js'),
       import('/js/crypto-key-cache.js'),
+      import('/js/cloud-ai-consent.js'),
       import('/js/voice-controller.js'),
     ]);
     configureAppExtension({
@@ -226,6 +227,10 @@ test('an edition can buffer managed OpenRouter speech before browser playback', 
       },
     });
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+      approvals: { openrouter: { accepted: true, provider: 'openrouter' } },
+    }));
     updateKeyCache('labcharts-openrouter-key', 'or-browser-tts-test');
     state.currentThreadId = 'openrouter-tts-browser-test';
     state.chatHistory = [{ role: 'assistant', content: 'Read this subscription reply.' }];
@@ -234,8 +239,8 @@ test('an edition can buffer managed OpenRouter speech before browser playback', 
 
   expect(result).toBe(true);
   expect(requestPayload).toMatchObject({
-    modelId: 'hexgrad/kokoro-82m',
-    voiceId: 'af_heart',
+    model: 'hexgrad/kokoro-82m',
+    voice: 'af_heart',
   });
   expect(await page.evaluate(() => window.__voiceObjectUrlKinds)).toEqual([
     'blob:audio/mpeg:25',
