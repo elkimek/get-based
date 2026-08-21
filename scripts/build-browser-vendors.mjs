@@ -50,7 +50,7 @@ const TARGETS = [
 
 const lock = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
 const bundlerEntry = lock.packages?.['node_modules/rolldown'];
-if (bundlerEntry?.version !== '1.2.2' || !bundlerEntry?.integrity) throw new Error('rolldown must be directly locked to 1.2.2 with integrity metadata');
+if (bundlerEntry?.version !== '1.2.4' || !bundlerEntry?.integrity) throw new Error('rolldown must be directly locked to 1.2.4 with integrity metadata');
 
 const generatedTargets = [];
 for (const target of TARGETS) {
