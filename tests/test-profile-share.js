@@ -171,7 +171,7 @@ console.log('5. Vercel Blob API safeguards');
 assert('Edge API avoids importing the Node-only @vercel/blob client',
   !apiShareSrc.includes("from '@vercel/blob'"));
 assert('Edge API uses the shared private Vercel Blob REST boundary',
-  packageJson.dependencies?.['@vercel/blob'] === '2.4.0' &&
+  packageJson.dependencies?.['@vercel/blob'] === '2.8.0' &&
   apiShareSrc.includes("from '../lib/vercel-blob-rest.js'") &&
   apiShareSrc.includes("access: 'private'") &&
   apiShareSrc.includes('BLOB_READ_WRITE_TOKEN'));

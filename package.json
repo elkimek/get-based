@@ -52,7 +52,7 @@
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only"
   },
   "dependencies": {
-    "@vercel/blob": "2.4.0",
+    "@vercel/blob": "2.8.0",
     "ehbp": "0.3.2",
     "tinfoil": "^1.2.1",
     "undici": "8.10.0"
