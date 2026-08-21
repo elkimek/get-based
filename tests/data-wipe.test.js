@@ -79,6 +79,7 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-cycle-orphaned-profile',
       'labcharts-blobs',
       'labcharts-backups',
+      'labcharts-wearables-credential-vault',
       'labcharts-future-store',
       'getbased-cashu',
     ];
@@ -127,6 +128,7 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-cycle-active-profile',
       'labcharts-cycle-default',
       'labcharts-wearables-active-profile',
+      'labcharts-wearables-credential-vault',
       'labcharts-wearables-default',
     ]);
     expect(localStorage.getItem('labcharts-private')).toBeNull();
@@ -168,6 +170,7 @@ describe('eraseAllLocalAppData', () => {
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-wearables-default');
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-cycle-default');
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-blobs');
+    expect(deleteDatabase).toHaveBeenCalledWith('labcharts-wearables-credential-vault');
     expect(deleteDatabase).toHaveBeenCalledWith('getbased-cashu');
     expect(globalThis.caches.delete).not.toHaveBeenCalled();
   });

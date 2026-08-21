@@ -133,6 +133,22 @@ export function isSensitiveKey(key) {
 // ═══════════════════════════════════════════════
 let _sessionKey = null;
 
+/** @type {Promise<typeof import('./wearables-credential-vault.js')> | null} */
+let deviceCredentialCryptoLoad = null;
+function loadDeviceCredentialCrypto() {
+  if (!deviceCredentialCryptoLoad) deviceCredentialCryptoLoad = import('./wearables-credential-vault.js');
+  return deviceCredentialCryptoLoad;
+}
+function isDeviceCredentialValue(value) {
+  return typeof value === 'string' && value.startsWith('d1:');
+}
+async function encryptDeviceCredential(storageKey, plaintext) {
+  return (await loadDeviceCredentialCrypto()).encryptDeviceCredential(storageKey, plaintext);
+}
+async function decryptDeviceCredential(storageKey, envelope) {
+  return (await loadDeviceCredentialCrypto()).decryptDeviceCredential(storageKey, envelope);
+}
+
 // ═══════════════════════════════════════════════
 // API KEY CACHE — sync access to decrypted API keys
 // ═══════════════════════════════════════════════
@@ -150,24 +166,32 @@ const API_KEY_LS_KEYS = [
   'labcharts-elevenlabs-voice-key',
   'labcharts-voice-local-server-key',
   'labcharts-cashu-wallet-mnemonic',
+  'labcharts-meteo-config',
 ];
+
+export function isCredentialKey(key) {
+  return API_KEY_LS_KEYS.includes(key) || isAppExtensionSyncEncryptedStorageKey(key);
+}
 
 export async function decryptKeyCache() {
   clearKeyCache();
-  for (const lsKey of Object.keys(localStorage)) {
-    if (API_KEY_LS_KEYS.includes(lsKey) || isAppExtensionSyncEncryptedStorageKey(lsKey)) {
-      const raw = localStorage[lsKey];
-      if (!raw) continue;
-      if (isEncryptedValue(raw) && _sessionKey) {
-        const parsed = parseEncryptedValue(raw);
-        if (!parsed) continue;
-        try {
-          const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
-          updateKeyCache(lsKey, plaintext);
-        } catch { /* skip if can't decrypt */ }
-      } else if (!isEncryptedValue(raw)) {
-        updateKeyCache(lsKey, raw);
-      }
+  for (let index = 0; index < localStorage.length; index++) {
+    const lsKey = localStorage.key(index);
+    if (!lsKey || !isCredentialKey(lsKey)) continue;
+    const raw = localStorage.getItem(lsKey);
+    if (raw === null) continue;
+    if (isDeviceCredentialValue(raw)) {
+      const plaintext = await decryptDeviceCredential(lsKey, raw);
+      if (plaintext !== null) updateKeyCache(lsKey, plaintext);
+    } else if (isEncryptedValue(raw) && _sessionKey) {
+      const parsed = parseEncryptedValue(raw);
+      if (!parsed) continue;
+      try {
+        const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+        updateKeyCache(lsKey, plaintext);
+      } catch { /* skip if can't decrypt */ }
+    } else if (!isEncryptedValue(raw)) {
+      updateKeyCache(lsKey, raw);
     }
   }
 }
@@ -293,7 +317,7 @@ const indexedDBCryptoDeps = {
 export const getCashuWalletStoreCryptoDeps = () => ({
   ...indexedDBCryptoDeps,
   encryptedGetItem,
-  encryptedSetItem,
+  encryptedSetItem: encryptedSetCredentialItem,
 });
 configureCycleStoreCrypto(indexedDBCryptoDeps);
 configureWearablesStoreCrypto(indexedDBCryptoDeps);
@@ -330,7 +354,22 @@ export async function _migrateAllStorageForTest(mode) {
 // ═══════════════════════════════════════════════
 // STORAGE WRAPPERS
 // ═══════════════════════════════════════════════
+export async function encryptedSetCredentialItem(key, value) {
+  if (!isCredentialKey(key)) throw new Error(`Credential key is not allowlisted: ${key}`);
+  let stored;
+  if (getEncryptionEnabled()) {
+    if (!_sessionKey) throw new Error('Credential storage is locked; unlock encryption before saving.');
+    const { iv, ciphertext } = await encrypt(_sessionKey, value);
+    stored = formatEncryptedValue(iv, ciphertext);
+  } else {
+    stored = await encryptDeviceCredential(key, value);
+  }
+  localStorage.setItem(key, stored);
+  updateKeyCache(key, value);
+}
+
 export async function encryptedSetItem(key, value) {
+  if (isCredentialKey(key)) return encryptedSetCredentialItem(key, value);
   let stored;
   if (isSensitiveKey(key) && getEncryptionEnabled() && _sessionKey) {
     const { iv, ciphertext } = await encrypt(_sessionKey, value);
@@ -352,7 +391,6 @@ export async function encryptedSetItem(key, value) {
   } else {
     localStorage.setItem(key, stored);
   }
-  if (isAppExtensionSyncEncryptedStorageKey(key)) updateKeyCache(key, value);
 }
 
 export async function encryptedGetItem(key) {
@@ -379,11 +417,18 @@ export async function encryptedGetItem(key) {
     raw = localStorage.getItem(key);
   }
   if (raw == null) return null;
+  if (isDeviceCredentialValue(raw)) {
+    const plaintext = await decryptDeviceCredential(key, raw);
+    if (plaintext !== null && isCredentialKey(key)) updateKeyCache(key, plaintext);
+    return plaintext;
+  }
   if (isEncryptedValue(raw) && _sessionKey) {
     const parsed = parseEncryptedValue(raw);
     if (!parsed) return raw;
     try {
-      return await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+      const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+      if (isCredentialKey(key)) updateKeyCache(key, plaintext);
+      return plaintext;
     } catch {
       return null; // wrong key or corrupt
     }
@@ -415,7 +460,11 @@ export async function encryptedRemoveItem(key, options = {}) {
 // INITIALIZATION
 // ═══════════════════════════════════════════════
 export async function initEncryption() {
-  if (!getEncryptionEnabled()) return;
+  if (!getEncryptionEnabled()) {
+    await migrateDeviceProtectedKeys();
+    await decryptKeyCache();
+    return;
+  }
   if (needsDataProtectionStylesheet()) await loadDataProtectionStylesheetForAction();
   await new Promise((resolve) => {
     showPassphraseModal(resolve);
@@ -465,8 +514,12 @@ async function migrateSensitiveKeys() {
     const key = localStorage.key(i);
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
-    if (!raw || isEncryptedValue(raw)) continue; // already encrypted
-    const { iv, ciphertext } = await encrypt(_sessionKey, raw);
+    if (raw === null || isEncryptedValue(raw)) continue; // already encrypted
+    const plaintext = isDeviceCredentialValue(raw)
+      ? await decryptDeviceCredential(key, raw)
+      : raw;
+    if (plaintext === null) throw new Error(`Device credential ${key} could not be decrypted.`);
+    const { iv, ciphertext } = await encrypt(_sessionKey, plaintext);
     localStorage.setItem(key, formatEncryptedValue(iv, ciphertext));
   }
   for (const key of blobKeys) {
@@ -484,11 +537,16 @@ async function decryptAllSensitiveKeys() {
     const key = localStorage.key(i);
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
-    if (!raw || !isEncryptedValue(raw)) continue;
+    if (raw === null || !isEncryptedValue(raw)) continue;
     const parsed = parseEncryptedValue(raw);
     if (!parsed) throw new Error(`Encrypted value ${key} is malformed.`);
     const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
-    localStorage.setItem(key, plaintext);
+    if (isCredentialKey(key)) {
+      localStorage.setItem(key, await encryptDeviceCredential(key, plaintext));
+      updateKeyCache(key, plaintext);
+    } else {
+      localStorage.setItem(key, plaintext);
+    }
   }
   for (const key of blobKeys) {
     const raw = await getBlob(key);
@@ -496,6 +554,17 @@ async function decryptAllSensitiveKeys() {
     const parsed = parseEncryptedValue(raw);
     if (!parsed) throw new Error(`Encrypted value ${key} is malformed.`);
     await setBlob(key, await decrypt(_sessionKey, parsed.iv, parsed.ciphertext));
+  }
+}
+
+async function migrateDeviceProtectedKeys() {
+  for (let index = 0; index < localStorage.length; index++) {
+    const key = localStorage.key(index);
+    if (!key || !isCredentialKey(key)) continue;
+    const raw = localStorage.getItem(key);
+    if (raw === null || isDeviceCredentialValue(raw) || isEncryptedValue(raw)) continue;
+    localStorage.setItem(key, await encryptDeviceCredential(key, raw));
+    updateKeyCache(key, raw);
   }
 }
 
@@ -576,6 +645,7 @@ async function disableEncryptionStorage() {
   localStorage.removeItem('labcharts-encryption-salt');
   _sessionKey = null;
   clearKeyCache();
+  await decryptKeyCache();
 }
 
 async function changeEncryptionPassphrase(oldPassphrase, newPassphrase) {
@@ -609,7 +679,12 @@ async function changeEncryptionPassphrase(oldPassphrase, newPassphrase) {
 import { buildBackupSnapshot, configureBackupRuntimeDeps, scheduleAutoBackup, openBackupDB, initFolderBackup } from './backup.js';
 export { buildBackupSnapshot, scheduleAutoBackup, openBackupDB, initFolderBackup };
 
-configureBackupRuntimeDeps({ encryptedGetItem, getEncryptionEnabled });
+configureBackupRuntimeDeps({
+  encryptedGetItem,
+  encryptedSetItem: encryptedSetCredentialItem,
+  getEncryptionEnabled,
+  isCredentialKey,
+});
 configureCryptoUi({
   changeEncryptionPassphrase,
   clearEncryptionSession: () => { _sessionKey = null; },

@@ -3,7 +3,7 @@
 // User-configured RAG endpoint that backs the Interpretive Lens with retrieved chunks.
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
-import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
+import { getCachedKey, updateKeyCache, encryptedSetCredentialItem } from './crypto.js';
 import { hashString, isDebugMode, showNotification } from './utils.js';
 import { hasAIProvider, callClaudeAPI } from './api.js';
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
@@ -101,7 +101,7 @@ export function saveLensConfig(partial) {
 }
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
 export async function saveLensKey(key) {
-  await encryptedSetItem(SECRET_KEY, key);
+  await encryptedSetCredentialItem(SECRET_KEY, key);
   updateKeyCache(SECRET_KEY, key);
   clearLensCache();
   // External-server hasLens() gates on getLensKey(); refresh the chat header
@@ -111,7 +111,7 @@ export async function saveLensKey(key) {
 }
 export async function removeLens() {
   localStorage.removeItem(CONFIG_KEY);
-  await encryptedSetItem(SECRET_KEY, '');
+  await encryptedSetCredentialItem(SECRET_KEY, '');
   updateKeyCache(SECRET_KEY, '');
   clearLensCache();
   updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });

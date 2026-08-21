@@ -47,6 +47,15 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       localStorage.setItem('meteo:v5:keep-a', 'fresh-cache');
 
       const mod = await import(sunUrl);
+      const cryptoStore = await import('/js/crypto.js');
+      const waitForSecureConfig = async () => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const raw = localStorage.getItem(storageKey);
+          if (raw?.startsWith('d1:') || raw?.startsWith('v1:')) return raw;
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        return null;
+      };
 
       outcomes.importSweepsOnlyLegacyMeteoCache =
         localStorage.getItem('meteo:legacy-a') === null
@@ -84,17 +93,21 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         extra: 'ignored',
       }));
       const migrated = mod.getMeteoConfig();
-      const persistedMigration = JSON.parse(localStorage.getItem(storageKey));
+      const migratedEnvelope = await waitForSecureConfig();
+      const persistedMigration = JSON.parse(await cryptoStore.encryptedGetItem(storageKey));
       outcomes.legacyModeMigratesAndSanitizesStoredConfig =
         migrated.mode === 'auto'
         && migrated.selfhostUrl === 'https://legacy.example/uv'
         && migrated.selfhostBearer === ''
         && migrated.privacyRounding === 0.25
+        && migratedEnvelope?.startsWith('d1:')
+        && !migratedEnvelope.includes('legacy.example')
         && persistedMigration.mode === 'auto'
         && persistedMigration.extra === undefined;
 
       localStorage.setItem(storageKey, JSON.stringify({ mode: 'manual', privacyRounding: 0.1 }));
       outcomes.legacyManualModeMigratesToAuto = mod.getMeteoConfig().mode === 'auto';
+      await waitForSecureConfig();
 
       const warnings = [];
       console.warn = (...args) => warnings.push(args.join(' '));
@@ -118,6 +131,7 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         selfhostBearer: 'secret-token',
         privacyRounding: 0.25,
       });
+      await waitForSecureConfig();
       localStorage.setItem(storageKey, 'v1:opaque-encrypted-envelope');
       const encryptedFallback = mod.getMeteoConfig();
       outcomes.encryptedEnvelopeUsesCachedDecryptedConfig =

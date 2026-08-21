@@ -1,21 +1,21 @@
 // @ts-check
 // sun-uvdata-config.js - encrypted Sun/UV data source config storage.
 
-import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+import { encryptedGetItem, encryptedSetCredentialItem } from './crypto.js';
 
 //
 // Storage: meteo config (mode, selfhostUrl, selfhostBearer, privacyRounding)
-// is encrypted at rest via crypto.js's encryptedSetItem / encryptedGetItem.
+// is always encrypted at rest via crypto.js's credential storage wrapper.
 // `selfhostBearer` is sensitive — same threat-model class as the AI provider
 // keys. The key `labcharts-meteo-config` is in `SENSITIVE_PATTERNS` (crypto.js)
-// so encryptedSetItem auto-encrypts when the user has encryption enabled.
+// so it is device-encrypted even when profile encryption is disabled.
 //
 // To preserve the existing synchronous getMeteoConfig() API (sun-context.js,
 // settings.js, the Sun-data-source picker all call it from sync paths),
 // the decrypted config is cached in module state, refreshed at startup
 // via initMeteoConfigCache(), and re-refreshed on encryption-state changes
-// (disableEncryption / passphrase change). Cache miss falls back to a raw
-// localStorage read which is correct for users without encryption enabled.
+// (disableEncryption / passphrase change). Legacy plaintext reads remain
+// supported long enough for startup migration.
 //
 
 const STORAGE_KEY = 'labcharts-meteo-config';
@@ -76,11 +76,11 @@ function _applyConfigRuntimeFixups(cfg) {
 }
 
 // Async loader — decrypts via crypto.js's encryptedGetItem (which routes
-// through the session key when encryption is enabled, falls through to
-// raw localStorage otherwise). Called at startup from main.js's init
+// through either the passphrase key or the device-local credential key).
+// Called at startup from main.js's init
 // sequence, and after encryption-state changes. Migration of pre-encrypt
 // plaintext configs is automatic: encryptedGetItem returns the plaintext
-// on first read, then saveMeteoConfig's encryptedSetItem writes it back
+// on first read, then saveMeteoConfig's credential wrapper writes it back
 // in the new envelope.
 export async function initMeteoConfigCache() {
   try {
@@ -112,12 +112,18 @@ export function getMeteoConfig() {
   // stay synchronous).
   let raw;
   try { raw = localStorage.getItem(STORAGE_KEY); } catch { raw = null; }
-  if (!raw) return defaultConfig();
+  if (!raw) {
+    if (_meteoConfigCache) {
+      const { cfg } = _applyConfigRuntimeFixups(Object.assign({}, _meteoConfigCache));
+      return cfg;
+    }
+    return defaultConfig();
+  }
   // Encrypted envelope — return the decrypted form from the cache that
   // initMeteoConfigCache populated at startup. If the cache is empty
   // (race window or test env), fall back to defaults rather than treat
   // ciphertext as JSON.
-  if (typeof raw === 'string' && raw.startsWith('v1:')) {
+  if (typeof raw === 'string' && (raw.startsWith('v1:') || raw.startsWith('d1:'))) {
     if (_meteoConfigCache) {
       const { cfg } = _applyConfigRuntimeFixups(Object.assign({}, _meteoConfigCache));
       return cfg;
@@ -132,7 +138,7 @@ export function getMeteoConfig() {
     const cfg = _buildConfigFromParsed(parsed);
     const { cfg: out, needsPersist } = _applyConfigRuntimeFixups(cfg);
     if (needsPersist) {
-      try { saveMeteoConfig(out); } catch {}
+      try { void saveMeteoConfig(out); } catch {}
     }
     return out;
   } catch (e) {
@@ -142,32 +148,17 @@ export function getMeteoConfig() {
 
 export function saveMeteoConfig(cfg) {
   // Cache update first — keeps the synchronous getMeteoConfig contract
-  // working immediately. Read sequence: getMeteoConfig hits localStorage,
-  // sees the value below, parses inline. Cache only matters as a fallback
-  // for the encrypted-envelope branch where parsing inline would fail.
+  // working immediately while the encrypted write completes.
   _meteoConfigCache = _buildConfigFromParsed(cfg);
   const json = JSON.stringify(cfg);
-  // Sync plaintext write when encryption is OFF — getMeteoConfig
-  // observes the new value immediately on next read (covers tests + the
-  // common no-encryption case). When encryption is ON, skip the sync
-  // plaintext write so we don't briefly expose the bearer on disk; reads
-  // in the gap fall back to the in-memory cache populated above.
-  let encryptionOn = false;
-  try { encryptionOn = getEncryptionEnabled(); } catch {}
-  if (!encryptionOn) {
-    try { localStorage.setItem(STORAGE_KEY, json); } catch {}
-    return;
-  }
-  // Encryption ON — async write through encryptedSetItem so the bearer
-  // is encrypted at rest. Fire-and-forget; existing callers don't await.
-  (async () => {
-    try {
-      await encryptedSetItem(STORAGE_KEY, json);
-    } catch (_) {
-      // Last-resort fallback so a crypto.js failure doesn't lose the save
-      try { localStorage.setItem(STORAGE_KEY, json); } catch {}
-    }
-  })();
+  // Remove any legacy/plain previous value before starting the asynchronous
+  // device/passphrase encryption. Synchronous readers use the cache above
+  // during this short gap, so the public API remains synchronous without a
+  // momentary clear-text write.
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  void encryptedSetCredentialItem(STORAGE_KEY, json).catch(error => {
+    console.warn('[meteo] secure config persistence failed', error);
+  });
 }
 
 function defaultConfig() {

@@ -60,7 +60,7 @@ import {
 } from './context-cards-runtime.js';
 import {
   configureCryptoProfileDeps,
-  encryptedSetItem,
+  encryptedSetCredentialItem,
 } from './crypto.js';
 import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
@@ -189,7 +189,7 @@ function showInsufficientBalanceDialog() {
 }
 
 configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
-configureApiProviderStorageRuntimeDeps({ encryptedSetItem });
+configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureChatRuntimeCallbacks({
   onChatSaved,

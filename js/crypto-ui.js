@@ -594,7 +594,7 @@ export function renderEncryptionSection() {
     <div class="encryption-status-icon">&#128275;</div>
     <div class="encryption-status-body">
       <div class="encryption-status-title">Encryption is OFF</div>
-      <div class="encryption-status-detail">Your data is stored as plaintext in localStorage. Browser extensions and anyone with filesystem access can read it.</div>
+      <div class="encryption-status-detail">Profile and health data is stored as plaintext. Saved provider credentials remain encrypted with a device-local key.</div>
     </div>
   </div>
   <button class="import-btn import-btn-primary" style="margin-top:12px" ${cryptoActionAttrs('enable-encryption')}>Enable Encryption</button>`;
@@ -605,7 +605,7 @@ export function renderBackupSection() {
   const autoStatus = lastAuto
     ? `Last auto-backup: ${new Date(lastAuto).toLocaleString()}`
     : 'No auto-backups yet';
-  return `<div class="ai-provider-desc" style="margin-bottom:10px">Create a full backup of all profiles, data, and chat history. ${cryptoUiDeps.getEncryptionEnabled() ? 'Backups inherit encryption \u2014 same passphrase required to restore.' : 'Backups are unencrypted unless encryption is enabled.'}</div>
+  return `<div class="ai-provider-desc" style="margin-bottom:10px">Create a full backup of all profiles, data, and chat history. ${cryptoUiDeps.getEncryptionEnabled() ? 'Backups inherit encryption \u2014 same passphrase required to restore.' : 'Backups are unencrypted and omit provider credentials unless encryption is enabled.'}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="import-btn import-btn-primary" ${cryptoActionAttrs('export-backup')}>Download Backup</button>
     <label class="import-btn import-btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center">
