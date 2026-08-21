@@ -32,7 +32,11 @@ test('custom personality DOM renders editor controls and delegated discuss actio
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const chatPersonalities = await import('/js/chat-personalities.js');
+    const [chatPersonalities, chatPanel] = await Promise.all([
+      import('/js/chat-personalities.js'),
+      import('/js/chat-panel.js'),
+    ]);
+    await chatPanel.openChatPanel();
     const profileId = localStorage.getItem('labcharts-current-profile') || 'default';
     const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
     const personalityKey = `labcharts-${profileId}-chatPersonality`;
@@ -176,6 +180,7 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       else localStorage.setItem(personalityKey, originalPersonality);
       chatPersonalities.loadChatPersonality();
       chatPersonalities.updatePersonalityBar();
+      chatPanel.closeChatPanel();
     }
 
     return outcomes;
