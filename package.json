@@ -42,7 +42,7 @@
     "@phala/dcap-qvl": "0.6.1",
     "@playwright/test": "^1.62.1",
     "@vitest/coverage-v8": "^4.1.10",
-    "axe-core": "4.12.1",
+    "axe-core": "4.13.0",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "rolldown": "1.2.2",

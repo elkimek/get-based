@@ -66,7 +66,12 @@ return (async function() {
       assert('opening chat does not set body.style.overflow',
         afterOverflow === '' || afterOverflow === beforeOverflow,
         `before: "${beforeOverflow}" / after: "${afterOverflow}"`);
+      const panel = document.getElementById('chat-panel');
+      assert('opening chat removes the closed-panel focus barrier',
+        panel?.inert === false && panel?.getAttribute('aria-hidden') === 'false');
       closeChatPanel();
+      assert('closing chat hides and inerts all panel controls',
+        panel?.inert === true && panel?.getAttribute('aria-hidden') === 'true');
     }
 
     // ─── 5. Fullscreen toggle toggles class + persists ────────

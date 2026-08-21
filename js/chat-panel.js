@@ -72,6 +72,7 @@ function setChatBackgroundInert(inert) {
 
 function updateChatPanelAccessibility(panel, open) {
   const mobile = typeof matchMedia === 'function' && matchMedia('(max-width: 768px)').matches;
+  panel.inert = !open;
   panel.setAttribute('aria-hidden', String(!open));
   panel.setAttribute('role', mobile ? 'dialog' : 'complementary');
   if (mobile && open) panel.setAttribute('aria-modal', 'true');
