@@ -136,7 +136,7 @@ export async function startCompatProxyServer() {
   const port = boundedInteger(process.env.COMPAT_PROXY_PORT, DEFAULT_PORT, 1, 65_535);
   await new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(port, host, resolve);
+    server.listen(port, host, () => resolve(undefined));
   });
   process.stdout.write(`Compatibility relay listening on ${host}:${port}\n`);
   const shutdown = signal => {
