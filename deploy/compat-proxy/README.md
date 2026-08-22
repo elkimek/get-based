@@ -25,20 +25,20 @@ docker compose -f deploy/compat-proxy/docker-compose.yml build
 docker compose -f deploy/compat-proxy/docker-compose.yml up -d
 ```
 
-Example Caddy route when sharing the existing sync hostname:
+Point `integrations.getbased.health` at the VPS, then expose only the loopback
+listener through that dedicated HTTPS origin and exact API path:
 
 ```caddyfile
-sync.example.com {
-    handle /compatibility-proxy {
+integrations.getbased.health {
+    handle /api/proxy {
         request_body {
             max_size 8MB
         }
-        rewrite * /api/proxy
         reverse_proxy 127.0.0.1:8787
         header -Server
     }
 
-    # Existing Evolu routes follow.
+    respond 404
 }
 ```
 

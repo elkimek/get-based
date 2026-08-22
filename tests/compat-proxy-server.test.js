@@ -45,7 +45,7 @@ describe('compatibility proxy Node adapter', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Forwarded-Host': 'sync.getbased.health',
+        'X-Forwarded-Host': 'integrations.getbased.health',
         'X-Forwarded-Proto': 'https',
       },
       body: JSON.stringify({ operation: 'test' }),
@@ -53,7 +53,7 @@ describe('compatibility proxy Node adapter', () => {
     expect(response.status).toBe(201);
     expect(response.headers.get('x-adapter')).toBe('ok');
     await expect(response.json()).resolves.toEqual({
-      url: 'https://sync.getbased.health/api/proxy',
+      url: 'https://integrations.getbased.health/api/proxy',
       method: 'POST',
       body: { operation: 'test' },
     });

@@ -22,7 +22,7 @@ describe('getbased-operated proxy allowlist', () => {
   });
 
   it('allows the named managed preview but rejects lookalike Vercel origins', () => {
-    const requestUrl = 'https://sync.getbased.health/api/proxy';
+    const requestUrl = 'https://integrations.getbased.health/api/proxy';
     expect(isAllowedProxyCallerOrigin(new Request(requestUrl, {
       headers: { Origin: 'https://get-based-managed-subscription-v2.vercel.app' },
     }))).toBe(true);

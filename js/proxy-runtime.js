@@ -7,7 +7,7 @@
 
 import { isOfficialGetbasedHost } from './url-safety.js';
 
-export const HOSTED_PROXY_API_URL = 'https://sync.getbased.health/compatibility-proxy';
+export const HOSTED_PROXY_API_URL = 'https://integrations.getbased.health/api/proxy';
 
 const MANAGED_PREVIEW_HOSTS = new Set([
   'get-based-managed-subscription-v2.vercel.app',
