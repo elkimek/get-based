@@ -15,7 +15,32 @@ export const PROFILE_SHARE_KDF_ITERATIONS = 600000;
 export const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100000;
 export const PROFILE_SHARE_MAX_DAYS = 30;
 export const PROFILE_SHARE_MAX_DECOMPRESSED_BYTES = 37_500_000;
-export const PROFILE_SHARE_API = '/api/share';
+const OPERATED_PROFILE_SHARE_API = 'https://shares.getbased.health/api/share';
+const OPERATED_PROFILE_SHARE_ID_PREFIX = 'vps1_';
+const OPERATED_PROFILE_SHARE_ID_RE = /^vps1_[A-Za-z0-9_-]{24}$/;
+const OPERATED_PROFILE_SHARE_HOSTS = new Set([
+  'getbased.health',
+  'www.getbased.health',
+  'app.getbased.health',
+  'beta.getbased.health',
+  'get-based.vercel.app',
+]);
+
+/**
+ * @param {Location | { hostname?: string } | null | undefined} [locationLike]
+ * @param {string} [shareId]
+ */
+export function getProfileShareApiUrl(locationLike = globalThis.location, shareId = '') {
+  const hostname = String(locationLike?.hostname || '').toLowerCase();
+  return OPERATED_PROFILE_SHARE_HOSTS.has(hostname) && OPERATED_PROFILE_SHARE_ID_RE.test(shareId)
+    ? OPERATED_PROFILE_SHARE_API
+    : '/api/share';
+}
+
+export const PROFILE_SHARE_API = getProfileShareApiUrl(
+  globalThis.location,
+  `${OPERATED_PROFILE_SHARE_ID_PREFIX}${'A'.repeat(24)}`,
+);
 
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const SHARE_OVERLAY_ID = 'profile-share-overlay';
@@ -62,7 +87,7 @@ function base64UrlToBytes(value) {
 }
 
 export function createProfileShareId() {
-  return bytesToBase64Url(randomBytes(18));
+  return `${OPERATED_PROFILE_SHARE_ID_PREFIX}${bytesToBase64Url(randomBytes(18))}`;
 }
 
 export function generateProfileSharePassword() {
@@ -252,7 +277,7 @@ export async function decryptProfileShareEnvelope(envelope, secret) {
 }
 
 async function postProfileShare(id, envelope, manageTokenHash) {
-  const response = await fetch(PROFILE_SHARE_API, {
+  const response = await fetch(getProfileShareApiUrl(globalThis.location, id), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, envelope, manageTokenHash }),
@@ -265,7 +290,8 @@ async function postProfileShare(id, envelope, manageTokenHash) {
 
 async function fetchProfileShareEnvelope(id) {
   if (!SHARE_ID_RE.test(id)) throw new Error('Invalid share id.');
-  const response = await fetch(`${PROFILE_SHARE_API}?id=${encodeURIComponent(id)}`);
+  const apiUrl = getProfileShareApiUrl(globalThis.location, id);
+  const response = await fetch(`${apiUrl}?id=${encodeURIComponent(id)}`);
   let body = null;
   try { body = await response.json(); } catch {}
   if (!response.ok) throw new Error(body?.error || `Share could not be loaded (${response.status})`);
@@ -275,7 +301,8 @@ async function fetchProfileShareEnvelope(id) {
 
 async function deleteProfileShareEnvelope(id, manageToken = '') {
   if (!SHARE_ID_RE.test(id)) throw new Error('Invalid share id.');
-  const response = await fetch(`${PROFILE_SHARE_API}?id=${encodeURIComponent(id)}`, {
+  const apiUrl = getProfileShareApiUrl(globalThis.location, id);
+  const response = await fetch(`${apiUrl}?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ manageToken }),
@@ -488,7 +515,7 @@ function renderCreateShareBody(profileId = state.currentProfile) {
           <input id="profile-share-consent" type="checkbox" required>
           <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>
         </label>
-        <div class="profile-share-note">If the password is lost, this shared copy cannot be recovered.</div>
+        <div class="profile-share-note">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>
         <div id="profile-share-status" class="profile-share-status" hidden></div>
         <div class="gb-form-actions">
           <button type="button" class="import-btn import-btn-secondary" data-profile-share-action="close">Cancel</button>

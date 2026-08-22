@@ -9,9 +9,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
 const GITHUB_AUTOMATION_DIR = path.join(ROOT, '.github');
 // tests/ is intentionally omitted; this check covers app JS only, not test helpers.
-const SYNTAX_DIRS = ['js', 'api', 'lib', 'scripts'];
+const SYNTAX_DIRS = ['js', 'api', 'lib', 'server', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
-const SERVER_JS_DIRS = [path.join(ROOT, 'api'), path.join(ROOT, 'lib')];
+const SERVER_JS_DIRS = [path.join(ROOT, 'api'), path.join(ROOT, 'lib'), path.join(ROOT, 'server')];
 const ROOT_PRODUCTION_JS_FILES = [
   path.join(ROOT, 'dev-server.js'),
   path.join(ROOT, 'service-worker.js'),

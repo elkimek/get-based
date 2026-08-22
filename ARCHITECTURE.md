@@ -42,8 +42,10 @@ flowchart TD
   Features --> Foundation[state, profile, data, crypto, storage]
   Foundation --> BrowserStorage[localStorage, IndexedDB, OPFS]
   Features --> Direct[chosen browser-direct AI and voice providers]
-  Features --> Vercel[encrypted/static-host API operations]
-  Vercel --> Ciphertext[encrypted share storage]
+  Features --> Vercel[legacy encrypted/static-host API operations]
+  Vercel --> LegacyCiphertext[bounded legacy share continuity]
+  Features --> ProfileShare[separate profile-share service]
+  ProfileShare --> Ciphertext[opaque encrypted share storage]
   Features --> Compatibility[separate compatibility relay]
   Compatibility --> Wearables[fixed hosted wearable APIs]
   Compatibility --> Attestation[fixed NVIDIA attestation]
@@ -90,7 +92,8 @@ The architecture checker currently enforces these coarse runtime boundaries:
 | `js/` browser | Native browser application | `js/` browser modules |
 | `api/` hosted API | Hosted request handlers shared by deployment entry points | `api/` and `lib/` |
 | `lib/` server-shared | Node-only policy and transport | `lib/` |
-| `server/` compatibility server | Standalone Node compatibility-relay entry point | `api/` |
+| `server/compat-proxy-server.js` compatibility server | Standalone Node compatibility-relay entry point | `api/` |
+| `server/profile-share-server.js` standalone server | Operator-deployed profile-share entry point | `lib/` |
 | `dev-server.js` local-server | Local development entry point | `lib/` |
 | `service-worker*.js` | Offline manifest and cache-routing runtime | service-worker scripts |
 
@@ -332,7 +335,19 @@ Settings, or client-list action opens it, or when startup/hash routing detects
 a shared-profile link. The loader owns only lazy loading and route detection;
 `profile-share.js` retains link validation, encryption, import, and UI
 responsibilities. `export.js` remains shell-owned without a Data I/O
-composition wrapper.
+composition wrapper. Official app origins resolve profile-share requests to a
+separate getbased-operated service; self-hosted origins retain their same-origin
+`/api/share` contract. The shared runtime-neutral handler enforces the envelope,
+expiry, size, origin, management-token, and abuse boundaries for both. The
+operated service stores only opaque envelopes and minimal TTL/deletion/abuse
+metadata in an isolated SQLite database; the password and decrypted profile do
+not reach it. New operated-service ids use a non-overlapping `vps1_` namespace.
+The Vercel adapter redirects old-client writes, serves legacy Blob reads and
+deletions only within a configured window of at most 31 days, and then stops
+reading Blob entirely; record migration is not required. The initial SQLite
+store has no retained backup so recovery cannot resurrect stopped/expired
+links, and the UI discloses that temporary copies can be lost after a service
+failure.
 
 Genome and DNA behavior stays module-eager because dashboard summaries,
 recommendations, startup catalog hydration, and import routing share it.

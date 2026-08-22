@@ -24,7 +24,18 @@ I'll acknowledge receipt within 48 hours and aim to release a fix within 7 days 
 
 ## Data Architecture
 
-getbased is a client-side application. All health data stays in your browser (localStorage + IndexedDB). There is no server-side database. Optional cross-device sync uses E2E encrypted CRDT replication — the relay only sees ciphertext.
+getbased is local-first. Health data stays in browser storage by default;
+optional network features activate only when the user chooses them. Cross-device
+sync uses end-to-end encrypted CRDT replication, so its relay sees ciphertext.
+Profile sharing encrypts a selected export in the browser before upload. The
+operated profile-share service stores only the opaque envelope and minimal
+expiry, deletion, and keyed abuse-control metadata in an isolated SQLite
+database; it never receives the share password or decrypted profile. The
+initial operated service keeps no retained database backup so a restore cannot
+resurrect stopped or expired links; an infrastructure loss may invalidate these
+temporary copies without affecting the browser-held source profile. Existing
+Blob records are served only through a fixed, at-most-31-day transition window
+and are not copied into the new database.
 
 API keys are stored in the browser via `encryptedSetItem` (AES-256-GCM) when encryption is enabled.
 

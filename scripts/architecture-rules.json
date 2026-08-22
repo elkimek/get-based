@@ -16,7 +16,7 @@
     {
       "name": "compat-server",
       "description": "Standalone Node compatibility-relay entry point.",
-      "roots": ["server"],
+      "roots": ["server/compat-proxy-server.js"],
       "mayImport": ["serverless"]
     },
     {
@@ -29,6 +29,12 @@
       "name": "local-server",
       "description": "Local development server entry point.",
       "roots": ["dev-server.js"],
+      "mayImport": ["server-shared"]
+    },
+    {
+      "name": "standalone-server",
+      "description": "Operator-deployed profile-share service entry point.",
+      "roots": ["server/profile-share-server.js"],
       "mayImport": ["server-shared"]
     },
     {
@@ -70,6 +76,7 @@
     "api/proxy.js",
     "api/share.js",
     "server/compat-proxy-server.js",
+    "server/profile-share-server.js",
     "dev-server.js",
     "service-worker.js"
   ],
