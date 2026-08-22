@@ -15,7 +15,11 @@ import {
 } from './wearable-adapters.js';
 import { SELF_HOSTED_WEARABLE_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
 import { brandMarkMono } from './brand-assets.js';
-import { groupWearableAdapters } from './wearables-settings-groups.js';
+import {
+  groupWearableAdapters,
+  requestHostedWearableRelayConsent,
+  withdrawHostedWearableRelayConsent,
+} from './wearables-settings-groups.js';
 import {
   beginConnectOAuth,
   backfillWearable,
@@ -34,11 +38,6 @@ import {
   confirmWearableSettingsAction,
   navigateWearablesDashboard,
 } from './wearables-settings-runtime.js';
-import {
-  requestHostedWearableRelayConsent,
-  withdrawHostedWearableRelayConsent,
-} from './wearable-relay-consent.js';
-
 let wearableSettingsDelegatesInstalled = false;
 
 export const GOOGLE_HEALTH_CONNECT_DISCLOSURE = `Google Health will let getbased read three categories from your Google account: activity and fitness; health metrics and measurements; and sleep. No write access is requested.

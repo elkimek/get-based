@@ -9,7 +9,7 @@ import {
   hasHostedWearableRelayConsent,
   requestHostedWearableRelayConsent,
   withdrawHostedWearableRelayConsent,
-} from '../js/wearable-relay-consent.js';
+} from '../js/wearables-settings-groups.js';
 
 function consentControls() {
   const checkbox = document.getElementById('wearable-relay-consent-checkbox');

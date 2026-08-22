@@ -4,7 +4,7 @@ test('hosted wearable consent matches the explicit cloud-consent interaction', a
   await page.goto('/app', { waitUntil: 'load' });
 
   await page.evaluate(async () => {
-    const consent = await import('/js/wearable-relay-consent.js');
+    const consent = await import('/js/wearables-settings-groups.js');
     consent.withdrawHostedWearableRelayConsent('withings');
     globalThis.__wearableRelayConsentResult = null;
     consent.requestHostedWearableRelayConsent('withings', 'Withings')

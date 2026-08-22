@@ -71,7 +71,6 @@
     '/js/wearables-auth-runtime.js',
     '/js/wearables-settings-runtime.js',
     '/js/wearables-settings-groups.js',
-    '/js/wearable-relay-consent.js',
     '/js/wearables-connect-runtime.js',
     '/js/settings-runtime-bridge.js',
     '/js/settings-sync-panel.js',
