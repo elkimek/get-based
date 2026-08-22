@@ -62,6 +62,33 @@ const forwardedHeaders = {
 };
 
 describe('SQLite profile-share Node adapter', () => {
+  it('strips caller-controlled rate-limit identities and injects the proxy address', async () => {
+    let receivedHeaders;
+    const handler = async request => {
+      receivedHeaders = Object.fromEntries(request.headers);
+      return new Response('{}', { status: 200 });
+    };
+    const { port } = await makeServer({ handler });
+    const response = await fetch(endpoint(port), {
+      headers: {
+        Origin: 'https://app.getbased.health',
+        'X-Forwarded-For': '203.0.113.99, 198.51.100.22',
+        'X-Real-IP': '203.0.113.98',
+        'X-Vercel-Forwarded-For': '203.0.113.97',
+        'CF-Connecting-IP': '203.0.113.96',
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(receivedHeaders).toMatchObject({
+      origin: 'https://app.getbased.health',
+      'x-forwarded-for': '198.51.100.22',
+    });
+    expect(receivedHeaders).not.toHaveProperty('x-real-ip');
+    expect(receivedHeaders).not.toHaveProperty('x-vercel-forwarded-for');
+    expect(receivedHeaders).not.toHaveProperty('cf-connecting-ip');
+  });
+
   it('serves health and a complete synthetic create/read/delete flow', async () => {
     const { port, store } = await makeServer();
     const health = await fetch(`http://127.0.0.1:${port}/health`);

@@ -17,6 +17,12 @@ const DEFAULT_PORT = 8790;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
+const UNTRUSTED_CLIENT_IDENTITY_HEADERS = new Set([
+  'x-forwarded-for',
+  'x-real-ip',
+  'x-vercel-forwarded-for',
+  'cf-connecting-ip',
+]);
 
 function boundedInteger(value, fallback, min, max) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -44,7 +50,7 @@ function requestUrl(incoming) {
 function trustedHeaders(incoming) {
   const headers = new Headers();
   for (const [name, value] of Object.entries(incoming.headers)) {
-    if (value == null || ['x-forwarded-for', 'x-real-ip'].includes(name.toLowerCase())) continue;
+    if (value == null || UNTRUSTED_CLIENT_IDENTITY_HEADERS.has(name.toLowerCase())) continue;
     if (Array.isArray(value)) {
       for (const item of value) headers.append(name, item);
     } else {
