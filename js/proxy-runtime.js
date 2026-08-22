@@ -9,17 +9,11 @@ import { isOfficialGetbasedHost } from './url-safety.js';
 
 export const HOSTED_PROXY_API_URL = 'https://integrations.getbased.health/api/proxy';
 
-const MANAGED_PREVIEW_HOSTS = new Set([
-  'get-based-managed-subscription-v2.vercel.app',
-]);
-
 /**
  * @param {Location | { hostname?: string } | undefined} [locationLike]
  */
 export function getProxyApiUrl(locationLike = globalThis.location) {
-  const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
-  if (isOfficialGetbasedHost(/** @type {Location} */ (locationLike))
-      || MANAGED_PREVIEW_HOSTS.has(hostname)) {
+  if (isOfficialGetbasedHost(/** @type {Location} */ (locationLike))) {
     return HOSTED_PROXY_API_URL;
   }
   return '/api/proxy';

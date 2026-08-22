@@ -16,7 +16,8 @@ export function isOfficialGetbasedHost(locationLike = globalThis.location) {
   const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
   return hostname === 'getbased.health'
     || hostname.endsWith('.getbased.health')
-    || hostname === 'get-based.vercel.app';
+    || hostname === 'get-based.vercel.app'
+    || hostname === 'get-based-managed-subscription-v2.vercel.app';
 }
 
 export const HOSTED_PLAINTEXT_RELAY_MESSAGE =
