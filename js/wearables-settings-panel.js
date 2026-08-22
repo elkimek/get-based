@@ -15,11 +15,7 @@ import {
 } from './wearable-adapters.js';
 import { SELF_HOSTED_WEARABLE_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
 import { brandMarkMono } from './brand-assets.js';
-import {
-  groupWearableAdapters,
-  requestHostedWearableRelayConsent,
-  withdrawHostedWearableRelayConsent,
-} from './wearables-settings-groups.js';
+import { groupWearableAdapters, requestHostedWearableRelayConsent, withdrawHostedWearableRelayConsent } from './wearables-settings-groups.js';
 import {
   beginConnectOAuth,
   backfillWearable,
@@ -641,6 +637,7 @@ document.addEventListener('settings:wearables-rendered', () => {
 
 async function handleWearableConnect(adapterId) {
   try {
+    const initiatingProfileId = getActiveProfileId();
     await loadWearableRuntimeConfig({ waitForFetch: true });
     const adapter = adapterById(adapterId);
     if (!adapter) throw new Error('Unknown wearable provider.');
@@ -663,7 +660,7 @@ async function handleWearableConnect(adapterId) {
       });
       if (!consented) return;
     } else if (requiresHostedWearableRelayConsent(adapterId)) {
-      const consented = await requestHostedWearableRelayConsent(adapterId, adapter.displayName);
+      const consented = await requestHostedWearableRelayConsent(initiatingProfileId, adapterId, adapter.displayName);
       if (!consented) return;
     } else if (adapter?.experimentalSelfHost) {
       const consented = await confirmWearableSettingsAction(
@@ -672,7 +669,7 @@ async function handleWearableConnect(adapterId) {
       );
       if (!consented) return;
     }
-    beginConnectOAuth(adapterId);
+    beginConnectOAuth(adapterId, initiatingProfileId);
     // beginOAuth navigates away — nothing else to do here.
   } catch (e) {
     showNotification?.(`Connect failed: ${getErrorMessage(e)}`, 'error', 5000);
@@ -751,9 +748,10 @@ async function handleWearableBackfill(adapterId) {
 async function handleWearableDisconnect(adapterId) {
   const name = adapterById(adapterId)?.displayName || adapterId;
   if (await showConfirmDialog(`Disconnect ${name}? This stops future imports and removes this device's connection and imported ${name} data.`)) {
+    const profileId = getActiveProfileId();
     try {
       await disconnectWearable(adapterId, { deleteData: true });
-      withdrawHostedWearableRelayConsent(adapterId);
+      withdrawHostedWearableRelayConsent(profileId, adapterId);
       showNotification?.(`${name} disconnected`, 'success');
       refreshSettingsWearables();
       navigateWearablesDashboard();

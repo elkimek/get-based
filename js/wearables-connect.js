@@ -195,7 +195,7 @@ function removeConnection(adapterId) {
 
 // Starts the OAuth flow. Navigates away from the current page — control
 // returns via the redirect handler in startup-oauth-callbacks.js.
-export function beginConnectOAuth(adapterId) {
+export function beginConnectOAuth(adapterId, profileId = getActiveProfileId()) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
@@ -211,7 +211,7 @@ export function beginConnectOAuth(adapterId) {
     clientId: getOAuthClientId(adapter),
     registeredUris: oauth.redirectUris,
     scopes: oauth.scopes,
-    profileId: state.currentProfile,
+    profileId,
   });
 }
 

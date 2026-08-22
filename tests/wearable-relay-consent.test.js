@@ -11,6 +11,9 @@ import {
   withdrawHostedWearableRelayConsent,
 } from '../js/wearables-settings-groups.js';
 
+const PROFILE_A = 'profile-a';
+const PROFILE_B = 'profile-b';
+
 function consentControls() {
   const checkbox = document.getElementById('wearable-relay-consent-checkbox');
   const approve = document.querySelector('[data-wearable-relay-consent-action="approve"]');
@@ -21,14 +24,16 @@ function consentControls() {
 beforeEach(() => {
   document.body.innerHTML = '';
   localStorage.clear();
-  for (const adapterId of ['oura', 'withings', 'polar', 'fitbit']) {
-    withdrawHostedWearableRelayConsent(adapterId);
+  for (const profileId of [PROFILE_A, PROFILE_B]) {
+    for (const adapterId of ['oura', 'withings', 'polar', 'fitbit']) {
+      withdrawHostedWearableRelayConsent(profileId, adapterId);
+    }
   }
 });
 
 describe('hosted wearable relay consent', () => {
   it('requires an unticked provider-specific explicit statement', async () => {
-    const pending = requestHostedWearableRelayConsent('withings', 'Withings');
+    const pending = requestHostedWearableRelayConsent(PROFILE_A, 'withings', 'Withings');
     const overlay = document.getElementById('wearable-relay-consent-overlay');
     expect(overlay).not.toBeNull();
     expect(overlay.textContent).toContain('getbased s.r.o.');
@@ -46,51 +51,56 @@ describe('hosted wearable relay consent', () => {
     approve.click();
     await expect(pending).resolves.toBe(true);
 
-    expect(hasHostedWearableRelayConsent('withings')).toBe(true);
-    expect(hasHostedWearableRelayConsent('polar')).toBe(false);
-    expect(getHostedWearableConsentRecord()).toMatchObject({
-      version: HOSTED_WEARABLE_CONSENT_VERSION,
-      approvals: {
-        withings: {
-          accepted: true,
-          provider: 'withings',
-          recipient: 'Withings',
-          controller: 'getbased s.r.o.',
-        },
-      },
+    expect(hasHostedWearableRelayConsent(PROFILE_A, 'withings')).toBe(true);
+    expect(hasHostedWearableRelayConsent(PROFILE_B, 'withings')).toBe(false);
+    expect(hasHostedWearableRelayConsent(PROFILE_A, 'polar')).toBe(false);
+    const record = getHostedWearableConsentRecord();
+    const approval = record.approvals[`${encodeURIComponent(PROFILE_A)}:withings`];
+    expect(record.version).toBe(HOSTED_WEARABLE_CONSENT_VERSION);
+    expect(approval).toMatchObject({
+      accepted: true,
+      profileId: PROFILE_A,
+      provider: 'withings',
+      recipient: 'Withings',
+      controller: 'getbased s.r.o.',
     });
-    expect(getHostedWearableConsentRecord().approvals.withings.acceptedAt)
-      .toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(approval.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('does not save approval when the user declines', async () => {
-    const pending = requestHostedWearableRelayConsent('polar', 'Polar');
+    const pending = requestHostedWearableRelayConsent(PROFILE_A, 'polar', 'Polar');
     consentControls().cancel.click();
     await expect(pending).resolves.toBe(false);
-    expect(hasHostedWearableRelayConsent('polar')).toBe(false);
+    expect(hasHostedWearableRelayConsent(PROFILE_A, 'polar')).toBe(false);
     expect(localStorage.getItem(HOSTED_WEARABLE_CONSENT_KEY)).toBeNull();
   });
 
-  it('reuses ongoing approval and asks again after withdrawal', async () => {
-    const first = requestHostedWearableRelayConsent('oura', 'Oura');
+  it('reuses approval only for the same profile and asks again after withdrawal', async () => {
+    const first = requestHostedWearableRelayConsent(PROFILE_A, 'oura', 'Oura');
     const { checkbox, approve } = consentControls();
     checkbox.click();
     approve.click();
     await first;
 
-    await expect(requestHostedWearableRelayConsent('oura', 'Oura')).resolves.toBe(true);
+    await expect(requestHostedWearableRelayConsent(PROFILE_A, 'oura', 'Oura')).resolves.toBe(true);
     expect(document.getElementById('wearable-relay-consent-overlay')).toBeNull();
 
-    withdrawHostedWearableRelayConsent('oura');
-    expect(hasHostedWearableRelayConsent('oura')).toBe(false);
-    const retry = requestHostedWearableRelayConsent('oura', 'Oura');
+    const otherProfile = requestHostedWearableRelayConsent(PROFILE_B, 'oura', 'Oura');
+    expect(document.getElementById('wearable-relay-consent-overlay')).not.toBeNull();
+    consentControls().cancel.click();
+    await expect(otherProfile).resolves.toBe(false);
+    expect(hasHostedWearableRelayConsent(PROFILE_A, 'oura')).toBe(true);
+
+    withdrawHostedWearableRelayConsent(PROFILE_A, 'oura');
+    expect(hasHostedWearableRelayConsent(PROFILE_A, 'oura')).toBe(false);
+    const retry = requestHostedWearableRelayConsent(PROFILE_A, 'oura', 'Oura');
     expect(document.getElementById('wearable-relay-consent-overlay')).not.toBeNull();
     consentControls().cancel.click();
     await expect(retry).resolves.toBe(false);
   });
 
   it('treats Escape as refusal', async () => {
-    const pending = requestHostedWearableRelayConsent('fitbit', 'Fitbit');
+    const pending = requestHostedWearableRelayConsent(PROFILE_A, 'fitbit', 'Fitbit');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await expect(pending).resolves.toBe(false);
     expect(document.getElementById('wearable-relay-consent-overlay')).toBeNull();

@@ -5,9 +5,9 @@ test('hosted wearable consent matches the explicit cloud-consent interaction', a
 
   await page.evaluate(async () => {
     const consent = await import('/js/wearables-settings-groups.js');
-    consent.withdrawHostedWearableRelayConsent('withings');
+    consent.withdrawHostedWearableRelayConsent('browser-profile', 'withings');
     globalThis.__wearableRelayConsentResult = null;
-    consent.requestHostedWearableRelayConsent('withings', 'Withings')
+    consent.requestHostedWearableRelayConsent('browser-profile', 'withings', 'Withings')
       .then(result => { globalThis.__wearableRelayConsentResult = result; });
   });
 
@@ -31,10 +31,11 @@ test('hosted wearable consent matches the explicit cloud-consent interaction', a
 
   const record = await page.evaluate(() => {
     const stored = JSON.parse(localStorage.getItem('labcharts-hosted-wearable-consent'));
-    return stored.approvals.withings;
+    return stored.approvals['browser-profile:withings'];
   });
   expect(record).toMatchObject({
     accepted: true,
+    profileId: 'browser-profile',
     provider: 'withings',
     recipient: 'Withings',
     controller: 'getbased s.r.o.',

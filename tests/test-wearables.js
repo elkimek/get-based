@@ -903,7 +903,7 @@ assert('Wearable OAuth modules delegate browser globals to auth runtime',
   authModuleFiles.find((file, index) => /\bwindow(?:\.|\s*\[)/.test(authModuleSources[index])) || 'missing runtime import');
 assert('wearable connector passes the initiating profile into OAuth modules',
   (await fetch('/js/wearables-connect.js').then(r => r.text()))
-    .includes('profileId: state.currentProfile'));
+    .includes('profileId = getActiveProfileId()'));
 // (JSZip functional smoke — needs real browser <script> injection —
 // lives in test-wearables-dom.js. The loadJSZip source-pattern asserts
 // above run in Node.)

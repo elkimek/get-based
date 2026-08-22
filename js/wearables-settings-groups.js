@@ -70,8 +70,10 @@ const sessionApprovals = new Set();
 /** @type {Promise<boolean> | null} */
 let activeConsentPrompt = null;
 
-function consentScope(adapterId) {
-  return String(adapterId || '').trim().toLowerCase();
+function consentScope(profileId, adapterId) {
+  const profile = String(profileId || '').trim();
+  const provider = String(adapterId || '').trim().toLowerCase();
+  return profile && provider ? `${encodeURIComponent(profile)}:${provider}` : '';
 }
 
 function readConsentRecord() {
@@ -87,8 +89,8 @@ export function getHostedWearableConsentRecord() {
   return readConsentRecord();
 }
 
-export function hasHostedWearableRelayConsent(adapterId) {
-  const scope = consentScope(adapterId);
+export function hasHostedWearableRelayConsent(profileId, adapterId) {
+  const scope = consentScope(profileId, adapterId);
   if (!scope) return false;
   if (sessionApprovals.has(scope)) return true;
   const record = readConsentRecord();
@@ -96,8 +98,8 @@ export function hasHostedWearableRelayConsent(adapterId) {
     && record?.approvals?.[scope]?.accepted === true;
 }
 
-function storeApproval(adapterId, providerName) {
-  const scope = consentScope(adapterId);
+function storeApproval(profileId, adapterId, providerName) {
+  const scope = consentScope(profileId, adapterId);
   if (!scope) return;
   sessionApprovals.add(scope);
   const previous = readConsentRecord();
@@ -113,7 +115,8 @@ function storeApproval(adapterId, providerName) {
         ...approvals,
         [scope]: {
           accepted: true,
-          provider: scope,
+          profileId: String(profileId),
+          provider: String(adapterId).trim().toLowerCase(),
           recipient: String(providerName || adapterId || 'wearable provider'),
           controller: 'getbased s.r.o.',
           purpose: 'connect the selected wearable account and import requested readings into the active profile',
@@ -127,8 +130,8 @@ function storeApproval(adapterId, providerName) {
   globalThis.dispatchEvent?.(new Event('hosted-wearable-consent-changed'));
 }
 
-export function withdrawHostedWearableRelayConsent(adapterId) {
-  const scope = consentScope(adapterId);
+export function withdrawHostedWearableRelayConsent(profileId, adapterId) {
+  const scope = consentScope(profileId, adapterId);
   if (!scope) return;
   sessionApprovals.delete(scope);
   const record = readConsentRecord();
@@ -152,7 +155,7 @@ export function withdrawHostedWearableRelayConsent(adapterId) {
   globalThis.dispatchEvent?.(new Event('hosted-wearable-consent-changed'));
 }
 
-function showConsentPrompt(adapterId, providerName) {
+function showConsentPrompt(profileId, adapterId, providerName) {
   if (typeof document === 'undefined' || !document.body) return Promise.resolve(false);
   document.getElementById('wearable-relay-consent-overlay')?.remove();
 
@@ -237,7 +240,7 @@ function showConsentPrompt(adapterId, providerName) {
       const action = target.getAttribute('data-wearable-relay-consent-action');
       if (action === 'cancel') finish(false);
       if (action === 'approve' && checkbox?.checked) {
-        storeApproval(adapterId, provider);
+        storeApproval(profileId, adapterId, provider);
         finish(true);
       }
     });
@@ -246,13 +249,13 @@ function showConsentPrompt(adapterId, providerName) {
   });
 }
 
-export async function requestHostedWearableRelayConsent(adapterId, providerName) {
-  if (hasHostedWearableRelayConsent(adapterId)) return true;
+export async function requestHostedWearableRelayConsent(profileId, adapterId, providerName) {
+  if (hasHostedWearableRelayConsent(profileId, adapterId)) return true;
   if (activeConsentPrompt) {
     await activeConsentPrompt;
-    if (hasHostedWearableRelayConsent(adapterId)) return true;
+    if (hasHostedWearableRelayConsent(profileId, adapterId)) return true;
   }
-  activeConsentPrompt = showConsentPrompt(adapterId, providerName);
+  activeConsentPrompt = showConsentPrompt(profileId, adapterId, providerName);
   try {
     return await activeConsentPrompt;
   } finally {
