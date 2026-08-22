@@ -16,6 +16,7 @@
 //      connection blob). wearables-polar.js handles that call, not this file.
 
 import { isDebugMode } from './utils.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
@@ -23,7 +24,7 @@ import {
 } from './wearables-auth-runtime.js';
 
 const AUTHORIZE_URL    = 'https://flow.polar.com/oauth2/authorization';
-const PROXY_URL        = '/api/proxy';
+const PROXY_URL        = getProxyApiUrl();
 const STATE_KEY        = 'polar-oauth-pending';
 const REFRESH_LEAD_MS  = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'polar-oauth-refresh';

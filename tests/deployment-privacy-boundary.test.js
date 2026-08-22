@@ -15,6 +15,7 @@ describe('official hosted plaintext boundary', () => {
     'app.getbased.health',
     'beta.getbased.health',
     'get-based.vercel.app',
+    'get-based-managed-subscription-v2.vercel.app',
   ])('recognizes operator-hosted domain %s', hostname => {
     expect(isOfficialGetbasedHost({ hostname })).toBe(true);
   });

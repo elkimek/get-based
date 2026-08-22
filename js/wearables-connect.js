@@ -6,6 +6,7 @@
 // the L2 summary gate. Keeps UI-side code clean of OAuth plumbing.
 
 import { getErrorCode, getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { adapterById, applyOAuthConfigured, applyOAuthOverrides, getOAuthClientId, isOAuthAdapterConfigured, isWearableRelayUnavailable } from './wearable-adapters.js';
@@ -770,7 +771,7 @@ export function loadWearableRuntimeConfig(options = {}) {
     const timeoutId = setTimeout(() => controller.abort(), RUNTIME_CONFIG_FETCH_TIMEOUT_MS);
     _runtimeConfigFetchPromise = (async () => {
       try {
-        const res = await fetch('/api/proxy', {
+        const res = await fetch(getProxyApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wearable_runtime_config: true }),

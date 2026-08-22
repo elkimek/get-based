@@ -11,10 +11,11 @@
 // in wearables-connect.js via `withFreshToken`. See wearables-oura-auth.js.
 
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
 const OURA_API = 'https://api.ouraring.com';
-const PROXY_URL = '/api/proxy';
+const PROXY_URL = getProxyApiUrl();
 
 // ─────────────────────────────────────────────────────────
 // Transport

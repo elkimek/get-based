@@ -18,10 +18,11 @@
 //   Weight log      GET /1/user/-/body/log/weight/date/YYYY-MM-DD/YYYY-MM-DD.json
 
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
 const FITBIT_API = 'https://api.fitbit.com';
-const PROXY_URL = '/api/proxy';
+const PROXY_URL = getProxyApiUrl();
 
 async function fbGET(path, accessToken) {
   const url = `${FITBIT_API}/${path.replace(/^\//, '')}`;

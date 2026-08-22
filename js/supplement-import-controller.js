@@ -22,6 +22,7 @@ import {
   supplementImportIngredientKey,
 } from './supplement-import-draft.js';
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   getElementValue,
   getFieldValue,
@@ -376,7 +377,7 @@ export async function fetchSupplementFromURL() {
       }
       html = json.html;
     } else {
-      const response = await fetch('/api/proxy', {
+      const response = await fetch(getProxyApiUrl(), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proxy_purpose: 'public-page', url, method: 'GET', headers: { Accept: 'text/html,application/xhtml+xml' } }),
       });

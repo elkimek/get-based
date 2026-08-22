@@ -17,11 +17,12 @@
 // our side — we reduce intra-day samples before writing to L1.
 
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 import { isoDay } from './wearables-oura.js';
 
 const WITHINGS_API = 'https://wbsapi.withings.net';
-const PROXY_URL    = '/api/proxy';
+const PROXY_URL    = getProxyApiUrl();
 
 // Withings measure-type codes → canonical fields. We aim for full coverage
 // of /measure: every measType the user's hardware produces flows to a

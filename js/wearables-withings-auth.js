@@ -13,6 +13,7 @@
 // /api/proxy). PKCE is NOT supported by Withings.
 
 import { isDebugMode } from './utils.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
@@ -21,7 +22,7 @@ import {
 import { withingsErrorMessage } from './wearables-withings.js';
 
 const AUTHORIZE_URL = 'https://account.withings.com/oauth2_user/authorize2';
-const PROXY_URL     = '/api/proxy';
+const PROXY_URL     = getProxyApiUrl();
 const STATE_KEY     = 'withings-oauth-pending';
 const REFRESH_LEAD_MS  = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'withings-oauth-refresh';

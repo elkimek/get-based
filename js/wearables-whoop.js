@@ -11,10 +11,11 @@
 // so callers don't branch on vendor.
 
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
 const WHOOP_API = 'https://api.prod.whoop.com';
-const PROXY_URL = '/api/proxy';
+const PROXY_URL = getProxyApiUrl();
 
 async function whoopGET(path, accessToken, params = {}) {
   const qs = new URLSearchParams(params).toString();

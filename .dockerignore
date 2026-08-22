@@ -1,0 +1,15 @@
+**
+!package.json
+!package-lock.json
+!api/
+!api/**
+!lib/
+!lib/**
+!server/
+!server/compat-proxy-server.js
+!scripts/
+!scripts/vendor-packages/
+!scripts/vendor-packages/**
+!deploy/
+!deploy/compat-proxy/
+!deploy/compat-proxy/Dockerfile

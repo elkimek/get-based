@@ -7,6 +7,7 @@
 // connection orchestrator.
 
 import { isDebugMode } from './utils.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import {
   exposeWearableAuthDebug,
   getWearableAuthLocation,
@@ -14,7 +15,7 @@ import {
 } from './wearables-auth-runtime.js';
 
 const AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-const PROXY_URL = '/api/proxy';
+const PROXY_URL = getProxyApiUrl();
 const STATE_KEY = 'google_health-oauth-pending';
 const REFRESH_LEAD_MS = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'google-health-oauth-refresh';

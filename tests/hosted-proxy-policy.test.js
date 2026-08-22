@@ -21,6 +21,16 @@ describe('getbased-operated proxy allowlist', () => {
     }))).toBe(true);
   });
 
+  it('allows the named managed preview but rejects lookalike Vercel origins', () => {
+    const requestUrl = 'https://integrations.getbased.health/api/proxy';
+    expect(isAllowedProxyCallerOrigin(new Request(requestUrl, {
+      headers: { Origin: 'https://get-based-managed-subscription-v2.vercel.app' },
+    }))).toBe(true);
+    expect(isAllowedProxyCallerOrigin(new Request(requestUrl, {
+      headers: { Origin: 'https://get-based-managed-subscription-v2-attacker.vercel.app' },
+    }))).toBe(false);
+  });
+
   it('allows only the Oura collections used by the hosted app', () => {
     expect(classifyHostedProxyRequest({
       url: 'https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=2026-08-01&end_date=2026-08-02',

@@ -1,6 +1,7 @@
 // @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
 import { getErrorName } from './caught-error.js';
+import { getProxyApiUrl } from './proxy-runtime.js';
 import { isOfficialGetbasedHost } from './url-safety.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { isSunDebugRuntime } from './sun-runtime.js';
@@ -237,7 +238,7 @@ const PROVIDERS = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meteo: 'cams', latitude: lat, longitude: lon, time: isoTime }),
       };
-      const json = await fetchJson('/api/proxy', options);
+      const json = await fetchJson(getProxyApiUrl(), options);
       return shapeCamsResponse(json, isoTime, 'cams');
     },
   },
