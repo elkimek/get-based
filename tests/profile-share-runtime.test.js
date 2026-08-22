@@ -14,7 +14,7 @@ describe('profile-share endpoint routing', () => {
       'beta.getbased.health',
       'get-based.vercel.app',
     ]) {
-      expect(getProfileShareApiUrl({ hostname }, VPS_ID)).toBe('https://sync.getbased.health/profile-share');
+      expect(getProfileShareApiUrl({ hostname }, VPS_ID)).toBe('https://shares.getbased.health/api/share');
       expect(getProfileShareApiUrl({ hostname }, LEGACY_ID)).toBe('/api/share');
     }
     expect(getProfileShareApiUrl({ hostname: 'getbased.health.evil.example' }, VPS_ID)).toBe('/api/share');

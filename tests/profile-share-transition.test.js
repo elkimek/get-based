@@ -7,7 +7,7 @@ import {
 
 const STARTED_AT = '2026-08-22T12:00:00.000Z';
 const LEGACY_UNTIL = '2026-09-21T12:00:00.000Z';
-const UPSTREAM = 'https://sync.getbased.health/profile-share';
+const UPSTREAM = 'https://shares.getbased.health/api/share';
 
 function request(method = 'GET', id = 'abcdefghijklmnopqrstuvwx') {
   return new Request(`https://app.getbased.health/api/share?id=${id}`, { method });

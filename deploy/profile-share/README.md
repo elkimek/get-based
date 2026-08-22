@@ -15,21 +15,25 @@ credentials, writable volumes, or rollback procedures.
 3. Copy `.env.example` to `.env`, set a freshly generated
    `PROFILE_SHARE_RATE_LIMIT_KEY`, and set the file mode to `0600`.
 4. Build and start with Docker Compose from `deploy/profile-share`.
-5. Expose only the loopback listener through an exact HTTPS reverse-proxy route:
+5. Point `shares.getbased.health` at the VPS, then expose only the loopback
+   listener through that dedicated HTTPS origin and exact API path:
 
    ```caddy
-   handle /profile-share {
-       request_body {
-           max_size 4MB
+   shares.getbased.health {
+       handle /api/share {
+           request_body {
+               max_size 4MB
+           }
+           reverse_proxy 127.0.0.1:8790
+           header -Server
        }
-       rewrite * /api/share
-       reverse_proxy 127.0.0.1:8790
-       header -Server
+
+       respond 404
    }
    ```
 
 Do not enable request-body or query-string access logging for this route. The
-application client must remain on its prior `/api/share` endpoint until
+application client must remain on its prior same-origin `/api/share` endpoint until
 synthetic create/read/delete/expiry tests, the bounded existing-link transition,
 privacy disclosures, and rollback checks are complete.
 
