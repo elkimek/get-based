@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 667 |
-| Internal import edges | 2818 |
+| Modules | 668 |
+| Internal import edges | 2819 |
 | Dynamic internal edges | 76 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1239,9 +1239,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>wearable</code> family — 1 module</summary>
+<details><summary><code>wearable</code> family — 2 modules</summary>
 
 - [`js/wearable-adapters.js`](js/wearable-adapters.js) → [`js/url-safety.js`](js/url-safety.js)
+- [`js/wearable-relay-consent.js`](js/wearable-relay-consent.js) → no in-scope imports
 
 </details>
 
@@ -1272,7 +1273,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-polar.js`](js/wearables-polar.js) → [`js/caught-error.js`](js/caught-error.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-runtime.js`](js/wearables-runtime.js) → [`js/emf-runtime.js`](js/emf-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-settings-groups.js`](js/wearables-settings-groups.js) → no in-scope imports
-- [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-settings-groups.js`](js/wearables-settings-groups.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
+- [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js) → [`js/brand-assets.js`](js/brand-assets.js), [`js/caught-error.js`](js/caught-error.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearable-relay-consent.js`](js/wearable-relay-consent.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*, [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-settings-groups.js`](js/wearables-settings-groups.js), [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js), [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/wearables-settings-runtime.js`](js/wearables-settings-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/wearables-store.js`](js/wearables-store.js) → no in-scope imports
 - [`js/wearables-strip-actions.js`](js/wearables-strip-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-connect.js`](js/wearables-connect.js), [`js/wearables-detail-modal.js`](js/wearables-detail-modal.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-manual-form-ui.js`](js/wearables-manual-form-ui.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-summary.js`](js/wearables-summary.js)
