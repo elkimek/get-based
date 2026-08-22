@@ -7,9 +7,12 @@
 !lib/**
 !server/
 !server/compat-proxy-server.js
+!server/profile-share-server.js
 !scripts/
 !scripts/vendor-packages/
 !scripts/vendor-packages/**
 !deploy/
 !deploy/compat-proxy/
 !deploy/compat-proxy/Dockerfile
+!deploy/profile-share/
+!deploy/profile-share/Dockerfile

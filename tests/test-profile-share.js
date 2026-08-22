@@ -26,7 +26,12 @@ const settingsDataSrc = read('js/settings-data.js');
 const profileShareLoaderSrc = read('js/profile-share-loader.js');
 const appFeatureSrc = read('js/app-feature-modules.js');
 const appShellHooksSrc = read('js/app-shell-hooks.js');
-const apiShareSrc = read('api/share.js');
+const apiShareSrc = [
+  read('api/share.js'),
+  read('lib/profile-share-service.js'),
+  read('lib/profile-share-transition.js'),
+  read('lib/profile-share-vercel-blob-store.js'),
+].join('\n');
 const devServerSrc = read('dev-server.js');
 const modalCss = read('css/modal-shared.css');
 const redesignCss = read('css/redesign-shell.css');
@@ -119,6 +124,7 @@ assert('Share modal requires explicit encrypted upload consent',
   profileShareSrc.includes('id="profile-share-consent" type="checkbox" required') &&
   profileShareSrc.includes('The link finds a locked copy of the profile') &&
   profileShareSrc.includes('The password is the only way to unlock it') &&
+  profileShareSrc.includes('temporary share copies are not backed up') &&
   profileShareSrc.includes('Anyone with both the link and password can open it'));
 assert('Share modal lists and can stop links created on this device',
   profileShareSrc.includes('const SHARE_RECORDS_KEY') &&
@@ -172,7 +178,7 @@ assert('Edge API avoids importing the Node-only @vercel/blob client',
   !apiShareSrc.includes("from '@vercel/blob'"));
 assert('Edge API uses the shared private Vercel Blob REST boundary',
   packageJson.dependencies?.['@vercel/blob'] === '2.8.0' &&
-  apiShareSrc.includes("from '../lib/vercel-blob-rest.js'") &&
+  apiShareSrc.includes("from './vercel-blob-rest.js'") &&
   apiShareSrc.includes("access: 'private'") &&
   apiShareSrc.includes('BLOB_READ_WRITE_TOKEN'));
 assert('API validates share ids, size, expiry, and crypto envelope',
@@ -195,6 +201,13 @@ assert('API rate limits unauthenticated share creation',
 assert('API only allows localhost CORS in development',
   apiShareSrc.includes("process.env.NODE_ENV === 'development'") &&
   apiShareSrc.includes("['localhost', '127.0.0.1'].includes(originUrl.hostname)"));
+assert('Hosted transition is bounded and does not migrate opaque records',
+  profileShareSrc.includes("OPERATED_PROFILE_SHARE_ID_PREFIX = 'vps1_'") &&
+  apiShareSrc.includes('MAX_LEGACY_WINDOW_MS') &&
+  apiShareSrc.includes('GETBASED_PROFILE_SHARE_TRANSITION_STARTED_AT') &&
+  apiShareSrc.includes('GETBASED_PROFILE_SHARE_LEGACY_BLOB_UNTIL') &&
+  apiShareSrc.includes('redirectToUpstream') &&
+  !apiShareSrc.includes('migrateProfileShare'));
 assert('API requires local management token to stop new links',
   apiShareSrc.includes('manageTokenHash') &&
   apiShareSrc.includes('MANAGE_TOKEN_HASH_RE') &&

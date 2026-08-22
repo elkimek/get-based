@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 662 |
-| Internal import edges | 2812 |
+| Modules | 667 |
+| Internal import edges | 2818 |
 | Dynamic internal edges | 76 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -23,9 +23,10 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | --- | --- | --- |
 | browser | `js/` | browser |
 | serverless | `api/` | serverless, server-shared |
-| compat-server | `server/` | serverless |
+| compat-server | `server/compat-proxy-server.js` | serverless |
 | server-shared | `lib/` | server-shared |
 | local-server | `dev-server.js` | server-shared |
+| standalone-server | `server/profile-share-server.js` | server-shared |
 | service-worker | `service-worker.js`, `service-worker-runtime.js` | service-worker |
 
 ### Facade-only implementation modules
@@ -48,6 +49,7 @@ These implementation modules may only be imported by their public facade.
 - [`api/proxy.js`](api/proxy.js)
 - [`api/share.js`](api/share.js)
 - [`server/compat-proxy-server.js`](server/compat-proxy-server.js)
+- [`server/profile-share-server.js`](server/profile-share-server.js)
 - [`dev-server.js`](dev-server.js)
 - [`service-worker.js`](service-worker.js)
 
@@ -1315,7 +1317,7 @@ Hosted request handlers shared by Vercel and Node deployment entry points.
 
 <details><summary><code>share</code> family — 1 module</summary>
 
-- [`api/share.js`](api/share.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
+- [`api/share.js`](api/share.js) → [`lib/profile-share-service.js`](lib/profile-share-service.js), [`lib/profile-share-transition.js`](lib/profile-share-transition.js), [`lib/profile-share-vercel-blob-store.js`](lib/profile-share-vercel-blob-store.js)
 
 </details>
 
@@ -1347,6 +1349,15 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
+<details><summary><code>profile</code> family — 4 modules</summary>
+
+- [`lib/profile-share-service.js`](lib/profile-share-service.js) → no in-scope imports
+- [`lib/profile-share-sqlite-store.js`](lib/profile-share-sqlite-store.js) → no in-scope imports
+- [`lib/profile-share-transition.js`](lib/profile-share-transition.js) → [`lib/profile-share-service.js`](lib/profile-share-service.js)
+- [`lib/profile-share-vercel-blob-store.js`](lib/profile-share-vercel-blob-store.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
+
+</details>
+
 <details><summary><code>proxy</code> family — 4 modules</summary>
 
 - [`lib/proxy-network.js`](lib/proxy-network.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
@@ -1369,6 +1380,16 @@ Local development server entry point.
 <details><summary><code>dev</code> family — 1 module</summary>
 
 - [`dev-server.js`](dev-server.js) → [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+
+</details>
+
+## standalone-server modules
+
+Operator-deployed profile-share service entry point.
+
+<details><summary><code>profile</code> family — 1 module</summary>
+
+- [`server/profile-share-server.js`](server/profile-share-server.js) → [`lib/profile-share-service.js`](lib/profile-share-service.js), [`lib/profile-share-sqlite-store.js`](lib/profile-share-sqlite-store.js)
 
 </details>
 

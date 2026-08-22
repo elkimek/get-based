@@ -1,0 +1,40 @@
+services:
+  profile-share:
+    build:
+      context: ../..
+      dockerfile: deploy/profile-share/Dockerfile
+    image: getbased/profile-share:local
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:8790:8790"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      - PROFILE_SHARE_BIND=0.0.0.0
+      - PROFILE_SHARE_PORT=8790
+      - PROFILE_SHARE_SQLITE_PATH=/data/profile-shares.sqlite
+      - PROFILE_SHARE_DATABASE_MAX_BYTES=536870912
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 96
+    mem_limit: 256m
+    cpus: 0.75
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8790/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

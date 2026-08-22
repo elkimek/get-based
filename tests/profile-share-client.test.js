@@ -6,6 +6,7 @@ import {
   PROFILE_SHARE_MAX_DECOMPRESSED_BYTES,
   PROFILE_SHARE_MIN_KDF_ITERATIONS,
   buildProfileShareUrl,
+  createProfileShareId,
   decryptProfileShareEnvelope,
   encryptProfileShareEnvelope,
   parseProfileShareIdFromLocation,
@@ -33,6 +34,10 @@ function replaceGlobal(name, value) {
 }
 
 describe('profile share URL handling', () => {
+  it('namespaces new operated-service ids without overlapping legacy 24-character ids', () => {
+    expect(createProfileShareId()).toMatch(/^vps1_[A-Za-z0-9_-]{24}$/);
+  });
+
   it('builds a secret-free link on the current path and rejects invalid ids', () => {
     const url = buildProfileShareUrl(SHARE_ID, {
       origin: 'https://getbased.health',

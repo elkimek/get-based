@@ -28,3 +28,5 @@ test-screenshots/
 .mcp.json
 .env.local
 .env.*.local
+deploy/profile-share/.env
+deploy/profile-share/data/
