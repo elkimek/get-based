@@ -195,7 +195,7 @@ function removeConnection(adapterId) {
 
 // Starts the OAuth flow. Navigates away from the current page — control
 // returns via the redirect handler in startup-oauth-callbacks.js.
-export function beginConnectOAuth(adapterId) {
+export function beginConnectOAuth(adapterId, profileId = getActiveProfileId()) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
@@ -211,7 +211,7 @@ export function beginConnectOAuth(adapterId) {
     clientId: getOAuthClientId(adapter),
     registeredUris: oauth.redirectUris,
     scopes: oauth.scopes,
-    profileId: state.currentProfile,
+    profileId,
   });
 }
 
@@ -674,11 +674,11 @@ export async function syncNow(adapterId, { force = false } = {}) {
   } catch (e) {
     const displayName = adapterById(adapterId)?.displayName || adapterId;
     if (getErrorCode(e) === 'needs-reauth') {
-      showNotification?.(`${displayName} needs reconnection — open Settings → Wearables`, 'error', 5000);
+      showNotification?.(`Your ${displayName} connection has expired. Reconnect it in Settings → Wearables.`, 'error', 5000);
     } else if (getErrorStatus(e) === 401 || getErrorStatus(e) === 403) {
       const conn = getConnection(adapterId);
       if (conn) saveConnection(adapterId, { ...conn, needsReauth: true });
-      showNotification?.(`${displayName} token rejected — reconnect`, 'error');
+      showNotification?.(`${displayName} could not confirm this connection. Reconnect it in Settings → Wearables.`, 'error');
     } else {
       if (isDebugMode?.()) console.warn(`[wearables] syncNow ${adapterId} failed:`, getErrorMessage(e));
       showNotification?.(`${displayName} sync failed: ${_scrubError(getErrorMessage(e))}`, 'error', 4000);

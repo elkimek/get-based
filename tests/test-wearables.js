@@ -667,7 +667,7 @@ assert('hosted wearable relay consent is limited to fixed hosted integrations',
 assert('hosted wearable disclosure explicitly identifies readable transit processing',
   wearableSettings.hostedWearableRelayDisclosure('Oura').includes('getbased s.r.o.')
   && wearableSettings.hostedWearableRelayDisclosure('Oura').includes('can read those values while forwarding')
-  && wearableSettings.hostedWearableRelayDisclosure('Oura').includes('explicitly consent'));
+  && wearableSettings.hostedWearableRelayDisclosure('Oura').includes('Encrypted sync and cloud AI are separate choices'));
 const wearableSettingsLegacyGlobals = [
   'setWearableStripHidden',
   'isWearableStripHidden',
@@ -903,7 +903,7 @@ assert('Wearable OAuth modules delegate browser globals to auth runtime',
   authModuleFiles.find((file, index) => /\bwindow(?:\.|\s*\[)/.test(authModuleSources[index])) || 'missing runtime import');
 assert('wearable connector passes the initiating profile into OAuth modules',
   (await fetch('/js/wearables-connect.js').then(r => r.text()))
-    .includes('profileId: state.currentProfile'));
+    .includes('profileId = getActiveProfileId()'));
 // (JSZip functional smoke — needs real browser <script> injection —
 // lives in test-wearables-dom.js. The loadJSZip source-pattern asserts
 // above run in Node.)
@@ -1689,9 +1689,8 @@ assert('Every OAuth wearable stores tokens in the device-local credential vault'
   /VAULTED_CREDENTIAL_ADAPTERS\s*=\s*new Set\(\[[\s\S]*?'oura'[\s\S]*?'whoop'[\s\S]*?'withings'[\s\S]*?'ultrahuman'[\s\S]*?'fitbit'[\s\S]*?'google_health'[\s\S]*?'polar'/.test(credentialVaultSrc));
 const wearableSettingsPanelSrc = await fetch('/js/wearables-settings-panel.js').then(r => r.text());
 assert('Wearable settings distinguish always-encrypted tokens from conditionally encrypted non-Google history',
-  wearableSettingsPanelSrc.includes('OAuth tokens are always device-key encrypted.')
-    && wearableSettingsPanelSrc.includes('Google Health rows are always device-key encrypted')
-    && wearableSettingsPanelSrc.includes('other rows are encrypted when passphrase protection is enabled')
+  wearableSettingsPanelSrc.includes('Connection keys and Google Health imports are always encrypted on this device.')
+    && wearableSettingsPanelSrc.includes('Other imported history is encrypted when you protect the profile with a passphrase.')
     && !wearableSettingsPanelSrc.includes('Tokens and imported history are always encrypted'));
 
 // ═══════════════════════════════════════
@@ -2388,7 +2387,7 @@ assert('Settings render shows disabled Ultrahuman setup row on localhost',
   /data-adapter="ultrahuman"/.test(settingsHtml)
     && !/aria-label="Connect Ultrahuman"/.test(settingsHtml));
 assert('Settings marks experimental self-host setup as required',
-  /experimental · setup required/.test(settingsHtml));
+  /Set up on your server/.test(settingsHtml));
 assert('Settings render still shows Oura row',
   /data-adapter-id="oura"|connectAdapter\('oura'\)|adapter\.id === 'oura'/i.test(settingsHtml) ||
   /Oura/.test(settingsHtml));

@@ -50,7 +50,7 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
       const initialRow = document.querySelector('[data-adapter="google_health"]');
-      const initiallySelfHostOnly = initialRow?.textContent.includes('self-host only');
+      const initiallySelfHostOnly = initialRow?.textContent.includes('Available when self-hosted');
       const initiallyHasConnect = Boolean(initialRow
         ?.querySelector('[data-wearable-settings-action="connect"]'));
 
@@ -58,14 +58,14 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       while (runtimeConfigCalls < 1) await new Promise(resolve => setTimeout(resolve, 10));
       await new Promise(resolve => setTimeout(resolve, 0));
       const afterFailureStillSelfHostOnly = document.querySelector('[data-adapter="google_health"]')
-        ?.textContent.includes('self-host only');
+        ?.textContent.includes('Available when self-hosted');
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       while (!hangingRequestAborted) await new Promise(resolve => setTimeout(resolve, 10));
       await new Promise(resolve => setTimeout(resolve, 0));
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       for (let attempt = 0; attempt < 80; attempt += 1) {
         const row = document.querySelector('[data-adapter="google_health"]');
-        if (row?.textContent.includes('optional health hub')) break;
+        if (row?.textContent.includes('Connect through Google Health')) break;
         await new Promise(resolve => setTimeout(resolve, 25));
       }
 
@@ -83,10 +83,10 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         configuredHasConnect: Boolean(configuredRow
           ?.querySelector('[data-wearable-settings-action="connect"]')),
         ultrahumanConfigured: document.querySelector('[data-adapter="ultrahuman"]')
-          ?.textContent.includes('experimental · self-hosted')
+          ?.textContent.includes('Available when self-hosted')
           && Boolean(document.querySelector('[data-adapter="ultrahuman"] [data-wearable-settings-action="connect"]')),
         whoopConfigured: document.querySelector('[data-adapter="whoop"]')
-          ?.textContent.includes('experimental · self-hosted')
+          ?.textContent.includes('Available when self-hosted')
           && Boolean(document.querySelector('[data-adapter="whoop"] [data-wearable-settings-action="connect"]')),
         groupIds: Array.from(document.querySelectorAll('[data-wearable-group]'))
           .map(group => group.getAttribute('data-wearable-group')),
@@ -111,8 +111,8 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
     ultrahumanConfigured: true,
     whoopConfigured: true,
   });
-  expect(result.configuredText).toContain('optional health hub');
-  expect(result.configuredText).not.toContain('waiting on partner credentials');
+  expect(result.configuredText).toContain('Connect through Google Health');
+  expect(result.configuredText).not.toContain('Not available yet');
   expect(result.groupIds).toEqual(['available', 'self_host', 'local']);
   expect(result.availableOrder).toEqual(['oura', 'withings', 'polar']);
   expect(result.selfHostOrder).toEqual(['google_health', 'whoop', 'ultrahuman']);
@@ -265,16 +265,16 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         && !section.querySelector('[data-wearable-group="local"] [data-adapter="manual"]')
         && !section.querySelector('[data-wearable-group="local"] [data-adapter="apple_health"]'));
       check('connected OAuth row renders status and identity',
-        ouraRow?.textContent.includes('connected') && ouraRow?.textContent.includes('oura@example.test'));
+        ouraRow?.textContent.includes('Connected') && ouraRow?.textContent.includes('oura@example.test'));
       check('legacy Fitbit reauth state explains self-host Google Health migration',
-        fitbitRow?.textContent.includes('migration required')
+        fitbitRow?.textContent.includes('Move this connection')
         && fitbitRow?.textContent.includes('self-host only')
         && fitbitRow?.textContent.includes('Disconnect legacy Fitbit')
         && !fitbitRow?.textContent.includes('Connect Google Health')
         && !fitbitRow?.textContent.includes('Reconnect'));
       const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
       check('experimental self-host setup row renders native docs link without Connect',
-        ultrahumanRow?.textContent.includes('experimental · setup required')
+        ultrahumanRow?.textContent.includes('Set up on your server')
         && ultrahumanDocsLink?.getAttribute('href') === 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps'
         && !ultrahumanRow?.querySelector('[data-wearable-settings-action="connect"]')
         && !ultrahumanRow?.querySelector('summary a[href]'));

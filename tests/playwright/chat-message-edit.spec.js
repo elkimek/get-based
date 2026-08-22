@@ -8,8 +8,8 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('labcharts-default-tour', 'completed');
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
       accepted: true,
-      termsVersion: '2026-08-19',
-      privacyVersion: '2026-08-19',
+      termsVersion: '2026-08-22',
+      privacyVersion: '2026-08-22',
       acceptedAt: '2026-08-08T00:00:00.000Z',
       appVersion: 'chat-edit-test',
       location: 'chat-edit-test',

@@ -112,7 +112,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
       hasGoogleRow: html.includes('data-adapter="google_health"'),
       hostedOmitsSelfHostDataHandlingCopy: !html.includes('When enabled by a self-hosted deployment')
         && !html.includes('Independent direct integrations remain available'),
-      hasSelfHostCopy: html.includes('self-host only')
+      hasSelfHostCopy: html.includes('Available when self-hosted')
         && html.includes('not offered by this hosted deployment')
         && !html.includes('aria-label="Connect Google Health"'),
       unconfiguredSkippedDisclosure,
@@ -122,7 +122,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
         && consentMessages[0].includes('cloud AI or agent')
         && consentMessages[0].includes('Disconnecting deletes'),
       cancelledBeforeOAuth,
-      hasLegacyMigrationAction: migrationHtml.includes('migration required')
+      hasLegacyMigrationAction: migrationHtml.includes('Move this connection')
         && migrationHtml.includes('self-host only')
         && !migrationHtml.includes('Connect Google Health</button>')
         && migrationHtml.includes('September 2026'),
@@ -272,8 +272,8 @@ test('Google Health OAuth callback keeps reusable tokens out of profile data', a
       handled,
       connection,
       connectedOnThisDevice,
-      usesStandardConnectedActions: connectedHtml.includes('Sync now')
-        && connectedHtml.includes('Backfill 90 days')
+      usesStandardConnectedActions: connectedHtml.includes('Update now')
+        && connectedHtml.includes('Import last 90 days')
         && connectedHtml.includes('Disconnect')
         && !connectedHtml.includes('Revoke access everywhere')
         && !connectedHtml.includes('https://myaccount.google.com/connections'),

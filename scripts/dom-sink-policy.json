@@ -3,7 +3,7 @@
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
   "scannedFiles": 644,
-  "sinkCount": 499,
+  "sinkCount": 500,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -882,6 +882,13 @@
       "digest": "f1fac537e8538aca5428ea2d008af479c3b783fa4b0fc4a078c86da38463f835",
       "kinds": {
         "innerHTML": 4
+      }
+    },
+    "js/wearables-settings-groups.js": {
+      "count": 1,
+      "digest": "298dd96e5d37b058e91b65c1c9f16083a73ba35b818e166ec53ede091dfe65ef",
+      "kinds": {
+        "innerHTML": 1
       }
     },
     "js/wearables-settings-panel.js": {
