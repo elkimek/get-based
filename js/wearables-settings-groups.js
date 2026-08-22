@@ -6,19 +6,19 @@
 export const WEARABLE_GROUP_COPY = Object.freeze({
   connected: {
     title: 'Connected',
-    hint: 'Connections needing action appear first.',
+    hint: 'Choose a source to update or disconnect it.',
   },
   available: {
-    title: 'Available integrations',
-    hint: 'Connect a supported provider directly.',
+    title: 'Ready to connect',
+    hint: 'Connect an account to import its readings.',
   },
   self_host: {
-    title: 'Self-host integrations',
-    hint: 'These use this deployment\'s own developer credentials. Experimental providers are labeled.',
+    title: 'For self-hosted getbased',
+    hint: 'Available when you run getbased on your own server.',
   },
   local: {
     title: 'Import or enter data',
-    hint: 'Import an Apple Health export or record key biometrics manually.',
+    hint: 'Use an Apple Health export or add readings yourself.',
   },
 });
 

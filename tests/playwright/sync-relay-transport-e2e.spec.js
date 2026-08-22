@@ -13,8 +13,8 @@ test.describe.configure({ mode: 'serial' });
 function legalAcceptance() {
   return {
     accepted: true,
-    termsVersion: '2026-08-19',
-    privacyVersion: '2026-08-19',
+    termsVersion: '2026-08-22',
+    privacyVersion: '2026-08-22',
     acceptedAt: '2026-08-06T00:00:00.000Z',
     appVersion: 'sync-transport-e2e',
     location: 'sync-transport-e2e',

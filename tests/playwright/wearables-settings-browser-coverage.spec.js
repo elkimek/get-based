@@ -151,7 +151,7 @@ test('wearables settings browser coverage exercises import and connection action
       check('disconnect handler confirms removes connection and re-renders import state',
         confirmReady
         && !state.importedData.wearableConnections.apple_health
-        && document.getElementById('wearables-section')?.textContent.includes('file import only'));
+        && document.getElementById('wearables-section')?.textContent.includes('Import from a file'));
 
       const strip = document.createElement('div');
       strip.id = 'wearable-strip';

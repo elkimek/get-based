@@ -528,6 +528,7 @@ const wearablesWorkflowCheckJsModules = [
   'js/wearables-runtime.js',
   'js/wearables-settings-runtime.js',
   'js/wearables-settings-groups.js',
+  'js/wearable-relay-consent.js',
   'js/wearables-settings-panel.js',
   'js/wearables-store.js',
   'js/wearables-summary.js',

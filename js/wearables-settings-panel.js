@@ -34,6 +34,10 @@ import {
   confirmWearableSettingsAction,
   navigateWearablesDashboard,
 } from './wearables-settings-runtime.js';
+import {
+  requestHostedWearableRelayConsent,
+  withdrawHostedWearableRelayConsent,
+} from './wearable-relay-consent.js';
 
 let wearableSettingsDelegatesInstalled = false;
 
@@ -52,9 +56,9 @@ export function requiresHostedWearableRelayConsent(adapterId, locationLike = glo
 }
 
 export function hostedWearableRelayDisclosure(providerName) {
-  return `Connecting ${providerName} authorizes getbased s.r.o. to relay the OAuth exchange and the ${providerName} health data you ask to import through its fixed hosted endpoint. The relay can read those values while forwarding them, does not intentionally persist request or response bodies, and permits only this integration's fixed destinations.
+  return `getbased s.r.o. uses its secure relay to connect ${providerName} and import the health readings you request. The relay can read those values while forwarding them, but does not intentionally store request or response contents.
 
-Choose “I consent & continue” only if you explicitly consent to this health-data processing. You can disconnect and delete this device's imported data at any time, and you can revoke access in your ${providerName} account.`;
+You can withdraw at any time by disconnecting ${providerName}, which stops future imports and removes this device's connection and imported ${providerName} data. Encrypted sync and cloud AI are separate choices.`;
 }
 
 function wearableSettingsActionAttrs(action, data = {}, opts = {}) {
@@ -173,14 +177,16 @@ export function installWearableSettingsDelegates(root = typeof document !== 'und
 }
 
 function formatAgo(ts) {
-  if (!ts) return 'never';
+  if (!ts) return 'Not synced yet';
   const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return 'Just now';
+  if (mins === 1) return '1 minute ago';
+  if (mins < 60) return `${mins} minutes ago`;
   const hrs = Math.round(mins / 60);
-  if (hrs < 48) return `${hrs}h ago`;
+  if (hrs === 1) return '1 hour ago';
+  if (hrs < 48) return `${hrs} hours ago`;
   const days = Math.round(hrs / 24);
-  return `${days}d ago`;
+  return days === 1 ? '1 day ago' : `${days} days ago`;
 }
 
 // Per-profile so a practitioner can disable wearables for a labs-only client
@@ -221,21 +227,19 @@ export function renderWearablesSettingsSection() {
   );
   const groupMarkup = groups.map(group => renderAdapterGroup(group, connected)).join('');
   const hidden = isWearableStripHidden();
-  // BETA badge moves out of every row to a single section-level note. Every
-  // wearable adapter is currently beta — the per-row chip was redundant.
-  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-    <div style="flex:1;min-width:0">
-      <div style="font-size:13px;color:var(--text-secondary)">Wearable integrations</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Show data from connected wearables (Oura, Withings, Fitbit, etc.) on the dashboard. Off keeps the strip as a Biometrics strip — your manual weight, BP, and pulse entries still appear.</div>
-    </div>
-    <label class="toggle-switch">
-      <input type="checkbox" id="wearables-strip-hidden-toggle" ${hidden ? '' : 'checked'} ${wearableSettingsInputAttrs('strip-hidden')}>
-      <span class="toggle-slider"></span>
-    </label>
+  return `<div class="settings-action-row wearable-visibility-row">
+    <div class="settings-copy"><div class="settings-copy-title">Show wearable data on the dashboard</div>
+      <div class="settings-copy-desc">Turn this off to hide readings from connected services. Manual weight, blood pressure, and pulse entries stay visible.</div></div>
+    <label class="toggle-switch"><input type="checkbox" id="wearables-strip-hidden-toggle" ${hidden ? '' : 'checked'} ${wearableSettingsInputAttrs('strip-hidden')}><span class="toggle-slider"></span></label>
   </div>
-  <div class="settings-section-header" style="display:block">
-    <div class="settings-section-title" style="display:block;margin-bottom:4px">Health data sources</div>
-      <div class="settings-section-hint" style="display:block">Connected sources appear first; other providers are grouped by setup path. OAuth tokens are always device-key encrypted. Imported history stays on this device; Google Health rows are always device-key encrypted, while other rows are encrypted when passphrase protection is enabled. On the hosted app, supported wearable OAuth and API calls use the tightly scoped getbased relay; experimental providers marked self-host only use infrastructure controlled by the deployment owner. All integrations are <em>beta</em> — please report issues.</div>
+  <div class="wearable-sources-intro" aria-labelledby="wearable-sources-title">
+    <div class="wearable-sources-heading"><div class="settings-section-title" id="wearable-sources-title">Health data sources <span class="wearable-beta-label">Beta</span></div>
+      <p>Connect a service to bring its readings into this profile. Connections and imported history stay on this device unless you turn on encrypted sync.</p></div>
+    <details class="wearable-sources-privacy">
+      <summary>How your data is protected</summary>
+      <p>Connection keys and Google Health imports are always encrypted on this device. Other imported history is encrypted when you protect the profile with a passphrase.</p>
+      <p>On getbased.health, the secure getbased relay forwards supported service requests without intentionally storing their contents. Self-hosted connections use the deployment owner's server.</p>
+      <p>Encrypted sync and cloud AI are separate choices with their own controls.</p></details>
   </div>
   <div class="wearables-adapter-groups">${groupMarkup}</div>`;
 }
@@ -277,27 +281,27 @@ function renderAdapterRow(adapter, isConnected) {
   // Status text — only when there's something meaningful to say.
   let status = '';
   if (isConnected && adapter.legacyMigrationOnly) {
-    status = `<span class="wearable-row-status wearable-row-status-bad">migration required</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-bad">Move this connection</span>`;
   } else if (isConnected && isHostUnavailable) {
-    status = `<span class="wearable-row-status wearable-row-status-bad">host access unavailable</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-bad">Sync paused</span>`;
   } else if (isHostUnavailable) {
-    const label = adapter.experimentalSelfHost ? 'experimental · setup required' : 'self-host only';
+    const label = adapter.experimentalSelfHost ? 'Set up on your server' : 'Available when self-hosted';
     status = `<span class="wearable-row-status wearable-row-status-muted">${label}</span>`;
   } else if (isConnected && conn?.needsReauth) {
-    status = `<span class="wearable-row-status wearable-row-status-bad">needs reconnection</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-bad">Reconnect to resume</span>`;
   } else if (isConnected) {
-    const ago = conn?.lastSyncAt ? formatAgo(conn.lastSyncAt) : 'never synced';
-    status = `<span class="wearable-row-status wearable-row-status-ok">connected · ${escapeHTML(ago)}</span>`;
+    const updated = conn?.lastSyncAt ? `Updated ${formatAgo(conn.lastSyncAt).toLowerCase()}` : 'Waiting for first update';
+    status = `<span class="wearable-row-status wearable-row-status-ok"><span>Connected</span><span class="wearable-row-status-separator" aria-hidden="true">·</span><span class="wearable-row-status-detail">${escapeHTML(updated)}</span></span>`;
   } else if (isPendingClient) {
-    status = `<span class="wearable-row-status wearable-row-status-pending">waiting on partner credentials</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-pending">Not available yet</span>`;
   } else if (adapter.experimentalSelfHost) {
-    status = `<span class="wearable-row-status wearable-row-status-muted">experimental · self-hosted</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-muted">Available when self-hosted</span>`;
   } else if (adapter.integrationKind === 'aggregator') {
-    status = `<span class="wearable-row-status wearable-row-status-muted">optional health hub</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-muted">Connect through Google Health</span>`;
   } else if (isFileImport && !conn) {
-    status = `<span class="wearable-row-status wearable-row-status-muted">file import only</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-muted">Import from a file</span>`;
   } else if (isFileImport && conn) {
-    status = `<span class="wearable-row-status wearable-row-status-ok">imported · ${escapeHTML(conn.coverageDays ?? '?')} days</span>`;
+    status = `<span class="wearable-row-status wearable-row-status-ok">Imported ${escapeHTML(conn.coverageDays ?? '?')} days of data</span>`;
   }
 
   // Right-aligned action — Connect button, expand chevron, or Import.
@@ -427,7 +431,9 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostU
   // Connected OAuth — identity + manage actions
   if (conn && !conn.needsReauth && adapter.authType === 'oauth2') {
     const acct = conn.account || {};
-    const when = conn.lastSyncAt ? formatAgo(conn.lastSyncAt) : 'never';
+    const updated = conn.lastSyncAt
+      ? `Last updated ${formatAgo(conn.lastSyncAt).toLowerCase()}`
+      : 'Waiting for the first update';
     // Vendor identity priority: vendor-supplied identity string → email →
     // full name → user-id → generic fallback. Withings supplies a
     // last-measure timestamp string; Polar exposes first/last name + userId;
@@ -439,23 +445,23 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostU
       || fullName
       || (acct.userId ? `User ${acct.userId}` : '')
       || (acct['polar-user-id'] ? `User ${acct['polar-user-id']}` : '')
-      || '(account verified)'
+      || 'Connected account'
     );
     const replacement = adapter.replacementAdapterId ? adapterById(adapter.replacementAdapterId) : null;
     const migrateAction = replacement && isOAuthAdapterConfigured(replacement)
       ? `<button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('connect', { adapter: replacement.id })}>Connect Google Health</button>`
       : '';
     return `<div class="wearable-adapter-identity">${identity}</div>
-      <div class="wearable-adapter-meta">Last sync: ${escapeHTML(when)}</div>
+      <div class="wearable-adapter-meta">${escapeHTML(updated)}</div>
       ${migrationNotice}
       <div class="wearable-adapter-actions">
         ${migrateAction}
-        <button class="wearable-action wearable-action-primary" title="Refetches the last 7 days — catches today's reading even if you synced earlier." ${wearableSettingsActionAttrs('sync-now', { adapter: adapter.id })} aria-label="Sync ${escapeHTML(adapter.displayName)} now">
+        <button class="wearable-action wearable-action-primary" title="Checks the last 7 days, including today, for new or changed readings." ${wearableSettingsActionAttrs('sync-now', { adapter: adapter.id })} aria-label="Update ${escapeHTML(adapter.displayName)} now">
           <svg class="wearable-action-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 12 13 12"/></svg>
-          <span>Sync now <span class="wearable-action-hint">(catches today)</span></span>
+          <span>Update now <span class="wearable-action-hint">checks the last 7 days</span></span>
         </button>
-        <button class="wearable-action wearable-action-secondary" title="Refetches 90 days of history — useful after a long absence or to recover missing days. May take 30s+." ${wearableSettingsActionAttrs('backfill', { adapter: adapter.id })}>Backfill 90 days <span class="wearable-action-hint">(slower, fills gaps)</span></button>
-        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect</button>
+        <button class="wearable-action wearable-action-secondary" title="Imports the last 90 days again to recover any missing readings. This can take a little longer." ${wearableSettingsActionAttrs('backfill', { adapter: adapter.id })}>Import last 90 days <span class="wearable-action-hint">fills missing days</span></button>
+        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect and remove data</button>
       </div>`;
   }
   // Apple Health connected — different actions
@@ -658,14 +664,7 @@ async function handleWearableConnect(adapterId) {
       });
       if (!consented) return;
     } else if (requiresHostedWearableRelayConsent(adapterId)) {
-      const consented = await confirmWearableSettingsAction(
-        hostedWearableRelayDisclosure(adapter.displayName),
-        {
-          confirmLabel: 'I consent & continue',
-          tone: 'primary',
-          ariaLabel: `${adapter.displayName} hosted health data consent`,
-        },
-      );
+      const consented = await requestHostedWearableRelayConsent(adapterId, adapter.displayName);
       if (!consented) return;
     } else if (adapter?.experimentalSelfHost) {
       const consented = await confirmWearableSettingsAction(
@@ -724,9 +723,9 @@ async function handleWearableSyncNow(adapterId, triggerEl) {
   if (btn) btn.disabled = true;
   const name = adapterById(adapterId)?.displayName || adapterId;
   try {
-    showNotification?.(`Syncing ${name}…`, 'info', 1500);
+    showNotification?.(`Checking ${name} for new readings…`, 'info', 1500);
     const res = await syncNow(adapterId, { force: true });
-    showNotification?.(`${name} synced (${res.rows ?? 0} new)`, 'success', 2500);
+    showNotification?.(`${name} is up to date. ${res.rows ?? 0} days checked.`, 'success', 2500);
     refreshSettingsWearables();
     navigateWearablesDashboard();
   } catch { /* syncNow already notified */ }
@@ -739,22 +738,23 @@ async function handleWearableSyncNow(adapterId, triggerEl) {
 async function handleWearableBackfill(adapterId) {
   const name = adapterById(adapterId)?.displayName || adapterId;
   try {
-    showNotification?.(`Backfilling ${name}…`, 'info', 2000);
+    showNotification?.(`Importing the last 90 days from ${name}…`, 'info', 2000);
     const bf = await backfillWearable(adapterId);
     await syncWearableSummary(getActiveProfileId(), listConnectedSources());
-    showNotification?.(`${name} backfilled ${bf.rows} days`, 'success');
+    showNotification?.(`Imported ${bf.rows} days from ${name}.`, 'success');
     refreshSettingsWearables();
     navigateWearablesDashboard();
   } catch (e) {
-    showNotification?.(`Backfill failed: ${getErrorMessage(e)}`, 'error', 4000);
+    showNotification?.(`Couldn't import ${name} history: ${getErrorMessage(e)}`, 'error', 4000);
   }
 }
 
 async function handleWearableDisconnect(adapterId) {
   const name = adapterById(adapterId)?.displayName || adapterId;
-  if (await showConfirmDialog(`Disconnect ${name} and delete its local data?`)) {
+  if (await showConfirmDialog(`Disconnect ${name}? This stops future imports and removes this device's connection and imported ${name} data.`)) {
     try {
       await disconnectWearable(adapterId, { deleteData: true });
+      withdrawHostedWearableRelayConsent(adapterId);
       showNotification?.(`${name} disconnected`, 'success');
       refreshSettingsWearables();
       navigateWearablesDashboard();

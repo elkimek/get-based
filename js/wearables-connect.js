@@ -674,11 +674,11 @@ export async function syncNow(adapterId, { force = false } = {}) {
   } catch (e) {
     const displayName = adapterById(adapterId)?.displayName || adapterId;
     if (getErrorCode(e) === 'needs-reauth') {
-      showNotification?.(`${displayName} needs reconnection — open Settings → Wearables`, 'error', 5000);
+      showNotification?.(`Your ${displayName} connection has expired. Reconnect it in Settings → Wearables.`, 'error', 5000);
     } else if (getErrorStatus(e) === 401 || getErrorStatus(e) === 403) {
       const conn = getConnection(adapterId);
       if (conn) saveConnection(adapterId, { ...conn, needsReauth: true });
-      showNotification?.(`${displayName} token rejected — reconnect`, 'error');
+      showNotification?.(`${displayName} could not confirm this connection. Reconnect it in Settings → Wearables.`, 'error');
     } else {
       if (isDebugMode?.()) console.warn(`[wearables] syncNow ${adapterId} failed:`, getErrorMessage(e));
       showNotification?.(`${displayName} sync failed: ${_scrubError(getErrorMessage(e))}`, 'error', 4000);
