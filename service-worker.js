@@ -104,6 +104,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/api-provider-storage.js',
   '/js/crypto-key-cache.js',
   '/js/api-transport.js',
+  '/js/proxy-runtime.js',
   '/js/api-openai-compatible.js',
   '/js/api-local.js',
   '/js/local-ai-provider-shared.js',
@@ -781,8 +782,7 @@ function isLocalOrPrivateHost(hostname) {
     || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 }
 function shouldUseNetworkOnly(url, sameOrigin) {
-  const h = url.hostname;
-  return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));
+  const h = url.hostname; return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));
 }
 /** @type {ServiceWorkerGlobalScope & typeof globalThis & {
  *   GetBasedServiceWorkerRuntime: {
