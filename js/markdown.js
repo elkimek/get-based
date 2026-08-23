@@ -3,22 +3,69 @@
 
 import { escapeHTML } from './utils.js';
 
-export function applyInlineMarkdown(text) {
+const MAX_BLOCKQUOTE_DEPTH = 8;
+
+function normalizeComparisonEntities(text) {
   return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/&(?:lt|#0*60|#x0*3c);/gi, '<')
+    .replace(/&(?:gt|#0*62|#x0*3e);/gi, '>')
+    .replace(/&(?:le|#0*8804|#x0*2264);/gi, '≤')
+    .replace(/&(?:ge|#0*8805|#x0*2265);/gi, '≥');
+}
+
+function safeMarkdownHref(url) {
+  const candidate = url.trim();
+  if (candidate !== url || /[\s\u007f]/.test(candidate)) return '#';
+  if (!/^(?:https?:\/\/|mailto:)/i.test(candidate)) return '#';
+  return candidate.replace(/"/g, '&quot;');
+}
+
+export function applyInlineMarkdown(text) {
+  /** @type {string[]} */
+  const protectedHtml = [];
+  const protect = html => {
+    const token = `\u0000gbmd:${protectedHtml.length}\u0000`;
+    protectedHtml.push(html);
+    return token;
+  };
+
+  let html = escapeHTML(normalizeComparisonEntities(String(text ?? ''))
+    // NUL is reserved for internal placeholders and has no useful display form.
+    .replace(/\u0000/g, '\ufffd'))
+    // Protect code before processing emphasis or links inside it.
+    .replace(/`([^`\n]+?)`/g, (_, code) => protect(`<code>${code}</code>`))
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
-      const safe = /^(https?:|mailto:)/.test(url) ? url.replace(/"/g, '&quot;') : '#';
-      return `<a href="${safe}" target="_blank" rel="noopener">${escapeHTML(label)}</a>`;
+      const safe = safeMarkdownHref(url);
+      // The whole input, including the label, was escaped before Markdown tags
+      // were introduced. Protect the complete anchor from the bare-URL pass.
+      return protect(`<a href="${safe}" target="_blank" rel="noopener noreferrer">${label}</a>`);
     })
     .replace(/(?<!")(https?:\/\/[^\s<>")\]]+)/g, url => {
-      return `<a href="${url.replace(/"/g, '&quot;')}" target="_blank" rel="noopener">${url}</a>`;
+      const trailingMatch = url.match(/[.,;:!?]+$/);
+      const trailing = trailingMatch?.[0] || '';
+      const href = trailing ? url.slice(0, -trailing.length) : url;
+      return `<a href="${safeMarkdownHref(href)}" target="_blank" rel="noopener noreferrer">${href}</a>${trailing}`;
     });
+
+  // Resolve placeholders recursively so a protected link label can contain a
+  // protected inline-code span without repeatedly rescanning the whole output.
+  /** @param {string} value @returns {string} */
+  function restoreProtected(value) {
+    return value.replace(/\u0000gbmd:(\d+)\u0000/g, (_, index) => {
+      const protectedValue = protectedHtml[Number(index)];
+      return protectedValue === undefined ? '' : restoreProtected(protectedValue);
+    });
+  }
+  return restoreProtected(html);
 }
 
 export function renderMarkdown(text) {
+  return renderMarkdownBlocks(String(text ?? ''), 0);
+}
+
+function renderMarkdownBlocks(text, blockquoteDepth) {
   const lines = text.split('\n');
   const blocks = [];
   let i = 0;
@@ -70,7 +117,11 @@ export function renderMarkdown(text) {
         quoteLines.push(lines[i].replace(/^\s*>\s?/, ''));
         i++;
       }
-      blocks.push(`<blockquote class="chat-blockquote">${renderMarkdown(quoteLines.join('\n'))}</blockquote>`);
+      let quoteText = quoteLines.join('\n');
+      if (blockquoteDepth >= MAX_BLOCKQUOTE_DEPTH) {
+        quoteText = quoteText.split('\n').map(quoteLine => quoteLine.replace(/^(?:\s*>\s?)+/, '')).join('\n');
+      }
+      blocks.push(`<blockquote class="chat-blockquote">${renderMarkdownBlocks(quoteText, blockquoteDepth + 1)}</blockquote>`);
       continue;
     }
 

@@ -804,6 +804,9 @@ describe('chat marker prompt runtime behavior', () => {
     expect(prompt).toContain('Current status: optimal');
     expect(prompt).toContain('Trend: up 50% from previous.');
     expect(prompt).toContain('phase-specific for the menstrual cycle');
+    expect(prompt).toContain('What matters most, what does this mean, and should I be concerned?');
+    expect(prompt).toContain('Lead with the main takeaway and keep range comparisons brief');
+    expect(prompt).toContain('unless a different threshold changes the interpretation');
     chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
   });
 

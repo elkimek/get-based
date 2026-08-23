@@ -49,6 +49,18 @@ const ampersand = applyInlineMarkdown('AT&T and <div>');
 assert('ampersand and < both encoded',
   ampersand.includes('AT&amp;T') && ampersand.includes('&lt;div&gt;'));
 
+const encodedComparisons = applyInlineMarkdown('&lt;1.0, &gt;3.0, &le;4.5, &ge;10');
+assert('model-encoded comparison signs render once instead of showing entity text',
+  encodedComparisons === '&lt;1.0, &gt;3.0, ≤4.5, ≥10');
+
+const numericComparisons = applyInlineMarkdown('&#60;1, &#x3E;3, &#8804;4.5, &#x2265;10');
+assert('numeric comparison entities are normalized consistently',
+  numericComparisons === '&lt;1, &gt;3, ≤4.5, ≥10');
+
+const encodedScriptTag = applyInlineMarkdown('&lt;script&gt;alert(1)&lt;/script&gt;');
+assert('normalizing encoded comparison signs does not create executable HTML',
+  encodedScriptTag.includes('&lt;script&gt;') && !encodedScriptTag.includes('<script>'));
+
 // ─── 3. XSS: link URL scheme allowlist ───
 console.log('\n3. XSS — link URL scheme');
 
