@@ -285,7 +285,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-stream-status.js',
   '/js/chat-history.js',
   '/js/chat-continuation.js',
-  '/js/chat-prompt-context.js', '/js/chat-system-prompt.js',
+  '/js/chat-prompt-context.js',
+  '/js/chat-system-prompt.js',
   '/js/chat-summaries.js',
   '/js/settings.js',
   '/js/settings-display-panel.js',
@@ -776,8 +777,7 @@ const NETWORK_ONLY_HOSTS = new Set([
   'free.evoluhq.com',
 ]);
 function isLocalOrPrivateHost(hostname) {
-  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname)
-    || hostname.startsWith('192.168.')
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname) || hostname.startsWith('192.168.')
     || hostname.startsWith('10.')
     || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 }
