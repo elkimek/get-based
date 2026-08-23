@@ -113,6 +113,17 @@ const autolink = applyInlineMarkdown('Visit https://example.com today');
 assert('bare https URL becomes <a>',
   autolink.includes('<a href="https://example.com"'));
 
+const terminalPunctuation = applyInlineMarkdown('https://example.com/report?');
+assert('bare URL keeps URL-valid terminal punctuation',
+  terminalPunctuation.includes('href="https://example.com/report?"'));
+
+const adjacentMarkdown = applyInlineMarkdown('https://example.com[details](https://target.example)`code`');
+assert('adjacent Markdown does not corrupt a bare URL',
+  adjacentMarkdown.includes('href="https://example.com"') &&
+    adjacentMarkdown.includes('href="https://target.example"') &&
+    adjacentMarkdown.includes('<code>code</code>') &&
+    !adjacentMarkdown.includes('\u0000gbmd:'));
+
 const plainText = applyInlineMarkdown('Not a URL: just plain text');
 assert('plain text has no <a>',
   !plainText.includes('<a '));

@@ -22,6 +22,10 @@ describe('chat marker range interpretation contract', () => {
 
   it('does not turn a missed optional target into an automatic supplement recommendation', () => {
     expect(CHAT_SYSTEM_PROMPT).toContain(
+      "Name the specific form and why it fits the user's context and evidence",
+    );
+    expect(CHAT_SYSTEM_PROMPT).not.toContain('D3 + K2');
+    expect(CHAT_SYSTEM_PROMPT).toContain(
       'Do not recommend one solely because an optional target is missed',
     );
   });

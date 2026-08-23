@@ -42,11 +42,11 @@ export function applyInlineMarkdown(text) {
       // were introduced. Protect the complete anchor from the bare-URL pass.
       return protect(`<a href="${safe}" target="_blank" rel="noopener noreferrer">${label}</a>`);
     })
-    .replace(/(?<!")(https?:\/\/[^\s<>")\]]+)/g, url => {
-      const trailingMatch = url.match(/[.,;:!?]+$/);
-      const trailing = trailingMatch?.[0] || '';
-      const href = trailing ? url.slice(0, -trailing.length) : url;
-      return `<a href="${safeMarkdownHref(href)}" target="_blank" rel="noopener noreferrer">${href}</a>${trailing}`;
+    // NUL also delimits protected Markdown that immediately follows a URL.
+    // URL-valid terminal punctuation stays in the destination; authors can use
+    // an explicit Markdown link when sentence punctuation must be separate.
+    .replace(/(?<!")(https?:\/\/[^\s\u0000<>")\]]+)/g, url => {
+      return `<a href="${safeMarkdownHref(url)}" target="_blank" rel="noopener noreferrer">${url}</a>`;
     });
 
   // Resolve placeholders recursively so a protected link label can contain a

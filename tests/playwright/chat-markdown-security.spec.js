@@ -19,6 +19,9 @@ test('chat Markdown stays formatted and inert in the browser DOM', async ({ page
       '[https://label.example](https://target.example)',
       '[blocked](javascript:alert(1))',
       '`https://inside-code.example`',
+      'https://terminal.example/report?',
+      'https://source.example/report[details](https://target.example/report)',
+      'https://code.example/result`code`',
       '| Marker | Value |',
       '|---|---|',
       '| hs-CRP | <img src=x onerror=alert(1)> |',
@@ -50,6 +53,15 @@ test('chat Markdown stays formatted and inert in the browser DOM', async ({ page
       eventAttributes,
       nestedAnchors: fixture.querySelectorAll('a a').length,
       codeLinks: fixture.querySelectorAll('code a').length,
+      linksContainingCode: fixture.querySelectorAll('a code').length,
+      terminalHref: [...fixture.querySelectorAll('a')]
+        .find(anchor => anchor.textContent === 'https://terminal.example/report?')?.getAttribute('href'),
+      adjacentSourceHref: [...fixture.querySelectorAll('a')]
+        .find(anchor => anchor.textContent === 'https://source.example/report')?.getAttribute('href'),
+      adjacentDetailsHref: [...fixture.querySelectorAll('a')]
+        .find(anchor => anchor.textContent === 'details')?.getAttribute('href'),
+      adjacentCodeHref: [...fixture.querySelectorAll('a')]
+        .find(anchor => anchor.textContent === 'https://code.example/result')?.getAttribute('href'),
       blockedHref: [...fixture.querySelectorAll('a')]
         .find(anchor => anchor.textContent === 'blocked')?.getAttribute('href'),
       protectedRel: [...fixture.querySelectorAll('a')]
@@ -70,6 +82,11 @@ test('chat Markdown stays formatted and inert in the browser DOM', async ({ page
   expect(result.eventAttributes).toEqual([]);
   expect(result.nestedAnchors).toBe(0);
   expect(result.codeLinks).toBe(0);
+  expect(result.linksContainingCode).toBe(0);
+  expect(result.terminalHref).toBe('https://terminal.example/report?');
+  expect(result.adjacentSourceHref).toBe('https://source.example/report');
+  expect(result.adjacentDetailsHref).toBe('https://target.example/report');
+  expect(result.adjacentCodeHref).toBe('https://code.example/result');
   expect(result.blockedHref).toBe('#');
   expect(result.protectedRel).toBe(true);
   expect(result.deepQuoteCount).toBeLessThanOrEqual(9);

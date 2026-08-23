@@ -120,8 +120,32 @@ describe('Markdown renderer DOM security boundary', () => {
     expect(anchors.find(anchor => anchor.textContent === 'data')?.getAttribute('href')).toBe('#');
     expect(anchors.find(anchor => anchor.textContent === 'spaced')?.getAttribute('href')).toBe('#');
     expect(anchors.find(anchor => anchor.textContent === 'internal space')?.getAttribute('href')).toBe('#');
-    expect(anchors.find(anchor => anchor.textContent === 'https://bare.example/path')?.getAttribute('href'))
-      .toBe('https://bare.example/path');
+    expect(anchors.find(anchor => anchor.textContent === 'https://bare.example/path.')?.getAttribute('href'))
+      .toBe('https://bare.example/path.');
+  });
+
+  it('preserves URL-valid suffixes and delimits adjacent protected Markdown', () => {
+    const root = renderIntoDom([
+      'https://example.com/path. https://example.com/path, https://example.com/path;',
+      'https://example.com/path: https://example.com/path! https://example.com/query?',
+      'https://source.example/report[details](https://target.example/report)',
+      'https://code.example/result`code`',
+    ].join('\n'));
+
+    expectAllowlistedDom(root);
+    const anchors = [...root.querySelectorAll('a')];
+    for (const suffix of ['.', ',', ';', ':', '!', '?']) {
+      expect(anchors.some(anchor => anchor.getAttribute('href') === `https://example.com/${suffix === '?' ? 'query' : 'path'}${suffix}`)).toBe(true);
+    }
+    expect(anchors.find(anchor => anchor.textContent === 'https://source.example/report')?.getAttribute('href'))
+      .toBe('https://source.example/report');
+    expect(anchors.find(anchor => anchor.textContent === 'details')?.getAttribute('href'))
+      .toBe('https://target.example/report');
+    expect(anchors.find(anchor => anchor.textContent === 'https://code.example/result')?.getAttribute('href'))
+      .toBe('https://code.example/result');
+    expect(root.querySelector('code')?.textContent).toBe('code');
+    expect(root.querySelector('a a')).toBeNull();
+    expect(root.querySelector('a code')).toBeNull();
   });
 
   it('normalizes comparison entities once while leaving encoded tags as text', () => {
