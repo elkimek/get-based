@@ -3,7 +3,7 @@
 
 let fallbackSequence = 0;
 
-function randomHex() {
+function cryptoRandomHex() {
   const cryptoApi = globalThis.crypto;
   if (typeof cryptoApi?.randomUUID === 'function') {
     return cryptoApi.randomUUID().replace(/-/g, '');
@@ -25,11 +25,10 @@ function randomHex() {
  * @returns {string}
  */
 export function createUniqueId(prefix = '') {
-  const random = randomHex();
+  const random = cryptoRandomHex();
   if (random) return `${prefix}${random}`;
 
   const now = Date.now();
   const sequence = fallbackSequence++;
-  const entropy = Math.random().toString(36).slice(2, 10) || '0';
-  return `${prefix}${now.toString(36)}_${sequence.toString(36)}_${entropy}`;
+  return `${prefix}${now.toString(36)}_${sequence.toString(36)}`;
 }

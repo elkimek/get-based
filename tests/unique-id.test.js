@@ -15,14 +15,15 @@ describe('createUniqueId', () => {
     expect(ids.every(id => /^record_[a-z0-9_]+$/i.test(id))).toBe(true);
   });
 
-  it('keeps the fallback unique with a frozen clock and entropy source', () => {
+  it('keeps the fallback unique with a frozen clock without weak randomness', () => {
     vi.stubGlobal('crypto', {});
     vi.spyOn(Date, 'now').mockReturnValue(12345);
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const randomSpy = vi.spyOn(Math, 'random');
 
     const first = createUniqueId('fallback_');
     const second = createUniqueId('fallback_');
 
+    expect(randomSpy).not.toHaveBeenCalled();
     expect(first).not.toBe(second);
     expect(first).toMatch(/^fallback_[a-z0-9_]+$/i);
     expect(second).toMatch(/^fallback_[a-z0-9_]+$/i);
