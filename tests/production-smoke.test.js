@@ -61,6 +61,10 @@ describe('production API smoke canary', () => {
           });
         }
         if (body.withings_token_exchange) {
+          expect(body.withings_token_exchange).toEqual({
+            client_id: 'a91db99c24c9b52cea01993ad2bd67bb1515921b09d0a3c04d40a7dc1d1b748a',
+            redirect_uri: 'https://app.getbased.health/',
+          });
           return response(400, {
             error: 'withings_token_exchange requires code, redirect_uri, client_id',
           }, {

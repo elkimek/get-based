@@ -2,6 +2,8 @@
 
 import { pathToFileURL } from 'node:url';
 
+import { OFFICIAL_WEARABLE_CLIENT_IDS } from '../lib/proxy-policy.js';
+
 const DEFAULT_BASE_URL = 'https://app.getbased.health';
 const DEFAULT_ATTEMPTS = 12;
 const DEFAULT_RETRY_DELAY_MS = 5_000;
@@ -119,7 +121,12 @@ export async function smokeProductionApis({
       origin: allowedOrigin,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ withings_token_exchange: {} }),
+    body: JSON.stringify({
+      withings_token_exchange: {
+        client_id: OFFICIAL_WEARABLE_CLIENT_IDS.withings,
+        redirect_uri: `${baseUrl}/`,
+      },
+    }),
   }, timeoutMs);
   const withingsValidationBody = await withingsValidation.json().catch(() => null);
   assertResponse(
