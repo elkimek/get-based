@@ -103,6 +103,11 @@ function usProfileConversion(dotKey) {
   };
 }
 
+/**
+ * @param {string} dotKey
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit = null) {
   const profile = normalizeUnitProfile(unitProfile);
   const marker = schemaMarker(dotKey);
@@ -149,11 +154,23 @@ function convertDisplayWithDefinition(value, conversion) {
   return value;
 }
 
+/**
+ * @param {string} dotKey
+ * @param {number | null | undefined} value
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function convertCanonicalToDisplay(dotKey, value, unitProfile, canonicalUnit = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   return convertCanonicalWithDefinition(value, resolved.conversion);
 }
 
+/**
+ * @param {string} dotKey
+ * @param {number | null | undefined} value
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function convertDisplayToCanonical(dotKey, value, unitProfile, canonicalUnit = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   return convertDisplayWithDefinition(value, resolved.conversion);
@@ -180,6 +197,13 @@ function conversionForInputUnit(dotKey, unit) {
   return null;
 }
 
+/**
+ * @param {string} dotKey
+ * @param {number} value
+ * @param {string} inputUnit
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function convertUnitInputToCanonical(dotKey, value, inputUnit, unitProfile, canonicalUnit = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   if (!inputUnit || comparableUnit(inputUnit) === comparableUnit(resolved.canonicalUnit)) return value;
@@ -191,6 +215,13 @@ export function convertUnitInputToCanonical(dotKey, value, inputUnit, unitProfil
   return convertUserInputToSI(dotKey, value, inputUnit);
 }
 
+/**
+ * @param {string} dotKey
+ * @param {number} value
+ * @param {string} targetUnit
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function convertCanonicalToInputUnit(dotKey, value, targetUnit, unitProfile, canonicalUnit = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   if (!targetUnit || comparableUnit(targetUnit) === comparableUnit(resolved.canonicalUnit)) return value;
@@ -202,6 +233,12 @@ export function convertCanonicalToInputUnit(dotKey, value, targetUnit, unitProfi
   return convertSIToInputUnit(dotKey, value, targetUnit);
 }
 
+/**
+ * @param {string} dotKey
+ * @param {number | null | undefined} displayValue
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function getAlternateUnitForProfile(dotKey, displayValue, unitProfile, canonicalUnit = null) {
   if (displayValue == null || !Number.isFinite(displayValue)) return null;
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
@@ -217,6 +254,11 @@ export function getAlternateUnitForProfile(dotKey, displayValue, unitProfile, ca
   };
 }
 
+/**
+ * @param {string} dotKey
+ * @param {string} unitProfile
+ * @param {string | null} [canonicalUnit]
+ */
 export function getMarkerInputUnits(dotKey, unitProfile, canonicalUnit = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   const units = [resolved.unit, resolved.canonicalUnit];
