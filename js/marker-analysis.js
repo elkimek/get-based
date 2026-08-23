@@ -12,51 +12,129 @@ const TREND_MIN_R2 = 0.5;              // 4+-point regressions must clear this f
 const TREND_APPROACH_BAND = 0.15;      // within 15% of an edge → "approaching"
 const KEY_TRENDS_MAX = 8;              // dashboard "Key Trends" cap
 
-export function getEffectiveRange(marker, rangeMode = state.rangeMode) {
-  if (rangeMode === 'optimal' || rangeMode === 'both') {
-    if (marker.optimalMin != null || marker.optimalMax != null) {
-      return { min: marker.optimalMin ?? null, max: marker.optimalMax ?? null };
-    }
-  }
-  return { min: marker.refMin, max: marker.refMax };
+function phaseRangeLabel(marker, dateIndex, range) {
+  if (range?.label) return range.label;
+  const phaseLabel = marker.phaseLabels?.[dateIndex];
+  if (!phaseLabel) return 'Phase range';
+  const readable = String(phaseLabel).replace(/[_-]+/g, ' ');
+  return `${readable.charAt(0).toUpperCase()}${readable.slice(1)} range`;
 }
 
-export function getEffectiveRangeForDate(marker, dateIndex, rangeMode = state.rangeMode) {
-  if (marker.phaseRefRanges && marker.phaseRefRanges[dateIndex]) {
-    return marker.phaseRefRanges[dateIndex];
-  }
-  if ((rangeMode === 'optimal' || rangeMode === 'both') && marker.contextOptimalRanges?.[dateIndex]) {
-    return marker.contextOptimalRanges[dateIndex];
-  }
-  const hasOptimalRange = marker.optimalMin != null || marker.optimalMax != null;
-  if ((rangeMode === 'optimal' || rangeMode === 'both') && hasOptimalRange) {
-    return getEffectiveRange(marker, rangeMode);
-  }
-  if (marker.contextRefRanges && marker.contextRefRanges[dateIndex]) {
-    return marker.contextRefRanges[dateIndex];
-  }
-  return getEffectiveRange(marker, rangeMode);
-}
-
-export function getEffectiveRangeLabelForDate(marker, dateIndex, rangeMode = state.rangeMode) {
-  if (marker.phaseRefRanges && marker.phaseRefRanges[dateIndex]) {
-    if (marker.phaseRefRanges[dateIndex].label) return marker.phaseRefRanges[dateIndex].label;
-    const phaseLabel = marker.phaseLabels?.[dateIndex];
-    if (!phaseLabel) return 'Phase range';
-    const readable = String(phaseLabel).replace(/[_-]+/g, ' ');
-    return `${readable.charAt(0).toUpperCase()}${readable.slice(1)} range`;
-  }
-  if ((rangeMode === 'optimal' || rangeMode === 'both') && marker.contextOptimalRanges?.[dateIndex]) {
-    return marker.contextOptimalRangeLabels?.[dateIndex] || 'Optimal guidance';
-  }
-  const hasOptimalRange = marker.optimalMin != null || marker.optimalMax != null;
-  if ((rangeMode === 'optimal' || rangeMode === 'both') && hasOptimalRange) return 'Optimal';
-  if (marker.contextRefRanges && marker.contextRefRanges[dateIndex]) {
-    return marker.contextRangeLabels?.[dateIndex] || (marker.rangePolicy === 'target' ? 'Target' : 'Reference');
-  }
+function staticReferenceLabel(marker) {
   if (marker.referenceRangeSource === 'import') return 'Lab reference';
   if (marker.referenceRangeSource) return 'Custom range';
   return marker.rangePolicy === 'target' ? 'Target' : 'Reference';
+}
+
+function rangeDescriptor(range, label, kind, source) {
+  return {
+    min: range?.min ?? null,
+    max: range?.max ?? null,
+    label,
+    kind,
+    source,
+    usedForStatus: false,
+  };
+}
+
+function referenceRangeForDate(marker, dateIndex) {
+  const phaseRange = dateIndex >= 0 ? marker.phaseRefRanges?.[dateIndex] : null;
+  if (phaseRange) {
+    return rangeDescriptor(
+      phaseRange,
+      phaseRangeLabel(marker, dateIndex, phaseRange),
+      'phase',
+      'phase',
+    );
+  }
+  const contextualRange = dateIndex >= 0 ? marker.contextRefRanges?.[dateIndex] : null;
+  if (contextualRange) {
+    return rangeDescriptor(
+      contextualRange,
+      marker.contextRangeLabels?.[dateIndex] || (marker.rangePolicy === 'target' ? 'Target' : 'Reference'),
+      marker.rangePolicy === 'target' ? 'target' : 'reference',
+      'context',
+    );
+  }
+  return rangeDescriptor(
+    { min: marker.refMin, max: marker.refMax },
+    staticReferenceLabel(marker),
+    marker.rangePolicy === 'target' ? 'target' : 'reference',
+    marker.referenceRangeSource === 'import' ? 'lab' : marker.referenceRangeSource ? 'custom' : 'schema',
+  );
+}
+
+function optimalRangeForDate(marker, dateIndex) {
+  const contextualRange = dateIndex >= 0 ? marker.contextOptimalRanges?.[dateIndex] : null;
+  if (contextualRange) {
+    return rangeDescriptor(
+      contextualRange,
+      marker.contextOptimalRangeLabels?.[dateIndex] || 'Optimal guidance',
+      'optimal',
+      'context',
+    );
+  }
+  if (marker.optimalMin == null && marker.optimalMax == null) return null;
+  return rangeDescriptor(
+    { min: marker.optimalMin, max: marker.optimalMax },
+    'Optimal',
+    'optimal',
+    'schema',
+  );
+}
+
+/**
+ * Resolve the range used to judge a marker and every range that should be
+ * displayed beside it. Renderers consume this single object so status colors,
+ * labels, and numeric bounds cannot silently disagree.
+ */
+export function resolveMarkerRangeContext(marker, dateIndex = -1, rangeMode = state.rangeMode) {
+  const mode = rangeMode === 'reference' || rangeMode === 'both' ? rangeMode : 'optimal';
+  const reference = referenceRangeForDate(marker, dateIndex);
+  const optimal = optimalRangeForDate(marker, dateIndex);
+  const phaseIsPrimary = reference.kind === 'phase';
+  const judgingRange = phaseIsPrimary
+    ? reference
+    : (mode === 'optimal' || mode === 'both') && optimal
+      ? optimal
+      : reference;
+  let displayedRanges;
+  if (mode === 'both') {
+    displayedRanges = optimal ? [reference, optimal] : [reference];
+  } else {
+    displayedRanges = [judgingRange];
+  }
+  displayedRanges = displayedRanges.map(range => ({
+    ...range,
+    usedForStatus: range === judgingRange,
+  }));
+  return {
+    judgingRange: { ...judgingRange, usedForStatus: true },
+    displayedRanges,
+  };
+}
+
+export function getEffectiveRange(marker, rangeMode = state.rangeMode) {
+  const range = resolveMarkerRangeContext(marker, -1, rangeMode).judgingRange;
+  return { min: range.min, max: range.max };
+}
+
+export function getEffectiveRangeForDate(marker, dateIndex, rangeMode = state.rangeMode) {
+  const range = resolveMarkerRangeContext(marker, dateIndex, rangeMode).judgingRange;
+  return { min: range.min, max: range.max };
+}
+
+export function getEffectiveRangeLabelForDate(marker, dateIndex, rangeMode = state.rangeMode) {
+  return resolveMarkerRangeContext(marker, dateIndex, rangeMode).judgingRange.label;
+}
+
+export function formatRangeBounds(range) {
+  const min = range?.min;
+  const max = range?.max;
+  if (min == null && max == null) return 'Not set';
+  if (min == null) return `\u2264${formatValue(max)}`;
+  if (max == null) return `\u2265${formatValue(min)}`;
+  return `${formatValue(min)} \u2013 ${formatValue(max)}`;
 }
 
 export function getPhaseRefEnvelope(marker) {

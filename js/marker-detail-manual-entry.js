@@ -2,7 +2,6 @@
 // marker-detail-manual-entry.js — Manual marker-value entry form owner
 
 import { state } from './state.js';
-import { getAlternateUnit, SECONDARY_UNIT_CONVERSIONS, UNIT_CONVERSIONS } from './schema.js';
 import { escapeHTML, formatValue } from './utils.js';
 import { getActiveData } from './data.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
@@ -10,6 +9,7 @@ import { saveManualEntry } from './marker-detail-editing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openWithMarkerDetailStylesheet, setDetailModalShell } from './marker-detail-runtime.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
+import { getMarkerInputUnits } from './unit-profiles.js';
 
 /**
  * @typedef {{
@@ -80,28 +80,12 @@ function renderManualEntryForm(id, prefillDate) {
     placeholderHint = `e.g. ${formatValue((marker.refMin + marker.refMax) / 2)}`;
   }
 
-  // Offer the current display unit, alternate US/EU unit, and secondary
-  // clinical units so a lab result can be entered without mental conversion.
+  // Offer the active profile unit plus compatible canonical, US, ANZ, and
+  // secondary clinical units so a result can be entered as printed by the lab.
   const dotKey = getMarkerStorageDotKey(marker, id);
   if (!dotKey) return;
-  const isUS = state.unitSystem === 'US';
-  const conversion = UNIT_CONVERSIONS[dotKey];
-  const units = [marker.unit];
-  if (conversion) {
-    const probe = marker.refMax ?? marker.refMin ?? 1;
-    const alternate = getAlternateUnit(dotKey, probe, isUS);
-    if (alternate?.unit) units.push(alternate.unit);
-  }
-  for (const secondary of SECONDARY_UNIT_CONVERSIONS[dotKey] || []) {
-    if (secondary.unit) units.push(secondary.unit);
-  }
-  const seenUnits = new Set();
-  const options = units.filter(unit => {
-    const key = String(unit).toLowerCase();
-    if (!unit || seenUnits.has(key)) return false;
-    seenUnits.add(key);
-    return true;
-  });
+  const customCanonicalUnit = state.importedData?.customMarkers?.[dotKey]?.unit || null;
+  const options = getMarkerInputUnits(dotKey, state.unitSystem, customCanonicalUnit);
   const unitPickerHtml = options.length > 1
     ? `<select id="me-unit" class="me-unit-select" aria-label="Input unit">
          ${options.map((unit, index) => `<option value="${escapeHTML(unit)}"${index === 0 ? ' selected' : ''}>${escapeHTML(unit)}</option>`).join('')}

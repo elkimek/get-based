@@ -71,7 +71,9 @@ identity:
 ```
 
 The active-data pipeline calculates values, ratios, reference ranges, and unit
-conversions at the native dotKey first. Placement is the final view projection.
+profiles at the native dotKey first. The profile resolver covers every built-in
+marker, converts values and every range shape together, and leaves custom-marker
+units unchanged. Placement is the final view projection.
 Every projected marker carries `markerId`, `storageDotKey`,
 `nativeCategoryKey`, and `displayCategoryKey`; mutations must use
 `storageDotKey`, never reconstruct a storage key from its rendered category.

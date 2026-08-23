@@ -133,6 +133,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/import-review-row-actions.js',
   '/js/import-marker-map-modal.js',
   '/js/secondary-unit-conversions.js',
+  '/js/unit-profiles.js',
   '/js/import-file-input.js',
   '/js/import-drop-zone.js',
   '/js/import-drop-zone-runtime.js',
@@ -785,8 +786,7 @@ function shouldUseNetworkOnly(url, sameOrigin) {
   const h = url.hostname; return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));
 }
 /** @type {ServiceWorkerGlobalScope & typeof globalThis & {
- *   GetBasedServiceWorkerRuntime: {
- *     install: (config: ServiceWorkerRuntimeConfig) => void
+ *   GetBasedServiceWorkerRuntime: { install: (config: ServiceWorkerRuntimeConfig) => void
  *   }
  * }} */
 const serviceWorkerScope = /** @type {any} */ (self);

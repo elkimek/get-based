@@ -2,7 +2,6 @@
 // marker-detail-editing.js — Marker value, range, and note mutation workflows
 
 import { state } from './state.js';
-import { convertUserInputToSI, convertSIToInputUnit } from './schema.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { getActiveData, updateHeaderDates, convertDisplayToSI } from './data.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
@@ -25,6 +24,10 @@ import {
   deleteMarkerValueNote,
 } from './marker-detail-store.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
+import {
+  convertCanonicalToInputUnit,
+  convertUnitInputToCanonical,
+} from './unit-profiles.js';
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
@@ -100,18 +103,22 @@ export async function saveManualEntry(id, opts = {}) {
   // against an SI ref range of 4–6 mmol/L would always trigger the warning).
   const inputUnit = unitInput?.value || marker?.unit || '';
   const usingAltUnit = !!(marker && inputUnit && inputUnit !== marker.unit);
+  const customCanonicalUnit = state.importedData?.customMarkers?.[dotKey]?.unit || null;
   let checkRefMin = marker?.refMin, checkRefMax = marker?.refMax, checkUnit = marker?.unit;
   if (marker && usingAltUnit) {
     // Express the marker's reference range in the user's chosen unit so the
     // sanity check compares like-with-like. Refs come from getActiveData in
     // *display* units (US-converted in US mode), so round-trip through SI:
-    // display → SI (convertDisplayToSI) → inputUnit (convertSIToInputUnit).
-    // This is secondary-unit aware (e.g. mg/L for Lp(a)), unlike the old
-    // primary-only getAlternateUnit path.
+    // display → canonical → inputUnit. This remains secondary-unit aware
+    // (e.g. mg/L for Lp(a)) and also understands the ANZ profile.
     const refMinSI = marker.refMin != null ? convertDisplayToSI(dotKey, marker.refMin) : null;
     const refMaxSI = marker.refMax != null ? convertDisplayToSI(dotKey, marker.refMax) : null;
-    checkRefMin = refMinSI != null ? convertSIToInputUnit(dotKey, refMinSI, inputUnit) : null;
-    checkRefMax = refMaxSI != null ? convertSIToInputUnit(dotKey, refMaxSI, inputUnit) : null;
+    checkRefMin = refMinSI != null
+      ? convertCanonicalToInputUnit(dotKey, refMinSI, inputUnit, state.unitSystem, customCanonicalUnit)
+      : null;
+    checkRefMax = refMaxSI != null
+      ? convertCanonicalToInputUnit(dotKey, refMaxSI, inputUnit, state.unitSystem, customCanonicalUnit)
+      : null;
     checkUnit = inputUnit;
   }
   // Range sanity check: catches decimal/unit slips (e.g. typing 100 mg/dL when SI ref is 4–6 mmol/L).
@@ -132,13 +139,15 @@ export async function saveManualEntry(id, opts = {}) {
     const unit = marker?.unit || '';
     if (!await showConfirmDialog(`A value of ${displayVal} ${unit} already exists for ${date}. Overwrite?`)) return;
   }
-  // If the user picked the alternate unit, convert from there directly to SI
-  // (convertUserInputToSI is a no-op when inputUnit is already the SI unit, so
-  // the EU-mode default keeps working unchanged). Otherwise fall through to the
-  // existing display→SI path which handles the US-mode case.
-  const storedValue = usingAltUnit
-    ? convertUserInputToSI(dotKey, value, inputUnit)
-    : convertDisplayToSI(dotKey, value);
+  // Resolve every selectable input unit back to the canonical stored value.
+  // The unit profile affects presentation only; saved data stays portable.
+  const storedValue = convertUnitInputToCanonical(
+    dotKey,
+    value,
+    inputUnit,
+    state.unitSystem,
+    customCanonicalUnit,
+  );
   const fasting = fastingInput?.value === 'fasting' ? true
     : fastingInput?.value === 'not-fasting' ? false
       : null;

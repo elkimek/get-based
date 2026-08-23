@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1156330,
     "outputJavaScriptFiles": 150,
-    "outputDecodedBytes": 4675000
+    "outputDecodedBytes": 4690000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -13,8 +13,9 @@
     "outputDecodedBytes": 3958886,
     "extensionOwnedTransportStartupDecodedBytes": 1152664,
     "deviceCredentialProtectionStartupDecodedBytes": 1155330,
+    "unitProfilesOutputDecodedBytes": 4680247,
     "absolutePathRelocationAllowanceBytes": 1000
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-21"
+  "measuredAt": "2026-08-23"
 }

@@ -6,7 +6,7 @@ import { CORRELATION_PRESETS, CHIP_COLORS } from './schema.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getActiveData } from './data.js';
-import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
+import { formatRangeBounds, getEffectiveRangeForDate, resolveMarkerRangeContext } from './marker-analysis.js';
 import { ensureChartJs, formatChartTickValue, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './health-data-loader.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 
@@ -194,21 +194,82 @@ export function swapCompareDates() {
   updateCompare();
 }
 
+function compareRangeContextSignature(context) {
+  return JSON.stringify(context.displayedRanges.map(range => [
+    range.label,
+    range.min,
+    range.max,
+    range.kind,
+    range.source,
+    range.usedForStatus,
+  ]));
+}
+
+function renderCompareRangeLines(context) {
+  const showUsedBadge = context.displayedRanges.length > 1;
+  return context.displayedRanges.map(range => `
+    <span class="compare-range-line${range.usedForStatus ? ' compare-range-line-used' : ''}">
+      <span class="compare-range-label">${escapeHTML(range.label)}</span>
+      <span class="compare-range-bounds">${escapeHTML(formatRangeBounds(range))}</span>
+      ${showUsedBadge && range.usedForStatus ? '<span class="compare-range-used">used</span>' : ''}
+    </span>`).join('');
+}
+
+function renderCompareRangeCell(context1, context2, date1Label, date2Label) {
+  if (compareRangeContextSignature(context1) === compareRangeContextSignature(context2)) {
+    return `<div class="compare-range-stack">${renderCompareRangeLines(context1)}</div>`;
+  }
+  return `<div class="compare-range-stack compare-range-stack-dated">
+    <div class="compare-range-date-group">
+      <span class="compare-range-date">${escapeHTML(date1Label)}</span>
+      ${renderCompareRangeLines(context1)}
+    </div>
+    <div class="compare-range-date-group">
+      <span class="compare-range-date">${escapeHTML(date2Label)}</span>
+      ${renderCompareRangeLines(context2)}
+    </div>
+  </div>`;
+}
+
+function normalizedDistanceOutsideRange(value, range) {
+  if (value == null || !Number.isFinite(value)) return null;
+  const min = range?.min;
+  const max = range?.max;
+  if (min == null && max == null) return null;
+  if (min != null && max != null) {
+    const span = Math.max(Math.abs(max - min), Math.abs(min) * 0.01, Math.abs(max) * 0.01, 1e-9);
+    if (value < min) return (min - value) / span;
+    if (value > max) return (value - max) / span;
+    return 0;
+  }
+  if (min != null) return value < min ? (min - value) / Math.max(Math.abs(min), 1) : 0;
+  return value > max ? (value - max) / Math.max(Math.abs(max), 1) : 0;
+}
+
+function compareDirectionClass(v1, range1, v2, range2) {
+  const distance1 = normalizedDistanceOutsideRange(v1, range1);
+  const distance2 = normalizedDistanceOutsideRange(v2, range2);
+  if (distance1 == null || distance2 == null) return 'compare-neutral';
+  if (distance2 < distance1 - 0.000001) return 'compare-improved';
+  if (distance2 > distance1 + 0.000001) return 'compare-worsened';
+  return 'compare-neutral';
+}
+
 export function renderCompareTable(data, idx1, idx2) {
   const d1Label = data.dateLabels[idx1];
   const d2Label = data.dateLabels[idx2];
   const colgroup = renderTableColgroup([
     'gb-col-marker',
     'gb-col-unit',
-    'gb-col-reference',
+    'gb-col-ranges',
     'gb-col-compare-date',
     'gb-col-compare-date',
     'gb-col-delta',
     'gb-col-delta',
   ]);
   const headHtml = `<tr>
-    <th>Biomarker</th><th>Unit</th><th>Reference</th>
-    <th>${d1Label}</th><th>${d2Label}</th><th>Delta</th><th>% Change</th></tr>`;
+    <th>Biomarker</th><th>Unit</th><th>Ranges</th>
+    <th>${escapeHTML(d1Label)}</th><th>${escapeHTML(d2Label)}</th><th>Delta</th><th>% Change</th></tr>`;
   let bodyHtml = '';
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (cat.singlePoint) continue;
@@ -219,26 +280,21 @@ export function renderCompareTable(data, idx1, idx2) {
       if (v1 === null && v2 === null) continue;
       const mr1 = getEffectiveRangeForDate(marker, idx1);
       const mr2 = getEffectiveRangeForDate(marker, idx2);
-      const mr = getEffectiveRange(marker);
+      const rangeContext1 = resolveMarkerRangeContext(marker, idx1);
+      const rangeContext2 = resolveMarkerRangeContext(marker, idx2);
       const s1 = v1 !== null ? getStatus(v1, mr1.min, mr1.max) : 'missing';
       const s2 = v2 !== null ? getStatus(v2, mr2.min, mr2.max) : 'missing';
       let delta = null, pctChange = null, directionClass = 'compare-neutral';
       if (v1 !== null && v2 !== null) {
         delta = v2 - v1;
         pctChange = v1 !== 0 ? (delta / v1) * 100 : null;
-        if (mr.min != null && mr.max != null) {
-          const mid = (mr.min + mr.max) / 2;
-          const dist1 = Math.abs(v1 - mid);
-          const dist2 = Math.abs(v2 - mid);
-          if (dist2 < dist1 - 0.001) directionClass = 'compare-improved';
-          else if (dist2 > dist1 + 0.001) directionClass = 'compare-worsened';
-        }
+        directionClass = compareDirectionClass(v1, mr1, v2, mr2);
       }
-      const refStr = marker.refMin != null && marker.refMax != null ? `${formatValue(marker.refMin)} \u2013 ${formatValue(marker.refMax)}` : '\u2014';
+      const rangeCell = renderCompareRangeCell(rangeContext1, rangeContext2, d1Label, d2Label);
       rows.push(`<tr>
         <td class="marker-name">${escapeHTML(marker.name)}</td>
         <td style="color:var(--text-muted);font-size:12px">${escapeHTML(marker.unit)}</td>
-        <td style="color:var(--text-secondary);font-size:12px">${refStr}</td>
+        <td class="compare-ranges-cell">${rangeCell}</td>
         <td class="value-cell val-${s1}" style="font-weight:600">${v1 !== null ? formatValue(v1) : '\u2014'}</td>
         <td class="value-cell val-${s2}" style="font-weight:600">${v2 !== null ? formatValue(v2) : '\u2014'}</td>
         <td class="${directionClass}" style="font-weight:600">${delta !== null ? (delta > 0 ? '+' : '') + formatValue(delta) : '\u2014'}</td>
@@ -250,7 +306,7 @@ export function renderCompareTable(data, idx1, idx2) {
       bodyHtml += rows.join('');
     }
   }
-  return renderScrollableTableShell('compare', 'compare-table-wrapper', 'compare-table', colgroup, headHtml, bodyHtml, 866);
+  return renderScrollableTableShell('compare', 'compare-table-wrapper', 'compare-table', colgroup, headHtml, bodyHtml, 908);
 }
 
 // Correlations

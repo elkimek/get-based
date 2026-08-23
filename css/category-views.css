@@ -345,6 +345,7 @@
 .gb-col-marker { width: 180px; }
 .gb-col-unit { width: 86px; }
 .gb-col-reference { width: 128px; }
+.gb-col-ranges { width: 170px; }
 .gb-col-date { width: 104px; }
 .gb-col-trend { width: 78px; }
 .gb-col-range { width: 112px; }
@@ -624,6 +625,49 @@
   background: var(--bg-secondary); font-weight: 600; font-size: 12px;
   text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);
   padding: 8px 14px;
+}
+.compare-ranges-cell {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.compare-range-stack,
+.compare-range-date-group {
+  display: grid;
+  gap: 4px;
+}
+.compare-range-stack-dated { gap: 8px; }
+.compare-range-date-group + .compare-range-date-group {
+  border-top: 1px dashed var(--border);
+  padding-top: 7px;
+}
+.compare-range-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px 5px;
+}
+.compare-range-label,
+.compare-range-date {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.compare-range-line-used .compare-range-bounds {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.compare-range-used {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 4px;
+  text-transform: uppercase;
 }
 .compare-improved { color: var(--green); }
 .compare-improved::before { content: "\2713 "; }

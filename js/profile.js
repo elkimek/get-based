@@ -1,6 +1,5 @@
 // @ts-check
 // profile.js — Profile CRUD, sex/DOB, location, and storage facade.
-
 import { state } from './state.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
@@ -11,6 +10,7 @@ import { clearProfileStorage } from './profile-storage-cleanup.js';
 import { createUniqueId } from './unique-id.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isOfficialGetbasedHost } from './url-safety.js';
+import { normalizeUnitProfile } from './unit-profiles.js';
 import {
   configureProfileListStoreDeps,
   getProfiles as getStoredProfiles,
@@ -328,7 +328,7 @@ export async function loadProfile(profileId) {
     }
   }
   const savedUnits = localStorage.getItem(profileStorageKey(profileId, 'units'));
-  state.unitSystem = savedUnits === 'US' ? 'US' : 'EU';
+  state.unitSystem = normalizeUnitProfile(savedUnits);
   const savedRange = localStorage.getItem(profileStorageKey(profileId, 'rangeMode'));
   state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';
   state.showAltUnits = localStorage.getItem(profileStorageKey(profileId, 'showAltUnits')) === 'on';

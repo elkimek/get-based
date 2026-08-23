@@ -29,6 +29,10 @@ vi.mock('../js/schema.js', () => ({
   convertUserInputToSI: vi.fn((dotKey, value) => value),
   convertSIToInputUnit: vi.fn((dotKey, value) => value),
 }));
+vi.mock('../js/unit-profiles.js', () => ({
+  convertCanonicalToInputUnit: vi.fn((dotKey, value) => value),
+  convertUnitInputToCanonical: vi.fn((dotKey, value) => value),
+}));
 vi.mock('../js/utils.js', () => ({
   escapeHTML: value => String(value),
   escapeAttr: value => String(value),

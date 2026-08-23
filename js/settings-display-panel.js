@@ -15,9 +15,11 @@ export function renderDisplaySettingsPanel(active) {
         <div class="settings-section">
           <label class="settings-label">Unit System</label>
           <div class="unit-toggle">
-            <button class="unit-toggle-btn${state.unitSystem === 'EU' ? ' active' : ''}" data-unit="EU" data-settings-action="switch-unit">EU (SI)</button>
-            <button class="unit-toggle-btn${state.unitSystem === 'US' ? ' active' : ''}" data-unit="US" data-settings-action="switch-unit">US</button>
+            <button class="unit-toggle-btn${state.unitSystem === 'EU' ? ' active' : ''}" data-unit="EU" data-settings-action="switch-unit" title="International SI units">International (SI)</button>
+            <button class="unit-toggle-btn${state.unitSystem === 'ANZ' ? ' active' : ''}" data-unit="ANZ" data-settings-action="switch-unit" title="Common Australian and New Zealand pathology reporting units">Australia / NZ</button>
+            <button class="unit-toggle-btn${state.unitSystem === 'US' ? ' active' : ''}" data-unit="US" data-settings-action="switch-unit" title="US conventional units">US</button>
           </div>
+          <div class="settings-copy-desc">Changes how stored results, ranges, reports, and AI context are displayed. Your original data remains unchanged.</div>
         </div>
         <div class="settings-section">
           <label class="settings-label" title="When on, the marker detail view also shows values in the alternate unit system (e.g. mg/dL alongside mmol/L). Useful for cross-checking against a lab report printed in the other system.">Alternate Units</label>

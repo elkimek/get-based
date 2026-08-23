@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeAttr } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';
+import { normalizeUnitProfile } from './unit-profiles.js';
 
 /**
  * @typedef {import('../types/app-state.js').ProfileData} ImportedDataRecord
@@ -287,9 +288,10 @@ export function destroyAllCharts() {
 }
 
 export function switchUnitSystem(system) {
+  const unitProfile = normalizeUnitProfile(system);
   invalidateActiveDataCache();
-  state.unitSystem = system;
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'units'), system);
+  state.unitSystem = unitProfile;
+  localStorage.setItem(profileStorageKey(state.currentProfile, 'units'), unitProfile);
   const openId = state._activeDetailMarkerId;
   const data = getActiveData();
   buildDataSidebar(data);

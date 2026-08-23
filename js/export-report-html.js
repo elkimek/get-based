@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { getStatus, formatValue, getTrend, showNotification } from './utils.js';
 import { getEffectiveRange } from './marker-analysis.js';
+import { getUnitProfileLabel } from './unit-profiles.js';
 import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import { getSupplementPeriods, getSupplementStatus } from './supplement-medication-domain.js';
 import {
@@ -48,7 +49,7 @@ export function exportPDFReport(options = {}) {
 export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
   const reportOptions = normalizeReportOptions(options);
   const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const unitLabel = state.unitSystem === 'US' ? 'US (conventional)' : 'EU (SI)';
+  const unitLabel = getUnitProfileLabel(state.unitSystem);
   const fmtDate = d => d && Number.isFinite(new Date(d + 'T00:00:00').getTime())
     ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'date not set';

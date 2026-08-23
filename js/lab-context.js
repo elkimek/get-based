@@ -43,12 +43,12 @@ import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildLabCollectionContextSection } from './lab-context-collection.js';
 import { labContextDeps } from './lab-context-runtime.js';
 import { weightToKilograms } from './wearables-formatters.js';
+import { getUnitProfileLabel } from './unit-profiles.js';
 export { configureLabContext } from './lab-context-runtime.js';
 
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
  */
-
 
 function markerNameForStorageDotKey(data, dotKey) {
   const [categoryKey, markerKey] = String(dotKey || '').split('.');
@@ -105,7 +105,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
   const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
   const today = new Date().toISOString().slice(0, 10);
-  const unitLabel = state.unitSystem === 'US' ? 'US conventional' : 'SI';
+  const unitLabel = getUnitProfileLabel(state.unitSystem);
 
   let ctx;
   if (hasLabData) {

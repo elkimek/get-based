@@ -585,7 +585,8 @@ const dataModule = await import('../js/data.js');
   const calculatedMarkersSrc = (await (await fetch('js/data-calculated-markers.js')).text());
   const markerAnalysisSrc = (await (await fetch('js/marker-analysis.js')).text());
   assert('data.js imports MARKER_SCHEMA', dataJsSrc.includes("import { state } from './state.js'"));
-  assert('data.js imports UNIT_CONVERSIONS', dataJsSrc.includes('UNIT_CONVERSIONS'));
+  assert('data.js imports the schema-wide unit profile resolver',
+    dataJsSrc.includes("from './unit-profiles.js'") && dataJsSrc.includes('convertCanonicalToDisplay'));
   assert('data.js imports OPTIMAL_RANGES', dataJsSrc.includes('OPTIMAL_RANGES'));
   assert('data.js imports PHASE_RANGES', dataJsSrc.includes('PHASE_RANGES'));
   assert('data.js has getActiveData function', dataJsSrc.includes('export function getActiveData()'));

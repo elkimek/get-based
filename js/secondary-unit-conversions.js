@@ -79,6 +79,9 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'g/l', factor: 0.001, type: 'multiply' },
     { unit: 'mg/l', factor: 1, type: 'multiply' }
   ],
+  'biochemistry.osmolality': [
+    { unit: 'mmol/kg', factor: 1, type: 'multiply' }
+  ],
 
   // Hormones
   'hormones.testosterone': [
@@ -131,6 +134,9 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'pmol/l', factor: 6.0, type: 'multiply' },
     { unit: 'mU/l', factor: 1, type: 'multiply' }
   ],
+  'diabetes.cPeptide': [
+    { unit: 'nmol/l', factor: 0.331, type: 'multiply' }
+  ],
   'hormones.acth': [
     { unit: 'pg/ml', factor: 4.541, type: 'multiply' }
   ],
@@ -164,6 +170,7 @@ export const SECONDARY_UNIT_CONVERSIONS = {
   'tumorMarkers.afp': [
     { unit: 'U/ml', factor: 1, type: 'multiply' },
     { unit: 'kU/l', factor: 1, type: 'multiply' },
+    { unit: 'kIU/l', factor: 1, type: 'multiply' },
     { unit: 'ng/ml', factor: 1.21, type: 'multiply' }
   ],
 
@@ -290,9 +297,18 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'g/l', factor: 1, type: 'multiply' }
   ],
 
+  // Bone metabolism and urine protein units common in ANZ reports.
+  'boneMetabolism.p1np': [
+    { unit: 'ng/l', factor: 1000, type: 'multiply' }
+  ],
+  'urinalysis.totalProtein': [
+    { unit: 'mg/l', factor: 1000, type: 'multiply' }
+  ],
+
   // Thyroid
   'thyroid.tsh': [
-    { unit: 'mU/l', factor: 1, type: 'multiply' }
+    { unit: 'mU/l', factor: 1, type: 'multiply' },
+    { unit: 'mIU/l', factor: 1, type: 'multiply' }
   ],
   'thyroid.ft4': [
     { unit: 'ng/l', factor: 0.7769, type: 'multiply' },

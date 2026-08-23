@@ -447,8 +447,8 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   // 22. applyUnitConversion handles phaseRefRanges
   // ═══════════════════════════════════════
   console.log('Section 22: applyUnitConversion');
-  assert('applyUnitConversion converts phaseRefRanges', dataSource.includes('marker.phaseRefRanges') && dataSource.includes('conv.factor).toPrecision(4)'));
-  assert('applyUnitConversion converts contextual ranges', dataSource.includes('marker.contextRefRanges'));
+  assert('applyUnitConversion converts phaseRefRanges', dataSource.includes("'phaseRefRanges'") && dataSource.includes('convertProfileRange'));
+  assert('applyUnitConversion converts contextual ranges', dataSource.includes("'contextRefRanges'") && dataSource.includes("'contextOptimalRanges'"));
 
   // ═══════════════════════════════════════
   // Summary
