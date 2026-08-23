@@ -286,6 +286,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-history.js',
   '/js/chat-continuation.js',
   '/js/chat-prompt-context.js',
+  '/js/chat-system-prompt.js',
   '/js/chat-summaries.js',
   '/js/settings.js',
   '/js/settings-display-panel.js',

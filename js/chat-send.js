@@ -2,7 +2,7 @@
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
 
 import { state } from './state.js';
-import { CHAT_SYSTEM_PROMPT } from './constants.js';
+import { CHAT_SYSTEM_PROMPT } from './chat-system-prompt.js';
 import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
