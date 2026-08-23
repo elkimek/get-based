@@ -1,8 +1,6 @@
 // @ts-check
 // unique-id.js — Collision-resistant identifiers for locally created records.
 
-let fallbackSequence = 0;
-
 function cryptoRandomHex() {
   const cryptoApi = globalThis.crypto;
   if (typeof cryptoApi?.randomUUID === 'function') {
@@ -13,22 +11,17 @@ function cryptoRandomHex() {
     cryptoApi.getRandomValues(bytes);
     return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   }
-  return '';
+  throw new Error('Web Crypto is unavailable; cannot create a collision-resistant identifier');
 }
 
 /**
- * Create an identifier that remains unique when several records are created
- * in the same millisecond. Web Crypto supplies the normal path; the monotonic
- * sequence keeps the non-crypto fallback collision-safe within this runtime.
+ * Create a collision-resistant identifier using Web Crypto. Failing closed
+ * avoids persisting IDs that could collide across separate runtimes.
  *
  * @param {string} [prefix]
  * @returns {string}
+ * @throws {Error} When Web Crypto is unavailable.
  */
 export function createUniqueId(prefix = '') {
-  const random = cryptoRandomHex();
-  if (random) return `${prefix}${random}`;
-
-  const now = Date.now();
-  const sequence = fallbackSequence++;
-  return `${prefix}${now.toString(36)}_${sequence.toString(36)}`;
+  return `${prefix}${cryptoRandomHex()}`;
 }

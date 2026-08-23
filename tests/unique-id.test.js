@@ -15,17 +15,11 @@ describe('createUniqueId', () => {
     expect(ids.every(id => /^record_[a-z0-9_]+$/i.test(id))).toBe(true);
   });
 
-  it('keeps the fallback unique with a frozen clock without weak randomness', () => {
+  it('fails closed without Web Crypto instead of using weak randomness', () => {
     vi.stubGlobal('crypto', {});
-    vi.spyOn(Date, 'now').mockReturnValue(12345);
     const randomSpy = vi.spyOn(Math, 'random');
 
-    const first = createUniqueId('fallback_');
-    const second = createUniqueId('fallback_');
-
+    expect(() => createUniqueId('record_')).toThrow('Web Crypto is unavailable');
     expect(randomSpy).not.toHaveBeenCalled();
-    expect(first).not.toBe(second);
-    expect(first).toMatch(/^fallback_[a-z0-9_]+$/i);
-    expect(second).toMatch(/^fallback_[a-z0-9_]+$/i);
   });
 });
