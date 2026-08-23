@@ -422,6 +422,7 @@
     "js/marker-detail-store.js",
     "js/health-goals-utils.js",
     "js/secondary-unit-conversions.js",
+    "js/unit-profiles.js",
     "js/markdown.js",
     "js/lens-local-utils.js",
     "js/lens-local-parsers.js",

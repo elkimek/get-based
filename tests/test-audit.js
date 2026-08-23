@@ -934,8 +934,11 @@ assert('Glass theme includes Light page surfaces',
 console.log('6. Data Integrity');
 
 assert('Ferritin lookup uses iron category', markerAnalysisSrc.includes("'iron','ferritin'") && !markerAnalysisSrc.includes("'hematology','ferritin'"));
-assert('Unit conversion guards null refMin', dataSrc.includes('if (marker.refMin != null) marker.refMin = parseFloat'));
-assert('Unit conversion guards null refMax', dataSrc.includes('if (marker.refMax != null) marker.refMax = parseFloat'));
+const staticRangeConversionGuard =
+  dataSrc.includes("['refMin', 'refMax', 'optimalMin', 'optimalMax']")
+  && dataSrc.includes('if (marker[key] != null)');
+assert('Unit conversion guards null refMin', staticRangeConversionGuard);
+assert('Unit conversion guards null refMax', staticRangeConversionGuard);
 
 const schemaSrc = read('js/schema.js');
 const apoMatch = schemaSrc.match(/lipids\.apoAI.*?optimalMax:\s*([\d.]+)/);
