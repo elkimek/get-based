@@ -300,9 +300,10 @@ the composer, and chat panel/thread lifecycle callbacks stop tracks, synthesis,
 and playback. Portable Voice preferences and cloud keys follow the existing
 encrypted settings/sync path, but consent records remain browser-local.
 Provider selection, local model/hardware choices, a local voice server URL, and
-its optional key remain device-local, while full backups include them. One
-Voice settings schema owns these scopes so backup and sync allowlists cannot
-drift independently.
+its optional key remain device-local. Full backups preserve preferences, but
+device-key-wrapped credentials are omitted unless passphrase protection makes
+them portable. One Voice settings schema owns these scopes so backup and sync
+allowlists cannot drift independently.
 The service worker precaches worker source but deliberately does not precache
 large remote model assets.
 

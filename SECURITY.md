@@ -14,6 +14,8 @@ I'll acknowledge receipt within 48 hours and aim to release a fix within 7 days 
 - Data handling (localStorage, encryption, PII obfuscation)
 - AI API key management
 - Cross-device sync (Evolu relay)
+- Operated compatibility proxy (`integrations.getbased.health`)
+- Operated encrypted profile-share service (`shares.getbased.health`)
 - PDF import pipeline
 
 ## Out of Scope
@@ -37,7 +39,17 @@ temporary copies without affecting the browser-held source profile. Existing
 Blob records are served only through a fixed, at-most-31-day transition window
 and are not copied into the new database.
 
-API keys are stored in the browser via `encryptedSetItem` (AES-256-GCM) when encryption is enabled.
+Supported AI, voice, local-server, Knowledge Base, Cashu, and weather credentials
+are never deliberately persisted as plaintext. With passphrase protection off,
+`encryptedSetCredentialItem` wraps them with AES-256-GCM under a non-exportable,
+browser-device key; if that protection is unavailable, new credentials remain
+memory-only. With passphrase protection on, sensitive profile data and supported
+credentials use the PBKDF2-derived AES-256-GCM key. Wearable OAuth tokens use a
+separate per-profile device-local vault and are excluded from sync and backups.
+
+The operated compatibility proxy accepts only policy-classified wearable, CAMS,
+NRAS, and credential-free public-page operations. It is not a generic AI, voice,
+or Custom API proxy and does not intentionally persist or log forwarded payloads.
 
 ## Dependency Monitoring
 

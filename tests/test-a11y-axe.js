@@ -1,4 +1,4 @@
-// test-a11y-axe.js — Runtime accessibility scan via axe-core 4.10.
+// test-a11y-axe.js — Runtime accessibility scan via axe-core 4.13.
 //
 // Complements test-a11y-phase3.js, which asserts that specific aria-*
 // attributes appear in the source. This file RENDERS each lens + every

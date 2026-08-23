@@ -35,9 +35,10 @@ export function shouldProxyCustomApiUrl(rawUrl) {
   }
 }
 
-// Only Custom API needs the proxy (arbitrary endpoints may lack CORS headers).
-// Known providers set CORS headers, so we call them directly and avoid hosted
-// proxy timeout limits.
+// Legacy proxy-selection predicate retained for callers of the shared
+// transport. The current Custom API adapter passes `useProxy: false` and calls
+// its configured endpoint directly; known providers also use their reviewed
+// browser-direct paths.
 export function useCustomApiProxy() {
   return getAIProvider() === 'custom' && shouldProxyCustomApiUrl(getCustomApiUrl());
 }

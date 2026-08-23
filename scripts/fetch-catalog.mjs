@@ -19,9 +19,9 @@
 // parse failure), the script EXITS NON-ZERO so the build fails loudly
 // rather than shipping a stale or empty catalog.
 //
-// Optional CATALOG_FETCH_HEADER lets you override the auth header style
-// (default: `Authorization: Bearer ${TOKEN}`). For GitHub raw URLs you
-// usually don't need to override.
+// Optional CATALOG_FETCH_HEADER_NAME and CATALOG_FETCH_HEADER_VALUE override
+// the authentication header (default: `Authorization: Bearer ${TOKEN}`). For
+// GitHub raw URLs you usually don't need to override it.
 
 import fs from 'node:fs';
 import path from 'node:path';

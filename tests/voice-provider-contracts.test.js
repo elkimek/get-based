@@ -149,7 +149,7 @@ describe('OpenAI-compatible local voice provider', () => {
   });
 });
 
-describe('hosted voice relay client', () => {
+describe('extension-owned voice authorization', () => {
   it('authorizes hosted dictation before microphone capture can begin', async () => {
     const authorizeRequest = vi.fn(() => false);
     configureAppExtension({

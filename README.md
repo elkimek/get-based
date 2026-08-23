@@ -21,7 +21,7 @@ You can use it with no account. Most data lives in your browser by default. Heal
 - **Track light and environment** — sun sessions, UV/atmospheric context, indoor light setup, devices, measurements, EMF assessment, and daily light analysis.
 - **Keep a complete therapy history** — track current, scheduled, paused, cycled, and ended supplements or medications with dose periods, structured units, active and other ingredients, reviewed product-label imports, and source quality evidence.
 - **Add the missing human context** — medical history, family history, diet/digestion, sleep, exercise, stress, light/circadian habits, environment, EMF, health goals, and freeform notes. Cycle tracking can label individual blood draws and apply phase-specific estradiol, progesterone, LH, and FSH ranges only when context is reliable.
-- **Ask AI with context** — chat can use your labs, notes, bounded therapy history, scores, wearables, Knowledge Base passages, and selected interpretive lens. Dictate into the composer and listen to replies with either browser-local voice models, a local compatible server, xAI, or ElevenLabs.
+- **Ask AI with context** — chat can use your labs, notes, bounded therapy history, scores, wearables, Knowledge Base passages, and selected interpretive lens. Dictate into the composer and listen to replies with browser-local voice models, a local compatible server, a supported OpenRouter/PPQ/Venice AI connection, xAI, or ElevenLabs.
 - **Build reports** — export a practitioner-readable PDF with selected labs, context, and summary sections.
 - **Use multiple profiles** — separate profiles for yourself, family, clients, or test/demo data.
 - **Protect and move your data** — create full backups, optionally encrypt browser storage with a passphrase, sync encrypted profiles across devices, or share a password-protected copy.
@@ -44,7 +44,7 @@ getbased is private by default, not magic. The boundary depends on which feature
 - **Browser-first storage.** Profile data is stored in localStorage and IndexedDB by default.
 - **Optional encryption at rest.** A passphrase-derived key can protect browser storage.
 - **Optional AI.** PDF import and chat need either an AI provider or a local OpenAI-compatible server. Non-AI tracking features still work without one.
-- **Optional Voice.** On-device Whisper/Kokoro keep recordings and message text in the browser after model download. A selected local server receives them directly. xAI or ElevenLabs receives only the recording or message explicitly processed with that cloud provider.
+- **Optional Voice.** On-device Whisper/Kokoro keep recordings and message text in the browser after model download. A selected local server receives them directly. A selected OpenRouter, PPQ, Venice, xAI, or ElevenLabs audio endpoint receives only the recording or reply text explicitly processed with that cloud provider; **Same as chat** falls back on-device when the active provider is unsupported or disconnected.
 - **PII review for text imports.** Deterministic patterns and an optional trusted self-hosted model can strip likely identifiers before lab text is sent to an AI provider. Automated detection can miss unusual layouts, so review is still recommended. Image imports cannot be scrubbed and always show a separate warning before upload.
 - **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads. Pausing one browser keeps its identity and queues local edits; disconnect/reset is a separate Advanced action.
 - **Optional sharing.** Profile sharing creates an encrypted, password-protected copy for someone else. On the official app, getbased's isolated Czech VPS service (hosted by SecurityNet.cz/Hukot) receives caller network metadata plus the opaque envelope and expiry/deletion/abuse metadata, but not the password or decrypted profile. Temporary share copies are not backed up and can be lost after a service failure; the source profile remains in the sender's browser.
@@ -68,13 +68,16 @@ All normal tracking works without AI. AI features can use:
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
-Switch providers in Settings. Provider keys are stored locally in the browser.
+Switch providers in Settings. Supported provider keys are wrapped locally with
+device-bound encryption, or with the backup passphrase when one is configured.
 
 Venice encrypted mode fails closed unless both the Intel TDX quote and NVIDIA
 GPU evidence verify. NVIDIA does not allow browser POSTs to NRAS, so the fixed
-GPU-attestation request transits the deployment's same-origin proxy. The
-official proxy permits only NVIDIA's exact NRAS endpoint for this operation; it
-does not receive the encrypted inference messages. Signed NRAS tokens are
+GPU-attestation request uses the compatibility endpoint selected for the
+deployment. Official hosts route it to `integrations.getbased.health`;
+independent deployments use their own same-origin `/api/proxy`. The policy
+permits only NVIDIA's exact NRAS endpoint for this operation and does not
+receive the encrypted inference messages. Signed NRAS tokens are
 then verified in the browser against NVIDIA's published keys. Message content
 is not included in that evidence. The shared nonce does not prove that the GPU
 and TDX workload are co-located.
@@ -85,9 +88,11 @@ Voice input and output use one service by default in **Settings → Voice**. An
 advanced toggle can select different services for dictation and spoken replies,
 for example on-device Whisper input with ElevenLabs output:
 
+- **Same as chat** reuses a connected OpenRouter, PPQ, or Venice account when that provider supports the requested audio operation, and otherwise falls back to the browser-local models.
 - **On this device** uses quantized multilingual Whisper Small by default and offers Large v3 Turbo for high-end hardware. Local transcription and Kokoro speech can use CPU/WASM or a validated WebGPU path. Automatic processing starts with the broadly compatible CPU path, records normalized timings, and selects the fastest tested backend. Each required CPU or GPU model variant downloads only after explicit confirmation and runs in a dedicated Web Worker. Built-in speech currently offers English US and UK voices. Markdown tables are skipped with a short spoken notice so the surrounding explanation remains easy to follow.
 - **Local voice server** connects directly to an OpenAI-compatible `/v1/audio/transcriptions` and `/v1/audio/speech` server, including apps such as LocalAI or Speaches when configured with compatible models.
-- **xAI** and **ElevenLabs** use your own API key. There is no delegated account sign-in for these integrations; keys use the same optional encrypted-at-rest storage as other provider secrets.
+- **OpenRouter**, **PPQ**, and **Venice** reuse their key from AI settings and call the provider's standard audio endpoints directly. A private chat mode does not automatically extend to voice.
+- **xAI** and **ElevenLabs** use your own API key. There is no delegated account sign-in for these integrations; supported provider keys are device-key encrypted even when passphrase protection is off.
 
 Microphone audio is held only for the active transcription. Dictation inserts text at the composer cursor and never sends a message automatically. Assistant messages expose a **Listen** control, and recording or playback stops when the chat closes or switches conversations.
 

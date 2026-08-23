@@ -50,7 +50,7 @@ export async function handleCamsRelay(payload, req, { operatedHost = false } = {
     : '';
   if (!upstream) {
     return errorResponse(req, 503,
-      'CAMS relay upstream is empty. Set UVDATA_UPSTREAM or switch Sun Data Source to Open-Meteo/manual.');
+      'CAMS relay upstream is empty. Set UVDATA_UPSTREAM or switch Sun Data Source to Open-Meteo.');
   }
   if (operatedHost && !bearer) {
     return errorResponse(req, 503, 'Hosted CAMS relay is not configured.');

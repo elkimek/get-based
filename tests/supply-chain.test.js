@@ -44,15 +44,15 @@ describe('supply-chain inventory', () => {
         },
       },
       components: [{
-        'bom-ref': 'tinfoil@1.1.12',
+        'bom-ref': 'tinfoil@1.2.1',
         type: 'library',
         name: 'tinfoil',
-        version: '1.1.12',
-        purl: 'pkg:npm/tinfoil@1.1.12',
+        version: '1.2.1',
+        purl: 'pkg:npm/tinfoil@1.2.1',
       }],
       dependencies: [{
         ref: 'getbased@1.0.0',
-        dependsOn: ['tinfoil@1.1.12'],
+        dependsOn: ['tinfoil@1.2.1'],
       }],
     };
 

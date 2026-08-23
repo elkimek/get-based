@@ -47,7 +47,7 @@ const CHANGELOG = [
       '<b>Follow sun sessions more easily.</b> Set up skin type, coverage, glass, and eye conditions before starting. The live session card keeps the vitamin D estimate visible, shows the other light channels on demand, and works consistently on the Light page and dashboard.',
       '<b>Review patterns without chasing numbers.</b> Light Today explains the current day, while the Weekly Review looks across recent sessions and suggests one practical next step.',
       '<b>Keep sunlight and light devices distinct.</b> Device sessions reflect their specific spectrum, output, distance, and exposure area. Numerical estimates appear only when the available device information supports them.',
-      '<b>Understand your indoor light environment.</b> Assess rooms, save observations, and use tools for brightness, light color, flicker, spectrum, darkness, and window transmission. Lux measurement prefers the phone\'s light sensor, with camera and manual options when needed.',
+      '<b>Understand your indoor light environment.</b> Assess rooms, save observations, and use source-aware tools for brightness, warm/cool appearance, camera-visible banding, darkness, and relative window comparisons. Brightness prefers the phone\'s light sensor or an entered meter reading; a calibrated camera estimate is labeled as approximate.',
       '<b>Safety and uncertainty stay visible.</b> Sun and device guidance considers burn risk, eye exposure, heat, photosensitivity, glass, and measurement limits while keeping the feature educational and practical.',
     ]
   },

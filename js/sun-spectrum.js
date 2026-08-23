@@ -7,7 +7,7 @@
 // (CIE erythemal, CIE vit-D, CIE melanopic, OPN5, CCO red, CCO NIR, NO release,
 // POMC) to produce per-channel doses.
 //
-// Reference frame: 280-2500nm, sampled at 5nm resolution (89 bands).
+// Reference frame: 280-2500nm, sampled at 5nm resolution (445 bands).
 // Output channels see Bird-Riordan reconstructed irradiance (W/m²/nm) integrated
 // against published action-spectrum weightings.
 //
@@ -82,8 +82,7 @@ const CHANNELS = [
 //
 // For each wavelength, computes extraterrestrial × Rayleigh × ozone absorption
 // × aerosol attenuation × cloud transmission. This is a heavily simplified
-// Bird-Riordan-derived model — accurate to ~25% relative for our use, which
-// is correlation against biomarkers (relative trends), not radiometry.
+// Bird-Riordan-derived model for relative trends, not validated radiometry.
 /**
  * @param {{ zenithDeg?: number | null, ozoneDU?: number, altitudeM?: number, cloudCover?: number, aod?: number | null, targetUVI?: number | null }} [opts]
  */
@@ -149,7 +148,7 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
     // ~50% and surface UVA by ~30% — verified against TUV / NIWA
     // simulations at zenith=30° / 300 DU / sea level / no cloud:
     //   305 nm direct only: ~21 mW/m²/nm  (vs ~50 reference) ✗
-    //   305 nm + diffuse:   ~32 mW/m²/nm  (within Bird-Riordan ±25%) ✓
+    //   305 nm + diffuse:   ~32 mW/m²/nm  (closer to the reference) ✓
     let diffuseFraction;
     if (lambda_um < 0.32)      diffuseFraction = 0.55;        // UVB
     else if (lambda_um < 0.40) diffuseFraction = 0.40;        // UVA
@@ -605,21 +604,15 @@ export const VITD_DAILY_SATURATION_IU = VITD_SATURATION_IU;
 // Uncertainty band on the vitamin D estimate. Honest framing has two
 // independent components:
 //   • MODEL uncertainty: the simplified Bird-Riordan + Bass-Paur
-//     spectrum is ~20% accurate at high noon, degrades to ~50% at low
-//     sun. The band returned by this function reflects MODEL ONLY —
-//     "given the same skin and biology, the model could be this far off."
+//     reconstruction is least uncertain near high noon and increasingly
+//     uncertain at low sun. This is a heuristic band, not validation against
+//     a radiometer at the user's location.
 //   • BIOLOGICAL variance: inter-individual 25(OH)D response for the
-//     SAME UV dose varies 2-3× (Webb 2018, Datta 2019) — gut absorption,
-//     adiposity, age, baseline status, supplement co-intake. This
-//     variance applies on TOP of the model band when comparing to
-//     blood labs, but isn't useful for "did this session contribute
-//     meaningfully" — for that the model band is what you want.
+//     same modeled UV dose is broad and depends on factors this function does
+//     not observe. The returned range deliberately combines a broad allowance
+//     for both components; it is not a confidence interval.
 //
-// We surface the model band by default. The session detail tooltip
-// notes that the actual blood response can be wider.
-//
-// `zenith` (degrees) tightens the band when supplied — at high noon the
-// model is much more accurate than at sunrise/sunset.
+// `zenith` (degrees) tightens the heuristic band when supplied.
 //
 // Returns { central, low, high } in IU.
 export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), zenith = /** @type {number | null} */ (null), rotatedSides = false) {
@@ -628,10 +621,9 @@ export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type 
   // The returned band includes both optical-model error and the much larger
   // person-to-person biological conversion uncertainty. It is intentionally
   // broad: the central value is an IU-equivalent, not a measured synthesis.
-  //   high noon (z ≤ 35°)    → ±20%   (model in its sweet spot)
-  //   morning/afternoon      → ±30%
-  //   low sun (z > 55°)      → ±45%   (Bird-Riordan accuracy degrades)
-  //   no zenith supplied     → ±35%   (legacy default — was 0.6/1.5)
+  // Zenith selects progressively broader heuristic bounds. The actual return
+  // range is wider still because it also allows for biological conversion
+  // variability; do not reinterpret these branches as accuracy claims.
   let lowMul = 0.25, highMul = 2.0;
   if (typeof zenith === 'number' && Number.isFinite(zenith)) {
     if (zenith <= 35) { lowMul = 0.30; highMul = 1.8; }

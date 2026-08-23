@@ -220,7 +220,7 @@ export async function openStartSunSessionDialog() {
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <p class="sun-detailed-glass-hint">Ordinary window glass usually blocks most vitamin-D-effective UVB but can pass some UVA, visible light, and near-infrared. Glass types vary, so the model uses a generic wavelength-by-wavelength estimate and never treats glass as guaranteed UV protection. Light tools → Window check can compare your own glass.</p>
+        <p class="sun-detailed-glass-hint">Ordinary window glass usually blocks most vitamin-D-effective UVB but can pass some UVA, visible light, and near-infrared. Glass types vary, so the model uses a generic wavelength-by-wavelength estimate and never treats glass as guaranteed UV protection. Light tools → Window check compares camera-visible light only; it cannot measure your glass's UV protection.</p>
         <p class="sun-detailed-glass-hint">If you turn over later, use <strong>Side change</strong> at that moment. It records the timing boundary without multiplying the dose; use <strong>Coverage</strong> too if different skin becomes exposed.</p>
       </details>
 

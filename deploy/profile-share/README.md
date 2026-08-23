@@ -32,10 +32,11 @@ credentials, writable volumes, or rollback procedures.
    }
    ```
 
-Do not enable request-body or query-string access logging for this route. The
-application client must remain on its prior same-origin `/api/share` endpoint until
-synthetic create/read/delete/expiry tests, the bounded existing-link transition,
-privacy disclosures, and rollback checks are complete.
+Do not enable request-body or query-string access logging for this route. For a
+fresh cutover, keep the application client on its prior same-origin `/api/share`
+endpoint until synthetic create/read/delete/expiry tests, the bounded
+existing-link transition, privacy disclosures, and rollback checks are complete.
+The current official client uses the dedicated service for new `vps1_` shares.
 
 ## Existing-link transition
 
