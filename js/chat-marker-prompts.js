@@ -72,7 +72,7 @@ export function askAIAboutMarker(markerId) {
       prompt += ` Trend: ${dir} ${Math.abs(parseFloat(pctChange))}% from previous.`;
     }
   }
-  prompt += ' What does this mean and should I be concerned about anything?';
+  prompt += ' What matters most, what does this mean, and should I be concerned? Lead with the main takeaway and keep range comparisons brief unless a different threshold changes the interpretation.';
   void openSourcePrompt(prompt, marker.name, { closeModal: true });
 }
 

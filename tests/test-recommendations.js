@@ -58,7 +58,7 @@ const _realFetch = globalThis.fetch;
   const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const settingsDisplaySrc = await fetchWithRetry('js/settings-display-panel.js');
-  const constantsSrc = await fetchWithRetry('js/constants.js');
+  const chatSystemPromptSrc = await fetchWithRetry('js/chat-system-prompt.js');
   const swSrc = await fetchWithRetry('service-worker.js');
 
   // ═══════════════════════════════════════
@@ -325,10 +325,10 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 11. System Prompt ', 'font-weight:bold;color:#f59e0b');
 
-  assert('System prompt has Supplement Recommendations section', constantsSrc.includes('## Supplement Recommendations'));
-  assert('System prompt mentions food first', constantsSrc.includes('free actions first'));
-  assert('System prompt mentions specific form', constantsSrc.includes('specific form'));
-  assert('System prompt mentions medication interactions', constantsSrc.includes('medication interactions'));
+  assert('System prompt has Supplement Recommendations section', chatSystemPromptSrc.includes('## Supplement Recommendations'));
+  assert('System prompt mentions food first', chatSystemPromptSrc.includes('free actions first'));
+  assert('System prompt mentions specific form', chatSystemPromptSrc.includes('specific form'));
+  assert('System prompt mentions medication interactions', chatSystemPromptSrc.includes('medication interactions'));
 
   // ═══════════════════════════════════════
   // 12. Service Worker + CSS

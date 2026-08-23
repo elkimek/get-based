@@ -95,6 +95,7 @@
     "js/chat-personality-merge.js",
     "js/chat-personality-storage.js",
     "js/chat-prompt-context.js",
+    "js/chat-system-prompt.js",
     "js/chat-recommendation-disclosure.js",
     "js/chat-render.js",
     "js/chat-render-range.js",

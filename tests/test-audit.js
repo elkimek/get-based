@@ -2,7 +2,7 @@
 // test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
 // views.js, chat.js, markdown.js, utils.js, schema.js, api.js, export.js,
 // pdf-import.js, nav.js, main.js, cycle.js, context-cards.js, charts.js,
-// lab-context.js, constants.js, CSS bundle, index.html, vercel.json,
+// lab-context.js, chat-system-prompt.js, CSS bundle, index.html, vercel.json,
 // service-worker.js — plus the innerHTML sanitizer sweep.
 //
 // Run: node tests/test-audit.js  (or via npm test)
@@ -1170,16 +1170,16 @@ assert('Light still uses lc || autoLat gate', labCtxSrc.includes('lc || autoLat'
 const utilsSrc3 = read('js/utils.js');
 assert('hasCardContent exported from utils.js', utilsSrc3.includes('export function hasCardContent'));
 
-const constSrc = read('js/constants.js');
-assert('System prompt has per-category staleness instruction', constSrc.includes('stale data') && constSrc.includes('recommend retesting'));
-assert('System prompt has absent field instruction', constSrc.includes('did not provide'));
-assert('System prompt has absent section instruction', constSrc.includes('has not filled in'));
-assert('System prompt has Core Rules section', constSrc.includes('## Core Rules'));
-assert('System prompt has Priority Context section', constSrc.includes('## Priority Context'));
-assert('System prompt has Lifestyle Context section', constSrc.includes('## Lifestyle Context'));
-assert('System prompt has cortisol cross-cutting note', constSrc.includes('cortisol/HPA axis'));
-assert('System prompt has Style section', constSrc.includes('## Style'));
-assert('Health goals at top of Priority Context', constSrc.indexOf('Health goals:') < constSrc.indexOf('Medical conditions:'));
+const chatSystemPromptSrc = read('js/chat-system-prompt.js');
+assert('System prompt has per-category staleness instruction', chatSystemPromptSrc.includes('stale data') && chatSystemPromptSrc.includes('recommend retesting'));
+assert('System prompt has absent field instruction', chatSystemPromptSrc.includes('did not provide'));
+assert('System prompt has absent section instruction', chatSystemPromptSrc.includes('has not filled in'));
+assert('System prompt has Core Rules section', chatSystemPromptSrc.includes('## Core Rules'));
+assert('System prompt has Priority Context section', chatSystemPromptSrc.includes('## Priority Context'));
+assert('System prompt has Lifestyle Context section', chatSystemPromptSrc.includes('## Lifestyle Context'));
+assert('System prompt has cortisol cross-cutting note', chatSystemPromptSrc.includes('cortisol/HPA axis'));
+assert('System prompt has Style section', chatSystemPromptSrc.includes('## Style'));
+assert('Health goals at top of Priority Context', chatSystemPromptSrc.indexOf('Health goals:') < chatSystemPromptSrc.indexOf('Medical conditions:'));
 
 assert('chat-send.js delegates prompt assembly to chat-prompt-context', chatSendSrc.includes('buildChatSystemPrompt'));
 assert('Persona placed after lab data', chatPromptContextSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));

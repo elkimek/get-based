@@ -103,35 +103,35 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   // ═══════════════════════════════════════
   console.log('%c 3. System Prompt No-Data Section ', 'font-weight:bold;color:#f59e0b');
 
-  const constSrc = read('js/constants.js');
+  const chatSystemPromptSrc = read('js/chat-system-prompt.js');
 
-  assert('Has ## No Lab Data State section', constSrc.includes('## No Lab Data State'),
+  assert('Has ## No Lab Data State section', chatSystemPromptSrc.includes('## No Lab Data State'),
     'CHAT_SYSTEM_PROMPT should have no-data section');
-  assert('Advises pre-lab advisor role', constSrc.includes('pre-lab advisor role'),
+  assert('Advises pre-lab advisor role', chatSystemPromptSrc.includes('pre-lab advisor role'),
     'Should tell AI to shift to advisor role');
-  assert('Recommends tailored panels', constSrc.includes('tailored to their health goals'),
+  assert('Recommends tailored panels', chatSystemPromptSrc.includes('tailored to their health goals'),
     'Should instruct personalized recommendations');
-  assert('Explains WHY for each panel', constSrc.includes('explain in one sentence WHY'),
+  assert('Explains WHY for each panel', chatSystemPromptSrc.includes('explain in one sentence WHY'),
     'Should instruct per-panel reasoning');
   assert('No-lab card nudge respects disabled Insight Context Cards',
-    constSrc.includes('Insight Context Cards are turned off by the user') &&
-      constSrc.includes('gently mention that filling relevant Insight Context Cards can sharpen recommendations') &&
-      constSrc.includes('do not overwhelm the user with a full checklist'),
+    chatSystemPromptSrc.includes('Insight Context Cards are turned off by the user') &&
+      chatSystemPromptSrc.includes('gently mention that filling relevant Insight Context Cards can sharpen recommendations') &&
+      chatSystemPromptSrc.includes('do not overwhelm the user with a full checklist'),
     'Should nudge gently when useful and respect disabled card context');
-  assert('Sex and age critical instruction', constSrc.includes('Sex and age are critical for test recommendations'),
+  assert('Sex and age critical instruction', chatSystemPromptSrc.includes('Sex and age are critical for test recommendations'),
     'Should instruct AI about importance of demographics');
-  assert('Urge to set sex/DOB in Settings', constSrc.includes('tell the user to set these in Settings'),
+  assert('Urge to set sex/DOB in Settings', chatSystemPromptSrc.includes('tell the user to set these in Settings'),
     'Should direct user to Settings for demographics');
   assert('Menstrual timing is profile-gated',
-    constSrc.includes('only apply cycle-phase timing when a menstrualCycle context section is present') &&
-      constSrc.includes('For male') &&
-      constSrc.includes('do not recommend follicular/luteal/ovulatory timing'),
+    chatSystemPromptSrc.includes('only apply cycle-phase timing when a menstrualCycle context section is present') &&
+      chatSystemPromptSrc.includes('For male') &&
+      chatSystemPromptSrc.includes('do not recommend follicular/luteal/ovulatory timing'),
     'Should not give cycle-phase timing to male/non-cycling profiles');
-  assert('Never apologize instruction', constSrc.includes('Never apologize for missing lab data'),
+  assert('Never apologize instruction', chatSystemPromptSrc.includes('Never apologize for missing lab data'),
     'Should not apologize');
-  assert('Never pretend instruction', constSrc.includes('Never pretend to interpret lab results'),
+  assert('Never pretend instruction', chatSystemPromptSrc.includes('Never pretend to interpret lab results'),
     'Should not hallucinate results');
-  assert('Suggests starter panels', constSrc.includes('CBC, CMP, lipid panel, thyroid, vitamin D, iron'),
+  assert('Suggests starter panels', chatSystemPromptSrc.includes('CBC, CMP, lipid panel, thyroid, vitamin D, iron'),
     'Should suggest general starter panels');
 
   // ═══════════════════════════════════════

@@ -14,6 +14,7 @@ const MOCK_PATHS = [
   '../js/chat-discussion-callbacks.js',
   '../js/chat-discussion-ui.js',
   '../js/chat-discussion-turns.js',
+  '../js/chat-system-prompt.js',
   '../js/constants.js',
   '../js/schema.js',
   '../js/lab-context.js',
@@ -603,7 +604,7 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     getChatWebSearchEnabled: vi.fn(() => true),
   };
 
-  vi.doMock('../js/constants.js', () => ({ CHAT_SYSTEM_PROMPT: 'base system' }));
+  vi.doMock('../js/chat-system-prompt.js', () => ({ CHAT_SYSTEM_PROMPT: 'base system' }));
   vi.doMock('../js/schema.js', () => ({ trackUsage: deps.trackUsage }));
   vi.doMock('../js/api.js', () => ({
     getAIProvider: deps.getAIProvider,
@@ -804,6 +805,9 @@ describe('chat marker prompt runtime behavior', () => {
     expect(prompt).toContain('Current status: optimal');
     expect(prompt).toContain('Trend: up 50% from previous.');
     expect(prompt).toContain('phase-specific for the menstrual cycle');
+    expect(prompt).toContain('What matters most, what does this mean, and should I be concerned?');
+    expect(prompt).toContain('Lead with the main takeaway and keep range comparisons brief');
+    expect(prompt).toContain('unless a different threshold changes the interpretation');
     chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
   });
 

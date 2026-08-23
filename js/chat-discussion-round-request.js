@@ -1,7 +1,7 @@
 // @ts-check
 // chat-discussion-round-request.js - API request helpers for discussion rounds
 
-import { CHAT_SYSTEM_PROMPT } from './constants.js';
+import { CHAT_SYSTEM_PROMPT } from './chat-system-prompt.js';
 import { trackUsage } from './schema.js';
 import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,

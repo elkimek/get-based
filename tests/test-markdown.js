@@ -49,6 +49,18 @@ const ampersand = applyInlineMarkdown('AT&T and <div>');
 assert('ampersand and < both encoded',
   ampersand.includes('AT&amp;T') && ampersand.includes('&lt;div&gt;'));
 
+const encodedComparisons = applyInlineMarkdown('&lt;1.0, &gt;3.0, &le;4.5, &ge;10');
+assert('model-encoded comparison signs render once instead of showing entity text',
+  encodedComparisons === '&lt;1.0, &gt;3.0, ≤4.5, ≥10');
+
+const numericComparisons = applyInlineMarkdown('&#60;1, &#x3E;3, &#8804;4.5, &#x2265;10');
+assert('numeric comparison entities are normalized consistently',
+  numericComparisons === '&lt;1, &gt;3, ≤4.5, ≥10');
+
+const encodedScriptTag = applyInlineMarkdown('&lt;script&gt;alert(1)&lt;/script&gt;');
+assert('normalizing encoded comparison signs does not create executable HTML',
+  encodedScriptTag.includes('&lt;script&gt;') && !encodedScriptTag.includes('<script>'));
+
 // ─── 3. XSS: link URL scheme allowlist ───
 console.log('\n3. XSS — link URL scheme');
 
@@ -100,6 +112,17 @@ console.log('\n5. Autolinks');
 const autolink = applyInlineMarkdown('Visit https://example.com today');
 assert('bare https URL becomes <a>',
   autolink.includes('<a href="https://example.com"'));
+
+const terminalPunctuation = applyInlineMarkdown('https://example.com/report?');
+assert('bare URL keeps URL-valid terminal punctuation',
+  terminalPunctuation.includes('href="https://example.com/report?"'));
+
+const adjacentMarkdown = applyInlineMarkdown('https://example.com[details](https://target.example)`code`');
+assert('adjacent Markdown does not corrupt a bare URL',
+  adjacentMarkdown.includes('href="https://example.com"') &&
+    adjacentMarkdown.includes('href="https://target.example"') &&
+    adjacentMarkdown.includes('<code>code</code>') &&
+    !adjacentMarkdown.includes('\u0000gbmd:'));
 
 const plainText = applyInlineMarkdown('Not a URL: just plain text');
 assert('plain text has no <a>',
