@@ -89,6 +89,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
             date: '2026-01-01',
             markers: {
               'biochemistry.glucose': 5.2,
+              'biochemistry.alt': 0.5,
               'diabetes.insulin': 8,
             },
           },
@@ -96,6 +97,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
             date: '2026-02-01',
             markers: {
               'biochemistry.glucose': 6.4,
+              'biochemistry.alt': 0.6,
               'diabetes.insulin': 9,
             },
           },
@@ -174,6 +176,15 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && calls.some(call => call[0] === 'buildSidebar' && call[1] === 2)
         && calls.some(call => call[0] === 'navigate' && call[1] === 'metabolic')
         && calls.some(call => call[0] === 'showDetailModal' && call[1] === 'metabolic_glucose');
+
+      dataMod.switchUnitSystem('ANZ');
+      const anzData = dataMod.getActiveData();
+      const anzAlt = anzData.categories.biochemistry.markers.alt;
+      outcomes.switchUnitSystemSupportsSchemaWideAnzProjection = state.unitSystem === 'ANZ'
+        && localStorage.getItem(`labcharts-${profileId}-units`) === 'ANZ'
+        && anzAlt.unit === 'U/L'
+        && anzAlt.values[0] === 30
+        && anzData.categories.biochemistry.markers.glucose.unit === 'mmol/L';
 
       const detailCallsBeforeAlt = calls.filter(call => call[0] === 'showDetailModal').length;
       dataMod.toggleAltUnits(true);

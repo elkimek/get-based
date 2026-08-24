@@ -141,6 +141,21 @@ describe('report HTML runtime coverage', () => {
     expect(exportReportHtmlSource).not.toMatch(/\bwindow(?:\.|\s*\[)/);
   });
 
+  it('identifies the Australia / New Zealand unit profile in report metadata', () => {
+    state.unitSystem = 'ANZ';
+    const report = buildReportHTML(
+      'ANZ Profile',
+      'Female',
+      { dates: [], categories: {} },
+      [],
+      [],
+      [],
+      [],
+      { preset: 'personal', sections: ['summary'] },
+    );
+    expect(report).toContain('Australia / New Zealand');
+  });
+
   it('renders sparse dense genetics supplement context and trend report branches', () => {
     state.importedData.genetics = {
       mtdna: {

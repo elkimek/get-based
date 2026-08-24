@@ -2,7 +2,6 @@
 // marker-detail-modal-impl.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
-import { UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
 import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, safeMarkerId } from './utils.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate } from './marker-analysis.js';
@@ -14,6 +13,7 @@ import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './m
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
 import { markerRangeSuggestionIssueUrl } from './marker-range-suggestions.js';
+import { getAlternateUnitForProfile } from './unit-profiles.js';
 import { buildMarkerHistoryMetadata } from './marker-detail-history.js';
 import {
   BIO_AGE_BORTZ_INPUTS,
@@ -386,22 +386,18 @@ function renderDetailModal(id, opts = {}) {
   const renameLink = isRenamed
     ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" ${markerDetailActionAttrs('revert-marker-name', { id })} style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`
     : ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`;
-  // Dual-unit summary: render a secondary line under modal-unit when this marker
-  // has a UNIT_CONVERSIONS entry AND the per-profile "show alt units" toggle is
-  // on (Settings → Display). Mirrors the primary line's ranges in the other
-  // system so a user reading a lab report in the non-active unit can cross-check
-  // without flipping the global US/EU toggle.
-  const isUSMode = state.unitSystem === 'US';
-  const hasConv = !!UNIT_CONVERSIONS[dotKey];
+  // Dual-unit summary: mirror values and ranges in the most useful alternate
+  // unit for the active International, ANZ, or US profile.
+  const probe = marker.refMax ?? marker.refMin ?? 1;
+  const altProbe = getAlternateUnitForProfile(dotKey, probe, state.unitSystem);
+  const hasConv = !!altProbe;
   let altUnitInfo = '';
   if (hasConv && state.showAltUnits) {
-    const probe = marker.refMax ?? marker.refMin ?? 1;
-    const altProbe = getAlternateUnit(dotKey, probe, isUSMode);
     if (altProbe) {
       const altUnit = altProbe.unit;
       const altRange = (min, max) => {
-        const a = min != null ? getAlternateUnit(dotKey, min, isUSMode)?.value : null;
-        const b = max != null ? getAlternateUnit(dotKey, max, isUSMode)?.value : null;
+        const a = min != null ? getAlternateUnitForProfile(dotKey, min, state.unitSystem)?.value : null;
+        const b = max != null ? getAlternateUnitForProfile(dotKey, max, state.unitSystem)?.value : null;
         const dispA = a != null ? formatValue(a) : '–';
         const dispB = b != null ? formatValue(b) : '–';
         return `${dispA} – ${dispB}`;
@@ -487,7 +483,9 @@ function renderDetailModal(id, opts = {}) {
           ? `<div class="mv-value-note has-note"><span class="mv-value-note-text" role="button" tabindex="0" title="Click to edit note" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>${escapeHTML(valueNote)}</span> <button class="mv-value-note-delete" title="Remove note" ${markerDetailActionAttrs('delete-value-note', { id, date: actionDate })}>&times;</button></div>`
           : `<div class="mv-value-note add-note" role="button" tabindex="0" title="Add a note for this value" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>+ note</div>`)
       : '';
-    const altVal = (hasConv && state.showAltUnits) ? getAlternateUnit(dotKey, v, isUSMode) : null;
+    const altVal = (hasConv && state.showAltUnits)
+      ? getAlternateUnitForProfile(dotKey, v, state.unitSystem)
+      : null;
     const altLine = altVal ? `<div class="mv-alt" title="Same value, alternate unit">≈ ${formatValue(altVal.value)} ${escapeHTML(altVal.unit)}</div>` : '';
     html += `<div class="modal-value-card marker-history-row status-${s}">${deleteBtn}
       <div class="marker-history-date-row"><div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}</div>

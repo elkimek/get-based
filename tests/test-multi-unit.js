@@ -240,13 +240,14 @@ console.log('\n-- source-shape pins (UI wiring) --');
   assert('marker-detail-modal.js gates alt-unit summary on state.showAltUnits',
     /hasConv && state\.showAltUnits/.test(markerDetail));
   assert('marker-detail-modal.js gates per-value alt line on state.showAltUnits',
-    /\(hasConv && state\.showAltUnits\) \? getAlternateUnit/.test(markerDetail));
+    /hasConv && state\.showAltUnits[\s\S]{0,120}getAlternateUnitForProfile/.test(markerDetail));
   // openManualEntryForm rebuilds the unit picker on every open + renders the <select id="me-unit">
   assert('marker-detail-modal.js manual-entry form renders #me-unit select when conversion exists',
     /<select id="me-unit" class="me-unit-select"/.test(markerDetail));
-  // saveManualEntry reads the unit picker + branches to convertUserInputToSI
-  assert('marker-detail-editing.js saveManualEntry reads #me-unit + branches to convertUserInputToSI on alt-unit input',
-    /document\.getElementById\('me-unit'\)[\s\S]{0,6000}convertUserInputToSI\(dotKey, value, inputUnit\)/.test(markerDetailEditing));
+  // saveManualEntry reads the unit picker and resolves every profile/input unit
+  // back to canonical storage.
+  assert('marker-detail-editing.js saveManualEntry converts the selected unit to canonical storage',
+    /document\.getElementById\('me-unit'\)[\s\S]{0,6000}convertUnitInputToCanonical\(/.test(markerDetailEditing));
   // Stale-marker fix: openManualEntryForm always reads from getActiveData (not state.markerRegistry)
   assert('openManualEntryForm always re-resolves from getActiveData (no markerRegistry fallback first)',
     /export function openManualEntryForm[\s\S]{0,800}const data = getActiveData\(\);\s+const marker = data\.categories/.test(markerDetail));
@@ -270,6 +271,8 @@ console.log('\n-- source-shape pins (UI wiring) --');
       /altUnitButtons\.forEach[\s\S]{0,300}state\.showAltUnits/.test(settings));
   assert('settings.js unit-toggle scope is narrowed to [data-unit] (so alt-units buttons aren\'t deactivated)',
     /unit-toggle-btn\[data-unit\]/.test(settings));
+  assert('settings.js exposes the Australia / New Zealand unit profile',
+    /data-unit="ANZ"[^>]*>Australia \/ NZ</.test(settings));
 
   // Data view controls: toggleAltUnits accepts force arg, persists, refreshes detail modal
   assert('data view controls toggleAltUnits accepts force arg',

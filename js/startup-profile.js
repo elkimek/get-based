@@ -14,6 +14,7 @@ import {
 } from './profile.js';
 import { configureCryptoProfileDeps, encryptedGetItem, encryptedSetItem } from './crypto.js';
 import { ensureImportedArray } from './data-merge.js';
+import { normalizeUnitProfile } from './unit-profiles.js';
 
 configureCryptoProfileDeps({ migrateProfileData });
 
@@ -88,7 +89,7 @@ export async function initializeProfileData() {
 
 export function applyProfileDisplayState() {
   const savedUnits = localStorage.getItem(profileStorageKey(state.currentProfile, 'units'));
-  if (savedUnits === 'US') state.unitSystem = 'US';
+  state.unitSystem = normalizeUnitProfile(savedUnits);
 
   const savedRange = localStorage.getItem(profileStorageKey(state.currentProfile, 'rangeMode'));
   state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';

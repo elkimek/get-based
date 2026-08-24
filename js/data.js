@@ -7,10 +7,15 @@ import {
   CONTEXT_OPTIMAL_RANGES,
   CONTEXT_REFERENCE_RANGES,
   MARKER_SCHEMA,
-  UNIT_CONVERSIONS,
   OPTIMAL_RANGES,
   PHASE_RANGES,
 } from './schema.js';
+import {
+  convertCanonicalToDisplay,
+  convertDisplayToCanonical,
+  normalizeUnitProfile,
+  resolveMarkerUnitProfile,
+} from './unit-profiles.js';
 import { hashString, isDebugMode, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import {
@@ -650,7 +655,7 @@ export function getActiveData() {
     entryContextByDate,
     refOverrides,
   });
-  if (state.unitSystem === 'US') applyUnitConversion(data);
+  if (state.unitSystem !== 'EU') applyUnitConversion(data, state.unitSystem);
   // Values, calculations, and unit conversions always run against immutable
   // storage dotkeys. Category placement is a final view projection only.
   applyMarkerPlacements(data.categories, state.importedData || {});
@@ -660,57 +665,55 @@ export function getActiveData() {
 }
 
 export function convertDisplayToSI(dotKey, value) {
-  if (state.unitSystem !== 'US') return value;
-  const conv = UNIT_CONVERSIONS[dotKey];
-  if (!conv) return value;
-  if (conv.type === 'multiply') return parseFloat((value / conv.factor).toPrecision(6));
-  if (conv.type === 'hba1c') return parseFloat(((value - 2.15) * 10.929).toFixed(1));
-  return value;
+  return convertDisplayToCanonical(dotKey, value, state.unitSystem);
 }
 
-export function applyUnitConversion(data) {
+function roundProfileDisplayValue(value, conversion) {
+  if (value == null || !Number.isFinite(value)) return value;
+  if (conversion?.type === 'hba1c') return parseFloat(Number(value).toFixed(1));
+  return parseFloat(Number(value).toPrecision(4));
+}
+
+function convertProfileValue(dotKey, value, unitProfile, canonicalUnit, conversion) {
+  if (!conversion || (conversion.type === 'multiply' && conversion.factor === 1)) return value;
+  const converted = convertCanonicalToDisplay(dotKey, value, unitProfile, canonicalUnit);
+  return roundProfileDisplayValue(converted, conversion);
+}
+
+function convertProfileRange(dotKey, range, unitProfile, canonicalUnit, conversion) {
+  if (!range) return null;
+  return {
+    ...range,
+    min: range.min == null
+      ? null
+      : convertProfileValue(dotKey, range.min, unitProfile, canonicalUnit, conversion),
+    max: range.max == null
+      ? null
+      : convertProfileValue(dotKey, range.max, unitProfile, canonicalUnit, conversion),
+  };
+}
+
+export function applyUnitConversion(data, requestedUnitProfile = state.unitSystem) {
+  const unitProfile = normalizeUnitProfile(requestedUnitProfile);
   for (const [catKey, cat] of Object.entries(data.categories)) {
     for (const [markerKey, marker] of Object.entries(cat.markers)) {
-      const conv = UNIT_CONVERSIONS[`${catKey}.${markerKey}`];
-      if (!conv) continue;
-      if (conv.type === 'multiply') {
-        marker.values = marker.values.map(v => v !== null ? parseFloat((v * conv.factor).toPrecision(4)) : null);
-        if (marker.refMin != null) marker.refMin = parseFloat((marker.refMin * conv.factor).toPrecision(4));
-        if (marker.refMax != null) marker.refMax = parseFloat((marker.refMax * conv.factor).toPrecision(4));
-        if (marker.optimalMin != null) marker.optimalMin = parseFloat((marker.optimalMin * conv.factor).toPrecision(4));
-        if (marker.optimalMax != null) marker.optimalMax = parseFloat((marker.optimalMax * conv.factor).toPrecision(4));
-        if (marker.phaseRefRanges) {
-          marker.phaseRefRanges = marker.phaseRefRanges.map(r =>
-            r ? { ...r,
-                  min: parseFloat((r.min * conv.factor).toPrecision(4)),
-                  max: parseFloat((r.max * conv.factor).toPrecision(4)) } : null
-          );
+      const dotKey = `${catKey}.${markerKey}`;
+      const canonicalUnit = marker.unit || '';
+      const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
+      const conversion = resolved.conversion;
+      marker.values = marker.values.map(value =>
+        convertProfileValue(dotKey, value, unitProfile, canonicalUnit, conversion));
+      for (const key of ['refMin', 'refMax', 'optimalMin', 'optimalMax']) {
+        if (marker[key] != null) {
+          marker[key] = convertProfileValue(dotKey, marker[key], unitProfile, canonicalUnit, conversion);
         }
-        if (marker.contextRefRanges) {
-          marker.contextRefRanges = marker.contextRefRanges.map(r =>
-            r ? {
-              min: r.min == null ? null : parseFloat((r.min * conv.factor).toPrecision(4)),
-              max: r.max == null ? null : parseFloat((r.max * conv.factor).toPrecision(4))
-            } : null
-          );
-        }
-        if (marker.contextOptimalRanges) {
-          marker.contextOptimalRanges = marker.contextOptimalRanges.map(r =>
-            r ? {
-              min: r.min == null ? null : parseFloat((r.min * conv.factor).toPrecision(4)),
-              max: r.max == null ? null : parseFloat((r.max * conv.factor).toPrecision(4))
-            } : null
-          );
-        }
-        marker.unit = conv.usUnit;
-      } else if (conv.type === 'hba1c') {
-        marker.values = marker.values.map(v => v !== null ? parseFloat(((v / 10.929) + 2.15).toFixed(1)) : null);
-        if (marker.refMin != null) marker.refMin = parseFloat(((marker.refMin / 10.929) + 2.15).toFixed(1));
-        if (marker.refMax != null) marker.refMax = parseFloat(((marker.refMax / 10.929) + 2.15).toFixed(1));
-        if (marker.optimalMin != null) marker.optimalMin = parseFloat(((marker.optimalMin / 10.929) + 2.15).toFixed(1));
-        if (marker.optimalMax != null) marker.optimalMax = parseFloat(((marker.optimalMax / 10.929) + 2.15).toFixed(1));
-        marker.unit = '%';
       }
+      for (const key of ['phaseRefRanges', 'contextRefRanges', 'contextOptimalRanges']) {
+        if (!Array.isArray(marker[key])) continue;
+        marker[key] = marker[key].map(range =>
+          convertProfileRange(dotKey, range, unitProfile, canonicalUnit, conversion));
+      }
+      marker.unit = resolved.unit;
     }
   }
 }

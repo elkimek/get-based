@@ -43,6 +43,7 @@ test('compare dates browser contract renders date controls table and updates sta
     const originalImportedData = state.importedData;
     const originalCompareDate1 = state.compareDate1;
     const originalCompareDate2 = state.compareDate2;
+    const originalRangeMode = state.rangeMode;
 
     try {
       state.importedData = {
@@ -84,6 +85,7 @@ test('compare dates browser contract renders date controls table and updates sta
       };
       state.compareDate1 = null;
       state.compareDate2 = null;
+      state.rangeMode = 'both';
       dataModule.invalidateActiveDataCache();
 
       compare.configureCompareCorrelationViews({
@@ -116,6 +118,12 @@ test('compare dates browser contract renders date controls table and updates sta
         && rows.some(row => row.textContent.includes('LDL Cholesterol'))
         && !!document.querySelector('[data-glyph="biochemistry"]')
         && !!document.querySelector('.compare-worsened');
+      const firstRangesCell = document.querySelector('.compare-ranges-cell');
+      outcomes.compareTableExplainsDisplayedAndJudgingRanges =
+        Array.from(document.querySelectorAll('#compare-results th')).some(th => th.textContent === 'Ranges')
+        && firstRangesCell?.textContent.includes('Reference')
+        && firstRangesCell?.textContent.includes('Optimal')
+        && firstRangesCell?.querySelector('.compare-range-used')?.textContent.trim() === 'used';
 
       select1.value = '2026-02-01';
       select1.dispatchEvent(new Event('change', { bubbles: true }));
@@ -157,6 +165,7 @@ test('compare dates browser contract renders date controls table and updates sta
       state.importedData = originalImportedData;
       state.compareDate1 = originalCompareDate1;
       state.compareDate2 = originalCompareDate2;
+      state.rangeMode = originalRangeMode;
       dataModule.invalidateActiveDataCache();
       document.getElementById('main-content').innerHTML = '';
     }
@@ -170,6 +179,7 @@ test('compare dates browser contract renders date controls table and updates sta
     'initialCompareControlsAndDefaults',
     'compareControlsEmitDelegatedAttributesOnly',
     'compareTableUsesInjectedShellAndRendersMarkers',
+    'compareTableExplainsDisplayedAndJudgingRanges',
     'delegatedCompareControlsUpdateStateSelectsAndTable',
     'setCompareDate1RebuildsTable',
     'setCompareDate2RebuildsTable',

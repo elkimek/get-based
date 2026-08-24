@@ -162,6 +162,11 @@ the higher-layer behavior through a narrow runtime seam.
 
 - `state.js` is shared in-memory session state. Do not treat it as durable
   storage or add feature callbacks to it.
+- Lab marker values and ranges remain in their schema-canonical units at rest.
+  `unit-profiles.js` resolves the International, Australia/New Zealand, and US
+  display projections over the complete schema; conversion happens only in
+  active view data and user input is converted back before persistence. See
+  [`docs/unit-profiles.md`](docs/unit-profiles.md).
 - Profile writes flow through profile/data persistence helpers so migrations,
   encryption, change history, and sync hooks remain consistent.
 - Secrets and sensitive rows use the existing encryption and IndexedDB paths.
