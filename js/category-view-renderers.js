@@ -235,20 +235,30 @@ export function renderScrollableTableShell(kind, wrapperClass, tableClass, colgr
   </div>`;
 }
 
+function populatedDateColumnIndexes(markerEntries, labels) {
+  return labels
+    .map((_, index) => index)
+    .filter(index => markerEntries.some(([, marker]) => {
+      const value = marker.values?.[index];
+      return value !== null && value !== undefined;
+    }));
+}
+
 export function renderTableView(cat, dateLabels, categoryKey, dates) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
   // Hide markers with no values at all — sidebar still lists them with 0 count.
   const markerEntries = Object.entries(cat.markers).filter(([, m]) =>
-    m.values && m.values.some(v => v !== null)
+    m.values && m.values.some(v => v !== null && v !== undefined)
   );
   if (markerEntries.length === 0) {
     return `<div class="data-table-wrapper"><div style="padding:32px;text-align:center;color:var(--text-muted)">No data yet for this category. Use the sidebar to add a value or import a PDF.</div></div>`;
   }
+  const dateColumnIndexes = populatedDateColumnIndexes(markerEntries, labels);
   const colgroup = renderTableColgroup([
     'gb-col-marker',
     'gb-col-unit',
     'gb-col-reference',
-    ...labels.map(() => 'gb-col-date'),
+    ...dateColumnIndexes.map(() => 'gb-col-date'),
     'gb-col-trend',
     'gb-col-range',
   ]);
@@ -257,7 +267,7 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   // call site (renderTableView's contract: dateLabels passed in are safe).
   // Pre-escape lives at the boundary so CodeQL's taint analysis sees the
   // sanitizer at the call site (it doesn't trace across function calls).
-  for (const d of labels) headHtml += `<th>${d}</th>`;
+  for (const index of dateColumnIndexes) headHtml += `<th>${labels[index]}</th>`;
   headHtml += `<th>Trend</th><th>Range</th></tr>`;
   let bodyHtml = '';
   for (const [key, marker] of markerEntries) {
@@ -271,17 +281,18 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
     bodyHtml += `<tr${rowClick}><td class="marker-name">${escapeHTML(marker.name)}</td>
       <td class="unit-col">${escapeHTML(marker.unit)}</td>
       <td class="ref-col">${refCell}</td>`;
-    for (let i = 0; i < marker.values.length; i++) {
+    for (const i of dateColumnIndexes) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
-      const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
+      const hasValue = v !== null && v !== undefined;
+      const s = hasValue ? getStatus(v, ri.min, ri.max) : "missing";
       // Empty cells: click → add a value for THIS column's date (not today).
       // Skip for singleDate categories where the "date" is a synthetic label.
       const colDate = (dates && !cat.singleDate) ? dates[i] : null;
-      const emptyClick = (v === null && id && colDate)
+      const emptyClick = (!hasValue && id && colDate)
         ? ` ${markerDetailActionAttrs('open-manual-entry', { id, date: colDate })} style="cursor:cell" title="Add value for ${dateLabels[i] || escapeHTML(colDate)}"`
         : '';
-      bodyHtml += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "—"}</td>`;
+      bodyHtml += `<td class="value-cell val-${s}"${emptyClick}>${hasValue ? formatValue(v) : "—"}</td>`;
     }
     const li = getLatestValueIndex(marker.values);
     const trendRange = li !== -1 ? getEffectiveRangeForDate(marker, li) : r;
@@ -294,41 +305,43 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
     } else bodyHtml += `<td>—</td>`;
     bodyHtml += `</tr>`;
   }
-  const minWidth = 180 + 86 + 128 + labels.length * 104 + 78 + 112;
+  const minWidth = 180 + 86 + 128 + dateColumnIndexes.length * 104 + 78 + 112;
   return renderScrollableTableShell('data', 'data-table-wrapper', 'data-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 
 export function renderHeatmapView(cat, dateLabels, categoryKey) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
   const markerEntries = Object.entries(cat.markers).filter(([, m]) =>
-    m.values && m.values.some(v => v !== null)
+    m.values && m.values.some(v => v !== null && v !== undefined)
   );
   if (markerEntries.length === 0) {
     return `<div class="heatmap-wrapper"><div style="padding:32px;text-align:center;color:var(--text-muted)">No data yet for this category. Use the sidebar to add a value or import a PDF.</div></div>`;
   }
+  const dateColumnIndexes = populatedDateColumnIndexes(markerEntries, labels);
   const colgroup = renderTableColgroup([
     'gb-col-marker',
-    ...labels.map(() => 'gb-col-date'),
+    ...dateColumnIndexes.map(() => 'gb-col-date'),
   ]);
   let headHtml = `<tr><th>Biomarker</th>`;
   // Labels pre-escaped at the showCategory call boundary — see renderTableView.
-  for (const d of labels) headHtml += `<th>${d}</th>`;
+  for (const index of dateColumnIndexes) headHtml += `<th>${labels[index]}</th>`;
   headHtml += `</tr>`;
   let bodyHtml = '';
   for (const [key, marker] of markerEntries) {
     const id = categoryKey + "_" + key;
     state.markerRegistry[id] = marker;
     bodyHtml += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" ${markerDetailActionAttrs('show-detail-modal', { id })}>${escapeHTML(marker.name)}</td>`;
-    for (let i = 0; i < marker.values.length; i++) {
+    for (const i of dateColumnIndexes) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
-      const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
-      const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${v !== null ? formatValue(v) : 'no value'}`;
-      bodyHtml += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" ${markerDetailActionAttrs('show-detail-modal', { id })}>${v !== null ? formatValue(v) : "—"}</td>`;
+      const hasValue = v !== null && v !== undefined;
+      const s = hasValue ? getStatus(v, ri.min, ri.max) : "missing";
+      const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${hasValue ? formatValue(v) : 'no value'}`;
+      bodyHtml += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" ${markerDetailActionAttrs('show-detail-modal', { id })}>${hasValue ? formatValue(v) : "—"}</td>`;
     }
     bodyHtml += `</tr>`;
   }
-  const minWidth = 180 + labels.length * 104;
+  const minWidth = 180 + dateColumnIndexes.length * 104;
   return renderScrollableTableShell('heatmap', 'heatmap-wrapper', 'heatmap-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 

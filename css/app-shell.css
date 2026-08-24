@@ -183,6 +183,10 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
 }
 .legal-consent-modal {
   width: min(620px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-secondary, #171a22);
   border: 1px solid var(--border, #2d3138);
   border-radius: 18px;

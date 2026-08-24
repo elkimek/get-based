@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.17.4', date: '2026-08-24', title: 'Lab units for Australia and New Zealand',
+    items: [
+      '<b>Lab results can now use common Australian and New Zealand units.</b> Choose Australia / NZ in Settings → Display to keep charts, tables, marker details, reports, and manual entry aligned with local pathology reports.',
+    ]
+  },
+  {
     version: '1.17.3', date: '2026-08-21', title: 'Height and BMI stay accurate in reports',
     items: [
       '<b>Reports now interpret saved height consistently.</b> Heights entered in inches display correctly in feet and inches, and BMI continues to use the canonical metric value.',
