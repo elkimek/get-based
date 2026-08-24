@@ -29,7 +29,7 @@ const views = await import('../js/views.js');
     singleDate: null,
     singleDateLabel: null,
     markers: {
-      hasData: { name: 'Has Data', unit: 'mg/dl', values: [null, 5, null, 7], refMin: 0, refMax: 10, dates: [] },
+      hasData: { name: 'Has Data', unit: 'mg/dl', values: [undefined, 5, null, 7], refMin: 0, refMax: 10, dates: [] },
       sparseData: { name: 'Sparse Data', unit: 'mg/dl', values: [null, null, 3, null], refMin: 0, refMax: 10, dates: [] },
       noData: { name: 'No Data', unit: 'mg/dl', values: [null, null, null, null], refMin: 0, refMax: 10, dates: [] },
       anotherEmpty: { name: 'Another Empty', unit: 'mg/dl', values: [null, null, null, null], refMin: 0, refMax: 10, dates: [] },
@@ -58,6 +58,11 @@ const views = await import('../js/views.js');
   assert('Table render includes the "Sparse Data" marker (has 1 non-null)', tableHtml.includes('Sparse Data'));
   assert('Table render OMITS the "No Data" marker', !tableHtml.includes('No Data'));
   assert('Table render OMITS the "Another Empty" marker', !tableHtml.includes('Another Empty'));
+  assert('Table render omits a date column with no marker values', !tableHtml.includes('Jan 1'));
+  assert('Table render keeps date columns with at least one marker value',
+    tableHtml.includes('Feb 1') && tableHtml.includes('Mar 1') && tableHtml.includes('Apr 1'));
+  assert('Table rows render cells only for populated date columns',
+    (tableHtml.match(/class="value-cell/g) || []).length === 6);
 
   const emptyTable = views.renderTableView(allEmptyCat, dateLabels, 'empty', dates);
   assert('All-empty category renders an empty-state message',
@@ -77,6 +82,11 @@ const views = await import('../js/views.js');
   assert('Heatmap render includes the "Sparse Data" marker', heatHtml.includes('Sparse Data'));
   assert('Heatmap render OMITS the "No Data" marker', !heatHtml.includes('No Data'));
   assert('Heatmap render OMITS the "Another Empty" marker', !heatHtml.includes('Another Empty'));
+  assert('Heatmap render omits a date column with no marker values', !heatHtml.includes('Jan 1'));
+  assert('Heatmap render keeps date columns with at least one marker value',
+    heatHtml.includes('Feb 1') && heatHtml.includes('Mar 1') && heatHtml.includes('Apr 1'));
+  assert('Heatmap rows render cells only for populated date columns',
+    (heatHtml.match(/class="heatmap-(?:normal|high|low|missing|unrated)"/g) || []).length === 6);
 
   const emptyHeat = views.renderHeatmapView(allEmptyCat, dateLabels, 'empty');
   assert('All-empty heatmap renders empty-state message',
@@ -89,10 +99,10 @@ const views = await import('../js/views.js');
   // ═══════════════════════════════════════
   console.log('%c 3. Filter logic shape ', 'font-weight:bold;color:#f59e0b');
   const categoryViewRenderersSrc = read('js/category-view-renderers.js');
-  assert('renderTableView filters with m.values.some(v => v !== null)',
-    /renderTableView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(categoryViewRenderersSrc));
-  assert('renderHeatmapView filters with m.values.some(v => v !== null)',
-    /renderHeatmapView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(categoryViewRenderersSrc));
+  assert('Table/Heatmap share populated-date column filtering',
+    (categoryViewRenderersSrc.match(/const dateColumnIndexes = populatedDateColumnIndexes\(markerEntries, labels\)/g) || []).length === 2);
+  assert('Populated-date filtering treats null and undefined as missing',
+    /value !== null && value !== undefined/.test(categoryViewRenderersSrc));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

@@ -10,7 +10,7 @@ const CURRENT_ACCEPTANCE = {
 };
 
 test.use({
-  viewport: { width: 412, height: 844 },
+  viewport: { width: 375, height: 667 },
   seedLegalAcceptance: false,
 });
 
@@ -36,6 +36,21 @@ test('fresh visitor can accept the prerendered legal gate before the main module
   await expect(page.locator('#legal-consent-title')).toHaveText('Accept Terms & Privacy');
   await expect(page.locator('[data-legal-path="/terms"]')).toHaveAttribute('href', '/terms');
   await expect(page.locator('[data-legal-path="/privacy"]')).toHaveAttribute('href', '/privacy');
+
+  const mobileLayout = await page.locator('.legal-consent-modal').evaluate(modal => {
+    const bounds = modal.getBoundingClientRect();
+    return {
+      top: bounds.top,
+      bottom: bounds.bottom,
+      viewportHeight: window.innerHeight,
+      scrollable: modal.scrollHeight > modal.clientHeight,
+      overflowY: getComputedStyle(modal).overflowY,
+    };
+  });
+  expect(mobileLayout.top).toBeGreaterThanOrEqual(0);
+  expect(mobileLayout.bottom).toBeLessThanOrEqual(mobileLayout.viewportHeight);
+  expect(mobileLayout.scrollable).toBe(true);
+  expect(mobileLayout.overflowY).toBe('auto');
 
   const acceptButton = page.locator('[data-legal-consent-action="accept"]');
   await expect(acceptButton).toBeDisabled();
