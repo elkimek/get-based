@@ -8,6 +8,7 @@ import {
   _bytesToBase64, _gzipString,
 } from './sync-payload-codec.js';
 import { selectSyncedProfile } from './sync-profile-fields.js';
+import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
 export {
   AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, chatDeletedThreadsKey,
@@ -75,7 +76,9 @@ export async function buildSyncPayload(profileId, importedData) {
   // device resurrect a disconnected vendor or overwrite a freshly-rotated
   // refresh token. Wearable summary (the L2 dashboard data) still syncs; the
   // tokens stay local. Users connect each wearable per-device.
-  const safeImported = stripLocalOnlyProfileData(stripGeneticsSnpsFromBlob(stripWearableCredentials(importedData)));
+  const safeImported = stripNutritionMealsFromBlob(sanitizeNutritionProfileData(
+    stripLocalOnlyProfileData(stripGeneticsSnpsFromBlob(stripWearableCredentials(importedData)))
+  ));
   // Phase 2: when cutover is enabled (readiness-gated), drop importedData
   // from the blob. Per-row deltas carry every field.
   const cutover = isPhase2CutoverEnabled(profileId);
@@ -115,6 +118,17 @@ export function stripGeneticsSnpsFromBlob(importedData) {
   if (!importedData?.genetics || typeof importedData.genetics !== 'object') return importedData;
   const { snps, ...geneticsMetadata } = importedData.genetics;
   return { ...importedData, genetics: geneticsMetadata };
+}
+
+// Meal records already have a dedicated per-meal delta surface. Keeping them
+// in the v3 compatibility blob as well would append every historical thumbnail
+// again whenever any unrelated profile field changes. New meal-aware clients
+// rebuild nutritionMeals from itemRow state after the blob merge.
+/** @param {any} importedData */
+export function stripNutritionMealsFromBlob(importedData) {
+  if (!importedData || typeof importedData !== 'object' || !('nutritionMeals' in importedData)) return importedData;
+  const { nutritionMeals: _nutritionMeals, ...rest } = importedData;
+  return rest;
 }
 
 // Runtime benchmarks are meaningful only on the device that executed them:

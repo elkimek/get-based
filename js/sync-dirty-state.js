@@ -39,3 +39,12 @@ export function clearSyncProfileDirty(profileId, expectedToken) {
     return true;
   } catch { return false; }
 }
+
+/** Clear a dirty marker when policy guarantees this profile must not sync. */
+export function discardSyncProfileDirty(profileId) {
+  if (!profileId) return false;
+  try {
+    localStorage.removeItem(dirtyKey(profileId));
+    return true;
+  } catch { return false; }
+}

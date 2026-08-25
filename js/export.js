@@ -54,6 +54,11 @@ let reportBuilderModulePromise = null;
 let reportBuilderModule = null;
 let useReportBuilderRetryUrl = false;
 
+async function buildProfileNutritionArchive(profileId) {
+  const { buildNutritionArchive } = await import('./nutrition-store.js');
+  return buildNutritionArchive(profileId);
+}
+
 export function isExportImportModuleLoaded() {
   return exportImportModule !== null;
 }
@@ -280,7 +285,9 @@ async function _exportChatData(profileId) {
  * @property {unknown} channelMixAI
  * @property {unknown} biologyScoreContextAI
  * @property {Object.<string, boolean>} contextSourceSettings
+ * @property {Array<unknown>} importSnapshots
  * @property {unknown} [chat]
+ * @property {unknown} [nutrition]
  */
 
 /** @returns {void} */
@@ -290,23 +297,27 @@ export function exportDataJSON() {
 
 /**
  * Builds the JSON-safe client export object used by downloads and encrypted
- * profile shares. Token-bearing wearable connection records are deliberately
- * excluded from this shape.
+ * downloads and, with nutrition disabled, encrypted profile shares.
+ * Token-bearing wearable connection records are deliberately excluded.
  *
  * @param {string} profileId
  * @param {boolean} [includeChat]
+ * @param {boolean} [includeNutrition]
  * @returns {Promise<ClientExportObject>}
  */
-export async function buildClientExportObject(profileId, includeChat = false) {
+export async function buildClientExportObject(profileId, includeChat = false, includeNutrition = true) {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
   if (!profile) throw new Error('Profile not found');
   const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
+  const nutrition = includeNutrition ? await buildProfileNutritionArchive(profileId) : null;
   let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!data || typeof data !== 'object') data = {};
   migrateCustomMarkerIdentities(data?.customMarkers);
   if (data) migrateMarkerPlacements(data);
-  if (!data || !data.entries || data.entries.length === 0) throw new Error('No data to export for this client');
+  if ((!data || !data.entries || data.entries.length === 0) && !nutrition?.meals?.length) throw new Error('No data to export for this client');
+  /** @type {ClientExportObject} */
   const exportObj = {
     version: 2, exportedAt: new Date().toISOString(),
     profile: { name: profile.name, sex: profile.sex || null, dob: profile.dob || null, location: profile.location || null, tags: profile.tags || [], notes: profile.notes || '', status: profile.status || 'active', avatar: profile.avatar || null, pinned: profile.pinned || false, height: profile.height || null, heightUnit: profile.heightUnit || 'cm' },
@@ -355,7 +366,8 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     channelMixAI: data.channelMixAI || null,
     biologyScoreContextAI: data.biologyScoreContextAI || null,
     contextSourceSettings: data.contextSourceSettings || {},
-    importSnapshots: data.importSnapshots || []
+    importSnapshots: data.importSnapshots || [],
+    ...(nutrition ? { nutrition } : {}),
   };
   if (includeChat) {
     const chat = await _exportChatData(profileId);
@@ -410,12 +422,14 @@ export async function buildAllDataBundle() {
     migrateCustomMarkerIdentities(data?.customMarkers);
     migrateMarkerPlacements(data);
     const chat = await _exportChatData(p.id);
+    const nutrition = await buildProfileNutritionArchive(p.id);
     const entry = {
       id: p.id, name: p.name, sex: p.sex || null, dob: p.dob || null,
       location: p.location || null, tags: p.tags || [], notes: p.notes || '',
       status: p.status || 'active', avatar: p.avatar || null, pinned: p.pinned || false,
       height: p.height || null, heightUnit: p.heightUnit || 'cm',
-      data: data
+      data: data,
+      nutrition,
     };
     if (chat) entry.chat = chat;
     bundle.profiles.push(entry);

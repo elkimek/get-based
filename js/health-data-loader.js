@@ -113,6 +113,26 @@ const dna = createLazyModule(
   () => import('./dna.js'),
   retryDnaModule,
 );
+const nutrition = createLazyModule(
+  () => import('./nutrition-context.js'),
+  () => import('./nutrition-context.js'),
+);
+
+async function loadNutritionFeature() {
+  return (await nutrition.load()).loadNutritionFeature();
+}
+
+function isNutritionFeatureReady() {
+  return !!nutrition.get()?.isNutritionFeatureReady?.();
+}
+
+function renderNutritionWidgetRuntime() {
+  return nutrition.get()?.renderNutritionWidget?.() || '';
+}
+
+function renderFuelWidgetRuntime() {
+  return nutrition.get()?.renderFuelWidget?.() || '';
+}
 
 export const loadChartsModule = charts.load;
 export const loadNotesModule = notes.load;
@@ -157,6 +177,7 @@ function hasDashboardData(data) {
   return Boolean(
     data.dates?.length
     || hasWearableData
+    || Number(state.nutritionSummary?.totalMeals || 0) > 0
     || Object.values(data.categories || {}).some(category => category?.singlePoint && category?.singleDate),
   );
 }
@@ -191,6 +212,9 @@ function getDashboardHealthRequirements(data, options = {}) {
   if (visibleWidgetIds.has('supplements')) {
     requirements.push({ load: loadSupplementsModule, ready: isSupplementsModuleLoaded });
   }
+  if (visibleWidgetIds.has('nutrition') || visibleWidgetIds.has('nutrition-fuel-mix')) {
+    requirements.push({ load: loadNutritionFeature, ready: isNutritionFeatureReady });
+  }
   if (visibleWidgetIds.has('genome') || state.importedData?.genetics) {
     requirements.push({ load: loadDnaModule, ready: isDnaModuleLoaded });
   }
@@ -214,14 +238,23 @@ export function loadDashboardHealthDataModules(data, options = {}) {
 }
 
 export function loadBodyHealthDataModules() {
-  const loads = [loadSupplementsModule()];
+  const loads = [loadSupplementsModule(), loadNutritionFeature()];
   if (state.profileSex === 'female') loads.push(loadCycleModule());
   return Promise.all(loads);
 }
 
 export function isBodyHealthDataReady() {
   return isSupplementsModuleLoaded()
+    && isNutritionFeatureReady()
     && (state.profileSex !== 'female' || isCycleModuleLoaded());
+}
+
+export function renderNutritionWidget() {
+  return renderNutritionWidgetRuntime();
+}
+
+export function renderFuelWidget() {
+  return renderFuelWidgetRuntime();
 }
 
 export function loadInsightHealthDataModules() {

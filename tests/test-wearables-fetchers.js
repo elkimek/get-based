@@ -83,7 +83,8 @@ const polar      = await import('../js/wearables-polar.js');
       }},
       { matcher: 'usercollection/sleep', body: {
         data: [
-          { day: '2026-04-23', total_sleep_duration: 26000, average_hrv: 42, average_heart_rate: 58, lowest_heart_rate: 54 },
+          { day: '2026-04-23', total_sleep_duration: 26000, average_hrv: 42, average_heart_rate: 58, lowest_heart_rate: 54,
+            bedtime_start: '2026-04-22T22:45:00+02:00', bedtime_end: '2026-04-23T06:55:00+02:00' },
         ],
         next_token: null,
       }},
@@ -102,6 +103,8 @@ const polar      = await import('../js/wearables-polar.js');
     assert('Oura rhr from sleep lowest_heart_rate (matches Oura app RHR card)', r?.rhr === 54);
     assert('Oura hr_day from heartrate awake-tagged samples (mean of 72+88=80)', r?.hr_day === 80);
     assert('Oura sleep_score from daily_sleep.score', r?.sleep_score === 78);
+    assert('Oura preserves device-local sleep onset for meal timing joins', r?.sleep_start_at === '2026-04-22T22:45:00+02:00');
+    assert('Oura preserves device-local wake time for meal timing joins', r?.sleep_end_at === '2026-04-23T06:55:00+02:00');
     assert('Oura readiness_score from daily_readiness.score', r?.readiness_score === 82);
     assert('Oura body_temp_delta from daily_readiness.temperature_deviation', r?.body_temp_delta === -0.1);
     assert('Oura spo2_avg from daily_spo2 (number form)', r?.spo2_avg === 97);

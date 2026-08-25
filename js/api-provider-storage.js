@@ -35,9 +35,10 @@ export function markAISettingsLocal() {
   dispatchAISettingsLocalChangedRuntime();
 }
 
-export function hasAIProvider() {
+export function notifyAIModelCatalogChanged() { return dispatchAISettingsLocalChangedRuntime(); }
+
+export function hasAIProvider(provider = getAIProvider()) {
   if (isAIPaused()) return false;
-  const provider = getAIProvider();
   if (isAppExtensionAIProviderActive(provider)) return true;
   if (provider === 'venice') return hasVeniceKey();
   if (provider === 'openrouter') return hasOpenRouterKey();

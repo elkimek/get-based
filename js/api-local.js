@@ -95,7 +95,7 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
 
 export async function callOpenAICompatibleLocalAPI(opts) {
   const config = getOllamaConfig();
-  const model = getOllamaMainModel();
+  const model = String(opts?.modelOverride || getOllamaMainModel());
   const url = config.url.replace(/\/+$/, '');
   await prepareLocalAiRuntimeHandoff({ baseUrl: url, model });
   let modelDetail = getCachedLocalAiModelDetail(url, model, config.apiKey);
@@ -113,7 +113,7 @@ export async function callOpenAICompatibleLocalAPI(opts) {
     + Math.max(512, Math.ceil((estimatedPromptTokens + requestedOutput) * 0.04));
   const providerAdapter = getLocalAiProviderAdapter(modelDetail?.source || 'openai-compatible');
   const runtimeProviderId = modelDetail?.source
-    || (config.mode === 'lmstudio' || config.mode === 'ollama' ? config.mode : 'openai-compatible');
+    || (['lmstudio', 'ollama', 'unsloth'].includes(config.mode) ? config.mode : 'openai-compatible');
   const nativeRequest = providerAdapter.prepareNativeRequest?.({
     opts,
     modelDetail,

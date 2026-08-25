@@ -929,7 +929,7 @@ await import('../js/settings.js');
   assert('deleteProfileFromRelay sets isDeleted=1 via evolu.update',
     /deleteProfileFromRelay[\s\S]{0,1200}evolu\.update\([\s\S]{0,400}isDeleted:\s*1/.test(syncTombstonesSrc));
   assert('deleteProfileFromRelay is idempotent on missing rows (returns no-row reason)',
-    /deleteProfileFromRelay[\s\S]{0,500}reason:\s*'no-row'/.test(syncTombstonesSrc));
+    /deleteProfileFromRelay[\s\S]{0,1800}reason:\s*'no-row'/.test(syncTombstonesSrc));
   assert('deleteProfile in profile.js calls deleteProfileFromRelay',
     /deleteProfile\([\s\S]+?deleteProfileFromRelay/.test(profileSrc));
   assert('profile.js exposes default importedData factory',
@@ -1029,12 +1029,19 @@ await import('../js/settings.js');
       && syncTombstonesSrc.includes('export async function applyPendingTombstone')
       && syncTombstonesSrc.includes('export async function rejectPendingTombstone')
       && exportBlockIncludes(syncSrc, ['listPendingTombstones', 'applyPendingTombstone', 'rejectPendingTombstone']));
-  assert('applyRemoteTombstones runs before the active-rows pass in onSyncReceived',
-    /async function onSyncReceived[\s\S]{0,2600}await\s+applyRemoteTombstones[\s\S]{0,400}getQueryRows\(profileQuery\)/.test(syncPullSrc));
-  assert('restored and dirty local profiles publish before remote tombstones',
-    /async function onSyncReceived[\s\S]{0,1800}_pushProfilesById[\s\S]{0,900}_pushDirtyProfiles[\s\S]{0,900}await\s+applyRemoteTombstones/.test(syncPullSrc));
-  assert('applyRemoteTombstones keeps at least one survivor (mass-delete safety)',
-    /survivors\.length\s*===\s*0[\s\S]{0,200}return/.test(syncTombstonesSrc));
+  {
+    const receiveStart = syncPullSrc.indexOf('export async function onSyncReceived');
+    const restoredPush = syncPullSrc.indexOf('_pushProfilesById', receiveStart);
+    const tombstoneApply = syncPullSrc.indexOf('await applyRemoteTombstones()', receiveStart);
+    const dirtyPush = syncPullSrc.indexOf('_pushDirtyProfiles', receiveStart);
+    const activeRows = syncPullSrc.indexOf('evolu.getQueryRows(profileQuery)', receiveStart);
+    assert('applyRemoteTombstones runs before dirty pushes and the active-rows pass in onSyncReceived',
+      receiveStart >= 0 && tombstoneApply > restoredPush && dirtyPush > tombstoneApply && activeRows > dirtyPush);
+    assert('restored profiles publish before tombstones, while ordinary dirty profiles publish after tombstones',
+      restoredPush > receiveStart && restoredPush < tombstoneApply && tombstoneApply < dirtyPush);
+  }
+  assert('applyRemoteTombstones creates a fresh fallback when every profile is deleted',
+    /survivors\.length\s*===\s*0[\s\S]{0,500}createFallbackProfile/.test(syncTombstonesSrc));
 
   // ═══════════════════════════════════════
   // 2. SYNC PAYLOAD FORMAT
@@ -1125,7 +1132,7 @@ await import('../js/settings.js');
   assert('onSyncReceived recovers profileId from payload when column is empty',
     /recoverSyncPullRows[\s\S]{0,500}parsed\?\.profile\?\.id/.test(syncPullMergeSrc));
   assert('applyRemoteTombstones recovers profileId from payload',
-    /tombIdsArr[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncTombstonesSrc));
+    /recoverRowProfileId[\s\S]{0,600}parsed\?\.profile\?\.id/.test(syncTombstonesSrc));
   assert('Recovered profileId still validated against allowlist regex',
     /\^\[a-zA-Z0-9_-\]\+\$/.test(syncPullMergeSrc));
 
@@ -1155,8 +1162,9 @@ await import('../js/settings.js');
   // owner's writeKey so any user can unwedge themselves at the cap
   // without SSH access. Refresh probes /self/owner-storage to replace
   // the local estimate with the relay's authoritative value.
-  assert('Sync diagnose modal wires the self-serve Compact storage button',
+  assert('Sync diagnose modal wires the self-serve Reduce storage button',
     syncDiagnoseRenderSrc.includes("syncDiagnoseActionAttrs('compact-relay')")
+      && syncDiagnoseRenderSrc.includes('Reduce storage…')
       && syncDiagnoseUiSrc.includes("action === 'compact-relay'")
       && syncDiagnoseUiSrc.includes('confirmCompactRelay(actionEl)'));
   assert('Sync diagnose modal wires the Refresh-from-relay button',
@@ -1173,6 +1181,14 @@ await import('../js/settings.js');
     modalSharedCssSrc.includes('.sync-diagnose-modal')
       && modalSharedCssSrc.includes('.sync-diagnose-summary')
       && !settingsCssSrc.includes('.sync-diagnose-modal'));
+  assert('relay quota notifications point to the visible Sync status storage action',
+    syncConfigureSrc.includes('Open Sync status and choose Reduce storage')
+      && !syncConfigureSrc.includes('Cross-device sync → Advanced'));
+  assert('relay storage maintenance copy uses the visible Reduce storage label',
+    syncDiagnoseRelayActionsSrc.includes('Reduce storage (currently ~${mb} MB)?')
+      && syncDiagnoseRelayActionsSrc.includes('Relay storage was reduced, but the rebuild did not finish')
+      && !syncDiagnoseRelayActionsSrc.includes('Relay was compacted')
+      && syncDiagnoseRenderSrc.includes('Choose Reduce storage soon'));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
     /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
   assert('compactOwnerSelfServe catches fetch rejection before checking response status',
@@ -1606,7 +1622,12 @@ await import('../js/settings.js');
   assert('Restore from mnemonic button',
     settingsSyncPanelSrc.includes('Restore / switch identity')
       && settingsSyncRestoreUiSrc.includes('Restore from mnemonic'));
-  assert('Relay input under Advanced', settingsSyncPanelSrc.includes('sync-relay-input') && settingsSyncPanelSrc.includes('Advanced'));
+  assert('Sync status is visible before relay and device options',
+    settingsSyncPanelSrc.includes('Sync status &amp; storage')
+      && settingsSyncPanelSrc.includes('Relay &amp; device options')
+      && settingsSyncPanelSrc.indexOf('Sync status &amp; storage') < settingsSyncPanelSrc.indexOf('Relay &amp; device options'));
+  assert('Relay input stays under Relay & device options',
+    settingsSyncPanelSrc.includes('sync-relay-input') && settingsSyncPanelSrc.includes('Relay &amp; device options'));
   assert('Relay validation rejects non-wss and non-ws', settingsSyncPanelSrc.includes("!url.startsWith('wss://')") && settingsSyncPanelSrc.includes("!url.startsWith('ws://')"));
   assert('toggleSync function', settingsSyncPanelSrc.includes('async function toggleSync'));
   assert('copyMnemonic has error handler', settingsSyncPanelSrc.includes('.catch(') && settingsSyncPanelSrc.includes('Could not access clipboard'));
@@ -3435,7 +3456,7 @@ await import('../js/settings.js');
       && !syncInitSrc.includes("from './sync-reconcile.js'")
       && /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
-    /reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,1600}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
     /reconcileLocalStorageWithEvolu[\s\S]{0,2500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncReconcileSrc));
   assert('Reconciliation force-pushes when local has unsynced rows',

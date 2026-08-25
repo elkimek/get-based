@@ -383,7 +383,8 @@ export async function createProfileShare({ profileId = state.currentProfile, pas
   const id = createProfileShareId();
   const manageToken = generateProfileShareManageToken();
   const manageTokenHash = await sha256Hex(manageToken);
-  const exportObj = await buildClientExportObject(profileId, false);
+  // Relay-backed shares exclude meals/photos; only explicit local JSON backups include them.
+  const exportObj = await buildClientExportObject(profileId, false, false);
   const envelope = await encryptProfileShareEnvelope(exportObj, secret, { expiresDays: clampExpiryDays(expiresDays) });
   await postProfileShare(id, envelope, manageTokenHash);
   return {

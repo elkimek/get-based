@@ -104,6 +104,7 @@ describe('custom marker export boundaries', () => {
         categoryKey: 'biochemistry',
       },
     });
+    expect(exported.nutrition).toMatchObject({ version: 1, meals: [] });
   });
 
   it('includes the same ids in full database backups', async () => {

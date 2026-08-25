@@ -11,6 +11,8 @@ import { _mergeItemRowsIntoImported } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
 import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
+import { isDemoProfileRecord } from './profile-sync-policy.js';
+import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -221,6 +223,10 @@ export async function mergePulledImportedData(profileId, importedData, options =
   } catch (e) {
     console.warn('[sync] per-row overlay merge failed (blob still applied):', getErrorMessage(e, e));
   }
+  // Old peers and malformed per-row records may still carry original meal
+  // photos. Strip them before persistence so an inbound sync can never put
+  // full-size images back into this browser or a later outbound payload.
+  merged = sanitizeNutritionProfileData(merged) || merged;
   // A legacy remote blob starts as the merge baseline. Restore device-local
   // benchmark history after that merge so an inbound sync cannot erase a run
   // that just completed on this machine.
@@ -266,6 +272,7 @@ export async function persistPulledImportedData(localKey, profileId, merged, rem
 
 export async function mergePulledProfile(profileId, profile) {
   if (!profile || typeof profile !== 'object') return false;
+  if (isDemoProfileRecord(profile)) return false;
   const profiles = getProfiles();
   const idx = profiles.findIndex(p => p.id === profileId);
   if (idx >= 0) {

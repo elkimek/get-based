@@ -96,16 +96,16 @@ export function renderSyncSectionMarkup(listPendingTombstones) {
         <button class="import-btn import-btn-secondary" data-sync-action="pause-sync">Pause on this device</button>
       </div>
       <div class="sync-management-help">Pausing keeps this identity and queues local changes for the next resume. Restoring switches this device to another 24-word identity.</div>
+      <button class="import-btn import-btn-secondary" style="font-size:12px;padding:7px 14px;width:100%;margin:12px 0 10px" data-sync-action="show-sync-diagnose">Sync status &amp; storage</button>
 
       <details style="margin-bottom:8px">
-        <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">Advanced</summary>
+        <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">Relay &amp; device options</summary>
         <div style="margin-top:8px">
           <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Relay server</label>
           <div style="display:flex;gap:8px">
             <input type="text" id="sync-relay-input" value="${escapeAttr(relay)}" style="flex:1;font-size:12px;border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;font-family:var(--font-mono, monospace)" placeholder="wss://...">
             <button class="import-btn import-btn-secondary" style="font-size:12px;padding:4px 12px" data-sync-action="save-relay">Save</button>
           </div>
-          <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%;margin-top:10px" data-sync-action="show-sync-diagnose">Sync status &amp; storage</button>
           <button class="import-btn import-btn-secondary sync-disable-btn" style="font-size:12px;padding:5px 14px;width:100%;margin-top:8px" data-sync-action="disconnect-sync">Disconnect &amp; reset sync on this device</button>
           <div class="sync-management-help" style="margin-top:6px">Disconnecting forgets this device’s sync identity and local sync history. Your profile data and relay data are not deleted.</div>
         </div>

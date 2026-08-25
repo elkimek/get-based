@@ -347,8 +347,8 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         'Recent intense training near blood draw',
         'Acute illness / infection / injury near blood draw',
         'Medical-history agent sentinel',
-        'Protein intake: 1.2–1.6 g/kg/day',
-        'Daily fluid intake: 2–3 L/day',
+        'Usual self-reported protein intake: 1.2–1.6 g/kg/day',
+        'Usual self-reported daily fluid intake: 2–3 L/day',
         'Alcohol: none',
         'Caffeine: none',
         'Latest caffeine: morning only',
@@ -657,7 +657,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
     try {
       slot.id = 'sync-indicator-slot';
       if (!slot.parentNode) document.body.appendChild(slot);
-      localStorage.setItem('labcharts-debug', 'true');
+      localStorage.setItem('labcharts-debug', 'false');
       syncState.resetSyncStatus();
       syncUi.initSyncUIDelegates();
 
@@ -684,6 +684,15 @@ test('sync indicator popover renders debug actions and copies activity', async (
       syncState.updateSyncStatus({ relay: 'connected', push: 'confirmed', pushConfirmedAt: Date.now() - 2_000 });
       syncUi.renderSyncIndicator();
       outcomes.enabledRenderShowsSyncedDot = !!slot.querySelector('#sync-indicator-btn .sync-dot-synced');
+
+      syncUi.toggleSyncDetail();
+      const standardPopover = document.getElementById('sync-popover');
+      if (!standardPopover) throw new Error('standard sync popover did not render');
+      outcomes.standardPopoverShowsSyncStatus = !!standardPopover.querySelector('[data-sync-ui-action="show-diagnose"]')
+        && standardPopover.textContent.includes('Sync status')
+        && !standardPopover.querySelector('[data-sync-ui-action="force-resend"]');
+      standardPopover.remove();
+      localStorage.setItem('labcharts-debug', 'true');
 
       syncState.updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
       syncUi.updateSyncIndicator();

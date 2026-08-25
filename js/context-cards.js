@@ -7,6 +7,7 @@ import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { renderNutritionCircadianExtension, renderNutritionDietExtension } from './nutrition-context.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import {
   closeContextCardModalRuntime,
@@ -79,6 +80,10 @@ function navigateContextCardView(category) {
 function refreshCurrentContextCardView() {
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
   navigateContextCardView(activeNav?.dataset.category || 'dashboard');
+}
+async function openNutritionModule() {
+  const module = await import('./nutrition-context.js');
+  return module.openNutritionModule(navigateContextCardView);
 }
 const contextCardRuntimeDeps = {
   openEMFAssessmentEditor,
@@ -175,6 +180,8 @@ function handleContextCardClick(event) {
     } else {
       openAssessment();
     }
+  } else if (action === 'open-nutrition') {
+    void openNutritionModule();
   } else {
     return;
   }
@@ -349,6 +356,8 @@ export function renderProfileContextCards() {
         : `<div class="context-card-placeholder">${escapeHTML(c.placeholder)}</div>`}
       <div class="context-card-explanation" id="${explanationId}" hidden>${escapeHTML(c.tooltip)}</div>
       ${c.key === 'diet' ? renderDietContaminantsBadge() : ''}
+      ${c.key === 'diet' ? renderNutritionDietExtension(contextCardActionAttrs) : ''}
+      ${c.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : ''}
       <div class="ctx-ai-summary-slot"><div class="ctx-ai-summary" id="ctx-ai-${c.key}"></div></div>
     </article>`;
   }

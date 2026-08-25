@@ -78,6 +78,147 @@ describe('fetchWithRetry request timeout lifecycle', () => {
 });
 
 describe('custom secure fetch request timeout lifecycle', () => {
+  it('sends schema-constrained JSON output to cloud-compatible vision models', async () => {
+    const compatibleFetch = vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 10, completion_tokens: 5 },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    await callOpenAICompatibleAPI(
+      'https://provider.example.test/v1/chat/completions',
+      'test-key',
+      'x-ai/grok-4.6',
+      'OpenRouter',
+      {
+        messages: [{ role: 'user', content: 'analyze' }],
+        maxTokens: 64,
+        forceNonStream: true,
+        jsonMode: true,
+        jsonSchema: { type: 'object', properties: { mealName: { type: 'string' } } },
+        temperature: 0,
+        reasoningEffort: 'low',
+      },
+      {},
+      { useProxy: false, fetchImpl: compatibleFetch },
+    );
+
+    const body = JSON.parse(compatibleFetch.mock.calls[0][1].body);
+    expect(body.model).toBe('x-ai/grok-4.6');
+    expect(body.temperature).toBe(0);
+    expect(body.reasoning_effort).toBe('low');
+    expect(body.response_format).toMatchObject({
+      type: 'json_schema',
+      json_schema: {
+        name: 'structured_response',
+        strict: true,
+        schema: { type: 'object' },
+      },
+    });
+  });
+
+  it('retries without temperature when a compatible provider does not support the control', async () => {
+    const bodies = [];
+    const compatibleFetch = vi.fn(async (_url, options) => {
+      bodies.push(JSON.parse(options.body));
+      if (bodies.length === 1) {
+        return new Response(JSON.stringify({ error: { message: 'temperature is not supported for this model' } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await expect(callOpenAICompatibleAPI(
+      'https://provider.example.test/v1/chat/completions',
+      'test-key',
+      'fixed-temperature-model',
+      'Custom',
+      {
+        messages: [{ role: 'user', content: 'analyze' }],
+        forceNonStream: true,
+        temperature: 0,
+      },
+      {},
+      { useProxy: false, fetchImpl: compatibleFetch },
+    )).resolves.toMatchObject({ diagnostics: { temperatureControlFallback: true } });
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].temperature).toBe(0);
+    expect(bodies[1]).not.toHaveProperty('temperature');
+  });
+
+  it('retries without structured output when Venice rejects its translated schema', async () => {
+    const bodies = [];
+    const compatibleFetch = vi.fn(async (_url, options) => {
+      bodies.push(JSON.parse(options.body));
+      if (bodies.length === 1) {
+        return new Response(JSON.stringify({
+          error: { message: "output_config.format.schema: For 'anyOf', 'minimum' is not supported" },
+        }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await expect(callOpenAICompatibleAPI(
+      'https://api.venice.ai/api/v1/chat/completions',
+      'test-key',
+      'claude-opus-4.8',
+      'Venice',
+      {
+        messages: [{ role: 'user', content: 'analyze' }],
+        forceNonStream: true,
+        jsonMode: true,
+        jsonSchema: { type: 'object' },
+      },
+      {},
+      { useProxy: false, fetchImpl: compatibleFetch },
+    )).resolves.toMatchObject({ diagnostics: { structuredOutputFallback: true } });
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toHaveProperty('response_format');
+    expect(bodies[1]).not.toHaveProperty('response_format');
+  });
+
+  it('recognizes the Gemini any_of sibling-field rejection and retries without the schema', async () => {
+    const bodies = [];
+    const compatibleFetch = vi.fn(async (_url, options) => {
+      bodies.push(JSON.parse(options.body));
+      if (bodies.length === 1) {
+        return new Response(JSON.stringify({
+          error: { message: 'Unable to submit request because one or more response schemas specified other fields alongside any_of. When using any_of, it must be the only field set.' },
+        }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await expect(callOpenAICompatibleAPI(
+      'https://api.venice.ai/api/v1/chat/completions',
+      'test-key',
+      'gemini-3-7-flash',
+      'Venice',
+      {
+        messages: [{ role: 'user', content: 'analyze' }],
+        forceNonStream: true,
+        jsonMode: true,
+        jsonSchema: { type: 'object' },
+      },
+      {},
+      { useProxy: false, fetchImpl: compatibleFetch },
+    )).resolves.toMatchObject({ diagnostics: { structuredOutputFallback: true } });
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toHaveProperty('response_format');
+    expect(bodies[1]).not.toHaveProperty('response_format');
+  });
+
   it('does not abort a PPQ/Routstr-style decrypted stream after headers arrive', async () => {
     vi.useFakeTimers();
     const encoder = new TextEncoder();

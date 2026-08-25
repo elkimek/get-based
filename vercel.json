@@ -22,6 +22,13 @@
       "continue": true
     },
     {
+      "src": "^/data/nutrition/fndds-2021-2023\\.json$",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
       "src": "/(.*)",
       "headers": {
         "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://umami-iota-olive.vercel.app https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://*.onion http://*.onion; img-src 'self' data: blob:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'",

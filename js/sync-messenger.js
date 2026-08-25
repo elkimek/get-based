@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { bindSyncAppliedRefresh } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
+import { isDemoProfileId } from './profile-sync-policy.js';
 
 const MESSENGER_TOKEN_KEY = 'labcharts-messenger-token';
 const MESSENGER_ENABLED_KEY = 'labcharts-messenger-enabled';
@@ -22,6 +23,8 @@ let _buildLabContext = () => '';
 let _buildWearableSeriesSection = async () => '';
 /** @type {() => number} */
 let _getAgentWearableSeriesDays = () => 0;
+/** @type {() => any[]} */
+let _getProfiles = () => [];
 /** @type {number | null} */
 let _contextPushTimer = null;
 let _agentAccessMigrationDirty = false;
@@ -40,6 +43,7 @@ function cancelPendingContextPush() {
  *   buildLabContext?: (options?: any) => string,
  *   buildWearableSeriesSection?: (days: number, options?: any) => Promise<string>,
  *   getAgentWearableSeriesDays?: () => number,
+ *   getProfiles?: () => any[],
  * }} [deps]
  */
 export function configureSyncMessenger({
@@ -49,6 +53,7 @@ export function configureSyncMessenger({
   buildLabContext,
   buildWearableSeriesSection,
   getAgentWearableSeriesDays,
+  getProfiles,
 } = {}) {
   if (typeof getSyncRelay === 'function') _getSyncRelay = getSyncRelay;
   if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
@@ -56,6 +61,7 @@ export function configureSyncMessenger({
   if (typeof buildLabContext === 'function') _buildLabContext = buildLabContext;
   if (typeof buildWearableSeriesSection === 'function') _buildWearableSeriesSection = buildWearableSeriesSection;
   if (typeof getAgentWearableSeriesDays === 'function') _getAgentWearableSeriesDays = getAgentWearableSeriesDays;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
 }
 
 function currentSyncRelay() {
@@ -528,6 +534,9 @@ export function pushContextToGateway() {
   if (!token) return;
   const contextKey = ensureMessengerContextKey();
   const profileId = state.currentProfile || 'default';
+  // Demo profiles are intentionally local-only. Agent Access uses a separate
+  // relay endpoint, so the Evolu push guard alone is not sufficient.
+  if (isDemoProfileId(profileId, _getProfiles())) return;
 
   _contextPushTimer = setTimeout(async () => {
     try {

@@ -82,6 +82,10 @@ import {
   renderVoiceSettingsPanel,
 } from './settings-voice-panel.js';
 import {
+  renderNutritionAISettings,
+  setNutritionAIRouteFromValue,
+} from './nutrition-ai-settings.js';
+import {
   getAppExtensionSettingsPolicy,
   handleAppExtensionSettingsAction,
   notifyAppExtensionSettings,
@@ -344,11 +348,26 @@ async function handleSettingsClick(event) {
   }
 }
 
+let nutritionAISettingsRefreshQueued = false;
+
+function scheduleNutritionAISettingsRefresh() {
+  if (nutritionAISettingsRefreshQueued) return;
+  nutritionAISettingsRefreshQueued = true;
+  queueMicrotask(() => {
+    nutritionAISettingsRefreshQueued = false;
+    refreshNutritionAISettingsSection();
+  });
+}
+
 function handleSettingsChange(event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
   const actionEl = closestSettingsTarget(event, '[data-settings-action]', modal);
-  if (!actionEl) return;
+  if (!actionEl) {
+    const providerChange = closestSettingsTarget(event, '[data-provider-panel-change]', modal);
+    if (providerChange) scheduleNutritionAISettingsRefresh();
+    return;
+  }
 
   if (isSettingsToggleAction(actionEl)) {
     applySettingsToggle(actionEl);
@@ -364,7 +383,23 @@ function handleSettingsChange(event) {
     }
     setOllamaPIIModel(model);
     updatePrivacyStatusCard();
+  } else if (action === 'set-nutrition-ai-route') {
+    setNutritionAIRouteFromValue(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
+    showNotification('Meal photo model updated.', 'success');
   }
+}
+
+function refreshNutritionAISettingsSection() {
+  const current = document.getElementById('nutrition-ai-model-settings');
+  if (!current) return;
+  const template = document.createElement('template');
+  template.innerHTML = renderNutritionAISettings();
+  const next = template.content.querySelector('#nutrition-ai-model-settings');
+  if (next) current.replaceWith(next);
+}
+
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('labcharts-ai-settings-local-changed', scheduleNutritionAISettingsRefresh);
 }
 
 function installSettingsDelegates(modal) {
@@ -476,6 +511,8 @@ export function openSettingsModal(tab) {
         <div id="ai-provider-panel">${renderAIProviderPanelBridge()}</div>
       </div>
       </div>
+
+      ${renderNutritionAISettings()}
 
       <div class="settings-group-title">Import Benchmarks</div>
 
@@ -706,4 +743,5 @@ configureSettingsModuleBridge({
 configureSettingsProviderBridgeDeps({
   closeSettingsModal,
   openSettingsModal,
+  refreshNutritionAISettings: refreshNutritionAISettingsSection,
 });

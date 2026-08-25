@@ -102,8 +102,8 @@ export function getDietSummary(d) {
   const parts = [];
   if (d.type) parts.push(d.type);
   if (d.pattern) parts.push(d.pattern);
-  if (d.proteinIntake) parts.push(`protein: ${d.proteinIntake}`);
-  if (d.hydration) parts.push(`fluids: ${d.hydration}`);
+  if (d.proteinIntake) parts.push(`usual self-report protein: ${d.proteinIntake}`);
+  if (d.hydration) parts.push(`usual self-report fluids: ${d.hydration}`);
   if (d.restrictions && d.restrictions.length) parts.push(d.restrictions.join(', '));
   if (d.alcohol) parts.push(`alcohol: ${d.alcohol}`);
   if (d.caffeine) parts.push(`caffeine: ${d.caffeine}`);

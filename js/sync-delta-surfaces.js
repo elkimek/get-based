@@ -35,6 +35,9 @@ export const DELTA_ARRAYS = [
   'changeHistory',
   'chatSummaries',
   'importSnapshots',
+  // Reviewed meal records sync as ordinary per-meal rows. Image persistence is
+  // sanitized to the 240px thumbnail before this surface is updated.
+  'nutritionMeals',
 ];
 
 // Keyed-object shapes subject to delta sync.
@@ -85,4 +88,5 @@ export const DELTA_SCALARS = [
   'sunCorrelations', 'lifelightProfile', 'sunDefaults',
   'channelMixAI', 'biologyScoreContextAI',
   'wearableSummary', 'wearableCardOrder',
+  'nutritionTargets',
 ];

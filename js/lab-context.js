@@ -35,6 +35,7 @@ import {
   isInsightContextCardsEnabled,
   isLabMarkersContextEnabled,
   isLightSunContextEnabled,
+  isNutritionContextEnabled,
   isSupplementsMedsContextEnabled,
   setCachedLabContext,
 } from './lab-context-settings.js';
@@ -45,17 +46,13 @@ import { labContextDeps } from './lab-context-runtime.js';
 import { weightToKilograms } from './wearables-formatters.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 export { configureLabContext } from './lab-context-runtime.js';
-
 /**
  * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
  */
-
 function markerNameForStorageDotKey(data, dotKey) {
   const [categoryKey, markerKey] = String(dotKey || '').split('.');
   return resolveActiveMarkerPath(data.categories, categoryKey, markerKey)?.marker?.name || dotKey;
 }
-
-
 export {
   buildWearableContext, buildWearableSeriesSection, getAgentWearableSeriesDays,
   getSleepContextMismatch, isAgentWearableSeriesEnabled, isWearableContextEnabled, setAgentWearableSeriesDays,
@@ -69,9 +66,9 @@ export {
   setGeneticsSummaryInAIContext, setGroupInAIContext, setInsightContextCardsEnabled,
   setLabMarkersContextEnabled, setLightSunContextEnabled, setSupplementsMedsContextEnabled,
   setWearableContextEnabled,
+  isNutritionContextEnabled, setNutritionContextEnabled,
 } from './lab-context-settings.js';
 export { getContextSummary, injectLensChunks } from './lab-context-output.js';
-
 // ═══════════════════════════════════════════════
 // LAB CONTEXT
 // ═══════════════════════════════════════════════
@@ -580,8 +577,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const parts = [];
     if (diet.type) parts.push(`Type: ${diet.type}`);
     if (diet.pattern) parts.push(`Pattern: ${diet.pattern}`);
-    if (diet.proteinIntake) parts.push(`Protein intake: ${diet.proteinIntake}`);
-    if (diet.hydration) parts.push(`Daily fluid intake: ${diet.hydration}`);
+    if (diet.proteinIntake) parts.push(`Usual self-reported protein intake: ${diet.proteinIntake}`);
+    if (diet.hydration) parts.push(`Usual self-reported daily fluid intake: ${diet.hydration}`);
     if (diet.restrictions && diet.restrictions.length) parts.push(`Restrictions: ${diet.restrictions.join(', ')}`);
     if (diet.alcohol) parts.push(`Alcohol: ${diet.alcohol}`);
     if (diet.caffeine) parts.push(`Caffeine: ${diet.caffeine}`);
@@ -616,6 +613,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[/section:diet]\n\n`;
   }
 
+  if ((ignoreContextToggles || isNutritionContextEnabled()) && state.nutritionSummary?.totalMeals) {
+    ctx += state.nutritionSummary.contextText || '';
+  }
   // ── 10. Exercise ──
   const ex = state.importedData.exercise;
   if (includeInsightCards && hasCardContent(ex)) {

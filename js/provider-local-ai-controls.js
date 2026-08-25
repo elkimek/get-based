@@ -29,6 +29,7 @@ import {
   releaseLocalAiModels,
 } from './local-ai-lifecycle.js';
 import { isLocalAiLoopbackUrl } from './local-ai-provider-shared.js';
+import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import {
   cacheLocalAiModelDetails,
@@ -65,6 +66,11 @@ function discoveryErrorText(result) {
   if (error?.kind === 'http' && error.status === 401) return 'Authentication failed \u2014 check the API key';
   if (error?.kind === 'http' && error.status) return `Server returned HTTP ${error.status}`;
   if (error?.kind === 'timeout') return 'Connection timed out \u2014 check the address and firewall';
+  try {
+    const port = new URL(result?.baseUrl || '').port;
+    if (port === '1234') return 'No API answered on port 1234. In LM Studio, start the Developer server and enable CORS for browser access.';
+    if (port === '8888') return 'No API answered on port 8888. Start Unsloth Studio, then check its API key and browser access settings.';
+  } catch {}
   return LOCAL_AI_NOT_CONNECTED_TEXT;
 }
 
@@ -89,7 +95,7 @@ function applyMainDiscoveryResult(result, { reconcileModel = true } = {}) {
   }
   const location = getLocalAiExecutionLocation(result.baseUrl, currentModel);
   const locationLabel = location === 'cloud' ? 'cloud' : location === 'local' ? 'this device' : location === 'lan' ? 'LAN server' : 'remote server';
-  text.textContent = `Connected (${currentModel} \u00b7 ${locationLabel})`;
+  text.textContent = `Connected via ${getLocalAiProviderAdapter(result.provider).label} (${currentModel} \u00b7 ${locationLabel})`;
   if (modelSection && modelSelect) {
     modelSection.style.display = 'block';
     modelSelect.innerHTML = result.models.map(model => `<option value="${escapeHTML(model)}" ${model === currentModel ? 'selected' : ''}>${escapeHTML(model)}</option>`).join('');
@@ -256,7 +262,8 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
   const cpuLabel = hw.cpuThreads ? `${hw.cpuThreads} threads` : '';
   const allocatedVram = modelDetails.reduce((total, model) => total + (Number(model.vramAllocated) || 0), 0);
   const providerId = isOllama ? 'ollama'
-    : modelDetails.some(model => model.source === 'lmstudio') ? 'lmstudio' : 'openai-compatible';
+    : modelDetails.some(model => model.source === 'lmstudio') ? 'lmstudio'
+      : modelDetails.some(model => model.source === 'unsloth') ? 'unsloth' : 'openai-compatible';
   const releasePlan = getLocalAiReleasePlan({ provider: providerId, modelDetails });
   const providerName = releasePlan.providerLabel;
 
@@ -385,18 +392,51 @@ async function handleLocalAiPreflightError(error, url, dot, text) {
   if (!isFetchTransportError(error)) return false;
   if (!await isLikelyCorsBlocked(url)) return false;
   dot.classList.add('disconnected');
-  text.textContent = getCORSHelpText();
+  text.textContent = getLocalAiCorsHelpText(url);
   return true;
 }
 
-function getCORSHelpText() {
-  const ua = navigator.userAgent || '';
+/** @param {string} url @param {any} [savedConfig] */
+function localAiEndpointKind(url, savedConfig = getOllamaConfig()) {
+  try {
+    const parsed = new URL(url);
+    const savedMode = String(savedConfig?.mode || '').toLowerCase();
+    let savedOrigin = '';
+    try { savedOrigin = new URL(savedConfig?.url || '').origin; } catch {}
+    if (parsed.origin === savedOrigin && ['ollama', 'lmstudio', 'unsloth'].includes(savedMode)) return savedMode;
+    const identity = `${parsed.hostname}:${parsed.port}`.toLowerCase();
+    if (identity.includes('unsloth') || parsed.port === '8888') return 'unsloth';
+    if (identity.includes('lmstudio') || identity.includes('lm-studio') || parsed.port === '1234') return 'lmstudio';
+    if (identity.includes('ollama') || parsed.port === '11434') return 'ollama';
+  } catch {}
+  return 'openai-compatible';
+}
+
+/**
+ * @param {string} url
+ * @param {{userAgent?: string, origin?: string, savedConfig?: any}} [options]
+ */
+export function getLocalAiCorsHelpText(url, options = {}) {
+  const ua = options.userAgent ?? globalThis.navigator?.userAgent ?? '';
+  const origin = options.origin ?? globalThis.location?.origin ?? 'this app';
+  const provider = localAiEndpointKind(url, options.savedConfig);
+  if (provider === 'unsloth') {
+    const command = isLocalAiLoopbackUrl(url)
+      ? 'unsloth studio -p 8888 --disable-tools'
+      : 'unsloth studio -H 0.0.0.0 -p 8888 --disable-tools';
+    return `Blocked by CORS \u2014 Unsloth answered but did not allow ${origin}. Unsloth has no CORS toggle; its desktop/API-only backend accepts only its own app. Start its browser-capable CLI server with: ${command}, then use its API key.`;
+  }
+  if (provider === 'lmstudio') {
+    return `Blocked by CORS \u2014 LM Studio did not allow ${origin}. Enable CORS in its Developer server settings, or restart it with: lms server start --cors. Keep API authentication enabled for LAN access.`;
+  }
   const isMac = /Mac/i.test(ua);
   const isWin = /Win/i.test(ua);
-  const origin = location.origin;
-  if (isMac) return `Blocked by CORS \u2014 allow only ${origin}: launchctl setenv OLLAMA_ORIGINS "${origin}" and restart Ollama. LM Studio: enable CORS and API authentication.`;
-  if (isWin) return `Blocked by CORS \u2014 set OLLAMA_ORIGINS=${origin} as a system environment variable and restart Ollama. LM Studio: enable CORS and API authentication.`;
-  return `Blocked by CORS \u2014 start Ollama with OLLAMA_ORIGINS=${origin}. LM Studio: enable CORS and API authentication.`;
+  if (provider === 'ollama') {
+    if (isMac) return `Blocked by CORS \u2014 allow ${origin} in Ollama: launchctl setenv OLLAMA_ORIGINS "${origin}", then restart Ollama.`;
+    if (isWin) return `Blocked by CORS \u2014 set OLLAMA_ORIGINS=${origin} as a system environment variable, then restart Ollama.`;
+    return `Blocked by CORS \u2014 start Ollama with OLLAMA_ORIGINS=${origin}.`;
+  }
+  return `Blocked by CORS \u2014 this Local AI endpoint answered but did not allow ${origin}. Enable browser/CORS access for this origin in that server.`;
 }
 
 async function releasePreviousLocalAiBeforeSwitch(config, previousDiscovery, nextDiscovery, dot, text) {

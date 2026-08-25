@@ -15,6 +15,7 @@ import {
   isLightSunContextEnabled,
   isSupplementsMedsContextEnabled,
   isWearableContextEnabled,
+  isNutritionContextEnabled,
   setGeneticsPriorityInAIContext,
   setGeneticsSummaryInAIContext,
   setGeneticsInventoryInAIContext,
@@ -24,6 +25,7 @@ import {
   setLightSunContextEnabled,
   setSupplementsMedsContextEnabled,
   setWearableContextEnabled,
+  setNutritionContextEnabled,
 } from './lab-context.js';
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
 import { state } from './state.js';
@@ -226,6 +228,10 @@ function hasWearableContextData() {
   );
 }
 
+function hasNutritionContextData() {
+  return Number(state.nutritionSummary?.totalMeals || 0) > 0;
+}
+
 function hasMeaningfulContextValue(value) {
   if (value == null || value === false) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -311,7 +317,7 @@ function renderContextSourceSection(key, title, subtitle, rows, { wide = false }
   </section>`;
 }
 
-function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody }) {
+function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody, nutritionOn, hasNutrition }) {
   /** @type {string[]} */
   const included = [];
   /** @type {string[]} */
@@ -355,6 +361,10 @@ function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasS
     if (bodyOn) included.push('Wearables');
     else excluded.push('Wearables');
   } else inactive.push('Wearables');
+  if (hasNutrition) {
+    if (nutritionOn) included.push('Meals & Nutrition');
+    else excluded.push('Meals & Nutrition');
+  } else inactive.push('Meals & Nutrition');
   const renderMetric = (tone, label, items, detail) => `<div class="context-summary-metric context-summary-${escapeAttr(tone)}" aria-label="${escapeAttr(`${label}: ${items.length ? items.join(', ') : 'none'}`)}">
     <span class="context-summary-count">${items.length}</span>
     <span class="context-summary-copy">
@@ -380,11 +390,13 @@ function renderContextSourceControls() {
   const hasGenomeSummary = hasGenomeSummaryData();
   const hasLight = hasLightSunData();
   const hasBody = hasWearableContextData();
+  const hasNutrition = hasNutritionContextData();
   const genomeSummaryOn = isGeneticsSummaryInAIContext();
   const genomePriorityOn = isGeneticsPriorityInAIContext();
   const genomeOn = isGeneticsInventoryInAIContext();
   const lightOn = isLightSunContextEnabled();
   const bodyOn = isWearableContextEnabled();
+  const nutritionOn = isNutritionContextEnabled();
   const insightRows = [
     renderContextSourceToggle({
       key: 'insight-cards',
@@ -492,13 +504,23 @@ function renderContextSourceControls() {
       checked: bodyOn,
       affects: ['Chat', 'Scores'],
     }),
+    renderContextSourceToggle({
+      key: 'body-nutrition',
+      title: 'Meals & Nutrition',
+      description: 'Local 7-day averages with a coverage-qualified comparison to the previous 23 days. Photos and individual meals are never added to AI context.',
+      status: nutritionOn
+        ? (hasNutrition ? 'Local rolling summaries are included when relevant.' : 'Enabled, but no meals are logged yet.')
+        : 'Nutrition summaries are ignored by chat context.',
+      checked: nutritionOn,
+      affects: ['Chat'],
+    }),
   ];
   return `<div class="context-source-panel">
     <div class="context-source-head">
       <span class="context-source-head-title">Data sources</span>
       <span class="context-source-head-sub">Choose exactly which profile data can influence AI answers and score context.</span>
     </div>
-    ${renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody })}
+    ${renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody, nutritionOn, hasNutrition })}
     <div class="context-source-sections">
       ${renderContextSourceSection('profile', 'Profile', 'Personal profile context, with meds and supplements controlled separately.', insightRows)}
       ${renderContextSourceSection('genome', 'Genome', 'Inherited context split by sensitivity and token cost.', genomeRows)}
@@ -608,6 +630,7 @@ function applyContextSourceToggle(input) {
   else if (key === 'genome-lookup') setGeneticsInventoryInAIContext(checked);
   else if (key === 'light-sun') setLightSunContextEnabled(checked);
   else if (key === 'body-wearables') setWearableContextEnabled(checked);
+  else if (key === 'body-nutrition') setNutritionContextEnabled(checked);
 }
 
 function bindContextSourceToggles(overlay) {

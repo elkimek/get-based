@@ -38,10 +38,11 @@ export async function getOpenRouterBalance() {
 
 export async function callOpenRouterAPI(opts) {
   const key = getOpenRouterKey();
+  const modelId = String(opts?.modelOverride || getOpenRouterModel());
   if (isAppExtensionAICredentialOwned('openrouter')) {
     const authorized = await authorizeAppExtensionAIRequest({
       provider: 'openrouter',
-      model: getOpenRouterModel(),
+      model: modelId,
       webSearch: opts.webSearch === true,
       request: opts,
     });
@@ -49,7 +50,7 @@ export async function callOpenRouterAPI(opts) {
   }
   const extensionOptions = getAppExtensionAIRequestOptions({
     provider: 'openrouter',
-    model: getOpenRouterModel(),
+    model: modelId,
     request: opts,
   });
   const extraBody = {
@@ -60,7 +61,7 @@ export async function callOpenRouterAPI(opts) {
     const extensionCall = await callAppExtensionAIProvider({
       provider: 'openrouter',
       credential: key,
-      model: getOpenRouterModel(),
+      model: modelId,
       request: opts,
     });
     if (extensionCall.handled) return extensionCall.result;
@@ -68,7 +69,7 @@ export async function callOpenRouterAPI(opts) {
     return await callOpenAICompatibleAPI(
       'https://openrouter.ai/api/v1/chat/completions',
       key,
-      getOpenRouterModel(),
+      modelId,
       'OpenRouter',
       opts,
       { 'HTTP-Referer': getApiLocationOriginRuntime(), 'X-Title': 'getbased' },

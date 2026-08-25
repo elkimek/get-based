@@ -200,7 +200,7 @@ export function createDashboardPageView(deps) {
     document.body.classList.remove('mobile-dashboard-active');
     const wearableMetrics = state.importedData?.wearableSummary?.metrics || {};
     const hasWearableData = Object.values(wearableMetrics).some(metric => metric?.latest != null);
-    const hasData = data.dates.length > 0 || hasWearableData || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
+    const hasData = data.dates.length > 0 || hasWearableData || Number(state.nutritionSummary?.totalMeals || 0) > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
 
     // Clear any onboarding focus mode once the user has data — the
     // welcome-hero / context-details targets no longer exist in the

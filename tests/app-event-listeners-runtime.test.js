@@ -86,6 +86,46 @@ describe('app event listener runtime', () => {
     expect(edgeWheel.defaultPrevented).toBe(true);
     wheelOverlay.remove();
 
+    const nestedWheelOverlay = appendOverlay('nested-wheel-overlay');
+    const nestedModal = nestedWheelOverlay.querySelector('.modal');
+    Object.defineProperties(nestedModal, {
+      clientHeight: { configurable: true, value: 150 },
+      scrollHeight: { configurable: true, value: 450 },
+      scrollTop: { configurable: true, writable: true, value: 50 },
+    });
+    const modelList = document.createElement('div');
+    modelList.className = 'nutrition-comparison-models';
+    Object.defineProperties(modelList, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 300 },
+      scrollTop: { configurable: true, writable: true, value: 100 },
+    });
+    nestedModal.appendChild(modelList);
+    const nestedMiddleWheel = new WheelEvent('wheel', { deltaY: 1, bubbles: true, cancelable: true });
+    modelList.dispatchEvent(nestedMiddleWheel);
+    expect(nestedMiddleWheel.defaultPrevented).toBe(false);
+    modelList.scrollTop = 200;
+    const nestedEdgeWheel = new WheelEvent('wheel', { deltaY: 1, bubbles: true, cancelable: true });
+    modelList.dispatchEvent(nestedEdgeWheel);
+    expect(nestedEdgeWheel.defaultPrevented).toBe(false);
+    nestedModal.scrollTop = 300;
+    const allEdgesWheel = new WheelEvent('wheel', { deltaY: 1, bubbles: true, cancelable: true });
+    modelList.dispatchEvent(allEdgesWheel);
+    expect(allEdgesWheel.defaultPrevented).toBe(true);
+    nestedModal.scrollTop = 50;
+    const staticModelList = document.createElement('div');
+    staticModelList.className = 'nutrition-comparison-models';
+    Object.defineProperties(staticModelList, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 100 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    nestedModal.appendChild(staticModelList);
+    const staticListWheel = new WheelEvent('wheel', { deltaY: 1, bubbles: true, cancelable: true });
+    staticModelList.dispatchEvent(staticListWheel);
+    expect(staticListWheel.defaultPrevented).toBe(false);
+    nestedWheelOverlay.remove();
+
     const modalOverlay = appendOverlay('modal-overlay');
     const modal = modalOverlay.querySelector('.modal');
     modal.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
@@ -94,6 +134,15 @@ describe('app event listener runtime', () => {
     modalOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(actions.closeModal).toHaveBeenCalledOnce();
     modalOverlay.remove();
+
+    const protectedModalOverlay = appendOverlay('modal-overlay');
+    protectedModalOverlay.setAttribute('data-modal-dismiss-protected', '');
+    protectedModalOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(actions.closeModal).toHaveBeenCalledOnce();
+    expect(protectedModalOverlay.firstElementChild.classList.contains('modal-nudge')).toBe(true);
+    press('Escape');
+    expect(actions.closeModal).toHaveBeenCalledTimes(2);
+    protectedModalOverlay.remove();
 
     const backdropRoutes = [
       ['light-env-assessment-overlay', 'closeLightEnvironmentAssessment'],
@@ -152,7 +201,7 @@ describe('app event listener runtime', () => {
     const passphrase = appendOverlay('passphrase-overlay');
     passphrase.style.display = 'flex';
     press('Escape');
-    expect(actions.closeModal).toHaveBeenCalledTimes(1);
+    expect(actions.closeModal).toHaveBeenCalledTimes(2);
     passphrase.remove();
 
     const tour = appendOverlay('tour-overlay');
@@ -227,6 +276,20 @@ describe('app event listener runtime', () => {
     expect(press('Tab', { shiftKey: true }).defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(last);
     focusOverlay.remove();
+
+    const cloudOverlay = appendOverlay(
+      'cloud-ai-consent-overlay',
+      '<div role="dialog"><button id="cloud-cancel" data-cloud-ai-consent-action="cancel">Cancel</button><button id="cloud-approve">Approve</button></div>',
+    );
+    const cloudCancel = document.getElementById('cloud-cancel');
+    const cloudApprove = document.getElementById('cloud-approve');
+    cloudCancel.click = vi.fn();
+    cloudApprove.focus();
+    expect(press('Tab').defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(cloudCancel);
+    press('Escape');
+    expect(cloudCancel.click).toHaveBeenCalledOnce();
+    cloudOverlay.remove();
 
     press('c');
     expect(actions.toggleChatPanel).toHaveBeenCalledOnce();

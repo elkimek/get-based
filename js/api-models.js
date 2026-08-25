@@ -10,6 +10,7 @@ import {
   getVeniceKey,
   getVeniceModel,
   getVeniceModelDisplay,
+  isE2EEModel,
   modelSupportsVeniceE2EE,
   syncVeniceModelSelection,
   isVeniceE2EEActive,
@@ -20,13 +21,14 @@ import {
   setOpenRouterModel,
   getRoutstrModel,
   getRoutstrModelDisplay,
-  isRoutstrPrivateModeActive,
+  isRoutstrTinfoilModel,
   getPpqModel,
   getPpqModelDisplay,
   isPpqPrivateModel,
   isPpqPrivateModeActive,
   getCustomApiModel,
   getCustomApiModelDisplay,
+  notifyAIModelCatalogChanged,
 } from './api-provider-storage.js';
 import {
   getAppExtensionAIModelPolicy,
@@ -41,6 +43,29 @@ export function deduplicateModels(models, familyFn) {
     seen[fam] = true;
     return true;
   });
+}
+
+/**
+ * Read explicit image-input capability metadata from provider model rows.
+ * Model names are deliberately not used here: a provider may expose a text-only
+ * route for a model family that is multimodal elsewhere.
+ */
+export function modelMetadataSupportsVision(model) {
+  if (!model || typeof model !== 'object') return false;
+  const architecture = model.architecture && typeof model.architecture === 'object'
+    ? model.architecture
+    : {};
+  const inputModalities = [
+    ...(Array.isArray(architecture.input_modalities) ? architecture.input_modalities : []),
+    ...(Array.isArray(model.input_modalities) ? model.input_modalities : []),
+    ...(Array.isArray(model.input) ? model.input : []),
+  ].map(value => String(value).toLowerCase());
+  const modality = String(architecture.modality || model.modality || '').toLowerCase();
+  return inputModalities.includes('image')
+    || modality.includes('image')
+    || model.capabilities?.vision === true
+    || model.capabilities?.supportsVision === true
+    || model.model_spec?.capabilities?.supportsVision === true;
 }
 
 // Curated: latest-gen medically capable models only (prefixes matched against IDs)
@@ -64,20 +89,20 @@ const OPENROUTER_CURATED = [
 const OPENROUTER_RECOMMENDED = [
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
   'anthropic/claude-opus-5', 'anthropic/claude-opus-4.7',
-  'openai/gpt-5.6-sol', 'openai/gpt-5.4',
-  'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
-  'z-ai/glm-5.2',
+  'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'openai/gpt-5.4',
+  'google/gemini-3.7-flash', 'google/gemini-3.6-flash', 'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
+  'z-ai/glm-5.3',
   'moonshotai/kimi-k3',
   'x-ai/grok-4',
 ];
 const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
-const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.3', 'z-ai/glm-5.3', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-2'];
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
-const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
+const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.3', 'glm-5.3', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-2'];
 
 function normalizedModelId(modelId) {
@@ -91,9 +116,9 @@ function isClaudeSonnet5Model(modelId) {
 function isCustomRecommendedModel(modelId) {
   if (isClaudeSonnet5Model(modelId)) return true;
   return /(^|[/-])claude-(sonnet-4-6|opus-5|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])gpt-5-[45]($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])gemini-3-(5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])glm-5-2($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])gpt-5-(?:[45]|6-(?:sol|terra|luna))($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])gemini-3-(7-flash|6-flash|5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])glm-5-3($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])kimi-k3($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])grok-4($|[-:])/.test(normalizedModelId(modelId));
 }
@@ -103,6 +128,14 @@ function modelStartsWithRecommended(modelId, prefix) {
   const p = normalizedModelId(prefix);
   const slug = id.split('/').pop() || '';
   return id.startsWith(p) || slug.startsWith(p);
+}
+
+function isVeniceRecommendedGpt5Model(modelId) {
+  // Venice removes the dot from OpenAI minor versions (5.5 → openai-gpt-55),
+  // while compatible catalogs may retain it. Accept current and future 5.x
+  // generations without hard-coding a ceiling; availability is still supplied
+  // by Venice's live model catalog and vision-capability response.
+  return /^openai-gpt-5(?:-?[2-9])(?:-|$)/.test(normalizedModelId(modelId));
 }
 
 export function modelMatchesPreferredId(modelId, preferredId) {
@@ -132,7 +165,8 @@ export function isRecommendedModel(provider, modelId) {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5/.test(modelId);
     // claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return /^(claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k3|grok-4[1-9]?)(-|$)/.test(modelId);
+    return isVeniceRecommendedGpt5Model(modelId)
+      || /^(claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7)|gemini-3-(7-flash|6-flash|5-flash|flash-preview)|zai-org-glm-5-3|z-ai-glm-5-3|glm-5-3|kimi-k3|grok-4[1-9]?)(-|$)/.test(normalizedModelId(modelId));
   }
   if (provider === 'routstr') {
     if (modelId.startsWith('tinfoil-')) return ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);
@@ -143,7 +177,94 @@ export function isRecommendedModel(provider, modelId) {
     return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
   }
   if (provider === 'custom') return isCustomRecommendedModel(modelId);
+  if (provider === 'ollama') return /(^|\/)qwen3-vl($|[-:])/.test(normalizedModelId(modelId));
   return false;
+}
+
+function recommendedOptionId(modelId) {
+  return normalizedModelId(modelId)
+    .replace(/:\d{4}-\d{2}-\d{2}$/, '')
+    .replace(/:(?:batch|free)$/, '')
+    .replace(/-\d{8}$/, '')
+    .replace(/@\d{8}$/, '');
+}
+
+function recommendedOptionSlug(modelId) {
+  return (recommendedOptionId(modelId).split('/').pop() || '').replace(/^e2ee-/, '');
+}
+
+function recommendedFamilyKey(modelId) {
+  const slug = recommendedOptionSlug(modelId);
+  if (slug.startsWith('claude-sonnet-')) return 'claude-sonnet';
+  if (slug.startsWith('claude-opus-')) return 'claude-opus';
+  const gpt56Tier = slug.match(/^(?:openai-)?gpt-5(?:-?6)?-(sol|terra|luna)(?:-|$)/);
+  if (gpt56Tier) return gpt56Tier[1] === 'sol' ? 'gpt-5-flagship' : `gpt-5.6-${gpt56Tier[1]}`;
+  if (/^(openai-)?gpt-5/.test(slug)) return 'gpt-5-flagship';
+  if (/^gemini-\d.*pro/.test(slug)) return 'gemini-pro';
+  if (/^gemini-\d.*flash/.test(slug)) return 'gemini-flash';
+  if (/^grok/.test(slug)) return 'grok';
+  // Keep the useful open-weight sizes independently comparable while still
+  // collapsing superseded generations of the same size (for example,
+  // Qwen3.6 27B behind Qwen3.8 27B). A 35B-A3B route is a different compute
+  // tier from dense 27B and must not disappear into the same family slot.
+  const qwenEvaluationSize = slug.match(/^qwen-?3(?:-\d+)?-(27b|35b(?:-a3b)?)(?:-|$)/);
+  if (qwenEvaluationSize) {
+    return `qwen-open-${qwenEvaluationSize[1].startsWith('35b') ? '35b' : qwenEvaluationSize[1]}`;
+  }
+  if (/^qwen\d.*vl/.test(slug)) return 'qwen-vl';
+  if (/^gpt-oss/.test(slug)) return 'gpt-oss';
+  if (/^glm-5/.test(slug)) return 'glm-5';
+  if (/^kimi-k\d/.test(slug)) return 'kimi';
+  return slug;
+}
+
+function recommendedModelVersionParts(modelId) {
+  const slug = recommendedOptionSlug(modelId);
+  const compactVeniceGpt = slug.match(/^openai-gpt-5([2-9])(?:-|$)/);
+  if (compactVeniceGpt) return [5, Number(compactVeniceGpt[1])];
+  if (/^grok-41-fast($|-)/.test(slug)) return [4, 1];
+  if (/^grok-4-20($|-)/.test(slug)) return [4, 2, 0];
+  return (slug.match(/\d+/g) || []).map(Number);
+}
+
+function recommendedVariantPenalty(model) {
+  const identity = typeof model === 'object'
+    ? `${model?.id || ''}-${model?.name || ''}`
+    : String(model || '');
+  return /(^|[-/:\s])(batch|beta|experimental|fast(?:-?api)?|lite|mini|preview)(-|[/:\s]|$)/.test(normalizedModelId(identity)) ? -1 : 0;
+}
+
+function compareRecommendedModelVersion(a, b) {
+  const aParts = recommendedModelVersionParts(a.id);
+  const bParts = recommendedModelVersionParts(b.id);
+  const len = Math.max(aParts.length, bParts.length);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (aParts[i] || 0) - (bParts[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return recommendedVariantPenalty(a) - recommendedVariantPenalty(b);
+}
+
+/**
+ * Return the newest visible model in each capability family.
+ * @param {Array<{ id: string, [key: string]: any }>} models
+ */
+export function selectLatestModelFamilies(models) {
+  const bestByFamily = new Map();
+  for (const model of models) {
+    // Kimi K3 FastAPI is a higher-cost route for the same curated family. It
+    // should never take the visible family slot, even when a catalog
+    // temporarily omits the base route.
+    if (/kimi-k3-fast-?api(?:-|$)/.test(normalizedModelId(`${model.id}-${model.name || ''}`))) continue;
+    const family = recommendedFamilyKey(model.id);
+    const existing = bestByFamily.get(family);
+    if (!existing || compareRecommendedModelVersion(model, existing) > 0) bestByFamily.set(family, model);
+  }
+  return Array.from(bestByFamily.values());
+}
+
+export function selectLatestRecommendedModels(provider, models) {
+  return selectLatestModelFamilies(models.filter(model => isRecommendedModel(provider, model.id)));
 }
 
 export function getActiveModelId(provider = getAIProvider()) {
@@ -213,9 +334,7 @@ export async function fetchOpenRouterModels(key) {
     }
     localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify(pricingCache));
     const visionIds = (json.data || []).filter(function(m) {
-      if (!m.id || !m.architecture) return false;
-      const modality = m.architecture.modality || '';
-      return modality.includes('image');
+      return !!m.id && modelMetadataSupportsVision(m);
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
@@ -224,6 +343,7 @@ export async function fetchOpenRouterModels(key) {
       const preferred = findPreferredModel(models, [extensionPolicy?.defaultModel, ...OPENROUTER_DEFAULT_CANDIDATES].filter(Boolean)) || models[0];
       if (preferred) setOpenRouterModel(preferred.id);
     }
+    notifyAIModelCatalogChanged();
     return models;
   } catch (e) { return []; }
 }
@@ -299,7 +419,9 @@ export async function fetchVeniceModels(key) {
     const all = allText.filter(function(m) { return !e2eeIds.has(m.id) && !m.id.startsWith('e2ee-'); });
     const models = deduplicateModels(all, function(id) {
       if (id.startsWith('claude-')) return id;
-      return id.replace(/-\d{8}$/, '').replace(/-\d+[bB]$/, '');
+      // Parameter count is a real model variant, not a dated alias. Preserve
+      // 27B/35B/etc. routes in the main selector and collapse only snapshots.
+      return id.replace(/-\d{8}$/, '');
     });
     models.sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const pricingCache = {};
@@ -315,6 +437,7 @@ export async function fetchVeniceModels(key) {
     localStorage.setItem('labcharts-venice-models', JSON.stringify(models));
     localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
     syncVeniceModelSelection(models, e2eeList);
+    notifyAIModelCatalogChanged();
     return models;
   } catch (e) { return []; }
 }
@@ -346,33 +469,28 @@ export function supportsWebSearch(provider = getAIProvider()) {
   return false;
 }
 
-export function supportsVision() {
-  const provider = getAIProvider();
+export function supportsVision(provider = getAIProvider(), modelId = getActiveModelId(provider)) {
   if (provider === 'openrouter') {
-    const modelId = getOpenRouterModel();
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models') || '[]');
       return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/:\d{4}-\d{2}-\d{2}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'venice') {
-    if (isVeniceE2EEActive()) return false;
-    const modelId = getVeniceModel();
+    if (isE2EEModel(modelId)) return false;
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-venice-vision-models') || '[]');
       return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'routstr') {
-    if (isRoutstrPrivateModeActive()) return false;
-    const modelId = getRoutstrModel();
+    if (isRoutstrTinfoilModel(modelId)) return false;
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]');
       return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'ppq') {
-    const modelId = getPpqModel();
     try {
       const visionIds = JSON.parse(localStorage.getItem(isPpqPrivateModel(modelId) ? 'labcharts-ppq-private-vision-models' : 'labcharts-ppq-vision-models') || '[]');
       return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });

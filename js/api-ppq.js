@@ -8,6 +8,7 @@ import {
   getPpqModel,
   getPpqPrivateMode,
   isPpqPrivateModel,
+  notifyAIModelCatalogChanged,
   setPpqModel,
   syncPpqModelSelection,
 } from './api-provider-storage.js';
@@ -150,6 +151,7 @@ export async function fetchPpqModels(key) {
       const claude = findPreferredModel(models, PPQ_DEFAULT_CANDIDATES);
       if (claude) setPpqModel(claude.id);
     }
+    notifyAIModelCatalogChanged();
     return getPpqPrivateMode() && privateModels.length ? privateModels : models;
   } catch (e) {
     return [];
@@ -176,7 +178,7 @@ export async function callPpqPrivateAPI(opts) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
   if (!crypto?.subtle) throw new Error('PPQ Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
-  const modelId = getPpqModel();
+  const modelId = String(opts?.modelOverride || getPpqModel());
   const enclaveModelId = modelId.replace(/^private\//, '');
   const { createPpqPrivateFetch } = await import('../vendor/ppq-private-tee.js');
   let secure;
@@ -201,7 +203,7 @@ export async function callPpqPrivateAPI(opts) {
 export async function callPpqAPI(opts) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
-  const modelId = getPpqModel();
+  const modelId = String(opts?.modelOverride || getPpqModel());
   if (isPpqPrivateModel(modelId)) return callPpqPrivateAPI({ ...opts, webSearch: false });
   const extraBody = opts.webSearch ? { plugins: [{ id: 'web' }] } : {};
   return callOpenAICompatibleAPI(
