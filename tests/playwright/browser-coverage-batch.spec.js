@@ -1179,14 +1179,14 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       };
 
       confirmAnswer = false;
-      const compactCancel = makeModalButton('Compact storage');
+      const compactCancel = makeModalButton('Reduce storage');
       await relayActions.confirmCompactRelay(compactCancel.btn);
       outcomes.compactCancelSkipsFetch = fetchCalls.length === 0
         && compactCancel.btn.disabled === false;
       compactCancel.overlay.remove();
 
       confirmAnswer = true;
-      const compactModal = makeModalButton('Compact storage');
+      const compactModal = makeModalButton('Reduce storage');
       await relayActions.confirmCompactRelay(compactModal.btn);
       outcomes.compactRelayPostsAndCloses = fetchCalls.some(call => call.method === 'POST'
         && call.url.endsWith('/self/compact-owner'))
@@ -1222,7 +1222,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       else localStorage.setItem(relayQuotaKey, originalRelayQuota);
       document.querySelectorAll('.modal-overlay').forEach(overlay => {
         if (overlay.textContent?.includes('Rotate sync identity')
-          || overlay.textContent?.includes('Compact storage')
+          || overlay.textContent?.includes('Reduce storage')
           || overlay.textContent?.includes('Enable Phase 2')
           || overlay.textContent?.includes('Disable Phase 2')
           || overlay.textContent?.includes('Reset window')) {

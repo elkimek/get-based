@@ -9,7 +9,7 @@ import { deleteWearablesDB } from './wearables-store.js';
 
 const PROFILE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const PROFILE_BLOB_KEY_RE = /^labcharts-([A-Za-z0-9_-]{1,128})-imported(?:-corrupt)?$/;
-const PROFILE_DATABASE_RE = /^labcharts-(?:wearables|cycle)-([A-Za-z0-9_-]{1,128})$/;
+const PROFILE_DATABASE_RE = /^(?:labcharts-(?:wearables|cycle)|getbased-nutrition)-([A-Za-z0-9_-]{1,128})$/;
 const ALTERNATE_LOCAL_PREFIXES = [
   'labcharts-onboard-provider-skipped-',
   'labcharts-onboard-extras-done-',
@@ -35,6 +35,15 @@ const cleanupDeps = {
   deleteCycleDB: async (profileId) => {
     if (typeof indexedDB === 'undefined') return;
     await deleteCycleDB(profileId);
+  },
+  deleteNutritionDB: async (profileId) => {
+    if (typeof indexedDB === 'undefined') return;
+    await new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(`getbased-nutrition-${profileId}`);
+      request.onsuccess = () => resolve(undefined);
+      request.onerror = () => reject(request.error || new Error('Meal data could not be deleted.'));
+      request.onblocked = () => reject(new Error('Meal data deletion is blocked by another open tab.'));
+    });
   },
 };
 
@@ -108,6 +117,7 @@ export async function clearProfileStorage(profileId) {
   await Promise.all([
     cleanupDeps.deleteWearablesDB(profileId),
     cleanupDeps.deleteCycleDB(profileId),
+    cleanupDeps.deleteNutritionDB(profileId),
   ]);
 
   await Promise.all([

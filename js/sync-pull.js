@@ -19,6 +19,10 @@ import { isLocalSyncCommitEcho } from './sync-origin-state.js';
 import {
   clearBackupRestorePending, getPendingBackupRestoreProfileIds,
 } from './sync-backup-restore-state.js';
+import {
+  getProfileSyncBlockReason, isDemoProfileRecord,
+} from './profile-sync-policy.js';
+import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
@@ -34,6 +38,9 @@ var _pushDirtyProfiles = _pushDirtyProfiles || (async () => ({ total: 0, succeed
 /** @type {(...args: any[]) => Promise<any>} */
 var _pushProfilesById = _pushProfilesById || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
 var _renderProfileButton = _renderProfileButton || (() => {});
+var _getProfiles = _getProfiles || (() => []);
+/** @type {(profileId: string) => Promise<any>} */
+var _deleteProfileFromRelay = _deleteProfileFromRelay || (async () => {});
 let syncApplyPromise;
 
 function loadSyncApply() {
@@ -110,6 +117,8 @@ export function combinePulledAISettings(selection) {
  *   pushDirtyProfiles?: (...args: any[]) => Promise<any>,
  *   pushProfilesById?: (...args: any[]) => Promise<any>,
  *   renderProfileButton?: () => void,
+ *   getProfiles?: () => any[],
+ *   deleteProfileFromRelay?: (profileId: string) => Promise<any>,
  *   reconcilePulledManualWearables?: (...args: any[]) => Promise<any>,
  *   debug?: (...args: any[]) => any,
  * }} [deps]
@@ -123,6 +132,8 @@ export function configureSyncPull({
   pushDirtyProfiles,
   pushProfilesById,
   renderProfileButton,
+  getProfiles,
+  deleteProfileFromRelay,
   reconcilePulledManualWearables,
   debug,
 } = {}) {
@@ -134,6 +145,8 @@ export function configureSyncPull({
   if (typeof pushDirtyProfiles === 'function') _pushDirtyProfiles = pushDirtyProfiles;
   if (typeof pushProfilesById === 'function') _pushProfilesById = pushProfilesById;
   if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
+  if (typeof deleteProfileFromRelay === 'function') _deleteProfileFromRelay = deleteProfileFromRelay;
   if (typeof reconcilePulledManualWearables === 'function') _reconcilePulledManualWearables = reconcilePulledManualWearables;
   if (typeof debug === 'function') _debug = debug;
 }
@@ -221,19 +234,21 @@ export async function onSyncReceived() {
       clearBackupRestorePending();
     }
 
-    // Paused devices keep dirty markers while offline. Flush every affected
-    // profile, including inactive ones, before remote state can be applied.
-    const dirty = await _pushDirtyProfiles({ force: true });
-    if (dirty.failed > 0 || dirty.skipped > 0) {
-      logSyncEvent('skip', 'Pull deferred — local changes are not committed yet');
-      return;
-    }
-
     // Apply remote tombstones FIRST - when another device deleted a profile,
     // wipe our local copy before processing live rows. Skipping this leaves
     // orphan profiles in the local list that the active query no longer
     // returns, and the user sees ghost entries that resync never explains.
     await applyRemoteTombstones();
+
+    // Paused devices keep dirty markers while offline. Effective tombstones
+    // and quarantined deletes are applied first so a dirty local snapshot
+    // cannot recreate a profile before the user has accepted or rejected its
+    // deletion. Policy-blocked dirty markers are discarded as intentional.
+    const dirty = await _pushDirtyProfiles({ force: true });
+    if (dirty.failed > 0 || dirty.skipped > 0) {
+      logSyncEvent('skip', 'Pull deferred — local changes are not committed yet');
+      return;
+    }
 
     let rawRows = evolu.getQueryRows(profileQuery);
     dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
@@ -257,6 +272,14 @@ export async function onSyncReceived() {
         // collision (e.g. "default-imported-chat-threads" -> would land at
         // labcharts-default-imported-chat-threads-imported).
         if (!isSafeProfileId(profileId)) continue;
+        const localProfiles = _getProfiles();
+        const localBlockReason = getProfileSyncBlockReason(profileId, localProfiles);
+        if (localBlockReason) {
+          if (localBlockReason === 'demo' || localBlockReason === 'delete-intent') {
+            await _deleteProfileFromRelay(profileId);
+          }
+          continue;
+        }
         const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
@@ -278,7 +301,16 @@ export async function onSyncReceived() {
 
         // Remote is newer - parse payload (async because the gzip envelope
         // routes through DecompressionStream)
-        const { importedData, profile, aiSettings, chatData, displayPrefs } = await parseSyncPayload(row.dataJson);
+        const parsedPayload = await parseSyncPayload(row.dataJson);
+        const importedData = sanitizeNutritionProfileData(parsedPayload.importedData);
+        const { profile, aiSettings, chatData, displayPrefs } = parsedPayload;
+
+        // Older releases could publish demos despite creation-time skip flags.
+        // Remove every matching legacy row and never materialize it locally.
+        if (isDemoProfileRecord(profile)) {
+          await _deleteProfileFromRelay(profileId);
+          continue;
+        }
 
         aiSettingsSelection = selectPulledAISettings(aiSettingsSelection, aiSettings, remoteUpdated);
 

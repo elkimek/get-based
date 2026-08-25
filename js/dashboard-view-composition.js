@@ -7,7 +7,7 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { canonicalMetric } from './wearable-adapters.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { loadCommitHash } from './commit-hash.js';
-import { loadCatalog, loadContextCardTips } from './health-data-loader.js';
+import { loadCatalog, loadContextCardTips, renderFuelWidget, renderNutritionWidget } from './health-data-loader.js';
 import { openChatPanel } from './chat-loader.js';
 import { toggleMobileSidebar } from './nav.js';
 import { setRecommendationsCatalogCache } from './recommendations-runtime.js';
@@ -155,6 +155,8 @@ export function createDashboardViewComposition({
     renderDashboardRecommendationsWidget,
     renderDashboardSpotlightWidget,
     renderDashboardWearableTilesWidget,
+    renderDashboardNutritionWidget: renderNutritionWidget,
+    renderFuelWidget,
     renderDashboardQuickMarkersWidget,
     renderDashboardInsightsListWidget,
     renderDashboardGenomeWidget,

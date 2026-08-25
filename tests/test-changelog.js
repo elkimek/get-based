@@ -128,6 +128,14 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog gives a short user-readable Meals & Nutrition overview',
+  /version:\s*'1\.18\.0'[\s\S]{0,500}Meals & Nutrition arrives/.test(changelogSrc)
+    && /version:\s*'1\.18\.0'[\s\S]{0,2200}Log, review, and reuse meals/.test(changelogSrc)
+    && /version:\s*'1\.18\.0'[\s\S]{0,2200}Follow useful seven-day patterns/.test(changelogSrc)
+    && /version:\s*'1\.18\.0'[\s\S]{0,2200}Fuel Mix Context/.test(changelogSrc)
+    && /version:\s*'1\.18\.0'[\s\S]{0,2200}Full-size photos are sent only when you choose AI analysis and are not saved/.test(changelogSrc)
+    && /version:\s*'1\.18\.0'[\s\S]{0,2600}Unsloth Studio is now a first-class Local AI provider/.test(changelogSrc)
+    && /version:\s*'1\.18\.0'[\s\S]{0,3000}configured local and cloud providers/.test(changelogSrc));
 assert('latest changelog presents the Light & Sun overhaul with a real ampersand',
   /version:\s*'1\.16\.0'[\s\S]{0,160}title:\s*'Light & Sun, completely redesigned'/.test(changelogSrc)
     && !/title:\s*'Light &amp; Sun/.test(changelogSrc));

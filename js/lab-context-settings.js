@@ -50,6 +50,7 @@ function getContextPreferencePart() {
       `${CONTEXT_SOURCE_IDS.GENOME_INVENTORY}:${isGeneticsInventoryInAIContext() ? 'on' : 'off'}`,
       `${CONTEXT_SOURCE_IDS.LIGHT_SUN}:${isLightSunContextEnabled() ? 'on' : 'off'}`,
       `${CONTEXT_SOURCE_IDS.WEARABLES}:${isWearableContextEnabled() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.NUTRITION}:${isNutritionContextEnabled() ? 'on' : 'off'}`,
     ].join(',')}`,
     `stored:${getStoredContextPreferencePart(profileId)}`,
   ].join('|');
@@ -67,6 +68,7 @@ export function getLabContextFingerprint() {
   ].map(key => hashString(JSON.stringify(data[key] || ''))).join(',');
   return hashString([
     entryPart, cardPart,
+    hashString(JSON.stringify(state.nutritionSummary || '')),
     state.profileSex || '', state.profileDob || '',
     state.unitSystem || '', state.rangeMode || '',
     data.interpretiveLens || '', data.contextNotes || '',
@@ -190,5 +192,14 @@ export function setLightSunContextEnabled(on) {
 
 export function setWearableContextEnabled(on) {
   setWearableContextEnabledState(on);
+  invalidateLabContextCache();
+}
+
+export function isNutritionContextEnabled() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.NUTRITION);
+}
+
+export function setNutritionContextEnabled(on) {
+  setContextSourceEnabled(CONTEXT_SOURCE_IDS.NUTRITION, !!on);
   invalidateLabContextCache();
 }

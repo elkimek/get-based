@@ -209,9 +209,14 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
       setProfiles([{ id: 'keep', name: 'Keep' }, { id: 'wipe', name: 'Wipe' }], 'keep');
       configure({ evolu: makeEvolu({ tombRows: [{ profileId: 'keep' }, { profileId: 'wipe' }] }) });
       await tombstones.applyRemoteTombstones();
-      outcomes.allProfilesTombstonedSafetyKeepsLocalProfiles =
+      const allProfilesPending = tombstones.listPendingTombstones().map(p => p.id).sort();
+      outcomes.allProfilesTombstonedQuarantinesWithoutWiping =
         state.profiles.length === 2
-        && tombstones.listPendingTombstones().length === 0;
+        && allProfilesPending.join('|') === 'keep|wipe'
+        && toasts().some(text => text.includes('2 profiles deleted on another device'));
+      localStorage.removeItem(tombKey('keep'));
+      localStorage.removeItem(tombKey('wipe'));
+      clearToasts();
 
       setProfiles([
         { id: 'keep', name: 'Keep' },
@@ -240,8 +245,12 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
       setProfiles([{ id: 'lastonly', name: 'Last Only' }], 'lastonly');
       localStorage.setItem(tombKey('lastonly'), JSON.stringify({ at: Date.now(), source: 'remote' }));
       const protectedLast = await tombstones.applyPendingTombstone('lastonly');
-      outcomes.applyPendingTombstoneRejectsOnlyProfile = protectedLast.ok === false
-        && protectedLast.reason === 'last-profile';
+      const replacementProfiles = profileStore.getProfiles();
+      outcomes.applyPendingTombstoneReplacesOnlyProfile = protectedLast.ok === true
+        && replacementProfiles.length === 1
+        && replacementProfiles[0].id !== 'lastonly'
+        && state.currentProfile === replacementProfiles[0].id
+        && localStorage.getItem(tombKey('lastonly')) === null;
 
       setProfiles([{ id: 'keep', name: 'Keep' }, { id: 'rejectme', name: 'Reject Me' }], 'keep');
       localStorage.setItem(tombKey('rejectme'), JSON.stringify({ at: Date.now(), source: 'remote' }));
@@ -250,11 +259,18 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
       configure({ evolu: makeEvolu(), syncEnabled: true });
       const rejectNoData = await tombstones.rejectPendingTombstone('rejectme');
       localStorage.setItem(tombKey('rejectme'), JSON.stringify({ at: Date.now(), source: 'remote' }));
-      localStorage.setItem(profileKey('rejectme', 'imported'), '{bad json');
+      await blobStorage.setBlob(profileKey('rejectme', 'imported'), '{bad json');
       const rejectBadJson = await tombstones.rejectPendingTombstone('rejectme');
-      localStorage.setItem(profileKey('rejectme', 'imported'), JSON.stringify({ entries: [{ id: 1 }] }));
+      await blobStorage.setBlob(profileKey('rejectme', 'imported'), JSON.stringify({ entries: [{ id: 1 }] }));
       const pushed = [];
-      configure({ evolu: makeEvolu(), syncEnabled: true, pushProfile: async (profileId, data) => pushed.push({ profileId, data }) });
+      configure({
+        evolu: makeEvolu(),
+        syncEnabled: true,
+        pushProfile: async (profileId, data) => {
+          pushed.push({ profileId, data });
+          return { ok: true };
+        },
+      });
       const rejectSuccess = await tombstones.rejectPendingTombstone('rejectme');
       outcomes.rejectPendingTombstoneCoversSyncDataAndPushPaths =
         rejectSyncOff.reason === 'sync-off'

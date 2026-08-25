@@ -32,6 +32,7 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-ollama-pii-url',
   'labcharts-ollama-pii-key',       // Separate privacy-server API key (encrypted)
   'labcharts-ollama-pii-model',
+  'labcharts-nutrition-ai-route', // Optional provider/model override for meal photos
   'labcharts-routstr-node',           // Selected Routstr node
   'labcharts-routstr-session-updated-at', // LWW clock for shared node session/balance refresh
   'labcharts-lens-config',            // Custom Knowledge Source config (name, url, enabled, topK)

@@ -63,6 +63,7 @@ export const ID_KEYED_ARRAYS = [
   'lightAudits',
   'lightEnvironment.rooms',
   'lightEnvironment.screens',
+  'nutritionMeals',
 ];
 
 export const NATURAL_KEYED_ARRAYS = Object.keys(DELTA_ARRAY_CONFIG)

@@ -24,35 +24,54 @@
  * @param {number} quality - JPEG quality 0-1
  * @returns {Promise<ResizedImage>}
  */
-export function resizeImage(file, maxDim = 1024, quality = 0.85) {
+export const MAX_INPUT_IMAGE_PIXELS = 32_000_000;
+
+function drawResizedImage(img, file, maxDim, quality, includeQualityWarnings = true) {
+  const origWidth = img.width, origHeight = img.height;
+  let width = origWidth, height = origHeight;
+  if (width > maxDim || height > maxDim) {
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context is unavailable');
+  ctx.drawImage(img, 0, 0, width, height);
+  const isPng = file.type === 'image/png';
+  const outputType = isPng ? 'image/png' : 'image/jpeg';
+  const dataUrl = canvas.toDataURL(outputType, quality);
+  const base64 = dataUrl.split(',')[1];
+  const mediaType = isPng ? 'image/png' : 'image/jpeg';
+  const quality_warnings = includeQualityWarnings ? analyzeImageQuality(ctx, width, height) : [];
+  canvas.width = 0;
+  canvas.height = 0;
+  return { base64, mediaType, width, height, origWidth, origHeight, quality_warnings };
+}
+
+export function resizeImageVariants(file, variants) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const origWidth = img.width, origHeight = img.height;
-      let width = origWidth, height = origHeight;
-      if (width > maxDim || height > maxDim) {
-        const scale = maxDim / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas 2D context is unavailable'));
+      if (!img.width || !img.height || img.width * img.height > MAX_INPUT_IMAGE_PIXELS) {
+        reject(new Error('This image is too large to process safely. Choose a photo under 32 megapixels.'));
         return;
       }
-      ctx.drawImage(img, 0, 0, width, height);
-      const isPng = file.type === 'image/png';
-      const outputType = isPng ? 'image/png' : 'image/jpeg';
-      const dataUrl = canvas.toDataURL(outputType, quality);
-      const base64 = dataUrl.split(',')[1];
-      const mediaType = isPng ? 'image/png' : 'image/jpeg';
-      const quality_warnings = analyzeImageQuality(ctx, width, height);
-      resolve({ base64, mediaType, width, height, origWidth, origHeight, quality_warnings });
+      try {
+        resolve(variants.map((variant, index) => drawResizedImage(
+          img,
+          file,
+          variant.maxDim,
+          variant.quality,
+          variant.includeQualityWarnings ?? index === 0,
+        )));
+      } catch (error) {
+        reject(error);
+      }
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -60,6 +79,11 @@ export function resizeImage(file, maxDim = 1024, quality = 0.85) {
     };
     img.src = url;
   });
+}
+
+export async function resizeImage(file, maxDim = 1024, quality = 0.85) {
+  const [result] = await resizeImageVariants(file, [{ maxDim, quality, includeQualityWarnings: true }]);
+  return result;
 }
 
 // ═══════════════════════════════════════════════
@@ -124,6 +148,17 @@ export function isValidImageType(type) {
   return /^image\/(jpeg|png|gif|webp)$/.test(type);
 }
 
+/** Read an accepted image without changing its bytes or dimensions. */
+export async function imageFileToBase64(file) {
+  if (!(file instanceof File)) throw new Error('An image file is required.');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const chunks = [];
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
+  }
+  return btoa(chunks.join(''));
+}
+
 // ═══════════════════════════════════════════════
 // FORMAT IMAGE BLOCK (provider-specific)
 // ═══════════════════════════════════════════════
@@ -149,9 +184,8 @@ export function formatImageBlock(base64, mediaType, _provider) {
  * @returns {Array} content array for the messages API
  */
 export function buildVisionContent(imageBlocks, text, _provider) {
-  const content = [...imageBlocks];
-  if (text) {
-    content.push({ type: 'text', text });
-  }
+  const content = [];
+  if (text) content.push({ type: 'text', text });
+  content.push(...imageBlocks);
   return content;
 }

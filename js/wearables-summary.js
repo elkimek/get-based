@@ -405,6 +405,16 @@ export function persistWearableSummary(newSummary, anomalyEvents) {
   return true;
 }
 
+async function refreshLocalMealTiming(profileId) {
+  if (state.currentProfile !== profileId || !state.nutritionSummary?.totalMeals) return;
+  try {
+    const nutrition = await import('./nutrition-store.js');
+    await nutrition.refreshNutritionSummaryFromWearables(profileId);
+  } catch (error) {
+    if (isDebugMode?.()) console.warn('[wearable-summary] local meal timing refresh failed:', getErrorMessage(error));
+  }
+}
+
 // ─────────────────────────────────────────────────────────
 // Orchestrator — reads L1, computes, persists if gate trips
 // ─────────────────────────────────────────────────────────
@@ -422,6 +432,7 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
     if (!force && !hasStaleSummary) return { wrote: false, reason: 'no-sources' };
     const emptySummary = computeWearableSummary({}, {}, {});
     persistWearableSummary(emptySummary, []);
+    await refreshLocalMealTiming(profileId);
     return {
       wrote: true,
       reason: force ? 'force-no-sources' : 'no-sources-cleared',
@@ -463,9 +474,13 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
     ? { write: true, reason: 'force', anomalyEvents: [] }
     : shouldWriteL2(newSummary, old);
 
-  if (!gate.write) return { wrote: false, reason: 'gate-not-tripped', summary: newSummary };
+  if (!gate.write) {
+    await refreshLocalMealTiming(profileId);
+    return { wrote: false, reason: 'gate-not-tripped', summary: newSummary };
+  }
 
   persistWearableSummary(newSummary, gate.anomalyEvents);
+  await refreshLocalMealTiming(profileId);
   if (isDebugMode?.()) console.log(`[wearable-summary] L2 written: ${gate.reason}`);
   return { wrote: true, reason: gate.reason, summary: newSummary, anomalies: gate.anomalyEvents };
 }

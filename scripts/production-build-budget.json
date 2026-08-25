@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1156330,
-    "outputJavaScriptFiles": 150,
-    "outputDecodedBytes": 4690000
+    "startupDecodedBytes": 1170000,
+    "outputJavaScriptFiles": 158,
+    "outputDecodedBytes": 4900000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -14,8 +14,23 @@
     "extensionOwnedTransportStartupDecodedBytes": 1152664,
     "deviceCredentialProtectionStartupDecodedBytes": 1155330,
     "unitProfilesOutputDecodedBytes": 4680247,
-    "absolutePathRelocationAllowanceBytes": 1000
+    "absolutePathRelocationAllowanceBytes": 1000,
+    "mealsNutritionStartupDecodedBytes": 1160996,
+    "mealsNutritionOutputJavaScriptFiles": 156,
+    "mealsNutritionOutputDecodedBytes": 4728515,
+    "mealsNutritionTimingLabelOutputDecodedBytes": 4761201,
+    "mealsNutritionPrecisionWorkflowStartupDecodedBytes": 1162854,
+    "mealsNutritionPrecisionWorkflowOutputDecodedBytes": 4807147,
+    "mealsNutritionModelComparisonOutputDecodedBytes": 4835927,
+    "mealsNutritionAuditFixOutputDecodedBytes": 4843558,
+    "mealsNutritionThumbnailSyncStartupDecodedBytes": 1167910,
+    "mealsNutritionThumbnailSyncOutputDecodedBytes": 4851818,
+    "mealsNutritionFuelStrategyOutputDecodedBytes": 4868404,
+    "mealsNutritionFoodCompositionStartupDecodedBytes": 1169255,
+    "mealsNutritionFoodCompositionOutputJavaScriptFiles": 158,
+    "mealsNutritionFoodCompositionOutputDecodedBytes": 4883139,
+    "mealsNutritionFoodCompositionRuntimeDataBytes": 1066347
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-23"
+  "measuredAt": "2026-08-25"
 }

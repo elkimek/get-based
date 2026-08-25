@@ -10,7 +10,7 @@ import { configureRelayHealth } from './sync-relay-health.js';
 import { logSyncEvent, updateSyncStatus } from './sync-state.js';
 import { isSyncConfigured, isSyncEnabled } from './sync-settings-state.js';
 import { configureSyncDelta } from './sync-delta.js';
-import { configureSyncTombstones } from './sync-tombstones.js';
+import { configureSyncTombstones, deleteProfileFromRelay } from './sync-tombstones.js';
 import { configureSyncMessenger } from './sync-messenger.js';
 import { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } from './lab-context.js';
 import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
@@ -59,10 +59,10 @@ export function configureSyncModules({ enableSync } = {}) {
     /** @param {{ level?: string, pct?: number }} q */
     onQuotaThreshold(q) {
       if (q.level === 'red') {
-        logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
-        try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes can fail. See Settings → Data → Cross-device sync → Advanced.`, 'error'); } catch {}
+        logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon; reduce storage`);
+        try { showNotification(`Relay storage is ${q.pct}% full. Open Sync status and choose Reduce storage so new updates are not rejected.`, 'error'); } catch {}
       } else {
-        try { showNotification(`Relay storage ${q.pct}% — plan a compaction soon. See Cross-device sync → Advanced.`, 'warning'); } catch {}
+        try { showNotification(`Relay storage is ${q.pct}% full. Open Sync status and choose Reduce storage when all devices are up to date.`, 'warning'); } catch {}
       }
     },
   });
@@ -79,6 +79,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isPhase2CutoverEnabled,
     disablePhase2Cutover,
     debug: dbg,
+    getProfiles,
   });
 
   configureSyncPull({
@@ -89,6 +90,8 @@ export function configureSyncModules({ enableSync } = {}) {
     pushProfile,
     pushDirtyProfiles,
     pushProfilesById,
+    getProfiles,
+    deleteProfileFromRelay,
     debug: dbg,
   });
 
@@ -121,6 +124,7 @@ export function configureSyncModules({ enableSync } = {}) {
     buildLabContext,
     buildWearableSeriesSection,
     getAgentWearableSeriesDays,
+    getProfiles,
   });
 
   configureSyncIdentity({
@@ -181,6 +185,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isSyncing: isSyncPushInFlight,
     createDefaultProfileData,
     migrateProfileData,
+    getProfiles,
   });
   bindSyncSaveHookEvents();
 
@@ -202,6 +207,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isSyncEnabled,
     pushProfile,
     debug: dbg,
+    getProfiles,
   });
 
   configureSyncInit({ reconcileLocalStorageWithEvolu });

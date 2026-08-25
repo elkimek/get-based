@@ -114,8 +114,8 @@ export function renderDataEntriesSection() {
 
   html += `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="import-btn import-btn-primary" data-settings-action="share-profile">Share Profile</button>
-    <button class="import-btn import-btn-secondary" data-settings-action="export-client">Export Client</button>
-    <button class="import-btn import-btn-secondary" data-settings-action="export-all-clients" title="Full backup \u2014 all profiles, data, and chat history">Export All Clients</button>
+    <button class="import-btn import-btn-secondary" data-settings-action="export-client" title="Portable JSON including locally stored meal records and resized meal photos">Export Client</button>
+    <button class="import-btn import-btn-secondary" data-settings-action="export-all-clients" title="Full portable backup — all profiles, meal records and resized photos, data, and chat history">Export All Clients</button>
     <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" data-settings-action="clear-all-data">Clear All Data</button></div>`;
   return html;
 }

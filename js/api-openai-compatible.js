@@ -83,7 +83,7 @@ async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, reques
   }
 }
 
-function localAIJsonResponseFormat(schema) {
+function jsonResponseFormat(schema) {
   return {
     type: 'json_schema',
     json_schema: {
@@ -94,15 +94,21 @@ function localAIJsonResponseFormat(schema) {
   };
 }
 
-function localAIStructuredOutputRejected(res, errorText) {
-  return (res.status === 400 || res.status === 422) && /response[_ ]format|json[_ ]schema|structured output/i.test(errorText);
+function structuredOutputRejected(res, errorText) {
+  return (res.status === 400 || res.status === 422)
+    && /response[_ ]format|json[_ ]schema|structured output|output_config(?:\.format)?\.schema|schema[^\n]{0,120}(?:not supported|unsupported|invalid)|for ['"]?anyof|any[_ ]?of[^\n]{0,160}(?:alongside|only field)|(?:alongside|only field)[^\n]{0,160}any[_ ]?of/i.test(errorText);
 }
 
 function localAIReasoningControlRejected(res, errorText) {
   return (res.status === 400 || res.status === 422) && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, jsonSchema, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
+function temperatureControlRejected(res, errorText) {
+  return (res.status === 400 || res.status === 422)
+    && /temperature[^\n]{0,120}(?:not supported|unsupported|not permitted|not allowed|invalid|fixed)|(?:not supported|unsupported|invalid)[^\n]{0,120}temperature/i.test(errorText);
+}
+
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -116,8 +122,13 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
   /** @type {Record<string, any>} */
   const body = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
-  if (jsonMode && providerName === 'Local AI') {
-    body.response_format = localAIJsonResponseFormat(jsonSchema);
+  if (typeof reasoningEffort === 'string' && reasoningEffort) body.reasoning_effort = reasoningEffort;
+  const requestedTemperature = Number(temperature);
+  if (temperature !== undefined && Number.isFinite(requestedTemperature) && requestedTemperature >= 0 && requestedTemperature <= 2) {
+    body.temperature = requestedTemperature;
+  }
+  if (jsonMode) {
+    body.response_format = jsonResponseFormat(jsonSchema);
   }
   const useStream = !!onStream && !forceNonStream;
   if (useStream) {
@@ -138,15 +149,22 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     };
     return fetchImpl
       ? fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)
-      : fetchWithApiRetry(endpoint, requestInit, providerName === 'Local AI' ? 0 : 2, useProxy, requestTimeoutMs);
+      : fetchWithApiRetry(
+        endpoint,
+        requestInit,
+        Number.isInteger(requestRetries) ? Math.max(0, requestRetries) : providerName === 'Local AI' ? 0 : 2,
+        useProxy,
+        requestTimeoutMs,
+      );
   };
 
   let res;
   let structuredOutputFallback = false;
   let reasoningControlFallback = false;
+  let temperatureControlFallback = false;
   try {
     let requestBody = { ...body };
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       res = await fetchRequest(requestBody);
       if (res.ok) break;
       const errorText = await res.clone().text();
@@ -155,7 +173,12 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
         reasoningControlFallback = true;
         continue;
       }
-      if (requestBody.response_format?.type === 'json_schema' && localAIStructuredOutputRejected(res, errorText)) {
+      if (requestBody.temperature !== undefined && temperatureControlRejected(res, errorText)) {
+        delete requestBody.temperature;
+        temperatureControlFallback = true;
+        continue;
+      }
+      if (requestBody.response_format?.type === 'json_schema' && structuredOutputRejected(res, errorText)) {
         delete requestBody.response_format;
         structuredOutputFallback = true;
         continue;
@@ -275,7 +298,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       usage: { inputTokens, outputTokens },
       finishReason,
       truncated: isTokenLimitFinish(finishReason),
-      ...((structuredOutputFallback || reasoningControlFallback || performance) ? { diagnostics: { structuredOutputFallback, reasoningControlFallback, ...(performance ? { performance } : {}) } } : {}),
+      ...((structuredOutputFallback || reasoningControlFallback || temperatureControlFallback || performance) ? { diagnostics: { structuredOutputFallback, reasoningControlFallback, temperatureControlFallback, ...(performance ? { performance } : {}) } } : {}),
     };
   }
 
@@ -307,6 +330,6 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     usage: { inputTokens: usage.prompt_tokens || 0, outputTokens: usage.completion_tokens || 0 },
     finishReason,
     truncated: isTokenLimitFinish(finishReason),
-    ...((structuredOutputFallback || reasoningControlFallback || performance) ? { diagnostics: { structuredOutputFallback, reasoningControlFallback, ...(performance ? { performance } : {}) } } : {}),
+    ...((structuredOutputFallback || reasoningControlFallback || temperatureControlFallback || performance) ? { diagnostics: { structuredOutputFallback, reasoningControlFallback, temperatureControlFallback, ...(performance ? { performance } : {}) } } : {}),
   };
 }

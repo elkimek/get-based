@@ -15,6 +15,7 @@ let settingsHadProvider = false;
 const settingsProviderBridgeDeps = {
   closeSettingsModal: () => {},
   openSettingsModal: () => {},
+  refreshNutritionAISettings: () => {},
 };
 
 export function configureSettingsProviderBridgeDeps(deps = {}) {
@@ -67,6 +68,7 @@ export function switchAIProviderBridge(provider) {
   }
   setAIProvider(provider);
   setProviderButtonState(provider);
+  settingsProviderBridgeDeps.refreshNutritionAISettings();
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
   loadProviderPanels().then(providerPanels => providerPanels.switchAIProvider(provider)).catch(() => {});

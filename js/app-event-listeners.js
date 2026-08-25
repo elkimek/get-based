@@ -46,6 +46,10 @@ function nudgeModal(overlay) {
   modal.addEventListener("animationend", () => modal.classList.remove("modal-nudge"), { once: true });
 }
 
+function modalDismissProtected(overlay) {
+  return overlay?.hasAttribute?.('data-modal-dismiss-protected') === true;
+}
+
 function reportAppEventListenerError(label, err) {
   console.error(`[app-event-listeners] ${label} failed:`, err);
 }
@@ -70,12 +74,19 @@ function runAppEventListener(label, action) {
 function handleModalWheel(e) {
   const overlay = e.target.closest(".modal-overlay.show, .chat-backdrop.open");
   if (!overlay) return;
-  // Allow scroll inside scrollable children (modal content, chat messages)
-  const scrollable = e.target.closest(".chat-personality-custom-textarea, .light-setup-focus-body, .settings-content, .import-benchmarks-body, .dashboard-marker-widget-grid, .dashboard-biometric-widget-grid, .report-builder-scroll, .report-ai-summary-text, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
-  if (scrollable) {
-    const atTop = scrollable.scrollTop <= 0 && e.deltaY < 0;
-    const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight && e.deltaY > 0;
-    if (!atTop && !atBottom) return;
+  if (!e.deltaY) return;
+  // Let the nearest eligible surface that can move in this direction consume
+  // the wheel. A non-scrolling child (or a child at its edge) must not trap the
+  // wheel before a scrollable modal ancestor gets it.
+  const selector = ".chat-personality-custom-textarea, .light-setup-focus-body, .settings-content, .import-benchmarks-body, .dashboard-marker-widget-grid, .dashboard-biometric-widget-grid, .report-builder-scroll, .report-ai-summary-text, .nutrition-comparison-models, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body";
+  let scrollable = e.target.closest(selector);
+  while (scrollable && overlay.contains(scrollable)) {
+    const hasOverflow = scrollable.scrollHeight > scrollable.clientHeight + 1;
+    const canScrollUp = hasOverflow && e.deltaY < 0 && scrollable.scrollTop > 0;
+    const canScrollDown = hasOverflow && e.deltaY > 0
+      && scrollable.scrollTop + scrollable.clientHeight < scrollable.scrollHeight - 1;
+    if (canScrollUp || canScrollDown) return;
+    scrollable = scrollable.parentElement?.closest(selector) || null;
   }
   e.preventDefault();
 }
@@ -90,8 +101,13 @@ function handleDocumentClick(e) {
     mouseDownInsideModal = false;
     return;
   }
-  // Read-only modals close on backdrop click.
-  if (e.target.id === "modal-overlay") { appEventListenerDeps.closeModal(); return; }
+  // Read-only modals close on backdrop click. Editors with unsaved or costly
+  // work can opt out and provide their own explicit close flow.
+  if (e.target.id === "modal-overlay") {
+    if (modalDismissProtected(e.target)) nudgeModal(e.target);
+    else appEventListenerDeps.closeModal();
+    return;
+  }
   if (e.target.id === "light-env-assessment-overlay") { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
   if (e.target.id === "changelog-modal-overlay") { appEventListenerDeps.closeChangelog(); return; }
   if (e.target.id === "report-builder-overlay") { appEventListenerDeps.closeReportBuilder(); return; }
@@ -132,6 +148,12 @@ function handleAppKeydown(e) {
     // Passphrase overlay should not be dismissible via Escape.
     const passphraseOverlay = document.getElementById("passphrase-overlay");
     if (passphraseOverlay && passphraseOverlay.style.display === 'flex') return;
+    const cloudConsentOverlay = document.getElementById("cloud-ai-consent-overlay");
+    if (cloudConsentOverlay && cloudConsentOverlay.classList.contains("show")) {
+      const cancel = cloudConsentOverlay.querySelector('[data-cloud-ai-consent-action="cancel"]');
+      if (cancel instanceof HTMLElement) cancel.click();
+      return;
+    }
     const tourOverlay = document.getElementById("tour-overlay");
     if (tourOverlay) { endTour(); return; }
     const sidebarNav = document.getElementById("sidebar-nav");
@@ -185,7 +207,10 @@ function handleAppKeydown(e) {
     const lightEnvOverlay = document.getElementById("light-env-assessment-overlay");
     if (lightEnvOverlay && lightEnvOverlay.classList.contains("show")) { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
-    if (modalOverlay && modalOverlay.classList.contains("show")) { appEventListenerDeps.closeModal(); return; }
+    if (modalOverlay && modalOverlay.classList.contains("show")) {
+      appEventListenerDeps.closeModal();
+      return;
+    }
     // Generic fallback: anonymous dynamically-injected overlays.
     const dynamicOverlays = document.querySelectorAll('.modal-overlay.show');
     if (dynamicOverlays.length > 0) {
@@ -197,7 +222,7 @@ function handleAppKeydown(e) {
 
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` too.
   if (e.key === "Tab") {
-    const overlayIds = ["legal-consent-overlay", "client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "summary-modal-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "context-hub-overlay", "data-protection-picker-overlay"];
+    const overlayIds = ["cloud-ai-consent-overlay", "legal-consent-overlay", "client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "summary-modal-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "context-hub-overlay", "data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {

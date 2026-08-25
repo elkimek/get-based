@@ -225,6 +225,10 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
 
   for (const [day, s] of sleepByDay) {
     const row = ensureRow(day);
+    const sleepStart = s?.bedtime_start || s?.start_datetime || s?.start;
+    const sleepEnd = s?.bedtime_end || s?.end_datetime || s?.end;
+    if (typeof sleepStart === 'string' && Number.isFinite(new Date(sleepStart).getTime())) row.sleep_start_at = sleepStart;
+    if (typeof sleepEnd === 'string' && Number.isFinite(new Date(sleepEnd).getTime())) row.sleep_end_at = sleepEnd;
     // HRV: prefer the scalar Oura computes, but fall back to the per-sample
     // time series when the scalar isn't filled yet. This is the common case
     // for last-night's session — `hrv.items` is published shortly after the

@@ -35,12 +35,12 @@ export async function confirmCompactRelay(btn) {
   const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
   const message = rebuildOnly
     ? 'Retry rebuilding the relay snapshot from this device? Keep this tab open until verification finishes.'
-    : `Compact this owner's storage on the relay (currently ~${mb} MB)? This permanently replaces the relay message log with a fresh snapshot from this device. First make sure every device shows Synced. Keep this tab open until the automatic rebuild finishes; local data is untouched.`;
+    : `Reduce storage (currently ~${mb} MB)? This permanently replaces the relay message log with a fresh snapshot from this device. First make sure every device shows Synced. Keep this tab open until the automatic rebuild finishes; local data is untouched.`;
   // Never perform destructive relay maintenance if the confirmation adapter
   // is unavailable. A missing dialog must fail closed.
   const proceed = await confirmSyncDiagnoseActionRuntime(message, { fallback: false });
   if (!proceed) return;
-  if (btn) { btn.disabled = true; btn.textContent = rebuildOnly ? 'Rebuilding…' : 'Compacting…'; }
+  if (btn) { btn.disabled = true; btn.textContent = rebuildOnly ? 'Rebuilding…' : 'Reducing…'; }
   let compacted = rebuildOnly;
   try {
     let result = null;
@@ -57,7 +57,7 @@ export async function confirmCompactRelay(btn) {
     const after = typeof afterBytes === 'number'
       ? `${(afterBytes / (1024 * 1024)).toFixed(2)} MB`
       : 'updated';
-    showNotification(`Relay storage rebuilt · ${rebuilt.succeeded} profile(s) sent · ${after}`, 'success');
+    showNotification(`Relay storage reduced and rebuilt · ${rebuilt.succeeded} profile(s) sent · ${after}`, 'success');
     if (btn?.dataset) delete btn.dataset.syncRebuildOnly;
     if (btn) {
       const overlay = btn.closest?.('.modal-overlay');
@@ -69,13 +69,13 @@ export async function confirmCompactRelay(btn) {
   } catch (e) {
     showNotification(
       compacted
-        ? `Relay was compacted but the rebuild did not finish: ${getErrorMessage(e, e)}. Keep this device online and retry the rebuild.`
-        : `Compact failed: ${getErrorMessage(e, e)}`,
+        ? `Relay storage was reduced, but the rebuild did not finish: ${getErrorMessage(e, e)}. Keep this device online and retry the rebuild.`
+        : `Storage reduction failed: ${getErrorMessage(e, e)}`,
       'error',
     );
     if (btn) {
       btn.disabled = false;
-      btn.textContent = compacted ? 'Retry rebuild' : 'Compact storage';
+      btn.textContent = compacted ? 'Retry rebuild' : 'Reduce storage';
       if (compacted && btn.dataset) btn.dataset.syncRebuildOnly = '1';
     }
   }

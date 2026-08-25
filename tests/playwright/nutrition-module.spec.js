@@ -1,0 +1,1845 @@
+import { expect, test } from '@playwright/test';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const axeScriptPath = require.resolve('axe-core/axe.min.js');
+
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZcL8AAAAASUVORK5CYII=',
+  'base64',
+);
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-ai-paused', 'false');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
+      accepted: true,
+      termsVersion: '2026-08-22',
+      privacyVersion: '2026-08-22',
+      acceptedAt: '2026-08-23T00:00:00.000Z',
+      appVersion: 'nutrition-module-test',
+      location: 'nutrition-module-test',
+    }));
+  });
+});
+
+test('Venice meal analysis supports a correction-aware recalculation with visible progress', async ({ page }) => {
+  const requestBodies = [];
+  let releaseResponse;
+  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
+    requestBodies.push(route.request().postDataJSON());
+    if (requestBodies.length === 1) {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { message: "output_config.format.schema: For 'anyOf', 'minimum' is not supported" },
+        }),
+      });
+      return;
+    }
+    if (requestBodies.length === 2) await new Promise(resolve => { releaseResponse = resolve; });
+    const isCorrection = requestBodies.length === 3;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              result: {
+                meal_name: isCorrection ? 'Breaded fried Edam plate' : 'Chicken rice bowl',
+                food_items: isCorrection ? [
+                  { food: 'Breaded fried Edam cheese', estimated_weight_g: 180, confidence_score: 91, nutrition: { calories: 600, protein: 30, carbs: 20, total_fat: 40, fiber: 1 } },
+                  { food: 'French fries', grams: 220, confidence: 0.84, nutrition: { calories: 400, protein: 7, carbs: 75, total_fat: 10, fiber: 8 } },
+                  { food: 'Tartar sauce', grams: 45, confidence: 0.72, nutrition: { calories: 210, protein: 5, carbs: 17, total_fat: 6, fiber: 1 } },
+                  { food: 'Beer', grams: 500, confidence: 0.95, nutrition: { calories: 0, protein: 0, carbs: 0, total_fat: 0, fiber: 0 } },
+                ] : [
+                  { food: 'Chicken breast', estimated_grams: '145 g', confidence_score: 82 },
+                  { food: 'Rice', grams: 190, confidence: 0.76 },
+                ],
+                nutrition_totals: isCorrection
+                  ? { calories: 1210, protein: 42, carbs: 112, total_fat: 56, sodium: 1640, alcohol: 20 }
+                  : { calories: 640, protein: 48, carbs: 71, total_fat: 18, sodium: 720 },
+                confidence_score: isCorrection ? 83 : 74,
+                uncertainties: [isCorrection ? 'Cheese and frying oil quantities are estimated.' : 'Sauce quantity is partly hidden.'],
+              },
+            }),
+          },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 120, completion_tokens: 80 },
+      }),
+    });
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-openrouter-model', 'x-ai/grok-4.6');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
+      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
+      'x-ai/grok-4.6',
+      'anthropic/claude-opus-5',
+    ]));
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'claude-opus-4.8', name: 'Claude Opus 4.8' },
+    ]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['claude-opus-4.8']));
+    localStorage.setItem('labcharts-venice-pricing', JSON.stringify({
+      'claude-opus-4.8': { input: 6, output: 30 },
+    }));
+    api.setAIProvider('venice');
+    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({
+      provider: 'venice',
+      model: 'claude-opus-4.8',
+    });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await expect(page.locator('.nutrition-modal-head h3')).toHaveText('Log a meal');
+  await expect(page.locator('.nutrition-modal-head p')).toHaveText('Use a photo or enter values.');
+  await expect(page.locator('.nutrition-review-heading')).toHaveText('Review meal');
+  await expect(page.locator('#nutrition-privacy-line')).toContainText('originals are not saved');
+  await expect(page.locator('#detail-modal')).not.toContainText('Editable review');
+  await expect(page.locator('#detail-modal')).not.toContainText('Check the estimate before saving');
+  await page.locator('#nutrition-known-details').fill('Fried Edam cheese; the beer was not consumed.');
+  await page.locator('#nutrition-photo-input').setInputFiles([
+    { name: 'meal-wide.png', mimeType: 'image/png', buffer: TINY_PNG },
+    { name: 'meal-side.png', mimeType: 'image/png', buffer: TINY_PNG },
+  ]);
+  await page.locator('#nutrition-analyze-btn').click();
+  await expect(page.locator('#cloud-ai-consent-overlay')).toBeVisible();
+  await page.locator('#cloud-ai-consent-checkbox').check();
+  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
+
+  await expect.poll(() => typeof releaseResponse).toBe('function');
+  await expect(page.locator('#nutrition-analysis-progress')).toBeVisible();
+  await expect(page.locator('#nutrition-analysis-progress')).toContainText('Waiting for Claude Opus 4.8');
+  await expect(page.locator('.nutrition-analysis-progress-track')).toHaveAttribute('aria-valuenow', /^(5[8-9]|[6-7]\d|8[0-2])$/);
+  await page.locator('#modal-overlay').click({ position: { x: 2, y: 2 } });
+  await expect(page.locator('#modal-overlay')).toBeVisible();
+  await expect(page.locator('#nutrition-analysis-progress')).toBeVisible();
+  releaseResponse();
+
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Chicken rice bowl');
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('640');
+  await expect(page.locator('#nutrition-proteinG')).toHaveValue('48');
+  await expect(page.locator('#nutrition-carbohydrateG')).toHaveValue('71');
+  await expect(page.locator('#nutrition-fuel-preview')).toBeVisible();
+  await expect(page.locator('#nutrition-fuel-preview')).toContainText('Carb/fat composition');
+  await expect(page.locator('#nutrition-fuel-preview')).toContainText('64%');
+  await expect(page.locator('#nutrition-fuel-preview')).toContainText('36%');
+  await expect(page.locator('#nutrition-fuel-preview')).not.toContainText('optimum');
+  await expect(page.locator('#nutrition-fuel-preview')).not.toContainText('/100');
+  await expect(page.locator('[data-nutrition-component-name="0"]')).toHaveValue('Chicken breast');
+  await expect(page.locator('[data-nutrition-component-grams="0"]')).toHaveValue('145');
+  await expect(page.locator('.nutrition-component-columns')).toContainText('Ingredient');
+  await expect(page.locator('.nutrition-component-columns')).toContainText('Amount');
+  await expect(page.locator('.nutrition-component-columns')).toContainText('Check');
+  await expect(page.locator('#nutrition-save-requirement')).toHaveText('Choose a meal occasion to save.');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Estimate ready');
+  await expect(page.locator('#nutrition-review-evidence')).toContainText('Claude Opus 4.8 · $0.0031 · 200 tokens (120 in · 80 out)');
+  await expect(page.locator('#nutrition-review-checks')).toContainText('Assumptions and uncertainties');
+  await page.locator('#nutrition-meal-type').selectOption('lunch');
+  await expect(page.locator('#nutrition-save-btn')).toBeEnabled();
+  await page.locator('[data-nutrition-component-grams="0"]').fill('150');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('640');
+  await expect(page.locator('#nutrition-proteinG')).toHaveValue('48');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('no linked nutrient profile');
+  await expect(page.locator('#nutrition-correction-review')).toContainText('An ingredient amount changed without linked nutrient data.');
+  await expect(page.locator('#nutrition-save-requirement')).toHaveText('Recalculate after changing an unlinked ingredient amount.');
+  await expect(page.locator('#nutrition-save-btn')).toBeDisabled();
+  await expect(page.locator('#nutrition-recalculate-btn')).toBeEnabled();
+  await page.locator('[data-nutrition-component-grams="0"]').fill('145');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-recalculate-btn')).toBeDisabled();
+  await expect(page.locator('#nutrition-save-btn')).toBeEnabled();
+  await page.locator('#nutrition-meal-type').selectOption('');
+  await page.locator('#detail-modal .modal-close').click();
+  await expect(page.locator('#confirm-dialog-overlay')).toBeVisible();
+  await expect(page.locator('#confirm-dialog-overlay')).toContainText('Discard this unsaved meal draft?');
+  await page.locator('#confirm-cancel').click();
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Chicken rice bowl');
+  expect(requestBodies).toHaveLength(2);
+  expect(requestBodies[0].model).toBe('claude-opus-4.8');
+  expect(requestBodies[0].temperature).toBe(0);
+  expect(requestBodies[0].response_format?.type).toBe('json_schema');
+  expect(JSON.stringify(requestBodies[0].messages)).toContain('Fried Edam cheese; the beer was not consumed.');
+  expect(requestBodies[0].messages[0].content.filter(item => item.type === 'image_url')).toHaveLength(2);
+  expect(requestBodies[1]).not.toHaveProperty('response_format');
+
+  const firstIngredient = page.locator('[data-nutrition-component-name="0"]');
+  await firstIngredient.fill('Chicken breas');
+  await expect(page.locator('#nutrition-correction-review')).toContainText('Estimate needs recalculation.');
+  await firstIngredient.fill('Chicken breast');
+  await expect(page.locator('#nutrition-correction-review')).not.toContainText('Estimate needs recalculation.');
+  await expect(page.locator('#nutrition-recalculate-btn')).toBeDisabled();
+  expect(requestBodies).toHaveLength(2);
+
+  const correctedName = 'Fried Edam cheese with fries, tartar sauce, and beer';
+  await expect(page.locator('#nutrition-correction-review')).toBeVisible();
+  await expect(page.locator('#nutrition-recalculate-btn')).toBeDisabled();
+  await page.locator('[data-nutrition-component-name="0"]').fill('Breaded fried Edam cheese');
+  await page.locator('#nutrition-meal-name').fill(correctedName);
+  await expect(page.locator('#nutrition-correction-review')).toContainText('Ingredient list changed.');
+  await expect(page.locator('#nutrition-correction-review')).toContainText('Meal name changed from “Chicken rice bowl”');
+  await expect(page.locator('#nutrition-save-btn')).toBeDisabled();
+  await expect(page.locator('#nutrition-analyze-btn')).toBeDisabled();
+  await expect(page.locator('#nutrition-recalculate-btn')).toBeEnabled();
+  await page.locator('#nutrition-recalculate-btn').click();
+
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue(correctedName);
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('1210');
+  await expect(page.locator('[data-nutrition-component-name="0"]')).toHaveValue('Breaded fried Edam cheese');
+  await expect(page.locator('[data-nutrition-component-grams="0"]')).toHaveValue('180');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Recalculated estimate');
+  await expect(page.locator('#nutrition-save-btn')).toBeDisabled();
+  expect(requestBodies).toHaveLength(3);
+  expect(requestBodies[2].temperature).toBe(0);
+  expect(requestBodies[2].response_format?.type).toBe('json_schema');
+  expect(JSON.stringify(requestBodies[2].messages)).toContain(correctedName);
+  expect(JSON.stringify(requestBodies[2].messages)).toContain('User-reviewed ingredients and portions: Breaded fried Edam cheese (145 g)');
+  expect(JSON.stringify(requestBodies[2].messages)).toContain('from scratch');
+
+  await page.locator('#nutrition-meal-type').selectOption('dinner');
+  await expect(page.locator('#nutrition-save-btn')).toBeEnabled();
+  await page.locator('[data-nutrition-component-grams="0"]').fill('200');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('1276.67');
+  await expect(page.locator('#nutrition-proteinG')).toHaveValue('45.33');
+  await expect(page.locator('#nutrition-carbohydrateG')).toHaveValue('114.22');
+  await expect(page.locator('#nutrition-fatG')).toHaveValue('60.44');
+  await expect(page.locator('#nutrition-save-btn')).toBeEnabled();
+  await page.locator('[data-nutrition-component-grams="0"]').fill('150');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('1110');
+  await expect(page.locator('#nutrition-proteinG')).toHaveValue('37');
+  await expect(page.locator('#nutrition-carbohydrateG')).toHaveValue('108.67');
+  await expect(page.locator('#nutrition-fatG')).toHaveValue('49.33');
+  await page.locator('[data-nutrition-component-grams="0"]').fill('180');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('1210');
+  await expect(page.locator('#nutrition-proteinG')).toHaveValue('42');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Linked nutrients recalculated');
+  await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#detail-modal')).toContainText(correctedName);
+  await expect(page.locator('#detail-modal')).toContainText('Dinner');
+  await expect(page.locator('#detail-modal')).toContainText('Identification corrected');
+  await expect(page.locator('#detail-modal')).toContainText('AI request usage');
+  await expect(page.locator('#detail-modal')).toContainText('Claude Opus 4.8 · $0.0031 · 200 tokens');
+  await expect(page.locator('#detail-modal .nutrition-fuel-card')).toBeVisible();
+  await expect(page.locator('#detail-modal .nutrition-fuel-card')).toContainText('About this estimate');
+  await expect(page.locator('#detail-modal .nutrition-fuel-card')).toContainText('do not measure Randle-cycle activity');
+  await expect(page.locator('.nutrition-detail-gallery img')).toHaveCount(2);
+  const savedImages = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    return meals.find(meal => meal.name === 'Fried Edam cheese with fries, tartar sauce, and beer')?.images || [];
+  });
+  expect(savedImages).toHaveLength(2);
+  expect(savedImages.every(image => image.thumbnailUrl
+    && !image.dataUrl && !image.base64 && !image.analysisImage)).toBe(true);
+  const savedMealLayout = await page.locator('.nutrition-detail-layout').evaluate(element => {
+    const gallery = element.querySelector('.nutrition-detail-gallery')?.getBoundingClientRect();
+    const overview = element.querySelector('.nutrition-detail-overview')?.getBoundingClientRect();
+    const content = element.querySelector('.nutrition-detail-content-grid')?.getBoundingClientRect();
+    return { galleryAboveOverview: !!gallery && !!overview && gallery.bottom <= overview.top + 1, contentBelowOverview: !!overview && !!content && overview.bottom <= content.top + 1 };
+  });
+  expect(savedMealLayout).toEqual({ galleryAboveOverview: true, contentBelowOverview: true });
+});
+
+test('fresh photo analysis adds traceable micronutrients from reviewed USDA food matches', async ({ page }) => {
+  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              mealName: 'Grilled chicken and rice',
+              components: [
+                {
+                  name: 'Chicken breast, grilled without sauce, skin not eaten',
+                  quantityG: 150,
+                  confidence: 0.9,
+                  nutrients: { energyKcal: 264, proteinG: 44.4, carbohydrateG: 0, fatG: 8.18, fiberG: 0 },
+                },
+                {
+                  name: 'Rice, white, cooked, as ingredient',
+                  quantityG: 180,
+                  confidence: 0.86,
+                  nutrients: { energyKcal: 234, proteinG: 4.57, carbohydrateG: 52.2, fatG: 0.67, fiberG: 0 },
+                },
+              ],
+              nutrients: { energyKcal: 498, proteinG: 48.97, carbohydrateG: 52.2, fatG: 8.85, fiberG: 0 },
+              confidence: 0.86,
+              assumptions: [], warnings: [], label: null,
+            }),
+          },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 100, completion_tokens: 60 },
+      }),
+    });
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'claude-opus-4.8', name: 'Claude Opus 4.8' }]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['claude-opus-4.8']));
+    api.setAIProvider('venice');
+    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({ provider: 'venice', model: 'claude-opus-4.8' });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await expect(page.locator('.nutrition-review-section-title')).toContainText('Energy & macros');
+  await page.locator('#nutrition-photo-input').setInputFiles({
+    name: 'chicken-rice.png', mimeType: 'image/png', buffer: TINY_PNG,
+  });
+  await page.locator('#nutrition-analyze-btn').click();
+  await page.locator('#cloud-ai-consent-checkbox').check();
+  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
+
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Estimate ready');
+  await expect(page.locator('#nutrition-review-evidence')).toContainText('2/2 matched to FNDDS 2021-2023');
+  await expect(page.locator('[data-nutrition-food-match="0"]')).toHaveValue('2705968');
+  await expect(page.locator('[data-nutrition-food-match="1"]')).toHaveValue('2710788');
+  await expect(page.locator('.nutrition-component-food-data').first()).toContainText('Suggested — review');
+
+  await page.locator('.nutrition-more-nutrients summary').click();
+  await expect(page.locator('.nutrition-more-nutrients')).toContainText('Detailed nutrition');
+  await expect(page.locator('.nutrition-more-nutrients')).toContainText('Micronutrients');
+  await expect(page.locator('#nutrition-food-composition-summary')).toContainText('2/2 matched');
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('534.9');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('578.4');
+  await expect(page.locator('#nutrition-calciumMg')).toHaveValue('17.7');
+  await expect(page.locator('#nutrition-ironMg')).toHaveValue('2.91');
+  await expect(page.locator('#nutrition-magnesiumMg')).toHaveValue('61.8');
+
+  await page.locator('[data-nutrition-food-match="0"]').selectOption('2705968');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Food match confirmed');
+  await expect(page.locator('.nutrition-component-food-data').first()).toContainText('Confirmed');
+  await page.locator('[data-nutrition-component-grams="0"]').fill('200');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('586');
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('711.4');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('754.4');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Linked nutrients recalculated');
+
+  await page.locator('#nutrition-meal-type').selectOption('lunch');
+  await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#detail-modal')).toContainText('USDA FoodData Central · FNDDS 2021-2023');
+  await expect(page.locator('#detail-modal')).toContainText('2/2 ingredients matched');
+  const saved = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    const meal = meals.find(item => item.name === 'Grilled chicken and rice');
+    return {
+      sodiumMg: meal?.nutrients?.sodiumMg,
+      nutrientBasis: meal?.source?.nutrientBasis,
+      candidatesPersisted: meal?.components?.some(component => component.foodDataCandidates || component.visualNutrients),
+      reviewedMatches: meal?.components?.filter(component => component.foodData?.reviewed).length,
+    };
+  });
+  expect(saved).toEqual({
+    sodiumMg: 711.4,
+    nutrientBasis: 'visual-identity-plus-food-composition',
+    candidatesPersisted: false,
+    reviewedMatches: 2,
+  });
+});
+
+test('manual FNDDS matches show partial nutrient tiles without saving them as whole-meal totals', async ({ page }) => {
+  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              mealName: 'Chicken rice bowl',
+              components: [
+                { name: 'Chicken breast', quantityG: 150, nutrients: { energyKcal: 250, proteinG: 45, carbohydrateG: 0, fatG: 7 } },
+                { name: 'Rice', quantityG: 180, nutrients: { energyKcal: 230, proteinG: 5, carbohydrateG: 50, fatG: 1 } },
+              ],
+              nutrients: { energyKcal: 480, proteinG: 50, carbohydrateG: 50, fatG: 8 },
+              confidence: 0.8,
+              assumptions: [], warnings: [], label: null,
+            }),
+          },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 80, completion_tokens: 40 },
+      }),
+    });
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'claude-opus-4.8', name: 'Claude Opus 4.8' }]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['claude-opus-4.8']));
+    api.setAIProvider('venice');
+    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({ provider: 'venice', model: 'claude-opus-4.8' });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('#nutrition-photo-input').setInputFiles({
+    name: 'chicken-rice.png', mimeType: 'image/png', buffer: TINY_PNG,
+  });
+  await page.locator('#nutrition-analyze-btn').click();
+  await page.locator('#cloud-ai-consent-checkbox').check();
+  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
+  await expect(page.locator('#nutrition-review-evidence')).not.toContainText('matched to FNDDS');
+  await page.locator('.nutrition-more-nutrients summary').click();
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('');
+
+  const firstFoodMatch = await page.locator('[data-nutrition-food-match="0"] option:not([value=""])').first().getAttribute('value');
+  expect(firstFoodMatch).toBeTruthy();
+  await page.locator('[data-nutrition-food-match="0"]').selectOption(firstFoodMatch);
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Partial values shown');
+  await expect(page.locator('#nutrition-food-composition-summary')).toContainText('Partial values show matched ingredients only');
+  await expect(page.locator('#nutrition-sodiumMg')).not.toHaveValue('');
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveAttribute('data-nutrition-partial', 'true');
+  await expect(page.locator('#nutrition-sodiumMg-source')).toContainText('matched foods only');
+
+  await page.locator('#nutrition-meal-type').selectOption('lunch');
+  await page.locator('#nutrition-save-btn').click();
+  const saved = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    const meal = meals.find(item => item.name === 'Chicken rice bowl');
+    return {
+      sodiumMg: meal?.nutrients?.sodiumMg ?? null,
+      matchedComponents: meal?.source?.foodComposition?.matchedComponents,
+    };
+  });
+  expect(saved).toEqual({ sodiumMg: null, matchedComponents: 1 });
+});
+
+test('Debug mode compares meal models against local reference data and can use the closest estimate', async ({ page }) => {
+  const requestedModels = [];
+  let geminiAttempts = 0;
+  await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
+    const body = route.request().postDataJSON();
+    requestedModels.push(body.model);
+    if (body.model === 'google/gemini-3.7-flash' && ++geminiAttempts === 1) {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { message: 'Rate limit reached for Gemini 3.7 Flash' } }),
+      });
+      return;
+    }
+    const close = body.model === 'openai/gpt-5.6-sol';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              mealName: close ? 'Fried Edam cheese with fries and tartar sauce' : 'Fish and chips with beer',
+              components: close ? [
+                { name: 'Breaded Edam cheese', quantityG: 180, confidence: 0.74 },
+                { name: 'French fries', quantityG: 220, confidence: 0.8 },
+                { name: 'Tartar sauce', quantityG: 45, confidence: 0.65 },
+              ] : [
+                { name: 'Fried cod', quantityG: 260, confidence: 0.98 },
+                { name: 'French fries', quantityG: 310, confidence: 0.98 },
+                { name: 'Beer', quantityG: 500, confidence: 0.99 },
+              ],
+              nutrients: close
+                ? { energyKcal: 1100, proteinG: 40, carbohydrateG: 101, fatG: 60 }
+                : { energyKcal: 1690, proteinG: 62, carbohydrateG: 178, fatG: 78 },
+              confidence: close ? 0.71 : 0.98,
+              assumptions: [], warnings: [], label: null,
+            }),
+          },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 100, completion_tokens: 50 },
+      }),
+    });
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-debug', 'true');
+    localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.6-sol');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'openai/gpt-5.6-sol', name: 'Meal Close' },
+      { id: 'anthropic/claude-opus-5', name: 'Meal Confident' },
+      { id: 'anthropic/claude-sonnet-5', name: 'Vision Sonnet' },
+      { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus' },
+      { id: 'google/gemini-3.5-flash', name: 'Vision Gemini' },
+      { id: 'google/gemini-3.7-flash', name: 'Vision Gemini 3.7' },
+      { id: 'z-ai/glm-5.2', name: 'Text-only GLM 5.2' },
+      { id: 'z-ai/glm-5.3', name: 'Text-only GLM 5.3' },
+      { id: 'moonshotai/kimi-k3', name: 'Vision Kimi' },
+      { id: 'x-ai/grok-4.6', name: 'Vision Grok' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
+      'openai/gpt-5.6-sol', 'anthropic/claude-opus-5', 'anthropic/claude-opus-4.8',
+      'google/gemini-3.5-flash', 'google/gemini-3.7-flash', 'moonshotai/kimi-k3', 'x-ai/grok-4.6',
+    ]));
+    localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
+      'openai/gpt-5.6-sol': { input: 4, output: 20 },
+      'anthropic/claude-opus-5': { input: 5, output: 25 },
+      'google/gemini-3.7-flash': { input: 0.5, output: 2 },
+    }));
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'gemini-3-5-flash', name: 'Venice Vision' },
+    ]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-3-5-flash']));
+    api.setAIProvider('openrouter');
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('#nutrition-photo-input').setInputFiles({ name: 'fried-cheese.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await expect(page.locator('.nutrition-compare-launch')).toBeVisible();
+  await expect(page.locator('.nutrition-compare-launch')).toContainText('Compare models');
+  await expect(page.locator('#nutrition-meal-model-control [data-nutrition-action="toggle-comparison"]')).toHaveCount(0);
+  await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
+  await expect(page.locator('#nutrition-model-comparison')).toBeVisible();
+  await expect(page.locator('.nutrition-comparison-head')).toContainText('Each model receives the same photos.');
+  await expect(page.locator('#nutrition-model-comparison')).not.toContainText('Auto-active');
+  await expect(page.locator('[data-nutrition-comparison-model]')).toHaveCount(6);
+  await expect(page.locator('.nutrition-comparison-models')).toContainText('Venice Vision');
+  await expect(page.locator('.nutrition-comparison-models')).toContainText('Vision Gemini 3.7');
+  await expect(page.locator('.nutrition-comparison-models').getByText('Vision Gemini', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Text-only GLM');
+  await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Vision Sonnet');
+  await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Legacy Opus');
+  const geminiChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Vision Gemini 3.7' });
+  const confidentChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Meal Confident' });
+  const veniceChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Venice Vision' });
+  await expect(veniceChoice.locator('input')).toBeChecked();
+  await veniceChoice.locator('input').setChecked(false);
+  await geminiChoice.locator('input').setChecked(false);
+  await confidentChoice.locator('input').setChecked(true);
+  await expect(page.locator('[data-nutrition-comparison-model]:checked')).toHaveCount(2);
+  const modelList = page.locator('.nutrition-comparison-models');
+  await expect(confidentChoice).toHaveClass(/is-selected/);
+  await expect(geminiChoice).not.toHaveClass(/is-selected/);
+  const pickerLayout = await modelList.evaluate(element => {
+    const cards = Array.from(element.querySelectorAll('.nutrition-comparison-model'));
+    const first = cards[0]?.getBoundingClientRect();
+    const second = cards[1]?.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return { display: style.display, overflowY: style.overflowY, firstRowHasMultipleCards: !!first && !!second && Math.abs(first.top - second.top) < 2, hasInternalScroll: element.scrollHeight > element.clientHeight + 1 };
+  });
+  expect(pickerLayout).toEqual({ display: 'grid', overflowY: 'visible', firstRowHasMultipleCards: true, hasInternalScroll: false });
+  await modelList.hover();
+  const modalBeforeWheel = await page.locator('#detail-modal').evaluate(element => ({
+    scrollTop: element.scrollTop,
+    canScrollDown: element.scrollTop + element.clientHeight < element.scrollHeight - 1,
+  }));
+  await page.mouse.wheel(0, modalBeforeWheel.canScrollDown ? 420 : -420);
+  await expect.poll(() => page.locator('#detail-modal').evaluate(element => element.scrollTop)).not.toBe(modalBeforeWheel.scrollTop);
+  await page.locator('[data-nutrition-reference="mealName"]').fill('Fried Edam cheese with fries and tartar sauce');
+  await page.locator('[data-nutrition-reference="ingredients"]').fill('Breaded Edam cheese\nFrench fries\nTartar sauce');
+  await page.locator('[data-nutrition-reference="totalWeightG"]').fill('445');
+  await page.locator('[data-nutrition-reference="energyKcal"]').fill('1120');
+  await page.locator('[data-nutrition-reference="proteinG"]').fill('39');
+  await page.locator('[data-nutrition-reference="carbohydrateG"]').fill('104');
+  await page.locator('[data-nutrition-reference="fatG"]').fill('61');
+  await page.locator('#nutrition-run-comparison').click();
+  await expect(page.locator('#cloud-ai-consent-overlay')).toBeVisible();
+  await page.locator('#cloud-ai-consent-checkbox').check();
+  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
+
+  await expect(page.locator('.nutrition-comparison-card')).toHaveCount(2);
+  await expect(page.locator('.nutrition-comparison-card').first()).toContainText('Meal Close');
+  await expect(page.locator('.nutrition-comparison-card').first()).toContainText('Closest');
+  await expect(page.locator('.nutrition-comparison-method')).toContainText('identity self-checks are excluded');
+  await expect(page.locator('.nutrition-comparison-card').first()).not.toContainText('Identity self-check is uncalibrated');
+  await expect(page.locator('.nutrition-comparison-card').first()).toContainText('Known-value agreement / 100');
+  await expect(page.locator('.nutrition-comparison-card').first()).toContainText('$0.0014');
+  await expect(page.locator('.nutrition-comparison-card').first()).toContainText('150 tokens · 100 in / 50 out');
+  await expect(page.locator('.nutrition-comparison-card').nth(1)).toContainText('$0.0018');
+  await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Known values active.');
+  await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
+  expect(requestedModels).toEqual(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5']);
+
+  const differenceDetails = page.locator('.nutrition-comparison-card').first().locator('.nutrition-comparison-errors');
+  await differenceDetails.locator('summary').click();
+  await expect(differenceDetails.getByRole('columnheader')).toHaveCount(4);
+  await expect(differenceDetails.locator('tbody tr')).toHaveCount(5);
+  const alignedReferenceColumns = await differenceDetails.locator('table').evaluate(table => {
+    const rows = Array.from(table.rows);
+    const expected = Array.from(rows[0].cells).map(cell => cell.getBoundingClientRect().left);
+    return rows.every(row => row.cells.length === 4 && Array.from(row.cells).every((cell, index) => Math.abs(cell.getBoundingClientRect().left - expected[index]) < 1));
+  });
+  expect(alignedReferenceColumns).toBe(true);
+  await page.addScriptTag({ path: axeScriptPath });
+  const benchmarkViolations = await page.evaluate(async () => {
+    const result = await window.axe.run(document.querySelector('#nutrition-model-comparison'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    });
+    return result.violations.map(violation => ({
+      id: violation.id,
+      impact: violation.impact,
+      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
+    }));
+  });
+  expect(benchmarkViolations).toEqual([]);
+
+  const cards = page.locator('.nutrition-comparison-card');
+  const closeCard = cards.filter({ hasText: 'Meal Close' });
+  const confidentCard = cards.filter({ hasText: 'Meal Confident' });
+  await closeCard.getByRole('button', { name: 'Use as baseline' }).click();
+  await expect(closeCard).toContainText('Baseline');
+  await expect(confidentCard).toContainText('+53.6%');
+  await expect(confidentCard).toContainText('+55%');
+  await closeCard.getByRole('button', { name: 'Use this estimate' }).click();
+  await expect(page.locator('#nutrition-model-comparison')).toBeHidden();
+  await expect(page.locator('#nutrition-comparison-return')).toBeVisible();
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Fried Edam cheese with fries and tartar sauce');
+  await expect(page.locator('#nutrition-save-requirement')).toHaveText('Choose a meal occasion to save.');
+  await page.getByRole('button', { name: 'Back to comparison' }).click();
+  await expect(page.locator('#nutrition-model-comparison')).toBeVisible();
+  await expect(page.locator('.nutrition-comparison-card')).toHaveCount(2);
+  await expect(page.locator('.nutrition-comparison-card').first()).toContainText('Baseline');
+
+  await geminiChoice.locator('input').check();
+  await expect(page.locator('#nutrition-run-comparison')).toBeEnabled();
+  await expect(page.locator('#nutrition-run-comparison')).toHaveText('Run new comparison with 3 models');
+  await page.locator('#nutrition-run-comparison').click();
+  await expect(page.locator('.nutrition-comparison-card')).toHaveCount(3);
+  await expect(page.locator('#nutrition-comparison-progress')).toContainText('1 model needs retry');
+  await expect(page.locator('#nutrition-comparison-model-limit')).toHaveText('3 of 4 selected');
+  await expect(geminiChoice).toContainText('Compared');
+  await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Known values active.');
+  const failedGemini = page.locator('.nutrition-comparison-card.is-error').filter({ hasText: 'Vision Gemini 3.7' });
+  await expect(failedGemini).toContainText('Rate limited. Please wait a moment and try again.');
+  await expect(failedGemini.getByRole('button', { name: 'Retry this model' })).toBeVisible();
+  expect(requestedModels).toEqual([
+    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
+    'google/gemini-3.7-flash', 'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
+  ]);
+  await failedGemini.getByRole('button', { name: 'Retry this model' }).click();
+  await expect(page.locator('#nutrition-comparison-progress')).toContainText('Vision Gemini 3.7 retry complete');
+  await expect(page.locator('.nutrition-comparison-card.is-error').filter({ hasText: 'Vision Gemini 3.7' })).toHaveCount(0);
+  await expect(page.locator('.nutrition-comparison-card').filter({ hasText: 'Vision Gemini 3.7' })).toContainText('$0.0001');
+  expect(requestedModels).toEqual([
+    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
+    'google/gemini-3.7-flash', 'openai/gpt-5.6-sol',
+    'anthropic/claude-opus-5', 'google/gemini-3.7-flash',
+  ]);
+  await expect(page.locator('#nutrition-comparison-history')).toContainText('Comparison saved');
+  await page.locator('#detail-modal .modal-close').click();
+  await page.locator('#confirm-ok').click();
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
+  await expect(page.locator('#nutrition-comparison-history')).toContainText('Last comparison restored');
+  await expect(page.locator('.nutrition-comparison-card')).toHaveCount(3);
+  await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Known values active.');
+  await expect(page.locator('.nutrition-comparison-card').filter({ hasText: 'Vision Gemini 3.7' })).toContainText('$0.0001');
+  expect(requestedModels).toHaveLength(6);
+});
+
+test('model comparison preselects and routes models from separate configured providers', async ({ page }) => {
+  const requests = [];
+  const fulfillAnalysis = async (route, provider) => {
+    const body = route.request().postDataJSON();
+    requests.push({ provider, model: body.model });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              mealName: `${provider} meal`,
+              components: [{ name: 'Meal', quantityG: 320, confidence: 0.8 }],
+              nutrients: { energyKcal: 540, proteinG: 32, carbohydrateG: 58, fatG: 20 },
+              confidence: 0.8,
+              assumptions: [],
+              warnings: [],
+              label: null,
+            }),
+          },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 80, completion_tokens: 40 },
+      }),
+    });
+  };
+  await page.route('https://openrouter.ai/api/v1/chat/completions', route => fulfillAnalysis(route, 'OpenRouter'));
+  await page.route('https://api.venice.ai/api/v1/chat/completions', route => fulfillAnalysis(route, 'Venice'));
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-debug', 'true');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'openai/gpt-5.6-sol', name: 'OpenRouter meal model' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['openai/gpt-5.6-sol']));
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'gemini-3-5-flash', name: 'Venice meal model' },
+    ]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-3-5-flash']));
+    localStorage.setItem('labcharts-cloud-ai-consent', JSON.stringify({
+      version: '2026-08-19',
+      approvals: {
+        openrouter: { accepted: true },
+        venice: { accepted: true },
+      },
+    }));
+    api.setOpenRouterModel('openai/gpt-5.6-sol');
+    api.setVeniceModel('gemini-3-5-flash');
+    api.setAIProvider('openrouter');
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('#nutrition-photo-input').setInputFiles({
+    name: 'meal.png', mimeType: 'image/png', buffer: TINY_PNG,
+  });
+  await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
+  await expect(page.locator('.nutrition-comparison-model-picker')).toContainText('2 providers available · cross-provider pair selected');
+  await expect(page.locator('[data-nutrition-comparison-model]:checked')).toHaveCount(2);
+  const selectedCards = page.locator('.nutrition-comparison-model:has(input:checked)');
+  await expect(selectedCards.nth(0)).toContainText('OpenRouter · meal model');
+  await expect(selectedCards.nth(1)).toContainText('Venice · active model');
+
+  await page.locator('#nutrition-run-comparison').click();
+  await expect(page.locator('.nutrition-comparison-card')).toHaveCount(2);
+  await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
+  expect(requests).toEqual([
+    { provider: 'OpenRouter', model: 'openai/gpt-5.6-sol' },
+    { provider: 'Venice', model: 'gemini-3-5-flash' },
+  ]);
+});
+
+test('Log Meal restores the Local AI photo model after refresh without opening Settings', async ({ page }) => {
+  const discoveryRequests = [];
+  await page.route('http://localhost:11434/**', async route => {
+    const url = new URL(route.request().url());
+    discoveryRequests.push(url.pathname);
+    if (url.pathname === '/api/v1/models') {
+      await route.fulfill({ status: 404, body: '' });
+      return;
+    }
+    if (url.pathname === '/v1/models') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [{
+            id: 'qwen-refresh-vision', owned_by: 'unsloth-studio',
+            input_modalities: ['text', 'image'], context_length: 32768,
+          }],
+        }),
+      });
+      return;
+    }
+    if (url.pathname === '/api/inference/status') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          active_model: 'qwen-refresh-vision', context_length: 32768, is_vision: true,
+        }),
+      });
+      return;
+    }
+    await route.abort('failed');
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
+    localStorage.setItem('labcharts-ollama-model', 'qwen-refresh-vision');
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  const cachedBeforeOpen = await page.evaluate(async () => (
+    await import('/js/provider-local-ai-runtime.js')
+  ).getCachedLocalAiModelDetails().modelDetails.length);
+  expect(cachedBeforeOpen).toBe(0);
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+
+  await expect(page.locator('#nutrition-meal-model-control')).toContainText('Local AI');
+  await expect(page.locator('.nutrition-meal-model-status')).toHaveText('Local');
+  await expect(page.locator('[data-nutrition-model-route]')).toContainText('qwen-refresh-vision');
+  await expect(page.locator('#settings-modal-overlay')).not.toBeVisible();
+  await page.locator('#nutrition-photo-input').setInputFiles({
+    name: 'meal.png', mimeType: 'image/png', buffer: TINY_PNG,
+  });
+  await expect(page.locator('#nutrition-analyze-btn')).toBeEnabled();
+  expect(discoveryRequests).toEqual(expect.arrayContaining([
+    '/api/v1/models', '/v1/models', '/api/inference/status',
+  ]));
+});
+
+test('model comparison discovers a saved Local AI connection while cloud AI is main', async ({ page }) => {
+  const discoveryRequests = [];
+  await page.route('http://localhost:11434/**', async route => {
+    const url = new URL(route.request().url());
+    discoveryRequests.push(url.pathname);
+    if (url.pathname === '/api/v1/models') {
+      await route.fulfill({ status: 404, body: '' });
+      return;
+    }
+    if (url.pathname === '/v1/models') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [{
+            id: 'local-comparison-vision', owned_by: 'unsloth-studio',
+            input_modalities: ['text', 'image'], context_length: 32768,
+          }],
+        }),
+      });
+      return;
+    }
+    if (url.pathname === '/api/inference/status') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          active_model: 'local-comparison-vision', context_length: 32768, is_vision: true,
+        }),
+      });
+      return;
+    }
+    await route.abort('failed');
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    keys.updateKeyCache('labcharts-ollama', JSON.stringify({
+      url: 'http://localhost:11434', model: 'local-comparison-vision', mode: 'unsloth', apiKey: '',
+    }));
+    localStorage.setItem('labcharts-debug', 'true');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'openai/gpt-5.6-sol', name: 'Cloud meal model' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['openai/gpt-5.6-sol']));
+    api.setOpenRouterModel('openai/gpt-5.6-sol');
+    api.setOllamaMainModel('local-comparison-vision');
+    api.setAIProvider('openrouter');
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+  await page.evaluate(() => {
+    const results = document.getElementById('nutrition-comparison-results');
+    if (results) results.innerHTML = '<article class="nutrition-comparison-card">Earlier comparison</article>';
+  });
+
+  await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
+  await expect(page.locator('.nutrition-comparison-models')).toContainText('local-comparison-vision');
+  await expect(page.locator('.nutrition-comparison-model-picker')).toContainText('2 providers available · cross-provider pair selected');
+  await expect(page.locator('[data-nutrition-comparison-model]:checked')).toHaveCount(2);
+  await expect(page.locator('.nutrition-comparison-model:has(input:checked)').nth(0)).toContainText('OpenRouter · meal model');
+  await expect(page.locator('.nutrition-comparison-model:has(input:checked)').nth(1)).toContainText('Local AI · active model');
+  await expect(page.locator('.nutrition-comparison-card')).toContainText('Earlier comparison');
+  await expect(page.locator('#settings-modal-overlay')).not.toBeVisible();
+  expect(discoveryRequests).toEqual(expect.arrayContaining([
+    '/api/v1/models', '/v1/models', '/api/inference/status',
+  ]));
+});
+
+test('meal drafts ignore backdrop clicks and Escape uses the guarded discard path', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await page.locator('#nutrition-meal-name').fill('Unsaved lunch');
+
+  await page.locator('#modal-overlay').click({ position: { x: 2, y: 2 } });
+  await expect(page.locator('#modal-overlay')).toBeVisible();
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Unsaved lunch');
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#confirm-dialog-overlay')).toBeVisible();
+  await page.locator('#confirm-cancel').click();
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Unsaved lunch');
+  await page.keyboard.press('Escape');
+  await page.locator('#confirm-ok').click();
+  await expect(page.locator('#modal-overlay')).toBeHidden();
+});
+
+test('the meal editor, nutrition setup, and drink logger have no automated WCAG A/AA violations', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await expect(page.locator('.nutrition-compare-launch')).toHaveCount(0);
+  await expect(page.locator('#nutrition-model-comparison')).toHaveCount(0);
+  await page.locator('#nutrition-carbohydrateG').fill('90');
+  await page.locator('#nutrition-fatG').fill('40');
+  await expect(page.locator('#nutrition-fuel-preview')).toBeVisible();
+  await page.addScriptTag({ path: axeScriptPath });
+  const editorViolations = await page.evaluate(async () => {
+    const result = await window.axe.run(document.querySelector('#detail-modal'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    });
+    return result.violations.map(violation => ({
+      id: violation.id,
+      impact: violation.impact,
+      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
+    }));
+  });
+  expect(editorViolations).toEqual([]);
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionTargets());
+  const targetViolations = await page.evaluate(async () => {
+    const result = await window.axe.run(document.querySelector('#detail-modal'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    });
+    return result.violations.map(violation => ({
+      id: violation.id,
+      impact: violation.impact,
+      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
+    }));
+  });
+  expect(targetViolations).toEqual([]);
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openFluidLog());
+  const drinkViolations = await page.evaluate(async () => {
+    const result = await window.axe.run(document.querySelector('#detail-modal'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    });
+    return result.violations.map(violation => ({
+      id: violation.id,
+      impact: violation.impact,
+      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
+    }));
+  });
+  expect(drinkViolations).toEqual([]);
+});
+
+test('nutrition label mode scales the scanned values to the amount eaten', async ({ page }) => {
+  const requestBodies = [];
+  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
+    requestBodies.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              mealName: 'Greek yogurt',
+              components: [{ name: 'Greek yogurt', quantityG: 300, confidence: 0.98 }],
+              nutrients: {
+                energyKcal: 240, proteinG: 30, carbohydrateG: 18, fatG: 4,
+                fiberG: 0, sugarG: 12, addedSugarG: 8, saturatedFatG: 2,
+                transFatG: 0, sodiumMg: 140, potassiumMg: 420, calciumMg: 360,
+              },
+              confidence: 0.96,
+              assumptions: [],
+              warnings: [],
+              label: {
+                servingSizeText: '1 tub (150 g)',
+                servingSizeG: 150,
+                servingsPerContainer: 2,
+                labelBasis: 'per serving',
+                consumedAmount: 2,
+                consumedUnit: 'servings',
+              },
+            }),
+          },
+          finish_reason: 'stop',
+        }],
+      }),
+    });
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'claude-opus-4.8', name: 'Claude Opus 4.8' }]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['claude-opus-4.8']));
+    api.setAIProvider('venice');
+    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({ provider: 'venice', model: 'claude-opus-4.8' });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('[data-nutrition-action="set-kind"][data-nutrition-kind="nutrition-label"]').click();
+  await expect(page.locator('#nutrition-label-consumption')).toBeVisible();
+  await expect(page.locator('#nutrition-analyze-btn')).toHaveText('Scan label');
+  await expect(page.locator('#nutrition-model-purpose')).toHaveText('Label model');
+  await expect(page.locator('[data-nutrition-model-route] option:checked')).toContainText('Claude Opus 4.8');
+  await expect(page.locator('#nutrition-privacy-line')).toContainText('choose Scan label');
+  await page.locator('#nutrition-consumed-amount').fill('2');
+  await page.locator('#nutrition-photo-input').setInputFiles({
+    name: 'label.png', mimeType: 'image/png', buffer: TINY_PNG,
+  });
+  await page.locator('#nutrition-analyze-btn').click();
+  await page.locator('#cloud-ai-consent-checkbox').check();
+  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
+
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Label scan ready');
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Greek yogurt');
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('240');
+  await expect(page.locator('#nutrition-addedSugarG')).toHaveValue('8');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('420');
+  await expect(page.locator('#nutrition-calciumMg')).toHaveValue('360');
+  await expect(page.locator('#nutrition-review-evidence')).toContainText('1/1 linked to component nutrients');
+  await expect(page.locator('#nutrition-label-details')).toContainText('Serving size 1 tub (150 g)');
+  await expect(page.locator('#nutrition-label-details')).toContainText('Logged 2 servings');
+  expect(requestBodies).toHaveLength(1);
+  expect(JSON.stringify(requestBodies[0].messages)).toContain('Nutrition Facts');
+  expect(JSON.stringify(requestBodies[0].messages)).toContain('User-reported consumption: 2 servings');
+
+  await page.locator('.nutrition-more-nutrients summary').click();
+  await page.locator('[data-nutrition-component-grams="0"]').fill('150');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('120');
+  await expect(page.locator('#nutrition-addedSugarG')).toHaveValue('4');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('210');
+  await expect(page.locator('#nutrition-calciumMg')).toHaveValue('180');
+  await page.locator('[data-nutrition-component-grams="0"]').fill('450');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('360');
+  await expect(page.locator('#nutrition-addedSugarG')).toHaveValue('12');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('630');
+  await expect(page.locator('#nutrition-calciumMg')).toHaveValue('540');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Linked nutrients recalculated');
+  await page.locator('[data-nutrition-component-grams="0"]').fill('300');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await expect(page.locator('#nutrition-addedSugarG')).toHaveValue('8');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('420');
+
+  await page.locator('#nutrition-meal-type').selectOption('snack');
+  await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#detail-modal')).toContainText('Snack');
+  await expect(page.locator('#detail-modal')).toContainText('label scan');
+  await expect(page.locator('#detail-modal')).toContainText('2 servings logged');
+});
+
+test('barcode lookup fills traceable product nutrients without uploading the selected photo', async ({ page }) => {
+  let barcodeRequests = 0;
+  await page.route('https://world.openfoodfacts.org/api/v3/product/**', async route => {
+    barcodeRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: '3017620422003',
+        status: 'success',
+        result: { id: 'product_found' },
+        product: {
+          code: '3017620422003', product_name: 'Plain yogurt', brands: 'Example Dairy',
+          serving_size: '200 g', product_quantity: 400, product_quantity_unit: 'g',
+          nutrition_data_per: '100g', schema_version: 1004, last_modified_t: 1787000000,
+          nutriments: {
+            'energy-kcal_100g': 70, proteins_100g: 9, carbohydrates_100g: 4,
+            fat_100g: 2, sodium_100g: 0.05, calcium_100g: 0.12,
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await page.locator('[data-nutrition-action="set-kind"][data-nutrition-kind="nutrition-label"]').click();
+  await page.locator('#nutrition-photo-input').setInputFiles({ name: 'private-label.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.locator('#nutrition-barcode').fill('3017620422003');
+  await page.locator('#nutrition-barcode-btn').click();
+
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Plain yogurt');
+  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('140');
+  await expect(page.locator('#nutrition-proteinG')).toHaveValue('18');
+  await expect(page.locator('#nutrition-review-evidence')).toContainText('Database values');
+  await expect(page.locator('#nutrition-analysis-status')).toContainText('Open Food Facts');
+  expect(barcodeRequests).toBe(1);
+
+  await page.locator('#nutrition-meal-type').selectOption('snack');
+  await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#detail-modal')).toContainText('Open Food Facts · barcode 3017620422003');
+});
+
+test('saved meals can be edited deterministically and logged again without another model call', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const store = await import('/js/nutrition-store.js');
+    await store.saveActiveProfileMeal({
+      name: 'White rice', mealType: 'dinner', eatenAt: new Date().toISOString(),
+      localDate: new Date().toISOString().slice(0, 10), localTimeMinutes: 1140,
+      nutrients: { energyKcal: 325, proteinG: 6, carbohydrateG: 70 },
+      components: [{
+        name: 'White rice', quantityG: 250, confidence: 0.8,
+        nutrients: { energyKcal: 325, proteinG: 6, carbohydrateG: 70 },
+        nutrientsPer100g: { energyKcal: 130, proteinG: 2.4, carbohydrateG: 28 },
+      }],
+      responseCheckIn: { satiety2h: 3, energy2h: 2, recordedAt: new Date().toISOString() },
+      source: { kind: 'ai-photo-estimate', provider: 'openrouter', model: 'test-model' },
+      reviewed: true,
+    });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('[data-nutrition-action="detail"]').click();
+  await page.locator('[data-nutrition-action="edit"]').click();
+  await expect(page.locator('#detail-modal')).toContainText('Edit meal');
+  // Set the visible field without dispatching change: Save must synchronize it
+  // instead of depending on blur/change event ordering.
+  await page.locator('[data-nutrition-component-grams="0"]').evaluate(input => { input.value = '200'; });
+  await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#detail-modal')).toContainText('260 kcal');
+  await expect(page.locator('#detail-modal')).toContainText('56 g');
+  const corrected = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    const meal = meals.find(item => item.name === 'White rice');
+    return {
+      quantityG: meal?.components?.[0]?.quantityG,
+      componentCarbs: meal?.components?.[0]?.nutrients?.carbohydrateG,
+      totalCarbs: meal?.nutrients?.carbohydrateG,
+      totalEnergy: meal?.nutrients?.energyKcal,
+      response: meal?.responseCheckIn,
+    };
+  });
+  expect(corrected).toMatchObject({
+    quantityG: 200, componentCarbs: 56, totalCarbs: 56, totalEnergy: 260,
+    response: { satiety2h: 3, energy2h: 2 },
+  });
+  await expect(page.locator('#detail-modal')).toContainText('1 portion adjusted');
+  await page.locator('[data-nutrition-action="reuse"]').click();
+  await expect(page.locator('#detail-modal')).toContainText('Log this meal again');
+  await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#detail-modal')).toContainText('Logged again from a reviewed meal');
+  const result = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    const reused = meals.find(meal => meal.source.kind === 'reused-meal');
+    return { count: meals.length, hasReused: !!reused, reusedImages: reused?.images?.length || 0, reusedResponse: reused?.responseCheckIn || null };
+  });
+  expect(result).toEqual({ count: 2, hasReused: true, reusedImages: 0, reusedResponse: null });
+});
+
+test('deleting a meal records a durable sync tombstone and stays deleted after reload', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  const mealId = await page.evaluate(async () => {
+    const saved = await (await import('/js/nutrition-store.js')).saveActiveProfileMeal({
+      name: 'Throwaway lunch', mealType: 'lunch', eatenAt: new Date().toISOString(),
+      nutrients: { energyKcal: 510, proteinG: 28, carbohydrateG: 58, fatG: 18 },
+      source: { kind: 'manual' }, reviewed: true,
+    });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+    return saved.id;
+  });
+
+  await page.getByRole('button', { name: 'Delete Throwaway lunch' }).click();
+  await expect(page.locator('#confirm-dialog-overlay')).toContainText('Delete this meal and its thumbnail from synced devices?');
+  await page.locator('#confirm-ok').click();
+  await expect(page.getByRole('button', { name: 'Delete Throwaway lunch' })).toHaveCount(0);
+  const deleted = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    return {
+      localIds: meals.map(meal => meal.id),
+      syncedIds: (state.importedData.nutritionMeals || []).map(meal => meal.id),
+      tombstones: state.importedData._deleted?.nutritionMeals || [],
+      totalMeals: state.nutritionSummary?.totalMeals,
+    };
+  });
+  expect(deleted.localIds).not.toContain(mealId);
+  expect(deleted.syncedIds).not.toContain(mealId);
+  expect(deleted.tombstones).toContain(mealId);
+  expect(deleted.totalMeals).toBe(0);
+
+  await page.reload({ waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await expect(page.getByRole('button', { name: 'Delete Throwaway lunch' })).toHaveCount(0);
+});
+
+test('ingredient correction evidence records final ingredients, not individual keystrokes', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await page.locator('#nutrition-meal-name').fill('Rice bowl');
+  await page.locator('#nutrition-meal-type').selectOption('lunch');
+  await page.locator('[data-nutrition-action="add-component"]').click();
+  await page.locator('[data-nutrition-component-name="0"]').pressSequentially('Temporary ingredient');
+  await page.locator('[data-nutrition-action="add-component"]').click();
+  await page.locator('[data-nutrition-component-name="1"]').pressSequentially('Brown rice');
+  await page.locator('[data-nutrition-action="remove-component"][data-nutrition-index="0"]').click();
+  await page.locator('#nutrition-save-btn').click();
+
+  await expect(page.locator('#detail-modal')).toContainText('1 ingredient identity corrected');
+  const review = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    return meals.find(meal => meal.name === 'Rice bowl')?.source?.review?.editedComponentIdentities;
+  });
+  expect(review).toEqual(['Brown rice']);
+});
+
+test('the nutrition widget shows visual seven-day coverage and weight-aware personal targets', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const nutrition = await import('/js/nutrition.js');
+    const { state } = await import('/js/state.js');
+    const localDay = offset => {
+      const date = new Date();
+      date.setDate(date.getDate() - offset);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    state.importedData.wearableSummary = {
+      metrics: { weight: { latest: 80, latestDate: localDay(0), primarySource: 'fitbit' } },
+    };
+    state.importedData.nutritionTargets = {
+      configured: true,
+      proteinBasis: 'active',
+      energyKcal: 2000,
+      carbohydrateG: 151,
+      fatG: 67,
+      fiberG: 25,
+    };
+    state.nutritionSummary = {
+      totalMeals: 9,
+      windows: {
+        d7: {
+          days: 7,
+          meals: 9,
+          loggedDays: 5,
+          loggedDayKeys: [localDay(6), localDay(4), localDay(2), localDay(1), localDay(0)],
+          dailyAverages: { energyKcal: 2150, proteinG: 96, carbohydrateG: 210, fatG: 74, fiberG: 28, fluidMl: 1400, sugarG: 44, sodiumMg: 1820 },
+          nutrientCoverage: {
+            energyKcal: { completeDays: 5 }, proteinG: { completeDays: 5 }, carbohydrateG: { completeDays: 5 },
+            fatG: { completeDays: 5 }, fiberG: { completeDays: 4 }, fluidMl: { completeDays: 5 }, sugarG: { completeDays: 4 }, sodiumMg: { completeDays: 5 },
+          },
+          fuelOverlap: {
+            available: true,
+            totalMeals: 9,
+            completeMeals: 8,
+            contributingMeals: 8,
+            coverageRatio: 0.889,
+            carbEnergyPercent: 56,
+            fatEnergyPercent: 44,
+            carbFatEnergyKcal: 4000,
+            overlapScore: 72,
+            direction: 'Mixed intake',
+            ratioLabel: '1.3:1 carb:fat energy',
+          },
+          fuelResponses: { checkIns: 0, minimum: 6, remaining: 6, ready: false },
+        },
+      },
+    };
+    const host = document.createElement('div');
+    host.id = 'nutrition-widget-test-host';
+    host.innerHTML = nutrition.renderNutritionWidget();
+    const fuelHost = document.createElement('div');
+    fuelHost.id = 'nutrition-fuel-widget-test-host';
+    fuelHost.innerHTML = nutrition.renderNutritionFuelWidget();
+    const configuredTargets = state.importedData.nutritionTargets;
+    state.importedData.nutritionTargets = { ...configuredTargets, configured: false };
+    const starterHost = document.createElement('div');
+    starterHost.id = 'nutrition-starter-widget-test-host';
+    starterHost.innerHTML = nutrition.renderNutritionWidget();
+    state.importedData.nutritionTargets = configuredTargets;
+    document.body.append(host, fuelHost, starterHost);
+  });
+
+  const widget = page.locator('#nutrition-widget-test-host');
+  await expect(widget.locator('.nutrition-goal-list-head')).toHaveText('Daily averages');
+  await expect(widget).not.toContainText('Daily nutrition dashboard');
+  await expect(widget).toContainText('5 of 7 days');
+  await expect(widget).toContainText('Protein');
+  await expect(widget).toContainText('128 g');
+  await expect(widget).toContainText('1.6 g/kg × 80 kg from Fitbit');
+  await expect(widget).toContainText('Logged drinks');
+  await expect(widget).toContainText('1,400 / 2,000 mL');
+  await expect(widget).not.toContainText('Sugar guide');
+  await expect(widget).not.toContainText('Sodium guide');
+  await expect(widget.locator('.nutrition-target-ring')).toHaveCount(1);
+  await expect(widget.locator('.nutrition-day.is-logged')).toHaveCount(5);
+  await expect(widget.locator('.nutrition-fuel-card')).toHaveCount(0);
+  await expect(widget).not.toContainText('Fuel Mix Context');
+  await expect(widget.getByRole('button', { name: 'Customize' })).toHaveCount(1);
+  await expect(widget.getByRole('button', { name: 'Log meal' })).toHaveCount(1);
+  await expect(widget.getByRole('button', { name: 'Log drink' })).toHaveCount(1);
+  await expect(widget.locator('.nutrition-drink-action')).toHaveCount(0);
+  const fuelWidget = page.locator('#nutrition-fuel-widget-test-host');
+  await expect(fuelWidget.locator('button')).toHaveCount(0);
+  await expect(fuelWidget).not.toContainText('Nutrition plan');
+  await expect(fuelWidget).not.toContainText('Log meal');
+  await expect(fuelWidget.locator('.nutrition-fuel-card')).toBeVisible();
+  await expect(fuelWidget.locator('.nutrition-fuel-index')).toHaveCount(0);
+  await expect(fuelWidget.locator('.nutrition-fuel-target-marker')).toHaveCount(0);
+  await expect(fuelWidget).toContainText('Worth reviewing');
+  await expect(fuelWidget).toContainText('Energy is the stronger lever');
+  await expect(fuelWidget).not.toContainText('after-meal check-ins');
+  await expect(fuelWidget).toContainText('56%');
+  await expect(fuelWidget).toContainText('44%');
+  await expect(fuelWidget).toContainText('8 of 9 meals included');
+  await expect(fuelWidget).not.toContainText('1.3:1 carb:fat energy');
+  await expect(fuelWidget).toContainText('Avg 500 kcal/meal from carbs + fat');
+  await expect(fuelWidget).toContainText('A centered split is not automatically good or bad');
+  await expect(fuelWidget).not.toContainText('Seven-day logged pattern');
+  await expect(fuelWidget).not.toContainText('Logged carb–fat composition');
+  await expect(fuelWidget).toContainText('About this estimate');
+  await expect(fuelWidget).not.toContainText('/100');
+  const fatGoal = widget.locator('.nutrition-goal-row').filter({ hasText: 'Fat' });
+  await expect(fatGoal).toHaveClass(/is-above-target/);
+  await expect(fatGoal).toContainText('above target range');
+  await expect(fatGoal).not.toHaveClass(/is-on-target/);
+  await expect(widget).not.toContainText('30 days');
+  await expect(widget).not.toContainText('90 days');
+
+  const starterWidget = page.locator('#nutrition-starter-widget-test-host');
+  await expect(starterWidget).toContainText('Using starter guides');
+  await expect(starterWidget).toContainText('Review and personalize');
+  await expect(starterWidget).toContainText('starter guide');
+  await expect(starterWidget).not.toContainText('personal target');
+});
+
+test('saved nutrition summary hydrates after a cache-bypassing hard reload on Dashboard and Body', async ({ page, context }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const now = new Date();
+    await (await import('/js/nutrition-store.js')).saveActiveProfileMeal({
+      name: 'Reload rice bowl',
+      mealType: 'lunch',
+      eatenAt: now.toISOString(),
+      localDate: now.toISOString().slice(0, 10),
+      localTimeMinutes: 720,
+      nutrients: { energyKcal: 640, proteinG: 38, carbohydrateG: 72, fatG: 18, fiberG: 8 },
+      components: [{ name: 'Rice', quantityG: 220 }],
+      source: { kind: 'manual' },
+      reviewed: true,
+    });
+  });
+
+  const cdp = await context.newCDPSession(page);
+  const navigation = page.waitForEvent('framenavigated', frame => frame === page.mainFrame());
+  await cdp.send('Page.reload', { ignoreCache: true });
+  await navigation;
+  await page.waitForLoadState('load');
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.nutritionSummary?.totalMeals)).toBe(1);
+  const dashboardWidget = page.locator('.dashboard-widget[data-widget-id="nutrition"]');
+  await expect(dashboardWidget).toBeVisible();
+  await expect(dashboardWidget).toContainText('Daily averages');
+  await expect(dashboardWidget).toContainText('38');
+  await page.evaluate(async () => (await import('/js/views.js')).navigate('body'));
+  const bodyWidget = page.locator('.lens-page-widgets[data-lens-route="body"] .dashboard-widget[data-widget-id="nutrition"]');
+  await expect(bodyWidget).toBeVisible();
+  await expect(bodyWidget).toContainText('Daily averages');
+  await expect(bodyWidget).toContainText('38');
+});
+
+test('after-meal check-ins create personal evidence without entering AI summary context', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const now = new Date();
+    await (await import('/js/nutrition-store.js')).saveActiveProfileMeal({
+      name: 'Checked lunch', mealType: 'lunch', eatenAt: now.toISOString(),
+      localDate: now.toISOString().slice(0, 10), localTimeMinutes: 720,
+      nutrients: { energyKcal: 620, proteinG: 30, carbohydrateG: 72, fatG: 28, fiberG: 9 },
+      source: { kind: 'manual' }, reviewed: true,
+    });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('[data-nutrition-action="detail"]').click();
+  const checkIn = page.locator('.nutrition-response-card');
+  await expect(checkIn).toContainText('How did this meal feel 2–3 hours later?');
+  await checkIn.locator('input[name="nutrition-response-satiety"][value="3"]').check();
+  await checkIn.locator('input[name="nutrition-response-energy"][value="2"]').check();
+  await checkIn.locator('[data-nutrition-action="save-response"]').click();
+  await expect(page.locator('.nutrition-response-card')).toContainText('Checked in');
+
+  const stored = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    return {
+      response: meals[0]?.responseCheckIn,
+      syncedResponse: state.importedData.nutritionMeals?.[0]?.responseCheckIn,
+      contextText: state.nutritionSummary?.contextText || '',
+    };
+  });
+  expect(stored.response).toMatchObject({ satiety2h: 3, energy2h: 2 });
+  expect(stored.syncedResponse).toMatchObject({ satiety2h: 3, energy2h: 2 });
+  expect(stored.contextText).not.toContain('satiety');
+  expect(stored.contextText).not.toContain('post-meal energy');
+});
+
+test('personal nutrition targets persist with the profile and expose weight-aware presets', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.wearableSummary = {
+      metrics: { weight: { latest: 80, latestDate: '2026-08-24', primarySource: 'fitbit' } },
+    };
+    await (await import('/js/nutrition.js')).openNutritionTargets();
+  });
+
+  await expect(page.locator('#nutrition-target-settings')).toBeVisible();
+  await expect(page.locator('#detail-modal')).toContainText('Nutrition setup');
+  await expect(page.locator('#detail-modal')).toContainText('Starter guides');
+  await expect(page.locator('#detail-modal')).not.toContainText('Carb/fat plan');
+  await expect(page.locator('#nutrition-photo-input')).toHaveCount(0);
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 of 4 selected');
+  await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(4);
+  await page.locator('#nutrition-target-energy').fill('2400');
+  await page.locator('#nutrition-target-carbohydrate').fill('225');
+  await page.locator('#nutrition-target-fat').fill('100');
+  await page.locator('#nutrition-target-protein-basis').selectOption('active');
+  await page.locator('[data-nutrition-widget-metric][value="fatG"]').uncheck();
+  await page.locator('[data-nutrition-widget-metric][value="fiberG"]').uncheck();
+  await page.locator('[data-nutrition-widget-metric][value="sugarG"]').check();
+  await page.locator('[data-nutrition-widget-metric][value="magnesiumMg"]').check();
+  await expect(page.locator('#nutrition-target-protein-preview')).toContainText('128 g/day');
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 of 4 selected');
+  await expect(page.locator('[data-nutrition-widget-metric][value="calciumMg"]')).toBeDisabled();
+  await page.locator('#nutrition-target-energy').fill('100');
+  await page.locator('[data-nutrition-action="save-targets"]').click();
+  await expect(page.locator('#nutrition-target-settings')).toBeVisible();
+  await expect(page.locator('#nutrition-target-status')).toContainText('Review Energy');
+  await page.locator('#nutrition-target-energy').fill('2400');
+  await page.locator('[data-nutrition-action="save-targets"]').click();
+  await expect(page.locator('#modal-overlay')).not.toBeVisible();
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.importedData.nutritionTargets?.energyKcal)).toBe(2400);
+
+  await page.reload({ waitUntil: 'load' });
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.importedData.nutritionTargets)).toMatchObject({
+    energyKcal: 2400,
+    proteinBasis: 'active',
+    proteinGPerKg: 1.6,
+    widgetNutrients: ['proteinG', 'fluidMl', 'sugarG', 'magnesiumMg'],
+  });
+
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionTargets());
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 of 4 selected');
+  await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(4);
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await expect(page.locator('#nutrition-photo-input')).toBeVisible();
+  await expect(page.locator('#nutrition-target-settings')).toHaveCount(0);
+});
+
+test('quick drink logging stores total beverage volume and plain water separately', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openFluidLog());
+
+  await expect(page.locator('#nutrition-fluid-amount')).toBeVisible();
+  await expect(page.locator('#nutrition-photo-input')).toHaveCount(0);
+  await expect(page.locator('#nutrition-target-settings')).toHaveCount(0);
+  await page.locator('input[name="nutrition-fluid-kind"][value="water"]').check();
+  await page.locator('[data-nutrition-action="set-fluid-amount"][data-nutrition-amount="500"]').click();
+  await expect(page.locator('#nutrition-fluid-amount')).toHaveValue('500');
+  await expect(page.locator('#nutrition-fluid-preview')).toContainText('500 mL water');
+  await expect(page.locator('#nutrition-fluid-preview')).toContainText('logged drinks and plain water');
+  await expect(page.locator('[data-nutrition-action="save-fluid"]')).toHaveText('Log 500 mL');
+  await page.locator('#nutrition-fluid-label').fill('Sparkling water');
+  await page.locator('[data-nutrition-action="save-fluid"]').click();
+
+  await expect(page.locator('#modal-overlay')).not.toBeVisible();
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.nutritionSummary?.windows?.d7?.dailyAverages?.fluidMl)).toBe(500);
+  const result = await page.evaluate(async () => {
+    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
+    const drink = meals.find(meal => meal.source?.kind === 'manual-water');
+    return { name: drink?.name, mealType: drink?.mealType, nutrients: drink?.nutrients };
+  });
+  expect(result).toEqual({ name: 'Sparkling water', mealType: 'drink', nutrients: { fluidMl: 500, plainWaterMl: 500 } });
+  await page.reload({ waitUntil: 'load' });
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.nutritionSummary?.windows?.d7?.dailyAverages?.fluidMl)).toBe(500);
+  const widget = page.locator('.dashboard-widget[data-widget-id="nutrition"]');
+  await expect(widget).toContainText('500 / 2,000 mL');
+  await expect(widget).toContainText('1 drink-logged day');
+});
+
+test('AI Settings can route meal photos to Opus without changing the Grok chat model', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
+    localStorage.setItem('labcharts-openrouter-model', 'z-ai/glm-5.3');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
+      { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
+      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+      { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus' },
+      { id: 'anthropic/claude-sonnet-5', name: 'Text-only Sonnet' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
+      'x-ai/grok-4.6',
+      'anthropic/claude-opus-5',
+      'anthropic/claude-opus-4.8',
+    ]));
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'gemini-3-5-flash', name: 'Venice Vision' },
+    ]));
+    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-3-5-flash']));
+    api.setAIProvider('openrouter');
+    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({
+      provider: 'venice', model: 'gemini-3-5-flash',
+    });
+    (await import('/js/settings.js')).openSettingsModal('ai');
+  });
+
+  const selector = page.locator('[data-settings-action="set-nutrition-ai-route"]');
+  await expect(selector).toBeVisible();
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Meal photos and labels');
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable OpenRouter models are shown');
+  await expect(selector.locator('option').first()).toContainText('Main cannot analyze photos — GLM 5.3');
+  await expect(selector.locator('option').first()).toBeDisabled();
+  await expect(selector).toHaveValue('');
+  await expect(selector).not.toContainText('Venice Vision');
+  await expect(selector).not.toContainText('Legacy Opus');
+  await expect(selector).not.toContainText('Text-only Sonnet');
+  await page.locator('#openrouter-model-select').selectOption('x-ai/grok-4.6');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Grok 4.6');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).not.toBeDisabled();
+  const inherited = await page.evaluate(async () => (await import('/js/nutrition-ai-settings.js')).getMealAISelection());
+  expect(inherited).toMatchObject({ provider: 'openrouter', model: 'x-ai/grok-4.6', usesChatModel: true });
+  await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Claude Opus 5');
+  await page.locator('#openrouter-model-select').selectOption('x-ai/grok-4.6');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Grok 4.6');
+  await page.locator('[data-settings-action="switch-ai-provider"][data-provider="venice"]').click();
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable Venice models are shown');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).toContainText('Venice Vision');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).not.toContainText('Claude Opus 5');
+  await page.locator('[data-settings-action="switch-ai-provider"][data-provider="openrouter"]').click();
+  const openRouterSelector = page.locator('[data-settings-action="set-nutrition-ai-route"]');
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable OpenRouter models are shown');
+  await expect(openRouterSelector).not.toContainText('Venice Vision');
+  await openRouterSelector.selectOption(JSON.stringify({ provider: 'openrouter', model: 'anthropic/claude-opus-5' }));
+
+  const result = await page.evaluate(async () => ({
+    chatModel: (await import('/js/api.js')).getOpenRouterModel(),
+    mealRoute: (await import('/js/nutrition-ai-settings.js')).getNutritionAIRoute(),
+  }));
+  expect(result.chatModel).toBe('x-ai/grok-4.6');
+  expect(result.mealRoute).toEqual({ provider: 'openrouter', model: 'anthropic/claude-opus-5' });
+});
+
+test('the meal editor switches visual models directly and returns from AI Settings without losing the draft', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    localStorage.setItem('labcharts-openrouter-model', 'x-ai/grok-4.6');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
+      { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
+      'x-ai/grok-4.6', 'google/gemini-3.7-flash',
+    ]));
+    api.setAIProvider('openrouter');
+    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute(null);
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  const mealSelector = page.locator('[data-nutrition-model-route]');
+  await expect(mealSelector).toHaveValue('');
+  await expect(mealSelector.locator('option').first()).toContainText('Follow main · Grok 4.6');
+  await expect(page.locator('#nutrition-meal-model-control')).toContainText('Photo model');
+  await expect(page.locator('#nutrition-meal-model-control')).toContainText('Ready');
+  await expect(mealSelector.locator('option:checked')).toContainText('Grok 4.6');
+  await page.evaluate(() => {
+    const models = [
+      { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
+      { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+      { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
+      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+    ];
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(models.map(model => model.id)));
+    localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
+      'google/gemini-3.7-flash': { input: 0.5, output: 2 },
+      'x-ai/grok-4.6': { input: 2, output: 7 },
+      'anthropic/claude-sonnet-5': { input: 3, output: 15 },
+      'anthropic/claude-opus-5': { input: 5, output: 25 },
+    }));
+    window.dispatchEvent(new CustomEvent('labcharts-ai-settings-local-changed'));
+  });
+  await expect(mealSelector).toContainText('Claude Sonnet 5');
+  await expect(mealSelector).toContainText('Claude Opus 5');
+  await expect(mealSelector.locator('option:checked')).toContainText('Grok 4.6');
+  await page.locator('#nutrition-meal-name').fill('Draft rice bowl');
+  await page.locator('[data-nutrition-action="open-ai-settings"]').click();
+  await expect(page.locator('#settings-modal-overlay')).toBeVisible();
+  await expect(page.locator('#modal-overlay')).toBeVisible();
+  await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Follow main — Claude Opus 5');
+  await page.locator('#settings-modal .modal-close').click();
+
+  await expect(page.locator('#settings-modal-overlay')).not.toBeVisible();
+  await expect(page.locator('#modal-overlay')).toBeVisible();
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Draft rice bowl');
+  await expect(page.locator('[data-nutrition-model-route] option').first()).toContainText('Follow main · Claude Opus 5');
+  await expect(mealSelector.locator('option:checked')).toContainText('Claude Opus 5');
+  await page.locator('[data-nutrition-model-route]').selectOption(JSON.stringify({ provider: 'openrouter', model: 'x-ai/grok-4.6' }));
+  await expect(page.locator('[data-nutrition-model-route] option:checked')).toContainText('Grok 4.6');
+  const result = await page.evaluate(async () => ({
+    mainModel: (await import('/js/api.js')).getOpenRouterModel(),
+    mealRoute: (await import('/js/nutrition-ai-settings.js')).getNutritionAIRoute(),
+  }));
+  expect(result).toEqual({
+    mainModel: 'anthropic/claude-opus-5',
+    mealRoute: { provider: 'openrouter', model: 'x-ai/grok-4.6' },
+  });
+});
+
+test('nutrition review, Debug comparison, targets, and drink logging fit a narrow mobile modal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    localStorage.setItem('labcharts-debug', 'true');
+    localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.6-sol');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'openai/gpt-5.6-sol', name: 'Vision A' },
+      { id: 'anthropic/claude-opus-5', name: 'Vision B' },
+    ]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5']));
+    api.setAIProvider('openrouter');
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('#nutrition-meal-name').fill('Fried Edam cheese');
+  await page.locator('#nutrition-meal-type').selectOption('dinner');
+  await page.locator('[data-nutrition-action="add-component"]').click();
+  await page.locator('[data-nutrition-component-name="0"]').fill('Breaded fried Edam cheese');
+  await page.locator('[data-nutrition-component-grams="0"]').fill('180');
+  await page.locator('[data-nutrition-component-grams="0"]').blur();
+  await page.locator('#nutrition-carbohydrateG').fill('90');
+  await page.locator('#nutrition-fatG').fill('40');
+  await expect(page.locator('#nutrition-fuel-preview')).toBeVisible();
+  await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
+
+  const mobileLayout = await page.evaluate(() => {
+    const modal = document.querySelector('#detail-modal');
+    const modalRect = modal.getBoundingClientRect();
+    const selectors = [
+      '#nutrition-meal-type', '.nutrition-component-row', '#nutrition-model-comparison',
+      '.nutrition-comparison-model', '.nutrition-comparison-reference-grid', '.nutrition-fuel-preview',
+    ];
+    const offenders = selectors.flatMap(selector => [...document.querySelectorAll(selector)])
+      .filter(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.left < modalRect.left - 1 || rect.right > modalRect.right + 1;
+      })
+      .map(element => element.className || element.id || element.tagName);
+    const touchTargets = [
+      document.querySelector('.nutrition-comparison-head > .nutrition-icon-btn'),
+      document.querySelector('#nutrition-run-comparison'),
+      document.querySelector('.nutrition-comparison-model'),
+    ].filter(Boolean).map(element => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+    const controlFontSizes = [
+      document.querySelector('[data-nutrition-reference="mealName"]'),
+      document.querySelector('[data-nutrition-reference="energyKcal"]'),
+      document.querySelector('#nutrition-meal-type'),
+    ].filter(Boolean).map(element => Number.parseFloat(getComputedStyle(element).fontSize));
+    return {
+      modalOverflow: modal.scrollWidth - modal.clientWidth,
+      modalInsideViewport: modalRect.left >= -1 && modalRect.right <= innerWidth + 1
+        && modalRect.top >= -1 && modalRect.bottom <= innerHeight + 1,
+      offenders,
+      touchTargets,
+      controlFontSizes,
+    };
+  });
+  expect(mobileLayout.modalOverflow).toBeLessThanOrEqual(1);
+  expect(mobileLayout.modalInsideViewport).toBe(true);
+  expect(mobileLayout.offenders).toEqual([]);
+  expect(mobileLayout.touchTargets.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
+  expect(mobileLayout.controlFontSizes.every(size => size >= 16)).toBe(true);
+  const firstModel = page.locator('[data-nutrition-comparison-model]').first();
+  await firstModel.uncheck();
+  await expect(page.locator('[data-nutrition-comparison-model]:checked')).toHaveCount(1);
+  await firstModel.check();
+  await expect(page.locator('[data-nutrition-comparison-model]:checked')).toHaveCount(2);
+  await expect(page.locator('.nutrition-component-confidence')).toContainText('Review identity');
+
+  const mobileSurfaces = [
+    {
+      open: 'openNutritionTargets',
+      selectors: ['#nutrition-target-settings', '.nutrition-target-form', '.nutrition-widget-metric-group'],
+      controls: ['#nutrition-target-energy', '#nutrition-target-protein-basis'],
+      targets: ['.nutrition-widget-metric-option', '[data-nutrition-action="save-targets"]'],
+    },
+    {
+      open: 'openFluidLog',
+      selectors: ['.nutrition-fluid-log', '.nutrition-fluid-kind-grid', '.nutrition-fluid-presets', '.nutrition-fluid-preview'],
+      controls: ['#nutrition-fluid-amount', '#nutrition-fluid-at', '#nutrition-fluid-label'],
+      targets: ['.nutrition-fluid-kind', '.nutrition-fluid-preset', '[data-nutrition-action="save-fluid"]'],
+    },
+  ];
+  for (const surface of mobileSurfaces) {
+    await page.evaluate(async open => (await import('/js/nutrition.js'))[open](), surface.open);
+    const audit = await page.evaluate(({ selectors, controls, targets }) => {
+      const modal = document.querySelector('#detail-modal');
+      const modalRect = modal.getBoundingClientRect();
+      const offenders = selectors.flatMap(selector => [...document.querySelectorAll(selector)])
+        .filter(element => {
+          const rect = element.getBoundingClientRect();
+          return rect.left < modalRect.left - 1 || rect.right > modalRect.right + 1;
+        });
+      const fontSizes = controls.flatMap(selector => [...document.querySelectorAll(selector)])
+        .map(element => Number.parseFloat(getComputedStyle(element).fontSize));
+      const touchTargets = targets.flatMap(selector => [...document.querySelectorAll(selector)])
+        .map(element => element.getBoundingClientRect());
+      return {
+        modalOverflow: modal.scrollWidth - modal.clientWidth,
+        modalInsideViewport: modalRect.left >= -1 && modalRect.right <= innerWidth + 1
+          && modalRect.top >= -1 && modalRect.bottom <= innerHeight + 1,
+        offenderCount: offenders.length,
+        fontSizes,
+        targetSizes: touchTargets.map(rect => ({ width: rect.width, height: rect.height })),
+      };
+    }, surface);
+    expect(audit.modalOverflow).toBeLessThanOrEqual(1);
+    expect(audit.modalInsideViewport).toBe(true);
+    expect(audit.offenderCount).toBe(0);
+    expect(audit.fontSizes.every(size => size >= 16)).toBe(true);
+    expect(audit.targetSizes.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
+  }
+});
+
+test('mobile photo analysis moves focus to the editable review', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('https://openrouter.ai/api/v1/chat/completions', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            mealName: 'Mobile rice bowl',
+            components: [{
+              name: 'Rice and chicken', quantityG: 320, confidence: 0.75,
+              nutrients: { energyKcal: 560, proteinG: 35, carbohydrateG: 68, fatG: 14, fiberG: 5, fluidMl: null, plainWaterMl: null },
+            }],
+            nutrients: { energyKcal: 560, proteinG: 35, carbohydrateG: 68, fatG: 14, fiberG: 5, fluidMl: null, plainWaterMl: null },
+            confidence: 0.75,
+            assumptions: [], warnings: [], label: null,
+          }),
+        },
+        finish_reason: 'stop',
+      }],
+      usage: { prompt_tokens: 100, completion_tokens: 50 },
+    }),
+  }));
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
+    const keys = await import('/js/crypto-key-cache.js');
+    keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
+    localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.6-sol');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{ id: 'openai/gpt-5.6-sol', name: 'Vision A' }]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['openai/gpt-5.6-sol']));
+    api.setAIProvider('openrouter');
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('#nutrition-photo-input').setInputFiles({ name: 'mobile-meal.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.locator('#nutrition-analyze-btn').click();
+  await page.locator('#cloud-ai-consent-checkbox').check();
+  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
+
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Mobile rice bowl');
+  await expect(page.locator('.nutrition-review-heading')).toBeFocused();
+  const handoff = await page.evaluate(() => {
+    const modal = document.querySelector('#detail-modal');
+    const heading = document.querySelector('.nutrition-review-heading');
+    const modalRect = modal.getBoundingClientRect();
+    const headingRect = heading.getBoundingClientRect();
+    return { scrollTop: modal.scrollTop, headingVisible: headingRect.top >= modalRect.top && headingRect.top < modalRect.bottom };
+  });
+  expect(handoff.scrollTop).toBeGreaterThan(0);
+  expect(handoff.headingVisible).toBe(true);
+});
+
+test('a recent meal opens into its saved photo, nutrients, and uncertainty details', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const store = await import('/js/nutrition-store.js');
+    await store.saveActiveProfileMeal({
+      name: 'Lentil bowl',
+      eatenAt: new Date().toISOString(),
+      nutrients: { energyKcal: 610, proteinG: 31, ironMg: 8.2 },
+      components: [{ name: 'Lentils', quantityG: 210, confidence: 0.8 }],
+      assumptions: ['One tablespoon olive oil'],
+      warnings: ['Dressing quantity is estimated'],
+      confidence: 0.73,
+      source: { kind: 'ai-photo-estimate', provider: 'openrouter', model: 'anthropic/claude-opus-5' },
+      reviewed: true,
+    });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  await page.locator('[data-nutrition-action="detail"]').click();
+  await expect(page.locator('#detail-modal')).toContainText('Lentil bowl');
+  await expect(page.locator('#detail-modal')).toContainText('610 kcal');
+  await expect(page.locator('#detail-modal')).toContainText('31 g');
+  await expect(page.locator('#detail-modal')).toContainText('Dressing quantity is estimated');
+  await expect(page.locator('[data-nutrition-action="back"]')).toBeVisible();
+});
+
+test('recent meals show the newest three before an accessible mobile Show more control', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const store = await import('/js/nutrition-store.js');
+    const base = Date.now();
+    for (let index = 0; index < 5; index += 1) {
+      await store.saveActiveProfileMeal({
+        name: `Recent meal ${index + 1}`,
+        eatenAt: new Date(base - index * 60_000).toISOString(),
+        mealType: 'snack',
+        nutrients: { energyKcal: 200 + index },
+        components: [{ name: `Ingredient ${index + 1}`, quantityG: 100 }],
+        reviewed: true,
+      });
+    }
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+
+  const recent = page.locator('.nutrition-recent');
+  const toggle = recent.locator('.nutrition-recent-toggle');
+  await expect(recent.locator('.nutrition-meal-row:visible')).toHaveCount(3);
+  await expect(recent.locator('.nutrition-recent-list').first().locator('.nutrition-meal-row').first()).toContainText('Recent meal 1');
+  await expect(recent.locator('.nutrition-recent-more')).toBeHidden();
+  await expect(toggle).toHaveText('Show 2 more meals');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(await toggle.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+
+  await toggle.click();
+  await expect(recent.locator('.nutrition-meal-row:visible')).toHaveCount(5);
+  await expect(toggle).toHaveText('Show less');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  await toggle.click();
+  await expect(recent.locator('.nutrition-meal-row:visible')).toHaveCount(3);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});

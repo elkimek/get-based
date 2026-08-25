@@ -4,9 +4,14 @@
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
-import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
+import { encryptedGetItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { clearProfileStorage } from './profile-storage-cleanup.js';
+import { createUniqueId } from './unique-id.js';
+import {
+  clearLocalProfileDeleteIntent, hasPendingProfileTombstone,
+  isDemoProfileId, markLocalProfileDeleteIntent,
+} from './profile-sync-policy.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -16,7 +21,7 @@ let _getProfileQuery = () => null;
 let _getTombstoneQuery = () => null;
 /** @type {() => boolean} */
 let _isSyncEnabled = () => false;
-/** @type {((profileId: string, data: any) => Promise<any>) | null} */
+/** @type {((profileId: string, data: any, options?: any) => Promise<any>) | null} */
 let _pushProfile = null;
 /** @type {(...args: any[]) => void} */
 let _debug = () => {};
@@ -26,17 +31,20 @@ let _getProfiles = () => [];
 let _saveProfiles = async () => {};
 /** @type {(profileId: string) => any} */
 let _loadProfile = () => {};
+/** @type {(...args: any[]) => any} */
+let _notify = showNotification;
 
 /** @param {{
  *   getEvolu?: () => any,
  *   getProfileQuery?: () => any,
  *   getTombstoneQuery?: () => any,
  *   isSyncEnabled?: () => boolean,
- *   pushProfile?: (profileId: string, data: any) => Promise<any>,
+ *   pushProfile?: (profileId: string, data: any, options?: any) => Promise<any>,
  *   debug?: (...args: any[]) => void,
  *   getProfiles?: () => any[],
  *   saveProfiles?: (profiles: any[]) => Promise<void>,
  *   loadProfile?: (profileId: string) => any,
+ *   notify?: (...args: any[]) => any,
  * }} [deps]
  */
 export function configureSyncTombstones({
@@ -49,6 +57,7 @@ export function configureSyncTombstones({
   getProfiles,
   saveProfiles,
   loadProfile,
+  notify,
 } = {}) {
   const previous = {
     getEvolu: _getEvolu,
@@ -60,6 +69,7 @@ export function configureSyncTombstones({
     getProfiles: _getProfiles,
     saveProfiles: _saveProfiles,
     loadProfile: _loadProfile,
+    notify: _notify,
   };
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
@@ -70,6 +80,7 @@ export function configureSyncTombstones({
   if (typeof getProfiles === 'function') _getProfiles = getProfiles;
   if (typeof saveProfiles === 'function') _saveProfiles = saveProfiles;
   if (typeof loadProfile === 'function') _loadProfile = loadProfile;
+  if (typeof notify === 'function') _notify = notify;
   return previous;
 }
 
@@ -98,6 +109,54 @@ async function wipeProfileLocal(profileId) {
   await clearProfileStorage(profileId);
 }
 
+function rowClock(row) {
+  const clock = Date.parse(row?.syncedAt || '');
+  return Number.isFinite(clock) ? clock : 0;
+}
+
+async function recoverRowProfileId(row) {
+  if (typeof row?.profileId === 'string' && /^[a-zA-Z0-9_-]+$/.test(row.profileId)) return row.profileId;
+  try {
+    const parsed = await parseSyncPayload(row?.dataJson || '{}');
+    const candidate = parsed?.profile?.id;
+    return typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate) ? candidate : '';
+  } catch { return ''; }
+}
+
+async function latestRowsByProfileId(rows) {
+  const latest = new Map();
+  for (const row of rows || []) {
+    const profileId = await recoverRowProfileId(row);
+    if (!profileId) continue;
+    const previous = latest.get(profileId);
+    if (!previous || rowClock(row) >= rowClock(previous)) latest.set(profileId, row);
+  }
+  return latest;
+}
+
+function createFallbackProfile(existingProfiles) {
+  const ids = new Set((existingProfiles || []).map(profile => profile?.id).filter(Boolean));
+  let id;
+  do id = createUniqueId('p_'); while (ids.has(id));
+  const now = Date.now();
+  return {
+    id,
+    name: 'Profile 1',
+    sex: null,
+    dob: null,
+    location: { country: '', zip: '' },
+    tags: [],
+    notes: '',
+    status: 'active',
+    avatar: null,
+    height: null,
+    heightUnit: 'cm',
+    createdAt: now,
+    lastUpdated: now,
+    pinned: false,
+  };
+}
+
 // Soft-delete a profile's row on the relay so other devices stop seeing it.
 // Local wipe alone is insufficient: otherwise any peer that pulls the old
 // Evolu row can resurrect the deleted profile.
@@ -105,18 +164,24 @@ async function wipeProfileLocal(profileId) {
 export async function deleteProfileFromRelay(profileId) {
   const evolu = currentEvolu();
   const profileQuery = currentProfileQuery();
-  if (!evolu || !_isSyncEnabled()) return { skipped: true, reason: 'sync-off' };
+  if (!evolu || !profileQuery || !_isSyncEnabled()) return { skipped: true, reason: 'sync-off' };
   if (!profileId || typeof profileId !== 'string') return { skipped: true, reason: 'bad-id' };
   try {
-    const rows = evolu.getQueryRows(profileQuery);
-    const row = rows?.find(r => r.profileId === profileId);
-    if (!row) return { skipped: true, reason: 'no-row' };
+    const rows = evolu.getQueryRows(profileQuery) || [];
+    const matching = [];
+    for (const row of rows) {
+      if (await recoverRowProfileId(row) === profileId) matching.push(row);
+    }
+    if (!matching.length) return { skipped: true, reason: 'no-row' };
     // Carry profileId explicitly so post-compaction replicas of this
     // tombstone still know which local profile to wipe.
-    evolu.update('profileData', { id: row.id, profileId, isDeleted: 1, syncedAt: new Date().toISOString() });
+    const syncedAt = new Date().toISOString();
+    for (const row of matching) {
+      evolu.update('profileData', { id: row.id, profileId, isDeleted: 1, syncedAt });
+    }
     localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
     dbg('Soft-deleted on relay:', profileId);
-    return { ok: true };
+    return { ok: true, deletedRows: matching.length };
   } catch (e) {
     console.error('[sync] Profile delete propagation failed:', e);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -129,64 +194,72 @@ export async function deleteProfileFromRelay(profileId) {
 export async function applyRemoteTombstones() {
   const evolu = currentEvolu();
   const tombstoneQuery = currentTombstoneQuery();
-  if (!evolu || !tombstoneQuery) return;
+  const profileQuery = currentProfileQuery();
+  if (!evolu || !tombstoneQuery || !profileQuery) return;
   const tombs = evolu.getQueryRows(tombstoneQuery) || [];
   if (tombs.length === 0) return;
   const profiles = _getProfiles();
 
-  // Same payload fallback as the live-row pull path: compaction can lose
-  // the profileId column, but profile.id still exists inside dataJson.
-  const tombIdsArr = [];
-  for (const t of tombs) {
-    if (t.profileId) { tombIdsArr.push(t.profileId); continue; }
-    try {
-      const parsed = await parseSyncPayload(t.dataJson || '{}');
-      const candidate = parsed?.profile?.id;
-      if (typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate)) {
-        tombIdsArr.push(candidate);
-      }
-    } catch {}
+  const [latestTombstones, latestLiveRows] = await Promise.all([
+    latestRowsByProfileId(tombs),
+    latestRowsByProfileId(evolu.getQueryRows(profileQuery) || []),
+  ]);
+  const tombIds = new Set();
+  for (const [profileId, tombstone] of latestTombstones) {
+    const live = latestLiveRows.get(profileId);
+    // A newer live row is an explicit Restore/Keep. An older tombstone must
+    // not erase it again on every subscription callback.
+    if (!live || rowClock(tombstone) >= rowClock(live)) tombIds.add(profileId);
+    else if (hasPendingProfileTombstone(profileId)) {
+      localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+    }
   }
 
-  const tombIds = new Set(tombIdsArr);
-  const survivors = profiles.filter(p => !tombIds.has(p.id));
-  if (survivors.length === profiles.length) return;
-  if (survivors.length === 0) {
-    dbg('All profiles tombstoned remotely - keeping active profile as safety');
-    return;
-  }
+  // Demos are local fixtures. Legacy demo tombstones must not delete a demo
+  // that this browser can recreate without the relay.
+  const localToWipe = profiles
+    .filter(profile => tombIds.has(profile.id) && !isDemoProfileId(profile.id, profiles))
+    .map(profile => profile.id);
+  if (localToWipe.length === 0) return;
 
   // Batched remote deletes are powerful enough to wipe many local profiles,
   // so quarantine them for explicit user confirmation.
-  const localToWipe = profiles.filter(p => tombIds.has(p.id)).map(p => p.id);
   if (localToWipe.length >= TOMBSTONE_BATCH_THRESHOLD) {
     const pending = localToWipe.filter(id => !localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(id)));
     for (const id of pending) {
       localStorage.setItem(TOMBSTONE_QUARANTINE_KEY(id), JSON.stringify({ at: Date.now(), source: 'remote' }));
     }
     dbg(`Quarantined ${pending.length} tombstone(s) - require user confirm before wipe:`, pending.join(','));
-    showNotification(
-      `${localToWipe.length} profiles deleted on another device - open Settings -> Sync to confirm`,
-      'info', 6000
-    );
+    if (pending.length > 0) {
+      _notify(
+        `${pending.length} profile${pending.length === 1 ? '' : 's'} deleted on another device. Open Settings → Data → Cross-Device Sync to choose Apply delete or Restore.`,
+        'info', 6000
+      );
+    }
     return;
   }
 
   const wipedIds = [];
-  for (const tombId of tombIds) {
-    if (!profiles.find(p => p.id === tombId)) continue;
-    await wipeProfileLocal(tombId);
+  for (const tombId of localToWipe) {
+    markLocalProfileDeleteIntent(tombId, 'remote');
+    try { await wipeProfileLocal(tombId); }
+    catch (error) {
+      clearLocalProfileDeleteIntent(tombId);
+      throw error;
+    }
     wipedIds.push(tombId);
   }
   if (wipedIds.length === 0) return;
 
+  const survivors = profiles.filter(profile => !wipedIds.includes(profile.id));
+  if (survivors.length === 0) survivors.push(createFallbackProfile(profiles));
   await _saveProfiles(survivors);
   for (const id of wipedIds) localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(id));
   dbg(`Applied ${wipedIds.length} remote tombstone(s):`, wipedIds.join(', '));
 
   if (wipedIds.includes(state.currentProfile)) {
-    showNotification(`Profile was deleted on another device - switching to "${survivors[0].name || 'next'}"`, 'info', 3500);
-    _loadProfile(survivors[0].id);
+    _notify(`Profile was deleted on another device - switching to "${survivors[0].name || 'next'}"`, 'info', 3500);
+    await _loadProfile(survivors[0].id);
   }
 }
 
@@ -194,6 +267,7 @@ export function listPendingTombstones() {
   const out = [];
   const profiles = _getProfiles();
   for (const p of profiles) {
+    if (isDemoProfileId(p.id, profiles)) continue;
     const raw = localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(p.id));
     if (!raw) continue;
     try { out.push({ id: p.id, name: p.name || p.id, ...(JSON.parse(raw) || {}) }); }
@@ -205,22 +279,36 @@ export function listPendingTombstones() {
 /** @param {string} profileId */
 export async function applyPendingTombstone(profileId) {
   const profiles = _getProfiles();
+  if (!profiles.some(profile => profile?.id === profileId)) {
+    localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+    return { ok: true, skipped: true, reason: 'already-absent' };
+  }
+  markLocalProfileDeleteIntent(profileId, 'remote-confirmed');
+  try { await wipeProfileLocal(profileId); }
+  catch (error) {
+    clearLocalProfileDeleteIntent(profileId);
+    throw error;
+  }
   const survivors = profiles.filter(p => p.id !== profileId);
-  if (survivors.length === 0) return { ok: false, reason: 'last-profile' };
-  await wipeProfileLocal(profileId);
+  if (survivors.length === 0) survivors.push(createFallbackProfile(profiles));
   await _saveProfiles(survivors);
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-  if (state.currentProfile === profileId) _loadProfile(survivors[0].id);
+  if (state.currentProfile === profileId) await _loadProfile(survivors[0].id);
   return { ok: true };
 }
 
 /** @param {string} profileId */
 export async function rejectPendingTombstone(profileId) {
+  const profiles = _getProfiles();
+  if (isDemoProfileId(profileId, profiles)) {
+    localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+    clearLocalProfileDeleteIntent(profileId);
+    return { ok: true, skipped: true, reason: 'demo-local-only' };
+  }
   if (!currentEvolu() || !_isSyncEnabled()) return { ok: false, reason: 'sync-off' };
   const localKey = profileStorageKey(profileId, 'imported');
-  const raw = getEncryptionEnabled()
-    ? await encryptedGetItem(localKey)
-    : localStorage.getItem(localKey);
+  // Imported profile blobs are IDB-backed even when encryption is disabled.
+  const raw = await encryptedGetItem(localKey);
   if (!raw) {
     localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
     return { ok: false, reason: 'no-local-data' };
@@ -228,7 +316,9 @@ export async function rejectPendingTombstone(profileId) {
   let data;
   try { data = JSON.parse(raw); } catch { return { ok: false, reason: 'bad-local-json' }; }
   if (typeof _pushProfile !== 'function') return { ok: false, reason: 'sync-off' };
-  await _pushProfile(profileId, data);
+  const result = await _pushProfile(profileId, data, { allowTombstoneResurrection: true });
+  if (!result?.ok) return { ok: false, reason: result?.reason || 'push-failed' };
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+  clearLocalProfileDeleteIntent(profileId);
   return { ok: true };
 }

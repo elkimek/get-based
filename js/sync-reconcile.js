@@ -7,6 +7,7 @@ import { collectAISettings } from './sync-payload-collectors.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
 import { isRestoreJoinPending } from './sync-identity.js';
+import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -17,6 +18,8 @@ let _isSyncEnabled = () => false;
 let _pushProfile = async () => {};
 /** @type {(...args: any[]) => any} */
 let _debug = () => {};
+/** @type {() => any[]} */
+let _getProfiles = () => [];
 
 /** @param {{
  *   getEvolu?: () => any,
@@ -24,6 +27,7 @@ let _debug = () => {};
  *   isSyncEnabled?: () => boolean,
  *   pushProfile?: (...args: any[]) => Promise<any>,
  *   debug?: (...args: any[]) => any,
+ *   getProfiles?: () => any[],
  * }} [deps]
  */
 export function configureSyncReconcile({
@@ -32,12 +36,14 @@ export function configureSyncReconcile({
   isSyncEnabled,
   pushProfile,
   debug,
+  getProfiles,
 } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof debug === 'function') _debug = debug;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
 }
 
 // Compare state.importedData (loaded from localStorage on page-load) with
@@ -57,6 +63,7 @@ export async function reconcileLocalStorageWithEvolu() {
   const evolu = _getEvolu();
   const profileQuery = _getProfileQuery();
   if (!evolu || !_isSyncEnabled() || !state.currentProfile || !state.importedData) return;
+  if (getProfileSyncBlockReason(state.currentProfile, _getProfiles())) return;
   if (isRestoreJoinPending()) {
     _debug('Startup reconciliation skipped until restored mnemonic pulls remote owner data');
     logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} skipped - restore join pending`);

@@ -63,6 +63,7 @@ import { LOCAL_AI_PROVIDER_ADAPTERS, getLocalAiProviderCapabilities } from '../j
 import { inferWithLMStudioNativeProvider, loadLMStudioModelWithContext } from '../js/local-ai-provider-lmstudio.js';
 import { inferWithOllamaNativeProvider } from '../js/local-ai-provider-ollama.js';
 import { getLocalAiExecutionLocation, isLocalAiLoopbackUrl } from '../js/local-ai-provider-shared.js';
+import { getLocalAiCorsHelpText } from '../js/provider-local-ai-controls.js';
 import { CLOUD_AI_CONSENT_KEY, CLOUD_AI_CONSENT_VERSION } from '../js/cloud-ai-consent.js';
 import {
   clearLocalAiRuntimeUse,
@@ -414,6 +415,7 @@ describe('AI provider request contracts', () => {
     expect(LOCAL_AI_PROVIDER_ADAPTERS.map(adapter => adapter.id)).toEqual([
       'lmstudio',
       'ollama',
+      'unsloth',
       'openai-compatible',
     ]);
     expect(getLocalAiProviderCapabilities('lmstudio')).toMatchObject({
@@ -426,12 +428,38 @@ describe('AI provider request contracts', () => {
       structuredOutput: true,
       modelUnload: true,
     });
+    expect(getLocalAiProviderCapabilities('unsloth')).toMatchObject({
+      providerIdentity: true,
+      loadedModelState: true,
+    });
     expect(getLocalAiProviderCapabilities('unknown-provider')).toMatchObject({
       nativeModelDiscovery: false,
       performanceStats: 'endpoint-dependent',
     });
     expect(isLocalAiLoopbackUrl('http://[::1]:11434')).toBe(true);
     expect(getLocalAiExecutionLocation('http://[::1]:11434')).toBe('local');
+  });
+
+  it('shows CORS guidance only for the Local AI endpoint being tested', () => {
+    const options = {
+      origin: 'http://127.0.0.1:8000',
+      userAgent: 'Linux',
+      savedConfig: { url: 'http://old-server.test:9000', mode: 'openai-compatible' },
+    };
+    const ollama = getLocalAiCorsHelpText('http://ai-box.test:11434', options);
+    const lmStudio = getLocalAiCorsHelpText('http://ai-box.test:1234', options);
+    const unsloth = getLocalAiCorsHelpText('http://ai-box.test:8888', options);
+    const generic = getLocalAiCorsHelpText('http://ai-box.test:9000', options);
+
+    expect(ollama).toContain('Ollama');
+    expect(ollama).not.toMatch(/LM Studio|Unsloth/);
+    expect(lmStudio).toContain('LM Studio');
+    expect(lmStudio).not.toMatch(/Ollama|Unsloth/);
+    expect(unsloth).toContain('Unsloth has no CORS toggle');
+    expect(unsloth).toContain('unsloth studio -H 0.0.0.0 -p 8888 --disable-tools');
+    expect(unsloth).not.toMatch(/Ollama|LM Studio/);
+    expect(generic).toContain('this Local AI endpoint');
+    expect(generic).not.toMatch(/Ollama|LM Studio|Unsloth/);
   });
 
   it('releases loaded models through each provider native lifecycle contract', async () => {
@@ -726,6 +754,45 @@ describe('AI provider request contracts', () => {
     expect(requestedUrls).toEqual([
       'http://lmstudio.test/api/v1/models',
       'http://lmstudio.test/v1/models',
+    ]);
+    expect(requestedUrls.some(url => url.endsWith('/api/tags') || url.endsWith('/api/ps'))).toBe(false);
+  });
+
+  it('identifies Unsloth Studio and reads loaded vision capability from its authenticated status API', async () => {
+    const requestedUrls = [];
+    globalThis.fetch = vi.fn(async (url, options = {}) => {
+      const href = String(url);
+      requestedUrls.push(href);
+      expect(options.headers).toMatchObject({ Authorization: 'Bearer sk-unsloth-test' });
+      if (href.endsWith('/api/v1/models')) return jsonResponse({}, { status: 404 });
+      if (href.endsWith('/v1/models')) return jsonResponse({ data: [{
+        id: 'unsloth/gemma-4-12b-it-GGUF',
+        owned_by: 'unsloth-studio',
+        loaded: true,
+        context_length: 32768,
+      }] });
+      if (href.endsWith('/api/inference/status')) return jsonResponse({
+        active_model: 'unsloth/gemma-4-12b-it-GGUF',
+        is_vision: true,
+        context_length: 16384,
+      });
+      throw new Error(`Unexpected discovery URL: ${href}`);
+    });
+
+    const discovery = await discoverLocalAI('http://unsloth.test', 'sk-unsloth-test', { force: true });
+
+    expect(discovery.provider).toBe('unsloth');
+    expect(discovery.modelDetails[0]).toMatchObject({
+      name: 'unsloth/gemma-4-12b-it-GGUF',
+      source: 'unsloth',
+      loaded: true,
+      vision: true,
+      contextLength: 16384,
+    });
+    expect(requestedUrls).toEqual([
+      'http://unsloth.test/api/v1/models',
+      'http://unsloth.test/v1/models',
+      'http://unsloth.test/api/inference/status',
     ]);
     expect(requestedUrls.some(url => url.endsWith('/api/tags') || url.endsWith('/api/ps'))).toBe(false);
   });

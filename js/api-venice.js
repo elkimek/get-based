@@ -142,9 +142,10 @@ export async function callVeniceAPI(opts) {
   const regularModels = readStoredArray('labcharts-venice-models');
   const e2eeModels = readStoredArray('labcharts-venice-e2ee-models');
   if (regularModels.length || e2eeModels.length) syncVeniceModelSelection(regularModels, e2eeModels);
-  let modelId = getVeniceModel();
-  let e2eeRequested = getVeniceE2EE() || isE2EEModel(modelId);
-  if (e2eeRequested && veniceModelsCacheStale()) {
+  const modelOverride = String(opts?.modelOverride || '').trim();
+  let modelId = modelOverride || getVeniceModel();
+  let e2eeRequested = isE2EEModel(modelId) || (!modelOverride && getVeniceE2EE());
+  if (!modelOverride && e2eeRequested && veniceModelsCacheStale()) {
     await fetchVeniceModels(key);
     modelId = getVeniceModel();
     e2eeRequested = getVeniceE2EE() || isE2EEModel(modelId);
