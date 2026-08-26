@@ -10,6 +10,10 @@ const runtime = vi.hoisted(() => ({
   getProfiles: vi.fn(() => [{ id: 'profile-1', name: 'Primary' }]),
   refreshImportRuntimeShell: vi.fn(async () => {}),
   saveImportedData: vi.fn(),
+  saveImportedDataForProfile: vi.fn(async (profileId, importedData) => {
+    await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
+    return true;
+  }),
   setSelectedNodeUrl: vi.fn(),
   showNotification: vi.fn(),
   state: { currentProfile: 'profile-1', importedData: {} },
@@ -20,7 +24,10 @@ vi.mock('../js/utils.js', () => ({
   isDebugMode: () => false,
   showNotification: runtime.showNotification,
 }));
-vi.mock('../js/data.js', () => ({ saveImportedData: runtime.saveImportedData }));
+vi.mock('../js/data.js', () => ({
+  saveImportedData: runtime.saveImportedData,
+  saveImportedDataForProfile: runtime.saveImportedDataForProfile,
+}));
 vi.mock('../js/profile.js', () => ({
   createProfile: vi.fn(),
   getProfiles: runtime.getProfiles,
@@ -155,6 +162,12 @@ describe('JSON restore runtime', () => {
   it('revives an existing profile before merging a database bundle into it', async () => {
     localStorage.setItem('labcharts-profile-delete-intent-profile-1', '{"at":1}');
     localStorage.setItem('labcharts-tombstone-pending-profile-1', '{"at":2}');
+    runtime.saveImportedDataForProfile.mockImplementationOnce(async (profileId, importedData) => {
+      expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
+      expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
+      await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
+      return true;
+    });
     const backup = {
       type: 'database',
       profiles: [{
@@ -168,6 +181,11 @@ describe('JSON restore runtime', () => {
 
     expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
     expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
+    expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
+      'profile-1',
+      expect.objectContaining({ diet: { type: 'whole-food' } }),
+      { forceProfileScope: true },
+    );
     expect(JSON.parse(localStorage.getItem('profile-1:imported')))
       .toMatchObject({ diet: { type: 'whole-food' } });
   });

@@ -4,7 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, isDebugMode } from './utils.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, migrateProfileData } from './profile.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
 import {
@@ -714,8 +714,10 @@ async function _importDatabaseBundle(json) {
         }
       }
       // Save
-      migrateProfileData(current);
-      await encryptedSetItem(storageKey, JSON.stringify(current));
+      const persisted = await saveImportedDataForProfile(existing.id, current, {
+        forceProfileScope: true,
+      });
+      if (!persisted) throw new Error('The imported profile could not be saved.');
       if (bp.chat) await _importChatData(existing.id, bp.chat);
       await _importNutritionData(existing.id, bp.nutrition);
       merged++;
@@ -731,9 +733,10 @@ async function _importDatabaseBundle(json) {
       if (!firstImportedId) firstImportedId = id;
       if (bp.pinned) await updateProfileMeta(id, { pinned: true });
       // Write data
-      const storageKey = profileStorageKey(id, 'imported');
-      migrateProfileData(importData);
-      await encryptedSetItem(storageKey, JSON.stringify(importData));
+      const persisted = await saveImportedDataForProfile(id, importData, {
+        forceProfileScope: true,
+      });
+      if (!persisted) throw new Error('The imported profile could not be saved.');
       if (bp.chat) await _importChatData(id, bp.chat);
       await _importNutritionData(id, bp.nutrition);
       created++;

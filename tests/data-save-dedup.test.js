@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { encryptedGetItem, encryptedRemoveItem } from '../js/crypto.js';
-import { saveImportedData } from '../js/data.js';
+import { saveImportedData, saveImportedDataForProfile } from '../js/data.js';
 import { profileStorageKey } from '../js/profile.js';
 import { state } from '../js/state.js';
 
@@ -41,6 +41,13 @@ describe('profile data persistence deduplication', () => {
       now.mockReturnValue(new Date('2026-08-06T10:05:00Z').getTime());
       await expect(saveImportedData({ skipSync: true })).resolves.toBe(true);
       expect(state.profiles[0].lastUpdated).toBe(firstTimestamp);
+
+      now.mockReturnValue(new Date('2026-08-06T10:10:00Z').getTime());
+      await expect(saveImportedDataForProfile(PROFILE_ID, state.importedData, {
+        forceProfileScope: true,
+        skipSync: true,
+      })).resolves.toBe(true);
+      expect(state.profiles[0].lastUpdated).toBe(new Date('2026-08-06T10:10:00Z').getTime());
     } finally {
       state.currentProfile = previous.currentProfile;
       state.importedData = previous.importedData;
