@@ -6,6 +6,13 @@ import { summarizeFuelOverlap, summarizeFuelResponses } from './nutrition-fuel-m
 export const NUTRITION_SUMMARY_VERSION = 14;
 export const NUTRITION_CONTEXT_CHAR_LIMIT = 1800;
 
+export const NUTRITION_HISTORY_RANGES = Object.freeze([
+  Object.freeze({ key: '3m', months: 3, label: '3M', description: 'last 3 months' }),
+  Object.freeze({ key: '6m', months: 6, label: '6M', description: 'last 6 months' }),
+  Object.freeze({ key: '1y', months: 12, label: '1Y', description: 'last year' }),
+  Object.freeze({ key: 'all', months: null, label: 'All', description: 'all recorded history' }),
+]);
+
 export const NUTRITION_KEYS = Object.freeze([
   'energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'sugarG', 'addedSugarG',
   'saturatedFatG', 'transFatG', 'sodiumMg', 'potassiumMg', 'calciumMg', 'ironMg',
@@ -244,6 +251,62 @@ function startOfLocalDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function subtractLocalMonths(date, months) {
+  const result = startOfLocalDay(date);
+  const day = result.getDate();
+  result.setDate(1);
+  result.setMonth(result.getMonth() - months);
+  const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(day, lastDay));
+  return result;
+}
+
+function localCalendarDayNumber(date) {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+}
+
+function localDateFromKey(key) {
+  const [year, month, day] = String(key || '').split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function historyCoverageBuckets(start, end, loggedDayKeys) {
+  const logged = new Set(loggedDayKeys || []);
+  const monthly = new Map();
+  for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthly.get(monthKey) || {
+      key: monthKey,
+      label: date.toLocaleDateString([], { month: 'short', year: '2-digit' }),
+      days: 0,
+      loggedDays: 0,
+    };
+    bucket.days += 1;
+    if (logged.has(dayKey(date))) bucket.loggedDays += 1;
+    monthly.set(monthKey, bucket);
+  }
+  const buckets = [...monthly.values()];
+  if (buckets.length <= 24) {
+    return buckets.map(bucket => ({
+      ...bucket,
+      coverageRatio: bucket.days ? Math.round((bucket.loggedDays / bucket.days) * 1000) / 1000 : 0,
+    }));
+  }
+  const yearly = new Map();
+  for (const month of buckets) {
+    const yearKey = month.key.slice(0, 4);
+    const bucket = yearly.get(yearKey) || { key: yearKey, label: yearKey, days: 0, loggedDays: 0 };
+    bucket.days += month.days;
+    bucket.loggedDays += month.loggedDays;
+    yearly.set(yearKey, bucket);
+  }
+  return [...yearly.values()].map(bucket => ({
+    ...bucket,
+    coverageRatio: bucket.days ? Math.round((bucket.loggedDays / bucket.days) * 1000) / 1000 : 0,
+  }));
+}
+
 function windowSummary(meals, days, now, sleepIntervals = [], offsetDays = 0) {
   const end = startOfLocalDay(now);
   end.setDate(end.getDate() + 1);
@@ -281,6 +344,37 @@ function windowSummary(meals, days, now, sleepIntervals = [], offsetDays = 0) {
     fuelOverlap: summarizeFuelOverlap(included),
     fuelResponses: summarizeFuelResponses(included),
     timing: timingSummary(included.filter(meal => !isVolumeOnlyDrink(meal)), sleepIntervals),
+  };
+}
+
+/**
+ * Build an aggregate-only history view on demand. This is intentionally not
+ * stored in the synced summary or appended to regular chat context.
+ * @param {Array<any>} meals
+ * @param {{rangeKey?: string, now?: Date, sleepIntervals?: Array<any>}} [options]
+ */
+export function computeNutritionHistory(meals, { rangeKey = '3m', now = new Date(), sleepIntervals = [] } = {}) {
+  const validMeals = (Array.isArray(meals) ? meals : []).filter(meal => mealDayKey(meal));
+  const definition = NUTRITION_HISTORY_RANGES.find(range => range.key === rangeKey)
+    || NUTRITION_HISTORY_RANGES[0];
+  const today = startOfLocalDay(now);
+  const todayKey = dayKey(today);
+  const end = new Date(today);
+  end.setDate(end.getDate() + 1);
+  const historicKeys = validMeals.map(mealDayKey).filter(key => key && key <= todayKey).sort();
+  const start = definition.months == null
+    ? (localDateFromKey(historicKeys[0]) || today)
+    : subtractLocalMonths(today, definition.months);
+  const days = Math.max(1, localCalendarDayNumber(end) - localCalendarDayNumber(start));
+  const period = windowSummary(validMeals, days, now, sleepIntervals);
+  return {
+    rangeKey: definition.key,
+    rangeLabel: definition.label,
+    rangeDescription: definition.description,
+    startKey: dayKey(start),
+    endKey: todayKey,
+    period,
+    coverageBuckets: historyCoverageBuckets(start, end, period.loggedDayKeys),
   };
 }
 

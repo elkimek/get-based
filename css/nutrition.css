@@ -108,9 +108,39 @@
 .nutrition-modal { width: min(1040px, 96vw); max-width: 1040px; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
 .nutrition-modal.nutrition-targets-modal { width: min(860px, 96vw); max-width: 860px; }
 .nutrition-modal.nutrition-fluid-modal { width: min(640px, 96vw); max-width: 640px; }
+.nutrition-modal.nutrition-history-modal { width: min(960px, 96vw); max-width: 960px; }
 .nutrition-modal-head { padding-right: 40px; }
 .nutrition-modal-head h3 { margin-bottom: 2px; }
 .nutrition-modal-head p, .nutrition-model-line, .nutrition-privacy-line { color: var(--text-muted); font-size: 13px; margin: 0; }
+.nutrition-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.nutrition-history-head-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.nutrition-history-range { margin-top: 18px; }
+.nutrition-history-layout { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(340px, 1.1fr); gap: 14px; margin-top: 16px; }
+.nutrition-history-overview, .nutrition-history-averages, .nutrition-history-timing, .nutrition-history-fuel { min-width: 0; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 2.5%, var(--bg-card)); }
+.nutrition-history-overview, .nutrition-history-averages { display: grid; gap: 14px; align-content: start; }
+.nutrition-history-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.nutrition-history-stat-grid > div { display: grid; gap: 2px; min-width: 0; padding: 10px; border-radius: 9px; background: var(--bg-card); }
+.nutrition-history-stat-grid strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.nutrition-history-stat-grid span { font-size: 11px; font-weight: 750; }
+.nutrition-history-stat-grid small { overflow: hidden; color: var(--text-muted); font-size: 9px; line-height: 1.35; text-overflow: ellipsis; }
+.nutrition-history-coverage-chart { min-height: 142px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(38px, 1fr); gap: 7px; overflow-x: auto; padding: 3px 2px 6px; scrollbar-width: thin; }
+.nutrition-history-coverage-bar { min-width: 0; display: grid; grid-template-rows: 110px auto; gap: 5px; align-items: end; text-align: center; }
+.nutrition-history-coverage-bar i { height: 100%; display: flex; align-items: flex-end; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, var(--text-muted) 10%, transparent); }
+.nutrition-history-coverage-bar i span { width: 100%; min-height: 0; border-radius: inherit; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 68%, white), var(--accent)); }
+.nutrition-history-coverage-bar small { overflow: hidden; color: var(--text-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.nutrition-history-caveat { margin: 0; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
+.nutrition-history-averages .nutrition-target-rings { margin-bottom: 2px; }
+.nutrition-history-timing, .nutrition-history-fuel { display: grid; gap: 10px; align-content: start; }
+.nutrition-history-timing > div:nth-child(2) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.nutrition-history-timing > div:nth-child(2) > div { display: grid; gap: 3px; min-width: 0; padding: 9px; border-radius: 8px; background: var(--bg-card); }
+.nutrition-history-timing span, .nutrition-history-timing small { color: var(--text-muted); font-size: 10px; line-height: 1.4; }
+.nutrition-history-timing strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.nutrition-history-empty { display: flex; align-items: center; gap: 13px; margin-top: 18px; padding: 18px; border: 1px dashed var(--border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 3%, var(--bg-card)); }
+.nutrition-history-empty > span { color: var(--accent); font-size: 28px; }
+.nutrition-history-empty > div { min-width: 0; flex: 1; }
+.nutrition-history-empty strong { font-size: 13px; }
+.nutrition-history-empty p { margin: 3px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.nutrition-history-error { margin-top: 12px; padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--danger, #c44) 35%, var(--border)); border-radius: 8px; color: var(--danger, #c44); font-size: 12px; }
 .nutrition-model-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .nutrition-meal-model-control { display: grid; gap: 10px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--bg-card)), var(--bg-card) 68%); box-shadow: inset 0 1px color-mix(in srgb, white 4%, transparent); }
 .nutrition-meal-model-status { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--text-muted) 10%, var(--bg-card)); color: var(--text-muted); font-size: 10px; font-weight: 800; }
@@ -482,6 +512,13 @@
   .nutrition-detail-nutrients { grid-template-columns: 1fr; }
   .nutrition-widget-actions { width: 100%; }
   .nutrition-widget-actions .dashboard-action-btn { flex: 1; }
+  .nutrition-history-head { flex-direction: column; }
+  .nutrition-history-head-actions { width: 100%; }
+  .nutrition-history-head-actions .dashboard-action-btn { flex: 1; }
+  .nutrition-history-range { width: 100%; box-sizing: border-box; }
+  .nutrition-history-range .ctx-btn-option { min-height: 44px; flex: 1; }
+  .nutrition-history-layout { grid-template-columns: 1fr; }
+  .nutrition-history-empty { align-items: flex-start; flex-wrap: wrap; }
   .nutrition-target-settings-head { flex-direction: column; }
   .nutrition-target-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nutrition-target-protein-basis { grid-column: 1 / -1; }
@@ -509,6 +546,7 @@
   .nutrition-fuel-guidance strong { text-align: left; }
 }
 @media (max-width: 430px) {
+  .nutrition-history-stat-grid, .nutrition-history-timing > div:nth-child(2) { grid-template-columns: 1fr; }
   .nutrition-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nutrition-metric { border-bottom: 1px solid var(--border); }
   .nutrition-metric:nth-child(2) { border-right: 0; }

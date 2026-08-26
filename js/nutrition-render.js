@@ -7,6 +7,7 @@ import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-
 import { getDefaultNutritionComparisonModelValues, getMealAISelection, isConfirmedMealVisionModel, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
 import { MEAL_COMPARISON_REFERENCE_FIELDS } from './nutrition-comparison.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
+import { NUTRITION_HISTORY_RANGES } from './nutrition-summary.js';
 import { getNutritionTargets, resolveNutritionTargets } from './nutrition-targets.js';
 import { escapeAttr, escapeHTML, isDebugMode } from './utils.js';
 
@@ -236,7 +237,7 @@ export function renderFuelOverlapCard(mix, { scope = 'window', compact = false, 
   const completeMeals = Number(mix?.completeMeals || 0);
   if (!available) {
     if (scope === 'meal') return '';
-    return `<section class="nutrition-fuel-card is-unavailable"><div class="nutrition-fuel-empty"><strong>Not enough meal data yet</strong><span>Add carbohydrate and fat values in Meals &amp; Nutrition to see the seven-day mix. Missing values stay unknown.</span></div></section>`;
+    return `<section class="nutrition-fuel-card is-unavailable"><div class="nutrition-fuel-empty"><strong>Not enough meal data yet</strong><span>Add carbohydrate and fat values in Meals &amp; Nutrition to see the logged carb/fat mix. Missing values stay unknown.</span></div></section>`;
   }
 
   const carbPercent = Math.max(0, Math.min(100, Math.round(Number(mix.carbEnergyPercent || 0))));
@@ -292,10 +293,55 @@ export function renderNutritionWidget() {
   const selectedNutrients = new Set(targets.widgetNutrients || []);
   const visibleGoalRows = DASHBOARD_GOAL_FIELDS.filter(([key]) => selectedNutrients.has(key));
   return `<div class="nutrition-widget">
-    <div class="nutrition-widget-actions-row"><div class="nutrition-widget-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
+    <div class="nutrition-widget-actions-row"><div class="nutrition-widget-actions">${hasMeals ? `<button type="button" class="dashboard-action-btn" ${actionAttrs('open-history')}>History</button>` : ''}<button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
     ${hasMeals && !targets.configured ? `<div class="nutrition-widget-starter-note"><span>Using starter guides</span><button type="button" ${actionAttrs('open-targets')}>Review and personalize</button></div>` : ''}
-    ${hasMeals ? `<div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-protein-source"><strong>${escapeHTML(targets.proteinBasisLabel)} protein guide</strong><span>${escapeHTML(proteinTargetSource(targets))}</span></div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Daily averages</strong><span>${visibleGoalRows.length} shown</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day averages.</p></div></div>'}
+    ${hasMeals ? `<div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-protein-source"><strong>${escapeHTML(targets.proteinBasisLabel)} protein guide</strong><span>${escapeHTML(proteinTargetSource(targets))}</span></div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Daily averages</strong><span>Last 7 days · ${visibleGoalRows.length} shown</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day averages.</p></div></div>'}
   </div>`;
+}
+
+function renderHistoryCoverageBuckets(buckets = []) {
+  if (!buckets.length) return '';
+  const bars = buckets.map(bucket => {
+    const percent = Math.round(Number(bucket.coverageRatio || 0) * 100);
+    const height = bucket.loggedDays ? Math.max(4, percent) : 0;
+    const title = `${bucket.label}: ${bucket.loggedDays} of ${bucket.days} days logged (${percent}%)`;
+    return `<div class="nutrition-history-coverage-bar" title="${escapeAttr(title)}"><i><span style="height:${height}%"></span></i><small>${escapeHTML(bucket.label)}</small></div>`;
+  }).join('');
+  return `<div class="nutrition-history-coverage-chart" role="img" aria-label="Logging coverage over the selected timeframe">${bars}</div>`;
+}
+
+function renderHistoryTiming(timing = {}) {
+  const values = [
+    ['First logged meal', timing.averageFirstMealLocalTime || '—'],
+    ['Last logged meal', timing.averageLastMealLocalTime || '—'],
+    ['Observed eating window', hasFiniteNumber(timing.averageEatingWindowMinutes) ? `${formatNumber(Number(timing.averageEatingWindowMinutes) / 60, 1)} h` : '—'],
+  ];
+  return `<section class="nutrition-history-timing"><div class="nutrition-section-title">Logged meal timing</div><div>${values.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong></div>`).join('')}</div><small>Timing averages use logged meals only and do not imply that unlogged meals were skipped.</small></section>`;
+}
+
+export function renderNutritionHistoryModal(history, { storageError = '' } = {}) {
+  const period = history?.period || {};
+  const targets = resolveNutritionTargets();
+  const selectedNutrients = new Set(targets.widgetNutrients || []);
+  const visibleGoalRows = DASHBOARD_GOAL_FIELDS.filter(([key]) => selectedNutrients.has(key));
+  const hasMeals = Number(period.meals || 0) > 0;
+  const foodMeals = Number.isFinite(Number(period.foodMeals)) ? Number(period.foodMeals) : Number(period.meals || 0);
+  const drinkEntries = Number(period.drinkEntries || 0);
+  const reviewPercent = Math.round(Number(period.reviewRatio || 0) * 100);
+  const rangeButtons = NUTRITION_HISTORY_RANGES.map(range => `<button type="button" class="ctx-btn-option${range.key === history?.rangeKey ? ' active' : ''}" aria-pressed="${range.key === history?.rangeKey}" ${actionAttrs('set-history-range', { range: range.key })}>${escapeHTML(range.label)}</button>`).join('');
+  const emptyAction = history?.rangeKey !== 'all'
+    ? `<button type="button" class="import-btn import-btn-secondary" ${actionAttrs('set-history-range', { range: 'all' })}>Show all history</button>`
+    : `<button type="button" class="import-btn import-btn-primary" ${actionAttrs('open')}>Log a meal</button>`;
+  return `<button type="button" class="modal-close" aria-label="Close Nutrition history" ${actionAttrs('close')}>&times;</button>
+    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Nutrition history</h3><p>Daily averages and logging coverage across your selected timeframe.</p></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
+    <div class="ctx-btn-group nutrition-history-range" role="group" aria-label="Nutrition history range">${rangeButtons}</div>
+    ${storageError ? `<div class="nutrition-history-error" role="status">${escapeHTML(storageError)}</div>` : ''}
+    ${hasMeals ? `<div class="nutrition-history-layout">
+      <section class="nutrition-history-overview"><div class="nutrition-history-stat-grid"><div><strong>${Number(period.loggedDays || 0).toLocaleString()}</strong><span>Logged days</span><small>${escapeHTML(history.rangeDescription || '')}</small></div><div><strong>${foodMeals.toLocaleString()}</strong><span>Meals</span><small>${drinkEntries ? `${drinkEntries.toLocaleString()} drink log${drinkEntries === 1 ? '' : 's'}` : 'Food entries'}</small></div><div><strong>${reviewPercent}%</strong><span>Reviewed</span><small>${Number(period.reviewedMeals || 0).toLocaleString()} of ${Number(period.meals || 0).toLocaleString()} entries</small></div></div>${renderHistoryCoverageBuckets(history.coverageBuckets)}<p class="nutrition-history-caveat">Unlogged days are unknown, not zero. Each nutrient average uses only days where every relevant logged meal had that value.</p></section>
+      <section class="nutrition-history-averages"><div class="nutrition-target-rings">${targetRing('Energy', period.dailyAverages?.energyKcal, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-goal-list-head"><strong>Daily averages</strong><span>${escapeHTML(history.rangeLabel || '')} · ${visibleGoalRows.length} shown</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section>
+      ${renderHistoryTiming(period.timing)}
+      <section class="nutrition-history-fuel"><div class="nutrition-section-title">Fuel Mix Context</div>${renderFuelOverlapCard(period.fuelOverlap, { scope: 'window', fallbackTotalMeals: foodMeals, period, targets })}</section>
+    </div>` : `<div class="nutrition-history-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged in ${escapeHTML(history?.rangeDescription || 'this timeframe')}</strong><p>The selected range stays empty rather than silently showing older data.</p></div>${emptyAction}</div>`}`;
 }
 
 export function renderNutritionFuelWidget() {

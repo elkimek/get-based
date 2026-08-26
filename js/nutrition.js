@@ -10,6 +10,7 @@ import { clearComparisonReference, clearSavedNutritionComparison, configureNutri
 import { analysisInputsDirty, applyAnalysis, clearAnalyzedFields, componentCorrectionContext, componentPortionNeedsReanalysis, configureNutritionReviewUI, consumptionKey, currentKnownDetails, currentMealName, currentSourceKind, finishAnalysisProgress, focusMobileNutritionReview, isPhotoEstimate, labelConsumption, mealNameCorrectionIsDirty, normalizeKnownDetails, normalizeMealName, renderEditableComponents, renderFoodCompositionSummary, renderFuelOverlapPreview, renderReviewEvidence, resetAnalysisProgress, setAnalysisKind, setStatus, startAnalysisProgress, updateAnalysisProgress, updateCorrectionState, updateFoodCompositionMatch } from './nutrition-review-ui.js';
 import { ALL_REVIEW_FIELDS, MEAL_TYPES, ensureNutritionStylesheet, hasFiniteNumber, mealLocalDateTime, mealImages, renderStoredPhotoPreview, renderFluidLogModal, renderMealModelControl, renderNutritionCustomizeModal, renderNutritionEditor, renderNutritionFuelWidget, renderNutritionWidget, setElementValue } from './nutrition-render.js';
 import { hydrateNutritionLocalAICatalog, setNutritionAIRouteFromValue } from './nutrition-ai-settings.js';
+import { openNutritionHistory } from './nutrition-history.js';
 import { clearMealResponse, configureNutritionEntryForms, openMealDetail, saveFluidLog, saveMealResponse, saveNutritionTargets, updateFluidLogControls, updateNutritionTargetControls, updateNutritionWidgetMetricControls } from './nutrition-entry-forms.js';
 import { closeNutritionEditor as closeEditor, configureNutritionModalController, handleNutritionEditorKeydown as handleNutritionKeydown, openNutritionAISettings, requestCloseNutritionEditor as requestCloseEditor } from './nutrition-modal-controller.js';
 export { deleteNutritionDB } from './nutrition-store.js';
@@ -121,7 +122,7 @@ export async function openNutritionEditor(options = {}) {
   }
   modal.innerHTML = renderNutritionEditor(meals, { editingMealId, reusedMealId, storageError });
   modal.scrollTop = 0;
-  modal.classList.remove('nutrition-targets-modal', 'nutrition-fluid-modal');
+  modal.classList.remove('nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal');
   modal.classList.add('nutrition-modal');
   overlay.setAttribute('data-modal-dismiss-protected', '');
   renderEditableComponents([]);
@@ -139,13 +140,12 @@ export async function openNutritionTargets() {
   resetEditorState();
   modal.innerHTML = renderNutritionCustomizeModal();
   modal.scrollTop = 0;
-  modal.classList.remove('nutrition-fluid-modal');
+  modal.classList.remove('nutrition-fluid-modal', 'nutrition-history-modal');
   modal.classList.add('nutrition-modal', 'nutrition-targets-modal');
   overlay.removeAttribute('data-modal-dismiss-protected');
   openModalOverlay(overlay, { initialFocus: '#nutrition-target-settings', focusDelay: 30 });
   return true;
 }
-
 export async function openFluidLog() {
   await ensureNutritionStylesheet();
   const modal = document.getElementById('detail-modal');
@@ -154,14 +154,13 @@ export async function openFluidLog() {
   resetEditorState();
   modal.innerHTML = renderFluidLogModal();
   modal.scrollTop = 0;
-  modal.classList.remove('nutrition-targets-modal');
+  modal.classList.remove('nutrition-targets-modal', 'nutrition-history-modal');
   modal.classList.add('nutrition-modal', 'nutrition-fluid-modal');
   overlay.removeAttribute('data-modal-dismiss-protected');
   updateFluidLogControls();
   openModalOverlay(overlay, { initialFocus: '#nutrition-fluid-amount', focusDelay: 30 });
   return true;
 }
-
 async function openMealEditor(id, mode) {
   let meal;
   try { meal = await getActiveProfileMeal(id); }
@@ -177,7 +176,6 @@ async function openMealEditor(id, mode) {
 }
 
 function startNutritionRequest() { activeAnalysisController?.abort(new DOMException('Replaced by a new meal request.', 'AbortError')); activeAnalysisController = new AbortController(); return activeAnalysisController; }
-
 function selectedPhotos() { return Array.from(/** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-photo-input'))?.files || []).slice(0, 4); }
 
 configureNutritionReviewUI({
@@ -676,6 +674,8 @@ function handleClick(event) {
   if (!target) return;
   const action = target.getAttribute(ACTION_ATTR);
   if (action === 'open') void openNutritionEditor();
+  else if (action === 'open-history') void openNutritionHistory();
+  else if (action === 'set-history-range') void openNutritionHistory(target.getAttribute('data-nutrition-range') || '3m');
   else if (action === 'open-targets') void openNutritionTargets();
   else if (action === 'open-fluid-log') void openFluidLog();
   else if (action === 'open-ai-settings') openNutritionAISettings();

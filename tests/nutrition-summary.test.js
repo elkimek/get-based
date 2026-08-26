@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeNutritionSummary, NUTRITION_CONTEXT_CHAR_LIMIT } from '../js/nutrition-summary.js';
+import { computeNutritionHistory, computeNutritionSummary, NUTRITION_CONTEXT_CHAR_LIMIT } from '../js/nutrition-summary.js';
 
 function meal(eatenAt, energyKcal, proteinG, reviewed = true) {
   return { eatenAt, reviewed, nutrients: { energyKcal, proteinG } };
@@ -24,6 +24,36 @@ describe('nutrition rolling summaries', () => {
     expect(summary.windows.d7.dailyAverages).toMatchObject({ energyKcal: 1000, proteinG: 50 });
     expect(summary.windows.d30).toMatchObject({ meals: 4, loggedDays: 3 });
     expect(summary.windows).not.toHaveProperty('d90');
+  });
+
+  it('builds honest calendar 3M, 6M, 1Y, and all-history views on demand', () => {
+    const now = new Date('2026-08-31T12:00:00.000Z');
+    const meals = [
+      { ...meal('2026-08-31T08:00:00.000Z', 600, 30), localDate: '2026-08-31' },
+      { ...meal('2026-05-31T08:00:00.000Z', 700, 35), localDate: '2026-05-31' },
+      { ...meal('2026-05-30T08:00:00.000Z', 800, 40), localDate: '2026-05-30' },
+      { ...meal('2026-02-28T08:00:00.000Z', 900, 45), localDate: '2026-02-28' },
+      { ...meal('2025-08-31T08:00:00.000Z', 1000, 50), localDate: '2025-08-31' },
+      { ...meal('2024-01-01T08:00:00.000Z', 1100, 55), localDate: '2024-01-01' },
+    ];
+
+    const d3m = computeNutritionHistory(meals, { rangeKey: '3m', now });
+    const d6m = computeNutritionHistory(meals, { rangeKey: '6m', now });
+    const y1 = computeNutritionHistory(meals, { rangeKey: '1y', now });
+    const all = computeNutritionHistory(meals, { rangeKey: 'all', now });
+
+    expect(d3m).toMatchObject({ rangeKey: '3m', startKey: '2026-05-31', endKey: '2026-08-31' });
+    expect(d3m.period).toMatchObject({ meals: 2, loggedDays: 2 });
+    expect(d3m.coverageBuckets).toHaveLength(4);
+    expect(d6m).toMatchObject({ rangeKey: '6m', startKey: '2026-02-28' });
+    expect(d6m.period).toMatchObject({ meals: 4, loggedDays: 4 });
+    expect(y1).toMatchObject({ rangeKey: '1y', startKey: '2025-08-31' });
+    expect(y1.period).toMatchObject({ meals: 5, loggedDays: 5 });
+    expect(all).toMatchObject({ rangeKey: 'all', startKey: '2024-01-01' });
+    expect(all.period).toMatchObject({ meals: 6, loggedDays: 6 });
+    const emptyRecent = computeNutritionHistory(meals.slice(-1), { rangeKey: '3m', now });
+    expect(emptyRecent.period).toMatchObject({ meals: 0, loggedDays: 0 });
+    expect(computeNutritionHistory(meals, { rangeKey: 'unsupported', now }).rangeKey).toBe('3m');
   });
 
   it('summarizes local meal timing without retaining meal-level details', () => {
