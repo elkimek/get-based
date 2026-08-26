@@ -36,8 +36,7 @@ async function runStartupSequence() {
   // `load` only means the static shell arrived. Profile and local nutrition
   // hydration are asynchronous, so consumers that start changing state must
   // wait for this explicit boundary or startup can overwrite their changes.
-  document.documentElement.dataset.appReady = 'true';
-  document.dispatchEvent(new CustomEvent('labcharts-app-ready'));
+  document.documentElement.dataset.appReady = '';
 }
 
 function handleStartupSequenceError(error) {

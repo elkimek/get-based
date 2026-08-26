@@ -35,7 +35,7 @@ async function seedCurrentLegalAcceptance(page) {
 async function waitForAppReadiness(page) {
   const current = new URL(page.url());
   if (current.pathname === '/app') {
-    await page.locator('html[data-app-ready="true"]').waitFor({
+    await page.locator('html[data-app-ready]').waitFor({
       state: 'attached',
       timeout: 15_000,
     });
