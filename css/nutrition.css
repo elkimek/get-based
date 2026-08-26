@@ -31,6 +31,8 @@
 .nutrition-day.is-logged i { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 68%, white), var(--accent)); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 18%, transparent); }
 .nutrition-goal-list { align-content: start; gap: 11px; }
 .nutrition-goal-list-head { padding-bottom: 2px; }
+.nutrition-goal-grid { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+.nutrition-goal-grid.is-expanded { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
 .nutrition-goal-row { display: grid; gap: 5px; }
 .nutrition-goal-row-head strong { font-size: 12px; }
 .nutrition-goal-row-head span { color: var(--text-muted); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -484,6 +486,7 @@
   .nutrition-target-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nutrition-target-protein-basis { grid-column: 1 / -1; }
   .nutrition-widget-metric-groups { grid-template-columns: 1fr; }
+  .nutrition-goal-grid.is-expanded { grid-template-columns: 1fr; }
   .nutrition-widget-window-head span, .nutrition-widget-timing span { text-align: left; }
   .nutrition-correction-review { align-items: stretch; flex-direction: column; }
   .nutrition-correction-review .import-btn { align-self: flex-end; }

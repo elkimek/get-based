@@ -178,6 +178,88 @@ test('long context editors use accessible progressive disclosure on mobile', asy
   expect(violations).toEqual([]);
 });
 
+test('detailed meal logs pause Typical meals without turning partial logs into full-day intake', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const [{ state }, contextCards, summaries, nutritionContext, nutritionSummary, labContext] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/context-cards.js'),
+      import('/js/context-card-summaries.js'),
+      import('/js/nutrition-context.js'),
+      import('/js/nutrition-summary.js'),
+      import('/js/lab-context.js'),
+    ]);
+    state.importedData.diet = {
+      type: 'mediterranean',
+      breakfast: 'Oats and berries',
+      breakfastTime: '08:00',
+      lunch: 'Chicken salad',
+      lunchTime: '12:30',
+      bloating: 'moderate',
+      restrictions: ['gluten-free'],
+    };
+    const now = new Date();
+    const meals = Array.from({ length: 5 }, (_, index) => {
+      const eatenAt = new Date(now);
+      eatenAt.setDate(eatenAt.getDate() - index);
+      eatenAt.setHours(12, 30, 0, 0);
+      return {
+        eatenAt: eatenAt.toISOString(),
+        mealType: 'lunch',
+        reviewed: true,
+        source: { kind: 'manual' },
+        nutrients: { energyKcal: 500, proteinG: 30 },
+      };
+    });
+    state.nutritionSummary = nutritionSummary.computeNutritionSummary(meals, { now });
+
+    nutritionContext.setNutritionContextEnabled(true);
+    const context = labContext.buildLabContext({ skipGroupFilter: true });
+    const cardSummary = summaries.getDietSummary(state.importedData.diet);
+    const dashboard = contextCards.renderProfileContextCards();
+
+    nutritionContext.setNutritionContextEnabled(false);
+    const fallbackContext = labContext.buildLabContext({ skipGroupFilter: true });
+    const fallbackSummary = summaries.getDietSummary(state.importedData.diet);
+
+    nutritionContext.setNutritionContextEnabled(true);
+    await contextCards.openDietEditor();
+    return { context, cardSummary, dashboard, fallbackContext, fallbackSummary };
+  });
+
+  expect(result.context).toContain('occasions: lunch 5');
+  expect(result.context).toContain('Never infer skipped meals, under-eating');
+  expect(result.context).toContain('Detailed logs replace, never supplement, Diet & Digestion Typical meals');
+  expect(result.context).not.toContain('Oats and berries');
+  expect(result.context).not.toContain('Chicken salad');
+  expect(result.context).toContain('Bloating: moderate');
+  expect(result.context).toContain('Restrictions: gluten-free');
+  expect(result.cardSummary).not.toContain('Oats and berries');
+  expect(result.dashboard).toContain('Detailed meal log active');
+  expect(result.dashboard).toContain('Replaces Typical meals');
+
+  expect(result.fallbackContext).toContain('Breakfast (08:00): Oats and berries');
+  expect(result.fallbackContext).toContain('Lunch (12:30): Chicken salad');
+  expect(result.fallbackContext).not.toContain('Detailed logs replace, never supplement');
+  expect(result.fallbackSummary).toContain('B: Oats and berries');
+
+  const modal = page.locator('#detail-modal');
+  const mealsSection = modal.locator('details.ctx-editor-section').filter({ hasText: 'Typical meals' });
+  await expect(mealsSection.locator('.ctx-editor-section-summary')).toContainText('Paused — detailed log active');
+  await mealsSection.locator('summary').click();
+  await expect(mealsSection.locator('#diet-meal-precedence')).toContainText('Saved examples stay here but are not sent to AI');
+  await expect(mealsSection.locator('#diet-meal-precedence')).toContainText('unlogged meals stay unknown');
+  await expect(mealsSection.locator('#diet-breakfast')).toBeDisabled();
+  await expect(mealsSection.locator('#diet-breakfast')).toHaveValue('Oats and berries');
+  await expect(mealsSection.locator('#diet-lunch')).toBeDisabled();
+  await expect(mealsSection.locator('#diet-lunch')).toHaveValue('Chicken salad');
+});
+
 test('saved long-form details stay summarized and reopened editors start at the top', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app', { waitUntil: 'load' });

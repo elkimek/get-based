@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { buildNutritionContext, renderNutritionCircadianExtension, setNutritionContextEnabled } from '../js/nutrition-context.js';
+import { buildNutritionContext, renderNutritionCircadianExtension, renderNutritionDietExtension, setNutritionContextEnabled } from '../js/nutrition-context.js';
+import { buildNutritionSummaryContext } from '../js/nutrition-summary.js';
 import { state } from '../js/state.js';
 
 const previousSummary = state.nutritionSummary;
@@ -45,15 +46,23 @@ describe('nutrition AI context', () => {
         nutrientCoverage: { energyKcal: { completeDays: 5 }, proteinG: { completeDays: 5 } },
       },
     };
+    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
 
     const context = buildNutritionContext();
+    expect(context).toContain('[section:nutrition]');
+    expect(context).toContain('[/section:nutrition]');
     expect(context).toContain('Last 7 days: 3 meals across 3/7 days');
+    expect(context).toContain('occasions: breakfast 1, dinner 2');
     expect(context).toContain('missing days/values are unknown, not zero');
+    expect(context).toContain('Never infer skipped meals, under-eating');
+    expect(context).toContain('Detailed logs replace, never supplement');
     expect(context).toContain('7-day average compared with the previous 23-day period');
     expect(context).not.toContain('Recent weeks:');
     expect(context).not.toContain('average last logged meal 20:15');
     expect(context).not.toContain('data:image');
     expect(context).not.toContain('Lentil bowl');
+    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Detailed meal log active');
+    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Replaces Typical meals');
     expect(renderNutritionCircadianExtension(() => 'data-action="open"')).toContain('first 08:30 · last 20:15');
   });
 
@@ -74,6 +83,7 @@ describe('nutrition AI context', () => {
         },
       },
     };
+    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
 
     expect(buildNutritionContext()).not.toContain('magnesium mg');
   });
@@ -95,6 +105,7 @@ describe('nutrition AI context', () => {
         nutrientCoverage: { proteinG: { completeDays: 4 } },
       },
     };
+    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
 
     expect(buildNutritionContext()).not.toContain('compared with');
   });
@@ -102,8 +113,11 @@ describe('nutrition AI context', () => {
   it('honors the profile-scoped nutrition context toggle', () => {
     state.importedData = { contextSourceSettings: {} };
     state.nutritionSummary = { totalMeals: 1, windows: {} };
+    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
     setNutritionContextEnabled(false);
     expect(buildNutritionContext()).toBe('');
-    expect(buildNutritionContext(state, { ignoreContextToggles: true })).toContain('MEALS & NUTRITION');
+    expect(buildNutritionContext(state, { ignoreContextToggles: true })).toContain('[section:nutrition]');
+    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('AI source off');
+    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Typical meals active');
   });
 });

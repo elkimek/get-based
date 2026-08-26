@@ -137,20 +137,12 @@ function nutritionTargetsFromForm() {
   });
 }
 
-/** @param {HTMLInputElement | null} [changedInput] */
-export function updateNutritionWidgetMetricControls(changedInput = null) {
+export function updateNutritionWidgetMetricControls() {
   const inputs = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('[data-nutrition-widget-metric]'))
     .filter(input => input instanceof HTMLInputElement));
-  let selected = inputs.filter(input => input.checked);
-  if (selected.length > 4 && changedInput instanceof HTMLInputElement && changedInput.checked) {
-    changedInput.checked = false;
-    selected = inputs.filter(input => input.checked);
-    showNotification('Choose up to four nutrients for the widget.', 'info');
-  }
-  const atLimit = selected.length >= 4;
-  inputs.forEach(input => { input.disabled = atLimit && !input.checked; });
+  const selected = inputs.filter(input => input.checked);
   const count = document.getElementById('nutrition-widget-metric-count');
-  if (count) count.textContent = `${selected.length} of 4 selected`;
+  if (count) count.textContent = `${selected.length} selected`;
 }
 
 function setNutritionTargetStatus(message, isError = false) {
@@ -186,13 +178,6 @@ function validateNutritionTargetsForm() {
       input.reportValidity();
       return false;
     }
-  }
-  const selected = document.querySelectorAll('[data-nutrition-widget-metric]:checked').length;
-  if (selected > 4) {
-    const message = 'Choose up to four nutrients for the widget.';
-    setNutritionTargetStatus(message, true);
-    showNotification(message, 'error');
-    return false;
   }
   setNutritionTargetStatus('');
   return true;

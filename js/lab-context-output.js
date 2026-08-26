@@ -1,17 +1,5 @@
 // @ts-check
-// Lab-context summaries, change narration, and Lens prompt injection.
-
-import { state } from './state.js';
-import { getCurrentSupplements } from './supplement-medication-domain.js';
-import { getActiveData } from './data.js';
-import { getAllFlaggedMarkers } from './marker-analysis.js';
-import { getLatitudeFromLocation } from './profile.js';
-import {
-  isInsightContextCardsEnabled,
-  isLabMarkersContextEnabled,
-  isLightSunContextEnabled,
-  isSupplementsMedsContextEnabled,
-} from './lab-context-settings.js';
+// Exact context receipts, change narration, and Lens prompt injection.
 
 export function summarizeChange(prev, curr) {
   if (prev == null && curr == null) return null;
@@ -58,94 +46,82 @@ export function summarizeChange(prev, curr) {
     : null;
 }
 
-export function getContextSummary() {
+const CONTEXT_AREA_LABELS = {
+  profile: 'Profile',
+  genetics: 'Genome',
+  wearables: 'Wearables',
+  nutrition: 'Meals & Nutrition',
+  emfAssessment: 'EMF Assessment',
+  contextNotes: 'Context Notes',
+  sun: 'Light & Sun',
+};
+
+function sectionDetail(name, content) {
+  if (name === 'wearables') {
+    const heading = content.match(/^## Wearables \(([^)]+)\)/m)?.[1];
+    return heading || '';
+  }
+  if (name === 'nutrition') {
+    const match = content.match(/Last 7 days: (\d+) meals(?: and \d+ volume-only drink logs)? across (\d+\/7) days/i);
+    return match ? `${match[1]} meals · ${match[2]} days · aggregate only` : 'aggregate only';
+  }
+  if (name === 'sun') {
+    const parts = [];
+    const outdoor = Number(content.match(/Outdoor sessions:\s*(\d+)/i)?.[1] || 0);
+    const deviceSessions = Number(content.match(/device sessions:\s*(\d+)/i)?.[1] || 0);
+    const devices = Number(content.match(/devices in library:\s*(\d+)/i)?.[1] || 0);
+    if (outdoor > 0) parts.push('outdoor');
+    if (deviceSessions > 0 || devices > 0) parts.push('devices');
+    if (/### Indoor light environment/i.test(content)) parts.push('indoor');
+    if (/### Light audits/i.test(content)) parts.push('audits');
+    if (/### Weekly light trend|### Session cadence/i.test(content)) parts.push('trends');
+    if (/### Calibration anchor/i.test(content)) parts.push('calibration');
+    if (/### Sun-channel .* correlations/i.test(content)) parts.push('correlations');
+    return parts.join(' · ') || 'aggregate only';
+  }
+  return '';
+}
+
+function headingLabel(content, name) {
+  return content.match(/^##\s+(.+)$/m)?.[1]?.trim() || name.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+/** Build the disclosure from the exact final context sent with this response. */
+export function getContextSummary(context = '') {
   const areas = [];
-  const data = getActiveData();
-  const includeInsightCards = isInsightContextCardsEnabled();
-  const includeSupplementsMeds = isSupplementsMedsContextEnabled();
-  const markerCount = Object.values(data.categories).reduce((sum, category) =>
-    sum + Object.values(category.markers).filter(marker =>
-      marker.values.some(value => value !== null)).length, 0);
-  if (isLabMarkersContextEnabled() && markerCount > 0) {
-    areas.push({ label: 'Lab values', detail: `${markerCount} markers` });
+  const seen = new Map();
+  const labSections = [];
+  const sections = /^\[section:([A-Za-z][\w-]*)([^\]]*)\]\r?\n([\s\S]*?)^\[\/section:\1\][ \t]*$/gm;
+  for (const match of String(context || '').matchAll(sections)) {
+    const name = match[1], attrs = match[2], content = match[3];
+    if (attrs.includes('updated:')) {
+      labSections.push(content);
+      continue;
+    }
+    const label = name.startsWith('biology')
+      ? 'Biology Scores'
+      : /^marker(Value)?Notes$/.test(name) ? 'Lab Notes' : CONTEXT_AREA_LABELS[name] || headingLabel(content, name);
+    const detail = sectionDetail(name, content);
+    const prior = seen.get(label);
+    if (prior) {
+      prior.detail = [...new Set([prior.detail, detail].filter(Boolean))].join(' · ');
+    } else {
+      const area = { label, detail };
+      areas.push(area);
+      seen.set(label, area);
+    }
   }
-  const diagnoses = state.importedData.diagnoses;
-  if (includeInsightCards && diagnoses && (
-    (diagnoses.conditions && diagnoses.conditions.length)
-    || diagnoses.note
-    || (Array.isArray(diagnoses.familyHistory) && diagnoses.familyHistory.length)
-  )) {
-    const conditionCount = (diagnoses.conditions && diagnoses.conditions.length) || 0;
-    const familyCount = (Array.isArray(diagnoses.familyHistory) && diagnoses.familyHistory.length) || 0;
-    const detail = conditionCount && familyCount
-      ? `${conditionCount} condition${conditionCount !== 1 ? 's' : ''}, ${familyCount} family entr${familyCount !== 1 ? 'ies' : 'y'}`
-      : conditionCount
-        ? `${conditionCount} condition${conditionCount !== 1 ? 's' : ''}`
-        : familyCount
-          ? `${familyCount} family entr${familyCount !== 1 ? 'ies' : 'y'}`
-          : 'notes';
-    areas.push({ label: 'Medical History', detail });
+  if (labSections.length) {
+    const markerCount = labSections.reduce((sum, content) => sum + (content.match(/^\s*- /gm) || []).length, 0);
+    const detail = `${markerCount} marker${markerCount === 1 ? '' : 's'} · ${labSections.length} section${labSections.length === 1 ? '' : 's'}`;
+    const collectionIndex = areas.findIndex(area => area.label === 'Lab Collection Context');
+    const insertAt = collectionIndex >= 0 ? collectionIndex : Math.min(1, areas.length);
+    areas.splice(insertAt, 0, { label: 'Lab values', detail });
   }
-  if (includeInsightCards && state.importedData.diet) {
-    areas.push({ label: 'Diet & Digestion', detail: state.importedData.diet.type || 'filled' });
-  }
-  if (includeInsightCards && state.importedData.exercise) {
-    areas.push({ label: 'Exercise', detail: state.importedData.exercise.frequency || 'filled' });
-  }
-  if (includeInsightCards && state.importedData.sleepRest) {
-    areas.push({ label: 'Sleep & Rest', detail: state.importedData.sleepRest.duration || 'filled' });
-  }
-  const lightCircadian = state.importedData.lightCircadian;
-  const autoLatitude = getLatitudeFromLocation();
-  if (isLightSunContextEnabled() && (lightCircadian || autoLatitude)) {
-    areas.push({ label: 'Light & Circadian', detail: autoLatitude ? `lat ${autoLatitude}` : 'filled' });
-  }
-  if (includeInsightCards && state.importedData.stress) {
-    areas.push({ label: 'Stress', detail: state.importedData.stress.level || 'filled' });
-  }
-  if (includeInsightCards && state.importedData.loveLife) {
-    areas.push({ label: 'Love Life', detail: 'filled' });
-  }
-  if (includeInsightCards && state.importedData.environment) {
-    areas.push({ label: 'Environment', detail: state.importedData.environment.setting || 'filled' });
-  }
-  const emfData = state.importedData.emfAssessment;
-  const emfAssessments = emfData?.assessments;
-  if (includeInsightCards && emfAssessments && emfAssessments.length > 0) {
-    areas.push({
-      label: 'EMF Assessment',
-      detail: `${emfAssessments.length} assessment${emfAssessments.length !== 1 ? 's' : ''}`,
-    });
-  }
-  const goals = state.importedData.healthGoals || [];
-  if (includeInsightCards && goals.length > 0) {
-    areas.push({ label: 'Health Goals', detail: `${goals.length} goal${goals.length !== 1 ? 's' : ''}` });
-  }
-  const lens = state.importedData.interpretiveLens || '';
-  if (lens.trim()) areas.push({ label: 'Interpretive Lens', detail: 'set' });
-  const contextNotes = state.importedData.contextNotes || '';
-  if (includeInsightCards && contextNotes.trim()) {
-    areas.push({ label: 'Context Notes', detail: 'set' });
-  }
-  const cycle = state.importedData.menstrualCycle;
-  if (includeInsightCards && cycle && state.profileSex === 'female') {
-    areas.push({ label: 'Menstrual Cycle', detail: `${cycle.cycleLength || 28}-day` });
-  }
-  const supplements = state.importedData.supplements || [];
-  if (includeSupplementsMeds && supplements.length > 0) {
-    const currentCount = getCurrentSupplements(supplements).length;
-    areas.push({
-      label: 'Supplements',
-      detail: `${currentCount} current${supplements.length > currentCount ? ` · ${supplements.length - currentCount} history` : ''}`,
-    });
-  }
-  const notes = state.importedData.notes || [];
-  if (includeInsightCards && notes.length > 0) {
-    areas.push({ label: 'User Notes', detail: `${notes.length} note${notes.length !== 1 ? 's' : ''}` });
-  }
-  const flags = getAllFlaggedMarkers(data);
-  if (isLabMarkersContextEnabled() && flags.length > 0) {
-    areas.push({ label: 'Flagged Results', detail: `${flags.length} flagged` });
+  const critical = String(context).match(/^\[critical\]\s*\nFlagged markers[^:]*:\s*([^\n]+)\n\[\/critical\]/m)?.[1];
+  if (critical) {
+    const count = critical.split(',').filter(Boolean).length;
+    areas.push({ label: 'Flagged Results', detail: `${count} flagged` });
   }
   return areas;
 }

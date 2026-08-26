@@ -3,13 +3,20 @@
 
 import { state } from './state.js';
 import { isNutritionContextEnabled } from './lab-context-settings.js';
-import { buildNutritionSummaryContext } from './nutrition-summary.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
-import { hydrateNutritionSummary } from './nutrition-store.js';
 
 export { isNutritionContextEnabled, setNutritionContextEnabled } from './lab-context-settings.js';
-export { hydrateNutritionSummary };
+
+/** @param {any} [summary] */
+export function doesNutritionContextOverrideTypicalMeals(summary = state.nutritionSummary) {
+  return summary?.totalMeals > 0 && isNutritionContextEnabled();
+}
+
+export async function hydrateNutritionSummary(...args) {
+  const store = await import('./nutrition-store.js');
+  return store.hydrateNutritionSummary(...args);
+}
 
 const STYLESHEET_URL = new URL('../css/nutrition.css', import.meta.url).href;
 let stylesheetPromise = null;
@@ -123,24 +130,26 @@ export async function openNutritionModule(navigate = null) {
 export function buildNutritionContext(importedData = state, { ignoreContextToggles = false } = {}) {
   if (!ignoreContextToggles && !isNutritionContextEnabled()) return '';
   const summary = importedData?.nutritionSummary;
-  return summary?.contextText || buildNutritionSummaryContext(summary);
+  return summary?.contextText || '';
 }
 
 export function renderNutritionDietExtension(actionAttributes) {
   const summary = state.nutritionSummary;
   const period = summary?.windows?.d7;
-  const lastMeal = period?.timing?.averageLastMealLocalTime || '';
-  const average = period?.dailyAverages || {};
-  const logged = Number(period?.loggedDays || 0);
-  const tracked = [
-    Number.isFinite(Number(average.energyKcal)) && `${Math.round(Number(average.energyKcal)).toLocaleString()} kcal`,
-    Number.isFinite(Number(average.proteinG)) && `${Number(average.proteinG).toLocaleString(undefined, { maximumFractionDigits: 1 })} g protein`,
-    Number.isFinite(Number(average.fluidMl)) && `${Math.round(Number(average.fluidMl)).toLocaleString()} mL drinks`,
-  ].filter(Boolean).join(' · ');
-  const detail = period?.meals
-    ? `${tracked || `${period.meals} logged meal${period.meals === 1 ? '' : 's'}`} · ${logged}/7 days coverage${lastMeal ? ` · last meal avg ${lastMeal}` : ''}`
-    : 'Add variable meals and photo estimates';
-  return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition')}><span class="diet-nutrition-extension-title">Meals &amp; Nutrition</span><span>${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
+  const logged = period?.loggedDays || 0;
+  const foodMeals = period?.foodMeals ?? period?.meals ?? 0;
+  const hasDetailedMeals = summary?.totalMeals > 0;
+  const overridesTypicalMeals = doesNutritionContextOverrideTypicalMeals(summary);
+  const title = overridesTypicalMeals ? 'Detailed meal log active' : 'Meals & Nutrition';
+  let detail = 'Add variable meals and photo estimates';
+  if (hasDetailedMeals && !overridesTypicalMeals) {
+    detail = 'AI source off · Typical meals active';
+  } else if (period?.meals) {
+    detail = `Replaces Typical meals · ${foodMeals} logged meal${foodMeals === 1 ? '' : 's'} · ${logged}/7 days`;
+  } else if (overridesTypicalMeals) {
+    detail = 'Replaces Typical meals · no entries in 7 days';
+  }
+  return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition')}><span class="diet-nutrition-extension-title">${title}</span><span>${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
 }
 
 export function renderNutritionCircadianExtension(actionAttributes) {

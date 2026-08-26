@@ -2,16 +2,15 @@
 // nutrition-targets.js — profile-scoped nutrition goals and weight-aware protein math.
 
 import { state } from './state.js';
+import { NUTRITION_KEYS } from './nutrition-summary.js';
 import { weightToKilograms } from './wearables-formatters.js';
 
-export const NUTRITION_WIDGET_NUTRIENTS = Object.freeze([
-  'proteinG', 'carbohydrateG', 'fatG', 'fiberG',
-  'fluidMl', 'plainWaterMl',
-  'sugarG', 'sodiumMg', 'potassiumMg', 'calciumMg', 'magnesiumMg', 'ironMg',
-]);
+export const NUTRITION_WIDGET_NUTRIENTS = Object.freeze(
+  NUTRITION_KEYS.filter(key => key !== 'energyKcal')
+);
 
 export const DEFAULT_NUTRITION_WIDGET_NUTRIENTS = Object.freeze([
-  'proteinG', 'fatG', 'fiberG', 'fluidMl',
+  'proteinG', 'carbohydrateG', 'fatG', 'fiberG',
 ]);
 
 export const DEFAULT_NUTRITION_TARGETS = Object.freeze({
@@ -43,7 +42,7 @@ function boundedNumber(value, fallback, min, max) {
 function normalizedWidgetNutrients(value) {
   if (!Array.isArray(value)) return [...DEFAULT_NUTRITION_WIDGET_NUTRIENTS];
   const allowed = new Set(NUTRITION_WIDGET_NUTRIENTS);
-  return [...new Set(value.map(String).filter(id => allowed.has(id)))].slice(0, 4);
+  return [...new Set(value.map(String).filter(id => allowed.has(id)))];
 }
 
 export function normalizeNutritionTargets(value = {}) {

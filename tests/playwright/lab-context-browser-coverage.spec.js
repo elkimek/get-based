@@ -419,7 +419,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       const editedCollectionContextBlock = contextAfterFastingEdit.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
       const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
         context.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
-      const summary = labContext.getContextSummary();
+      const summary = labContext.getContextSummary(context);
       outcomes.groupWearableAndGeneticsTogglesAreApplied = groupDisabled && groupSettingSyncedOff && groupEnabled && groupDefaultsOnInOtherProfile && groupScopedToProfile && groupProfileSettingControls && labMarkersOff && labMarkersOn && wearableOff && wearableOn && bodyContextSynced && supplementsIndependentFromInsightCards && supplementsMedsToggleOff && lightContextOff && lightContextOn && geneticsInventoryOff && geneticsSummaryOff && geneticsPriorityOff && geneticsInventoryOn;
       outcomes.geneticsInventoryToggleControlsNormalSnpContext =
         !contextWithoutGeneticsInventory.includes('Imported SNP inventory for lookup')
@@ -447,8 +447,12 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && biologyContextCalls.some(call => call.ignoreContextToggles === true);
       outcomes.contextSummaryCoversLabMedicalAndNotes =
         summary.some(area => area.label === 'Lab values' && area.detail.includes('2 markers'))
-        && summary.some(area => area.label === 'Medical History' && area.detail.includes('condition'))
-        && summary.some(area => area.label === 'Context Notes');
+        && summary.some(area => area.label === 'Medical History / Diagnoses')
+        && summary.some(area => area.label === 'Context Notes')
+        && summary.some(area => area.label === 'Genome')
+        && summary.some(area => area.label === 'Wearables')
+        && summary.some(area => area.label === 'Light & Circadian')
+        && summary.some(area => area.label === 'Light & Sun');
     } finally {
       state.currentProfile = original.currentProfile;
       state.importedData = original.importedData;

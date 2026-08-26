@@ -602,7 +602,7 @@ export async function hydrateNutritionSummary(profileId = state.currentProfile) 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const cached = await getLocalNutritionSummary(profileId);
-      if (isUsableNutritionSummary(cached)) fallback = cached;
+      if (cached?.version === NUTRITION_SUMMARY_VERSION && isUsableNutritionSummary(cached)) fallback = cached;
       await reconcileNutritionMealsFromProfileData(profileId);
       if (state.currentProfile !== profileId) return null;
       if (cached?.version === NUTRITION_SUMMARY_VERSION && Number(cached?.wearableRevision || 0) === wearableRevision) {

@@ -38,28 +38,6 @@ export const MEAL_TYPES = Object.freeze([
   ['breakfast', 'Breakfast'], ['brunch', 'Brunch'], ['lunch', 'Lunch'],
   ['dinner', 'Dinner'], ['snack', 'Snack'], ['drink', 'Drink'], ['other', 'Other'],
 ]);
-/** @type {ReadonlyArray<[string, string, string, string, string]>} */
-const DASHBOARD_GOAL_FIELDS = Object.freeze([
-  ['proteinG', 'Protein', 'g', 'proteinG', 'goal'],
-  ['carbohydrateG', 'Carbohydrate', 'g', 'carbohydrateG', 'goal'],
-  ['fatG', 'Fat', 'g', 'fatG', 'goal'],
-  ['fiberG', 'Fiber', 'g', 'fiberG', 'minimum'],
-  ['fluidMl', 'Logged drinks', 'mL', 'fluidMl', 'fluid'],
-  ['plainWaterMl', 'Plain water', 'mL', '', 'observe'],
-  ['sugarG', 'Sugar guide', 'g', 'sugarG', 'limit'],
-  ['sodiumMg', 'Sodium guide', 'mg', 'sodiumMg', 'limit'],
-  ['potassiumMg', 'Potassium', 'mg', '', 'observe'],
-  ['calciumMg', 'Calcium', 'mg', '', 'observe'],
-  ['magnesiumMg', 'Magnesium', 'mg', '', 'observe'],
-  ['ironMg', 'Iron', 'mg', '', 'observe'],
-]);
-/** @type {ReadonlyArray<[string, ReadonlyArray<[string, string]>]>} */
-const WIDGET_NUTRIENT_OPTIONS = Object.freeze([
-  ['Core', [['proteinG', 'Protein'], ['carbohydrateG', 'Carbohydrate'], ['fatG', 'Fat'], ['fiberG', 'Fiber']]],
-  ['Drinks', [['fluidMl', 'All logged drinks'], ['plainWaterMl', 'Plain water only']]],
-  ['Optional guides', [['sugarG', 'Sugar'], ['sodiumMg', 'Sodium']]],
-  ['Micronutrients', [['potassiumMg', 'Potassium'], ['calciumMg', 'Calcium'], ['magnesiumMg', 'Magnesium'], ['ironMg', 'Iron']]],
-]);
 const NUTRIENT_DETAILS = Object.freeze([
   ['energyKcal', 'Energy', 'kcal'], ['proteinG', 'Protein', 'g'], ['carbohydrateG', 'Carbohydrate', 'g'],
   ['fatG', 'Fat', 'g'], ['fiberG', 'Fiber', 'g'], ['sugarG', 'Sugar', 'g'], ['addedSugarG', 'Added sugar', 'g'],
@@ -73,6 +51,34 @@ const NUTRIENT_DETAILS = Object.freeze([
   ['seleniumMcg', 'Selenium', 'mcg'], ['cholesterolMg', 'Cholesterol', 'mg'], ['omega3G', 'Omega-3', 'g'],
   ['phosphorusMg', 'Phosphorus', 'mg'], ['copperMg', 'Copper', 'mg'], ['manganeseMg', 'Manganese', 'mg'],
   ['waterG', 'Water content', 'g'], ['fluidMl', 'Beverage volume', 'mL'], ['plainWaterMl', 'Plain water', 'mL'], ['caffeineMg', 'Caffeine', 'mg'], ['alcoholG', 'Alcohol', 'g'],
+]);
+/** @type {Map<string, [string, string, string]>} */
+const WIDGET_TARGETS = new Map([
+  ['proteinG', ['proteinG', 'goal', 'Protein']],
+  ['carbohydrateG', ['carbohydrateG', 'goal', 'Carbohydrate']],
+  ['fatG', ['fatG', 'goal', 'Fat']],
+  ['fiberG', ['fiberG', 'minimum', 'Fiber']],
+  ['fluidMl', ['fluidMl', 'fluid', 'Logged drinks']],
+  ['sugarG', ['sugarG', 'limit', 'Sugar guide']],
+  ['sodiumMg', ['sodiumMg', 'limit', 'Sodium guide']],
+]);
+/** @type {ReadonlyArray<[string, string, string, string, string]>} */
+const DASHBOARD_GOAL_FIELDS = Object.freeze(NUTRIENT_DETAILS
+  .filter(([key]) => key !== 'energyKcal')
+  .map(([key, label, unit]) => {
+    const [targetKey = '', kind = 'observe', widgetLabel = label] = WIDGET_TARGETS.get(key) || [];
+    return /** @type {[string, string, string, string, string]} */ (
+      [key, widgetLabel, unit, targetKey, kind]
+    );
+  }));
+const NUTRIENT_DETAIL_BY_KEY = new Map(NUTRIENT_DETAILS.map(field => [field[0], field]));
+/** @type {ReadonlyArray<[string, ReadonlyArray<string>]>} */
+const WIDGET_NUTRIENT_GROUPS = Object.freeze([
+  ['Core', ['proteinG', 'carbohydrateG', 'fatG', 'fiberG']],
+  ['Drinks', ['fluidMl', 'plainWaterMl', 'waterG', 'caffeineMg', 'alcoholG']],
+  ['Fats and sugars', ['sugarG', 'addedSugarG', 'saturatedFatG', 'transFatG', 'cholesterolMg', 'omega3G']],
+  ['Minerals', ['sodiumMg', 'potassiumMg', 'calciumMg', 'magnesiumMg', 'ironMg', 'zincMg', 'seleniumMcg', 'phosphorusMg', 'copperMg', 'manganeseMg']],
+  ['Vitamins and related', ['vitaminAMcgRae', 'vitaminCMg', 'vitaminDMcg', 'vitaminEMg', 'vitaminKMcg', 'thiaminMg', 'riboflavinMg', 'niacinMg', 'vitaminB6Mg', 'folateMcgDfe', 'vitaminB12Mcg', 'cholineMg']],
 ]);
 
 export function actionAttrs(action, attrs = {}) {
@@ -284,16 +290,11 @@ export function renderNutritionWidget() {
   const targets = resolveNutritionTargets();
   const calorieAverage = period?.dailyAverages?.energyKcal;
   const selectedNutrients = new Set(targets.widgetNutrients || []);
-  const selectedGoalRows = DASHBOARD_GOAL_FIELDS.filter(([key]) => selectedNutrients.has(key));
-  const visibleGoalRows = [
-    ...selectedGoalRows.filter(([key]) => key === 'proteinG'),
-    ...selectedGoalRows.filter(([key]) => key === 'fluidMl'),
-    ...selectedGoalRows.filter(([key]) => !['proteinG', 'fluidMl'].includes(key)),
-  ].slice(0, 4);
+  const visibleGoalRows = DASHBOARD_GOAL_FIELDS.filter(([key]) => selectedNutrients.has(key));
   return `<div class="nutrition-widget">
     <div class="nutrition-widget-actions-row"><div class="nutrition-widget-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
     ${hasMeals && !targets.configured ? `<div class="nutrition-widget-starter-note"><span>Using starter guides</span><button type="button" ${actionAttrs('open-targets')}>Review and personalize</button></div>` : ''}
-    ${hasMeals ? `<div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-protein-source"><strong>${escapeHTML(targets.proteinBasisLabel)} protein guide</strong><span>${escapeHTML(proteinTargetSource(targets))}</span></div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Daily averages</strong></div>${visibleGoalRows.length ? visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('') : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day averages.</p></div></div>'}
+    ${hasMeals ? `<div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-protein-source"><strong>${escapeHTML(targets.proteinBasisLabel)} protein guide</strong><span>${escapeHTML(proteinTargetSource(targets))}</span></div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Daily averages</strong><span>${visibleGoalRows.length} shown</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day averages.</p></div></div>'}
   </div>`;
 }
 
@@ -307,8 +308,10 @@ export function renderNutritionFuelWidget() {
 
 function renderWidgetNutrientOptions(targets) {
   const selected = new Set(targets.widgetNutrients || []);
-  const atLimit = selected.size >= 4;
-  return WIDGET_NUTRIENT_OPTIONS.map(([group, options]) => `<fieldset class="nutrition-widget-metric-group"><legend>${escapeHTML(group)}</legend><div>${options.map(([id, label]) => `<label class="nutrition-widget-metric-option"><input type="checkbox" value="${escapeAttr(id)}" data-nutrition-widget-metric${selected.has(id) ? ' checked' : ''}${atLimit && !selected.has(id) ? ' disabled' : ''}><span>${escapeHTML(label)}</span></label>`).join('')}</div></fieldset>`).join('');
+  return WIDGET_NUTRIENT_GROUPS.map(([group, nutrientIds]) => `<fieldset class="nutrition-widget-metric-group"><legend>${escapeHTML(group)}</legend><div>${nutrientIds.map(id => {
+    const label = NUTRIENT_DETAIL_BY_KEY.get(id)?.[1] || id;
+    return `<label class="nutrition-widget-metric-option"><input type="checkbox" value="${escapeAttr(id)}" data-nutrition-widget-metric${selected.has(id) ? ' checked' : ''}><span>${escapeHTML(label)}</span></label>`;
+  }).join('')}</div></fieldset>`).join('');
 }
 
 export function renderNutritionCustomizeModal() {
@@ -316,7 +319,7 @@ export function renderNutritionCustomizeModal() {
   const resolved = resolveNutritionTargets();
   const fixed = targets.proteinBasis === 'fixed';
   return `<button type="button" class="modal-close" aria-label="Close nutrition customization" ${actionAttrs('close')}>&times;</button>
-    <div class="nutrition-modal-head"><div><h3>Nutrition setup</h3><p>Set daily guides and choose up to four nutrients for your widget.</p></div></div>
+    <div class="nutrition-modal-head"><div><h3>Nutrition setup</h3><p>Set daily guides and choose the nutrients you want in your widget.</p></div></div>
     <section class="nutrition-target-settings nutrition-target-settings-standalone" id="nutrition-target-settings" tabindex="-1">
       <div class="nutrition-target-settings-head"><h4>Daily targets</h4><span class="nutrition-target-weight">${resolved.weight ? `${escapeHTML(formatNumber(resolved.weight.kg, 1))} kg · ${escapeHTML(resolved.weight.source)}` : 'No weight measurement yet'}</span></div>
       ${targets.configured ? '' : '<div class="nutrition-target-setup-state">Starter guides — review and save to make them personal.</div>'}
@@ -333,7 +336,7 @@ export function renderNutritionCustomizeModal() {
       <div class="nutrition-target-note"><span id="nutrition-target-protein-preview">Protein guide: ${escapeHTML(formatNumber(resolved.proteinG, 1))} g/day · ${escapeHTML(proteinTargetSource(resolved))}</span></div>
       <details class="nutrition-target-optional"><summary>Optional sugar and sodium guides</summary><div class="nutrition-target-form nutrition-target-optional-form"><label class="nutrition-field"><span>Sugar <small>g</small></span><input id="nutrition-target-sugar" type="number" min="0" max="500" step="1" value="${escapeAttr(String(targets.sugarG))}" required></label><label class="nutrition-field"><span>Sodium <small>mg</small></span><input id="nutrition-target-sodium" type="number" min="0" max="10000" step="10" value="${escapeAttr(String(targets.sodiumMg))}" required></label><p>Optional references. Meal-photo estimates may not reliably separate total, added, and free sugar.</p></div></details>
       <details class="nutrition-target-about"><summary>About these guides</summary><p>Targets are planning guides, not medical recommendations. Meal-photo values are estimates. Logged drinks measure beverage volume, not net hydration or water from food.</p></details>
-      <div class="nutrition-widget-metric-settings"><div class="nutrition-widget-metric-settings-head"><strong>Widget nutrients</strong><span id="nutrition-widget-metric-count" role="status" aria-live="polite">${targets.widgetNutrients.length} of 4 selected</span></div><div class="nutrition-widget-metric-groups">${renderWidgetNutrientOptions(targets)}</div></div>
+      <div class="nutrition-widget-metric-settings"><div class="nutrition-widget-metric-settings-head"><strong>Widget nutrients</strong><span id="nutrition-widget-metric-count" role="status" aria-live="polite">${targets.widgetNutrients.length} selected</span></div><div class="nutrition-widget-metric-groups">${renderWidgetNutrientOptions(targets)}</div></div>
       <div class="nutrition-target-actions"><p id="nutrition-target-status" role="status" aria-live="polite"></p><button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-targets')}>Save nutrition setup</button></div>
     </section>`;
 }

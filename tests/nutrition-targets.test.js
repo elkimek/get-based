@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_NUTRITION_WIDGET_NUTRIENTS,
+  NUTRITION_WIDGET_NUTRIENTS,
   getNutritionTargets,
   normalizeNutritionTargets,
   resolveNutritionTargets,
@@ -56,18 +57,21 @@ describe('nutrition targets', () => {
     expect(resolveNutritionTargets({ nutritionTargets: normalized })).toMatchObject({ proteinG: 120, proteinUsesWeight: false });
   });
 
-  it('defaults to core macros and drinks while keeping sugar, sodium, and micronutrients opt-in', () => {
+  it('defaults to the four core macros while allowing every tracked nutrient as an opt-in', () => {
     const targets = getNutritionTargets({});
     expect(targets.fluidMl).toBe(2000);
     expect(targets.configured).toBe(false);
     expect(targets.widgetNutrients).toEqual([...DEFAULT_NUTRITION_WIDGET_NUTRIENTS]);
-    expect(targets.widgetNutrients).toContain('fluidMl');
+    expect(targets.widgetNutrients).toContain('carbohydrateG');
+    expect(targets.widgetNutrients).not.toContain('fluidMl');
     expect(targets.widgetNutrients).not.toContain('sugarG');
     expect(targets.widgetNutrients).not.toContain('sodiumMg');
+    expect(NUTRITION_WIDGET_NUTRIENTS).toContain('vitaminDMcg');
+    expect(NUTRITION_WIDGET_NUTRIENTS).not.toContain('energyKcal');
     expect(normalizeNutritionTargets({ widgetNutrients: ['proteinG', 'magnesiumMg', 'bogus', 'magnesiumMg'] }).widgetNutrients)
       .toEqual(['proteinG', 'magnesiumMg']);
     expect(normalizeNutritionTargets({ widgetNutrients: ['proteinG', 'fatG', 'fiberG', 'fluidMl', 'sugarG', 'magnesiumMg'] }).widgetNutrients)
-      .toEqual(['proteinG', 'fatG', 'fiberG', 'fluidMl']);
+      .toEqual(['proteinG', 'fatG', 'fiberG', 'fluidMl', 'sugarG', 'magnesiumMg']);
     expect(normalizeNutritionTargets({ configured: true }).configured).toBe(true);
   });
 });

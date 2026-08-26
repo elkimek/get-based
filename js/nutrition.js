@@ -736,7 +736,7 @@ function handleChange(event) {
     void updateFoodCompositionMatch(Number(target.getAttribute('data-nutrition-food-match')), Number(target.value) || 0);
   }
   else if (target instanceof HTMLSelectElement && target.id === 'nutrition-target-protein-basis') updateNutritionTargetControls();
-  else if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-widget-metric')) updateNutritionWidgetMetricControls(target);
+  else if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-widget-metric')) updateNutritionWidgetMetricControls();
   else if (target instanceof HTMLInputElement && target.name === 'nutrition-fluid-kind') updateFluidLogControls();
   else if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-component-grams')) updateComponentGrams(Number(target.getAttribute('data-nutrition-component-grams')), target.value);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeNutritionSummary } from '../js/nutrition-summary.js';
+import { computeNutritionSummary, NUTRITION_CONTEXT_CHAR_LIMIT } from '../js/nutrition-summary.js';
 
 function meal(eatenAt, energyKcal, proteinG, reviewed = true) {
   return { eatenAt, reviewed, nutrients: { energyKcal, proteinG } };
@@ -33,7 +33,7 @@ describe('nutrition rolling summaries', () => {
       { ...meal('2026-08-22T11:00:00.000Z', 600, 30), localDate: '2026-08-22', localTimeMinutes: 780, mealType: 'lunch', source: { kind: 'manual' } },
     ], { now: new Date('2026-08-23T12:00:00.000Z') });
 
-    expect(summary.version).toBe(12);
+    expect(summary.version).toBe(14);
     expect(summary.windows.d7.timing).toMatchObject({
       mealsWithTiming: 3,
       daysWithTiming: 2,
@@ -45,8 +45,10 @@ describe('nutrition rolling summaries', () => {
       eatingWindowDays: 1,
     });
     expect(summary.windows.d7.timing).not.toHaveProperty('meals');
-    expect(summary.windows.d7.timing).not.toHaveProperty('occasionCounts');
+    expect(summary.windows.d7.timing.occasionCounts).toEqual({ breakfast: 1, dinner: 1, lunch: 1 });
     expect(summary.windows.d7.timing).not.toHaveProperty('sourceCounts');
+    expect(summary.contextText).toContain('occasions: breakfast 1, dinner 1, lunch 1');
+    expect(summary.contextText).toContain('Never infer skipped meals, under-eating');
   });
 
   it('does not treat an unknown nutrient on another logged meal or day as zero', () => {
@@ -160,6 +162,27 @@ describe('nutrition rolling summaries', () => {
     expect(summary.contextText).toContain('not measured Randle-cycle activity');
     expect(summary.windows.d7.fuelResponses).toMatchObject({ checkIns: 1, minimum: 6, remaining: 5, ready: false });
     expect(summary.contextText).not.toContain('satiety');
+  });
+
+  it('keeps chat context bounded and aggregate-only even when meals contain private media and detail', () => {
+    const privateMeal = {
+      ...meal('2026-08-23T12:00:00.000Z', 720, 38),
+      localDate: '2026-08-23',
+      localTimeMinutes: 720,
+      mealType: 'lunch',
+      name: 'PRIVATE_MEAL_NAME',
+      note: 'PRIVATE_MEAL_NOTE',
+      components: [{ name: 'PRIVATE_INGREDIENT', amount: 100, unit: 'g' }],
+      images: [{ fileName: 'PRIVATE_IMAGE.jpg', dataUrl: 'data:image/jpeg;base64,PRIVATE_BYTES' }],
+      source: { kind: 'ai-photo-estimate', rawText: 'PRIVATE_SOURCE_TEXT' },
+    };
+    const summary = computeNutritionSummary([privateMeal], { now: new Date('2026-08-23T13:00:00.000Z') });
+
+    expect(summary.contextText).toContain('[section:nutrition]');
+    expect(summary.contextText.length).toBeLessThanOrEqual(NUTRITION_CONTEXT_CHAR_LIMIT);
+    for (const privateValue of ['PRIVATE_MEAL_NAME', 'PRIVATE_MEAL_NOTE', 'PRIVATE_INGREDIENT', 'PRIVATE_IMAGE.jpg', 'PRIVATE_BYTES', 'PRIVATE_SOURCE_TEXT', 'data:image']) {
+      expect(summary.contextText).not.toContain(privateValue);
+    }
   });
 
 });
