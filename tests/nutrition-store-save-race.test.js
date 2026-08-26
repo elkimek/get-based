@@ -43,9 +43,18 @@ describe('nutrition save and hydration ordering', () => {
 
     let signalPersistStarted;
     const persistStarted = new Promise(resolve => { signalPersistStarted = resolve; });
-    persistenceGate.handler = async () => {
-      signalPersistStarted();
-      await new Promise(resolve => { persistenceGate.release = resolve; });
+    const persistedNutrition = [];
+    let persistCalls = 0;
+    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+      persistCalls += 1;
+      persistedNutrition.push(JSON.parse(JSON.stringify({
+        nutritionMeals: importedData.nutritionMeals,
+        _deleted: importedData._deleted,
+      })));
+      if (persistCalls === 1) {
+        signalPersistStarted();
+        await new Promise(resolve => { persistenceGate.release = resolve; });
+      }
       return true;
     };
     const pendingSave = saveActiveProfileMeal({
@@ -60,8 +69,12 @@ describe('nutrition save and hydration ordering', () => {
     state.currentProfile = profileId;
     state.importedData = {
       entries: [],
-      nutritionMeals: [],
-      _deleted: { supplements: ['keep-this-delete'], nutritionMeals: ['meal-in-flight'] },
+      nutritionMeals: [
+        { id: 'meal-in-flight', name: 'Newer remote lunch', eatenAt: '2026-08-26T12:00:00.000Z', updatedAt: '2099-01-01T00:00:00.000Z' },
+        { id: 'remote-only', name: 'Remote-only snack', eatenAt: '2026-08-26T15:00:00.000Z', updatedAt: '2099-01-01T00:00:00.000Z' },
+      ],
+      _deleted: { supplements: ['keep-this-delete'], nutritionMeals: ['remote-deleted'] },
+      _deletedAt: { nutritionMeals: { 'remote-deleted': Date.now() + 10000 } },
     };
     let hydrationSettled = false;
     const pendingHydration = hydrateNutritionSummary(profileId).then(summary => {
@@ -72,15 +85,24 @@ describe('nutrition save and hydration ordering', () => {
     expect(hydrationSettled).toBe(false);
 
     persistenceGate.release?.();
-    await expect(pendingSave).resolves.toMatchObject({ id: 'meal-in-flight' });
-    await expect(pendingHydration).resolves.toMatchObject({ totalMeals: 1 });
+    await expect(pendingSave).resolves.toMatchObject({ id: 'meal-in-flight', name: 'Newer remote lunch' });
+    await expect(pendingHydration).resolves.toMatchObject({ totalMeals: 2 });
     await expect(getNutritionMeal(profileId, 'meal-in-flight')).resolves.toMatchObject({
-      name: 'In-flight lunch',
+      name: 'Newer remote lunch',
     });
-    expect(state.importedData.nutritionMeals).toEqual([
-      expect.objectContaining({ id: 'meal-in-flight', name: 'In-flight lunch' }),
-    ]);
-    expect(state.importedData._deleted).toEqual({ supplements: ['keep-this-delete'] });
+    await expect(getNutritionMeal(profileId, 'remote-only')).resolves.toMatchObject({ name: 'Remote-only snack' });
+    expect(state.importedData.nutritionMeals).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'meal-in-flight', name: 'Newer remote lunch' }),
+      expect.objectContaining({ id: 'remote-only', name: 'Remote-only snack' }),
+    ]));
+    expect(state.importedData._deleted).toEqual({ supplements: ['keep-this-delete'], nutritionMeals: ['remote-deleted'] });
+    expect(persistedNutrition.at(-1)).toMatchObject({
+      nutritionMeals: expect.arrayContaining([
+        expect.objectContaining({ id: 'meal-in-flight', name: 'Newer remote lunch' }),
+        expect.objectContaining({ id: 'remote-only' }),
+      ]),
+      _deleted: { supplements: ['keep-this-delete'], nutritionMeals: ['remote-deleted'] },
+    });
   });
 
   it('serializes overlapping edits so an older save cannot reassert stale meal data', async () => {
@@ -177,10 +199,14 @@ describe('nutrition save and hydration ordering', () => {
 
     let signalDeletePersistStarted;
     const deletePersistStarted = new Promise(resolve => { signalDeletePersistStarted = resolve; });
+    let deletePersistCalls = 0;
     persistenceGate.handler = async (ignoredProfileId, importedData) => {
       if (importedData._deleted?.nutritionMeals?.includes('delete-during-hydration')) {
-        signalDeletePersistStarted();
-        await new Promise(resolve => { persistenceGate.release = resolve; });
+        deletePersistCalls += 1;
+        if (deletePersistCalls === 1) {
+          signalDeletePersistStarted();
+          await new Promise(resolve => { persistenceGate.release = resolve; });
+        }
       }
       return true;
     };
@@ -192,7 +218,10 @@ describe('nutrition save and hydration ordering', () => {
     state.currentProfile = profileId;
     state.importedData = {
       entries: [],
-      nutritionMeals: [staleMeal],
+      nutritionMeals: [
+        staleMeal,
+        { id: 'remote-only-during-delete', name: 'Remote breakfast', eatenAt: '2026-08-26T07:00:00.000Z', updatedAt: '2099-01-01T00:00:00.000Z' },
+      ],
       _deleted: { supplements: ['keep-this-delete'] },
     };
     let hydrationSettled = false;
@@ -205,9 +234,12 @@ describe('nutrition save and hydration ordering', () => {
 
     persistenceGate.release?.();
     await expect(pendingDelete).resolves.toBeUndefined();
-    await expect(pendingHydration).resolves.toMatchObject({ totalMeals: 0 });
+    await expect(pendingHydration).resolves.toMatchObject({ totalMeals: 1 });
     await expect(getNutritionMeal(profileId, 'delete-during-hydration')).resolves.toBeNull();
-    expect(state.importedData.nutritionMeals).toEqual([]);
+    await expect(getNutritionMeal(profileId, 'remote-only-during-delete')).resolves.toMatchObject({ name: 'Remote breakfast' });
+    expect(state.importedData.nutritionMeals).toEqual([
+      expect.objectContaining({ id: 'remote-only-during-delete' }),
+    ]);
     expect(state.importedData._deleted?.nutritionMeals).toContain('delete-during-hydration');
     expect(state.importedData._deleted?.supplements).toEqual(['keep-this-delete']);
   });

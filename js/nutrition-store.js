@@ -11,6 +11,7 @@ import { computeNutritionSummary, NUTRITION_SUMMARY_VERSION } from './nutrition-
 import { getDailyRange } from './wearables-store.js';
 import { clearTombstone, recordTombstone } from './data-merge.js';
 import { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
+import { mergeNutritionOperationSurface } from './nutrition-operation-merge.js';
 
 export { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
 
@@ -503,26 +504,6 @@ function canonicalNutritionMeals(meals) {
     });
 }
 
-function alignActiveNutritionSurface(profileId, source) {
-  const target = state.importedData;
-  if (state.currentProfile !== profileId || !target || target === source) return;
-  target.nutritionMeals = canonicalNutritionMeals(source.nutritionMeals);
-  for (const key of TOMBSTONE_KEYS) {
-    const from = source[key];
-    const current = target[key];
-    const hasNutrition = from && typeof from === 'object' && Object.hasOwn(from, 'nutritionMeals');
-    if (hasNutrition) {
-      const value = from.nutritionMeals;
-      target[key] = { ...(current && typeof current === 'object' ? current : {}), nutritionMeals: Array.isArray(value) ? [...value] : value && typeof value === 'object' ? { ...value } : value };
-    } else if (current && typeof current === 'object' && Object.hasOwn(current, 'nutritionMeals')) {
-      const remaining = { ...current };
-      delete remaining.nutritionMeals;
-      if (Object.keys(remaining).length) target[key] = remaining;
-      else delete target[key];
-    }
-  }
-}
-
 function mealSnapshot(value) {
   try { return JSON.stringify(value); } catch { return ''; }
 }
@@ -535,13 +516,30 @@ async function persistNutritionProfileData(profileId, importedData) {
   return saveImportedDataForProfile(profileId, importedData, { forceProfileScope: true });
 }
 
+async function persistAlignedNutritionProfileData(profileId, source) {
+  let candidate = source;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const active = state.currentProfile === profileId ? state.importedData : null;
+    const activeAtStart = active && active !== candidate ? active : null;
+    if (activeAtStart) {
+      candidate = mergeNutritionOperationSurface(activeAtStart, candidate);
+      candidate.nutritionMeals = canonicalNutritionMeals(candidate.nutritionMeals);
+    }
+    if (!await persistNutritionProfileData(profileId, candidate)) return null;
+    const latest = state.currentProfile === profileId ? state.importedData : null;
+    if (!latest || latest === candidate) return candidate;
+    if (latest === activeAtStart) return mergeNutritionOperationSurface(latest, candidate, { mutate: true });
+  }
+  return null;
+}
+
 /**
  * Reconcile the encrypted IDB cache with the thumbnail-only importedData
  * surface. The one-time initialization union protects meals created by an old
  * device-local-only build; after that, synced tombstones are authoritative.
  */
 export async function reconcileNutritionMealsFromProfileData(profileId = state.currentProfile) {
-  if (!profileId || state.currentProfile !== profileId) return [];
+  if (!profileId || state.currentProfile !== profileId) return { meals: [], cacheChanged: false };
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
   const localMeals = await listNutritionMeals(profileId, { limit: 10000 });
   const initialized = await readMeta(profileId, PROFILE_SYNC_INITIALIZED_META) === true;
@@ -572,8 +570,9 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
 
   const localById = new Map(localMeals.map(meal => [meal.id, meal]));
   const desiredIds = new Set(desiredMeals.map(meal => meal.id));
+  let cacheChanged = false;
   for (const localMeal of localMeals) {
-    if (!desiredIds.has(localMeal.id)) await deleteNutritionMeal(profileId, localMeal.id);
+    if (!desiredIds.has(localMeal.id)) { cacheChanged = true; await deleteNutritionMeal(profileId, localMeal.id); }
   }
   for (const meal of desiredMeals) {
     const localMeal = localById.get(meal.id);
@@ -581,11 +580,12 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
     if (!localMeal
         || mealSnapshot(localMeal) !== mealSnapshot(sanitizedLocalMeal)
         || mealSnapshot(sanitizedLocalMeal) !== mealSnapshot(meal)) {
+      cacheChanged = true;
       await putNutritionMeal(profileId, meal, { preserveUpdatedAt: true });
     }
   }
   await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
-  return desiredMeals;
+  return { meals: desiredMeals, cacheChanged };
 }
 
 async function recomputeActiveSummary(profileId, importedData = state.importedData) {
@@ -634,9 +634,9 @@ async function hydrateNutritionSummaryOperation(profileId) {
     try {
       const cached = await getLocalNutritionSummary(profileId);
       if (cached?.version === NUTRITION_SUMMARY_VERSION && isUsableNutritionSummary(cached)) fallback = cached;
-      await reconcileNutritionMealsFromProfileData(profileId);
+      const reconciliation = await reconcileNutritionMealsFromProfileData(profileId);
       if (state.currentProfile !== profileId) return null;
-      if (cached?.version === NUTRITION_SUMMARY_VERSION && Number(cached?.wearableRevision || 0) === wearableRevision) {
+      if (!reconciliation.cacheChanged && cached?.version === NUTRITION_SUMMARY_VERSION && Number(cached?.wearableRevision || 0) === wearableRevision) {
         state.nutritionSummary = cached;
         notifyNutritionSummaryChanged(profileId, cached);
         return cached;
@@ -715,11 +715,11 @@ async function saveProfileMeal(profileId, importedData, meal) {
   byId.set(saved.id, sanitizeNutritionMeal(saved));
   importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
   clearTombstone(importedData, 'nutritionMeals', saved.id);
-  let persisted = false;
+  let persistedData = null;
   try {
-    persisted = await persistNutritionProfileData(profileId, importedData);
+    persistedData = await persistAlignedNutritionProfileData(profileId, importedData);
   } catch {}
-  if (!persisted) {
+  if (!persistedData) {
     importedData.nutritionMeals = previousMeals;
     for (const [key, previous] of previousTombstoneSurfaces) {
       if (previous.had) importedData[key] = previous.value;
@@ -733,15 +733,15 @@ async function saveProfileMeal(profileId, importedData, meal) {
     }
     throw new Error('Meal could not be saved because its cross-device copy could not be persisted.');
   }
-  alignActiveNutritionSurface(profileId, importedData);
-  // Hydration may have reconciled an older profile snapshot while canonical
-  // persistence was in flight. Re-assert the committed record so save success
-  // always leaves the encrypted local cache aligned with canonical state.
-  await putNutritionMeal(profileId, saved, { preserveUpdatedAt: true });
+  // A newer synchronized edit or tombstone can win while persistence is in
+  // flight. Mirror the timestamp-resolved record, not the captured draft.
+  const committedMeal = canonicalNutritionMeals(persistedData.nutritionMeals).find(meal => meal.id === saved.id);
+  if (committedMeal) await putNutritionMeal(profileId, committedMeal, { preserveUpdatedAt: true });
+  else await deleteNutritionMeal(profileId, saved.id);
   await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
   await requestPersistentNutritionStorage();
-  await recomputeActiveSummary(profileId, importedData);
-  return saved;
+  await recomputeActiveSummary(profileId, persistedData);
+  return committedMeal || saved;
 }
 
 export function deleteActiveProfileMeal(id) {
@@ -771,8 +771,8 @@ export function deleteActiveProfileMeal(id) {
     recordTombstone(importedData, 'nutritionMeals', String(id || ''));
     importedData.nutritionMeals = canonicalNutritionMeals(importedData.nutritionMeals)
       .filter(meal => meal.id !== id);
-    const persisted = await persistNutritionProfileData(profileId, importedData);
-    if (!persisted) {
+    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData);
+    if (!persistedData) {
       importedData.nutritionMeals = previousMeals;
       for (const [key, previous] of previousTombstoneSurfaces) {
         if (previous.had) importedData[key] = previous.value;
@@ -780,9 +780,10 @@ export function deleteActiveProfileMeal(id) {
       }
       throw new Error('Meal could not be deleted because its cross-device deletion could not be saved.');
     }
-    alignActiveNutritionSurface(profileId, importedData);
     await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
-    await deleteNutritionMeal(profileId, id);
-    await recomputeActiveSummary(profileId, importedData);
+    const retainedMeal = canonicalNutritionMeals(persistedData.nutritionMeals).find(meal => meal.id === id);
+    if (retainedMeal) await putNutritionMeal(profileId, retainedMeal, { preserveUpdatedAt: true });
+    else await deleteNutritionMeal(profileId, id);
+    await recomputeActiveSummary(profileId, persistedData);
   });
 }

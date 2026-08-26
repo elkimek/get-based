@@ -569,6 +569,7 @@
     "js/nutrition-fuel-mix.js",
     "js/nutrition-history.js",
     "js/nutrition-modal-controller.js",
+    "js/nutrition-operation-merge.js",
     "js/nutrition-render.js",
     "js/nutrition-review-ui.js",
     "js/nutrition-store.js",

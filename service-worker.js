@@ -1,6 +1,5 @@
 importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
-const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname);
-let _cacheNamePromise = null;
+const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname); let _cacheNamePromise = null;
 async function resolveCacheName() {
   const base = `labcharts-v${self.APP_VERSION}`;
   if (IS_PROD) return base;
@@ -564,6 +563,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/nutrition-fuel-mix.js',
   '/js/nutrition-summary.js',
   '/js/nutrition-history.js',
+  '/js/nutrition-operation-merge.js',
   '/js/nutrition-context.js',
   '/js/nutrition-ai-settings.js',
   '/js/nutrition-analysis.js',

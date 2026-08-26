@@ -31,7 +31,8 @@
     "mealsNutritionFoodCompositionOutputDecodedBytes": 4883139,
     "mealsNutritionFoodCompositionRuntimeDataBytes": 1066347,
     "mealsNutritionHistoryOutputDecodedBytes": 4907565,
-    "mealsNutritionHydrationSerializationOutputDecodedBytes": 4908141
+    "mealsNutritionHydrationSerializationOutputDecodedBytes": 4908141,
+    "mealsNutritionSyncRebaseOutputDecodedBytes": 4908949
   },
   "referenceCommit": "807732a8",
   "measuredAt": "2026-08-26"
