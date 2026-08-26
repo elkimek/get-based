@@ -84,7 +84,7 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
       import('/js/profile-storage-cleanup.js'),
     ]);
     const outcomes = {};
-    const profileIds = ['keep', 'wipe', 'batch-a', 'batch-b', 'rejectme', 'lastonly'];
+    const profileIds = ['keep', 'wipe', 'batch-a', 'batch-b', 'rejectme', 'restore-active', 'lastonly'];
     const saved = {
       profilesState: state.profiles ? JSON.parse(JSON.stringify(state.profiles)) : state.profiles,
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
@@ -280,6 +280,20 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
         && pushed[0]?.profileId === 'rejectme'
         && pushed[0]?.data?.entries?.[0]?.id === 1
         && localStorage.getItem(tombKey('rejectme')) === null;
+
+      setProfiles([{ id: 'restore-active', name: 'Restore Active' }], 'restore-active');
+      state.importedData = { entries: [{ id: 'new-unsaved-edit' }] };
+      localStorage.setItem(tombKey('restore-active'), JSON.stringify({ at: Date.now(), source: 'remote' }));
+      await blobStorage.setBlob(
+        profileKey('restore-active', 'imported'),
+        JSON.stringify({ entries: [{ id: 'stale-persisted-edit' }] })
+      );
+      const restoreActive = await tombstones.rejectPendingTombstone('restore-active');
+      outcomes.rejectPendingTombstoneUsesCurrentActiveProfileData =
+        restoreActive.ok === true
+        && pushed[1]?.profileId === 'restore-active'
+        && pushed[1]?.data?.entries?.[0]?.id === 'new-unsaved-edit'
+        && localStorage.getItem(tombKey('restore-active')) === null;
     } finally {
       profileStorageCleanup.configureProfileStorageCleanupDeps(previousCleanupDeps);
       tombstones.configureSyncTombstones({

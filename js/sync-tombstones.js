@@ -311,16 +311,19 @@ export async function rejectPendingTombstone(profileId) {
     return { ok: true, skipped: true, reason: 'demo-local-only' };
   }
   if (!currentEvolu() || !_isSyncEnabled()) return { ok: false, reason: 'sync-off' };
-  const localKey = profileStorageKey(profileId, 'imported');
-  // Imported profile blobs are IDB-backed even when encryption is disabled.
-  const raw = await encryptedGetItem(localKey);
-  if (!raw) {
-    localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-    return { ok: false, reason: 'no-local-data' };
+  // Active edits can be newer than the persisted blob.
+  let data = state.importedData;
+  if (profileId !== state.currentProfile) {
+    const localKey = profileStorageKey(profileId, 'imported');
+    // Imported profile blobs are IDB-backed even when encryption is disabled.
+    const raw = await encryptedGetItem(localKey);
+    if (!raw) {
+      localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+      return { ok: false, reason: 'no-local-data' };
+    }
+    try { data = JSON.parse(raw); } catch { return { ok: false, reason: 'bad-local-json' }; }
   }
-  let data;
-  try { data = JSON.parse(raw); } catch { return { ok: false, reason: 'bad-local-json' }; }
-  if (typeof _pushProfile !== 'function') return { ok: false, reason: 'sync-off' };
+  if (!_pushProfile) return { ok: false, reason: 'sync-off' };
   const result = await _pushProfile(profileId, data, { allowTombstoneResurrection: true });
   if (!result?.ok) return { ok: false, reason: result?.reason || 'push-failed' };
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
