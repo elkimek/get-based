@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
