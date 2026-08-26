@@ -40,6 +40,13 @@ async function _importNutritionData(profileId, nutrition) {
   return restoreNutritionArchive(profileId, nutrition);
 }
 
+function _reviveImportedProfileSyncIdentity(profileId) {
+  try {
+    localStorage.removeItem(`labcharts-profile-delete-intent-${profileId}`);
+    localStorage.removeItem(`labcharts-tombstone-pending-${profileId}`);
+  } catch {}
+}
+
 async function _importChatData(profileId, chat) {
   const importedChat = normalizeChatBackup(chat);
   if (importedChat.threads.length > 0) {
@@ -568,6 +575,11 @@ async function _importDatabaseBundle(json) {
     if (!existing && bp.name) existing = profiles.find(p => p.name === bp.name);
     const importData = bp.data || {};
     if (existing) {
+      // A portable import that targets an existing identity is an explicit
+      // decision to keep that profile. Retire any durable delete intent before
+      // metadata updates queue sync, or the restored data remains blocked and
+      // the next pull can delete it again.
+      _reviveImportedProfileSyncIdentity(existing.id);
       // Merge into existing profile — update metadata from bundle
       if (!firstImportedId) firstImportedId = existing.id;
       const meta = {};
@@ -703,8 +715,7 @@ async function _importDatabaseBundle(json) {
       }
       // Save
       migrateProfileData(current);
-      const value = JSON.stringify(current);
-      await encryptedSetItem(storageKey, value);
+      await encryptedSetItem(storageKey, JSON.stringify(current));
       if (bp.chat) await _importChatData(existing.id, bp.chat);
       await _importNutritionData(existing.id, bp.nutrition);
       merged++;
@@ -722,8 +733,7 @@ async function _importDatabaseBundle(json) {
       // Write data
       const storageKey = profileStorageKey(id, 'imported');
       migrateProfileData(importData);
-      const value = JSON.stringify(importData);
-      await encryptedSetItem(storageKey, value);
+      await encryptedSetItem(storageKey, JSON.stringify(importData));
       if (bp.chat) await _importChatData(id, bp.chat);
       await _importNutritionData(id, bp.nutrition);
       created++;
